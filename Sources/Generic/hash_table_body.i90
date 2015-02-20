@@ -1,0 +1,327 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!***********************************************************************
+!***********************************************************************
+! Generic hash routines to build hash tables of any data type both for
+! values and keys (with provided comparison)
+!
+! The following types/procedures have to be defined 
+! (using the fpp is the only option for intrisic data types)
+!
+!  hash_table
+!  hash_node
+!  key_type
+!  val_type
+!
+!  The following macros would be needed for arbitrary data types. At 
+!  the moment we only need integer(ip) and integer(igp) keys so I keep
+!  >, =, <, and the mod function which is assumed to return an ip 
+!  (it would not make sense to define a hash table using a vector whose
+!  length cannot be defined using an ip).
+!  To satisfy this assumption the table size (which can be controlled
+!  using the function init_hash_table, see below) should be grater than
+!  bigger_igp / max_ip where bigger_igp is the maximum integer used and
+!  max_ip == 2**31. If bigger_ip is much bigger than max_ip another
+!  hash function is needed.
+!
+!  greater(a,b)
+!  equal(a,b)
+!  smaller(a,b)
+!  hashfun(a,b)
+!
+!
+!====================================================================
+! node functions
+
+recursive subroutine put_hash_node(list,key,val,stat)
+  class(hash_node), target, intent(inout) :: list
+  key_type                , intent(in)    :: key
+  val_type                , intent(in)    :: val
+  integer(ip)             , intent(out)   :: stat
+  class(hash_node)         , pointer       :: newel => null()
+
+  if(key>list%key) then
+     if(associated(list%child) ) then
+        ! Keep going
+        call put_hash_node(list%child,key,val,stat)
+     else
+        ! We are at the end of the list
+        ! Allocate a new child
+        allocate(list%child)
+        list%child%parent => list
+        list%child%key = list%key ! the default value
+        ! Fill the value 
+        list%key = key
+        list%val = val
+        stat = now_stored
+     end if
+  else if(key==list%key) then
+     ! Already stored
+     stat = was_stored
+     ! ! Already stored, check val
+     ! if(val==list%val) then
+     !    stat = was_stored
+     ! else
+     !    stat = bad_keyval
+     ! end if
+  else if(key<list%key) then
+     ! ! Insert an element just behind
+     !
+     ! Insert an element just after this one,
+     ! copy list keyval and store keyval in list.
+!!$     allocate(newel)
+!!$     newel%child => list%child
+!!$     newel%parent => list
+!!$     newel%key = list%key
+!!$     newel%val = list%val
+!!$     if(associated(list%child)) list%child%parent => newel
+!!$     list%child => newel
+!!$     list%key = key
+!!$     list%val = val
+!!$     stat = now_stored
+     !
+     newel => list%child        ! keep the reference to old child
+     allocate(list%child)       ! Allocate a new child
+     list%child%key = list%key  ! New child fields (copy list keyval)
+     list%child%val = list%val
+     list%child%parent => list
+     list%child%child => newel
+     list%child%child%parent => list%child ! Regenerate link
+     list%key = key             ! Store keyval in list
+     list%val = val
+     stat = now_stored
+  end if
+end subroutine put_hash_node
+
+recursive subroutine del_hash_node(list,key,stat)
+  class(hash_node), target, intent(inout) :: list
+  key_type                , intent(in)    :: key
+  integer(ip)             , intent(out)   :: stat
+  class(hash_node)         , pointer       :: tmp => null()
+
+  if(key==list%key) then
+     !if(associated(list%parent)) then ! this is not the first element
+     !   tmp => list
+     !   list%parent%child => list%child
+     !   list%child%parent => list%parent
+     !else                             ! this is the first element (copy and dealloc the second)
+     !   tmp => list%child
+     if(.not.associated(list%child)) then
+        write(*,*) 'Error in mem_db_del, not associated'
+        !$ write(*,*) 'Thread number: ',omp_get_thread_num()
+        write(*,*) key,list%key,associated(list%parent),associated(list%child)
+        if(associated(list%parent)) then
+           write(*,*) list%parent%key
+        end if
+        stat = error
+        return
+     end if
+     list%key = list%child%key
+     list%val = list%child%val
+     if(associated(list%child%child)) list%child%child%parent => list
+     tmp => list%child%child
+     deallocate(list%child)
+     list%child => tmp
+     stat = deleted
+  else if(associated(list%child)) then ! keep going
+     call del_hash_node(list%child,key,stat)
+  else
+     stat = key_not_found
+  end if
+  return
+
+end subroutine del_hash_node
+
+recursive subroutine get_hash_node(list,key,val,stat)
+  class(hash_node), intent(in)    :: list
+  key_type        , intent(in)    :: key
+  val_type        , intent(out)   :: val
+  integer(ip)     , intent(inout) :: stat
+
+  if (list%key == key) then
+     val = list%val
+     stat = key_found
+  else if(associated(list%child)) then ! keep going
+     call get_hash_node(list%child,key,val,stat)
+  else
+     stat = key_not_found
+  end if
+  return
+
+end subroutine get_hash_node
+
+recursive subroutine print_hash_node(list)
+  implicit none
+  class(hash_node), intent(inout) :: list
+  print_key_val
+  if (associated(list%child)) then ! It is not the last one.
+     call print_hash_node(list%child)
+  end if
+end subroutine print_hash_node
+
+recursive subroutine free_hash_node(list)
+  implicit none
+  class(hash_node), intent(inout) :: list
+  if (associated(list%child)) then
+     call free_hash_node(list%child)
+     deallocate(list%child)
+  end if
+  list%child => null()
+end subroutine free_hash_node
+
+
+!====================================================================
+! tbl functions
+!
+subroutine init_hash_table(tbl,tbl_len,tbl_min,tbl_max)
+  class(hash_table)    , intent(inout) :: tbl
+  integer(ip), optional, intent(in)    :: tbl_min
+  integer(ip), optional, intent(in)    :: tbl_max
+  integer(ip), optional, intent(in)    :: tbl_len
+  integer(ip) :: i
+
+  ! Define table size
+  if(present(tbl_min)) tbl%vec_min = tbl_min
+  if(present(tbl_len).and.present(tbl_max)) then
+     tbl%vec_len = min(tbl_len,(tbl_max-tbl%vec_min)/nod_size + 1)
+  else if (present(tbl_len)) then
+     tbl%vec_len = tbl_len
+  else if(present(tbl_max)) then
+     tbl%vec_len = (tbl_max-tbl%vec_min)/nod_size + 1
+  else
+     tbl%vec_len = tbl_size
+  end if
+
+  ! Allocate table
+  if (allocated(tbl%vec)) deallocate(tbl%vec)
+  !write(*,*) tbl%vec_min,tbl%vec_min+tbl%vec_len-1
+  allocate(tbl%vec(tbl%vec_min:tbl%vec_min+tbl%vec_len-1))
+
+  ! Initialize keys
+  do i=tbl%vec_min,tbl%vec_min+tbl%vec_len-1
+     tbl%vec(i)%key=int(tbl%vec_min-1,key_size)
+  end do
+  tbl%is_init = .true.
+
+end subroutine init_hash_table
+
+subroutine put_hash_table(tbl,key,val,stat)
+  class(hash_table)  , intent(inout) :: tbl
+  key_type           , intent(in)    :: key
+  val_type           , intent(in)    :: val
+  integer(ip)        , intent(out)   :: stat
+  integer(ip)                        :: hash
+
+  assert (key>=int(tbl%vec_min,key_size))
+  
+  ! mod function is always a problem if mixed integers are used.
+  ! hash = tbl%vec_min +  mod((key-tbl%vec_min),tbl%vec_len)
+  !hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
+  hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
+  assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
+!$OMP CRITICAL (hash_table_lock)
+  call tbl%vec(hash)%put(key=key,val=val,stat=stat)
+!$OMP END CRITICAL (hash_table_lock)
+
+end subroutine put_hash_table
+
+subroutine del_hash_table(tbl,key,stat)
+  class(hash_table)  , intent(inout) :: tbl
+  key_type           , intent(in)    :: key
+  integer(ip)        , intent(out)   :: stat
+  integer(ip)                        :: hash
+
+  assert (key>=int(tbl%vec_min,key_size))
+  ! mod function is always a problem if mixed integers are used.
+  !hash = tbl%vec_min + mod((key-tbl%vec_min),tbl%vec_len)
+  !hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
+  hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
+  assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
+!$OMP CRITICAL (hash_table_lock)
+  call tbl%vec(hash)%del(key=key,stat=stat)
+!$OMP END CRITICAL (hash_table_lock)
+  if (stat == error) then
+     call tbl%print
+     stop
+  end if
+
+end subroutine del_hash_table
+
+subroutine get_hash_table(tbl,key,val,stat)
+  class(hash_table)  , intent(in)    :: tbl
+  key_type           , intent(in)    :: key
+  val_type           , intent(out)   :: val
+  integer(ip)        , intent(out)   :: stat
+  integer(ip)                        :: hash
+
+  assert (key>=int(tbl%vec_min,key_size))
+  ! mod function is always a problem if mixed integers are used.
+  !hash = mod((key-tbl%vec_min),tbl%vec_len)
+  !hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
+  hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
+  assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
+  call tbl%vec(hash)%get(key=key,val=val,stat=stat)
+end subroutine get_hash_table
+
+subroutine print_hash_table(tbl)
+  class(hash_table), intent(inout) :: tbl    
+  integer(ip) :: i, low, high
+
+  low  = lbound(tbl%vec,dim=1)
+  high = ubound(tbl%vec,dim=1) 
+  if (allocated(tbl%vec)) then
+     do i=low,high
+        if(tbl%vec(i)%key>=tbl%vec_min) then
+           write(*,'(a,i3,a)') '------New list at i = ',i,'---------------'
+           call tbl%vec(i)%print
+        end if
+     end do
+  end if
+end subroutine print_hash_table
+
+subroutine free_hash_table(tbl)
+  class(hash_table), intent(inout) :: tbl    
+  integer(ip) :: i, low, high
+
+  low  = lbound(tbl%vec,dim=1)
+  high = ubound(tbl%vec,dim=1) 
+  if (allocated(tbl%vec)) then
+     do i=low,high
+        call tbl%vec(i)%free()
+     end do
+     deallocate(tbl%vec)
+  end if
+  tbl%is_init = .false.
+end subroutine free_hash_table
+
+subroutine status_hash_table(list,lunou,istat)
+  class(hash_table), intent(inout) :: list
+  integer(ip), intent(in) :: lunou,istat
+  write(lunou,'(a30,a13)') 'Last operation table status:  ',stat(istat)
+end subroutine status_hash_table
+

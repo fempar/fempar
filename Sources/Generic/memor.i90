@@ -1,0 +1,761 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!***********************************************************************
+!***********************************************************************
+! Generic (re)allocation, free and movealloc routines for arrays of any
+! data type and rank 1 to 4.
+! 
+! The following types/procedures have to be defined 
+! (using the fpp is the only option for intrisic data types)
+!
+! generic_memalloc_*   Allocating routines (the variable is assumed
+!                      unallocated/unassociated)
+! generic_rememalloc_* Reallocating routines (the variable is assumed
+!                      already allocated/associated)
+!
+! Actually both could be unified under generic_rememalloc_* without
+! assumptions on the input data (allocating it when it is not 
+! allocated/associated and reallocating it when it is). To obtain
+! this behaviour commented lines in generic_rememalloc_* have to be
+! uncommented (and generic_memalloc_* commented, of course).
+!
+! generic_memfree_*
+! 
+! generic_movealloc_*
+!
+! Only those defined are included, see code below. In turn, the following
+! variables need to be defined.
+!
+! var_type             Either integer(ip), real(rp), type(whatever), etc. 
+!
+! var_size             The size of a scalar, ip, igp, rp
+!
+! var_attr             Either allocatable or pointer
+!
+! point(a,b)           Either call move_alloc(a,b) or b => a
+!
+! bound_kind           A parameter (ip or igp as defined in types.f90)
+!
+! exception            If defined ieee modules are included and (real) 
+!                      variables are initialized to NaN. This is a useful 
+!                      feature to detect errors coming from the use of 
+!                      uninitialized vars.
+!
+!***********************************************************************
+!***********************************************************************
+! Memory allocation
+
+subroutine generic_memalloc_1(ndim1, varia, file, line, valin, lb1)
+  implicit none
+  var_type , var_attr             :: varia(:)
+  integer(bound_kind), intent(in)           :: ndim1             ! Size of the variable
+  character*(*)      , intent(in), optional :: file              ! Calling file
+  integer(ip)        , intent(in), optional :: line              ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1               ! Lower bounds
+  var_type , intent(in), optional :: valin                       ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_
+  integer(ip)                               :: istat
+
+  lb1_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if(generic_status_test(varia)) then
+     call mem_status_error(file,line)
+  else
+     allocate(varia(lb1_:lb1_+ndim1-1), stat=istat)
+     lbyts=var_size*ndim1
+     if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     call memsum(lbyts)
+#ifdef memcheck
+
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memalloc_1
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memalloc_2(ndim1, ndim2, varia, file, line, valin, lb1, lb2)
+  implicit none
+  var_type , var_attr             :: varia(:,:)
+  integer(bound_kind), intent(in)           :: ndim1,ndim2       ! Size of the variable
+  character*(*)      , intent(in), optional :: file              ! Calling file
+  integer(ip)        , intent(in), optional :: line              ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1,lb2           ! Lower bounds
+  var_type , intent(in), optional :: valin             ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_
+  integer(bound_kind)                       :: lb2_
+  integer(ip)                               :: istat
+
+  lb1_ = 1
+  lb2_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if (present(lb2)) lb2_ = lb2
+  if(generic_status_test(varia)) then
+     call mem_status_error(file,line)
+  else
+     allocate(varia(lb1_:lb1_+ndim1-1, &
+          &         lb2_:lb2_+ndim2-1), stat=istat)
+     lbyts=var_size*ndim1*ndim2
+     if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     call memsum(lbyts)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_,lb2_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memalloc_2
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memalloc_3(ndim1, ndim2, ndim3, varia, file, line, valin, lb1, lb2, lb3)
+  implicit none
+  var_type , var_attr             :: varia(:,:,:)
+  integer(bound_kind), intent(in)           :: ndim1,ndim2,ndim3 ! Size of the variable
+  character*(*)      , intent(in), optional :: file              ! Calling file
+  integer(ip)        , intent(in), optional :: line              ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1,lb2,lb3       ! Lower bounds
+  var_type , intent(in), optional :: valin             ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_
+  integer(bound_kind)                       :: lb2_
+  integer(bound_kind)                       :: lb3_
+  integer(ip)                               :: istat
+
+  lb1_ = 1
+  lb2_ = 1
+  lb3_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if (present(lb2)) lb2_ = lb2
+  if (present(lb3)) lb3_ = lb3
+  if(generic_status_test(varia)) then
+     call mem_status_error(file,line)
+  else
+     allocate(varia(lb1_:lb1_+ndim1-1, &
+          &         lb2_:lb2_+ndim2-1, &
+          &         lb3_:lb3_+ndim3-1), stat=istat)
+     lbyts=var_size*ndim1*ndim2*ndim3
+     if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     call memsum(lbyts)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_,lb2_,lb3_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memalloc_3
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memalloc_4(ndim1, ndim2, ndim3, ndim4, varia, file, line, &
+     &                        valin, lb1, lb2, lb3, lb4)
+  implicit none
+  var_type , var_attr             :: varia(:,:,:,:)
+  integer(bound_kind), intent(in)           :: ndim1,ndim2,ndim3,ndim4  ! Size of the variable
+  character*(*)      , intent(in), optional :: file                     ! Calling file
+  integer(ip)        , intent(in), optional :: line                     ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1,lb2,lb3,lb4          ! Lower bounds
+  var_type , intent(in), optional :: valin                    ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_
+  integer(bound_kind)                       :: lb2_
+  integer(bound_kind)                       :: lb3_
+  integer(bound_kind)                       :: lb4_
+  integer(ip)                               :: istat
+
+  lb1_ = 1
+  lb2_ = 1
+  lb3_ = 1
+  lb4_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if (present(lb2)) lb2_ = lb2
+  if (present(lb3)) lb3_ = lb3
+  if (present(lb3)) lb4_ = lb4
+  if(generic_status_test(varia)) then
+     call mem_status_error(file,line)
+  else
+     allocate(varia(lb1_:lb1_+ndim1-1, &
+          &         lb2_:lb2_+ndim2-1, &
+          &         lb3_:lb3_+ndim3-1, &
+          &         lb4_:lb4_+ndim4-1), stat=istat)
+     lbyts=var_size*ndim1*ndim2*ndim3*ndim4
+     if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     call memsum(lbyts)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_,lb2_,lb3_,lb4_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memalloc_4
+
+!***********************************************************************
+! Memory reallocation
+
+subroutine generic_memrealloc_1(ndim1, varia, file, line, valin, lb1)
+  implicit none
+  var_type , var_attr             :: varia(:)
+  integer(bound_kind), intent(in)           :: ndim1             ! Size of the variable
+  character*(*)      , intent(in), optional :: file              ! Calling file
+  integer(ip)        , intent(in), optional :: line              ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1               ! Lower bounds
+  var_type , intent(in), optional :: valin             ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_,ub1_,lbvar1,ubvar1,len1
+  integer(ip)                               :: istat
+  var_type , var_attr             :: vwork(:)
+
+  lb1_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if (generic_status_test(varia)) then
+     lbvar1 = lbound(varia,1)
+     len1 = size(varia,1)
+     if(    (ndim1/=len1).or.(lbvar1 /= lb1_)) then
+        allocate(vwork(lb1_:lb1_+ndim1-1), stat=istat)
+        lbyts=var_size*ndim1
+        if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+        call memsum(lbyts)
+        ub1_ = lb1_+ min(len1,ndim1)-1
+        ubvar1 = lbvar1+min(len1,ndim1)-1
+        vwork(lb1_:ub1_) = varia(lbvar1:ubvar1)
+        call generic_memfree_1(varia,file,line)
+        point(vwork,varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     end if
+  else
+     call mem_status_error(file,line)
+     ! allocate(varia(lb1_:lb1_+ndim1-1), stat=istat)
+     ! lbyts=var_size*ndim1
+     ! if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     ! call memsum(lbyts)
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memrealloc_1
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memrealloc_2(ndim1, ndim2, varia, file, line, valin, lb1, lb2)
+  implicit none
+  var_type , var_attr             :: varia(:,:)
+  integer(bound_kind), intent(in)           :: ndim1,ndim2       ! Size of the variable
+  character*(*)      , intent(in), optional :: file              ! Calling file
+  integer(ip)        , intent(in), optional :: line              ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1,lb2           ! Lower bounds
+  var_type , intent(in), optional :: valin             ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_,ub1_,lbvar1,ubvar1,len1
+  integer(bound_kind)                       :: lb2_,ub2_,lbvar2,ubvar2,len2
+  integer(ip)                               :: istat
+  var_type  , var_attr            :: vwork(:,:)
+
+  lb1_ = 1
+  lb2_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if (present(lb2)) lb2_ = lb2
+  if (generic_status_test(varia)) then
+     lbvar1 = lbound(varia,1)
+     lbvar2 = lbound(varia,2)
+     len1 = size(varia,1)
+     len2 = size(varia,2)
+     if(    (ndim1/=len1).or.(lbvar1 /= lb1_).or. &
+          & (ndim2/=len2).or.(lbvar2 /= lb2_)) then
+        allocate(vwork(lb1_:lb1_+ndim1-1,lb2_:lb2_+ndim2-1), stat=istat)
+        lbyts=var_size*ndim1*ndim2
+        if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+        call memsum(lbyts)
+        ub1_ = lb1_+ min(len1,ndim1)-1
+        ub2_ = lb2_+ min(len2,ndim2)-1
+        ubvar1 = lbvar1+min(len1,ndim1)-1
+        ubvar2 = lbvar2+min(len2,ndim2)-1
+        vwork(lb1_:ub1_,lb2_:ub2_) = varia(lbvar1:ubvar1,lbvar2:ubvar2)
+        call generic_memfree_2(varia,file,line)
+        point(vwork,varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_,lb2_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     end if
+  else
+     call mem_status_error(file,line)
+     !allocate(varia(lb1_:lb1_+ndim1-1, &
+     !     &         lb2_:lb2_+ndim2-1), stat=istat)
+     ! lbyts=var_size*ndim1*ndim2
+     ! if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     ! call memsum(lbyts)
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memrealloc_2
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memrealloc_3(ndim1, ndim2, ndim3, varia, file, line, &
+     &                          valin, lb1, lb2, lb3)
+  implicit none
+  var_type , var_attr             :: varia(:,:,:)
+  integer(bound_kind), intent(in)           :: ndim1,ndim2,ndim3 ! Size of the variable
+  character*(*)      , intent(in), optional :: file              ! Calling file
+  integer(ip)        , intent(in), optional :: line              ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1,lb2,lb3       ! Lower bounds
+  var_type , intent(in), optional :: valin             ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_,ub1_,lbvar1,ubvar1,len1
+  integer(bound_kind)                       :: lb2_,ub2_,lbvar2,ubvar2,len2
+  integer(bound_kind)                       :: lb3_,ub3_,lbvar3,ubvar3,len3
+  integer(ip)                               :: istat
+  var_type  , var_attr            :: vwork(:,:,:)
+
+  lb1_ = 1
+  lb2_ = 1
+  lb3_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if (present(lb2)) lb2_ = lb2
+  if (present(lb3)) lb3_ = lb3
+  if (generic_status_test(varia)) then
+     lbvar1 = lbound(varia,1)
+     lbvar2 = lbound(varia,2)
+     lbvar3 = lbound(varia,3)
+     len1 = size(varia,1)
+     len2 = size(varia,2)
+     len3 = size(varia,3)
+     if(    (ndim1/=len1).or.(lbvar1 /= lb1_).or. &
+          & (ndim2/=len2).or.(lbvar2 /= lb2_).or. &
+          & (ndim3/=len3).or.(lbvar3 /= lb3_)) then
+        allocate(vwork(lb1_:lb1_+ndim1-1, &
+             &         lb2_:lb2_+ndim2-1, &
+             &         lb3_:lb3_+ndim3-1), stat=istat)
+        lbyts=var_size*ndim1*ndim2*ndim3
+        if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+        call memsum(lbyts)
+        ub1_ = lb1_+ min(len1,ndim1)-1
+        ub2_ = lb2_+ min(len2,ndim2)-1
+        ub3_ = lb3_+ min(len3,ndim3)-1
+        ubvar1 = lbvar1+min(len1,ndim1)-1
+        ubvar2 = lbvar2+min(len2,ndim2)-1
+        ubvar3 = lbvar3+min(len3,ndim3)-1
+        vwork(lb1_:ub1_,lb2_:ub2_,lb3_:ub3_) = &
+             & varia(lbvar1:ubvar1,lbvar2:ubvar2,lbvar3:ubvar3)
+        call generic_memfree_3(varia,file,line)
+        point(vwork,varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_,lb2_,lb3_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     end if
+  else
+     call mem_status_error(file,line)
+     ! allocate(varia(lb1_:lb1_+ndim1-1, &
+     !      &         lb2_:lb2_+ndim2-1, &
+     !      &         lb3_:lb3_+ndim3-1), stat=istat)
+     ! lbyts=var_size*ndim1*ndim2*ndim3
+     ! if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     ! call memsum(lbyts)
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memrealloc_3
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memrealloc_4(ndim1, ndim2, ndim3, ndim4, varia, file, line, &
+     &                          valin, lb1, lb2, lb3, lb4)
+  implicit none
+  var_type , var_attr             :: varia(:,:,:,:)
+  integer(bound_kind), intent(in)           :: ndim1,ndim2,ndim3,ndim4  ! Size of the variable
+  character*(*)      , intent(in), optional :: file                     ! Calling file
+  integer(ip)        , intent(in), optional :: line                     ! Calling line
+  integer(bound_kind), intent(in), optional :: lb1,lb2,lb3,lb4          ! Lower bounds
+  var_type , intent(in), optional :: valin             ! Initial value
+  integer(imp)                              :: lbyts
+  integer(bound_kind)                       :: lb1_,ub1_,lbvar1,ubvar1,len1
+  integer(bound_kind)                       :: lb2_,ub2_,lbvar2,ubvar2,len2
+  integer(bound_kind)                       :: lb3_,ub3_,lbvar3,ubvar3,len3
+  integer(bound_kind)                       :: lb4_,ub4_,lbvar4,ubvar4,len4
+  integer(ip)                               :: istat
+  var_type , var_attr             :: vwork(:,:,:,:)
+
+  lb1_ = 1
+  lb2_ = 1
+  lb3_ = 1
+  lb4_ = 1
+  if (present(lb1)) lb1_ = lb1
+  if (present(lb2)) lb2_ = lb2
+  if (present(lb3)) lb3_ = lb3
+  if (present(lb3)) lb4_ = lb4
+  if (generic_status_test(varia)) then
+     lbvar1 = lbound(varia,1)
+     lbvar2 = lbound(varia,2)
+     lbvar3 = lbound(varia,3)
+     lbvar4 = lbound(varia,4)
+     len1 = size(varia,1)
+     len2 = size(varia,2)
+     len3 = size(varia,3)
+     len4 = size(varia,4)
+     if(    (ndim1/=len1).or.(lbvar1 /= lb1_).or. &
+          & (ndim2/=len2).or.(lbvar2 /= lb2_).or. &
+          & (ndim3/=len3).or.(lbvar3 /= lb3_).or. &
+          & (ndim4/=len4).or.(lbvar4 /= lb4_)) then
+        allocate(vwork(lb1_:lb1_+ndim1-1, &
+             &         lb2_:lb2_+ndim2-1, &
+             &         lb3_:lb3_+ndim3-1, &
+             &         lb4_:lb4_+ndim4-1), stat=istat)
+        lbyts=var_size*ndim1*ndim2*ndim3*ndim4
+        if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+        call memsum(lbyts)
+        ub1_ = lb1_+ min(len1,ndim1)-1
+        ub2_ = lb2_+ min(len2,ndim2)-1
+        ub3_ = lb3_+ min(len3,ndim3)-1
+        ub4_ = lb4_+ min(len4,ndim4)-1
+        ubvar1 = lbvar1+min(len1,ndim1)-1
+        ubvar2 = lbvar2+min(len2,ndim2)-1
+        ubvar3 = lbvar3+min(len3,ndim3)-1
+        ubvar4 = lbvar4+min(len4,ndim4)-1
+        vwork(lb1_:ub1_,lb2_:ub2_,lb3_:ub3_,lb4_:ub4_) = &
+             & varia(lbvar1:ubvar1,lbvar2:ubvar2,lbvar3:ubvar3,lbvar4:ubvar4)
+        call generic_memfree_4(varia,file,line)
+        point(vwork,varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_put(c_loc(varia(lb1_,lb2_,lb3_,lb4_)),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size allocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size allocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     end if
+  else
+     call mem_status_error(file,line)
+     ! allocate(varia(lb1_:lb1_+ndim1-1, &
+     !      &         lb2_:lb2_+ndim2-1, &
+     !      &         lb3_:lb3_+ndim3-1, &
+     !      &         lb4_:lb4_+ndim4-1), stat=istat)
+     ! lbyts=var_size*ndim1*ndim2*ndim3*ndim4
+     ! if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
+     ! call memsum(lbyts)
+  end if
+#ifdef exception_real
+  varia = nan
+#endif
+  if(present(valin)) then 
+     varia = valin
+  endif
+end subroutine generic_memrealloc_4
+
+!***********************************************************************
+! Memory free
+
+subroutine generic_memfree_1(varia,file,line)
+  implicit none
+  var_type, var_attr        :: varia(:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  integer(imp)                        :: lbyts
+  integer(ip)                         :: istat
+  !if(generic_status_test(varia)) then
+     lbyts=var_size*size(varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_del(c_loc(varia(lbound(varia,1))),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size deallocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size deallocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     deallocate(varia, stat=istat)
+     if(istat/=0) call mem_dealloc_error(istat,file,line)
+     call memsub(lbyts)
+  !end if
+end subroutine generic_memfree_1
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memfree_2(varia,file,line)
+  implicit none
+  var_type, var_attr        :: varia(:,:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  integer(imp)                        :: lbyts
+  integer(ip)                         :: istat
+  !if(generic_status_test(varia)) then
+     lbyts=var_size*size(varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_del(c_loc(varia(lbound(varia,1),lbound(varia,2))),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size deallocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size deallocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     deallocate(varia, stat=istat)
+     if(istat/=0) call mem_dealloc_error(istat,file,line)
+     call memsub(lbyts)
+  !end if
+end subroutine generic_memfree_2
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memfree_3(varia,file,line)
+  implicit none
+  var_type, var_attr        :: varia(:,:,:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  integer(imp)                        :: lbyts
+  integer(ip)                         :: istat
+  !if(generic_status_test(varia)) then
+     lbyts=var_size*size(varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_del(c_loc(varia(lbound(varia,1),lbound(varia,2),lbound(varia,3))),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size deallocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size deallocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     deallocate(varia, stat=istat)
+     if(istat/=0) call mem_dealloc_error(istat,file,line)
+     call memsub(lbyts)
+  !end if
+end subroutine generic_memfree_3
+
+!-----------------------------------------------------------------------
+
+subroutine generic_memfree_4(varia,file,line)
+  implicit none
+  var_type , var_attr         :: varia(:,:,:,:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  integer(imp)                        :: lbyts
+  integer(ip)                         :: istat
+  !if(generic_status_test(varia)) then
+     lbyts=var_size*size(varia)
+#ifdef memcheck
+     if(lbyts>0) then
+        call mem_db_del(c_loc(varia(lbound(varia,1),lbound(varia,2),lbound(varia,3),lbound(varia,4))),file,line)
+     else
+        if(present(file)) then
+           if(present(line)) then
+              write(*,*) 'Warning, zero size deallocation from: '//file,line
+           else
+              write(*,*) 'Warning, zero size deallocation from: '//file
+           end if
+        end if
+     end if
+#endif
+     deallocate(varia, stat=istat)
+     if(istat/=0) call mem_dealloc_error(istat,file,line)
+     call memsub(lbyts)
+  !end if
+end subroutine generic_memfree_4
+
+!***********************************************************************
+! Movealloc
+
+#ifdef generic_memmovealloc_1
+subroutine generic_memmovealloc_1 (vin,vout,file,line)
+  implicit none
+  var_type, var_attr, intent(inout) :: vin(:), vout(:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  if (allocated(vin)) then 
+     call move_alloc(vin,vout)
+  else if (allocated(vout)) then 
+     call generic_memfree_1 (vout,file,line)
+  end if
+end subroutine generic_memmovealloc_1
+#endif
+
+!-----------------------------------------------------------------------
+
+#ifdef generic_memmovealloc_2
+subroutine generic_memmovealloc_2 (vin,vout,file,line)
+  implicit none
+  var_type, allocatable, intent(inout) :: vin(:,:), vout(:,:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  if (allocated(vin)) then 
+     call move_alloc(vin,vout)
+  else if (allocated(vout)) then 
+     call generic_memfree_2 (vout,file,line)
+  end if
+end subroutine generic_memmovealloc_2
+#endif
+
+!-----------------------------------------------------------------------
+
+#ifdef generic_memmovealloc_3
+subroutine generic_memmovealloc_3 (vin,vout,file,line)
+  implicit none
+  var_type, allocatable, intent(inout) :: vin(:,:,:), vout(:,:,:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  if (allocated(vin)) then 
+     call move_alloc(vin,vout)
+  else if (allocated(vout)) then 
+     call generic_memfree_3 (vout,file,line)
+  end if
+end subroutine generic_memmovealloc_3
+#endif
+
+!-----------------------------------------------------------------------
+
+#ifdef generic_memmovealloc_4
+subroutine generic_memmovealloc_4 (vin,vout,file,line)
+  implicit none
+  var_type, allocatable, intent(inout) :: vin(:,:,:,:), vout(:,:,:,:)
+  character*(*), intent(in), optional :: file                     ! Calling file
+  integer(ip)  , intent(in), optional :: line                     ! Calling line
+  if (allocated(vin)) then 
+     call move_alloc(vin,vout)
+  else if (allocated(vout)) then 
+     call generic_memfree_4 (vout,file,line)
+  end if
+end subroutine generic_memmovealloc_4
+#endif

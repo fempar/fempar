@@ -1,0 +1,67 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !***********************************************************************
+  !***********************************************************************
+  ! Generic hash types to build hash tables of any data type both for
+  ! values and keys (with provided comparison)
+  !
+  ! The following types/procedures have to be defined 
+  ! (using the fpp is the only option for intrisic data types)
+  !
+  !  hash_table
+  !  hash_node
+  !  key_type
+  !  val_type
+  !  
+  type hash_node
+     class(hash_node), pointer :: child => null()
+     class(hash_node), pointer :: parent => null()
+     key_type :: key = -1
+     val_type :: val
+   contains
+     procedure :: put  => put_hash_node
+     procedure :: get  => get_hash_node
+     procedure :: del  => del_hash_node
+     procedure :: free => free_hash_node
+     procedure :: print => print_hash_node
+  end type hash_node
+
+  type hash_table
+     type(hash_node)       , dimension(:), allocatable :: vec
+     integer(ip)                                :: vec_min = 0
+     integer(ip)                                :: vec_len = 0
+     logical                                    :: is_init = .false.
+   contains
+     procedure :: init => init_hash_table
+     procedure :: put  => put_hash_table
+     procedure :: get  => get_hash_table
+     procedure :: del  => del_hash_table
+     procedure :: free => free_hash_table
+     procedure :: print => print_hash_table
+     procedure :: status => status_hash_table
+  end type hash_table

@@ -1,0 +1,11 @@
+--------------------------------------------------------------------
+ 20/02/2015
+    
+ vsande (on behalf of sbadia/amartin/principe):
+   
+ Initial commit on Fempar's experimental branch.
+ A set of files with minimum features have been extracted
+ from CVS Fempar/Sources/Fem and re-organized/re-structured
+ into subdirectories in this first commit.
+    
+--------------------------------------------------------------------
