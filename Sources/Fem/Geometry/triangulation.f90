@@ -109,10 +109,10 @@ module fem_triangulation_class
      integer(ip) :: num_dims       = -1  ! number of dimensions
      integer(ip) :: elem_array_len = -1  ! length that the elements array is allocated for. 
      type(elem_topology), allocatable :: elems(:) ! array of elements in the mesh.
-     type(object_topology) , allocatable :: objects(:)   ! array of objects in the mesh.
-     type (hash_table_ip_ip)            :: ht_elem_info  ! Topological info hash table (SBmod)
-     integer(4)                         :: cur_elinf     !  "
-     type (fem_fixed_info), allocatable :: lelem_info(:) ! List of topological info's
+     type(object_topology) , allocatable :: objects(:)    ! array of objects in the mesh.
+     type (hash_table_ip_ip)             :: ht_elem_info  ! Topological info hash table (SBmod)
+     integer(ip)                         :: cur_elinf = 0 !  "
+     type (fem_fixed_info), allocatable  :: lelem_info(:) ! List of topological info's
   end type fem_triangulation
 
   ! Types
@@ -185,13 +185,21 @@ contains
     if ( trian%state == triangulation_elems_objects_filled .or. & 
          trian%state == triangulation_elems_filled ) then
        do ielem=1, trian%elem_array_len 
-          call free_elem_topology(trian%elems(iobj)) 
+          call free_elem_topology(trian%elems(ielem)) 
        end do
     end if
 
     ! Deallocate the element structure array */
     deallocate(trian%elems, stat=istat)
     check(istat==0)
+
+    ! Deallocate fixed info
+    do iobj = 1,trian%cur_elinf-1
+       call fem_element_fixed_info_free (trian%lelem_info(iobj))
+    end do
+    deallocate (trian%lelem_info)
+    trian%cur_elinf = 0
+    call trian%ht_elem_info%free
 
     trian%elem_array_len = -1 
     trian%num_objects = -1
@@ -226,6 +234,7 @@ contains
        call memfree(element%objects, __FILE__, __LINE__)
     end if
     element%num_objects = -1
+    nullify( element%topology )
   end subroutine free_elem_topology
 
   subroutine initialize_elem_topology(element)
@@ -236,13 +245,14 @@ contains
     element%num_objects = -1
   end subroutine initialize_elem_topology
 
-  subroutine fem_triangulation_to_dual(trian)  
+  subroutine fem_triangulation_to_dual(trian, num_ghosts)  
     implicit none
     ! Parameters
     type(fem_triangulation), intent(inout) :: trian
+    integer(ip), optional, intent(in)      :: num_ghosts
 
     ! Locals
-    integer(ip)              :: ielem, iobj, jobj, istat, idime
+    integer(ip)              :: ielem, iobj, jobj, istat, idime, num_elems
     type(hash_table_ip_ip)   :: visited
     integer(ip), allocatable :: elems_around_pos(:)
 
@@ -257,10 +267,15 @@ contains
        check(istat==0)
     end if
 
+    num_elems = trian%num_elems
+    if ( present(num_ghosts) ) then
+       num_elems = num_elems + num_ghosts
+    end if
+
     ! Count objects
-    call visited%init(max(1,int(real(trian%num_elems,rp)*0.2_rp,ip))) 
+    call visited%init(max(5,int(real(num_elems,rp)*0.2_rp,ip))) 
     trian%num_objects = 0
-    do ielem=1, trian%num_elems
+    do ielem=1, num_elems
        do iobj=1, trian%elems(ielem)%num_objects
           jobj = trian%elems(ielem)%objects(iobj)
           if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
@@ -279,7 +294,7 @@ contains
     end do
 
     ! Count elements around each object
-    do ielem=1, trian%num_elems
+    do ielem=1, num_elems
        do iobj=1, trian%elems(ielem)%num_objects
           jobj = trian%elems(ielem)%objects(iobj)
           if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
@@ -292,7 +307,7 @@ contains
     elems_around_pos = 1
 
     ! List elements and add object dimensio
-    do ielem=1, trian%num_elems
+    do ielem=1, num_elems
        do idime =1, trian%num_dims    ! (SBmod)
           do iobj = trian%elems(ielem)%topology%nobje_dim(idime), &
                trian%elems(ielem)%topology%nobje_dim(idime+1)-1 

@@ -140,7 +140,7 @@ module fem_space_class
      ! Element common information
      type (hash_table_ip_ip)            :: ht_elem_info
      type (fem_fixed_info), allocatable :: lelem_info(:)
-     integer(4)                         :: cur_elinf
+     integer(ip)                         :: cur_elinf
 
      type(constraint_list), pointer     :: constraint_list => NULL()
   end type fem_space

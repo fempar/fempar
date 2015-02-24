@@ -109,7 +109,7 @@ contains
     implicit none
     ! Parameters
     type(fem_fixed_info),  intent(inout) :: f_info 
-    integer(4)          ,  intent(in)    :: f_type, f_order, dim_space
+    integer(ip)          ,  intent(in)    :: f_type, f_order, dim_space
     logical             ,  intent(inout) :: created
 
     created = .false.
