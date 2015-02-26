@@ -1,0 +1,219 @@
+# Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+#
+# This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+#
+# FEMPAR is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# FEMPAR is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+#
+# Additional permission under GNU GPL version 3 section 7
+#
+# If you modify this Program, or any covered work, by linking or combining it 
+# with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+# and/or the HSL Mathematical Software Library (or a modified version of them), 
+# containing parts covered by the terms of their respective licenses, the
+# licensors of this Program grant you additional permission to convey the 
+# resulting work. 
+#
+###############################################################################
+#################################################################
+#                                                               #
+#                    COMPILER OPTIONS                           #
+#                                                               #
+# These options are used to build a Debug (G), Release (O)      #
+# and Profile (P) versions of the code:                         #
+#                                                               #
+#    * Fortran compiler and its options (FC_SER,FC_PAR,FFG,FFO) #
+#    * C compiler and its options (CC_SER, CC_PAR,CFG,CFO)      #
+#    * C++ compiler and its options (CXX_SER, CXX_PAR,CFG,CFO)  #  
+#    * Linker and its options (LINK_SER,LINK_PAR,LFG,LFO)       #
+#    * Archive comand (ARCH)                                    #
+#                                                               #
+# The compiler options to define where to look for include      #
+# files ($I) and where to put fortran module files ($J) are     # 
+# also defined below.                                           #
+#                                                               #
+# Currently we have options for the following compilers:        #
+#                                                               #
+#    * INTEL                                                    #
+#    * GNU                                                      #
+#    * SUN (last tested long ago...)                            #
+#    * IBM XLF                                                  #
+#                                                               #
+#################################################################
+
+# Intel Fortran compiler and linker
+ifeq ($(COMPILER),INTEL)
+
+   # Activate interprocedural optimization using IPO
+   # (takes time to compile!)
+   #IPO=-ipo
+   IPO=
+
+   # Multithread support
+   ifeq ($(FEMPAR_THREADS),OMP)
+      OMP = -openmp
+   else
+      OMP = 
+   endif
+
+   # Fortran compiler
+   # Some prerequisites need the definition of F77_SER (e.g. hsl_mi20)
+   F77_SER = ifort
+   F03_SER = ifort # -stand f03 # -warn errors
+   FC_SER = $(F03_SER) -c -r8 -fpp -W1 -warn nointerfaces
+
+   #FFG =-O0 -traceback -g -debug all -check all -ftrapuv $(OMP) # -heap-arrays -tcheck -check bounds
+   FFG =-O0 -Dmemcheck -traceback -g -debug all -check all -ftrapuv $(OMP) # -heap-arrays -tcheck -check bounds
+   FFO = -O3 -opt-report-file=$(NAME).opt.log $(IPO)  $(OMP)    # -xHost
+   #FMG = -DDEBUG -Dmemcheck  # -Dexception # Fempar Macros for debuG
+   FMG = -DDEBUG  # -Dexception # Fempar Macros for debuG
+
+   FC_PAR = mpif90 -DMPI_MOD -c -r8 -fpp -W1 -warn nointerfaces $(OMP)
+
+   I=I
+   J=module 
+
+   # Linker
+   LINK_SER = ifort -Wl,--allow-multiple-definition $(OMP)
+   LINK_PAR = mpif90 -Wl,--allow-multiple-definition $(OMP)
+   LFG = -g
+   LFO = $(IPO)
+
+   # Archive command
+   ARCH = xiar cr
+
+   # C compiler
+   CC_SER = icc
+   CC_PAR = mpicc
+   CCO = -O3
+   CCG = -g -traceback
+
+   CXX_SER = icpc
+   CXX_PAR = mpic++
+
+endif
+
+#############################################################
+# Sun Fortran compiler and linker
+ifeq ($(COMPILER),SUN)
+
+   # Activate interprocedural optimization using IPO
+   #IPO=-xipo
+   IPO=
+
+   # Multithread support
+   ifeq ($(FEMPAR_THREADS),OMP)
+      OMP= -xopenmp=noopt
+   else
+      OMP = 
+   endif
+
+   FC_SER = f95 -c -xarch=native -m64 -xtypemap=real:64 -stackvar -fpp # -Dompcode 
+   FFG = -g -C -xcheck=stkovf  # -xcheck=%all -xcheck=stkovf -ftrap=%all
+   FFO = -O3 $(IPO)
+   FFP = -O2 -p
+   I=moddir=
+   J=moddir=
+
+   LINK_SER=f95
+   LFO = $(IPO)
+   LFG = -g
+
+   # Archive command
+   ARCH=ar cr
+
+   # Compiler Libraries
+   #CLG = -lm -lsunimath
+   #CLO = -lm -lsunimath
+   #CLP = -lm -lsunimath
+endif
+
+#############################################################
+# GNU Fortran compiler and linker
+ifeq ($(COMPILER),GNU)
+   # Activate interprocedural optimization using IPO
+   #IPO=-ipo
+   IPO = 
+
+   # Multithread support
+   ifeq ($(FEMPAR_THREADS),OMP)
+      OMP = -fopenmp
+   else
+      OMP = 
+   endif
+
+   # -Warray-temporaries -Wimplicit-interface -Waliasing
+   F77_SER = gfortran
+   F03_SER = gfortran # -std=f2003
+   FC_SER = $(F03_SER) -c -fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface
+   FFG = -g -fbacktrace -fbounds-check
+   FFO = -O3
+   FMG = -DDEBUG -Dmemcheck  # -Dexception # Fempar Macros for debuG
+   I=I
+   J=J
+
+   # -Wimplicit-interface -Warray-temporaries
+   FC_PAR = mpif90 -DMPI_MOD -c -fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface 
+
+   LINK_SER=gfortran
+   LINK_PAR=mpif90 -Warray-temporaries
+   LFG = -g
+   LFO = $(IPO)
+
+   # Archive command
+   ARCH=ar cr
+
+   # C compiler
+   CC_SER = gcc
+   CC_PAR = mpicc
+   CCO = -O3
+   CCG = -g 
+
+   CXX_SER = g++
+   CXX_PAR = mpic++
+
+endif
+#############################################################
+
+#
+# IBM Fortran compiler and linker
+ifeq ($(COMPILER),XLF)
+
+   # Multithread support
+   ifeq ($(FEMPAR_THREADS),OMP)
+      OMP = -qsmp=omp
+   else
+      OMP =
+   endif
+
+   FC_SER = mpixlf2003_r -c -q64 -qrealsize=8 -qsuffix=f=f90:cpp=f90 #-qtbtable=full -qsigtrap=xl__trce
+   #-qflttrap=zerodivide:inv:ov:und:nanq:en -qsigtrap=xl__trce
+
+   FFG = -WF,-DDEBUG -O0 -g -qfullpath -qkeepparm $(OMP) # -qflttrap=zerodivide:inv:ov:und:nanq:en -qsigtrap=xl__trce
+   FFO = -O3 -qstrict #-qflttrap=zerodivide:inv:ov:und:nanq:en -qsigtrap=xl__trce #-g -qfullpath -qkeepparm 
+
+   FC_PAR = mpixlf90_r -WF,-DMPI_MOD -c -q64 -qrealsize=8 -qsuffix=f=f90:cpp=f90 #-qtbtable=full -qsigtrap=xl__trce 
+   #-qflttrap=zerodivide:inv:ov:und:nanq:en -qsigtrap=xl__trce
+
+   I=I
+   J=qmoddir=
+
+   LINK_SER = mpixlf2003_r -q64 -Wl,--allow-multiple-definition 
+   LINK_PAR = mpixlf90_r -Wl,--allow-multiple-definition 
+   LFG = -g
+   LFO = 
+
+   # Archive command
+   ARCH = ar cr
+
+endif
