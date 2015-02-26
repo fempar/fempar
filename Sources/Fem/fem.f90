@@ -41,8 +41,8 @@ module fem
   use fem_partition_class
   !use fem_import_class
   !use partition_import
-  !use fem_element_import_class
-  !use partition_element_import
+  use fem_element_import_class
+  use partition_element_import
   use fem_conditions_class
   use fem_conditions_io
   use fem_materials_class
@@ -89,5 +89,6 @@ module fem
   use interpolation_class
   use femap_class
   use femap_interp
+  !use element_gather_tools
 
 end module fem

@@ -140,8 +140,8 @@ contains
              p_trian%elems(ielem)%objects_GIDs(iobj) = p_gmesh%p_part%f_part%l2gn(jobj)
           else ! It is an edge or face => generate new local-global ID (non-consistent, non-consecutive)
              ! The ISHFT(1,50) is used to start numbering efs after vertices, assuming nvert < 2**60
-             p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))
-             !p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(6,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(6,igp))
+             !p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))
+             p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(6,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(6,igp))
           end if
        end do
     end do
@@ -278,13 +278,13 @@ contains
     end do
 
 
-    ! ! Check results
-    ! do ielem = 1,num_elems+num_ghosts
-    !    write (*,*) '****ielem:',ielem          
-    !    write (*,*) '****LID_objects ghost:',p_trian%f_trian%elems(ielem)%objects
-    !    write (*,*) '****GID_objects ghost:',p_trian%elems(ielem)%objects_GIDs
-    ! end do
-    ! pause
+    ! Check results
+    do ielem = 1,num_elems+num_ghosts
+       write (*,*) '****ielem:',ielem          
+       write (*,*) '****LID_objects ghost:',p_trian%f_trian%elems(ielem)%objects
+       write (*,*) '****GID_objects ghost:',p_trian%elems(ielem)%objects_GIDs
+    end do
+    pause
 
     p_trian%p_part => p_gmesh%p_part 
   end subroutine par_mesh_to_triangulation
