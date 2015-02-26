@@ -31,13 +31,11 @@ module fem_space_class
   use memor
   use array_class
   use fem_mesh_class
-  use psb_sort_mod
   use hash_table_class
-  use elmat_class
-  use elvec_class
-  use new_integration_class
+!  use elmat_class
+!  use elvec_class
+  use integration_class
   use fem_space_types
-  use adaptivity
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -46,24 +44,6 @@ module fem_space_class
 # include "debug.i90"
 
   private
-
-
-  ! Pointers to derived types (allow the construction of arrays of pointers)
-  type vol_integ_pointer
-     type(vol_integ)          , pointer :: p => NULL() 
-  end type vol_integ_pointer
-
-  type face_integ_pointer
-     type(face_integ)          , pointer :: p => NULL() 
-  end type face_integ_pointer
-
-  type array_ip2_pointer
-     type(array_ip2)          , pointer :: p => NULL()  ! Face fixed info x element
-  end type array_ip2_pointer
-
-  type elmat_pointer
-     type(elmat)              , pointer :: p => NULL()
-  end type elmat_pointer
 
   ! Information of each element of the FE space
   type fem_element
@@ -82,9 +62,9 @@ module fem_space_class
      type(array_rp1) , allocatable :: bc_value(:)   ! Boundary Condition values
      type(fem_fixed_info), pointer :: p_geo_info => NULL() ! Interpolation info of the geometry
      type(fem_fixed_info_pointer), allocatable :: f_inf(:) ! Interpolation info of the FE space
-
-     type(elmat)         , pointer :: p_mat => NULL() ! Pointer to the elemental matrix
-     type(elvec)         , pointer :: p_vec => NULL() ! Pointer to the elemental vector
+    
+     type(array_rp2), pointer :: p_mat ! Pointer to the elemental matrix
+     type(array_rp1), pointer :: p_vec ! Pointer to the elemental vector
 
      type(vol_integ_pointer)     , allocatable :: integ(:)  ! Pointer to integration parameters
   end type fem_element
@@ -96,10 +76,10 @@ module fem_space_class
      integer(ip)               :: subface(2)        ! It can be a portion of one of the elems face
      integer(ip)               :: refinement_level(2)
 
-     type(elmat)     , pointer :: p_mat => NULL()   ! Pointer to elemental matrix
+     type(array_rp2), pointer  :: p_mat ! Pointer to the elemental matrix
 
-     type(elmat_pointer)       :: aux_mat(2)        ! Pointer to integration face matrices
-     type(elvec)     , pointer :: p_vec => NULL()   ! Pointer to face integration vector
+     !type(array_rp2), pointer  :: aux_mat(2)        ! Pointer to integration face matrices
+     type(array_rp1), pointer  :: p_vec   ! Pointer to face integration vector
      type(face_integ_pointer), allocatable :: integ(:)  ! Pointer to face integration
 
      !integer(ip) , allocatable :: o2n(:)            ! permutation of the gauss points in elem2
@@ -124,8 +104,9 @@ module fem_space_class
      ! Elemental matrices and vector
      type (hash_table_ip_ip)            :: ht_pos_elmat
      type (hash_table_ip_ip)            :: ht_pos_elvec
-     type (elmat)         , allocatable :: lelmat(:)
-     type (elvec)         , allocatable :: lelvec(:)
+     type(array_rp2), allocatable       :: lelmat(:)
+     type(array_rp1), allocatable       :: lelvec(:)
+
      integer(ip)                        :: cur_elmat
      integer(ip)                        :: cur_elvec
 
@@ -142,7 +123,6 @@ module fem_space_class
      type (fem_fixed_info), allocatable :: lelem_info(:)
      integer(ip)                         :: cur_elinf
 
-     type(constraint_list), pointer     :: constraint_list => NULL()
   end type fem_space
 
   interface fem_space_fe_list_create
@@ -184,13 +164,12 @@ module fem_space_class
   end interface memmovealloc
 
   ! Types
-  public :: fem_space, fem_element, fem_face, elmat_pointer, array_ip2_pointer,                     &
+  public :: fem_space, fem_element, fem_face,                      &
        &     memalloc, memrealloc, memfreep, memmovealloc
 
   ! Functions
   public :: fem_space_create, fem_space_fe_list_create, fem_element_print, fem_space_free,          &
-            get_p_faces, fem_space_has_constraints,            &
-            check_fem_space_continuity,fem_space_fe_list_create_one_int_p
+            get_p_faces, fem_space_fe_list_create_one_int_p
   
 !!$   integer(ip) :: P3_connec(3,14) = reshape((/ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &
 !!$        & 1, 2, 0, 2, 3, 0, 3, 1, 0, 1, 4, 0, 2, 4, 0, 3, 4, 0, &
@@ -894,94 +873,6 @@ contains
   end subroutine fem_element_print
   
   !==================================================================================================
-  
-   ! to check continuity in vertices and hanging nodes
-   ! usable only for linear elements!
-   ! has a terible complexity, usable only for very small meshes!
-   function check_fem_space_continuity(femsp, mesh, tol)
-      implicit none
-      type(fem_space), intent(in)   :: femsp
-      type(fem_mesh), intent(in)     :: mesh
-      real(rp), intent(in)           :: tol
-      logical                        :: check_fem_space_continuity
-      
-      integer(ip)                    :: elem1, elem2, l_node1, l_node2, node1, node2, clist_id
-      real(rp)                       :: value1, value2, ced_value, error
-      logical                        :: found
-      type(adapt_constraint), pointer:: constraint_ptr
-      
-      check_fem_space_continuity = .true.
-      do elem1 = 1, mesh%nelem
-         do l_node1 = 1, mesh%nnode
-            node1 = mesh%lnods(mesh%pnods(elem1)  + l_node1 - 1)
-         
-            do elem2 = 1, mesh%nelem
-               do l_node2 = 1, mesh%nnode
-                  node2 = mesh%lnods(mesh%pnods(elem2)  + l_node2 - 1)
-                  
-                  if(node1 == node2) then
-                     if(abs(femsp%lelem(elem1)%unkno(l_node1, 1, 1) -                               &
-                          & femsp%lelem(elem2)%unkno(l_node2, 1, 1)) > tol) then
-                        write(*,*) "discontinuity at point ", node1
-                        check_fem_space_continuity = .false.
-                     end if
-                  end if
-               end do
-            end do
-         end do
-      end do       
-      
-      ! constrained nodes
-      do elem1 = 1, mesh%nelem
-         do l_node1 = 1, mesh%nnode
-            node1 = mesh%lnods(mesh%pnods(elem1)  + l_node1 - 1)
-            clist_id = femsp%constraint_list%map_node2list(node1)
-            if(is_constrained_nodal(femsp%constraint_list, clist_id, constraint_ptr)) then
-               constraint_ptr => femsp%constraint_list%list(clist_id)
-               ced_value = femsp%lelem(elem1)%unkno(l_node1, 1, 1)
-               found = .false.
-               do elem2 = 1, mesh%nelem
-                  do l_node2 = 1, mesh%nnode
-                     node2 = mesh%lnods(mesh%pnods(elem2)  + l_node2 - 1)
-                     if(node2 == constraint_ptr%cing_nodes(1)) then
-                        found = .true.
-                        value1 = femsp%lelem(elem2)%unkno(l_node2, 1, 1)
-                        exit
-                     end if                     
-                  end do
-                  if(found) then
-                     exit
-                  end if
-               end do
-               assert(found)
-               found = .false.
-               do elem2 = 1, mesh%nelem
-                  do l_node2 = 1, mesh%nnode
-                     node2 = mesh%lnods(mesh%pnods(elem2)  + l_node2 - 1)
-                     if(node2 == constraint_ptr%cing_nodes(2)) then
-                        found = .true.
-                        value2 = femsp%lelem(elem2)%unkno(l_node2, 1, 1)
-                        exit
-                     end if                     
-                  end do
-                  if(found) then
-                     exit
-                  end if
-               end do
-               assert(found)
-               
-               error = abs(ced_value - constraint_ptr%cing_coefs(1) * value1 - constraint_ptr%cing_coefs(2) * value2)
-               if(error > tol) then
-                  write(*,*) "discontinuity at constrained point ", node1, ", error: ", error
-                  check_fem_space_continuity = .false.
-               end if
-            end if 
-         end do
-      end do
-      
-   end function check_fem_space_continuity
-
-  !==================================================================================================
   subroutine fem_space_free ( f )
     implicit none
     type(fem_space), intent(inout) :: f
@@ -1003,8 +894,8 @@ contains
           nullify (f%lface(i)%p_mat)
           nullify (f%lface(i)%p_vec)
           if (allocated(f%lface(i)%integ)) call memfree(f%lface(i)%integ,__FILE__,__LINE__)
-          nullify (f%lface(i)%aux_mat(1)%p)
-          nullify (f%lface(i)%aux_mat(2)%p)
+          !nullify (f%lface(i)%aux_mat(1)%p)
+          !nullify (f%lface(i)%aux_mat(2)%p)
        end do
       
        deallocate(f%lface)
@@ -1088,12 +979,4 @@ contains
     
   end subroutine get_p_faces
 
-  function fem_space_has_constraints(femsp)
-    implicit none
-    type(fem_space), intent(in)  :: femsp
-    logical fem_space_has_constraints
-    
-    fem_space_has_constraints = associated(femsp%constraint_list)
-  end function fem_space_has_constraints
-  
 end module fem_space_class

@@ -35,7 +35,7 @@ module fem_mesh_gen_partition
   use fem_conditions_class
   use fem_materials_class
   use fem_mesh_gen
-  use psb_sort_mod
+  use sort_class
 # include "debug.i90"
   implicit none
   private
@@ -834,7 +834,8 @@ contains
                    lobjs_face(4,obj) = 2              ! number of subdomains sharing the object
                    lobjs_face(5,obj) = neigh(1)       ! 1st subdomain sharing the object
                    lobjs_face(6,obj) = neigh(2)       ! 2nd subdomain sharing the object
-                   call psb_hsort(lobjs_face(5:6,obj))
+!                   call psb_hsort(lobjs_face(5:6,obj))
+                   call sort( 1, lobjs_face(5:6,obj) )
 
                    ! Global face
                    !if(ijkpart(pdime)==npdir(pdime).and.isper(pdime)==1.and.iface==1) then
@@ -1238,9 +1239,11 @@ contains
                    if(ndime==3) then
                       lobjs_edge(7,obj) = neigh(3)    ! 3rd subdomain sharing the object
                       lobjs_edge(8,obj) = neigh(4)    ! 4th subdomain sharing the object
-                      call psb_hsort(lobjs_edge(5:8,obj))
+ !                     call psb_hsort(lobjs_edge(5:8,obj))
+                      call sort( 3, lobjs_edge(5:8,obj) )
                    else
-                      call psb_hsort(lobjs_edge(5:6,obj))
+!                      call psb_hsort(lobjs_edge(5:6,obj))
+                      call sort( 1, lobjs_edge(5:6,obj) )
                    end if
 
                    ! Search non-zero sharing objects and compact
@@ -1758,9 +1761,11 @@ contains
                       lobjs_corn(10,obj) = neigh(6)   ! 6th subdomain sharing the object
                       lobjs_corn(11,obj) = neigh(7)   ! 7th subdomain sharing the object
                       lobjs_corn(12,obj) = neigh(8)   ! 8th subdomain sharing the object
-                      call psb_hsort(lobjs_corn(5:12,obj))
+                      !call psb_hsort(lobjs_corn(5:12,obj))
+                      call sort( 7, lobjs_corn(5:12,obj) )
                    else
-                      call psb_hsort(lobjs_corn(5:8,obj))
+                      !call psb_hsort(lobjs_corn(5:8,obj))
+                      call sort( 3, lobjs_corn(5:8,obj) )
                    end if
 
                    ! Search non-zero sharing objects and compact

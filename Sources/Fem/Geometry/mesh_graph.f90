@@ -36,7 +36,8 @@ module mesh_graph
   private
 
   interface mesh_to_graph
-     module procedure mesh_to_graph_part, mesh_to_graph_part_new, mesh_to_graph_share, mesh_to_graph_matrix, mesh_to_graph_matrix_sz
+     module procedure mesh_to_graph_part, mesh_to_graph_part_new, mesh_to_graph_share, mesh_to_graph_matrix 
+!, mesh_to_graph_matrix_sz
   end interface mesh_to_graph
 
   ! Functions
@@ -336,103 +337,103 @@ contains
   end subroutine mesh_to_graph_matrix
 
 !============================================================================================
-  subroutine mesh_to_graph_matrix_sz ( storage, gtype, ndof1, ndof2, primal_mesh, primal_graph,szmap)
-    implicit none
+  ! subroutine mesh_to_graph_matrix_sz ( storage, gtype, ndof1, ndof2, primal_mesh, primal_graph,szmap)
+  !   implicit none
 
-    ! Parameters
-    integer(ip)          , intent(in)     :: storage, gtype, ndof1, ndof2
-    integer(ip)          , intent(in)     :: szmap(:)
-    type(fem_mesh)       , intent(in)     :: primal_mesh
-    type(fem_graph)      , intent(out)    :: primal_graph
+  !   ! Parameters
+  !   integer(ip)          , intent(in)     :: storage, gtype, ndof1, ndof2
+  !   integer(ip)          , intent(in)     :: szmap(:)
+  !   type(fem_mesh)       , intent(in)     :: primal_mesh
+  !   type(fem_graph)      , intent(out)    :: primal_graph
 
 
-    ! Local variables
-    type (fem_mesh)                        :: dual_mesh
-    integer(ip), allocatable               :: iwork(:)       ! Integer ip working array
-    integer(ip)                            :: pwork(3)       ! Pointers to work space
-    integer(ip)                            :: szdual_ia(primal_mesh%nelem+1)
-    integer(ip), allocatable               :: aux_dual(:),szdual_ja(:)
+  !   ! Local variables
+  !   type (fem_mesh)                        :: dual_mesh
+  !   integer(ip), allocatable               :: iwork(:)       ! Integer ip working array
+  !   integer(ip)                            :: pwork(3)       ! Pointers to work space
+  !   integer(ip)                            :: szdual_ia(primal_mesh%nelem+1)
+  !   integer(ip), allocatable               :: aux_dual(:),szdual_ja(:)
     
-    !SZ is only implemented for the CSR case
-    assert ( gtype == csr )
+  !   !SZ is only implemented for the CSR case
+  !   assert ( gtype == csr )
 
-    ! Valid storage layouts for fem_matrix are blk and scal
-    assert  ( storage == blk .or. storage == scal )
-    assert  ( ndof1 >= 1 .and. ndof2 >= 1 )
+  !   ! Valid storage layouts for fem_matrix are blk and scal
+  !   assert  ( storage == blk .or. storage == scal )
+  !   assert  ( ndof1 >= 1 .and. ndof2 >= 1 )
 
-    ! Valid fem_graph types for addressing sparse matrices are csr_symm or csr or csc
-    assert( gtype==csr_symm .or. gtype==csr .or. gtype == css )
+  !   ! Valid fem_graph types for addressing sparse matrices are csr_symm or csr or csc
+  !   assert( gtype==csr_symm .or. gtype==csr .or. gtype == css )
 
-    ! Crs_symm is valid only for square matrices 
-    assert  ( (.not. (gtype==csr_symm))  .or. (ndof1 == ndof2) )
+  !   ! Crs_symm is valid only for square matrices 
+  !   assert  ( (.not. (gtype==csr_symm))  .or. (ndof1 == ndof2) )
 
-    ! Compute dual_mesh
-    call mesh_to_dual ( primal_mesh, dual_mesh )
+  !   ! Compute dual_mesh
+  !   call mesh_to_dual ( primal_mesh, dual_mesh )
 
-    ! Compute dual SZ map
-    call memalloc(primal_mesh%nelem*primal_mesh%nnode,aux_dual,__FILE__,__LINE__)
-    call szmap_to_dual(szmap,primal_mesh%npoin,primal_mesh%nelem,szdual_ia,aux_dual)
-    pwork(1) = szdual_ia(primal_mesh%nelem+1)
-    call memalloc(pwork(1),szdual_ja,__FILE__,__LINE__ )
-    szdual_ja = aux_dual(1:pwork(1))
-    call memfree(aux_dual,__FILE__,__LINE__)
+  !   ! Compute dual SZ map
+  !   call memalloc(primal_mesh%nelem*primal_mesh%nnode,aux_dual,__FILE__,__LINE__)
+  !   call szmap_to_dual(szmap,primal_mesh%npoin,primal_mesh%nelem,szdual_ia,aux_dual)
+  !   pwork(1) = szdual_ia(primal_mesh%nelem+1)
+  !   call memalloc(pwork(1),szdual_ja,__FILE__,__LINE__ )
+  !   szdual_ja = aux_dual(1:pwork(1))
+  !   call memfree(aux_dual,__FILE__,__LINE__)
 
-    ! Allocate space for ia on the primal graph
-    primal_graph%type = gtype
+  !   ! Allocate space for ia on the primal graph
+  !   primal_graph%type = gtype
 
-    if ( storage == blk ) then
-       primal_graph%nv  = primal_mesh%npoin
-       primal_graph%nv2 = primal_graph%nv
-       call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
+  !   if ( storage == blk ) then
+  !      primal_graph%nv  = primal_mesh%npoin
+  !      primal_graph%nv2 = primal_graph%nv
+  !      call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
 
-       ! Allocate working space for count_primal_graph and list_primal_graph routines
-       ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
-       ! graph node)
-       pwork(1) = 1
-       pwork(2) = pwork(1) + primal_mesh%npoin
-       pwork(3) = pwork(2) + (dual_mesh%nnode*primal_mesh%nnode)**3
-       call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
+  !      ! Allocate working space for count_primal_graph and list_primal_graph routines
+  !      ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
+  !      ! graph node)
+  !      pwork(1) = 1
+  !      pwork(2) = pwork(1) + primal_mesh%npoin
+  !      pwork(3) = pwork(2) + (dual_mesh%nnode*primal_mesh%nnode)**3
+  !      call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
  
-       ! Store number of neighbour nodes in primal graph
-       call count_primal_graph_sz_csr ( primal_mesh, dual_mesh, primal_graph,szmap, &  
-            szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+  !      ! Store number of neighbour nodes in primal graph
+  !      call count_primal_graph_sz_csr ( primal_mesh, dual_mesh, primal_graph,szmap, &  
+  !           szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
        
-       ! Allocate space for ja on the primal graph 
-       call memalloc (primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,           __FILE__,__LINE__)    
+  !      ! Allocate space for ja on the primal graph 
+  !      call memalloc (primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,           __FILE__,__LINE__)    
 
-       call list_primal_graph_sz_csr  ( primal_mesh, dual_mesh, primal_graph, szmap, &
-            szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+  !      call list_primal_graph_sz_csr  ( primal_mesh, dual_mesh, primal_graph, szmap, &
+  !           szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
       
-    else if ( storage == scal ) then
+  !   else if ( storage == scal ) then
        
-       primal_graph%nv  = primal_mesh%npoin * ndof1
-       primal_graph%nv2 = primal_mesh%npoin * ndof2
-       call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
+  !      primal_graph%nv  = primal_mesh%npoin * ndof1
+  !      primal_graph%nv2 = primal_mesh%npoin * ndof2
+  !      call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
        
-       ! Allocate working space for count_primal_graph and list_primal_graph routines
-       ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
-       ! graph node)
-       pwork(1) = 1
-       pwork(2) = pwork(1) + primal_mesh%npoin
-       pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode*dual_mesh%nnode*primal_mesh%nnode
+  !      ! Allocate working space for count_primal_graph and list_primal_graph routines
+  !      ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
+  !      ! graph node)
+  !      pwork(1) = 1
+  !      pwork(2) = pwork(1) + primal_mesh%npoin
+  !      pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode*dual_mesh%nnode*primal_mesh%nnode
        
-       call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
+  !      call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
 
-       call count_primal_graph_sz_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, &
-            primal_graph,szmap,szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+  !      call count_primal_graph_sz_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, &
+  !           primal_graph,szmap,szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
       
-       ! Allocate space for ja on the primal graph 
-       call memalloc ( primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,           __FILE__,__LINE__)    
+  !      ! Allocate space for ja on the primal graph 
+  !      call memalloc ( primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,           __FILE__,__LINE__)    
 
-       call list_primal_graph_sz_csr_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, &
-            primal_graph, szmap,szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-    end if
+  !      call list_primal_graph_sz_csr_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, &
+  !           primal_graph, szmap,szdual_ia,szdual_ja,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+  !   end if
 
-    ! Free dual_mesh
-    call fem_mesh_free ( dual_mesh )
+  !   ! Free dual_mesh
+  !   call fem_mesh_free ( dual_mesh )
 
 
-  end subroutine mesh_to_graph_matrix_sz
+  ! end subroutine mesh_to_graph_matrix_sz
 
   !============================================================================================
   subroutine  count_primal_graph_csr ( primal_mesh, dual_mesh, primal_graph,  &
@@ -1507,7 +1508,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr ( primal_mesh, dual_mesh, primal_graph,  &
        &                              ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -1581,8 +1582,8 @@ contains
        end do
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
 
     end do
 
@@ -1592,7 +1593,7 @@ contains
 !============================================================================================
   subroutine  list_primal_graph_extended_stencil_csr ( primal_mesh, dual_mesh, primal_graph,  &
        &                              ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -1701,8 +1702,8 @@ contains
        end do
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
 
     end do
 
@@ -1712,7 +1713,7 @@ contains
 !============================================================================================
   subroutine  list_primal_graph_sz_csr ( primal_mesh, dual_mesh, primal_graph,szmap,  &
        &                              szdual_ia,szdual_ja,ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -1885,8 +1886,8 @@ contains
        end do
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
 
     end do
 
@@ -1895,7 +1896,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                   ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -1974,9 +1975,9 @@ contains
 
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
        ! write (*,*) 'A', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 )
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
        ! write (*,*) 'D', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 )
 
 
@@ -1993,7 +1994,7 @@ contains
  !============================================================================================
   subroutine  list_primal_graph_extended_stencil_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                   ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -2106,9 +2107,9 @@ contains
 
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
        ! write (*,*) 'A', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 )
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
        ! write (*,*) 'D', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 )
 
 
@@ -2125,7 +2126,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_sz_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,szmap,  &
        &                                   szdual_ia,szdual_ja,ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -2305,9 +2306,9 @@ contains
 
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
        ! write (*,*) 'A', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 )
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
        ! write (*,*) 'D', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 )
 
 
@@ -2324,7 +2325,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr_symm ( primal_mesh, dual_mesh, primal_graph,  &
        &                                   ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -2401,8 +2402,8 @@ contains
        end do
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
 
     end do
 
@@ -2411,7 +2412,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr_symm_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                        ws_position, ws_neighbors )    
-    use psb_sort_mod
+    use sort_class
     implicit none
 
     ! Parameters
@@ -2492,9 +2493,9 @@ contains
        end do
 
        ! Order increasingly column identifiers of current row 
-       ! using heap sort algorithm
        ! write (*,*) 'A', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ) ! DBG:
-       call psb_hsort(primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
+       call sort(  primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), &
+            &      primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ))
        ! write (*,*) 'D', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ) ! DBG:
 
  
@@ -2512,7 +2513,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_css ( primal_mesh, dual_mesh, primal_graph,  &
        &                                ws_position, ws_neighbors )    
-    ! use psb_sort_mod
+    ! use sort_class
     implicit none
 
     ! Parameters
@@ -2621,7 +2622,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_css_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                ws_position, ws_neighbors )    
-    ! use psb_sort_mod
+    ! use sort_class
     implicit none
 
     ! Parameters
@@ -3775,29 +3776,29 @@ contains
   end subroutine list_primal_graph_share
 
  !=============================================================================
-  subroutine szmap_to_dual(primal_lnods,npoin,nelem,dual_pnods,dual_lnods)
-    !-----------------------------------------------------------------------
-    ! This routine generates the dual szmap (list of nodes that point to
-    ! a element) of a given primal szmap. 
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip)   , intent(in)  :: primal_lnods(npoin)
-    integer(ip)   , intent(in)  :: npoin,nelem
-    integer(ip)   , intent(out) :: dual_pnods(nelem+1),dual_lnods(:)
+  ! subroutine szmap_to_dual(primal_lnods,npoin,nelem,dual_pnods,dual_lnods)
+  !   !-----------------------------------------------------------------------
+  !   ! This routine generates the dual szmap (list of nodes that point to
+  !   ! a element) of a given primal szmap. 
+  !   !-----------------------------------------------------------------------
+  !   implicit none
+  !   integer(ip)   , intent(in)  :: primal_lnods(npoin)
+  !   integer(ip)   , intent(in)  :: npoin,nelem
+  !   integer(ip)   , intent(out) :: dual_pnods(nelem+1),dual_lnods(:)
 
-    integer(ip)   :: primal_pnods(nelem),ielem,nnode
+  !   integer(ip)   :: primal_pnods(nelem),ielem,nnode
 
-    primal_pnods = (/(ielem, ielem=1,nelem)/)
+  !   primal_pnods = (/(ielem, ielem=1,nelem)/)
 
-    ! Count elements around points and generate pointers to store them (pelpo)
-    call count_elements_around_points(1,nelem,npoin,primal_pnods,primal_lnods,1,nnode,dual_pnods, NULL())
+  !   ! Count elements around points and generate pointers to store them (pelpo)
+  !   call count_elements_around_points(1,nelem,npoin,primal_pnods,primal_lnods,1,nnode,dual_pnods)
 
 
-    ! List elements around points (lelpo)
-    call list_elements_around_points(1,nelem,npoin,primal_pnods,primal_lnods,1,nnode,dual_pnods,dual_lnods, NULL())
+  !   ! List elements around points (lelpo)
+  !   call list_elements_around_points(1,nelem,npoin,primal_pnods,primal_lnods,1,nnode,dual_pnods,dual_lnods)
 
-    return
+  !   return
 
-  end subroutine szmap_to_dual
+  ! end subroutine szmap_to_dual
 
 end module mesh_graph

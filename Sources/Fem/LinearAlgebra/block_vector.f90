@@ -29,11 +29,6 @@ module fem_block_vector_class
   use types
   use memor
   use fem_vector_class
-  use block_elvec_class
-  use fem_space_class
-  use elvec_class
-  use dof_handler_class
-  use fem_blocks_class
   implicit none
 # include "debug.i90"
 
@@ -45,11 +40,6 @@ module fem_block_vector_class
      type(fem_vector), allocatable :: blocks(:)
   end type fem_block_vector
 
-  interface fem_block_vector_assembly
-     module procedure fem_block_vector_assembly_w_dof_handler
-     module procedure fem_block_vector_assembly_nosq_w_dof_handler
-  end interface fem_block_vector_assembly
-
   ! Types
   public :: fem_block_vector
 
@@ -57,7 +47,7 @@ module fem_block_vector_class
   public :: fem_block_vector_free, fem_block_vector_alloc,        & 
             fem_block_vector_create_view, fem_block_vector_clone, & 
             fem_block_vector_comm,                                &
-            fem_block_vector_assembly, fem_block_vector_dot,      & 
+            fem_block_vector_dot,                                 & 
             fem_block_vector_nrm2, fem_block_vector_copy,         & 
             fem_block_vector_zero, fem_block_vector_init,         & 
             fem_block_vector_scale, fem_block_vector_mxpy,        & 
@@ -132,73 +122,6 @@ contains
     implicit none
     type(fem_block_vector), intent( inout ) :: vec 
   end subroutine fem_block_vector_comm
-
-  !=============================================================================
-  subroutine fem_block_vector_assembly_w_dof_handler (nn, dofh, el, l2g, ev, vec)
-    implicit none
-    integer(ip) ,           intent(in)    :: nn(:)
-    type(dof_handler),      intent(in)    :: dofh
-    type(fem_element),      intent(in)    :: el
-    type(elvec) ,           intent(in)    :: ev
-    type(fem_block_vector), intent(inout) :: vec
-    integer(ip),            intent(inout) :: l2g(:)
-    ! Locals
-    integer(ip)              :: nd,nl,ne,i,inode,j,ibloc,ib(3),maxnode
-    integer(ip), allocatable :: jb(:)
-
-
-    maxnode = size(el%jvars,1)
-    
-    do ibloc = 1,dofh%blocks%nb
-
-       ! Assertsb
-       nd=size(ev%data,dim=1)
-       assert(nd==vec%blocks(ibloc)%nd)
-       assert(nd == 1)
-       assert(size(nn,1)==el%nint) ! Needed to modify to accomodate new fem info
-
-       ! Construct block structures
-       ib(1) = 1
-       ib(2) = ib(1) + dofh%blknvarsxprob(ibloc)%a(el%prob) ! Rows
-       ib(3) = ib(2)
-       call memalloc(ib(3)-1,jb,__FILE__,__LINE__)
-       jb(1:(ib(2)-1)) = dofh%j_varsxprob(ibloc)%a(dofh%i_varsxprob(ibloc)%a(el%prob) : &
-            &                                     (dofh%i_varsxprob(ibloc)%a(el%prob+1)-1))
-       jb(ib(2):(ib(3)-1)) = 0
-       
-       ! ROW DOFS
-       l2g=0; i = 0
-       do j = dofh%i_varsxprob(ibloc)%a(el%prob),dofh%i_varsxprob(ibloc)%a(el%prob+1)-1
-          do inode = 1,nn(el%iv(j))
-             i = i+1
-             l2g(i) = el%elem2dof(inode,dofh%j_varsxprob(ibloc)%a(j))
-          end do
-       end do
-       
-       call ass_blkvec_w_dof_handler(el%nint,nn,size(el%p_nod,1),i,el%ldof,ib,jb,size(el%iv,1), &
-            &                        el%iv,el%p_nod,l2g,ev%data,vec%blocks(ibloc)%neq,          &
-            &                        maxnode,el%jvars,vec%blocks(ibloc)%b)
-
-       call memfree(jb)
-
-    end do
-
-  end subroutine fem_block_vector_assembly_w_dof_handler
-  
-  !=============================================================================
-  subroutine fem_block_vector_assembly_nosq_w_dof_handler (nn, dofh, el, l2g, bl, ev, vec)
-    implicit none
-    integer(ip) ,           intent(in)    :: nn(:)
-    type(dof_handler),      intent(in)    :: dofh
-    type(fem_element),      intent(in)    :: el
-    type(fem_blocks),       intent(in)    :: bl
-    type(elvec) ,           intent(in)    :: ev
-    type(fem_block_vector), intent(inout) :: vec
-    integer(ip),            intent(inout) :: l2g(:)
-
-    write (*,*) 'fem_block_vector_assembly_nosq_w_dof_handler TO BE DONE'
-
-  end subroutine fem_block_vector_assembly_nosq_w_dof_handler
 
   !=============================================================================
   subroutine fem_block_vector_dot (x, y, t)

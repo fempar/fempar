@@ -42,251 +42,251 @@ module blas77_interfaces
   ! private
 
   interface
-    SUBROUTINE DSWAP(N,DX,INCX,DY,INCY)
-      use blas77_precision
-      implicit none
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN)    :: INCX, INCY, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(INOUT) :: DX(*), DY(*)
-    END SUBROUTINE
+     SUBROUTINE DSWAP(N,DX,INCX,DY,INCY)
+       use blas77_precision
+       implicit none
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN)    :: INCX, INCY, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(INOUT) :: DX(*), DY(*)
+     END SUBROUTINE DSWAP
 
-    SUBROUTINE SSWAP(N,DX,INCX,DY,INCY)
-      use blas77_precision
-      implicit none   
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN)    :: INCX, INCY, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(INOUT) :: DX(*), DY(*)
-    END SUBROUTINE
+     SUBROUTINE SSWAP(N,DX,INCX,DY,INCY)
+       use blas77_precision
+       implicit none   
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN)    :: INCX, INCY, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(INOUT) :: DX(*), DY(*)
+     END SUBROUTINE SSWAP
 
      SUBROUTINE DSCAL(N, DA, DX, INCX)
-      use blas77_precision
-      implicit none
-      ! .. Scalar Arguments ..
-      REAL(DP), INTENT(IN)    :: DA
-      INTEGER , INTENT(IN)    :: INCX, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(INOUT) :: DX(*)
-    END SUBROUTINE
+       use blas77_precision
+       implicit none
+       ! .. Scalar Arguments ..
+       REAL(DP), INTENT(IN)    :: DA
+       INTEGER , INTENT(IN)    :: INCX, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(INOUT) :: DX(*)
+     END SUBROUTINE DSCAL
 
-    SUBROUTINE SSCAL(N, DA, DX, INCX)
-      use blas77_precision
-      implicit none   
-      ! .. Scalar Arguments ..
-      REAL(SP), INTENT(IN)    :: DA
-      INTEGER , INTENT(IN)    :: INCX, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(INOUT) :: DX(*)
-    END SUBROUTINE   
+     SUBROUTINE SSCAL(N, DA, DX, INCX)
+       use blas77_precision
+       implicit none   
+       ! .. Scalar Arguments ..
+       REAL(SP), INTENT(IN)    :: DA
+       INTEGER , INTENT(IN)    :: INCX, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(INOUT) :: DX(*)
+     END SUBROUTINE SSCAL
 
-    SUBROUTINE DCOPY(N, DX, INCX, DY, INCY)
-      use blas77_precision
-      implicit none
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN) :: INCX, INCY, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(IN)    :: DX(*)
-      REAL(DP), INTENT(INOUT) :: DY(*)
-    END SUBROUTINE
+     SUBROUTINE DCOPY(N, DX, INCX, DY, INCY)
+       use blas77_precision
+       implicit none
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN) :: INCX, INCY, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(IN)    :: DX(*)
+       REAL(DP), INTENT(INOUT) :: DY(*)
+     END SUBROUTINE DCOPY
 
-    SUBROUTINE SCOPY(N, DX, INCX, DY, INCY)
-      use blas77_precision
-      implicit none   
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN) :: INCX, INCY, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(IN)    :: DX(*)
-      REAL(SP), INTENT(INOUT) :: DY(*)
-    END SUBROUTINE
+     SUBROUTINE SCOPY(N, DX, INCX, DY, INCY)
+       use blas77_precision
+       implicit none   
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN) :: INCX, INCY, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(IN)    :: DX(*)
+       REAL(SP), INTENT(INOUT) :: DY(*)
+     END SUBROUTINE SCOPY
 
-    SUBROUTINE DAXPY(N, DA, DX, INCX, DY, INCY)
-      use blas77_precision
-      implicit none   
-      ! .. Scalar Arguments ..
-      REAL(DP), INTENT(IN) :: DA
-      INTEGER , INTENT(IN) :: INCX, INCY, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(IN)    :: DX(*)
-      REAL(DP), INTENT(INOUT) :: DY(*)
-    END SUBROUTINE
+     SUBROUTINE DAXPY(N, DA, DX, INCX, DY, INCY)
+       use blas77_precision
+       implicit none   
+       ! .. Scalar Arguments ..
+       REAL(DP), INTENT(IN) :: DA
+       INTEGER , INTENT(IN) :: INCX, INCY, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(IN)    :: DX(*)
+       REAL(DP), INTENT(INOUT) :: DY(*)
+     END SUBROUTINE DAXPY
 
-    SUBROUTINE SAXPY(N, DA, DX, INCX, DY, INCY)
-      use blas77_precision
-      implicit none
-      ! .. Scalar Arguments ..
-      REAL(SP), INTENT(IN) :: DA
-      INTEGER , INTENT(IN) :: INCX, INCY, N
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(IN)    :: DX(*)
-      REAL(SP), INTENT(INOUT) :: DY(*)
-    END SUBROUTINE
+     SUBROUTINE SAXPY(N, DA, DX, INCX, DY, INCY)
+       use blas77_precision
+       implicit none
+       ! .. Scalar Arguments ..
+       REAL(SP), INTENT(IN) :: DA
+       INTEGER , INTENT(IN) :: INCX, INCY, N
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(IN)    :: DX(*)
+       REAL(SP), INTENT(INOUT) :: DY(*)
+     END SUBROUTINE SAXPY
 
-    FUNCTION DDOT(N, DX, INCX, DY, INCY)
-      use blas77_precision
-      implicit none   
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN) :: INCX, INCY, N
-      REAL(DP)             :: DDOT
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(IN)    :: DX(*)
-      REAL(DP), INTENT(IN)    :: DY(*)    
-    END FUNCTION
+     FUNCTION DDOT(N, DX, INCX, DY, INCY)
+       use blas77_precision
+       implicit none   
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN) :: INCX, INCY, N
+       REAL(DP)             :: DDOT
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(IN)    :: DX(*)
+       REAL(DP), INTENT(IN)    :: DY(*)    
+     END FUNCTION DDOT
 
-    FUNCTION SDOT(N, DX, INCX, DY, INCY)
-      use blas77_precision
-      implicit none
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN) :: INCX, INCY, N
-      REAL(SP)             :: SDOT
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(IN)    :: DX(*)
-      REAL(SP), INTENT(IN)    :: DY(*)    
-    END FUNCTION
+     FUNCTION SDOT(N, DX, INCX, DY, INCY)
+       use blas77_precision
+       implicit none
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN) :: INCX, INCY, N
+       REAL(SP)             :: SDOT
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(IN)    :: DX(*)
+       REAL(SP), INTENT(IN)    :: DY(*)    
+     END FUNCTION SDOT
 
-    FUNCTION DNRM2(N,X,INCX)
-      use blas77_precision
-      implicit none   
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN) :: INCX, N
-      REAL(DP)             :: DNRM2
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(IN)    :: X(*)
-    END FUNCTION
+     FUNCTION DNRM2(N,X,INCX)
+       use blas77_precision
+       implicit none   
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN) :: INCX, N
+       REAL(DP)             :: DNRM2
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(IN)    :: X(*)
+     END FUNCTION DNRM2
 
-    FUNCTION SNRM2(N,X,INCX)
-      use blas77_precision
-      implicit none   
+     FUNCTION SNRM2(N,X,INCX)
+       use blas77_precision
+       implicit none   
 
-      ! .. Scalar Arguments ..
-      INTEGER , INTENT(IN) :: INCX, N
-      REAL(DP)             :: SNRM2
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(IN)    :: X(*)
-    END FUNCTION
+       ! .. Scalar Arguments ..
+       INTEGER , INTENT(IN) :: INCX, N
+       REAL(DP)             :: SNRM2
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(IN)    :: X(*)
+     END FUNCTION SNRM2
 
-    SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
-      use blas77_precision
-      implicit none  
-      
-      ! .. Scalar Arguments ..
-      REAL(DP) , INTENT(IN)  :: ALPHA,BETA
-      INTEGER  , INTENT(IN)  :: INCX, INCY, LDA, M, N
-      CHARACTER, INTENT(IN)  :: TRANS
+     SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+       use blas77_precision
+       implicit none  
 
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(IN)   :: A(LDA,*), X(*)
-      REAL(DP), INTENT(INOUT):: Y(*)
-    END SUBROUTINE 
+       ! .. Scalar Arguments ..
+       REAL(DP) , INTENT(IN)  :: ALPHA,BETA
+       INTEGER  , INTENT(IN)  :: INCX, INCY, LDA, M, N
+       CHARACTER, INTENT(IN)  :: TRANS
 
-    SUBROUTINE SGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
-      use blas77_precision
-      implicit none  
-      
-      ! .. Scalar Arguments ..
-      REAL(SP) , INTENT(IN)  :: ALPHA,BETA
-      INTEGER  , INTENT(IN)  :: INCX, INCY, LDA, M, N
-      CHARACTER, INTENT(IN)  :: TRANS
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(IN)   :: A(LDA,*), X(*)
+       REAL(DP), INTENT(INOUT):: Y(*)
+     END SUBROUTINE DGEMV
 
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(IN)   :: A(LDA,*), X(*)
-      REAL(SP), INTENT(INOUT):: Y(*)
-    END SUBROUTINE
+     SUBROUTINE SGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+       use blas77_precision
+       implicit none  
 
-    SUBROUTINE DTRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
-      use blas77_precision
-      implicit none
+       ! .. Scalar Arguments ..
+       REAL(SP) , INTENT(IN)  :: ALPHA,BETA
+       INTEGER  , INTENT(IN)  :: INCX, INCY, LDA, M, N
+       CHARACTER, INTENT(IN)  :: TRANS
 
-      ! .. Scalar Arguments ..
-      INTEGER  , INTENT(IN) :: INCX, LDA, N
-      CHARACTER, INTENT(IN) :: DIAG, TRANS, UPLO
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(IN)   :: A(LDA,*), X(*)
+       REAL(SP), INTENT(INOUT):: Y(*)
+     END SUBROUTINE SGEMV
 
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP) , INTENT(IN)   :: A(LDA,*)
-      REAL(DP) , INTENT(INOUT):: X(*)
-    END SUBROUTINE
+     SUBROUTINE DTRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
+       use blas77_precision
+       implicit none
 
-    SUBROUTINE STRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
-      use blas77_precision
-      implicit none
+       ! .. Scalar Arguments ..
+       INTEGER  , INTENT(IN) :: INCX, LDA, N
+       CHARACTER, INTENT(IN) :: DIAG, TRANS, UPLO
 
-      ! .. Scalar Arguments ..
-      INTEGER  , INTENT(IN) :: INCX, LDA, N
-      CHARACTER, INTENT(IN) :: DIAG, TRANS, UPLO
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP) , INTENT(IN)   :: A(LDA,*)
+       REAL(DP) , INTENT(INOUT):: X(*)
+     END SUBROUTINE DTRSV
 
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP) , INTENT(IN)   :: A(LDA,*)
-      REAL(SP) , INTENT(INOUT):: X(*)
-    END SUBROUTINE
+     SUBROUTINE STRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
+       use blas77_precision
+       implicit none
 
-    SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
-      use blas77_precision
-      implicit none
-      ! .. Scalar Arguments ..
-      REAL(DP) , INTENT(IN)   :: ALPHA, BETA
-      INTEGER  , INTENT(IN)   :: K, LDA, LDB, LDC, M, N
-      CHARACTER, INTENT(IN)   :: TRANSA,TRANSB
-      ! ..
-      ! .. Array Arguments ..
-      REAL(DP), INTENT(IN)    :: A(LDA,*), B(LDB,*)
-      REAL(DP), INTENT(INOUT) :: C(LDC,*)
-    END SUBROUTINE
+       ! .. Scalar Arguments ..
+       INTEGER  , INTENT(IN) :: INCX, LDA, N
+       CHARACTER, INTENT(IN) :: DIAG, TRANS, UPLO
 
-    SUBROUTINE SGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
-      use blas77_precision
-      implicit none
-      ! .. Scalar Arguments ..
-      REAL(SP) , INTENT(IN)   :: ALPHA, BETA
-      INTEGER  , INTENT(IN)   :: K, LDA, LDB, LDC, M, N
-      CHARACTER, INTENT(IN)   :: TRANSA,TRANSB
-      ! ..
-      ! .. Array Arguments ..
-      REAL(SP), INTENT(IN)    :: A(LDA,*), B(LDB,*)
-      REAL(SP), INTENT(INOUT) :: C(LDC,*)
-    END SUBROUTINE
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP) , INTENT(IN)   :: A(LDA,*)
+       REAL(SP) , INTENT(INOUT):: X(*)
+     END SUBROUTINE STRSV
 
-    SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
-      use blas77_precision
-      implicit none
-      ! *     .. Scalar Arguments ..
-      REAL(DP) , INTENT(IN)    :: ALPHA
-      INTEGER  , INTENT(IN)    :: LDA, LDB, M, N
-      CHARACTER, INTENT(IN)    :: DIAG, SIDE, TRANSA, UPLO
-      ! *     ..
-      ! *     .. Array Arguments ..
-      REAL(DP),  INTENT(IN)    :: A(LDA,*)
-      REAL(DP),  INTENT(INOUT) :: B(LDB,*)
-    END SUBROUTINE DTRSM
+     SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+       use blas77_precision
+       implicit none
+       ! .. Scalar Arguments ..
+       REAL(DP) , INTENT(IN)   :: ALPHA, BETA
+       INTEGER  , INTENT(IN)   :: K, LDA, LDB, LDC, M, N
+       CHARACTER, INTENT(IN)   :: TRANSA,TRANSB
+       ! ..
+       ! .. Array Arguments ..
+       REAL(DP), INTENT(IN)    :: A(LDA,*), B(LDB,*)
+       REAL(DP), INTENT(INOUT) :: C(LDC,*)
+     END SUBROUTINE DGEMM
 
-    SUBROUTINE STRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
-      use blas77_precision
-      implicit none
-      ! *     .. Scalar Arguments ..
-      REAL(SP) , INTENT(IN)    :: ALPHA
-      INTEGER  , INTENT(IN)    :: LDA, LDB, M, N
-      CHARACTER, INTENT(IN)    :: DIAG, SIDE, TRANSA, UPLO
-      ! *     ..
-      ! *     .. Array Arguments ..
-      REAL(SP),  INTENT(IN)    :: A(LDA,*)
-      REAL(SP),  INTENT(INOUT) :: B(LDB,*)
-    END SUBROUTINE STRSM
-  end interface
+     SUBROUTINE SGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+       use blas77_precision
+       implicit none
+       ! .. Scalar Arguments ..
+       REAL(SP) , INTENT(IN)   :: ALPHA, BETA
+       INTEGER  , INTENT(IN)   :: K, LDA, LDB, LDC, M, N
+       CHARACTER, INTENT(IN)   :: TRANSA,TRANSB
+       ! ..
+       ! .. Array Arguments ..
+       REAL(SP), INTENT(IN)    :: A(LDA,*), B(LDB,*)
+       REAL(SP), INTENT(INOUT) :: C(LDC,*)
+     END SUBROUTINE SGEMM
+
+     SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+       use blas77_precision
+       implicit none
+       ! *     .. Scalar Arguments ..
+       REAL(DP) , INTENT(IN)    :: ALPHA
+       INTEGER  , INTENT(IN)    :: LDA, LDB, M, N
+       CHARACTER, INTENT(IN)    :: DIAG, SIDE, TRANSA, UPLO
+       ! *     ..
+       ! *     .. Array Arguments ..
+       REAL(DP),  INTENT(IN)    :: A(LDA,*)
+       REAL(DP),  INTENT(INOUT) :: B(LDB,*)
+     END SUBROUTINE DTRSM
+
+     SUBROUTINE STRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+       use blas77_precision
+       implicit none
+       ! *     .. Scalar Arguments ..
+       REAL(SP) , INTENT(IN)    :: ALPHA
+       INTEGER  , INTENT(IN)    :: LDA, LDB, M, N
+       CHARACTER, INTENT(IN)    :: DIAG, SIDE, TRANSA, UPLO
+       ! *     ..
+       ! *     .. Array Arguments ..
+       REAL(SP),  INTENT(IN)    :: A(LDA,*)
+       REAL(SP),  INTENT(INOUT) :: B(LDB,*)
+     END SUBROUTINE STRSM
+
 
 !!$  interface SWAP
 !!$    ! module procedure SSWAP, DSWAP
@@ -434,8 +434,8 @@ module blas77_interfaces
 !!$      REAL(SP), INTENT(IN)    :: X(*)
 !!$    END FUNCTION
 !!$  end interface
-  ! Public interfaces
-  ! public:: SWAP, SCAL, COPY, AXPY, DOT, NRM2
+     ! Public interfaces
+     ! public:: SWAP, SCAL, COPY, AXPY, DOT, NRM2
 
      SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
        use blas77_precision
@@ -444,7 +444,7 @@ module blas77_interfaces
        ! *     .. Scalar Arguments ..
        INTEGER , INTENT(IN)      :: LDA, M, N
        INTEGER , INTENT(OUT)     :: INFO
-    
+
        ! *     ..
        ! *     .. Array Arguments ..
        INTEGER , INTENT(OUT)    :: IPIV ( * )
@@ -477,23 +477,25 @@ module blas77_interfaces
        CHARACTER, INTENT(IN)  :: UPLO
        INTEGER  , INTENT(IN)  :: LDA, LWORK, N
        INTEGER  , INTENT(OUT) :: INFO
-       
+
        ! .. Array Arguments ..
        INTEGER , INTENT(OUT)   :: IPIV(*)
        REAL(DP), INTENT(INOUT) :: A(LDA,*), WORK(LWORK)
      END SUBROUTINE DSYTRF
-     
+
      SUBROUTINE DSYTRS( UPLO, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
        use blas77_precision
        ! .. Scalar Arguments ..
        CHARACTER, INTENT(IN)  :: UPLO
        INTEGER  , INTENT(IN)  :: LDA, LDB, N, NRHS
        INTEGER  , INTENT(OUT) :: INFO
-       
+
        ! .. Array Arguments ..
        INTEGER , INTENT(IN)    :: IPIV( * )
        REAL(DP), INTENT(IN)    :: A( LDA, * )
        REAL(DP), INTENT(INOUT) :: B( LDB, * )
      END SUBROUTINE DSYTRS
+
+  end interface
 
 end module blas77_interfaces

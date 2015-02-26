@@ -29,7 +29,6 @@ module fem_matrix_vector
   use types
   use fem_matrix_class
   use fem_vector_class
-  use matvec_dof
   implicit none
 # include "debug.i90"
 

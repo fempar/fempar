@@ -30,7 +30,7 @@ module fem_space_types
   ! Modules
   use types
   use memor
-  use array_class
+  !use array_class
   !use P_fem_fixed_info
   !use Q_fem_fixed_info
 

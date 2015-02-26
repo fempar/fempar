@@ -29,8 +29,6 @@ module fem_mesh_class
   use types
   use memor
   use fem_materials_class
-  use adaptivity
-  
   use stdio
   use iso_fortran_env, only : output_unit
   !use fem_conditions_class
@@ -104,10 +102,6 @@ module fem_mesh_class
 
      type(fem_materials)      ::  prob       ! Problem to be solved        
      
-     ! todo: we have to decide if it should be here
-     ! todo: in some sense, constraints are not exactly geometrial property, since they depend on fem space
-     type(constraint_list), pointer     :: constraint_list => NULL()
-     
   end type fem_mesh
 
   interface fem_mesh_alloc
@@ -119,7 +113,7 @@ module fem_mesh_class
 
   ! Functions
   public :: mesh_to_dual, fem_mesh_alloc, fem_mesh_free!, fem_mesh_perbcs, fem_mesh_unktogeo
-  public :: fem_mesh_has_constraints, print_fem_mesh
+  public :: print_fem_mesh
 
   ! Constants
   public :: structured, unstructured, count_elements_around_points, list_elements_around_points
@@ -146,7 +140,7 @@ contains
   ! and graph objects.
   !
   !=============================================================================
-  subroutine mesh_to_dual(primal_mesh,dual_mesh, consider_constraints)
+  subroutine mesh_to_dual(primal_mesh,dual_mesh)
     !-----------------------------------------------------------------------
     ! This routine generates the dual mesh (list of elements around
     ! points) of a given primal mesh. The dual mesh allways has nelty/=1
@@ -155,17 +149,7 @@ contains
     implicit none
     type(fem_mesh), intent(in)     :: primal_mesh
     type(fem_mesh), intent(out)    :: dual_mesh
-    logical, intent(in), optional  :: consider_constraints
     
-    type(constraint_list), pointer       :: clist
-    
-    clist => NULL()
-    if(present(consider_constraints)) then
-       if(consider_constraints) then
-          clist => primal_mesh%constraint_list
-       end if
-    end if
-
     dual_mesh%nelty=0
     dual_mesh%ndime=primal_mesh%ndime
     dual_mesh%npoin=primal_mesh%nelem
@@ -178,7 +162,7 @@ contains
     
     call count_elements_around_points( &
          &   primal_mesh%nelty,primal_mesh%npoin,primal_mesh%nelem,primal_mesh%pnods, &
-         &   primal_mesh%lnods,primal_mesh%nnode,dual_mesh%nnode,dual_mesh%pnods, clist)
+         &   primal_mesh%lnods,primal_mesh%nnode,dual_mesh%nnode,dual_mesh%pnods)
     
     ! List elements around points (lelpo)
     call memalloc (dual_mesh%pnods(dual_mesh%nelem+1), dual_mesh%lnods,            __FILE__,__LINE__)
@@ -186,7 +170,7 @@ contains
     call list_elements_around_points( &
          &   primal_mesh%nelty,primal_mesh%npoin,primal_mesh%nelem,primal_mesh%pnods, &
          &   primal_mesh%lnods,primal_mesh%nnode,dual_mesh%nnode,dual_mesh%pnods,  &
-         &   dual_mesh%lnods, clist)
+         &   dual_mesh%lnods)
     
     return
 
@@ -197,7 +181,7 @@ contains
   
   !==============================================================================
   subroutine count_elements_around_points(nelty,npoin,nelem,pnods,lnods, &
-       &                                    nnode,nelpo,pelpo, clist)
+       &                                    nnode,nelpo,pelpo)
     !-----------------------------------------------------------------------
     ! This routine counts the number of elements around mesh points
     !-----------------------------------------------------------------------
@@ -207,53 +191,14 @@ contains
     integer(ip), intent(in)  :: nnode          ! Max. number of nodes per element 
     integer(ip), intent(out) :: nelpo          ! Max. number of elements around a point
     integer(ip), intent(out) :: pelpo(npoin+1) ! Number of elements around each point
-    type(constraint_list), intent(in), pointer  :: clist
 
     ! Local variables
     integer(ip)              :: ielem, inode, ipoin, size_lnods, i_cing_node, inode_proper, ipoin_proper
     logical                  :: should_be_added
-    type(adapt_constraint), pointer    :: constraint_ptr
 
     
     ! implementation with hanging nodes contains more logic in the inner loops
-    ! from this reason, I decided to implement it separately, even though it could also accomodate regular case
-    ! it could be changed
-    if(associated(clist)) then
-       assert(nelty == 1)
-       size_lnods = nnode*nelem
 
-       ! Compute the number of elements around each point
-       pelpo=0
-       do ielem=1,nelem
-          do inode=1,nnode
-             ipoin=lnods((ielem-1)*nnode+inode)
-
-             if(is_constrained_nodal(clist, ipoin, constraint_ptr)) then
-                ! if constrained, do not add elements to it, rather than that, add it co constraining nodes
-                do i_cing_node = 1, constraint_ptr%num_cing_nodes
-                   ipoin=constraint_ptr%cing_nodes(i_cing_node)
-                   ! add it only if it is not also proper node of this element. Avoid duplicities
-                   should_be_added = .true.
-                   do inode_proper = 1, nnode
-                      ipoin_proper = lnods((ielem-1) * nnode + inode_proper)
-                      if (ipoin_proper == ipoin) then
-                         should_be_added = .false.
-                         exit
-                      end if
-                   end do
-                   if(should_be_added) then
-                      ! add 1 for 2D, 3 for 3D face constrain, ...                   
-                      pelpo(ipoin+1) = pelpo(ipoin+1) + (constraint_ptr%num_cing_nodes - 1)             
-                   end if
-                end do
-             else
-                ! regular node   
-                pelpo(ipoin+1)=pelpo(ipoin+1)+1
-             end if
-          end do
-       end do
-    
-    else
        ! original implementation without hanging nodes
        if(nelty==1 ) then
           size_lnods = nnode*nelem
@@ -267,8 +212,6 @@ contains
           ipoin=lnods(inode)
           pelpo(ipoin+1)=pelpo(ipoin+1)+1
        end do
-           
-    end if
 
     ! Find the maximum number of elements around a point
     nelpo=0
@@ -287,7 +230,7 @@ contains
 
   !=============================================================================
   subroutine list_elements_around_points(nelty,npoin,nelem,pnods,lnods, &
-       &                                   nnode,nelpo,pelpo,lelpo, clist)
+       &                                   nnode,nelpo,pelpo,lelpo)
     !-----------------------------------------------------------------------
     ! This routine lists the number of elements around mesh points
     !-----------------------------------------------------------------------
@@ -298,60 +241,13 @@ contains
     integer(ip), intent(in)    :: nelpo           ! Max. number of elements around a point
     integer(ip), intent(inout) :: pelpo(npoin+1)  ! Number of elements around each point
     integer(ip), intent(out)   :: lelpo(pelpo(npoin+1)) ! List of elements around points
-    type(constraint_list), intent(in), pointer  :: clist
 
     ! Local variables 
     integer(ip)              :: ielem, inode, ipoin, i_cing_node, inode_proper, ipoin_proper
-    logical                  :: should_be_added
-    type(adapt_constraint), pointer    :: constraint_ptr     
-
+    logical                  :: should_be_added  
     ! write(*,'(a)')      'pelpo='                     ! DBG:
     ! write(*,'(10i10)')  pelpo(1:npoin+1)             ! DBG:
 
-    ! implementation with hanging nodes contains more logic in the inner loops
-    ! from this reason, I decided to implement it separately, even though it could also accomodate regular case
-    ! it could be changed
-    if(associated(clist)) then
-       assert(nelty == 1)
-       do ielem=1,nelem
-          do inode=1,nnode
-             ipoin=lnods((ielem-1)*nnode+inode)
-             if(is_constrained_nodal(clist, ipoin, constraint_ptr)) then
-
-             !! todo: remove?
-             !lelpo(pelpo(ipoin))=ielem
-             !pelpo(ipoin)=pelpo(ipoin)+1
-             !! todo: remove?             
-
-             
-                ! if constrained, do not add elements to it, rather than that, add it co constraining nodes
-                do i_cing_node = 1, constraint_ptr%num_cing_nodes
-                   ipoin=constraint_ptr%cing_nodes(i_cing_node)
-
-                   ! add it only if it is not also proper node of this element. Avoid duplicities
-                   ! todo: this part is repeated in the previous function
-                   ! todo: shoudl be made a small function "does_element_contain_node()"
-                   should_be_added = .true.
-                   do inode_proper = 1, nnode
-                      ipoin_proper = lnods((ielem-1) * nnode + inode_proper)
-                      if (ipoin_proper == ipoin) then
-                         should_be_added = .false.
-                         exit
-                      end if
-                   end do
-                   
-                   if(should_be_added) then     
-                      lelpo(pelpo(ipoin))=ielem
-                      pelpo(ipoin)=pelpo(ipoin)+1
-                   end if
-                end do
-             else             
-                lelpo(pelpo(ipoin))=ielem
-                pelpo(ipoin)=pelpo(ipoin)+1
-             end if
-          end do
-       end do
-    else
        ! regular case
        
        ! Compute the list of elements around each point.
@@ -374,7 +270,6 @@ contains
           end do
        end if
        
-    end if
     
     ! Recover pelpo
     do ipoin=npoin+1, 2, -1
@@ -530,14 +425,6 @@ contains
 
   end subroutine structured_mesh_alloc
   
-  
-  function fem_mesh_has_constraints(mesh)
-    implicit none
-    type(fem_mesh), intent(in)  :: mesh
-    logical fem_mesh_has_constraints
-    
-    fem_mesh_has_constraints = associated(mesh%constraint_list)
-  end function fem_mesh_has_constraints
   
   subroutine print_fem_mesh(mesh, ounit)
      implicit none

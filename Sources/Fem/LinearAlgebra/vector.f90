@@ -28,13 +28,7 @@
 module fem_vector_class
   use types
   use memor
-  use vector_dof
-  use elvec_class
   use blas77_interfaces
-  use dof_handler_class
-  use fem_space_class
-  use fem_blocks_class
-  use adaptivity
 !!$#ifdef memcheck
 !!$  use iso_c_binding
 !!$#endif
@@ -77,10 +71,10 @@ module fem_vector_class
         b(:,:) => NULL()
   end type fem_vector
 
-  interface fem_vector_assembly
-     module procedure fem_vector_assembly_w_dof_handler
-     module procedure fem_vector_assembly_nosq_w_dof_handler
-  end interface fem_vector_assembly
+  ! interface fem_vector_assembly
+  !    module procedure fem_vector_assembly_w_dof_handler
+  !    module procedure fem_vector_assembly_nosq_w_dof_handler
+  ! end interface fem_vector_assembly
 
   interface fem_vector_create_view
      module procedure fem_vector_create_view_same_ndof, & 
@@ -114,7 +108,6 @@ module fem_vector_class
   ! Functions
   public :: fem_vector_free, &
             fem_vector_alloc, fem_vector_create_view, fem_vector_clone,            & 
-            fem_vector_assembly, fem_face_vector_assembly_w_dof_handler,           &
             fem_vector_comm,                                                       &
             fem_vector_dot, fem_vector_nrm2, fem_vector_copy,                      & 
             fem_vector_zero, fem_vector_init, fem_vector_scale, fem_vector_mxpy,   & 
@@ -260,177 +253,140 @@ contains
     type(fem_vector), intent( inout ) :: vec 
   end subroutine fem_vector_comm
 
-  !=============================================================================
-  subroutine fem_vector_assembly_w_dof_handler(nn, dofh, el, l2g, ev, vec)
-    implicit none
-    type(dof_handler), intent(in)    :: dofh
-    type(fem_element), intent(in)    :: el
-    type(elvec) ,      intent(in)    :: ev
-    integer(ip) ,      intent(in)    :: nn(:)
-    type(fem_vector),  intent(inout) :: vec
-    integer(ip),       intent(inout) :: l2g(:)
-    ! Locals
-    integer(ip) :: nd,nl,ne,i,inode,j
+  ! !=============================================================================
+  ! subroutine fem_vector_assembly_w_dof_handler(nn, dofh, el, l2g, ev, vec)
+  !   implicit none
+  !   type(dof_handler), intent(in)    :: dofh
+  !   type(fem_element), intent(in)    :: el
+  !   type(elvec) ,      intent(in)    :: ev
+  !   integer(ip) ,      intent(in)    :: nn(:)
+  !   type(fem_vector),  intent(inout) :: vec
+  !   integer(ip),       intent(inout) :: l2g(:)
+  !   ! Locals
+  !   integer(ip) :: nd,nl,ne,i,inode,j
 
-    ! Asserts
-    nd=size(ev%data,dim=1)
-    assert(nd==vec%nd)
-    assert(nd == 1)
-    assert(size(nn,1)==el%nint) 
+  !   ! Asserts
+  !   nd=size(ev%data,dim=1)
+  !   assert(nd==vec%nd)
+  !   assert(nd == 1)
+  !   assert(size(nn,1)==el%nint) 
 
-    l2g = 0
-    do j = dofh%i_varsxprob(1)%a(el%prob),dofh%i_varsxprob(1)%a(el%prob+1)-1
-       do inode = 1,nn(el%iv(dofh%j_varsxprob(1)%a(j)))
-          i = el%p_nod(inode) + j - dofh%i_varsxprob(1)%a(el%prob)
-          l2g(i) = el%elem2dof(inode,dofh%j_varsxprob(1)%a(j))
-       end do
-    end do
+  !   l2g = 0
+  !   do j = dofh%i_varsxprob(1)%a(el%prob),dofh%i_varsxprob(1)%a(el%prob+1)-1
+  !      do inode = 1,nn(el%iv(dofh%j_varsxprob(1)%a(j)))
+  !         i = el%p_nod(inode) + j - dofh%i_varsxprob(1)%a(el%prob)
+  !         l2g(i) = el%elem2dof(inode,dofh%j_varsxprob(1)%a(j))
+  !      end do
+  !   end do
 
-    call ass_vec_w_dof_handler ( ev%data, el%ldof, l2g, vec%neq, vec%b, dofh )
+  !   call ass_vec_w_dof_handler ( ev%data, el%ldof, l2g, vec%neq, vec%b, dofh )
 
-  end subroutine fem_vector_assembly_w_dof_handler
-
-  !=============================================================================
-  subroutine fem_vector_assembly_nosq_w_dof_handler(nn, dofh, el, l2g, bl, ev, vec)
-    implicit none
-    integer(ip) ,      intent(in)    :: nn(:)
-    type(dof_handler), intent(in)    :: dofh
-    type(fem_element), intent(in)    :: el
-    type(fem_blocks),  intent(in)    :: bl
-    type(elvec) ,      intent(in)    :: ev
-    type(fem_vector),  intent(inout) :: vec
-    integer(ip),       intent(inout) :: l2g(:)
-    ! Locals
-    integer(ip) :: nd,nl,ne,i,inode,j,maxnode
-
-    ! Asserts
-    nd=size(ev%data,dim=1)
-    assert(nd==vec%nd)
-    assert(nd == 1)
-    assert(size(nn,1)==el%nint) 
-
-    maxnode=size(el%jvars,1)       
-
-    i = 0
-    do j =  bl%ib(1),bl%ib(2)-1
-       do inode = 1,nn(el%iv(bl%jb(j)))
-          i = i+1
-          l2g(i) = el%elem2dof(inode,bl%jb(j))
-       end do
-    end do
-
-    call ass_vec_nosq_w_dof_handler(el%nint,nn,size(el%p_nod,1),i,el%ldof,bl%ib,bl%jb,size(el%iv,1), &
-         &                          el%iv,el%p_nod,l2g,ev%data,vec%neq,maxnode,el%jvars,vec%b)
-
-  end subroutine fem_vector_assembly_nosq_w_dof_handler
-
- !=============================================================================
-  subroutine fem_face_vector_assembly_w_dof_handler(nn, l2g, dofh, el1, el2, ev, vec)
-    implicit none
-    integer(ip) ,      intent(in)        :: nn(2)
-    type(dof_handler), intent(in)        :: dofh
-    type(fem_element), intent(in)        :: el1,el2
-    type(elvec) ,      intent(in)        :: ev
-    integer(ip),       intent(inout)     :: l2g((nn(1)+nn(2))*dofh%nvarsxprob(el1%prob))
-    type(fem_vector),  intent(inout)     :: vec
-    integer(ip)                          :: i,inode,j
-
-    assert(size(ev%data,dim=1) == 1); assert(vec%nd == 1); assert(el1%prob == el2%prob)
-
-    ! Construct l2g
-    i = 0
-    do inode = 1,nn(1)
-       do j = 1,dofh%nvarsxprob(el1%prob)
-          i = i+1
-          l2g(i) = el1%elem2dof(inode,j)
-       end do
-    end do
-    do inode = 1,nn(2)
-       do j = 1,dofh%nvarsxprob(el2%prob)
-          i = i+1
-          l2g(i) = el2%elem2dof(inode,j)
-       end do
-    end do
-
-    ! Assemble
-    call ass_vec_w_dof_handler ( ev%data, (nn(1)+nn(2))*dofh%nvarsxprob(el1%prob), l2g, vec%neq, vec%b, dofh )
-
-  end subroutine fem_face_vector_assembly_w_dof_handler
+  ! end subroutine fem_vector_assembly_w_dof_handler
 
   !=============================================================================
-  subroutine ass_vec_w_dof_handler (ev,nl,l2g,nv,b, dofhandler)
-    implicit none
-    integer(ip) , intent(in)    :: nv,nl
-    integer(ip) , intent(in)    :: l2g(nl)
-    real(rp)    , intent(in)    :: ev(1,nl)
-    real(rp)    , intent(inout) :: b(1,nv)
-    type(dof_handler), intent(in), optional :: dofhandler
+ ! subroutine fem_vector_assembly_nosq_w_dof_handler(nn, dofh, el, l2g, bl, ev, vec)
+ !    implicit none
+ !    integer(ip) ,      intent(in)    :: nn(:)
+ !    type(dof_handler), intent(in)    :: dofh
+ !    type(fem_element), intent(in)    :: el
+ !    type(fem_blocks),  intent(in)    :: bl
+ !    type(elvec) ,      intent(in)    :: ev
+ !    type(fem_vector),  intent(inout) :: vec
+ !    integer(ip),       intent(inout) :: l2g(:)
+ !    ! Locals
+ !    integer(ip) :: nd,nl,ne,i,inode,j,maxnode
+
+
+ !  end subroutine fem_vector_assembly_nosq_w_dof_handler
+
+ ! !=============================================================================
+ !  subroutine fem_face_vector_assembly_w_dof_handler(nn, l2g, dofh, el1, el2, ev, vec)
+ !    implicit none
+ !    integer(ip) ,      intent(in)        :: nn(2)
+ !    type(dof_handler), intent(in)        :: dofh
+ !    type(fem_element), intent(in)        :: el1,el2
+ !    type(elvec) ,      intent(in)        :: ev
+ !    integer(ip),       intent(inout)     :: l2g((nn(1)+nn(2))*dofh%nvarsxprob(el1%prob))
+ !    type(fem_vector),  intent(inout)     :: vec
+ !    integer(ip)                          :: i,inode,j
+
+
+ !  end subroutine fem_face_vector_assembly_w_dof_handler
+
+  ! !=============================================================================
+  ! subroutine ass_vec_w_dof_handler (ev,nl,l2g,nv,b, dofhandler)
+  !   implicit none
+  !   integer(ip) , intent(in)    :: nv,nl
+  !   integer(ip) , intent(in)    :: l2g(nl)
+  !   real(rp)    , intent(in)    :: ev(1,nl)
+  !   real(rp)    , intent(inout) :: b(1,nv)
+  !   type(dof_handler), intent(in), optional :: dofhandler
     
-    integer(ip)                 :: il,ig
-    integer(ip)                 :: block_i, l_cing_i, cing_node, num_dofs, cing_glob_dof_i
-    type(adapt_constraint), pointer :: constraint_ptr
+  !   integer(ip)                 :: il,ig
+  !   integer(ip)                 :: block_i, l_cing_i, cing_node, num_dofs, cing_glob_dof_i
+  !   type(adapt_constraint), pointer :: constraint_ptr
 
-    ! todo: find it out properly!
-    ! todo: find it out properly!
-    block_i = 1
+  !   ! todo: find it out properly!
+  !   ! todo: find it out properly!
+  !   block_i = 1
         
-    do il = 1,nl
-       ig = l2g(il)
-       if (ig /= 0) then
-          if(ig > 0) then
-             ! regular node
-             !write(*,*) "adding regular rhs ", ig, il, ev(1,il)
-             b(1, ig) = b(1, ig) + ev(1,il)
-          else
-             ! hanging node
-             assert(present(dofhandler))
-             constraint_ptr => dofhandler%constraint_list%list(-ig)
-             do l_cing_i = 1, constraint_ptr%num_cing_nodes
-                cing_node = constraint_ptr%cing_nodes(l_cing_i)
-                num_dofs = dofhandler%ob2dof_p(block_i)%a(cing_node + 1) - dofhandler%ob2dof_p(block_i)%a(cing_node)
-                assert(num_dofs <= 1)
-                if(num_dofs == 0) then
-                   cycle
-                end if
-                ! todo: second column in ob2dof_l
-                cing_glob_dof_i = dofhandler%ob2dof_l(block_i)%a(dofhandler%ob2dof_p(block_i)%a(cing_node), 1)
+  !   do il = 1,nl
+  !      ig = l2g(il)
+  !      if (ig /= 0) then
+  !         if(ig > 0) then
+  !            ! regular node
+  !            !write(*,*) "adding regular rhs ", ig, il, ev(1,il)
+  !            b(1, ig) = b(1, ig) + ev(1,il)
+  !         else
+  !            ! hanging node
+  !            assert(present(dofhandler))
+  !            constraint_ptr => dofhandler%constraint_list%list(-ig)
+  !            do l_cing_i = 1, constraint_ptr%num_cing_nodes
+  !               cing_node = constraint_ptr%cing_nodes(l_cing_i)
+  !               num_dofs = dofhandler%ob2dof_p(block_i)%a(cing_node + 1) - dofhandler%ob2dof_p(block_i)%a(cing_node)
+  !               assert(num_dofs <= 1)
+  !               if(num_dofs == 0) then
+  !                  cycle
+  !               end if
+  !               ! todo: second column in ob2dof_l
+  !               cing_glob_dof_i = dofhandler%ob2dof_l(block_i)%a(dofhandler%ob2dof_p(block_i)%a(cing_node), 1)
 
-                ! add the value
-                b(1, cing_glob_dof_i) = b(1, cing_glob_dof_i) + ev(1, il) * constraint_ptr%cing_coefs(l_cing_i)
-             end do
-          end if
-       end if
-    end do
-  end subroutine ass_vec_w_dof_handler
+  !               ! add the value
+  !               b(1, cing_glob_dof_i) = b(1, cing_glob_dof_i) + ev(1, il) * constraint_ptr%cing_coefs(l_cing_i)
+  !            end do
+  !         end if
+  !      end if
+  !   end do
+  ! end subroutine ass_vec_w_dof_handler
 
- !============================================================================
-  subroutine ass_vec_nosq_w_dof_handler(nint,nn,nd,id,ld,ib,jb,nva,iv,pn,l2g,ev,nv,mn,jbn,b)
+ ! !============================================================================
+ !  subroutine ass_vec_nosq_w_dof_handler(nint,nn,nd,id,ld,ib,jb,nva,iv,pn,l2g,ev,nv,mn,jbn,b)
 
-    implicit none
-    integer(ip) , intent(in)      :: nint, nv, nd, nva, id, ld, mn
-    integer(ip) , intent(in)      :: nn(nint),pn(nd),iv(nva)
-    integer(ip) , intent(in)      :: ib(3),jb(ib(3)-1)
-    integer(ip) , intent(in)      :: l2g(id)
-    integer(ip) , intent(in)      :: jbn(mn,nva)
-    real(rp)    , intent(in)      :: ev(1,ld)
-    real(rp)    , intent(inout)   :: b(1,nv)
+ !    implicit none
+ !    integer(ip) , intent(in)      :: nint, nv, nd, nva, id, ld, mn
+ !    integer(ip) , intent(in)      :: nn(nint),pn(nd),iv(nva)
+ !    integer(ip) , intent(in)      :: ib(3),jb(ib(3)-1)
+ !    integer(ip) , intent(in)      :: l2g(id)
+ !    integer(ip) , intent(in)      :: jbn(mn,nva)
+ !    real(rp)    , intent(in)      :: ev(1,ld)
+ !    real(rp)    , intent(inout)   :: b(1,nv)
 
-    ! local variables
-    integer(ip)                   :: in, ip, il, ig, ie
+ !    ! local variables
+ !    integer(ip)                   :: in, ip, il, ig, ie
 
-    il = 0
-    do ip = ib(1),ib(2)-1
-       do in = 1,nn(iv(jb(ip)))
-          il = il + 1
-          ig = l2g(il)
-          if (ig /= 0) then
-             ie = pn(in)-1 + jbn(in,jb(ip))
-             b(1,ig) = b(1,ig) + ev(1,ie)
-          end if
-       end do
-    end do
+ !    il = 0
+ !    do ip = ib(1),ib(2)-1
+ !       do in = 1,nn(iv(jb(ip)))
+ !          il = il + 1
+ !          ig = l2g(il)
+ !          if (ig /= 0) then
+ !             ie = pn(in)-1 + jbn(in,jb(ip))
+ !             b(1,ig) = b(1,ig) + ev(1,ie)
+ !          end if
+ !       end do
+ !    end do
 
-  end subroutine ass_vec_nosq_w_dof_handler
+ !  end subroutine ass_vec_nosq_w_dof_handler
 
   !=============================================================================
   subroutine fem_vector_dot (x, y, t)
