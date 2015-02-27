@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module quadrature_class
+module quadrature_names
   use types
   use memor
   implicit none
@@ -1686,4 +1686,4 @@ contains
 
   end subroutine chaord
 
-end module quadrature_class
+end module quadrature_names

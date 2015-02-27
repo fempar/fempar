@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module renum_class
+module renum_names
   use types
   use memor
   use stdio
@@ -346,4 +346,4 @@ contains
     end do
   end subroutine renum_apply_i2
     
-end module renum_class
+end module renum_names

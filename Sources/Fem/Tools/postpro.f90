@@ -31,7 +31,7 @@ module postpro_names
 #ifdef ENABLE_GIDPOST
   use gidpost
 #endif
-  use renum_class
+  use renum_names
   implicit none
   private
 

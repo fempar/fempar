@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_timer_class
+module par_timer_names
   ! Serial modules
   use types
 
@@ -164,4 +164,4 @@ contains
 
     end subroutine par_timer_report
 
-end module par_timer_class
+end module par_timer_names

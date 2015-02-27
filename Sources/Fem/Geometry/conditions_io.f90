@@ -29,7 +29,7 @@ module fem_conditions_io
   use types
   use stdio
   use memor
-  use fem_conditions_class
+  use fem_conditions_names
   implicit none
   private
 

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module sort_class
+module sort_names
   use types
   implicit none
 # include "debug.i90"
@@ -377,4 +377,4 @@ contains
 
 
 
-end module sort_class
+end module sort_names

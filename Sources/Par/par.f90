@@ -28,28 +28,28 @@
 module par
 
   ! Tools
-  use par_context_class
+  use par_context_names
   use psb_penv_mod
   use par_sparse_global_collectives
   use par_element_exchange
-  use par_timer_class
+  use par_timer_names
   use par_io 
 
   ! Geometry
-  use par_partition_class
-  use par_mesh_class
+  use par_partition_names
+  use par_mesh_names
   use par_mesh_partition_conditions
-  use par_triangulation_class
+  use par_triangulation_names
   use par_mesh_triangulation
 
   ! Linear algebra
-  use par_vector_class
-  use par_matrix_class
+  use par_vector_names
+  use par_matrix_names
   use par_matrix_vector
-  use par_graph_class
-  use par_block_matrix_class
-  use par_block_vector_class
-  use par_block_vector_krylov_basis_class
+  use par_graph_names
+  use par_block_matrix_names
+  use par_block_vector_names
+  use par_block_vector_krylov_basis_names
   use par_block_matrix_vector
     
 end module par

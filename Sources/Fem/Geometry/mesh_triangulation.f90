@@ -28,8 +28,8 @@
 module mesh_triangulation
   use types
   use memor
-  use fem_mesh_class
-  use fem_triangulation_class
+  use fem_mesh_names
+  use fem_triangulation_names
   use geom2topo
 
   implicit none

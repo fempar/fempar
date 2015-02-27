@@ -25,11 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_triangulation_class
+module fem_triangulation_names
   use types
   use memor
   use fem_space_types
-  use hash_table_class
+  use hash_table_names
   implicit none
 # include "debug.i90"
   private
@@ -405,4 +405,4 @@ contains
     end do
   end subroutine local_id_from_vertices
 
-end module fem_triangulation_class
+end module fem_triangulation_names

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module hsl_ma87_class
+module hsl_ma87_names
   ! This module is a wrapper in which we define functions 
   ! to interact with HSL_MA87 using our data structures.
   ! Error control on calling parameters must (ideally)
@@ -34,10 +34,10 @@ module hsl_ma87_class
   ! Serial modules
   use types
   use memor
-  use fem_matrix_class
-  use fem_vector_class 
-  use fem_graph_class
-  use renum_class
+  use fem_matrix_names
+  use fem_vector_names 
+  use fem_graph_names
+  use renum_names
 
 
 #ifdef ENABLE_HSL_MA87
@@ -586,6 +586,6 @@ contains
 
   end subroutine hsl_ma87_solution_several_rhs
 
-end module hsl_ma87_class
+end module hsl_ma87_names
 
 

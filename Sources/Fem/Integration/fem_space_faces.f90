@@ -28,14 +28,14 @@
 module fem_space_faces
   use types
   use memor
-  use hash_table_class
-  use fem_mesh_class
-  use integration_class
+  use hash_table_names
+  use fem_mesh_names
+  use integration_names
 !  use fem_mesh_faces
-  use fem_space_class
+  use fem_space_names
   use fem_space_types
-  use fem_partition_class
-  use array_class
+  use fem_partition_names
+  use array_names
 
 # include "debug.i90"
   implicit none

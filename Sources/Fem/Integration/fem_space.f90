@@ -25,24 +25,22 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_space_class
+# include "debug.i90"
+module fem_space_names
   ! Modules
   use types
   use memor
-  use array_class
-  use fem_mesh_class
-  use hash_table_class
-!  use elmat_class
-!  use elvec_class
-  use integration_class
+  use array_names
+  use fem_mesh_names
+  use hash_table_names
+!  use elmat_names
+!  use elvec_names
+  use integration_names
   use fem_space_types
 #ifdef memcheck
   use iso_c_binding
 #endif
-
   implicit none
-# include "debug.i90"
-
   private
 
   ! Information of each element of the FE space
@@ -129,40 +127,6 @@ module fem_space_class
      module procedure fem_space_fe_list_create_one_int, fem_space_fe_list_create_var_int
   end interface fem_space_fe_list_create
 
-  ! Memalloc interfaces
-  interface memalloc
-     module procedure memalloc_fem_fixed_info_p1, memalloc_fem_fixed_info_p2,                       &
-          &           memalloc_fem_fixed_info_p3, memalloc_fem_fixed_info_p4,                       &
-          &           memalloc_vol_integ_p1, memalloc_vol_integ_p2,                                 &
-          &           memalloc_vol_integ_p3, memalloc_vol_integ_p4,                                 &
-          &           memalloc_face_integ_p1, memalloc_face_integ_p2,                               &
-          &           memalloc_face_integ_p3, memalloc_face_integ_p4
-  end interface memalloc
-  interface memrealloc
-     module procedure memrealloc_fem_fixed_info_p1, memrealloc_fem_fixed_info_p2,                   &
-          &           memrealloc_fem_fixed_info_p3, memrealloc_fem_fixed_info_p4,                   &
-          &           memrealloc_vol_integ_p1, memrealloc_vol_integ_p2,                             &
-          &           memrealloc_vol_integ_p3, memrealloc_vol_integ_p4,                              &
-          &           memrealloc_face_integ_p1, memrealloc_face_integ_p2,                             &
-          &           memrealloc_face_integ_p3, memrealloc_face_integ_p4
-  end interface memrealloc
-  interface memfree
-     module procedure memfree_fem_fixed_info_p1, memfree_fem_fixed_info_p2,                         &
-          &           memfree_fem_fixed_info_p3, memfree_fem_fixed_info_p4,                         &
-          &           memfree_vol_integ_p1, memfree_vol_integ_p2,                                   &
-          &           memfree_vol_integ_p3, memfree_vol_integ_p4,                                   &
-          &           memfree_face_integ_p1, memfree_face_integ_p2,                                   &
-          &           memfree_face_integ_p3, memfree_face_integ_p4
-  end interface memfree
-  interface memmovealloc
-     module procedure memmovealloc_fem_fixed_info_p1, memmovealloc_fem_fixed_info_p2,               &
-          &           memmovealloc_fem_fixed_info_p3, memmovealloc_fem_fixed_info_p4,               &
-          &           memmovealloc_vol_integ_p1, memmovealloc_vol_integ_p2,                         &
-          &           memmovealloc_vol_integ_p3, memmovealloc_vol_integ_p4,                         &
-          &           memmovealloc_face_integ_p1, memmovealloc_face_integ_p2,                         &
-          &           memmovealloc_face_integ_p3, memmovealloc_face_integ_p4
-  end interface memmovealloc
-
   ! Types
   public :: fem_space, fem_element, fem_face,                      &
        &     memalloc, memrealloc, memfreep, memmovealloc
@@ -182,97 +146,6 @@ module fem_space_class
 !!$        & 1, 2, 4, 3, 1, 2, 5, 6, 1, 5, 4, 8, 2, 6, 3, 7, 3, 4, 7, 8, 5, 6, 8, 7 /),(/4,26/))
    
 contains
-
-  !**************************************************************************************************
-  !**************************************************************************************************
-  ! Specialization to allocate type(fem_fixed_info_pointer)
-  !**************************************************************************************************
-  !**************************************************************************************************
-# define var_type type(fem_fixed_info_pointer)
-# define var_size 8
-# define var_attr allocatable,target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloc_fem_fixed_info_p1    
-# define generic_memalloc_2      memalloc_fem_fixed_info_p2    
-# define generic_memalloc_3      memalloc_fem_fixed_info_p3    
-# define generic_memalloc_4      memalloc_fem_fixed_info_p4    
-# define generic_memrealloc_1    memrealloc_fem_fixed_info_p1  
-# define generic_memrealloc_2    memrealloc_fem_fixed_info_p2  
-# define generic_memrealloc_3    memrealloc_fem_fixed_info_p3  
-# define generic_memrealloc_4    memrealloc_fem_fixed_info_p4  
-# define generic_memfree_1       memfree_fem_fixed_info_p1     
-# define generic_memfree_2       memfree_fem_fixed_info_p2     
-# define generic_memfree_3       memfree_fem_fixed_info_p3     
-# define generic_memfree_4       memfree_fem_fixed_info_p4     
-# define generic_memmovealloc_1  memmovealloc_fem_fixed_info_p1
-# define generic_memmovealloc_2  memmovealloc_fem_fixed_info_p2
-# define generic_memmovealloc_3  memmovealloc_fem_fixed_info_p3
-# define generic_memmovealloc_4  memmovealloc_fem_fixed_info_p4
-# include "memor.i90"
-
-  !**************************************************************************************************
-  !**************************************************************************************************
-  ! Specialization to allocate type(vol_integ_pointer)
-  !**************************************************************************************************
-  !**************************************************************************************************
-# define var_type type(vol_integ_pointer)
-# define var_size 8
-# define var_attr allocatable,target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloc_vol_integ_p1    
-# define generic_memalloc_2      memalloc_vol_integ_p2    
-# define generic_memalloc_3      memalloc_vol_integ_p3    
-# define generic_memalloc_4      memalloc_vol_integ_p4    
-# define generic_memrealloc_1    memrealloc_vol_integ_p1  
-# define generic_memrealloc_2    memrealloc_vol_integ_p2  
-# define generic_memrealloc_3    memrealloc_vol_integ_p3  
-# define generic_memrealloc_4    memrealloc_vol_integ_p4  
-# define generic_memfree_1       memfree_vol_integ_p1     
-# define generic_memfree_2       memfree_vol_integ_p2     
-# define generic_memfree_3       memfree_vol_integ_p3     
-# define generic_memfree_4       memfree_vol_integ_p4     
-# define generic_memmovealloc_1  memmovealloc_vol_integ_p1
-# define generic_memmovealloc_2  memmovealloc_vol_integ_p2
-# define generic_memmovealloc_3  memmovealloc_vol_integ_p3
-# define generic_memmovealloc_4  memmovealloc_vol_integ_p4
-# include "memor.i90"
-
-
-  !**************************************************************************************************
-  !**************************************************************************************************
-  ! Specialization to allocate type(face_integ_pointer)
-  !**************************************************************************************************
-  !**************************************************************************************************
-# define var_type type(face_integ_pointer)
-# define var_size 8
-# define var_attr allocatable,target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloc_face_integ_p1    
-# define generic_memalloc_2      memalloc_face_integ_p2    
-# define generic_memalloc_3      memalloc_face_integ_p3    
-# define generic_memalloc_4      memalloc_face_integ_p4    
-# define generic_memrealloc_1    memrealloc_face_integ_p1  
-# define generic_memrealloc_2    memrealloc_face_integ_p2  
-# define generic_memrealloc_3    memrealloc_face_integ_p3  
-# define generic_memrealloc_4    memrealloc_face_integ_p4  
-# define generic_memfree_1       memfree_face_integ_p1     
-# define generic_memfree_2       memfree_face_integ_p2     
-# define generic_memfree_3       memfree_face_integ_p3     
-# define generic_memfree_4       memfree_face_integ_p4     
-# define generic_memmovealloc_1  memmovealloc_face_integ_p1
-# define generic_memmovealloc_2  memmovealloc_face_integ_p2
-# define generic_memmovealloc_3  memmovealloc_face_integ_p3
-# define generic_memmovealloc_4  memmovealloc_face_integ_p4
-# include "memor.i90"
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in o_mesh and g_mesh
@@ -979,4 +852,4 @@ contains
     
   end subroutine get_p_faces
 
-end module fem_space_class
+end module fem_space_names

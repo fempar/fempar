@@ -28,8 +28,8 @@
 module fem_matrix_partition
   use types
   use memor
-  use fem_matrix_class
-  use fem_partition_class
+  use fem_matrix_names
+  use fem_partition_names
   implicit none
 # include "debug.i90"
   private

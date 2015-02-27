@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_class
+module fem_mesh_names
   use types
   use memor
-  use fem_materials_class
+  use fem_materials_names
   use stdio
   use iso_fortran_env, only : output_unit
-  !use fem_conditions_class
+  !use fem_conditions_names
 # include "debug.i90"
   implicit none
   private
@@ -448,4 +448,4 @@ contains
   
   end subroutine print_fem_mesh
 
-end module fem_mesh_class
+end module fem_mesh_names

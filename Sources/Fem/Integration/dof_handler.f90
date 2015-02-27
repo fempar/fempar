@@ -25,21 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module dof_handler_class
+module dof_handler_names
   use types
   use memor
-  use sort_class
-  use fem_mesh_class
-  use fem_partition_class
-  use fem_graph_class
-  use fem_conditions_class
-  use fem_materials_class
-  use fem_space_class
+  use sort_names
+  use fem_mesh_names
+  use fem_partition_names
+  use fem_graph_names
+  use fem_conditions_names
+  use fem_materials_names
+  use fem_space_names
   use fem_space_types
-  use maps_class
+  use maps_names
   use mesh_graph
-  !use fem_blocks_class
-  use array_class
+  !use fem_blocks_names
+  use array_names
   
   implicit none
 # include "debug.i90"
@@ -319,5 +319,5 @@ contains
 
   end subroutine dof_handler_create_multiphysics
 
-end module dof_handler_class
+end module dof_handler_names
 

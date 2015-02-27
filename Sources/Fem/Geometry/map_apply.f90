@@ -28,10 +28,10 @@
 module map_apply
   use types
   use memor
-  use maps_class
-  use renum_class
-  use fem_mesh_class
-  use hash_table_class
+  use maps_names
+  use renum_names
+  use fem_mesh_names
+  use hash_table_names
 # include "debug.i90"
   implicit none
   private

@@ -28,18 +28,18 @@
 module fem_mesh_partition
   use types
   use memor
-  use sort_class
-  use fem_partition_class
-  use renum_class
-  use maps_class
+  use sort_names
+  use fem_partition_names
+  use renum_names
+  use maps_names
   use map_apply
-  use fem_graph_class
+  use fem_graph_names
   use graph_renum
-  use fem_mesh_class
+  use fem_mesh_names
   use mesh_graph
-  use fem_materials_class
+  use fem_materials_names
   use fem_mesh_partition_base
-  use hash_table_class
+  use hash_table_names
 # include "debug.i90"
   implicit none
   private

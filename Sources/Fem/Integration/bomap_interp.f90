@@ -28,8 +28,8 @@
 module bomap_interp
   use types
   use memor
-  use bomap_class
-  use interpolation_class
+  use bomap_names
+  use interpolation_names
   implicit none
 # include "debug.i90"
   private

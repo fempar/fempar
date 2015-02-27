@@ -25,22 +25,28 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module integration_class
+!***********************************************************************
+! All allocatable arrays
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+# include "debug.i90"
+!***********************************************************************
+module volumne_integration_names
   use types
   use memor
-  use array_class
-  use fem_mesh_class 
-  use quadrature_class
-  use quadrature_faces
-  use interpolation_class
-  use face_interpolation_class
-  use femap_class
-  use femap_interp
-  use bomap_class
-  use bomap_interp
-  use fem_space_types
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  use quadrature_names
+  use interpolation_names
+  use femap_names
   implicit none
-# include "debug.i90"
   private
 
   type vol_integ
@@ -52,6 +58,35 @@ module integration_class
      type(interpolation)      :: gint_phy    ! Geometry interpolation in the physical element domain
      type(femap)              :: femap       ! FE mapping
   end type vol_integ
+  type vol_integ_pointer
+     type(vol_integ)          , pointer :: p => NULL() 
+  end type vol_integ_pointer
+  public :: vol_integ, vol_integ_pointer
+
+# define var_type type(vol_integ_pointer)
+# define var_size 8
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+contains
+# include "mem_body.i90"
+end module volumne_integration_names
+
+!***********************************************************************
+module face_integration_names
+  use types
+  use memor
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  use quadrature_names
+  use quadrature_faces
+  use interpolation_names
+  use face_interpolation_names
+  use femap_names
+  use bomap_names
+  implicit none
+  private
 
   type face_integ 
      integer(ip)              :: ltype(2)     ! List of combinations of face types
@@ -65,14 +100,41 @@ module integration_class
      type(face_interpolation) :: gfint_ref(2) ! Geometry interpolation in the reference face domain
      type(face_interpolation) :: gfint_phy(2) ! Geometry interpolation in the physical face domain
   end type face_integ
-
- type vol_integ_pointer
-     type(vol_integ)          , pointer :: p => NULL() 
-  end type vol_integ_pointer
-
   type face_integ_pointer
      type(face_integ)          , pointer :: p => NULL() 
   end type face_integ_pointer
+  public :: face_integ, face_integ_pointer
+
+# define var_type type(face_integ_pointer)
+# define var_size 8
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+contains
+# include "mem_body.i90"
+
+end module face_integration_names
+!***********************************************************************
+
+module integration_names
+  use types
+  use memor
+  use array_names
+  use fem_mesh_names 
+  use quadrature_names
+  use quadrature_faces
+  use interpolation_names
+  use face_interpolation_names
+  use femap_names
+  use femap_interp
+  use bomap_names
+  use bomap_interp
+  use fem_space_types
+  use element_gather_tools
+  use volumne_integration_names
+  use face_integration_names
+  implicit none
+  private
 
   interface integ_create
      module procedure face_integ_create,vol_integ_create
@@ -81,12 +143,11 @@ module integration_class
      module procedure vol_integ_free, face_integ_free
   end interface integ_free
 
-  ! Types
-  public :: vol_integ, face_integ
-  public :: vol_integ_pointer, face_integ_pointer
-
   ! Functions
   public :: integ_create, integ_element, integ_free, integ_faces 
+  public :: vol_integ, vol_integ_pointer
+  public :: face_integ, face_integ_pointer
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
 
 contains
 
@@ -507,4 +568,4 @@ contains
     check (ftype == ftype2)
     
   end subroutine set_face_type
-end module integration_class
+end module integration_names

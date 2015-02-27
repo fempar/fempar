@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_conditions_class
+module fem_conditions_names
   use types
   use memor
   use stdio
-  use fem_mesh_class
-  use renum_class
+  use fem_mesh_names
+  use renum_names
 # include "debug.i90"
   implicit none
   private
@@ -476,4 +476,4 @@ contains
 
   end subroutine fem_conditions_free
 
-end module fem_conditions_class
+end module fem_conditions_names

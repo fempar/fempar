@@ -28,9 +28,9 @@
 module fem_mesh_refine
   use types
   use memor
-  use fem_mesh_class
-  use fem_conditions_class
-  use fem_materials_class
+  use fem_mesh_names
+  use fem_conditions_names
+  use fem_materials_names
 # include "debug.i90"
   implicit none
   private

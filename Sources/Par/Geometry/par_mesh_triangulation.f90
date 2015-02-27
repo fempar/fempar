@@ -29,16 +29,16 @@ module par_mesh_triangulation
   ! Serial modules
   use types
   use memor
-  use fem_triangulation_class
-  use fem_partition_class
-  use hash_table_class
+  use fem_triangulation_names
+  use fem_partition_names
+  use hash_table_names
   use mesh_triangulation
   use psi_penv_mod
 
   ! Parallel modules
-  use par_triangulation_class
-  use par_mesh_class
-  use par_partition_class
+  use par_triangulation_names
+  use par_mesh_names
+  use par_partition_names
   use par_element_exchange
 
 # include "debug.i90"

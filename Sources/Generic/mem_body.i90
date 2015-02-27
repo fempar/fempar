@@ -61,7 +61,7 @@
 !
 ! bound_kind           A parameter (ip or igp as defined in types.f90)
 !
-! exception            If defined ieee modules are included and (real) 
+! exception_real       If defined ieee modules are included and (real) 
 !                      variables are initialized to NaN. This is a useful 
 !                      feature to detect errors coming from the use of 
 !                      uninitialized vars.
@@ -92,7 +92,6 @@ subroutine generic_memalloc_1(ndim1, varia, file, line, valin, lb1)
      if(istat/=0) call mem_alloc_error(istat,lbyts,file,line)
      call memsum(lbyts)
 #ifdef memcheck
-
      if(lbyts>0) then
         call mem_db_put(c_loc(varia(lb1_)),file,line)
      else
@@ -698,7 +697,7 @@ end subroutine generic_memfree_4
 !***********************************************************************
 ! Movealloc
 
-#ifdef generic_memmovealloc_1
+#ifdef generic_memmovealloc_interface
 subroutine generic_memmovealloc_1 (vin,vout,file,line)
   implicit none
   var_type, var_attr, intent(inout) :: vin(:), vout(:)
@@ -710,11 +709,9 @@ subroutine generic_memmovealloc_1 (vin,vout,file,line)
      call generic_memfree_1 (vout,file,line)
   end if
 end subroutine generic_memmovealloc_1
-#endif
 
 !-----------------------------------------------------------------------
 
-#ifdef generic_memmovealloc_2
 subroutine generic_memmovealloc_2 (vin,vout,file,line)
   implicit none
   var_type, allocatable, intent(inout) :: vin(:,:), vout(:,:)
@@ -726,11 +723,9 @@ subroutine generic_memmovealloc_2 (vin,vout,file,line)
      call generic_memfree_2 (vout,file,line)
   end if
 end subroutine generic_memmovealloc_2
-#endif
 
 !-----------------------------------------------------------------------
 
-#ifdef generic_memmovealloc_3
 subroutine generic_memmovealloc_3 (vin,vout,file,line)
   implicit none
   var_type, allocatable, intent(inout) :: vin(:,:,:), vout(:,:,:)
@@ -742,11 +737,9 @@ subroutine generic_memmovealloc_3 (vin,vout,file,line)
      call generic_memfree_3 (vout,file,line)
   end if
 end subroutine generic_memmovealloc_3
-#endif
 
 !-----------------------------------------------------------------------
 
-#ifdef generic_memmovealloc_4
 subroutine generic_memmovealloc_4 (vin,vout,file,line)
   implicit none
   var_type, allocatable, intent(inout) :: vin(:,:,:,:), vout(:,:,:,:)

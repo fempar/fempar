@@ -28,10 +28,10 @@
 module partition_element_import
   use types
   use memor
-  use fem_partition_class
-  use fem_element_import_class
-  use sort_class
-  use hash_table_class
+  use fem_partition_names
+  use fem_element_import_names
+  use sort_names
+  use hash_table_names
 
   implicit none
 # include "debug.i90"

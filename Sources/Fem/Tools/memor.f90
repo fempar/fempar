@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module memor
+module mem_base
   !-----------------------------------------------------------------------
   !
   !  This module contains memory allocation functions.
@@ -47,7 +47,8 @@ module memor
   !-----------------------------------------------------------------------
 !$ use omp_lib
   use types
-  use hash_table_class ! Only used ifdef memcheck but this avoids passing the definition to configure
+  use hash_table_names ! Only used ifdef memcheck but this avoids passing 
+                       ! the definition to configure
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -58,29 +59,38 @@ module memor
   implicit none
   private
 
-  integer(ip), save        ::     &
-       lumem = 0,                 &              ! Logical unit to write memory evolution
-       luerr = 0,                 &              ! Logical unit to write errors
-       meall = 0,                 &              ! Number of memory allocations
-       medea = 0                                 ! Number of memory deallocations
+  integer(ip) , save ::    &
+       lumem = 0,          &  ! Logical unit to write memory evolution
+       luerr = 0,          &  ! Logical unit to write errors
+       meall = 0,          &  ! Number of memory allocations
+       medea = 0              ! Number of memory deallocations
 
-  integer(imp) , save      ::     &
-       memax = 0,                 &              ! Maximum memory allocation in bytes
-       mecur = 0                                 ! Current memory allocation in bytes
+  integer(imp), save ::    &
+       memax = 0,          &  ! Maximum memory allocation in bytes
+       mecur = 0              ! Current memory allocation in bytes
 
-  real(rp), save :: nan ! An undefined value, initialized to nan if exception macro is defined
+  real(rp), save :: nan       ! An undefined value, initialized to nan 
+                              ! if exception macro is defined
 
+  !***********************************************************************
+  ! Specific purpose hash table specification (only if memcheck is defined)
+  ! using a special purpose type mem_data to store where allocations have
+  ! been performed.
+  !***********************************************************************
 #ifdef memcheck
   type mem_data
      character(30) :: file=' '
      integer(ip)   :: line=0
   end type mem_data
-# include "debug.i90"
+
+#include "debug.i90"
 
 #define hash_table hash_table_mem
 #define hash_node  hash_node_mem
 #define key_type   integer(igp)
+#define key_size   igp
 #define val_type   type(mem_data)
+#define print_key_val     write(*,*) list%key, trim(list%val%file), list%val%line
 #define put_hash_node     put_hash_node_mem   
 #define get_hash_node     get_hash_node_mem   
 #define del_hash_node     del_hash_node_mem   
@@ -98,69 +108,7 @@ module memor
   type(hash_table_mem) :: mem_db
 #endif
 
-
-  ! Allocatables
-  interface memalloc
-     module procedure memalloca_ip1, memalloca_ip2, memalloca_ip3, memalloca_ip4, &
-          &           memalloca_igp1, memalloca_igp2, memalloca_igp3, memalloca_igp4, & 
-          &           memalloca_ip_igp1, memalloca_ip_igp2, memalloca_ip_igp3, memalloca_ip_igp4, &
-          &           memalloca_rp1, memalloca_rp2, memalloca_rp3, memalloca_rp4, &
-          &           memalloca_lg1, memalloca_lg2, memalloca_lg3, memalloca_lg4
-  end interface memalloc
-  interface memrealloc
-     module procedure memrealloca_ip1, memrealloca_ip2, memrealloca_ip3, memrealloca_ip4, &
-          &           memrealloca_igp1, memrealloca_igp2, memrealloca_igp3, memrealloca_igp4, &
-          &           memrealloca_ip_igp1, memrealloca_ip_igp2, memrealloca_ip_igp3, memrealloca_ip_igp4, &
-          &           memrealloca_rp1, memrealloca_rp2, memrealloca_rp3, memalloca_rp4, &
-          &           memrealloca_lg1, memrealloca_lg2, memrealloca_lg3, memalloca_lg4
-  end interface memrealloc
-  interface memfree
-     module procedure memfreea_ip1, memfreea_ip2, memfreea_ip3, memfreea_ip4, &
-          &           memfreea_igp1, memfreea_igp2, memfreea_igp3, memfreea_igp4, &
-          ! AFM: this set of four subroutines has exactly the same interface as the ones
-          !      in the previous line (i.e., memfreea_ipgp*), then it is a mistake to consider
-          !      them in the same generic interface
-          ! &           memfreea_ip_igp1, memfreea_ip_igp2, memfreea_ip_igp3, memfreea_ip_igp4, &
-          &           memfreea_rp1, memfreea_rp2, memfreea_rp3, memfreea_rp4, &
-          &           memfreea_lg1, memfreea_lg2, memfreea_lg3, memfreea_lg4
-  end interface memfree
-  interface memmovealloc
-     module procedure memmovealloc_ip1, memmovealloc_ip2, memmovealloc_ip3, memmovealloc_ip4, &
-          &           memmovealloc_igp1, memmovealloc_igp2, memmovealloc_igp3, memmovealloc_igp4, &
-          ! AFM: this set of four subroutines has exactly the same interface as the ones
-          !      in the previous line (i.e., memmovealloc_ipgp*), then it is a mistake to consider
-          !      them in the same generic interface
-          ! &         memmovealloc_ip_igp1, memmovealloc_ip_igp2, memmovealloc_ip_igp3, memmovealloc_ip_igp4, & 
-          &           memmovealloc_rp1, memmovealloc_rp2, memmovealloc_rp3, memmovealloc_rp4, &
-          &           memmovealloc_lg1, memmovealloc_lg2, memmovealloc_lg3, memmovealloc_lg4
-  end interface memmovealloc
-
-  ! Pointers
-  interface memallocp
-     module procedure memallocp_ip1, memallocp_ip2, memallocp_ip3, memallocp_ip4, &
-          &           memallocp_igp1, memallocp_igp2, memallocp_igp3, memallocp_igp4, &
-          &           memallocp_ip_igp1, memallocp_ip_igp2, memallocp_ip_igp3, memallocp_ip_igp4, &
-          &           memallocp_rp1, memallocp_rp2, memallocp_rp3, memallocp_rp4
-  end interface memallocp
-  interface memreallocp
-     module procedure memreallocp_ip1, memreallocp_ip2, memreallocp_ip3, memreallocp_ip4, &
-          &           memreallocp_igp1, memreallocp_igp2, memreallocp_igp3, memreallocp_igp4, &
-          &           memreallocp_ip_igp1, memreallocp_ip_igp2, memreallocp_ip_igp3, memreallocp_ip_igp4, &
-          &           memreallocp_rp1, memreallocp_rp2, memreallocp_rp3, memallocp_rp4
-  end interface memreallocp
-  interface memfreep
-     module procedure memfreep_ip1, memfreep_ip2, memfreep_ip3, memfreep_ip4, &
-          &           memfreep_igp1, memfreep_igp2, memfreep_igp3, memfreep_igp4, &
-          ! AFM: this set of four subroutines has exactly the same interface as the ones
-          !      in the previous line (i.e., memfreep_ipgp*), then it is a mistake to consider
-          !      them in the same generic interface
-          ! &           memfreep_ip_igp1, memfreep_ip_igp2, memfreep_ip_igp3, memfreep_ip_igp4, &
-          &           memfreep_rp1, memfreep_rp2, memfreep_rp3, memfreep_rp4
-  end interface memfreep
-
-  public :: memalloc,  memrealloc,  memfree, memmovealloc, &
-       &    memallocp, memreallocp, memfreep, & 
-       &    fempar_memmax, fempar_memcur, meminit, memstatus,  &
+  public :: fempar_memmax, fempar_memcur, meminit, memstatus,  &
        &    memsum, memsub, mem_alloc_error, mem_dealloc_error, mem_status_error
 
 #ifdef memcheck
@@ -169,317 +117,7 @@ module memor
 
 contains
 
-  !***********************************************************************
-  !***********************************************************************
-  ! Specific purpose hash table specification (only if memcheck is defined)
-  !***********************************************************************
-  !***********************************************************************
-#ifdef memcheck
-#define hash_table hash_table_mem
-#define hash_node  hash_node_mem
-#define key_type   integer(igp)
-#define key_size   igp
-#define val_type   type(mem_data)
-!#define print_key_val     write(*,'(i10,2x,a10,2x,i10)') list%key, list%val%file, list%val%line
-#define print_key_val     write(*,*) list%key, trim(list%val%file), list%val%line
-#define put_hash_node     put_hash_node_mem   
-#define get_hash_node     get_hash_node_mem   
-#define del_hash_node     del_hash_node_mem   
-#define free_hash_node    free_hash_node_mem  
-#define print_hash_node   print_hash_node_mem 
-#define init_hash_table   init_hash_table_mem 
-#define put_hash_table    put_hash_table_mem  
-#define del_hash_table    del_hash_table_mem  
-#define get_hash_table    get_hash_table_mem  
-#define free_hash_table   free_hash_table_mem 
-#define print_hash_table  print_hash_table_mem
-#define status_hash_table  status_hash_table_mem
 #include "hash_table_body.i90"
-#endif
-
-  !***********************************************************************
-  !***********************************************************************
-  ! integer(ip), allocatable routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type integer(ip)
-# define var_size ip
-# define var_attr allocatable, target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloca_ip1    
-# define generic_memalloc_2      memalloca_ip2    
-# define generic_memalloc_3      memalloca_ip3    
-# define generic_memalloc_4      memalloca_ip4    
-# define generic_memrealloc_1    memrealloca_ip1  
-# define generic_memrealloc_2    memrealloca_ip2  
-# define generic_memrealloc_3    memrealloca_ip3  
-# define generic_memrealloc_4    memrealloca_ip4  
-# define generic_memfree_1       memfreea_ip1     
-# define generic_memfree_2       memfreea_ip2     
-# define generic_memfree_3       memfreea_ip3     
-# define generic_memfree_4       memfreea_ip4     
-# define generic_memmovealloc_1  memmovealloc_ip1
-# define generic_memmovealloc_2  memmovealloc_ip2
-# define generic_memmovealloc_3  memmovealloc_ip3
-# define generic_memmovealloc_4  memmovealloc_ip4
-# include "memor.i90"
-
-  !***********************************************************************
-  !***********************************************************************
-  ! integer(igp), allocatable routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type   integer(igp)
-# define var_size   igp
-# define var_attr allocatable, target
-# define generic_status_test allocated
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind igp
-
-# define generic_memalloc_1      memalloca_igp1    
-# define generic_memalloc_2      memalloca_igp2    
-# define generic_memalloc_3      memalloca_igp3    
-# define generic_memalloc_4      memalloca_igp4    
-# define generic_memrealloc_1    memrealloca_igp1  
-# define generic_memrealloc_2    memrealloca_igp2  
-# define generic_memrealloc_3    memrealloca_igp3  
-# define generic_memrealloc_4    memrealloca_igp4  
-# define generic_memfree_1       memfreea_igp1     
-# define generic_memfree_2       memfreea_igp2     
-# define generic_memfree_3       memfreea_igp3     
-# define generic_memfree_4       memfreea_igp4     
-# define generic_memmovealloc_1  memmovealloc_igp1
-# define generic_memmovealloc_2  memmovealloc_igp2
-# define generic_memmovealloc_3  memmovealloc_igp3
-# define generic_memmovealloc_4  memmovealloc_igp4
-# include "memor.i90"
-
-  !***********************************************************************
-  !***********************************************************************
-  ! mixed integer(ip)+integer(igp) specialization, allocatable routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type integer(igp)
-# define var_size igp
-# define var_attr allocatable, target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloca_ip_igp1    
-# define generic_memalloc_2      memalloca_ip_igp2    
-# define generic_memalloc_3      memalloca_ip_igp3    
-# define generic_memalloc_4      memalloca_ip_igp4    
-# define generic_memrealloc_1    memrealloca_ip_igp1  
-# define generic_memrealloc_2    memrealloca_ip_igp2  
-# define generic_memrealloc_3    memrealloca_ip_igp3  
-# define generic_memrealloc_4    memrealloca_ip_igp4  
-# define generic_memfree_1       memfreea_ip_igp1     
-# define generic_memfree_2       memfreea_ip_igp2     
-# define generic_memfree_3       memfreea_ip_igp3     
-# define generic_memfree_4       memfreea_ip_igp4     
-# define generic_memmovealloc_1  memmovealloc_ip_igp1
-# define generic_memmovealloc_2  memmovealloc_ip_igp2
-# define generic_memmovealloc_3  memmovealloc_ip_igp3
-# define generic_memmovealloc_4  memmovealloc_ip_igp4
-# include "memor.i90"
-
-  !***********************************************************************
-  !***********************************************************************
-  ! real(rp), allocatable routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type real(rp)
-# define var_size rp
-# define var_attr allocatable, target
-# define generic_status_test allocated
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_memalloc_1      memalloca_rp1    
-# define generic_memalloc_2      memalloca_rp2    
-# define generic_memalloc_3      memalloca_rp3    
-# define generic_memalloc_4      memalloca_rp4    
-# define generic_memrealloc_1    memrealloca_rp1  
-# define generic_memrealloc_2    memrealloca_rp2  
-# define generic_memrealloc_3    memrealloca_rp3  
-# define generic_memrealloc_4    memrealloca_rp4  
-# define generic_memfree_1       memfreea_rp1     
-# define generic_memfree_2       memfreea_rp2     
-# define generic_memfree_3       memfreea_rp3     
-# define generic_memfree_4       memfreea_rp4     
-# define generic_memmovealloc_1  memmovealloc_rp1
-# define generic_memmovealloc_2  memmovealloc_rp2
-# define generic_memmovealloc_3  memmovealloc_rp3
-# define generic_memmovealloc_4  memmovealloc_rp4
-#ifdef exception
-#define exception_real
-#endif
-# include "memor.i90"
-#ifdef exception
-#undef exception_real
-#endif
-  !***********************************************************************
-  !***********************************************************************
-  ! logical(lg), allocatable routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type logical(lg)
-# define var_size lg
-# define var_attr allocatable, target
-# define generic_status_test allocated
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_memalloc_1      memalloca_lg1    
-# define generic_memalloc_2      memalloca_lg2    
-# define generic_memalloc_3      memalloca_lg3    
-# define generic_memalloc_4      memalloca_lg4    
-# define generic_memrealloc_1    memrealloca_lg1  
-# define generic_memrealloc_2    memrealloca_lg2  
-# define generic_memrealloc_3    memrealloca_lg3  
-# define generic_memrealloc_4    memrealloca_lg4  
-# define generic_memfree_1       memfreea_lg1     
-# define generic_memfree_2       memfreea_lg2     
-# define generic_memfree_3       memfreea_lg3     
-# define generic_memfree_4       memfreea_lg4     
-# define generic_memmovealloc_1  memmovealloc_lg1
-# define generic_memmovealloc_2  memmovealloc_lg2
-# define generic_memmovealloc_3  memmovealloc_lg3
-# define generic_memmovealloc_4  memmovealloc_lg4
-# include "memor.i90"
-
-  !***********************************************************************
-  !***********************************************************************
-  ! integer(ip), pointer routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type integer(ip)
-# define var_size ip
-# define var_attr pointer
-# define point(a,b) b => a
-# define bound_kind ip
-
-# define generic_status_test     associated
-# define generic_memalloc_1      memallocp_ip1    
-# define generic_memalloc_2      memallocp_ip2    
-# define generic_memalloc_3      memallocp_ip3    
-# define generic_memalloc_4      memallocp_ip4    
-# define generic_memrealloc_1    memreallocp_ip1  
-# define generic_memrealloc_2    memreallocp_ip2  
-# define generic_memrealloc_3    memreallocp_ip3  
-# define generic_memrealloc_4    memreallocp_ip4  
-# define generic_memfree_1       memfreep_ip1     
-# define generic_memfree_2       memfreep_ip2     
-# define generic_memfree_3       memfreep_ip3     
-# define generic_memfree_4       memfreep_ip4     
-# undef generic_memmovealloc_1
-# undef generic_memmovealloc_2
-# undef generic_memmovealloc_3
-# undef generic_memmovealloc_4
-# include "memor.i90"
-
-  !***********************************************************************
-  !***********************************************************************
-  ! mixed integer(ip)+integer(igp) specialization, pointer routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type integer(igp)
-# define var_size ip
-# define var_attr pointer
-# define point(a,b) b => a
-# define bound_kind ip
-
-# define generic_status_test     associated
-# define generic_memalloc_1      memallocp_ip_igp1    
-# define generic_memalloc_2      memallocp_ip_igp2    
-# define generic_memalloc_3      memallocp_ip_igp3    
-# define generic_memalloc_4      memallocp_ip_igp4    
-# define generic_memrealloc_1    memreallocp_ip_igp1  
-# define generic_memrealloc_2    memreallocp_ip_igp2  
-# define generic_memrealloc_3    memreallocp_ip_igp3  
-# define generic_memrealloc_4    memreallocp_ip_igp4  
-# define generic_memfree_1       memfreep_ip_igp1     
-# define generic_memfree_2       memfreep_ip_igp2     
-# define generic_memfree_3       memfreep_ip_igp3     
-# define generic_memfree_4       memfreep_ip_igp4     
-# undef generic_memmovealloc_1
-# undef generic_memmovealloc_2
-# undef generic_memmovealloc_3
-# undef generic_memmovealloc_4
-# include "memor.i90"
-
-  !***********************************************************************
-  !***********************************************************************
-  ! integer(igp), pointer routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type integer(igp)
-# define var_size igp
-# define var_attr pointer
-# define point(a,b) b => a
-# define bound_kind igp
-
-# define generic_status_test     associated
-# define generic_memalloc_1      memallocp_igp1    
-# define generic_memalloc_2      memallocp_igp2    
-# define generic_memalloc_3      memallocp_igp3    
-# define generic_memalloc_4      memallocp_igp4    
-# define generic_memrealloc_1    memreallocp_igp1  
-# define generic_memrealloc_2    memreallocp_igp2  
-# define generic_memrealloc_3    memreallocp_igp3  
-# define generic_memrealloc_4    memreallocp_igp4  
-# define generic_memfree_1       memfreep_igp1     
-# define generic_memfree_2       memfreep_igp2     
-# define generic_memfree_3       memfreep_igp3     
-# define generic_memfree_4       memfreep_igp4     
-# undef generic_memmovealloc_1
-# undef generic_memmovealloc_2
-# undef generic_memmovealloc_3
-# undef generic_memmovealloc_4
-# include "memor.i90"
-
-  !***********************************************************************
-  !***********************************************************************
-  ! real(rp), pointer routines
-  !***********************************************************************
-  !***********************************************************************
-# define var_type real(rp)
-# define var_size rp
-# define var_attr pointer
-# define point(a,b) b => a
-# define bound_kind ip
-
-# define generic_status_test     associated
-# define generic_memalloc_1      memallocp_rp1    
-# define generic_memalloc_2      memallocp_rp2    
-# define generic_memalloc_3      memallocp_rp3    
-# define generic_memalloc_4      memallocp_rp4    
-# define generic_memrealloc_1    memreallocp_rp1  
-# define generic_memrealloc_2    memreallocp_rp2  
-# define generic_memrealloc_3    memreallocp_rp3  
-# define generic_memrealloc_4    memreallocp_rp4  
-# define generic_memfree_1       memfreep_rp1     
-# define generic_memfree_2       memfreep_rp2     
-# define generic_memfree_3       memfreep_rp3     
-# define generic_memfree_4       memfreep_rp4     
-# undef generic_memmovealloc_1
-# undef generic_memmovealloc_2
-# undef generic_memmovealloc_3
-# undef generic_memmovealloc_4
-
-#ifdef exception
-#define exception_real
-#endif
-
-# include "memor.i90"
-
-#ifdef exception
-#undef exception_real
-#endif
 
   !***********************************************************************
   !***********************************************************************
@@ -536,7 +174,7 @@ contains
     end if
     write(luout,'(a)') 'Requested size: ' // trim(lsize) // ' bytes'
     ! Fatal error. Stop the program. 
-    stop
+    call runend
   end subroutine mem_alloc_error
 
   subroutine mem_dealloc_error(istat,file,line)
@@ -560,7 +198,7 @@ contains
        end if
     end if
     ! Fatal error. Stop the program. 
-    stop
+    call runend
   end subroutine mem_dealloc_error
 
   subroutine mem_status_error(file,line)
@@ -580,7 +218,7 @@ contains
        end if
     end if
     ! Fatal error. Stop the program. 
-    stop
+    call runend
   end subroutine mem_status_error
 
   !-----------------------------------------------------------------------
@@ -611,7 +249,6 @@ contains
     call mem_db%init
 #endif
   end subroutine meminit
-
 
 #ifdef memcheck
   !-----------------------------------------------------------------------
@@ -685,4 +322,231 @@ contains
     write(*,*) '====================================================='
   end subroutine memstatus
 
+end module mem_base
+
+!***********************************************************************
+!***********************************************************************
+! Allocatable routines
+!***********************************************************************
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+!***********************************************************************
+! integer(ip)
+!***********************************************************************
+module mem_ip_allocatable
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type integer(ip)
+# define var_size ip
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+contains
+# include "mem_body.i90"
+end module mem_ip_allocatable
+!***********************************************************************
+! integer(igp)
+!***********************************************************************
+module mem_igp_allocatable
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type   integer(igp)
+# define var_size   igp
+# define bound_kind igp
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+contains
+# include "mem_body.i90"
+end module mem_igp_allocatable
+!***********************************************************************
+! real(rp)
+!***********************************************************************
+module mem_rp_allocatable
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type   real(rp)
+# define var_size   rp
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+contains
+#ifdef exception
+#define exception_real
+#endif
+# include "mem_body.i90"
+#ifdef exception
+#undef exception_real
+#endif
+end module mem_rp_allocatable
+!***********************************************************************
+! logical(lg)
+!***********************************************************************
+module mem_lg_allocatable
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type logical(lg)
+# define var_size lg
+# define bound_kind lg
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+contains
+# include "mem_body.i90"
+end module mem_lg_allocatable
+!***********************************************************************
+! mixed integer(ip)+integer(igp) specialization
+! free and movealloc subroutines have exactly the same interface as in
+! the case integer(ip) and therefore need not (cannot) be included here.
+!***********************************************************************
+#undef generic_memfree_interface
+#undef generic_memmovealloc_interface
+module mem_ip_igp_allocatable
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type   integer(igp)
+# define var_size   igp
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc
+contains
+# include "mem_body.i90"
+end module mem_ip_igp_allocatable
+!***********************************************************************
+!***********************************************************************
+! Pointer routines
+!***********************************************************************
+!***********************************************************************
+# define var_attr pointer
+# define point(a,b) b => a
+# define generic_status_test             associated
+# define generic_memalloc_interface      memallocp
+# define generic_memrealloc_interface    memreallocp
+# define generic_memfree_interface       memfreep
+!***********************************************************************
+! integer(ip)
+!***********************************************************************
+module mem_ip_pointer
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type integer(ip)
+# define var_size ip
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memallocp,  memreallocp,  memfreep
+contains
+# include "mem_body.i90"
+end module mem_ip_pointer
+!***********************************************************************
+! integer(igp)
+!***********************************************************************
+module mem_igp_pointer
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type   integer(igp)
+# define var_size   igp
+# define bound_kind igp
+# include "mem_header.i90"
+  public :: memallocp,  memreallocp,  memfreep
+contains
+# include "mem_body.i90"
+end module mem_igp_pointer
+!***********************************************************************
+! real(rp)
+!***********************************************************************
+module mem_rp_pointer
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type   real(rp)
+# define var_size   rp
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memallocp,  memreallocp,  memfreep
+contains
+#ifdef exception
+#define exception_real
+#endif
+# include "mem_body.i90"
+#ifdef exception
+#undef exception_real
+#endif
+end module mem_rp_pointer
+!***********************************************************************
+! mixed integer(ip)+integer(igp) specialization
+! free and movealloc subroutines have exactly the same interface as in
+! the case integer(ip) and therefore need not (cannot) be included here.
+!***********************************************************************
+#undef generic_memfree_interface
+module mem_ip_igp_pointer
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type   integer(igp)
+# define var_size   igp
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memallocp,  memreallocp
+contains
+# include "mem_body.i90"
+end module mem_ip_igp_pointer
+
+module memor
+  use mem_base
+  use mem_ip_allocatable
+  use mem_igp_allocatable
+  use mem_rp_allocatable
+  use mem_lg_allocatable
+  use mem_ip_igp_allocatable
+  use mem_ip_pointer
+  use mem_igp_pointer
+  use mem_rp_pointer
+  use mem_ip_igp_pointer
 end module memor

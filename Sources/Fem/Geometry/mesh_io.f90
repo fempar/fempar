@@ -29,9 +29,9 @@ module fem_mesh_io
   use types
   use stdio
   use memor
-  use renum_class
-  use fem_mesh_class
-  use fem_space_class
+  use renum_names
+  use fem_mesh_names
+  use fem_space_names
   implicit none
   private
 

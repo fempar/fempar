@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_block_matrix_class
+module par_block_matrix_names
   ! Serial modules
   use types
   use memor
-  use fem_block_matrix_class
-  !use block_elmat_class
+  use fem_block_matrix_names
+  !use block_elmat_names
 
   ! Parallel modules
-  use par_matrix_class
+  use par_matrix_names
 
   implicit none
 # include "debug.i90"
@@ -262,4 +262,4 @@ contains
     
   end subroutine par_block_matrix_info
 
-end module par_block_matrix_class
+end module par_block_matrix_names

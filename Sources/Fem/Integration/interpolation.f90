@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module interpolation_class
+module interpolation_names
   use types
   use memor
   use fem_space_types
@@ -2501,4 +2501,4 @@ contains
 
   end subroutine shape3
   
-end module interpolation_class
+end module interpolation_names

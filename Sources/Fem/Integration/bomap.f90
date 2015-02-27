@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module bomap_class
+module bomap_names
   use types
   use memor
   implicit none
@@ -77,4 +77,4 @@ contains
 
   end subroutine bomap_free
 
-end module bomap_class
+end module bomap_names

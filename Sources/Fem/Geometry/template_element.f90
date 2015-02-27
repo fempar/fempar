@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module template_element_class
+module template_element_names
   use types
-  use migratory_element_class
+  use migratory_element_names
 
   implicit none
   private
@@ -132,4 +132,4 @@ contains
     
   end subroutine template_element_setarea
 
-end module template_element_class
+end module template_element_names

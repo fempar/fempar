@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_vector_class
+module par_vector_names
   ! Serial modules
   use types
   use memor
-  use fem_vector_class
-  use fem_partition_class
-  use fem_import_class
+  use fem_vector_names
+  use fem_partition_names
+  use fem_import_names
   use stdio
   use map_apply
 #ifdef ENABLE_BLAS       
@@ -47,8 +47,8 @@ module par_vector_class
   !use for_trilinos_shadow_interfaces
 
   ! Parallel modules
-  use par_partition_class
-  use par_context_class
+  use par_partition_names
+  use par_context_names
   use psb_penv_mod
 
 # include "debug.i90"
@@ -110,24 +110,6 @@ module par_vector_class
      module procedure par_vector_l2g_fvec, par_vector_l2g_pvec
   end interface par_vector_l2g
 
-  ! Memalloc interfaces
-  interface memalloc
-     module procedure memalloc_par_vector1, memalloc_par_vector2, memalloc_par_vector3, &
-          &           memalloc_par_vector4
-  end interface memalloc
-  interface memrealloc
-     module procedure memrealloc_par_vector1, memrealloc_par_vector2, memrealloc_par_vector3, &
-          &           memrealloc_par_vector4
-  end interface memrealloc
-  interface memfree
-     module procedure memfree_par_vector1, memfree_par_vector2, memfree_par_vector3, &
-          &           memfree_par_vector4
-  end interface memfree
-  interface memmovealloc
-     module procedure memmovealloc_par_vector1, memmovealloc_par_vector2, memmovealloc_par_vector3, &
-          &           memmovealloc_par_vector4
-  end interface memmovealloc
-
   ! Types
   public :: par_vector
 
@@ -143,39 +125,30 @@ module par_vector_class
        &  par_vector_scale,    par_vector_mxpy,     par_vector_axpy,        &
        &  par_vector_aypx,     par_vector_pxpy,     par_vector_pxmy ,       &
        &  par_vector_print,    par_vector_print_matrix_market,              &
-       &  par_vector_l2g,      par_vector_g2l,                              &
-       &  memalloc, memrealloc, memfree, memmovealloc
-contains
+       &  par_vector_l2g,      par_vector_g2l
 
-  !***********************************************************************
-  !***********************************************************************
-  ! Specialization to allocate type(par_vector)
-  !***********************************************************************
-  !***********************************************************************
+
+!***********************************************************************
+! Allocatable arrays of type(fem_vector)
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+
 # define var_type type(par_vector)
 # define var_size 52
-# define var_attr allocatable,target
-# define point(a,b) call move_alloc(a,b)
 # define bound_kind ip
+# include "mem_header.i90"
 
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloc_par_vector1    
-# define generic_memalloc_2      memalloc_par_vector2    
-# define generic_memalloc_3      memalloc_par_vector3    
-# define generic_memalloc_4      memalloc_par_vector4    
-# define generic_memrealloc_1    memrealloc_par_vector1  
-# define generic_memrealloc_2    memrealloc_par_vector2  
-# define generic_memrealloc_3    memrealloc_par_vector3  
-# define generic_memrealloc_4    memrealloc_par_vector4  
-# define generic_memfree_1       memfree_par_vector1     
-# define generic_memfree_2       memfree_par_vector2     
-# define generic_memfree_3       memfree_par_vector3     
-# define generic_memfree_4       memfree_par_vector4     
-# define generic_memmovealloc_1  memmovealloc_par_vector1
-# define generic_memmovealloc_2  memmovealloc_par_vector2
-# define generic_memmovealloc_3  memmovealloc_par_vector3
-# define generic_memmovealloc_4  memmovealloc_par_vector4
-# include "memor.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+# include "mem_body.i90"
 
   !=============================================================================
   subroutine par_vector_alloc (storage, nd, p_part, p_vec)
@@ -1585,4 +1558,4 @@ contains
 
   end subroutine par_vector_g2l
 
-end module par_vector_class
+end module par_vector_names

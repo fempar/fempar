@@ -29,8 +29,8 @@ module par_element_exchange
    ! Serial modules
    use types
    use memor
-   use fem_element_import_class
-   use migratory_element_class
+   use fem_element_import_names
+   use migratory_element_names
 
    implicit none
    private

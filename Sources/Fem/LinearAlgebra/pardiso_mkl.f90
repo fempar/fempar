@@ -28,7 +28,7 @@
 #ifdef ENABLE_MKL
   include 'mkl_pardiso.f90'
 #endif
-module pardiso_mkl_class
+module pardiso_mkl_names
 
   ! This module is a wrapper in which we define functions 
   ! to interact with Pardiso using our data structures.
@@ -38,8 +38,8 @@ module pardiso_mkl_class
   ! Serial modules
   use types
   use memor
-  use fem_matrix_class
-  use fem_vector_class 
+  use fem_matrix_names
+  use fem_vector_names 
 
   ! F90 interface to Intel MKL PARDISO
 #ifdef ENABLE_MKL
@@ -907,4 +907,4 @@ contains
 
   end subroutine pardiso_mkl_solution_several_rhs
 
-end module pardiso_mkl_class
+end module pardiso_mkl_names

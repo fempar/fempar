@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_matrix_vector
   use types
-  use fem_matrix_class
-  use fem_vector_class
+  use fem_matrix_names
+  use fem_vector_names
   implicit none
 # include "debug.i90"
 

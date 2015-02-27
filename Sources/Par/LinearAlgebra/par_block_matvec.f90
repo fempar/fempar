@@ -27,11 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_matrix_vector
   use types
-  use fem_vector_class
-  use par_block_matrix_class
-  use par_block_vector_class
-  use par_matrix_class
-  use par_vector_class
+  use fem_vector_names
+  use par_block_matrix_names
+  use par_block_vector_names
+  use par_matrix_names
+  use par_vector_names
   use par_matrix_vector
   implicit none
 # include "debug.i90"

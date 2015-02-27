@@ -28,14 +28,14 @@
 module fem_mesh_gen_partition
   use types
   use memor
-  use maps_class
+  use maps_names
   use mesh_graph
-  use fem_mesh_class
-  use fem_partition_class
-  use fem_conditions_class
-  use fem_materials_class
+  use fem_mesh_names
+  use fem_partition_names
+  use fem_conditions_names
+  use fem_materials_names
   use fem_mesh_gen
-  use sort_class
+  use sort_names
 # include "debug.i90"
   implicit none
   private

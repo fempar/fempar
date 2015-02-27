@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module hash_table_class
+module hash_table_names
 
   ! A simple hash table for INTEGER key val pairs. 
   ! - if a minimum and a maximum values are given tbl_size is computed
@@ -146,4 +146,4 @@ contains
 #define status_hash_table  status_hash_table_igp_ip
 #include "hash_table_body.i90"
 
-end module hash_table_class
+end module hash_table_names

@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_precond_class
+module fem_block_precond_names
   ! Serial modules
   use types
-  use fem_block_matrix_class
-  use fem_block_vector_class
+  use fem_block_matrix_names
+  use fem_block_vector_names
 
 # include "debug.i90"
 
   ! ** IMPORTANT NOTE **: This is
   ! just a dummy class to specialize
   ! Krylov methods on fem_block_matrices/vectors. 
-  ! In the future, fem_block_precond_class 
+  ! In the future, fem_block_precond_names 
   ! could become a useful class as long as 
   ! the set of serial solvers/preconditioners 
   ! becomes "rich enough"
@@ -92,4 +92,4 @@ module fem_block_precond_class
     call fem_block_vector_copy (x, y)
   end subroutine fem_block_precond_apply
 
-end module fem_block_precond_class
+end module fem_block_precond_names

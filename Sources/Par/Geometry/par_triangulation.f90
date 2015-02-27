@@ -25,16 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_triangulation_class
+module par_triangulation_names
   ! Serial modules
   use types
   use memor
-  use migratory_element_class
-  use fem_triangulation_class
+  use migratory_element_names
+  use fem_triangulation_names
 
   ! Parallel modules
-  use par_context_class
-  use par_partition_class
+  use par_context_names
+  use par_partition_names
 
   implicit none
 # include "debug.i90"
@@ -340,4 +340,4 @@ contains
   end subroutine par_elem_topology_unpack
 
 
-end module par_triangulation_class
+end module par_triangulation_names
