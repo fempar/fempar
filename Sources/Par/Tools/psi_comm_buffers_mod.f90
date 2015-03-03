@@ -1,4 +1,5 @@
-#if defined(SERIAL_MPI)
+!#if defined(SERIAL_MPI)
+#ifdef SERIAL_MPI
 ! Provide a fake mpi module just to keep the compiler(s) happy.
 module mpi
   use psb_const_mod
