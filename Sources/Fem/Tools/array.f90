@@ -203,7 +203,7 @@ module array_names
 
   ! Functions
   public :: array_create, array_free, memalloc, memrealloc, memfree, memmovealloc
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
+  ! public :: memalloc,  memrealloc,  memfree, memmovealloc
   public :: array_ip1, array_ip2, array_rp1, array_rp2, array_rp3
 
 contains 

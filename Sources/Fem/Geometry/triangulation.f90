@@ -126,6 +126,7 @@ module fem_triangulation_names
 
   ! Constants (should only be used by modules that have control over type(fem_triangulation))
   public :: triangulation_not_created, triangulation_created, triangulation_elems_filled, triangulation_elems_objects_filled
+  public :: fem_triangulation_free_elems_data, fem_triangulation_free_objs_data
 
 contains
 
@@ -152,17 +153,14 @@ contains
        call initialize_elem_topology(trian%elems(ielem))
     end do
 
-    trian%state = triangulation_created
 
     ! Initialization of element fixed info parameters (SBmod)
     call trian%ht_elem_info%init(ht_length)
     trian%cur_elinf = 1
     allocate(trian%lelem_info(max_elinf), stat=istat)
-    if(istat/=0) then 
-       write(6,'(a)') '[Fempar Fatal Error] ***Memory (de)allocation failed.'
-       write(6,'(a,i20)') 'Error code: ', istat
-       write(6,'(a)') 'Caller routine: triangulation::fem_triangulation_create::lelem_info'
-    end if
+    check(istat==0)
+
+    trian%state = triangulation_created
   end subroutine fem_triangulation_create
 
   !=============================================================================
@@ -173,21 +171,8 @@ contains
 
     assert(.not. trian%state == triangulation_not_created) 
 
-    if ( trian%state == triangulation_elems_objects_filled ) then
-       do iobj=1, trian%num_objects 
-          call free_object_topology(trian%objects(iobj)) 
-       end do
-       ! Deallocate the object structure array 
-       deallocate(trian%objects, stat=istat)
-       check(istat==0)
-    end if
-
-    if ( trian%state == triangulation_elems_objects_filled .or. & 
-         trian%state == triangulation_elems_filled ) then
-       do ielem=1, trian%elem_array_len 
-          call free_elem_topology(trian%elems(ielem)) 
-       end do
-    end if
+    call fem_triangulation_free_elems_data(trian)
+    call fem_triangulation_free_objs_data(trian)
 
     ! Deallocate the element structure array */
     deallocate(trian%elems, stat=istat)
@@ -205,7 +190,37 @@ contains
     trian%num_objects = -1
     trian%num_elems = -1
     trian%num_dims = -1 
+
+    trian%state = triangulation_not_created
   end subroutine fem_triangulation_free
+
+  subroutine fem_triangulation_free_objs_data(trian)
+    implicit none
+    type(fem_triangulation), intent(inout) :: trian
+    integer(ip) :: istat,ielem, iobj
+        
+    if ( trian%state == triangulation_elems_objects_filled ) then
+       do iobj=1, trian%num_objects 
+          call free_object_topology(trian%objects(iobj)) 
+       end do
+       ! Deallocate the object structure array 
+       deallocate(trian%objects, stat=istat)
+       check(istat==0)
+    end if
+  end subroutine fem_triangulation_free_objs_data
+
+  subroutine fem_triangulation_free_elems_data(trian)
+    implicit none
+    type(fem_triangulation), intent(inout) :: trian
+    integer(ip) :: istat,ielem, iobj
+    
+    if ( trian%state == triangulation_elems_objects_filled .or. & 
+         trian%state == triangulation_elems_filled ) then
+       do ielem=1, trian%elem_array_len 
+          call free_elem_topology(trian%elems(ielem)) 
+       end do
+    end if    
+  end subroutine fem_triangulation_free_elems_data
 
   ! Auxiliary subroutines
   subroutine initialize_object_topology (object)
@@ -258,14 +273,7 @@ contains
 
     assert(trian%state == triangulation_elems_filled .or. trian%state == triangulation_elems_objects_filled) 
 
-    if ( trian%state == triangulation_elems_objects_filled ) then
-       do iobj=1, trian%num_objects 
-          call free_object_topology(trian%objects(iobj)) 
-       end do
-       ! Deallocate the object structure array 
-       deallocate(trian%objects, stat=istat)
-       check(istat==0)
-    end if
+    call fem_triangulation_free_objs_data(trian)
 
     num_elems = trian%num_elems
     if ( present(num_ghosts) ) then

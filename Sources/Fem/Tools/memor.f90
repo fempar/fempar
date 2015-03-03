@@ -116,8 +116,9 @@ module mem_base
 #endif
 
 contains
-
+#ifdef memcheck
 #include "hash_table_body.i90"
+#endif
 
   !***********************************************************************
   !***********************************************************************
@@ -270,7 +271,7 @@ contains
     if(istat/=now_stored) then
        write(*,*) 'An error ocurred storing allocation in mem_db: ', stat(istat)
        write(*,*) 'Called from '//file , line
-       write(*,*) 'key: ', key, 'varptr: ', varptr ! DBG
+       !write(*,*) 'key: ', key, 'varptr: ', varptr ! DBG
        if(istat==was_stored) then
           call mem_db%get(key, old_val, istat)
           if(istat==key_found) then

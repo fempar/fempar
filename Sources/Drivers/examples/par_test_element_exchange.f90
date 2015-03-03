@@ -37,9 +37,7 @@ program par_test_element_exchange
   type(par_context)        :: context
   type(par_partition)      :: p_part
   type(par_mesh)           :: p_mesh
-  !type(fem_element_import) :: f_el_import
   type(par_triangulation)  :: p_trian
-  !type(template_mesh)      :: tmesh
 
   ! Arguments
   integer(ip)              :: handler
@@ -69,41 +67,21 @@ program par_test_element_exchange
   ! Read mesh
   call par_mesh_create ( dir_path, prefix, p_part, p_mesh )
 
-  call partition_to_element_import ( p_part%f_part, p_part%f_el_import)
-
   call par_mesh_to_triangulation (p_mesh, p_trian)
 
-
-  ! call tmesh%allocate(f_el_import%nelem + f_el_import%nghost)
-  ! do i=1,  f_el_import%nelem
-  !    call tmesh%tmp_elems(i)%setglobalid(p_part%f_part%l2ge(i))
-  !    call tmesh%tmp_elems(i)%setarea(real(p_part%f_part%l2ge(i),rp))
+  ! do i=1,p_trian%num_elems + p_trian%num_ghosts
+  !   write(*,'(10i10)') p_trian%elems(i)%objects_GIDs
+  ! end do
+  ! do i=1,p_trian%num_elems + p_trian%num_ghosts
+  !    write(*,'(10i10)') p_trian%f_trian%elems(i)%objects
   ! end do
 
-  !call ghost_elements_exchange ( context%icontxt, f_el_import, tmesh%tmp_elems )   
-
-  !do i=1, f_el_import%npadj
-  !   do j=f_el_import%rcv_ptrs(i), f_el_import%rcv_ptrs(i+1)-1
-  !      assert(f_el_import%rcv_geids(j)==tmesh%tmp_elems(f_el_import%nelem+j)%globalID)
-  !   end do
-  !end do
-  ! call tmesh%print()
-  !call tmesh%free ()
-
-  do i=1,p_trian%num_elems + p_trian%num_ghosts
-     write(*,'(10i10)') p_trian%elems(i)%objects_GIDs
-  end do
-  do i=1,p_trian%num_elems + p_trian%num_ghosts
-     write(*,'(10i10)') p_trian%f_trian%elems(i)%objects
-  end do
-
   call par_triangulation_free(p_trian)
-
-  ! call memfree ( data, __FILE__, __LINE__ )
-  call fem_element_import_free ( p_part%f_el_import )
   call par_mesh_free (p_mesh)
   call par_partition_free (p_part)
   call par_context_free ( context )
+
+  call memstatus
 
 contains
   subroutine read_pars_cl_par_test_element_exchange (dir_path, prefix, dir_path_out)

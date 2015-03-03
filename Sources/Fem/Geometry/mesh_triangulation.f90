@@ -55,26 +55,18 @@ contains
      trian%num_elems = gmesh%nelem
      trian%num_dims  = gmesh%ndime
   
-     if ( trian%state == triangulation_elems_objects_filled ) then
-       do iobj=1, trian%num_objects
-         call free_object_topology(trian%objects(iobj))
-       end do
-       ! Deallocate the object structure array 
-       deallocate(trian%objects, stat=istat)
-       check(istat==0)
-       trian%num_objects=-1
-     end if
+     call fem_triangulation_free_elems_data(trian)
+     call fem_triangulation_free_objs_data(trian)
  
-     if ( trian%state == triangulation_elems_objects_filled .or. &
-          trian%state == triangulation_elems_filled ) then
-       do ielem=1, trian%elem_array_len
-         call free_elem_topology(trian%elems(iobj))
-       end do
-       ! Deallocate the element structure array */
-       deallocate(trian%elems, stat=istat)
-       check(istat==0)
-       trian%elem_array_len = -1
-    end if
+!!$     AFM: I think this is not really needed. trian%elems could already be
+!!$     allocated with sufficient size (see next if-end block)
+!!$     if ( trian%state == triangulation_elems_objects_filled .or. &
+!!$          trian%state == triangulation_elems_filled ) then
+!!$       ! Deallocate the element structure array */
+!!$       deallocate(trian%elems, stat=istat)
+!!$       check(istat==0)
+!!$       trian%elem_array_len = -1
+!!$    end if
  
     if ( trian%num_elems > trian%elem_array_len ) then
         if (allocated(trian%elems)) then

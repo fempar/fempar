@@ -31,7 +31,6 @@ module par_partition_names
   use memor
   use fem_partition_names
   use fem_import_names
-  use fem_element_import_names
   use partition_import
   use maps_names
   use stdio
@@ -78,7 +77,6 @@ module par_partition_names
   type par_partition
     type (fem_partition)      :: f_part
     type (fem_import)         :: f_import               ! Created from f_part
-    type (fem_element_import) :: f_el_import            ! Created from f_part
 
     type (par_context), pointer  :: p_context => NULL() ! Fine process
     type (par_context), pointer  :: g_context => NULL() ! Fine_to coarse comm
