@@ -335,11 +335,11 @@ contains
     call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__ )
     call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__ )
 
-    ! Re-compute p_trian%objects(:)%border to reflect the new status of p_trian%lst_itfc_objs
+    ! Re-compute p_trian%objects(:)%interface to reflect the new status of p_trian%lst_itfc_objs
     do i=1, p_trian%num_itfc_objs
        iobj = p_trian%lst_itfc_objs(i)
-       assert ( p_trian%objects(iobj)%border /= -1 )
-       p_trian%objects(iobj)%border = i
+       assert ( p_trian%objects(iobj)%interface /= -1 )
+       p_trian%objects(iobj)%interface = i
     end do
 
     ! Identify communication objects 

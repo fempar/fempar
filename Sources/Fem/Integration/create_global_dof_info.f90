@@ -27,11 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module create_global_dof_info_module
   use types
-  use array_class
+  use array_names
   use memor
-  use fem_triangulation_class
-  use fem_space_class
-  use dof_handler_class
+  use fem_triangulation_names
+  use fem_space_names
+  use dof_handler_names
   use fem_space_types
 
   

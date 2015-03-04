@@ -279,8 +279,8 @@ contains
        fspac%lelem(ielem)%iv = iv
 
        ! Set continuity per interpolation
-       call memalloc(nunk_tot,fspac%lelem(ielem)%continuity,__FILE__,__LINE__)
-       fspac%lelem(ielem)%continuity = continuity
+       !call memalloc(nunk_tot,fspac%lelem(ielem)%continuity,__FILE__,__LINE__)
+       !fspac%lelem(ielem)%continuity = continuity
 
        ! Set continuity per interpolation
        call memalloc(nunk_tot,fspac%lelem(ielem)%material,__FILE__,__LINE__)
