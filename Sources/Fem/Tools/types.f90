@@ -133,6 +133,10 @@ module types
      integer(ip), allocatable :: l(:) 
   end type list
 
+  type list_pointer
+     type(list)          , pointer :: p => NULL()
+  end type list_pointer
+
   ! Frequently used mathematical constants:
   real(rp),    parameter :: pi    = 3.141592653589793238462643383279502884197_rp
   real(rp),    parameter :: pio2  = 1.570796326794896619231321691639751442099_rp

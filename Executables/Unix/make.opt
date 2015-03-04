@@ -156,7 +156,7 @@ ifeq ($(COMPILER),GNU)
    F77_SER = gfortran
    F03_SER = gfortran # -std=f2003
    FC_SER = $(F03_SER) -c -fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface
-   FFG = -g -fbacktrace -fbounds-check
+   FFG = -g3 -fbacktrace -fbounds-check
    FFO = -O3
    FMG = -DDEBUG -Dmemcheck  # -Dexception # Fempar Macros for debuG
    I=I

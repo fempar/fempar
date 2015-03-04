@@ -188,7 +188,7 @@ contains
     nodim = 0
     do i = 1,gmsh%ndime
        nodim(i) = f_inf%nobje_dim(i+1)-f_inf%nobje_dim(i)  
-       nndim(i) = f_inf%ntxob_i(f_inf%nobje_dim(i)+1) - f_inf%ntxob_i(f_inf%nobje_dim(i))
+       nndim(i) = f_inf%ntxob%p(f_inf%nobje_dim(i)+1) - f_inf%ntxob%p(f_inf%nobje_dim(i))
     end do
     nobje=gmsh%nnode+nodim(2)+nodim(3) ! Total number of objects per element
    
@@ -257,8 +257,8 @@ contains
           if(edgeint(ielem,i)==0) then
              already_counted=0
              gp = gmsh%nnode*(ielem-1)
-             nd_i(1) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+i-1)))
-             nd_i(2) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+i-1)+1))
+             nd_i(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)))
+             nd_i(2) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)+1))
 
              ! Loop over the elements around corner j
              do t = nelpo_aux(nd_i(1)),nelpo_aux(nd_i(1)+1)-1
@@ -268,8 +268,8 @@ contains
                    gp = gmsh%nnode*(jelem-1)
 
                    do k=1,nodim(2)
-                      nd_j(1) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+k-1)))
-                      nd_j(2) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+k-1)+1))
+                      nd_j(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)))
+                      nd_j(2) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)+1))
 
                       counter=0
                       do r=1,nndim(2)
@@ -320,7 +320,7 @@ contains
                 already_counted=0
                 gp = gmsh%nnode*(ielem-1)
                 do j=1,nndim(3)
-                   fnode(j) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(3)+i-1)+j-1))
+                   fnode(j) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(3)+i-1)+j-1))
                 end do
 
                 do t = nelpo_aux(fnode(1)),nelpo_aux(fnode(1)+1)-1
@@ -331,7 +331,7 @@ contains
 
                       do k=1,nodim(3)
                          do j=1,nndim(3)
-                            nd_jf(j) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(3)+k-1)+j-1))
+                            nd_jf(j) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(3)+k-1)+j-1))
                          end do
 
                          counter=0
@@ -396,8 +396,8 @@ contains
              omsh%lnods((ielem-1)*nobje+gmsh%nnode+i) = npoin_aux + iedgb
              if (kfl_bc) then
                 gp = gmsh%nnode*(ielem-1)
-                nd_i(1) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+i-1)))
-                nd_i(2) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+i-1)+1))
+                nd_i(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)))
+                nd_i(2) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)+1))
                 do icode = 1, ocnd%ncode
                    if (ocnd%code(icode,nd_i(1)) ==  ocnd%code(icode,nd_i(2))) then
                       ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =                   &
@@ -425,8 +425,8 @@ contains
                 if(edgeint(ielem,i)==0) then
                    already_counted=1
                    gp = gmsh%nnode*(ielem-1)
-                   nd_i(1)=gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+i-1)))
-                   nd_i(2)=gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+i-1)+1))
+                   nd_i(1)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)))
+                   nd_i(2)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)+1))
 
                    ! Number of elements for j
                    do t = nelpo_aux(nd_i(1)), nelpo_aux(nd_i(1)+1)-1
@@ -436,8 +436,8 @@ contains
                          gp = gmsh%nnode*(jelem-1)
 
                          do k=1,nodim(2)
-                            nd_j(1)=gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+k-1)))
-                            nd_j(2)=gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(2)+k-1)+1))
+                            nd_j(1)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)))
+                            nd_j(2)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)+1))
 
                             counter=0
                             do r=1,nndim(2)
@@ -481,15 +481,15 @@ contains
                 if (kfl_bc) then
                    gp = gmsh%nnode*(ielem-1)
                    op = nobje*(ielem-1)
-                   nd_i(1) = gmsh%lnods(gp+f_inf%crxob_j(f_inf%crxob_i(f_inf%nobje_dim(3)+j-1)))
+                   nd_i(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(3)+j-1)))
                    do icode = 1, ocnd%ncode
                       ocnd%valu(icode,omsh%lnods(op+i)) =                                           &
                            &            ocnd%valu(icode,omsh%lnods(op+i))                           &
                            &          + ocnd%valu(icode,nd_i(1))
                       s = 1
                       do k = 2,nndim(3)
-                         nd_i(2) = gmsh%lnods(gp+f_inf%crxob_j                                      &
-                              &    (f_inf%crxob_i(f_inf%nobje_dim(3)+j-1)+k-1))
+                         nd_i(2) = gmsh%lnods(gp+f_inf%crxob%l                                      &
+                              &    (f_inf%crxob%p(f_inf%nobje_dim(3)+j-1)+k-1))
                          if (ocnd%code(icode,nd_i(1)) .ne.  ocnd%code(icode,nd_i(2))) s = 0
                          ocnd%valu(icode,omsh%lnods(op+i)) =                                        &
                               &     ocnd%valu(icode,omsh%lnods(op+i))                               &

@@ -124,9 +124,9 @@ contains
        p_trian%elems => this
     end select
 
-    p_trian%elems(:)%border = -1 
+    p_trian%elems(:)%interface = -1 
     do ielem=1, p_gmesh%p_part%f_part%nebou
-       p_trian%elems(p_gmesh%p_part%f_part%lebou(ielem))%border = ielem
+       p_trian%elems(p_gmesh%p_part%f_part%lebou(ielem))%interface = ielem
     end do
 
     ! Fill array of elements (local ones)
@@ -208,22 +208,22 @@ contains
                 if ( p_trian%f_trian%elems(jlele)%objects(iobj) == -1) then ! efs not assigned yet
                    count = 1
                    ! loop over vertices of every ef
-                   do jobj = p_trian%f_trian%elems(jlele)%topology%crxob_i(iobj), &
-                        p_trian%f_trian%elems(jlele)%topology%crxob_i(iobj+1)-1    
-                      ivere = p_trian%f_trian%elems(jlele)%topology%crxob_j(jobj)
+                   do jobj = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj), &
+                        p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)-1    
+                      ivere = p_trian%f_trian%elems(jlele)%topology%crxob%l(jobj)
                       if (p_trian%f_trian%elems(jlele)%objects(ivere) == -1) then
                          count = 0 ! not an object of the local triangulation
                          exit
                       end if
                    end do
                    if (count == 1) then
-                      nvert = p_trian%f_trian%elems(jlele)%topology%crxob_i(iobj+1)- &
-                           p_trian%f_trian%elems(jlele)%topology%crxob_i(iobj)
+                      nvert = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)- &
+                           p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj)
                       call memalloc( nvert, aux, __FILE__, __LINE__)
                       count = 1
-                      do jobj = p_trian%f_trian%elems(jlele)%topology%crxob_i(iobj), &
-                           p_trian%f_trian%elems(jlele)%topology%crxob_i(iobj+1)-1 
-                         ivere = p_trian%f_trian%elems(jlele)%topology%crxob_j(jobj)
+                      do jobj = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj), &
+                           p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)-1 
+                         ivere = p_trian%f_trian%elems(jlele)%topology%crxob%l(jobj)
                          aux(count) = p_trian%f_trian%elems(jlele)%objects(ivere)
                          count = count+1
                       end do
@@ -245,7 +245,7 @@ contains
 
     ! Step 3: Make GID consistent among processors (p_part%elems%objects_GIDs)
     do iobj = 1, p_trian%f_trian%num_objects 
-       if ( (p_trian%objects(iobj)%border .ne. -1) .and. &
+       if ( (p_trian%objects(iobj)%interface .ne. -1) .and. &
             (p_trian%f_trian%objects(iobj)%dimension > 1) ) then
           idime = p_trian%f_trian%objects(iobj)%dimension
           iobjg = -1

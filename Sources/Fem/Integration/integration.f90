@@ -332,13 +332,13 @@ contains
   end subroutine integ_element
 
   !==================================================================================================
-  subroutine integ_faces(elem,face,gmesh,integ,ntxob_i,ntxob_j,nobje)
+  subroutine integ_faces(elem,face,gmesh,integ,ntxob,nobje)
     implicit none
     ! Parameters
     integer(ip)              , intent(in)    :: elem(2),face(2)
     type(fem_mesh)           , intent(in)    :: gmesh      ! Geometry interpolation space
     type(face_integ)         , intent(inout) :: integ
-    integer(ip)              , intent(in)    :: ntxob_i(:),ntxob_j(:)
+    type(list)               , intent(in)    :: ntxob
     integer(ip)              , intent(in)    :: nobje
 
     integer(ip)                      :: i,gfnod,poins(integ%gint_ref%nnode),nelem
@@ -351,9 +351,9 @@ contains
     ! Define face map (from reference to physical space) by interpolation
     ! TODO: Assert that the first element is not the one which the subfaces are in
     nnode = 0
-    do inode = ntxob_i(nobje+face(1)),ntxob_i(nobje+face(1)+1)-1
+    do inode = ntxob%p(nobje+face(1)),ntxob%p(nobje+face(1)+1)-1
        nnode = nnode +1
-       poins(nnode) = gmesh%lnods(gmesh%pnods(elem(1))+ntxob_j(inode)-1)
+       poins(nnode) = gmesh%lnods(gmesh%pnods(elem(1))+ntxob%l(inode)-1)
     end do
 
     call gather (gmesh%ndime,integ%gint_ref%nnode,poins,gmesh%coord,facod)

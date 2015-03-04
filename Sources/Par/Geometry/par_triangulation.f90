@@ -54,13 +54,13 @@ module par_triangulation_class
   !                but at the current state I do not know whether this is the most appropriate place. 
 
   type par_object_topology
-     integer(ip)  :: border     = -1 ! The boundary number ioboun (if this object is a border object)
+     integer(ip)  :: interface  = -1 ! Interface local id of this object
      integer(igp) :: globalID   = -1 ! Global ID of this object
                                      ! Local ID is the position in the array of objects
   end type par_object_topology
 
   type, extends(migratory_element) :: par_elem_topology
-     integer(ip)  :: border     = -1              ! The boundary number ieboun (if this element is a border element)
+     integer(ip)  :: interface     = -1              ! The boundary number ieboun (if this element is a interface element)
      integer(igp) :: globalID   = -1              ! Global ID of this element
                                                   ! Local ID is the position in the array of elements
      integer(ip)  :: num_objects = -1             ! Number of objects
@@ -193,9 +193,9 @@ contains
        do iobj=1, p_trian%f_trian%elems(ielem)%num_objects
           jobj = p_trian%f_trian%elems(ielem)%objects(iobj)
           if ( jobj /= -1 ) then
-             if (p_trian%objects(jobj)%border == -1) then
+             if (p_trian%objects(jobj)%interface == -1) then
                 p_trian%num_itfc_objs = p_trian%num_itfc_objs + 1
-                p_trian%objects(jobj)%border = p_trian%num_itfc_objs
+                p_trian%objects(jobj)%interface = p_trian%num_itfc_objs
              end if
           end if
        end do
@@ -209,7 +209,7 @@ contains
        do iobj=1, p_trian%f_trian%elems(ielem)%num_objects
           jobj = p_trian%f_trian%elems(ielem)%objects(iobj)
           if ( jobj /= -1 ) then
-             if (p_trian%objects(jobj)%border == (p_trian%num_itfc_objs + 1)) then
+             if (p_trian%objects(jobj)%interface == (p_trian%num_itfc_objs + 1)) then
                 p_trian%num_itfc_objs = p_trian%num_itfc_objs + 1
                 p_trian%lst_itfc_objs(p_trian%num_itfc_objs) = jobj 
              end if
@@ -226,7 +226,7 @@ contains
     implicit none
     type(par_object_topology), intent(inout) :: object
     
-    object%border   = -1
+    object%interface   = -1
     object%globalID = -1 
 
   end subroutine initialize_par_object_topology
@@ -244,7 +244,7 @@ contains
     if (allocated(element%objects_GIDs)) then
        call memfree(element%objects_GIDs, __FILE__, __LINE__)
     end if
-    element%border = -1
+    element%interface = -1
   end subroutine free_par_elem_topology
   
   subroutine initialize_par_elem_topology(element)
@@ -252,7 +252,7 @@ contains
     type(par_elem_topology), intent(inout) :: element
 
     assert(allocated(element%objects_GIDs))
-    element%border      = -1
+    element%interface      = -1
     element%globalID    = -1
     element%num_objects = -1
   end subroutine initialize_par_elem_topology
@@ -289,7 +289,7 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
-    buffer(start:end) = transfer(my%border,mold)
+    buffer(start:end) = transfer(my%interface,mold)
 
     start = end + 1
     end   = start + size_of_igp - 1 
@@ -321,7 +321,7 @@ contains
     
     start = 1
     end   = start + size_of_ip -1
-    my%border  = transfer(buffer(start:end), my%border)
+    my%interface  = transfer(buffer(start:end), my%interface)
 
     start = end + 1
     end   = start + size_of_igp - 1 

@@ -257,9 +257,9 @@ contains
     p_first_node = pnods(ielem) -1
     
     ! Loop over all the nodes in the iobje of ielem
-    ploop: do p_l_node = elem_info%crxob_i(iobje),elem_info%crxob_i(iobje+1)-1
+    ploop: do p_l_node = elem_info%crxob%p(iobje),elem_info%crxob%p(iobje+1)-1
        ! local node id
-       l_node = elem_info%crxob_j(p_l_node)
+       l_node = elem_info%crxob%l(p_l_node)
        ! Global node id
        g_node = lnods(p_first_node + l_node)
        ! Loop over all the nodes of the face; check if the node is in the list
@@ -299,16 +299,16 @@ contains
 
     subface = 1
     ! Loop over all the nodes in the neigh_obje of neigh_elem 
-    ploop: do p_l_neigh_node = neigh_elem_info%crxob_i(neigh_obje),                                 &
-         &                     neigh_elem_info%crxob_i(neigh_obje+1)-1
+    ploop: do p_l_neigh_node = neigh_elem_info%crxob%p(neigh_obje),                                 &
+         &                     neigh_elem_info%crxob%p(neigh_obje+1)-1
        ! local node id
-       l_neigh_node = elem_info%crxob_j(p_l_neigh_node)
+       l_neigh_node = elem_info%crxob%l(p_l_neigh_node)
        ! Global node id
        g_neigh_node = lnods(p_neigh_first_node + l_neigh_node)
        ! Loop over all the nodes of the obje of elem; check if the node is in the list
-       do p_l_node = elem_info%crxob_i(obje),elem_info%crxob_i(obje+1)-1
+       do p_l_node = elem_info%crxob%p(obje),elem_info%crxob%p(obje+1)-1
           ! local node id
-          l_node = elem_info%crxob_j(p_l_node)
+          l_node = elem_info%crxob%l(p_l_node)
           ! Global node id
           g_node = lnods(p_first_node + l_node)
           ! Loop over all the nodes of the face; check if the node is in the list
@@ -317,7 +317,7 @@ contains
        subface = subface + 1
     end do ploop
 
-    assert(subface <= neigh_elem_info%crxob_i(neigh_obje+1)- neigh_elem_info%crxob_i(neigh_obje))
+    assert(subface <= neigh_elem_info%crxob%p(neigh_obje+1)- neigh_elem_info%crxob%p(neigh_obje))
     
   end subroutine check_subface
 

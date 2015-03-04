@@ -124,9 +124,9 @@ contains
           iobje = femsp%lelem(neigh_elem)%p_geo_info%nobje_dim(primal_mesh%ndime) +                 &
                &  femsp%lface(iface)%pos_elem(3-one_or_two) - 1
           ! Loop over the local corners in iobje
-          do inode = femsp%lelem(neigh_elem)%p_geo_info%crxob_i(iobje),                             &
-               &     femsp%lelem(neigh_elem)%p_geo_info%crxob_i(iobje+1)-1
-             l_obje = femsp%lelem(neigh_elem)%p_geo_info%crxob_j(inode)
+          do inode = femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje),                             &
+               &     femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje+1)-1
+             l_obje = femsp%lelem(neigh_elem)%p_geo_info%crxob%l(inode)
              ! global id of the object
              ipoin = primal_mesh%lnods(primal_mesh%pnods(neigh_elem) + l_obje - 1)
 
@@ -240,9 +240,9 @@ contains
           iobje = femsp%lelem(neigh_elem)%p_geo_info%nobje_dim(primal_mesh%ndime) +                 &
                &  femsp%lface(iface)%pos_elem(3-one_or_two) - 1
           ! Loop over the local corners in iobje
-          do inode = femsp%lelem(neigh_elem)%p_geo_info%crxob_i(iobje),                             &
-               &     femsp%lelem(neigh_elem)%p_geo_info%crxob_i(iobje+1)-1
-             l_obje = femsp%lelem(neigh_elem)%p_geo_info%crxob_j(inode)
+          do inode = femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje),                             &
+               &     femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje+1)-1
+             l_obje = femsp%lelem(neigh_elem)%p_geo_info%crxob%l(inode)
              ! global id of the object
              ipoin = primal_mesh%lnods(primal_mesh%pnods(neigh_elem) + l_obje - 1)
 

@@ -113,9 +113,9 @@ contains
        face_quad%pos(1,:,1) = (/-1,1/)
     else if (ndime == 2) then
        do iface = 1,nface
-          v1 = nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)))
-          M(:,1) = 0.5*(nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)+1)) -         &
-               &        nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)  )))
+          v1 = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
+          M(:,1) = 0.5*(nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+1)) -         &
+               &        nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)  )))
           do igaus = 1,ngaus
              face_quad%pos(:,igaus,iface) = v1 + M(:,1)*(posgp(1,igaus)+1)
           end do
@@ -123,11 +123,11 @@ contains
     else if (ndime == 3) then
        if (fi%ftype == P_type_id) then
           do iface = 1,nface
-             v1 = nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)))
-             M(:,1) = nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)+1)) -              &
-                  &   nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)))
-             M(:,2) = nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)+2)) -              &
-                  &   nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)))
+             v1 = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
+             M(:,1) = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+1)) -              &
+                  &   nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
+             M(:,2) = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+2)) -              &
+                  &   nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
              do igaus = 1,ngaus
                 face_quad%pos(:,igaus,iface) = v1 + matmul(M,posgp(:,igaus))
              end do
@@ -136,14 +136,14 @@ contains
           do iface = 1,nface
              v1 = 0.0_rp
              do i=1,4
-                v1 = v1 + nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)+i-1))
+                v1 = v1 + nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+i-1))
              end do
              v1 = v1/4.0_rp
 
-             M(:,1) = 0.5*(nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)+1)) -         &
-                  &        nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1))))
-             M(:,2) = 0.5*(nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1)+2)) -         &
-                  &        nopos(:,fi%crxob_j(fi%crxob_i(fi%nobje_dim(ndime)+iface-1))))
+             M(:,1) = 0.5*(nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+1)) -         &
+                  &        nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1))))
+             M(:,2) = 0.5*(nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+2)) -         &
+                  &        nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1))))
              do igaus = 1,ngaus
                 face_quad%pos(:,igaus,iface) = v1 + matmul(M,posgp(:,igaus))
              end do

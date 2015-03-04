@@ -56,7 +56,7 @@ module fem
   use fem_mesh_class
   use fem_mesh_partition_base
   use fem_mesh_partition
-  use fem_mesh_io
+!  use fem_mesh_io
   use fem_mesh_gen
   use fem_mesh_gen_partition
   use fem_mesh_refine

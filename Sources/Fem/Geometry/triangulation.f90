@@ -97,6 +97,7 @@ module fem_triangulation_class
   end type elem_topology
 
   type object_topology
+     integer(ip)  :: border     = -1 ! Border local id of this object
      integer(ip)               :: dimension             ! Object dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around object 
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around object 
@@ -113,6 +114,7 @@ module fem_triangulation_class
      type (hash_table_ip_ip)             :: ht_elem_info  ! Topological info hash table (SBmod)
      integer(ip)                         :: cur_elinf = 0 !  "
      type (fem_fixed_info), allocatable  :: lelem_info(:) ! List of topological info's
+     !integer(ip), allocatable            :: lst_boundary_objs(:)    ! List of objects local IDs in the boundary 
   end type fem_triangulation
 
   ! Types
@@ -383,11 +385,11 @@ contains
     lid = -1
 
     do io = e%topology%nobje_dim(nd), e%topology%nobje_dim(nd+1)-1
-       first =  e%topology%crxob_i(io)
-       last = e%topology%crxob_i(io+1) -1
+       first =  e%topology%crxob%p(io)
+       last = e%topology%crxob%p(io+1) -1
        if ( last - first + 1  == no ) then 
           do iv = first,last
-             ivl = e%objects(e%topology%crxob_j(iv)) ! LID of vertices of the ef
+             ivl = e%objects(e%topology%crxob%l(iv)) ! LID of vertices of the ef
              c = 0
              do jv = 1,no
                 if ( ivl ==  list(jv) ) then

@@ -38,11 +38,10 @@ module fem_space_types
 # include "debug.i90"
   private
     
+  integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element
   integer(ip), parameter       :: max_nobje  = 28   ! Maximum amount of objects in an element
   integer(ip), parameter       :: ht_length  = 10   ! hash tables length
-  integer(ip), parameter       :: max_elmat  = 50   ! Length of the array lelmat in fem_space
   integer(ip), parameter       :: max_eltype = 12   ! Total number of types
-  integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element
   integer(ip), parameter       :: max_ndime  = 3    ! Maximum amount of space dimension
   integer(ip), parameter       :: max_elinf  = 8    ! Amount of different interpolations in a mesh
   integer(ip), parameter       :: max_order  = 7    ! Maximum interpolation order admited
@@ -65,6 +64,7 @@ module fem_space_types
 
      integer(ip)              ::    &
           ftype,                    &        ! type of fem, e.g. 'P' 'Q' 'prism'...
+          ndime,                    &        ! ndime
           order,                    &        ! FE order
           nobje,                    &        ! Number of objects
           nnode                              ! Number of nodes
@@ -76,14 +76,14 @@ module fem_space_types
 
      integer(ip), allocatable  :: o(:)       ! Orientation of the objects
 
-     integer(ip), allocatable  :: ndxob_i(:),ndxob_j(:) !array of interior nodes per object
-     integer(ip), allocatable  :: ntxob_i(:),ntxob_j(:) !array of all nodes per object
-     integer(ip), allocatable  :: crxob_i(:),crxob_j(:) !Array of corners per object
+     type(list)   :: ndxob   !array of interior nodes per object
+     type(list)   :: ntxob   !array of all nodes per object
+     type(list)   :: crxob   !array of corners per object
 
   end type fem_fixed_info
 
   ! Parameters 
-  public :: max_nobje, ht_length, max_elmat, max_eltype, max_nnode, max_ndime, max_order
+  public :: max_nobje, ht_length, max_eltype, max_ndime, max_nnode, max_order
   public :: max_FE_types, max_elinf
   public :: scond_off, scond_on ! Static condensation flags (not active yet)
   public :: P_type_id, Q_type_id, NULL_type_id
@@ -139,17 +139,17 @@ contains
 
     write(*,*) 'ndxob'
     do i=1,f%nobje+1
-       write(*,*) f%ndxob_j(f%ndxob_i(i):f%ndxob_i(i+1)-1)
+       write(*,*) f%ndxob%l(f%ndxob%p(i):f%ndxob%p(i+1)-1)
     end do
 
  write(*,*) 'ntxob'
     do i=1,f%nobje+1
-       write(*,*) f%ntxob_j(f%ntxob_i(i):f%ntxob_i(i+1)-1)
+       write(*,*) f%ntxob%l(f%ntxob%p(i):f%ntxob%p(i+1)-1)
     end do
 
  write(*,*) 'crxob'
     do i=1,f%nobje+1
-       write(*,*) f%crxob_j(f%crxob_i(i):f%crxob_i(i+1)-1)
+       write(*,*) f%crxob%l(f%crxob%p(i):f%crxob%p(i+1)-1)
     end do
   end subroutine fem_element_fixed_info_write
 
@@ -198,19 +198,19 @@ contains
     end if
 
     permu = 1
-    !c1 = ln1(e1%crxob_j(e1%crxob_i(o1)))  ! Global identifier of the object of the first corner
-    c1 = ln1(e1%crxob_j(e1%crxob_i(o1)+r0))  ! Global identifier of the object of the first corner
+    !c1 = ln1(e1%crxob%l(e1%crxob%p(o1)))  ! Global identifier of the object of the first corner
+    c1 = ln1(e1%crxob%l(e1%crxob%p(o1)+r0))  ! Global identifier of the object of the first corner
     r = 1
-    do i = e2%crxob_i(o2),e2%crxob_i(o2+1)-1
-       if ( ln2(e2%crxob_j(i)) == c1 ) exit
+    do i = e2%crxob%p(o2),e2%crxob%p(o2+1)-1
+       if ( ln2(e2%crxob%l(i)) == c1 ) exit
        r = r+1
     end do
-    check ( ln2(e2%crxob_j(i)) == c1 )
+    check ( ln2(e2%crxob%l(i)) == c1 )
 
     if (r0>0) then
        r = r-r0
        if (r < 1) then
-          num_corners = e2%crxob_i(o2+1)- e2%crxob_i(o2)
+          num_corners = e2%crxob%p(o2+1)- e2%crxob%p(o2)
           r = r + num_corners 
        end if
     end if
@@ -292,20 +292,20 @@ contains
 
     ! Allocate arrays
     call memalloc(no,        fefi%o,__FILE__,__LINE__)   ! Array of orientation of each object
-    call memalloc(no+1,fefi%ndxob_i,__FILE__,__LINE__)   !Pointer to fefi%ndxob_j for each object
-    call memalloc(nn,  fefi%ndxob_j,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memalloc(no+1,fefi%ntxob_i,__FILE__,__LINE__)   !Pointer to ntxob_j for each object
-    call memalloc(nt,  fefi%ntxob_j,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memalloc(no+1,fefi%crxob_i,__FILE__,__LINE__)   !Pointer to crxob_j for each object
-    call memalloc(nc,  fefi%crxob_j,__FILE__,__LINE__)   !Array of corners for each object
+    call memalloc(no+1,fefi%ndxob%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
+    call memalloc(nn,  fefi%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
+    call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
+    call memalloc(nc,  fefi%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
     call memalloc(nd+2,no,idcro,__FILE__,__LINE__) !Array of dim and corners belonging to each object
 
-    fefi%ndxob_i=0   !Pointer to fefi%ndxob_j for each object
-    fefi%ndxob_j=0     !Array of interior nodes of each object
-    fefi%ntxob_i=0   !Pointer to ntxob_j for each object
-    fefi%ntxob_j=0     !Array of all nodes of each object
-    fefi%crxob_i=0   !Pointer to crxob_j for each object
-    fefi%crxob_j=0     !Array of corners for each object
+    fefi%ndxob%p=0   !Pointer to fefi%ndxob%l for each object
+    fefi%ndxob%l=0     !Array of interior nodes of each object
+    fefi%ntxob%p=0   !Pointer to ntxob%l for each object
+    fefi%ntxob%l=0     !Array of all nodes of each object
+    fefi%crxob%p=0   !Pointer to crxob%l for each object
+    fefi%crxob%l=0     !Array of corners for each object
 
     ! Create auxiliar matrix nodes with the coordinates of the corners
     nodes = 0
@@ -314,9 +314,9 @@ contains
     end do
 
     ! Initialize pointers
-    fefi%ndxob_i(1) = 1
-    fefi%ntxob_i(1) = 1
-    fefi%crxob_i(1) = 1
+    fefi%ndxob%p(1) = 1
+    fefi%ntxob%p(1) = 1
+    fefi%crxob%p(1) = 1
 
     ! Loop over dimensions
     do k = 0,nd
@@ -326,9 +326,9 @@ contains
 
        !Loop over objects of dimension k
        do i = fefi%nobje_dim(k+1),fefi%nobje_dim(k+2)-1 
-          fefi%ndxob_i(i+1) = fefi%ndxob_i(i) + aux1 !assign pointers
-          fefi%ntxob_i(i+1) = fefi%ntxob_i(i) + aux3 !assign pointers
-          fefi%crxob_i(i+1) = fefi%crxob_i(i) + aux2 !assign pointers 
+          fefi%ndxob%p(i+1) = fefi%ndxob%p(i) + aux1 !assign pointers
+          fefi%ntxob%p(i+1) = fefi%ntxob%p(i) + aux3 !assign pointers
+          fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 !assign pointers 
        end do
     end do
 
@@ -343,19 +343,19 @@ contains
 
     ! Initialize counters
     co = 0 ! Counter of object
-    c2 = 1 ! ndxob_i counter
-    c3 = 0 ! crxob_i counter
-    c4 = 1 ! ntxob_i counter
+    c2 = 1 ! ndxob%p counter
+    c3 = 0 ! crxob%p counter
+    c4 = 1 ! ntxob%p counter
 
     ! Loop over objects dimensions
     do k = 0,nd
 
        ! Loop over the number of objects of dimension k
        do i=1, bnm(nd+1,k+1)
-          ! Fill crxob_j for object co
+          ! Fill crxob%l for object co
           co = co+1 
           call P_orientation_object(fefi%o(co),k,nd,i)
-          fefi%crxob_j(c3+1:c3+k+1) = idcro(2:k+2,co)
+          fefi%crxob%l(c3+1:c3+k+1) = idcro(2:k+2,co)
           c3 = c3 + k +1
           
           ! Objec stores the coordinates of the corners defining object co
@@ -365,8 +365,8 @@ contains
           end do
 
           ! Fill ntxobj and ndxobj for object co
-          call ntxob_fill(fefi%ntxob_j,c4,0,p,1,idm,nd,k,p,objec,nt)
-          call ntxob_fill(fefi%ndxob_j,c2,1,p-1,1,idm,nd,k,p,objec,nt)
+          call ntxob_fill(fefi%ntxob%l,c4,0,p,1,idm,nd,k,p,objec,nt)
+          call ntxob_fill(fefi%ndxob%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
        end do
     end do
 
@@ -378,31 +378,31 @@ contains
     !    write(*,*) 'dime', k, '--------------------------'
     !    write(*,*) fefi%o(fefi%nobje_dim(k):fefi%nobje_dim(k+1)-1)
     ! end do
-    ! write(*,*) 'no+1', no+1, 'ndxob_i'
+    ! write(*,*) 'no+1', no+1, 'ndxob%p'
     ! do k = 1,no+1
-    !    write(*,*) fefi%ndxob_i(k), ', &'
+    !    write(*,*) fefi%ndxob%p(k), ', &'
     ! end do
-    ! write(*,*) 'nn', nn, 'ndxob_j'
+    ! write(*,*) 'nn', nn, 'ndxob%l'
     ! do k = 1,nn
-    !    write(*,*) fefi%ndxob_j(k), ', &'
+    !    write(*,*) fefi%ndxob%l(k), ', &'
     ! end do
 
-    ! write(*,*) 'no+1', no+1, 'ntxob_i'
+    ! write(*,*) 'no+1', no+1, 'ntxob%p'
     ! do k = 1,no+1
-    !    write(*,*) fefi%ntxob_i(k), ', &'
+    !    write(*,*) fefi%ntxob%p(k), ', &'
     ! end do
-    ! write(*,*) 'nt', nt, 'ntxob_j'
+    ! write(*,*) 'nt', nt, 'ntxob%l'
     ! do k = 1,nt
-    !    write(*,*) fefi%ntxob_j(k), ', &'
+    !    write(*,*) fefi%ntxob%l(k), ', &'
     ! end do
 
-    ! write(*,*) 'no+1', no+1, 'crxob_i'
+    ! write(*,*) 'no+1', no+1, 'crxob%p'
     ! do k = 1,no+1
-    !    write(*,*) fefi%crxob_i(k), ', &'
+    !    write(*,*) fefi%crxob%p(k), ', &'
     ! end do
-    ! write(*,*) 'nc', nc, 'crxob_j'
+    ! write(*,*) 'nc', nc, 'crxob%l'
     ! do k = 1,nc
-    !    write(*,*) fefi%crxob_j(k), ', &'
+    !    write(*,*) fefi%crxob%l(k), ', &'
     ! end do
   end subroutine P_fixed_info_fill
 
@@ -419,12 +419,12 @@ contains
     call memfree(        fefi%o,__FILE__,__LINE__)   
 
     ! Deallocate arrays
-    call memfree(fefi%ndxob_i,__FILE__,__LINE__)   !Pointer to fefi%ndxob_j for each object
-    call memfree(fefi%ndxob_j,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memfree(fefi%ntxob_i,__FILE__,__LINE__)   !Pointer to ntxob_j for each object
-    call memfree(fefi%ntxob_j,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memfree(fefi%crxob_i,__FILE__,__LINE__)   !Pointer to crxob_j for each object
-    call memfree(fefi%crxob_j,__FILE__,__LINE__)   !Array of corners for each object
+    call memfree(fefi%ndxob%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
+    call memfree(fefi%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memfree(fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
+    call memfree(fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memfree(fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
+    call memfree(fefi%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
   end subroutine P_fixed_info_free
 
   !==================================================================================================
@@ -662,7 +662,7 @@ contains
   end subroutine crxob
 
   !==================================================================================================
-  ! NTXOB_FILL constructs ntxob_j
+  ! NTXOB_FILL constructs ntxob%l
   recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
     implicit none
     ! Parameters
@@ -921,26 +921,26 @@ contains
 
     ! Allocate arrays
     call memalloc(no,        fefi%o,__FILE__,__LINE__)  ! Array of orientation of each object
-    call memalloc(no+1,fefi%ndxob_i,__FILE__,__LINE__)  !Pointer to fefi%ndxob_j for each object
-    call memalloc(nn,  fefi%ndxob_j,__FILE__,__LINE__)  !Array of interior nodes of each object
-    call memalloc(no+1,fefi%ntxob_i,__FILE__,__LINE__)  !Pointer to ntxob_j for each object
-    call memalloc(nt,  fefi%ntxob_j,__FILE__,__LINE__)  !Array of all nodes of each object
-    call memalloc(no+1,fefi%crxob_i,__FILE__,__LINE__)  !Pointer to crxob_j for each object
-    call memalloc(nc,  fefi%crxob_j,__FILE__,__LINE__)  !Array of corners for each object
+    call memalloc(no+1,fefi%ndxob%p,__FILE__,__LINE__)  !Pointer to fefi%ndxob%l for each object
+    call memalloc(nn,  fefi%ndxob%l,__FILE__,__LINE__)  !Array of interior nodes of each object
+    call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each object
+    call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each object
+    call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each object
+    call memalloc(nc,  fefi%crxob%l,__FILE__,__LINE__)  !Array of corners for each object
     call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
 
-    fefi%ndxob_i=0   !Pointer to fefi%ndxob_j for each object
-    fefi%ndxob_j=0   !Array of interior nodes of each object
-    fefi%ntxob_i=0   !Pointer to ntxob_j for each object
-    fefi%ntxob_j=0   !Array of all nodes of each object
-    fefi%crxob_i=0   !Pointer to crxob_j for each object
-    fefi%crxob_j=0   !Array of corners for each object
+    fefi%ndxob%p=0   !Pointer to fefi%ndxob%l for each object
+    fefi%ndxob%l=0   !Array of interior nodes of each object
+    fefi%ntxob%p=0   !Pointer to ntxob%l for each object
+    fefi%ntxob%l=0   !Array of all nodes of each object
+    fefi%crxob%p=0   !Pointer to crxob%l for each object
+    fefi%crxob%l=0   !Array of corners for each object
    
 
     !Initialize pointers
-    fefi%ndxob_i(1) = 1
-    fefi%ntxob_i(1) = 1
-    fefi%crxob_i(1) = 1
+    fefi%ndxob%p(1) = 1
+    fefi%ntxob%p(1) = 1
+    fefi%crxob%p(1) = 1
 
     !Loop over dimensions
     do k = 0,nd
@@ -950,9 +950,9 @@ contains
 
        ! Loop over objects of dimension k
        do i = fefi%nobje_dim(k+1),fefi%nobje_dim(k+2)-1 
-          fefi%ndxob_i(i+1) = fefi%ndxob_i(i) + aux1 ! assign pointers
-          fefi%ntxob_i(i+1) = fefi%ntxob_i(i) + aux3 ! assign pointers
-          fefi%crxob_i(i+1) = fefi%crxob_i(i) + aux2 ! assign pointers 
+          fefi%ndxob%p(i+1) = fefi%ndxob%p(i) + aux1 ! assign pointers
+          fefi%ntxob%p(i+1) = fefi%ntxob%p(i) + aux3 ! assign pointers
+          fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 ! assign pointers 
        end do
     end do
 
@@ -978,9 +978,9 @@ contains
     idm = 0
     fdm = 0
     cd  = 0
-    c2  = 0 ! fefi%ndxob_i counter
-    c3  = 0 ! crxob_i counter
-    c4  = 0 ! ntxob_i counter
+    c2  = 0 ! fefi%ndxob%p counter
+    c3  = 0 ! crxob%p counter
+    c4  = 0 ! ntxob%p counter
     co  = 0 ! counter of objects
 
     ! Loop over objects dimensions
@@ -1074,7 +1074,7 @@ contains
                    ijk_g(idm(k)+1) = auxt2(k,m)
                 end do
                 c2 = c2+1
-                fefi%crxob_j(c2) = Q_gijk(ijk_g,nd,1) !store the object numbering of the corner 
+                fefi%crxob%l(c2) = Q_gijk(ijk_g,nd,1) !store the object numbering of the corner 
              end do
           end do
 
@@ -1093,7 +1093,7 @@ contains
                    ijk_g(idm(k)+1) = auxt3(k,m)
                 end do
                 c3 = c3+1
-                fefi%ndxob_j(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in fefi%ndxob_j
+                fefi%ndxob%l(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in fefi%ndxob%l
              end do
           end do
 
@@ -1112,7 +1112,7 @@ contains
                    ijk_g(idm(k)+1) = auxt4(k,m)
                 end do
                 c4 = c4+1
-                fefi%ntxob_j(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob_j
+                fefi%ntxob%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
              end do
           end do
        end do
@@ -1137,31 +1137,31 @@ contains
     !    write(*,*) 'dime', od, '--------------------------'
     !    write(*,*) fefi%o(fefi%nobje_dim(od):fefi%nobje_dim(od+1)-1)
     ! end do
-    ! write(*,*) 'no+1', no+1, 'ndxob_i'
+    ! write(*,*) 'no+1', no+1, 'ndxob%p'
     ! do od = 1,no+1
-    !    write(*,*) fefi%ndxob_i(od), ', &'
+    !    write(*,*) fefi%ndxob%p(od), ', &'
     ! end do
-    ! write(*,*) 'nn', nn, 'ndxob_j'
+    ! write(*,*) 'nn', nn, 'ndxob%l'
     ! do od = 1,nn
-    !    write(*,*) fefi%ndxob_j(od), ', &'
+    !    write(*,*) fefi%ndxob%l(od), ', &'
     ! end do
 
-    ! write(*,*) 'no+1', no+1, 'ntxob_i'
+    ! write(*,*) 'no+1', no+1, 'ntxob%p'
     ! do od = 1,no+1
-    !    write(*,*) fefi%ntxob_i(od), ', &'
+    !    write(*,*) fefi%ntxob%p(od), ', &'
     ! end do
-    ! write(*,*) 'nt', nt, 'ntxob_j'
+    ! write(*,*) 'nt', nt, 'ntxob%l'
     ! do od = 1,nt
-    !    write(*,*) fefi%ntxob_j(od), ', &'
+    !    write(*,*) fefi%ntxob%l(od), ', &'
     ! end do
     
-    ! write(*,*) 'no+1', no+1, 'crxob_i'
+    ! write(*,*) 'no+1', no+1, 'crxob%p'
     ! do od = 1,no+1
-    !    write(*,*) fefi%crxob_i(od), ', &'
+    !    write(*,*) fefi%crxob%p(od), ', &'
     ! end do
-    ! write(*,*) 'nc', nc, 'crxob_j'
+    ! write(*,*) 'nc', nc, 'crxob%l'
     ! do od = 1,nc
-    !    write(*,*) fefi%crxob_j(od), ', &'
+    !    write(*,*) fefi%crxob%l(od), ', &'
     ! end do
   end subroutine Q_fixed_info_fill
 
@@ -1177,12 +1177,12 @@ contains
     call memfree(        fefi%o,__FILE__,__LINE__)   
 
     !Deallocate arrays
-    call memfree(fefi%ndxob_i,__FILE__,__LINE__)   !Pointer to fefi%ndxob_j for each object
-    call memfree(fefi%ndxob_j,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memfree(fefi%ntxob_i,__FILE__,__LINE__)   !Pointer to ntxob_j for each object
-    call memfree(fefi%ntxob_j,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memfree(fefi%crxob_i,__FILE__,__LINE__)   !Pointer to crxob_j for each object
-    call memfree(fefi%crxob_j,__FILE__,__LINE__)   !Array of corners for each object
+    call memfree(fefi%ndxob%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
+    call memfree(fefi%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memfree(fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
+    call memfree(fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memfree(fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
+    call memfree(fefi%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
   end subroutine Q_fixed_info_free
 
   !==================================================================================================
