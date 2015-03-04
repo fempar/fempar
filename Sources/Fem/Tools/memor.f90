@@ -413,7 +413,7 @@ module mem_lg_allocatable
   private
 # define var_type logical(lg)
 # define var_size lg
-# define bound_kind lg
+# define bound_kind ip
 # include "mem_header.i90"
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
