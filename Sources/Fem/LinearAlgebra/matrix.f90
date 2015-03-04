@@ -25,11 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_matrix_class
+# include "debug.i90"
+module fem_matrix_names
   use types
   use memor
-  use sort_class
-  use fem_graph_class
+  use sort_names
+  use fem_graph_names
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -37,17 +38,15 @@ module fem_matrix_class
   ! temporarily for bnn/bddc dd algorithms.
   ! A more clean/definitive solution is required
   ! here to treat these situations.
-  use fem_conditions_class
+  use fem_conditions_names
 
   ! CRUCIAL NOTE: matrix requires BOUNDARY conditions
   ! temporarily for bnn/bddc dd algorithms.
   ! A more clean/definitive solution is required
   ! here to treat these situations.
-  use fem_mesh_class
+  use fem_mesh_names
 
   implicit none
-# include "debug.i90"
-
   private
 
   ! Constants:
@@ -107,24 +106,6 @@ module fem_matrix_class
 
   end type fem_matrix
 
-  ! Memalloc interfaces
-  interface memalloc
-     module procedure memalloc_fem_matrix1, memalloc_fem_matrix2, memalloc_fem_matrix3, &
-          &           memalloc_fem_matrix4
-  end interface memalloc
-  interface memrealloc
-     module procedure memrealloc_fem_matrix1, memrealloc_fem_matrix2, memrealloc_fem_matrix3, &
-          &           memrealloc_fem_matrix4
-  end interface memrealloc
-  interface memfree
-     module procedure memfree_fem_matrix1, memfree_fem_matrix2, memfree_fem_matrix3, &
-          &           memfree_fem_matrix4
-  end interface memfree
-  interface memmovealloc
-     module procedure memmovealloc_fem_matrix1, memmovealloc_fem_matrix2, memmovealloc_fem_matrix3, &
-          &           memmovealloc_fem_matrix4
-  end interface memmovealloc
-
   interface fem_matrix_free
      module procedure fem_matrix_free_one_shot, fem_matrix_free_progressively
   end interface fem_matrix_free
@@ -142,40 +123,29 @@ module fem_matrix_class
        &    fem_matrix_set_bcs, fem_matrix_set_msh, fem_matrix_print_matrix_market,  & 
        &    fem_matrix_free, fem_matrix_info, fem_matrix_zero,  &
        &    fem_matrix_sum, fem_matrix_transpose, &
-       &    fem_matrix_compose_name_matrix_market, fem_matrix_read_matrix_market,    &
-       &    memalloc, memrealloc, memfree, memmovealloc
+       &    fem_matrix_compose_name_matrix_market, fem_matrix_read_matrix_market
+
+!***********************************************************************
+! Allocatable arrays of type(fem_matrix)
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+
+# define var_type type(fem_matrix)
+# define var_size 80
+# define bound_kind ip
+# include "mem_header.i90"
+
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
 
 contains
 
-  !***********************************************************************
-  !***********************************************************************
-  ! Specialization to allocate type(fem_matrix)
-  !***********************************************************************
-  !***********************************************************************
-# define var_type type(fem_matrix)
-# define var_size 80
-# define var_attr allocatable,target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloc_fem_matrix1    
-# define generic_memalloc_2      memalloc_fem_matrix2    
-# define generic_memalloc_3      memalloc_fem_matrix3    
-# define generic_memalloc_4      memalloc_fem_matrix4    
-# define generic_memrealloc_1    memrealloc_fem_matrix1  
-# define generic_memrealloc_2    memrealloc_fem_matrix2  
-# define generic_memrealloc_3    memrealloc_fem_matrix3  
-# define generic_memrealloc_4    memrealloc_fem_matrix4  
-# define generic_memfree_1       memfree_fem_matrix1     
-# define generic_memfree_2       memfree_fem_matrix2     
-# define generic_memfree_3       memfree_fem_matrix3     
-# define generic_memfree_4       memfree_fem_matrix4     
-# define generic_memmovealloc_1  memmovealloc_fem_matrix1
-# define generic_memmovealloc_2  memmovealloc_fem_matrix2
-# define generic_memmovealloc_3  memmovealloc_fem_matrix3
-# define generic_memmovealloc_4  memmovealloc_fem_matrix4
-# include "memor.i90"
+# include "mem_body.i90"
 
   !=============================================================================
   subroutine fem_matrix_create(storage,type,symm,nd1,nd2,mat,def)
@@ -816,4 +786,4 @@ contains
 
      end subroutine fem_matrix_transpose
 
-end module fem_matrix_class
+end module fem_matrix_names

@@ -29,7 +29,7 @@ module quadrature_faces
   use types
   use memor
   use fem_space_types
-  use quadrature_class
+  use quadrature_names
 
 # include "debug.i90"
   implicit none

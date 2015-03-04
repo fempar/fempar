@@ -25,16 +25,19 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_triangulation_class
+module par_triangulation_names
   ! Serial modules
   use types
   use memor
-  use migratory_element_class
-  use fem_triangulation_class
+  use sort_names
+  use migratory_element_names
+  use fem_triangulation_names
+  use fem_element_import_names
+  use hash_table_names
 
   ! Parallel modules
-  use par_context_class
-  use par_partition_class
+  use par_context_names
+  use par_partition_names
 
   implicit none
 # include "debug.i90"
@@ -61,6 +64,7 @@ module par_triangulation_class
 
   type, extends(migratory_element) :: par_elem_topology
      integer(ip)  :: interface     = -1              ! The boundary number ieboun (if this element is a interface element)
+     integer(ip)  :: mypart     = -1              ! To which part this element is mapped to ?
      integer(igp) :: globalID   = -1              ! Global ID of this element
                                                   ! Local ID is the position in the array of elements
      integer(ip)  :: num_objects = -1             ! Number of objects
@@ -82,7 +86,14 @@ module par_triangulation_class
      type(par_object_topology), allocatable  :: objects(:)          ! array of objects in the mesh
      integer(ip)                             :: num_itfc_objs = -1  ! Number of objects in the interface among subdomains
      integer(ip), allocatable                :: lst_itfc_objs(:)    ! List of objects local IDs in the interface among subdomains 
-     type(par_partition),   pointer          :: p_part => NULL()    ! How are the elements and objects distributed among processors ?
+     integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
+     integer(ip), allocatable                :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
+     type(par_context),   pointer            :: p_context => NULL() ! Parallel context describing MPI tasks among which par_triangulation is distributed
+     type(fem_element_import)                :: f_el_import         ! Object describing the layout in distributed-memory of the dual graph
+                                                                    ! (It is required for nearest neighbour comms on this graph)
+     integer(ip)                             :: max_nparts          ! Maximum number of parts around any vef communication object
+     integer(ip)                             :: nobjs               ! Number of local vef communication objects
+     integer(ip), allocatable                :: lobjs(:,:)          ! List of local vef communication objects
   end type par_triangulation
 
   ! Types
@@ -92,7 +103,7 @@ module par_triangulation_class
   public :: par_triangulation_free, par_triangulation_to_dual
 
   ! Auxiliary Subroutines (should only be used by modules that have control over type(par_triangulation))
-  public :: free_par_elem_topology, free_par_object_topology  
+  public :: free_par_elem_topology, free_par_object_topology, par_triangulation_free_elems_data, par_triangulation_free_objs_data 
 
 contains
 
@@ -106,7 +117,24 @@ contains
     integer(ip) :: iobj, istat, ielem
 
     assert(.not. p_trian%f_trian%state == triangulation_not_created) 
+    assert(.not. p_trian%f_trian%state == triangulation_created)
     
+    call par_triangulation_free_objs_data (p_trian)
+    call par_triangulation_free_elems_data(p_trian)
+    
+    ! Free local portion of triangulation
+    call fem_triangulation_free(p_trian%f_trian)
+  end subroutine par_triangulation_free
+
+  !=============================================================================
+  subroutine par_triangulation_free_objs_data(p_trian)
+    implicit none
+    ! Parameters
+    type(par_triangulation), intent(inout) :: p_trian
+
+    ! Locals
+    integer(ip) :: iobj, istat
+
     if ( p_trian%f_trian%state == triangulation_elems_objects_filled ) then
        do iobj=1, p_trian%f_trian%num_objects 
           call free_par_object_topology(p_trian%objects(iobj)) 
@@ -114,33 +142,51 @@ contains
   
        p_trian%num_itfc_objs = -1
        call memfree ( p_trian%lst_itfc_objs, __FILE__, __LINE__ )
+       
+       p_trian%max_nparts = -1 
+       p_trian%nobjs      = -1 
+       call memfree ( p_trian%lobjs, __FILE__, __LINE__ )
 
        ! Deallocate the object structure array 
        deallocate(p_trian%objects, stat=istat)
        check(istat==0)
     end if
+  end subroutine par_triangulation_free_objs_data
 
-    if ( p_trian%f_trian%state == triangulation_elems_objects_filled .or. & 
+  !=============================================================================
+  subroutine par_triangulation_free_elems_data(p_trian)
+    implicit none
+    ! Parameters
+    type(par_triangulation), intent(inout) :: p_trian
+
+    ! Locals
+    integer(ip) :: ielem, istat
+    
+    if ( p_trian%f_trian%state == triangulation_elems_objects_filled .or.  &
          p_trian%f_trian%state == triangulation_elems_filled ) then
+       
        do ielem=1, p_trian%f_trian%elem_array_len 
           call free_par_elem_topology(p_trian%elems(ielem)) 
        end do
+       
+       p_trian%num_itfc_elems = -1
+       call memfree ( p_trian%lst_itfc_elems, __FILE__, __LINE__ )
+       
+       call fem_element_import_free ( p_trian%f_el_import )
+       
+       ! Deallocate the element structure array */
+       deallocate(p_trian%mig_elems, stat=istat)
+       check(istat==0)
+       nullify(p_trian%elems)
+       
+       p_trian%num_elems  = -1 
+       p_trian%num_ghosts = -1
+       nullify(p_trian%p_context)
     end if
 
-    ! Deallocate the element structure array */
-    deallocate(p_trian%mig_elems, stat=istat)
-    check(istat==0)
-    nullify(p_trian%elems)
+  end subroutine par_triangulation_free_elems_data
 
-    p_trian%num_elems  = -1 
-    p_trian%num_ghosts = -1
-    nullify(p_trian%p_part)
-    
-    ! Free local portion of triangulation
-    call fem_triangulation_free(p_trian%f_trian)
-    
-  end subroutine par_triangulation_free
-
+  !=============================================================================
   subroutine par_triangulation_to_dual(p_trian)  
     implicit none
     ! Parameters
@@ -151,19 +197,7 @@ contains
 
     assert(p_trian%f_trian%state == triangulation_elems_filled .or. p_trian%f_trian%state == triangulation_elems_objects_filled) 
 
-
-    if ( p_trian%f_trian%state == triangulation_elems_objects_filled ) then
-       do iobj=1, p_trian%f_trian%num_objects 
-          call free_par_object_topology(p_trian%objects(iobj)) 
-       end do
-
-       p_trian%num_itfc_objs = -1
-       call memfree ( p_trian%lst_itfc_objs, __FILE__, __LINE__ )
-
-       ! Deallocate the object structure array 
-       deallocate(p_trian%objects, stat=istat)
-       check(istat==0)
-    end if
+    call par_triangulation_free_objs_data(p_trian)
 
     call fem_triangulation_to_dual ( p_trian%f_trian, p_trian%num_ghosts )
 
@@ -216,11 +250,156 @@ contains
           end if
        end do
     end do
+
+    ! Compute p_trian%max_nparts, p_trian%nobjs, p_trian%lobjs
+    ! Re-order (permute) p_trian%lst_itfc_objs accordingly
+    call par_triangulation_create_lobjs(p_trian)
+
   end subroutine par_triangulation_to_dual
+
+  !=============================================================================
+  subroutine par_triangulation_create_lobjs(p_trian)
+    implicit none
+    ! Parameters
+    type(par_triangulation), intent(inout) :: p_trian
+
+    ! Locals
+    integer(ip)               :: i, j, k, iobj, jelem, est_max_nparts
+    integer(ip)               :: ipart, istat, count 
+    integer(igp), allocatable :: lst_parts_per_itfc_obj (:,:)
+    integer(igp), allocatable :: ws_lobjs_temp (:,:)
+    integer(igp), allocatable :: sort_parts_per_itfc_obj_l1 (:)
+    integer(igp), allocatable :: sort_parts_per_itfc_obj_l2 (:)
+    type(hash_table_ip_ip)    :: ws_parts_visited
+    integer(ip), parameter    :: tbl_length = 100
+
+   
+    ipart = p_trian%p_context%iam + 1
+
+    ! Compute an estimation (upper bound) of the maximum number of parts around any local interface vef.
+    ! This estimation assumes that all elements around all local interface vefs are associated to different parts.
+    est_max_nparts = 0
+    do i=1, p_trian%num_itfc_objs
+       iobj = p_trian%lst_itfc_objs(i)
+       est_max_nparts = max(p_trian%f_trian%objects(iobj)%num_elems_around, est_max_nparts)
+    end do
+
+    call memalloc ( est_max_nparts+2, p_trian%num_itfc_objs, lst_parts_per_itfc_obj, __FILE__,__LINE__ )
+
+    p_trian%max_nparts = 0
+    lst_parts_per_itfc_obj = 0
+    do i=1, p_trian%num_itfc_objs
+       call ws_parts_visited%init(tbl_length)
+       call ws_parts_visited%put(key=ipart,val=1,stat=istat)
+
+       lst_parts_per_itfc_obj (2,i) = ipart
+       count = 1
+
+       iobj = p_trian%lst_itfc_objs(i)
+
+       ! Count/list parts around iobj 
+       do j=1, p_trian%f_trian%objects(iobj)%num_elems_around 
+          jelem=p_trian%f_trian%objects(iobj)%elems_around(j)
+          call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+          if ( istat == now_stored ) then
+               count = count + 1
+               lst_parts_per_itfc_obj (count+1,i) = p_trian%elems(jelem)%mypart 
+          end if
+       end do
+
+       ! Finish a new column by setting up first and last entries
+       lst_parts_per_itfc_obj(1,i) = count
+       lst_parts_per_itfc_obj(est_max_nparts+2,i) = p_trian%objects(iobj)%globalID 
+
+       ! Sort list of parts in increasing order by part identifiers
+       ! This is required by the call to icomp subroutine below 
+       call sort ( count, lst_parts_per_itfc_obj( 2:(count+1), i) )
+
+       p_trian%max_nparts = max(p_trian%max_nparts, count)
+       call ws_parts_visited%free
+    end do
+
+
+    ! Re-number vefs in increasing order by the number of parts that share them, 
+    ! and among vefs sharing the same list of parts, in increasing order by the list 
+    ! of parts shared by the vef 
+    call memalloc ( est_max_nparts+2, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__ )
+    call memalloc ( est_max_nparts+2, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__ )
+    call sort_array_cols_by_row_section( est_max_nparts+2,           & ! Rows of lst_parts_per_itfc_obj 
+       &                                 est_max_nparts+2,           & ! LD of lst_parts_per_itfc_obj
+       &                                 p_trian%num_itfc_objs,      & ! Cols of lst_parts_per_itfc_obj
+       &                                 lst_parts_per_itfc_obj,     & 
+       &                                 p_trian%lst_itfc_objs,      &
+       &                                 sort_parts_per_itfc_obj_l1, &
+       &                                 sort_parts_per_itfc_obj_l2 )
+    call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__ )
+    call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__ )
+
+    ! Re-compute p_trian%objects(:)%border to reflect the new status of p_trian%lst_itfc_objs
+    do i=1, p_trian%num_itfc_objs
+       iobj = p_trian%lst_itfc_objs(i)
+       assert ( p_trian%objects(iobj)%border /= -1 )
+       p_trian%objects(iobj)%border = i
+    end do
+
+    ! Identify communication objects 
+    call memalloc ( p_trian%max_nparts+4, p_trian%num_itfc_objs, ws_lobjs_temp, __FILE__,__LINE__ )
+    
+    p_trian%nobjs=1
+
+    ! Prepare first object
+    ws_lobjs_temp(1, p_trian%nobjs)= -1  ! Unused entry (maintained for historical reasons) 
+    ws_lobjs_temp(2, p_trian%nobjs) = 1  ! Begin obj
+
+    k  = 1 
+    do i=1,p_trian%num_itfc_objs-1
+       if(icomp(p_trian%max_nparts+1,lst_parts_per_itfc_obj(:,i),lst_parts_per_itfc_obj(:,i+1)) /= 0) then
+          ! Complete current object
+          ws_lobjs_temp(3,p_trian%nobjs)=k ! end obj
+          ws_lobjs_temp(4,p_trian%nobjs)=lst_parts_per_itfc_obj(1,i)
+          ws_lobjs_temp(5:4+lst_parts_per_itfc_obj(1,i),p_trian%nobjs) = &
+               & lst_parts_per_itfc_obj(2:1+lst_parts_per_itfc_obj(1,i),i)
+          ws_lobjs_temp(4+lst_parts_per_itfc_obj(1,i)+1:,p_trian%nobjs) = 0 
+
+          ! Prepare next object
+          p_trian%nobjs=p_trian%nobjs+1
+          ws_lobjs_temp(1,p_trian%nobjs)=-1     ! Unused entry (maintained for historical reasons) 
+          ws_lobjs_temp(2,p_trian%nobjs)=k+1    ! begin obj
+       end if
+       k=k+1
+    end do
+
+    ! Complete last object
+    ws_lobjs_temp(3,p_trian%nobjs)=k        ! end obj
+    ws_lobjs_temp(4,p_trian%nobjs)=lst_parts_per_itfc_obj(1,i)
+    ws_lobjs_temp(5:4+lst_parts_per_itfc_obj(1,i),p_trian%nobjs) = &
+         & lst_parts_per_itfc_obj(2:1+lst_parts_per_itfc_obj(1,i),i)
+    ws_lobjs_temp(4+lst_parts_per_itfc_obj(1,i)+1:,p_trian%nobjs) = 0 
+
+    ! Reallocate lobjs and add internal object first
+    call memalloc (p_trian%max_nparts+4, p_trian%nobjs, p_trian%lobjs, __FILE__, __LINE__)
+
+    ! Copy ws_lobjs_temp to lobjs ...
+    do i=1,p_trian%nobjs
+       p_trian%lobjs(:,i)=ws_lobjs_temp(:,i)
+    end do
+
+    call memfree ( ws_lobjs_temp, __FILE__,__LINE__ )
+    call memfree ( lst_parts_per_itfc_obj, __FILE__,__LINE__ )
+
+
+    write(*,'(a,i10)') 'Number of local objects:', &
+       &  p_trian%nobjs
+
+    write(*,'(a)') 'List of local objects:'
+    do i=1,p_trian%nobjs 
+       write(*,'(10i10)') i, p_trian%lobjs(:,i)
+    end do
+
+  end subroutine par_triangulation_create_lobjs
    
 
   !=============================================================================
-
   ! Auxiliary subroutines
   subroutine initialize_par_object_topology (object)
     implicit none
@@ -228,7 +407,6 @@ contains
     
     object%interface   = -1
     object%globalID = -1 
-
   end subroutine initialize_par_object_topology
   
   subroutine free_par_object_topology (object)
@@ -245,6 +423,7 @@ contains
        call memfree(element%objects_GIDs, __FILE__, __LINE__)
     end if
     element%interface = -1
+    element%mypart = -1 
   end subroutine free_par_elem_topology
   
   subroutine initialize_par_elem_topology(element)
@@ -253,6 +432,7 @@ contains
 
     assert(allocated(element%objects_GIDs))
     element%interface      = -1
+    element%mypart      = -1
     element%globalID    = -1
     element%num_objects = -1
   end subroutine initialize_par_elem_topology
@@ -269,7 +449,7 @@ contains
     size_of_ip   = size(transfer(1_ip ,mold))
     size_of_igp  = size(transfer(1_igp,mold))
 
-    n = size_of_ip*2 + size_of_igp*(my%num_objects+1)
+    n = size_of_ip*3 + size_of_igp*(my%num_objects+1)
 
   end subroutine par_elem_topology_size
 
@@ -289,6 +469,10 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
+    buffer(start:end) = transfer(my%mypart,mold)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
     buffer(start:end) = transfer(my%interface,mold)
 
     start = end + 1
@@ -321,6 +505,10 @@ contains
     
     start = 1
     end   = start + size_of_ip -1
+    my%mypart  = transfer(buffer(start:end), my%mypart)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
     my%interface  = transfer(buffer(start:end), my%interface)
 
     start = end + 1
@@ -340,4 +528,4 @@ contains
   end subroutine par_elem_topology_unpack
 
 
-end module par_triangulation_class
+end module par_triangulation_names

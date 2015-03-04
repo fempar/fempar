@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_graph_class
+module fem_graph_names
   use types
   use memor
   implicit none
@@ -392,4 +392,4 @@ contains
 
   !end subroutine permut_graph
 
-end module fem_graph_class
+end module fem_graph_names

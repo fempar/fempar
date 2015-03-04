@@ -25,11 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module face_interpolation_class
+module face_interpolation_names
   use types
   use memor
   use fem_space_types
-  use interpolation_class
+  use interpolation_names
   implicit none
 # include "debug.i90"
   private
@@ -57,7 +57,7 @@ module face_interpolation_class
 
 contains
   !----------------------------------------------------------
-  ! TODO: Maybe it should be mixed with interpolation_class
+  ! TODO: Maybe it should be mixed with interpolation_names
   !----------------------------------------------------------
   !==============================================================================
  subroutine face_interpolation_create(nnode,nnodf,ndime,ngaus,nlocf,nface,int)
@@ -1589,4 +1589,4 @@ contains
 
   !=========================================================================
 
-end module face_interpolation_class
+end module face_interpolation_names

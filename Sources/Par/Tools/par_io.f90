@@ -28,7 +28,7 @@
 module par_io
   use types
   use stdio
-  use par_context_class
+  use par_context_names
   implicit none
   private
 

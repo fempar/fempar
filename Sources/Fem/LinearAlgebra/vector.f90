@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_vector_class
+module fem_vector_names
   use types
   use memor
   use blas77_interfaces
@@ -603,4 +603,4 @@ contains
 
  end subroutine fem_vector_print_matrix_market
 
-end module fem_vector_class
+end module fem_vector_names

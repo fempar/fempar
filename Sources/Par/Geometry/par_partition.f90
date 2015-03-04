@@ -25,20 +25,19 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_partition_class
+module par_partition_names
   ! Serial modules
   use types
   use memor
-  use fem_partition_class
-  use fem_import_class
-  use fem_element_import_class
+  use fem_partition_names
+  use fem_import_names
   use partition_import
-  use maps_class
+  use maps_names
   use stdio
-  ! solve_pardiso_mkl_class is required because 
+  ! solve_pardiso_mkl_names is required because 
   ! free_only_struct, free_clean constants are declared
   ! whithin it
-  !use solve_pardiso_mkl_class 
+  !use solve_pardiso_mkl_names 
   use par_io
 
   ! Trilinos-Interfaces modules
@@ -46,14 +45,14 @@ module par_partition_class
 
   ! Parallel modules
   use psb_penv_mod
-  use par_context_class
+  use par_context_names
 
 # include "debug.i90"
   implicit none
   private
 
   ! ***IMPORTANT NOTE***: I am assuming that the
-  ! constructor of par_partition_class is responsible
+  ! constructor of par_partition_names is responsible
   ! for creating/destroying all the members/objects it 
   ! contains
 
@@ -78,7 +77,6 @@ module par_partition_class
   type par_partition
     type (fem_partition)      :: f_part
     type (fem_import)         :: f_import               ! Created from f_part
-    type (fem_element_import) :: f_el_import            ! Created from f_part
 
     type (par_context), pointer  :: p_context => NULL() ! Fine process
     type (par_context), pointer  :: g_context => NULL() ! Fine_to coarse comm
@@ -719,4 +717,4 @@ contains
     write(lunou,'(a)') '*** end par_partition data structure ***'
   end subroutine par_partition_print
 
-end module par_partition_class
+end module par_partition_names

@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module template_mesh_class
+module template_mesh_names
   use types
-  use migratory_element_class
-  use template_element_class
+  use migratory_element_names
+  use template_element_names
   
   implicit none
   private
@@ -84,4 +84,4 @@ contains
     
   end subroutine template_mesh_print
 
-end module template_mesh_class
+end module template_mesh_names

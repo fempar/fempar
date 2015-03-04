@@ -28,11 +28,11 @@
 module par_matrix_vector
   ! Serial modules
   use fem_matrix_vector
-  use fem_vector_class
+  use fem_vector_names
   
-  use par_matrix_class
-  use par_vector_class
-  use par_context_class
+  use par_matrix_names
+  use par_vector_names
+  use par_context_names
   
   ! Module associated with the F90 interface to Trilinos.
   ! Remember: the F90 interface to Trilinos requires C

@@ -28,9 +28,9 @@
 module femap_interp
   use types
   use memor
-  use femap_class
-  use interpolation_class
-  use face_interpolation_class
+  use femap_names
+  use interpolation_names
+  use face_interpolation_names
   implicit none
 # include "debug.i90"
   private

@@ -28,9 +28,9 @@
 module mesh_graph
   use types
   use memor
-  use fem_mesh_class
-  use fem_graph_class
-  use renum_class
+  use fem_mesh_names
+  use fem_graph_names
+  use renum_names
   implicit none
 # include "debug.i90"
   private
@@ -1508,7 +1508,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr ( primal_mesh, dual_mesh, primal_graph,  &
        &                              ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -1593,7 +1593,7 @@ contains
 !============================================================================================
   subroutine  list_primal_graph_extended_stencil_csr ( primal_mesh, dual_mesh, primal_graph,  &
        &                              ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -1713,7 +1713,7 @@ contains
 !============================================================================================
   subroutine  list_primal_graph_sz_csr ( primal_mesh, dual_mesh, primal_graph,szmap,  &
        &                              szdual_ia,szdual_ja,ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -1896,7 +1896,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                   ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -1994,7 +1994,7 @@ contains
  !============================================================================================
   subroutine  list_primal_graph_extended_stencil_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                   ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -2126,7 +2126,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_sz_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,szmap,  &
        &                                   szdual_ia,szdual_ja,ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -2325,7 +2325,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr_symm ( primal_mesh, dual_mesh, primal_graph,  &
        &                                   ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -2412,7 +2412,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_csr_symm_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                        ws_position, ws_neighbors )    
-    use sort_class
+    use sort_names
     implicit none
 
     ! Parameters
@@ -2513,7 +2513,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_css ( primal_mesh, dual_mesh, primal_graph,  &
        &                                ws_position, ws_neighbors )    
-    ! use sort_class
+    ! use sort_names
     implicit none
 
     ! Parameters
@@ -2622,7 +2622,7 @@ contains
   !============================================================================================
   subroutine  list_primal_graph_css_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph,  &
        &                                ws_position, ws_neighbors )    
-    ! use sort_class
+    ! use sort_names
     implicit none
 
     ! Parameters

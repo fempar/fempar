@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_materials_class
+module fem_materials_names
   use types
   use memor
   use stdio
@@ -76,4 +76,4 @@ contains
 
   end subroutine fem_materials_free
 
-end module fem_materials_class
+end module fem_materials_names

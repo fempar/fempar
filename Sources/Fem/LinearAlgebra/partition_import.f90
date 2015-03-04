@@ -28,8 +28,8 @@
 module partition_import
   use types
   use memor
-  use fem_partition_class
-  use fem_import_class
+  use fem_partition_names
+  use fem_import_names
   implicit none
 # include "debug.i90"
   private

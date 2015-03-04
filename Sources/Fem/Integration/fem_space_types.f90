@@ -25,17 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# include "debug.i90"
 module fem_space_types
-
-  ! Modules
   use types
   use memor
-  !use array_class
-  !use P_fem_fixed_info
-  !use Q_fem_fixed_info
+#ifdef memcheck
+  use iso_c_binding
+#endif
 
   implicit none
-# include "debug.i90"
   private
     
   integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element
@@ -102,7 +100,27 @@ module fem_space_types
   ! Functions
   public :: P_set_integ, P_refcoord
 
+!***********************************************************************
+! Allocatable arrays of type(fem_fixed_info_pointer)
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+
+# define var_type type(fem_fixed_info_pointer)
+# define var_size 8
+# define bound_kind ip
+# include "mem_header.i90"
+
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
 contains
+
+# include "mem_body.i90"
 
   !==================================================================================================
   subroutine fem_element_fixed_info_create ( f_info, f_type, f_order, dim_space,created)

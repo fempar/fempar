@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module wsmp_class
+module wsmp_names
   ! This module is a wrapper in which we define functions 
   ! to interact with WSMP using our data structures.
   ! Error control on calling parameters must (ideally)
@@ -34,9 +34,9 @@ module wsmp_class
   ! Serial modules
   use types
   use memor
-  use fem_matrix_class
-  use fem_vector_class 
-!  use fem_graph_class
+  use fem_matrix_names
+  use fem_vector_names 
+!  use fem_graph_names
 !  use fem_graph_partition
 # include "debug.i90"
   
@@ -77,7 +77,7 @@ module wsmp_class
 !!$"../../Sources/Fem/wsmp.f90", line 812.63: 1513-061 (S) Actual argument attributes do not match those specified by an accessible explicit interface.
 !!$"../../Sources/Fem/wsmp.f90", line 936.63: 1513-061 (S) Actual argument attributes do not match those specified by an accessible explicit interface.
 !!$"../../Sources/Fem/wsmp.f90", line 1064.63: 1513-061 (S) Actual argument attributes do not match those specified by an accessible explicit interface.
-!!$** wsmp_class   === End of Compilation 1 ===
+!!$** wsmp_names   === End of Compilation 1 ===
 !!$1501-511  Compilation failed for file wsmp.f90.
 !!$make[2]: *** [XLF/Objects_O/wsmp.o] Error 1
 !!$make[1]: *** [release_serial] Error 2
@@ -1168,6 +1168,6 @@ contains
 
   end subroutine wsmp_solution_several_rhs
 
-end module wsmp_class
+end module wsmp_names
 
 

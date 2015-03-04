@@ -29,7 +29,7 @@ module fem_materials_io
   use types
   use stdio
   use memor
-  use fem_materials_class
+  use fem_materials_names
   implicit none
   private
 

@@ -25,19 +25,19 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_precond_class
+module fem_precond_names
   ! Serial modules
   use types
   use memor
-  use fem_graph_class
-  use fem_matrix_class
-  use fem_vector_class
-  use pardiso_mkl_class
-  use wsmp_class
-  use hsl_mi20_class
-  use hsl_ma87_class
+  use fem_graph_names
+  use fem_matrix_names
+  use fem_vector_names
+  use pardiso_mkl_names
+  use wsmp_names
+  use hsl_mi20_names
+  use hsl_ma87_names
   use umfpack_interface
-  use umfpack_class
+  use umfpack_names
 
 # include "debug.i90"
 
@@ -252,7 +252,7 @@ contains
 #ifdef ENABLE_HSL_MI20 
        ! This set of instructions could may be go in
        ! a hsl_mi20_set_parameters subroutine within
-       ! a module hsl_mi20_class. TODO ???
+       ! a module hsl_mi20_names. TODO ???
        if ( present(pars) ) then
          prec%hsl_mi20_ctrl%control%st_parameter     = pars%st_parameter
          prec%hsl_mi20_ctrl%control%one_pass_coarsen = pars%one_pass_coarsen
@@ -449,7 +449,7 @@ contains
 #ifdef ENABLE_HSL_MI20 
        ! This set of instructions could may be go in
        ! a hsl_mi20_get_info subroutine within
-       ! a module hsl_mi20_class. TODO ???
+       ! a module hsl_mi20_names. TODO ???
        prec%lev = prec%hsl_mi20_info%info%clevels
        prec%cs  = 0.0 
        prec%cg  = 0.0        
@@ -994,4 +994,4 @@ contains
 
   end subroutine extract_diagonal_csc_scal
 
-end module fem_precond_class
+end module fem_precond_names

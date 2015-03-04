@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_partition_class
+module fem_partition_names
   use types
-  use maps_class
+  use maps_names
   use memor
   use stdio
   implicit none
@@ -684,4 +684,4 @@ subroutine fem_partition_write_files_new ( dir_path, prefix, nparts, parts )
 
   end subroutine  fem_partition_read_files_new
 
-end module fem_partition_class
+end module fem_partition_names

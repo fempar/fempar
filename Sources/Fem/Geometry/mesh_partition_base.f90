@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_mesh_partition_base
   use types
-  use fem_partition_class, only : vertex_based, element_based
+  use fem_partition_names, only : vertex_based, element_based
 
   ! Basic parameters and type definitions for serial partitioning routines
   ! All PUBLIC 

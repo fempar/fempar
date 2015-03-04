@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module migratory_element_class
+module migratory_element_names
   use types
   implicit none
   private
@@ -66,4 +66,4 @@ module migratory_element_class
 
   public :: migratory_element
   
-end module migratory_element_class
+end module migratory_element_names

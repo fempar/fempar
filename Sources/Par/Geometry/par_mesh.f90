@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_mesh_class
+module par_mesh_names
 
   ! Serial modules
   use types
-  use fem_mesh_class
+  use fem_mesh_names
   use fem_mesh_io
   use stdio
   use psb_penv_mod
 
   use par_io
-  use par_partition_class
-  use par_context_class
+  use par_partition_names
+  use par_context_names
 
 # include "debug.i90"
   implicit none
@@ -191,4 +191,4 @@ contains
     call par_partition_bcast(p_mesh%p_part,value)
   end subroutine par_mesh_bcast
 
-end module par_mesh_class
+end module par_mesh_names

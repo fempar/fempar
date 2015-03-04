@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_import_class
+module fem_import_names
   use types
   use memor
   implicit none
@@ -152,4 +152,4 @@ contains
   end subroutine fem_import_print
 
 
-end module fem_import_class
+end module fem_import_names

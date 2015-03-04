@@ -28,8 +28,8 @@
 module fem_mesh_dual
   use types
   use memor
-  use fem_mesh_class
-  use fem_space_class 
+  use fem_mesh_names
+  use fem_space_names 
  
 # include "debug.i90"
   implicit none

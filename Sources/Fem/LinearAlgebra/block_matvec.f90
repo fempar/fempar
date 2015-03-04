@@ -27,10 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_block_matrix_vector
   use types
-  use fem_block_matrix_class
-  use fem_block_vector_class
-  use fem_matrix_class
-  use fem_vector_class
+  use fem_block_matrix_names
+  use fem_block_vector_names
+  use fem_matrix_names
+  use fem_vector_names
   use fem_matrix_vector
   implicit none
 # include "debug.i90"

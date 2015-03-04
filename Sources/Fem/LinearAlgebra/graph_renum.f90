@@ -28,8 +28,8 @@
 module graph_renum
   use types
   use memor
-  use fem_graph_class
-  use renum_class
+  use fem_graph_names
+  use renum_names
   use metis_interface
   use fem_mesh_partition_base
   use rcm_renum

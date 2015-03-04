@@ -28,11 +28,11 @@
 module geom2topo
   use types
   use memor
-  use fem_mesh_class
-  use fem_space_class
+  use fem_mesh_names
+  use fem_space_names
   use fem_space_types
-  use interpolation_class
-  use fem_conditions_class
+  use interpolation_names
+  use fem_conditions_names
   use element_gather_tools
   implicit none
 # include "debug.i90"

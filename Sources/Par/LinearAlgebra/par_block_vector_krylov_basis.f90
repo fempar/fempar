@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_block_vector_krylov_basis_class
+module par_block_vector_krylov_basis_names
   use types
   use memor
-  use par_vector_class
-  use par_block_vector_class
-  use par_vector_krylov_basis_class
+  use par_vector_names
+  use par_block_vector_names
+  use par_vector_krylov_basis_names
   implicit none
 # include "debug.i90"
 
@@ -150,4 +150,4 @@ contains
      end do
   end subroutine par_block_vector_krylov_basis_multiaxpy
  
-end module par_block_vector_krylov_basis_class
+end module par_block_vector_krylov_basis_names

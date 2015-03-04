@@ -29,21 +29,21 @@ module par_mesh_partition_conditions
 
   ! Serial modules
   use types
-  use fem_mesh_class
+  use fem_mesh_names
   use fem_mesh_gen
-  use fem_conditions_class
-  use fem_partition_class
-  use fem_materials_class
+  use fem_conditions_names
+  use fem_partition_names
+  use fem_materials_names
   use partition_import
   use fem_mesh_gen_partition
   !use fem_mesh_io
   !use stdio
-  use fem_import_class
+  use fem_import_names
 
   ! Parallel modules
-  use par_partition_class
-  use par_context_class
-  use par_mesh_class
+  use par_partition_names
+  use par_context_names
+  use par_mesh_names
   
 
 # include "debug.i90"

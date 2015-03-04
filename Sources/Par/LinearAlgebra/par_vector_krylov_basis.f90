@@ -25,11 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_vector_krylov_basis_class
+module par_vector_krylov_basis_names
   ! Serial modules
   use types
   use memor
-  use fem_vector_krylov_basis_class
+  use fem_vector_krylov_basis_names
   
   ! Module associated with the F90 interface to Trilinos.
   ! Remember: the F90 interface to Trilinos requires C
@@ -37,10 +37,10 @@ module par_vector_krylov_basis_class
   !use for_trilinos_shadow_interfaces
 
   ! Parallel modules
-  use par_partition_class
-  use par_context_class
+  use par_partition_names
+  use par_context_names
   use psb_penv_mod
-  use par_vector_class
+  use par_vector_names
 
 # include "debug.i90"
   
@@ -345,4 +345,4 @@ contains
 
   end subroutine par_vector_krylov_basis_multiaxpy
  
-end module par_vector_krylov_basis_class
+end module par_vector_krylov_basis_names

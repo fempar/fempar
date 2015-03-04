@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module femap_class
+module femap_names
   use types
   use memor
   implicit none
@@ -86,4 +86,4 @@ contains
 
   end subroutine femap_free
 
-end module femap_class
+end module femap_names

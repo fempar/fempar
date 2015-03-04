@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module hsl_mi20_class
+module hsl_mi20_names
   ! This module is a wrapper in which we define functions 
   ! to interact with HSL_MI20 using our data structures.
   ! Error control on calling parameters must (ideally)
@@ -34,9 +34,9 @@ module hsl_mi20_class
   ! Serial modules
   use types
   use memor
-  use fem_matrix_class
-  use fem_vector_class 
-  use fem_graph_class
+  use fem_matrix_names
+  use fem_vector_names 
+  use fem_graph_names
 
 #ifdef ENABLE_HSL_MI20
   use hsl_mi20_double
@@ -509,6 +509,6 @@ contains
 
   end subroutine hsl_mi20_solution_several_rhs
 
-end module hsl_mi20_class
+end module hsl_mi20_names
 
 

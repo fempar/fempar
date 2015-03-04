@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_graph_class
+module par_graph_names
   ! Serial modules
   use types
   use memor
-  use fem_graph_class
-  use fem_partition_class
+  use fem_graph_names
+  use fem_partition_names
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -41,8 +41,8 @@ module par_graph_class
   !use for_trilinos_shadow_interfaces
 
   ! Parallel modules
-  use par_partition_class
-  use par_context_class
+  use par_partition_names
+  use par_context_names
 
 # include "debug.i90"
 
@@ -91,63 +91,33 @@ module par_graph_class
      module procedure par_graph_free_one_shot, par_graph_free_progressively
   end interface par_graph_free
 
-  ! Memalloc interfaces
-  interface memalloc
-     module procedure memalloc_par_graph1, memalloc_par_graph2, memalloc_par_graph3, &
-          &           memalloc_par_graph4
-  end interface memalloc
-  interface memrealloc
-     module procedure memrealloc_par_graph1, memrealloc_par_graph2, memrealloc_par_graph3, &
-          &           memrealloc_par_graph4
-  end interface memrealloc
-  interface memfree
-     module procedure memfree_par_graph1, memfree_par_graph2, memfree_par_graph3, &
-          &           memfree_par_graph4
-  end interface memfree
-  interface memmovealloc
-     module procedure memmovealloc_par_graph1, memmovealloc_par_graph2, memmovealloc_par_graph3, &
-          &           memmovealloc_par_graph4
-  end interface memmovealloc
-
-
   ! Types
   public :: par_graph
 
   ! Functions
   public :: par_graph_create, par_graph_free, par_graph_print !, par_graph_epetra_crsgraph_create
-  public :: memalloc, memrealloc, memfree, memmovealloc
+
+!***********************************************************************
+! Allocatable arrays of type(par_graph)
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+
+# define var_type type(par_graph)
+# define var_size 80
+# define bound_kind ip
+# include "mem_header.i90"
+
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
 
 contains
 
-  !***********************************************************************
-  !***********************************************************************
-  ! Specialization to allocate type(par_graph)
-  !***********************************************************************
-  !***********************************************************************
-# define var_type type(par_graph)
-# define var_size 80
-# define var_attr allocatable,target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloc_par_graph1    
-# define generic_memalloc_2      memalloc_par_graph2    
-# define generic_memalloc_3      memalloc_par_graph3    
-# define generic_memalloc_4      memalloc_par_graph4    
-# define generic_memrealloc_1    memrealloc_par_graph1  
-# define generic_memrealloc_2    memrealloc_par_graph2  
-# define generic_memrealloc_3    memrealloc_par_graph3  
-# define generic_memrealloc_4    memrealloc_par_graph4  
-# define generic_memfree_1       memfree_par_graph1     
-# define generic_memfree_2       memfree_par_graph2     
-# define generic_memfree_3       memfree_par_graph3     
-# define generic_memfree_4       memfree_par_graph4     
-# define generic_memmovealloc_1  memmovealloc_par_graph1
-# define generic_memmovealloc_2  memmovealloc_par_graph2
-# define generic_memmovealloc_3  memmovealloc_par_graph3
-# define generic_memmovealloc_4  memmovealloc_par_graph4
-# include "memor.i90"
+# include "mem_body.i90"
 
   !=============================================================================
   subroutine par_graph_create_square ( p_part, p_graph )
@@ -440,4 +410,4 @@ contains
   !   end do
   ! end subroutine insert_my_indices
 
-end module par_graph_class
+end module par_graph_names

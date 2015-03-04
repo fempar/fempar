@@ -29,16 +29,18 @@ module par_mesh_triangulation
   ! Serial modules
   use types
   use memor
-  use fem_triangulation_class
-  use fem_partition_class
-  use hash_table_class
+  use fem_triangulation_names
+  use fem_partition_names
+  use fem_element_import_names
+  use partition_element_import
+  use hash_table_names
   use mesh_triangulation
   use psi_penv_mod
 
   ! Parallel modules
-  use par_triangulation_class
-  use par_mesh_class
-  use par_partition_class
+  use par_triangulation_names
+  use par_mesh_names
+  use par_partition_names
   use par_element_exchange
 
 # include "debug.i90"
@@ -70,36 +72,33 @@ contains
     assert(state == triangulation_not_created .or. state == triangulation_elems_filled .or. state == triangulation_elems_objects_filled)
     assert(p_gmesh%p_part%f_part%pinfo == extended_adjacencies )
 
-    if ( state == triangulation_elems_objects_filled ) then
-       do iobj=1, p_trian%f_trian%num_objects 
-          call free_par_object_topology(p_trian%objects(iobj)) 
-       end do
+    ! Free objects data and elems data (if they are present on the p_trian instance)
+    call par_triangulation_free_objs_data (p_trian)
+    call par_triangulation_free_elems_data(p_trian)
 
-       p_trian%num_itfc_objs = -1
-       call memfree ( p_trian%lst_itfc_objs, __FILE__, __LINE__ )
+    ! Set a reference to the type(par_context) instance describing the set of MPI tasks
+    ! among which this type(par_triangulation) instance is going to be distributed 
+    p_trian%p_context => p_gmesh%p_part%p_context 
 
-       ! Deallocate the object structure array 
-       deallocate(p_trian%objects, stat=istat)
-       check(istat==0)
-    end if
-
-    if ( state == triangulation_elems_objects_filled .or. & 
-         state == triangulation_elems_filled ) then
-       do ielem=1, p_trian%f_trian%elem_array_len 
-          call free_par_elem_topology(p_trian%elems(iobj)) 
-       end do
-       ! Deallocate the element structure array */
-       deallocate(p_trian%mig_elems, stat=istat)
-       check(istat==0)
-       nullify(p_trian%elems)
-
-       call fem_triangulation_free ( p_trian%f_trian )
-    end if
+    ! Create element_import from geometry mesh partition data
+    ! AFM: CURRENTLY partition_to_element_import is the only way to create a type(fem_element_import) instance.
+    !      I have stored it inside type(par_triangulation) as I do not have a better guess.
+    !      In the future, we should get rid of partition_to_element_import, and provide a new
+    !      subroutine which allows to create this instance using the dual graph and the gluing
+    !      data describing its distributed-memory layout. Both the dual graph and associated gluing
+    !      data are to be stored in type(par_neighborhood) according to Javier's UML diagram (i.e., fempar.dia). 
+    !      From this point of view, type(par_neighborhood) should somehow aggregate/reference an instance of 
+    !      type(fem_element_import) and manage its creation. However, this is not currently reflected in fempar.dia, 
+    !      which defines a type(triangulation_partition) which in turn includes an instance of type(fem_element_import) inside. 
+    !      Assuming we agree in the first option, how type(par_triangulation) is going to access type(par_neighbourhood) ??? 
+    !      This is related with a parallel discussion about the possibility of enriching type(par_triangulation) with the dual graph 
+    !      and associated gluing data. Does it make sense? If yes, does type(par_neighborhood) still makes any sense?
+    call partition_to_element_import ( p_gmesh%p_part%f_part, p_trian%f_el_import)
 
     ! Now we are sure that the local portion of p_trian, i.e., p_trian%f_trian is in triangulation_not_created state
     ! Let's create and fill it
-    num_elems  = p_gmesh%p_part%f_el_import%nelem
-    num_ghosts = p_gmesh%p_part%f_el_import%nghost
+    num_elems  = p_trian%f_el_import%nelem
+    num_ghosts = p_trian%f_el_import%nghost
 
     p_trian%num_ghosts = num_ghosts
     p_trian%num_elems  = num_elems
@@ -129,8 +128,13 @@ contains
        p_trian%elems(p_gmesh%p_part%f_part%lebou(ielem))%interface = ielem
     end do
 
+    p_trian%num_itfc_elems = p_gmesh%p_part%f_part%nebou
+    call memalloc( p_trian%num_itfc_elems, p_trian%lst_itfc_elems, __FILE__, __LINE__ )
+    p_trian%lst_itfc_elems = p_gmesh%p_part%f_part%lebou
+
     ! Fill array of elements (local ones)
     do ielem=1, num_elems
+       p_trian%elems(ielem)%mypart      = p_trian%p_context%iam + 1
        p_trian%elems(ielem)%globalID    = p_gmesh%p_part%f_part%l2ge(ielem)
        p_trian%elems(ielem)%num_objects = p_trian%f_trian%elems(ielem)%num_objects
        call memalloc( p_trian%elems(ielem)%num_objects, p_trian%elems(ielem)%objects_GIDs, __FILE__, __LINE__ )
@@ -147,7 +151,7 @@ contains
     end do
 
     ! Get objects_GIDs from ghost elements
-    call ghost_elements_exchange ( p_gmesh%p_part%p_context%icontxt, p_gmesh%p_part%f_el_import, p_trian%elems )
+    call ghost_elements_exchange ( p_gmesh%p_part%p_context%icontxt, p_trian%f_el_import, p_trian%elems )
 
     ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
     do ielem = num_elems+1, num_elems+num_ghosts       
@@ -165,7 +169,6 @@ contains
     ! Hash table global to local for ghost elements
     call hash%init(num_ghosts)
     do ielem=num_elems+1, num_elems+num_ghosts
-
        call hash%put( key = p_trian%elems(ielem)%globalID, val = ielem, stat=istat)
     end do
 
@@ -279,14 +282,13 @@ contains
 
 
     ! Check results
-    do ielem = 1,num_elems+num_ghosts
-       write (*,*) '****ielem:',ielem          
-       write (*,*) '****LID_objects ghost:',p_trian%f_trian%elems(ielem)%objects
-       write (*,*) '****GID_objects ghost:',p_trian%elems(ielem)%objects_GIDs
-    end do
-    pause
+    ! do ielem = 1,num_elems+num_ghosts
+    !   write (*,*) '****ielem:',ielem          
+    !   write (*,*) '****LID_objects ghost:',p_trian%f_trian%elems(ielem)%objects
+    !   write (*,*) '****GID_objects ghost:',p_trian%elems(ielem)%objects_GIDs
+    ! end do
+    ! pause
 
-    p_trian%p_part => p_gmesh%p_part 
   end subroutine par_mesh_to_triangulation
 
 end module par_mesh_triangulation

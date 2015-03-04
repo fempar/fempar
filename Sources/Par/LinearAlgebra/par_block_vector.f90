@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_block_vector_class
+module par_block_vector_names
   ! Serial modules
   use types
   use memor
-  use fem_block_vector_class
-  use fem_vector_class
+  use fem_block_vector_names
+  use fem_vector_names
     
   ! Parallel modules
-  use par_vector_class
+  use par_vector_names
 
   implicit none
 # include "debug.i90"
@@ -416,4 +416,4 @@ contains
     end do 
   end subroutine par_block_vector_print
 
-end module par_block_vector_class
+end module par_block_vector_names

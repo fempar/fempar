@@ -30,30 +30,30 @@ module fem
   ! Tools
   use types
   use memor
-  use array_class
+  use array_names
   use stdio
-  use hash_table_class
+  use hash_table_names
   use postpro_names
 
   ! Geometry
-  use maps_class
+  use maps_names
   use map_apply
-  use fem_partition_class
-  !use fem_import_class
+  use fem_partition_names
+  !use fem_import_names
   !use partition_import
-  use fem_element_import_class
+  use fem_element_import_names
   use partition_element_import
-  use fem_conditions_class
+  use fem_conditions_names
   use fem_conditions_io
-  use fem_materials_class
+  use fem_materials_names
   use fem_materials_io
-  use fem_graph_class
+  use fem_graph_names
   use fem_graph_partition
   use mesh_graph
   use mesh_graph_partition
   use geom2topo
-  use renum_class
-  use fem_mesh_class
+  use renum_names
+  use fem_mesh_names
   use fem_mesh_partition_base
   use fem_mesh_partition
 !  use fem_mesh_io
@@ -63,31 +63,31 @@ module fem
   !use fem_mesh_faces
   !use fem_mesh_lelpo
   use fem_mesh_dual
-  use migratory_element_class
-  use template_element_class
-  use template_mesh_class
+  use migratory_element_names
+  use template_element_names
+  use template_mesh_names
 
   ! Linear Algebra
-  use fem_matrix_class
-  use fem_precond_class
-  use fem_vector_class
-  use fem_vector_krylov_basis_class
+  use fem_matrix_names
+  use fem_precond_names
+  use fem_vector_names
+  use fem_vector_krylov_basis_names
   use fem_matrix_vector
-  use fem_block_matrix_class
-  use fem_block_precond_class
-  use fem_block_vector_class
-  use fem_block_vector_krylov_basis_class
+  use fem_block_matrix_names
+  use fem_block_precond_names
+  use fem_block_vector_names
+  use fem_block_vector_krylov_basis_names
   use fem_block_matrix_vector
   
   ! Integration 
-  use fem_space_class
+  use fem_space_names
   use fem_space_types
   use fem_space_faces
-  use dof_handler_class
-  use integration_class
-  use quadrature_class
-  use interpolation_class
-  use femap_class
+  use dof_handler_names
+  use integration_names
+  use quadrature_names
+  use interpolation_names
+  use femap_names
   use femap_interp
   !use element_gather_tools
 

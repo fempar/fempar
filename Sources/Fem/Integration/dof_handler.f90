@@ -25,19 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module dof_handler_class
+module dof_handler_names
   use types
   use memor
-  use fem_mesh_class
-  use fem_partition_class
-  use fem_graph_class
-  use fem_conditions_class
-  use fem_materials_class
-  use fem_space_class
-  use fem_space_types
-  use maps_class
-  use mesh_graph
-  use array_class
 
   implicit none
 # include "debug.i90"
@@ -93,4 +83,4 @@ module dof_handler_class
   ! Functions
   !public :: dof_handler_print, dof_handler_create, dof_handler_fill, dof_handler_free
 
-end module dof_handler_class
+end module dof_handler_names

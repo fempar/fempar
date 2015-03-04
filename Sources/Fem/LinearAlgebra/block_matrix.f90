@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_matrix_class
+module fem_block_matrix_names
   use types
   use memor
-  use fem_matrix_class
+  use fem_matrix_names
   implicit none
 # include "debug.i90"
 
@@ -147,4 +147,4 @@ contains
     deallocate ( f_b_matrix%blocks ) 
   end subroutine fem_block_matrix_free
 
-end module fem_block_matrix_class
+end module fem_block_matrix_names

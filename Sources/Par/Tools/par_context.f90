@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_context_class
+module par_context_names
   ! Serial modules
   use types
 
@@ -40,7 +40,7 @@ module par_context_class
   private
 
   ! ***IMPORTANT NOTE***: I am assuming that the
-  ! constructor of par_context_class is responsible
+  ! constructor of par_context_names is responsible
   ! for creating/destroying all the members/objects it 
   ! contains, INCLUDING initialization/finalization of
   ! the parallel environment
@@ -412,4 +412,4 @@ contains
 
   end subroutine par_context_free
 
-end module par_context_class
+end module par_context_names

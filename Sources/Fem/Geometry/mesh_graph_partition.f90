@@ -28,10 +28,10 @@
 module mesh_graph_partition
   use types
   use memor
-  use fem_mesh_class
-  use fem_graph_class
+  use fem_mesh_names
+  use fem_graph_names
   use mesh_graph
-  use fem_partition_class
+  use fem_partition_names
   implicit none
 # include "debug.i90"
   private

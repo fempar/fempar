@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_matrix_class
+module par_matrix_names
   ! Serial modules
   use types
   use memor
-  use fem_matrix_class
-  use fem_partition_class
-  use array_class
+  use fem_matrix_names
+  use fem_partition_names
+  use array_names
   use stdio
   use psb_penv_mod
 #ifdef memcheck
@@ -44,9 +44,9 @@ module par_matrix_class
   !use for_trilinos_shadow_interfaces
 
   ! Parallel modules
-  use par_graph_class
-  use par_context_class
-  use par_partition_class
+  use par_graph_names
+  use par_context_names
+  use par_partition_names
 
   implicit none
 # include "debug.i90"
@@ -73,24 +73,6 @@ module par_matrix_class
 
   end type par_matrix
 
-  ! Memalloc interfaces
-  interface memalloc
-     module procedure memalloc_par_matrix1, memalloc_par_matrix2, memalloc_par_matrix3, &
-          &           memalloc_par_matrix4
-  end interface memalloc
-  interface memrealloc
-     module procedure memrealloc_par_matrix1, memrealloc_par_matrix2, memrealloc_par_matrix3, &
-          &           memrealloc_par_matrix4
-  end interface memrealloc
-  interface memfree
-     module procedure memfree_par_matrix1, memfree_par_matrix2, memfree_par_matrix3, &
-          &           memfree_par_matrix4
-  end interface memfree
-  interface memmovealloc
-     module procedure memmovealloc_par_matrix1, memmovealloc_par_matrix2, memmovealloc_par_matrix3, &
-          &           memmovealloc_par_matrix4
-  end interface memmovealloc
-
   interface par_matrix_free
      module procedure par_matrix_free_one_shot, par_matrix_free_progressively
   end interface par_matrix_free
@@ -104,40 +86,29 @@ module par_matrix_class
          &  par_matrix_assembly, par_matrix_info, &
          &  par_matrix_print, par_matrix_print_matrix_market, &
          &  par_matrix_zero, &
-         &  par_matrix_bcast, par_matrix_fine_task, &
-         &  memalloc, memrealloc, memfree, memmovealloc
+         &  par_matrix_bcast, par_matrix_fine_task
+
+!***********************************************************************
+! Allocatable arrays of type(par_matrix)
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+
+# define var_type type(par_matrix)
+# define var_size 80
+# define bound_kind ip
+# include "mem_header.i90"
+
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
 
 contains
 
-  !***********************************************************************
-  !***********************************************************************
-  ! Specialization to allocate type(par_matrix)
-  !***********************************************************************
-  !***********************************************************************
-# define var_type type(par_matrix)
-# define var_size 96
-# define var_attr allocatable,target
-# define point(a,b) call move_alloc(a,b)
-# define bound_kind ip
-
-# define generic_status_test     allocated
-# define generic_memalloc_1      memalloc_par_matrix1    
-# define generic_memalloc_2      memalloc_par_matrix2    
-# define generic_memalloc_3      memalloc_par_matrix3    
-# define generic_memalloc_4      memalloc_par_matrix4    
-# define generic_memrealloc_1    memrealloc_par_matrix1  
-# define generic_memrealloc_2    memrealloc_par_matrix2  
-# define generic_memrealloc_3    memrealloc_par_matrix3  
-# define generic_memrealloc_4    memrealloc_par_matrix4  
-# define generic_memfree_1       memfree_par_matrix1     
-# define generic_memfree_2       memfree_par_matrix2     
-# define generic_memfree_3       memfree_par_matrix3     
-# define generic_memfree_4       memfree_par_matrix4     
-# define generic_memmovealloc_1  memmovealloc_par_matrix1
-# define generic_memmovealloc_2  memmovealloc_par_matrix2
-# define generic_memmovealloc_3  memmovealloc_par_matrix3
-# define generic_memmovealloc_4  memmovealloc_par_matrix4
-# include "memor.i90"
+# include "mem_body.i90"
 
   !=============================================================================
   subroutine par_matrix_create(storage,type,symm,nd1,nd2,p_part,p_part_cols,p_matrix,def)
@@ -563,4 +534,4 @@ contains
   end function par_matrix_fine_task
 
 
-end module par_matrix_class
+end module par_matrix_names

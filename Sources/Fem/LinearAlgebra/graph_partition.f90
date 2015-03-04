@@ -28,8 +28,8 @@
 module fem_graph_partition
   use types
   use memor
-  use fem_graph_class
-  use fem_partition_class
+  use fem_graph_names
+  use fem_partition_names
   implicit none
 # include "debug.i90"
   private
