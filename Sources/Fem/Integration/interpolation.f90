@@ -39,12 +39,17 @@ module interpolation_names
           kfun = 1,                &    ! Shape functions calculation (1=yes 0=no)
           kder = 1,                &    ! Derivatives calculation (1=yes 0=no)
           khes = 0,                &    ! Hessian calculation (1=yes 0=no)
-          khie = 0,                &    ! Hierarchical shape functions (1=yes, 0=no)
-          nlocs = 1,               &    ! Number of interpolation locs 
+          nlocs = 1                     ! Number of interpolation locs 
                                         ! (usually integration points)
+
+     integer(ip)                :: &
           nnode = 3,               &    ! Number of interpolation coefs (nodes)
           ndime = 2,               &    ! Number of space dimensions
           ntens = 3                     ! Number of tensor components 
+
+     logical(lg)                :: &
+          khie = .false.                ! Hierarchical shape functions (1=yes, 0=no)
+
      real(rp), allocatable      :: &
           shape(:,:),              &    ! Shape functions
           deriv(:,:,:),            &    ! Derivatives
@@ -78,7 +83,7 @@ contains
     integer(ip)          , intent(in)    :: kfun,kder,khes,nlocs
     integer(ip)          , intent(in)    :: nnode,ndime
     type(interpolation)  , intent(out)   :: int
-    integer(ip), optional, intent(in)    :: khie
+    logical(lg), optional, intent(in)    :: khie
     integer(ip) :: iloc,ntens
 
     if(ndime==1) then
@@ -98,7 +103,7 @@ contains
     if(present(khie)) then
        int%khie=khie
     else
-       int%khie=0
+       int%khie=.false.
     end if
 
     call memalloc(nnode,nlocs,int%shape,__FILE__,__LINE__)
@@ -190,7 +195,8 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)       , intent(in)  :: ndime,nnode,ntens,khie,kder,khes
+    integer(ip)       , intent(in)  :: ndime,nnode,ntens,kder,khes
+    logical(lg)       , intent(in)  :: khie
     real(rp)          , intent(in)  :: posgp(ndime)
     real(rp)          , intent(out) :: shape(nnode)
     real(rp), optional, intent(out) :: deriv(ndime,nnode)
@@ -411,7 +417,8 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)       , intent(in)  :: nnode,ntens,khie,kder,khes
+    integer(ip)       , intent(in)  :: nnode,ntens,kder,khes
+    logical(lg)       , intent(in)  :: khie
     real(rp)          , intent(in)  :: s,t
     real(rp)          , intent(out) :: shape(nnode)
     real(rp), optional, intent(out) :: deriv(2,nnode),heslo(ntens,nnode)
@@ -497,7 +504,7 @@ contains
        t2=t*2.0_rp
        s9=s-1.0_rp                               
        t9=t-1.0_rp
-       if(khie==0) then
+       if(khie) then
           ! Quadratic (1 to 4)
           shape( 1)=0.25_rp*s9*st*t9                           !  4      7      3
           shape( 3)=0.25_rp*s1*st*t9                           !        
@@ -527,7 +534,7 @@ contains
              heslo(3,9)= 0.25_rp*(1.0_rp+t2)*(s1+s)
              heslo(3,7)= 0.25_rp*(1.0_rp+t2)*(s9+s)
           end if
-       elseif(khie==1) then
+       else
           ! Linear (1 to 4)
           shape(1)=(1.0_rp-t-s+st)*0.25_rp                     !  4         3
           shape(2)=(1.0_rp-t+s-st)*0.25_rp                     !
@@ -666,7 +673,7 @@ contains
        t3=c-t
        t4=1.0_rp-t
        st=s*t
-       if(khie==0) then
+       if(khie) then
           ! Cubic (1 to 4)
           shape( 1) =   a*s2*s3*s4*t2*t3*t4                   ! 4    10    9    3
           shape( 2) =   a*s1*s2*s3*t2*t3*t4                   ! 
@@ -708,7 +715,7 @@ contains
              heslo(3, 4) =&
                   a*(-s2*s3-s2*s4+s3*s4)*(-t1*t2+t1*t3+t2*t3)
           end if
-       elseif(khie==1) then
+       else
           ! Linear (1 to 4)
           shape(1)=(1.0_rp-t-s+st)*0.25_rp                     !  4         3
           shape(2)=(1.0_rp-t+s-st)*0.25_rp                     !
@@ -856,7 +863,8 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)       , intent(in)  :: nnode,ntens,khie,kder,khes
+    integer(ip)       , intent(in)  :: nnode,ntens,kder,khes
+    logical(lg)       , intent(in)  :: khie
     real(rp)          , intent(in)  :: s,t,z
     real(rp)          , intent(out) :: shape(nnode)
     real(rp), optional, intent(out) :: deriv(3,nnode),heslo(ntens,nnode)
@@ -1311,7 +1319,7 @@ contains
        s4=-2.0_rp*s
        t4=-2.0_rp*t
        z4=-2.0_rp*z
-       if(khie==0) then
+       if(khie) then
           ! Quadratic nodes (1 to 8)
           sq=s*(s+1.0_rp)
           tp=t*(t+1.0_rp)
@@ -1396,7 +1404,7 @@ contains
           heslo(4, 8) = 0.125_rp*s1*t3*zp
           heslo(5, 8) = 0.125_rp*s1*tp*z3
           heslo(6, 8) = 0.125_rp*sl*t3*z3
-       elseif(khie==1) then
+       else
           ! Linear nodes (1 to 8)
           sm = 0.5_rp*(1.0_rp-s)
           tm = 0.5_rp*(1.0_rp-t)
@@ -1707,7 +1715,7 @@ contains
        z22=-2.0_rp*((1.0_rp-z)+(1.0_rp/3.0_rp-z)-(1.0_rp+z)) 
        z32=-2.0_rp*((1.0_rp-z)-(1.0_rp/3.0_rp+z)-(1.0_rp+z))  
        z42= 2.0_rp*((1.0_rp/3.0_rp-z)-(1.0_rp/3.0_rp+z)-(1.0_rp+z))
-       if(khie==0) then
+       if(khie) then
           ! Cubic nodes (1 to 8)
           shape(   1) =   a*s1*t1*z1
           deriv(1, 1) =   a*s11*t1*z1
@@ -1789,7 +1797,7 @@ contains
           heslo(4, 8) =   a*s11*t41*z4
           heslo(5, 8) =   a*s11*t4*z41
           heslo(6, 8) =   a*s1*t41*z41
-       elseif(khie==1) then
+       else
           ! Linear nodes (1 to 8)
           sm = 0.5_rp*(1.0_rp-s)
           tm = 0.5_rp*(1.0_rp-t)

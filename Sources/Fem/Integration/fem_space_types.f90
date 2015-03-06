@@ -128,7 +128,7 @@ contains
     ! Parameters
     type(fem_fixed_info),  intent(inout) :: f_info 
     integer(ip)          ,  intent(in)    :: f_type, f_order, dim_space
-    logical             ,  intent(inout) :: created
+    logical(lg)             ,  intent(inout) :: created
 
     created = .false.
     if (f_type == P_type_id) then
@@ -1513,7 +1513,7 @@ contains
     integer(ip), intent(in)  :: ndime,nlocf
 
     ! Local variables
-    logical                  :: assig = .false.
+    logical(lg)                  :: assig = .false.
     integer(ip)              :: ilocs,i,j,iface 
         
     ! Initialize

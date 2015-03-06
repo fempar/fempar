@@ -94,14 +94,14 @@ contains
        do iobje = 1, trian%num_objects
           do ielem = 1, trian%objects(iobje)%num_elems_around
              jelem = trian%objects(iobje)%elems_around(ielem)
-             iprob = femsp%lelem(jelem)%prob
+             iprob = femsp%lelem(jelem)%problem
              nvapb = prob_block(iprob)%nd1
              do ivars = 1, nvapb
                 !l_var = g2l(ivars,iprob)
                 l_var = prob_block(iprob)%a(ivars)
                 g_var = dhand%problems(iprob)%l2g_var(l_var)
-                inter = femsp%lelem(jelem)%iv(l_var)
-                mater = femsp%lelem(jelem)%material(inter) ! SB.alert : material can be used as p 
+                inter = l_var
+                mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
                 do obje_l = 1, trian%elems(jelem)%num_objects
                    if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                 end do
@@ -119,10 +119,10 @@ contains
                 else
                    elem_ext = touch(mater,g_var,1)
                    obje_ext = touch(mater,g_var,2)
-                   prob_ext = femsp%lelem(elem_ext)%prob
+                   prob_ext = femsp%lelem(elem_ext)%problem
                    l_var_ext = g2l_vars(g_var,prob_ext)
                    assert ( l_var_ext == 0 )
-                   inter_ext = femsp%lelem(elem_ext)%iv(l_var_ext)
+                   inter_ext = l_var_ext
 
                    nnode = femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext+1) &
                         &  -femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext) 
@@ -157,9 +157,9 @@ contains
           end do
        end do
        ! interior
-       if (femsp%kfl_scond == 0) then 
+       if ( .not.femsp%static_condensation) then 
           do ielem = 1, trian%num_elems
-             iprob = femsp%lelem(ielem)%prob
+             iprob = femsp%lelem(ielem)%problem
              nvapb = prob_block(iprob)%nd1
              do ivars = 1, nvapb
                 l_var = prob_block(iprob)%a(ivars)
@@ -187,10 +187,10 @@ contains
        !       do ivars = 1, nvapb
        !          l_var = prob_block(iprob)%a(ivars)
        !          g_var = dhand%problems(iprob)%l2g_var(l_var)
-       !          inter = femsp%lelem(jelem)%iv(l_var)
+       !          inter = l_var
        !          if ( touch(g_var) == 0 ) then
        !             touch(g_var) = 1
-       !             inter = femsp%lelem(jelem)%iv(l_var)
+       !             inter = l_var
        !             do inode = 1, femsp%lelem(jelem)%nodes_object(inter,iobje)%nd1
        !                object2dof%p(iobje+1) = object2dof%p(iobje+1) + femsp%lelem(jelem)%nodes_object(inter,iobje)%nd1
        !             end do
@@ -214,10 +214,10 @@ contains
        !       do ivars = 1, nvapb
        !          l_var = prob_block(iprob)%a(ivars)
        !          g_var = dhand%problems(iprob)%l2g_var(l_var)
-       !          inter = femsp%lelem(jelem)%iv(l_var)
+       !          inter = l_var
        !          if ( touch(g_var) == 0 ) then
        !             touch(g_var) = 1
-       !             inter = femsp%lelem(jelem)%iv(l_var)
+       !             inter = l_var
        !             do inode = 1, femsp%lelem(jelem)%nodes_object(inter,iobje)%nd1
        !                l_node = nodes_object(inter,iobje)%a(inode)
        !                count = count + 1
@@ -278,7 +278,7 @@ contains
     !             call visited%free
     !             if (femsp%kfl_scond == 0) then
     !                jobje = jobje + 1
-    !                iprob = femsp%lelem(jelem)%prob
+    !                iprob = femsp%lelem(jelem)%problem
     !                do idof = object2dof%p(iobje), object2dof%p(iobje+1)-1
     !                   l_dof = object2dof%l(idof,1)
     !                   l_var = object2dof%l(idof,2)
@@ -286,8 +286,8 @@ contains
     !                   do ivars = 1, nvapb
     !                      k_var = prob_block(iprob)%a(ivars)
     !                      m_var = dhand%problems(iprob)%l2g_var(k_var)
-    !                      inter = femsp%lelem(jelem)%iv(l_var)
-    !                      ! do ivars = 1, dhand%problems(femsp%lelem(jelem)%prob)%nvars
+    !                      inter = l_var
+    !                      ! do ivars = 1, dhand%problems(femsp%lelem(jelem)%problem)%nvars
     !                      if ( dofh%dof_coupl(l_var, m_var) == 1 ) then                
     !                         if ( gtype == csr ) then
     !                            dof_graph(iblock,jblock)%ia(l_dof+1) =  dof_graph(iblock,jblock)%ia(l_dof+1) &
@@ -313,14 +313,14 @@ contains
     !    if (femsp%kfl_scond == 0) then
     !       do ielem  = 1, trian%num_elems
     !          jobje = trian%elems(ielem)%num_objects+1
-    !          iprob = femsp%lelem(ielem)%prob
+    !          iprob = femsp%lelem(ielem)%problem
     !          nvapb = prob_block(iprob)%nd1
     !          do ivars = 1, nvapb
     !             !l_var = g2l(ivars,iprob)
     !             l_var = prob_block(iprob)%a(ivars)
     !             g_var = dhand%problems(iprob)%l2g_var(l_var)
-    !             int_i = femsp%lelem(ielem)%iv(l_var)
-    !             !do ivars = 1, dhand%problems(femsp%lelem(ielem)%prob)%nvars
+    !             int_i = l_var
+    !             !do ivars = 1, dhand%problems(femsp%lelem(ielem)%problem)%nvars
     !             !int_i = iv(g2l_var(ivars))    
     !             do jvars = 1, nvapb
     !                m_var = prob_block(iprob)%a(jvars)

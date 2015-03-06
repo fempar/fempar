@@ -42,7 +42,7 @@ module geom2topo
      module procedure geom2topo_mesh_cond!geom2topo_mesh,  
   end interface fem_mesh_topology
   ! Functions
-  public :: geom2topo_coord, geom2topo_mesh_cond, fem_mesh_topology
+  public ::  geom2topo_mesh_cond, fem_mesh_topology ! geom2topo_coord,
 
 contains
 
@@ -62,58 +62,59 @@ contains
 
   end subroutine refcoord2
 
-  !===============================================================================================
-  subroutine geom2topo_coord(ielem,ivari,gmesh,felem,coord)
-    implicit none
-    ! Parameters
-    integer(ip)      , intent(in)    :: ielem,ivari
-    type(fem_mesh)   , intent(in)    :: gmesh
-    type(fem_element), intent(in)    :: felem
-    real(rp)         , intent(inout) :: coord(:,:)
+  ! SB.alert : needed ?
+  ! !===============================================================================================
+  ! subroutine geom2topo_coord(ielem,ivari,gmesh,felem,coord)
+  !   implicit none
+  !   ! Parameters
+  !   integer(ip)      , intent(in)    :: ielem,ivari
+  !   type(fem_mesh)   , intent(in)    :: gmesh
+  !   type(fem_element), intent(in)    :: felem
+  !   real(rp)         , intent(inout) :: coord(:,:)
 
-    ! Local variables
-    type(interpolation)   :: inter
-    integer(ip)           :: ndime,tnode,gnode,nlocs,i
-    integer(ip)           :: lnods(felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1)
-    real(rp)              :: elcod(gmesh%ndime,felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1)
-    real(rp), allocatable :: ref_coord(:,:),auxpo(:)
+  !   ! Local variables
+  !   type(interpolation)   :: inter
+  !   integer(ip)           :: ndime,tnode,gnode,nlocs,i
+  !   integer(ip)           :: lnods(felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1)
+  !   real(rp)              :: elcod(gmesh%ndime,felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1)
+  !   real(rp), allocatable :: ref_coord(:,:),auxpo(:)
 
-    assert(size(coord,2)==felem%f_inf(felem%iv(ivari))%p%nnode)
-    assert(size(coord,1)==gmesh%ndime)
+  !   assert(size(coord,2)==felem%f_inf(felem%iv(ivari))%p%nnode)
+  !   assert(size(coord,1)==gmesh%ndime)
 
-    ! Unpack variables
-    ndime = gmesh%ndime
-    tnode = felem%f_inf(felem%iv(ivari))%p%nnode
-    gnode = felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1
-    lnods = gmesh%lnods((ielem-1)*gnode+1:ielem*gnode)
+  !   ! Unpack variables
+  !   ndime = gmesh%ndime
+  !   tnode = felem%f_inf(felem%iv(ivari))%p%nnode
+  !   gnode = felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1
+  !   lnods = gmesh%lnods((ielem-1)*gnode+1:ielem*gnode)
 
-    ! Allocate ref_coord array
-    call memalloc(ndime,tnode,ref_coord,__FILE__,__LINE__)
-    call refcoord2(felem%f_inf(felem%iv(ivari))%p%ftype,ref_coord,ndime,                            &
-         &         felem%f_inf(felem%iv(ivari))%p%order)
-    ! Construct interpolation
-    if (felem%f_inf(felem%iv(ivari))%p%ftype == P_type_id) then
-       call interpolation_create(1,1,1,ndime,gnode,tnode,inter)
-       call interpolation_local(ref_coord,inter)
-    elseif (felem%f_inf(felem%iv(ivari))%p%ftype == Q_type_id) then
-       nlocs=nint(real(tnode,rp)**(1.0_rp/real(ndime,rp)))
-       call memalloc(nlocs,auxpo,__FILE__,__LINE__)
-       do i=1,nlocs
-          auxpo(i) = ref_coord(1,i)
-       end do
-       call interpolation_create(1,1,1,ndime,gnode,tnode,inter)
-       call interpolation_local(auxpo,inter,ndime,felem%p_geo_info%order,nlocs)
-       call memfree(auxpo,__FILE__,__LINE__)
-    end if
-    ! Interpolate coordinates
-    call gather(ndime,gnode,lnods,gmesh%coord,elcod)
-    call interpolate(ndime,gnode,tnode,inter%shape,elcod,coord)
+  !   ! Allocate ref_coord array
+  !   call memalloc(ndime,tnode,ref_coord,__FILE__,__LINE__)
+  !   call refcoord2(felem%f_inf(felem%iv(ivari))%p%ftype,ref_coord,ndime,                            &
+  !        &         felem%f_inf(felem%iv(ivari))%p%order)
+  !   ! Construct interpolation
+  !   if (felem%f_inf(felem%iv(ivari))%p%ftype == P_type_id) then
+  !      call interpolation_create(1,1,1,ndime,gnode,tnode,inter)
+  !      call interpolation_local(ref_coord,inter)
+  !   elseif (felem%f_inf(felem%iv(ivari))%p%ftype == Q_type_id) then
+  !      nlocs=nint(real(tnode,rp)**(1.0_rp/real(ndime,rp)))
+  !      call memalloc(nlocs,auxpo,__FILE__,__LINE__)
+  !      do i=1,nlocs
+  !         auxpo(i) = ref_coord(1,i)
+  !      end do
+  !      call interpolation_create(1,1,1,ndime,gnode,tnode,inter)
+  !      call interpolation_local(auxpo,inter,ndime,felem%p_geo_info%order,nlocs)
+  !      call memfree(auxpo,__FILE__,__LINE__)
+  !   end if
+  !   ! Interpolate coordinates
+  !   call gather(ndime,gnode,lnods,gmesh%coord,elcod)
+  !   call interpolate(ndime,gnode,tnode,inter%shape,elcod,coord)
 
-    ! Deallocate
-    call interpolation_free(inter)
-    call memfree(ref_coord,__FILE__,__LINE__)
+  !   ! Deallocate
+  !   call interpolation_free(inter)
+  !   call memfree(ref_coord,__FILE__,__LINE__)
 
-  end subroutine geom2topo_coord
+  ! end subroutine geom2topo_coord
 
   !==================================================================================================
   subroutine geom2topo_mesh_cond(gmsh,omsh,gcnd,ocnd)
@@ -139,7 +140,7 @@ contains
     integer(ip), allocatable :: nd_jf(:), fnode(:)
     integer(ip), allocatable :: nelpo_aux(:), lelpo_aux(:), aux1(:)
     integer(ip), allocatable :: edgeint(:,:), faceint(:,:)
-    logical(ip)              :: created,kfl_bc
+    logical(lg)              :: created,kfl_bc
 
     ! Create ocnd flag
     kfl_bc = (present(gcnd) .and. present(ocnd))

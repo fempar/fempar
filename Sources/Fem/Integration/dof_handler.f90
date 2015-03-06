@@ -52,7 +52,9 @@ module dof_handler_names
      integer(ip)        ::           &
           nvars                              ! Number of different problems
      integer(ip), allocatable ::     &
-          l2g_var(:)                    ! Order chosen for variables (size nvars)
+          l2g_var(:)                         ! Order chosen for variables (size nvars)
+     integer(ip)        ::           &
+          problem_code                       ! An internal code that defines a problem in FEMPAR
   end type physical_problem
 
   type dof_handler
@@ -77,8 +79,12 @@ module dof_handler_names
 
   end type dof_handler
 
+  ! type physical_problem_pointer
+  !    type(physical_problem)          , pointer :: p => NULL()
+  ! end type physical_problem_pointer
+
   ! Types
-  public :: dof_handler
+  public :: dof_handler, physical_problem!, physical_problem_pointer
 
   ! Functions
   !public :: dof_handler_print, dof_handler_create, dof_handler_fill, dof_handler_free

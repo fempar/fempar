@@ -39,11 +39,18 @@ program par_test_element_exchange
   type(par_mesh)           :: p_mesh
   type(par_triangulation)  :: p_trian
 
+  type(dof_handler)  :: dhand
+  type(fem_space)    :: fspac
+
   ! Arguments
   integer(ip)              :: handler
   character(len=256)       :: dir_path, dir_path_out
   character(len=256)       :: prefix
   integer(ip)              :: i, j
+
+  integer(ip), allocatable :: order(:,:), material(:), problem(:)
+
+  logical(lg), allocatable :: continuity(:,:)
 
   call meminit
 
@@ -67,7 +74,37 @@ program par_test_element_exchange
   ! Read mesh
   call par_mesh_create ( dir_path, prefix, p_part, p_mesh )
 
-  call par_mesh_to_triangulation (p_mesh, p_trian)
+  call par_mesh_to_triangulation (p_mesh, p_trian )
+
+!  call dof_handler_create
+
+  call fem_space_create ( fspac, p_trian%f_trian, dhand )
+  
+  call fem_space_fe_list_create ( fspac, problem, continuity, order, material, &
+       & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
+       & static_condensation = logical(.false.,lg) )
+!  nint = 1
+!  tdim = 1
+!  prob_code = ? 
+!  prob_nunk = ?
+!  prob_list_nunk = ?
+  
+  ! I would pass the dof_handler !!!
+  ! ftype = tet_type (1) or hex_type (2) 
+
+  
+ !  call fem_space_fe_list_create ( fspac, 
+
+! nint, iv, 
+
+! continuity = .true., material = 1, f_type = 2, & 
+!        & order = ones, p_trian%f_trian%num_dims, time_steps_to_store = 1, &
+
+
+!        & prob_code, prob_nunk, prob_list_nunk, 
+
+
+! hierarchical_basis = .false. , static_condensation = .false.  )
 
   ! do i=1,p_trian%num_elems + p_trian%num_ghosts
   !   write(*,'(10i10)') p_trian%elems(i)%objects_GIDs
