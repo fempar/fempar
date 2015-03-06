@@ -37,9 +37,6 @@ module par_vector_names
 #ifdef ENABLE_BLAS       
   use blas77_interfaces
 #endif
-#ifdef memcheck
-  use iso_c_binding
-#endif
 
   ! Module associated with the F90 interface to Trilinos.
   ! Remember: the F90 interface to Trilinos requires C
@@ -161,7 +158,7 @@ contains
 
     ! Locals
     integer(ip)                               :: idof, id
-    integer (c_int)     , allocatable         :: rc_map_values(:)
+  !    integer (c_int)     , allocatable         :: rc_map_values(:)
 
     ! p_part%p_context is required within this subroutine
     assert ( associated(p_part%p_context) )
@@ -307,7 +304,7 @@ contains
     ! Locals
     integer(ip) :: nd
     integer(ip) :: idof, id
-    integer (c_int) , allocatable  :: rc_map_values(:)
+  !    integer (c_int) , allocatable  :: rc_map_values(:)
 
     ! The routine requires the partition/context info
     assert ( associated( s_p_vec%p_part ) )
@@ -628,7 +625,7 @@ contains
     implicit none
     type(par_vector)   , intent(in), target  :: x
     real(rp)           , intent(out)         :: t
-    integer(c_int)                           :: ierrc
+    integer(ip)                           :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part) )
@@ -762,7 +759,7 @@ contains
     real(rp)    , intent(out)     :: t
 
     ! Locals 
-    integer(c_int)                :: ierrc
+    integer(ip)                :: ierrc
     type(par_vector)              :: ws_vec
 
     ! Pointer to part/context object is required
@@ -809,7 +806,7 @@ contains
     real(rp)        , intent(out) :: t
 
     ! Locals 
-    integer(c_int)                :: ierrc
+    integer(ip)                :: ierrc
     integer(ip)                   :: ni 
     type(par_vector)              :: x_I, x_G, y_I, y_G
     real(rp)                      :: s
@@ -859,7 +856,7 @@ contains
     implicit none
     type(par_vector), intent(in)    :: x
     type(par_vector), intent(inout) :: y
-    integer(c_int)                  :: ierrc
+    integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part   ) )
@@ -894,7 +891,7 @@ contains
   subroutine par_vector_zero(y)
     implicit none
     type(par_vector), intent(inout) :: y
-    integer(c_int)                  :: ierrc
+    integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(y%p_part   ) )
@@ -926,7 +923,7 @@ contains
     implicit none
     real(rp)        , intent(in)     :: t
     type(par_vector), intent(inout)  :: y
-    integer(c_int)                   :: ierrc
+    integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(y%p_part   ) )
@@ -959,7 +956,7 @@ contains
     real(rp)    , intent(in)         :: t
     type(par_vector), intent(in)     :: x
     type(par_vector), intent(inout)  :: y
-    integer(c_int)                   :: ierrc
+    integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part   ) )
@@ -995,7 +992,7 @@ contains
     implicit none
     type(par_vector), intent(in)    :: x
     type(par_vector), intent(inout) :: y
-    integer(c_int)                  :: ierrc
+    integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part   ) )
@@ -1030,7 +1027,7 @@ contains
     real(rp)   , intent(in)         :: t
     type(par_vector), intent(in)    :: x
     type(par_vector), intent(inout) :: y
-    integer(c_int)                  :: ierrc
+    integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part   ) )
@@ -1066,7 +1063,7 @@ contains
     real(rp)    , intent(in)        :: t
     type(par_vector), intent(in)    :: x
     type(par_vector), intent(inout) :: y
-    integer(c_int)                  :: ierrc
+    integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part   ) )
@@ -1100,7 +1097,7 @@ contains
     implicit none
     type(par_vector), intent(in)    :: x
     type(par_vector), intent(inout) :: y
-    integer(c_int)                  :: ierrc
+    integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part   ) )
@@ -1134,7 +1131,7 @@ contains
     implicit none
     type(par_vector), intent(in)     :: x
     type(par_vector), intent(inout)  :: y
-    integer(c_int)                   :: ierrc
+    integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
     assert ( associated(x%p_part   ) )

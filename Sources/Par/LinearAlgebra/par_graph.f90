@@ -31,9 +31,6 @@ module par_graph_names
   use memor
   use fem_graph_names
   use fem_partition_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
   
   ! Module associated with the F90 interface to Trilinos.
   ! Remember: the F90 interface to Trilinos requires C
@@ -371,21 +368,21 @@ contains
 
   ! end subroutine par_graph_epetra_crsgraph_create
 
-  subroutine compute_nnzs (n, ia, nnzs)
-    ! Parameters
-    integer (c_int) , intent(in)  :: n
-    integer (c_int) , intent(in)  :: ia(n+1)
-    integer (c_int) , intent(out) :: nnzs(n)
-
-    ! Local variables
-    integer (c_int) :: i
-
-    ! Compute the number of neighbours of each vertex
-    do i=1,n
-       nnzs(i) = ia(i+1) - ia(i)
-    end do
-    
-  end subroutine compute_nnzs
+  !  subroutine compute_nnzs (n, ia, nnzs)
+  !    ! Parameters
+  !    integer (c_int) , intent(in)  :: n
+  !    integer (c_int) , intent(in)  :: ia(n+1)
+  !    integer (c_int) , intent(out) :: nnzs(n)
+  !
+  !    ! Local variables
+  !    integer (c_int) :: i
+  !
+  !    ! Compute the number of neighbours of each vertex
+  !    do i=1,n
+  !       nnzs(i) = ia(i+1) - ia(i)
+  !    end do
+  !    
+  !  end subroutine compute_nnzs
 
   ! ! Private routine which unpacks allocatable derived data type 
   ! ! members as explicit size arrays
