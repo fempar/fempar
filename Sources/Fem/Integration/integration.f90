@@ -157,12 +157,15 @@ contains
     ! Parameters
     integer(ip)           , intent(in)    :: gtype, utype
     integer(ip)           , intent(in)    :: ndime, g_ord, u_ord
-    type(vol_integ)       , intent(inout) :: integ
-    integer(ip),  optional, intent(in)    :: khie,mnode       
+    type(vol_integ)       , intent(out) :: integ
+    logical(lg),  optional, intent(in)    :: khie
+    integer(ip),  optional, intent(in)    :: mnode
+       
 
     ! Local variables
-    integer(ip) :: ngaus,lrule,llapl,khier,gnode,unode,nlocs,i
+    integer(ip) :: ngaus,lrule,llapl,gnode,unode,nlocs,i
     real(rp)    :: auxpo(max_nnode)
+    logical(lg) :: khier
 
     ! Store identifiers of element
     integ%ltype(1) = gtype
@@ -170,7 +173,7 @@ contains
 
     ! Hesssian interpolation
     if(.not.present(khie)) then    
-       khier = 0 
+       khier = .false. 
     else
        khier = khie
     end if

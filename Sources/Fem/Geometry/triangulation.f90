@@ -347,7 +347,7 @@ contains
     integer(ip),             intent(in)            :: ielem
     ! Locals
     integer(ip)              :: nobje, v_key, ndime, etype, pos_elinf, istat
-    logical(ip) :: created
+    logical(lg) :: created
 
     nobje = trian%elems(ielem)%num_objects 
     ndime = trian%num_dims
