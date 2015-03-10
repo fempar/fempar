@@ -31,7 +31,10 @@ module par_graph_names
   use memor
   use fem_graph_names
   use fem_partition_names
-  
+#ifdef memcheck       
+  use iso_c_binding
+#endif
+
   ! Module associated with the F90 interface to Trilinos.
   ! Remember: the F90 interface to Trilinos requires C
   ! interoperability (i.e., iso_c_binding module)

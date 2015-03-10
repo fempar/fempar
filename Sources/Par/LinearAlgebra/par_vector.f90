@@ -37,6 +37,9 @@ module par_vector_names
 #ifdef ENABLE_BLAS       
   use blas77_interfaces
 #endif
+#ifdef memcheck       
+  use iso_c_binding
+#endif
 
   ! Module associated with the F90 interface to Trilinos.
   ! Remember: the F90 interface to Trilinos requires C
