@@ -50,7 +50,7 @@ module dof_handler_names
 
   type physical_problem
      integer(ip)        ::           &
-          nvars                              ! Number of different problems
+          nvars                              ! Number of different variables
      integer(ip), allocatable ::     &
           l2g_var(:)                         ! Order chosen for variables (size nvars)
      integer(ip)        ::           &
@@ -69,7 +69,7 @@ module dof_handler_names
 !          l2g_vars                   &       ! Local (in block) to global Id of variable
 !          phys_prob(:),              &       ! List of physical problems (nprob) 
           dof_coupl(:,:),            &        ! Dof_coupling(nvar,nvar) for avoiding allocation & assembly of zero blocks
-          vars_block(:)                      ! Parameter per unknown (size nvars)
+          vars_block(:)                       ! Parameter per unknown (size nvars)
 
 !     type(dof_handler), allocatable :: dof_blocks(:)
 
@@ -87,6 +87,77 @@ module dof_handler_names
   public :: dof_handler, physical_problem!, physical_problem_pointer
 
   ! Functions
-  !public :: dof_handler_print, dof_handler_create, dof_handler_fill, dof_handler_free
+  public ::  dof_handler_create, dof_handler_print !, dof_handler_fill, dof_handler_free
+
+contains
+  subroutine dof_handler_create( dhand, nblocks, nprobs, nvars_prob )
+    implicit none
+    ! Parameters
+    type(dof_handler), intent(inout)          :: dhand
+    integer(ip), intent(in)                   :: nblocks, nprobs, nvars_prob(nprobs)
+
+    integer(ip) :: istat, i, j, nvars_global
+
+    
+
+    allocate( dhand%problems(nprobs), stat=istat)
+    check( istat==0 )
+    
+    nvars_global = 0
+    do i = 1, nprobs
+       dhand%problems(i)%nvars = nvars_prob(i)
+       call memalloc ( dhand%problems(i)%nvars, dhand%problems(i)%l2g_var, __FILE__, __LINE__ ) 
+       dhand%problems(i)%l2g_var(1:nvars_prob(i)) = (/ (j, j=1,nvars_prob(i)) /) !1:dhand%problems(i)%nvars /)
+       !dhand%problems(i)%problem_code = problem_code(i)
+       nvars_global = nvars_global + nvars_prob(i)
+    end do
+
+    dhand%nblocks = nblocks
+    dhand%nprobs = nprobs
+
+    dhand%nvars_global = nvars_global
+
+    call memalloc ( dhand%nvars_global, dhand%nvars_global, dhand%dof_coupl, __FILE__, __LINE__ ) 
+    dhand%dof_coupl = 1
+    
+    call memalloc ( dhand%nvars_global, dhand%vars_block, __FILE__, __LINE__ ) 
+    dhand%vars_block = 1
+    
+    
+  end subroutine dof_handler_create
+
+
+  subroutine dof_handler_print(  dhand, lunou )
+    implicit none
+    integer(ip)      , intent(in)           :: lunou
+    type(dof_handler), intent(in)           :: dhand
+    
+    integer(ip) :: iprob
+    
+    write (lunou, '(a)')     '*** begin dof handler data structure ***'
+
+    write (lunou,*)     'Number of problems: ',   dhand%nprobs
+    write (lunou,*)     'Number of blocks: '  ,   dhand%nblocks
+    write (lunou,*)     'Number of variables: ',  dhand%nvars_global
+
+    do iprob = 1, dhand%nprobs
+              
+       write (lunou, '(a)')     '*** physical problem ',iprob ,'***'
+       write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%nvars
+       write (lunou,*)     'Local to global (of variables) for problem ',iprob, ' :' ,  dhand%problems(iprob)%l2g_var
+       !write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%problem_code
+       
+    end do
+
+    write (lunou,*)     'Block of every variable: ',    dhand%vars_block
+    write (lunou,*)     'Coupling flag between dofs: ', dhand%dof_coupl
+  
+  end subroutine dof_handler_print
+    
+ 
+!  Problem codes in types.f90   
+!  integer(ip), parameter :: nsi_code=1, ela_code=2, cdr_code=3, adr_code=4 
+!  integer(ip), parameter :: imh_code=5, dcy_code=6, mss_code=7, lap_code=8 
+ 
 
 end module dof_handler_names

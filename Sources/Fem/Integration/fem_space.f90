@@ -227,7 +227,7 @@ contains
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation 
 
-    integer(ip) :: nunk, v_key, ltype(2), nnode, max_nnode, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
+    integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof
     logical(lg) :: created, khir
 
@@ -335,7 +335,7 @@ contains
 
        ! Compute number of DOFs in the elemental matrix associated to ielem
        lndof = 0
-       max_nnode = 0
+       max_num_nodes = 0
        do ivar=1,nvars
           if ( fspac%static_condensation ) then
              nnode = fspac%lelem(ielem)%f_inf(ivar)%p%nnode -                                   &
@@ -344,7 +344,7 @@ contains
              nnode = fspac%lelem(ielem)%f_inf(ivar)%p%nnode 
           end if
           lndof = lndof + nnode
-          max_nnode = max(max_nnode,nnode)
+          max_num_nodes = max(max_num_nodes,nnode)
        end do
 
        ! Assign pointer to p_mat and p_vec in ielem
@@ -367,9 +367,9 @@ contains
        fspac%lelem(ielem)%p_vec => fspac%lelvec(pos_elvec)
 
        ! Allocate elem2dof, unkno
-       call memalloc( max_nnode, nvars, fspac%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
+       call memalloc( max_num_nodes, nvars, fspac%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
        fspac%lelem(ielem)%elem2dof = 0
-       call memalloc( max_nnode, nvars, time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
+       call memalloc( max_num_nodes, nvars, time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
        
@@ -382,7 +382,7 @@ contains
           if ( istat == now_stored ) then
              ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
              call integ_create(f_type,f_type,dim,1,f_order,fspac%lvoli(fspac%cur_lvoli),     &
-                  &            khie = khir,mnode=max_nnode)
+                  &            khie = khir,mnode=max_num_nodes)
              pos_voint       = fspac%cur_lvoli
              fspac%cur_lvoli = fspac%cur_lvoli + 1
           else if ( istat == was_stored ) then
