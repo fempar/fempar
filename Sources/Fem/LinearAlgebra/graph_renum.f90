@@ -106,14 +106,13 @@ contains
   end subroutine graph_nd_renumbering
 
   !=================================================================================================
-  subroutine graph_pt_renumbering(prt_parts,gp,ren,ldomn)
+  subroutine graph_pt_renumbering(prt_parts,gp,ldomn)
     !-----------------------------------------------------------------------
     ! This routine computes a nparts-way-partitioning of graph
     !-----------------------------------------------------------------------
     implicit none
     type(part_params), target, intent(in)    :: prt_parts
     type(fem_graph)  , target, intent(inout) :: gp
-    type(renum)      , target, intent(inout)   :: ren
     integer(ip)      , target, intent(out)     :: ldomn(gp%nv)
 
     ! Local variables 
@@ -218,7 +217,7 @@ contains
        call memfree ( iperm,__FILE__,__LINE__)
     end if
 
-    if(ren%n>0) call renum_by_sets(prt_parts%nparts,ldomn,ren)
+    !if(ren%n>0) call renum_by_sets(prt_parts%nparts,ldomn,ren)
 
   end subroutine graph_pt_renumbering
 

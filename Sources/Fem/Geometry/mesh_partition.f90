@@ -92,7 +92,7 @@ contains
     !out0(call fem_graph_print(6, fe_graph))
           
     ! write (*,*) 'fe_graph%nv', fe_graph%nv, 'fe_graph%nnz', fe_graph%ia(fe_graph%nv+1) 
-    call graph_pt_renumbering(prt_pars,fe_graph,eren,ldome)
+    call graph_pt_renumbering(prt_pars,fe_graph,ldome)
 
     call build_parts_graph (prt_pars%nparts, ldome, fe_graph, parts_graph)
 

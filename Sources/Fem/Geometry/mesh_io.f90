@@ -374,7 +374,11 @@ write(*,*) lunio
        rename=name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
-       call fem_mesh_write(lunio,lmesh(i),nren(i),eren(i))
+       if(present(nren).and.present(eren)) then
+          call fem_mesh_write(lunio,lmesh(i),nren(i),eren(i))
+       else
+          call fem_mesh_write(lunio,lmesh(i))
+       end if
        call io_close(lunio)
      end do
 
