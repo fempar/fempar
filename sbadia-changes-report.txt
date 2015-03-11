@@ -1,0 +1,142 @@
+\section{Ownership of interface values and the definition of the global ID}
+
+The notion of dofs on vefs (vertices, edges, and faces) cannot be based on the geometrical location of the nodes/unknowns but the continuity to be enforced.
+
+We consider three examples:
+
+\begin{itemize}
+
+\item In cG methods, the geometrical position and ownership is the shame. A node on a vertex is also a node owned by the vertex, i.e., it is the vertex the one to provide a global ID, since we want to enforce continuiy. Idem for edges and faces.
+
+\item In dG methods all the nodes are interior, i.e., they belong to the element volume, and it is the element (volume or interior) the one in charge to put a global ID, since we are not interested in enforcing any continuity among elements.
+
+\item In hdG methods, there are two tyoes of nodes on the boundary of the element, those of the "internal" fields (which belong to the element interior) and those of the traces. The trace nodes do belong to faces in all cases (edges in 2D) even though they can be geometrically located on corners/edges. We note that in fact the trace values of a single element are multi-valued on vefs of dimension less than $d-1$, i.e., edges and faces.
+
+\end{itemize}
+
+We note that these cases do not cover all the expected potential of FEMPAR. When we are interested in $hp$-adaptivity the situation can be much more involved. dG methods can straightforwardly be applied to nonconforming meshes and variable order finite element spaces. However, cG and hdG methods require a more careful ellaboration.
+
+cG methods with hp-adaptivity are hard to be used, since we need to keep the continuity among finite elements with different order and/or nonconforming meshes. It involves the use of 1) constraints to enforce continuity on hanging nodes and 2) the use of modal basis plus constraints to enforce continuity on faces that involve elements of different order. Due to the complexity and the hard application of this approach to general 3D situations, we do not consider it in FEMPAR up to now.
+
+A better alternative to keep the low computational cost of cG method but simplifying $hp$-adaptivity extensions is to combine cG and dG methods. The combination of these strategies can be performed 1) using the hdG setting as in the original article by Cockburn, Gopalakhrisnan, and Lazarov or 2) using a combined continuous/discontinuous Galerkin (cdG) approach as the one by Badia and Baiges (where cG and standard IP methods were coupled for the incompressible Navier-Stoeks equations).
+
+The hdG approach does not require to change the definition of the trace nodes on objects, but it puts constraints on the possible choices for the local solvers.
+
+On the other hand, the cdG approach does not modify the interior element terms but it involves a dynamic definition of the ownership of nodes. The idea is simple, we keep the ownership of the cG method unless the vef is hanging, in which case the ownership of the hanging vef is transferred to the element interior.
+
+Another situation already contemplated in FEMPAR is the cdG case based on materials, i.e., we enforce cG continuity unless we are on the interface between materials, where we want to enforce coupling via dG-type penalty terms. It can be motivated by the fact that we have physical properties jumps (that can lead to jumps of the traces) or different physical problems (e.g., fluid-structure interaction). In this case, the ownership is the one of cG but on interface vefs, were ownership is transferred to the element interior.
+
+This strategy has some implementation consequences:
+
+It is the {\tt fem_space} definition the one that has to take into account all these scenarios, not at the generation of the global dof ids. The global dof id algorithm is as simple as:
+
+do iblock = 1, block
+
+count = 0  ! We start the dof numbering for every block
+
+do ielem = 1, nelem
+
+do ivari = 1, nvars
+
+PUT ielem,ivari dofs
+
+end do
+
+do iobje = 1,nobje
+
+do ivari = 1, nvars
+
+if (touched(iobje,ivari).eq.false) then
+
+PUT iobje,ivari dofs
+
+end if
+
+end do
+
+end do
+
+end do
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Here the following question arises, do we want to deal with the control of enforcement of continuity to the finite element space module, or do we prefer to put it in the computation of the dof numbering?
+
+Unfortunately, it is not possible to do it that way for multiphysics and materials, since continuity or not does depend on pairs of elements 
+
+Multiphysics not a problem because we can enforce continuity for an unknown, and if there is only one unknown, no problem
+
+For materials, it is easy for faces but not for the rest (corners and edges). We can think about a procedure in which on vefs on interfaces we leave no nodes and we pass the nodes of these interface vefs to the corresponding face in the interior of every material
+
+
+
+
+fem_space.f90
+
+In the element I have included an array that gives a correspondence between (vef+element)s and nodes. It is not related to geometrical position but ownership.
+
+type(array_ip1)               :: node_object 
+
+
+
+
+     integer(ip)     , allocatable :: nodes_object(:) ! Number of nodes per object (including interior)
+
+
+
+
+element2dof
+
+
+
+%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%
+
+
+dof_handler.f90
+
+Here I put an example of usage of dof_handler.f90.
+
+We have a problem in $\Omega$, and a partition of this domain into $\Omega_1$ and $\Omega_2$. In $\Omega_1$ we solve the incompressible Navier-Stokes equations, whereas in $\Omega_2$ we solve the inductionless MHD equations. Thus, the unknwons for the first problem are $\tt (u(1), u(2), u(3), p)$ and the ones for the second problem are $\tt (j(1), j(2), j(3), f, u(1), u(2), u(3))$, 
+
+Note: The ordering for every problem is fixed and cannot be changed. In any case, the unknowns can be blocked and reordered at the system matrix level as one wants, by modyfing the ordering in the dof handler.
+
+Next, we assume that we want to block the matrices, e.g., in order to use block-preconditioning strategies. In particular, we want to consider a $2 \times 2$ blocking of the monolithic matrix. In block 1 we want to put the velocity (in both sides) and the current density j, whereas p and f are included in block 2.
+
+Note: We could consider u in both problems as different unknowns, providing a global ID of the variable that would be different, or to consider it as a unique variable (as it is) considering the same global ID in both problems. The first situation can be useful when coupling e.g. two different fluids but we want to split them at the system matrix level.
+
+We assume a global ordering of the unknwons, before we proceed to the fill-in of the dof handler object. Let us consider the global ordering $\ tt (u(1), u(2), u(3), j(1), j(2), j(3), f, p)$.
+
+\begin{itemize}
+
+\item[] ${\tt nblocks}$: Number of blocks,  ${\tt nblocks} = 2$
+
+\item[] ${\tt nprobs}$: Number of physical problems to be solved,  ${\tt nprobs} = 2$
+
+\item[] ${\tt nvars_global}$: Number of unknowns in the global problem, i.e., ${\tt nvars} = 8$
+
+\item[] ${\tt vars_block(:)}$: The block for every variable, i.e., $\ tt [ 1, 1, 1, 1, 1, 1, 2, 2 ]$.
+
+\item[] $dof_coupl(:,:)$: It is an array of logicals, that allows us to know whether two unknowns are coupled in the numerical method. It is used to avoid storing zeroes in multiphysics system matrices. In this particular case, ${\tt p}$ is not coupled with ${\tt j, f}$.
+
+\item[] $\tt problems(:)$: This is a vector of pointers to $\tt physical_problem$ objects. In this case we have a pointer to a Navier-Stokes problem and a inductionless problem.
+ 
+\end{itemize}
+
+The physical problem object reads as follows:
+
+
+\begin{itemize}
+
+\item[] ${\tt nvars}$: Number of variables for the physical problem, i.e., 4 for incompressible Navier-Stokes and 7 for inductionless MHD in three dimensions.
+
+\item[] ${\tt l2g_vars}$: The local to global array for variables. For the first problem, it will read 
+$$ {\ tt  [1, 2, 3, 8] }$$, and for the second one $$ {\tt [ 4, 5, 6, 7, 1, 2, 3 ]}$$.
+
+\item[] ${\tt problem_code}$: An internal code for every problem. It is not being used now, and I am not sure it is really needed.
+
+\end{itemize}
+
+
