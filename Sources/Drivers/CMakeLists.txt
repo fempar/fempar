@@ -1,8 +1,7 @@
 #################################################################
 # Executable targets
 #################################################################
-SET(EXAMPLE_DRIVERS_PATH ${SRC_PATH}/Drivers/examples)
-
+#SET(EXAMPLE_DRIVERS_PATH ${SRC_PATH}/Drivers/examples)
 #ADD_EXECUTABLE(part_new ${EXAMPLE_DRIVERS_PATH}/part_new.f90)
 #TARGET_LINK_LIBRARIES(part_new ${FEM_LIB})
 
