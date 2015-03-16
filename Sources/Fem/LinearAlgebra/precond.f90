@@ -103,31 +103,27 @@ module fem_precond_names
      integer(ip) :: lev ! Number of levels in the AMG hierarchy
 
      ! If prec_type == pardiso_mkl_prec store pardiso_mkl state
-     type (pardiso_mkl_context) :: pardiso_mkl_ctxt
-     integer                    :: pardiso_mkl_iparm(64)
+     type (pardiso_mkl_context), pointer :: pardiso_mkl_ctxt
+     integer                   , pointer :: pardiso_mkl_iparm(:)
 
      ! If prec_type == wsmp_prec store wsmp context
-     type (wsmp_context) :: wsmp_ctxt
-     integer             :: wsmp_iparm(64)
-     real                :: wsmp_rparm(64)
+     type (wsmp_context), pointer :: wsmp_ctxt
+     integer            , pointer :: wsmp_iparm(:)
+     real               , pointer :: wsmp_rparm(:)
 
      ! If prec_type == hsl_mi20_prec store hsl_mi20 context
-!!$     integer(ip)              :: deflation = 1 
-     integer(ip), allocatable :: dirichlet_nodes(:)
-     type(hsl_mi20_context)   :: hsl_mi20_ctxt
-     type(hsl_mi20_control)   :: hsl_mi20_ctrl ! hsl_mi20 params
-     type(hsl_mi20_info)      :: hsl_mi20_info ! hsl_mi20_info
-     type(hsl_mi20_data)      :: hsl_mi20_data ! hsl_mi20_data
-!!$     type(fem_vector)       :: a             ! K w 
-!!$     real(rp)               :: B_inv         ! (w^t K w)^{-1}  
+     type(hsl_mi20_context), pointer   :: hsl_mi20_ctxt
+     type(hsl_mi20_control), pointer   :: hsl_mi20_ctrl ! hsl_mi20 params
+     type(hsl_mi20_info)   , pointer   :: hsl_mi20_info ! hsl_mi20_info
+     type(hsl_mi20_data)   , pointer   :: hsl_mi20_data ! hsl_mi20_data
 
      ! If prec_type == hsl_ma87_prec store hsl_ma87 context
-     type(hsl_ma87_context) :: hsl_ma87_ctxt
-     type(hsl_ma87_control) :: hsl_ma87_ctrl ! hsl_ma87 params
-     type(hsl_ma87_info)    :: hsl_ma87_info ! hsl_ma87_info 
+     type(hsl_ma87_context), pointer :: hsl_ma87_ctxt
+     type(hsl_ma87_control), pointer :: hsl_ma87_ctrl ! hsl_ma87 params
+     type(hsl_ma87_info)   , pointer :: hsl_ma87_info ! hsl_ma87_info 
 
      ! If prec_type == umfpack_prec umfpack_context
-     type(umfpack_context)  :: umfpack_ctxt 
+     type(umfpack_context), pointer  :: umfpack_ctxt 
 
      ! AFM: I had to add a pointer to the linear system coefficient matrix within the
      !      preconditioner. The linear coefficient matrix is no longer passed to 
@@ -251,17 +247,25 @@ contains
     end if
 
     if(prec%type==pardiso_mkl_prec) then
+       allocate(prec%pardiso_mkl_ctxt)
+       allocate(prec%pardiso_mkl_iparm(64))
        call pardiso_mkl ( pardiso_mkl_initialize, prec%pardiso_mkl_ctxt, &
             &             mat, dum, dum, prec%pardiso_mkl_iparm)
        prec%pardiso_mkl_iparm(18) = -1
        prec%pardiso_mkl_iparm(19) = -1
 
     else if (prec%type == wsmp_prec) then
+       allocate(prec%wsmp_ctxt)
+       allocate(prec%wsmp_iparm(64))
+       allocate(prec%wsmp_rparm(64))
        call wsmp ( wsmp_init, prec%wsmp_ctxt, mat, dum, dum, &
             &      prec%wsmp_iparm, prec%wsmp_rparm)
 
     else if (prec%type == hsl_mi20_prec) then
-       
+       allocate(prec%hsl_mi20_ctxt)
+       allocate(prec%hsl_mi20_data)
+       allocate(prec%hsl_mi20_ctrl)
+       allocate(prec%hsl_mi20_info)
        call hsl_mi20 ( hsl_mi20_init, prec%hsl_mi20_ctxt, mat, dum, dum, &
             &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
 
@@ -280,22 +284,23 @@ contains
          if ( pars%verbosity == 1 ) then
             prec%hsl_mi20_ctrl%control%print_level = 2
          end if
-!!$         prec%deflation = pars%deflation
          prec%hsl_mi20_ctrl%control%error = -1
          prec%hsl_mi20_ctrl%control%print = -1
       end if
 #endif
     else if (prec%type == hsl_ma87_prec) then
+       allocate(prec%hsl_ma87_ctxt)
+       allocate(prec%hsl_ma87_ctrl)
+       allocate(prec%hsl_ma87_info)
        call hsl_ma87 ( hsl_ma87_init, prec%hsl_ma87_ctxt, mat, dum, dum, &
             &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
     else if (prec%type == umfpack_prec) then
+       allocate(prec%umfpack_ctxt)
        call umfpack ( umfpack_init, prec%umfpack_ctxt, mat, dum, dum)
     else if(prec%type/=no_prec .and. prec%type /= diag_prec) then
        write (0,*) 'Error: preconditioner type not supported'
        check(1==0)
     end if
-
-
   end subroutine fem_precond_create
 
   !=============================================================================
@@ -310,22 +315,21 @@ contains
     type (fem_matrix) :: adum 
     type (fem_vector) :: vdum 
 
-
     if ( action == precond_free_clean ) then
        nullify(prec%mat)
     end if
-
 
     if(prec%type==pardiso_mkl_prec) then
        if ( action == precond_free_clean ) then
           call pardiso_mkl ( pardiso_mkl_free_clean, prec%pardiso_mkl_ctxt, &
                &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
+          deallocate(prec%pardiso_mkl_ctxt)
+          deallocate(prec%pardiso_mkl_iparm)
           return  
        end if
        if ( action == precond_free_struct  ) then
           call pardiso_mkl ( pardiso_mkl_free_struct, prec%pardiso_mkl_ctxt, &
                &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
-
        else if ( action == precond_free_values ) then
           call pardiso_mkl ( pardiso_mkl_free_values, prec%pardiso_mkl_ctxt, &
                &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
@@ -335,6 +339,9 @@ contains
        if ( action == precond_free_clean ) then
           call wsmp ( wsmp_free_clean, prec%wsmp_ctxt, adum, vdum, &
                &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
+          deallocate(prec%wsmp_ctxt)
+          deallocate(prec%wsmp_iparm)
+          deallocate(prec%wsmp_rparm)
           return  
        end if
        if ( action == precond_free_struct  ) then
@@ -348,6 +355,10 @@ contains
 
     else if(prec%type==hsl_mi20_prec) then
        if ( action == precond_free_clean ) then
+          deallocate(prec%hsl_mi20_ctxt)
+          deallocate(prec%hsl_mi20_data)
+          deallocate(prec%hsl_mi20_ctrl)
+          deallocate(prec%hsl_mi20_info)
           call hsl_mi20 ( hsl_mi20_free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
           return  
@@ -358,13 +369,12 @@ contains
        else if ( action == precond_free_values ) then
           call hsl_mi20 ( hsl_mi20_free_values, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-!!$          if ( prec%deflation == 1 ) then
-!!$             call fem_vector_free ( prec%a )
-!!$             call memfree ( prec%dirichlet_nodes, __FILE__, __LINE__)
-!!$          end if
        end if
     else if(prec%type==hsl_ma87_prec) then
        if ( action == precond_free_clean ) then
+          deallocate(prec%hsl_ma87_ctxt)
+          deallocate(prec%hsl_ma87_ctrl)
+          deallocate(prec%hsl_ma87_info)
           call hsl_ma87 ( hsl_ma87_free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
                &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
           return  
@@ -378,6 +388,7 @@ contains
        end if
     else if(prec%type==umfpack_prec) then
        if ( action == precond_free_clean ) then
+          deallocate(prec%umfpack_ctxt)
           call umfpack ( umfpack_free_clean, prec%umfpack_ctxt, adum, vdum, vdum )
           return  
        end if
@@ -824,7 +835,7 @@ contains
   subroutine fem_precond_apply_tbp (op, x, y)
     implicit none
     ! Parameters
-    class(fem_precond)                    :: op
+    class(fem_precond)    , intent(in)    :: op
     class(base_operand)   , intent(in)    :: x
     class(base_operand)   , intent(inout) :: y
     

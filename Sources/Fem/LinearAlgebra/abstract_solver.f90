@@ -234,7 +234,7 @@ contains
     case ( delta_rhs, res_rhs, delta_rhs_and_res_rhs, delta_delta_and_res_rhs )
        ! call generic_nrm2 ( b, ctrl%bn2 )
        ctrl%bn2 = b%nrm2()
-       ctrl%tol1 = ctrl%rtol* ctrl%bn2 + ctrl%atol
+       ctrl%tol1 = ctrl%rtol * ctrl%bn2 + ctrl%atol
        ctrl%tol2 = ctrl%tol1
     case ( res_res, delta_delta_and_res_res )
        ! call generic_nrm2 ( r, ctrl%rn2 )
@@ -316,7 +316,7 @@ contains
        if ( ctrl%converged ) then
           ! Compute || r(i) ||
           ! call generic_nrm2 ( r, ctrl%err2 )
-          ctrl%err2 = r.nrm2()
+          ctrl%err2 = r%nrm2()
           ctrl%converged = (ctrl%err2 <= ctrl%tol2 )
           ctrl%err2h(ctrl%it) = ctrl%err2
        end if
