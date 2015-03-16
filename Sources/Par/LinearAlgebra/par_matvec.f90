@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_matrix_vector
   ! Serial modules
-  use fem_matrix_vector
   use fem_vector_names
   
   use par_matrix_names

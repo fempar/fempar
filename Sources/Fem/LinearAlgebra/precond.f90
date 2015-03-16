@@ -39,6 +39,11 @@ module fem_precond_names
   use umfpack_interface
   use umfpack_names
 
+  ! Abstract modules
+  use base_operand_names
+  use base_operator_names
+  use serial_operator_names
+
 # include "debug.i90"
 
   implicit none
@@ -74,7 +79,7 @@ module fem_precond_names
   integer (ip), parameter  :: precond_free_struct = 8
   integer (ip), parameter  :: precond_free_clean  = 9
 
-  type fem_precond
+  type, extends(serial_operator) :: fem_precond
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 
@@ -123,7 +128,16 @@ module fem_precond_names
 
      ! If prec_type == umfpack_prec umfpack_context
      type(umfpack_context)  :: umfpack_ctxt 
-     
+
+     ! AFM: I had to add a pointer to the linear system coefficient matrix within the
+     !      preconditioner. The linear coefficient matrix is no longer passed to 
+     !      fem_precond%apply(r,z) in the abstract implementation of Krylov subspace methods, but
+     !      it is still required.
+     type(fem_matrix), pointer :: mat
+
+   contains
+     procedure :: apply => fem_precond_apply_tbp
+     procedure :: apply_fun => fem_precond_apply_fun_tbp
   end type fem_precond
 
   type fem_precond_params
@@ -216,12 +230,14 @@ contains
   subroutine  fem_precond_create (mat, prec, pars)
     implicit none
     ! Parameters
-    type(fem_matrix)        , intent(in)           :: mat
+    type(fem_matrix)        , target, intent(in)           :: mat
     type(fem_precond)       , intent(inout)        :: prec
     type(fem_precond_params), intent(in), optional :: pars
 
     ! Locals
     type (fem_vector) :: dum
+
+    prec%mat => mat
 
     prec%nd1      = mat%nd1
     prec%nd2      = mat%nd2
@@ -276,8 +292,9 @@ contains
        call umfpack ( umfpack_init, prec%umfpack_ctxt, mat, dum, dum)
     else if(prec%type/=no_prec .and. prec%type /= diag_prec) then
        write (0,*) 'Error: preconditioner type not supported'
-       stop
+       check(1==0)
     end if
+
 
   end subroutine fem_precond_create
 
@@ -293,8 +310,13 @@ contains
     type (fem_matrix) :: adum 
     type (fem_vector) :: vdum 
 
-    if(prec%type==pardiso_mkl_prec) then
 
+    if ( action == precond_free_clean ) then
+       nullify(prec%mat)
+    end if
+
+
+    if(prec%type==pardiso_mkl_prec) then
        if ( action == precond_free_clean ) then
           call pardiso_mkl ( pardiso_mkl_free_clean, prec%pardiso_mkl_ctxt, &
                &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
@@ -310,7 +332,6 @@ contains
        end if
 
     else if(prec%type==wsmp_prec) then
-
        if ( action == precond_free_clean ) then
           call wsmp ( wsmp_free_clean, prec%wsmp_ctxt, adum, vdum, &
                &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
@@ -371,20 +392,21 @@ contains
        end if
     else if(prec%type/=no_prec) then
        write (0,*) 'Error: preconditioner type not supported'
-       stop
+       check(1==0)
     end if
 
   end subroutine fem_precond_free
 
   !=============================================================================
-
   subroutine fem_precond_symbolic(mat, prec)
     implicit none
     ! Parameters
-    type(fem_matrix)      , intent(in)    :: mat
+    type(fem_matrix)      , intent(in), target    :: mat
     type(fem_precond)     , intent(inout) :: prec
     ! Locals
     type (fem_vector) :: vdum 
+
+    prec%mat => mat
 
     if(prec%type==pardiso_mkl_prec) then
        call pardiso_mkl ( pardiso_mkl_compute_symb, prec%pardiso_mkl_ctxt, &
@@ -413,7 +435,7 @@ contains
 #endif
     else if(prec%type/=no_prec .and. prec%type /= diag_prec) then
        write (0,*) 'Error: preconditioner type not supported'
-       stop
+       check(1==0)
     end if
 
   end subroutine fem_precond_symbolic
@@ -422,7 +444,7 @@ contains
   subroutine fem_precond_numeric(mat, prec)
     implicit none
     ! Parameters
-    type(fem_matrix)      , intent(in)    :: mat
+    type(fem_matrix)      , intent(in), target    :: mat
     type(fem_precond)     , intent(inout) :: prec
     ! Locals
     type (fem_vector) :: vdum 
@@ -430,6 +452,8 @@ contains
     integer(ip)       :: i, j
     real(rp)          :: diag
     
+    prec%mat => mat
+
     if(prec%type==pardiso_mkl_prec) then
        call pardiso_mkl ( pardiso_mkl_compute_num, prec%pardiso_mkl_ctxt, &
             mat, vdum, vdum, prec%pardiso_mkl_iparm )
@@ -466,50 +490,6 @@ contains
        prec%cg = prec%cg/dble(mat%gr%nv)
        prec%ca = prec%ca/dble(mat%gr%ia(mat%gr%nv+1)-1)
 #endif
-
-!!$       if (prec%deflation == 1) then
-!!$          if (prec%storage == blk) then
-!!$             ! To be implemented
-!!$             assert (1 == 0)
-!!$          else if (prec%storage == scal) then
-!!$             ! The next portion of code only works in the case of
-!!$             ! unsymmetric storage. This is precisely the case of
-!!$             ! HSL_MI20
-!!$             assert ( mat%gr%type == csr )
-!!$             call fem_vector_alloc ( scal, mat%nd1, mat%gr%nv, prec%a )
-!!$             call memalloc (  mat%gr%nv, prec%dirichlet_nodes, __FILE__, __LINE__)
-!!$             prec%a%b   = 0.0_rp
-!!$             prec%B_inv = 0.0_rp 
-!!$             if ( associated (mat%bcs) ) then
-!!$                prec%dirichlet_nodes = 0
-!!$                do j=1, mat%gr%nv
-!!$                   if ( mat%bcs%code(1,j) /= 1 ) then
-!!$                      do i=mat%gr%ia(j), mat%gr%ia(j+1)-1
-!!$                         prec%a%b(1,j) = prec%a%b(1,j) + mat%a(1,1,i)
-!!$                      end do
-!!$                   end if
-!!$                   prec%B_inv = prec%B_inv + prec%a%b(1,j)
-!!$                end do
-!!$             else
-!!$             prec%dirichlet_nodes = 0
-!!$             do j=1, mat%gr%nv
-!!$                do i=mat%gr%ia(j), mat%gr%ia(j+1)-1
-!!$                   prec%a%b(1,j) = prec%a%b(1,j) + mat%a(1,1,i)
-!!$                   if (j==mat%gr%ja(i)) then
-!!$                      diag = mat%a(1,1,i)
-!!$                   end if
-!!$                end do
-!!$                if ( abs(prec%a%b(1,j)-diag) < 1.0e-08 ) then
-!!$                   prec%dirichlet_nodes(j) = 1
-!!$                   prec%a%b(1,j) = 0.0_rp
-!!$                end if
-!!$                prec%B_inv = prec%B_inv + prec%a%b(1,j)
-!!$             end do
-!!$             end if
-!!$             prec%B_inv = 1.0_rp/prec%B_inv
-!!$          end if
-!!$       end if
-
     else if (prec%type==hsl_ma87_prec) then
        call hsl_ma87 ( hsl_ma87_compute_num, prec%hsl_ma87_ctxt, mat, vdum, vdum, &
             &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
@@ -534,7 +514,7 @@ contains
        call invert_diagonal  ( mat%gr%nv*mat%nd1, prec%d )
     else if(prec%type/=no_prec) then
        write (0,*) 'Error: preconditioner type not supported'
-       stop
+       check(1==0)
     end if
     
   end subroutine fem_precond_numeric
@@ -566,66 +546,16 @@ contains
     else if ( prec%type==diag_prec ) then
        call apply_diagonal  ( mat%gr%nv*mat%nd1, prec%d, x%b, y%b )
     else if (prec%type==hsl_mi20_prec) then
-!!$       if ( prec%deflation == 1 ) then
-!!$          if (prec%storage == blk) then
-!!$             ! To be implemented
-!!$             assert (1 == 0)
-!!$          else if (prec%storage == scal) then
-!!$             ! B^{-1} E r 
-!!$             call fem_vector_alloc ( scal, mat%nd1, mat%gr%nv, E_r )
-!!$             alpha = 0.0_rp
-!!$             do j=1, mat%gr%nv
-!!$                alpha = alpha + x%b(1,j) 
-!!$             end do
-!!$             alpha = prec%B_inv*alpha
-!!$
-!!$             do j=1, mat%gr%nv
-!!$                 E_r%b(1,j) = x%b(1,j)-prec%a%b(1,j)*alpha  
-!!$             end do
-!!$          end if
-!!$          
-!!$          call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, E_r, y, &
-!!$               &       prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-!!$
-!!$          ! beta = a^{T} * v
-!!$          call fem_vector_dot ( prec%a, y, beta )
-!!$
-!!$          ! beta = B^{-1} * a^{T} * v
-!!$          beta = prec%B_inv * beta
-!!$
-!!$          if (prec%storage == blk) then
-!!$             ! To be implemented
-!!$             assert (1 == 0)
-!!$          else if (prec%storage == scal) then             
-!!$             if ( associated (mat%bcs) ) then
-!!$                do j=1, mat%gr%nv
-!!$                   if (mat%bcs%code(1,j) /= 1) then
-!!$                      y%b(1,j) = alpha +  y%b(1,j) - beta
-!!$                   end if
-!!$                end do
-!!$             else
-!!$             do j=1, mat%gr%nv
-!!$                if ( prec%dirichlet_nodes(j) == 0 ) then
-!!$                   y%b(1,j) = alpha +  y%b(1,j) - beta
-!!$                end if
-!!$             end do
-!!$          end if
-!!$          end if
-!!$
-!!$          call fem_vector_free ( E_r )
-
-!!$       else ! deflation deactivated
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, x, y, &
                &       prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-!!$       end if
     else if (prec%type==hsl_ma87_prec) then
       call hsl_ma87 ( hsl_ma87_solve, prec%hsl_ma87_ctxt, mat, x, y, &
             &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
     else if (prec%type==umfpack_prec) then
       call umfpack ( umfpack_solve, prec%umfpack_ctxt, mat, x, y )
     else
-       write (0,*) 'Error: precondtioner type not supported'
-       stop
+       write (0,*) 'Error: preconditioner type not supported'
+       check(1==0)
     end if
     
   end subroutine fem_precond_apply_vector
@@ -666,67 +596,8 @@ contains
           call apply_diagonal ( mat%gr%nv*mat%nd1, prec%d, x(1,i), y(1,i) )
        end do
     else if (prec%type==hsl_mi20_prec) then
-!!$       if ( prec%deflation == 1 ) then
-!!$          if (prec%storage == blk) then
-!!$             ! To be implemented
-!!$             assert (1 == 0)
-!!$          else if (prec%storage == scal) then
-!!$             call memalloc ( mat%gr%nv, nrhs, E_r, __FILE__, __LINE__)
-!!$             call memalloc ( nrhs, alpha, __FILE__, __LINE__)
-!!$             call memalloc ( nrhs, beta , __FILE__, __LINE__)
-!!$
-!!$             alpha = 0.0_rp
-!!$             do i=1, nrhs
-!!$                do j=1, mat%gr%nv
-!!$                   alpha(i) = alpha(i) + x(j,i) 
-!!$                end do
-!!$                alpha(i) = prec%B_inv*alpha(i)
-!!$             end do
-!!$
-!!$             do j=1, nrhs
-!!$                E_r(:,j) = x(:,j)-prec%a%b(1,:)*alpha(j)  
-!!$             end do
-!!$
-!!$          end if
-!!$
-!!$          call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, nrhs, E_r, ldx, y, ldy, &
-!!$               &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-!!$
-!!$          ! beta = a^{T} * v
-!!$          beta = 0.0_rp
-!!$          do i=1, nrhs
-!!$             do j=1, mat%gr%nv
-!!$                beta(i) = beta(i) + prec%a%b(1,j)*y(j,i)
-!!$             end do
-!!$          end do
-!!$          
-!!$          ! beta = B^{-1} * a^{T} * v
-!!$          beta = prec%B_inv * beta
-!!$
-!!$          if (prec%storage == blk) then
-!!$             ! To be implemented
-!!$             assert (1 == 0)
-!!$          else if (prec%storage == scal) then
-!!$             do i=1,nrhs
-!!$                do j=1, mat%gr%nv
-!!$                   if ( prec%dirichlet_nodes(j) == 0 ) then
-!!$                      y(j,i) = alpha(i) +  y(j,i) - beta(i)
-!!$                   end if
-!!$                end do
-!!$             end do
-!!$          end if
-!!$
-!!$
-!!$          call memfree ( E_r )
-!!$          call memfree ( alpha )
-!!$          call memfree ( beta )
-!!$
-!!$       else
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, nrhs, x, ldx, y, ldy, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-          
-!!$       end if
-
     else if (prec%type==hsl_ma87_prec) then
        call hsl_ma87 ( hsl_ma87_solve, prec%hsl_ma87_ctxt, mat, nrhs, x, ldx, y, ldy, &
             &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
@@ -734,7 +605,7 @@ contains
        call umfpack ( umfpack_solve, prec%umfpack_ctxt, mat, nrhs, x, ldx, y, ldy)
     else
        write (0,*) 'Error: precondtioner type not supported'
-       stop
+       check(1==0)
     end if
 
   end subroutine fem_precond_apply_r2
@@ -765,53 +636,8 @@ contains
     else if(prec%type==diag_prec) then
        call apply_diagonal ( mat%gr%nv*mat%nd1, prec%d, x, y )
     else if (prec%type==hsl_mi20_prec) then
-!!$       if ( prec%deflation == 1 ) then
-!!$          if (prec%storage == blk) then
-!!$             ! To be implemented
-!!$             assert (1 == 0)
-!!$          else if (prec%storage == scal) then
-!!$             call memalloc ( mat%gr%nv, E_r, __FILE__, __LINE__)
-!!$
-!!$             alpha = 0.0_rp
-!!$             do j=1, mat%gr%nv
-!!$                alpha = alpha + x(j) 
-!!$             end do
-!!$             alpha = prec%B_inv*alpha
-!!$             
-!!$             do j=1, mat%gr%nv
-!!$                E_r(j) = x(j)-prec%a%b(1,j)*alpha  
-!!$             end do
-!!$
-!!$          end if
-!!$
-!!$          call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, E_r, y, &
-!!$               &       prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-!!$
-!!$          ! beta = a^{T} * v
-!!$          beta = 0.0_rp
-!!$          do j=1, mat%gr%nv
-!!$             beta = beta + prec%a%b(1,j)*y(j)
-!!$          end do
-!!$          
-!!$          ! beta = B^{-1} * a^{T} * v
-!!$          beta = prec%B_inv * beta
-!!$
-!!$          if (prec%storage == blk) then
-!!$             ! To be implemented
-!!$             assert (1 == 0)
-!!$          else if (prec%storage == scal) then
-!!$             do j=1, mat%gr%nv
-!!$                if ( prec%dirichlet_nodes(j) == 0 ) then
-!!$                   y(j) = alpha +  y(j) - beta   
-!!$                end if
-!!$             end do
-!!$          end if
-!!$           
-!!$          call memfree ( E_r ) 
-!!$       else
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat,  x, y, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-!!$       end if
     else if (prec%type==hsl_ma87_prec) then
        call hsl_ma87 ( hsl_ma87_solve, prec%hsl_ma87_ctxt, mat,  x, y, &
             &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
@@ -819,7 +645,7 @@ contains
        call umfpack ( umfpack_solve, prec%umfpack_ctxt, mat,  x, y )
     else
        write (0,*) 'Error: precondtioner type not supported'
-       stop
+       check(1==0)
     end if
 
   end subroutine fem_precond_apply_r1
@@ -897,7 +723,7 @@ contains
 
     write (0,*) 'Error: the body of extract_diagonal_css in par_precond.f90 still to be written'
     write (0,*) 'Error: volunteers are welcome !!!'
-    stop
+    check(1==0)
   end subroutine extract_diagonal_css
 
   subroutine extract_diagonal_css_scal (ks,nd1,nd2,nv,da,d_nd,d_nv,d)
@@ -924,7 +750,7 @@ contains
 
     write (0,*) 'Error: the body of extract_diagonal_csr in par_precond.f90 still to be written'
     write (0,*) 'Error: volunteers are welcome !!!'
-    stop
+    check(1==0)
 
   end subroutine extract_diagonal_csr
 
@@ -974,9 +800,9 @@ contains
     real(rp)   , intent(in)  :: a(nd2,nd1,ia(nv+1)-1)
     real(rp)   , intent(out) :: d(d_nd,d_nv)
 
-    write (0,*) 'Error: the body of extract_diagonal_csc in par_precond.f90 still to be written'
-    write (0,*) 'Error: volunteers are welcome !!!'
-    stop
+    write (0,'(a)') 'Error: the body of extract_diagonal_csc in par_precond.f90 still to be written'
+    write (0,'(a)') 'Error: volunteers are welcome !!!'
+    check(1==0)
 
   end subroutine extract_diagonal_csc
 
@@ -988,10 +814,90 @@ contains
     real(rp)   , intent(in)  :: a(1,1,ia(nv+1)-1)
     real(rp)   , intent(out) :: d(1,d_nv)
 
-    write (0,*) 'Error: the body of extract_diagonal_csc_scal in par_precond.f90 still to be written'
-    write (0,*) 'Error: volunteers are welcome !!!'
-    stop
+    write (0,'(a)') 'Error: the body of extract_diagonal_csc_scal in par_precond.f90 still to be written'
+    write (0,'(a)') 'Error: volunteers are welcome !!!'
+    check(1==0)
 
   end subroutine extract_diagonal_csc_scal
+
+  !=============================================================================
+  subroutine fem_precond_apply_tbp (op, x, y)
+    implicit none
+    ! Parameters
+    class(fem_precond)                    :: op
+    class(base_operand)   , intent(in)    :: x
+    class(base_operand)   , intent(inout) :: y
+    
+    assert (associated(op%mat))
+
+    call x.GuardTemp()
+
+    select type(x)
+    class is (fem_vector)
+       select type(y)
+       class is(fem_vector)
+          if(op%type==pardiso_mkl_prec) then
+             call pardiso_mkl ( pardiso_mkl_solve, op%pardiso_mkl_ctxt,  &
+                  &             op%mat, x, y, op%pardiso_mkl_iparm ) 
+          else if(op%type==wsmp_prec) then
+             call wsmp ( wsmp_solve, op%wsmp_ctxt, op%mat, x, y, &
+                  &      op%wsmp_iparm, op%wsmp_rparm )
+          else if(op%type==no_prec) then
+             call y%copy(x)
+          else if ( op%type==diag_prec) then
+             call apply_diagonal  ( op%mat%gr%nv*op%mat%nd1, op%d, x%b, y%b )
+          else if (op%type==hsl_mi20_prec) then
+             call hsl_mi20 ( hsl_mi20_solve, op%hsl_mi20_ctxt, op%mat, x, y, &
+                  &       op%hsl_mi20_data, op%hsl_mi20_ctrl, op%hsl_mi20_info )
+          else if (op%type==hsl_ma87_prec) then
+             call hsl_ma87 ( hsl_ma87_solve, op%hsl_ma87_ctxt, op%mat, x, y, &
+                  &          op%hsl_ma87_ctrl, op%hsl_ma87_info )
+          else if (op%type==umfpack_prec) then
+             call umfpack ( umfpack_solve, op%umfpack_ctxt, op%mat, x, y )
+          else
+             write (0,*) 'Error: preconditioner type not supported'
+             check(1==0)
+          end if
+       class default
+          write(0,'(a)') 'fem_matrix%apply: unsupported y class'
+          check(1==0)
+       end select
+    class default
+       write(0,'(a)') 'fem_precond%apply: unsupported x class'
+       check(1==0)
+    end select
+
+    call x.CleanTemp()
+  end subroutine fem_precond_apply_tbp
+  
+
+  !=============================================================================
+  function fem_precond_apply_fun_tbp (op, x) result(y)
+    implicit none
+    ! Parameters
+    class(fem_precond)               :: op
+    class(base_operand), intent(in)  :: x
+    class(base_operand), allocatable :: y
+    type(fem_vector), allocatable :: local_y
+
+    
+    assert (associated(op%mat))
+
+    call x.GuardTemp()
+
+    select type(x)
+    class is (fem_vector)
+       allocate(local_y)
+       call fem_vector_alloc ( op%mat%storage, op%mat%nd1, op%mat%gr%nv, local_y)
+       call fem_precond_apply ( op%mat, op, x, local_y)
+       call move_alloc(local_y, y)
+       call y.SetTemp()
+    class default
+       write(0,'(a)') 'fem_precond%apply_fun: unsupported x class'
+       check(1==0)
+    end select
+
+    call x.CleanTemp()
+  end function fem_precond_apply_fun_tbp
 
 end module fem_precond_names

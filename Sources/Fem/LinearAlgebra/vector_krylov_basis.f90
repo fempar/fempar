@@ -28,7 +28,7 @@
 module fem_vector_krylov_basis_names
   use types
   use memor
-  use blas77_interfaces
+  use blas77_interfaces 
   use fem_vector_names
   implicit none
 # include "debug.i90"
@@ -70,7 +70,7 @@ module fem_vector_krylov_basis_names
 contains
 
   !=============================================================================
-  subroutine fem_vector_krylov_basis_alloc (k, f_v, Q)
+  subroutine fem_vector_krylov_basis_alloc (k, f_v, Q) 
     implicit none
     integer(ip)                  , intent(in)          :: k
     type(fem_vector)             , intent(in) , target :: f_v

@@ -29,6 +29,8 @@ module fem_vector_names
   use types
   use memor
   use blas77_interfaces
+  use base_operand_names
+
 !!$#ifdef memcheck
 !!$  use iso_c_binding
 !!$#endif
@@ -49,26 +51,37 @@ module fem_vector_names
   !   of the BLAS subroutines.
   ! 
   !=============================================================
-
-  integer(ip), parameter :: allocated  = 0 ! fem_vector%b has been allocated
-  integer(ip), parameter :: reference  = 1 ! fem_vector%b references external memory
+  integer(ip), parameter :: not_created = 0 ! fem_vector%b points to null
+  integer(ip), parameter :: allocated   = 1 ! fem_vector%b has been allocated
+  integer(ip), parameter :: reference   = 2 ! fem_vector%b references external memory
 
   private
 
   ! fem_vector
-  type fem_vector
+  type, extends(base_operand) :: fem_vector
      integer(ip)                :: &
         nd  = 0,                   &  ! Number of degrees of freedom, ndof1
         neq = 0                       ! Number of equations
    
      integer(ip)                :: & 
-        mode = reference              ! Creation mode (by default references to NULL)
+        mode = not_created           
 
      integer(ip)                :: &  ! Storage layout (blk: block; scal: scalar)
         storage = undef_sto
 
      real(rp), pointer          :: &
         b(:,:) => NULL()
+   contains
+     ! Provide type bound procedures (tbp) implementors
+     procedure :: dot  => fem_vector_dot_tbp
+     procedure :: copy => fem_vector_copy_tbp
+     procedure :: init => fem_vector_init_tbp
+     procedure :: scal => fem_vector_scal_tbp
+     procedure :: axpby => fem_vector_axpby_tbp
+     procedure :: nrm2 => fem_vector_nrm2_tbp
+     procedure :: clone => fem_vector_clone_tbp
+     procedure :: comm  => fem_vector_comm_tbp
+     procedure :: free  => fem_vector_free_tbp
   end type fem_vector
 
   ! interface fem_vector_assembly
@@ -150,25 +163,28 @@ contains
   subroutine fem_vector_free (vec)
     implicit none
     type(fem_vector), intent(inout) :: vec
+    assert (vec%mode == allocated .or. vec%mode == reference)
     vec%nd      = 0          ! Number of degrees of freedom
     vec%neq     = 0          ! Number of equations
     vec%storage = undef_sto
     if (vec%mode == allocated) call memfreep(vec%b,__FILE__,__LINE__)
+    vec%mode = not_created
   end subroutine fem_vector_free
 
   !=============================================================================
   subroutine fem_vector_alloc(storage,nd,neq,vec)
     implicit none
-    integer(ip)     , intent(in)  :: storage, nd, neq
-    type(fem_vector), intent(out) :: vec
+    integer(ip)     , intent(in)    :: storage, nd, neq
+    type(fem_vector), intent(inout) :: vec
+    assert ( vec%mode == not_created )
     assert ( storage == blk .or. storage == scal )
     vec%nd      = nd   ! Number of degrees of freedom
     vec%neq     = neq  ! Number of equations
     vec%storage = storage
     if ( vec%storage == blk ) then
-      call memallocp(vec%nd,vec%neq,vec%b,__FILE__,__LINE__)
-    else if ( vec%storage == scal ) then
-      call memallocp(1,vec%nd*vec%neq,vec%b,__FILE__,__LINE__)
+       call memallocp(vec%nd,vec%neq,vec%b,__FILE__,__LINE__)
+   else if ( vec%storage == scal ) then
+       call memallocp(1,vec%nd*vec%neq,vec%b,__FILE__,__LINE__)
     end if
     vec%b    = 0.0_rp
     vec%mode = allocated
@@ -179,7 +195,9 @@ contains
     type(fem_vector), intent(in), target  :: svec
     integer(ip)     , intent(in)          :: start
     integer(ip)     , intent(in)          :: end
-    type(fem_vector), intent(out)         :: tvec
+    type(fem_vector), intent(inout)       :: tvec
+
+    assert ( tvec%mode == not_created )
 
     tvec%nd      =  svec%nd               ! Number of degrees of freedom
     tvec%neq     =  end-start+1           ! Number of equations
@@ -204,10 +222,13 @@ contains
     integer(ip)     , intent(in)          :: ndend
     integer(ip)     , intent(in)          :: start
     integer(ip)     , intent(in)          :: end
-    type(fem_vector), intent(out)         :: tvec
+    type(fem_vector), intent(inout)       :: tvec
 
     ! Locals
     integer(ip) :: off, start_aux, end_aux
+
+    assert ( tvec%mode == not_created )
+        
 
     tvec%nd      =  ndend-ndstart+1       ! Number of degrees of freedom
     tvec%neq     =  end-start+1           ! Number of equations
@@ -402,11 +423,14 @@ contains
 #ifdef ENABLE_BLAS
     t = ddot( x%nd * x%neq, x%b, 1, y%b, 1 )
 #else
-    if ( x%storage == blk ) then
-       call dot_vec( x%nd, x%neq, x%b, y%b, t )
-    else if ( x%storage == scal ) then
-       call dot_vec_scal( x%nd, x%neq, x%b, y%b, t )
-    end if 
+!!$    AFM: A non BLAS-based implementation of the
+!!$    dot product should go here
+    check(1==0)
+!!$    if ( x%storage == blk ) then
+!!$       call dot_vec( x%nd, x%neq, x%b, y%b, t )
+!!$    else if ( x%storage == scal ) then
+!!$       call dot_vec_scal( x%nd, x%neq, x%b, y%b, t )
+!!$    end if
 #endif
 
   end subroutine fem_vector_dot
@@ -602,5 +626,206 @@ contains
    end do
 
  end subroutine fem_vector_print_matrix_market
+
+ ! alpha <- op1^T * op2
+ function fem_vector_dot_tbp(op1,op2) result(alpha)
+   implicit none
+   class(fem_vector), intent(in)    :: op1
+   class(base_operand), intent(in)  :: op2
+   real(rp) :: alpha
+
+   call op1.GuardTemp()
+   call op2.GuardTemp()
+   select type(op2)
+   class is (fem_vector)
+      assert ( op1%nd  == op2%nd  )
+      assert ( op1%neq == op2%neq )
+      assert ( op1%storage == op2%storage )
+#ifdef ENABLE_BLAS
+      alpha = ddot( op1%nd * op1%neq, op1%b, 1, op2%b, 1 )
+#else
+!!$    AFM: A non BLAS-based implementation of the
+!!$    dot product should go here
+    check(1==0)
+!!$    if ( x%storage == blk ) then
+!!$       call dot_vec( x%nd, x%neq, x%b, y%b, t )
+!!$    else if ( x%storage == scal ) then
+!!$       call dot_vec_scal( x%nd, x%neq, x%b, y%b, t )
+!!$    end if
+#endif
+   class default
+      write(0,'(a)') 'fem_vector%dot: unsupported op2 class'
+      check(1==0)
+   end select
+   call op1.CleanTemp()
+   call op2.CleanTemp()
+ end function fem_vector_dot_tbp
+
+ ! op1 <- op2 
+ subroutine fem_vector_copy_tbp(op1,op2)
+   implicit none
+   class(fem_vector), intent(inout) :: op1
+   class(base_operand), intent(in)  :: op2
+   
+   call op2.GuardTemp()
+   select type(op2)
+   class is (fem_vector)
+      assert ( op2%nd  == op1%nd  )
+      assert ( op2%neq == op1%neq )
+      assert ( op2%storage == op1%storage )
+#ifdef ENABLE_BLAS
+      call dcopy ( op2%nd*op2%neq, op2%b, 1, op1%b, 1 ) 
+#else
+      op1%b=op2%b
+#endif
+   class default
+      write(0,'(a)') 'fem_vector%copy: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2.CleanTemp()
+ end subroutine fem_vector_copy_tbp
+
+ ! op1 <- alpha * op2
+ subroutine fem_vector_scal_tbp(op1,alpha,op2)
+   implicit none
+   class(fem_vector), intent(inout) :: op1
+   real(rp), intent(in) :: alpha
+   class(base_operand), intent(in) :: op2
+
+   call op2.GuardTemp()
+   select type(op2)
+   class is (fem_vector)
+      assert ( op2%nd  == op1%nd  )
+      assert ( op2%neq == op1%neq )
+      assert ( op2%storage == op1%storage )
+#ifdef ENABLE_BLAS
+      ! I guess that two calls to the level 1
+      ! BLAS can not be competitive against 
+      ! just one F90 vector operation. I have to
+      ! measure the difference among these two
+      ! options. 
+      call dcopy ( op2%nd*op2%neq, op2%b, 1, op1%b, 1)
+      call dscal ( op1%nd*op1%neq, alpha, op1%b, 1)
+#else
+      op1%b=alpha*op2%b
+#endif
+   class default
+      write(0,'(a)') 'fem_vector%scal: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2.CleanTemp()
+ end subroutine fem_vector_scal_tbp
+ ! op <- alpha
+ subroutine fem_vector_init_tbp(op,alpha)
+   implicit none
+   class(fem_vector), intent(inout) :: op
+   real(rp), intent(in) :: alpha
+   op%b=alpha
+ end subroutine fem_vector_init_tbp
+
+ ! op1 <- alpha*op2 + beta*op1
+ subroutine fem_vector_axpby_tbp(op1, alpha, op2, beta)
+   implicit none
+   class(fem_vector), intent(inout) :: op1
+   real(rp), intent(in) :: alpha
+   class(base_operand), intent(in) :: op2
+   real(rp), intent(in) :: beta
+
+   call op2.GuardTemp()
+   select type(op2)
+   class is (fem_vector)
+      assert ( op2%nd  == op1%nd  )
+      assert ( op2%neq == op1%neq )
+      assert ( op2%storage == op1%storage )
+      if ( beta == 0.0_rp ) then
+         call op1%scal(alpha, op2)
+      else if ( beta == 1.0_rp ) then
+         ! AXPY
+#ifdef ENABLE_BLAS
+         call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )    
+#else
+         op1%b=op1%b+op2%b
+#endif
+      else
+         ! SCAL + AXPY
+         call op1%scal(beta, op1)
+#ifdef ENABLE_BLAS
+         call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )    
+#else
+         op1%b=op1%b+op2%b
+#endif  
+      end if
+   class default
+      write(0,'(a)') 'fem_vector%axpby: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2.CleanTemp()
+ end subroutine fem_vector_axpby_tbp
+
+ ! alpha <- nrm2(op)
+ function fem_vector_nrm2_tbp(op) result(alpha)
+   implicit none
+   class(fem_vector), intent(in)  :: op
+   real(rp) :: alpha
+   call op.GuardTemp()
+
+#ifdef ENABLE_BLAS
+    alpha = dnrm2( op%nd*op%neq, op%b, 1 )
+#else
+    alpha = op%dot(op)
+    alpha = sqrt(alpha)
+#endif
+
+   call op.CleanTemp()
+ end function fem_vector_nrm2_tbp
+
+ ! op1 <- clone(op2) 
+ subroutine fem_vector_clone_tbp(op1,op2)
+   implicit none
+   class(fem_vector), intent(inout) :: op1
+   class(base_operand), intent(in)  :: op2
+
+   call op2.GuardTemp()
+   select type(op2)
+   class is (fem_vector)
+      if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
+      op1%nd      =  op2%nd        ! Number of degrees of freedom
+      op1%neq     =  op2%neq       ! Number of equations
+      op1%storage =  op2%storage
+      if ( op1%storage == blk ) then
+         call memallocp(op1%nd,op1%neq,op1%b,__FILE__,__LINE__)
+      else if ( op1%storage == scal ) then
+         call memallocp(1,op1%nd*op1%neq,op1%b,__FILE__,__LINE__)
+      end if
+      ! AFM: I think that clone should NOT init the memory just allocated.
+      ! The code that surrounds clone (e.g., Krylov solvers) should not
+      ! rely on fem_vector_clone_tbp initializing the memory. I will comment
+      ! it out, and expect that the codes continue working.
+      ! op1%b = 0.0_rp 
+      op1%mode = allocated
+   class default
+      write(0,'(a)') 'fem_vector%clone: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2.CleanTemp()
+ end subroutine fem_vector_clone_tbp
+
+ ! op <- comm(op)
+ subroutine fem_vector_comm_tbp(op)
+   implicit none
+   class(fem_vector), intent(inout) :: op
+ end subroutine fem_vector_comm_tbp
+
+ subroutine fem_vector_free_tbp(this)
+   implicit none
+   class(fem_vector), intent(inout) :: this
+
+   this%nd      = 0          ! Number of degrees of freedom
+   this%neq     = 0          ! Number of equations
+   this%storage = undef_sto
+   if (this%mode == allocated) call memfreep(this%b,__FILE__,__LINE__)
+   nullify(this%b)
+   this%mode = not_created
+ end subroutine fem_vector_free_tbp
 
 end module fem_vector_names
