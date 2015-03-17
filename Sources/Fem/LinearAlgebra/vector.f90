@@ -634,8 +634,8 @@ contains
    class(base_operand), intent(in)  :: op2
    real(rp) :: alpha
 
-   call op1.GuardTemp()
-   call op2.GuardTemp()
+   call op1%GuardTemp()
+   call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
       assert ( op1%nd  == op2%nd  )
@@ -657,8 +657,8 @@ contains
       write(0,'(a)') 'fem_vector%dot: unsupported op2 class'
       check(1==0)
    end select
-   call op1.CleanTemp()
-   call op2.CleanTemp()
+   call op1%CleanTemp()
+   call op2%CleanTemp()
  end function fem_vector_dot_tbp
 
  ! op1 <- op2 
@@ -667,7 +667,7 @@ contains
    class(fem_vector), intent(inout) :: op1
    class(base_operand), intent(in)  :: op2
    
-   call op2.GuardTemp()
+   call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
       assert ( op2%nd  == op1%nd  )
@@ -682,7 +682,7 @@ contains
       write(0,'(a)') 'fem_vector%copy: unsupported op2 class'
       check(1==0)
    end select
-   call op2.CleanTemp()
+   call op2%CleanTemp()
  end subroutine fem_vector_copy_tbp
 
  ! op1 <- alpha * op2
@@ -692,7 +692,7 @@ contains
    real(rp), intent(in) :: alpha
    class(base_operand), intent(in) :: op2
 
-   call op2.GuardTemp()
+   call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
       assert ( op2%nd  == op1%nd  )
@@ -713,7 +713,7 @@ contains
       write(0,'(a)') 'fem_vector%scal: unsupported op2 class'
       check(1==0)
    end select
-   call op2.CleanTemp()
+   call op2%CleanTemp()
  end subroutine fem_vector_scal_tbp
  ! op <- alpha
  subroutine fem_vector_init_tbp(op,alpha)
@@ -731,7 +731,7 @@ contains
    class(base_operand), intent(in) :: op2
    real(rp), intent(in) :: beta
 
-   call op2.GuardTemp()
+   call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
       assert ( op2%nd  == op1%nd  )
@@ -759,7 +759,7 @@ contains
       write(0,'(a)') 'fem_vector%axpby: unsupported op2 class'
       check(1==0)
    end select
-   call op2.CleanTemp()
+   call op2%CleanTemp()
  end subroutine fem_vector_axpby_tbp
 
  ! alpha <- nrm2(op)
@@ -767,7 +767,7 @@ contains
    implicit none
    class(fem_vector), intent(in)  :: op
    real(rp) :: alpha
-   call op.GuardTemp()
+   call op%GuardTemp()
 
 #ifdef ENABLE_BLAS
     alpha = dnrm2( op%nd*op%neq, op%b, 1 )
@@ -776,7 +776,7 @@ contains
     alpha = sqrt(alpha)
 #endif
 
-   call op.CleanTemp()
+   call op%CleanTemp()
  end function fem_vector_nrm2_tbp
 
  ! op1 <- clone(op2) 
@@ -785,7 +785,7 @@ contains
    class(fem_vector), intent(inout) :: op1
    class(base_operand), intent(in)  :: op2
 
-   call op2.GuardTemp()
+   call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
       if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
@@ -807,7 +807,7 @@ contains
       write(0,'(a)') 'fem_vector%clone: unsupported op2 class'
       check(1==0)
    end select
-   call op2.CleanTemp()
+   call op2%CleanTemp()
  end subroutine fem_vector_clone_tbp
 
  ! op <- comm(op)

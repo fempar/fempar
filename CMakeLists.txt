@@ -58,7 +58,7 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 # List of external libraries
 #################################################################
 
-SET(EXT_LIBS BLAS GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN)
+SET(EXT_LIBS BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN)
 SET(MKL_FIND_QUIETLY TRUE) 
 
 #################################################################

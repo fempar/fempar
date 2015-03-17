@@ -1594,7 +1594,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
               end if
 #else
               write (*,*) 'plfom ERROR :: dgetrf and dgetrs not available'
-              stop
+              check(1==0)
 #endif
 
               ! Now g contains the solution in the krylov basis

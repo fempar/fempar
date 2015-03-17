@@ -954,7 +954,7 @@ contains
     class(base_operand) , intent(in)    :: x
     class(base_operand) , intent(inout) :: y 
 
-    call x.GuardTemp()
+    call x%GuardTemp()
 
     select type(x)
     class is (fem_vector)
@@ -970,7 +970,7 @@ contains
        check(1==0)
     end select
 
-    call x.CleanTemp()
+    call x%CleanTemp()
   end subroutine fem_matrix_apply
 
   ! op%apply(x)
@@ -989,7 +989,7 @@ contains
        call fem_vector_alloc ( op%storage, op%nd1, op%gr%nv, local_y)
        call fem_matvec(op, x, local_y)
        call move_alloc(local_y, y)
-       call y.SetTemp()
+       call y%SetTemp()
     class default
        write(0,'(a)') 'fem_matrix%apply_fun: unsupported x class'
        check(1==0)

@@ -841,7 +841,7 @@ contains
     
     assert (associated(op%mat))
 
-    call x.GuardTemp()
+    call x%GuardTemp()
 
     select type(x)
     class is (fem_vector)
@@ -878,7 +878,7 @@ contains
        check(1==0)
     end select
 
-    call x.CleanTemp()
+    call x%CleanTemp()
   end subroutine fem_precond_apply_tbp
   
 
@@ -886,7 +886,7 @@ contains
   function fem_precond_apply_fun_tbp (op, x) result(y)
     implicit none
     ! Parameters
-    class(fem_precond)               :: op
+    class(fem_precond), intent(in)   :: op
     class(base_operand), intent(in)  :: x
     class(base_operand), allocatable :: y
     type(fem_vector), allocatable :: local_y
@@ -894,21 +894,21 @@ contains
     
     assert (associated(op%mat))
 
-    call x.GuardTemp()
+    call x%GuardTemp()
 
     select type(x)
     class is (fem_vector)
        allocate(local_y)
        call fem_vector_alloc ( op%mat%storage, op%mat%nd1, op%mat%gr%nv, local_y)
-       call fem_precond_apply ( op%mat, op, x, local_y)
+       call op%apply(x, local_y)
        call move_alloc(local_y, y)
-       call y.SetTemp()
+       call y%SetTemp()
     class default
        write(0,'(a)') 'fem_precond%apply_fun: unsupported x class'
        check(1==0)
     end select
 
-    call x.CleanTemp()
+    call x%CleanTemp()
   end function fem_precond_apply_fun_tbp
 
 end module fem_precond_names
