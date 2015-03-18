@@ -30,6 +30,9 @@ module abstract_solver
   use solver_base 
   use base_operator_names
   use base_operand_names
+
+# include "debug.i90"
+
   implicit none
 
   private
@@ -56,20 +59,27 @@ contains
     case ( cg )
        call abstract_pcg ( A, M, b, x, ctrl )
     case ( lgmres )
+       check(1==0)
        ! call abstract_plgmres ( A, M, b, x, ctrl )
     case ( rgmres )
+       check(1==0)
        ! call abstract_prgmres ( A, M, b, x, ctrl )
     case ( fgmres )
+       check(1==0)
        ! call abstract_pfgmres ( A, M, b, x, ctrl )
     case ( richard )
+       check(1==0)
        ! call abstract_prichard ( A, M, b, x, ctrl )
     case( direct )
        call M%apply(b, x)
     case ( icg )
+       check(1==0)
        ! call abstract_ipcg ( A, M, b, x, ctrl )
     case ( lfom )
+       check(1==0)
        ! call abstract_plfom ( A, M, b, x, ctrl )
     case ( minres )
+       check(1==0)
        ! call abstract_pminres ( A, M, b, x, ctrl )
     case default
        ! Write an error message and stop ?      

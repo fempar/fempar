@@ -1434,8 +1434,12 @@ end subroutine generic_prichard
 !====================================================
 subroutine generic_plfom ( A, M, b, x, ctrl )
   !--------------------------------------------------------------------
-  ! This routine performs plgmres iterations on Ax=b with preconditioner M. 
+  ! This routine performs plfom iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
+#ifdef ENABLE_LAPACK
+  use lapack77_interfaces
+#endif
+
   implicit none
   type(generic_mat), intent(inout)    :: A      ! Matrix
   type(generic_pre), intent(inout)    :: M      ! Preconditioner
@@ -1574,7 +1578,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
 
               lu(1:kloc,1:kloc) = hh(1:kloc,1:kloc)
               ! write(*,*) 'XXX', lu(1:kloc,1:kloc)
-#ifdef ENABLE_BLAS
+#ifdef ENABLE_LAPACK
               call dgetrf( kloc, kloc, lu, ctrl%dkrymax+1, ipiv, info )
               if ( info /= 0 ) then
                  write (ctrl%luout,*) '** Warning: LFOM: dgetrf returned info /= 0'
@@ -1593,7 +1597,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
                  exit outer ! Exit main do loop 
               end if
 #else
-              write (*,*) 'plfom ERROR :: dgetrf and dgetrs not available'
+	      write (0,*) 'plfom ERROR :: dgetrf and dgetrs not available'
               check(1==0)
 #endif
 

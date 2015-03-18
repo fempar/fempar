@@ -39,12 +39,30 @@ ifeq ($(strip $(ENABLE_BLAS)),)
     BLAS_DIR =
 else
   ifeq ($(COMPILER),XLF)
-    BLAS_LIB = -lesslbg -llapack -lesslbg
-    BLAS_DIR = -L$(LAPACK_LIB) -L$(BLAS_ROOT)
+    BLAS_LIB = -lesslbg
+    BLAS_DIR = -L$(BLAS_ROOT)
   endif
   # For Intel and GNU compilers they are included in MKL
   ENABLED+=ENABLE_BLAS
 endif
+
+
+#
+# 1.5) LAPACK 
+#
+ifeq ($(strip $(ENABLE_LAPACK)),)
+    LAPACK_LIB =
+    LAPACK_DIR =
+else
+  ifeq ($(COMPILER),XLF)
+    LAPACK_LIB = -lesslbg -llapack
+    LAPACK_DIR = -L$(LAPACK_ROOT) -L$(BLAS_ROOT)
+  endif
+  # For Intel and GNU compilers they are included in MKL
+  ENABLED+=ENABLE_LAPACK
+endif
+
+
 #
 # 2) MKL
 #

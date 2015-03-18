@@ -28,7 +28,9 @@
 module fem_vector_names
   use types
   use memor
+#ifdef ENABLE_BLAS
   use blas77_interfaces
+#endif
   use base_operand_names
 
 !!$#ifdef memcheck
@@ -744,7 +746,7 @@ contains
 #ifdef ENABLE_BLAS
          call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )    
 #else
-         op1%b=op1%b+op2%b
+         op1%b=op1%b+alpha*op2%b
 #endif
       else
          ! SCAL + AXPY
@@ -752,7 +754,7 @@ contains
 #ifdef ENABLE_BLAS
          call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )    
 #else
-         op1%b=op1%b+op2%b
+         op1%b=op1%b+alpha*op2%b
 #endif  
       end if
    class default

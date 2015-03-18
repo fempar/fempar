@@ -28,7 +28,9 @@
 module fem_vector_krylov_basis_names
   use types
   use memor
+#ifdef ENABLE_BLAS
   use blas77_interfaces 
+#endif
   use fem_vector_names
   implicit none
 # include "debug.i90"

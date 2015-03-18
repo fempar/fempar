@@ -114,7 +114,7 @@ program test_dirsol_mm
   sctrl%dkrymax=200
   sctrl%stopc=res_res
 
-  do i=1,3
+  do i=1,1
 
      call fem_precond_create  (mmmat, feprec, ppars)
      t1 = wtime()
@@ -131,9 +131,9 @@ program test_dirsol_mm
      fevec%b=1.0_rp
      call solve(mmmat,feprec,fevec,feunk,sctrl)
      t2 = wtime() 
-     write(*,*) 'Generic Iterative solution time (secs.):', t2-t1 
+     write(*,'(a,e)') 'Generic Iterative solution time (secs.):', t2-t1 
 
-     call solver_control_log_conv_his(sctrl)
+     ! call solver_control_log_conv_his(sctrl)
      call solver_control_free_conv_his(sctrl)
 
      t1 = wtime()
@@ -141,9 +141,9 @@ program test_dirsol_mm
      fevec%b=1.0_rp
      call abstract_solve(mmmat,feprec,fevec,feunk,sctrl)
      t2 = wtime() 
-     write(*,*) 'Abstract Iterative solution time (secs.):', t2-t1 
+     write(*,'(a,e)') 'Abstract Iterative solution time (secs.):', t2-t1 
 
-     call solver_control_log_conv_his(sctrl)
+     ! call solver_control_log_conv_his(sctrl)
      call solver_control_free_conv_his(sctrl)
 
      call fem_precond_free ( precond_free_values, feprec)
@@ -153,7 +153,7 @@ program test_dirsol_mm
 
 
   call fem_graph_free ( mmgraph )
-  call fem_matrix_free ( mmmat )
+  call fem_matrix_free ( mmmat ) 
 
 
 contains
