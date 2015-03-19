@@ -34,9 +34,9 @@ default: debug TAGS
 
 all: debug release
 
-TAGS: ../../Sources/Drivers/$(FEMPAR_USER)/* ../../Sources/Fem/* ../../Sources/Fem/Geometry/* ../../Sources/Fem/Integration/* ../../Sources/Fem/LinearAlgebra/* ../../Sources/Fem/Tools/* ../../Sources/Par/* ../../Sources/Par/Geometry/* ../../Sources/Par/LinearAlgebra/* ../../Sources/Par/Tools/*  ../../Sources/Generic/* 
+TAGS: ../../Sources/Drivers/Fem/$(FEMPAR_USER)/* ../../Sources/Drivers/Par/$(FEMPAR_USER)/* ../../Sources/Fem/* ../../Sources/Fem/Geometry/* ../../Sources/Fem/Integration/* ../../Sources/Fem/LinearAlgebra/* ../../Sources/Fem/Tools/* ../../Sources/Par/* ../../Sources/Par/Geometry/* ../../Sources/Par/LinearAlgebra/* ../../Sources/Par/Tools/*  ../../Sources/Generic/* 
 	@rm -f TAGS
-	@etags ../../Sources/Drivers/$(FEMPAR_USER)/* ../../Sources/Fem/* ../../Sources/Fem/Geometry/* ../../Sources/Fem/Integration/* ../../Sources/Fem/LinearAlgebra/* ../../Sources/Fem/Tools/* ../../Sources/Par/* ../../Sources/Par/Geometry/* ../../Sources/Par/LinearAlgebra/* ../../Sources/Par/Tools/* ../../Sources/Generic/*
+	@etags ../../Sources/Drivers/Fem/$(FEMPAR_USER)/* ../../Sources/Drivers/Par/$(FEMPAR_USER)/* ../../Sources/Fem/* ../../Sources/Fem/Geometry/* ../../Sources/Fem/Integration/* ../../Sources/Fem/LinearAlgebra/* ../../Sources/Fem/Tools/* ../../Sources/Par/* ../../Sources/Par/Geometry/* ../../Sources/Par/LinearAlgebra/* ../../Sources/Par/Tools/* ../../Sources/Generic/*
 
 config:
 	@make --no-print-directory -f make.libs config

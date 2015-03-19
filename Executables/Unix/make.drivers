@@ -87,6 +87,10 @@ MAIN=$(NAME)
 SOURCE=../../Sources/Drivers/$(FEMPAR_USER)
 MODULES=../../Sources/Drivers/support
 INCLUDES=../../Sources
+# FEM DRIVER SOURCES DIRECTORY
+FEMSOURCE=../../Sources/Drivers/Fem/$(FEMPAR_USER)
+# PAR DRIVER SOURCES DIRECTORY
+PARSOURCE=../../Sources/Drivers/Par/$(FEMPAR_USER)
 #
 #-----------------------------------------------------------------------
 # The drivers that will be compiled are defined in the file DRIVERS_FILE
@@ -261,10 +265,15 @@ newfile:
 # GENERIC rules
 #-----------------------------------------------------------------------
 # Generic configuration rules
+
+# $(if $(findstring $@,$(PAR_PROB_DRIVERS_CONFIG)),$(PARSOURCE),$(FEMSOURCE))
+# Returns $(PARSOURCE) if $@ is substring of $(PAR_PROB_DRIVERS_CONFIG)
+# ELSE RETURNS $(FEMSOURCE)
+
 %.obj:
-	configuref90 ${basename $@} --srcdir=$(SOURCE) --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
+	configuref90 ${basename $@} --srcdir=$(if $(findstring $@,$(PAR_PROB_DRIVERS_CONFIG)),$(PARSOURCE),$(FEMSOURCE))  --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
 %.dep:
-	configuref90 ${basename $@} --srcdir=$(SOURCE) --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
+	configuref90 ${basename $@} --srcdir=$(if $(findstring $@,$(PAR_PROB_DRIVERS_CONFIG)),$(PARSOURCE),$(FEMSOURCE))  --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
 
 #-----------------------------------------------------------------------
 # Generic executables rules

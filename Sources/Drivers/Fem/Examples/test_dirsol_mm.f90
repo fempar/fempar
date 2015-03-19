@@ -131,7 +131,7 @@ program test_dirsol_mm
      fevec%b=1.0_rp
      call solve(mmmat,feprec,fevec,feunk,sctrl)
      t2 = wtime() 
-     write(*,'(a,e)') 'Generic Iterative solution time (secs.):', t2-t1 
+     write(*,'(a,e15.7)') 'Generic Iterative solution time (secs.):', t2-t1 
 
      ! call solver_control_log_conv_his(sctrl)
      call solver_control_free_conv_his(sctrl)
@@ -141,7 +141,7 @@ program test_dirsol_mm
      fevec%b=1.0_rp
      call abstract_solve(mmmat,feprec,fevec,feunk,sctrl)
      t2 = wtime() 
-     write(*,'(a,e)') 'Abstract Iterative solution time (secs.):', t2-t1 
+     write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
 
      ! call solver_control_log_conv_his(sctrl)
      call solver_control_free_conv_his(sctrl)
