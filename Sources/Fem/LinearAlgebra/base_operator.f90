@@ -51,7 +51,6 @@ module base_operator_names
      generic    :: operator(+) => sum
      generic    :: operator(*) => mult, scal_right, scal_left, apply_fun
      generic    :: operator(-) => minus, sub
-     generic    :: operator(*) => apply_fun
   end type base_operator
 
   ! Son class expression_operator. These operators are always temporary
