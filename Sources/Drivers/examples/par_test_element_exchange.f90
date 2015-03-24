@@ -59,39 +59,16 @@ program par_test_element_exchange
   handler = inhouse
   call par_context_create (handler, context)
 
-  write (*,*) 'ALL NODES BEFORE' 
-  call mpi_barrier( p_part%p_context%icontxt, ierror )
-  write (*,*) 'ALL NODES AFTER' 
-  call mpi_barrier( p_part%p_context%icontxt, ierror )
-  
-  if ( p_part%p_context%iam > 0 ) then
-     write (*,*) 'Processors > 0 stopped'
-     i = 1
-     do while ( i > 0)
-        i = i + 1
-     end do
-  else
-     write (*,*) 'Processor 0 not stopped'
-     i = 1
-     do while ( 1 > 0)
-        i = i + 1
-     end do
-  end if
-
-
   ! Read parameters from command-line
   call  read_pars_cl_par_test_element_exchange ( dir_path, prefix, dir_path_out )
 
   !if ( context%iam > 0 ) then
   !   stop
   !end if
-
-  write(*,*) ' KK PROC ', context%iam
   
   ! Read partition info. Associate contexts
   call par_partition_create ( dir_path, prefix, context, p_part )
 
-  write(*,*) ' KK PROC 2 ', context%iam
   ! Read mesh
   call par_mesh_create ( dir_path, prefix, p_part, p_mesh )
 
@@ -99,17 +76,51 @@ program par_test_element_exchange
   call par_mesh_to_triangulation (p_mesh, p_trian )
 
   vars_prob = 1
-
-
-
   call dof_handler_create( dhand, 1, 1, vars_prob )
   call dof_handler_print ( dhand, 6 )
 
   call fem_space_create ( fspac, p_trian%f_trian, dhand )
   
+  call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
+  continuity = .true.
+  call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
+  order = 1
+  call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
+  material = 1
+  call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
+  problem = 1
+
+
+
+  if ( context%iam > 0 ) then
+     !pause
+  else
+     write (*,*) 'Processor 0 not stopped'
+     !i = 1
+     !do while ( 1 > 0)
+     !   i = i + 1
+     !end do
+  end if  
+
+
+    ! Continuity
+    !write(*,*) 'Continuity', continuity
+
   call fem_space_fe_list_create ( fspac, problem, continuity, order, material, &
        & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
-       & static_condensation = logical(.false.,lg) )
+       & static_condensation = logical(.false.,lg), num_materials = 1 )
+
+  call create_global_dof_info( dhand, p_trian%f_trian, fspac  )
+
+  call fem_element_print( 6, fspac%lelem(1)  )
+
+  write (*,*) 'ALL NODES BEFORE' 
+  write (*,*) 'contxt:',context%iam
+  call mpi_barrier( context%icontxt, ierror )
+  write (*,*) 'ALL NODES AFTER' 
+  call mpi_barrier( context%icontxt, ierror )
+
+  pause
 
 !  nint = 1
 !  tdim = 1

@@ -142,7 +142,7 @@ contains
 
     do iprob = 1, dhand%nprobs
               
-       write (lunou, '(a)')     '*** physical problem ',iprob ,'***'
+       write (lunou,*)     '*** physical problem ',iprob, ' ***'
        write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%nvars
        write (lunou,*)     'Local to global (of variables) for problem ',iprob, ' :' ,  dhand%problems(iprob)%l2g_var
        !write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%problem_code
