@@ -91,6 +91,7 @@ module fem
   use interpolation_names
   use femap_names
   use femap_interp
+  use create_global_dof_info_names
   !use element_gather_tools
 
 end module fem

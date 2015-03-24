@@ -137,16 +137,6 @@ module fem_space_names
 !,          &
 !       get_p_faces
 
-!!$   integer(ip) :: P3_connec(3,14) = reshape((/ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &
-!!$        & 1, 2, 0, 2, 3, 0, 3, 1, 0, 1, 4, 0, 2, 4, 0, 3, 4, 0, &
-!!$        & 1, 2, 3, 1, 2, 4, 1, 3, 4, 2, 3, 4  /),(/3,14/))
-!!$   
-!!$   integer(ip) :: Q3_connec(4,26) = reshape((/ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &
-!!$        & 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &
-!!$        & 1, 2, 0, 0, 2, 3, 0, 0, 3, 4, 0, 0, 4, 1, 0, 0, 1, 5, 0, 0, 2, 6, 0, 0, &
-!!$        & 3, 7, 0, 0, 4, 8, 0, 0, 5, 6, 0, 0, 6, 7, 0, 0, 7, 8, 0, 0, 8, 5, 0, 0, &
-!!$        & 1, 2, 4, 3, 1, 2, 5, 6, 1, 5, 4, 8, 2, 6, 3, 7, 3, 4, 7, 8, 5, 6, 8, 7 /),(/4,26/))
-
 contains
 
   !==================================================================================================
@@ -218,14 +208,15 @@ contains
   ! Fill the fem_space assuming that all elements are of type f_type but each variable has different
   ! interpolation order
   subroutine fem_space_fe_list_create( fspac, problem, continuity, order, material, &
-       & time_steps_to_store, hierarchical_basis, static_condensation  )
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials  )
     implicit none
     type(fem_space), intent(inout),target  :: fspac
     integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
     logical(lg),     intent(in)       :: continuity(:,:)
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
-    logical(lg), optional, intent(in) :: static_condensation 
+    logical(lg), optional, intent(in) :: static_condensation
+    integer(ip), optional, intent(in) :: num_materials 
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof
@@ -243,6 +234,13 @@ contains
        fspac%static_condensation = static_condensation
     else
        fspac%static_condensation = .false.
+    end if
+
+    ! Static condensation flag
+    if (present(num_materials)) then
+       fspac%num_materials = 1
+    else
+       fspac%num_materials = 1
     end if
 
     ! nunk_tot = total amount of unknowns
@@ -268,15 +266,16 @@ contains
     ! Material
     fspac%lelem(:)%material = material
 
+    ! Continuity
+    write(*,*) 'Continuity', continuity
     do ielem = 1, fspac%g_trian%num_elems
        ! Assign type of problem to ielem
        fspac%lelem(ielem)%problem =  problem(ielem)
        nvars = fspac%dof_handler%problems(problem(ielem))%nvars
        fspac%lelem(ielem)%num_vars = nvars
-       f_type = fspac%lelem(ielem)%f_inf(ivar)%p%ftype
-       
-       assert(size(continuity,1)==nvars_tot)
-       assert(size(material,1)==nvars_tot)
+       f_type = fspac%g_trian%elems(ielem)%topology%ftype
+       !assert(size(continuity,1)==nvars_tot)
+       !assert(size(material,1)==nvars_tot)
 
        !SB.alert : Not OK
 
@@ -295,8 +294,13 @@ contains
 
        ! Assign pointer to interpolation fixed information and nodes per object
        do ivar=1,nvars
-       fspac%lelem(ielem)%continuity(ivar) = continuity(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
-       fspac%lelem(ielem)%order(ivar) = order(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
+          !write(*,*) 'ielem,ivar',ielem,ivar,continuity(2,1)
+          !write(*,*) 'POINT REACHED'
+          !write(*,*) 'l2g', fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar)
+          !write(*,*) 'cont',continuity(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
+
+          fspac%lelem(ielem)%continuity(ivar) = continuity(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
+          fspac%lelem(ielem)%order(ivar) = order(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
           f_order = fspac%lelem(ielem)%order(ivar)
           v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           call fspac%ht_elem_info%put(key=v_key,val=fspac%cur_elinf,stat=istat)
@@ -311,7 +315,7 @@ contains
              assert ( istat == key_found )
           end if
           fspac%lelem(ielem)%f_inf(ivar)%p => fspac%lelem_info(pos_elinf)
-          if ( continuity(ivar,ielem) ) then
+          if ( continuity(ielem, ivar) ) then
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob
           else 
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%l_nodes_object(1) ! SB.alert : Think about hdG
@@ -372,7 +376,7 @@ contains
        call memalloc( max_num_nodes, nvars, time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
-       
+
        ! Assign pointers to volume integration
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars

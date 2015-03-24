@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module create_global_dof_info_module
+module create_global_dof_info_names
   use types
   use array_names
   use memor
@@ -92,68 +92,71 @@ contains
        count = 0
        ! interface
        do iobje = 1, trian%num_objects
+          touch = 0
           do ielem = 1, trian%objects(iobje)%num_elems_around
              jelem = trian%objects(iobje)%elems_around(ielem)
-             iprob = femsp%lelem(jelem)%problem
-             nvapb = prob_block(iprob)%nd1
-             do ivars = 1, nvapb
-                !l_var = g2l(ivars,iprob)
-                l_var = prob_block(iprob)%a(ivars)
-                g_var = dhand%problems(iprob)%l2g_var(l_var)
-                inter = l_var
-                mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
-                do obje_l = 1, trian%elems(jelem)%num_objects
-                   if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
-                end do
-                if ( touch(mater,g_var,1) == 0) then
-                   touch(mater,g_var,1) = jelem
-                   touch(mater,g_var,1) = obje_l
-                   !do inode = 1, femsp%lelem(jelem)%nodes_object(inter,obje_l)%nd1
-                   do inode = femsp%lelem(jelem)%nodes_object(inter)%p%p(obje_l), &
-                        &     femsp%lelem(jelem)%nodes_object(inter)%p%p(obje_l+1)-1 
-                      l_node = femsp%lelem(jelem)%nodes_object(inter)%p%l(inode)
-                      !femsp%lelem(jelem)%nodes_object(inter,obje_l)%a(inode)
-                      count = count + 1
-                      femsp%lelem(jelem)%elem2dof(l_node,l_var) = count
+             if ( jelem <= trian%num_elems ) then 
+                iprob = femsp%lelem(jelem)%problem
+                nvapb = prob_block(iprob)%nd1
+                do ivars = 1, nvapb
+                   !l_var = g2l(ivars,iprob)
+                   l_var = prob_block(iprob)%a(ivars)
+                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   inter = l_var
+                   mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
+                   do obje_l = 1, trian%elems(jelem)%num_objects
+                      if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                    end do
-                else
-                   elem_ext = touch(mater,g_var,1)
-                   obje_ext = touch(mater,g_var,2)
-                   prob_ext = femsp%lelem(elem_ext)%problem
-                   l_var_ext = g2l_vars(g_var,prob_ext)
-                   assert ( l_var_ext == 0 )
-                   inter_ext = l_var_ext
-
-                   nnode = femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext+1) &
-                        &  -femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext) 
-                   order = femsp%lelem(elem_ext)%f_inf(inter_ext)%p%order
-                   if ( nnode ==  (order-2)**2 ) then
-                      order = order -2 ! cG case
-                   else if ( nnode ==  order**2 ) then
-                      !order = order    ! hdG case
+                   if ( touch(mater,g_var,1) == 0) then
+                      touch(mater,g_var,1) = jelem
+                      touch(mater,g_var,1) = obje_l
+                      !do inode = 1, femsp%lelem(jelem)%nodes_object(inter,obje_l)%nd1
+                      do inode = femsp%lelem(jelem)%nodes_object(inter)%p%p(obje_l), &
+                           &     femsp%lelem(jelem)%nodes_object(inter)%p%p(obje_l+1)-1 
+                         l_node = femsp%lelem(jelem)%nodes_object(inter)%p%l(inode)
+                         !femsp%lelem(jelem)%nodes_object(inter,obje_l)%a(inode)
+                         count = count + 1
+                         femsp%lelem(jelem)%elem2dof(l_node,l_var) = count
+                      end do
                    else
-                      assert ( 0 == 1) ! SB.alert : Other situations possible when dG_material, cdG, hp-adaptivity ?
-                   end if
+                      elem_ext = touch(mater,g_var,1)
+                      obje_ext = touch(mater,g_var,2)
+                      prob_ext = femsp%lelem(elem_ext)%problem
+                      l_var_ext = g2l_vars(g_var,prob_ext)
+                      assert ( l_var_ext == 0 )
+                      inter_ext = l_var_ext
 
-                   call permute_nodes_object(                                                                 &
-                        & femsp%lelem(elem_ext)%f_inf(inter_ext)%p,                                           &
-                        & femsp%lelem(jelem)%f_inf(inter)%p,                                                  &
-                        & o2n,obje_ext,obje_l,                                                                &
-                        & trian%elems(elem_ext)%objects,                                                      &
-                        & trian%elems(jelem)%objects,                                                         &
-                        & trian%objects(iobje)%dimension,                                                     &
-                        & order ) 
-                   do inode_ext = femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext), &
-                        &         femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext)-1
-                      inode_l = femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext) &
-                           &    + femsp%lelem(jelem)%nodes_object(inter)%p%l(o2n(inode_ext))-1
-                      !inode_l = femsp%lelem(jelem)%nodes_object(inter,obje_l)%a(o2n(inode_ext))
-                      femsp%lelem(jelem)%elem2dof(inode_l,l_var) = femsp%lelem(elem_ext)%elem2dof(inode_ext,l_var_ext)
-                   end do ! SB.alert : 1) face object for cG and hdG, where the face must have all their nodes
-                   !                   2) corner / edge only for cG
-                   !            * Never here for dG, material interface, hanging objects, etc.
-                end if
-             end do
+                      nnode = femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext+1) &
+                           &  -femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext) 
+                      order = femsp%lelem(elem_ext)%f_inf(inter_ext)%p%order
+                      if ( nnode ==  (order-2)**2 ) then
+                         order = order -2 ! cG case
+                      else if ( nnode ==  order**2 ) then
+                         !order = order    ! hdG case
+                      else
+                         assert ( 0 == 1) ! SB.alert : Other situations possible when dG_material, cdG, hp-adaptivity ?
+                      end if
+
+                      call permute_nodes_object(                                                                 &
+                           & femsp%lelem(elem_ext)%f_inf(inter_ext)%p,                                           &
+                           & femsp%lelem(jelem)%f_inf(inter)%p,                                                  &
+                           & o2n,obje_ext,obje_l,                                                                &
+                           & trian%elems(elem_ext)%objects,                                                      &
+                           & trian%elems(jelem)%objects,                                                         &
+                           & trian%objects(iobje)%dimension,                                                     &
+                           & order ) 
+                      do inode_ext = femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext), &
+                           &         femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext)-1
+                         inode_l = femsp%lelem(elem_ext)%nodes_object(inter_ext)%p%p(obje_ext) &
+                              &    + femsp%lelem(jelem)%nodes_object(inter)%p%l(o2n(inode_ext))-1
+                         !inode_l = femsp%lelem(jelem)%nodes_object(inter,obje_l)%a(o2n(inode_ext))
+                         femsp%lelem(jelem)%elem2dof(inode_l,l_var) = femsp%lelem(elem_ext)%elem2dof(inode_ext,l_var_ext)
+                      end do ! SB.alert : 1) face object for cG and hdG, where the face must have all their nodes
+                      !                   2) corner / edge only for cG
+                      !            * Never here for dG, material interface, hanging objects, etc.
+                   end if
+                end do
+             end if
           end do
        end do
        ! interior
@@ -371,4 +374,4 @@ contains
 
   end subroutine create_global_dof_info
 
-end module create_global_dof_info_module
+end module create_global_dof_info_names
