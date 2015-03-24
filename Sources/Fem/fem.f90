@@ -72,12 +72,14 @@ module fem
   use fem_precond_names
   use fem_vector_names
   use fem_vector_krylov_basis_names
-  use fem_matrix_vector
   use fem_block_matrix_names
   use fem_block_precond_names
   use fem_block_vector_names
   use fem_block_vector_krylov_basis_names
   use fem_block_matrix_vector
+  use solver_base
+  use solver
+  use abstract_solver
   
   ! Integration 
   use fem_space_names

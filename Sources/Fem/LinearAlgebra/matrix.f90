@@ -31,20 +31,16 @@ module fem_matrix_names
   use memor
   use sort_names
   use fem_graph_names
+  use fem_vector_names
+  use matvec_dof
+
+  ! Abstract types
+  use serial_operator_names
+  use base_operand_names
+
 #ifdef memcheck
   use iso_c_binding
 #endif
-  ! CRUCIAL NOTE: matrix requires BOUNDARY conditions
-  ! temporarily for bnn/bddc dd algorithms.
-  ! A more clean/definitive solution is required
-  ! here to treat these situations.
-  use fem_conditions_names
-
-  ! CRUCIAL NOTE: matrix requires BOUNDARY conditions
-  ! temporarily for bnn/bddc dd algorithms.
-  ! A more clean/definitive solution is required
-  ! here to treat these situations.
-  use fem_mesh_names
 
   implicit none
   private
@@ -64,7 +60,7 @@ module fem_matrix_names
   integer(ip), parameter :: unknown               = 3 ! No info
 
   ! Matrix
-  type fem_matrix
+  type, extends(serial_operator) :: fem_matrix
      integer(ip)                :: &
           storage=undef_sto,         &         ! Storage layout (blk: block; scal: scalar)
           symm=symm_false,           &         ! Flag for symmetry
@@ -90,20 +86,9 @@ module fem_matrix_names
      type(fem_graph),pointer :: &
           gr => NULL()                      ! Associated fem_graph
 
-     ! CRUCIAL NOTE: matrix requires BOUNDARY conditions
-     ! temporarily for bnn/bddc dd algorithms.
-     ! A more clean/definitive solution is required
-     ! here to treat these situations.
-     type(fem_conditions),pointer :: &
-          bcs => NULL()                      ! Associated fem_conditions
-
-     ! CRUCIAL NOTE: matrix requires mesh point coordinates
-     ! temporarily for bnn/bddc dd algorithms.
-     ! A more clean/definitive solution is required
-     ! here to treat these situations.
-     type(fem_mesh),pointer :: &
-          msh => NULL()                      ! Associated fem_mesh
-
+   contains
+     procedure  :: apply     => fem_matrix_apply
+     procedure  :: apply_fun => fem_matrix_apply_fun
   end type fem_matrix
 
   interface fem_matrix_free
@@ -120,10 +105,11 @@ module fem_matrix_names
   ! Functions
   public :: fem_matrix_create, fem_matrix_graph, fem_matrix_fill_val, &
        &    fem_matrix_alloc, fem_matrix_copy, fem_matrix_print, fem_matrix_read,    &
-       &    fem_matrix_set_bcs, fem_matrix_set_msh, fem_matrix_print_matrix_market,  & 
+       &    fem_matrix_print_matrix_market,  & 
        &    fem_matrix_free, fem_matrix_info, fem_matrix_zero,  &
        &    fem_matrix_sum, fem_matrix_transpose, &
-       &    fem_matrix_compose_name_matrix_market, fem_matrix_read_matrix_market
+       &    fem_matrix_compose_name_matrix_market, fem_matrix_read_matrix_market, &
+       &    fem_matvec, fem_matvec_trans, fem_matmat, fem_matmat_trans
 
 !***********************************************************************
 ! Allocatable arrays of type(fem_matrix)
@@ -341,33 +327,6 @@ contains
 
   end subroutine fem_matrix_copy
 
-
-  !=============================================================================
-  subroutine fem_matrix_set_bcs (bcs, mat)
-    implicit none
-    type(fem_conditions), intent(in), target :: bcs
-    type(fem_matrix), intent(inout)          :: mat
-
-    ! CRUCIAL NOTE: matrix requires BOUNDARY conditions
-    ! temporarily for bnn/bddc dd algorithms.
-    ! A more clean/definitive solution is required
-    ! here to treat these situations.
-    mat%bcs => bcs 
-  end subroutine fem_matrix_set_bcs
-
-  !=============================================================================
-  subroutine fem_matrix_set_msh (msh, mat)
-    implicit none
-    type(fem_mesh), intent(in), target :: msh
-    type(fem_matrix), intent(inout)    :: mat
-
-    ! CRUCIAL NOTE: matrix requires BOUNDARY conditions
-    ! temporarily for bnn/bddc dd algorithms.
-    ! A more clean/definitive solution is required
-    ! here to treat these situations.
-    mat%msh => msh 
-  end subroutine fem_matrix_set_msh
-
   !=============================================================================
   subroutine fem_matrix_print(lunou, f_matrix)
     implicit none
@@ -475,9 +434,9 @@ contains
              do i=1,f_matrix%gr%nv
                 do j=f_matrix%gr%ia(i),f_matrix%gr%ia(i+1)-1
                    if (present(l2g)) then
-                      write(lunou,'(i10, i10, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(1,1,j)
+                      write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(1,1,j)
                    else
-                      write(lunou,'(i10, i10, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(1,1,j)
+                      write(lunou,'(i12, i12, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(1,1,j)
                    end if
                 end do
              end do
@@ -493,15 +452,15 @@ contains
 !!$                   end if
 
                    if (present(l2g)) then
-                      write(lunou,'(i10, i10, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(1,1,j)
+                      write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(1,1,j)
                    else
-                      write(lunou,'(i10, i10, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(1,1,j)
+                      write(lunou,'(i12, i12, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(1,1,j)
                    end if
                    if (i /= f_matrix%gr%ja(j)) then
                       if (present(l2g)) then
-                         write(lunou,'(i10, i10, e32.25)') l2g(f_matrix%gr%ja(j)), l2g(i), f_matrix%a(1,1,j)
+                         write(lunou,'(i12, i12, e32.25)') l2g(f_matrix%gr%ja(j)), l2g(i), f_matrix%a(1,1,j)
                       else
-                         write(lunou,'(i10, i10, e32.25)') f_matrix%gr%ja(j), i, f_matrix%a(1,1,j)
+                         write(lunou,'(i12, i12, e32.25)') f_matrix%gr%ja(j), i, f_matrix%a(1,1,j)
                       end if
                    end if
                 end do
@@ -569,14 +528,14 @@ contains
        gr%type = csr
        do i=1,nz
           ! read(lunou,*, end=10,err=10) ija_work(1,i),ija_work(2,i),a_work(i)
-          read(lunou,'(i10, i10, e32.25)',end=10, err=10) ija_work(1,i), ija_work(2,i), a_work(i)
+          read(lunou,'(i12, i12, e32.25)',end=10, err=10) ija_work(1,i), ija_work(2,i), a_work(i)
           ija_index(i)=i
        end do
     else
        gr%type = csr_symm
        j=1
        do i=1,nz
-          read(lunou,'(i10, i10, e32.25)', end=10,err=10) ija_work(1,j),ija_work(2,j),a_work(j)
+          read(lunou,'(i12, i12, e32.25)', end=10,err=10) ija_work(1,j),ija_work(2,j),a_work(j)
           ija_index(j)=j
           if(ija_work(1,j)<=ija_work(2,j)) j=j+1 ! Keep it (but if it is the last keep j)
        end do
@@ -647,11 +606,6 @@ contains
        f_matrix%nd1     = 0          ! Number of degrees of freedom
        f_matrix%nd2     = 0          ! Number of degrees of freedom
        f_matrix%storage = undef_sto
-
-       ! AFM: bcs and msh are not required anymore
-       ! in the new version of the codes
-       ! nullify ( f_matrix%bcs )
-       ! nullify ( f_matrix%msh )
     else if ( mode == free_only_struct ) then
        ! AFM: In my opinion, the following sentence is 
        ! not convenient at all, at least as a 
@@ -785,5 +739,263 @@ contains
     end if
 
      end subroutine fem_matrix_transpose
+
+  subroutine fem_matvec (a,x,y)
+    implicit none
+    type(fem_matrix) , intent(in)    :: a
+    type(fem_vector) , intent(in)    :: x
+    type(fem_vector) , intent(inout) :: y
+    real(rp) :: aux
+    ! write (*,*) a%nd1, a%nd2, x%nd, y%nd 
+
+    assert ( a%nd1 == y%nd )
+    assert ( a%nd2 == x%nd )
+    assert ( x%storage == y%storage )
+    assert ( a%storage == x%storage )
+
+    if (a%storage == blk) then ! gr must describe block sparsity pattern of mat
+       if(a%type==css_mat) then
+          call matvec_css(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
+       else if(a%type==csr_mat) then
+          if (a%symm == symm_false) then
+             call matvec_csr(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          else if (a%symm == symm_true) then
+             call matvec_csr_symm(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
+          end if
+       else if(a%type==csc_mat) then
+          call matvec_csc(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+       end if
+    else if (a%storage==scal) then
+       if(a%type==css_mat) then
+          call matvec_css_scal(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
+       else if(a%type==csr_mat) then
+          if (a%symm == symm_false) then
+             call matvec_csr_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          else if (a%symm == symm_true) then
+             call matvec_csr_symm_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
+          end if
+       else if(a%type==csc_mat) then
+          call matvec_csc_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+       end if
+    end if
+
+  end subroutine fem_matvec
+
+  subroutine fem_matmat (a, n, ldX, x, ldY, y)
+    implicit none
+
+    ! Parameters
+    type(fem_matrix) , intent(in)    :: a
+    integer(ip)      , intent(in)    :: n
+    integer(ip)      , intent(in)    :: ldX
+    real(rp)         , intent(in)    :: x(ldX, n)
+    integer(ip)      , intent(in)    :: ldY
+    real(rp)         , intent(inout) :: y(ldY, n)
+
+    ! Locals 
+    integer (ip) :: i
+ 
+    ! Version for blk storage layout still to be developped
+    assert ( a%storage == scal ) 
+!!$    if (a%storage == blk) then ! gr must describe block sparsity pattern of mat
+!!$       if(a%type==css_mat) then
+!!$          call matvec_css(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
+!!$       else if(a%type==csr_mat) then
+!!$          if (a%symm == symm_false) then
+!!$             call matvec_csr(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+!!$          else if (a%symm == symm_true) then
+!!$             call matvec_csr_symm(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
+!!$          end if
+!!$       else if(a%type==csc_mat) then
+!!$          call matvec_csc(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+!!$       end if
+!!$    else if (a%storage==scal) then
+    do i=1,n
+       if(a%type==css_mat) then
+          call matvec_css_scal(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
+       else if(a%type==csr_mat) then
+          if (a%symm == symm_false) then
+             call matvec_csr_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
+          else if (a%symm == symm_true) then
+             call matvec_csr_symm_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))          
+          end if
+       else if(a%type==csc_mat) then
+          call matvec_csc_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
+       end if
+    end do
+!!$    end if
+
+
+
+  end subroutine fem_matmat
+
+  subroutine fem_matvec_trans (a,x,y)
+    implicit none
+    type(fem_matrix) , intent(in)    :: a
+    type(fem_vector) , intent(in)    :: x
+    type(fem_vector) , intent(inout) :: y
+
+    assert ( a%nd1 == y%nd)
+    assert ( a%nd2 == x%nd)
+    assert ( x%storage == y%storage )
+    assert ( a%storage == x%storage )
+
+    if (a%storage == blk) then ! gr must describe block sparsity pattern of mat
+       if(a%type==css_mat) then
+          ! call matvec_css_trans(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
+          write (0,*) 'Error: the body of matvec_css_trans in matvec_dof.i90 still to be written'
+          write (0,*) 'Error: volunteers are welcome !!!'
+          stop
+       else if(a%type==csr_mat) then
+          if (a%symm == symm_false) then
+             call matvec_csr_trans(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          else if (a%symm == symm_true) then
+             ! call matvec_csr_symm_trans(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+             write (0,*) 'Error: the body of matvec_csr_symm_trans in matvec_dof.i90 still to be written'
+             write (0,*) 'Error: volunteers are welcome !!!'
+             stop
+          end if
+       else if(a%type==csc_mat) then
+          ! call matvec_csc_trans (a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          write (0,*) 'Error: the body of matvec_csc_trans in matvec_dof.i90 still to be written'
+          write (0,*) 'Error: volunteers are welcome !!!'
+          stop
+       end if
+    else if (a%storage==scal) then
+       if(a%type==css_mat) then
+          ! call matvec_css_scal_trans(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
+          write (0,*) 'Error: the body of matvec_css_scal_trans in matvec_dof.i90 still to be written'
+          write (0,*) 'Error: volunteers are welcome !!!'
+          stop          
+       else if(a%type==csr_mat) then
+          if (a%symm == symm_false) then
+             call matvec_csr_trans_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          else if (a%symm == symm_true) then
+             call matvec_csr_symm_trans_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
+          end if
+       else if(a%type==csc_mat) then
+          ! call matvec_csc_trans_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          write (0,*) 'Error: the body of matvec_csc_trans_scal in matvec_dof.i90 still to be written'
+          write (0,*) 'Error: volunteers are welcome !!!'
+          stop
+       end if
+    end if
+  end subroutine fem_matvec_trans
+
+  subroutine fem_matmat_trans (a, n, ldX, x, ldY, y)
+    implicit none
+
+    ! Parameters
+    type(fem_matrix) , intent(in)    :: a
+    integer(ip)      , intent(in)    :: n
+    integer(ip)      , intent(in)    :: ldX
+    real(rp)         , intent(in)    :: x(ldX, n)
+    integer(ip)      , intent(in)    :: ldY
+    real(rp)         , intent(inout) :: y(ldY, n)
+
+    ! Locals 
+    integer (ip) :: i
+
+    ! Version for blk storage layout still to be developped
+    assert ( a%storage == scal ) 
+
+!!$    if (a%storage == blk) then ! gr must describe block sparsity pattern of mat
+!!$       if(a%type==css_mat) then
+!!$          ! call matvec_css_trans(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
+!!$          write (0,*) 'Error: the body of matvec_css_trans in matvec_dof.i90 still to be written'
+!!$          write (0,*) 'Error: volunteers are welcome !!!'
+!!$          stop
+!!$       else if(a%type==csr_mat) then
+!!$          if (a%symm == symm_false) then
+!!$             call matvec_csr_trans(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+!!$          else if (a%symm == symm_true) then
+!!$             ! call matvec_csr_symm_trans(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+!!$             write (0,*) 'Error: the body of matvec_csr_symm_trans in matvec_dof.i90 still to be written'
+!!$             write (0,*) 'Error: volunteers are welcome !!!'
+!!$             stop
+!!$          end if
+!!$       else if(a%type==csc_mat) then
+!!$          ! call matvec_csc_trans (a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+!!$          write (0,*) 'Error: the body of matvec_csc_trans in matvec_dof.i90 still to be written'
+!!$          write (0,*) 'Error: volunteers are welcome !!!'
+!!$          stop
+!!$       end if
+!!$    else if (a%storage==scal) then
+
+    do i=1,n
+       if(a%type==css_mat) then
+          ! call matvec_css_scal_trans(a%nd1,a%nd2,a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
+          write (0,*) 'Error: the body of matvec_css_scal_trans in matvec_dof.i90 still to be written'
+          write (0,*) 'Error: volunteers are welcome !!!'
+          stop          
+       else if(a%type==csr_mat) then
+          if (a%symm == symm_false) then
+             call matvec_csr_trans_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i) )
+          else if (a%symm == symm_true) then
+             call matvec_csr_symm_trans_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv,i),y(1:a%gr%nv2,i))          
+          end if
+       else if(a%type==csc_mat) then
+          ! call matvec_csc_trans_scal(a%nd1,a%nd2,a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          write (0,*) 'Error: the body of matvec_csc_trans_scal in matvec_dof.i90 still to be written'
+          write (0,*) 'Error: volunteers are welcome !!!'
+          stop
+       end if
+    end do
+
+!!$    end if
+
+  end subroutine fem_matmat_trans
+
+  ! op%apply(x,y) <=> y <- op*x
+  ! Implicitly assumes that y is already allocated
+  subroutine fem_matrix_apply(op,x,y) 
+    implicit none
+    class(fem_matrix), intent(in)    :: op
+    class(base_operand) , intent(in)    :: x
+    class(base_operand) , intent(inout) :: y 
+
+    call x%GuardTemp()
+
+    select type(x)
+    class is (fem_vector)
+       select type(y)
+       class is(fem_vector)
+          call fem_matvec(op, x, y)
+       class default
+          write(0,'(a)') 'fem_matrix%apply: unsupported y class'
+          check(1==0)
+       end select
+    class default
+       write(0,'(a)') 'fem_matrix%apply: unsupported x class'
+       check(1==0)
+    end select
+
+    call x%CleanTemp()
+  end subroutine fem_matrix_apply
+
+  ! op%apply(x)
+  ! Allocates room for (temporary) y
+  function fem_matrix_apply_fun(op,x) result(y)
+    implicit none
+    class(fem_matrix), intent(in)  :: op
+    class(base_operand) , intent(in)  :: x
+    class(base_operand) , allocatable :: y 
+
+    type(fem_vector), allocatable :: local_y
+
+    select type(x)
+    class is (fem_vector)
+       allocate(local_y)
+       call fem_vector_alloc ( op%storage, op%nd1, op%gr%nv, local_y)
+       call fem_matvec(op, x, local_y)
+       call move_alloc(local_y, y)
+       call y%SetTemp()
+    class default
+       write(0,'(a)') 'fem_matrix%apply_fun: unsupported x class'
+       check(1==0)
+    end select
+    
+ 
+  end function fem_matrix_apply_fun
 
 end module fem_matrix_names

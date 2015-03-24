@@ -25,30 +25,45 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par
+module serial_operator_names
+  use types
+  use base_operator_names
+  implicit none
 
-  ! Tools
-  use par_context_names
-  use psb_penv_mod
-  use par_sparse_global_collectives
-  use par_element_exchange
-  use par_timer_names
-  use par_io 
+  private
 
-  ! Geometry
-  use par_partition_names
-  use par_mesh_names
-  use par_mesh_partition_conditions
-  use par_triangulation_names
-  use par_mesh_triangulation
+  ! Serial operator (overrides those methods that are 
+  ! trivially implemented in the sequential case)
+  type, abstract, extends(base_operator) :: serial_operator
+   contains
+     procedure  :: info => serial_operator_info
+     procedure  :: am_i_fine_task => serial_operator_am_i_fine_task
+     procedure  :: bcast => serial_operator_bcast
+  end type serial_operator
 
-  ! Linear algebra
-  use par_vector_names
-  use par_matrix_names
-  use par_graph_names
-  use par_block_matrix_names
-  use par_block_vector_names
-  use par_block_vector_krylov_basis_names
-  use par_block_matrix_vector
-    
-end module par
+  public :: serial_operator
+
+contains
+  subroutine serial_operator_info(op,me,np) 
+    implicit none
+    class(serial_operator), intent(in)  :: op
+    integer(ip)           , intent(out) :: me
+    integer(ip)           , intent(out) :: np
+    me = 0
+    np = 1
+  end subroutine serial_operator_info
+
+  function serial_operator_am_i_fine_task(op) 
+    implicit none
+    class(serial_operator), intent(in)  :: op
+    logical                             :: serial_operator_am_i_fine_task
+    serial_operator_am_i_fine_task = .true.
+  end function serial_operator_am_i_fine_task
+  
+  subroutine serial_operator_bcast (op, condition)
+    implicit none
+    class(serial_operator), intent(in) :: op
+    logical, intent(inout) :: condition
+  end subroutine serial_operator_bcast
+
+end module serial_operator_names

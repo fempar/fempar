@@ -73,7 +73,7 @@ MOD=-$J$O
 ifeq ($(NAME),fem)
   SOURCE=../../Sources/Fem
   INCLUDES=../../Sources
-  FCOMP=$(FC_SER) $(ENABLE_BLAS) $(ENABLE_MKL) $(ENABLE_GIDPOST) $(ENABLE_METIS5) $(ENABLE_METIS4) $(ENABLE_WSMP) $(ENABLE_HSL_MI20) $(ENABLE_HSL_MA87) $(ENABLE_P4EST) $(ENABLE_UMFPACK)
+  FCOMP=$(FC_SER) $(ENABLE_BLAS) $(ENABLE_LAPACK) $(ENABLE_MKL) $(ENABLE_GIDPOST) $(ENABLE_METIS5) $(ENABLE_METIS4) $(ENABLE_WSMP) $(ENABLE_HSL_MI20) $(ENABLE_HSL_MA87) $(ENABLE_P4EST) $(ENABLE_UMFPACK)
 endif
 #
 #-----------------------------------------------------------------------
@@ -83,7 +83,7 @@ ifeq ($(NAME),par)
   DEPSG = $(COMPILER)/libfem_g.a  
   DEPSO = $(COMPILER)/libfem_O.a  
   DEPSP = $(COMPILER)/libfem_p.a 
-  FCOMP=$(FC_PAR) $(ENABLE_BLAS) $(ENABLE_MKL) $(ENABLE_GIDPOST) $(ENABLE_METIS5) $(ENABLE_METIS4) $(ENABLE_ZOLTAN) $(ENABLE_WSMP) $(ENABLE_HSL_MI20) $(ENABLE_HSL_MA87) $(ENABLE_TRILINOS) $(ENABLE_P4EST) $(ENABLE_UMFPACK)
+  FCOMP=$(FC_PAR) $(ENABLE_BLAS) $(ENABLE_LAPACK) $(ENABLE_MKL) $(ENABLE_GIDPOST) $(ENABLE_METIS5) $(ENABLE_METIS4) $(ENABLE_ZOLTAN) $(ENABLE_WSMP) $(ENABLE_HSL_MI20) $(ENABLE_HSL_MA87) $(ENABLE_TRILINOS) $(ENABLE_P4EST) $(ENABLE_UMFPACK)
 endif
 #
 #-----------------------------------------------------------------------
@@ -93,7 +93,7 @@ ifeq ($(NAME),prob)
   DEPSG = $(COMPILER)/libfem_g.a  
   DEPSO = $(COMPILER)/libfem_O.a  
   DEPSP = $(COMPILER)/libfem_p.a 
-  FCOMP=$(FC_SER) $(ENABLE_BLAS) $(ENABLE_MKL) 
+  FCOMP=$(FC_SER) $(ENABLE_BLAS) $(ENABLE_LAPACK) $(ENABLE_MKL) 
 endif
 #
 #-----------------------------------------------------------------------

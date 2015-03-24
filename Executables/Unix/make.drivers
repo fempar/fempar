@@ -87,6 +87,10 @@ MAIN=$(NAME)
 SOURCE=../../Sources/Drivers/$(FEMPAR_USER)
 MODULES=../../Sources/Drivers/support
 INCLUDES=../../Sources
+# FEM DRIVER SOURCES DIRECTORY
+FEMSOURCE=../../Sources/Drivers/Fem/$(FEMPAR_USER)
+# PAR DRIVER SOURCES DIRECTORY
+PARSOURCE=../../Sources/Drivers/Par/$(FEMPAR_USER)
 #
 #-----------------------------------------------------------------------
 # The drivers that will be compiled are defined in the file DRIVERS_FILE
@@ -102,9 +106,12 @@ PAR_PROB_DRIVERS_CONFIG=${addsuffix .obj,$(PAR_PROB_DRIVERS)} ${addsuffix .dep,$
 ifeq ($(TYPE),fem_prob_driver)
   DEPSG+= $(COMPILER)/libfem_g.a $(COMPILER)/libprob_g.a
   DEPSO+= $(COMPILER)/libfem_O.a $(COMPILER)/libprob_O.a
-  LIB_DIR = -L$(COMPILER) $(BLAS_DIR) $(MKL_DIR) $(GIDPOST_DIR) $(METIS_DIR) $(WSMP_DIR) $(HSL_MI20_DIR) $(HSL_MA87_DIR) $(P4EST_DIR) $(P4EST_WRAPPER_DIR) $(UMFPACK_DIR)
-  LIBSG   = $(LIB_DIR) -lprob_g -lfem_g $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(P4EST_LIB) $(P4EST_WRAPPER_LIB) $(UMFPACK_LIB)
-  LIBSO   = $(LIB_DIR) -lprob_O -lfem_O $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(P4EST_LIB) $(P4EST_WRAPPER_LIB) $(UMFPACK_LIB) 
+  #LIB_DIR = -L$(COMPILER) $(BLAS_DIR) $(MKL_DIR) $(GIDPOST_DIR) $(METIS_DIR) $(WSMP_DIR) $(HSL_MI20_DIR) $(HSL_MA87_DIR) $(P4EST_DIR) $(P4EST_WRAPPER_DIR) $(UMFPACK_DIR)
+  LIB_DIR = -L$(COMPILER) $(BLAS_DIR) $(MKL_DIR) $(GIDPOST_DIR) $(METIS_DIR) $(WSMP_DIR) $(HSL_MI20_DIR) $(HSL_MA87_DIR) $(UMFPACK_DIR)
+  #LIBSG   = $(LIB_DIR) -lprob_g -lfem_g $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(P4EST_LIB) $(P4EST_WRAPPER_LIB) $(UMFPACK_LIB)
+  LIBSG   = $(LIB_DIR) -lprob_g -lfem_g $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(UMFPACK_LIB)
+  #LIBSO   = $(LIB_DIR) -lprob_O -lfem_O $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(P4EST_LIB) $(P4EST_WRAPPER_LIB) $(UMFPACK_LIB) 
+  LIBSO   = $(LIB_DIR) -lprob_O -lfem_O $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(UMFPACK_LIB) 
   FCOMP=$(FC_SER) 
   LINK=$(LINK_SER)
   INC=-$I../../Sources/Generic -$I$O $(MKL_MOD) $(HSL_MI20_MOD) $(HSL_MA87_MOD)
@@ -115,9 +122,9 @@ endif
 ifeq ($(TYPE),fem_driver)
   DEPSG+= $(COMPILER)/libfem_g.a
   DEPSO+= $(COMPILER)/libfem_O.a
-  LIB_DIR = -L$(COMPILER) $(BLAS_DIR) $(MKL_DIR) $(GIDPOST_DIR) $(METIS_DIR) $(WSMP_DIR) $(HSL_MI20_DIR) $(HSL_MA87_DIR)
-  LIBSG   = $(LIB_DIR) -lfem_g $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) 
-  LIBSO   = $(LIB_DIR) -lfem_O $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) 
+  LIB_DIR = -L$(COMPILER) $(BLAS_DIR) $(MKL_DIR) $(GIDPOST_DIR) $(METIS_DIR) $(WSMP_DIR) $(HSL_MI20_DIR) $(HSL_MA87_DIR) $(UMFPACK_DIR)
+  LIBSG   = $(LIB_DIR) -lfem_g $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(UMFPACK_LIB)
+  LIBSO   = $(LIB_DIR) -lfem_O $(WSMP_LIB) $(HSL_MI20_LIB) $(HSL_MA87_LIB) $(METIS_LIB) $(GIDPOST_LIB) $(MKL_LIB) $(BLAS_LIB) $(UMFPACK_LIB)
   FCOMP=$(FC_SER) 
   LINK=$(LINK_SER)
   INC=-$I../../Sources/Generic -$I$O $(MKL_MOD) $(HSL_MI20_MOD) $(HSL_MA87_MOD)
@@ -258,10 +265,15 @@ newfile:
 # GENERIC rules
 #-----------------------------------------------------------------------
 # Generic configuration rules
+
+# $(if $(findstring $@,$(PAR_PROB_DRIVERS_CONFIG)),$(PARSOURCE),$(FEMSOURCE))
+# Returns $(PARSOURCE) if $@ is substring of $(PAR_PROB_DRIVERS_CONFIG)
+# ELSE RETURNS $(FEMSOURCE)
+
 %.obj:
-	configuref90 ${basename $@} --srcdir=$(SOURCE) --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
+	configuref90 ${basename $@} --srcdir=$(if $(findstring $@,$(PAR_PROB_DRIVERS_CONFIG)),$(PARSOURCE),$(FEMSOURCE))  --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
 %.dep:
-	configuref90 ${basename $@} --srcdir=$(SOURCE) --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
+	configuref90 ${basename $@} --srcdir=$(if $(findstring $@,$(PAR_PROB_DRIVERS_CONFIG)),$(PARSOURCE),$(FEMSOURCE))  --moddir=$(MODULES) --macros=$(MACROS) --check=${basename $@} --objdir='$$O'
 
 #-----------------------------------------------------------------------
 # Generic executables rules

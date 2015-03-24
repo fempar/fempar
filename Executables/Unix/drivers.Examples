@@ -30,5 +30,5 @@
 #
 FEM_PROB_DRIVERS=
 #test_sort test_hash_table merger test_dirsol_mm merge_part 
-FEM_DRIVERS= part_new
+FEM_DRIVERS= part_new test_dirsol_mm
 PAR_PROB_DRIVERS= par_test_element_exchange

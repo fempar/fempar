@@ -31,7 +31,6 @@ module fem_block_matrix_vector
   use fem_block_vector_names
   use fem_matrix_names
   use fem_vector_names
-  use fem_matrix_vector
   implicit none
 # include "debug.i90"
 

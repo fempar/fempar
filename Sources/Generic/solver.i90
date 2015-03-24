@@ -1,0 +1,2501 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!=============================================================================
+! Generic Solve (public driver)
+!=============================================================================
+subroutine generic_solve(A,M,b,x,ctrl)
+  implicit none
+  type(generic_mat)   , intent(inout) :: A        ! Matrix
+  type(generic_pre)   , intent(inout) :: M        ! Preconditioner
+  type(generic_vec)   , intent(in)    :: b        ! RHS
+  type(generic_vec)   , intent(inout) :: x        ! Approximate solution
+  type(solver_control), intent(inout) :: ctrl
+
+  call solver_control_allocate_conv_his ( ctrl )
+
+  ! Invoke Krylov Subspace Solver
+  select case( ctrl%method )
+  case ( cg )
+     call generic_pcg ( A, M, b, x, ctrl )
+  case ( lgmres )
+     call generic_plgmres ( A, M, b, x, ctrl )
+  case ( rgmres )
+     call generic_prgmres ( A, M, b, x, ctrl )
+  case ( fgmres )
+     call generic_pfgmres ( A, M, b, x, ctrl )
+  case ( richard )
+     call generic_prichard ( A, M, b, x, ctrl )
+  case( direct )
+     call generic_precond ( A, M, b, x )
+  case ( icg )
+     call generic_ipcg ( A, M, b, x, ctrl )
+  case ( lfom )
+     call generic_plfom ( A, M, b, x, ctrl )
+  case ( minres )
+     call generic_pminres ( A, M, b, x, ctrl )
+  case default
+     ! Write an error message and stop ?      
+  end select
+
+end subroutine generic_solve
+
+!=============================================================================
+! Generic Preconditioned Conjugate Gradient
+!=============================================================================
+subroutine generic_pcg( A, M, b, x, ctrl )
+  !-----------------------------------------------------------------------------
+  ! This routine performs pcg iterations on Ax=b with preconditioner M. 
+  !-----------------------------------------------------------------------------
+  implicit none
+
+  ! Parameters
+  type(generic_mat)   , intent(inout) :: A        ! Matrix
+  type(generic_pre)   , intent(inout) :: M        ! Preconditioner
+  type(generic_vec)   , intent(in)    :: b        ! RHS
+  type(generic_vec)   , intent(inout) :: x        ! Approximate solution
+  type(solver_control), intent(inout) :: ctrl     ! Control data
+
+  ! Locals
+  real(rp)           :: r_nrm_M      ! |r|_inv(M) 
+  real(rp)           :: b_nrm_M      ! |b|_inv(M)
+  real(rp)           :: r_z, Ap_p, alpha, beta
+  integer            :: me, np
+  type(generic_vec)  :: r,p,Ap,z     ! Working vectors
+
+  call generic_clone ( x, r  )
+  call generic_clone ( x, Ap )
+  call generic_clone ( x, z  )
+  call generic_clone ( x, p  )
+
+  call generic_info  ( A, me, np )
+
+  ! Evaluate |b|_inv(M) if required
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+     ! r = inv(M) b
+     call generic_precond (A, M, b, r)
+     call generic_dot (b,r,b_nrm_M)
+     if ( generic_fine_task (M) ) then ! Am I a fine task ?
+        b_nrm_M = sqrt(b_nrm_M)
+     end if
+  else
+     b_nrm_M = 0.0_rp
+  endif
+
+  ! 1) Compute initial residual
+  ! 1.a) r=Ax
+  call generic_matvec ( A, x, r )
+
+  ! 1.b) r=b-r
+  call generic_pxmy( b, r )
+
+  ! 2) z=inv(M)r
+  call generic_precond( A , M , r , z )
+
+  ! 3) <r,z>
+  call generic_dot( r, z, r_z )
+
+  if ( generic_fine_task (M) ) then ! Am I a fine task ?
+     r_nrm_M = sqrt( r_z )
+  end if
+
+  ! 4) Initializations:
+  ! p=z
+  call generic_copy(z,p) 
+
+  if ( generic_fine_task(M) ) then
+     ! Init and log convergence 
+     call pcg_conv_init (  b, r, b_nrm_M, r_nrm_M, ctrl )
+     if ((me == 0).and.(ctrl%trace/=0))  call solver_control_log_header(ctrl)
+  end if
+
+  ! 5) Iteration
+  ctrl%it = 0
+  loop_pcg: do
+     ctrl%it = ctrl%it + 1
+
+     ! Ap = A*p
+     call generic_matvec(A,p,Ap)
+
+     ! <Ap,p>
+     call generic_dot (Ap, p, Ap_p)
+
+     ! Is this correct/appropriate ?
+     if (Ap_p /= 0.0_rp) then
+        alpha = r_z / Ap_p
+     else
+        alpha = 0.0_rp
+     end if
+
+     ! x = x + alpha*p
+     call generic_axpy ( alpha, p, x )
+
+     ! r = r - alpha*Ap
+     call generic_axpy (-alpha, Ap, r )
+
+     if ( generic_fine_task(M) ) then
+        ! Check and log convergence
+        call pcg_conv_check(r, r_nrm_M, alpha, p, ctrl )
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+     end if
+     ! Send converged to coarse-grid tasks
+     call generic_bcast ( M, ctrl%converged )
+     if(ctrl%converged.or.(ctrl%it>=ctrl%itmax)) exit loop_pcg
+
+     ! z = inv(M) r
+     call generic_precond(A,M,r,z)
+
+     if (generic_fine_task (M) ) then ! Am I a fine task ?
+        beta = 1.0_rp/r_z
+     else
+        beta = 0.0_rp 
+     end if
+
+     call generic_dot(r,z,r_z)
+     beta = beta*r_z
+
+     if ( generic_fine_task (M) ) then ! Am I a fine task ?
+        r_nrm_M = sqrt( r_z )
+     end if
+
+     ! p = z + beta*p
+     call generic_aypx(beta,z,p)
+  end do loop_pcg
+
+  call generic_free ( r  )
+  call generic_free ( Ap )
+  call generic_free ( z  )
+  call generic_free ( p  )
+
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+
+end subroutine generic_pcg
+
+!=============================================================================
+! Generic Inexact Preconditioned Conjugate Gradient
+! (Taken from Golub et. al paper 
+!  Inexact Preconditioned Conjugate Gradient Method with Inner-Outer Iteration)
+!=============================================================================
+subroutine generic_ipcg( A, M, b, x, ctrl )
+  !-----------------------------------------------------------------------------
+  ! This routine performs pcg iterations on Ax=b with preconditioner M. 
+  !-----------------------------------------------------------------------------
+  implicit none
+
+  ! Parameters
+  type(generic_mat)   , intent(inout) :: A        ! Matrix
+  type(generic_pre)   , intent(inout) :: M        ! Preconditioner
+  type(generic_vec)   , intent(in)    :: b        ! RHS
+  type(generic_vec)   , intent(inout) :: x        ! Approximate solution
+  type(solver_control), intent(inout) :: ctrl     ! Control data
+
+  ! Locals
+  real(rp)           :: r_nrm_M      ! |r|_inv(M) 
+  real(rp)           :: b_nrm_M      ! |b|_inv(M)
+  real(rp)           :: r_z, r2_z, Ap_p, alpha, beta
+  integer            :: me, np
+  type(generic_vec)  :: r,r2,p,Ap,z     ! Working vectors
+
+  call generic_clone ( x, r  )
+  call generic_clone ( x, r2 ) 
+  call generic_clone ( x, Ap )
+  call generic_clone ( x, z  )
+  call generic_clone ( x, p  )
+
+  call generic_info  ( A, me, np )
+
+  ! Evaluate |b|_inv(M) if required
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+     ! r = inv(M) b
+     call generic_precond (A, M, b, r)
+     call generic_dot (b,r,b_nrm_M)
+     if ( generic_fine_task (M) ) then ! Am I a fine task ?
+        b_nrm_M = sqrt(b_nrm_M)
+     end if
+  else
+     b_nrm_M = 0.0_rp
+  endif
+
+  ! 1) Compute initial residual
+  ! 1.a) r=Ax
+  call generic_matvec ( A, x, r )
+
+  ! 1.b) r=b-r
+  call generic_pxmy( b, r )
+
+  ! 2) z=inv(M)r
+  call generic_precond( A , M , r , z )
+
+  ! 3) <r,z>
+  call generic_dot( r, z, r_z )
+
+  if ( generic_fine_task (M) ) then ! Am I a fine task ?
+     r_nrm_M = sqrt( r_z )
+  end if
+
+  ! 4) Initializations:
+  ! p=z
+  call generic_copy(z,p) 
+
+  if ( generic_fine_task(M) ) then
+     ! Init and log convergence 
+     call pcg_conv_init (  b, r, b_nrm_M, r_nrm_M, ctrl )
+     if ((me == 0).and.(ctrl%trace/=0))  call solver_control_log_header(ctrl)
+  end if
+
+  ! 5) Iteration
+  ctrl%it = 0
+  loop_pcg: do
+     ctrl%it = ctrl%it + 1
+
+     ! Ap = A*p
+     call generic_matvec(A,p,Ap)
+
+     ! <Ap,p>
+     call generic_dot (Ap, p, Ap_p)
+
+     ! Is this correct/appropriate ?
+     if (Ap_p /= 0.0_rp) then
+        alpha = r_z / Ap_p
+     else
+        alpha = 0.0_rp
+     end if
+
+     ! x = x + alpha*p
+     call generic_axpy ( alpha, p, x )
+
+     call generic_copy ( r, r2 )     
+
+     ! r = r - alpha*Ap
+     call generic_axpy (-alpha, Ap, r )
+
+     if ( generic_fine_task(M) ) then
+        ! Check and log convergence
+        call pcg_conv_check(r, r_nrm_M, alpha, p, ctrl )
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+     end if
+     ! Send converged to coarse-grid tasks
+     call generic_bcast ( M, ctrl%converged )
+     if(ctrl%converged.or.(ctrl%it>=ctrl%itmax)) exit loop_pcg
+
+     ! z = inv(M) r
+     call generic_precond(A,M,r,z)
+
+     if ( generic_fine_task (M) ) then ! Am I a fine task ?
+        beta = 1.0_rp/r_z
+        call generic_dot(r,z ,r_z)
+        call generic_dot(r2,z,r2_z)	
+        beta = beta*(r_z-r2_z)
+     else
+        beta = 0.0_rp
+     end if
+     
+     if ( generic_fine_task (M) ) then ! Am I a fine task ?
+        r_nrm_M = sqrt( r_z )
+     end if
+
+     ! p = z + beta*p
+     call generic_aypx(beta,z,p)
+  end do loop_pcg
+
+  call generic_free ( r  )
+  call generic_free ( r2 )
+  call generic_free ( Ap )
+  call generic_free ( z  )
+  call generic_free ( p  )
+
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+
+end subroutine generic_ipcg
+
+subroutine pcg_conv_init ( b, r , nrm_b_given, nrm_r_given, ctrl )
+  implicit none 
+  type(generic_vec)   , intent(in)    :: b, r
+  real(rp)            , intent(in)    :: nrm_b_given, nrm_r_given 
+  type(solver_control), intent(inout) :: ctrl
+
+  select case(ctrl%stopc)
+  case ( delta_rhs, res_rhs, delta_rhs_and_res_rhs, delta_delta_and_res_rhs )
+     call generic_nrm2 ( b, ctrl%bn2 )
+     ctrl%tol1 = ctrl%rtol* ctrl%bn2 + ctrl%atol
+     ctrl%tol2 = ctrl%tol1
+  case ( res_res, delta_delta_and_res_res )
+     call generic_nrm2 ( r, ctrl%rn2 )
+     ctrl%tol1 = ctrl%rtol* ctrl%rn2 + ctrl%atol
+     ctrl%tol2 = ctrl%tol1
+  case ( delta_rhs_and_res_res )
+     call generic_nrm2 ( b, ctrl%bn2 )
+     call generic_nrm2 ( r, ctrl%rn2 )
+     ctrl%tol1 = ctrl%rtol* ctrl%bn2 + ctrl%atol
+     ctrl%tol2 = ctrl%rtol* ctrl%rn2 + ctrl%atol
+  case ( res_nrmgiven_rhs_nrmgiven )
+     ctrl%tol1 = ctrl%rtol* nrm_b_given + ctrl%atol
+  case ( res_nrmgiven_res_nrmgiven )
+     ctrl%tol1 = ctrl%rtol* nrm_r_given + ctrl%atol
+  case default
+     ! Write an error message and stop ?      
+  end select
+
+  return
+
+end subroutine pcg_conv_init
+
+subroutine pcg_conv_check ( r, nrm_r_given, alpha, p, ctrl )
+  implicit none 
+  ! Parameters
+  type(generic_vec)   , intent(in)    :: r, p
+  real(rp)            , intent(in)    :: nrm_r_given
+  real(rp)            , intent(in)    :: alpha
+  type(solver_control), intent(inout) :: ctrl
+
+  ! Compute 1st iteration error estimate and upper bound 
+  ! for convergence criteria depending on ||dx(i)||
+  if ( ctrl%it == 1 ) then
+     select case( ctrl%stopc )
+     case ( delta_rhs, delta_delta,  delta_rhs_and_res_res, delta_rhs_and_res_rhs, &
+          & delta_delta_and_res_res, delta_delta_and_res_rhs )
+        call generic_nrm2 ( p, ctrl%err1 )
+        ctrl%err1 = alpha * ctrl%err1
+        select case( ctrl%stopc )
+        case ( delta_delta, delta_delta_and_res_res, delta_delta_and_res_rhs ) 
+           ctrl%dxn2 = ctrl%err1
+           ctrl%tol1 = ctrl%rtol*ctrl%dxn2 + ctrl%atol
+        end select
+     end select
+  end if
+
+  ctrl%converged = .false.
+
+  ! Evaluate 1st convergence criterion
+  select case( ctrl%stopc )
+
+  case ( res_res, res_rhs )
+     ! Compute || r(i) ||
+     call generic_nrm2 ( r, ctrl%err1 )
+
+  case ( delta_rhs, delta_delta, delta_rhs_and_res_res, delta_rhs_and_res_rhs, &
+       & delta_delta_and_res_res,delta_delta_and_res_rhs )
+     if ( ctrl%it /= 1 ) then ! if false, no need to evaluate ||dx(i)|| again
+        ! Compute || dx(i) ||
+        call generic_nrm2 ( p, ctrl%err1 )
+        ctrl%err1 = alpha * ctrl%err1
+     end if
+
+  case ( res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
+     ctrl%err1 = nrm_r_given
+
+  end select
+  ctrl%err1h(ctrl%it) = ctrl%err1
+  ctrl%converged = (ctrl%err1 <= ctrl%tol1 )
+
+  ! Evaluate 2nd convergence criterion
+  select case( ctrl%stopc )
+  case ( delta_rhs_and_res_res,   delta_rhs_and_res_rhs, &
+       & delta_delta_and_res_res, delta_delta_and_res_rhs )
+     if ( ctrl%converged ) then
+        ! Compute || r(i) ||
+        call generic_nrm2 ( r, ctrl%err2 )
+        ctrl%converged = (ctrl%err2 <= ctrl%tol2 )
+        ctrl%err2h(ctrl%it) = ctrl%err2
+     end if
+  end select
+
+  return
+end subroutine pcg_conv_check
+
+!=============================================================================
+! Generic Left Preconditioned GMRES
+!=============================================================================
+!
+! TODO:  1. Review orthogonalization procedures. (Done: MGS or ICGS)
+!        2. Implement the whole list of convergence criteria available
+!           for PCG. Only two are currently implemented.
+!        3. Set err1/err2 accordingly to the work performed in
+!           point 2 above.
+!        4. Use level-2-BLAS for backward/forward substitution + 
+!           ICGS. This last option would imply defining a generic
+!           data structure for storing Krylov subspace bases.  (DONE)
+!        5. Breakdown detection ? (DONE: Taken from Y. Saad's SPARSKIT)
+! 
+! Help to point 1: from Trilinos AztecOO 3.6 user's guide:
+!
+! As mentioned above, GMRES is by far the most robust general-purpose Krylov
+! method available. Part of its robustness comes from the ability to tune two parameters,
+! namely options[AZ kspace] and options[AZ orthog]. options[AZ kspace] determines
+! the number of Krylov vectors that will be used as part of the least-squares
+! problem to generate the next approximate solution. Generally setting this value
+! larger improves the robustness, decreases iteration count, but increases costs.
+! This value is set to 30 by default, but for challenging problems one should set it
+! (much) higher, especially if memory is available on the computer. For very difficult
+! problems, we recommend setting options[AZ kspace] equal to the maximum
+! number of iterations.
+
+! The parameter options[AZ orthog] can be used to select the type of Gram-Schmidt
+! algorithm to used. We provide two options:
+!   1. Two steps of classical Gram-Schmidt (Double CGS).
+!   2. One step of modified Gram-Schmidt. (Single MGS).
+! For many years, (single) MGS was the preferred option for GMRES because of
+! its superior numerical accuracy over single CGS. However, in the past several
+! years it has been recognized that double CGS is more effective than single MGS,
+! as effective as double MGS and has superior parallel performance. As a result,
+! AztecOO uses double CGS by default. However, there may be instances where
+! single MGS would be sufficient for robustness and it can have a lower cost in some
+! situations.
+subroutine generic_plgmres ( A, M, b, x, ctrl ) 
+  !--------------------------------------------------------------------
+  ! This routine performs plgmres iterations on Ax=b with preconditioner M. 
+  !--------------------------------------------------------------------
+#ifdef ENABLE_BLAS       
+  use blas77_interfaces
+#endif
+  implicit none
+  type(generic_mat)   , intent(inout) :: A              ! Matrix
+  type(generic_pre)   , intent(inout) :: M              ! Preconditioner
+  type(generic_vec)   , intent(inout) :: x              ! Solution
+  type(generic_vec)   , intent(in)    :: b              ! RHS
+  type(solver_control), intent(inout) :: ctrl
+
+  integer(ip)                    :: ierrc
+  integer(ip)                    :: kloc, kloc_aux, i, j, k_hh, id
+  real(rp)                       :: res_norm, res_2_norm, rhs_norm
+  real(rp)                       :: alpha, c, s 
+  real(rp)   , allocatable       :: hh(:,:), g(:), g_aux(:), cs(:,:)
+  integer                        :: me, np
+  logical                        :: exit_loop
+
+  type(generic_vec)              :: r, z     ! Working vectors
+  type(generic_vec)              :: q_aux    
+  type(generic_krylov_basis)     :: bkry     ! Krylov basis
+
+  assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs.or.ctrl%stopc==res_nrmgiven_res_nrmgiven.or.ctrl%stopc==res_nrmgiven_rhs_nrmgiven)
+
+  ! Clone x in order to allocate working vectors
+  call generic_clone ( b, r )
+  call generic_clone ( x, z )
+
+  call generic_krylov_basis_alloc ( ctrl%dkrymax+1, x, bkry )
+
+  ! Allocate working vectors
+  call memalloc(ctrl%dkrymax+1,ctrl%dkrymax+1,hh,__FILE__,__LINE__)
+  call memalloc(ctrl%dkrymax+1,g,__FILE__,__LINE__)
+  if ( ctrl%stopc == res_res .or. ctrl%stopc == res_rhs ) then
+     call memalloc(ctrl%dkrymax+1,g_aux,__FILE__,__LINE__)
+  end if
+  call memalloc(2,ctrl%dkrymax+1,cs,__FILE__,__LINE__)
+
+  call generic_info  ( A, me, np )
+
+  ! Evaluate ||b||_2 if required
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven .or. ctrl%stopc == res_rhs  ) then
+     call generic_nrm2 (b, rhs_norm)
+  endif
+
+  ! r = Ax
+  call generic_matvec(A,x,r)
+
+  ! r = b-r
+  call generic_pxmy(b,r)
+
+  if ( ctrl%stopc == res_res .or. ctrl%stopc == res_rhs  ) then
+      call generic_nrm2 (r, res_2_norm)
+  end if
+
+  ! z=inv(M)r
+  call generic_precond(A,M,r,z)
+
+  ! Evaluate ||z||_2
+  call generic_nrm2 (z, res_norm)
+
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+     ctrl%tol1  = ctrl%rtol * rhs_norm + ctrl%atol
+     ctrl%err1 = res_norm 
+  else if ( ctrl%stopc == res_nrmgiven_res_nrmgiven ) then
+     ctrl%tol1 = ctrl%rtol * res_norm + ctrl%atol
+     ctrl%err1 = res_norm
+  else if ( ctrl%stopc == res_res ) then
+     ctrl%tol1 = ctrl%rtol * res_2_norm + ctrl%atol
+     ctrl%err1 = res_2_norm
+  else if ( ctrl%stopc == res_rhs ) then
+     ctrl%tol1 = ctrl%rtol * rhs_norm + ctrl%atol
+     ctrl%err1 = res_2_norm
+  end if
+  exit_loop = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, exit_loop )
+
+  if ( generic_fine_task(M) ) then
+     if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
+  end if
+
+  ctrl%it = 0
+  outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
+
+     ! Compute preconditioned residual from scratch (only if ctrl%it/=0)
+     if ( ctrl%it /= 0 ) then 
+        ! r = Ax
+        call generic_matvec(A,x,r)
+
+        ! r = b-r
+        call generic_pxmy(b,r)
+
+        ! z=inv(M)r
+        call generic_precond(A,M,r,z)  
+
+        ! Evaluate ||z||_2
+        call generic_nrm2 (z, res_norm)
+     end if
+
+     ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
+     call generic_krylov_basis_extract_view ( 1, bkry, q_aux )
+     call generic_scale( 1.0_rp/res_norm, z, q_aux )
+     call generic_free ( q_aux )
+
+     ! residual in the krylov basis
+     g(1)            = res_norm
+     g(2:ctrl%dkrymax+1) = 0.0_rp
+
+     ! start iterations
+     kloc = 0
+     inner: do while ( (.not.exit_loop) .and. &
+          &            (ctrl%it < ctrl%itmax) .and. &
+          &            (kloc < ctrl%dkrymax))
+        kloc  = kloc  + 1
+        ctrl%it = ctrl%it + 1
+
+        ! Generate new basis vector
+        call generic_krylov_basis_extract_view ( kloc, bkry, q_aux )
+        call generic_matvec ( A, q_aux, r )
+        call generic_free   ( q_aux )
+        call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
+        call generic_precond( A, M, r, q_aux )
+        call generic_free ( q_aux )
+
+        if ( generic_fine_task (M) ) then ! Am I a fine task ?
+           ! Orthogonalize
+           select case( ctrl%orto )
+           case ( mgs )
+              call mgsro  ( ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+           case ( icgs )
+              call icgsro ( ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+           case default
+              ! Write an error message and stop ?      
+           end select
+           if ( ierrc < 0 ) then
+              ! The coarse-grid task should exit 
+              ! the inner-do loop. Send signal.
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop) 
+              exit inner ! Exit inner do-loop
+           end if
+
+           ! Apply previous given's rotations to kth column of hessenberg matrix
+           k_hh = 1
+           do j = 1,kloc-1    
+              alpha = hh(k_hh,kloc)
+              c = cs(1,j)
+              s = cs(2,j)
+              hh(k_hh,kloc) = c*alpha + s*hh(k_hh+1,kloc)
+              hh(k_hh+1,kloc) = c*hh(k_hh+1,kloc) - s*alpha
+              k_hh = k_hh +1
+           enddo
+
+           ! Compute (and apply) new given's rotation
+           call givens(hh(k_hh,kloc), hh(k_hh+1,kloc), c, s)
+           cs(1,kloc) = c
+           cs(2,kloc) = s
+
+           ! Update preconditioned residual vector 
+           ! (expressed in terms of the preconditioned Krylov basis)
+           alpha = -s*g(kloc)
+           g(kloc) = c*g(kloc)
+           g(kloc+1) = alpha
+
+           ! Error norm
+           res_norm = abs(alpha)
+
+           if ( ctrl%stopc == res_res .or. ctrl%stopc == res_rhs ) then
+              kloc_aux          = kloc 
+              g_aux(1:kloc_aux) = g(1:kloc_aux) 
+              if ( kloc_aux > 0 ) then
+                 ! Compute the solution
+                 ! If zero on the diagonal, 
+                 ! solve a reduced linear system
+                 do while ( kloc_aux > 0 ) ! .and. hh(kloc_aux,kloc_aux) == 0.0_rp  )
+                    if(hh(kloc_aux,kloc_aux) /= 0.0_rp) exit
+                    kloc_aux = kloc_aux - 1
+                 end do
+
+                 if ( kloc_aux <= 0 ) then
+                    write (ctrl%luout,*) '** Warning: LGMRES: triangular system in GMRES has null rank'
+                    ! The coarse-grid task should exit 
+                    ! the outer-do loop. Send signal. 
+                    exit_loop = .true.
+                    call generic_bcast(M, exit_loop)
+                    call generic_bcast(M, exit_loop)
+                    exit outer ! Exit outer do loop     
+                 end if
+
+#ifdef ENABLE_BLAS       
+                 !N    !A  !LDA        !X !INCX
+                 call DTRSV ( 'U', 'N', 'N', kloc_aux, hh, ctrl%dkrymax+1, g_aux, 1)
+#else
+                 ! Solve the system hh*y = g_aux
+                 ! Solution stored on g_aux itself
+                 do j = kloc_aux,1,-1
+                    g_aux(j) = g_aux(j)/hh(j,j)
+                    do i = j-1,1,-1
+                       g_aux(i) = g_aux(i) - hh(i,j) * g_aux(j)
+                    end do
+                 end do
+#endif
+
+                 ! Now g contains the solution in the krylov basis
+                 ! Compute the solution in the global space
+                 call generic_copy (x, z)
+
+                 ! z <-z +  g_aux_1 * v_1 + g_aux_2 * v_2 + ... + g_aux_kloc_aux * v_kloc_aux
+                 call generic_krylov_basis_multiaxpy ( kloc_aux, 1.0_rp, bkry, g_aux, z )
+
+                 ! r = A(z+x)
+                 call generic_matvec(A,z,r)
+
+                 ! r = b-r
+                 call generic_pxmy(b,r)
+
+                 call generic_nrm2 (r, res_2_norm)
+              end if
+              ctrl%err1 = res_2_norm
+           else
+              ctrl%err1 = res_norm
+           end if
+        end if
+
+        ctrl%err1h(ctrl%it) = ctrl%err1
+        exit_loop = (ctrl%err1 < ctrl%tol1)
+        ! Send converged to coarse-grid tasks
+        call generic_bcast ( M, exit_loop )
+
+        if ( generic_fine_task(M) ) then
+           if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+        end if
+     end do inner
+
+     if ( generic_fine_task (M) ) then ! Am I a fine task ?
+        if ( ierrc == -2 ) then
+           write (ctrl%luout,*) '** Warning: LGMRES: ortho failed due to abnormal numbers, no way to proceed'
+           ! The coarse-grid task should exit 
+           ! the outer-do loop. Send signal. 
+           exit_loop = .true.
+           call generic_bcast(M, exit_loop)
+           exit outer ! Exit outer do-loop
+        end if
+
+        if ( ctrl%stopc /= res_res .and. ctrl%stopc /= res_rhs ) then
+           if ( kloc > 0 ) then
+              ! Compute the solution
+              ! If zero on the diagonal, 
+              ! solve a reduced linear system
+              do while ( kloc > 0 ) !.and. hh(kloc,kloc) == 0.0_rp  )
+                 if(hh(kloc,kloc) /= 0.0_rp) exit
+                 kloc = kloc - 1
+              end do
+
+              if ( kloc <= 0 ) then
+                 write (ctrl%luout,*) '** Warning: LGMRES: triangular system in GMRES has null rank'
+                 ! The coarse-grid task should exit 
+                 ! the outer-do loop. Send signal. 
+                 exit_loop = .true.
+                 call generic_bcast(M, exit_loop)
+                 exit outer ! Exit outer do loop     
+              end if
+
+#ifdef ENABLE_BLAS       
+              !N    !A  !LDA        !X !INCX
+              call DTRSV ( 'U', 'N', 'N', kloc, hh, ctrl%dkrymax+1, g, 1)
+#else
+              ! Solve the system hh*y = g
+              ! Solution stored on g itself
+              do j = kloc,1,-1
+                 g(j) = g(j)/hh(j,j)
+                 do i = j-1,1,-1
+                    g(i) = g(i) - hh(i,j) * g(j)
+                 end do
+              end do
+#endif
+
+              ! Now g contains the solution in the krylov basis
+              ! Compute the solution in the global space
+              call generic_zero (z)
+
+              ! z <-z +  g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
+              call generic_krylov_basis_multiaxpy ( kloc, 1.0_rp, bkry, g, z )
+
+              ! x <- x + z 
+              call generic_pxpy ( z, x )
+           endif
+        else
+           ! x <- z
+           call generic_copy (z, x)
+        end if
+     end if
+
+     exit_loop = (ctrl%err1 < ctrl%tol1)
+     ! Send converged to coarse-grid tasks
+     call generic_bcast ( M, exit_loop )
+
+  end do outer
+
+  ctrl%converged = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, ctrl%converged )
+
+  call generic_free(r)
+  call generic_free(z)
+
+  call generic_krylov_basis_free ( bkry )
+
+  ! Deallocate working vectors
+  call memfree(hh,__FILE__,__LINE__)
+  call memfree(g,__FILE__,__LINE__)
+  call memfree(cs,__FILE__,__LINE__)
+  if ( ctrl%stopc == res_res .or. ctrl%stopc == res_rhs ) then
+     call memfree(g_aux,__FILE__,__LINE__)
+  end if
+
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+
+end subroutine generic_plgmres
+
+!=============================================================================
+!
+! Generic Right Preconditioned GMRES
+!
+! IMPORTANT NOTE: it does not work for element-based data distributions.
+! Indeed, if it were properly adapted for element-based data distributions,
+! it would be terrible in term of communications (because the krylov
+! basis must be composed of partially summed vectors). 
+!
+! IMPORTANT NOTE 2: The above note is not that severe as long as icgs is used. 
+! I have already implemented PRGMRES for element-based data distributions. 
+! Up to 6 nearest neighbour comms are required per Arnoldi iteration. This
+! is indeed too much 6 can be reduced to 2 by having the krylov basis replicated
+! in both states (i.e., part/full summed). 
+! The expense comes from more memory consumption and more update vector operations.
+! Does it pay off ? (TO CONSIDER)
+!
+! IMPORTANT NOTE 3: We have been able to develop a communication equivalent
+! rgmres-like method by the introduction of the new generic vector routine 
+! generic_comm.
+!
+!=============================================================================
+!
+! TODO:  1. Review orthogonalization procedures. (Done: MGS or ICGS)
+!        2. Implement the whole list of convergence criteria available
+!           for PCG. Only two are currently implemented.
+!        3. Set err1/err2 accordingly to the work performed in
+!           point 2 above.
+!        4. Use level-2-BLAS for backward/forward substitution + 
+!           ICGS. This last option would imply defining a generic
+!           data structure for storing Krylov subspace bases.  (DONE)
+!        5. Breakdown detection ? (DONE: Taken from Y. Saad's SPARSKIT)
+subroutine generic_prgmres ( A, M, b, x, ctrl)
+  !--------------------------------------------------------------------
+  ! This routine performs prgmres iterations on Ax=b with preconditioner M. 
+  !--------------------------------------------------------------------
+#ifdef ENABLE_BLAS       
+  use blas77_interfaces  
+#endif
+  implicit none
+  type(generic_mat)   , intent(inout) :: A              ! Matrix
+  type(generic_pre)   , intent(inout) :: M              ! Preconditioner
+  type(generic_vec)   , intent(inout) :: x              ! Solution
+  type(generic_vec)   , intent(in)    :: b              ! RHS
+  type(solver_control), intent(inout) :: ctrl
+
+  integer(ip)                :: ierrc
+  integer(ip)                :: kloc, i, j, k_hh, id
+  real(rp)                   :: res_norm, rhs_norm
+  real(rp)                   :: alpha, c, s
+  real(rp)   , allocatable   :: hh(:,:), g(:), cs(:,:)
+  integer                    :: me, np
+  logical                    :: exit_loop
+
+  type(generic_vec)              :: r, z    ! Working vectors
+  type(generic_vec)              :: q_aux
+  type(generic_krylov_basis)     :: bkry    ! Krylov basis
+
+  assert(ctrl%stopc==res_nrmgiven_rhs_nrmgiven.or.ctrl%stopc==res_nrmgiven_res_nrmgiven)
+
+  ! Clone x in order to allocate working vectors 
+  call generic_clone ( b, r )
+  call generic_clone ( x, z )
+
+  call generic_krylov_basis_alloc ( ctrl%dkrymax+1, x, bkry )
+
+  ! Allocate working vectors
+  call memalloc(ctrl%dkrymax+1,ctrl%dkrymax+1,hh,__FILE__,__LINE__)
+  call memalloc(ctrl%dkrymax+1,g,__FILE__,__LINE__)
+  call memalloc(2,ctrl%dkrymax+1,cs,__FILE__,__LINE__)
+
+  call generic_info  ( A, me, np )
+
+  ! Evaluate ||b||_2 if required
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+     call generic_nrm2 (b, rhs_norm)
+  endif
+
+  ! r = Ax
+  call generic_matvec (A, x, r)
+
+  ! r = b-r
+  call generic_pxmy ( b, r )
+
+  ! part_summed to full_summed
+  call generic_comm (r)
+
+  ! res_norm = ||r||_2
+  call generic_nrm2 (r, res_norm)
+
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+     ctrl%tol1  = ctrl%rtol * rhs_norm + ctrl%atol
+     ctrl%err1 = res_norm 
+  else if ( ctrl%stopc == res_nrmgiven_res_nrmgiven ) then
+     ctrl%tol1  = ctrl%rtol * res_norm + ctrl%atol
+     ctrl%err1 = res_norm
+  end if
+  exit_loop = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, exit_loop )
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
+  end if
+
+  ctrl%it = 0
+  outer: do while ( (.not.exit_loop) .and. &
+       &            (ctrl%it < ctrl%itmax))
+
+     ! Compute residual from scratch (only if ctrl%it /= 0)
+     if ( ctrl%it /= 0 ) then 
+        ! r = Ax
+        call generic_matvec (A, x, r)
+
+        ! r = b-r
+        call generic_pxmy ( b, r )
+
+        ! part_summed to full_summed
+        call generic_comm (r)
+
+        ! res_norm = ||r||_2
+        call generic_nrm2 (r, res_norm)
+     end if
+
+     ! Normalize residual direction (i.e., v_1 = r/||r||_2)
+     call generic_krylov_basis_extract_view ( 1, bkry, q_aux )
+     call generic_scale (1.0_rp/res_norm, r, q_aux)
+     call generic_free (q_aux)
+
+     ! residual in the krylov basis
+     g(1) = res_norm
+     g(2:ctrl%dkrymax+1) = 0.0_rp
+
+     ! start iterations
+     kloc = 0
+     inner: do while ( (.not.exit_loop) .and. &
+          &            (ctrl%it < ctrl%itmax) .and. &
+          &            (kloc < ctrl%dkrymax))
+        kloc  = kloc  + 1
+        ctrl%it = ctrl%it + 1
+
+        ! Generate new basis vector
+        call generic_krylov_basis_extract_view ( kloc, bkry, q_aux )
+        call generic_precond (A, M, q_aux, z)
+        call generic_free (q_aux)
+        call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
+        call generic_matvec  (A, z, q_aux)
+
+        ! part_summed to full_summed
+        call generic_comm (q_aux)
+        call generic_free (q_aux)
+
+        if ( generic_fine_task(M) ) then
+           ! Orthogonalize
+           select case( ctrl%orto )
+           case ( mgs )
+              call mgsro  (ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+           case ( icgs )
+              call icgsro (ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+           case default
+              ! Write an error message and stop ?      
+           end select
+           
+           if ( ierrc < 0 ) then
+              ! The coarse-grid task should exit 
+              ! the inner-do loop. Send signal.
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop) 
+              exit inner ! Exit inner do-loop
+           end if
+           
+           ! Apply previous given's rotations to kth column of hessenberg matrix
+           k_hh = 1
+           do j = 1,kloc-1    
+              alpha = hh(k_hh,kloc)
+              c = cs(1,j)
+              s = cs(2,j)
+              hh(k_hh,kloc) = c*alpha + s*hh(k_hh+1,kloc)
+              hh(k_hh+1,kloc) = c*hh(k_hh+1,kloc) - s*alpha
+              k_hh = k_hh +1
+           enddo
+
+           ! Compute (and apply) new given's rotation
+           call givens(hh(k_hh,kloc), hh(k_hh+1,kloc), c, s)
+           cs(1,kloc) = c
+           cs(2,kloc) = s
+
+           ! Update residual vector 
+           ! (expressed in terms of the Krylov basis)
+           alpha = -s*g(kloc)
+           g(kloc) = c*g(kloc)
+           g(kloc+1) = alpha
+
+           ! Error norm
+           res_norm = abs(alpha)
+           ctrl%err1  = res_norm
+           ctrl%err1h(ctrl%it) = ctrl%err1
+        end if
+        exit_loop = (ctrl%err1 < ctrl%tol1) 
+        ! Send converged to coarse-grid tasks
+        call generic_bcast ( M, exit_loop )
+        
+        if ( generic_fine_task(M) ) then
+           if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+        end if
+     end do inner
+
+     if ( kloc > 0 ) then
+        if ( generic_fine_task(M) ) then
+           if ( ierrc == -2 ) then
+              write (ctrl%luout,*) '** Warning: RGMRES: ortho failed due to abnormal numbers, no way to proceed'
+              ! The coarse-grid task should exit 
+              ! the outer-do loop. Send signal. 
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop)
+              exit outer ! Exit main do-loop
+           end if
+
+           ! Compute the solution
+           ! If zero on the diagonal, 
+           ! solve a reduced linear system
+           do while ( kloc > 0 ) ! .and. hh(kloc,kloc) == 0.0_rp  )
+              if(hh(kloc,kloc) /= 0.0_rp) exit
+              kloc = kloc - 1
+           end do
+
+           if ( kloc <= 0 ) then
+              write (ctrl%luout,*) '** Warning: RGMRES: triangular system in GMRES has null rank'
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop)
+              exit outer ! Exit main do loop     
+           end if
+
+#ifdef ENABLE_BLAS       
+           !N    !A  !LDA        !X !INCX
+           call DTRSV ( 'U', 'N', 'N', kloc, hh, ctrl%dkrymax+1, g, 1)
+#else
+           ! Solve the system hh*y = g
+           ! Solution stored on g itself
+           do j = kloc,1,-1
+              g(j) = g(j)/hh(j,j)
+              do i = j-1,1,-1
+                 g(i) = g(i) - hh(i,j) * g(j)
+              end do
+           end do
+#endif       
+        end if
+
+        ! Now g contains the solution in the krylov basis
+        ! Compute the solution in the real space
+        call generic_zero(r)
+
+        ! r <- g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
+        call generic_krylov_basis_multiaxpy ( kloc, 1.0_rp, bkry, g, r )
+
+        ! Solve Mz = r
+        call generic_precond(A, M, r, z)
+
+        ! x <- x + z
+        call generic_pxpy(z, x)
+
+        exit_loop = (ctrl%err1 < ctrl%tol1)
+        ! Send converged to coarse-grid tasks
+        call generic_bcast ( M, exit_loop )
+
+     end if
+  end do outer
+
+  ctrl%converged = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, ctrl%converged )
+
+  ! Deallocate working vectors
+  call memfree(hh,__FILE__,__LINE__)
+  call memfree(g,__FILE__,__LINE__)
+  call memfree(cs,__FILE__,__LINE__)
+
+  call generic_free(r)
+  call generic_free(z)
+  call generic_krylov_basis_free ( bkry )
+
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+end subroutine generic_prgmres
+
+!=============================================================================
+!
+! Generic Flexible GMRES
+!
+subroutine generic_pfgmres ( A, M, b, x, ctrl)
+  !--------------------------------------------------------------------
+  ! This routine performs pfgmres iterations on Ax=b with (right)-preconditioner M. 
+  !--------------------------------------------------------------------
+#ifdef ENABLE_BLAS       
+  use blas77_interfaces
+#endif
+  implicit none
+  type(generic_mat)   , intent(inout) :: A              ! Matrix
+  type(generic_pre)   , intent(inout) :: M              ! Preconditioner
+  type(generic_vec)   , intent(inout) :: x              ! Solution
+  type(generic_vec)   , intent(in)    :: b              ! RHS
+  type(solver_control), intent(inout) :: ctrl
+
+  integer(ip)                :: ierrc
+  integer(ip)                :: kloc, i, j, k_hh, id
+  real(rp)                   :: res_norm, rhs_norm
+  real(rp)                   :: alpha, c, s
+  real(rp)   , allocatable   :: hh(:,:), g(:), cs(:,:)
+  integer                    :: me, np
+  logical                    :: exit_loop
+
+  type(generic_vec)              :: r, z    ! Working vectors
+  type(generic_vec)              :: q_aux, z_aux
+  type(generic_krylov_basis)     :: bkry    ! Krylov basis
+  type(generic_krylov_basis)     :: bkryz   ! (Right-)Preconditioned Krylov basis
+
+  assert(ctrl%stopc==res_nrmgiven_rhs_nrmgiven.or.ctrl%stopc==res_nrmgiven_res_nrmgiven)
+
+  ! Clone x in order to allocate working vectors
+  call generic_clone ( b, r )
+  call generic_clone ( x, z )
+
+  call generic_krylov_basis_alloc ( ctrl%dkrymax+1, x, bkry  )
+  call generic_krylov_basis_alloc ( ctrl%dkrymax  , x, bkryz )
+
+  ! Allocate working vectors
+  call memalloc(ctrl%dkrymax+1,ctrl%dkrymax+1,hh,__FILE__,__LINE__)
+  call memalloc(ctrl%dkrymax+1,g,__FILE__,__LINE__)
+  call memalloc(2,ctrl%dkrymax+1,cs,__FILE__,__LINE__)
+
+  call generic_info  ( A, me, np )
+
+  ! Evaluate ||b||_2 if required
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+     call generic_nrm2 (b, rhs_norm)
+  endif
+
+  ! r = Ax
+  call generic_matvec (A, x, r)
+
+  ! r = b-r
+  call generic_pxmy ( b, r )
+
+  ! part_summed to full_summed
+  call generic_comm (r)
+
+  ! res_norm = ||r||_2
+  call generic_nrm2 (r, res_norm)
+
+  if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+     ctrl%tol1  = ctrl%rtol * rhs_norm + ctrl%atol
+     ctrl%err1 = res_norm 
+  else if ( ctrl%stopc == res_nrmgiven_res_nrmgiven ) then
+     ctrl%tol1  = ctrl%rtol * res_norm + ctrl%atol
+     ctrl%err1 = res_norm
+  end if
+  exit_loop = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, exit_loop )
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
+  end if
+
+  ctrl%it = 0
+  outer: do while ( (.not.exit_loop ) .and. &
+       &            (ctrl%it < ctrl%itmax))
+     ! Compute residual from scratch (only if ctrl%it /= 0)
+     if ( ctrl%it /= 0 ) then 
+        ! r = Ax
+        call generic_matvec (A, x, r)
+
+        ! r = b-r
+        call generic_pxmy ( b, r )
+
+        ! part_summed to full_summed
+        call generic_comm ( r )
+
+        ! res_norm = ||r||_2
+        call generic_nrm2 (r, res_norm)
+     end if
+
+     ! Normalize residual direction (i.e., v_1 = r/||r||_2)
+     call generic_krylov_basis_extract_view ( 1, bkry, q_aux )
+     call generic_scale (1.0_rp/res_norm, r, q_aux)
+     call generic_free ( q_aux )
+
+     ! residual in the krylov basis
+     g(1) = res_norm
+     g(2:ctrl%dkrymax+1) = 0.0_rp
+
+     ! start iterations
+     kloc = 0
+     inner: do while ( (.not.exit_loop) .and. &
+          &            (ctrl%it < ctrl%itmax) .and. &
+          &            (kloc < ctrl%dkrymax))
+        kloc  = kloc  + 1
+        ctrl%it = ctrl%it + 1
+
+        ! Generate new basis vector
+        call generic_krylov_basis_extract_view ( kloc, bkry , q_aux )
+        call generic_krylov_basis_extract_view ( kloc, bkryz, z_aux )
+        call generic_precond (A, M, q_aux, z_aux)
+        call generic_free (q_aux)
+        call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
+        call generic_matvec  (A, z_aux, q_aux)
+        call generic_free (z_aux)
+
+        ! part_summed to full_summed
+        call generic_comm ( q_aux )
+        call generic_free ( q_aux )
+        
+        if ( generic_fine_task(M) ) then
+           ! Orthogonalize
+           select case( ctrl%orto )
+           case ( mgs )
+              call mgsro  (ctrl%luout,kloc+1, bkry, hh(1,kloc), ierrc )
+           case ( icgs )
+              call icgsro (ctrl%luout,kloc+1, bkry, hh(1,kloc), ierrc )
+           case default
+              ! Write an error message and stop ?      
+           end select
+
+           if ( ierrc < 0 ) then
+              ! The coarse-grid task should exit 
+              ! the inner-do loop. Send signal.
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop) 
+              exit inner ! Exit inner do-loop
+           end if
+
+           ! Apply previous given's rotations to kth column of hessenberg matrix
+           k_hh = 1
+           do j = 1,kloc-1    
+              alpha = hh(k_hh,kloc)
+              c = cs(1,j)
+              s = cs(2,j)
+              hh(k_hh,kloc) = c*alpha + s*hh(k_hh+1,kloc)
+              hh(k_hh+1,kloc) = c*hh(k_hh+1,kloc) - s*alpha
+              k_hh = k_hh +1
+           enddo
+
+           ! Compute (and apply) new given's rotation
+           call givens(hh(k_hh,kloc), hh(k_hh+1,kloc), c, s)
+           cs(1,kloc) = c
+           cs(2,kloc) = s
+
+           ! Update residual vector 
+           ! (expressed in terms of the Krylov basis)
+           alpha = -s*g(kloc)
+           g(kloc) = c*g(kloc)
+           g(kloc+1) = alpha
+
+           ! Error norm
+           res_norm = abs(alpha)
+           ctrl%err1  = res_norm
+           ctrl%err1h(ctrl%it) = ctrl%err1
+        end if
+        exit_loop = (ctrl%err1 < ctrl%tol1)
+        ! Send converged to coarse-grid tasks
+        call generic_bcast ( M, exit_loop )
+
+        if ( generic_fine_task(M) ) then
+           if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+        end if
+     end do inner
+
+     if ( kloc > 0 ) then
+        if ( generic_fine_task(M) ) then
+           if ( ierrc == -2 ) then
+              write (ctrl%luout,*) '** Warning: FGMRES: ortho failed due to abnormal numbers, no way to proceed'
+              ! The coarse-grid task should exit 
+              ! the outer-do loop. Send signal. 
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop)
+              exit outer ! Exit main do-loop
+           end if
+
+           ! Compute the solution
+           ! If zero on the diagonal, 
+           ! solve a reduced linear system
+           do while ( kloc > 0 ) ! .and. hh(kloc,kloc) == 0.0_rp  )
+              if(hh(kloc,kloc) /= 0.0_rp) exit
+              kloc = kloc - 1
+           end do
+
+           if ( kloc <= 0 ) then
+              write (ctrl%luout,*) '** Warning: FGMRES: triangular system in FGMRES has null rank'
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop)
+              exit outer    
+           end if
+
+#ifdef ENABLE_BLAS       
+           !N    !A  !LDA        !X !INCX
+           call DTRSV ( 'U', 'N', 'N', kloc, hh, ctrl%dkrymax+1, g, 1)
+#else
+           ! Solve the system hh*y = g
+           ! Solution stored on g itself
+           do j = kloc,1,-1
+              g(j) = g(j)/hh(j,j)
+              do i = j-1,1,-1
+                 g(i) = g(i) - hh(i,j) * g(j)
+              end do
+           end do
+#endif       
+        end if
+
+        ! Now g contains the solution in the krylov basis
+        ! Compute the solution in the real space
+        call generic_zero(z)
+
+        ! z <- g_1 * M_1^-1v_1 + g_2 *  M_2^-1v_2  + ... + g_kloc *  M_kloc^-1v_kloc
+        call generic_krylov_basis_multiaxpy ( kloc, 1.0_rp, bkryz, g, z )
+
+        ! x <- x + z
+        call generic_pxpy(z, x)
+        
+        exit_loop = (ctrl%err1 < ctrl%tol1)
+
+        ! Send converged to coarse-grid tasks
+        call generic_bcast ( M, exit_loop )
+
+     end if
+  end do outer
+
+  ctrl%converged = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, ctrl%converged )
+
+  ! Deallocate working vectors
+  call memfree(hh,__FILE__,__LINE__)
+  call memfree(g,__FILE__,__LINE__)
+  call memfree(cs,__FILE__,__LINE__)
+  call generic_free(r)
+  call generic_free(z)
+  call generic_krylov_basis_free ( bkry  )
+  call generic_krylov_basis_free ( bkryz )
+  
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+
+end subroutine generic_pfgmres
+
+!=============================================================================
+!
+! Generic preconditioned RICHARDSON
+!
+subroutine generic_prichard (A, M, b, x, ctrl )
+  !-----------------------------------------------------------------------
+  !
+  ! This routine solves M^-1Ax = M^-1b where M is a given preconditioner
+  ! using preconditioned Richardson fixed-point iterations, with relaxation
+  ! parameter given by relax
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  type(generic_mat)   , intent(inout) :: A              ! Matrix
+  type(generic_pre)   , intent(inout) :: M              ! Preconditioner
+  type(generic_vec)   , intent(in)    :: b              ! RHS
+  type(generic_vec)   , intent(inout) :: x              ! Solution
+  type(solver_control), intent(inout) :: ctrl
+
+  integer                        :: me, np
+  type(generic_vec)              :: r, z      ! Working vectors
+  real(rp)                       :: res_norm, rhs_norm
+
+  assert ( ctrl%stopc == res_res .or. ctrl%stopc == res_rhs ) 
+
+  call generic_info  ( A, me, np )
+  call generic_clone ( x, r )
+  call generic_clone ( x, z )
+
+  ! Evaluate ||b||_2 if required
+  if ( ctrl%stopc == res_rhs ) then
+     call generic_nrm2 (b, rhs_norm)
+  endif
+  
+  ctrl%converged = .false.
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
+  end if
+  
+  ctrl%it = 0
+  loop_prichard: do while( (.not.ctrl%converged) .and. (ctrl%it < ctrl%itmax))
+     
+     ! r = Ax
+     call generic_matvec (A, x, r)
+     
+     ! r = b-r
+     call generic_pxmy ( b, r )
+     
+     ! Evaluate ||r||_L2
+     call generic_nrm2 ( r, res_norm )
+     
+     ! Set upper bound (only in 1st iteration)
+     if ( ctrl%it == 1 ) then
+        if ( ctrl%stopc == res_rhs ) then
+           ctrl%tol1  = ctrl%rtol * rhs_norm + ctrl%atol 
+        else if ( ctrl%stopc == res_res ) then
+           ctrl%tol1  = ctrl%rtol * res_norm + ctrl%atol
+        end if
+     end if
+     ctrl%err1 = res_norm
+     if (ctrl%it > 0) ctrl%err1h(ctrl%it) = ctrl%err1
+     ctrl%converged = (ctrl%err1 < ctrl%tol1)
+
+     ! Send converged to coarse-grid tasks
+     call generic_bcast ( M, ctrl%converged )
+
+     if ( generic_fine_task(M) ) then
+        if ((ctrl%it > 0).and.(me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+     end if
+
+     ! z = inv(M) r
+     call generic_precond(A,M,r,z)
+     
+     ! x <- x + relax * z	
+     call generic_axpy ( ctrl%relax, z, x )
+
+     
+     ctrl%it = ctrl%it + 1
+  end do loop_prichard
+
+  call generic_free ( r )
+  call generic_free ( z )
+
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+
+end subroutine generic_prichard
+
+!====================================================
+! Generic Left Preconditioned FOM
+!====================================================
+subroutine generic_plfom ( A, M, b, x, ctrl )
+  !--------------------------------------------------------------------
+  ! This routine performs plfom iterations on Ax=b with preconditioner M. 
+  !--------------------------------------------------------------------
+#ifdef ENABLE_LAPACK
+  use lapack77_interfaces
+#endif
+
+  implicit none
+  type(generic_mat), intent(inout)    :: A      ! Matrix
+  type(generic_pre), intent(inout)    :: M      ! Preconditioner
+  type(generic_vec), intent(inout)    :: x      ! Solution
+  type(generic_vec), intent(in)       :: b      ! RHS
+  type(solver_control), intent(inout) :: ctrl
+
+  integer(ip)                    :: ierrc
+  integer(ip)                    :: kloc, i, j, k_hh, id
+  real(rp)                       :: res_norm, res_2_norm, rhs_norm, res_norm_initial
+  real(rp)   , allocatable       :: hh(:,:), lu(:,:), g(:)
+  integer(ip), allocatable       :: ipiv(:)
+  real(rp)                       :: err1_it, ub1
+  integer                        :: me, np, info
+  logical                        :: exit_loop
+
+  type(generic_vec)              :: r, z     ! Working vectors
+  type(generic_vec)              :: q_aux    
+  type(generic_krylov_basis)     :: bkry     ! Krylov basis
+
+  assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs)
+
+  ! Clone x in order to allocate working vectors
+  call generic_clone ( b, r )
+  call generic_clone ( x, z )
+
+  call generic_krylov_basis_alloc ( ctrl%dkrymax+1, x, bkry )
+
+  ! Allocate working vectors
+  call memalloc(ctrl%dkrymax+1, ctrl%dkrymax+1,hh, __FILE__,__LINE__)
+  call memalloc(ctrl%dkrymax+1, ctrl%dkrymax+1,lu, __FILE__,__LINE__)
+  call memalloc(ctrl%dkrymax+1,                 g, __FILE__,__LINE__)
+  call memalloc(ctrl%dkrymax+1,              ipiv, __FILE__,__LINE__)
+
+  call generic_info  ( A, me, np )
+
+  ! Evaluate ||b||_2 if required
+  if ( ctrl%stopc == res_rhs ) then
+     call generic_nrm2 (b, rhs_norm)
+  endif
+
+  ! r = Ax
+  call generic_matvec(A,x,r)
+  ! r = b-r
+  call generic_pxmy(b,r)
+
+  call generic_nrm2 (r, res_2_norm)
+      
+  ! z=inv(M)r
+  call generic_precond(A,M,r,z)  
+
+  ! Evaluate ||z||_2
+  call generic_nrm2 (z, res_norm)
+  res_norm_initial = res_norm
+
+  if ( ctrl%stopc == res_res ) then
+     ctrl%tol1 = ctrl%rtol * res_2_norm + ctrl%atol
+     ctrl%err1 = res_2_norm
+  else if ( ctrl%stopc == res_rhs ) then
+     ctrl%tol1 = ctrl%rtol * rhs_norm + ctrl%atol
+     ctrl%err1 = res_2_norm
+  end if
+
+  exit_loop = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, exit_loop )
+  
+  if ( generic_fine_task(M) ) then
+     if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
+  end if
+  
+  ctrl%it = 0
+  outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
+     hh = 0.0_rp
+     ! Compute preconditioned residual from scratch (only if ctrl%it/=0)
+     if ( ctrl%it /= 0 ) then 
+        ! r = Ax
+        call generic_matvec(A,x,r)
+
+        ! r = b-r
+        call generic_pxmy(b,r)
+
+        ! z=inv(M)r
+        call generic_precond(A,M,r,z)  
+
+        ! Evaluate ||z||_2
+        call generic_nrm2 (z, res_norm)
+     end if
+
+     ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
+     call generic_krylov_basis_extract_view ( 1, bkry, q_aux )
+     call generic_scale( 1.0_rp/res_norm, z, q_aux )
+     call generic_free ( q_aux )
+
+     ! start iterations
+     kloc = 0
+     inner: do while ( (.not.exit_loop) .and. &
+          &            (ctrl%it < ctrl%itmax) .and. &
+          &            (kloc < ctrl%dkrymax))
+        kloc  = kloc  + 1
+        ctrl%it = ctrl%it + 1
+
+        ! Generate new basis vector
+        call generic_krylov_basis_extract_view ( kloc, bkry, q_aux )
+        call generic_matvec ( A, q_aux, r )
+        call generic_free   ( q_aux )
+        call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
+        call generic_precond( A, M, r, q_aux )
+        call generic_free ( q_aux )
+
+        if ( generic_fine_task (M) ) then ! Am I a fine task ?
+           ! Orthogonalize
+           select case( ctrl%orto )
+           case ( mgs )
+              call mgsro  ( ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+           case ( icgs )
+              call icgsro ( ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+           case default
+              ! Write an error message and stop ?      
+           end select
+
+           if ( ierrc < 0 ) then
+              ! The coarse-grid task should exit 
+              ! the inner-do loop. Send signal.
+              exit_loop = .true.
+              call generic_bcast(M, exit_loop) 
+              exit inner ! Exit inner do-loop
+           end if
+
+           ! init right-hand-size to \beta*e_1, with \beta=||z_0||_2
+           g(1)            = res_norm_initial
+           g(2:kloc)       = 0.0_rp
+ 
+           if ( kloc > 0 ) then
+              ! Compute the solution
+
+              lu(1:kloc,1:kloc) = hh(1:kloc,1:kloc)
+              ! write(*,*) 'XXX', lu(1:kloc,1:kloc)
+#ifdef ENABLE_LAPACK
+              call dgetrf( kloc, kloc, lu, ctrl%dkrymax+1, ipiv, info )
+              if ( info /= 0 ) then
+                 write (ctrl%luout,*) '** Warning: LFOM: dgetrf returned info /= 0'
+                 exit_loop = .true.
+                 call generic_bcast(M, exit_loop)
+                 call generic_bcast(M, exit_loop)
+                 exit outer ! Exit main do loop 
+              end if
+
+              call dgetrs( 'N' , kloc, 1, lu, ctrl%dkrymax+1, ipiv, g, ctrl%dkrymax+1, info )
+              if ( info /= 0 ) then
+                 write (ctrl%luout,*) '** Warning: LFOM: dgetrs returned info /= 0'
+                 exit_loop = .true.
+                 call generic_bcast(M, exit_loop)
+                 call generic_bcast(M, exit_loop)
+                 exit outer ! Exit main do loop 
+              end if
+#else
+	      write (0,*) 'plfom ERROR :: dgetrf and dgetrs not available'
+              check(1==0)
+#endif
+
+              ! Now g contains the solution in the krylov basis
+              ! Compute the solution in the global space
+              call generic_copy (x, z)
+
+              ! z <-z +  g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
+              call generic_krylov_basis_multiaxpy ( kloc, 1.0_rp, bkry, g, z )
+
+              ! r = A(z+x)
+              call generic_matvec(A,z,r)
+
+              ! r = b-r
+              call generic_pxmy(b,r)
+
+              call generic_nrm2 (r, res_2_norm)
+           end if
+           ctrl%err1 = res_2_norm
+        end if
+
+        ctrl%err1h(ctrl%it) = ctrl%err1
+        exit_loop = (ctrl%err1 < ctrl%tol1)
+        ! Send converged to coarse-grid tasks
+        call generic_bcast ( M, exit_loop )
+        
+        if ( generic_fine_task(M) ) then
+           if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+        end if
+
+     end do inner
+
+     if ( generic_fine_task (M) ) then ! Am I a fine task ?
+        if ( ierrc == -2 ) then
+           write (ctrl%luout,*) '** Warning: LFOM: ortho failed due to abnormal numbers, no way to proceed'
+           ! The coarse-grid task should exit 
+           ! the outer-do loop. Send signal. 
+           exit_loop = .true.
+           call generic_bcast(M, exit_loop)
+           exit outer ! Exit outer do-loop
+        end if
+     end if
+
+     ! x <- z
+     call generic_copy (z, x)
+
+     exit_loop = (ctrl%err1 < ctrl%tol1)
+     ! Send converged to coarse-grid tasks
+     call generic_bcast ( M, exit_loop )
+     
+  end do outer
+
+  ctrl%converged = (ctrl%err1 < ctrl%tol1)
+  ! Send converged to coarse-grid tasks
+  call generic_bcast ( M, ctrl%converged )
+
+  call generic_free(r)
+  call generic_free(z)
+
+  call generic_krylov_basis_free ( bkry )
+
+  call memfree(hh,__FILE__,__LINE__)
+  call memfree(lu,__FILE__,__LINE__)
+  call memfree(g,__FILE__,__LINE__)
+  call memfree(ipiv,__FILE__,__LINE__)
+
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+
+end subroutine generic_plfom
+
+
+!=============================================================================
+! Generic Preconditioned Minimal residual method
+! Generic code extracted from F90 PMINRES implementation available at
+! http://www.stanford.edu/group/SOL/software/minres/
+!=============================================================================
+!-------------------------------------------------------------------
+!
+! MINRES  is designed to solve the system of linear equations
+!
+!    Ax = b
+!
+! or the least-squares problem
+!
+!    min ||Ax - b||_2,
+!
+! where A is an n by n symmetric matrix and b is a given vector.
+! The matrix A may be indefinite and/or singular.
+!
+! 1. If A is known to be positive definite, the Conjugate Gradient
+! Method might be preferred, since it requires the same number
+! of iterations as MINRES but less work per iteration.
+!
+! 2. If A is indefinite but Ax = b is known to have a solution
+! (e.g. if A is nonsingular), SYMMLQ might be preferred,
+! since it requires the same number of iterations as MINRES
+! but slightly less work per iteration.
+!
+! The matrix A is intended to be large and sparse.  It is accessed
+! by means of a subroutine call of the form
+! SYMMLQ development:
+!
+!    call Aprod ( n, x, y )
+!
+! which must return the product y = Ax for any given vector x.
+!
+!
+! More generally, MINRES is designed to solve the system
+!
+!    (A - shift*I) x = b
+! or
+!    min ||(A - shift*I) x - b||_2,
+!
+! where  shift  is a specified scalar value.  Again, the matrix
+! (A - shift*I) may be indefinite and/or singular.
+! The work per iteration is very slightly less if  shift = 0.
+!
+! Note: If  shift  is an approximate eigenvalue of  A
+! and  b  is an approximate eigenvector,  x  might prove to be
+! a better approximate eigenvector, as in the methods of
+! inverse iteration and/or Rayleigh-quotient iteration.
+! However, we're not yet sure on that -- it may be better to use SYMMLQ.
+!
+! A further option is that of preconditioning, which may reduce
+! the number of iterations required.  If M = C C' is a positive
+! definite matrix that is known to approximate  (A - shift*I)
+! in some sense, and if systems of the form  My = x  can be
+! solved efficiently, the parameters precon and Msolve may be
+! used (see below).  When  precon = .true., MINRES will
+! implicitly solve the system of equations
+!
+!    P (A - shift*I) P' xbar  =  P b,
+!
+! i.e.             Abar xbar  =  bbar
+! where                    P  =  C**(-1),
+!                       Abar  =  P (A - shift*I) P',
+!                       bbar  =  P b,
+!
+! and return the solution       x  =  P' xbar.
+! The associated residual is rbar  =  bbar - Abar xbar
+!                                  =  P (b - (A - shift*I)x)
+!                                  =  P r.
+!
+! In the discussion below, eps refers to the machine precision.
+!
+! Parameters
+! ----------
+!
+! n       input      The dimension of the matrix A.
+! b(n)    input      The rhs vector b.
+! x(n)    output     Returns the computed solution x.
+!
+! Aprod   external   A subroutine defining the matrix A.
+!                       call Aprod ( n, x, y )
+!                    must return the product y = Ax
+!                    without altering the vector x.
+!
+! Msolve  external   An optional subroutine defining a
+!                    preconditioning matrix M, which should
+!                    approximate (A - shift*I) in some sense.
+!                    M must be positive definite.
+!
+!                       call Msolve( n, x, y )
+!
+!                    must solve the linear system My = x
+!                    without altering the vector x.
+!
+!                    In general, M should be chosen so that Abar has
+!                    clustered eigenvalues.  For example,
+!                    if A is positive definite, Abar would ideally
+!                    be close to a multiple of I.
+!                    If A or A - shift*I is indefinite, Abar might
+!                    be close to a multiple of diag( I  -I ).
+!
+! checkA  input      If checkA = .true., an extra call of Aprod will
+!                    be used to check if A is symmetric.  Also,
+!                    if precon = .true., an extra call of Msolve
+!                    will be used to check if M is symmetric.
+!
+! precon  input      If precon = .true., preconditioning will
+!                    be invoked.  Otherwise, subroutine Msolve
+!                    will not be referenced; in this case the
+!                    actual parameter corresponding to Msolve may
+!                    be the same as that corresponding to Aprod.
+!
+! shift   input      Should be zero if the system Ax = b is to be
+!                    solved.  Otherwise, it could be an
+!                    approximation to an eigenvalue of A, such as
+!                    the Rayleigh quotient b'Ab / (b'b)
+!                    corresponding to the vector b.
+!                    If b is sufficiently like an eigenvector
+!                    corresponding to an eigenvalue near shift,
+!                    then the computed x may have very large
+!                    components.  When normalized, x may be
+!                    closer to an eigenvector than b.
+!
+! nout    input      A file number.
+!                    If nout > 0, a summary of the iterations
+!                    will be printed on unit nout.
+!
+! itnlim  input      An upper limit on the number of iterations.
+!
+! rtol    input      A user-specified tolerance.  MINRES terminates
+!                    if it appears that norm(rbar) is smaller than
+!                       rtol * norm(Abar) * norm(xbar),
+!                    where rbar is the transformed residual vector,
+!                       rbar = bbar - Abar xbar.
+!
+!                    If shift = 0 and precon = .false., MINRES
+!                    terminates if norm(b - A*x) is smaller than
+!                       rtol * norm(A) * norm(x).
+!
+! istop   output     An integer giving the reason for termination...
+!
+!          -1        beta2 = 0 in the Lanczos iteration; i.e. the
+!                    second Lanczos vector is zero.  This means the
+!                    rhs is very special.
+!                    If there is no preconditioner, b is an
+!                    eigenvector of A.
+!                    Otherwise (if precon is true), let My = b.
+!                    If shift is zero, y is a solution of the
+!                    generalized eigenvalue problem Ay = lambda My,
+!                    with lambda = alpha1 from the Lanczos vectors.
+!
+!                    In general, (A - shift*I)x = b
+!                    has the solution         x = (1/alpha1) y
+!                    where My = b.
+!
+!           0        b = 0, so the exact solution is x = 0.
+!                    No iterations were performed.
+!
+!           1        Norm(rbar) appears to be less than
+!                    the value  rtol * norm(Abar) * norm(xbar).
+!                    The solution in  x  should be acceptable.
+!
+!           2        Norm(rbar) appears to be less than
+!                    the value  eps * norm(Abar) * norm(xbar).
+!                    This means that the residual is as small as
+!                    seems reasonable on this machine.
+!
+!           3        Norm(Abar) * norm(xbar) exceeds norm(b)/eps,
+!                    which should indicate that x has essentially
+!                    converged to an eigenvector of A
+!                    corresponding to the eigenvalue shift.
+!
+!           4        Acond (see below) has exceeded 0.1/eps, so
+!                    the matrix Abar must be very ill-conditioned.
+!                    x may not contain an acceptable solution.
+!
+!           5        The iteration limit was reached before any of
+!                    the previous criteria were satisfied.
+!
+!           6        The matrix defined by Aprod does not appear
+!                    to be symmetric.
+!                    For certain vectors y = Av and r = Ay, the
+!                    products y'y and r'v differ significantly.
+!
+!           7        The matrix defined by Msolve does not appear
+!                    to be symmetric.
+!                    For vectors satisfying My = v and Mr = y, the
+!                    products y'y and r'v differ significantly.
+!
+!           8        An inner product of the form  x' M**(-1) x
+!                    was not positive, so the preconditioning matrix
+!                    M does not appear to be positive definite.
+!
+!                    If istop >= 5, the final x may not be an
+!                    acceptable solution.
+!
+! itn     output     The number of iterations performed.
+!
+! Anorm   output     An estimate of the norm of the matrix operator
+!                    Abar = P (A - shift*I) P',   where P = C**(-1).
+!
+! Acond   output     An estimate of the condition of Abar above.
+!                    This will usually be a substantial
+!                    under-estimate of the true condition.
+!
+! rnorm   output     An estimate of the norm of the final
+!                    transformed residual vector,
+!                       P (b  -  (A - shift*I) x).
+!
+! ynorm   output     An estimate of the norm of xbar.
+!                    This is sqrt( x'Mx ).  If precon is false,
+!                    ynorm is an estimate of norm(x).
+!-------------------------------------------------------------------
+! MINRES is an implementation of the algorithm described in
+! the following reference:
+!
+! C. C. Paige and M. A. Saunders (1975),
+! Solution of sparse indefinite systems of linear equations,
+! SIAM J. Numer. Anal. 12(4), pp. 617-629.
+!-------------------------------------------------------------------
+!
+!
+! MINRES development:
+!    1972: First version, similar to original SYMMLQ.
+!          Later lost @#%*!
+!    Oct 1995: Tried to reconstruct MINRES from
+!              1995 version of SYMMLQ.
+! 30 May 1999: Need to make it more like LSQR.
+!              In middle of major overhaul.
+! 19 Jul 2003: Next attempt to reconstruct MINRES.
+!              Seems to need two vectors more than SYMMLQ.  (w1, w2)
+!              Lanczos is now at the top of the loop,
+!              so the operator Aprod is called in just one place
+!              (not counting the initial check for symmetry).
+! 22 Jul 2003: Success at last.  Preconditioning also works.
+!              minres.f added to http://www.stanford.edu/group/SOL/.
+!
+! 16 Oct 2007: Added a stopping rule for singular systems,
+!              as derived in Sou-Cheng Choi's PhD thesis.
+!              Note that ||Ar|| small => r is a null vector for A.
+!              Subroutine minrestest2 in minresTestModule.f90
+!              tests this option.  (NB: Not yet working.)
+!-------------------------------------------------------------------
+subroutine generic_pminres(A, M, b, x, ctrl)
+  !-----------------------------------------------------------------------------
+  ! This routine performs pcg iterations on Ax=b with preconditioner M. 
+  !-----------------------------------------------------------------------------
+  implicit none
+
+  ! Mandatory parameters
+  type(generic_mat), intent(inout) :: A        ! Matrix
+  type(generic_pre), intent(inout) :: M        ! Preconditioner
+  type(generic_vec), intent(in)    :: b        ! RHS
+  type(generic_vec), intent(inout) :: x        ! Approximate solution
+  type(solver_control), intent(inout) :: ctrl
+
+
+  !     Local arrays and variables
+  type(generic_vec) :: r1, r2, v1, v2, w, w1, w2, y
+  real(rp)  :: alfa  , beta  , beta1 , cs    ,          &
+       dbar  , delta , denom , diag  ,          &
+       eps   , epsa  , epsln , epsr  , epsx  ,  &
+       gamma , gbar  , gmax  , gmin  ,          &
+       oldb  , oldeps, qrnorm, phi   , phibar,  &
+       rhs1  , rhs2  , rnorml, rootl ,          &
+       s     , sn    , t     , tnorm2, ynorm2, z
+
+  integer(ip) :: i, istop, itn
+  logical(lg) :: debug, prnt
+  logical     :: beta1_lt_zero, beta1_eq_zero, beta_lt_zero, istop_neq_zero
+
+  real(rp) ::   Anorm, Acond, rnorm, ynorm
+  integer  :: me, np
+
+
+  ! Local constants
+  real(rp),         parameter :: zero =  0.0_rp,  one = 1.0_rp
+  real(rp),         parameter :: ten  = 10.0_rp
+  character(len=*), parameter :: msg(-1:8) =                  &
+       (/ 'beta2 = 0.  If M = I, b and x are eigenvectors of A', & ! -1
+       'beta1 = 0.  The exact solution is  x = 0           ', & !  0
+       'Requested accuracy achieved, as determined by rtol ', & !  1
+       'Reasonable accuracy achieved, given eps            ', & !  2
+       'x has converged to an eigenvector                  ', & !  3
+       'Acond has exceeded 0.1/eps                         ', & !  4
+       'The iteration limit was reached                    ', & !  5
+       'Aprod  does not define a symmetric matrix          ', & !  6
+       'Msolve does not define a symmetric matrix          ', & !  7
+       'Msolve does not define a pos-def preconditioner    ' /) !  8
+
+  character(len=*), parameter    :: fmt11='(a,2x,es16.9,1x,a,1x,i4,1x,a)'
+  character(len=*), parameter    :: fmt12='(a,3(2x,es16.9))'
+  !-------------------------------------------------------------------
+
+  assert ( ctrl%stopc == res_res )
+
+  call generic_info  ( A, me, np )
+
+  ! RHS space working vectors
+  call generic_clone (b,r1)
+  call generic_clone (b,r2)
+  call generic_clone (b, y)
+
+  ! LHS space working vectors
+  call generic_clone (x, v1)
+  call generic_clone (x, v2)
+  call generic_clone (x, w)
+  call generic_clone (x, w1)
+  call generic_clone (x, w2)
+
+  debug = .false.
+  eps   = epsilon(eps)
+
+  istop    = 0
+  ctrl%it  = 0
+  Anorm    = zero
+  Acond    = zero
+  rnorm    = zero
+  ynorm    = zero
+
+  !-------------------------------------------------------------------
+  ! Set up y and v for the first Lanczos vector v1.
+  ! y = beta1 P' v1, where P = C**(-1).
+  ! v is really P' v1.
+  !-------------------------------------------------------------------
+
+  ! 1) Compute initial residual
+  ! 1.a) r=Ax
+  call generic_matvec ( A, x, r1 )
+
+  ! 1.b) r=b-r
+  call generic_pxmy( b, r1 )
+
+  ! 2) y=inv(M)r1
+  call generic_precond( A , M , r1 , v1 )
+
+  ! beta1 = r1 * M^{-1} * r1 = (||r1||_inv(M))^2
+  call generic_dot (r1, v1, beta1)
+
+  beta1_lt_zero = ( beta1 < zero )
+  call generic_bcast (M, beta1_lt_zero)
+
+  if (beta1_lt_zero) then     ! M must be indefinite.
+     istop = 8
+     go to 900
+  end if
+
+  beta1_eq_zero = ( beta1 == zero )
+  call generic_bcast (M, beta1_eq_zero)
+
+  if (beta1_eq_zero) then    ! r1 = 0 exactly.  Stop with x
+     istop = 0
+     go to 900
+  end if
+
+  if ( generic_fine_task (M) ) then ! Am I a fine task ?
+     beta1  = sqrt( beta1 )         ! Normalize y to get v1 later.
+  end if
+
+  !-------------------------------------------------------------------
+  ! Initialize other quantities.
+  !-------------------------------------------------------------------
+  oldb   = zero
+  beta   = beta1
+  dbar   = zero
+  epsln  = zero
+  qrnorm = beta1
+  phibar = beta1
+  rhs1   = beta1
+  rhs2   = zero
+  tnorm2 = zero
+  ynorm2 = zero
+  cs     = - one
+  sn     = zero
+  call generic_zero (w)
+  call generic_zero (w2)
+  call generic_copy(r1, r2)
+
+  if ( generic_fine_task(M) ) then
+     if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
+  end if
+
+  !===================================================================
+  ! Main iteration loop.
+  !===================================================================
+  do
+     ctrl%it = ctrl%it + 1               ! k = itn = 1 first time through
+
+     if ( generic_fine_task (M) ) then
+        !----------------------------------------------------------------
+        ! Obtain quantities for the next Lanczos vector vk+1, k = 1, 2,...
+        ! The general iteration is similar to the case k = 1 with v0 = 0:
+        !
+        !   p1      = Operator * v1  -  beta1 * v0,
+        !   alpha1  = v1'p1,
+        !   q2      = p2  -  alpha1 * v1,
+        !   beta2^2 = q2'q2,
+        !   v2      = (1/beta2) q2.
+        !
+        ! Again, y = betak P vk,  where  P = C**(-1).
+        ! .... more description needed.
+        !----------------------------------------------------------------
+        s      = one / beta            ! Normalize previous vector (in y).
+
+        ! v      = s*y(1:n)            ! v = vk if P = I
+        call generic_scale ( s, v1, v2 )
+
+        call generic_matvec ( A, v2, y )
+
+        if (ctrl%it >= 2) then
+           ! y   = y - (beta/oldb)*r1    ! call daxpy ( n, (- beta/oldb), r1, 1, y, 1 )
+           call generic_axpy ( -(beta/oldb), r1, y)
+        end if
+
+        ! alfa   = dot_product(v,y)      ! alphak
+        call generic_dot(v2,y,alfa)    ! alphak
+
+        ! y      = y - (alfa/beta)*r2        ! call daxpy ( n, (- alfa/beta), r2, 1, y, 1 )
+        call generic_axpy( -(alfa/beta), r2, y )
+
+        ! r1     = r2
+        call generic_copy( r2, r1 )
+
+        ! r2     = y
+        call generic_copy( y, r2 )
+
+        ! v = inv(M) r2
+        call generic_precond (A, M, r2, v1 )
+
+        oldb   = beta                  ! oldb = betak
+
+        ! beta   = dot_product(r2,v)     
+        ! beta = betak+1^2
+        call generic_dot (r2, v1, beta)
+
+        beta_lt_zero = (beta < zero)
+
+        call generic_bcast(M, beta_lt_zero)
+        if (beta_lt_zero) then
+           istop = 6
+           go to 900
+        end if
+
+        beta   = sqrt( beta )          ! beta = betak+1
+        tnorm2 = tnorm2 + alfa**2 + oldb**2 + beta**2
+
+        if (ctrl%it == 1) then                   ! Initialize a few things.
+           if (beta/beta1 <= ten*eps) then   ! beta2 = 0 or ~ 0.
+              istop = -1                     ! Terminate later.
+           end if
+           !tnorm2 = alfa**2
+           gmax   = abs( alfa )              ! alpha1
+           gmin   = gmax                     ! alpha1
+        end if
+
+        ! Apply previous rotation Qk-1 to get
+        !   [deltak epslnk+1] = [cs  sn][dbark    0   ]
+        !   [gbar k dbar k+1]   [sn -cs][alfak betak+1].
+
+        oldeps = epsln
+        delta  = cs * dbar  +  sn * alfa ! delta1 = 0         deltak
+        gbar   = sn * dbar  -  cs * alfa ! gbar 1 = alfa1     gbar k
+        epsln  =               sn * beta ! epsln2 = 0         epslnk+1
+        dbar   =            -  cs * beta ! dbar 2 = beta2     dbar k+1
+
+        ! Compute the next plane rotation Qk
+
+        gamma  = sqrt( gbar**2 + beta**2 )   ! gammak
+        cs     = gbar / gamma                ! ck
+        sn     = beta / gamma                ! sk
+        phi    = cs * phibar                 ! phik
+        phibar = sn * phibar                 ! phibark+1
+
+        if (debug) then
+           write(*,*) ' '
+           write(*,*) 'alfa ', alfa
+           write(*,*) 'beta ', beta
+           write(*,*) 'gamma', gamma
+           write(*,*) 'delta', delta
+           write(*,*) 'gbar ', gbar
+           write(*,*) 'epsln', epsln
+           write(*,*) 'dbar ', dbar
+           write(*,*) 'phi  ', phi
+           write(*,*) 'phiba', phibar
+           write(*,*) ' '
+        end if
+
+        ! Update  x.
+
+        denom = one/gamma
+
+!!$        do i = 1, n
+!!$           w1(i) = w2(i)
+!!$           w2(i) = w(i)
+!!$           w(i)  = ( v(i) - oldeps*w1(i) - delta*w2(i) ) * denom
+!!$           x(i)  =   x(i) +   phi * w(i)
+!!$        end do
+        call generic_copy(w2, w1)
+        call generic_copy(w,  w2)
+        call generic_copy(v2, w)
+        call generic_axpy(-oldeps,w1,w)
+        call generic_axpy(-delta ,w2,w)
+        call generic_scale(denom,w,w)
+        call generic_axpy(phi, w, x)
+
+        ! Go round again.
+
+        gmax   = max( gmax, gamma )
+        gmin   = min( gmin, gamma )
+        z      = rhs1 / gamma
+        ynorm2 = z**2  +  ynorm2
+        rhs1   = rhs2  -  delta * z
+        rhs2   =       -  epsln * z
+
+        ! Estimate various norms and test for convergence.
+
+        Anorm  = sqrt( tnorm2 )
+        ynorm  = sqrt( ynorm2 )
+        epsa   = Anorm * eps
+        epsx   = Anorm * ynorm * eps
+        epsr   = Anorm * ynorm * ctrl%rtol + ctrl%atol
+        ctrl%tol1 = epsr
+        ctrl%err1 = phibar 
+        diag   = gbar
+        if (diag == zero) diag = epsa
+
+        qrnorm = phibar
+        rnorml = rnorm
+        rnorm  = qrnorm
+        rootl  = sqrt( gbar**2 +dbar**2  )  ! norm([gbar; dbar]);
+        ! AFM Arnorml     = rnorml*rootl          ! ||A r_{k-1} ||
+        ! AFM relArnorml  = rootl  /  Anorm;      ! ||Ar|| / (||A|| ||r||)     
+        ! relArnorml = Arnorml / Anorm;           ! ||Ar|| / ||A|| 
+
+        ! Estimate  cond(A).
+        ! In this version we look at the diagonals of  R  in the
+        ! factorization of the lower Hessenberg matrix,  Q * H = R,
+        ! where H is the tridiagonal matrix from Lanczos with one
+        ! extra row, beta(k+1) e_k^T.
+
+        Acond  = gmax / gmin
+
+        ! See if any of the stopping criteria are satisfied.
+        ! In rare cases, istop is already -1 from above (Abar = const*I).
+
+        if (istop == 0) then
+           if (ctrl%it    >= ctrl%itmax    ) istop = 5
+           if (Acond  >= 0.1d+0/eps) istop = 4
+           if (epsx   >= beta1     ) istop = 3
+           ! AFM if (qrnorm <= epsx  .or.  relArnorml <= epsx) istop = 2
+           ! AFM if (qrnorm <= epsr  .or.  relArnorml <= epsr) istop = 1
+           if (qrnorm <= epsx) istop = 2
+           if (qrnorm <= epsr) istop = 1
+        end if
+
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+          
+!!$        ! See if it is time to print something.
+!!$        if ( me == 0 ) then
+!!$           prnt   = .false.
+!!$           if (ctrl%it    <= 10         ) prnt = .true.
+!!$           if (ctrl%it    >= ctrl%itmax - 10) prnt = .true.
+!!$           if (mod(ctrl%it,10)  ==     0) prnt = .true.
+!!$           if (qrnorm <=  ten * epsx) prnt = .true.
+!!$           if (qrnorm <=  ten * epsr) prnt = .true.
+!!$           if (Acond  >= 1.0d-2/eps ) prnt = .true.
+!!$           if (istop  /=  0         ) prnt = .true.
+!!$
+!!$           if ( prnt ) then
+!!$              if (    ctrl%it     == 1) write(luout_, 1200)
+!!$              write(luout_, 1300) ctrl%it,qrnorm, Anorm, Acond
+!!$              if (mod(ctrl%it,10) == 0) write(luout_, 1500)
+!!$           end if
+!!$        end if
+
+        istop_neq_zero = (istop /= 0)
+        call generic_bcast(M, istop_neq_zero)
+        if (istop_neq_zero) exit
+
+     else
+        ! y = inv(M) r2
+        call generic_precond (A, M, r2, y)
+
+        call generic_bcast(M, beta_lt_zero)
+
+        if (beta_lt_zero) then
+           istop = 6
+           go to 900
+        end if
+
+        call generic_bcast(M, istop_neq_zero)
+        if (istop_neq_zero) exit
+
+     end if
+
+  end do
+  !===================================================================
+  ! End of iteration loop.
+  !===================================================================
+
+900 call generic_free (w2)
+  call generic_free (w1)
+  call generic_free (w)
+  call generic_free (v1)
+  call generic_free (v2)
+  call generic_free (y)
+  call generic_free (r2)
+  call generic_free (r1)
+
+  ! Check for convergence and output corresponding info. messages
+  ctrl%converged = .true.
+
+  if ( .not. (istop==1 .or. istop==2) ) then
+     ctrl%converged = .false.
+  end if
+
+  call generic_bcast(M, ctrl%converged)
+
+  if ( generic_fine_task(M) ) then
+     if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+  end if
+
+  if ( me == 0 ) then
+     write(ctrl%luout, 2000) istop, ctrl%it,   &
+          Anorm, Acond, &
+          rnorm, ynorm
+     write(ctrl%luout, 3000) msg(istop)
+  end if
+
+  return
+
+1000 format(// 1p,    a, 5x, 'Solution of symmetric   Ax = b'    &
+       / ' n      =', i7, 5x, 'checkA =', l4, 12x,         &
+       'precon =', l4                                   &
+       / ' itnlim =', i7, 5x, 'rtol   =', e11.2, 5x,       &
+       'shift  =', e23.14)
+1200 format(// 5x, 'itn', 8x, 'x(1)', 10x,                       &
+       'norm(r)', 3x, 'norm(A)', 3X, 'cond(A)')
+1300 format(1p, i8,3e10.2)
+1500 format(1x)
+2000 format(/ 1p, 5x, 'istop =', i3,   14x, 'itn   =', i8     &
+       /       5x, 'Anorm =', e12.4, 5x, 'Acond =', e12.4  &
+       /       5x, 'rnorm =', e12.4, 5x, 'ynorm =', e12.4, 5x)
+3000 format(      a )
+  
+end subroutine generic_pminres
+
+
+
+!=============================================================================
+!
+! Modified GS with re-orthogonalization
+! (ideal for serial machines)
+!     ierrc   -- error code
+!                0 : successful return
+!               -1: zero input vector
+!               -2: input vector contains abnormal numbers
+!               -3: input vector is a linear combination of others
+subroutine mgsro(luout, m,bkry,hh,ierrc)
+  implicit none
+  ! Parameters
+  integer(ip)               , intent(in)    :: luout
+  integer(ip)               , intent(in)    :: m
+  type(generic_krylov_basis), intent(inout) :: bkry
+  real(rp)                  , intent(inout) :: hh(m)
+  integer(ip)               , intent(out)   :: ierrc  
+
+  ! Locals
+  integer(ip)           :: i
+  real(rp)              :: norm, thr, fct
+  real(rp), parameter   :: reorth = 0.98, rzero = 0.0_rp, rone = 1.0_rp
+  type (generic_vec)    :: q_m, q_i
+
+  call generic_krylov_basis_extract_view ( m, bkry, q_m )
+
+  ! The last vector is orthogonalized against the others
+  call generic_dot( q_m, q_m, norm )
+
+  if (norm <= rzero) then
+     ierrc = -1
+     write (luout,*) '** Warning: mgsro: zero input vector'
+     return
+  else if ( norm > rzero .and. rone/norm > rzero ) then
+     ierrc =  0
+  else
+     ierrc = -2
+     write (luout,*) '** Warning: mgsro: input vector contains abnormal numbers' 
+     return
+  endif
+
+  thr = norm*reorth
+
+  ! Orthogonalize against all the others 
+  do i = 1,m-1
+     call generic_krylov_basis_extract_view ( i, bkry, q_i )
+
+     call generic_dot(q_i, q_m, fct)
+     hh(i) = fct
+     call generic_axpy(-fct, q_i, q_m)
+     ! Reorthogonalization if it is 'too parallel' to the previous vector
+     if (fct*fct > thr) then
+        call generic_dot ( q_i, q_m, fct)
+        hh(i) = hh(i) + fct
+        call generic_axpy(-fct, q_i, q_m)
+     endif
+     norm = norm - hh(i)*hh(i)
+     if (norm < rzero) norm = rzero
+     thr = norm*reorth
+     call generic_free ( q_i )
+  enddo
+
+  ! Normalize
+  call generic_nrm2 (q_m, hh(m))
+
+  if ( hh(m) <= rzero ) then
+     write (luout,*) '** Warning: mgsro: input vector is a linear combination of previous vectors'
+     ierrc = -3
+     return
+  end if
+
+  call generic_scale(rone/hh(m), q_m, q_m)
+  call generic_free (q_m)
+
+end subroutine mgsro
+
+!=============================================================================
+!
+! Iterative Classical Gram-Schmidt (ideal for distributed-memory machines)
+!
+! Taken from Figure 5 of the following paper: 
+! Efficient Gram-Schmidt orthonormalisation on parallel computers
+! F. Commun. Numer. Meth. Engng. 2000; 16:57-66
+!
+! *** IMPORTANT NOTE ***: It would be fine to have an implementation
+! of icgs that allows to exploit level 2 BLAS for the following 2 operations
+! (see below):
+!    x  p <- Q_k^T * Q(k)
+!    x  Q(k) <- Q(k) - Q_k * p
+! This implementation would imply defining a generic
+! data structure for storing Krylov subspace bases.
+!     ierrc   -- error code
+!                0 : successful return
+!               -1: zero input vector
+!               -2: input vector contains abnormal numbers
+!               -3: input vector is a linear combination of others
+subroutine icgsro (luout, k, Q, s, ierrc)
+  implicit none
+  ! Parameters  
+  integer(ip), intent(in)                   :: luout
+  integer(ip)               , intent(in)    :: k
+  type(generic_krylov_basis), intent(inout) :: Q
+  real(rp)                  , intent(inout) :: s(k)
+  integer(ip)               , intent(out)   :: ierrc  
+
+
+  ! Locals 
+  real(rp), parameter              :: alpha = 0.5_rp, rone = 1.0_rp, rzero = 0.0_rp
+  logical(lg), parameter           :: debug = .false.
+  integer(ip)                      :: i, m
+  real(rp)                         :: p(k-1)
+  real(rp)                         :: delta_i, delta_i_mone, beta_i
+  type (generic_vec)               :: q_k
+
+  s = 0.0_rp
+  i = 1 
+
+  call generic_krylov_basis_extract_view ( k, Q, q_k )
+  call generic_nrm2 ( q_k, delta_i_mone )
+
+  if (delta_i_mone <= rzero) then
+     ierrc = -1
+     write (luout,*) '** Warning: icgsro: zero input vector'
+     return
+  else if ( delta_i_mone > rzero .and. rone/delta_i_mone > rzero ) then
+     ierrc =  0
+  else
+     ierrc = -2
+     write (luout,*) '** Warning: icgsro: input vector contains abnormal numbers' 
+     return
+  endif
+
+  loop_icgs: do
+     ! p <- Q_k^T * Q(k), with Q_k = (Q(1), Q(2), .. Q(k-1))  
+     call generic_krylov_basis_multidot ( k-1, Q, q_k, p )
+
+     ! q_k <- q_k - Q_k * p 
+     call generic_krylov_basis_multiaxpy ( k-1, -1.0_rp, Q, p, q_k )
+
+     s(1:k-1) = s(1:k-1) + p(1:k-1)
+
+     ! OPTION 1: estimate ||q_k^{i+1}||
+     ! ** IMPORTANT NOTE **: I have observed,
+     ! for element-based data decompositions, when
+     ! q_k^{i+1} is very close to zero, that this estimation
+     ! becomes zero.
+     ! beta_i = 1 - ||p||^2/(delta_i_mone^2)
+     ! beta_i = 1 - (dot_product(p, p))/(delta_i_mone*delta_i_mone)
+     ! delta_i = delta_i_mone * sqrt ( abs (beta_i) )
+
+     ! OPTION 2: calculate ||q_k^{i+1}||
+     ! write (*,*) i, k, 'xxx', aux,  delta_i      ! DBG:
+     call generic_nrm2 ( q_k, delta_i )
+
+     if ( delta_i > delta_i_mone * alpha .or. delta_i == rzero ) exit loop_icgs
+     i = i + 1
+     delta_i_mone = delta_i 
+  end do loop_icgs
+
+  if (debug) then
+     write(luout,'(a,i1,a)') 'ICGS: ', i, ' ortho. iterations'
+     write(luout,*) delta_i, delta_i_mone * alpha
+  end if
+  if (i>2)   write(luout,*) '** Warning: icgsro: required more than two iterations!'
+
+  ! Normalize
+  ! call generic_nrm2 ( q_k, s(k) )
+  s(k) = delta_i 
+  if ( s(k) <= rzero ) then
+     write (luout,*) '** Warning: icgsro: input vector is a linear combination of previous vectors'
+     ierrc = -3
+     return
+  end if
+  call generic_scale( rone/s(k), q_k, q_k )
+  call generic_free (q_k)
+end subroutine icgsro
+
