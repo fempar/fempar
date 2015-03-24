@@ -48,7 +48,7 @@ program test_dirsol_mm
 
   integer(ip)              :: solver 
   integer(ip)              :: driver 
-  integer(ip)              :: i 
+  integer(ip)              :: i, j 
 
   character(len=256)       :: dir_path
   character(len=256)       :: prefix
@@ -112,7 +112,8 @@ program test_dirsol_mm
   sctrl%trace=1
   sctrl%itmax=200
   sctrl%dkrymax=200
-  sctrl%stopc=res_res
+  ! sctrl%stopc=res_rhs
+  sctrl%orto=icgs
 
   do i=1,1
 
@@ -149,6 +150,7 @@ program test_dirsol_mm
      call fem_precond_free ( precond_free_values, feprec)
      call fem_precond_free ( precond_free_struct, feprec)
      call fem_precond_free ( precond_free_clean, feprec)
+
   end do
 
 

@@ -83,6 +83,7 @@ module fem_vector_names
      procedure :: nrm2 => fem_vector_nrm2_tbp
      procedure :: clone => fem_vector_clone_tbp
      procedure :: comm  => fem_vector_comm_tbp
+     procedure :: weight  => fem_vector_weight_tbp
      procedure :: free  => fem_vector_free_tbp
   end type fem_vector
 
@@ -744,7 +745,7 @@ contains
       else if ( beta == 1.0_rp ) then
          ! AXPY
 #ifdef ENABLE_BLAS
-         call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )    
+         call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )
 #else
          op1%b=op1%b+alpha*op2%b
 #endif
@@ -817,6 +818,13 @@ contains
    implicit none
    class(fem_vector), intent(inout) :: op
  end subroutine fem_vector_comm_tbp
+ 
+ ! op <- weight(op)
+ subroutine fem_vector_weight_tbp(op)
+   implicit none
+   class(fem_vector), intent(inout) :: op
+ end subroutine fem_vector_weight_tbp
+
 
  subroutine fem_vector_free_tbp(this)
    implicit none

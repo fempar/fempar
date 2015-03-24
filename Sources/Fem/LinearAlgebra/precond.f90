@@ -134,6 +134,7 @@ module fem_precond_names
    contains
      procedure :: apply => fem_precond_apply_tbp
      procedure :: apply_fun => fem_precond_apply_fun_tbp
+     procedure :: free => fem_precond_free_tbp
   end type fem_precond
 
   type fem_precond_params
@@ -910,5 +911,10 @@ contains
 
     call x%CleanTemp()
   end function fem_precond_apply_fun_tbp
+
+  subroutine fem_precond_free_tbp(this)
+    implicit none
+    class(fem_precond), intent(inout) :: this
+  end subroutine fem_precond_free_tbp
 
 end module fem_precond_names

@@ -486,7 +486,7 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
   integer(ip)                    :: ierrc
   integer(ip)                    :: kloc, kloc_aux, i, j, k_hh, id
   real(rp)                       :: res_norm, res_2_norm, rhs_norm
-  real(rp)                       :: alpha, c, s 
+  real(rp)                       :: alpha, c, s, aux1, aux2
   real(rp)   , allocatable       :: hh(:,:), g(:), g_aux(:), cs(:,:)
   integer                        :: me, np
   logical                        :: exit_loop
@@ -596,7 +596,11 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
         call generic_free   ( q_aux )
         call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
         call generic_precond( A, M, r, q_aux )
+        call generic_nrm2(r,aux1)
+        call generic_nrm2(q_aux, aux2)
         call generic_free ( q_aux )
+
+
 
         if ( generic_fine_task (M) ) then ! Am I a fine task ?
            ! Orthogonalize
