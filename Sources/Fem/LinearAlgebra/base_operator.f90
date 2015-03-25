@@ -57,7 +57,7 @@ module base_operator_names
   ! and therefore an assignment is needed to make copies. The gfortran
   ! compiler only supports A=B when A and B are polymorphic if the assignment 
   ! is overwritten.
-  type, abstract, extends(base_operator) :: expression_operator
+  type, abstract, extends(base_operator) :: expression_operator 
    contains
      procedure (expression_operator_assign_interface), deferred :: assign
      generic  :: assignment(=) => assign
@@ -608,7 +608,6 @@ contains
     call op%op1%PrintTemp()
     call op%op2%PrintTemp()
 
-
     call op%GuardTemp()
     call x%GuardTemp()
     ! y <- op2*x
@@ -838,8 +837,16 @@ contains
     integer(ip)        , intent(out)   :: np
 
     call op%GuardTemp()
-    call op%op%info(me,np)
-    call op%CleanTemp()
+    if(associated(op%op_stored)) then
+       assert(.not.associated(op%op))
+       call op%op_stored%info(me,np)
+    else if(associated(op%op)) then
+       assert(.not.associated(op%op_stored))
+       call op%op%info(me,np)
+    else
+       check(1==0)
+    end if
+    call op%CleanTemp()  
   end subroutine abs_operator_info
 
   !-------------------------------------!
@@ -896,8 +903,16 @@ contains
     logical :: abs_operator_am_i_fine_task
 
     call op%GuardTemp()
-    abs_operator_am_i_fine_task = op%op%am_i_fine_task()
-    call op%CleanTemp()
+    if(associated(op%op_stored)) then
+       assert(.not.associated(op%op))
+       abs_operator_am_i_fine_task = op%op_stored%am_i_fine_task()
+    else if(associated(op%op)) then
+       assert(.not.associated(op%op_stored))
+       abs_operator_am_i_fine_task = op%op%am_i_fine_task()
+    else
+       check(1==0)
+    end if
+    call op%CleanTemp() 
   end function abs_operator_am_i_fine_task
 
   !-------------------------------------!
@@ -953,8 +968,16 @@ contains
     class(abs_operator), intent(in)     :: op
     logical            , intent(inout)   :: condition
     call op%GuardTemp()
-    call op%op%bcast(condition)
-    call op%CleanTemp()
+    if(associated(op%op_stored)) then
+       assert(.not.associated(op%op))
+       call op%op_stored%bcast(condition)
+    else if(associated(op%op)) then
+       assert(.not.associated(op%op_stored))
+       call op%op%bcast(condition)
+    else
+       check(1==0)
+    end if
+    call op%CleanTemp() 
   end subroutine abs_operator_bcast
 
 end module base_operator_names

@@ -156,7 +156,8 @@ program test_dirsol_mm
 
   call fem_graph_free ( mmgraph )
   call fem_matrix_free ( mmmat ) 
-
+  call fem_vector_free (fevec)
+  call fem_vector_free (feunk)
 
 contains
 
