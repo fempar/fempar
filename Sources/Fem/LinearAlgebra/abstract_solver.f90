@@ -69,8 +69,7 @@ contains
     case ( fgmres )
         call abstract_pfgmres ( A, M, b, x, ctrl )
     case ( richard )
-       check(1==0)
-       ! call abstract_prichard ( A, M, b, x, ctrl )
+        call abstract_prichard ( A, M, b, x, ctrl )
     case( direct )
        call M%apply(b, x)
     case ( icg )
@@ -1038,7 +1037,7 @@ end subroutine abstract_prgmres
 
 !=============================================================================
 !
-! Generic Flexible GMRES
+! Abstract Flexible GMRES
 !
 subroutine abstract_pfgmres ( A, M, b, x, ctrl)
   !--------------------------------------------------------------------
@@ -1052,7 +1051,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
   class(base_operator)   , intent(in)    :: M              ! Preconditioner
   class(base_operand)    , intent(inout) :: x              ! Solution
   class(base_operand)    , intent(in)    :: b              ! RHS
-  class(solver_control), intent(inout)   :: ctrl
+  type(solver_control)  , intent(inout) :: ctrl
 
   integer(ip)                :: ierrc
   integer(ip)                :: kloc, i, j, k_hh, id
@@ -1309,6 +1308,106 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
 
 end subroutine abstract_pfgmres
 
+
+!=============================================================================
+!
+! Abstract preconditioned RICHARDSON
+!
+subroutine abstract_prichard (A, M, b, x, ctrl )
+  !-----------------------------------------------------------------------
+  !
+  ! This routine solves M^-1Ax = M^-1b where M is a given preconditioner
+  ! using preconditioned Richardson fixed-point iterations, with relaxation
+  ! parameter given by relax
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  class(base_operator)   , intent(in)    :: A              ! Matrix
+  class(base_operator)   , intent(in)    :: M              ! Preconditioner
+  class(base_operand)    , intent(inout) :: x              ! Solution
+  class(base_operand)    , intent(in)    :: b              ! RHS
+  type(solver_control)  , intent(inout) :: ctrl
+
+  integer                          :: me, np
+  class(base_operand), allocatable :: r, z      ! Working vectors
+  real(rp)                         :: res_norm, rhs_norm
+
+  assert ( ctrl%stopc == res_res .or. ctrl%stopc == res_rhs ) 
+
+    call A%GuardTemp()
+    call M%GuardTemp()
+    call b%GuardTemp()
+
+    allocate(r, mold=x)
+    allocate(z, mold=x)
+
+    call A%info(me, np)
+    call r%clone(x)
+    call z%clone(x)
+
+    ! Evaluate ||b||_2 if required
+    if ( ctrl%stopc == res_rhs ) then
+        rhs_norm = b%nrm2()
+    endif
+
+    ctrl%converged = .false.
+    if ( M%am_i_fine_task() ) then
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
+    end if
+
+    ctrl%it = 0
+    loop_prichard: do while( (.not.ctrl%converged) .and. (ctrl%it < ctrl%itmax))
+  
+        ! r = Ax
+        call A%apply(x, r)
+
+        ! r = b-r
+        call r%axpby(1.0_rp,b,-1.0_rp)
+
+        ! Evaluate ||r||_L2
+        res_norm = r%nrm2()
+
+        ! Set upper bound (only in 1st iteration)
+        if ( ctrl%it == 1 ) then
+            if ( ctrl%stopc == res_rhs ) then
+                ctrl%tol1  = ctrl%rtol * rhs_norm + ctrl%atol 
+            else if ( ctrl%stopc == res_res ) then
+                ctrl%tol1  = ctrl%rtol * res_norm + ctrl%atol
+            end if
+        end if
+        ctrl%err1 = res_norm
+        if (ctrl%it > 0) ctrl%err1h(ctrl%it) = ctrl%err1
+        ctrl%converged = (ctrl%err1 < ctrl%tol1)
+
+        ! Send converged to coarse-grid tasks
+        call M%bcast(ctrl%converged)
+
+        if ( M%am_i_fine_task() ) then
+            if ((ctrl%it > 0).and.(me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+        end if
+
+        ! z = inv(M) r
+        call M%apply(r, z)
+
+        ! x <- x + relax * z	
+        call x%axpby(ctrl%relax,z,1.0_rp)
+
+        ctrl%it = ctrl%it + 1
+    end do loop_prichard
+
+    call r%free()
+    call z%free()
+
+    if ( M%am_i_fine_task() ) then
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+    end if
+
+
+  call A%CleanTemp()
+  call M%CleanTemp()
+  call b%CleanTemp()
+
+end subroutine abstract_prichard
 
 
   !=============================================================================
