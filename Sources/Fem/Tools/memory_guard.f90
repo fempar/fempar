@@ -14,6 +14,9 @@ module memory_guard_names
      procedure  :: SetTemp   ! Mark object as temporary
      procedure  :: GuardTemp ! Increment the depth count
      procedure  :: CleanTemp ! Decrement depth count/Free memory if 1
+     procedure  :: IsTemp
+     procedure  :: GetTemp
+     procedure  :: PrintTemp ! Print value
      procedure(free_interface), deferred :: free
   end type memory_guard
   
@@ -47,10 +50,39 @@ contains
     if (associated(this%temporary)) then
        if (this%temporary > 1) this%temporary = this%temporary - 1
        if (this%temporary == 1) then
+          write(*,*) 'XXX'
           call this%free()
           deallocate(this%temporary)
        end if
     end if
   end subroutine CleanTemp
-  
+
+  function IsTemp( this ) 
+    implicit none
+   class(memory_guard) :: this
+   logical :: IsTemp
+   IsTemp = associated(this%temporary)
+ end function IsTemp
+ 
+ function GetTemp( this ) 
+   implicit none
+   class(memory_guard) :: this
+   integer(ip) :: GetTemp
+   if( associated(this%temporary)) then
+      GetTemp=this%temporary
+   else
+      GetTemp=-1
+   end if
+ end function GetTemp
+ 
+ subroutine PrintTemp ( this )
+   implicit none
+   class(memory_guard), intent(in) :: this
+   if ( associated(this%temporary)) then
+      write(*,*) 'It is temporary with flag', this%temporary
+   else
+      write(*,*) 'It is permanent'
+   end if
+ end subroutine PrintTemp
+ 
 end module memory_guard_names

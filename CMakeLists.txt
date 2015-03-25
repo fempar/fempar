@@ -11,15 +11,6 @@ SET(${PROJECT_NAME}_SOVERSION 1)
 SET(FEM_LIB fem) # FEM library
 SET(PAR_LIB par) # PAR library
 
-set(CTEST_PROJECT_NAME "Test_victorsndvg")
-set(CTEST_NIGHTLY_START_TIME "00:00:00 EST")
-
-set(CTEST_DROP_METHOD "http" )
-set(CTEST_DROP_SITE "my.cdash.org" )
-set(CTEST_DROP_LOCATION "/submit.php?project=Test_victorsndvg" )
-set(CTEST_DROP_SITE_CDASH TRUE )
-#set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full" )
-
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
 
 message ("-----------------------------------------")
@@ -147,7 +138,7 @@ ENDFOREACH ()
 
 GET_FILENAME_COMPONENT(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
 
-IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
+IF(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
    SET(MACROS "${MACROS} -DDEBUG -Dmemcheck")
 ENDIF()
 
@@ -162,7 +153,9 @@ ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MAT
   set(FORTRAN_FLAGS "-r8 -fpp -W1 -warn nointerfaces")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv -prof-gen -prof-gen:${PROJECT_BINARY_DIR} -prof-dir${PROJECT_BINARY_DIR}" CACHE STRING "" FORCE)
+# A partir de CMake 3.1
+# -prof-gen -prof-dir${PROJECT_BINARY_DIR}
 ELSE ()
   message ("No optimized Fortran compiler flags are known, we just try -O2...")
   set (CMAKE_Fortran_FLAGS_RELEASE "-O2")

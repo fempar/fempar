@@ -89,6 +89,7 @@ module fem_matrix_names
    contains
      procedure  :: apply     => fem_matrix_apply
      procedure  :: apply_fun => fem_matrix_apply_fun
+     procedure  :: free      => fem_matrix_free_tbp
   end type fem_matrix
 
   interface fem_matrix_free
@@ -961,6 +962,7 @@ contains
        select type(y)
        class is(fem_vector)
           call fem_matvec(op, x, y)
+          ! call fem_vector_print(6,y)
        class default
           write(0,'(a)') 'fem_matrix%apply: unsupported y class'
           check(1==0)
@@ -997,5 +999,10 @@ contains
     
  
   end function fem_matrix_apply_fun
+
+  subroutine fem_matrix_free_tbp(this)
+    implicit none
+    class(fem_matrix), intent(inout) :: this
+  end subroutine fem_matrix_free_tbp
 
 end module fem_matrix_names
