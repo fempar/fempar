@@ -76,8 +76,7 @@ contains
        check(1==0)
        ! call abstract_ipcg ( A, M, b, x, ctrl )
     case ( lfom )
-       check(1==0)
-       ! call abstract_plfom ( A, M, b, x, ctrl )
+       call abstract_plfom ( A, M, b, x, ctrl )
     case ( minres )
        check(1==0)
        ! call abstract_pminres ( A, M, b, x, ctrl )
@@ -604,7 +603,7 @@ contains
                    ! call generic_krylov_basis_multiaxpy ( kloc_aux, 1.0_rp, bkry, g_aux, z )
                    do i=1, kloc_aux
                       call z%axpby(g_aux(i),bkry(i),1.0_rp)
-                    end do
+                   end do
 
                    ! r = Az
                    call A%apply(z,r)
@@ -1153,7 +1152,6 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
             ctrl%it = ctrl%it + 1
 
             ! Generate new basis vector
-            call bkryz(kloc)%clone(x)
             call M%apply(bkry(kloc),bkryz(kloc))
             call bkry(kloc+1)%clone(x)
             call A%apply(bkryz(kloc),bkry(kloc+1))
@@ -1408,6 +1406,262 @@ subroutine abstract_prichard (A, M, b, x, ctrl )
   call b%CleanTemp()
 
 end subroutine abstract_prichard
+
+
+!====================================================
+! Abstract Left Preconditioned FOM
+!====================================================
+subroutine abstract_plfom ( A, M, b, x, ctrl )
+  !--------------------------------------------------------------------
+  ! This routine performs plfom iterations on Ax=b with preconditioner M. 
+  !--------------------------------------------------------------------
+#ifdef ENABLE_LAPACK
+  use lapack77_interfaces
+#endif
+
+  implicit none
+  class(base_operator), intent(in)     :: A      ! Matrix
+  class(base_operator), intent(in)     :: M      ! Preconditioner
+  class(base_operand),  intent(inout)  :: x      ! Solution
+  class(base_operand),  intent(in)     :: b      ! RHS
+  type(solver_control), intent(inout) :: ctrl
+
+  integer(ip)                    :: ierrc
+  integer(ip)                    :: kloc, i, j, k_hh, id
+  real(rp)                       :: res_norm, res_2_norm, rhs_norm, res_norm_initial
+  real(rp)   , allocatable       :: hh(:,:), lu(:,:), g(:)
+  integer(ip), allocatable       :: ipiv(:)
+  real(rp)                       :: err1_it, ub1
+  integer                        :: me, np, info
+  logical                        :: exit_loop
+
+  class(base_operand), allocatable :: r, z        ! Working vectors
+  class(base_operand), allocatable :: bkry(:)     ! Krylov basis
+
+    assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs)
+
+    call A%GuardTemp()
+    call M%GuardTemp()
+    call b%GuardTemp()
+
+    ! Clone x in order to allocate working vectors
+    allocate(r, mold=b)
+    allocate(z, mold=x)
+    call r%clone(b)
+    call z%clone(x)
+
+    allocate(bkry(ctrl%dkrymax+1), mold=x)
+
+    ! Allocate working vectors
+    call memalloc(ctrl%dkrymax+1, ctrl%dkrymax+1,hh, __FILE__,__LINE__)
+    call memalloc(ctrl%dkrymax+1, ctrl%dkrymax+1,lu, __FILE__,__LINE__)
+    call memalloc(ctrl%dkrymax+1,                 g, __FILE__,__LINE__)
+    call memalloc(ctrl%dkrymax+1,              ipiv, __FILE__,__LINE__)
+
+    call A%info(me, np)
+
+    ! Evaluate ||b||_2 if required
+    if ( ctrl%stopc == res_rhs ) then
+        rhs_norm = b%nrm2()
+    endif
+
+    ! r = Ax
+    call A%apply(x, r)
+
+    ! r = b-r
+    call r%axpby(1.0_rp,b,-1.0_rp)
+
+    res_2_norm = r%nrm2()
+
+    ! z=inv(M)r
+    call M%apply(r,z)
+
+    ! Evaluate ||z||_2
+    res_norm = z%nrm2()
+    res_norm_initial = res_norm
+
+    if ( ctrl%stopc == res_res ) then
+        ctrl%tol1 = ctrl%rtol * res_2_norm + ctrl%atol
+        ctrl%err1 = res_2_norm
+    else if ( ctrl%stopc == res_rhs ) then
+        ctrl%tol1 = ctrl%rtol * rhs_norm + ctrl%atol
+        ctrl%err1 = res_2_norm
+    end if
+
+    exit_loop = (ctrl%err1 < ctrl%tol1)
+    ! Send converged to coarse-grid tasks
+    call M%bcast(exit_loop)
+
+    if ( M%am_i_fine_task() ) then
+        if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
+    end if
+
+    ctrl%it = 0
+    outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
+        hh = 0.0_rp
+        ! Compute preconditioned residual from scratch (only if ctrl%it/=0)
+        if ( ctrl%it /= 0 ) then 
+            ! r = Ax
+            call A%apply(x, r)
+
+            ! r = b-r
+            call r%axpby(1.0_rp,b,-1.0_rp)
+
+            ! z=inv(M)r
+            call M%apply(r, z)
+
+            ! Evaluate ||z||_2
+            res_norm = z%nrm2()
+        end if
+
+        ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
+
+        call bkry(1)%clone(x)
+        call bkry(1)%scal(1.0_rp/res_norm,z)
+
+        ! start iterations
+        kloc = 0
+        inner: do while ( (.not.exit_loop) .and. &
+            &            (ctrl%it < ctrl%itmax) .and. &
+            &            (kloc < ctrl%dkrymax))
+            kloc  = kloc  + 1
+            ctrl%it = ctrl%it + 1
+
+            ! Generate new basis vector
+            call A%apply(bkry(kloc), r)
+            call bkry(kloc+1)%clone(x)
+            call M%apply(r,bkry(kloc+1))
+
+            if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+                ! Orthogonalize
+                select case( ctrl%orto )
+                    case ( mgs )
+                        call mgsro  ( ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+                    case ( icgs )
+                        call icgsro ( ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+                    case default
+                        check(.false.)
+                        ! Write an error message and stop ?      
+                end select
+
+                if ( ierrc < 0 ) then
+                    ! The coarse-grid task should exit 
+                    ! the inner-do loop. Send signal.
+                    exit_loop = .true.
+                    call M%bcast(exit_loop)
+                    exit inner ! Exit inner do-loop
+                end if
+    
+                ! init right-hand-size to \beta*e_1, with \beta=||z_0||_2
+                g(1)            = res_norm_initial
+                g(2:kloc)       = 0.0_rp
+    
+                if ( kloc > 0 ) then
+                    ! Compute the solution
+    
+                    lu(1:kloc,1:kloc) = hh(1:kloc,1:kloc)
+                    ! write(*,*) 'XXX', lu(1:kloc,1:kloc)
+#ifdef ENABLE_LAPACK
+                    call dgetrf( kloc, kloc, lu, ctrl%dkrymax+1, ipiv, info )
+                    if ( info /= 0 ) then
+                        write (ctrl%luout,*) '** Warning: LFOM: dgetrf returned info /= 0'
+                        exit_loop = .true.
+                        call M%bcast(exit_loop)
+                        call M%bcast(exit_loop)
+                        exit outer ! Exit main do loop 
+                    end if
+    
+                    call dgetrs( 'N' , kloc, 1, lu, ctrl%dkrymax+1, ipiv, g, ctrl%dkrymax+1, info )
+                    if ( info /= 0 ) then
+                        write (ctrl%luout,*) '** Warning: LFOM: dgetrs returned info /= 0'
+                        exit_loop = .true.
+                        call M%bcast(exit_loop)
+                        call M%bcast(exit_loop)
+                        exit outer ! Exit main do loop 
+                    end if
+#else
+                    write (0,*) 'plfom ERROR :: dgetrf and dgetrs not available'
+                    check(1==0)
+#endif
+
+                    ! Now g contains the solution in the krylov basis
+                    ! Compute the solution in the global space
+                    call z%copy(x)
+
+                    ! z <-z +  g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
+                    do j=1, kloc
+                        call z%axpby(g(j),bkry(j),1.0_rp)
+                    enddo
+    
+                    ! r = A(z+x)
+                    call A%apply(z, r)
+    
+                    ! r = b-r
+                    call r%axpby(1.0_rp,b,-1.0_rp)
+    
+                    res_2_norm = r%nrm2()
+                end if
+                ctrl%err1 = res_2_norm
+            end if
+
+            ctrl%err1h(ctrl%it) = ctrl%err1
+            exit_loop = (ctrl%err1 < ctrl%tol1)
+            ! Send converged to coarse-grid tasks
+            call M%bcast(exit_loop)
+    
+            if ( M%am_i_fine_task() ) then
+                if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+            end if
+
+        end do inner
+
+        if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+            if ( ierrc == -2 ) then
+                write (ctrl%luout,*) '** Warning: LFOM: ortho failed due to abnormal numbers, no way to proceed'
+                ! The coarse-grid task should exit 
+                ! the outer-do loop. Send signal. 
+                exit_loop = .true.
+                call M%bcast(exit_loop)
+                exit outer ! Exit outer do-loop
+            end if
+        end if
+
+        ! x <- z
+        call x%copy(z)
+
+        exit_loop = (ctrl%err1 < ctrl%tol1)
+        ! Send converged to coarse-grid tasks
+        call M%bcast(exit_loop)
+
+    end do outer
+
+    ctrl%converged = (ctrl%err1 < ctrl%tol1)
+    ! Send converged to coarse-grid tasks
+    call M%bcast(ctrl%converged)
+
+    call r%free()
+    call z%free()
+
+    do j=1,ctrl%dkrymax+1
+        call bkry(j)%free()
+    enddo
+    deallocate(bkry)
+
+    call memfree(hh,__FILE__,__LINE__)
+    call memfree(lu,__FILE__,__LINE__)
+    call memfree(g,__FILE__,__LINE__)
+    call memfree(ipiv,__FILE__,__LINE__)
+
+    if ( M%am_i_fine_task() ) then
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+    end if
+
+    call A%CleanTemp()
+    call M%CleanTemp()
+    call b%CleanTemp()
+
+end subroutine abstract_plfom
+
 
 
   !=============================================================================
