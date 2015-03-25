@@ -73,8 +73,7 @@ contains
     case( direct )
         call M%apply(b, x)
     case ( icg )
-       check(1==0)
-       ! call abstract_ipcg ( A, M, b, x, ctrl )
+        call abstract_ipcg ( A, M, b, x, ctrl )
     case ( lfom )
         call abstract_plfom ( A, M, b, x, ctrl )
     case ( minres )
@@ -341,6 +340,162 @@ contains
 
     return
   end subroutine pcg_conv_check
+
+
+!=============================================================================
+! Abstract Inexact Preconditioned Conjugate Gradient
+! (Taken from Golub et. al paper 
+!  Inexact Preconditioned Conjugate Gradient Method with Inner-Outer Iteration)
+!=============================================================================
+subroutine abstract_ipcg( A, M, b, x, ctrl )
+  !-----------------------------------------------------------------------------
+  ! This routine performs pcg iterations on Ax=b with preconditioner M. 
+  !-----------------------------------------------------------------------------
+  implicit none
+
+  ! Parameters
+  class(base_operator), intent(in)    :: A        ! Matrix
+  class(base_operator), intent(in)    :: M        ! Preconditioner
+  class(base_operand) , intent(in)    :: b        ! RHS
+  class(base_operand) , intent(inout) :: x        ! Approximate solution
+  type(solver_control), intent(inout) :: ctrl     ! Control data
+
+  ! Locals
+  real(rp)           :: r_nrm_M      ! |r|_inv(M) 
+  real(rp)           :: b_nrm_M      ! |b|_inv(M)
+  real(rp)           :: r_z, r2_z, Ap_p, alpha, beta
+  integer            :: me, np
+  class(base_operand), allocatable  :: r,r2,p,Ap,z     ! Working vectors
+
+    call A%GuardTemp()
+    call M%GuardTemp()
+    call b%GuardTemp()
+
+    allocate(r, mold=x)
+    allocate(r2, mold=x)
+    allocate(Ap, mold=x)
+    allocate(z, mold=x)
+    allocate(p, mold=x)
+    call r%clone(x)
+    call r2%clone(x)
+    call Ap%clone(x)
+    call z%clone(x)
+    call p%clone(x)
+
+    call A%info(me, np)
+
+    ! Evaluate |b|_inv(M) if required
+    if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+        ! r = inv(M) b
+        call M%apply(b, r)
+        b_nrm_M = b%dot(r)
+
+        if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+            b_nrm_M = sqrt(b_nrm_M)
+        end if
+    else
+     b_nrm_M = 0.0_rp
+  endif
+
+    ! 1) Compute initial residual
+    ! 1.a) r=Ax
+    call A%apply(x, r)
+
+    ! 1.b) r=b-r
+    call r%axpby(1.0_rp,b,-1.0_rp)
+
+    ! 2) z=inv(M)r
+    call M%apply(r, z)
+
+    ! 3) <r,z>
+    r_z = r%dot(z)
+
+    if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+        r_nrm_M = sqrt( r_z )
+    end if
+
+    ! 4) Initializations:
+    ! p=z
+    call p%copy(z)
+
+    if ( M%am_i_fine_task() ) then
+     ! Init and log convergence 
+        call pcg_conv_init (  b, r, b_nrm_M, r_nrm_M, ctrl )
+        if ((me == 0).and.(ctrl%trace/=0))  call solver_control_log_header(ctrl)
+    end if
+
+    ! 5) Iteration
+    ctrl%it = 0
+    loop_pcg: do
+        ctrl%it = ctrl%it + 1
+
+        ! Ap = A*p
+        call A%apply(p, Ap)
+
+        ! <Ap,p>
+        Ap_p = Ap%dot(p)
+
+        ! Is this correct/appropriate ?
+        if (Ap_p /= 0.0_rp) then
+            alpha = r_z / Ap_p
+        else
+            alpha = 0.0_rp
+        end if
+
+        ! x = x + alpha*p
+        call x%axpby(alpha,p,1.0_rp)
+
+        call r2%copy(r)
+
+        ! r = r - alpha*Ap
+        call r%axpby(-alpha,Ap,1.0_rp)
+
+        if ( M%am_i_fine_task() ) then
+            ! Check and log convergence
+            call pcg_conv_check(r, r_nrm_M, alpha, p, ctrl )
+            if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+        end if
+        ! Send converged to coarse-grid tasks
+        call M%bcast(ctrl%converged)
+
+        if(ctrl%converged.or.(ctrl%it>=ctrl%itmax)) exit loop_pcg
+
+        ! z = inv(M) r
+        call M%apply(r, z)
+
+        if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+            beta = 1.0_rp/r_z
+            r_z = r%dot(z)
+            r2_z = r2%dot(z)
+            beta = beta*(r_z-r2_z)
+        else
+            beta = 0.0_rp
+        end if
+     
+        if (M%am_i_fine_task() ) then ! Am I a fine task ?
+            r_nrm_M = sqrt( r_z )
+        end if
+
+        ! p = z + beta*p
+        call p%axpby(1.0_rp,z,beta)
+    end do loop_pcg
+
+    call r%free()
+    call r2%free()
+    call Ap%free()
+    call z%free()
+    call p%free()
+
+    if ( M%am_i_fine_task() ) then
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+    end if
+
+    call A%CleanTemp()
+    call M%CleanTemp()
+    call b%CleanTemp()
+
+end subroutine abstract_ipcg
+
 
 !=============================================================================
 ! Abstract Left Preconditioned GMRES
