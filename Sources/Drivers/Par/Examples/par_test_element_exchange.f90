@@ -31,6 +31,7 @@ program par_test_element_exchange
   !----------------------------------------------------------
   use fem
   use par
+  use mpi
   implicit none
 #include "debug.i90"
   ! Our data
@@ -42,6 +43,8 @@ program par_test_element_exchange
 
   type(dof_handler)  :: dhand
   type(fem_space)    :: fspac
+  
+  type(fem_graph), allocatable    :: dof_graph(:,:)
 
   ! Arguments
   integer(ip)              :: handler
@@ -77,14 +80,14 @@ program par_test_element_exchange
 
   vars_prob = 1
   call dof_handler_create( dhand, 1, 1, vars_prob )
-  call dof_handler_print ( dhand, 6 )
+  !call dof_handler_print ( dhand, 6 )
 
   call fem_space_create ( fspac, p_trian%f_trian, dhand )
   
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
   continuity = .true.
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 1
+  order = 3
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
@@ -94,6 +97,9 @@ program par_test_element_exchange
 
   if ( context%iam > 0 ) then
      !pause
+     do while ( 1 > 0)
+        i = i + 1
+     end do
   else
      write (*,*) 'Processor 0 not stopped'
      !i = 1
@@ -110,17 +116,19 @@ program par_test_element_exchange
        & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
        & static_condensation = logical(.false.,lg), num_materials = 1 )
 
-  call create_global_dof_info( dhand, p_trian%f_trian, fspac  )
+  call create_global_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
 
-  call fem_element_print( 6, fspac%lelem(1)  )
+  !call fem_space_print( 6, fspac )
+ 
+  !call fem_element_print( 6, fspac%lelem(1)  )
 
-  write (*,*) 'ALL NODES BEFORE' 
-  write (*,*) 'contxt:',context%iam
-  call mpi_barrier( context%icontxt, ierror )
-  write (*,*) 'ALL NODES AFTER' 
-  call mpi_barrier( context%icontxt, ierror )
+  ! write (*,*) 'ALL NODES BEFORE' 
+  ! write (*,*) 'contxt:',context%iam
+  ! call mpi_barrier( context%icontxt, ierror )
+  ! write (*,*) 'ALL NODES AFTER' 
+  ! call mpi_barrier( context%icontxt, ierror )
 
-  pause
+  !pause
 
 !  nint = 1
 !  tdim = 1
@@ -157,7 +165,7 @@ program par_test_element_exchange
   call par_partition_free (p_part)
   call par_context_free ( context )
 
-  call memstatus
+  !call memstatus
 
 contains
   subroutine read_pars_cl_par_test_element_exchange (dir_path, prefix, dir_path_out)

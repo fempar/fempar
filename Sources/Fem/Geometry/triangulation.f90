@@ -324,7 +324,7 @@ contains
              !do iobj=1, trian%elems(ielem)%num_objects
              jobj = trian%elems(ielem)%objects(iobj)
              if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
-                trian%objects(jobj)%dimension = idime
+                trian%objects(jobj)%dimension = idime-1
                 if (elems_around_pos(jobj) == 1) then
                    call memalloc( trian%objects(jobj)%num_elems_around, trian%objects(jobj)%elems_around, __FILE__, __LINE__ )
                 end if

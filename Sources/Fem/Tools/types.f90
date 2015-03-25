@@ -133,6 +133,12 @@ module types
      integer(ip), allocatable :: l(:) 
   end type list
 
+  type list_2d
+     integer(ip) :: n
+     integer(ip), allocatable :: p(:) 
+     integer(ip), allocatable :: l(:,:) 
+  end type list_2d
+
   type list_pointer
      type(list)          , pointer :: p => NULL()
   end type list_pointer

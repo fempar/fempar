@@ -133,7 +133,7 @@ module fem_space_names
 !       &     memalloc, memrealloc, memfreep, memmovealloc
 
   ! Functions
-  public :: fem_space_create, fem_space_fe_list_create, fem_element_print, fem_space_free
+  public :: fem_space_create, fem_space_fe_list_create, fem_space_print, fem_element_print, fem_space_free
 !,          &
 !       get_p_faces
 
@@ -426,6 +426,25 @@ contains
     assert(0==1)
 
   end subroutine dof_to_elnod
+
+  subroutine fem_space_print (lunou, femsp )
+    implicit none
+    integer(ip)      , intent(in) :: lunou
+    type(fem_space), intent(in) :: femsp
+
+    integer(ip) :: ielem
+
+    write (lunou,*) 'Number of materials: ', femsp%num_materials
+    write (lunou,*) 'Static condensation flag: ', femsp%static_condensation
+
+    write (lunou,*) '****PRINT ELEMENT LIST INFO****'
+    do ielem = 1, femsp%g_trian%num_elems
+       write (lunou,*) '****PRINT ELEMENT ',ielem,' INFO****'
+       call fem_element_print ( lunou, femsp%lelem(ielem) )
+       write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
+    end do
+
+  end subroutine fem_space_print
 
   subroutine fem_element_print ( lunou, elm )
     implicit none
