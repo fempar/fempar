@@ -65,8 +65,7 @@ contains
     case ( lgmres )
        call abstract_plgmres ( A, M, b, x, ctrl )
     case ( rgmres )
-       check(1==0)
-       ! call abstract_prgmres ( A, M, b, x, ctrl )
+       call abstract_prgmres ( A, M, b, x, ctrl )
     case ( fgmres )
        check(1==0)
        ! call abstract_pfgmres ( A, M, b, x, ctrl )
@@ -409,7 +408,6 @@ contains
     logical                        :: exit_loop
 
     class(base_operand), allocatable  :: r, z     ! Working vectors
-    class(base_operand), allocatable  :: q_aux    
     class(base_operand), allocatable  :: bkry(:)  ! Krylov basis
 
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs.or.ctrl%stopc==res_nrmgiven_res_nrmgiven.or.ctrl%stopc==res_nrmgiven_rhs_nrmgiven)
@@ -733,6 +731,312 @@ contains
     call M%CleanTemp()
     call b%CleanTemp()
   end subroutine abstract_plgmres
+
+
+
+
+!=============================================================================
+!
+! Abstract Right Preconditioned GMRES
+!
+! IMPORTANT NOTE: it does not work for element-based data distributions.
+! Indeed, if it were properly adapted for element-based data distributions,
+! it would be terrible in term of communications (because the krylov
+! basis must be composed of partially summed vectors). 
+!
+! IMPORTANT NOTE 2: The above note is not that severe as long as icgs is used. 
+! I have already implemented PRGMRES for element-based data distributions. 
+! Up to 6 nearest neighbour comms are required per Arnoldi iteration. This
+! is indeed too much 6 can be reduced to 2 by having the krylov basis replicated
+! in both states (i.e., part/full summed). 
+! The expense comes from more memory consumption and more update vector operations.
+! Does it pay off ? (TO CONSIDER)
+!
+! IMPORTANT NOTE 3: We have been able to develop a communication equivalent
+! rgmres-like method by the introduction of the new generic vector routine 
+! generic_comm.
+!
+!=============================================================================
+!
+! TODO:  1. Review orthogonalization procedures. (Done: MGS or ICGS)
+!        2. Implement the whole list of convergence criteria available
+!           for PCG. Only two are currently implemented.
+!        3. Set err1/err2 accordingly to the work performed in
+!           point 2 above.
+!        4. Use level-2-BLAS for backward/forward substitution + 
+!           ICGS. This last option would imply defining a generic
+!           data structure for storing Krylov subspace bases.  (DONE)
+!        5. Breakdown detection ? (DONE: Taken from Y. Saad's SPARSKIT)
+subroutine abstract_prgmres ( A, M, b, x, ctrl)
+  !--------------------------------------------------------------------
+  ! This routine performs prgmres iterations on Ax=b with preconditioner M. 
+  !--------------------------------------------------------------------
+#ifdef ENABLE_BLAS       
+  use blas77_interfaces  
+#endif
+  implicit none
+  class(base_operator)   , intent(in)    :: A              ! Matrix
+  class(base_operator)   , intent(in)    :: M              ! Preconditioner
+  class(base_operand)    , intent(inout) :: x              ! Solution
+  class(base_operand)    , intent(in)    :: b              ! RHS
+  type(solver_control)   , intent(inout) :: ctrl
+
+  integer(ip)                :: ierrc
+  integer(ip)                :: kloc, i, j, k_hh, id
+  real(rp)                   :: res_norm, rhs_norm
+  real(rp)                   :: alpha, c, s
+  real(rp)   , allocatable   :: hh(:,:), g(:), cs(:,:)
+  integer                    :: me, np
+  logical                    :: exit_loop
+
+  class(base_operand), allocatable  :: r, z       ! Working vectors
+  class(base_operand), allocatable  :: bkry(:)    ! Krylov basis
+
+    assert(ctrl%stopc==res_nrmgiven_rhs_nrmgiven.or.ctrl%stopc==res_nrmgiven_res_nrmgiven)
+
+
+    call A%GuardTemp()
+    call M%GuardTemp()
+    call b%GuardTemp()
+
+    ! Clone x in order to allocate working vectors
+    allocate(r, mold=b)
+    allocate(z, mold=x)
+    call r%clone(b)
+    call z%clone(x)
+
+    allocate(bkry(ctrl%dkrymax+1), mold=x)
+
+    ! Allocate working vectors
+    call memalloc(ctrl%dkrymax+1,ctrl%dkrymax+1,hh,__FILE__,__LINE__)
+    call memalloc(ctrl%dkrymax+1,g,__FILE__,__LINE__)
+    call memalloc(2,ctrl%dkrymax+1,cs,__FILE__,__LINE__)
+
+    call A%info(me, np)
+
+    ! Evaluate ||b||_2 if required
+    if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+        rhs_norm = b%nrm2()
+    endif
+
+    ! r = Ax
+    call A%apply(x,r)
+
+    ! r = b-r
+    call r%axpby(1.0_rp,b,-1.0_rp)
+
+    ! part_summed to full_summed
+    call r%comm() 
+
+    ! res_norm = ||r||_2
+    res_norm = r%nrm2()
+
+    if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
+        ctrl%tol1  = ctrl%rtol * rhs_norm + ctrl%atol
+        ctrl%err1 = res_norm 
+    else if ( ctrl%stopc == res_nrmgiven_res_nrmgiven ) then
+        ctrl%tol1  = ctrl%rtol * res_norm + ctrl%atol
+        ctrl%err1 = res_norm
+    end if
+    exit_loop = (ctrl%err1 < ctrl%tol1)
+    ! Send converged to coarse-grid tasks
+    call M%bcast(exit_loop)
+
+    if ( M%am_i_fine_task() ) then
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
+    end if
+
+    ctrl%it = 0
+  outer: do while ( (.not.exit_loop) .and. &
+       &            (ctrl%it < ctrl%itmax))
+
+        ! Compute residual from scratch (only if ctrl%it /= 0)
+        if ( ctrl%it /= 0 ) then 
+            ! r = Ax
+            call A%apply(x,r)
+    
+            ! r = b-r
+            call r%axpby(1.0_rp,b,-1.0_rp)
+    
+            ! part_summed to full_summed
+            call r%comm()
+
+            ! res_norm = ||r||_2
+            res_norm = r%nrm2()
+        end if
+
+        ! Normalize residual direction (i.e., v_1 = r/||r||_2)
+        call bkry(1)%clone(x)
+        call bkry(1)%scal(1.0_rp/res_norm, r)
+
+
+         ! residual in the krylov basis
+         g(1) = res_norm
+         g(2:ctrl%dkrymax+1) = 0.0_rp
+
+         ! start iterations
+        kloc = 0
+         inner: do while ( (.not.exit_loop) .and. &
+              &            (ctrl%it < ctrl%itmax) .and. &
+              &            (kloc < ctrl%dkrymax))
+            kloc  = kloc  + 1
+            ctrl%it = ctrl%it + 1
+
+            ! Generate new basis vector
+            call M%apply( bkry(kloc), z )
+            call bkry(kloc+1)%clone(x)
+            call A%apply(z, bkry(kloc+1))
+
+            ! part_summed to full_summed
+            call r%comm()
+
+            if ( M%am_i_fine_task() ) then
+                ! Orthogonalize
+                select case( ctrl%orto )
+                    case ( mgs )
+                        call mgsro  (ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+                    case ( icgs )
+                        call icgsro (ctrl%luout, kloc+1, bkry, hh(1,kloc), ierrc )
+                    case default
+                        check(.false.)
+                end select
+           
+                if ( ierrc < 0 ) then
+                    ! The coarse-grid task should exit 
+                    ! the inner-do loop. Send signal.
+                    exit_loop = .true.
+                    call M%bcast(exit_loop) 
+                    exit inner ! Exit inner do-loop
+                end if
+           
+                ! Apply previous given's rotations to kth column of hessenberg matrix
+                k_hh = 1
+                do j = 1,kloc-1    
+                    alpha = hh(k_hh,kloc)
+                    c = cs(1,j)
+                    s = cs(2,j)
+                    hh(k_hh,kloc) = c*alpha + s*hh(k_hh+1,kloc)
+                    hh(k_hh+1,kloc) = c*hh(k_hh+1,kloc) - s*alpha
+                    k_hh = k_hh +1
+                enddo
+
+                ! Compute (and apply) new given's rotation
+                call givens(hh(k_hh,kloc), hh(k_hh+1,kloc), c, s)
+                cs(1,kloc) = c
+                cs(2,kloc) = s
+
+                ! Update residual vector 
+                ! (expressed in terms of the Krylov basis)
+                alpha = -s*g(kloc)
+                g(kloc) = c*g(kloc)
+                g(kloc+1) = alpha
+
+                ! Error norm
+                res_norm = abs(alpha)
+                ctrl%err1  = res_norm
+                ctrl%err1h(ctrl%it) = ctrl%err1
+            end if
+            exit_loop = (ctrl%err1 < ctrl%tol1) 
+            ! Send converged to coarse-grid tasks
+            call M%bcast(exit_loop)
+        
+            if ( M%am_i_fine_task() ) then
+                if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
+            end if
+        end do inner
+
+        if ( kloc > 0 ) then
+            if ( M%am_i_fine_task() ) then
+                if ( ierrc == -2 ) then
+                    write (ctrl%luout,*) '** Warning: RGMRES: ortho failed due to abnormal numbers, no way to proceed'
+                    ! The coarse-grid task should exit 
+                    ! the outer-do loop. Send signal. 
+                    exit_loop = .true.
+                    call M%bcast(exit_loop)
+                    exit outer ! Exit main do-loop
+                end if
+
+                ! Compute the solution
+                ! If zero on the diagonal, 
+                ! solve a reduced linear system
+                do while ( kloc > 0 ) ! .and. hh(kloc,kloc) == 0.0_rp  )
+                    if(hh(kloc,kloc) /= 0.0_rp) exit
+                    kloc = kloc - 1
+                end do
+
+                if ( kloc <= 0 ) then
+                    write (ctrl%luout,*) '** Warning: RGMRES: triangular system in GMRES has null rank'
+                    exit_loop = .true.
+                    call M%bcast(exit_loop)
+                    exit outer ! Exit main do loop     
+                end if
+
+#ifdef ENABLE_BLAS       
+                !N    !A  !LDA        !X !INCX
+                call DTRSV ( 'U', 'N', 'N', kloc, hh, ctrl%dkrymax+1, g, 1)
+#else
+                ! Solve the system hh*y = g
+                ! Solution stored on g itself
+                do j = kloc,1,-1
+                    g(j) = g(j)/hh(j,j)
+                    do i = j-1,1,-1
+                        g(i) = g(i) - hh(i,j) * g(j)
+                    end do
+                end do
+#endif       
+            end if
+
+            ! Now g contains the solution in the krylov basis
+            ! Compute the solution in the real space
+            call r%init(0.0_rp)
+
+            ! r <- g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
+            do i=1, kloc
+                call r%axpby(g(i),bkry(i),1.0_rp)
+            end do
+
+            ! Solve Mz = r
+            call M%apply(r,z)
+
+            ! x <- x + z
+            call x%axpby(1.0_rp,z,1.0_rp)
+
+            exit_loop = (ctrl%err1 < ctrl%tol1)
+            ! Send converged to coarse-grid tasks
+            call M%bcast(exit_loop)
+        end if
+    end do outer
+
+    ctrl%converged = (ctrl%err1 < ctrl%tol1)
+    ! Send converged to coarse-grid tasks
+    call M%bcast(ctrl%converged)
+
+    ! Deallocate working vectors
+    call memfree(hh,__FILE__,__LINE__)
+    call memfree(g,__FILE__,__LINE__)
+    call memfree(cs,__FILE__,__LINE__)
+    
+    call r%free()
+    call z%free()
+    deallocate(r)
+    deallocate(z)
+
+    ! Deallocate Krylov basis
+    do i=1, ctrl%dkrymax+1
+       call bkry(i)%free()
+    end do
+    deallocate ( bkry )
+
+    if ( M%am_i_fine_task() ) then
+        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
+    end if
+
+    call A%CleanTemp()
+    call M%CleanTemp()
+    call b%CleanTemp()
+end subroutine abstract_prgmres
+
+
 
 
   !=============================================================================
