@@ -125,6 +125,9 @@ module fem_space_names
      type (fem_fixed_info), allocatable :: lelem_info(:)
      integer(ip)                         :: cur_elinf
 
+     type(list_2d)  :: object2dof        ! An auxiliary array to accelerate some parts of the code
+
+
   end type fem_space
 
   ! Types
