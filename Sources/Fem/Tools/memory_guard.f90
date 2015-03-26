@@ -50,7 +50,6 @@ contains
     if (associated(this%temporary)) then
        if (this%temporary > 1) this%temporary = this%temporary - 1
        if (this%temporary == 1) then
-          write(*,*) 'XXX'
           call this%free()
           deallocate(this%temporary)
        end if
