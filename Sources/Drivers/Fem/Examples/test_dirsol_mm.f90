@@ -33,6 +33,8 @@ program test_dirsol_mm
   !
   !-----------------------------------------------------------------------
   use fem
+# include "debug.i90"
+
   implicit none
   ! Files
   integer(ip)              :: lunio
@@ -57,11 +59,14 @@ program test_dirsol_mm
   integer(ip)      :: smoother
   logical          :: one_pass_coarsen
   real(rp)         :: st_parameter
-  real(8)          :: t1, t2
+  real(8)          :: t1, t2, gerror, aerror
+
+  logical          :: from_file
+
 
   call meminit
   
-  call read_pars_cl_test_dirsol_mm ( solver, driver, dir_path, prefix, smoother, one_pass_coarsen, st_parameter)
+  call read_pars_cl_test_dirsol_mm ( solver, driver, dir_path, prefix, smoother, one_pass_coarsen, st_parameter, from_file)
 
   ! Read a symmetric matrix
   call fem_matrix_compose_name_matrix_market ( prefix, name ) 
@@ -112,10 +117,10 @@ program test_dirsol_mm
   sctrl%trace=1
   sctrl%itmax=200
   sctrl%dkrymax=200
-  ! sctrl%stopc=res_rhs
+  ! sctrl%stopc=res_res
   sctrl%orto=icgs
 
-  do i=1,1
+  if(.not.from_file) then
 
      call fem_precond_create  (mmmat, feprec, ppars)
      t1 = wtime()
@@ -137,6 +142,7 @@ program test_dirsol_mm
      ! call solver_control_log_conv_his(sctrl)
      call solver_control_free_conv_his(sctrl)
 
+
      t1 = wtime()
      feunk%b=1.0_rp
      fevec%b=1.0_rp
@@ -151,7 +157,69 @@ program test_dirsol_mm
      call fem_precond_free ( precond_free_struct, feprec)
      call fem_precond_free ( precond_free_clean, feprec)
 
-  end do
+  else
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Iterate on this methods
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! List of Krylov subspace methods available
+    ! cg               = 1
+    ! lgmres           = 2
+    ! rgmres           = 3
+    ! fgmres           = 4
+    ! icg              = 7
+    ! lfom             = 8  ! Left preconditioned Full Orthogonalization Method
+    ! minres           = 9  ! Preconditioned MINimal RESidual method
+    ! Not actually Krylov methods
+    ! richard          = 5  ! Richardson (fixed-point iteration)
+    ! direct           = 6  ! Apply preconditioner directly
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    do i=1,9
+        sctrl%method=i !driver
+        sctrl%stopc=res_res
+        if(i==3 .or. i==4) sctrl%stopc=res_nrmgiven_rhs_nrmgiven
+
+        call fem_precond_create  (mmmat, feprec, ppars)
+        t1 = wtime()
+        call fem_precond_symbolic(mmmat, feprec)
+        call fem_precond_numeric (mmmat, feprec)
+        t2 = wtime() 
+
+        call fem_precond_log_info(feprec)
+
+        write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
+     
+        t1 = wtime()
+        feunk%b=1.0_rp
+        fevec%b=1.0_rp
+        call solve(mmmat,feprec,fevec,feunk,sctrl)
+        t2 = wtime() 
+        write(*,'(a,e15.7)') 'Generic Iterative solution time (secs.):', t2-t1 
+        gerror = sctrl%err1
+        ! call solver_control_log_conv_his(sctrl)
+        call solver_control_free_conv_his(sctrl)
+
+        t1 = wtime()
+        feunk%b=1.0_rp
+        fevec%b=1.0_rp
+        call abstract_solve(mmmat,feprec,fevec,feunk,sctrl)
+        t2 = wtime() 
+        write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
+        aerror = sctrl%err1
+        ! call solver_control_log_conv_his(sctrl)
+        call solver_control_free_conv_his(sctrl)
+
+        call fem_precond_free ( precond_free_values, feprec)
+        call fem_precond_free ( precond_free_struct, feprec)
+        call fem_precond_free ( precond_free_clean, feprec)
+
+        if((gerror-aerror)>1000*epsilon(gerror)) then
+            ! check generic-abstract
+            check(.false.)
+        endif
+    enddo
+
+  endif
 
 
   call fem_graph_free ( mmgraph )
@@ -169,7 +237,7 @@ contains
   ! on the compiler (i.e., INTEL, GNU, etc.)                                     !
   ! *****************************************************************************!
   subroutine read_pars_cl_test_dirsol_mm (solver, driver, dir_path, prefix, & 
-                                          smoother, one_pass_coarsen, st_parameter)
+                                          smoother, one_pass_coarsen, st_parameter,from_file)
     implicit none
     character*(*), intent(out)   :: dir_path, prefix
     integer(ip)  , intent(out)   :: solver, driver
@@ -179,58 +247,140 @@ contains
     integer(ip), intent(out)     :: smoother
     logical    , intent(out)     :: one_pass_coarsen
     real(rp)   , intent(out)     :: st_parameter
+    logical, intent(out)         :: from_file
+    logical                      :: file_exists
 
+
+    from_file=.false.
     numargs = iargc()
     call getarg(0, program_name)
-    if ((numargs < 4) ) then 
-       call print_usage(program_name)
-       stop
+    if((numargs == 1)) then
+        ! Check if file exists
+        call getarg(1, argument)
+        call read_pars_cl_test_dirsol_mm_from_file (argument, solver, driver, dir_path, prefix, & 
+                                          smoother, one_pass_coarsen, st_parameter)
+        from_file=.true.
+    elseif ((numargs < 4) ) then 
+        call print_usage(program_name)
+        check(.false.)
+    else
+
+        call getarg(1, argument)
+        read (argument,*) solver     
+    
+        call getarg(2, argument)
+        read (argument,*) driver     
+    
+        call getarg(3, argument)
+        dir_path = trim(argument)
+    
+        call getarg(4, argument)
+        prefix = trim(argument)
+    
+        if (solver==3) then
+           if (.not. (numargs == 7) ) then
+              call print_usage(program_name)
+           end if
+       
+           call getarg(5,argument)
+           read (argument,*) smoother
+       
+           call getarg(6, argument)
+           if ( trim(argument) .eq. 'T' ) then
+              one_pass_coarsen = .true.
+           else if ( trim(argument) .eq. 'F' ) then
+              one_pass_coarsen = .false.
+           end if
+       
+           call getarg(7, argument)
+           read (argument,*) st_parameter
+        else
+           if (.not. (numargs == 4) ) then
+              call print_usage(program_name)
+              check(.false.)
+           end if
+        end if
+
     end if
 
-    call getarg(1, argument)
-    read (argument,*) solver     
-    
-    call getarg(2, argument)
-    read (argument,*) driver     
-    
-    call getarg(3, argument)
-    dir_path = trim(argument)
-    
-    call getarg(4, argument)
-    prefix = trim(argument)
-    
-    if (solver==3) then
-       if (.not. (numargs == 7) ) then
-          call print_usage(program_name)
-       end if
-       
-       call getarg(5,argument)
-       read (argument,*) smoother
-       
-       call getarg(6, argument)
-       if ( trim(argument) .eq. 'T' ) then
-          one_pass_coarsen = .true.
-       else if ( trim(argument) .eq. 'F' ) then
-          one_pass_coarsen = .false.
-       end if
-       
-       call getarg(7, argument)
-       read (argument,*) st_parameter
-    else
-       if (.not. (numargs == 4) ) then
-          call print_usage(program_name)
-          stop
-       end if
-    end if
   end subroutine read_pars_cl_test_dirsol_mm
 
   subroutine print_usage(program_name)
     implicit none
     character*(*), intent(in) :: program_name
-    write (6,'(a)') 'Usage: ', trim(program_name), ' solver driver dir_path prefix [smoother one_pass_coarsen st_parameter]'
+    write (6,'(a)') 'Usage: ', trim(program_name)//' solver driver dir_path prefix [smoother one_pass_coarsen st_parameter]'
     write (6,'(a)') '          where solver=1 is pardiso, solver=2 is wsmp, solver=3 is hsl_mi20, solver=4 is hsl_ma87, solver=4 is umfpack'
     write (6,'(a)') '          and driver is cg=1, lgmres=2, rgmres=3, fgmres=4, richard=5, direct=6, icg=7, lfom=8, minres=9'
+    write (6,'(a)') 'Or: ', trim(program_name)//' filename.txt'
+    write (6,'(a)') '          where filename.txt is a ASCII text file containing the command line parameters, one per line, '
+    write (6,'(a)') '          in the same order as in the command line.'
   end subroutine print_usage
+
+
+  subroutine read_pars_cl_test_dirsol_mm_from_file (filename, solver, driver, dir_path, prefix, & 
+                                          smoother, one_pass_coarsen, st_parameter)
+    implicit none
+    character(len=256), intent(in)           :: filename
+    character*(*), intent(out)   :: dir_path, prefix
+    integer(ip)  , intent(out)   :: solver, driver
+    character(len=256)           :: program_name
+    character(len=256)           :: argument 
+    integer                      :: numargs,iargc, iu, ios
+    integer(ip), intent(out)     :: smoother
+    logical    , intent(out)     :: one_pass_coarsen
+    real(rp)   , intent(out)     :: st_parameter
+    logical                      :: file_exists
+
+
+        inquire(file=trim(filename), exist=file_exists)
+        if(.not. file_exists) then
+            write (6,'(a)') ' ERROR: Input file '//trim(filename)//' not found!'
+            check(.false.)
+        else
+
+            iu = io_open(trim(filename),status='old')
+!            open(unit=10, file=trim(filename), form='FORMATTED', access='SEQUENTIAL', action = 'READ', iostat = ios)
+!            if(ios /= 0) call io_check(ios,filename)
+
+
+            read(unit=iu, fmt=*, iostat = ios) solver
+            call io_check(ios,filename)
+            read(unit=iu, fmt=*, iostat = ios) driver
+            call io_check(ios,filename)
+            read(unit=iu, fmt=*, iostat = ios) dir_path
+            call io_check(ios,filename)
+            ! dirpath is a relative path from filename folder
+            dir_path=trim(filename(1:index( filename, '/', back=.true.)))//trim(dir_path)
+            read(unit=iu, fmt=*, iostat = ios) prefix
+            call io_check(ios,filename)
+            
+    
+            if (solver==3) then
+                read(unit=iu, fmt=*, iostat = ios) smoother
+                call io_check(ios,filename)
+                read(unit=iu, fmt=*, iostat = ios) one_pass_coarsen
+                call io_check(ios,filename)
+                read(unit=iu, fmt=*, iostat = ios) st_parameter
+                call io_check(ios,filename)
+
+            end if
+
+        endif
+
+  end subroutine read_pars_cl_test_dirsol_mm_from_file
+
+
+  subroutine io_check(ios, filename)
+    implicit none
+    integer            :: ios
+    character(len=256), intent(in) :: filename
+
+        if(ios /= 0) then 
+            write (6,'(a,i3,a)') ' ERROR: Reading text file '//trim(filename)//' (',ios,')'
+            check(.false.)
+        endif
+
+  end subroutine io_check
 
 
   function wtime ( )
