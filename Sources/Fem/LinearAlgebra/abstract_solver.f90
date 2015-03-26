@@ -1306,6 +1306,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
             ctrl%it = ctrl%it + 1
 
             ! Generate new basis vector
+            call bkryz(kloc)%clone(x)
             call M%apply(bkry(kloc),bkryz(kloc))
             call bkry(kloc+1)%clone(x)
             call A%apply(bkryz(kloc),bkry(kloc+1))
