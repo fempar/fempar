@@ -247,8 +247,6 @@ module graph_distribution_names
                      nnode = femsp%lelem(elem_local)%nodes_object(l_var_local)%p%p(obje_local+1) &
                           &  -femsp%lelem(elem_local)%nodes_object(l_var_local)%p%p(obje_local)
 
-
-
                      if ( p_trian%f_trian%objects(iobj)%dimension == p_trian%f_trian%num_dims .and. &
                           & nnode ==  (order+1)**p_trian%f_trian%num_dims ) then
                         order = order    ! hdG case
