@@ -90,19 +90,8 @@ module graph_distribution_names
 
       integer(ip) :: max_nparts, nobjs, npadj
 
-      ! ** IMPORTANT NOTE
-      ! An allocatable array storing the local to local new to old
-      ! permutation of DoFs. It might be required that we somehow
-      ! provide this vector to the caller subroutine, as the latter might
-      ! require to permute other data structures as well (e.g., boundary
-      ! conditions). Temporarily declared it here as local allocatable array to
-      ! let the code compile.
       integer(ip), allocatable :: l2ln2o(:), l2ln2o_ext(:) 
 
-      ! ** IMPORTANT NOTE
-      ! nint and nboun will have to store the number of actual interior and boundary
-      ! DoFs for each block. They have not been yet computed within this subroutine.
-      ! Declared to let the code compile
       integer(ip) :: nint, nboun
 
       ipart  = p_trian%p_context%iam + 1
@@ -246,7 +235,7 @@ module graph_distribution_names
          end do
 
          ! l2ln2o interface vefs to interface dofs from l2ln20_ext
-         l2ln2o(nint+1:nint+nboun-1) = l2ln2o_ext
+         l2ln2o(nint+1:nint+nboun) = l2ln2o_ext(1:nboun)
          assert( nint + nboun == femsp%ndofs(iblock) )  ! check
          call memfree( l2ln2o_ext, __FILE__, __LINE__ )
 
@@ -263,9 +252,6 @@ module graph_distribution_names
          ! Re-number boundary DoFs in increasing order by physical unknown identifier, the 
          ! number of parts they belong and, for DoFs sharing the same number of parts,
          ! in increasing order by the list of parts shared by each DoF.
-         ! ** IMPORTANT NOTE
-         !    The computation of nint/nboun is pending. nboun is actually equal to count, right?
-         !    l2ln2o_dofs has to be allocated and properly initialized as well
          call sort_array_cols_by_row_section( est_max_nparts+3,            & ! #Rows 
               &                                 est_max_nparts+3,            & ! Leading dimension
               &                                 nboun,                       & ! #Cols
