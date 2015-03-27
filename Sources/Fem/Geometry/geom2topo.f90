@@ -33,7 +33,7 @@ module geom2topo
   use fem_space_types
   use interpolation_names
   use fem_conditions_names
-  use element_gather_tools
+  !use element_gather_tools
   implicit none
 # include "debug.i90"
   private
