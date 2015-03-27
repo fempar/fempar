@@ -78,6 +78,7 @@ program par_test_element_exchange
 
   call par_mesh_to_triangulation (p_mesh, p_trian )
 
+  !write (*,*) '********** CREATE DOF HANDLER**************'
   vars_prob = 1
   call dof_handler_create( dhand, 1, 1, vars_prob )
   !call dof_handler_print ( dhand, 6 )

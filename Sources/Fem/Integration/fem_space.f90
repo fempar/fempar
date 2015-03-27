@@ -60,9 +60,9 @@ module fem_space_names
      type(fem_fixed_info_pointer), allocatable :: f_inf(:) ! Interpolation info of the FE space
      type(list_pointer), allocatable :: nodes_object(:)    ! Nodes per object (including interior) (nvars)
 
-     real(rp)        , allocatable :: unkno(:,:,:)  ! Values of the solution on the nodes of the elem    
+     real(rp)   , allocatable :: unkno(:,:,:)    ! Values of the solution on the nodes of the elem    
 
-     type(array_rp1) , allocatable :: bc_value(:)   ! Boundary Condition values
+     integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
      
      type(fem_fixed_info), pointer :: p_geo_info => NULL() ! Interpolation info of the geometry
           
@@ -125,8 +125,8 @@ module fem_space_names
      type (fem_fixed_info), allocatable :: lelem_info(:)
      integer(ip)                         :: cur_elinf
 
-     type(list_2d)  :: object2dof        ! An auxiliary array to accelerate some parts of the code
-
+     type(list_2d)            :: object2dof  ! An auxiliary array to accelerate some parts of the code
+     integer(ip), allocatable :: ndofs(:)
 
   end type fem_space
 
@@ -373,12 +373,13 @@ contains
        fspac%lelem(ielem)%p_mat => fspac%lelmat(pos_elmat)
        fspac%lelem(ielem)%p_vec => fspac%lelvec(pos_elvec)
 
-       ! Allocate elem2dof, unkno
+       ! Allocate elem2dof, unkno, bc_code
        call memalloc( max_num_nodes, nvars, fspac%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
        fspac%lelem(ielem)%elem2dof = 0
        call memalloc( max_num_nodes, nvars, time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
+       call memalloc(nvars,fspac%lelem(ielem)%f_inf(ivar)%p%nobje-1,fspac%lelem(ielem)%bc_code,__FILE__,__LINE__)
 
        ! Assign pointers to volume integration
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
@@ -527,11 +528,8 @@ contains
        call memfree( f%lelem(i)%elem2dof,__FILE__,__LINE__)
        call memfree( f%lelem(i)%unkno,__FILE__,__LINE__)
        !call memfree( f%lelem(i)%jvars,__FILE__,__LINE__)
-       if (allocated(f%lelem(i)%bc_value)) then
-          do j=1,size(f%lelem(i)%bc_value) 
-             if (allocated(f%lelem(i)%bc_value(j)%a)) call array_free(f%lelem(i)%bc_value(j))
-          end do
-          call memfree(f%lelem(i)%bc_value,__FILE__,__LINE__)
+       if (allocated(f%lelem(i)%bc_code)) then
+          call memfree(f%lelem(i)%bc_code,__FILE__,__LINE__)
        end if
        nullify ( f%lelem(i)%p_geo_info )
        nullify ( f%lelem(i)%p_mat )
