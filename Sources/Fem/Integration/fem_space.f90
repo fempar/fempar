@@ -36,6 +36,8 @@ module fem_space_names
   use integration_names
   use fem_space_types
   use dof_handler_names
+  use migratory_element_names
+
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -45,7 +47,7 @@ module fem_space_names
   integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
 
   ! Information of each element of the FE space
-  type fem_element
+  type, extends(migratory_element) :: fem_element
      
      !type(physical_problem), pointer :: problem        
           
@@ -71,6 +73,10 @@ module fem_space_names
 
      type(vol_integ_pointer)     , allocatable :: integ(:)  ! Pointer to integration parameters
 
+   contains
+     procedure :: size   => fem_element_size
+     procedure :: pack   => fem_element_pack
+     procedure :: unpack => fem_element_unpack
   end type fem_element
 
   ! Information relative to the faces
@@ -95,10 +101,11 @@ module fem_space_names
   ! Global information of the fem_space
   type fem_space  
 
-     integer(ip)                        :: num_materials        ! Number of materials (maximum value)
-     logical(lg)                        :: static_condensation  ! Flag for static condensation 
-     type(fem_element)    , allocatable :: lelem(:)         ! List of FEs
-     type(fem_face)       , allocatable :: lface(:)         ! List of active faces
+     integer(ip)                           :: num_materials        ! Number of materials (maximum value)
+     logical(lg)                           :: static_condensation  ! Flag for static condensation 
+     class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list
+     type(fem_element)    , pointer        :: lelem(:)             ! List of FEs
+     type(fem_face)       , allocatable    :: lface(:)             ! List of active faces
 
      type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler)        , pointer :: dof_handler
@@ -146,18 +153,19 @@ contains
   ! Allocation of variables in fem_space according to the values in g_trian
   subroutine fem_space_create( fspac, g_trian, dofh )
     implicit none
-    type(fem_space)   , intent(inout)                :: fspac
+    type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
     type(dof_handler) , intent(in), target           :: dofh           
 
     integer(ip) :: istat
 
-    allocate(fspac%lelem( g_trian%num_elems), stat=istat)
-    if(istat/=0) then 
-       write(6,'(a)') '[Fempar Fatal Error] ***Memory (de)allocation failed.'
-       write(6,'(a,i20)') 'Error code: ', istat
-       write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelem'
-    end if
+    allocate( fem_element :: fspac%mig_elems(g_trian%num_elems), stat=istat)
+    check ( istat == 0 )
+    
+    select type( this => fspac%mig_elems )
+    type is(fem_element)
+       fspac%lelem => this
+    end select
 
     !  Initialization of pointer to triangulation
     fspac%g_trian => g_trian
@@ -489,6 +497,7 @@ contains
     implicit none
     type(fem_space), intent(inout) :: f
     integer(ip)                    :: i,j
+    integer(ip) :: istat
 
     ! SB.alert : To be thought for the new structure triangulation
     ! lface_free
@@ -545,7 +554,10 @@ contains
        !if(allocated(f%lelem(i)%material))    call memfree(f%lelem(i)%iv   ,__FILE__,__LINE__)
        !if(allocated(f%lelem(i)%p_nod)) call memfree(f%lelem(i)%p_nod,__FILE__,__LINE__)
     end do
-    deallocate ( f%lelem )
+    
+    deallocate ( f%mig_elems, stat=istat )
+    check(istat==0)
+    nullify ( f%lelem )
 
     do i = 1,f%cur_elmat-1
        call array_free( f%lelmat(i) )
@@ -601,6 +613,102 @@ contains
   end subroutine get_p_faces
 
   ! SB.alert : to be thought now
+
+  subroutine fem_element_size (my, n)
+    implicit none
+    class(fem_element), intent(in)  :: my
+    integer(ip)            , intent(out) :: n
+    
+    ! Locals
+    integer(ip) :: mold(1)
+    integer(ip) :: size_of_ip, size_of_lg
+    
+    size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_lg   = size(transfer(.false._lg,mold))
+
+    n = size_of_ip*3 + size_of_ip*(my%num_vars) + size_of_lg*(my%num_vars)
+
+  end subroutine fem_element_size
+
+  subroutine fem_element_pack (my, n, buffer)
+    implicit none
+    class(fem_element), intent(in)  :: my
+    integer(ip)            , intent(in)   :: n
+    integer(ip)            , intent(out)  :: buffer(n)
+    
+    ! Locals
+    integer(ip) :: mold(1)
+    integer(ip) :: size_of_ip, size_of_lg
+
+    integer(ip) :: start, end
+
+    size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_lg   = size(transfer(.false._lg,mold))
+
+    start = 1
+    end   = start + size_of_ip -1
+    buffer(start:end) = transfer(my%num_vars,mold)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    buffer(start:end) = transfer(my%problem,mold)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    buffer(start:end) = transfer(my%material,mold)
+
+    start = end + 1
+    end   = start + my%num_vars*size_of_ip - 1
+    buffer(start:end) = transfer(my%order,mold)
+
+    start = end + 1
+    end   = start + my%num_vars*size_of_lg - 1
+    buffer(start:end) = transfer(my%continuity,mold)
+
+  end subroutine fem_element_pack
+
+  subroutine fem_element_unpack(my, n, buffer)
+    implicit none
+    class(fem_element), intent(inout) :: my
+    integer(ip)            , intent(in)     :: n
+    integer(ip)            , intent(in)     :: buffer(n)
+
+    ! Locals
+    integer(ip) :: mold(1)
+    integer(ip) :: size_of_ip, size_of_lg
+    integer(ip) :: start, end
+    
+    size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_lg   = size(transfer(.false._lg,mold))
+
+    start = 1
+    end   = start + size_of_ip -1
+    my%num_vars  = transfer(buffer(start:end), my%num_vars)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    my%problem  = transfer(buffer(start:end), my%problem)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    my%material  = transfer(buffer(start:end), my%material)
+
+    call memalloc( my%num_vars, my%order, __FILE__, __LINE__ )
+
+    start = end + 1
+    end   = start + my%num_vars*size_of_ip - 1
+    my%order = transfer(buffer(start:end), my%order)
+
+    call memalloc( my%num_vars, my%continuity, __FILE__, __LINE__ )
+ 
+    start = end + 1
+    end   = start + my%num_vars*size_of_lg - 1
+    my%continuity = transfer(buffer(start:end), my%continuity)
+
+  end subroutine fem_element_unpack
+
+
+
 
 end module fem_space_names
 

@@ -136,7 +136,8 @@ module graph_distribution_names
          call memalloc ( femsp%ndofs(iblock), l2ln2o, __FILE__, __LINE__ )
          call memalloc ( est_max_itf_dofs, l2ln2o_ext, __FILE__, __LINE__ )
 
-
+         ! ** IMPORTANT NOTE!!! DO NOT FORGET TO COUNT DOFs INTERIOR TO ELEMENTS
+         
          ! l2ln2o interior vefs
          nint = 0
          nboun = 0
