@@ -139,6 +139,11 @@ module graph_distribution_names
             est_max_itf_dofs = est_max_itf_dofs + femsp%object2dof(iblock)%p(iobj+1) &
                  & - femsp%object2dof(iblock)%p(iobj)
          end do
+
+         call memalloc ( femsp%ndofs(iblock), l2ln2o, __FILE__, __LINE__ )
+         call memalloc ( est_max_itf_dofs, l2ln2o_ext, __FILE__, __LINE__ )
+         
+         
          ! l2ln2o interior vefs
          nint = 0
          nboun = 0
@@ -242,9 +247,7 @@ module graph_distribution_names
 
          ! l2ln2o interface vefs to interface dofs from l2ln20_ext
          l2ln2o(nint+1:nint+nboun-1) = l2ln2o_ext
-
-         nint = nint
-         nboun = nboun
+         assert( nint + nboun == femsp%ndofs(iblock) )  ! check
          call memfree( l2ln2o_ext, __FILE__, __LINE__ )
 
          call ws_parts_visited_all%free()
