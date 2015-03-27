@@ -64,7 +64,6 @@ contains
 
   end subroutine create_global_dof_info
 
-  
 !*********************************************************************************
   subroutine create_element_to_dof_and_ndofs( dhand, trian, femsp ) 
     implicit none
@@ -135,9 +134,9 @@ contains
                          !write (*,*) '(order-1)**trian%objects(iobje)%dimension ',(order-1)**trian%objects(iobje)%dimension 
 
 
-                         if ( nnode ==  (order-1)**trian%objects(iobje)%dimension ) then
+                         !if ( nnode ==  (order-1)**trian%objects(iobje)%dimension ) then
                             !write (*,*) 'nnode XXX',nnode ! cG case
-                         end if
+                         !end if
                          if ( nnode > 0) then  
                             order = femsp%lelem(elem_ext)%f_inf(l_var_ext)%p%order
                             !write (*,*) 'order',order

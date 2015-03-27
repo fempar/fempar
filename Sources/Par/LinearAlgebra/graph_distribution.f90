@@ -32,6 +32,7 @@ module graph_distribution_names
   use sort_names
   use maps_names
   use dof_handler_names
+  use fem_space_types
   use fem_space_names
   use hash_table_names
   
@@ -94,6 +95,9 @@ module graph_distribution_names
 
       integer(ip) :: nint, nboun
 
+      integer(ip) :: elem_ghost, elem_local, l_var_ghost, l_var_local, nnode, obje_ghost, obje_local, order 
+      integer(ip) :: o2n(max_nnode)
+
       ipart  = p_trian%p_context%iam + 1
       nparts = p_trian%p_context%np
 
@@ -108,7 +112,7 @@ module graph_distribution_names
       end do
 
       call memalloc ( est_max_nparts+3, est_max_itf_dofs, lst_parts_per_dof_obj, __FILE__, __LINE__ )
-      call memalloc ( femsp%num_materials, dhand%nvars_global, est_max_nparts+2 , touch, __FILE__, __LINE__ )
+      call memalloc ( femsp%num_materials, dhand%nvars_global, est_max_nparts+3 , touch, __FILE__, __LINE__ )
       call memalloc ( est_max_nparts+3, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
       call memalloc ( est_max_nparts+3, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
 
@@ -131,8 +135,8 @@ module graph_distribution_names
 
          call memalloc ( femsp%ndofs(iblock), l2ln2o, __FILE__, __LINE__ )
          call memalloc ( est_max_itf_dofs, l2ln2o_ext, __FILE__, __LINE__ )
-         
-         
+
+
          ! l2ln2o interior vefs
          nint = 0
          nboun = 0
@@ -168,23 +172,31 @@ module graph_distribution_names
                do ivars = 1, nvapb
                   !l_var = g2l(ivars,iprob)
                   l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                  g_var = dhand%problems(iprob)%l2g_var(l_var)
-                  mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
-                  do obje_l = 1, p_trian%f_trian%elems(jelem)%num_objects
-                     if ( p_trian%f_trian%elems(jelem)%objects(obje_l) == iobj ) exit
-                  end do
+                  if ( femsp%lelem(jelem)%continuity(l_var) ) then
+                     g_var = dhand%problems(iprob)%l2g_var(l_var)
+                     mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
+                     do obje_l = 1, p_trian%f_trian%elems(jelem)%num_objects
+                        if ( p_trian%f_trian%elems(jelem)%objects(obje_l) == iobj ) exit
+                     end do
 
-                  call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
-                  if ( istat == now_stored ) then
-                     touch(mater,g_var,1) = touch(mater,g_var,1) + 1 ! New part in the counter             
-                     touch(mater,g_var,touch(mater,g_var,1)+2) = p_trian%elems(jelem)%mypart ! Put new part
-                  end if
-                  touch(mater,g_var,2) = max(touch(mater,g_var,2),p_trian%elems(jelem)%globalID) ! Max elem GID 
-
-                  call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
-                  if ( istat == now_stored ) then
-                     npadj = npadj + 1
-                     ws_parts_visited_list_all(npadj) = p_trian%elems(jelem)%mypart
+                     call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                     if ( istat == now_stored ) then
+                        touch(mater,g_var,1) = touch(mater,g_var,1) + 1 ! New part in the counter             
+                        touch(mater,g_var,touch(mater,g_var,1)+5) = p_trian%elems(jelem)%mypart ! Put new part
+                     end if
+                     if( p_trian%elems(jelem)%globalID > touch(mater,g_var,2) ) then
+                        touch(mater,g_var,2) = jelem 
+                        touch(mater,g_var,3) = obje_l
+                     end if
+                     if ( jelem <= p_trian%f_trian%num_elems ) then
+                        touch(mater,g_var,4) = jelem 
+                        touch(mater,g_var,5) = obje_l
+                     end if
+                     call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                     if ( istat == now_stored ) then
+                        npadj = npadj + 1
+                        ws_parts_visited_list_all(npadj) = p_trian%elems(jelem)%mypart
+                     end if
                   end if
                end do
             end do
@@ -194,7 +206,7 @@ module graph_distribution_names
             ! This is required by the call to icomp subroutine below 
             do mater = 1, femsp%num_materials
                do g_var = 1, dhand%nvars_global
-                  call sort ( touch(mater,g_var,1), touch(mater,g_var,3:(touch(mater,g_var,1)+2)) )
+                  call sort ( touch(mater,g_var,1), touch(mater,g_var,6:(touch(mater,g_var,1)+5)) )
                end do
             end do
 
@@ -203,10 +215,10 @@ module graph_distribution_names
 
             do idof = femsp%object2dof(iblock)%p(iobj), femsp%object2dof(iblock)%p(iobj+1)-1
                ! parts
+               g_var = femsp%object2dof(iblock)%l(idof,2)  
+               g_mat = femsp%object2dof(iblock)%l(idof,3)
                if ( touch(g_mat,g_var,1) > 1 ) then ! Interface dof
                   g_dof = femsp%object2dof(iblock)%l(idof,1)
-                  g_var = femsp%object2dof(iblock)%l(idof,2)  
-                  g_mat = femsp%object2dof(iblock)%l(idof,3)
                   nparts_around = touch(g_mat,g_var,1)
 
                   count = count + 1
@@ -214,12 +226,51 @@ module graph_distribution_names
 
                   ! Use the local pos of dof in elem w/ max GID to sort
                   l_var = dhand%g2l_vars(g_var,femsp%lelem(touch(g_mat,g_var,2))%problem)
-                  l_pos =  local_node( g_dof, iobj, femsp%lelem(touch(g_mat,g_var,2)), l_var, &
-                       & p_trian%f_trian%elems(touch(g_mat,g_var,2))%num_objects, &
-                       & p_trian%f_trian%elems(touch(g_mat,g_var,2))%objects )
 
+                  if ( touch(g_mat,g_var,2) <= p_trian%f_trian%num_elems ) then
+                     l_pos =  local_node( g_dof, iobj, femsp%lelem(touch(g_mat,g_var,2)), l_var, &
+                          & p_trian%f_trian%elems(touch(g_mat,g_var,2))%num_objects, &
+                          & p_trian%f_trian%elems(touch(g_mat,g_var,2))%objects )
+                  else
+                     l_pos =  local_node( g_dof, iobj, femsp%lelem(touch(g_mat,g_var,4)), l_var, &
+                          & p_trian%f_trian%elems(touch(g_mat,g_var,4))%num_objects, &
+                          & p_trian%f_trian%elems(touch(g_mat,g_var,4))%objects )
+                     ! SB.alert :  This part is difficult... can I simplify it ?
+                     elem_ghost = touch(g_mat,g_var,2)
+                     elem_local = touch(g_mat,g_var,4)
+                     l_var_ghost = dhand%g2l_vars(g_var,femsp%lelem(elem_ghost)%problem)
+                     l_var_local = dhand%g2l_vars(g_var,femsp%lelem(elem_local)%problem)
+                     obje_ghost = touch(g_mat,g_var,3)
+                     obje_local = touch(g_mat,g_var,5)
+                     order = femsp%lelem(elem_local)%order(l_var_local)
+                     ! SB.alert : We must think about it and the relation between material and interpolation
+                     nnode = femsp%lelem(elem_local)%nodes_object(l_var_local)%p%p(obje_local+1) &
+                          &  -femsp%lelem(elem_local)%nodes_object(l_var_local)%p%p(obje_local)
+
+
+
+                     if ( p_trian%f_trian%objects(iobj)%dimension == p_trian%f_trian%num_dims .and. &
+                          & nnode ==  (order+1)**p_trian%f_trian%num_dims ) then
+                        order = order    ! hdG case
+                     elseif ( nnode ==  (order-1)**p_trian%f_trian%objects(iobj)%dimension ) then
+                        order = order -2 ! cG case
+                     else
+                        assert ( 0 == 1) ! SB.alert : Other situations possible when dG_material, cdG, hp-adaptivity ?
+                     end if
+                     assert( femsp%lelem(elem_local)%order(l_var_local) == femsp%lelem(elem_ghost)%order(l_var_ghost)  )
+
+                     call permute_nodes_object(                                                                 &
+                          & femsp%lelem(elem_local)%f_inf(l_var_local)%p,                                                  &
+                          & femsp%lelem(elem_ghost)%f_inf(l_var_ghost)%p,                                           &
+                          & o2n,obje_local,obje_ghost,                                                                &
+                          & p_trian%f_trian%elems(elem_local)%objects,                                                         &
+                          & p_trian%f_trian%elems(elem_ghost)%objects,                                                      &
+                          & p_trian%f_trian%objects(iobj)%dimension,                                                     &
+                          & order )
+                     l_pos = o2n(l_pos)
+                  end if
                   lst_parts_per_dof_obj (2,count) = nparts_around ! Number parts 
-                  lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(g_mat,g_var,3:(touch(mater,g_var,1)+2)) ! List parts
+                  lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(g_mat,g_var,6:(touch(mater,g_var,1)+5)) ! List parts
                   lst_parts_per_dof_obj (nparts_around+3:est_max_nparts+2,count) = 0 ! Zero the rest of entries in current col except last
                   lst_parts_per_dof_obj (est_max_nparts+3,count) = l_pos ! Local pos in Max elem GID
 
@@ -384,10 +435,16 @@ module graph_distribution_names
     end subroutine graph_distribution_create
 
 
+    subroutine get_local_node_max_GID_element( )
+      
+    end subroutine get_local_node_max_GID_element
+
+    
+
     integer(ip) function local_node( g_dof, iobj, elem, l_var, nobje, objects )
       
       implicit none
-      integer(ip) :: g_dof, iobj, l_var, nobje, objects(:)
+      integer(ip) :: g_dof, iobj, l_node, l_var, nobje, objects(:)
       type(fem_element) :: elem
 
       integer(ip) :: inode, obje_l
@@ -398,8 +455,11 @@ module graph_distribution_names
 
       do inode = elem%nodes_object(l_var)%p%p(obje_l), &
            &     elem%nodes_object(l_var)%p%p(obje_l+1)-1  
-         local_node = elem%nodes_object(l_var)%p%l(inode)
-         if ( elem%elem2dof(local_node,l_var) == g_dof ) exit
+         l_node = elem%nodes_object(l_var)%p%l(inode)
+         if ( elem%elem2dof(l_node,l_var) == g_dof ) then
+            local_node = inode - elem%nodes_object(l_var)%p%p(obje_l) + 1
+            exit
+         end if
       end do
 
     end function local_node
