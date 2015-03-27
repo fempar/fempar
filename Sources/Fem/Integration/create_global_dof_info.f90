@@ -55,7 +55,7 @@ contains
 
     call create_element_to_dof_and_ndofs( dhand, trian, femsp )
  
-    !call fem_space_print( 6, femsp )
+    call fem_space_print( 6, femsp )
 
     call create_object2dof( dhand, trian, femsp )
 
@@ -102,7 +102,7 @@ contains
                    do obje_l = 1, trian%elems(jelem)%num_objects
                       if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                    end do
-                   if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) /= 0 ) then 
+                   if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then 
                       if ( touch(mater,g_var,1) == 0) then
                          touch(mater,g_var,1) = jelem
                          touch(mater,g_var,2) = obje_l
@@ -225,17 +225,19 @@ contains
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
-    integer(ip) :: obje_l, inode, l_node, mater
+    integer(ip) :: obje_l, inode, l_node, mater, istat
     integer(ip) :: touch(dhand%nvars_global,femsp%num_materials)
 
+    allocate( femsp%object2dof(dhand%nblocks), stat = istat )
+    check( istat == 0)
 
     do iblock = 1, dhand%nblocks  
 
        ! Create object to dof
 
        !call memalloc ( dhand%nvars_global, touch, __FILE__, __LINE__ ) 
-       femsp%object2dof%n = trian%num_objects
-       call memalloc ( trian%num_objects+1, femsp%object2dof%p, __FILE__, __LINE__ )
+       femsp%object2dof(iblock)%n = trian%num_objects
+       call memalloc ( trian%num_objects+1, femsp%object2dof(iblock)%p, __FILE__, __LINE__ )
        do iobje = 1, trian%num_objects
           touch = 0
           do ielem = 1, trian%objects(iobje)%num_elems_around
@@ -253,14 +255,14 @@ contains
                       do obje_l = 1, trian%elems(jelem)%num_objects
                          if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                       end do
-                      if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) /= 0 ) then
+                      if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
                          !write (*,*) 'ADD TO OBJECT',iobje,' #DOFS',femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
                          ! & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
-                         femsp%object2dof%p(iobje+1) = femsp%object2dof%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
+                         femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
                               & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
                          !do inode = 1, femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje+1) - &
                          !     & femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje)
-                         !femsp%object2dof%p(iobje+1) = femsp%object2dof%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje)%nd1
+                         !femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje)%nd1
                          !end do
                       end if
                    end if
@@ -270,14 +272,14 @@ contains
        end do
        !call memfree( touch, __FILE__, __LINE__ )
        !
-       !write (*,*) 'femsp%object2dof%p', femsp%object2dof%p
-       femsp%object2dof%p(1) = 1
+       !write (*,*) 'femsp%object2dof(iblock)%p', femsp%object2dof(iblock)%p
+       femsp%object2dof(iblock)%p(1) = 1
        do iobje = 2, trian%num_objects+1
-          femsp%object2dof%p(iobje) = femsp%object2dof%p(iobje) + femsp%object2dof%p(iobje-1)
+          femsp%object2dof(iblock)%p(iobje) = femsp%object2dof(iblock)%p(iobje) + femsp%object2dof(iblock)%p(iobje-1)
        end do
-       !write (*,*) 'femsp%object2dof%p', femsp%object2dof%p
-       !write (*,*) 'femsp%object2dof%p(trian%num_objects+1)-1',femsp%object2dof%p(trian%num_objects+1)-1
-       call memalloc ( femsp%object2dof%p(trian%num_objects+1)-1, 2, femsp%object2dof%l, __FILE__, __LINE__ )
+       !write (*,*) 'femsp%object2dof(iblock)%p', femsp%object2dof(iblock)%p
+       !write (*,*) 'femsp%object2dof(iblock)%p(trian%num_objects+1)-1',femsp%object2dof(iblock)%p(trian%num_objects+1)-1
+       call memalloc ( femsp%object2dof(iblock)%p(trian%num_objects+1)-1, 3, femsp%object2dof(iblock)%l, __FILE__, __LINE__ )
        ! 
        count = 0
        do iobje = 1, trian%num_objects
@@ -296,7 +298,7 @@ contains
                       do obje_l = 1, trian%elems(jelem)%num_objects
                          if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                       end do
-                      if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) /= 0 ) then
+                      if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
                          do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l), &
                               &     femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
 
@@ -304,8 +306,9 @@ contains
                             !                        & femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
                             l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
                             count = count + 1
-                            femsp%object2dof%l(count,1) = femsp%lelem(jelem)%elem2dof(l_node,l_var)
-                            femsp%object2dof%l(count,2) = dhand%problems(iprob)%l2g_var(l_var)
+                            femsp%object2dof(iblock)%l(count,1) = femsp%lelem(jelem)%elem2dof(l_node,l_var)
+                            femsp%object2dof(iblock)%l(count,2) = dhand%problems(iprob)%l2g_var(l_var)
+                            femsp%object2dof(iblock)%l(count,3) = mater
                          end do
                       end if
                    end if
@@ -313,8 +316,8 @@ contains
              end if
           end do
        end do
-       write (*,*) 'femsp%object2dof%p', femsp%object2dof%p
-       write (*,*) 'femsp%object2dof%l', femsp%object2dof%l
+       write (*,*) 'femsp%object2dof(iblock)%p', femsp%object2dof(iblock)%p
+       write (*,*) 'femsp%object2dof(iblock)%l', femsp%object2dof(iblock)%l
     end do
   end subroutine create_object2dof
   
@@ -330,7 +333,7 @@ contains
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var, inter, inode, l_node
     integer(ip) :: gtype, idof, jdof, int_i, int_j, istat, jblock, jnode, job_g, jobje, jvars, k_var 
-    integer(ip) :: l_dof, m_dof, m_node, m_var, posi, posf
+    integer(ip) :: l_dof, m_dof, m_node, m_var, posi, posf, l_mat, m_mat
     integer(ip), allocatable :: aux_ia(:)
     type(hash_table_ip_ip) :: visited
 
@@ -365,7 +368,7 @@ contains
           ! COUNT
 
           do iobje = 1, trian%num_objects             
-             if ( femsp%object2dof%p(iobje+1)-femsp%object2dof%p(iobje) > 0) then
+             if ( femsp%object2dof(iblock)%p(iobje+1)-femsp%object2dof(iblock)%p(iobje) > 0) then
                 call visited%init(100) 
                 do ielem = 1, trian%objects(iobje)%num_elems_around
                    jelem = trian%objects(iobje)%elems_around(ielem)
@@ -376,13 +379,15 @@ contains
                          call visited%put(key=job_g, val=1, stat=istat)
                          !write (*,*) 'istat',istat
                          if ( istat == now_stored ) then
-                            do idof = femsp%object2dof%p(iobje), femsp%object2dof%p(iobje+1)-1
-                               l_dof = femsp%object2dof%l(idof,1)
-                               l_var = femsp%object2dof%l(idof,2)
-                               do jdof = femsp%object2dof%p(job_g), femsp%object2dof%p(job_g+1)-1
-                                  m_dof = femsp%object2dof%l(jdof,1)
-                                  m_var = femsp%object2dof%l(jdof,2)
-                                  if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                            do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
+                               l_dof = femsp%object2dof(iblock)%l(idof,1)
+                               l_var = femsp%object2dof(iblock)%l(idof,2)
+                               l_mat = femsp%object2dof(iblock)%l(idof,3)
+                               do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
+                                  m_dof = femsp%object2dof(jblock)%l(jdof,1)
+                                  m_var = femsp%object2dof(jblock)%l(jdof,2)
+                                  m_mat = femsp%object2dof(jblock)%l(jdof,3)
+                                  if ( dhand%dof_coupl(l_var,m_var) == 1 .and. l_mat == m_mat ) then
                                      if ( gtype == csr ) then
                                         dof_graph(iblock,jblock)%ia(l_dof+1) = &
                                              & dof_graph(iblock,jblock)%ia(l_dof+1) + 1
@@ -401,15 +406,17 @@ contains
                       if (.not.femsp%static_condensation) then
                          ! jobje = jobje 
                          iprob = femsp%lelem(jelem)%problem
-                         do idof = femsp%object2dof%p(iobje), femsp%object2dof%p(iobje+1)-1
-                            l_dof = femsp%object2dof%l(idof,1)
-                            l_var = femsp%object2dof%l(idof,2)
+                         l_mat = femsp%lelem(jelem)%material
+                         do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
+                            l_dof = femsp%object2dof(iblock)%l(idof,1)
+                            l_var = femsp%object2dof(iblock)%l(idof,2)
+                            l_mat = femsp%object2dof(iblock)%l(idof,3)
                             nvapb = dhand%prob_block(iblock,iprob)%nd1
                             do ivars = 1, nvapb
                                k_var = dhand%prob_block(iblock,iprob)%a(ivars)
                                m_var = dhand%problems(iprob)%l2g_var(k_var)
                                ! do ivars = 1, dhand%problems(femsp%lelem(jelem)%problem)%nvars
-                               if ( dhand%dof_coupl(l_var, m_var) == 1 ) then                
+                               if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                                   if ( gtype == csr ) then
                                      dof_graph(iblock,jblock)%ia(l_dof+1) =  dof_graph(iblock,jblock)%ia(l_dof+1) &
                                           & + femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1) &
@@ -473,12 +480,14 @@ contains
                       end if
                    end do
                    ! Interior - border (inside element)
+                   l_mat = femsp%lelem(ielem)%material
                    do jobje = 1, trian%elems(ielem)%num_objects
                       job_g = trian%elems(ielem)%objects(jobje)
-                      do jdof = femsp%object2dof%p(job_g), femsp%object2dof%p(job_g+1)-1
-                         m_dof = femsp%object2dof%l(jdof,1)
-                         m_var = femsp%object2dof%l(jdof,2)                         
-                         if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                      do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
+                         m_dof = femsp%object2dof(jblock)%l(jdof,1)
+                         m_var = femsp%object2dof(jblock)%l(jdof,2)   
+                         m_mat = femsp%object2dof(jblock)%l(jdof,3)                      
+                         if ( dhand%dof_coupl(l_var,m_var) == 1 .and. l_mat == m_mat ) then
                             do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
                                  & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                                l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
@@ -516,7 +525,7 @@ contains
           count = 0
           do iobje = 1, trian%num_objects 
              write(*,*) 'LOOP OBJECTS **** IOBJE:',iobje    
-             if ( femsp%object2dof%p(iobje+1)-femsp%object2dof%p(iobje) > 0) then
+             if ( femsp%object2dof(iblock)%p(iobje+1)-femsp%object2dof(iblock)%p(iobje) > 0) then
                 call visited%init(100) 
                 do ielem = 1, trian%objects(iobje)%num_elems_around
                    jelem = trian%objects(iobje)%elems_around(ielem)
@@ -529,12 +538,12 @@ contains
                          !write (*,*) 'istat',istat
                          if ( istat == now_stored ) then
                             write(*,*) '******** LOOP  OBJECTS IN ELEM **** JOBJE:',job_g
-                            do idof = femsp%object2dof%p(iobje), femsp%object2dof%p(iobje+1)-1
-                               l_dof = femsp%object2dof%l(idof,1)
-                               l_var = femsp%object2dof%l(idof,2)
-                               do jdof = femsp%object2dof%p(job_g), femsp%object2dof%p(job_g+1)-1
-                                  m_dof = femsp%object2dof%l(jdof,1)
-                                  m_var = femsp%object2dof%l(jdof,2)
+                            do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
+                               l_dof = femsp%object2dof(iblock)%l(idof,1)
+                               l_var = femsp%object2dof(iblock)%l(idof,2)
+                               do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
+                                  m_dof = femsp%object2dof(jblock)%l(jdof,1)
+                                  m_var = femsp%object2dof(jblock)%l(jdof,2)
                                   if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
                                      if ( gtype == csr ) then
                                         write(*,*) '************INSERT IN IDOF: ',l_dof,' JDOF: ',m_dof
@@ -559,9 +568,9 @@ contains
                       if (.not.femsp%static_condensation) then
                          ! jobje = jobje 
                          iprob = femsp%lelem(jelem)%problem
-                         do idof = femsp%object2dof%p(iobje), femsp%object2dof%p(iobje+1)-1
-                            l_dof = femsp%object2dof%l(idof,1)
-                            l_var = femsp%object2dof%l(idof,2)
+                         do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
+                            l_dof = femsp%object2dof(iblock)%l(idof,1)
+                            l_var = femsp%object2dof(iblock)%l(idof,2)
                             nvapb = dhand%prob_block(iblock,iprob)%nd1
                             do ivars = 1, nvapb
                                k_var = dhand%prob_block(iblock,iprob)%a(ivars)
@@ -644,9 +653,9 @@ contains
                    ! Interior - border (inside element)
                    do jobje = 1, trian%elems(ielem)%num_objects
                       job_g = trian%elems(ielem)%objects(jobje)
-                      do jdof = femsp%object2dof%p(job_g), femsp%object2dof%p(job_g+1)-1
-                         m_dof = femsp%object2dof%l(jdof,1)
-                         m_var = femsp%object2dof%l(jdof,2)                         
+                      do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
+                         m_dof = femsp%object2dof(jblock)%l(jdof,1)
+                         m_var = femsp%object2dof(jblock)%l(jdof,2)                         
                          if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
                             do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                                  & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1

@@ -123,9 +123,9 @@ module fem_space_names
      ! Element common information
      type (hash_table_ip_ip)            :: ht_elem_info
      type (fem_fixed_info), allocatable :: lelem_info(:)
-     integer(ip)                         :: cur_elinf
+     integer(ip)                        :: cur_elinf
 
-     type(list_2d)            :: object2dof  ! An auxiliary array to accelerate some parts of the code
+     type(list_2d), allocatable         :: object2dof(:)  ! An auxiliary array to accelerate some parts of the code
      integer(ip), allocatable :: ndofs(:)
 
   end type fem_space
@@ -379,8 +379,7 @@ contains
        call memalloc( max_num_nodes, nvars, time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
-       call memalloc(nvars,fspac%lelem(ielem)%f_inf(ivar)%p%nobje-1,fspac%lelem(ielem)%bc_code,__FILE__,__LINE__)
-
+       call memalloc(nvars,fspac%lelem(ielem)%p_geo_info%nobje,fspac%lelem(ielem)%bc_code,__FILE__,__LINE__, 0)
        ! Assign pointers to volume integration
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars
