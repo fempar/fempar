@@ -60,7 +60,11 @@ module fem_space_names
      type(fem_fixed_info_pointer), allocatable :: f_inf(:) ! Interpolation info of the FE space
      type(list_pointer), allocatable :: nodes_object(:)    ! Nodes per object (including interior) (nvars)
 
-     real(rp)        , allocatable :: unkno(:,:,:)  ! Values of the solution on the nodes of the elem    
+     real(rp)        , allocatable :: unkno(:,:,:)      ! Values of the solution on the nodes of the elem  (max_num_nodes, nvars, time_steps_to_store)
+
+     real(rp)        , allocatable :: dependent(:,:)    ! Values of dependent variables on the nodes of the elem  (max_num_nodes, num_given_vars)
+                                                        ! It can be used to store postprocessing fields, e.g. vorticity in nsi
+     real(rp)        , allocatable :: properties(:,:,:) ! Gauss point level properties with history, e.g. subscales,  rank?
 
      type(array_rp1) , allocatable :: bc_value(:)   ! Boundary Condition values
      
@@ -124,6 +128,9 @@ module fem_space_names
      type (hash_table_ip_ip)            :: ht_elem_info
      type (fem_fixed_info), allocatable :: lelem_info(:)
      integer(ip)                         :: cur_elinf
+
+     type(list_2d)  :: object2dof        ! An auxiliary array to accelerate some parts of the code
+
 
   end type fem_space
 
