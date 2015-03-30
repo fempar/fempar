@@ -39,6 +39,8 @@ module graph_distribution_names
   ! Parallel modules
   use par_partition_names
   use par_triangulation_names
+  use psb_penv_mod
+
   
   implicit none
 # include "debug.i90"
@@ -456,32 +458,32 @@ module graph_distribution_names
 !!$         end do    
 !!$         call memfree ( aux,__FILE__,__LINE__)
 
-!!$    call create_int_objs_new ( me+1, &
-!!$                               new_f_part%npadj, &
-!!$                               new_f_part%lpadj, &
-!!$                               new_f_part%max_nparts , &
-!!$                               new_f_part%nobjs      , &
-!!$                               new_f_part%lobjs      , &
-!!$                               new_f_part%int_objs%n , &
-!!$                               new_f_part%int_objs%p , &
-!!$                               new_f_part%int_objs%l ) 
-!!$
-!!$        call create_omap ( icontxt    , & ! Communication context
-!!$                       me         , &
-!!$                       np         , &
-!!$                       new_f_part%npadj, &
-!!$                       new_f_part%lpadj, & 
-!!$                       new_f_part%int_objs%p, &  
-!!$                       new_f_part%int_objs%l, &
-!!$                       new_f_part%max_nparts , & 
-!!$                       new_f_part%nobjs      , & 
-!!$                       new_f_part%lobjs      , &
-!!$                       new_f_part%omap%nl,     &
-!!$                       new_f_part%omap%ng,     &
-!!$                       new_f_part%omap%ni,     &
-!!$                       new_f_part%omap%nb,     &
-!!$                       new_f_part%omap%ne,     &
-!!$                       new_f_part%omap%l2g )
+    call create_int_objs ( ipart, &
+                           gdist(iblock)%npadj, &
+                           gdist(iblock)%lpadj, &
+                           gdist(iblock)%max_nparts , &
+                           gdist(iblock)%nobjs      , &
+                           gdist(iblock)%lobjs      , &
+                           gdist(iblock)%int_objs%n , &
+                           gdist(iblock)%int_objs%p , &
+                           gdist(iblock)%int_objs%l ) 
+
+    call create_omap ( p_trian%p_context%icontxt    , & ! Communication context
+                       p_trian%p_context%iam         , &
+                       p_trian%p_context%np         , &
+                       gdist(iblock)%npadj, &
+                       gdist(iblock)%lpadj, & 
+                       gdist(iblock)%int_objs%p, &  
+                       gdist(iblock)%int_objs%l, &
+                       gdist(iblock)%max_nparts , & 
+                       gdist(iblock)%nobjs      , & 
+                       gdist(iblock)%lobjs      , &
+                       gdist(iblock)%omap%nl,     &
+                       gdist(iblock)%omap%ng,     &
+                       gdist(iblock)%omap%ni,     &
+                       gdist(iblock)%omap%nb,     &
+                       gdist(iblock)%omap%ne,     &
+                       gdist(iblock)%omap%l2g )
 
          call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
          call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
@@ -524,5 +526,499 @@ module graph_distribution_names
       end do
 
     end function local_node
+
+    subroutine create_int_objs ( ipart      , &
+                                 npadj      , &
+                                 lpadj      , & 
+                                 max_nparts , &
+                                 nobjs      , & 
+                                 lobjs      , &
+                                 n          , &
+                                 p          , &
+                                 l )
+      implicit none
+      integer(ip)   , intent(in)  :: ipart 
+      integer(ip)   , intent(in)  :: npadj 
+      integer(ip)   , intent(in)  :: lpadj(npadj)
+      integer(ip)   , intent(in)  :: max_nparts
+      integer(ip)   , intent(in)  :: nobjs
+      integer(ip)   , intent(in)  :: lobjs(max_nparts+4,nobjs)
+      integer(ip)   , intent(out) :: n
+      integer(ip)   , intent(out), allocatable :: p(:)
+      integer(ip)   , intent(out), allocatable :: l(:) 
+
+
+!!$
+!!$  ! ==========================================
+!!$  ! BEGIN Compute int_objs from npadj/lpadj
+!!$  ! ==========================================
+
+      ! Locals
+      integer(ip) :: i, iedge, iobj, j, jpart, iposobj
+      integer(ip), allocatable :: ws_elems_list (:,:)
+      integer(ip), allocatable :: ws_sort_l1 (:), ws_sort_l2 (:)
+
+      n = npadj   
+      call memalloc ( n+1, p,         __FILE__,__LINE__)
+
+      ! Count objects on each edge of the graph of parts
+      p = 0
+
+      do iobj=1,nobjs
+         do j=1,lobjs(4,iobj)
+            jpart = lobjs(4+j,iobj)
+            if (ipart /= jpart) then  ! Exclude self-edges 
+               ! Locate edge identifier of ipart => jpart on the list of edges of ipart 
+               iedge = 1
+               do while ((lpadj(iedge) /= jpart).and. &
+                    &      (iedge < npadj) )
+                  iedge = iedge + 1
+               end do
+
+               ! Increment by one the number of objects on the edge ipart => jpart
+               p(iedge+1) = p(iedge+1) + 1 
+            end if
+         end do
+      end do
+
+      ! Generate pointers to the list of objects on each edge
+      p(1) = 1
+      do iedge=1, n
+         p(iedge+1)=p(iedge+1)+p(iedge)
+      end do
+
+      ! Generate list of objects on each edge
+      call memalloc (p(n+1)-1, l,            __FILE__,__LINE__)
+
+      do iobj=1,nobjs
+         do j=1,lobjs(4,iobj)
+            jpart = lobjs(4+j,iobj)
+            if (ipart /= jpart) then  ! Exclude self-edges 
+               ! Locate edge identifier of ipart => jpart on the list of edges of ipart 
+               iedge = 1
+               do while ((lpadj(iedge) /= jpart).and. &
+                    &      (iedge < npadj) )
+                  iedge = iedge + 1
+               end do
+
+               ! Insert current object on the edge ipart => jpart
+               l(p(iedge)) = iobj
+               p(iedge) = p(iedge) + 1 
+            end if
+         end do
+      end do
+
+      ! Recover p
+      do iedge=n+1, 2, -1
+         p(iedge) = p(iedge-1)
+      end do
+      p(iedge) = 1
+
+      ! write(*,'(a)') 'List of interface objects:'
+      ! do i=1,npadj
+      !   write(*,'(10i10)') i, &
+      !        & (l(j),j=p(i),p(i+1)-1)
+      ! end do
+
+      call memalloc ( 2, p(n+1)-1, ws_elems_list,         __FILE__,__LINE__ )
+
+      ws_elems_list = 0 
+      do iedge=1, n
+         do iposobj=p(iedge),p(iedge+1)-1
+            ws_elems_list(1,iposobj) = iedge
+            ws_elems_list(2,iposobj) = l(iposobj)
+         end do
+      end do
+
+      call memalloc ( 2, ws_sort_l1,         __FILE__,__LINE__ )
+
+      call memalloc ( 2, ws_sort_l2,         __FILE__,__LINE__ )
+
+      call intsort( 2,   & ! Rows of ws_parts_list_sep
+           &          2,   & ! LD of ws_parts_list_sep
+           &          p(n+1)-1,      & ! Cols of ws_parts_list_sep
+           &          ws_elems_list,  &
+           &          l, &
+           &          ws_sort_l1, ws_sort_l2)
+
+
+
+      call memfree ( ws_sort_l1,__FILE__,__LINE__)
+
+      call memfree ( ws_sort_l2,__FILE__,__LINE__)
+
+      call memfree ( ws_elems_list,__FILE__,__LINE__)
+
+
+      ! ========================================
+      ! END Compute int_objs from npadj/lpadj
+      ! ========================================
+
+    end subroutine create_int_objs
+
+    subroutine create_omap ( icontxt    , & ! Communication context
+                             me         , &
+                             np         , &
+                             npadj      , &
+                             lpadj      , &
+                             int_objs_p , &
+                             int_objs_l , &
+                             max_nparts , & 
+                             nobjs      , & 
+                             lobjs      , &
+                             onl        , &
+                             ong        , &
+                             oni        , &
+                             onb        , &
+                             one        , &
+                             ol2g       )
+
+#ifdef MPI_MOD
+      use mpi
+#endif     
+      implicit none
+#ifdef MPI_H
+      include 'mpif.h'
+#endif
+      
+    integer(ip), intent(in)               :: icontxt, me, np 
+    integer(ip), intent(in)               :: npadj 
+    integer(ip), intent(in)               :: lpadj(npadj)
+    integer(ip), intent(in)               :: int_objs_p (npadj+1)
+    integer(ip), intent(in)               :: int_objs_l (int_objs_p(npadj+1)-1)
+    integer(ip), intent(in)               :: max_nparts, nobjs
+    integer(ip), intent(in)               :: lobjs(max_nparts+4,nobjs)
+    integer(ip), intent(out)              :: onl, ong, oni, onb, one
+    integer(ip), intent(out), allocatable :: ol2g(:) 
+
+    
+    integer(ip) :: num_rcv             ! From how many neighbours does the part receive data ?
+    integer(ip), allocatable :: &           
+         list_rcv(:),           &      ! From which neighbours does the part receive data ?
+         rcv_ptrs(:),           &      ! How much data does the part receive from each neighbour ?
+         lids_rcv(:)                 
+
+    integer(ip) :: num_snd             ! To how many neighbours does the part send data ? 
+    integer(ip), allocatable :: &           
+         list_snd(:),           &      ! To which neighbours does the part send data ?
+         snd_ptrs(:),           &      ! How much data does the part send to each neighbour?
+         lids_snd(:)
+
+
+    integer(ip) :: ipart ! Which part am I ?
+    integer(ip) :: iedge, idobj, neighbour_part_id
+    integer(ip) :: iposobj, visited_snd, visited_rcv, i, j
+    integer(ip) :: cur_snd, cur_rcv, sizmsg
+
+    integer(ip)              :: nobjs_with_gid, iobj
+    integer(ip), allocatable :: lobjs_with_gid(:)
+    integer(ip), allocatable :: ptr_gids(:)
+    integer(ip)              :: start_gid
+
+    integer(ip), allocatable :: sndbuf(:)
+    integer(ip), allocatable :: rcvbuf(:)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable, dimension(:) :: rcvhd
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable, dimension(:) :: sndhd
+
+    integer :: mpi_comm, iret, proc_to_comm
+    integer :: p2pstat(mpi_status_size)
+    integer, parameter :: root_pid = 0
+
+    onl = nobjs
+    oni = 1 
+    onb = onl - oni
+    one = 0 
+
+    ipart = me + 1 
+
+    num_rcv = 0
+    num_snd = 0 
+
+    cur_snd = 1
+    cur_rcv = 1
+
+
+    call memalloc ( npadj  , list_rcv, __FILE__,__LINE__ )
+    call memalloc ( npadj+1, rcv_ptrs, __FILE__,__LINE__ )
+    
+    call memalloc ( npadj  , list_snd, __FILE__,__LINE__ )
+    call memalloc ( npadj+1, snd_ptrs, __FILE__,__LINE__ )
+
+    call memalloc ( int_objs_p(npadj+1)-1, lids_rcv, __FILE__,__LINE__ )
+    call memalloc ( int_objs_p(npadj+1)-1, lids_snd, __FILE__,__LINE__ )
+  
+    ! Traverse ipart's neighbours in the graph of parts
+    do iedge = 1, npadj
+       neighbour_part_id = lpadj (iedge)
+       
+       visited_snd = 0 
+       visited_rcv = 0 
+     
+       ! write(*,*) 'PPP', ipart, neighbour_part_id, int_objs_p(iedge), int_objs_p(iedge+1)
+
+       ! Traverse list of objects on the current edge
+       do iposobj=int_objs_p(iedge), int_objs_p(iedge+1)-1
+          idobj = int_objs_l (iposobj)
+
+          ! write (*,*) 'ZZZ', idobj, ipart, lobjs(5,idobj)
+          ! write(*,*) 'XXX', ipart, neighbour_part_id, idobj ! DBG:
+          if ( ipart == lobjs(5,idobj) ) then                       ! ipart has to send global object id to neighbour_part_id
+             if ( visited_snd == 0 ) then
+                ! No 
+                num_snd = num_snd + 1 
+                list_snd (num_snd) = neighbour_part_id              
+                snd_ptrs (num_snd+1) = 1
+                visited_snd = 1 
+             else
+                ! Yes
+                snd_ptrs (num_snd+1) = snd_ptrs(num_snd+1) + 1
+             end if
+             lids_snd(cur_snd)=idobj
+             cur_snd = cur_snd + 1
+          else if ( neighbour_part_id == lobjs(5,idobj) ) then      ! ipart has to receive global object id from neighbour_part_id
+             if ( visited_rcv == 0 ) then
+                ! No 
+                num_rcv = num_rcv + 1 
+                list_rcv (num_rcv) = neighbour_part_id
+                rcv_ptrs (num_rcv+1) = 1
+                visited_rcv = 1 
+             else
+                ! Yes
+                rcv_ptrs (num_rcv+1) = rcv_ptrs(num_rcv+1) + 1
+             end if
+             lids_rcv(cur_rcv)=idobj
+             cur_rcv = cur_rcv + 1
+             ! else ! Nothing to be sent from ipart/received from neighbour_part_id 
+          end if
+       end do   ! iposobj
+    end do     ! iedge
+
+    ! write(*,*) 'XXX', list_snd(1:num_snd)
+    ! write(*,*) 'YYY', list_rcv(1:num_rcv)
+
+
+    ! Transform rcv_ptrs from size to pointers
+    rcv_ptrs(1) = 1
+    do i = 1, num_rcv
+       rcv_ptrs (i+1) = rcv_ptrs (i+1) + rcv_ptrs (i)  
+    end do
+  
+    ! Transform snd_ptrs from size to pointers
+    snd_ptrs(1) = 1
+    do i = 1, num_snd
+       snd_ptrs (i+1) = snd_ptrs(i+1) + snd_ptrs (i)  
+    end do
+
+!!$    write (*,*) 'num_rcv' , num_rcv
+!!$    write (*,*) 'rcv_ptrs', rcv_ptrs(1:num_rcv+1)
+!!$    write (*,*) 'lst_rcv' , list_rcv (1:num_rcv)
+!!$    write (*,*) 'lids_rcv', lids_rcv(1:rcv_ptrs(num_rcv+1)-1)
+!!$
+!!$    write (*,*) 'num_snd' , num_snd
+!!$    write (*,*) 'snd_ptrs', snd_ptrs(1:num_snd+1)
+!!$    write (*,*) 'lst_snd' , list_snd (1:num_snd)
+!!$    write (*,*) 'lids_snd', lids_snd(1:snd_ptrs(num_snd+1)-1)
+
+
+    ! 1. Count/List how many local objects i have to identify a global id
+    nobjs_with_gid = 0
+    call memalloc (nobjs, lobjs_with_gid, __FILE__,__LINE__)
+
+    do iobj = 1, nobjs
+       if ( ipart == lobjs(5, iobj) ) then
+          nobjs_with_gid = nobjs_with_gid + 1
+          lobjs_with_gid(nobjs_with_gid) = iobj
+       end if
+    end do
+
+    !! write (*,*) 'XX', lobjs_with_gid(1:nobjs_with_gid)
+
+    ! 2. Gather + Scatter
+    ! Get MPI communicator associated to icontxt (in
+    ! the current implementation of our wrappers
+    ! to the MPI library icontxt and mpi_comm are actually 
+    ! the same)
+    call psb_get_mpicomm (icontxt, mpi_comm)
+
+    if ( me == root_pid ) then
+       call memalloc( np+1, ptr_gids, __FILE__,__LINE__ )
+       call mpi_gather( nobjs_with_gid  , 1, psb_mpi_integer,  &
+                        ptr_gids(2:np+1), 1, psb_mpi_integer, root_pid, mpi_comm, iret)
+    else
+       call memalloc( 0, ptr_gids, __FILE__,__LINE__ )
+       call mpi_gather( nobjs_with_gid  , 1, psb_mpi_integer,  &
+                        ptr_gids        , 1, psb_mpi_integer, root_pid, mpi_comm, iret)
+    end if
+
+    if ( iret /= mpi_success ) then
+       write (0,*) 'Error: mpi_gather returned != mpi_success'
+       call psb_abort (icontxt)    
+    end if
+    
+    if ( me == root_pid ) then
+       ! Transform length to header
+       ptr_gids(1)=1 
+       do i=1, np
+          ptr_gids(i+1) = ptr_gids(i) + ptr_gids(i+1) 
+       end do
+       ong = ptr_gids(np+1)-1 
+     ! write (*,*) 'XXX', ptr_coarse_dofs(1:np+1) ! DBG:
+    end if
+
+    call psb_bcast ( icontxt, ong, root=root_pid)
+
+    call mpi_scatter  ( ptr_gids , 1, psb_mpi_integer, &
+                        start_gid, 1, psb_mpi_integer, &
+                        root_pid , mpi_comm, iret )
+
+    
+    call memalloc( onl, ol2g, __FILE__,__LINE__ )
+
+
+    ol2g = -1 
+
+    ! 3. Assign global id to my "local" objects
+    do i=1, nobjs_with_gid
+       ol2g(lobjs_with_gid(i))=start_gid
+       start_gid = start_gid + 1
+    end do
+
+
+  ! 4. Nearest neighbour comm
+  call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
+  call memalloc (num_snd, sndhd, __FILE__,__LINE__)
+
+  call memalloc (snd_ptrs(num_snd+1)-snd_ptrs(1), sndbuf, __FILE__,__LINE__)
+  call memalloc (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), rcvbuf, __FILE__,__LINE__)
+
+  ! Pack sndbuf
+  do i=1, snd_ptrs(num_snd+1)-1
+     sndbuf(i) = ol2g(lids_snd(i))
+  end do
+
+  ! First post all the non blocking receives   
+  do i=1, num_rcv
+     proc_to_comm = list_rcv(i)
+     
+     ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+     call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+     
+     ! Message size to be received
+     sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+     
+     call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
+             &        psb_mpi_integer, proc_to_comm, &
+             &        psb_int_swap_tag, mpi_comm, rcvhd(i), iret)
+             
+     if ( iret /= mpi_success ) then
+        write (0,*) 'Error: mpi_irecv returned != mpi_success'
+        call psb_abort (icontxt)    
+     end if
+  end do
+
+  ! Secondly post all non-blocking sends
+  do i=1, num_snd
+     proc_to_comm = list_snd(i)
+
+     ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+     call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+
+     ! Message size to be sent
+     sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
+
+     call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
+          & psb_mpi_integer, proc_to_comm,    &
+          & psb_int_swap_tag, mpi_comm, sndhd(i), iret)
+
+     if ( iret /= mpi_success ) then
+        write (0,*) 'Error: mpi_isend returned != mpi_success'
+        call psb_abort (icontxt)    
+     end if
+  end do
+
+  ! Wait on all non-blocking receives
+  do i=1, num_rcv
+     proc_to_comm = list_rcv(i)
+
+     ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+     call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+
+     ! Message size to be received
+     sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+
+     call mpi_wait(rcvhd(i), p2pstat, iret)
+     
+     if ( iret /= mpi_success ) then
+        write (0,*) 'Error: mpi_wait returned != mpi_success'
+        call psb_abort (icontxt)    
+     end if
+     
+  end do
+
+  ! Finally wait on all non-blocking sends
+  do i=1, num_snd
+     proc_to_comm = list_snd(i)
+     
+     ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+     call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+     
+     ! Message size to be received
+     sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
+     
+     call mpi_wait(sndhd(i), p2pstat, iret)
+     if ( iret /= mpi_success ) then
+        write (0,*) 'Error: mpi_wait returned != mpi_success'
+        call psb_abort (icontxt)    
+     end if
+  end do
+
+
+  ! 5. Assign global id to "remote"  objects
+  ! Pack sndbuf
+  do i=1, rcv_ptrs(num_rcv+1)-1
+     ol2g(lids_rcv(i)) = rcvbuf(i) 
+  end do
+
+  !write (*,*) 'AQUI JODEr AQUI'
+
+  !  do i=1, npadj
+  !     write (*,*) 'neig', lpadj(i)
+  !     do j=int_objs_p(i),int_objs_p(i+1)-1
+  !        write (*,*) 'PPP', int_objs_l(j), lobjs(2,int_objs_l(j)), ol2g(int_objs_l(j))
+  !     end do
+  !  end do
+
+  call memfree( ptr_gids, __FILE__,__LINE__ )
+
+  call memfree (rcvhd,__FILE__,__LINE__) 
+  call memfree (sndhd,__FILE__,__LINE__)
+
+  call memfree (sndbuf,__FILE__,__LINE__)
+  call memfree (rcvbuf,__FILE__,__LINE__)
+
+  call memfree ( list_rcv,__FILE__,__LINE__)
+  call memfree ( rcv_ptrs,__FILE__,__LINE__)
+    
+  call memfree ( list_snd,__FILE__,__LINE__)
+  call memfree ( snd_ptrs,__FILE__,__LINE__)
+
+  call memfree ( lids_rcv,__FILE__,__LINE__)
+  call memfree ( lids_snd,__FILE__,__LINE__)
+
+  call memfree (lobjs_with_gid,__FILE__,__LINE__)
+
+!!$  do i=1, npadj
+!!$     write (*,*) 'neig', lpadj(i)
+!!$     do j=int_objs_p(i),int_objs_p(i+1)-1
+!!$        write (*,*) ol2g(int_objs_l(j))
+!!$     end do
+!!$  end do
+
+  end subroutine create_omap
+
 
   end module graph_distribution_names
