@@ -712,16 +712,4 @@ contains
 
   end subroutine create_dof_graph
 
-
-
-
-
-
-
-
-
-
-
-
-
 end module create_global_dof_info_names

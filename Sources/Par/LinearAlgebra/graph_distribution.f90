@@ -93,7 +93,7 @@ module graph_distribution_names
 
       integer(ip), allocatable :: l2ln2o(:), l2ln2o_ext(:) 
 
-      integer(ip) :: nint, nboun
+      integer(ip) :: nint, nboun, l_node, inode, iobje
 
       integer(ip) :: elem_ghost, elem_local, l_var_ghost, l_var_local, nnode, obje_ghost, obje_local, order 
       integer(ip) :: o2n(max_nnode)
@@ -137,7 +137,7 @@ module graph_distribution_names
          call memalloc ( est_max_itf_dofs, l2ln2o_ext, __FILE__, __LINE__ )
 
          ! ** IMPORTANT NOTE!!! DO NOT FORGET TO COUNT DOFs INTERIOR TO ELEMENTS
-         
+
          ! l2ln2o interior vefs
          nint = 0
          nboun = 0
@@ -149,6 +149,27 @@ module graph_distribution_names
                end do
             end if
          end do
+
+
+
+         ! interior
+         if ( .not. femsp%static_condensation ) then 
+            do ielem = 1, p_trian%f_trian%num_elems
+               iprob = femsp%lelem(ielem)%problem
+               nvapb = dhand%prob_block(iblock,iprob)%nd1
+               do ivars = 1, nvapb
+                  l_var = dhand%prob_block(iblock,iprob)%a(ivars)
+                  g_var = dhand%problems(iprob)%l2g_var(l_var)  
+                  iobje = p_trian%f_trian%elems(ielem)%num_objects+1
+                  do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
+                       &     femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1 
+                     l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
+                     nint = nint + 1
+                     l2ln2o(nint) = femsp%lelem(ielem)%elem2dof(l_node,l_var) 
+                  end do
+               end do
+            end do
+         end if
 
          call ws_parts_visited_all%init(tbl_length)
 

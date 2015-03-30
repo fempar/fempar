@@ -50,5 +50,8 @@ module par
   use par_block_vector_names
   use par_block_vector_krylov_basis_names
   use par_block_matrix_vector
+
+  !Integration
+  use par_fem_space_names
     
 end module par

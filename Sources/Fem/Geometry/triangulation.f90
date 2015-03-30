@@ -351,7 +351,9 @@ contains
 
     nobje = trian%elems(ielem)%num_objects 
     ndime = trian%num_dims
+
     ! Variable values depending of the element ndime
+    etype = 0
     if(ndime == 2) then        ! 2D
        if(nobje == 6) then     ! Linear triangles (P1)
           etype = P_type_id
@@ -365,6 +367,8 @@ contains
           etype = Q_type_id
        end if
     end if
+    assert( etype /= 0 )
+
     ! Assign pointer to topological information
     v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
     call trian%ht_elem_info%put(key=v_key,val=trian%cur_elinf,stat=istat)

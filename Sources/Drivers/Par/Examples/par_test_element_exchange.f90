@@ -83,8 +83,6 @@ program par_test_element_exchange
   call dof_handler_create( dhand, 1, 1, vars_prob )
   !call dof_handler_print ( dhand, 6 )
 
-  call fem_space_create ( fspac, p_trian%f_trian, dhand )
-  
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
   continuity = .true.
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
@@ -96,32 +94,35 @@ program par_test_element_exchange
 
 
 
-  if ( context%iam > 0 ) then
-     !pause
-     do while ( 1 > 0)
-        i = i + 1
-     end do
-  else
-     write (*,*) 'Processor 0 not stopped'
-     !i = 1
-     !do while ( 1 > 0)
-     !   i = i + 1
-     !end do
-  end if  
+  ! if ( context%iam > 0 ) then
+  !    !pause
+  !    do while ( 1 > 0)
+  !       i = i + 1
+  !    end do
+  ! else
+  !    write (*,*) 'Processor 0 not stopped'
+  !    !i = 1
+  !    !do while ( 1 > 0)
+  !    !   i = i + 1
+  !    !end do
+  ! end if  
 
 
     ! Continuity
     !write(*,*) 'Continuity', continuity
 
-  call fem_space_fe_list_create ( fspac, problem, continuity, order, material, &
+  call par_fem_space_create ( p_trian, dhand, fspac, problem, continuity, order, material, &
        & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
        & static_condensation = logical(.false.,lg), num_materials = 1 )
 
-  call create_global_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
+  !call create_global_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
 
-  !call fem_space_print( 6, fspac )
+ call fem_space_print( 6, fspac )
  
-  !call fem_element_print( 6, fspac%lelem(1)  )
+  do i = p_trian%f_trian%num_elems+1,p_trian%f_trian%num_elems+p_trian%num_ghosts
+     write (*,*) 'GHOST ELEMENT****',i
+     call fem_element_print( 6, fspac%lelem(i) )
+  end do
 
   ! write (*,*) 'ALL NODES BEFORE' 
   ! write (*,*) 'contxt:',context%iam
