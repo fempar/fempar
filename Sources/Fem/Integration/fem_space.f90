@@ -661,8 +661,8 @@ contains
     integer(ip)            , intent(out) :: n
     
     ! Locals
-    integer(ip) :: mold(1)
-    integer(ip) :: size_of_ip, size_of_lg
+    integer(ieep) :: mold(1)
+    integer(ip)   :: size_of_ip, size_of_lg
     
     size_of_ip   = size(transfer(1_ip ,mold))
     size_of_lg   = size(transfer(.false._lg,mold))
@@ -675,10 +675,10 @@ contains
     implicit none
     class(fem_element), intent(in)  :: my
     integer(ip)            , intent(in)   :: n
-    integer(ip)            , intent(out)  :: buffer(n)
+    integer(ieep)            , intent(out)  :: buffer(n)
     
     ! Locals
-    integer(ip) :: mold(1)
+    integer(ieep) :: mold(1)
     integer(ip) :: size_of_ip, size_of_lg
 
     integer(ip) :: start, end
@@ -712,10 +712,10 @@ contains
     implicit none
     class(fem_element), intent(inout) :: my
     integer(ip)            , intent(in)     :: n
-    integer(ip)            , intent(in)     :: buffer(n)
+    integer(ieep)            , intent(in)     :: buffer(n)
 
     ! Locals
-    integer(ip) :: mold(1)
+    integer(ieep) :: mold(1)
     integer(ip) :: size_of_ip, size_of_lg
     integer(ip) :: start, end
     

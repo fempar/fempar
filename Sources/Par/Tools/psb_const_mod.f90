@@ -58,6 +58,7 @@ module psb_const_mod
 
   !integer, save    :: psb_sizeof_dp, psb_sizeof_sp
   !integer, save    :: psb_sizeof_int, psb_sizeof_long_int
+  integer, save     :: psb_mpi_integer1
   integer, save     :: psb_mpi_integer
   integer, save     :: psb_mpi_long_integer
   

@@ -95,6 +95,9 @@ contains
 #else
     psb_mpi_integer = mpi_integer
 #endif
+    ! A.F.M.: added to allow buffer exchange in element nearest neighbour
+    !         exhanges
+    psb_mpi_integer1 = mpi_integer1
     
     ! A.F.M.: added to allow exchange of global Element Identifiers
     !         in Sources/Par/par_matrix_inverse_mlevel_bddd.f90

@@ -100,8 +100,8 @@ contains
      ! Request handlers for non-blocking receives
      integer, allocatable, dimension(:) :: sndhd
 
-     integer(ip), allocatable :: sndbuf(:)  
-     integer(ip), allocatable :: rcvbuf(:)
+     integer(ieep), allocatable :: sndbuf(:)  
+     integer(ieep), allocatable :: rcvbuf(:)
 
      integer(ip) :: elemsize
  
@@ -145,7 +145,7 @@ contains
       
        if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then
           call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*elemsize+1), sizmsg, &
-                        &  psb_mpi_integer, proc_to_comm, &
+                        &  psb_mpi_integer1, proc_to_comm, &
                         &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
 
           if ( iret /= mpi_success ) then
@@ -167,7 +167,7 @@ contains
     
         if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then 
              call mpi_isend(sndbuf((snd_ptrs(i)-1)*elemsize+1), sizmsg, &
-                     & psb_mpi_integer, proc_to_comm, &
+                     & psb_mpi_integer1, proc_to_comm, &
                      & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
 
              if ( iret /= mpi_success ) then
