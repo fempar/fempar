@@ -43,23 +43,23 @@ module migratory_element_names
        import :: migratory_element, ip
        implicit none
        class(migratory_element), intent(in)  :: my
-       integer(ip)             , intent(out) :: n
+       integer(ip)           , intent(out) :: n
      end subroutine size_interface
 
      subroutine pack_interface(my,n,buffer)
-       import :: migratory_element, ip
+       import :: migratory_element, ip, ieep
        implicit none
        class(migratory_element), intent(in)  :: my
        integer(ip)             , intent(in)  :: n
-       integer(ip)             , intent(out) :: buffer(n)
+       integer(ieep)           , intent(out) :: buffer(n)
      end subroutine pack_interface
 
      subroutine unpack_interface(my,n,buffer)
-       import :: migratory_element, ip
+       import :: migratory_element, ip, ieep
        implicit none
        class(migratory_element), intent(inout) :: my
        integer(ip)             , intent(in)    :: n
-       integer(ip)             , intent(in)    :: buffer(n)
+       integer(ieep)           , intent(in)    :: buffer(n)
      end subroutine unpack_interface
 
   end interface
