@@ -104,6 +104,22 @@ module graph_distribution_names
       ! Compute an estimation (upper bound) of the maximum number of parts around any local interface vef.
       ! This estimation assumes that all elements around all local interface vefs are associated to different parts.
 
+
+      ! if ( p_trian%p_context%iam > 0 ) then
+      !    !pause
+      !    do while ( 1 > 0)
+      !       i = i + 1
+      !    end do
+      ! else
+      !    write (*,*) 'Processor 0 not stopped'
+      !    !i = 1
+      !    !do while ( 1 > 0)
+      !    !   i = i + 1
+      !    !end do
+      ! end if
+
+  
+
       est_max_nparts = 0
       est_max_itf_dofs = 0
       do i=1, p_trian%num_itfc_objs
@@ -111,18 +127,14 @@ module graph_distribution_names
          est_max_nparts = max(p_trian%f_trian%objects(iobj)%num_elems_around, est_max_nparts)       
       end do
 
-      call memalloc ( est_max_nparts+3, est_max_itf_dofs, lst_parts_per_dof_obj, __FILE__, __LINE__ )
-      call memalloc ( femsp%num_materials, dhand%nvars_global, est_max_nparts+3 , touch, __FILE__, __LINE__ )
-      call memalloc ( est_max_nparts+3, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
-      call memalloc ( est_max_nparts+3, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
-
       ! The size of the following array does not scale 
       ! properly with nparts. We should think in the meantime
       ! a strategy to keep bounded (below a local quantity) its size 
-      call memalloc ( nparts, ws_parts_visited_list_all, __FILE__, __LINE__ )
 
       allocate(gdist(dhand%nblocks), stat=istat)
       check(istat==0)
+
+      !write (*,*) 'GRAPH DISTRIBUTION****'
 
       do iblock = 1, dhand%nblocks  
 
@@ -133,23 +145,36 @@ module graph_distribution_names
                  & - femsp%object2dof(iblock)%p(iobj)
          end do
 
+         !write (*,*) 'est_max_nparts****',est_max_nparts
+         !write (*,*) 'est_max_itf_dofs****',est_max_itf_dofs
+         call memalloc ( nparts, ws_parts_visited_list_all, __FILE__, __LINE__ )
+
+         call memalloc ( est_max_nparts+4, est_max_itf_dofs, lst_parts_per_dof_obj, __FILE__, __LINE__ )
+         call memalloc ( femsp%num_materials, dhand%nvars_global, est_max_nparts+5 , touch, __FILE__, __LINE__ )
+         call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
+         call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
+
          call memalloc ( femsp%ndofs(iblock), l2ln2o, __FILE__, __LINE__ )
          call memalloc ( est_max_itf_dofs, l2ln2o_ext, __FILE__, __LINE__ )
 
+
+         !write (*,*) 'l2ln2o:',l2ln2o
          ! ** IMPORTANT NOTE!!! DO NOT FORGET TO COUNT DOFs INTERIOR TO ELEMENTS
 
          ! l2ln2o interior vefs
          nint = 0
          nboun = 0
          do iobj = 1, p_trian%f_trian%num_objects
-            if ( p_trian%objects(iobj)%interface /= -1 ) then
+            if ( p_trian%objects(iobj)%interface == -1 ) then
                do idof = femsp%object2dof(iblock)%p(iobj), femsp%object2dof(iblock)%p(iobj+1)-1
                   nint = nint + 1
-                  l2ln2o(nint) = femsp%object2dof(iblock)%l(idof,1)                  
+                  l2ln2o(nint) = femsp%object2dof(iblock)%l(idof,1) 
+                  !write(*,*) 'l2ln2o',l2ln2o
                end do
             end if
          end do
 
+         !write (*,*) 'nint',nint
 
 
          ! interior
@@ -171,17 +196,20 @@ module graph_distribution_names
             end do
          end if
 
+         !write (*,*) 'nint',nint
+
          call ws_parts_visited_all%init(tbl_length)
 
          ! Initialize trivial components of gdist(iblock)
          gdist(iblock)%part      = ipart
          gdist(iblock)%num_parts = nparts
          npadj     = 0
-
+         
          count = 0
          max_nparts = 0
          do i = 1, p_trian%num_itfc_objs
             iobj = p_trian%lst_itfc_objs(i)
+            !write (*,*) '***** OBJECT *****',iobj
 
             touch = 0
             call ws_parts_visited%init(tbl_length)
@@ -203,7 +231,8 @@ module graph_distribution_names
 
                      call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
                      if ( istat == now_stored ) then
-                        touch(mater,g_var,1) = touch(mater,g_var,1) + 1 ! New part in the counter             
+                        touch(mater,g_var,1) = touch(mater,g_var,1) + 1 ! New part in the counter  
+                        !write(*,*) 'touch',touch
                         touch(mater,g_var,touch(mater,g_var,1)+5) = p_trian%elems(jelem)%mypart ! Put new part
                      end if
                      if( p_trian%elems(jelem)%globalID > touch(mater,g_var,2) ) then
@@ -224,6 +253,9 @@ module graph_distribution_names
             end do
             max_nparts = max(max_nparts, touch(mater,g_var,1))
 
+            !write(*,*) '**** TOUCH ****',touch
+
+
             ! Sort list of parts in increasing order by part identifiers
             ! This is required by the call to icomp subroutine below 
             do mater = 1, femsp%num_materials
@@ -239,6 +271,7 @@ module graph_distribution_names
                ! parts
                g_var = femsp%object2dof(iblock)%l(idof,2)  
                g_mat = femsp%object2dof(iblock)%l(idof,3)
+               !write(*,*) 'g_mat',g_mat
                if ( touch(g_mat,g_var,1) > 1 ) then ! Interface dof
                   g_dof = femsp%object2dof(iblock)%l(idof,1)
                   nparts_around = touch(g_mat,g_var,1)
@@ -290,9 +323,10 @@ module graph_distribution_names
                      l_pos = o2n(l_pos)
                   end if
                   lst_parts_per_dof_obj (2,count) = nparts_around ! Number parts 
-                  lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(g_mat,g_var,6:(touch(mater,g_var,1)+5)) ! List parts
+                  lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(g_mat,g_var,6:(touch(g_mat,g_var,1)+5)) ! List parts
                   lst_parts_per_dof_obj (nparts_around+3:est_max_nparts+2,count) = 0 ! Zero the rest of entries in current col except last
-                  lst_parts_per_dof_obj (est_max_nparts+3,count) = l_pos ! Local pos in Max elem GID
+                  lst_parts_per_dof_obj (est_max_nparts+3,count) = p_trian%objects(iobj)%globalID
+                  lst_parts_per_dof_obj (est_max_nparts+4,count) = l_pos ! Local pos in Max elem GID
 
                   ! l2ln2o interface vefs to interface dofs
                   nboun = nboun + 1
@@ -307,8 +341,11 @@ module graph_distribution_names
 
          ! l2ln2o interface vefs to interface dofs from l2ln20_ext
          l2ln2o(nint+1:nint+nboun) = l2ln2o_ext(1:nboun)
+         !write (*,*) 'nint,nboun,ndofs',nint,nboun,femsp%ndofs(iblock) 
          assert( nint + nboun == femsp%ndofs(iblock) )  ! check
          call memfree( l2ln2o_ext, __FILE__, __LINE__ )
+
+         write (*,*) 'l2ln2o:',l2ln2o
 
          call ws_parts_visited_all%free()
 
@@ -323,13 +360,15 @@ module graph_distribution_names
          ! Re-number boundary DoFs in increasing order by physical unknown identifier, the 
          ! number of parts they belong and, for DoFs sharing the same number of parts,
          ! in increasing order by the list of parts shared by each DoF.
-         call sort_array_cols_by_row_section( est_max_nparts+3,            & ! #Rows 
-              &                                 est_max_nparts+3,            & ! Leading dimension
+         call sort_array_cols_by_row_section( est_max_nparts+4,            & ! #Rows 
+              &                                 est_max_nparts+4,            & ! Leading dimension
               &                                 nboun,                       & ! #Cols
               &                                 lst_parts_per_dof_obj,       &
               &                                 l2ln2o(nint+1:),             &
               &                                 sort_parts_per_itfc_obj_l1,  &
               &                                 sort_parts_per_itfc_obj_l2)
+
+         write (*,*) 'l2ln2o:',l2ln2o
 
          ! Identify interface communication objects 
          call memalloc ( max_nparts+4, nboun, ws_lobjs_temp, __FILE__,__LINE__ )
@@ -443,14 +482,16 @@ module graph_distribution_names
 !!$                       new_f_part%omap%nb,     &
 !!$                       new_f_part%omap%ne,     &
 !!$                       new_f_part%omap%l2g )
+
+         call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
+         call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
+         call memfree ( lst_parts_per_dof_obj, __FILE__, __LINE__ )
+         call memfree ( touch, __FILE__, __LINE__ )
+         call memfree ( ws_parts_visited_list_all, __FILE__, __LINE__ )
+
       end do
 
 
-      call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
-      call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
-      call memfree ( lst_parts_per_dof_obj, __FILE__, __LINE__ )
-      call memfree ( touch, __FILE__, __LINE__ )
-      call memfree ( ws_parts_visited_list_all, __FILE__, __LINE__ )
 
     end subroutine graph_distribution_create
 

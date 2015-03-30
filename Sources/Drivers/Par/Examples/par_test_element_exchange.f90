@@ -40,10 +40,11 @@ program par_test_element_exchange
   type(par_mesh)           :: p_mesh
   type(par_triangulation)  :: p_trian
 
+  type(graph_distribution) , allocatable :: gdist(:)
 
   type(dof_handler)  :: dhand
   type(fem_space)    :: fspac
-  
+
   type(fem_graph), allocatable    :: dof_graph(:,:)
 
   ! Arguments
@@ -68,7 +69,7 @@ program par_test_element_exchange
   !if ( context%iam > 0 ) then
   !   stop
   !end if
-  
+
   ! Read partition info. Associate contexts
   call par_partition_create ( dir_path, prefix, context, p_part )
 
@@ -108,21 +109,23 @@ program par_test_element_exchange
   ! end if  
 
 
-    ! Continuity
-    !write(*,*) 'Continuity', continuity
+  ! Continuity
+  !write(*,*) 'Continuity', continuity
 
   call par_fem_space_create ( p_trian, dhand, fspac, problem, continuity, order, material, &
        & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
        & static_condensation = logical(.false.,lg), num_materials = 1 )
 
-  !call create_global_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
+  call create_global_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
 
- call fem_space_print( 6, fspac )
- 
-  do i = p_trian%f_trian%num_elems+1,p_trian%f_trian%num_elems+p_trian%num_ghosts
-     write (*,*) 'GHOST ELEMENT****',i
-     call fem_element_print( 6, fspac%lelem(i) )
-  end do
+  ! call fem_space_print( 6, fspac )
+
+  ! do i = p_trian%f_trian%num_elems+1,p_trian%f_trian%num_elems+p_trian%num_ghosts
+  !    write (*,*) 'GHOST ELEMENT****',i
+  !    call fem_element_print( 6, fspac%lelem(i) )
+  ! end do
+
+  call graph_distribution_create(p_trian, fspac, dhand, gdist)
 
   ! write (*,*) 'ALL NODES BEFORE' 
   ! write (*,*) 'contxt:',context%iam
@@ -132,28 +135,28 @@ program par_test_element_exchange
 
   !pause
 
-!  nint = 1
-!  tdim = 1
-!  prob_code = ? 
-!  prob_nunk = ?
-!  prob_list_nunk = ?
-  
+  !  nint = 1
+  !  tdim = 1
+  !  prob_code = ? 
+  !  prob_nunk = ?
+  !  prob_list_nunk = ?
+
   ! I would pass the dof_handler !!!
   ! ftype = tet_type (1) or hex_type (2) 
 
-  
- !  call fem_space_fe_list_create ( fspac, 
 
-! nint, iv, 
+  !  call fem_space_fe_list_create ( fspac, 
 
-! continuity = .true., material = 1, f_type = 2, & 
-!        & order = ones, p_trian%f_trian%num_dims, time_steps_to_store = 1, &
+  ! nint, iv, 
 
-
-!        & prob_code, prob_nunk, prob_list_nunk, 
+  ! continuity = .true., material = 1, f_type = 2, & 
+  !        & order = ones, p_trian%f_trian%num_dims, time_steps_to_store = 1, &
 
 
-! hierarchical_basis = .false. , static_condensation = .false.  )
+  !        & prob_code, prob_nunk, prob_list_nunk, 
+
+
+  ! hierarchical_basis = .false. , static_condensation = .false.  )
 
   ! do i=1,p_trian%num_elems + p_trian%num_ghosts
   !   write(*,'(10i10)') p_trian%elems(i)%objects_GIDs

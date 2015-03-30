@@ -60,7 +60,7 @@ contains
     call create_object2dof( dhand, trian, femsp )
 
     ! To be called after the reordering of dofs
-    call create_dof_graph( dhand, trian, femsp, dof_graph )
+    !call create_dof_graph( dhand, trian, femsp, dof_graph )
 
   end subroutine create_global_dof_info
 
