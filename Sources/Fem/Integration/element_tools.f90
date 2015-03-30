@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module element_tools
+module element_tools_names
   use types
   use fem_space_names
   use memory_guard_names
@@ -91,13 +91,13 @@ module element_tools
 
   ! Interpolations
   type, extends(fem_function) :: given_function
-     !logical(lg) :: evaluated = .false.
+     integer(ip)                :: icomp=1
   end type given_function
   type, extends(fem_function) :: given_function_gradient
-     !logical(lg) :: evaluated = .false.
+     integer(ip)                :: icomp=1
   end type given_function_gradient
   type, extends(fem_function) :: given_function_divergence
-     !logical(lg) :: evaluated = .false.
+     integer(ip)                :: icomp=1
   end type given_function_gradient
 
   ! Cosmetics...easy to implement if we can return a polymorphic 
@@ -115,11 +115,19 @@ module element_tools
   ! end type test_unction_gradient
 
   interface grad
-     module procedure basis_function_gradient_constructor
+     module procedure basis_function_gradient_constructor, given_function_gradient_constructor
   end interface grad
   interface div
-     module procedure basis_function_gradient_constructor
+     module procedure basis_function_divergence_constructor, given_function_divergence_constructor
   end interface div
+
+  interface interpolation
+     module procedure scalar_interpolation
+     module procedure vector_interpolation
+     module procedure scalar_gradient_interpolation
+     module procedure vector_gradient_interpolation
+     module procedure vector_divergence_interpolation
+  end interface interpolation
 
   public :: grad, div
 
@@ -136,7 +144,10 @@ contains
   end subroutine copy_fem_function
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!
+! basis_function (some code replication to avoid functions returning polymorphic allocatables)
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   function basis_function(prob,ivar,ielem) result(var)
     implicit none
     type(physical_problem), intent(in) :: prob
@@ -148,11 +159,6 @@ contains
     var%ivar = ivar
     var%elem => elem
     var%ndof = prob%vars_of_unk(ivar)
-    ! Assert all the ndof vars are equally interpolated.
-    !nnode = elem%integ(ivar)%uint_phy%nnode
-    !ngaus = elem%integ(ivar)%uint_phy%ngaus
-    !call memalloc(nnode,ngaus,var%a,__FILE__,__LINE__)
-    !var%a = elem%integ(ivar)%uint_phy%shape
   end function basis_function
 
  function basis_function_gradient_constructor(u) result(g)
@@ -161,11 +167,6 @@ contains
     integer(ip) :: ndime, nnode, ngaus
     call g%SetTemp()
     call copy_fem_function(u,g)
-    !ndime = u%elem%integ(ivar)%uint_phy%ndime
-    !nnode = size(u%a,1) ! also given by u%elem%integ(ivar)%uint_phy%nnode
-    !ngaus = size(u%a,2) ! also given by uelem%integ(ivar)%uint_phy%ngaus
-    !call memalloc(ndime,nnode,ngaus,g%a,__FILE__,__LINE__)
-    !g%a = g%elem%integ(g%ivar)%uint_phy%deriv
   end function basis_function_gradient_constructor
 
  function basis_function_divergence_constructor(u) result(g)
@@ -174,12 +175,121 @@ contains
     integer(ip) :: ndime, nnode, ngaus
     call g%SetTemp()
     call copy_fem_function(u,g)
-    !ndime = u%elem%integ(ivar)%uint_phy%ndime
-    !nnode = size(u%a,1) ! also given by u%elem%integ(ivar)%uint_phy%nnode
-    !ngaus = size(u%a,2) ! also given by uelem%integ(ivar)%uint_phy%ngaus
-    !call memalloc(ndime,nnode,ngaus,g%a,__FILE__,__LINE__)
-    !g%a = g%elem%integ(g%ivar)%uint_phy%deriv
   end function basis_function_divergence_constructor
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! given_function
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function given_function(prob,ivar,icomp,ielem) result(var)
+    implicit none
+    type(physical_problem), intent(in) :: prob
+    integer(ip)           , intent(in) :: ivar
+    integer(ip)           , intent(in) :: icomp
+    type(fem_element)     , intent(in) :: elem
+    type(given_function) :: var
+    integer(ip)          :: nnode,ngaus
+    call var%SetTemp()
+    var%ivar  = ivar
+    var%icomp = icomp
+    var%elem => elem
+    var%ndof = prob%vars_of_unk(ivar)
+  end function given_function
+
+ function given_function_gradient_constructor(u) result(g)
+    type(given_function), intent(in) :: u
+    type(given_function_gradient)    :: g
+    integer(ip) :: ndime, nnode, ngaus
+    call g%SetTemp()
+    call copy_fem_function(u,g)
+  end function given_function_gradient_constructor
+
+ function given_function_divergence_constructor(u) result(g)
+    type(given_function), intent(in) :: u
+    type(given_function_divergence)  :: g
+    integer(ip) :: ndime, nnode, ngaus
+    call g%SetTemp()
+    call copy_fem_function(u,g)
+  end function given_function_divergence_constructor
+
+  subroutine scalar_interpolation (u,res)
+    type(given_function)  , intent(in)    :: u
+    type(vector)          , intent(inout) :: res
+    integer(ip)  :: ndof,nnode,ngaus
+    integer(ip)  :: idof,inode,igaus
+    assert( u%ndof == 1)
+    call res%SetTemp()
+    nnode = u%elem%integ(ivar)%uint_phy%nnode
+    ngaus = u%elem%integ(ivar)%uint_phy%ngaus
+    call memalloc(ngaus,res%a,__FILE__,__LINE__)
+    forall(igaus=1:ngaus,inode =1:nnode)
+       res%a(igaus) = u%elem%integ(ivar)%uint_phy%shape(inode,igaus) * u%elem%unkno(inode,ivar,icomp)
+    end forall
+  end subroutine scalar_interpolation
+  subroutine vector_interpolation (u,vec)
+    type(given_function)  , intent(in)    :: u
+    type(vector)          , intent(inout) :: vec
+    integer(ip)  :: ndof,nnode,ngaus
+    integer(ip)  :: idof,inode,igaus
+    call vec%SetTemp()
+    nnode = u%elem%integ(ivar)%uint_phy%nnode
+    ngaus = u%elem%integ(ivar)%uint_phy%ngaus
+    call memalloc(u%ndof,ngaus,vec%a,__FILE__,__LINE__)
+    forall(igaus=1:ngaus,idof=1:u%ndof,inode =1:nnode)
+       vec%a(idof,igaus) = u%elem%integ(ivar)%uint_phy%shape(inode,igaus) * u%elem%unkno(inode, ivar-1+idof, icomp)
+    end forall
+  end subroutine vector_interpolation
+
+  subroutine scalar_gradient_interpolation(g,vec)
+    type(given_function_gradient), intent(in)  :: g
+    type(vector)                 , intent(out) :: vec
+    integer(ip) :: ndime, nnode, ngaus
+    integer(ip) :: idime, inode, igaus
+    assert(g%ndof==1)
+    call vec%SetTemp()
+    assert( associated(g%elem))
+    ndime = g%elem%integ(ivar)%uint_phy%ndime
+    ngaus = g%elem%integ(ivar)%uint_phy%ngaus
+    call memalloc(ndime,ngaus,vec%a,__FILE__,__LINE__)
+    forall(igaus=1:ngaus,inode =1:nnode,idime=1:ndime)
+       vec%a(idime,igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * g%elem%unkno(inode,g%ivar, icomp)
+    end forall
+  end subroutine scalar_gradient_interpolation
+  subroutine vector_gradient_interpolation(g,tens)
+    type(given_function_gradient), intent(in)  :: g
+    type(tensor)                 , intent(out) :: tens
+    integer(ip) :: ndof, ndime, nnode, ngaus
+    integer(ip) :: idof, idime, inode, igaus
+    call tens%SetTemp()
+    assert(associated(g%elem))
+    ndime = g%elem%integ(ivar)%uint_phy%ndime
+    ndof  = g%ndof
+    ngaus = g%elem%integ(ivar)%uint_phy%ngaus
+    call memalloc(ndime,ndof,ngaus,g%a,__FILE__,__LINE__)
+    forall(igaus=1:ngaus,idof=1:ndof,inode =1:nnode,idime=1:ndime)
+       tens%a(idime,idof,igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * g%elem%unkno(inode, ivar-1+idof, icomp)
+    end forall
+  end subroutine vector_gradient_interpolation
+  subroutine vector_divergence_interpolation(u) result(res)
+    type(given_function_divergence), intent(in)  :: g
+    type(scalar)                   , intent(out) :: res
+    integer(ip) :: ndof, ndime, nnode, ngaus
+    integer(ip) :: idof, idime, inode, igaus
+    ndime = g%elem%integ(ivar)%uint_phy%ndime
+    assert( g%ndof == ndime)
+    assert(associated(g%elem))
+    call res%SetTemp()
+    ndof  = g%ndof
+    ngaus = g%elem%integ(ivar)%uint_phy%ngaus
+    call memalloc(ngaus,res%a,__FILE__,__LINE__)
+    forall(igaus=1:ngaus,idof=1:ndof,inode =1:nnode,idime=1:ndime)
+       res%a(igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * elem%unkno(inode, ivar-1+idof, icomp)
+    end forall
+  end subroutine vector_divergence_interpolation
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -275,96 +385,6 @@ contains
   end function product_vector_x_basis_function_gradient
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  subroutine scalar_interpolation (prob,ivar,icomp,elem,res)
-    type(physical_problem), intent(in)    :: prob
-    integer(ip)           , intent(in)    :: ivar,icomp
-    type(fem_element)     , intent(in)    :: elem
-    type(vector)          , intent(inout) :: res
-    integer(ip)  :: ndof,nnode,ngaus
-    integer(ip)  :: idof,inode,igaus
-    assert( prob%vars_of_unk(ivar) == 1)
-    call res%SetTemp()
-    res%ivar = ivar
-    res%elem => elem
-    res%ndof = ndof
-    ! To be Optimized!
-    nnode = elem%integ(ivar)%uint_phy%nnode
-    ngaus = elem%integ(ivar)%uint_phy%ngaus
-    call memalloc(ndof,ngaus,res%a,__FILE__,__LINE__)
-    forall(igaus=1:ngaus,inode =1:nnode)
-       res%a(igaus) = elem%integ(ivar)%uint_phy%shape(inode,igaus) * elem%unkno(inode,ivar,icomp)
-    end forall
-  end subroutine scalar_interpolation
-  subroutine vector_interpolation (prob,ivar,icomp,elem,vec)
-    type(physical_problem), intent(in)    :: prob
-    integer(ip)           , intent(in)    :: ivar,icomp
-    type(fem_element)     , intent(in)    :: elem
-    type(vector)          , intent(inout) :: vec
-    integer(ip)  :: ndof,nnode,ngaus
-    integer(ip)  :: idof,inode,igaus
-    ndof = prob%vars_of_unk(ivar)
-    call vec%SetTemp()
-    vec%ivar = ivar
-    vec%elem => elem
-    vec%ndof = ndof
-    ! To be Optimized!
-    nnode = elem%integ(ivar)%uint_phy%nnode
-    ngaus = elem%integ(ivar)%uint_phy%ngaus
-    call memalloc(ndof,ngaus,vec%a,__FILE__,__LINE__)
-    forall(igaus=1:ngaus,idof=1:ndof,inode =1:nnode)
-       vec%a(idof,igaus) = elem%integ(ivar)%uint_phy%shape(inode,igaus) * elem%unkno(inode, ivar-1+idof, icomp)
-    end forall
-  end subroutine vector_interpolation
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  function scalar_gradient_constructor(u) result(g)
-    type(scalar), intent(in) :: u
-    type(vector)             :: g
-    integer(ip) :: ndime, nnode, ngaus
-    call g%SetTemp()
-    assert( associated(u%elem))
-    call copy_fem_function(u,g)
-    ndime = u%elem%integ(ivar)%uint_phy%ndime
-    ngaus = size(u%a,1) ! also given by uelem%integ(ivar)%uint_phy%ngaus
-    call memalloc(ndime,ngaus,g%a,__FILE__,__LINE__)
-    forall(igaus=1:ngaus,idof=1:ndof,inode =1:nnode,idime=1:ndime)
-       g%a(idime,igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * elem%unkno(inode, ivar, icomp)
-    end forall
-  end function scalar_gradient_constructor
-  function vector_gradient_constructor(u) result(g)
-    type(vector), intent(in) :: u
-    type(tensor)             :: g
-    integer(ip) :: ndime, nnode, ngaus
-    call g%SetTemp()
-    assert(associated(u%elem))
-    call copy_fem_function(u,g)
-    ndime = u%elem%integ(ivar)%uint_phy%ndime
-    ndof  = size(u%a,1) ! also given by u%ndof
-    ngaus = size(u%a,2) ! also given by uelem%integ(ivar)%uint_phy%ngaus
-    call memalloc(ndime,ndof,ngaus,g%a,__FILE__,__LINE__)
-    forall(igaus=1:ngaus,idof=1:ndof,inode =1:nnode,idime=1:ndime)
-       g%a(idime,idof,igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * elem%unkno(inode, ivar-1+idof, icomp)
-    end forall
-  end function vector_gradient_constructor
-  function vector_divergence_constructor(u) result(s)
-    type(vector), intent(in) :: u
-    type(scalar)             :: s
-    integer(ip) :: ndime, nnode, ngaus
-    ndime = u%elem%integ(ivar)%uint_phy%ndime
-    assert( u%ndof == ndime)
-    assert(associated(u%elem))
-    call s%SetTemp()
-    call copy_fem_function(u,s)
-    ndof  = size(u%a,1) ! also given by u%ndof
-    ngaus = size(u%a,2) ! also given by uelem%integ(ivar)%uint_phy%ngaus
-    call memalloc(ngaus,g%a,__FILE__,__LINE__)
-    forall(igaus=1:ngaus,idof=1:ndof,inode =1:nnode,idime=1:ndime)
-       g%a(idime,idof,igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * elem%unkno(inode, ivar-1+idof, icomp)
-    end forall
-  end function vector_divergence_constructor
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Field functions

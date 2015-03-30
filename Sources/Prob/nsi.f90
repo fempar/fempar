@@ -163,8 +163,9 @@ contains
     type(basis_function) :: p 
     type(basis_function) :: v ! Test
     type(basis_function) :: q 
-    type(given_function) :: a
-    type(given_function) :: u_n
+    !type(given_function) :: a_h
+    type(vector) :: a
+    type(vector) :: u_n
     type(scalar) :: h,tau
 
     integer(ip)     :: ndime
@@ -176,8 +177,14 @@ contains
     v = basis_function(nsi,1,K) 
     q = basis_function(nsi,2,K)
 
-    call interpolation(nsi,1,1,K,a)
-    call interpolation(nsi,1,3,K,u_n)
+    ! With a_h declared as given_function we can do:
+    ! a_h   = given_function(nsi,1,1,K)
+    ! call interpolation(grad(a_h),grad_a) 
+    ! with grad_a declared as tensor and, of course
+    ! call interpolation(grad(given_function(nsi,1,1,K)),grad_a)
+    !
+    call interpolation(given_function(nsi,1,1,K),a)
+    call interpolation(given_function(nsi,1,3,K),u_n)
 
     h   = K%length(1)
     h   = K%length(ndime)
