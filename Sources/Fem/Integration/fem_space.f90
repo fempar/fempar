@@ -62,9 +62,10 @@ module fem_space_names
 
      real(rp)        , allocatable :: unkno(:,:,:)      ! Values of the solution on the nodes of the elem  (max_num_nodes, nvars, time_steps_to_store)
 
-     real(rp)        , allocatable :: dependent(:,:)    ! Values of dependent variables on the nodes of the elem  (max_num_nodes, num_given_vars)
-                                                        ! It can be used to store postprocessing fields, e.g. vorticity in nsi
-     real(rp)        , allocatable :: properties(:,:,:) ! Gauss point level properties with history, e.g. subscales,  rank?
+     real(rp)        , allocatable :: nodal_properties(:,:)   ! Values of (interpolated) properties on the nodes of the elem 
+                                                              ! (max_num_nodes, num_nodal_props)
+                                                              ! They can be used to store postprocessing fields, e.g. vorticity in nsi
+     real(rp)        , allocatable :: gauss_properties(:,:,:) ! Gauss point level properties with history, e.g. subscales,  rank?
 
      type(array_rp1) , allocatable :: bc_value(:)   ! Boundary Condition values
      

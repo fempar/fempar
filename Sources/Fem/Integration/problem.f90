@@ -32,16 +32,19 @@ module problem_names
   private
 
   type physical_problem
-     integer(ip)        ::           &
-          nvars,                     &       ! Number of different variables
-          nunks,                     &       ! Number of unknowns (groups of variables)
-          ndime,                     &       ! Number of space dimensions
-          ntens                              ! Number of tensor components
-     integer(ip), allocatable ::     &
-          vars_of_unk(:),            &       ! Number of variables of each unknown (size nunks)
-          l2g_var(:)                         ! Order chosen for variables (size nvars)
-     integer(ip)        ::           &
-          problem_code                       ! An internal code that defines a problem in FEMPAR
+     integer(ip)        ::             &
+          nvars,                       &       ! Number of different variables
+          nunks,                       &       ! Number of unknowns (groups of variables)
+          ndime,                       &       ! Number of space dimensions
+          ntens                                ! Number of tensor components
+     integer(ip), allocatable ::       &
+          vars_of_unk(:),              &       ! Number of variables of each unknown (size nunks)
+          l2g_var(:)                           ! Order chosen for variables (size nvars)
+     integer(ip)        ::             &
+          problem_code                         ! An internal code that defines a problem in FEMPAR
+     character(len=:), allocatable ::  &
+          unkno_names(:)                       ! Names for the gauss_properties (nunks)
+
   end type physical_problem
 
 public :: physical_problem

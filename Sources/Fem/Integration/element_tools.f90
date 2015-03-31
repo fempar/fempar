@@ -55,6 +55,7 @@ module element_tools_names
   ! Shape and deriv...
   type, extends(fem_function) :: basis_function
      !real(rp), allocatable :: a(:,:)     ! shape(nnode,ngaus)
+     real(rp) :: scaling
      class(field), allocatable :: left_factor
      class(field), allocatable :: right_factor
    contains
@@ -63,8 +64,10 @@ module element_tools_names
      procedure, pass(u)  :: product_by_scalar => product_scalar_x_basis_function
      generic    :: operator(*) => scal_right, scal_left, product_by_scalar
   end type basis_function
+
   type, extends(fem_function) :: basis_function_gradient
      !real(rp), allocatable :: a(:,:,:)   ! deriv(ndime,nnode,ngaus)
+     real(rp) :: scaling
      class(field), allocatable :: left_factor
      class(field), allocatable :: right_factor
    contains
@@ -78,6 +81,7 @@ module element_tools_names
 
   type, extends(fem_function) :: basis_function_divergence
      !real(rp), allocatable :: a(:,:,:)   ! deriv(ndime,nnode,ngaus)
+     real(rp) :: scaling
      class(field), allocatable :: left_factor
      class(field), allocatable :: right_factor
    contains
@@ -126,12 +130,15 @@ module element_tools_names
      module procedure vector_interpolation
      module procedure scalar_gradient_interpolation
      module procedure vector_gradient_interpolation
-     module procedure vector_divergence_interpolation
+     module procedure divergence_interpolation
   end interface interpolation
 
-  public :: grad, div
+  public :: grad, div, interpolation
 
 contains
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine copy_fem_function(from,to)
@@ -179,7 +186,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-! given_function
+! given_function constructors
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -214,9 +221,15 @@ contains
     call copy_fem_function(u,g)
   end function given_function_divergence_constructor
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! given_function interpolations
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine scalar_interpolation (u,res)
     type(given_function)  , intent(in)    :: u
-    type(vector)          , intent(inout) :: res
+    type(scalar)          , intent(out) :: res
     integer(ip)  :: ndof,nnode,ngaus
     integer(ip)  :: idof,inode,igaus
     assert( u%ndof == 1)
@@ -228,9 +241,10 @@ contains
        res%a(igaus) = u%elem%integ(ivar)%uint_phy%shape(inode,igaus) * u%elem%unkno(inode,ivar,icomp)
     end forall
   end subroutine scalar_interpolation
+
   subroutine vector_interpolation (u,vec)
     type(given_function)  , intent(in)    :: u
-    type(vector)          , intent(inout) :: vec
+    type(vector)          , intent(out) :: vec
     integer(ip)  :: ndof,nnode,ngaus
     integer(ip)  :: idof,inode,igaus
     call vec%SetTemp()
@@ -257,6 +271,7 @@ contains
        vec%a(idime,igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * g%elem%unkno(inode,g%ivar, icomp)
     end forall
   end subroutine scalar_gradient_interpolation
+
   subroutine vector_gradient_interpolation(g,tens)
     type(given_function_gradient), intent(in)  :: g
     type(tensor)                 , intent(out) :: tens
@@ -272,7 +287,8 @@ contains
        tens%a(idime,idof,igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * g%elem%unkno(inode, ivar-1+idof, icomp)
     end forall
   end subroutine vector_gradient_interpolation
-  subroutine vector_divergence_interpolation(u) result(res)
+
+  subroutine divergence_interpolation(u) result(res)
     type(given_function_divergence), intent(in)  :: g
     type(scalar)                   , intent(out) :: res
     integer(ip) :: ndof, ndime, nnode, ngaus
@@ -287,10 +303,126 @@ contains
     forall(igaus=1:ngaus,idof=1:ndof,inode =1:nnode,idime=1:ndime)
        res%a(igaus) = g%elem%integ(g%ivar)%uint_phy%deriv(idime,inode,igaus) * elem%unkno(inode, ivar-1+idof, icomp)
     end forall
-  end subroutine vector_divergence_interpolation
+  end subroutine divergence_interpolation
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Product by field
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! The following abstract function could be used for
+  ! basis_function, basis_function_gradient and basis_function_divergence
+  ! if the last two are defined as derived from basis_functions.
+  ! This, however, requires polymorphic allocatable.
+  ! function product_field_x_basis_function(field_left,u) result(res)
+  !   implicit none
+  !   class(field)         , intent(in)  :: field
+  !   class(basis_function), intent(in)  :: u
+  !   class(basis_function), allocatable :: res
+  !   allocate(res,mold=u)
+  !   call res%SetTemp()
+  !   call copy_fem_function(u,res)
+  !   if(allocated(u%left_factor)) then
+  !      ! Here we need * and = overloading with corresponding allocation/deallocation.
+  !      res%left_factor = field_left * u%left_factor
+  !   else
+  !      res%left_factor = field_left
+  !   end if
+  ! end function product_field_x_basis_function
+
+  ! Temporarily I replicate code
+  function product_field_x_basis_function(field_left,u) result(res)
+    implicit none
+    class(field)        , intent(in) :: field
+    type(basis_function), intent(in) :: u
+    type(basis_function)             :: res
+    call res%SetTemp()
+    call copy_fem_function(u,res)
+    if(allocated(u%left_factor)) then
+       ! Here we need * and = overloading with corresponding allocation/deallocation.
+       res%left_factor = field_left * u%left_factor
+    else
+       res%left_factor = field_left
+    end if
+  end function product_field_x_basis_function
+  function product_field_x_basis_function_gradient(field_left,u) result(res)
+    implicit none
+    class(field)        , intent(in) :: field
+    type(basis_function_gradient), intent(in) :: u
+    type(basis_function_gradient)             :: res
+    call res%SetTemp()
+    call copy_fem_function(u,res)
+    if(allocated(u%left_factor)) then
+       ! Here we need * and = overloading with corresponding allocation/deallocation.
+       res%left_factor = field_left * u%left_factor
+    else
+       res%left_factor = field_left
+    end if
+  end function product_field_x_basis_function_gradient
+  function product_field_x_basis_function_divergence(field_left,u) result(res)
+    implicit none
+    class(field)        , intent(in) :: field
+    type(basis_function_divergence), intent(in) :: u
+    type(basis_function_divergence)             :: res
+    call res%SetTemp()
+    call copy_fem_function(u,res)
+    if(allocated(u%left_factor)) then
+       ! Here we need * and = overloading with corresponding allocation/deallocation.
+       res%left_factor = field_left * u%left_factor
+    else
+       res%left_factor = field_left
+    end if
+  end function product_field_x_basis_function_divergence
 
 
+  function product_field_x_basis_function(field_right,u) result(res)
+    implicit none
+    class(field)        , intent(in) :: field
+    type(basis_function), intent(in) :: u
+    type(basis_function)             :: res
+    call res%SetTemp()
+    call copy_fem_function(u,res)
+    if(allocated(u%right_factor)) then
+       ! Here we need * and = overloading with corresponding allocation/deallocation.
+       res%right_factor = u%right_factor * field_right
+    else
+       res%right_factor = field_right
+    end if
+  end function product_field_x_basis_function
+  function product_field_x_basis_function_gradient(field_right,u) result(res)
+    implicit none
+    class(field)        , intent(in) :: field
+    type(basis_function_gradient), intent(in) :: u
+    type(basis_function_gradient)             :: res
+    call res%SetTemp()
+    call copy_fem_function(u,res)
+    if(allocated(u%right_factor)) then
+       ! Here we need * and = overloading with corresponding allocation/deallocation.
+       res%right_factor = u%right_factor * field_right
+    else
+       res%right_factor = field_right
+    end if
+  end function product_field_x_basis_function_gradient
+  function product_field_x_basis_function_divergence(field_right,u) result(res)
+    implicit none
+    class(field)        , intent(in) :: field
+    type(basis_function_divergence), intent(in) :: u
+    type(basis_function_divergence)             :: res
+    call res%SetTemp()
+    call copy_fem_function(u,res)
+    if(allocated(u%right_factor)) then
+       ! Here we need * and = overloading with corresponding allocation/deallocation.
+       res%right_factor = u%right_factor * field_right
+    else
+       res%right_factor = field_right
+    end if
+  end function product_field_x_basis_function_divergence
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Scaling (product by reals)
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   function scale_left_basis_function(alpha,ul) result(x)
@@ -299,8 +431,7 @@ contains
     type(basis_function), intent(in) :: ul
     type(basis_function)             :: x
     call copy_fem_function(u_1,x)
-    call memalloc(size(ul%a,1),size(ul%a,2),x%a,__FILE__,__LINE__)    ! Should we rely on automatic allocation/deallocation?
-    x%a = alpha * ul%a
+    x%scaling = alpha
   end function scale_left_basis_function
   function scale_left_basis_function_gradient(alpha,ul) result(x)
     implicit none
@@ -308,17 +439,24 @@ contains
     type(basis_function_gradient), intent(in) :: ul
     type(basis_function_gradient)             :: x
     call copy_fem_function(ul,x)
-    call memalloc(size(ul%a,1),size(ul%a,2),size(ul%a,3),x%a,__FILE__,__LINE__)    ! Should we rely on automatic allocation/deallocation?
-    x%a = alpha * ul%a
+    x%scaling = alpha
   end function scale_left_basis_function_gradient
+  function scale_left_basis_function_divergence(alpha,ul) result(x)
+    implicit none
+    real(rp)                     , intent(in) :: alpha
+    type(basis_function_divergence), intent(in) :: ul
+    type(basis_function_divergence)             :: x
+    call copy_fem_function(ul,x)
+    x%scaling = alpha
+  end function scale_left_basis_function_divergence
+
   function scale_right_basis_function(ur,alpha) result(x)
     implicit none
     real(rp)            , intent(in) :: alpha
     type(basis_function), intent(in) :: u
     type(basis_function)             :: x
     call copy_fem_function(u,x)
-    call memalloc(size(ur%a,1),size(ur%a,2),x%a,__FILE__,__LINE__)    ! Should we rely on automatic allocation/deallocation?
-    x%a = alpha * ur%a
+    x%scaling = alpha
   end function scale_right_basis_function
   function scale_right_basis_function_gradient(ur,alpha) result(x)
     implicit none
@@ -326,10 +464,21 @@ contains
     type(basis_function_gradient), intent(in) :: ur
     type(basis_function_gradient)             :: x
     call copy_fem_function(ur,x)
-    call memalloc(size(ur%a,1),size(ur%a,2),size(ur%a,3),x%a,__FILE__,__LINE__)    ! Should we rely on automatic allocation/deallocation?
-    x%a = alpha * ur%a
+    x%scaling = alpha
   end function scale_right_basis_function_gradient
+  function scale_right_basis_function_divergence(ur,alpha) result(x)
+    implicit none
+    real(rp)                       , intent(in) :: alpha
+    type(basis_function_divergence), intent(in) :: ur
+    type(basis_function_divergence)             :: x
+    call copy_fem_function(ur,x)
+    x%scaling = alpha
+  end function scale_right_basis_function_divergence
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Product by scalar
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   function product_scalar_x_basis_function(scal,u) result(x)
@@ -384,7 +533,6 @@ contains
     end forall
   end function product_vector_x_basis_function_gradient
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Field functions
@@ -463,10 +611,13 @@ contains
        z%a(i,k) = 1.0_rp/x%a(i,k)
     end forall
   end function inv
-!----------------------------------------------------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-! The following functions perform integration (sum over gauss points), including a dot product when necessary.
+! Integration functions (sum over gauss points plus necessary contractions)
 !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   function integral_function_function(v,u) result(mat)
     implicit none
     type(basis_function), intent(in) :: v
