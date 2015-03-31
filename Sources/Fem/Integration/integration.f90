@@ -49,6 +49,19 @@ module volumne_integration_names
   implicit none
   private
 
+  ! We need to separate geometry from unknonwns interpolation, don't we?
+  ! Think...separate them would be interesting to manage different objects
+  ! in fem_space and geom_space. However, the set of (quadrature) points in 
+  ! which both are evaluated must be the same and it will be defined by the
+  ! highest order. Then
+  ! Can we assume that it (the set of integration points) will be determined
+  ! always by the interpolation? I would say yes except some particular cases
+  ! E.g. Isogeometric?
+  ! In any case it seems that both geometry and unknonws interpolations should
+  ! go together. The interest of separating then would be to have one geometric
+  ! space and two different fem_spaces. But then, having two different interpolations
+  ! for the unknown would require two geometric interpolations too, as the quadrature
+  ! are different...
   type vol_integ
      integer(ip)              :: ltype(2)    ! Tags to identify element
      type(quadrature)         :: quad        ! Quadrature rules for elements

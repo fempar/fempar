@@ -62,7 +62,12 @@ module fem_space_names
      type(fem_fixed_info_pointer), allocatable :: f_inf(:) ! Interpolation info of the FE space
      type(list_pointer), allocatable :: nodes_object(:)    ! Nodes per object (including interior) (nvars)
 
-     real(rp)   , allocatable :: unkno(:,:,:)    ! Values of the solution on the nodes of the elem    
+     real(rp)        , allocatable :: unkno(:,:,:)      ! Values of the solution on the nodes of the elem  (max_num_nodes, nvars, time_steps_to_store)
+
+     real(rp)        , allocatable :: nodal_properties(:,:)   ! Values of (interpolated) properties on the nodes of the elem 
+                                                              ! (max_num_nodes, num_nodal_props)
+                                                              ! They can be used to store postprocessing fields, e.g. vorticity in nsi
+     real(rp)        , allocatable :: gauss_properties(:,:,:) ! Gauss point level properties with history, e.g. subscales,  rank?
 
      integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
      

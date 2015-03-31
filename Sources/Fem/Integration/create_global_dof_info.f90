@@ -78,7 +78,7 @@ contains
     integer(ip) :: mater, order, nnode
     integer(ip) :: touch(femsp%num_materials,dhand%nvars_global,2)
 
-    integer(ip)     :: ndofs(dhand%nblocks),o2n(max_nnode)
+    integer(ip)     :: o2n(max_nnode)
 
     call memalloc ( dhand%nblocks, femsp%ndofs, __FILE__, __LINE__ )
 
@@ -208,7 +208,7 @@ contains
 
        femsp%ndofs(iblock) = count
 
-       write (*,*) 'NDOFS:',ndofs(iblock)
+       write (*,*) 'NDOFS:',femsp%ndofs(iblock)
     end do
 
   end subroutine create_element_to_dof_and_ndofs
@@ -231,9 +231,7 @@ contains
     check( istat == 0)
 
     do iblock = 1, dhand%nblocks  
-
        ! Create object to dof
-
        !call memalloc ( dhand%nvars_global, touch, __FILE__, __LINE__ ) 
        femsp%object2dof(iblock)%n = trian%num_objects
        call memalloc ( trian%num_objects+1, femsp%object2dof(iblock)%p, __FILE__, __LINE__, 0 )
