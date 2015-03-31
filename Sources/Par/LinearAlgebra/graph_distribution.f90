@@ -245,10 +245,12 @@ module graph_distribution_names
                         touch(mater,g_var,4) = jelem 
                         touch(mater,g_var,5) = obje_l
                      end if
-                     call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
-                     if ( istat == now_stored ) then
-                        npadj = npadj + 1
-                        ws_parts_visited_list_all(npadj) = p_trian%elems(jelem)%mypart
+                     if ( p_trian%elems(jelem)%mypart /= ipart ) then
+                        call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                        if ( istat == now_stored ) then
+                           npadj = npadj + 1
+                           ws_parts_visited_list_all(npadj) = p_trian%elems(jelem)%mypart
+                        end if
                      end if
                   end if
                end do
@@ -359,6 +361,8 @@ module graph_distribution_names
          call memalloc ( gdist(iblock)%npadj, gdist(iblock)%lpadj, __FILE__, __LINE__ )
          gdist(iblock)%lpadj = ws_parts_visited_list_all(1:gdist(iblock)%npadj)
 
+         ! write (*,*) 'npadj=', gdist(iblock)%npadj, 'lpadj=', gdist(iblock)%lpadj
+
          ! Re-number boundary DoFs in increasing order by physical unknown identifier, the 
          ! number of parts they belong and, for DoFs sharing the same number of parts,
          ! in increasing order by the list of parts shared by each DoF.
@@ -370,7 +374,7 @@ module graph_distribution_names
               &                                 sort_parts_per_itfc_obj_l1,  &
               &                                 sort_parts_per_itfc_obj_l2)
 
-         write (*,*) 'l2ln2o:',l2ln2o
+         ! write (*,*) 'l2ln2o:',l2ln2o
 
          ! Identify interface communication objects 
          call memalloc ( max_nparts+4, nboun, ws_lobjs_temp, __FILE__,__LINE__ )
@@ -409,6 +413,7 @@ module graph_distribution_names
 
          ! Reallocate lobjs and add internal object first
          nobjs = nobjs + 1
+         gdist(iblock)%nobjs = nobjs
          call memalloc (max_nparts+4, nobjs, gdist(iblock)%lobjs,__FILE__,__LINE__)
          gdist(iblock)%lobjs = 0
 
@@ -427,6 +432,16 @@ module graph_distribution_names
          end do
 
          call memfree ( ws_lobjs_temp,__FILE__,__LINE__)
+
+
+         ! write(*,'(a,i10)') 'Number of local objects:', &
+         !     &  gdist(iblock)%nobjs
+
+         ! write(*,'(a)') 'List of local objects:'
+         ! do i=1,gdist(iblock)%nobjs 
+         !    write(*,'(10i10)') i, gdist(iblock)%lobjs(:,i)
+         ! end do
+
 
 !!$         ** IMPORTANT NOTE
 !!$         The update of object2dof(iblock) and elem2dof conformally with l2ln2o and aux is pending (see code commented below)
@@ -614,11 +629,7 @@ module graph_distribution_names
       end do
       p(iedge) = 1
 
-      ! write(*,'(a)') 'List of interface objects:'
-      ! do i=1,npadj
-      !   write(*,'(10i10)') i, &
-      !        & (l(j),j=p(i),p(i+1)-1)
-      ! end do
+
 
       call memalloc ( 2, p(n+1)-1, ws_elems_list,         __FILE__,__LINE__ )
 
@@ -649,6 +660,11 @@ module graph_distribution_names
 
       call memfree ( ws_elems_list,__FILE__,__LINE__)
 
+      write(*,'(a)') 'List of interface objects:'
+      do i=1,npadj
+         write(*,'(10i10)') i, &
+              & (l(j),j=p(i),p(i+1)-1)
+      end do
 
       ! ========================================
       ! END Compute int_objs from npadj/lpadj
@@ -985,13 +1001,13 @@ module graph_distribution_names
 
   !write (*,*) 'AQUI JODEr AQUI'
 
-  !  do i=1, npadj
-  !     write (*,*) 'neig', lpadj(i)
-  !     do j=int_objs_p(i),int_objs_p(i+1)-1
-  !        write (*,*) 'PPP', int_objs_l(j), lobjs(2,int_objs_l(j)), ol2g(int_objs_l(j))
-  !     end do
-  !  end do
-
+  ! do i=1, npadj
+  !   write (*,*) 'neig', lpadj(i)
+  !   do j=int_objs_p(i),int_objs_p(i+1)-1
+  !      write (*,*) 'PPP', int_objs_l(j), lobjs(2,int_objs_l(j)), ol2g(int_objs_l(j))
+  !   end do
+  ! end do
+  
   call memfree( ptr_gids, __FILE__,__LINE__ )
 
   call memfree (rcvhd,__FILE__,__LINE__) 
