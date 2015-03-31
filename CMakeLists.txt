@@ -10,6 +10,7 @@ SET(${PROJECT_NAME}_VERSION 0.0.1)
 SET(${PROJECT_NAME}_SOVERSION 1)
 SET(FEM_LIB fem) # FEM library
 SET(PAR_LIB par) # PAR library
+SET(${PROJECT_NAME}_USER "" CACHE STRING "")
 
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
 
@@ -24,6 +25,8 @@ SET(FEM_PATH ${SRC_PATH}/Fem)
 SET(PAR_PATH ${SRC_PATH}/Par)
 SET(FEM_DRIVERS_PATH ${SRC_PATH}/Drivers/Fem)
 SET(PAR_DRIVERS_PATH ${SRC_PATH}/Drivers/Par)
+SET(FEM_TESTS_PATH ${SRC_PATH}/Tests/Fem)
+SET(PAR_TESTS_PATH ${SRC_PATH}/Tests/Par)
 SET(GENERIC_PATH ${SRC_PATH}/Generic)
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/Modules/")
 
@@ -154,9 +157,9 @@ ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MAT
   set(FORTRAN_FLAGS "-r8 -fpp -W1 -warn nointerfaces")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv -prof-gen -prof-gen:${PROJECT_BINARY_DIR} -prof-dir${PROJECT_BINARY_DIR}" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv" CACHE STRING "" FORCE)
 # A partir de CMake 3.1
-# -prof-gen -prof-dir${PROJECT_BINARY_DIR}
+# -prof-gen:srcpos -prof-dir${PROJECT_BINARY_DIR}
 ELSE ()
   message ("No optimized Fortran compiler flags are known, we just try -O2...")
   set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
@@ -181,11 +184,10 @@ INCLUDE(CTest)
 # ADD SOURCE SUBDIRS
 #################################################################
 
-
 ADD_SUBDIRECTORY(${FEM_PATH})
 ADD_SUBDIRECTORY(${PAR_PATH})
 ADD_SUBDIRECTORY(${FEM_DRIVERS_PATH})
 ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
-
-
+ADD_SUBDIRECTORY(${FEM_TESTS_PATH})
+ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
 message ("-----------------------------------------")
