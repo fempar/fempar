@@ -36,12 +36,7 @@ module base_operator_names
 
   ! Abstract operator (and its pure virtual function apply)
   type, abstract, extends(memory_guard) :: base_operator
-     private
-     logical :: Is_Root = .false.
    contains
-     procedure :: IsRoot
-     procedure :: SetRoot
-     procedure :: UnsetRoot
      procedure (apply_interface)         , deferred :: apply
      procedure (apply_fun_interface)     , deferred :: apply_fun
      procedure (info_interface)          , deferred :: info
@@ -209,25 +204,6 @@ module base_operator_names
   public :: abs_operator, base_operator
 
 contains
-   function IsRoot(this)
-     implicit none
-     class(base_operator), intent(in) :: this
-     logical :: IsRoot
-     IsRoot = this%Is_Root
-   end function
-
-   subroutine SetRoot(this)
-     implicit none
-     class(base_operator) :: this
-     this%Is_Root = .true.
-   end subroutine SetRoot 
-
-   subroutine UnSetRoot(this)
-     implicit none
-     class(base_operator) :: this
-     this%Is_Root = .false.
-   end subroutine UnSetRoot 
-
   subroutine binary_operator_destructor(this)
     implicit none
     class(binary_operator), intent(inout) :: this
@@ -296,10 +272,12 @@ contains
     class is(expression_operator)
        ! out_verbosity10_1( 'binary left is an expression' )
        this = op1 ! Here = is overloaded (and potentially recursive)
+       call this%GuardTemp()
     class is(abs_operator)
        ! out_verbosity10_1( 'binary left is not an expression' )
        this = op1 ! Here = is overloaded (and potentially recursive)
        call this%SetTemp()
+       call this%GuardTemp()
     end select
 
     ! out_verbosity10_1( 'Creating binary right operator')
@@ -316,15 +294,14 @@ contains
     class is(expression_operator)
        ! out_verbosity10_1( 'binary right is an expression' )
        that = op2 ! Here = is overloaded (and potentially recursive)
+       call that%GuardTemp()
     class is(abs_operator)
        ! out_verbosity10_1( 'binary right is not an expression' )
        that = op2 ! Here = is overloaded (and potentially recursive)
        call that%SetTemp()
+       call that%GuardTemp()
     end select
     call res%SetTemp()
-    call res%op1%UnSetRoot()   
-    call res%op2%UnSetRoot()   
-    call res%SetRoot()
     call op1%CleanTemp()
     call op2%CleanTemp()
   end subroutine binary_operator_constructor
@@ -355,12 +332,10 @@ contains
              ! out_verbosity10_1( 'How this is possible????')
              check(1==0)
           end select
-          call op1%op_stored%UnsetRoot()
        else if(associated(op2%op)) then
           assert(.not.associated(op2%op_stored))
           ! out_verbosity10_4( 'Creating abs ', op1%id, ' from abs (reassign pointer)', op2%id)
           op1%op => op2%op
-          call op1%op%UnsetRoot()
        else
           ! out_verbosity10_1( 'How this is possible????')
           check(1==0)
@@ -372,15 +347,12 @@ contains
        class is(expression_operator)
           this = op2              ! Here = overloaded
        end select
-       call op1%op_stored%UnsetRoot()
    class default                 ! Cannot be temporary (I don't know how to copy it!)
        !assert(.not.op2%IsTemp())
        !out_verbosity10_2( 'Creating abs from base_operator (point to a permanent base_operator)', op1%id)
        op1%op => op2
-       call op1%op%UnsetRoot()
     end select
     ! out_verbosity10_2( 'Creating abs rhs argument has temporary counter', op2%GetTemp())
-    call op1%SetRoot()
     call op2%CleanTemp()
   end subroutine abs_operator_constructor
 
@@ -425,13 +397,13 @@ contains
     select type(this => res%op)
     class is(expression_operator)
        this = op ! Here = is overloaded (and potentially recursive)
+       call this%GuardTemp()
     class is(abs_operator)
        this = op ! Here = is overloaded (and potentially recursive)
        call this%SetTemp()
+       call this%GuardTemp()
     end select
     call res%SetTemp()
-    call res%op%UnSetRoot()   
-    call res%SetRoot()
     call op%CleanTemp()
   end subroutine scal_operator_constructor
 
@@ -498,13 +470,13 @@ contains
     select type(this => res%op)
     class is(expression_operator)
        this = op ! Here = is overloaded (and potentially recursive)
+       call this%GuardTemp()
     class is(abs_operator)
        this = op ! Here = is overloaded (and potentially recursive)
        call this%SetTemp()
+       call this%GuardTemp()
     end select
     call res%SetTemp()
-    call res%op%UnSetRoot()   
-    call res%SetRoot()
     call op%CleanTemp()
   end subroutine minus_operator_constructor_sub
 
@@ -616,13 +588,13 @@ contains
     class(sum_operator), intent(in)       :: op
     class(base_operand)     , intent(in)  :: x
     class(base_operand)     , allocatable :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x)
     y = op%op2 * x
     call y%axpby( 1.0, op%op1*x, 1.0 )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
     call y%SetTemp()
   end function sum_operator_apply_fun
 
@@ -631,14 +603,14 @@ contains
     class(sum_operator), intent(in)    :: op
     class(base_operand), intent(in)    :: x
     class(base_operand), intent(inout) :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     ! y <- op2*x
     call op%op2%apply(x,y)
     ! y <- 1.0 * op1*x + 1.0*y
     call y%axpby( 1.0, op%op1*x, 1.0 )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine sum_operator_apply
 
   
@@ -647,13 +619,13 @@ contains
     class(sub_operator), intent(in)       :: op
     class(base_operand)     , intent(in)  :: x
     class(base_operand)     , allocatable :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x)
     y = op%op2 * x
     call y%axpby( 1.0, op%op1*x, -1.0 )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
     call y%SetTemp()
   end function sub_operator_apply_fun
 
@@ -662,14 +634,14 @@ contains
     class(sub_operator), intent(in)    :: op
     class(base_operand), intent(in)    :: x
     class(base_operand), intent(inout) :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     ! y <- op2*x
     call op%op2%apply(x,y)
     ! y <- 1.0 * op1*x - 1.0*y
     call y%axpby( 1.0, op%op1*x, -1.0 )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine sub_operator_apply
   
   function mult_operator_apply_fun(op,x) result(y)
@@ -677,12 +649,12 @@ contains
     class(mult_operator), intent(in)       :: op
     class(base_operand)     , intent(in)  :: x
     class(base_operand)     , allocatable :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x)
     y = op%op1 * ( op%op2 * x )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
     call y%SetTemp()
   end function mult_operator_apply_fun
 
@@ -691,11 +663,11 @@ contains
     class(mult_operator), intent(in)    :: op
     class(base_operand), intent(in)    :: x
     class(base_operand), intent(inout) :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     call op%op2%apply ( op%op1*x, y )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine mult_operator_apply
 
   function  scal_operator_apply_fun(op,x) result(y)
@@ -703,13 +675,13 @@ contains
     class(scal_operator), intent(in)      :: op
     class(base_operand)     , intent(in)  :: x
     class(base_operand)     , allocatable :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x)
     y =  op%op * x
     call y%scal ( op%alpha, y)
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
     call y%SetTemp()
   end function scal_operator_apply_fun
 
@@ -718,12 +690,12 @@ contains
     class(scal_operator), intent(in)   :: op
     class(base_operand), intent(in)    :: x
     class(base_operand), intent(inout) :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     call op%op%apply(x,y)
     call y%scal( op%alpha, y )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine scal_operator_apply
 
   function  minus_operator_apply_fun(op,x) result(y)
@@ -731,14 +703,14 @@ contains
     class(minus_operator), intent(in)       :: op
     class(base_operand)     , intent(in)  :: x
     class(base_operand)     , allocatable :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x)
     y = op%op*x
     call y%scal( -1.0, y )
     call x%CleanTemp()
     call y%SetTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end function minus_operator_apply_fun
 
   subroutine minus_operator_apply(op,x,y)
@@ -746,12 +718,12 @@ contains
     class(minus_operator), intent(in)  :: op
     class(base_operand), intent(in)    :: x
     class(base_operand), intent(inout) :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     call op%op%apply(x,y)
     call y%scal( -1.0, y )
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine minus_operator_apply
 
   function  abs_operator_apply_fun(op,x) result(y)
@@ -759,7 +731,7 @@ contains
     class(abs_operator), intent(in)       :: op
     class(base_operand)     , intent(in)  :: x
     class(base_operand)     , allocatable :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x)
 
@@ -774,7 +746,7 @@ contains
     end if
 
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
     call y%SetTemp()
   end function abs_operator_apply_fun
 
@@ -783,7 +755,7 @@ contains
     class(abs_operator), intent(in)    :: op
     class(base_operand), intent(in)    :: x
     class(base_operand), intent(inout) :: y 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call x%GuardTemp()
 
     if(associated(op%op_stored)) then
@@ -797,7 +769,7 @@ contains
     end if
 
     call x%CleanTemp()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine abs_operator_apply
 
   !-------------------------------------!
@@ -808,9 +780,9 @@ contains
     class(sum_operator), intent(in)    :: op
     integer(ip)        , intent(out)   :: me
     integer(ip)        , intent(out)   :: np
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op1%info(me,np)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine sum_operator_info
 
   subroutine sub_operator_info(op,me,np)
@@ -818,9 +790,9 @@ contains
     class(sub_operator), intent(in)    :: op
     integer(ip)        , intent(out)   :: me
     integer(ip)        , intent(out)   :: np
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op1%info(me,np)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine sub_operator_info
   
   subroutine mult_operator_info(op,me,np)
@@ -828,9 +800,9 @@ contains
     class(mult_operator), intent(in)    :: op
     integer(ip)         , intent(out)   :: me
     integer(ip)         , intent(out)   :: np
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op1%info(me,np)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine mult_operator_info
 
   subroutine minus_operator_info(op,me,np)
@@ -838,9 +810,9 @@ contains
     class(minus_operator), intent(in)   :: op
     integer(ip)         , intent(out)   :: me
     integer(ip)         , intent(out)   :: np
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op%info(me,np)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine minus_operator_info
   
   subroutine scal_operator_info(op,me,np)
@@ -848,9 +820,9 @@ contains
     class(scal_operator), intent(in)    :: op
     integer(ip)         , intent(out)   :: me
     integer(ip)         , intent(out)   :: np
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op%info(me,np)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine scal_operator_info
 
   subroutine abs_operator_info(op,me,np)
@@ -859,7 +831,7 @@ contains
     integer(ip)        , intent(out)   :: me
     integer(ip)        , intent(out)   :: np
 
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     if(associated(op%op_stored)) then
        assert(.not.associated(op%op))
        call op%op_stored%info(me,np)
@@ -869,7 +841,7 @@ contains
     else
        check(1==0)
     end if
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine abs_operator_info
 
   !-------------------------------------!
@@ -879,52 +851,52 @@ contains
     implicit none
     class(sum_operator), intent(in)    :: op
     logical :: sum_operator_am_i_fine_task
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     sum_operator_am_i_fine_task = op%op1%am_i_fine_task()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end function sum_operator_am_i_fine_task
   
   function sub_operator_am_i_fine_task(op)
     implicit none
     class(sub_operator), intent(in)    :: op
     logical :: sub_operator_am_i_fine_task
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     sub_operator_am_i_fine_task = op%op1%am_i_fine_task()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end function sub_operator_am_i_fine_task
 
   function mult_operator_am_i_fine_task(op)
     implicit none
     class(mult_operator), intent(in)    :: op
     logical :: mult_operator_am_i_fine_task
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     mult_operator_am_i_fine_task = op%op1%am_i_fine_task()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end function mult_operator_am_i_fine_task
   
   function minus_operator_am_i_fine_task(op)
     implicit none
     class(minus_operator), intent(in)    :: op
     logical :: minus_operator_am_i_fine_task
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     minus_operator_am_i_fine_task = op%op%am_i_fine_task()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end function minus_operator_am_i_fine_task
 
   function scal_operator_am_i_fine_task(op)
     implicit none
     class(scal_operator), intent(in)    :: op
     logical :: scal_operator_am_i_fine_task
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     scal_operator_am_i_fine_task = op%op%am_i_fine_task()
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end function scal_operator_am_i_fine_task
 
   function abs_operator_am_i_fine_task(op)
     implicit none
     class(abs_operator), intent(in)    :: op
     logical :: abs_operator_am_i_fine_task
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     if(associated(op%op_stored)) then
        assert(.not.associated(op%op))
        abs_operator_am_i_fine_task = op%op_stored%am_i_fine_task()
@@ -934,7 +906,7 @@ contains
     else
        check(1==0)
     end if
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end function abs_operator_am_i_fine_task
 
   !-------------------------------------!
@@ -944,52 +916,52 @@ contains
     implicit none
     class(sum_operator), intent(in)    :: op
     logical            , intent(inout)   :: condition
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op1%bcast(condition)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine sum_operator_bcast
 
   subroutine sub_operator_bcast(op,condition)
     implicit none
     class(sub_operator), intent(in)    :: op
     logical            , intent(inout)   :: condition
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op1%bcast(condition)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine sub_operator_bcast
 
   subroutine mult_operator_bcast(op,condition)
     implicit none
     class(mult_operator), intent(in)   :: op
     logical            , intent(inout)   :: condition
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op1%bcast(condition)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine mult_operator_bcast
 
   subroutine minus_operator_bcast(op,condition)
     implicit none
     class(minus_operator), intent(in)   :: op
     logical            , intent(inout)   :: condition
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op%bcast(condition)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine minus_operator_bcast
 
   subroutine scal_operator_bcast(op,condition)
     implicit none
     class(scal_operator), intent(in)   :: op
     logical            , intent(inout)   :: condition
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     call op%op%bcast(condition)
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine scal_operator_bcast
 
   subroutine abs_operator_bcast(op,condition)
     implicit none
     class(abs_operator), intent(in)     :: op
     logical            , intent(inout)   :: condition
-    if (op%IsRoot()) call op%GuardTemp()
+    call op%GuardTemp()
     if(associated(op%op_stored)) then
        assert(.not.associated(op%op))
        call op%op_stored%bcast(condition)
@@ -999,7 +971,7 @@ contains
     else
        check(1==0)
     end if
-    if (op%IsRoot()) call op%CleanTemp()
+    call op%CleanTemp()
   end subroutine abs_operator_bcast
 
 end module base_operator_names

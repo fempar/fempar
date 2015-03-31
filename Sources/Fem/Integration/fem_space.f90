@@ -36,6 +36,8 @@ module fem_space_names
   use integration_names
   use fem_space_types
   use dof_handler_names
+  use migratory_element_names
+
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -45,7 +47,7 @@ module fem_space_names
   integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
 
   ! Information of each element of the FE space
-  type fem_element
+  type, extends(migratory_element) :: fem_element
      
      !type(physical_problem), pointer :: problem        
           
@@ -67,7 +69,7 @@ module fem_space_names
                                                               ! They can be used to store postprocessing fields, e.g. vorticity in nsi
      real(rp)        , allocatable :: gauss_properties(:,:,:) ! Gauss point level properties with history, e.g. subscales,  rank?
 
-     type(array_rp1) , allocatable :: bc_value(:)   ! Boundary Condition values
+     integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
      
      type(fem_fixed_info), pointer :: p_geo_info => NULL() ! Interpolation info of the geometry
           
@@ -76,6 +78,10 @@ module fem_space_names
 
      type(vol_integ_pointer)     , allocatable :: integ(:)  ! Pointer to integration parameters
 
+   contains
+     procedure :: size   => fem_element_size
+     procedure :: pack   => fem_element_pack
+     procedure :: unpack => fem_element_unpack
   end type fem_element
 
   ! Information relative to the faces
@@ -100,10 +106,12 @@ module fem_space_names
   ! Global information of the fem_space
   type fem_space  
 
-     integer(ip)                        :: num_materials        ! Number of materials (maximum value)
-     logical(lg)                        :: static_condensation  ! Flag for static condensation 
-     type(fem_element)    , allocatable :: lelem(:)         ! List of FEs
-     type(fem_face)       , allocatable :: lface(:)         ! List of active faces
+     integer(ip)                           :: num_materials        ! Number of materials (maximum value)
+     logical(lg)                           :: static_condensation  ! Flag for static condensation 
+     logical(lg)                           :: hierarchical_basis   ! Flag for hierarchical basis
+     class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list
+     type(fem_element)    , pointer        :: lelem(:)             ! List of FEs
+     type(fem_face)       , allocatable    :: lface(:)             ! List of active faces
 
      type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler)        , pointer :: dof_handler
@@ -128,10 +136,11 @@ module fem_space_names
      ! Element common information
      type (hash_table_ip_ip)            :: ht_elem_info
      type (fem_fixed_info), allocatable :: lelem_info(:)
-     integer(ip)                         :: cur_elinf
+     integer(ip)                        :: cur_elinf
 
-     type(list_2d)  :: object2dof        ! An auxiliary array to accelerate some parts of the code
-
+     type(list_2d), allocatable         :: object2dof(:)  ! An auxiliary array to accelerate some parts of the code
+     integer(ip), allocatable           :: ndofs(:)
+     integer(ip)                        :: time_steps_to_store        ! Time steps to store
 
   end type fem_space
 
@@ -141,28 +150,94 @@ module fem_space_names
 !       &     memalloc, memrealloc, memfreep, memmovealloc
 
   ! Functions
-  public :: fem_space_create, fem_space_fe_list_create, fem_space_print, fem_element_print, fem_space_free
+  public :: fem_space_create, fem_space_allocate_structures, fem_space_fe_list_create, fem_space_print, &
+       &    fem_element_print, fem_space_free
 !,          &
 !       get_p_faces
 
 contains
 
+  
+
+
+
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_create( fspac, g_trian, dofh )
+  subroutine fem_space_create(  g_trian, dofh, fspac, problem, continuity, order, material, &
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials )
     implicit none
-    type(fem_space)   , intent(inout)                :: fspac
+    type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
-    type(dof_handler) , intent(in), target           :: dofh           
+    type(dof_handler) , intent(in), target           :: dofh   
+    integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
+    logical(lg),     intent(in)       :: continuity(:,:)
+    integer(ip), optional, intent(in) :: time_steps_to_store
+    logical(lg), optional, intent(in) :: hierarchical_basis
+    logical(lg), optional, intent(in) :: static_condensation
+    integer(ip), optional, intent(in) :: num_materials        
 
     integer(ip) :: istat
 
-    allocate(fspac%lelem( g_trian%num_elems), stat=istat)
-    if(istat/=0) then 
-       write(6,'(a)') '[Fempar Fatal Error] ***Memory (de)allocation failed.'
-       write(6,'(a,i20)') 'Error code: ', istat
-       write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelem'
+    call fem_space_allocate_structures(  g_trian, dofh, fspac, &
+         time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
+         static_condensation = static_condensation, num_materials = num_materials )  
+
+
+    call fem_space_fe_list_create ( fspac, problem, continuity, order, material )
+
+  end subroutine fem_space_create
+
+  !==================================================================================================
+  ! Allocation of variables in fem_space according to the values in g_trian
+  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, &
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials )
+    implicit none
+    type(fem_space)   ,  target, intent(inout)                :: fspac
+    type(fem_triangulation)   , intent(in), target   :: g_trian   
+    type(dof_handler) , intent(in), target           :: dofh  
+    integer(ip), optional, intent(in) :: time_steps_to_store
+    logical(lg), optional, intent(in) :: hierarchical_basis
+    logical(lg), optional, intent(in) :: static_condensation
+    integer(ip), optional, intent(in) :: num_materials         
+
+    integer(ip) :: istat
+
+    
+    ! Hierarchical flag
+    if (present(hierarchical_basis)) then
+       fspac%hierarchical_basis = hierarchical_basis
+    else
+       fspac%hierarchical_basis = .false.
     end if
+
+    ! Static condensation flag
+    if (present(static_condensation)) then
+       fspac%static_condensation = static_condensation
+    else
+       fspac%static_condensation = .false.
+    end if
+
+    ! Number materials flag
+    if (present(num_materials)) then
+       fspac%num_materials = num_materials
+    else
+       fspac%num_materials = 1
+    end if
+
+    ! Time steps to store flag
+    if (present(time_steps_to_store)) then
+       fspac%time_steps_to_store = time_steps_to_store
+    else
+       fspac%time_steps_to_store = 1
+    end if
+
+    allocate( fem_element :: fspac%mig_elems(g_trian%num_elems), stat=istat)
+    check ( istat == 0 )
+    
+    select type( this => fspac%mig_elems )
+    type is(fem_element)
+       fspac%lelem => this
+    end select
 
     !  Initialization of pointer to triangulation
     fspac%g_trian => g_trian
@@ -210,46 +285,20 @@ contains
        write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelem_info'
     end if
 
-  end subroutine fem_space_create
+  end subroutine fem_space_allocate_structures
 
   !==================================================================================================
   ! Fill the fem_space assuming that all elements are of type f_type but each variable has different
   ! interpolation order
-  subroutine fem_space_fe_list_create( fspac, problem, continuity, order, material, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials  )
+  subroutine fem_space_fe_list_create( fspac, problem, continuity, order, material )
     implicit none
-    type(fem_space), intent(inout),target  :: fspac
+    type(fem_space), intent(inout), target  :: fspac
     integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
     logical(lg),     intent(in)       :: continuity(:,:)
-    integer(ip), optional, intent(in) :: time_steps_to_store
-    logical(lg), optional, intent(in) :: hierarchical_basis
-    logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_materials 
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof
-    logical(lg) :: created, khir
-
-    ! Hierarchical flag
-    if (present(hierarchical_basis)) then
-       khir = hierarchical_basis
-    else
-       khir = .false.
-    end if
-
-    ! Static condensation flag
-    if (present(static_condensation)) then
-       fspac%static_condensation = static_condensation
-    else
-       fspac%static_condensation = .false.
-    end if
-
-    ! Static condensation flag
-    if (present(num_materials)) then
-       fspac%num_materials = 1
-    else
-       fspac%num_materials = 1
-    end if
+    logical(lg) :: created
 
     ! nunk_tot = total amount of unknowns
     ! if ( present(prob_list_nunk) ) then
@@ -272,7 +321,7 @@ contains
     dim = fspac%g_trian%num_dims
 
     ! Material
-    fspac%lelem(:)%material = material
+    fspac%lelem(1:fspac%g_trian%num_elems)%material = material
 
     ! Continuity
     write(*,*) 'Continuity', continuity
@@ -378,13 +427,13 @@ contains
        fspac%lelem(ielem)%p_mat => fspac%lelmat(pos_elmat)
        fspac%lelem(ielem)%p_vec => fspac%lelvec(pos_elvec)
 
-       ! Allocate elem2dof, unkno
+       ! Allocate elem2dof, unkno, bc_code
        call memalloc( max_num_nodes, nvars, fspac%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
        fspac%lelem(ielem)%elem2dof = 0
-       call memalloc( max_num_nodes, nvars, time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
+       call memalloc( max_num_nodes, nvars, fspac%time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
-
+       call memalloc(nvars,fspac%lelem(ielem)%p_geo_info%nobje,fspac%lelem(ielem)%bc_code,__FILE__,__LINE__, 0)
        ! Assign pointers to volume integration
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars
@@ -394,7 +443,7 @@ contains
           if ( istat == now_stored ) then
              ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
              call integ_create(f_type,f_type,dim,1,f_order,fspac%lvoli(fspac%cur_lvoli),     &
-                  &            khie = khir,mnode=max_num_nodes)
+                  &            khie = fspac%hierarchical_basis, mnode=max_num_nodes)
              pos_voint       = fspac%cur_lvoli
              fspac%cur_lvoli = fspac%cur_lvoli + 1
           else if ( istat == was_stored ) then
@@ -465,8 +514,9 @@ contains
     write (lunou, '(a,i10)') 'Problem: ', elm%problem
     write (lunou,*) 'Element dofs: ', elm%elem2dof
 
-!    write (lunou,*) 'Number of unknowns: ', elm%problem%nvars
+    write (lunou,*) 'Number of unknowns: ', elm%num_vars
     write (lunou,*) 'Order of each variable: ', elm%order
+    write (lunou,*) 'Continuity of each variable: ', size(elm%continuity)
     write (lunou,*) 'Continuity of each variable: ', elm%continuity
     write (lunou,*) 'Element material: ', elm%material
 
@@ -484,7 +534,6 @@ contains
        write (lunou, *) 'ntxob%l:  ', elm%f_inf(ivar)%p%ntxob%l
        write (lunou, *) 'crxob%p:  ', elm%f_inf(ivar)%p%crxob%p
        write (lunou, *) 'crxob%l:  ', elm%f_inf(ivar)%p%crxob%l
-!!$       write (lunou, *) 'Pointer object -> node: ', elm%f_inf(ivar)%p%p_nodob
     end do
 
   end subroutine fem_element_print
@@ -494,6 +543,7 @@ contains
     implicit none
     type(fem_space), intent(inout) :: f
     integer(ip)                    :: i,j
+    integer(ip) :: istat
 
     ! SB.alert : To be thought for the new structure triangulation
     ! lface_free
@@ -532,11 +582,8 @@ contains
        call memfree( f%lelem(i)%elem2dof,__FILE__,__LINE__)
        call memfree( f%lelem(i)%unkno,__FILE__,__LINE__)
        !call memfree( f%lelem(i)%jvars,__FILE__,__LINE__)
-       if (allocated(f%lelem(i)%bc_value)) then
-          do j=1,size(f%lelem(i)%bc_value) 
-             if (allocated(f%lelem(i)%bc_value(j)%a)) call array_free(f%lelem(i)%bc_value(j))
-          end do
-          call memfree(f%lelem(i)%bc_value,__FILE__,__LINE__)
+       if (allocated(f%lelem(i)%bc_code)) then
+          call memfree(f%lelem(i)%bc_code,__FILE__,__LINE__)
        end if
        nullify ( f%lelem(i)%p_geo_info )
        nullify ( f%lelem(i)%p_mat )
@@ -553,7 +600,10 @@ contains
        !if(allocated(f%lelem(i)%material))    call memfree(f%lelem(i)%iv   ,__FILE__,__LINE__)
        !if(allocated(f%lelem(i)%p_nod)) call memfree(f%lelem(i)%p_nod,__FILE__,__LINE__)
     end do
-    deallocate ( f%lelem )
+    
+    deallocate ( f%mig_elems, stat=istat )
+    check(istat==0)
+    nullify ( f%lelem )
 
     do i = 1,f%cur_elmat-1
        call array_free( f%lelmat(i) )
@@ -610,4 +660,101 @@ contains
 
   ! SB.alert : to be thought now
 
+  subroutine fem_element_size (my, n)
+    implicit none
+    class(fem_element), intent(in)  :: my
+    integer(ip)            , intent(out) :: n
+    
+    ! Locals
+    integer(ieep) :: mold(1)
+    integer(ip)   :: size_of_ip, size_of_lg
+    
+    size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_lg   = size(transfer(.false._lg,mold))
+
+    n = size_of_ip*3 + size_of_ip*(my%num_vars) + size_of_lg*(my%num_vars)
+
+  end subroutine fem_element_size
+
+  subroutine fem_element_pack (my, n, buffer)
+    implicit none
+    class(fem_element), intent(in)  :: my
+    integer(ip)            , intent(in)   :: n
+    integer(ieep)            , intent(out)  :: buffer(n)
+    
+    ! Locals
+    integer(ieep) :: mold(1)
+    integer(ip) :: size_of_ip, size_of_lg
+
+    integer(ip) :: start, end
+
+    size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_lg   = size(transfer(.false._lg,mold))
+
+    start = 1
+    end   = start + size_of_ip -1
+    buffer(start:end) = transfer(my%num_vars,mold)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    buffer(start:end) = transfer(my%problem,mold)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    buffer(start:end) = transfer(my%material,mold)
+
+    start = end + 1
+    end   = start + my%num_vars*size_of_ip - 1
+    buffer(start:end) = transfer(my%order,mold)
+
+    start = end + 1
+    end   = start + my%num_vars*size_of_lg - 1
+    buffer(start:end) = transfer(my%continuity,mold)
+
+  end subroutine fem_element_pack
+
+  subroutine fem_element_unpack(my, n, buffer)
+    implicit none
+    class(fem_element), intent(inout) :: my
+    integer(ip)            , intent(in)     :: n
+    integer(ieep)            , intent(in)     :: buffer(n)
+
+    ! Locals
+    integer(ieep) :: mold(1)
+    integer(ip) :: size_of_ip, size_of_lg
+    integer(ip) :: start, end
+    
+    size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_lg   = size(transfer(.false._lg,mold))
+
+    start = 1
+    end   = start + size_of_ip -1
+    my%num_vars  = transfer(buffer(start:end), my%num_vars)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    my%problem  = transfer(buffer(start:end), my%problem)
+
+    start = end + 1
+    end   = start + size_of_ip - 1
+    my%material  = transfer(buffer(start:end), my%material)
+
+    call memalloc( my%num_vars, my%order, __FILE__, __LINE__ )
+
+    start = end + 1
+    end   = start + my%num_vars*size_of_ip - 1
+    my%order = transfer(buffer(start:end), my%order)
+    
+    call memalloc( my%num_vars, my%continuity, __FILE__, __LINE__ )
+     
+    start = end + 1
+    end   = start + my%num_vars*size_of_lg - 1
+    my%continuity = transfer(buffer(start:end), my%continuity)
+    
+  end subroutine fem_element_unpack
+
+
+
+
 end module fem_space_names
+

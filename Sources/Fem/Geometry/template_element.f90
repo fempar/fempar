@@ -49,10 +49,10 @@ contains
   subroutine template_element_size (my, n)
     implicit none
     class(template_element), intent(in)  :: my
-    integer(ip)            , intent(out) :: n
+    integer(ip)             , intent(out) :: n
     
     ! Locals
-    integer(ip) :: mold(1)
+    integer(ieep)  :: mold(1)
     integer(ip) :: size_of_igp, size_of_rp
 
     size_of_igp = size(transfer(1_igp,mold))
@@ -66,10 +66,10 @@ contains
     implicit none
     class(template_element), intent(in)  :: my
     integer(ip)            , intent(in)  :: n
-    integer(ip)            , intent(out) :: buffer(n)
+    integer(ieep)             , intent(out) :: buffer(n)
 
     ! Locals
-    integer(ip) :: mold(1)
+    integer(ieep)  :: mold(1)
     integer(ip) :: size_of_igp, size_of_rp
     integer(ip) :: start, end
 
@@ -92,12 +92,12 @@ contains
     implicit none
     class(template_element), intent(inout) :: my
     integer(ip)            , intent(in)    :: n
-    integer(ip)            , intent(in)    :: buffer(n)
+    integer(ieep)             , intent(in)    :: buffer(n)
 
     ! Locals
-    integer(ip) :: mold(1)
-    integer(ip) :: size_of_igp, size_of_rp
-    integer(ip) :: start, end
+    integer(ieep)  :: mold(1)
+    integer(ip)    :: size_of_igp, size_of_rp
+    integer(ip)    :: start, end
 
     size_of_igp = size(transfer(1_igp,mold))
     size_of_rp  = size(transfer(1_rp ,mold))

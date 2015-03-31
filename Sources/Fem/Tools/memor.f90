@@ -357,6 +357,25 @@ contains
 # include "mem_body.i90"
 end module mem_ip_allocatable
 !***********************************************************************
+! integer(ieep)
+!***********************************************************************
+module mem_ieep_allocatable
+  use types
+  use mem_base
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+  private
+# define var_type integer(ieep)
+# define var_size ieep
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+contains
+# include "mem_body.i90"
+end module mem_ieep_allocatable
+!***********************************************************************
 ! integer(igp)
 !***********************************************************************
 module mem_igp_allocatable
@@ -542,6 +561,7 @@ end module mem_ip_igp_pointer
 module memor
   use mem_base
   use mem_ip_allocatable
+  use mem_ieep_allocatable
   use mem_igp_allocatable
   use mem_rp_allocatable
   use mem_lg_allocatable
