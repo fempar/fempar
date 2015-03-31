@@ -101,14 +101,7 @@ module par_vector_names
      type ( par_partition ), pointer  :: p_part => NULL()
   end type par_vector
 
-  interface par_vector_create_view
-     module procedure par_vector_create_view_same_ndof, & 
-                      par_vector_create_view_new_ndof
-  end interface par_vector_create_view
 
-  interface par_vector_l2g
-     module procedure par_vector_l2g_fvec, par_vector_l2g_pvec
-  end interface par_vector_l2g
 
   ! Types
   public :: par_vector
@@ -176,7 +169,7 @@ contains
     ! (e.g., for linear PDEs. right?). We should 
     ! determine when it is actually needed, and avoid allocating it 
     ! whenever it is not required 
-    call fem_vector_alloc ( storage, nd, p_part%f_part%nmap%nl, p_vec%f_vector )
+    call fem_vector_alloc ( p_part%f_part%nmap%nl, p_vec%f_vector )
 
     ! Create epv_own and epv_own_ext as views of f_vector 
     ! if ( p_part%p_context%handler == trilinos ) then 
@@ -249,7 +242,7 @@ contains
   end subroutine par_vector_free
 
   !=============================================================================
-  subroutine par_vector_create_view_same_ndof (s_p_vec, start, end, t_p_vec)
+  subroutine par_vector_create_view (s_p_vec, start, end, t_p_vec)
     implicit none
     type(par_vector), intent(in), target :: s_p_vec
     integer(ip)     , intent(in)         :: start
@@ -290,92 +283,92 @@ contains
     !       stop
     !    end if
     ! end if
-  end subroutine par_vector_create_view_same_ndof
+  end subroutine par_vector_create_view
 
 
-  !=============================================================================
-  subroutine par_vector_create_view_new_ndof (s_p_vec, ndstart, ndend, start, end, t_p_vec)
-    implicit none
-    ! Parameters
-    type(par_vector), intent(in), target :: s_p_vec
-    integer(ip)     , intent(in)         :: ndstart
-    integer(ip)     , intent(in)         :: ndend
-    integer(ip)     , intent(in)         :: start
-    integer(ip)     , intent(in)         :: end
-    type(par_vector), intent(out)        :: t_p_vec
+  ! !=============================================================================
+  ! subroutine par_vector_create_view_new_ndof (s_p_vec, ndstart, ndend, start, end, t_p_vec)
+  !   implicit none
+  !   ! Parameters
+  !   type(par_vector), intent(in), target :: s_p_vec
+  !   integer(ip)     , intent(in)         :: ndstart
+  !   integer(ip)     , intent(in)         :: ndend
+  !   integer(ip)     , intent(in)         :: start
+  !   integer(ip)     , intent(in)         :: end
+  !   type(par_vector), intent(out)        :: t_p_vec
 
-    ! Locals
-    integer(ip) :: nd
-    integer(ip) :: idof, id
-  !    integer (c_int) , allocatable  :: rc_map_values(:)
+  !   ! Locals
+  !   integer(ip) :: nd
+  !   integer(ip) :: idof, id
+  ! !    integer (c_int) , allocatable  :: rc_map_values(:)
 
-    ! The routine requires the partition/context info
-    assert ( associated( s_p_vec%p_part ) )
-    assert ( associated( s_p_vec%p_part%p_context ) )
-    assert ( s_p_vec%p_part%p_context%created .eqv. .true.)
+  !   ! The routine requires the partition/context info
+  !   assert ( associated( s_p_vec%p_part ) )
+  !   assert ( associated( s_p_vec%p_part%p_context ) )
+  !   assert ( s_p_vec%p_part%p_context%created .eqv. .true.)
 
-    ! Associate parallel partition 
-    t_p_vec%p_part => s_p_vec%p_part
+  !   ! Associate parallel partition 
+  !   t_p_vec%p_part => s_p_vec%p_part
 
-    if ( s_p_vec%p_part%p_context%handler == inhouse ) then
-       assert ( s_p_vec%state /= undefined )
-       t_p_vec%state = s_p_vec%state
-    end if
+  !   if ( s_p_vec%p_part%p_context%handler == inhouse ) then
+  !      assert ( s_p_vec%state /= undefined )
+  !      t_p_vec%state = s_p_vec%state
+  !   end if
 
-    if(s_p_vec%p_part%p_context%iam<0) return
+  !   if(s_p_vec%p_part%p_context%iam<0) return
 
-    ! Call fem_vector_create_view
-    call fem_vector_create_view ( s_p_vec%f_vector, ndstart, ndend, start, end, t_p_vec%f_vector ) 
+  !   ! Call fem_vector_create_view
+  !   call fem_vector_create_view ( s_p_vec%f_vector, ndstart, ndend, start, end, t_p_vec%f_vector ) 
 
-    ! Create epv_own and epv_own_ext as views of f_vector 
-    ! if ( s_p_vec%p_part%p_context%handler == trilinos ) then 
-    !    nd = ndend -ndstart + 1
-    !    assert ( nd <= max_ndofs )
-    !    if ( s_p_vec%p_part%maps_state(nd) == map_non_created ) then
-    !       call memalloc ( s_p_vec%p_part%f_part%nmap%nl * nd, rc_map_values,   __FILE__,__LINE__)
+  !   ! Create epv_own and epv_own_ext as views of f_vector 
+  !   ! if ( s_p_vec%p_part%p_context%handler == trilinos ) then 
+  !   !    nd = ndend -ndstart + 1
+  !   !    assert ( nd <= max_ndofs )
+  !   !    if ( s_p_vec%p_part%maps_state(nd) == map_non_created ) then
+  !   !       call memalloc ( s_p_vec%p_part%f_part%nmap%nl * nd, rc_map_values,   __FILE__,__LINE__)
 
-    !       do id=1, s_p_vec%p_part%f_part%nmap%nl 
-    !          do idof=1, nd
-    !             rc_map_values(blk2scal(id,idof,nd)) = blk2scal(s_p_vec%p_part%f_part%nmap%l2g(id),idof,nd)-1
-    !          end do
-    !       end do
+  !   !       do id=1, s_p_vec%p_part%f_part%nmap%nl 
+  !   !          do idof=1, nd
+  !   !             rc_map_values(blk2scal(id,idof,nd)) = blk2scal(s_p_vec%p_part%f_part%nmap%l2g(id),idof,nd)-1
+  !   !          end do
+  !   !       end do
 
-    !       ! Create row-map
-    !       call epetra_map_construct ( t_p_vec%p_part%row_map(nd), -1, & 
-    !            &                      (s_p_vec%p_part%f_part%nmap%ni + s_p_vec%p_part%f_part%nmap%nb)*nd, & 
-    !            &                      rc_map_values, 0, s_p_vec%p_part%p_context%epcomm)
+  !   !       ! Create row-map
+  !   !       call epetra_map_construct ( t_p_vec%p_part%row_map(nd), -1, & 
+  !   !            &                      (s_p_vec%p_part%f_part%nmap%ni + s_p_vec%p_part%f_part%nmap%nb)*nd, & 
+  !   !            &                      rc_map_values, 0, s_p_vec%p_part%p_context%epcomm)
 
-    !       ! Create col-map
-    !       call epetra_map_construct ( t_p_vec%p_part%col_map(nd), -1, & 
-    !            s_p_vec%p_part%f_part%nmap%nl*nd, &
-    !            &                      rc_map_values, 0, s_p_vec%p_part%p_context%epcomm) 
+  !   !       ! Create col-map
+  !   !       call epetra_map_construct ( t_p_vec%p_part%col_map(nd), -1, & 
+  !   !            s_p_vec%p_part%f_part%nmap%nl*nd, &
+  !   !            &                      rc_map_values, 0, s_p_vec%p_part%p_context%epcomm) 
 
-    !       ! Create importer                                          
-    !       call epetra_import_construct ( t_p_vec%p_part%importer(nd), & 
-    !            s_p_vec%p_part%col_map(nd),   & ! TARGET
-    !            s_p_vec%p_part%row_map(nd) )    ! SOURCE
+  !   !       ! Create importer                                          
+  !   !       call epetra_import_construct ( t_p_vec%p_part%importer(nd), & 
+  !   !            s_p_vec%p_part%col_map(nd),   & ! TARGET
+  !   !            s_p_vec%p_part%row_map(nd) )    ! SOURCE
 
-    !       call memfree ( rc_map_values,__FILE__,__LINE__)
+  !   !       call memfree ( rc_map_values,__FILE__,__LINE__)
 
-    !       t_p_vec%p_part%maps_state(nd) = map_created
-    !    end if
+  !   !       t_p_vec%p_part%maps_state(nd) = map_created
+  !   !    end if
 
 
-    !    ! epetra_vector (i.e., scalar vector)
-    !    if ( s_p_vec%f_vector%storage == scal ) then
-    !       call epetra_vector_construct ( t_p_vec%epv_own,            & 
-    !            s_p_vec%p_part%row_map(nd), & 
-    !            t_p_vec%f_vector%b )
+  !   !    ! epetra_vector (i.e., scalar vector)
+  !   !    if ( s_p_vec%f_vector%storage == scal ) then
+  !   !       call epetra_vector_construct ( t_p_vec%epv_own,            & 
+  !   !            s_p_vec%p_part%row_map(nd), & 
+  !   !            t_p_vec%f_vector%b )
 
-    !       call epetra_vector_construct ( t_p_vec%epv_own_ext,        & 
-    !            s_p_vec%p_part%col_map(nd), & 
-    !            t_p_vec%f_vector%b )
-    !    else ! (block vector) 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
-  end subroutine par_vector_create_view_new_ndof
+  !   !       call epetra_vector_construct ( t_p_vec%epv_own_ext,        & 
+  !   !            s_p_vec%p_part%col_map(nd), & 
+  !   !            t_p_vec%f_vector%b )
+  !   !    else ! (block vector) 
+  !   !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
+  !   !       stop
+  !   !    end if
+  !   ! end if
+  ! end subroutine par_vector_create_view_new_ndof
 
   !=============================================================================
   subroutine par_vector_clone (s_p_vec, t_p_vec)
@@ -503,7 +496,6 @@ contains
          p_vec%p_part%f_import%pack_idx,   &
          alpha_,                         &
          1.0_rp,                         &
-         p_vec%f_vector%nd,              &
          p_vec%f_vector%b,               &
          mode=mode_) 
 
@@ -521,7 +513,6 @@ contains
          p_vec%p_part%f_import%unpack_idx, &
          1.0_rp,                         &
          0.0_rp,                         &
-         p_vec%f_vector%nd,              &
          p_vec%f_vector%b,               &
          mode=mode_)
 
@@ -583,44 +574,27 @@ contains
     ! Element-based partitioning/inhouse handler required
     assert ( p_vec%p_part%f_part%ptype == element_based )
     assert ( p_vec%p_part%p_context%handler == inhouse ) 
-    
+
     if ( present(weight) ) then
-       if ( p_vec%f_vector%storage == scal ) then
-          i1 = blk2scal(                            1,                 1, p_vec%f_vector%nd)
-          i2 = blk2scal(p_vec%p_part%f_part%nmap%nb  , p_vec%f_vector%nd, p_vec%f_vector%nd)
-          do i=i1,i2
-             p_vec%f_vector%b(:, i) =  p_vec%f_vector%b(:, i) * weight(i)
-          end do
-       else if ( p_vec%f_vector%storage == blk ) then
-          ! Implementation pending for storage == blk !!!!
-          assert (  p_vec%f_vector%storage == scal )
-       end if
+       i1 = 1
+       i2 = p_vec%p_part%f_part%nmap%nb
+       do i=i1,i2
+          p_vec%f_vector%b(i) =  p_vec%f_vector%b(i) * weight(i)
+       end do
     else 
 
-       if ( p_vec%f_vector%storage == scal ) then
-          do iobj=2, p_vec%p_part%f_part%nobjs
-             weigt=1.0_rp/real(p_vec%p_part%f_part%lobjs(4,iobj))
-             i1 = blk2scal(p_vec%p_part%f_part%lobjs(2,iobj) - p_vec%p_part%f_part%nmap%ni,                 1, p_vec%f_vector%nd)
-             i2 = blk2scal(p_vec%p_part%f_part%lobjs(3,iobj) - p_vec%p_part%f_part%nmap%ni, p_vec%f_vector%nd, p_vec%f_vector%nd)
-             ! write (*,*) 'yyy', i1, i2, (i2-i1+1), weigt
+       do iobj=2, p_vec%p_part%f_part%nobjs
+          weigt=1.0_rp/real(p_vec%p_part%f_part%lobjs(4,iobj))
+          i1 = p_vec%p_part%f_part%lobjs(2,iobj) - p_vec%p_part%f_part%nmap%ni
+          i2 = p_vec%p_part%f_part%lobjs(3,iobj) - p_vec%p_part%f_part%nmap%ni
+          ! write (*,*) 'yyy', i1, i2, (i2-i1+1), weigt
 #ifdef ENABLE_BLAS
-             call dscal ( (i2-i1+1), weigt, p_vec%f_vector%b(:, i1:i2), 1 )
+          call dscal ( (i2-i1+1), weigt, p_vec%f_vector%b(i1:i2), 1 )
 #else
-             p_vec%f_vector%b(:, i1:i2) = weigt * p_vec%f_vector%b(:, i1:i2)
+          p_vec%f_vector%b(i1:i2) = weigt * p_vec%f_vector%b(i1:i2)
 #endif 
-          end do
-       else if ( p_vec%f_vector%storage == blk ) then
-          do iobj=2, p_vec%p_part%f_part%nobjs
-             weigt=1.0_rp/real(p_vec%p_part%f_part%lobjs(4,iobj))
-             i1 = p_vec%p_part%f_part%lobjs(2,iobj) - p_vec%p_part%f_part%nmap%ni
-             i2 = p_vec%p_part%f_part%lobjs(3,iobj) - p_vec%p_part%f_part%nmap%ni
-#ifdef ENABLE_BLAS
-             call dscal ( (i2-i1+1)*p_vec%f_vector%nd, weigt, p_vec%f_vector%b(:, i1:i2), 1 )
-#else
-             p_vec%f_vector%b(:, i1:i2) = weigt * p_vec%f_vector%b(:, i1:i2)
-#endif 
-          end do
-       end if
+       end do
+
     end if
   end subroutine weight_interface
 
@@ -909,14 +883,7 @@ contains
        ! Zero-out local copy
        call fem_vector_zero ( y%f_vector )
     else if( y%p_part%p_context%handler == trilinos ) then
-       if ( y%f_vector%storage == scal ) then 
-          ! call epetra_vector_scale (y%epv_own, 0.0_c_double, y%epv_own, ierrc)
           call fem_vector_zero ( y%f_vector )
-          ! assert ( ierrc == 0 )
-       else 
-          write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-          stop
-       end if
     end if
 
   end subroutine par_vector_zero
@@ -942,12 +909,7 @@ contains
           call fem_vector_init (t, y%f_vector)
           y%state = full_summed
        else if( y%p_part%p_context%handler == trilinos ) then
-          if ( y%f_vector%storage == scal ) then 
-             call fem_vector_init (t, y%f_vector )
-          else 
-             write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-             stop
-          end if
+          call fem_vector_init (t, y%f_vector )
        end if
     end if
   end subroutine par_vector_init
@@ -1286,7 +1248,7 @@ contains
        weigt=1.0_rp/real(x%p_part%f_part%lobjs(4,iobj))
        i1=x%p_part%f_part%lobjs(2,iobj) - x%p_part%f_part%nmap%ni
        i2=x%p_part%f_part%lobjs(3,iobj) - x%p_part%f_part%nmap%ni
-       call flat_weighted_dot ( x%f_vector%nd, i1, i2, & 
+       call flat_weighted_dot ( i1, i2, & 
             & x%f_vector%b, y%f_vector%b, weigt, t) 
     end do
   end subroutine weighted_dot
@@ -1294,25 +1256,23 @@ contains
   ! Auxiliary (module private) routine
   ! for computing dot products and euclidean
   ! norms for element-based data distributions 
-  subroutine flat_weighted_dot (nd, i1, i2, x, y, weigt, t)
+  subroutine flat_weighted_dot ( i1, i2, x, y, weigt, t)
     implicit none
     ! Parameters  
-    integer(ip), intent(in)    :: nd, i1, i2
-    real(rp),    intent(in)    :: x(nd,*), y(nd,*), weigt
+    integer(ip), intent(in)    :: i1, i2
+    real(rp),    intent(in)    :: x(*), y(*), weigt
     real(rp),    intent(inout) :: t
 
     ! Locals   
     integer(ip)                :: i, id
 
     do i=i1,i2
-       do id=1,nd
-          t = t + weigt * x(id,i) * y(id,i)
-       end do
+          t = t + weigt * x(i) * y(i)
     end do
   end subroutine flat_weighted_dot
 
   !================================================================================================
-  subroutine par_vector_l2g_pvec(p_vec,f_vec,root,ndime)
+  subroutine par_vector_l2g(p_vec,f_vec,root,ndime)
     implicit none
     type(par_vector), intent(in)  :: p_vec
     type(fem_vector), intent(out) :: f_vec
@@ -1354,7 +1314,7 @@ contains
     ! Gather recvcounts
     call mpi_gather(p_vec%p_part%f_part%nmap%nl,1,psb_mpi_integer,rcvcnt_l2g,1,psb_mpi_integer, &
          &          root_pid,mpi_comm,iret)
-    call mpi_gather(p_vec%f_vector%nd*p_vec%f_vector%neq,1,psb_mpi_integer,rcvcnt_vec,1,        &
+    call mpi_gather(p_vec%f_vector%neq,1,psb_mpi_integer,rcvcnt_vec,1,        &
          &          psb_mpi_integer,root_pid,mpi_comm,iret)
 
     ! Set displs and allocate gathered vectors l2g and vec
@@ -1381,32 +1341,22 @@ contains
          l2g_gather,rcvcnt_l2g,displ_l2g,psb_mpi_integer,root_pid,mpi_comm,iret)
 
     ! Gather vector data
-    call mpi_gatherv(p_vec%f_vector%b,p_vec%f_vector%nd*p_vec%f_vector%neq,psb_mpi_real, &
+    call mpi_gatherv(p_vec%f_vector%b,p_vec%f_vector%neq,psb_mpi_real, &
          vec_gather,rcvcnt_vec,displ_vec,psb_mpi_real,root_pid,mpi_comm,iret)
 
     ! Create fem vector
     if(me==root_pid) then
        ! Set number of global equations
-       neq = displ_vec(np)/p_vec%f_vector%nd
-       call fem_vector_alloc(p_vec%f_vector%storage,p_vec%f_vector%nd,neq,f_vec)
-       if(p_vec%f_vector%storage==scal) then
+       neq = displ_vec(np)
+       call fem_vector_alloc(neq,f_vec)
           npoin = neq/ndime
           k=1
           do i=1,npoin
              do idime=1,ndime
-                f_vec%b(1,(l2g_gather(i)-1)*ndime+idime) = vec_gather(k)
+                f_vec%b((l2g_gather(i)-1)*ndime+idime) = vec_gather(k)
                 k=k+1
              end do
           end do
-       else if(p_vec%f_vector%storage==blk) then
-          k=1
-          do i=1,neq
-             do idime=1,p_vec%f_vector%nd
-                f_vec%b(idime,l2g_gather(i)) = vec_gather(k)
-                k=k+1
-             end do
-          end do
-       end if
     end if
 
     ! Deallocate objects
@@ -1417,119 +1367,7 @@ contains
     call memfree(l2g_gather,__FILE__,__LINE__)
     call memfree(vec_gather,__FILE__,__LINE__)
 
-  end subroutine par_vector_l2g_pvec
-
-  !================================================================================================
-  subroutine par_vector_l2g_fvec(ndime,npoin,veloc,p_part,f_vec,root,l2g,nl)
-    implicit none
-    integer(ip),          intent(in)  :: ndime,npoin
-    real(rp),             intent(in)  :: veloc(ndime,npoin)
-    type(par_partition),  intent(in)  :: p_part
-    type(fem_vector),     intent(out) :: f_vec
-    integer(ip), intent(in), optional :: root
-    integer(ip), intent(in), optional :: l2g(:)
-    integer(ip), intent(in), optional :: nl
-
-    integer(ip) :: me,np,neq,root_pid,mpi_comm,iret,nl_
-    integer(ip) :: i,idime,k
-
-    integer(ip), allocatable :: rcvcnt_l2g(:),displ_l2g(:),l2g_gather(:)
-    integer(ip), allocatable :: rcvcnt_vec(:),displ_vec(:)
-    integer(ip), allocatable :: l2g_(:)
-    real(rp),    allocatable :: vec_gather(:)
-
-    assert ( associated(p_part%p_context) )
-    assert ( p_part%p_context%created .eqv. .true.)
-    if(p_part%p_context%iam<0) return
-
-    ! Set root
-    if(.not.present(root)) then
-       root_pid = 0
-    else
-       root_pid = root
-    end if
-
-    ! Set l2g
-    if(present(l2g)) then
-       check(present(nl))
-       call memalloc(nl,l2g_,__FILE__,__LINE__)
-       l2g_=l2g
-       nl_ =nl
-    else
-       call memalloc(p_part%f_part%nmap%nl,l2g_,__FILE__,__LINE__)
-       l2g_=p_part%f_part%nmap%l2g
-       nl_ =p_part%f_part%nmap%nl
-    end if
-
-    ! Get par_context info
-    call par_context_info(p_part%p_context,me,np)
-    call psb_get_mpicomm(p_part%p_context%icontxt,mpi_comm)
-
-    ! Allocate recvcounts
-    if(me==root_pid) then
-       call memalloc(np,rcvcnt_l2g,__FILE__,__LINE__)
-       call memalloc(np,rcvcnt_vec,__FILE__,__LINE__)
-    else
-       call memalloc(0,rcvcnt_l2g,__FILE__,__LINE__)
-       call memalloc(0,rcvcnt_vec,__FILE__,__LINE__)
-    end if
-
-    ! Gather recvcounts
-    call mpi_gather(nl_,1,psb_mpi_integer,rcvcnt_l2g,1,psb_mpi_integer,root_pid,mpi_comm,iret)
-    call mpi_gather(ndime*npoin,1,psb_mpi_integer,rcvcnt_vec,1,psb_mpi_integer, &
-         &          root_pid,mpi_comm,iret)
-
-    ! Set displs and allocate gathered vectors l2g and vec
-    if(me==root_pid) then
-       call memalloc(np+1,displ_l2g,__FILE__,__LINE__)
-       call memalloc(np+1,displ_vec,__FILE__,__LINE__)
-       displ_l2g(1) = 0
-       displ_vec(1) = 0
-       do i=1,np
-          displ_l2g(i+1) = displ_l2g(i) + rcvcnt_l2g(i)
-          displ_vec(i+1) = displ_vec(i) + rcvcnt_vec(i)
-       end do
-       call memalloc(displ_l2g(np+1),l2g_gather,__FILE__,__LINE__)
-       call memalloc(displ_vec(np+1),vec_gather,__FILE__,__LINE__)
-    else
-       call memalloc(0,displ_l2g,__FILE__,__LINE__)
-       call memalloc(0,displ_vec,__FILE__,__LINE__)
-       call memalloc(0,l2g_gather,__FILE__,__LINE__)
-       call memalloc(0,vec_gather,__FILE__,__LINE__)
-    end if
-
-    ! Gather local to global
-    call mpi_gatherv(l2g_,nl_,psb_mpi_integer, &
-         &           l2g_gather,rcvcnt_l2g,displ_l2g,psb_mpi_integer,root_pid,mpi_comm,iret)
-
-    ! Gather vector data
-    call mpi_gatherv(veloc,ndime*npoin,psb_mpi_real,vec_gather, &
-         &           rcvcnt_vec,displ_vec,psb_mpi_real,root_pid,mpi_comm,iret)
-
-    ! Create fem vector
-    if(me==root_pid) then
-       ! Set number of global equations
-       neq = displ_vec(np+1)/ndime
-       call fem_vector_alloc(blk,ndime,neq,f_vec)
-       k=1
-       do i=1,neq
-          do idime=1,ndime
-             f_vec%b(idime,l2g_gather(i)) = vec_gather(k)
-             k=k+1
-          end do
-       end do
-    end if
-
-    ! Deallocate objects
-    call memfree(displ_l2g,__FILE__,__LINE__)
-    call memfree(displ_vec,__FILE__,__LINE__)
-    call memfree(rcvcnt_l2g,__FILE__,__LINE__)
-    call memfree(rcvcnt_vec,__FILE__,__LINE__)
-    call memfree(l2g_gather,__FILE__,__LINE__)
-    call memfree(vec_gather,__FILE__,__LINE__)
-    call memfree(l2g_,__FILE__,__LINE__)
-
-  end subroutine par_vector_l2g_fvec
+  end subroutine par_vector_l2g
 
   !================================================================================================
   subroutine par_vector_g2l(root_pid,ndime,npoin,gvec,p_part,lvec)

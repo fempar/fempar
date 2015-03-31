@@ -38,12 +38,16 @@ module assembly_names
 # include "debug.i90"
   private
 
-  public :: assembly_monolithic_element_matrix_global_system_matrix
+  public :: assembly_element_matrix_global_system_matrix
 
+  interface assembly_element_matrix_global_system_matrix
+     module procedure assembly_element_matrix_global_system_block_matrix, &
+          & assembly_element_matrix_global_system_monolithic_matrix
+  end interface assembly_element_matrix_global_system_matrix
 contains
 
-  subroutine assembly_monolithic_element_matrix_global_system_matrix(  elem, dhand, a ) 
-
+  subroutine assembly_element_matrix_global_system_block_matrix(  elem, dhand, a ) 
+    implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
     type(fem_block_matrix), intent(inout)     :: a
@@ -68,7 +72,31 @@ contains
        end do
     end do
 
-  end subroutine assembly_monolithic_element_matrix_global_system_matrix
+  end subroutine assembly_element_matrix_global_system_block_matrix
+
+  subroutine assembly_element_matrix_global_system_monolithic_matrix(  elem, dhand, a ) 
+    implicit none
+    type(dof_handler), intent(in)             :: dhand
+    type(fem_element), intent(in)             :: elem
+    type(fem_matrix), intent(inout)     :: a
+
+    integer(ip) :: ivar, start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip) :: end(dhand%problems(elem%problem)%nvars+1), iblock, jblock
+    
+
+    ! Assuming a monolithic problem matrix
+    do ivar = 1,dhand%problems(elem%problem)%nvars
+      start(ivar+1) = start(ivar+1) + elem%f_inf(ivar)%p%nnode
+    end do
+
+    start(1) = 1
+    do ivar = 2, dhand%problems(elem%problem)%nvars+1
+       start(ivar) = start(ivar) + start(ivar-1)
+    end do
+
+    call element_matrix_block_assembly( dhand, elem, start, a )
+
+  end subroutine assembly_element_matrix_global_system_monolithic_matrix
   
   ! OTHER ALTERNATIVES TO BE IMPLEMENTED :
 

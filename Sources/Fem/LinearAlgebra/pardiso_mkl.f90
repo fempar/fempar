@@ -345,7 +345,6 @@ contains
 
     ! Check a correct matrix type
     assert (matrix%type == csr_mat)
-    assert (matrix%storage == scal)
 
     ! Initiliaze the internal solver memory pointer. This is only
     ! necessary before FIRST call of PARDISO.
@@ -585,7 +584,6 @@ contains
 
 
 #ifdef ENABLE_MKL
-    assert( matrix%storage == scal )
 
     ! Process optional parameters
     if ( present(msglvl) ) then
@@ -608,7 +606,7 @@ contains
 
     ! Factorization.
     phase = 22 ! only factorization
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     call pardiso (  context%pt, maxfct, mnum, context%mtype, phase,  & 
          &          matrix%gr%nv, a_, matrix%gr%ia, matrix%gr%ja,  &
@@ -656,7 +654,6 @@ contains
     logical           :: alloc_iparm
 
 #ifdef ENABLE_MKL
-    assert( matrix%storage == scal )
     ! Process optional parameters
     if ( present(msglvl) ) then
        msglvl_ = msglvl
@@ -678,9 +675,9 @@ contains
 
     ! (c) y  <- A^-1 * x
     phase = 33 ! only Fwd/Bck substitution
-    a_ => matrix%a(1,1,:)
-    x_ => x%b(1,:)
-    y_ => y%b(1,:)
+    a_ => matrix%a(:)
+    x_ => x%b(:)
+    y_ => y%b(:)
     call pardiso ( context%pt, maxfct, mnum, context%mtype, phase,   & 
          &         matrix%gr%nv, a_, matrix%gr%ia, matrix%gr%ja,  & 
          &         idum, nrhsp, iparm_, msglvl_, x_, y_, error)
@@ -729,7 +726,6 @@ contains
     logical           :: alloc_iparm
 
 #ifdef ENABLE_MKL
-    assert( matrix%storage == scal )
 
     ! Process optional parameters
     if ( present(msglvl) ) then
@@ -752,7 +748,7 @@ contains
 
     ! (c) y  <- A^-1 * x
     phase = 33 ! only Fwd/Bck substitution
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
     x_ => rhs
     y_ => sol
     nrhs = 1
@@ -821,7 +817,6 @@ contains
     logical           :: alloc_iparm
 
 #ifdef ENABLE_MKL
-    assert( matrix%storage == scal )
 
     ! Process optional parameters
     if ( present(msglvl) ) then
@@ -844,7 +839,7 @@ contains
 
     ! (c) y  <- A^-1 * x
     phase = 33 ! only Fwd/Bck substitution
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     if ( ldrhs == matrix%gr%nv ) then
        x_ => rhs(1:1,1)

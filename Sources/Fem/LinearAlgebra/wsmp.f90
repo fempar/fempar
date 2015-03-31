@@ -573,7 +573,6 @@ contains
 
     ! Check a correct matrix type
     !assert (matrix%type == csr_mat)
-    !assert (matrix%storage == scal)
 
     if ( present(perm) ) then
        context%perm => perm
@@ -638,7 +637,7 @@ contains
 
     else if(context%mtype==wsmp_unsy) then
 
-       a_ => matrix%a(1,1,:)
+       a_ => matrix%a(:)
 
        call wgsmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
             &      i0dum, nrhs, d1dum, iparm_, dparm_)
@@ -688,7 +687,6 @@ contains
 
     ! Check a correct matrix type
     assert (matrix%type == csr_mat)
-    assert (matrix%storage == scal)
 
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
@@ -713,7 +711,7 @@ contains
     end if
 
     ! Point to matrix
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
     iparm_(2) = 3
     iparm_(3) = 3
 
@@ -815,7 +813,6 @@ contains
 
     ! Check a correct matrix type
     assert (matrix%type == csr_mat)
-    assert (matrix%storage == scal)
 
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
@@ -842,14 +839,14 @@ contains
      write(*,*) 'wsmp solution 1'
 
     ! Point to matrix
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
      write(*,*) 'wsmp solution 2'
      write(*,*) 'y',size(y%b)
      write(*,*) 'x',size(x%b)
     ! Solution will overwrite rhs in wsmp
-    y%b(1,:) = x%b(1,:)
+    y%b(:) = x%b(:)
     write(*,*) 'wsmp solution 3'
-    y_ => y%b(1,:)
+    y_ => y%b(:)
     write(*,*) 'wsmp solution 4'
 
     iparm_(2) = 4
@@ -948,7 +945,6 @@ contains
 
     ! Check a correct matrix type
     assert (matrix%type == csr_mat)
-    assert (matrix%storage == scal)
 
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
@@ -973,7 +969,7 @@ contains
     end if
     
     ! Point to matrix
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
     ! Solution will overwrite rhs in wsmp
     sol = rhs
     y_ => sol(1:1)
@@ -1076,7 +1072,6 @@ contains
 
     ! Check a correct matrix type
     assert (matrix%type == csr_mat)
-    assert (matrix%storage == scal)
 
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
@@ -1101,7 +1096,7 @@ contains
     end if
     
     ! Point to matrix
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
     ! Solution will overwrite rhs in wsmp
     sol = rhs
     y_ => sol(1:1,1)

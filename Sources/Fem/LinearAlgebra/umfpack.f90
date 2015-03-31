@@ -365,7 +365,7 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     !
     !  From the symbolic factorization information, carry out the numeric factorization.
@@ -410,9 +410,9 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    x_ => x%b(1,:)
-    y_ => y%b(1,:)
-    a_ => matrix%a(1,1,:)
+    x_ => x%b(:)
+    y_ => y%b(:)
+    a_ => matrix%a(:)
 
     !
     ! Solve the linear system.
@@ -453,7 +453,7 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     !
     ! Solve the linear system.
@@ -497,13 +497,13 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     do i=1,nrhs
       !
       ! Solve the linear system.
       !
-      status = umfpack_di_solve ( UMFPACK_At, matrix%gr%ia, matrix%gr%ja, a_, sol(1,i), rhs(1,i), context%Numeric, context%Control, context%Info )
+      status = umfpack_di_solve ( UMFPACK_At, matrix%gr%ia, matrix%gr%ja, a_, sol(i), rhs(i), context%Numeric, context%Control, context%Info )
       if ( status < 0 ) then
         write ( *, '(a)' ) ''
         write ( *, '(a)' ) 'UMFPACK - Fatal error!'

@@ -60,11 +60,11 @@ contains
   !============================================================================================
   !
   !============================================================================================
-  subroutine mesh_to_graph_matrix ( storage, gtype, ndof1, ndof2, primal_mesh, primal_graph,stabi)
+  subroutine mesh_to_graph_matrix ( gtype, ndof1, ndof2, primal_mesh, primal_graph,stabi)
     implicit none
 
     ! Parameters
-    integer(ip)          , intent(in)     :: storage, gtype, ndof1, ndof2
+    integer(ip)          , intent(in)     :: gtype, ndof1, ndof2
     integer(ip), optional, intent(in)     :: stabi
     type(fem_mesh)       , intent(in)     :: primal_mesh
     type(fem_graph)      , intent(out)    :: primal_graph
@@ -74,9 +74,6 @@ contains
     type (fem_mesh)                        :: dual_mesh
     integer(ip), allocatable               :: iwork(:)       ! Integer ip working array
     integer(ip)                            :: pwork(3)       ! Pointers to work space
-
-    ! Valid storage layouts for fem_matrix are blk and scal
-    assert  ( storage == blk .or. storage == scal )
 
     assert  ( ndof1 >= 1 .and. ndof2 >= 1 )
 
@@ -92,243 +89,125 @@ contains
     ! Allocate space for ia on the primal graph
     primal_graph%type = gtype
 
-    if ( storage == blk ) then
-       if ( primal_graph%type == csr .or. primal_graph%type == csr_symm ) then
-          primal_graph%nv  = primal_mesh%npoin
-          primal_graph%nv2 = primal_graph%nv
-          call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
-       else
-          if ( primal_graph%type == css ) then
-             primal_graph%nv  = primal_mesh%npoin
-             primal_graph%nv2 = primal_graph%nv
-             call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
-             call memalloc ( primal_graph%nv+1, primal_graph%is, __FILE__,__LINE__ )
-          end if
-          ! other fem_graph types may go here in an else construct (if required)
-       end if
 
-       ! Allocate working space for count_primal_graph and list_primal_graph routines
-       ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
-       ! graph node)
-       pwork(1) = 1
-       pwork(2) = pwork(1) + primal_mesh%npoin
-!!$       if (present(stabi) .and. stabi == 3) then
-!!$          pwork(3) = pwork(2) + (dual_mesh%nnode*primal_mesh%nnode)**3
-!!$       else
-!!$          pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
-!!$       end if
-       if (present(stabi)) then
-          if (stabi ==3) then
-            pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode*dual_mesh%nnode*primal_mesh%nnode
-          else
-            pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
-          end if 
-       else
-          pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
-       end if
-
-       call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
-
-
-       ! I am not sure that the computation of the number of neighbours
-       ! can be encapsulated in one routine comprising all possible fem_graph
-       ! types addressing sparse matrices (e.g., do they require the same amount
-       ! of workspace ?) I will assume that this is possible. If not, we will need 
-       ! separate subroutines for each fem_graph type.
-
-       ! After a lot of thinking, I have decided to provide separate routines
-       ! for count and list for each kind of fem_graph. The body of the (old)
-       ! common routine (see comment above) became very dirty. Besides it had
-       ! a lot of if,else statements and conditional logic within the most deep
-       ! loop (so that potentially a lot of overhead). I am aware that this
-       ! decision will cause some controverse, but I am not sure which is the
-       ! best solution at the moment ...
-       if ( primal_graph%type == csr ) then
-          if (present(stabi)) then
-             if ( stabi == 3 ) then
-                call count_primal_graph_extended_stencil_csr ( primal_mesh, dual_mesh, primal_graph, &  
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             else
-                call count_primal_graph_csr ( primal_mesh, dual_mesh, primal_graph, &  
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
-          else
-             call count_primal_graph_csr ( primal_mesh, dual_mesh, primal_graph, &  
-                  iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-          end if
-       else
-          if ( primal_graph%type == csr_symm ) then
-             call count_primal_graph_csr_symm ( primal_mesh, dual_mesh, primal_graph, &  
-                  iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-          else
-             if ( primal_graph%type == css ) then
-                call count_primal_graph_css ( primal_mesh, dual_mesh, primal_graph, &  
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
-          end if
-       end if
-
-       ! Allocate space for ja on the primal graph 
-       call memalloc (primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,          __FILE__,__LINE__)    
-
-       ! I am not sure that the computation of the list of neighbours
-       ! can be encapsulated in one routine comprising all possible fem_graph
-       ! types addressing sparse matrices (e.g., do they require the same amount
-       ! of workspace ?). I will assume that this is possible. If not, we will need
-       ! separate subroutines for each fem_graph type.
-
-       ! After a lot of thinking, I have decided to provide separate routines
-       ! for count and list for each kind of fem_graph. The body of the (old)
-       ! common routine (see comment above) became very dirty. Besides it had
-       ! a lot of if,else statements and conditional logic within the most deep
-       ! loop (so that potentially a lot of overhead). I am aware that this
-       ! decision will cause some controverse, but I am not sure which is the
-       ! best solution at the moment ...
-       if ( primal_graph%type == csr ) then
-          if (present(stabi)) then
-             if (stabi == 3) then
-                call list_primal_graph_extended_stencil_csr  ( primal_mesh, dual_mesh, primal_graph, &
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             else
-                call list_primal_graph_csr  ( primal_mesh, dual_mesh, primal_graph, &
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
-          else
-             call list_primal_graph_csr  ( primal_mesh, dual_mesh, primal_graph, &
-                  iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-          end if
-       else
-          if ( primal_graph%type == csr_symm ) then
-             call list_primal_graph_csr_symm  ( primal_mesh, dual_mesh, primal_graph, &
-                  iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-          else
-             if ( primal_graph%type == css ) then
-                call list_primal_graph_css  ( primal_mesh, dual_mesh, primal_graph, &
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
-          end if
-       end if
-    else if ( storage == scal ) then
-
-       if ( primal_graph%type == csr .or. primal_graph%type == csr_symm ) then
+    if ( primal_graph%type == csr .or. primal_graph%type == csr_symm ) then
+       primal_graph%nv  = primal_mesh%npoin * ndof1
+       primal_graph%nv2 = primal_mesh%npoin * ndof2
+       call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
+    else
+       if ( primal_graph%type == css ) then
           primal_graph%nv  = primal_mesh%npoin * ndof1
           primal_graph%nv2 = primal_mesh%npoin * ndof2
           call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
-       else
-          if ( primal_graph%type == css ) then
-             primal_graph%nv  = primal_mesh%npoin * ndof1
-             primal_graph%nv2 = primal_mesh%npoin * ndof2
-             call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
-             call memalloc ( primal_graph%nv+1, primal_graph%is, __FILE__,__LINE__ )
-          end if
-          ! other fem_graph types may go here in an else construct (if required)
+          call memalloc ( primal_graph%nv+1, primal_graph%is, __FILE__,__LINE__ )
        end if
+       ! other fem_graph types may go here in an else construct (if required)
+    end if
 
-       ! Allocate working space for count_primal_graph and list_primal_graph routines
-       ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
-       ! graph node)
-       pwork(1) = 1
-       pwork(2) = pwork(1) + primal_mesh%npoin
+    ! Allocate working space for count_primal_graph and list_primal_graph routines
+    ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
+    ! graph node)
+    pwork(1) = 1
+    pwork(2) = pwork(1) + primal_mesh%npoin
 !!$       if (present(stabi) .and. stabi == 3) then
 !!$          pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode*dual_mesh%nnode*primal_mesh%nnode
 !!$       else
 !!$          pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
 !!$       end if
-       if (present(stabi)) then
-          if (stabi ==3) then
-            pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode*dual_mesh%nnode*primal_mesh%nnode
-          else
-            pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
-          end if 
+    if (present(stabi)) then
+       if (stabi ==3) then
+          pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode*dual_mesh%nnode*primal_mesh%nnode
        else
           pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
        end if
+    else
+       pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
+    end if
 
-       call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
+    call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
 
-       ! I am not sure that the computation of the number of neighbours
-       ! can be encapsulated in one routine comprising all possible fem_graph
-       ! types addressing sparse matrices (e.g., do they require the same amount
-       ! of workspace ?) I will assume that this is possible. If not, we will need 
-       ! separate subroutines for each fem_graph type.
+    ! I am not sure that the computation of the number of neighbours
+    ! can be encapsulated in one routine comprising all possible fem_graph
+    ! types addressing sparse matrices (e.g., do they require the same amount
+    ! of workspace ?) I will assume that this is possible. If not, we will need 
+    ! separate subroutines for each fem_graph type.
 
-       ! After a lot of thinking, I have decided to provide separate routines
-       ! for count and list for each kind of fem_graph. The body of the (old)
-       ! common routine (see comment above) became very dirty. Besides it had
-       ! a lot of if,else statements and conditional logic within the most deep
-       ! loop (so that potentially a lot of overhead). I am aware that this
-       ! decision will cause some controverse, but I am not sure which is the
-       ! best solution at the moment ...
+    ! After a lot of thinking, I have decided to provide separate routines
+    ! for count and list for each kind of fem_graph. The body of the (old)
+    ! common routine (see comment above) became very dirty. Besides it had
+    ! a lot of if,else statements and conditional logic within the most deep
+    ! loop (so that potentially a lot of overhead). I am aware that this
+    ! decision will cause some controverse, but I am not sure which is the
+    ! best solution at the moment ...
 
-       if ( primal_graph%type == csr ) then
-          if (present(stabi)) then
-             if (stabi == 3) then
-                call count_primal_graph_extended_stencil_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, &
-                     primal_graph,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             else
-                call count_primal_graph_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
-           else
-              call count_primal_graph_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
-                                             iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-           end if
-       else
-          if ( primal_graph%type == csr_symm ) then
-             call count_primal_graph_csr_symm_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
-                                                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+    if ( primal_graph%type == csr ) then
+       if (present(stabi)) then
+          if (stabi == 3) then
+             call count_primal_graph_extended_stencil_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, &
+                  primal_graph,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
           else
-             if ( primal_graph%type == css ) then
-                call count_primal_graph_css_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
-                                                   iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
+             call count_primal_graph_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
+                  iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+          end if
+       else
+          call count_primal_graph_csr_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
+               iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+       end if
+    else
+       if ( primal_graph%type == csr_symm ) then
+          call count_primal_graph_csr_symm_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
+               iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+       else
+          if ( primal_graph%type == css ) then
+             call count_primal_graph_css_scal ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &  
+                  iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
           end if
        end if
+    end if
 
 !!$    write (*,*) primal_graph%ia
 
-       ! Allocate space for ja on the primal graph 
-       call memalloc ( primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,          __FILE__,__LINE__)    
+    ! Allocate space for ja on the primal graph 
+    call memalloc ( primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,          __FILE__,__LINE__)    
 
-       ! I am not sure that the computation of the list of neighbours
-       ! can be encapsulated in one routine comprising all possible fem_graph
-       ! types addressing sparse matrices (e.g., do they require the same amount
-       ! of workspace ?). I will assume that this is possible. If not, we will need
-       ! separate subroutines for each fem_graph type.
+    ! I am not sure that the computation of the list of neighbours
+    ! can be encapsulated in one routine comprising all possible fem_graph
+    ! types addressing sparse matrices (e.g., do they require the same amount
+    ! of workspace ?). I will assume that this is possible. If not, we will need
+    ! separate subroutines for each fem_graph type.
 
-       ! After a lot of thinking, I have decided to provide separate routines
-       ! for count and list for each kind of fem_graph. The body of the (old)
-       ! common routine (see comment above) became very dirty. Besides it had
-       ! a lot of if,else statements and conditional logic within the most deep
-       ! loop (so that potentially a lot of overhead). I am aware that this
-       ! decision will cause some controverse, but I am not sure which is the
-       ! best solution at the moment ...
-       if ( primal_graph%type == csr ) then
-          if (present(stabi)) then
-             if (stabi == 3) then
-                call list_primal_graph_extended_stencil_csr_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, & 
-                     primal_graph,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             else
-                call list_primal_graph_csr_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &
-                  iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
+    ! After a lot of thinking, I have decided to provide separate routines
+    ! for count and list for each kind of fem_graph. The body of the (old)
+    ! common routine (see comment above) became very dirty. Besides it had
+    ! a lot of if,else statements and conditional logic within the most deep
+    ! loop (so that potentially a lot of overhead). I am aware that this
+    ! decision will cause some controverse, but I am not sure which is the
+    ! best solution at the moment ...
+    if ( primal_graph%type == csr ) then
+       if (present(stabi)) then
+          if (stabi == 3) then
+             call list_primal_graph_extended_stencil_csr_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, & 
+                  primal_graph,iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
           else
              call list_primal_graph_csr_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &
                   iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
           end if
        else
-          if ( primal_graph%type == csr_symm ) then
-             call list_primal_graph_csr_symm_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &
+          call list_primal_graph_csr_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &
+               iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+       end if
+    else
+       if ( primal_graph%type == csr_symm ) then
+          call list_primal_graph_csr_symm_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &
+               iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
+       else
+          if ( primal_graph%type == css ) then
+             call list_primal_graph_css_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &
                   iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-          else
-             if ( primal_graph%type == css ) then
-                call list_primal_graph_css_scal  ( ndof1, ndof2, primal_mesh, dual_mesh, primal_graph, &
-                     iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-             end if
           end if
        end if
-
     end if
+
 
     ! Free dual_mesh
     call fem_mesh_free ( dual_mesh )

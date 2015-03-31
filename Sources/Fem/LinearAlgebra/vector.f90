@@ -39,11 +39,6 @@ module fem_vector_names
   implicit none
 # include "debug.i90"
 
-  ! *** IMPORTANT NOTE: This cpp macro should go to a 
-  ! common include file or it should be a program 
-  ! subroutine otherwise
-# define blk2scal(iv,idof,ndof) (((iv)-1)*(ndof)+(idof))
-
   !=============================================================
   ! TODO:
   ! 
@@ -62,17 +57,13 @@ module fem_vector_names
   ! fem_vector
   type, extends(base_operand) :: fem_vector
      integer(ip)                :: &
-        nd  = 0,                   &  ! Number of degrees of freedom, ndof1
         neq = 0                       ! Number of equations
    
      integer(ip)                :: & 
         mode = not_created           
 
-     integer(ip)                :: &  ! Storage layout (blk: block; scal: scalar)
-        storage = undef_sto
-
      real(rp), pointer          :: &
-        b(:,:) => NULL()
+        b(:) => NULL()
    contains
      ! Provide type bound procedures (tbp) implementors
      procedure :: dot  => fem_vector_dot_tbp
@@ -92,10 +83,10 @@ module fem_vector_names
   !    module procedure fem_vector_assembly_nosq_w_dof_handler
   ! end interface fem_vector_assembly
 
-  interface fem_vector_create_view
-     module procedure fem_vector_create_view_same_ndof, & 
-                      fem_vector_create_view_new_ndof
-  end interface fem_vector_create_view
+!  interface fem_vector_create_view
+!     module procedure fem_vector_create_view_same_ndof, & 
+!                      fem_vector_create_view_new_ndof
+!  end interface fem_vector_create_view
 
 !!$  ! Memalloc interfaces
 !!$  interface memalloc
@@ -123,7 +114,7 @@ module fem_vector_names
 
   ! Functions
   public :: fem_vector_free, &
-            fem_vector_alloc, fem_vector_create_view, fem_vector_clone,            & 
+            fem_vector_alloc, fem_vector_clone, fem_vector_create_view ,           & 
             fem_vector_comm,                                                       &
             fem_vector_dot, fem_vector_nrm2, fem_vector_copy,                      & 
             fem_vector_zero, fem_vector_init, fem_vector_scale, fem_vector_mxpy,   & 
@@ -167,33 +158,24 @@ contains
     implicit none
     type(fem_vector), intent(inout) :: vec
     assert (vec%mode == allocated .or. vec%mode == reference)
-    vec%nd      = 0          ! Number of degrees of freedom
     vec%neq     = 0          ! Number of equations
-    vec%storage = undef_sto
     if (vec%mode == allocated) call memfreep(vec%b,__FILE__,__LINE__)
     vec%mode = not_created
   end subroutine fem_vector_free
 
   !=============================================================================
-  subroutine fem_vector_alloc(storage,nd,neq,vec)
+  subroutine fem_vector_alloc(neq,vec)
     implicit none
-    integer(ip)     , intent(in)    :: storage, nd, neq
+    integer(ip)     , intent(in)    :: neq
     type(fem_vector), intent(inout) :: vec
     assert ( vec%mode == not_created )
-    assert ( storage == blk .or. storage == scal )
-    vec%nd      = nd   ! Number of degrees of freedom
     vec%neq     = neq  ! Number of equations
-    vec%storage = storage
-    if ( vec%storage == blk ) then
-       call memallocp(vec%nd,vec%neq,vec%b,__FILE__,__LINE__)
-   else if ( vec%storage == scal ) then
-       call memallocp(1,vec%nd*vec%neq,vec%b,__FILE__,__LINE__)
-    end if
+    call memallocp(vec%neq,vec%b,__FILE__,__LINE__)
     vec%b    = 0.0_rp
     vec%mode = allocated
   end subroutine fem_vector_alloc
   
-  subroutine fem_vector_create_view_same_ndof (svec, start, end, tvec)
+  subroutine fem_vector_create_view (svec, start, end, tvec)
     implicit none
     type(fem_vector), intent(in), target  :: svec
     integer(ip)     , intent(in)          :: start
@@ -202,55 +184,39 @@ contains
 
     assert ( tvec%mode == not_created )
 
-    tvec%nd      =  svec%nd               ! Number of degrees of freedom
     tvec%neq     =  end-start+1           ! Number of equations
-    tvec%storage =  svec%storage
-         
-    if ( tvec%storage == blk ) then
-      tvec%b => svec%b(:, start:end)
-    else if ( tvec%storage == scal ) then
-      tvec%b => svec%b(:, blk2scal(start,1,tvec%nd):blk2scal(end,tvec%nd,tvec%nd))
-    end if
-    
+    tvec%b => svec%b(start:end)
     tvec%mode =  reference
-  end subroutine fem_vector_create_view_same_ndof
+  end subroutine fem_vector_create_view
 
-  ! This subroutine is required in order to create a view which has a 
-  ! different ndof of an existing fem_vector with a given ndof
-  subroutine fem_vector_create_view_new_ndof (svec, ndstart, ndend, start, end, tvec)
-    implicit none
-    ! Parameters
-    type(fem_vector), intent(in), target  :: svec
-    integer(ip)     , intent(in)          :: ndstart
-    integer(ip)     , intent(in)          :: ndend
-    integer(ip)     , intent(in)          :: start
-    integer(ip)     , intent(in)          :: end
-    type(fem_vector), intent(inout)       :: tvec
+  ! ! This subroutine is required in order to create a view which has a 
+  ! ! different ndof of an existing fem_vector with a given ndof
+  ! subroutine fem_vector_create_view_new_ndof (svec, ndstart, ndend, start, end, tvec)
+  !   implicit none
+  !   ! Parameters
+  !   type(fem_vector), intent(in), target  :: svec
+  !   integer(ip)     , intent(in)          :: ndstart
+  !   integer(ip)     , intent(in)          :: ndend
+  !   integer(ip)     , intent(in)          :: start
+  !   integer(ip)     , intent(in)          :: end
+  !   type(fem_vector), intent(inout)       :: tvec
 
-    ! Locals
-    integer(ip) :: off, start_aux, end_aux
+  !   ! Locals
+  !   integer(ip) :: off, start_aux, end_aux
 
-    assert ( tvec%mode == not_created )
-        
+  !   assert ( tvec%mode == not_created )
+      
+  !   tvec%neq     =  end-start+1           ! Number of equations
 
-    tvec%nd      =  ndend-ndstart+1       ! Number of degrees of freedom
-    tvec%neq     =  end-start+1           ! Number of equations
-    tvec%storage =  svec%storage
-         
-    start_aux = mod(start-1, svec%neq)+1
-    end_aux   = mod(end-1  , svec%neq)+1
+  !   start_aux = mod(start-1, svec%neq)+1
+  !   end_aux   = mod(end-1  , svec%neq)+1
 
-    if ( tvec%storage == blk ) then
-      tvec%b => svec%b(ndstart:ndend, start:end)
-    else if ( tvec%storage == scal ) then
-
-      ! Compute initial offset
-      off = (ndstart-1) * svec%neq
-      tvec%b => svec%b(:, off+blk2scal(start_aux,1,tvec%nd):off+blk2scal(end_aux,tvec%nd,tvec%nd))
-    end if
+  !     ! Compute initial offset
+  !     off = (ndstart-1) * svec%neq
+  !     tvec%b => svec%b(:, off+start_aux:off+end_aux)
     
-    tvec%mode =  reference
-  end subroutine fem_vector_create_view_new_ndof
+  !   tvec%mode =  reference
+  ! end subroutine fem_vector_create_view_new_ndof
 
 
 
@@ -258,14 +224,8 @@ contains
     implicit none
     type(fem_vector), intent( in ) :: svec
     type(fem_vector), intent(out) :: tvec
-    tvec%nd      =  svec%nd        ! Number of degrees of freedom
     tvec%neq     =  svec%neq       ! Number of equations
-    tvec%storage =  svec%storage
-    if ( tvec%storage == blk ) then
-      call memallocp(tvec%nd,tvec%neq,tvec%b,__FILE__,__LINE__)
-    else if ( tvec%storage == scal ) then
-      call memallocp(1,tvec%nd*tvec%neq,tvec%b,__FILE__,__LINE__)
-    end if
+      call memallocp(tvec%neq,tvec%b,__FILE__,__LINE__)
     tvec%b = 0.0_rp
     tvec%mode = allocated 
   end subroutine fem_vector_clone
@@ -419,21 +379,14 @@ contains
     type(fem_vector), intent(in)  :: y
     real(rp)        , intent(out) :: t
 
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 
 #ifdef ENABLE_BLAS
-    t = ddot( x%nd * x%neq, x%b, 1, y%b, 1 )
+    t = ddot( x%neq, x%b, 1, y%b, 1 )
 #else
 !!$    AFM: A non BLAS-based implementation of the
 !!$    dot product should go here
     check(1==0)
-!!$    if ( x%storage == blk ) then
-!!$       call dot_vec( x%nd, x%neq, x%b, y%b, t )
-!!$    else if ( x%storage == scal ) then
-!!$       call dot_vec_scal( x%nd, x%neq, x%b, y%b, t )
-!!$    end if
 #endif
 
   end subroutine fem_vector_dot
@@ -444,7 +397,7 @@ contains
     real(rp)    , intent(out)     :: t
 
 #ifdef ENABLE_BLAS
-    t = dnrm2( x%nd*x%neq, x%b, 1 )
+    t = dnrm2( x%neq, x%b, 1 )
 #else
     call fem_vector_dot (x, x, t)
     t = sqrt(t)
@@ -456,12 +409,10 @@ contains
     type(fem_vector), intent(in)    :: x
     type(fem_vector), intent(inout) :: y
 
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 
 #ifdef ENABLE_BLAS
-    call dcopy ( x%nd*x%neq, x%b, 1, y%b, 1 ) 
+    call dcopy ( x%neq, x%b, 1, y%b, 1 ) 
 #else
     y%b=x%b
 #endif
@@ -485,9 +436,7 @@ contains
     type(fem_vector), intent(in)    :: x
     type(fem_vector), intent(inout) :: y
 
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 
 #ifdef ENABLE_BLAS
     ! I guess that two calls to the level 1
@@ -495,8 +444,8 @@ contains
     ! just one F90 vector operation. I have to
     ! measure the difference among these two
     ! options. 
-    call dcopy ( x%nd*x%neq, x%b, 1, y%b, 1)
-    call dscal ( y%nd*y%neq, t, y%b, 1)
+    call dcopy ( x%neq, x%b, 1, y%b, 1)
+    call dscal ( y%neq, t, y%b, 1)
 #else
     y%b=t*x%b
 #endif
@@ -506,11 +455,9 @@ contains
     implicit none
     type(fem_vector), intent(in)    :: x
     type(fem_vector), intent(inout) :: y
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 #ifdef ENABLE_BLAS
-    call daxpy ( x%nd*x%neq, -1.0, x%b, 1, y%b, 1 )
+    call daxpy ( x%neq, -1.0, x%b, 1, y%b, 1 )
 #else
     y%b=y%b-x%b
 #endif
@@ -520,11 +467,9 @@ contains
     real(rp)   , intent(in)         :: t
     type(fem_vector), intent(in)    :: x
     type(fem_vector), intent(inout) :: y
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 #ifdef ENABLE_BLAS
-    call daxpy ( x%nd*x%neq, t, x%b, 1, y%b, 1 )
+    call daxpy ( x%neq, t, x%b, 1, y%b, 1 )
 #else
     y%b=y%b+t*x%b
 #endif
@@ -535,17 +480,15 @@ contains
     real(rp)        , intent(in)    :: t
     type(fem_vector), intent(in)    :: x
     type(fem_vector), intent(inout) :: y
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 #ifdef ENABLE_BLAS
     ! I guess that two calls to the level 1
     ! BLAS can not be competitive against 
     ! just one F90 vector operation. I have to
     ! measure the difference among these two
     ! options. 
-    call dscal ( y%nd*y%neq, t, y%b, 1)
-    call daxpy ( x%nd*x%neq, 1.0, x%b, 1, y%b, 1 )    
+    call dscal ( y%neq, t, y%b, 1)
+    call daxpy ( x%neq, 1.0, x%b, 1, y%b, 1 )    
 #else
     y%b=x%b+t*y%b
 #endif
@@ -555,11 +498,9 @@ contains
     implicit none
     type(fem_vector), intent(in)    :: x
     type(fem_vector), intent(inout) :: y
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 #ifdef ENABLE_BLAS
-    call daxpy ( x%nd*x%neq, 1.0, x%b, 1, y%b, 1 )    
+    call daxpy ( x%neq, 1.0, x%b, 1, y%b, 1 )    
 #else
     y%b=y%b+x%b
 #endif
@@ -569,17 +510,15 @@ contains
     implicit none
     type(fem_vector), intent(in)    :: x
     type(fem_vector), intent(inout) :: y
-    assert ( x%nd  == y%nd  )
     assert ( x%neq == y%neq )
-    assert ( x%storage == y%storage )
 #ifdef ENABLE_BLAS
     ! I guess that two calls to the level 1
     ! BLAS can not be competitive against 
     ! just one F90 vector operation. I have to
     ! measure the difference among these two
     ! options. 
-    call dscal ( y%nd*y%neq, -1.0, y%b, 1)
-    call daxpy ( x%nd*x%neq, 1.0, x%b, 1, y%b, 1 ) 
+    call dscal ( y%neq, -1.0, y%b, 1)
+    call daxpy ( x%neq, 1.0, x%b, 1, y%b, 1 ) 
 #else
     y%b=x%b-y%b
 #endif
@@ -594,12 +533,8 @@ contains
     integer(ip) :: i
 
     write (luout, '(a)')     '*** begin fem_vector data structure ***'
-    write(luout,'(a,i10)') 'size', x%neq, 'ndof', x%nd
-    if ( x%storage == blk ) then
-       write (luout,'(e15.7)') x%b
-    else if ( x%storage == scal ) then
+    write(luout,'(a,i10)') 'size', x%neq
        write (luout,'(e25.16)') x%b
-    end if
 !!$    do i=1,x%neq
 !!$!       write (luout,'(e14.7)') x%b(1,i)
 !!$       write (luout,'(e25.16,1x)') x%b(1,i)
@@ -617,15 +552,9 @@ contains
    integer (ip) :: i, id
 
    write (luout,'(a)') '%%MatrixMarket matrix array real general'
-   write (luout,*) x%neq * x%nd, 1
+   write (luout,*) x%neq , 1
    do i=1,x%neq 
-      do id=1,x%nd
-         if ( x%storage == blk ) then
-            write (luout,*) x%b(id,i)
-         else if ( x%storage == scal ) then
-            write (luout,*) x%b(1, blk2scal(i, id, x%nd) )
-         end if
-      end do
+            write (luout,*) x%b( i )
    end do
 
  end subroutine fem_vector_print_matrix_market
@@ -641,20 +570,11 @@ contains
    call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
-      assert ( op1%nd  == op2%nd  )
       assert ( op1%neq == op2%neq )
-      assert ( op1%storage == op2%storage )
 #ifdef ENABLE_BLAS
-      alpha = ddot( op1%nd * op1%neq, op1%b, 1, op2%b, 1 )
+      alpha = ddot( op1%neq, op1%b, 1, op2%b, 1 )
 #else
-!!$    AFM: A non BLAS-based implementation of the
-!!$    dot product should go here
     check(1==0)
-!!$    if ( x%storage == blk ) then
-!!$       call dot_vec( x%nd, x%neq, x%b, y%b, t )
-!!$    else if ( x%storage == scal ) then
-!!$       call dot_vec_scal( x%nd, x%neq, x%b, y%b, t )
-!!$    end if
 #endif
    class default
       write(0,'(a)') 'fem_vector%dot: unsupported op2 class'
@@ -673,11 +593,9 @@ contains
    call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
-      assert ( op2%nd  == op1%nd  )
       assert ( op2%neq == op1%neq )
-      assert ( op2%storage == op1%storage )
 #ifdef ENABLE_BLAS
-      call dcopy ( op2%nd*op2%neq, op2%b, 1, op1%b, 1 ) 
+      call dcopy ( op2%neq, op2%b, 1, op1%b, 1 ) 
 #else
       op1%b=op2%b
 #endif
@@ -698,17 +616,15 @@ contains
    call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
-      assert ( op2%nd  == op1%nd  )
       assert ( op2%neq == op1%neq )
-      assert ( op2%storage == op1%storage )
 #ifdef ENABLE_BLAS
       ! I guess that two calls to the level 1
       ! BLAS can not be competitive against 
       ! just one F90 vector operation. I have to
       ! measure the difference among these two
       ! options. 
-      call dcopy ( op2%nd*op2%neq, op2%b, 1, op1%b, 1)
-      call dscal ( op1%nd*op1%neq, alpha, op1%b, 1)
+      call dcopy ( op2%neq, op2%b, 1, op1%b, 1)
+      call dscal ( op1%neq, alpha, op1%b, 1)
 #else
       op1%b=alpha*op2%b
 #endif
@@ -737,15 +653,13 @@ contains
    call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
-      assert ( op2%nd  == op1%nd  )
       assert ( op2%neq == op1%neq )
-      assert ( op2%storage == op1%storage )
       if ( beta == 0.0_rp ) then
          call op1%scal(alpha, op2)
       else if ( beta == 1.0_rp ) then
          ! AXPY
 #ifdef ENABLE_BLAS
-         call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )
+         call daxpy ( op2%neq, alpha, op2%b, 1, op1%b, 1 )
 #else
          op1%b=op1%b+alpha*op2%b
 #endif
@@ -753,7 +667,7 @@ contains
          ! SCAL + AXPY
          call op1%scal(beta, op1)
 #ifdef ENABLE_BLAS
-         call daxpy ( op2%nd*op2%neq, alpha, op2%b, 1, op1%b, 1 )    
+         call daxpy ( op2%neq, alpha, op2%b, 1, op1%b, 1 )    
 #else
          op1%b=op1%b+alpha*op2%b
 #endif  
@@ -773,7 +687,7 @@ contains
    call op%GuardTemp()
 
 #ifdef ENABLE_BLAS
-    alpha = dnrm2( op%nd*op%neq, op%b, 1 )
+    alpha = dnrm2( op%neq, op%b, 1 )
 #else
     alpha = op%dot(op)
     alpha = sqrt(alpha)
@@ -792,14 +706,8 @@ contains
    select type(op2)
    class is (fem_vector)
       if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
-      op1%nd      =  op2%nd        ! Number of degrees of freedom
       op1%neq     =  op2%neq       ! Number of equations
-      op1%storage =  op2%storage
-      if ( op1%storage == blk ) then
-         call memallocp(op1%nd,op1%neq,op1%b,__FILE__,__LINE__)
-      else if ( op1%storage == scal ) then
-         call memallocp(1,op1%nd*op1%neq,op1%b,__FILE__,__LINE__)
-      end if
+         call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
       ! AFM: I think that clone should NOT init the memory just allocated.
       ! The code that surrounds clone (e.g., Krylov solvers) should not
       ! rely on fem_vector_clone_tbp initializing the memory. I will comment
@@ -830,9 +738,7 @@ contains
    implicit none
    class(fem_vector), intent(inout) :: this
 
-   this%nd      = 0          ! Number of degrees of freedom
    this%neq     = 0          ! Number of equations
-   this%storage = undef_sto
    if (this%mode == allocated) call memfreep(this%b,__FILE__,__LINE__)
    nullify(this%b)
    this%mode = not_created

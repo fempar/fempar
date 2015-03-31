@@ -50,15 +50,11 @@ module fem_vector_krylov_basis_names
   ! fem_vector_krylov_basis
   type fem_vector_krylov_basis
      integer(ip)                :: &
-        nd  = 0,                   &  ! Number of degrees of freedom, ndof
         neq = 0,                   &  ! Number of equations
         k   = 0                       ! Number of Krylov basis vectors
 
-     integer(ip)                :: &  ! Storage layout (blk: block; scal: scalar)
-        storage = blk
-
      real(rp), allocatable      :: &
-        b(:,:,:) 
+        b(:,:) 
   end type fem_vector_krylov_basis
 
   ! Types
@@ -78,16 +74,10 @@ contains
     type(fem_vector)             , intent(in) , target :: f_v
     type(fem_vector_krylov_basis), intent(out)         :: Q 
 
-    Q%nd      = f_v%nd
     Q%neq     = f_v%neq
     Q%k       = k
-    Q%storage = f_v%storage
 
-    if ( Q%storage == blk ) then 
-      call memalloc(Q%nd, Q%neq, Q%k, Q%b, __FILE__,__LINE__)
-    else if ( Q%storage == scal ) then
-      call memalloc(1, Q%nd*Q%neq, Q%k, Q%b, __FILE__,__LINE__)
-    end if 
+    call memalloc( Q%neq, Q%k, Q%b, __FILE__,__LINE__)
 
     Q%b = 0.0_rp 
   end subroutine fem_vector_krylov_basis_alloc
@@ -97,10 +87,8 @@ contains
      implicit none
      type(fem_vector_krylov_basis), intent(inout) :: Q
     
-     Q%nd      = 0 
      Q%neq     = 0
      Q%k       = 0
-     Q%storage = undef_sto
      call memfree(Q%b,__FILE__,__LINE__)
 
   end subroutine fem_vector_krylov_basis_free
@@ -115,11 +103,9 @@ contains
      assert ( i >= 1 .and. i <= Q%k )
 
      ! fill f_v members
-     f_v%nd      =  Q%nd
      f_v%neq     =  Q%neq
      f_v%mode    =  reference
-     f_v%storage =  Q%storage
-     f_v%b       => Q%b(:,:,i)
+     f_v%b       => Q%b(:,i)
   end subroutine fem_vector_krylov_basis_extract_view
 
   !=============================================================================
@@ -131,13 +117,11 @@ contains
      type(fem_vector)             , intent(in) :: f_v
      real(rp), intent(out)                     :: s(k)
 
-     assert ( f_v%nd  == Q%nd  )
      assert ( f_v%neq == Q%neq )
-     assert ( f_v%storage == Q%storage )
 
 #ifdef ENABLE_BLAS 
-     call DGEMV(  'T', Q%neq * Q%nd, k, 1.0_rp, Q%b, &
-               &  Q%neq * Q%nd, f_v%b, 1, 0.0_rp, s, 1)    
+     call DGEMV(  'T', Q%neq, k, 1.0_rp, Q%b, &
+               &  Q%neq, f_v%b, 1, 0.0_rp, s, 1)    
 #else
      write (0,*) 'Error: fem_vector_krylov_basis_multidot was not compiled with -DENABLE_BLAS.'
      write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
@@ -156,13 +140,11 @@ contains
      real(rp)                     , intent(in)    :: s(k)
      type(fem_vector)             , intent(inout) :: f_v
      
-     assert ( f_v%nd  == Q%nd  )
-     assert ( f_v%neq == Q%neq )
-     assert ( f_v%storage == Q%storage )    
+     assert ( f_v%neq == Q%neq )  
  
 #ifdef ENABLE_BLAS
-      call DGEMV(  'N', Q%neq * Q%nd, k, alpha, Q%b, &
-              &  Q%neq * Q%nd, s, 1, 1.0_rp, f_v%b, 1)
+      call DGEMV(  'N', Q%neq, k, alpha, Q%b, &
+              &  Q%neq, s, 1, 1.0_rp, f_v%b, 1)
 #else
      write (0,*) 'Error: fem_vector_krylov_basis_multidot was not compiled with -DENABLE_BLAS.'
      write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
