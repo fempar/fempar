@@ -452,8 +452,8 @@ contains
                    ! Interior - interior (inside element)
                    do jvars = 1, nvapb
                       m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                      g_var = dhand%problems(iprob)%l2g_var(m_var)
-                      if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                      k_var = dhand%problems(iprob)%l2g_var(m_var)
+                      if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
                               & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                             l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
@@ -484,7 +484,7 @@ contains
                          m_dof = femsp%object2dof(jblock)%l(jdof,1)
                          m_var = femsp%object2dof(jblock)%l(jdof,2)   
                          m_mat = femsp%object2dof(jblock)%l(jdof,3)                      
-                         if ( dhand%dof_coupl(l_var,m_var) == 1 .and. l_mat == m_mat ) then
+                         if ( dhand%dof_coupl(g_var,m_var) == 1 .and. l_mat == m_mat ) then
                             do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
                                  & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                                l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
@@ -617,8 +617,8 @@ contains
                    ! Interior - interior (inside element)
                    do jvars = 1, nvapb
                       m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                      g_var = dhand%problems(iprob)%l2g_var(m_var)
-                      if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                      k_var = dhand%problems(iprob)%l2g_var(m_var)
+                      if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                               & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                             l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
@@ -653,7 +653,7 @@ contains
                       do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
                          m_dof = femsp%object2dof(jblock)%l(jdof,1)
                          m_var = femsp%object2dof(jblock)%l(jdof,2)                         
-                         if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                         if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
                             do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                                  & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                                l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
