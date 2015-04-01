@@ -38,7 +38,7 @@ module fem_matrix_partition
 
 contains
   subroutine fem_matrix_split_2x2_partitioning (  storage, ndof1, ndof2, output_symm, &
-                                                  A, prt, A_II, A_IG, A_GI, A_GG  )
+       A, prt, A_II, A_IG, A_GI, A_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
     ! "prt" input parameter: 
@@ -89,12 +89,6 @@ contains
 
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
 
-
-    ! Valid storage layouts for fem_matrix are blk and scal
-    assert  ( storage == blk .or. storage == scal )
-    assert  ( ndof1 >= 1 .and. ndof2 >= 1 )
-    assert  ( ndof1 == ndof2 )
-
     csr_mat_symm   = (A%type == csr_mat .and. output_symm == symm_true )
     csr_mat_unsymm = (A%type == csr_mat .and. output_symm == symm_false)
 
@@ -102,17 +96,10 @@ contains
     assert ( prt%ptype == element_based )
     assert ( .not. present(A_GI) .or. csr_mat_unsymm )
 
-    if ( storage == blk ) then
-       ni_rows = prt%nmap%ni
-       nb_rows = prt%nmap%nb
-       ni_cols = ni_rows
-       nb_cols = nb_rows
-    else if ( storage == scal ) then
-       ni_rows = prt%nmap%ni * ndof1
-       nb_rows = prt%nmap%nb * ndof1
-       ni_cols = prt%nmap%ni * ndof2
-       nb_cols = prt%nmap%nb * ndof2
-    end if
+       ni_rows = prt%nmap%ni  
+       nb_rows = prt%nmap%nb  
+       ni_cols = prt%nmap%ni  
+       nb_cols = prt%nmap%nb  
 
     ! If any inout fem_matrix is present, we are done !
     if ( csr_mat_unsymm ) then 
@@ -132,165 +119,93 @@ contains
     if ( present_a_ii ) then
        assert ( associated(A_II%gr) ) 
 
-       A_II%nd1      = A%nd1
-       A_II%nd2      = A%nd2
        A_II%type     = A%type
        A_II%symm     = output_symm
-       A_II%storage  = A%storage
 
 
-       if (A%storage == blk) then 
-          call memalloc ( A%nd1, A%nd2, A_II%gr%ia(A_II%gr%nv+1)-A_II%gr%ia(1), A_II%a,       __FILE__,__LINE__)
-       else if ( A%storage == scal ) then
-          call memalloc ( 1, 1, A_II%gr%ia(A_II%gr%nv+1)-A_II%gr%ia(1), A_II%a,          __FILE__,__LINE__)       
-       end if
+       call memalloc ( A_II%gr%ia(A_II%gr%nv+1)-A_II%gr%ia(1), A_II%a,          __FILE__,__LINE__)       
 
     end if
 
     if ( present_a_ig ) then
        assert ( associated(A_IG%gr) ) 
-       A_IG%nd1     = A%nd1
-       A_IG%nd2     = A%nd2
        A_IG%type    = A%type
        A_IG%symm    = symm_false
-       A_IG%storage = A%storage
 
-       if (A%storage == blk) then 
-          call memalloc ( A%nd1, A%nd2, A_IG%gr%ia(A_IG%gr%nv+1)-A_IG%gr%ia(1), A_IG%a,          __FILE__,__LINE__ )
-       else if (A%storage == scal) then
-          call memalloc ( 1, 1, A_IG%gr%ia(A_IG%gr%nv+1)-A_IG%gr%ia(1), A_IG%a,__FILE__,__LINE__ )
-       end if
+       call memalloc ( A_IG%gr%ia(A_IG%gr%nv+1)-A_IG%gr%ia(1), A_IG%a,__FILE__,__LINE__ )
 
 
     end if
 
     if ( present_a_gi ) then
        assert ( associated(A_GI%gr) ) 
-       A_GI%nd1     = A%nd1
-       A_GI%nd2     = A%nd2
        A_GI%type    = A%type
        A_GI%symm    = symm_false
-       A_GI%storage = A%storage
 
-       if (A%storage == blk) then 
-          call memalloc ( A%nd1, A%nd2, A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1), A_GI%a,                         __FILE__,__LINE__ )
-       else if (A%storage == scal) then
-          call memalloc ( 1, 1, A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1), A_GI%a,                       __FILE__,__LINE__ )
-       end if
+          call memalloc ( A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1), A_GI%a,                       __FILE__,__LINE__ )
        ! write (*,*)  A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1) ! DBG:
     end if
 
     if ( present_a_gg ) then
 
        assert ( associated(A_GG%gr) ) 
-       A_GG%nd1     = A%nd1
-       A_GG%nd2     = A%nd2
        A_GG%type    = A%type
        A_GG%symm    = output_symm
-       A_GG%storage = A%storage
 
-       if (A%storage == blk) then 
-          call memalloc ( A%nd1, A%nd2, A_GG%gr%ia(A_GG%gr%nv+1)-A_GG%gr%ia(1), A_GG%a,                         __FILE__,__LINE__ )
-       else if (A%storage == scal) then
-          call memalloc ( 1, 1, A_GG%gr%ia(A_GG%gr%nv+1)-A_GG%gr%ia(1), A_GG%a,                       __FILE__,__LINE__ )
-       end if
+          call memalloc ( A_GG%gr%ia(A_GG%gr%nv+1)-A_GG%gr%ia(1), A_GG%a,                       __FILE__,__LINE__ )
 
     end if
 
     ! List values on each row of G_II/G_IG
     if ( present_a_ii .or. present_a_ig ) then
-       if ( storage == blk ) then
-          
-          ! For blk storage, output_symm /= A%symm is not implemented yet.
-          ! I guess that we actually do not need to implement it, as the usage
-          ! of blk storage is almost deprecated
-          assert ( output_symm == A%symm )
-
-          do  ipoing=1, ni_rows 
-
-             if (present_a_ii) then 
-                A_II%a( 1:A%nd1, 1:A%nd2, A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
-                     A%a( 1:A%nd1, 1:A%nd2, A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
-             end if
-
-             if (present_a_ig) then
-                A_IG%a( 1:A%nd1, 1:A%nd2, A_IG%gr%ia(ipoing):A_IG%gr%ia(ipoing+1)-1 ) = &
-                     A%a( 1:A%nd1, 1:A%nd2, A%gr%ia(ipoing+1)-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing)):A%gr%ia(ipoing+1)-1)
-             end if
-
-          end do
-       else if (storage == scal ) then
 
           do  ipoing=1, ni_rows 
              if ( output_symm == A%symm ) then
                 if (present_a_ii) then 
-                   A_II%a( 1, 1, A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
-                        A%a( 1, 1, A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
+                   A_II%a(  A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
+                        A%a(  A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
                 end if
              else if ( output_symm == symm_true .and. A%symm == symm_false ) then
                 if (present_a_ii) then
                    offset = (A%gr%ia(ipoing+1)- A%gr%ia(ipoing))-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing))-(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))
-                   A_II%a( 1, 1, A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
-                        A%a( 1, 1, A%gr%ia(ipoing)+offset:A%gr%ia(ipoing)+offset+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
+                   A_II%a( A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
+                        A%a( A%gr%ia(ipoing)+offset:A%gr%ia(ipoing)+offset+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
                 end if
              else if ( output_symm == symm_false .and. A%symm == symm_true ) then
                 ! Not implemented yet. Trigger an assertion.
                 assert ( 1 == 0 )
              end if
-             
+
              if (present_a_ig) then
-                A_IG%a( 1, 1, A_IG%gr%ia(ipoing):A_IG%gr%ia(ipoing+1)-1 ) = &
-                     A%a( 1, 1, A%gr%ia(ipoing+1)-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing)):A%gr%ia(ipoing+1)-1)
+                A_IG%a( A_IG%gr%ia(ipoing):A_IG%gr%ia(ipoing+1)-1 ) = &
+                     A%a( A%gr%ia(ipoing+1)-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing)):A%gr%ia(ipoing+1)-1)
              end if
           end do
-          
-       end if
+
     end if
 
 
     ! List values on each row of G_GI/G_GG
     if ( present_a_gi .or. present_a_gg ) then
-       if ( storage == blk ) then
-
-          ! For blk storage, output_symm /= A%symm is not implemented yet.
-          ! I guess that we actually do not need to implement it, as the usage
-          ! of blk storage is almost deprecated
-          assert ( output_symm == A%symm )
-          
-          do ipoing=ni_rows+1, ni_rows + nb_rows
-             if ( present_a_gi ) then
-                ! write (*,*) A_GI%gr%ia( ipoing-prt%nmap%ni ),  A_GI%gr%ia( ipoing+1-prt%nmap%ni )-1                               ! DBG:
-                ! write (*,*) A%gr%ia(ipoing), A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-prt%nmap%ni)-A_GI%gr%ia(ipoing-prt%nmap%ni))-1  ! DBG:
-                A_GI%a( 1:A%nd1, 1:A%nd2, A_GI%gr%ia( ipoing-prt%nmap%ni ) : A_GI%gr%ia( ipoing+1-prt%nmap%ni )-1 ) = &  
-                     A%a ( 1:A%nd1, 1:A%nd2, A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-prt%nmap%ni)-A_GI%gr%ia(ipoing-prt%nmap%ni))-1 )
-             end if
-             if ( present_a_gg ) then
-                A_GG%a( 1:A%nd1, 1:A%nd2, A_GG%gr%ia( ipoing-prt%nmap%ni ) : A_GG%gr%ia(ipoing+1-prt%nmap%ni)-1 )   = &  
-                     A%a ( 1:A%nd1, 1:A%nd2, A%gr%ia(ipoing+1)-(A_GG%gr%ia(ipoing+1-prt%nmap%ni)-A_GG%gr%ia(ipoing-prt%nmap%ni)):A%gr%ia(ipoing+1)-1 )        
-             end if
-          end do
-       else if (storage == scal ) then
 
 
           do ipoing=ni_rows+1, ni_rows + nb_rows
              if ( present_a_gi ) then
                 ! write (*,*) A_GI%gr%ia( ipoing-ni_rows ),  A_GI%gr%ia( ipoing+1-ni_rows )-1                               ! DBG:
                 ! write (*,*) A%gr%ia(ipoing), A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1  ! DBG:
-                A_GI%a( 1, 1, A_GI%gr%ia( ipoing-ni_rows ) : A_GI%gr%ia( ipoing+1-ni_rows )-1 ) = &  
-                     A%a ( 1, 1, A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1 )
+                A_GI%a(  A_GI%gr%ia( ipoing-ni_rows ) : A_GI%gr%ia( ipoing+1-ni_rows )-1 ) = &  
+                     A%a ( A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1 )
              end if
              if ( present_a_gg ) then
-                A_GG%a( 1, 1, A_GG%gr%ia( ipoing-ni_rows ) : A_GG%gr%ia(ipoing+1-ni_rows)-1 )   = &  
-                     A%a ( 1, 1, A%gr%ia(ipoing+1)-(A_GG%gr%ia(ipoing+1-ni_rows)-A_GG%gr%ia(ipoing-ni_rows)):A%gr%ia(ipoing+1)-1 )        
+                A_GG%a( A_GG%gr%ia( ipoing-ni_rows ) : A_GG%gr%ia(ipoing+1-ni_rows)-1 )   = &  
+                     A%a ( A%gr%ia(ipoing+1)-(A_GG%gr%ia(ipoing+1-ni_rows)-A_GG%gr%ia(ipoing-ni_rows)):A%gr%ia(ipoing+1)-1 )        
              end if
           end do
 
 
+    end if
 
-       end if
-     end if
-
-     end subroutine fem_matrix_split_2x2_partitioning
+  end subroutine fem_matrix_split_2x2_partitioning
 
 end module fem_matrix_partition
 

@@ -78,7 +78,7 @@ contains
     integer(ip) :: mater, order, nnode
     integer(ip) :: touch(femsp%num_materials,dhand%nvars_global,2)
 
-    integer(ip)     :: ndofs(dhand%nblocks),o2n(max_nnode)
+    integer(ip)     :: o2n(max_nnode)
 
     call memalloc ( dhand%nblocks, femsp%ndofs, __FILE__, __LINE__ )
 
@@ -208,7 +208,7 @@ contains
 
        femsp%ndofs(iblock) = count
 
-       write (*,*) 'NDOFS:',ndofs(iblock)
+       write (*,*) 'NDOFS:',femsp%ndofs(iblock)
     end do
 
   end subroutine create_element_to_dof_and_ndofs
@@ -231,12 +231,10 @@ contains
     check( istat == 0)
 
     do iblock = 1, dhand%nblocks  
-
        ! Create object to dof
-
        !call memalloc ( dhand%nvars_global, touch, __FILE__, __LINE__ ) 
        femsp%object2dof(iblock)%n = trian%num_objects
-       call memalloc ( trian%num_objects+1, femsp%object2dof(iblock)%p, __FILE__, __LINE__ )
+       call memalloc ( trian%num_objects+1, femsp%object2dof(iblock)%p, __FILE__, __LINE__, 0 )
        do iobje = 1, trian%num_objects
           touch = 0
           do ielem = 1, trian%objects(iobje)%num_elems_around
@@ -454,8 +452,8 @@ contains
                    ! Interior - interior (inside element)
                    do jvars = 1, nvapb
                       m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                      g_var = dhand%problems(iprob)%l2g_var(m_var)
-                      if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                      k_var = dhand%problems(iprob)%l2g_var(m_var)
+                      if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
                               & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                             l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
@@ -486,7 +484,7 @@ contains
                          m_dof = femsp%object2dof(jblock)%l(jdof,1)
                          m_var = femsp%object2dof(jblock)%l(jdof,2)   
                          m_mat = femsp%object2dof(jblock)%l(jdof,3)                      
-                         if ( dhand%dof_coupl(l_var,m_var) == 1 .and. l_mat == m_mat ) then
+                         if ( dhand%dof_coupl(g_var,m_var) == 1 .and. l_mat == m_mat ) then
                             do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
                                  & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                                l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
@@ -619,8 +617,8 @@ contains
                    ! Interior - interior (inside element)
                    do jvars = 1, nvapb
                       m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                      g_var = dhand%problems(iprob)%l2g_var(m_var)
-                      if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                      k_var = dhand%problems(iprob)%l2g_var(m_var)
+                      if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                               & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                             l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
@@ -655,7 +653,7 @@ contains
                       do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
                          m_dof = femsp%object2dof(jblock)%l(jdof,1)
                          m_var = femsp%object2dof(jblock)%l(jdof,2)                         
-                         if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
+                         if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
                             do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                                  & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                                l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)

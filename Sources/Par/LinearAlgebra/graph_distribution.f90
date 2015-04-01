@@ -73,7 +73,7 @@ module graph_distribution_names
       implicit none
       ! Parameters
       type(par_triangulation)                , intent(in)  :: p_trian
-      type(fem_space)                        , intent(in)  :: femsp
+      type(fem_space)                        , intent(inout)  :: femsp
       type(dof_handler)                      , intent(in)  :: dhand
       type(graph_distribution) , allocatable , intent(out) :: gdist(:)
 
@@ -93,7 +93,7 @@ module graph_distribution_names
 
       integer(ip) :: max_nparts, nobjs, npadj
 
-      integer(ip), allocatable :: l2ln2o(:), l2ln2o_ext(:) 
+      integer(ip), allocatable :: l2ln2o(:), l2ln2o_ext(:), l2lo2n(:) 
 
       integer(ip) :: nint, nboun, l_node, inode, iobje
 
@@ -120,7 +120,7 @@ module graph_distribution_names
       !    !end do
       ! end if
 
-  
+
 
       est_max_nparts = 0
       est_max_itf_dofs = 0
@@ -159,10 +159,6 @@ module graph_distribution_names
          call memalloc ( femsp%ndofs(iblock), l2ln2o, __FILE__, __LINE__ )
          call memalloc ( est_max_itf_dofs, l2ln2o_ext, __FILE__, __LINE__ )
 
-
-         !write (*,*) 'l2ln2o:',l2ln2o
-         ! ** IMPORTANT NOTE!!! DO NOT FORGET TO COUNT DOFs INTERIOR TO ELEMENTS
-
          ! l2ln2o interior vefs
          nint = 0
          nboun = 0
@@ -177,7 +173,6 @@ module graph_distribution_names
          end do
 
          !write (*,*) 'nint',nint
-
 
          ! interior
          if ( .not. femsp%static_condensation ) then 
@@ -206,7 +201,7 @@ module graph_distribution_names
          gdist(iblock)%part      = ipart
          gdist(iblock)%num_parts = nparts
          npadj     = 0
-         
+
          count = 0
          max_nparts = 0
          do i = 1, p_trian%num_itfc_objs
@@ -245,14 +240,17 @@ module graph_distribution_names
                         touch(mater,g_var,4) = jelem 
                         touch(mater,g_var,5) = obje_l
                      end if
-                     call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
-                     if ( istat == now_stored ) then
-                        npadj = npadj + 1
-                        ws_parts_visited_list_all(npadj) = p_trian%elems(jelem)%mypart
+                     if ( p_trian%elems(jelem)%mypart /= ipart ) then
+                        call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                        if ( istat == now_stored ) then
+                           npadj = npadj + 1
+                           ws_parts_visited_list_all(npadj) = p_trian%elems(jelem)%mypart
+                        end if
                      end if
                   end if
                end do
             end do
+
             max_nparts = max(max_nparts, touch(mater,g_var,1))
 
             !write(*,*) '**** TOUCH ****',touch
@@ -343,7 +341,7 @@ module graph_distribution_names
 
          ! l2ln2o interface vefs to interface dofs from l2ln20_ext
          l2ln2o(nint+1:nint+nboun) = l2ln2o_ext(1:nboun)
-         !write (*,*) 'nint,nboun,ndofs',nint,nboun,femsp%ndofs(iblock) 
+         write (*,*) 'nint,nboun,ndofs',nint,nboun,femsp%ndofs(iblock) 
          assert( nint + nboun == femsp%ndofs(iblock) )  ! check
          call memfree( l2ln2o_ext, __FILE__, __LINE__ )
 
@@ -359,6 +357,8 @@ module graph_distribution_names
          call memalloc ( gdist(iblock)%npadj, gdist(iblock)%lpadj, __FILE__, __LINE__ )
          gdist(iblock)%lpadj = ws_parts_visited_list_all(1:gdist(iblock)%npadj)
 
+         ! write (*,*) 'npadj=', gdist(iblock)%npadj, 'lpadj=', gdist(iblock)%lpadj
+
          ! Re-number boundary DoFs in increasing order by physical unknown identifier, the 
          ! number of parts they belong and, for DoFs sharing the same number of parts,
          ! in increasing order by the list of parts shared by each DoF.
@@ -370,7 +370,7 @@ module graph_distribution_names
               &                                 sort_parts_per_itfc_obj_l1,  &
               &                                 sort_parts_per_itfc_obj_l2)
 
-         write (*,*) 'l2ln2o:',l2ln2o
+         ! write (*,*) 'l2ln2o:',l2ln2o
 
          ! Identify interface communication objects 
          call memalloc ( max_nparts+4, nboun, ws_lobjs_temp, __FILE__,__LINE__ )
@@ -409,6 +409,7 @@ module graph_distribution_names
 
          ! Reallocate lobjs and add internal object first
          nobjs = nobjs + 1
+         gdist(iblock)%nobjs = nobjs
          call memalloc (max_nparts+4, nobjs, gdist(iblock)%lobjs,__FILE__,__LINE__)
          gdist(iblock)%lobjs = 0
 
@@ -428,35 +429,33 @@ module graph_distribution_names
 
          call memfree ( ws_lobjs_temp,__FILE__,__LINE__)
 
-!!$         ** IMPORTANT NOTE
-!!$         The update of object2dof(iblock) and elem2dof conformally with l2ln2o and aux is pending (see code commented below)
-!!$         ! Auxiliary inverse of l2ln2o
-!!$         call memalloc (ndofs, aux, __FILE__,__LINE__)
-!!$                  
-!!$         do i=1,ndofs
-!!$            aux(l2ln2o(i)) = i
-!!$         end do   
-!!$         ! Update object2dof(iblock)
-!!$         do i = 1,f_mesh%npoin
-!!$            do j=object2dof(iblock)_p(i),object2dof(iblock)_p(i+1)-1
-!!$               object2dof(iblock)_l(j,1) = aux(object2dof(iblock)_l(j,1))
-!!$               dof2object_l(object2dof(iblock)_l(j,1)) = i
-!!$            end do
-!!$         end do
-!!$         
-!!$         ! Update elem2dof
-!!$         do ielem = 1,f_mesh%nelem
-!!$            do k = i_varsxprob(femsp%lelem(ielem)%prob), i_varsxprob(femsp%lelem(ielem)%prob+1)-1
-!!$               do j = 1,femsp%lelem(ielem)%f_inf(femsp%lelem(ielem)%iv(j_varsxprob(k)))%p%nnode 
-!!$                  if ( femsp%lelem(ielem)%elem2dof(j,j_varsxprob(k)) /= 0 ) then
-!!$                     femsp%lelem(ielem)%elem2dof(j,j_varsxprob(k)) = aux(femsp%lelem(ielem)%elem2dof(j,j_varsxprob(k)))
-!!$                  else
-!!$                     femsp%lelem(ielem)%elem2dof(j,j_varsxprob(k)) = 0
-!!$                  end if
-!!$               end do
-!!$            end do
-!!$         end do    
-!!$         call memfree ( aux,__FILE__,__LINE__)
+         ! Auxiliary inverse of l2ln2o
+         call memalloc ( femsp%ndofs(iblock), l2lo2n, __FILE__,__LINE__)
+
+         do i=1, femsp%ndofs(iblock)
+            l2lo2n(l2ln2o(i)) = i
+         end do
+
+         ! Update object2dof(iblock)
+         do i = 1,femsp%object2dof(iblock)%p(p_trian%f_trian%num_objects+1)-1
+            femsp%object2dof(iblock)%l(i,1) = l2lo2n(femsp%object2dof(iblock)%l(i,1))
+         end do
+
+         do ielem = 1, p_trian%f_trian%num_elems
+            iprob = femsp%lelem(ielem)%problem
+            nvapb = dhand%prob_block(iblock,iprob)%nd1
+            do ivars = 1, nvapb
+               l_var = dhand%prob_block(iblock,iprob)%a(ivars)
+               do inode = 1,femsp%lelem(ielem)%f_inf(l_var)%p%nnode
+                  if ( femsp%lelem(ielem)%elem2dof(inode,l_var) > 0 ) then 
+                     femsp%lelem(ielem)%elem2dof(inode,l_var) = l2lo2n(femsp%lelem(ielem)%elem2dof(inode,l_var))
+                  end if
+               end do
+            end do
+         end do
+
+         call memfree ( l2lo2n,__FILE__,__LINE__)
+
 
     call create_int_objs ( ipart, &
                            gdist(iblock)%npadj, &
@@ -493,14 +492,9 @@ module graph_distribution_names
 
       end do
 
+ end subroutine graph_distribution_create
 
 
-    end subroutine graph_distribution_create
-
-
-    subroutine get_local_node_max_GID_element( )
-      
-    end subroutine get_local_node_max_GID_element
 
     
 
@@ -566,7 +560,7 @@ module graph_distribution_names
 
       do iobj=1,nobjs
          do j=1,lobjs(4,iobj)
-            jpart = lobjs(4+j,iobj)
+            jpart = lobjs(4+j,iobj)   ! SB.alert : Error index '9' max 8
             if (ipart /= jpart) then  ! Exclude self-edges 
                ! Locate edge identifier of ipart => jpart on the list of edges of ipart 
                iedge = 1
@@ -614,11 +608,7 @@ module graph_distribution_names
       end do
       p(iedge) = 1
 
-      ! write(*,'(a)') 'List of interface objects:'
-      ! do i=1,npadj
-      !   write(*,'(10i10)') i, &
-      !        & (l(j),j=p(i),p(i+1)-1)
-      ! end do
+
 
       call memalloc ( 2, p(n+1)-1, ws_elems_list,         __FILE__,__LINE__ )
 
@@ -649,6 +639,11 @@ module graph_distribution_names
 
       call memfree ( ws_elems_list,__FILE__,__LINE__)
 
+      write(*,'(a)') 'List of interface objects:'
+      do i=1,npadj
+         write(*,'(10i10)') i, &
+              & (l(j),j=p(i),p(i+1)-1)
+      end do
 
       ! ========================================
       ! END Compute int_objs from npadj/lpadj
@@ -985,13 +980,13 @@ module graph_distribution_names
 
   !write (*,*) 'AQUI JODEr AQUI'
 
-  !  do i=1, npadj
-  !     write (*,*) 'neig', lpadj(i)
-  !     do j=int_objs_p(i),int_objs_p(i+1)-1
-  !        write (*,*) 'PPP', int_objs_l(j), lobjs(2,int_objs_l(j)), ol2g(int_objs_l(j))
-  !     end do
-  !  end do
-
+  ! do i=1, npadj
+  !   write (*,*) 'neig', lpadj(i)
+  !   do j=int_objs_p(i),int_objs_p(i+1)-1
+  !      write (*,*) 'PPP', int_objs_l(j), lobjs(2,int_objs_l(j)), ol2g(int_objs_l(j))
+  !   end do
+  ! end do
+  
   call memfree( ptr_gids, __FILE__,__LINE__ )
 
   call memfree (rcvhd,__FILE__,__LINE__) 

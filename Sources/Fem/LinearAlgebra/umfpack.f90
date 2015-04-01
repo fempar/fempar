@@ -365,7 +365,7 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     !
     !  From the symbolic factorization information, carry out the numeric factorization.
@@ -410,9 +410,9 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    x_ => x%b(1,:)
-    y_ => y%b(1,:)
-    a_ => matrix%a(1,1,:)
+    x_ => x%b(:)
+    y_ => y%b(:)
+    a_ => matrix%a(:)
 
     !
     ! Solve the linear system.
@@ -453,7 +453,7 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     !
     ! Solve the linear system.
@@ -497,7 +497,7 @@ contains
     call decrement_array( matrix%gr%ia )
     call decrement_array( matrix%gr%ja )
 
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
 
     do i=1,nrhs
       !

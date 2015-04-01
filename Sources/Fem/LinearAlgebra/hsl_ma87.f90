@@ -458,7 +458,7 @@ contains
     assert ( matrix%type == csr_mat )
     assert ( matrix%symm == symm_true )
 
-    a_ => matrix%a(1,1,:)
+    a_ => matrix%a(:)
    
     ! Factor
     call ma87_factor(matrix%gr%nv, matrix%gr%ia, matrix%gr%ja, &
@@ -496,8 +496,8 @@ contains
     real(rp), pointer :: y_(:)
 
 #ifdef ENABLE_HSL_MA87
-    x_ => x%b(1,:)
-    y_ => y%b(1,:)
+    x_ => x%b(:)
+    y_ => y%b(:)
     
     y_ = x_ 
     

@@ -83,11 +83,7 @@ module fem_precond_names
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 
-     integer (ip)          :: nd1 = 0   ! Number of degrees of freedom, ndof1
-     integer (ip)          :: nd2 = 0   ! Number of degrees of freedom, ndof2
-     integer (ip)          :: storage   ! Storage layout (blk: block; scal: scalar)
-     real(rp), allocatable :: d(:,:)    ! Inverse of main diagonal (ndof,neq) if sto=blk
-                                        !                          (1   ,neq) if sto=scal
+     real(rp), allocatable :: d(:)    ! Inverse of main diagonal (neq)
 
      ! Info direct solvers
      integer(ip)          :: mem_peak_symb
@@ -175,7 +171,7 @@ module fem_precond_names
   public :: fem_precond_create, fem_precond_free, fem_precond_symbolic, &
        &    fem_precond_numeric, fem_precond_apply, fem_precond_log_info, &
        &    fem_precond_bcast, fem_precond_fine_task,  extract_diagonal, &
-            invert_diagonal, extract_diagonal_scal, apply_diagonal
+            invert_diagonal, apply_diagonal
 
 contains
 
@@ -235,10 +231,6 @@ contains
     type (fem_vector) :: dum
 
     prec%mat => mat
-
-    prec%nd1      = mat%nd1
-    prec%nd2      = mat%nd2
-    prec%storage  = mat%storage
 
     ! Save type
     if(present(pars)) then
@@ -356,12 +348,12 @@ contains
 
     else if(prec%type==hsl_mi20_prec) then
        if ( action == precond_free_clean ) then
+          call hsl_mi20 ( hsl_mi20_free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
+               &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
           deallocate(prec%hsl_mi20_ctxt)
           deallocate(prec%hsl_mi20_data)
           deallocate(prec%hsl_mi20_ctrl)
           deallocate(prec%hsl_mi20_info)
-          call hsl_mi20 ( hsl_mi20_free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
-               &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
           return  
        end if
        if ( action == precond_free_struct  ) then
@@ -373,11 +365,11 @@ contains
        end if
     else if(prec%type==hsl_ma87_prec) then
        if ( action == precond_free_clean ) then
+          call hsl_ma87 ( hsl_ma87_free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
+               &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
           deallocate(prec%hsl_ma87_ctxt)
           deallocate(prec%hsl_ma87_ctrl)
           deallocate(prec%hsl_ma87_info)
-          call hsl_ma87 ( hsl_ma87_free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
-               &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
           return  
        end if
        if ( action == precond_free_struct  ) then
@@ -389,8 +381,8 @@ contains
        end if
     else if(prec%type==umfpack_prec) then
        if ( action == precond_free_clean ) then
-          deallocate(prec%umfpack_ctxt)
           call umfpack ( umfpack_free_clean, prec%umfpack_ctxt, adum, vdum, vdum )
+          deallocate(prec%umfpack_ctxt)
           return  
        end if
        if ( action == precond_free_struct  ) then
@@ -514,16 +506,10 @@ contains
 #endif
     else if (prec%type==diag_prec) then
        ! Allocate + extract
-       if (prec%storage == blk) then
-          call memalloc ( prec%nd1, mat%gr%nv/mat%nd1, prec%d, __FILE__,__LINE__)
-          call extract_diagonal  ( mat, prec%nd1, mat%gr%nv/mat%nd1, prec%d )
-       else if (prec%storage == scal) then
-          call memalloc ( 1,  mat%gr%nv, prec%d, __FILE__,__LINE__)
-          call extract_diagonal_scal ( mat, mat%nd1, mat%gr%nv, prec%d )
-       end if
+          call memalloc ( mat%gr%nv, prec%d, __FILE__,__LINE__)
 
        ! Invert diagonal
-       call invert_diagonal  ( mat%gr%nv*mat%nd1, prec%d )
+       call invert_diagonal  ( mat%gr%nv, prec%d )
     else if(prec%type/=no_prec) then
        write (0,*) 'Error: preconditioner type not supported'
        check(1==0)
@@ -556,7 +542,7 @@ contains
     else if(prec%type==no_prec) then
        call fem_vector_copy (x,y)
     else if ( prec%type==diag_prec ) then
-       call apply_diagonal  ( mat%gr%nv*mat%nd1, prec%d, x%b, y%b )
+       call apply_diagonal  ( mat%gr%nv, prec%d, x%b, y%b )
     else if (prec%type==hsl_mi20_prec) then
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, x, y, &
                &       prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
@@ -605,7 +591,7 @@ contains
        end do
     else if(prec%type==diag_prec) then
        do i=1, nrhs
-          call apply_diagonal ( mat%gr%nv*mat%nd1, prec%d, x(1,i), y(1,i) )
+          call apply_diagonal ( mat%gr%nv, prec%d, x(1,i), y(1,i) )
        end do
     else if (prec%type==hsl_mi20_prec) then
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, nrhs, x, ldx, y, ldy, &
@@ -646,7 +632,7 @@ contains
     else if(prec%type==no_prec) then
        y=x
     else if(prec%type==diag_prec) then
-       call apply_diagonal ( mat%gr%nv*mat%nd1, prec%d, x, y )
+       call apply_diagonal ( mat%gr%nv, prec%d, x, y )
     else if (prec%type==hsl_mi20_prec) then
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat,  x, y, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
@@ -692,94 +678,54 @@ contains
 
   end subroutine apply_diagonal
 
+
   subroutine extract_diagonal (f_mat, d_nd, d_nv, d)
     implicit none
     ! Parameters
     type(fem_matrix), intent(in)  :: f_mat
     integer(ip)     , intent(in)  :: d_nd, d_nv
-    real(rp)        , intent(out) :: d(d_nd, d_nv)
+    real(rp)        , intent(out) :: d( d_nv)
 
-    if( f_mat%type == css_mat ) then
-      call extract_diagonal_css (f_mat%symm,f_mat%nd1,f_mat%nd2,f_mat%gr%nv,f_mat%d,d_nd,d_nv,d)
-    else if( f_mat%type == csr_mat ) then
-      call extract_diagonal_csr (f_mat%symm,f_mat%nd1,f_mat%nd2,f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nd,d_nv,d)
-    else if( f_mat%type == csc_mat ) then
-      call extract_diagonal_csc (f_mat%symm,f_mat%nd1,f_mat%nd2,f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nd,d_nv,d)
+    if ( f_mat%type == css_mat ) then
+      call extract_diagonal_css (f_mat%symm, f_mat%gr%nv,f_mat%d,d_nv,d)
+    else if ( f_mat%type == csr_mat ) then
+      call extract_diagonal_csr (f_mat%symm, f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nv,d)
+    else if ( f_mat%type == csc_mat ) then
+      call extract_diagonal_csc (f_mat%symm,f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nv,d)
     end if
 
   end subroutine extract_diagonal
 
-  subroutine extract_diagonal_scal (f_mat, d_nd, d_nv, d)
+
+  subroutine extract_diagonal_css (ks,nv,da,d_nv,d)
     implicit none
     ! Parameters
-    type(fem_matrix), intent(in)  :: f_mat
-    integer(ip)     , intent(in)  :: d_nd, d_nv
-    real(rp)        , intent(out) :: d(1, d_nv)
-
-    if ( f_mat%type == css_mat ) then
-      call extract_diagonal_css_scal (f_mat%symm,f_mat%nd1,f_mat%nd2,f_mat%gr%nv,f_mat%d,d_nd,d_nv,d)
-    else if ( f_mat%type == csr_mat ) then
-      call extract_diagonal_csr_scal (f_mat%symm,f_mat%nd1,f_mat%nd2,f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nd,d_nv,d)
-    else if ( f_mat%type == csc_mat ) then
-      call extract_diagonal_csc_scal (f_mat%symm,f_mat%nd1,f_mat%nd2,f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nd,d_nv,d)
-    end if
-
-  end subroutine extract_diagonal_scal
-
-  subroutine extract_diagonal_css (ks,nd1,nd2,nv,da,d_nd,d_nv,d)
-    implicit none
-    ! Parameters
-    integer(ip), intent(in)  :: ks,nd1,nd2,nv,d_nd,d_nv
-    real(rp)   , intent(in)  :: da(nd1,nd2,nv)
-    real(rp)   , intent(out) :: d(d_nd,d_nv)
-
-    write (0,*) 'Error: the body of extract_diagonal_css in par_precond.f90 still to be written'
-    write (0,*) 'Error: volunteers are welcome !!!'
-    check(1==0)
-  end subroutine extract_diagonal_css
-
-  subroutine extract_diagonal_css_scal (ks,nd1,nd2,nv,da,d_nd,d_nv,d)
-    implicit none
-    ! Parameters
-    integer(ip), intent(in)  :: ks,nd1,nd2,nv,d_nd,d_nv
-    real(rp)   , intent(in)  :: da(1,1,nv)
-    real(rp)   , intent(out) :: d (1,d_nv)
+    integer(ip), intent(in)  :: ks,nv,d_nv
+    real(rp)   , intent(in)  :: da(nv)
+    real(rp)   , intent(out) :: d (d_nv)
 
     ! Locals
     integer(ip) :: iv
     do iv = 1, d_nv
-       d(1,iv) =  da(1,1,iv)
+       d(iv) =  da(iv)
     end do
-  end subroutine extract_diagonal_css_scal
+  end subroutine extract_diagonal_css
 
-  subroutine extract_diagonal_csr (ks,nd1,nd2,nv,nv2,ia,ja,a,d_nd,d_nv,d)
+
+  subroutine extract_diagonal_csr (ks,nv,nv2,ia,ja,a,d_nv,d)
     implicit none
     ! Parameters
-    integer(ip), intent(in)  :: ks,nd1,nd2,nv,nv2,d_nd,d_nv
+    integer(ip), intent(in)  :: ks,nv,nv2,d_nv
     integer(ip), intent(in)  :: ia(nv+1),ja(ia(nv+1)-1)
-    real(rp)   , intent(in)  :: a(nd2,nd1,ia(nv+1)-1)
-    real(rp)   , intent(out) :: d(d_nd,d_nv)
-
-    write (0,*) 'Error: the body of extract_diagonal_csr in par_precond.f90 still to be written'
-    write (0,*) 'Error: volunteers are welcome !!!'
-    check(1==0)
-
-  end subroutine extract_diagonal_csr
-
-  subroutine extract_diagonal_csr_scal (ks,nd1,nd2,nv,nv2,ia,ja,a,d_nd,d_nv,d)
-    implicit none
-    ! Parameters
-    integer(ip), intent(in)  :: ks,nd1,nd2,nv,nv2,d_nd,d_nv
-    integer(ip), intent(in)  :: ia(nv+1),ja(ia(nv+1)-1)
-    real(rp)   , intent(in)  :: a(1,1,ia(nv+1)-1)
-    real(rp)   , intent(out) :: d(1,d_nv)
+    real(rp)   , intent(in)  :: a(ia(nv+1)-1)
+    real(rp)   , intent(out) :: d(d_nv)
 
     ! Locals
     integer(ip)              :: iv, iz, of, izc, ivc
 
 
     if(ks==1) then                     ! Unsymmetric 
-       do iv = 1, nv, nd1
+       do iv = 1, nv
           iz   = ia(iv)
           of   = 0
           do while( ja(iz) /= iv )
@@ -787,9 +733,9 @@ contains
              of = of + 1
           end do
 
-          do ivc = iv, iv + nd1 - 1
+          do ivc = iv, iv 
              izc      = ia(ivc) + of
-             d(1,ivc) = a(1,1,izc) 
+             d(ivc) = a(izc) 
              of       = of + 1
           end do ! ivc
 
@@ -798,39 +744,25 @@ contains
        do iv = 1, nv
           izc     = ia(iv)
           assert(ja(izc)==iv)
-          d(1,iv) = a(1,1,izc)
+          d(iv) = a(izc)
        end do ! iv
     end if
 
-  end subroutine extract_diagonal_csr_scal
+  end subroutine extract_diagonal_csr
 
-  subroutine extract_diagonal_csc (ks,nd1,nd2,nv,nv2,ia,ja,a,d_nd,d_nv,d)
+  subroutine extract_diagonal_csc (ks,nv,nv2,ia,ja,a,d_nv,d)
     implicit none
     ! Parameters
-    integer(ip), intent(in)  :: ks,nd1,nd2,nv,nv2,d_nd,d_nv
+    integer(ip), intent(in)  :: ks,nv,nv2,d_nv
     integer(ip), intent(in)  :: ia(nv+1),ja(ia(nv+1)-1)
-    real(rp)   , intent(in)  :: a(nd2,nd1,ia(nv+1)-1)
-    real(rp)   , intent(out) :: d(d_nd,d_nv)
-
-    write (0,'(a)') 'Error: the body of extract_diagonal_csc in par_precond.f90 still to be written'
-    write (0,'(a)') 'Error: volunteers are welcome !!!'
-    check(1==0)
-
-  end subroutine extract_diagonal_csc
-
-  subroutine extract_diagonal_csc_scal (ks,nd1,nd2,nv,nv2,ia,ja,a,d_nd,d_nv,d)
-    implicit none
-    ! Parameters
-    integer(ip), intent(in)  :: ks,nd1,nd2,nv,nv2,d_nd,d_nv
-    integer(ip), intent(in)  :: ia(nv+1),ja(ia(nv+1)-1)
-    real(rp)   , intent(in)  :: a(1,1,ia(nv+1)-1)
-    real(rp)   , intent(out) :: d(1,d_nv)
+    real(rp)   , intent(in)  :: a(ia(nv+1)-1)
+    real(rp)   , intent(out) :: d(d_nv)
 
     write (0,'(a)') 'Error: the body of extract_diagonal_csc_scal in par_precond.f90 still to be written'
     write (0,'(a)') 'Error: volunteers are welcome !!!'
     check(1==0)
 
-  end subroutine extract_diagonal_csc_scal
+  end subroutine extract_diagonal_csc
 
   !=============================================================================
   subroutine fem_precond_apply_tbp (op, x, y)
@@ -857,7 +789,7 @@ contains
           else if(op%type==no_prec) then
              call y%copy(x)
           else if ( op%type==diag_prec) then
-             call apply_diagonal  ( op%mat%gr%nv*op%mat%nd1, op%d, x%b, y%b )
+             call apply_diagonal  ( op%mat%gr%nv, op%d, x%b, y%b )
           else if (op%type==hsl_mi20_prec) then
              call hsl_mi20 ( hsl_mi20_solve, op%hsl_mi20_ctxt, op%mat, x, y, &
                   &       op%hsl_mi20_data, op%hsl_mi20_ctrl, op%hsl_mi20_info )
@@ -900,7 +832,7 @@ contains
     select type(x)
     class is (fem_vector)
        allocate(local_y)
-       call fem_vector_alloc ( op%mat%storage, op%mat%nd1, op%mat%gr%nv, local_y)
+       call fem_vector_alloc ( op%mat%gr%nv, local_y)
        call op%apply(x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

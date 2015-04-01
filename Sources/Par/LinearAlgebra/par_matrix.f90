@@ -111,15 +111,15 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine par_matrix_create(storage,type,symm,nd1,nd2,p_part,p_part_cols,p_matrix,def)
+  subroutine par_matrix_create(type,symm,nd1,nd2,p_part,p_part_cols,p_matrix,def)
     implicit none
-    integer(ip)     , intent(in)            :: storage,type,symm,nd1,nd2
+    integer(ip)     , intent(in)            :: type,symm,nd1,nd2
     type(par_partition), target, intent(in) :: p_part
     type(par_partition), target, intent(in) :: p_part_cols
     type(par_matrix), intent(out)           :: p_matrix
     integer(ip)     , optional, intent(in)  :: def
 
-    call fem_matrix_create(storage,type,symm,nd1,nd2,p_matrix%f_matrix,def)
+    call fem_matrix_create(type,symm,p_matrix%f_matrix,def)
     p_matrix%p_part      => p_part 
     p_matrix%p_part_cols => p_part_cols 
 
@@ -160,25 +160,20 @@ contains
 
     if ( p_matrix%p_part%p_context%handler == trilinos ) then 
        ! epetra_crsmatrix (i.e., scalar matrix)
-       if (p_matrix%f_matrix%storage == scal ) then 
          call par_matrix_epetra_crsmatrix_create (p_matrix)
-       else ! epetra_vbrmatrix (i.e., block matrix)
-         write (0,*) 'Error: trilinos shadow interfaces do not yet support epetra_vbrmatrix object (i.e., block matrices)'
-         stop
-       end if 
     end if
 
   end subroutine par_matrix_fill_val
 
-  subroutine par_matrix_alloc(storage,type,symm,nd1,nd2,p_graph,p_matrix,def)
+  subroutine par_matrix_alloc(type,symm,nd1,nd2,p_graph,p_matrix,def)
     implicit none
 
-    integer(ip)     , intent(in)           :: storage,type,symm,nd1,nd2
+    integer(ip)     , intent(in)           :: type,symm,nd1,nd2
     type(par_graph) , target, intent(in)   :: p_graph
     type(par_matrix), intent(out)          :: p_matrix
     integer(ip)     , optional, intent(in) :: def
 
-    call par_matrix_create(storage,type,symm,nd1,nd2,p_graph%p_part,p_graph%p_part_cols,p_matrix,def)
+    call par_matrix_create(type,symm,nd1,nd2,p_graph%p_part,p_graph%p_part_cols,p_matrix,def)
     call par_matrix_graph(p_graph,p_matrix)
     call par_matrix_fill_val(p_matrix)
 

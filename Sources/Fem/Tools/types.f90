@@ -55,10 +55,6 @@ module types
   ! psb_const_mod module)
   integer, parameter  :: psb_success_=0
 
-  integer(ip), parameter :: undef_sto = -1 ! Undefined storage
-  integer(ip), parameter :: blk       = 0  ! Block  storage for vectors/matrices     
-  integer(ip), parameter :: scal      = 1  ! Scalar storage for vectors/matrices
-
   integer(ip), parameter :: nsi_code=1, ela_code=2, cdr_code=3, adr_code=4 ! Temp here, probably better in prob
   integer(ip), parameter :: imh_code=5, dcy_code=6, mss_code=7, lap_code=8 ! Temp here, probably better in prob
 

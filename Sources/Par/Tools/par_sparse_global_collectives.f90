@@ -40,11 +40,6 @@ module par_sparse_global_collectives
 
 #include "debug.i90"
 
-! *** IMPORTANT NOTE: This cpp macro should go to a 
-! common include file or it should be a program 
-! subroutine otherwise
-#define blk2scal(iv,idof,ndof) (((iv)-1)*(ndof)+(idof))
-
    ! Alternative implementations of sparse all to all
    integer(ip), parameter :: sp_all_to_all_all_to_all    = 0
    integer(ip), parameter :: sp_all_to_all_psnd_prcv     = 1     
@@ -77,7 +72,7 @@ contains
    subroutine single_exchange ( icontxt, & 
                                 num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
                                 num_snd, list_snd, snd_ptrs, pack_idx,   &
-                                alpha, beta, ndof, x, work, mode)
+                                alpha, beta, x, work, mode)
      use psb_const_mod
      use psb_penv_mod
 #ifdef MPI_MOD
@@ -107,8 +102,6 @@ contains
 
      ! Floating point data
      real(rp), intent(in)    :: alpha, beta
-
-     integer(ip), intent(in) :: ndof
 
      ! **IMPORTANT NOTE**: x must be of size 
      ! size(x_I + x_G) or of size size(x_G) depending 
@@ -212,8 +205,8 @@ contains
            call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
            
            ! rcvidx and rcvsiz start from one ! 
-           rcvidx( proc_to_comm+1 ) = blk2scal(rcv_ptrs(i), 1, ndof)-1
-           rcvsiz( proc_to_comm+1 ) = (rcv_ptrs (i+1)-rcv_ptrs(i))*ndof
+           rcvidx( proc_to_comm+1 ) = rcv_ptrs(i)-1
+           rcvsiz( proc_to_comm+1 ) = rcv_ptrs (i+1)-rcv_ptrs(i)
        end do 
     
        ! Prepare snd info.
@@ -224,8 +217,8 @@ contains
            call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
            
            ! sndsiz and sndsiz start from one ! 
-           sndidx( proc_to_comm+1 ) = blk2scal(snd_ptrs(i), 1, ndof)-1
-           sndsiz( proc_to_comm+1 ) = (snd_ptrs (i+1)-snd_ptrs(i))*ndof
+           sndidx( proc_to_comm+1 ) = snd_ptrs(i)-1
+           sndsiz( proc_to_comm+1 ) = snd_ptrs (i+1)-snd_ptrs(i)
        end do
 
        ! write (*,*) 'RCVIDX', rcvidx ! DBG: 
@@ -241,24 +234,24 @@ contains
     ! Prepare room for sndbuf and rcvbuf
     if (present(work)) then 
        if ( (snd_ptrs (num_snd+1)-snd_ptrs (1) + & 
-             rcv_ptrs (num_rcv+1)-rcv_ptrs (1))*ndof <= size(work,1) ) then
-         sndbuf => work(1:blk2scal(snd_ptrs(num_snd+1)-1,1,ndof))
-         rcvbuf => work(blk2scal(snd_ptrs(num_snd+1),1,ndof):blk2scal(snd_ptrs(num_snd+1)+rcv_ptrs(num_rcv+1)-2,1,ndof))
+             rcv_ptrs (num_rcv+1)-rcv_ptrs (1)) <= size(work,1) ) then
+         sndbuf => work(1:snd_ptrs(num_snd+1)-1)
+         rcvbuf => work(snd_ptrs(num_snd+1):snd_ptrs(num_snd+1)+rcv_ptrs(num_rcv+1)-2)
          albf = .false.
        else
-         call memallocp ((snd_ptrs(num_snd+1)-snd_ptrs(1))*ndof, sndbuf, __FILE__,__LINE__)
-         call memallocp ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1))*ndof, rcvbuf, __FILE__,__LINE__)
+         call memallocp ((snd_ptrs(num_snd+1)-snd_ptrs(1)), sndbuf, __FILE__,__LINE__)
+         call memallocp ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1)), rcvbuf, __FILE__,__LINE__)
          albf=.true.             
        endif 
     else
-      call memallocp ((snd_ptrs(num_snd+1)-snd_ptrs(1))*ndof, sndbuf, __FILE__,__LINE__)
-      call memallocp ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1))*ndof, rcvbuf, __FILE__,__LINE__)
+      call memallocp ((snd_ptrs(num_snd+1)-snd_ptrs(1)), sndbuf, __FILE__,__LINE__)
+      call memallocp ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1)), rcvbuf, __FILE__,__LINE__)
       albf=.true. 
     end if
 
     if (do_pack) then
       ! Pack send buffers
-      call pack (ndof, snd_ptrs(num_snd+1)-snd_ptrs(1), pack_idx, alpha, x, sndbuf )
+      call pack ( snd_ptrs(num_snd+1)-snd_ptrs(1), pack_idx, alpha, x, sndbuf )
       ! write (*,*) 'P', sndbuf       ! DBG:
       ! write (*,*) 'PIDX', pack_idx  ! DBG:
     end if
@@ -285,7 +278,7 @@ contains
            ! Message size to be sent
            sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
            if ( (sizmsg > 0) .and. (proc_to_comm /= my_pid) ) then 
-              call psb_snd( icontxt, sndbuf(blk2scal(snd_ptrs(i),1,ndof):blk2scal(snd_ptrs(i)+sizmsg-1,1,ndof)), & 
+              call psb_snd( icontxt, sndbuf(snd_ptrs(i):snd_ptrs(i)+sizmsg-1), & 
                           & proc_to_comm )
            end if
          end do
@@ -301,15 +294,15 @@ contains
            sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
            ! write (*,*) 'PSBRCV',  sizmsg, proc_to_comm, my_pid ! DBG:
            if ( (sizmsg > 0) .and. (proc_to_comm /= my_pid) ) then
-              call psb_rcv( icontxt, rcvbuf(blk2scal(rcv_ptrs(i),1,ndof):blk2scal(rcv_ptrs(i)+sizmsg-1,1,ndof)), & 
+              call psb_rcv( icontxt, rcvbuf(rcv_ptrs(i):rcv_ptrs(i)+sizmsg-1), & 
                           & proc_to_comm )               
            else if ( proc_to_comm == my_pid ) then
              if ( sizmsg /= rcv_ptrs(i+1)-rcv_ptrs(i) ) then 
                 write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
                           & sizmsg, rcv_ptrs(i+1)-rcv_ptrs(i)
              end if
-             rcvbuf( blk2scal(rcv_ptrs(i),1,ndof):blk2scal(rcv_ptrs(i)+sizmsg-1,1,ndof)) = &
-                 sndbuf( blk2scal(snd_ptrs(i),1,ndof):blk2scal(snd_ptrs(i)+sizmsg-1,1,ndof) )
+             rcvbuf( rcv_ptrs(i):rcv_ptrs(i)+sizmsg-1 ) = &
+                 sndbuf( snd_ptrs(i) : snd_ptrs(i)+sizmsg-1 )
            end if
           end do
         end if  
@@ -329,7 +322,7 @@ contains
           sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
       
           if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
-             call mpi_irecv(  rcvbuf(blk2scal(rcv_ptrs(i),1,ndof)), sizmsg*ndof,        &
+             call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
                            &  psb_mpi_real, proc_to_comm, &
                            &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
 
@@ -364,11 +357,11 @@ contains
       
             if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
                if ( mode_ == sp_all_to_all_ircv_and_rsnd ) then 
-                  call mpi_rsend(sndbuf(blk2scal(snd_ptrs(i),1,ndof)), sizmsg*ndof,  &
+                  call mpi_rsend(sndbuf(snd_ptrs(i)), sizmsg,  &
                      & psb_mpi_real, proc_to_comm,      &
                      & psb_double_swap_tag, mpi_comm, iret)
                else
-                  call mpi_send(sndbuf(blk2scal(snd_ptrs(i),1,ndof)), sizmsg*ndof, &
+                  call mpi_send(sndbuf(snd_ptrs(i)), sizmsg, &
                      & psb_mpi_real, proc_to_comm,    &
                      & psb_double_swap_tag, mpi_comm, iret)
                end if
@@ -391,7 +384,7 @@ contains
             sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
       
             if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
-                  call mpi_isend(sndbuf(blk2scal(snd_ptrs(i),1,ndof)), sizmsg*ndof, &
+                  call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
                      & psb_mpi_real, proc_to_comm,    &
                      & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
 
@@ -426,8 +419,8 @@ contains
                         & sizmsg, snd_ptrs(i+1)-snd_ptrs(i) 
             end if
 
-             rcvbuf( blk2scal(rcv_ptrs(i),1,ndof):blk2scal(rcv_ptrs(i)+sizmsg-1,1,ndof)) = &
-                 sndbuf( blk2scal(snd_ptrs(i),1,ndof):blk2scal(snd_ptrs(i)+sizmsg-1,1,ndof) )
+             rcvbuf( rcv_ptrs(i):rcv_ptrs(i)+sizmsg-1) = &
+                 sndbuf( snd_ptrs(i): snd_ptrs(i)+sizmsg-1 )
           end if
         end do
 
@@ -455,7 +448,7 @@ contains
 
     if (do_unpack) then
       ! Unpack recv buffers
-      call unpack (ndof, rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, x )
+      call unpack (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, x )
       ! write(*,*)  'RCVPTRS', rcv_ptrs   ! DBG:  
       ! write (*,*) 'UIDX', unpack_idx    ! DBG:
       ! write (*,*) 'U', rcvbuf           ! DBG: 
@@ -480,105 +473,84 @@ contains
    
    end subroutine single_exchange
 
-   subroutine pack ( ndof, neq, pack_idx, alpha, x, y )
-    implicit none
+   subroutine pack ( neq, pack_idx, alpha, x, y )
+     implicit none
 
-    ! Parameters
-    integer (ip)  :: ndof, neq, pack_idx(:)
-    real    (rp)  :: x(*), y(*), alpha
+     ! Parameters
+     integer (ip)  :: neq, pack_idx(:)
+     real    (rp)  :: x(*), y(*), alpha
 
-    ! Locals
-    integer(ip) :: i, idof, base_l, base_r
-        
-    if (alpha == 0.0_rp) then 
+     ! Locals
+     integer(ip) :: i, idof, base_l, base_r
+
+     if (alpha == 0.0_rp) then 
         ! do nothing
-    else if (alpha == 1.0_rp) then 
+     else if (alpha == 1.0_rp) then 
         do i=1,neq
-          base_l = blk2scal( i,1,ndof )
-          base_r = blk2scal( pack_idx(i),1,ndof ) 
-          do idof=1, ndof
-             y(base_l) = x(base_r)
-             ! write (*,*) 'PACK', base_l, base_r, y(base_l), x(base_r)
-             base_l = base_l + 1
-             base_r = base_r + 1
-          end do
+           base_l = i
+           base_r = pack_idx(i)
+           y(base_l) = x(base_r)
+           ! write (*,*) 'PACK', base_l, base_r, y(base_l), x(base_r)
+           base_l = base_l + 1
+           base_r = base_r + 1
         end do
-    else if (alpha == -1.0_rp) then 
+     else if (alpha == -1.0_rp) then 
         do i=1,neq
-          base_l = blk2scal( i,1,ndof )
-          base_r = blk2scal( pack_idx(i),1,ndof )
-          do idof=1, ndof
-            y(base_l) = x( base_r )
-            base_l = base_l + 1
-            base_r = base_r + 1
-          end do
+           base_l = i
+           base_r = pack_idx(i)
+           y(base_l) = x( base_r )
+           base_l = base_l + 1
+           base_r = base_r + 1
         end do
-    else  
+     else  
         do i=1,neq
-          base_l = blk2scal( i,1,ndof )
-          base_r = blk2scal( pack_idx(i),1,ndof )
-          do idof=1, ndof
-             y(base_l) = alpha*x(base_r)
-             base_l = base_l + 1
-             base_r = base_r + 1
-          end do
+           base_l = i
+           base_r = pack_idx(i)
+           y(base_l) = alpha*x(base_r)
+           base_l = base_l + 1
+           base_r = base_r + 1
         end do
-    end if
+     end if
 
    end subroutine pack
 
-  subroutine unpack ( ndof, neq, unpack_idx, beta, x, y )
-    implicit none
-    
-    ! Parameters
-    integer(ip) :: ndof, neq, unpack_idx(*)
-    real(rp)    :: beta, x(*), y(*)
+   subroutine unpack ( neq, unpack_idx, beta, x, y )
+     implicit none
 
-    ! Locals
-    integer(ip) :: i, idof, base_l, base_r
+     ! Parameters
+     integer(ip) :: neq, unpack_idx(*)
+     real(rp)    :: beta, x(*), y(*)
 
-    if (beta == 0.0_rp) then
-      do i=1,neq
-        base_r = blk2scal( i,1,ndof )
-        base_l = blk2scal( unpack_idx(i),1,ndof )
-        do idof=1, ndof
-          y(base_l) = x(base_r)
-          ! write (*,*) 'UNPACK', base_l, base_r, y(base_l), x(base_r)
-          base_l = base_l + 1
-          base_r = base_r + 1
+     ! Locals
+     integer(ip) :: i, idof, base_l, base_r
+
+     if (beta == 0.0_rp) then
+        do i=1,neq
+           base_r = i
+           base_l = unpack_idx(i)
+           y(base_l) = x(base_r)
+           ! write (*,*) 'UNPACK', base_l, base_r, y(base_l), x(base_r)
+           base_l = base_l + 1
+           base_r = base_r + 1
         end do
-      end do
-    else if (beta == 1.0_rp) then
-      do i=1,neq
-        base_r = blk2scal( i,1,ndof )
-        base_l = blk2scal( unpack_idx(i),1,ndof )
-        do idof=1, ndof
-          y(base_l) = y(base_l) + x(base_r)
-          ! write (*,*) 'UNPACK', base_l, base_r, y(base_l), x(base_r)
-          base_l = base_l + 1
-          base_r = base_r + 1
+     else if (beta == 1.0_rp) then
+        do i=1,neq
+           base_r = i
+           base_l = unpack_idx(i)
+           y(base_l) = y(base_l) + x(base_r)
+           ! write (*,*) 'UNPACK', base_l, base_r, y(base_l), x(base_r)
+           base_l = base_l + 1
+           base_r = base_r + 1
         end do
-      end do
-    else
-      do i=1,neq
-        base_r = blk2scal( i,1,ndof )
-        base_l = blk2scal( unpack_idx(i),1,ndof ) 
-        do idof=1, ndof
-          y(base_l) = beta*y(base_l) + x(base_r)
-          base_l = base_l + 1
-          base_r = base_r + 1
+     else
+        do i=1,neq
+           base_r = i
+           base_l = unpack_idx(i)
+           y(base_l) = beta*y(base_l) + x(base_r)
+           base_l = base_l + 1
+           base_r = base_r + 1
         end do
-      end do
-!!$      do i=1,neq
-!!$        base_l = blk2scal( i,1,ndof )
-!!$        base_r = blk2scal( unpack_idx(i),1,ndof ) 
-!!$        do idof=1, ndof
-!!$          y(unpack_idx(i)) = y(unpack_idx(i)) + x(i)
-!!$          base_l = base_l + 1
-!!$          base_r = base_r + 1
-!!$        end do
-!!$      end do
-    end if
-  end subroutine unpack
+     end if
+   end subroutine unpack
 
 end module par_sparse_global_collectives

@@ -384,7 +384,7 @@ contains
 
     call memalloc( context%zd11_mat%ptr(context%zd11_mat%m+1)-1, context%zd11_mat%val,__FILE__,__LINE__)
 
-    context%zd11_mat%val = matrix%a(1,1,:)
+    context%zd11_mat%val = matrix%a(:)
 
     ! Setup AMG preconditioner
     call mi20_setup( context%zd11_mat, & 
@@ -425,8 +425,8 @@ contains
     real(rp), pointer :: y_(:)
 
 #ifdef ENABLE_HSL_MI20
-    x_ => x%b(1,:)
-    y_ => y%b(1,:)
+    x_ => x%b(:)
+    y_ => y%b(:)
     
     ! Solve with AMG preconditioner
     call mi20_precondition( context%zd11_mat, & 

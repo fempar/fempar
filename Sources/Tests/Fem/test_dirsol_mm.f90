@@ -84,8 +84,8 @@ program test_dirsol_mm
 !!$  call io_close(lunio)
 
   ! Alloc vectors
-  call fem_vector_alloc (scal,1,mmmat%gr%nv,fevec)
-  call fem_vector_alloc (scal,1,mmmat%gr%nv,feunk)
+  call fem_vector_alloc (mmmat%gr%nv,fevec)
+  call fem_vector_alloc (mmmat%gr%nv,feunk)
 
   ! Solve using the higher level interface
   select case(solver)
