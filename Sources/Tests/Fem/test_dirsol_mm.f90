@@ -37,6 +37,11 @@ program test_dirsol_mm
 
   implicit none
   ! Files
+  type conv
+    integer, allocatable :: list(:)
+  end type conv
+
+  type(conv), allocatable  :: methodstopc(:)
   integer(ip)              :: lunio
 
   type(fem_matrix)         :: mmmat
@@ -50,7 +55,7 @@ program test_dirsol_mm
 
   integer(ip)              :: solver 
   integer(ip)              :: driver 
-  integer(ip)              :: i, j 
+  integer(ip)              :: i, j, k ,l
 
   character(len=256)       :: dir_path
   character(len=256)       :: prefix
@@ -88,30 +93,7 @@ program test_dirsol_mm
   call fem_vector_alloc (mmmat%gr%nv,feunk)
 
   ! Solve using the higher level interface
-  select case(solver)
-  case(0)
-     ppars%type = no_prec
-  case(1)
-     ppars%type = pardiso_mkl_prec
-  case(2)
-     ppars%type = wsmp_prec
-  case(3)
-     ppars%type             = hsl_mi20_prec
-     ppars%pre_smoothing    = 1
-     ppars%post_smoothing   = 1 
-     ppars%smoother         = smoother  
-     ppars%one_pass_coarsen = one_pass_coarsen
-     ppars%st_parameter     = st_parameter
-     ppars%verbosity        = 0 
-     ppars%c_fail           = 2
-  case(4)
-     ppars%type = hsl_ma87_prec 
-  case(5)
-     ppars%type = umfpack_prec
-  case default
-     write(*,*) 'solver must be 0 (none), 1 (pardiso), 2 (wsmp), 3(hsl_mi20), 4(hsl_ma87), 5(umfpack)'
-     stop
-  end select
+
 
   sctrl%method=driver
   sctrl%trace=1
@@ -121,6 +103,31 @@ program test_dirsol_mm
   sctrl%orto=icgs
 
   if(.not.from_file) then
+
+    select case(solver)
+        case(0)
+            ppars%type = no_prec
+        case(1)
+            ppars%type = pardiso_mkl_prec
+        case(2)
+            ppars%type = wsmp_prec
+        case(3)
+            ppars%type             = hsl_mi20_prec
+            ppars%pre_smoothing    = 1
+            ppars%post_smoothing   = 1 
+            ppars%smoother         = smoother  
+            ppars%one_pass_coarsen = one_pass_coarsen
+            ppars%st_parameter     = st_parameter
+            ppars%verbosity        = 0 
+            ppars%c_fail           = 2
+        case(4)
+            ppars%type = hsl_ma87_prec 
+        case(5)
+            ppars%type = umfpack_prec
+        case default
+            write(*,*) 'solver must be 0 (none), 1 (pardiso), 2 (wsmp), 3(hsl_mi20), 4(hsl_ma87), 5(umfpack)'
+            stop
+    end select
 
      call fem_precond_create  (mmmat, feprec, ppars)
      t1 = wtime()
@@ -158,10 +165,10 @@ program test_dirsol_mm
      call fem_precond_free ( precond_free_clean, feprec)
 
   else
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Iterate on this methods
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! List of Krylov subspace methods available
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! cg               = 1
     ! lgmres           = 2
     ! rgmres           = 3
@@ -172,52 +179,128 @@ program test_dirsol_mm
     ! Not actually Krylov methods
     ! richard          = 5  ! Richardson (fixed-point iteration)
     ! direct           = 6  ! Apply preconditioner directly
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    allocate( methodstopc(9) )
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! List of convergence criteria available for iterative solvers 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! res_nrmgiven_rhs_nrmgiven  = 1  ! ||  r(i) ||g <= rtol*||  b    ||g + atol 
+    ! res_nrmgiven_res_nrmgiven  = 2  ! ||  r(i) ||g <= rtol*||  r(0) ||g + atol   
+    ! delta_rhs                  = 3  ! || dx(i) ||  <= rtol*||  b  || + atol
+    ! delta_delta                = 4  ! || dx(i) ||  <= rtol*||dx(1)|| + atol
+    ! res_res                    = 5  ! ||  r(i) ||  <= rtol*|| r(0)|| + atol
+    ! res_rhs                    = 6  ! ||  r(i) ||  <= rtol*||  b  || + atol
+    ! delta_rhs_and_res_res      = 7  ! delta_rhs    AND res_res
+    ! delta_rhs_and_res_rhs      = 8  ! delta_rhs    AND res_rhs
+    ! delta_delta_and_res_res    = 9  ! delta_delta  AND res_res
+    ! delta_delta_and_res_rhs    = 10 ! delta_delta  AND res_rhs 
+
+    allocate( methodstopc( cg )%list(10) );     methodstopc( cg )%list =      (/1,2,3,4,5,6,7,8,9,10/)
+    allocate( methodstopc( lgmres )%list(4) );  methodstopc( lgmres )%list =  (/1,2,5,6/)
+    allocate( methodstopc( rgmres )%list(2) );  methodstopc( rgmres )%list =  (/1,2/)
+    allocate( methodstopc( fgmres )%list(2) );  methodstopc( fgmres )%list =  (/1,2/)
+    allocate( methodstopc( richard )%list(2) ); methodstopc( richard )%list = (/5,6/)
+    allocate( methodstopc( direct )%list(10) ); methodstopc( direct )%list =  (/1,2,3,4,5,6,7,8,9,10/)
+    allocate( methodstopc( icg )%list(10) );    methodstopc( icg )%list =     (/1,2,3,4,5,6,7,8,9,10/)
+    allocate( methodstopc( lfom )%list(2) );    methodstopc( lfom )%list =    (/5,6/)
+    allocate( methodstopc( minres )%list(1) );  methodstopc( minres )%list =  (/5/)
+
+    ! Loop in krylov methods
     do i=1,9
         sctrl%method=i !driver
-        sctrl%stopc=res_res
-        if(i==3 .or. i==4) sctrl%stopc=res_nrmgiven_rhs_nrmgiven
 
-        call fem_precond_create  (mmmat, feprec, ppars)
-        t1 = wtime()
-        call fem_precond_symbolic(mmmat, feprec)
-        call fem_precond_numeric (mmmat, feprec)
-        t2 = wtime() 
+        ! Loop in allowed stop conditios for each krylov methods
+        do j=1,size(methodstopc(i)%list,1)
+            sctrl%stopc=methodstopc(i)%list(j)
 
-        call fem_precond_log_info(feprec)
+            ! Loop in allowed solvers. When a solver is not allowed: cycle
+            do k=0,5
+                select case(k)
+                    case(0)
+                        ppars%type = no_prec
+                    case(1)
+#ifdef ENABLE_MKL
+                        ppars%type = pardiso_mkl_prec
+#else
+                        cycle
+#endif
+                    case(2)
+                        !ppars%type = wsmp_prec
+                        cycle
+                    case(3)
+                        !ppars%type             = hsl_mi20_prec
+                        !ppars%pre_smoothing    = 1
+                        !ppars%post_smoothing   = 1 
+                        !ppars%smoother         = smoother  
+                        !ppars%one_pass_coarsen = one_pass_coarsen
+                        !ppars%st_parameter     = st_parameter
+                        !ppars%verbosity        = 0 
+                        !ppars%c_fail           = 2
+                        cycle
+                    case(4)
+                        !ppars%type = hsl_ma87_prec 
+                        cycle
+                    case(5)
+                        ppars%type = umfpack_prec
+                    case default
+                        write(*,*) 'solver must be 0 (none), 1 (pardiso), 2 (wsmp), 3(hsl_mi20), 4(hsl_ma87), 5(umfpack)'
+                        stop
+                end select
 
-        write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
-     
-        t1 = wtime()
-        feunk%b=1.0_rp
-        fevec%b=1.0_rp
-        call solve(mmmat,feprec,fevec,feunk,sctrl)
-        t2 = wtime() 
-        write(*,'(a,e15.7)') 'Generic Iterative solution time (secs.):', t2-t1 
-        gerror = sctrl%err1
-        ! call solver_control_log_conv_his(sctrl)
-        call solver_control_free_conv_his(sctrl)
+                ! Loop in ortogonalization methods
+                do l=1,2
+                    sctrl%orto=l
 
-        t1 = wtime()
-        feunk%b=1.0_rp
-        fevec%b=1.0_rp
-        call abstract_solve(mmmat,feprec,fevec,feunk,sctrl)
-        t2 = wtime() 
-        write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
-        aerror = sctrl%err1
-        ! call solver_control_log_conv_his(sctrl)
-        call solver_control_free_conv_his(sctrl)
+                    call fem_precond_create  (mmmat, feprec, ppars)
+                    t1 = wtime()
+                    call fem_precond_symbolic(mmmat, feprec)
+                    call fem_precond_numeric (mmmat, feprec)
+                    t2 = wtime() 
+        
+                    call fem_precond_log_info(feprec)
+        
+                    write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
+             
+                    t1 = wtime()
+                    feunk%b=1.0_rp
+                    fevec%b=1.0_rp
+                    call solve(mmmat,feprec,fevec,feunk,sctrl)
+                    t2 = wtime() 
+                    write(*,'(a,e15.7)') 'Generic Iterative solution time (secs.):', t2-t1 
+                    gerror = sctrl%err1
+                    ! call solver_control_log_conv_his(sctrl)
+                    call solver_control_free_conv_his(sctrl)
+        
+                    t1 = wtime()
+                    feunk%b=1.0_rp
+                    fevec%b=1.0_rp
+                    call abstract_solve(mmmat,feprec,fevec,feunk,sctrl)
+                    t2 = wtime() 
+                    write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
+                    aerror = sctrl%err1
+                    ! call solver_control_log_conv_his(sctrl)
+                    call solver_control_free_conv_his(sctrl)
+        
+                    call fem_precond_free ( precond_free_values, feprec)
+                    call fem_precond_free ( precond_free_struct, feprec)
+                    call fem_precond_free ( precond_free_clean, feprec)
+        
+                    if((gerror-aerror)>1.e4*epsilon(gerror)) then
+                        ! check generic-abstract
+                        check(.false.)
+                    endif
 
-        call fem_precond_free ( precond_free_values, feprec)
-        call fem_precond_free ( precond_free_struct, feprec)
-        call fem_precond_free ( precond_free_clean, feprec)
+                enddo
 
-        if((gerror-aerror)>1000*epsilon(gerror)) then
-            ! check generic-abstract
-            check(.false.)
-        endif
+            enddo
+
+        enddo
+        deallocate(methodstopc(i)%list)
+
     enddo
+
+    deallocate( methodstopc )
 
   endif
 
@@ -257,8 +340,7 @@ contains
     if((numargs == 1)) then
         ! Check if file exists
         call getarg(1, argument)
-        call read_pars_cl_test_dirsol_mm_from_file (argument, solver, driver, dir_path, prefix, & 
-                                          smoother, one_pass_coarsen, st_parameter)
+        call read_pars_cl_test_dirsol_mm_from_file (argument, dir_path, prefix)
         from_file=.true.
     elseif ((numargs < 4) ) then 
         call print_usage(program_name)
@@ -309,7 +391,7 @@ contains
     implicit none
     character*(*), intent(in) :: program_name
     write (6,'(a)') 'Usage: ', trim(program_name)//' solver driver dir_path prefix [smoother one_pass_coarsen st_parameter]'
-    write (6,'(a)') '          where solver=1 is pardiso, solver=2 is wsmp, solver=3 is hsl_mi20, solver=4 is hsl_ma87, solver=4 is umfpack'
+    write (6,'(a)') '          where solver=1 is pardiso, solver=2 is wsmp, solver=3 is hsl_mi20, solver=4 is hsl_ma87, solver=5 is umfpack'
     write (6,'(a)') '          and driver is cg=1, lgmres=2, rgmres=3, fgmres=4, richard=5, direct=6, icg=7, lfom=8, minres=9'
     write (6,'(a)') 'Or: ', trim(program_name)//' filename.txt'
     write (6,'(a)') '          where filename.txt is a ASCII text file containing the command line parameters, one per line, '
@@ -317,18 +399,11 @@ contains
   end subroutine print_usage
 
 
-  subroutine read_pars_cl_test_dirsol_mm_from_file (filename, solver, driver, dir_path, prefix, & 
-                                          smoother, one_pass_coarsen, st_parameter)
+  subroutine read_pars_cl_test_dirsol_mm_from_file (filename, dir_path, prefix)
     implicit none
     character(len=256), intent(in)           :: filename
     character*(*), intent(out)   :: dir_path, prefix
-    integer(ip)  , intent(out)   :: solver, driver
-    character(len=256)           :: program_name
-    character(len=256)           :: argument 
-    integer                      :: numargs,iargc, iu, ios
-    integer(ip), intent(out)     :: smoother
-    logical    , intent(out)     :: one_pass_coarsen
-    real(rp)   , intent(out)     :: st_parameter
+    integer                      :: iu, ios
     logical                      :: file_exists
 
 
@@ -342,11 +417,6 @@ contains
 !            open(unit=10, file=trim(filename), form='FORMATTED', access='SEQUENTIAL', action = 'READ', iostat = ios)
 !            if(ios /= 0) call io_check(ios,filename)
 
-
-            read(unit=iu, fmt=*, iostat = ios) solver
-            call io_check(ios,filename)
-            read(unit=iu, fmt=*, iostat = ios) driver
-            call io_check(ios,filename)
             read(unit=iu, fmt=*, iostat = ios) dir_path
             call io_check(ios,filename)
             ! dirpath is a relative path from filename folder

@@ -8,8 +8,9 @@ PROJECT(FEMPAR Fortran C)
 
 SET(${PROJECT_NAME}_VERSION 0.0.1)
 SET(${PROJECT_NAME}_SOVERSION 1)
-SET(FEM_LIB fem) # FEM library
-SET(PAR_LIB par) # PAR library
+SET(FEM_LIB fem)   # FEM library
+SET(PROB_LIB prob) # PROB library
+SET(PAR_LIB par)   # PAR library
 SET(${PROJECT_NAME}_USER "" CACHE STRING "")
 
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
@@ -21,13 +22,21 @@ message ("-----------------------------------------")
 #################################################################
 
 SET(SRC_PATH ${CMAKE_SOURCE_DIR}/Sources)
+
 SET(FEM_PATH ${SRC_PATH}/Fem)
+SET(PROB_PATH ${SRC_PATH}/Prob)
 SET(PAR_PATH ${SRC_PATH}/Par)
+
 SET(FEM_DRIVERS_PATH ${SRC_PATH}/Drivers/Fem)
+SET(PROB_DRIVERS_PATH ${SRC_PATH}/Drivers/Prob)
 SET(PAR_DRIVERS_PATH ${SRC_PATH}/Drivers/Par)
+
 SET(FEM_TESTS_PATH ${SRC_PATH}/Tests/Fem)
+SET(PROB_TESTS_PATH ${SRC_PATH}/Tests/Prob)
 SET(PAR_TESTS_PATH ${SRC_PATH}/Tests/Par)
+
 SET(GENERIC_PATH ${SRC_PATH}/Generic)
+
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/Modules/")
 
 
@@ -174,7 +183,7 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 #################################################################
 
 STRING(TIMESTAMP DATE "%Y-%m-%d_%H:%M")
-SET(BUILDNAME ${DATE}_${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${MKL_FOUND} CACHE STRING "" )
+SET(BUILDNAME ${DATE}_${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL} CACHE STRING "" )
 ENABLE_TESTING()
 INCLUDE(CTest)
 
@@ -183,9 +192,14 @@ INCLUDE(CTest)
 #################################################################
 
 ADD_SUBDIRECTORY(${FEM_PATH})
+ADD_SUBDIRECTORY(${PROB_PATH})
 ADD_SUBDIRECTORY(${PAR_PATH})
+
 ADD_SUBDIRECTORY(${FEM_DRIVERS_PATH})
+#ADD_SUBDIRECTORY(${PROB_DRIVERS_PATH})
 ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
+
 ADD_SUBDIRECTORY(${FEM_TESTS_PATH})
+#ADD_SUBDIRECTORY(${PROB_TESTS_PATH})
 ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
 message ("-----------------------------------------")
