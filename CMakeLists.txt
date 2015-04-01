@@ -72,7 +72,6 @@ SET(MKL_FIND_QUIETLY TRUE)
 # Find packages
 #################################################################
 
-SET(NO_LIBS TRUE)
 
 FOREACH(EXT_LIB ${EXT_LIBS})
     IF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND NOT ${EXT_LIB}_FOUND)
@@ -85,7 +84,6 @@ FOREACH(EXT_LIB ${EXT_LIBS})
             FIND_PACKAGE( ${EXT_LIB} )
     
             IF (${EXT_LIB}_FOUND)
-                SET(NO_LIBS FALSE)
                 IF (MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #                   IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
                 ELSE()
@@ -151,13 +149,13 @@ IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES
   set(FORTRAN_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface" CACHE STRING "" FORCE)
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "ifort*")
   # ifort (untested)
-  set(FORTRAN_FLAGS "-r8 -fpp -W1 -warn nointerfaces")
+  set(FORTRAN_FLAGS "-r8 -fpp -W1")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv -warn nointerfaces" CACHE STRING "" FORCE)
 # A partir de CMake 3.1
 # -prof-gen:srcpos -prof-dir${PROJECT_BINARY_DIR}
 ELSE ()
@@ -176,7 +174,7 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 #################################################################
 
 STRING(TIMESTAMP DATE "%Y-%m-%d_%H:%M")
-SET(BUILDNAME ${DATE}_${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_NOLIBS=${NO_LIBS} CACHE STRING "" )
+SET(BUILDNAME ${DATE}_${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${MKL_FOUND} CACHE STRING "" )
 ENABLE_TESTING()
 INCLUDE(CTest)
 
