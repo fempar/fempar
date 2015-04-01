@@ -150,11 +150,6 @@ module types
   integer(ip), parameter :: mone=-1,zero=0,one=1,two=2,three=3,four=4
   integer(ip), parameter :: five=5,six=6,seven=7,eight=8,nine=9
 
-  ! LU Block Preconditioner
-  integer(ip), parameter :: lower = 0
-  integer(ip), parameter :: upper = 1
-
-
   ! Actions related to free routines
   integer (ip), parameter  :: free_only_values = 7
   integer (ip), parameter  :: free_only_struct = 8

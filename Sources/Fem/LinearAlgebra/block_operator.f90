@@ -41,10 +41,20 @@ module block_operator_names
   implicit none
   private
 
+  ! Added type(block_operator) as a new implementation of class(base_operator).
+  ! This new kind of linear operator provides the functionality to express
+  ! recursively block operators where in turn their blocks can be block operators.
+  ! If one aims at using the block LU recursive preconditioning machinery,
+  ! then it is a MUST that the linear coefficient matrix is
+  ! provided as a type(block_operator) instance. type(block_operator) provides the
+  ! necessary (concrete) interface to build type(block_operator) instances as views, 
+  ! e.g., of the components of a type(fem_block_matrix) or type(par_block_matrix).
+
   ! Pointer to operator
   type p_abs_operator
      type(abs_operator), pointer :: p_op => null()
   end type p_abs_operator
+
 
   ! Block operator
   type, extends(base_operator) :: block_operator
@@ -52,6 +62,11 @@ module block_operator_names
      integer(ip)                       :: nblocks, mblocks
      type(p_abs_operator), allocatable :: blocks(:,:)
    contains
+     procedure  :: create             => block_operator_create
+     procedure  :: set_block          => block_operator_set_block
+     procedure  :: set_block_to_zero  => block_operator_set_block_to_zero
+     procedure  :: destroy            => block_operator_destroy
+
      procedure  :: apply          => block_operator_apply
      procedure  :: apply_fun      => block_operator_apply_fun
      procedure  :: free           => block_operator_free_tbp
@@ -101,11 +116,11 @@ contains
           end do
           call deallocate(aux)
        class default
-          write(0,'(a)') 'block_operand%apply: unsupported y class'
+          write(0,'(a)') 'block_operator%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'block_operand%apply: unsupported x class'
+       write(0,'(a)') 'block_operator%apply: unsupported x class'
        check(1==0)
     end select
 
@@ -124,6 +139,8 @@ contains
     type(block_operand), allocatable :: local_y
     class(base_operand), allocatable :: aux
     integer(ip)                      :: iblk, jblk, first_block_in_row
+
+    call x%GuardTemp()
 
     select type(x)
     class is (block_operand)
@@ -153,9 +170,12 @@ contains
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'block_operand%apply_fun: unsupported x class'
+       write(0,'(a)') 'block_operator%apply_fun: unsupported x class'
        check(1==0)
     end select
+
+    call x%CleanTemp()
+
   end function block_operator_apply_fun
 
   subroutine block_operator_free_tbp(this)
@@ -226,33 +246,35 @@ contains
     check(1==0)
   end subroutine block_operator_bcast
 
-  subroutine block_operator_alloc (mblocks, nblocks, bop)
+  subroutine block_operator_create (bop, mblocks, nblocks)
     implicit none
     ! Parameters
-    integer(ip)             , intent(in)  :: mblocks, nblocks
-    type(block_operator)    , intent(out) :: bop
+    class(block_operator)   , intent(inout) :: bop
+    integer(ip)             , intent(in)    :: mblocks, nblocks
+
     
     ! Locals
     integer(ip) :: iblk, jblk
+
+    call bop%destroy()
 
     bop%nblocks = nblocks
     bop%mblocks = mblocks
     allocate ( bop%blocks(mblocks,nblocks) )
     do jblk=1, nblocks
        do iblk=1, mblocks
-          call block_operator_set_block_to_zero(iblk, jblk, bop)
+          call bop%set_block_to_zero(iblk, jblk)
        end do
     end do
           
-  end subroutine block_operator_alloc
+  end subroutine block_operator_create
 
-
-  subroutine block_operator_set_block (ib, jb, op, bop)
+  subroutine block_operator_set_block (bop, ib, jb, op)
     implicit none
     ! Parameters
+    class(block_operator)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
     type(abs_operator)                  , intent(in)    :: op 
-    type(block_operator)                , intent(inout) :: bop
 
     call op%GuardTemp()
     if ( .not. associated(bop%blocks(ib,jb)%p_op) ) then
@@ -263,12 +285,12 @@ contains
 
   end subroutine block_operator_set_block
 
-  subroutine block_operator_set_block_to_zero (ib, jb, bop)
+  subroutine block_operator_set_block_to_zero (bop,ib,jb)
     implicit none
     ! Parameters
+    class(block_operator)   , intent(inout) :: bop
     integer(ip)             , intent(in)    :: ib,jb
-    type(block_operator)    , intent(inout) :: bop
-    
+
     if (associated(bop%blocks(ib,jb)%p_op)) then
        call bop%blocks(ib,jb)%p_op%free()
        deallocate(bop%blocks(ib,jb)%p_op)
@@ -278,9 +300,9 @@ contains
   end subroutine block_operator_set_block_to_zero
 
 
-  subroutine block_operator_free (bop)
+  subroutine block_operator_destroy (bop)
     implicit none
-    type(block_operator), intent(inout) :: bop
+    class(block_operator), intent(inout) :: bop
 
     ! Locals
     integer(ip) :: iblk, jblk
@@ -296,10 +318,6 @@ contains
     bop%nblocks = 0
     bop%mblocks = 0
     deallocate ( bop%blocks )
-  end subroutine block_operator_free
-
-
-
-
+  end subroutine block_operator_destroy
 
 end module block_operator_names
