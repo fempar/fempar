@@ -226,23 +226,36 @@ program test_dirsol_mm
                         cycle
 #endif
                     case(2)
-                        !ppars%type = wsmp_prec
+#ifdef ENABLE_WSMP
+                        ppars%type = wsmp_prec
+#else
                         cycle
+#endif
                     case(3)
-                        !ppars%type             = hsl_mi20_prec
-                        !ppars%pre_smoothing    = 1
-                        !ppars%post_smoothing   = 1 
-                        !ppars%smoother         = smoother  
-                        !ppars%one_pass_coarsen = one_pass_coarsen
-                        !ppars%st_parameter     = st_parameter
-                        !ppars%verbosity        = 0 
-                        !ppars%c_fail           = 2
+#ifdef ENABLE_HSL_MI20
+                        ppars%type             = hsl_mi20_prec
+                        ppars%pre_smoothing    = 1
+                        ppars%post_smoothing   = 1 
+                        ppars%smoother         = smoother  
+                        ppars%one_pass_coarsen = one_pass_coarsen
+                        ppars%st_parameter     = st_parameter
+                        ppars%verbosity        = 0 
+                        ppars%c_fail           = 2
+#else
                         cycle
+#endif
                     case(4)
-                        !ppars%type = hsl_ma87_prec 
+#ifdef ENABLE_HSL_MA87
+                        ppars%type = hsl_ma87_prec 
+#else
                         cycle
+#endif
                     case(5)
+#ifdef ENABLE_UMFPACK
                         ppars%type = umfpack_prec
+#else
+                        cycle
+#endif
                     case default
                         write(*,*) 'solver must be 0 (none), 1 (pardiso), 2 (wsmp), 3(hsl_mi20), 4(hsl_ma87), 5(umfpack)'
                         stop
