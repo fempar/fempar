@@ -348,12 +348,12 @@ contains
 
     else if(prec%type==hsl_mi20_prec) then
        if ( action == precond_free_clean ) then
+          call hsl_mi20 ( hsl_mi20_free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
+               &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
           deallocate(prec%hsl_mi20_ctxt)
           deallocate(prec%hsl_mi20_data)
           deallocate(prec%hsl_mi20_ctrl)
           deallocate(prec%hsl_mi20_info)
-          call hsl_mi20 ( hsl_mi20_free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
-               &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
           return  
        end if
        if ( action == precond_free_struct  ) then
@@ -365,11 +365,11 @@ contains
        end if
     else if(prec%type==hsl_ma87_prec) then
        if ( action == precond_free_clean ) then
+          call hsl_ma87 ( hsl_ma87_free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
+               &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
           deallocate(prec%hsl_ma87_ctxt)
           deallocate(prec%hsl_ma87_ctrl)
           deallocate(prec%hsl_ma87_info)
-          call hsl_ma87 ( hsl_ma87_free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
-               &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
           return  
        end if
        if ( action == precond_free_struct  ) then
@@ -381,8 +381,8 @@ contains
        end if
     else if(prec%type==umfpack_prec) then
        if ( action == precond_free_clean ) then
-          deallocate(prec%umfpack_ctxt)
           call umfpack ( umfpack_free_clean, prec%umfpack_ctxt, adum, vdum, vdum )
+          deallocate(prec%umfpack_ctxt)
           return  
        end if
        if ( action == precond_free_struct  ) then

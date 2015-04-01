@@ -503,7 +503,7 @@ contains
       !
       ! Solve the linear system.
       !
-      status = umfpack_di_solve ( UMFPACK_At, matrix%gr%ia, matrix%gr%ja, a_, sol(i), rhs(i), context%Numeric, context%Control, context%Info )
+      status = umfpack_di_solve ( UMFPACK_At, matrix%gr%ia, matrix%gr%ja, a_, sol(1,i), rhs(1,i), context%Numeric, context%Control, context%Info )
       if ( status < 0 ) then
         write ( *, '(a)' ) ''
         write ( *, '(a)' ) 'UMFPACK - Fatal error!'
