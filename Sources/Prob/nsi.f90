@@ -170,7 +170,7 @@ contains
     type(scalar) :: h,tau
 
     integer(ip)  :: ndime
-    real((rp)    :: dtinv
+    real(rp)     :: dtinv, c1, c2, mu
 
     ndime = prob%ndime
 
@@ -193,11 +193,14 @@ contains
     h%a=K%integ(u%ivar)%p%femap%hleng(ndime,:) ! min
 
     dtinv  = prob%dtinv
-    
-    tau = prob%k1tau *mu*inv(h*h) + prob%k1tau*norm(a)*inv(h)
+    mu = prob%diffu
+    c1 = prob%k1tau
+    c2 = prob%k1tau
+
+    tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)
     
-    mat = dtinv*integral(v,u) + integral(v, a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
+    !mat = dtinv*integral(v,u) + integral(v, a*grad(u)) + prob%diffu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
     !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 

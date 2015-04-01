@@ -28,6 +28,7 @@
 # include "debug.i90"
 module element_tools_names
   use types
+  use memor
   use fem_space_names
   use memory_guard_names
   use problem_names
@@ -37,15 +38,35 @@ module element_tools_names
   type, extends(memory_guard) :: field
      contains
        !procedure (left_prodcut_interface), deferred :: left_prodcut
-       !procedure(right_product_interface), deferred :: right_product
+       !procedure (right_product_interface), deferred :: right_product
        !generic    :: operator(*) => left_prodcut,right_product
        procedure :: free => free_field
   end type field
   type, extends(field) :: scalar
      real(rp), allocatable :: a(:)     ! a(ngaus)
+     contains
+       procedure                :: product_scalar_scalar
+       procedure, pass(xscalar) :: product_scalar_real
+       procedure, pass(yscalar) :: product_real_scalar
+       procedure, pass(xscalar) :: scalar_by_vector_right => product_scalar_vector
+       procedure, pass(yscalar) :: scalar_by_vector_left => product_vector_scalar
+       procedure                :: sum_scalar_scalar
+       generic   :: operator(*) => product_scalar_scalar, product_scalar_real, product_real_scalar, &
+            &                      scalar_by_vector_right, scalar_by_vector_left
+       generic   :: operator(+) => sum_scalar_scalar
   end type scalar
   type , extends(field) :: vector
      real(rp), allocatable :: a(:,:)   ! a(:,ngaus)
+     contains
+       procedure, pass(xvector) :: product_vector_real
+       procedure, pass(yvector) :: product_real_vector
+       !procedure, pass(xvector) :: vector_by_scalar_right => product_vector_scalar
+       !procedure, pass(yvector) :: vector_by_scalar_left => product_scalar_vector
+       procedure, pass(xvector) :: vector_by_tensor_right => product_vector_tensor
+       procedure, pass(yvector) :: vector_by_tensor_left => product_tensor_vector
+       generic   :: operator(*) => product_vector_real, product_real_vector, &
+!            &                      vector_by_scalar_right, vector_by_scalar_left, &
+            &                      vector_by_tensor_right, vector_by_tensor_left
   end type vector
   type , extends(field) :: tensor
      real(rp), allocatable :: a(:,:,:) ! a(:,:,ngaus)
@@ -150,7 +171,7 @@ module element_tools_names
   public :: basis_function, basis_function_gradient, basis_function_divergence
   public :: given_function, given_function_gradient, given_function_divergence
   public :: scalar, vector, tensor
-  public :: grad, div, interpolation
+  public :: grad, div, interpolation, inv, norm
 
 contains
 
@@ -394,7 +415,7 @@ contains
   ! end function product_field_x_basis_function
 
   ! Temporarily I replicate code
-  function product_field_x_basis_function(field_left,u) result(res)
+  function product_field_basis_function(field_left,u) result(res)
     implicit none
     class(field)        , intent(in) :: field_left
     type(basis_function), intent(in) :: u
@@ -408,8 +429,8 @@ contains
        !res%left_factor = field_left
     end if
     call u%CleanTemp()
-  end function product_field_x_basis_function
-  function product_field_x_basis_function_gradient(field_left,u) result(res)
+  end function product_field_basis_function
+  function product_field_basis_function_gradient(field_left,u) result(res)
     implicit none
     class(field)        , intent(in) :: field_left
     type(basis_function_gradient), intent(in) :: u
@@ -423,8 +444,8 @@ contains
        !res%left_factor = field_left
     end if
     call u%CleanTemp()
-  end function product_field_x_basis_function_gradient
-  function product_field_x_basis_function_divergence(field_left,u) result(res)
+  end function product_field_basis_function_gradient
+  function product_field_basis_function_divergence(field_left,u) result(res)
     implicit none
     class(field)        , intent(in) :: field_left
     type(basis_function_divergence), intent(in) :: u
@@ -438,9 +459,9 @@ contains
        !res%left_factor = field_left
     end if
     call u%CleanTemp()
-  end function product_field_x_basis_function_divergence
+  end function product_field_basis_function_divergence
 
-  function product_basis_function_x_field(u,field_right) result(res)
+  function product_basis_function_field(u,field_right) result(res)
     implicit none
     class(field)        , intent(in) :: field_right
     type(basis_function), intent(in) :: u
@@ -454,8 +475,8 @@ contains
        !res%right_factor = field_right
     end if
     call u%CleanTemp()
-  end function product_basis_function_x_field
-  function product_basis_function_gradient_x_field(u,field_right) result(res)
+  end function product_basis_function_field
+  function product_basis_function_gradient_field(u,field_right) result(res)
     implicit none
     class(field)        , intent(in) :: field_right
     type(basis_function_gradient), intent(in) :: u
@@ -469,8 +490,8 @@ contains
        !res%right_factor = field_right
     end if
     call u%CleanTemp()
-  end function product_basis_function_gradient_x_field
-  function product_basis_function_divergence_x_field(u,field_right) result(res)
+  end function product_basis_function_gradient_field
+  function product_basis_function_divergence_field(u,field_right) result(res)
     implicit none
     class(field)        , intent(in) :: field_right
     type(basis_function_divergence), intent(in) :: u
@@ -484,7 +505,7 @@ contains
        !res%right_factor = field_right
     end if
     call u%CleanTemp()
-  end function product_basis_function_divergence_x_field
+  end function product_basis_function_divergence_field
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -558,14 +579,156 @@ contains
 !
 ! Field functions
 !
+! Already implemented:
+!
+!         real    scalar  vector  tensor
+! real              x       x
+! scalar   x        x       x
+! vector   x        x               x
+! tensor                    x
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function product_real_scalar(xreal,yscalar) result(zscalar)
+    implicit none
+    real(rp)     , intent(in) :: xreal
+    class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
+    type(scalar)  :: zscalar    ! zscalar(ngaus)
+    call real_scalar(xreal,yscalar,zscalar)
+  end function product_real_scalar
+  function product_scalar_real(xscalar,yreal) result(zscalar)
+    implicit none
+    real(rp)     , intent(in) :: yreal
+    class(scalar), intent(in) :: xscalar    ! yscalar(ngaus)
+    type(scalar)  :: zscalar    ! zscalar(ngaus)
+    call real_scalar(yreal,xscalar,zscalar)
+  end function product_scalar_real
+  subroutine real_scalar(xreal,yscalar,zscalar)
+    implicit none
+    real(rp)     , intent(in) :: xreal
+    class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
+    type(scalar) :: zscalar    ! zscalar(ngaus)
+    integer(ip)  :: ng
+    call yscalar%GuardTemp()
+    call zscalar%SetTemp()
+    ng = size(yscalar%a,1)
+    call memalloc(ng,zscalar%a,__FILE__,__LINE__)
+    zscalar%a = xreal * yscalar%a ! Intrinsic product
+    call yscalar%CleanTemp()
+  end subroutine real_scalar
+
+  function product_scalar_scalar(xscalar,yscalar) result(zscalar)
+    implicit none
+    class(scalar), intent(in) :: xscalar    ! xscalar(ngaus)
+    class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
+    type(scalar)  :: zscalar    ! zscalar(ngaus)
+    integer(ip)   :: ng
+    call xscalar%GuardTemp()
+    call yscalar%GuardTemp()
+    call zscalar%SetTemp()
+    ng = size(xscalar%a,1)
+    assert(size(yscalar%a,1)==ng)
+    call memalloc(ng,zscalar%a,__FILE__,__LINE__)
+    zscalar%a = xscalar%a * yscalar%a
+    call xscalar%CleanTemp()
+    call yscalar%CleanTemp()
+  end function product_scalar_scalar
+
+  function sum_scalar_scalar(xscalar,yscalar) result(zscalar)
+    implicit none
+    class(scalar), intent(in) :: xscalar    ! xscalar(ngaus)
+    class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
+    type(scalar)  :: zscalar    ! zscalar(ngaus)
+    integer(ip)   :: ng
+    call xscalar%GuardTemp()
+    call yscalar%GuardTemp()
+    call zscalar%SetTemp()
+    ng = size(xscalar%a,1)
+    assert(size(yscalar%a,1)==ng)
+    call memalloc(ng,zscalar%a,__FILE__,__LINE__)
+    zscalar%a = xscalar%a + yscalar%a
+    call xscalar%CleanTemp()
+    call yscalar%CleanTemp()
+  end function sum_scalar_scalar
+
+  function product_scalar_vector(xscalar,yvector) result(zvector)
+    implicit none
+    class(scalar), intent(in) :: xscalar    ! xscalar(ngaus)
+    class(vector), intent(in) :: yvector    ! yvector(:,ngaus)
+    type(vector)  :: zvector                ! zvector(:,ngaus)
+    integer(ip)   :: i,j,nd,ng
+    call xscalar%GuardTemp()
+    call yvector%GuardTemp()
+    call zvector%SetTemp()
+    nd = size(yvector%a,1)
+    ng = size(yvector%a,2)
+    call memalloc(nd,ng,zvector%a,__FILE__,__LINE__)
+    do i=1,ng
+       do j=1,nd
+          zvector%a(j,i) = xscalar%a(i) * yvector%a(j,i)
+       end do
+    end do
+
+    call xscalar%CleanTemp()
+    call yvector%CleanTemp()
+  end function product_scalar_vector
+
+  function product_vector_scalar(xvector,yscalar) result(zvector)
+    implicit none
+    class(vector), intent(in) :: xvector    ! xvector(:,ngaus)
+    class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
+    type(vector)  :: zvector                ! zvector(:,ngaus)
+    integer(ip)   :: i,j,nd,ng
+    call xvector%GuardTemp()
+    call yscalar%GuardTemp()
+    call zvector%SetTemp()
+    nd = size(xvector%a,1)
+    ng = size(xvector%a,2)
+    call memalloc(nd,ng,zvector%a,__FILE__,__LINE__)
+    do i=1,ng
+       do j=1,nd
+          zvector%a(j,i) = xvector%a(j,i) * yscalar%a(i)
+       end do
+    end do
+    call xvector%CleanTemp()
+    call yscalar%CleanTemp()
+  end function product_vector_scalar
+
+  function product_real_vector(xreal,yvector) result(zvector)
+    implicit none
+    real(rp)     , intent(in) :: xreal
+    class(vector), intent(in) :: yvector    ! yvector(ngaus)
+    type(vector)  :: zvector    ! zvector(ngaus)
+    call real_vector(xreal,yvector,zvector)
+  end function product_real_vector
+  function product_vector_real(xvector,yreal) result(zvector)
+    implicit none
+    real(rp)     , intent(in) :: yreal
+    class(vector), intent(in) :: xvector    ! yvector(ngaus)
+    type(vector)  :: zvector    ! zvector(ngaus)
+    call real_vector(yreal,xvector,zvector)
+  end function product_vector_real
+  subroutine real_vector(xreal,yvector,zvector)
+    implicit none
+    real(rp)     , intent(in) :: xreal
+    class(vector), intent(in) :: yvector    ! yvector(ngaus)
+    type(vector) :: zvector    ! zvector(ngaus)
+    integer(ip)  :: nd,ng
+    call yvector%GuardTemp()
+    call zvector%SetTemp()
+    nd = size(yvector%a,1)
+    ng = size(yvector%a,2)
+    call memalloc(nd,ng,zvector%a,__FILE__,__LINE__)
+    zvector%a = xreal * yvector%a ! Intrinsic product
+    call yvector%CleanTemp()
+  end subroutine real_vector
 
   function product_vector_tensor(xvector,ytensor) result(zvector)
     implicit none
-    type(vector) :: xvector    ! xvector%a(:,ngaus)
-    type(tensor) :: ytensor    ! ytensor%a(:,:,ngaus)
+    class(vector), intent(in) :: xvector    ! xvector%a(:,ngaus)
+    type(tensor), intent(in) :: ytensor    ! ytensor%a(:,:,ngaus)
     type(vector) :: zvector    ! zvector%a(:,ngaus)
-    integer(ip) :: i,j,k, n1,n2,ng
+    integer(ip)  :: i,j,k, n1,n2,ng
     call xvector%GuardTemp()
     call ytensor%GuardTemp()
     call zvector%SetTemp()
@@ -590,10 +753,10 @@ contains
 
   function product_tensor_vector(xtensor,yvector) result(zvector)
     implicit none
-    type(tensor) :: xtensor    ! xtensor%a(:,:,ngaus)
-    type(vector) :: yvector    ! yvector%a(:,ngaus)
+    type(tensor), intent(in) :: xtensor    ! xtensor%a(:,:,ngaus)
+    class(vector), intent(in) :: yvector    ! yvector%a(:,ngaus)
     type(vector) :: zvector    ! zvector%a(:,ngaus)
-    integer(ip) :: i,j,k, n1,n2,ng
+    integer(ip)  :: i,j,k, n1,n2,ng
     call xtensor%GuardTemp()
     call yvector%GuardTemp()
     call zvector%SetTemp()
@@ -616,47 +779,34 @@ contains
     call yvector%CleanTemp()
   end function product_tensor_vector
 
-  ! function product_scalar_vector
-  ! end function product_scalar_vector
-  ! function product_vector_scalar
-  ! end function product_vector_scalar
-
-  function product_scalar_scalar(xscalar,yscalar) result(zscalar)
-    implicit none
-    type(scalar) :: xscalar    ! xscalar(ngaus)
-    type(scalar) :: yscalar    ! yscalar(ngaus)
-    type(scalar) :: zscalar    ! zscalar(ngaus)
-    integer(ip)  :: ng
-    call xscalar%GuardTemp()
-    call yscalar%GuardTemp()
-    call zscalar%SetTemp()
-    ng = size(xscalar%a,1)
-    assert(size(yscalar%a,1)==ng)
-    call memalloc(ng,zscalar%a,__FILE__,__LINE__)
-    zscalar%a = xscalar%a * yscalar%a
-    call xscalar%CleanTemp()
-    call yscalar%CleanTemp()
-  end function product_scalar_scalar
-
-! left scaling by real
-  function scale_1eft_vector(x,yscalar) result(z)
-    implicit none
-    real(rp)     :: x
-    type(scalar) :: yscalar    ! yscalar(ngaus)
-    type(scalar) :: z    ! z(ngaus)
-    z%a = x*yscalar%a
-  end function scale_1eft_vector
-
 ! term by term inverse
   function inv(x) result(z)
     implicit none
     type(scalar) :: x    ! x(ngaus)
     type(scalar) :: z    ! z(ngaus)
-    integer(ip)  :: i,j,k
-    forall(i=1:size(x%a))
+    integer(ip)  :: i,ng
+    call x%GuardTemp()
+    call z%SetTemp()
+    ng = size(x%a,1)
+    call memalloc(ng,z%a,__FILE__,__LINE__)
+    forall(i=1:ng)
        z%a(i) = 1.0_rp/x%a(i)
     end forall
+    call x%CleanTemp()
   end function inv
+
+  function norm(x) result(z)
+    implicit none
+    type(vector) :: x    ! x(ndime,ngaus)
+    type(scalar) :: z    ! z(ngaus)
+    integer(ip)  :: i,j,k
+    do i=1,size(x%a,2)
+       z%a(i) = 0.0_rp
+       do j=1,size(x%a,1)
+          z%a(i) = z%a(i) + x%a(j,i)
+       end do
+    end do
+  end function norm
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
