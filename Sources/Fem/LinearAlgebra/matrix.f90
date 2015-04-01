@@ -47,9 +47,7 @@ module fem_matrix_names
 
   ! Constants:
   ! a) fem_matrix types
-  integer(ip), parameter :: css_mat=10
-  integer(ip), parameter :: csr_mat=20
-  integer(ip), parameter :: csc_mat=30
+  integer(ip), parameter :: csr_mat=10
   ! b) fem_matrix symmetry
   integer(ip), parameter :: symm_true =0
   integer(ip), parameter :: symm_false=1
@@ -65,16 +63,16 @@ module fem_matrix_names
 !!!          storage=undef_sto,         &         ! Storage layout (blk: block; scal: scalar)
           symm=symm_false,           &         ! Flag for symmetry
           sign=positive_definite,    &         ! Flag for positiveness
-          type=css_mat                         ! fem_matrix type (csr, csc, css, epetra, petsc )
+          type=csr_mat                         ! fem_matrix type (csr, epetra, petsc )
 
 
      ! We need to decide how blocks will be stored (transposed or not)
      ! Currently in felap u is transposed but l is not. Seems better to
      ! transpose both. What about trilinos?
      real(rp), allocatable      :: &
-          d(:),                  &         ! Diagonal components (neq) 
-          l(:),                  &         ! Lower in css (nzs)        
-          u(:),                  &         ! Upper in css (nzs)        
+          !d(:),                  &         ! Diagonal components (neq) 
+          !l(:),                  &         ! Lower in css (nzs)        
+          !u(:),                  &         ! Upper in css (nzs)        
           a(:)                             ! Lower/Upper part components ordered as:
      ! Rows (nzt)                
      ! Cols (nzt)                
@@ -95,7 +93,7 @@ module fem_matrix_names
   end interface fem_matrix_free
 
   ! Constants
-  public :: css_mat, csr_mat, csc_mat, symm_true, symm_false
+  public :: csr_mat, symm_true, symm_false
   public :: positive_definite, positive_semidefinite, indefinite, unknown
 
   ! Types
@@ -139,11 +137,11 @@ contains
     type(fem_matrix), intent(out)          :: mat
     integer(ip)     , optional, intent(in) :: def
 
-    assert ( type == css_mat   .or. type == csr_mat .or. type == csc_mat )
+    assert ( type == csr_mat )
     assert ( symm == symm_true .or. symm == symm_false )
 
     mat%symm    =  symm    ! Flag for symmetry
-    mat%type    =  type    ! fem_matrix type (csr_mat, csc_mat, css_mat)
+    mat%type    =  type    ! fem_matrix type (csr_mat)
 
     mat%sign = unknown
     if(present(def)) then
@@ -167,28 +165,9 @@ contains
 
     neq  =  mat%gr%nv              ! Number of rows and columns (equations)
 
-    if(mat%type==css_mat) then
-       nzs=mat%gr%nzs
-       call memalloc(neq,mat%d,__FILE__,__LINE__)
-       mat%d = 0.0_rp
-       call memalloc(nzs,mat%l,__FILE__,__LINE__)
-       mat%l = 0.0_rp
-       if(mat%symm==symm_true) then
-          ! only an empty address to have same interfaces
-          call memalloc(1,mat%u,__FILE__,__LINE__)
-       else if(mat%symm==symm_false) then
-          call memalloc(nzs,mat%u,__FILE__,__LINE__)
-          mat%u = 0.0_rp
-       end if
-    else if(mat%type==csr_mat) then
-       nzt = mat%gr%ia(mat%gr%nv+1)-1
-       call memalloc(nzt,mat%a,__FILE__,__LINE__)
-       mat%a = 0.0_rp
-    else if(mat%type==csc_mat) then
-       nzt = mat%gr%ia(mat%gr%nv+1)-1
-       call memalloc(nzt,mat%a,__FILE__,__LINE__)
-       mat%a = 0.0_rp
-    end if
+    nzt = mat%gr%ia(mat%gr%nv+1)-1
+    call memalloc(nzt,mat%a,__FILE__,__LINE__)
+    mat%a = 0.0_rp
 
   end subroutine fem_matrix_fill_val
 
@@ -293,62 +272,52 @@ contains
     integer(ip) :: i, j
     integer(ip) :: nv1_, nv2_, nl_
 
-    if( f_matrix%type==css_mat ) then
-       write (0,*) 'Error: the body of fem_matrix_print_matrix_market in matrix.f90 still to be written'
-       write (0,*) 'Error: volunteers are welcome !!!'
-       stop
-    else if(f_matrix%type==csr_mat) then
 
-       if ( present(ng) ) then 
-          nv1_ = ng
-          nv2_ = ng
-       else
-          nv1_ = f_matrix%gr%nv
-          nv2_ = f_matrix%gr%nv2
-       end if
+    if ( present(ng) ) then 
+       nv1_ = ng
+       nv2_ = ng
+    else
+       nv1_ = f_matrix%gr%nv
+       nv2_ = f_matrix%gr%nv2
+    end if
 
-       write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
-       if (f_matrix%gr%type == csr) then
-          write (lunou,*) nv1_,nv2_,f_matrix%gr%ia(f_matrix%gr%nv+1)-1
-          do i=1,f_matrix%gr%nv
-             do j=f_matrix%gr%ia(i),f_matrix%gr%ia(i+1)-1
-                if (present(l2g)) then
-                   write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(j)
-                else
-                   write(lunou,'(i12, i12, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(j)
-                end if
-             end do
+    write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
+    if (f_matrix%gr%type == csr) then
+       write (lunou,*) nv1_,nv2_,f_matrix%gr%ia(f_matrix%gr%nv+1)-1
+       do i=1,f_matrix%gr%nv
+          do j=f_matrix%gr%ia(i),f_matrix%gr%ia(i+1)-1
+             if (present(l2g)) then
+                write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(j)
+             else
+                write(lunou,'(i12, i12, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(j)
+             end if
           end do
-       else if (f_matrix%gr%type == csr_symm) then
-          write (lunou,*) nv1_,nv2_,& 
-               2*(f_matrix%gr%ia(f_matrix%gr%nv+1)-1) - f_matrix%gr%nv
+       end do
+    else if (f_matrix%gr%type == csr_symm) then
+       write (lunou,*) nv1_,nv2_,& 
+            2*(f_matrix%gr%ia(f_matrix%gr%nv+1)-1) - f_matrix%gr%nv
 
-          do i=1,f_matrix%gr%nv
-             do j=f_matrix%gr%ia(i),f_matrix%gr%ia(i+1)-1
+       do i=1,f_matrix%gr%nv
+          do j=f_matrix%gr%ia(i),f_matrix%gr%ia(i+1)-1
 !!$                   if ( j == f_matrix%gr%ia(i) ) then
 !!$                      if ( i /= f_matrix%gr%ja(j) ) write (*,*) 'ERR', i, f_matrix%gr%ja(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1), f_matrix%gr%ia(i)
 !!$                      assert ( i ==  f_matrix%gr%ja(j) )
 !!$                   end if
 
+             if (present(l2g)) then
+                write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(j)
+             else
+                write(lunou,'(i12, i12, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(j)
+             end if
+             if (i /= f_matrix%gr%ja(j)) then
                 if (present(l2g)) then
-                   write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(j)
+                   write(lunou,'(i12, i12, e32.25)') l2g(f_matrix%gr%ja(j)), l2g(i), f_matrix%a(j)
                 else
-                   write(lunou,'(i12, i12, e32.25)') i, f_matrix%gr%ja(j), f_matrix%a(j)
+                   write(lunou,'(i12, i12, e32.25)') f_matrix%gr%ja(j), i, f_matrix%a(j)
                 end if
-                if (i /= f_matrix%gr%ja(j)) then
-                   if (present(l2g)) then
-                      write(lunou,'(i12, i12, e32.25)') l2g(f_matrix%gr%ja(j)), l2g(i), f_matrix%a(j)
-                   else
-                      write(lunou,'(i12, i12, e32.25)') f_matrix%gr%ja(j), i, f_matrix%a(j)
-                   end if
-                end if
-             end do
+             end if
           end do
-       end if
-    else if(f_matrix%type==csc_mat) then
-       write (0,*) 'Error: the body of fem_matrix_print_matrix_market in matrix.f90 still to be written'
-       write (0,*) 'Error: volunteers are welcome !!!'
-       stop
+       end do
     end if
 
   end subroutine fem_matrix_print_matrix_market
@@ -367,7 +336,7 @@ contains
     integer(ip), allocatable :: ija_work(:,:), ija_index(:)
     real(rp)   , allocatable :: a_work(:)
 
-    mat%type    =  csr_mat ! fem_matrix type (csr_mat, csc_mat, css_mat)
+    mat%type    =  csr_mat ! fem_matrix type (csr_mat)
 
     ! AFM: the following sentence is now NO longer permitted.
     !      Now both mat and graph are passed, and this subroutine is
@@ -496,15 +465,7 @@ contains
        ! allocate a new graph !!! 
        nullify( f_matrix%gr )
     else if ( mode == free_only_values ) then
-       if(f_matrix%type==css_mat) then
-          call memfree( f_matrix%d,__FILE__,__LINE__)
-          call memfree( f_matrix%l,__FILE__,__LINE__)
-          call memfree( f_matrix%u,__FILE__,__LINE__)
-       else if(f_matrix%type==csr_mat) then
-          call memfree( f_matrix%a,__FILE__,__LINE__)
-       else if(f_matrix%type==csc_mat) then
-          call memfree( f_matrix%a,__FILE__,__LINE__)
-       end if
+       call memfree( f_matrix%a,__FILE__,__LINE__)
     end if
 
   end subroutine fem_matrix_free_progressively
@@ -527,15 +488,8 @@ contains
     implicit none
     type(fem_matrix), intent(inout)       :: mat
 
-    if(mat%type==css_mat) then
-       mat%d = 0.0_rp
-       mat%l = 0.0_rp
-       if(mat%symm==symm_false) then
-          mat%u = 0.0_rp
-       end if
-    else if(mat%type==csr_mat.or.mat%type==csc_mat) then
-       mat%a = 0.0_rp
-    end if
+    mat%a = 0.0_rp
+
   end subroutine fem_matrix_zero
 
   !=============================================================================
@@ -550,25 +504,9 @@ contains
     assert ( A%symm == B%symm .and. A%symm == C%symm )
 
     if(present(alpha)) then
-       if(C%type==css_mat) then
-          C%d = A%d + alpha*B%d
-          C%l = A%l + alpha*B%l
-          if(C%symm==symm_false) then
-             C%u = A%u + alpha*B%u
-          end if
-       else if(C%type==csr_mat.or.C%type==csc_mat) then
-          C%a = A%a + alpha*B%a
-       end if
+       C%a = A%a + alpha*B%a
     else
-       if(C%type==css_mat) then
-          C%d = A%d + B%d
-          C%l = A%l + B%l
-          if(C%symm==symm_false) then
-             C%u = A%u + B%u
-          end if
-       else if(C%type==csr_mat.or.C%type==csc_mat) then
-          C%a = A%a + B%a
-       end if
+       C%a = A%a + B%a
     end if
 
   end subroutine fem_matrix_sum
@@ -608,85 +546,62 @@ contains
 
      end subroutine fem_matrix_transpose
 
-  subroutine fem_matvec (a,x,y)
-    implicit none
-    type(fem_matrix) , intent(in)    :: a
-    type(fem_vector) , intent(in)    :: x
-    type(fem_vector) , intent(inout) :: y
-    real(rp) :: aux
+     subroutine fem_matvec (a,x,y)
+       implicit none
+       type(fem_matrix) , intent(in)    :: a
+       type(fem_vector) , intent(in)    :: x
+       type(fem_vector) , intent(inout) :: y
+       real(rp) :: aux
 
 
-       if(a%type==css_mat) then
-          call matvec_css(a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
-       else if(a%type==csr_mat) then
-          if (a%symm == symm_false) then
-             call matvec_csr(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
-          else if (a%symm == symm_true) then
-             call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
-          end if
-       else if(a%type==csc_mat) then
-          call matvec_csc(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+
+       if (a%symm == symm_false) then
+          call matvec_csr(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+       else if (a%symm == symm_true) then
+          call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
        end if
 
-  end subroutine fem_matvec
+     end subroutine fem_matvec
 
-  subroutine fem_matmat (a, n, ldX, x, ldY, y)
-    implicit none
+     subroutine fem_matmat (a, n, ldX, x, ldY, y)
+       implicit none
 
-    ! Parameters
-    type(fem_matrix) , intent(in)    :: a
-    integer(ip)      , intent(in)    :: n
-    integer(ip)      , intent(in)    :: ldX
-    real(rp)         , intent(in)    :: x(ldX, n)
-    integer(ip)      , intent(in)    :: ldY
-    real(rp)         , intent(inout) :: y(ldY, n)
+       ! Parameters
+       type(fem_matrix) , intent(in)    :: a
+       integer(ip)      , intent(in)    :: n
+       integer(ip)      , intent(in)    :: ldX
+       real(rp)         , intent(in)    :: x(ldX, n)
+       integer(ip)      , intent(in)    :: ldY
+       real(rp)         , intent(inout) :: y(ldY, n)
 
-    ! Locals 
-    integer (ip) :: i
- 
-    do i=1,n
-       if(a%type==css_mat) then
-          call matvec_css(a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
-       else if(a%type==csr_mat) then
+       ! Locals 
+       integer (ip) :: i
+
+       do i=1,n
           if (a%symm == symm_false) then
              call matvec_csr(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
           else if (a%symm == symm_true) then
              call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))          
           end if
-       else if(a%type==csc_mat) then
-          call matvec_csc(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
-       end if
-    end do
+       end do
 
 
 
-  end subroutine fem_matmat
+     end subroutine fem_matmat
 
-  subroutine fem_matvec_trans (a,x,y)
-    implicit none
-    type(fem_matrix) , intent(in)    :: a
-    type(fem_vector) , intent(in)    :: x
-    type(fem_vector) , intent(inout) :: y
+     subroutine fem_matvec_trans (a,x,y)
+       implicit none
+       type(fem_matrix) , intent(in)    :: a
+       type(fem_vector) , intent(in)    :: x
+       type(fem_vector) , intent(inout) :: y
 
-    if(a%type==css_mat) then
-       ! call matvec_css_trans(a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
-       write (0,*) 'Error: the body of matvec_css_trans in matvec_dof.i90 still to be written'
-       write (0,*) 'Error: volunteers are welcome !!!'
-       stop          
-    else if(a%type==csr_mat) then
        if (a%symm == symm_false) then
           call matvec_csr_trans(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
        else if (a%symm == symm_true) then
           call matvec_csr_symm_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
        end if
-    else if(a%type==csc_mat) then
-       ! call matvec_csc_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
-       write (0,*) 'Error: the body of matvec_csc_trans in matvec_dof.i90 still to be written'
-       write (0,*) 'Error: volunteers are welcome !!!'
-       stop
-    end if
 
-  end subroutine fem_matvec_trans
+     end subroutine fem_matvec_trans
 
   subroutine fem_matmat_trans (a, n, ldX, x, ldY, y)
     implicit none
@@ -704,23 +619,11 @@ contains
 
 
     do i=1,n
-       if(a%type==css_mat) then
-          ! call matvec_css_trans(a%gr%nv,a%gr%ia,a%gr%is,a%gr%ja,a%d,a%l,a%u,x%b,y%b)
-          write (0,*) 'Error: the body of matvec_css_trans in matvec_dof.i90 still to be written'
-          write (0,*) 'Error: volunteers are welcome !!!'
-          stop          
-       else if(a%type==csr_mat) then
           if (a%symm == symm_false) then
              call matvec_csr_trans(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i) )
           else if (a%symm == symm_true) then
              call matvec_csr_symm_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv,i),y(1:a%gr%nv2,i))          
           end if
-       else if(a%type==csc_mat) then
-          ! call matvec_csc_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
-          write (0,*) 'Error: the body of matvec_csc_trans in matvec_dof.i90 still to be written'
-          write (0,*) 'Error: volunteers are welcome !!!'
-          stop
-       end if
     end do
 
   end subroutine fem_matmat_trans

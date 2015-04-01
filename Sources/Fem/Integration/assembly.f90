@@ -78,7 +78,7 @@ contains
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    type(fem_matrix), intent(inout)     :: a
+    type(fem_matrix), intent(inout)           :: a
 
     integer(ip) :: ivar, start(dhand%problems(elem%problem)%nvars+1)
     integer(ip) :: end(dhand%problems(elem%problem)%nvars+1), iblock, jblock
@@ -149,13 +149,13 @@ contains
                          if ( a%gr%ja(k) == jdof ) exit
                       end do
                       assert ( k < a%gr%ia(idof+1) )
-                      !a%ja(k) = elem%p_mat(start(l_var)+inode,start(m_var)+jnode)
+                      a%a(k) = elem%p_mat%a(start(l_var)+inode,start(m_var)+jnode)
                    else if ( jdof >= idof ) then! gtype == csr_symm 
                       do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                          if ( a%gr%ja(k) == jdof ) exit
                       end do
                       assert ( k < a%gr%ia(idof+1) )
-                      !a%ja(k) = elem%p_mat(start(l_var)+inode,start(m_var)+jnode)
+                      a%a(k) = elem%p_mat%a(start(l_var)+inode,start(m_var)+jnode)
                    end if
                 end do
              end if

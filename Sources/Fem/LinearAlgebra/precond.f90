@@ -678,41 +678,7 @@ contains
 
   end subroutine apply_diagonal
 
-
-  subroutine extract_diagonal (f_mat, d_nd, d_nv, d)
-    implicit none
-    ! Parameters
-    type(fem_matrix), intent(in)  :: f_mat
-    integer(ip)     , intent(in)  :: d_nd, d_nv
-    real(rp)        , intent(out) :: d( d_nv)
-
-    if ( f_mat%type == css_mat ) then
-      call extract_diagonal_css (f_mat%symm, f_mat%gr%nv,f_mat%d,d_nv,d)
-    else if ( f_mat%type == csr_mat ) then
-      call extract_diagonal_csr (f_mat%symm, f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nv,d)
-    else if ( f_mat%type == csc_mat ) then
-      call extract_diagonal_csc (f_mat%symm,f_mat%gr%nv,f_mat%gr%nv2,f_mat%gr%ia,f_mat%gr%ja,f_mat%a,d_nv,d)
-    end if
-
-  end subroutine extract_diagonal
-
-
-  subroutine extract_diagonal_css (ks,nv,da,d_nv,d)
-    implicit none
-    ! Parameters
-    integer(ip), intent(in)  :: ks,nv,d_nv
-    real(rp)   , intent(in)  :: da(nv)
-    real(rp)   , intent(out) :: d (d_nv)
-
-    ! Locals
-    integer(ip) :: iv
-    do iv = 1, d_nv
-       d(iv) =  da(iv)
-    end do
-  end subroutine extract_diagonal_css
-
-
-  subroutine extract_diagonal_csr (ks,nv,nv2,ia,ja,a,d_nv,d)
+  subroutine extract_diagonal (ks,nv,nv2,ia,ja,a,d_nv,d)
     implicit none
     ! Parameters
     integer(ip), intent(in)  :: ks,nv,nv2,d_nv
@@ -748,21 +714,7 @@ contains
        end do ! iv
     end if
 
-  end subroutine extract_diagonal_csr
-
-  subroutine extract_diagonal_csc (ks,nv,nv2,ia,ja,a,d_nv,d)
-    implicit none
-    ! Parameters
-    integer(ip), intent(in)  :: ks,nv,nv2,d_nv
-    integer(ip), intent(in)  :: ia(nv+1),ja(ia(nv+1)-1)
-    real(rp)   , intent(in)  :: a(ia(nv+1)-1)
-    real(rp)   , intent(out) :: d(d_nv)
-
-    write (0,'(a)') 'Error: the body of extract_diagonal_csc_scal in par_precond.f90 still to be written'
-    write (0,'(a)') 'Error: volunteers are welcome !!!'
-    check(1==0)
-
-  end subroutine extract_diagonal_csc
+  end subroutine extract_diagonal
 
   !=============================================================================
   subroutine fem_precond_apply_tbp (op, x, y)
