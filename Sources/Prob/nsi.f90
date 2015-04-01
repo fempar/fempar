@@ -28,15 +28,11 @@
 module nsi
  use types
  use memor
+ use fem_space_names
  use problem_names
- use element_tools
-
- type nsi_problem
-    contains
-      procedure :: nsi_matvec
- end type nsi_problem
-
-contains
+ use element_tools_names
+ implicit none
+ private 
 
  type, extends(physical_problem) :: nsi_problem
 
@@ -75,24 +71,29 @@ contains
          k1tau,         & ! C1 constant on stabilization parameter tau_m
          k2tau            ! C2 constant on stabilization parameter tau_m
 
-    type(array_rp2), allocatable :: &
-         vorti(:),      & ! Vorticity field
-         dtunk(:)         ! Time derivative
-  contains
-    procedure :: trial_function => nsi_trial_function
+    ! type(array_rp2), allocatable :: &
+    !      vorti(:),      & ! Vorticity field
+    !      dtunk(:)         ! Time derivative
+    contains
+      procedure :: create => nsi_create
+      procedure :: matvec => nsi_matvec
+
  end type nsi_problem
+
+ public :: nsi_problem
 
 contains
 
   !=================================================================================================
-  subroutine nsi_create(msh,prob)
+  subroutine nsi_create(prob,ndime)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
+    class(nsi_problem), intent(out) :: prob
     integer(ip)      , intent(in)  :: ndime
-    type(nsi_problem), intent(out) :: prob
+    integer(ip) :: i
 
     ! Fill default problem data
     prob%ndime = ndime
@@ -154,7 +155,7 @@ contains
   subroutine nsi_matvec(prob,K,mat,vec)
     ! Thinking about e.g. iss + su
     implicit none
-    type(nsi_problem), intent(inout) :: nsi
+    class(nsi_problem), intent(inout) :: prob
     type(fem_element), intent(inout) :: K
     real(rp), intent(inout) :: mat(:,:)
     real(rp), intent(inout) :: vec(:)
@@ -170,33 +171,33 @@ contains
 
     integer(ip)     :: ndime
 
-    ndime = nsi%ndime
+    ndime = prob%ndime
 
-    u = basis_function(nsi,1,K)
-    p = basis_function(nsi,2,K)
-    v = basis_function(nsi,1,K) 
-    q = basis_function(nsi,2,K)
+    u = basis_function(prob,1,K)
+    p = basis_function(prob,2,K)
+    v = basis_function(prob,1,K) 
+    q = basis_function(prob,2,K)
 
     ! With a_h declared as given_function we can do:
-    ! a_h   = given_function(nsi,1,1,K)
+    ! a_h   = given_function(prob,1,1,K)
     ! call interpolation(grad(a_h),grad_a) 
     ! with grad_a declared as tensor and, of course
-    ! call interpolation(grad(given_function(nsi,1,1,K)),grad_a)
+    ! call interpolation(grad(given_function(prob,1,1,K)),grad_a)
     !
-    call interpolation(given_function(nsi,1,1,K),a)
-    call interpolation(given_function(nsi,1,3,K),u_n)
+    call interpolation(given_function(prob,1,1,K),a)
+    call interpolation(given_function(prob,1,3,K),u_n)
 
-    h   = K%length(1)
-    h   = K%length(ndime)
+    !h   = K%length(1)
+    !h   = K%length(ndime)
 
-    dt  = nsi%dt
+    !dt  = prob%dt
     
-    tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
-    tau = inv(tau)
+    !tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
+    !tau = inv(tau)
     
-    mat = inv(dt)*integral(v,u) + integral(v, a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
+    !mat = inv(dt)*integral(v,u) + integral(v, a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
-    mat = integral(v,inv(dt)*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+    !mat = integral(v,inv(dt)*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
   end subroutine nsi_matvec
 
