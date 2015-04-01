@@ -169,7 +169,8 @@ contains
     type(vector) :: u_n
     type(scalar) :: h,tau
 
-    integer(ip)     :: ndime
+    integer(ip)  :: ndime
+    real((rp)    :: dtinv
 
     ndime = prob%ndime
 
@@ -187,17 +188,18 @@ contains
     call interpolation(given_function(prob,1,1,K),a)
     call interpolation(given_function(prob,1,3,K),u_n)
 
-    !h   = K%length(1)
-    !h   = K%length(ndime)
+    ! Dirty, isnt'it?
+    !h%a=K%integ(u%ivar)%p%femap%hleng(1,:)     ! max
+    h%a=K%integ(u%ivar)%p%femap%hleng(ndime,:) ! min
 
-    !dt  = prob%dt
+    dtinv  = prob%dtinv
     
-    !tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
-    !tau = inv(tau)
+    tau = prob%k1tau *mu*inv(h*h) + prob%k1tau*norm(a)*inv(h)
+    tau = inv(tau)
     
-    !mat = inv(dt)*integral(v,u) + integral(v, a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
+    mat = dtinv*integral(v,u) + integral(v, a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
-    !mat = integral(v,inv(dt)*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+    !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
   end subroutine nsi_matvec
 
