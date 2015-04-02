@@ -35,17 +35,31 @@ module block_operand_names
 
   private
 
-  ! Pointer to operator
+  ! Pointer to base_operand
   type p_abs_operand
      logical                      :: allocated  = .false.
      class(base_operand), pointer :: p_op => null()
   end type p_abs_operand
 
-  ! fem_vector
+  ! Added type(block_operand) as a new implementation of class(base_operand).
+  ! type(block_operand) is the only type compatible with type(block_operator).
+  ! Therefore, if one aims to solve a linear system by means of an, e.g., block
+  ! LU recursive preconditioned GMRES, then both the right hand side, and sought-after
+  ! solution have to be provided to abstract_gmres as type(block_operand) instances.
+  ! type(block_operand) provides the necessary (concrete) interface to build
+  ! type(block_operand) instances as views, e.g., of the components of a
+  ! type(fem_block_vector) or type(par_block_vector).
+
+  ! block_operand
   type, extends(base_operand) :: block_operand
      integer(ip)                      :: nblocks
      type(p_abs_operand), allocatable :: blocks(:)
    contains
+     
+     procedure :: create    => block_operand_create
+     procedure :: set_block => block_operand_set_block
+     procedure :: destroy   => block_operand_free_tbp
+
      ! Provide type bound procedures (tbp) implementors
      procedure :: dot  => block_operand_dot_tbp
      procedure :: copy => block_operand_copy_tbp
@@ -63,14 +77,16 @@ module block_operand_names
 
 contains
 
-  subroutine block_operand_alloc (nblocks, bop)
+  subroutine block_operand_create (bop, nblocks)
     implicit none
     ! Parameters
-    integer(ip)            , intent(in)  :: nblocks
-    type(block_operand)    , intent(out) :: bop
-    
+    class(block_operand)    , intent(inout) :: bop
+    integer(ip)             , intent(in)    :: nblocks
+
     ! Locals
     integer(ip) :: iblk
+
+    call bop%free()
 
     bop%nblocks = nblocks
     allocate ( bop%blocks(nblocks) )
@@ -79,15 +95,14 @@ contains
        nullify(bop%blocks(iblk)%p_op)
     end do
           
-  end subroutine block_operand_alloc
+  end subroutine block_operand_create
 
-
-  subroutine block_operand_set_block (ib, op, bop)
+  subroutine block_operand_set_block (bop, ib, op)
     implicit none
     ! Parameters
-    integer(ip)                         , intent(in)    :: ib
-    class(base_operand), target, intent(in)    :: op 
-    type(block_operand)                , intent(inout) :: bop
+    class(block_operand)        , intent(inout) :: bop
+    integer(ip)                 , intent(in)    :: ib
+    class(base_operand), target , intent(in)    :: op 
     
     ! A base operand to be associated to a block cannot be temporary
     assert( .not. op%IsTemp() )
@@ -135,7 +150,9 @@ contains
       assert ( op1%nblocks == op2%nblocks )
       alpha = 0.0_rp
       do iblk=1, op1%nblocks
-        alpha = alpha + op1%blocks(iblk)%p_op%dot(op2%blocks(iblk)%p_op) 
+         assert(associated(op1%blocks(iblk)%p_op))
+         assert(associated(op2%blocks(iblk)%p_op))   
+         alpha = alpha + op1%blocks(iblk)%p_op%dot(op2%blocks(iblk)%p_op) 
       end do
    class default
       write(0,'(a)') 'block_operand%dot: unsupported op2 class'
@@ -158,6 +175,8 @@ contains
    class is (block_operand)
       assert ( op1%nblocks == op2%nblocks )
       do iblk=1, op1%nblocks
+         assert(associated(op1%blocks(iblk)%p_op))
+         assert(associated(op2%blocks(iblk)%p_op)) 
         call op1%blocks(iblk)%p_op%copy(op2%blocks(iblk)%p_op) 
       end do
    class default
@@ -181,6 +200,8 @@ contains
    class is (block_operand)
       assert ( op1%nblocks == op2%nblocks )
       do iblk=1, op1%nblocks
+         assert(associated(op1%blocks(iblk)%p_op))
+         assert(associated(op2%blocks(iblk)%p_op)) 
         call op1%blocks(iblk)%p_op%scal(alpha,op2%blocks(iblk)%p_op) 
       end do
    class default
@@ -197,6 +218,7 @@ contains
    ! Locals
    integer(ip) :: iblk
    do iblk=1, op%nblocks
+      assert(associated(op%blocks(iblk)%p_op))
       call op%blocks(iblk)%p_op%init(alpha) 
    end do
  end subroutine block_operand_init_tbp
@@ -215,6 +237,8 @@ contains
    select type(op2)
    class is (block_operand)
      do iblk=1, op1%nblocks
+        assert(associated(op1%blocks(iblk)%p_op))
+        assert(associated(op2%blocks(iblk)%p_op))
         call op1%blocks(iblk)%p_op%axpby(alpha, op2%blocks(iblk)%p_op, beta) 
      end do
    class default
@@ -247,8 +271,9 @@ contains
    select type(op2)
    class is (block_operand)
      call op1%free()
-     call block_operand_alloc(op2%nblocks,op1) 
+     call op1%create(op2%nblocks) 
      do iblk=1, op2%nblocks
+        assert(associated(op2%blocks(iblk)%p_op))
        allocate(op1%blocks(iblk)%p_op, mold=op2%blocks(iblk)%p_op)
        op1%blocks(iblk)%allocated = .true. 
        call op1%blocks(iblk)%p_op%clone(op2%blocks(iblk)%p_op) 
@@ -267,6 +292,7 @@ contains
    ! Locals
    integer(ip) :: iblk
    do iblk=1, op%nblocks
+      assert(associated(op%blocks(iblk)%p_op))
       call op%blocks(iblk)%p_op%comm() 
    end do
  end subroutine block_operand_comm_tbp
