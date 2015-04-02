@@ -21,7 +21,7 @@ SET(DEFAULT_LIB_PATHS /lib /lib32 /lib64 /usr/lib /usr/lib32 /usr/lib64 /usr/loc
 
 SET(LIB_PREFIX HSL_MI20)
 SET(${LIB_PREFIX}_LIB_NAME hsl_mi20)
-SET(${LIB_PREFIX}_INC_FILENAME hsl_mi20.h)
+SET(${LIB_PREFIX}_INC_FILENAME hsl_mi20_double.mod hsl_mi20_single.mod)
 SET(${LIB_PREFIX}_INC_SUFFIXES "include" "hsl_mi20" "include/hsl_mi20")
 SET(${LIB_PREFIX}_LIB_SUFFIXES "lib" "hsl_mi20" "lib/hsl_mi20" "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "${CMAKE_LIBRARY_ARCHITECTURE}")
 
