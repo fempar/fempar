@@ -142,6 +142,9 @@ module fem_space_names
      integer(ip), allocatable           :: ndofs(:)
      integer(ip)                        :: time_steps_to_store        ! Time steps to store
 
+     integer(ip), allocatable :: integration_interior_faces(:), integration_boundary_faces(:)
+     integer(ip) :: num_interior_faces, num_boundary_faces
+
   end type fem_space
 
   ! Types
@@ -150,7 +153,7 @@ module fem_space_names
 !       &     memalloc, memrealloc, memfreep, memmovealloc
 
   ! Functions
-  public :: fem_space_create, fem_space_allocate_structures, fem_space_fe_list_create, fem_space_print, &
+  public :: fem_space_create, fem_space_print, &
        &    fem_element_print, fem_space_free
 !,          &
 !       get_p_faces
@@ -164,7 +167,8 @@ contains
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
   subroutine fem_space_create(  g_trian, dofh, fspac, problem, continuity, order, material, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials )
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials, &
+       & num_ghosts )
     implicit none
     type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
@@ -174,14 +178,15 @@ contains
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_materials        
+    integer(ip), optional, intent(in) :: num_materials   
+    integer(ip), optional, intent(in) :: num_ghosts        
 
-    integer(ip) :: istat
+    integer(ip) :: istat, num_ghosts_
 
     call fem_space_allocate_structures(  g_trian, dofh, fspac, &
          time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
-         static_condensation = static_condensation, num_materials = num_materials )  
-
+         static_condensation = static_condensation, num_materials = num_materials, &
+         num_ghosts = num_ghosts )  
 
     call fem_space_fe_list_create ( fspac, problem, continuity, order, material )
 
@@ -190,7 +195,8 @@ contains
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
   subroutine fem_space_allocate_structures( g_trian, dofh, fspac, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials )
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials, &
+       & num_ghosts )
     implicit none
     type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
@@ -198,9 +204,10 @@ contains
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_materials         
+    integer(ip), optional, intent(in) :: num_materials 
+    integer(ip), optional, intent(in) :: num_ghosts            
 
-    integer(ip) :: istat
+    integer(ip) :: istat, num_ghosts_
 
     
     ! Hierarchical flag
@@ -231,7 +238,14 @@ contains
        fspac%time_steps_to_store = 1
     end if
 
-    allocate( fem_element :: fspac%mig_elems(g_trian%num_elems), stat=istat)
+    ! Ghosts elements (parallel case)
+    if (present(num_ghosts)) then
+       num_ghosts_ = num_ghosts
+    else
+       num_ghosts_ = 0
+    end if
+
+    allocate( fem_element :: fspac%mig_elems(g_trian%num_elems + num_ghosts_), stat=istat)
     check ( istat == 0 )
     
     select type( this => fspac%mig_elems )
@@ -284,6 +298,8 @@ contains
        write(6,'(a,i20)') 'Error code: ', istat
        write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelem_info'
     end if
+
+    call integration_faces_list( g_trian, fspac )
 
   end subroutine fem_space_allocate_structures
 
@@ -753,8 +769,50 @@ contains
     
   end subroutine fem_element_unpack
 
+  
+  subroutine integration_faces_list( trian, femsp ) 
+    implicit none
+    ! Parameters
+    type(fem_triangulation), intent(in)       :: trian 
+    type(fem_space), intent(inout)               :: femsp
 
+    integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem
 
+    ! integration faces (interior / boundary)
+    call memalloc( trian%num_objects, femsp%integration_interior_faces, __FILE__, __LINE__ )
+    call memalloc( trian%num_objects, femsp%integration_boundary_faces, __FILE__, __LINE__ )
+    count_int = 0
+    count_bou = 0
+    do iobje = 1, trian%num_objects
+       if ( trian%objects(iobje)%dimension == trian%num_dims ) then
+          if ( trian%objects(iobje)%border == -1 ) then
+             assert( trian%objects(iobje)%num_elems_around == 2 )
+             ielem = trian%objects(iobje)%elems_around(1)
+             jelem = trian%objects(iobje)%elems_around(2)
+             mat_i = femsp%lelem(ielem)%material
+             mat_j = femsp%lelem(jelem)%material
+             if ( femsp%lelem(ielem)%material /= femsp%lelem(jelem)%material .or. &
+                  (.not.femsp%lelem(ielem)%continuity(ielem)) ) then
+                count_int = count_int + 1
+                femsp%integration_interior_faces(count_int) = iobje
+             end if
+          else
+             assert( trian%objects(iobje)%num_elems_around == 1 )
+             ielem = trian%objects(iobje)%elems_around(1)
+             if ( .not.femsp%lelem(ielem)%continuity(ielem) ) then
+                count_bou = count_bou + 1
+                femsp%integration_boundary_faces(count_bou) = iobje
+             end if
+          end if
+       end if
+    end do
+    call realloc( count_int, femsp%integration_interior_faces, __FILE__, __LINE__ )
+    call realloc( count_bou, femsp%integration_boundary_faces, __FILE__, __LINE__ )
+
+    femsp%num_interior_faces = count_int
+    femsp%num_boundary_faces = count_bou
+
+  end subroutine integration_faces_list
 
 end module fem_space_names
 

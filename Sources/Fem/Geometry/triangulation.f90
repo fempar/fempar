@@ -97,7 +97,7 @@ module fem_triangulation_names
   end type elem_topology
 
   type object_topology
-     integer(ip)  :: border     = -1 ! Border local id of this object
+     integer(ip)               :: border     = -1 ! Border local id of this object
      integer(ip)               :: dimension             ! Object dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around object 
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around object 

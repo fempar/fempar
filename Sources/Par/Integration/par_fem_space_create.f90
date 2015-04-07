@@ -51,6 +51,15 @@ module par_fem_space_names
 
 contains
 
+
+  !*********************************************************************************
+  ! This subroutine is intended to be called from a parallel driver, having as input
+  ! a set of arrays of size number of local elements times number of global variables
+  ! for continuity and order, and number of local elements for material and problem,
+  ! together with some optional flags. The output of this subroutine is a fem_space
+  ! with the required info on ghost elements, together with the dof generation and the
+  ! dof graph distribution.
+  !*********************************************************************************
   subroutine par_fem_space_create ( p_trian, dhand, femsp, problem, continuity, order, material, &
        & time_steps_to_store, hierarchical_basis, static_condensation, num_materials  )
     implicit none
@@ -67,27 +76,22 @@ contains
     integer(ip) :: num_elems, num_ghosts, ielem
 
     ! Create local fem space
-    num_elems = p_trian%f_trian%num_elems
-    num_ghosts = p_trian%num_ghosts
-
-    p_trian%f_trian%num_elems = num_elems + num_ghosts
-    write(*,*) '***** CREATE FEM SPACE STRUCTURES *****'
-    call fem_space_allocate_structures( p_trian%f_trian, dhand, femsp, &
-         time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
-         static_condensation = static_condensation, num_materials = num_materials )
-    p_trian%f_trian%num_elems = num_elems
-    write(*,*) '***** FILL FEM SPACE STRUCTURES *****'
-    call fem_space_fe_list_create( femsp, problem, continuity, order, material )
-    
-
+    ! Note: When this subroutine is called from par_fem_space_create.f90, we have
+    ! provided num_ghosts just in order to allocate element lists in 
+    ! fem_space_allocate_structures that will also include ghost elements. 
+    call fem_space_create( p_trian%f_trian, dhand, femsp, &
+         & problem, continuity, order, material, time_steps_to_store = time_steps_to_store, &
+         & hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
+         & num_materials = num_materials, num_ghosts = p_trian%num_ghosts )
+ 
     ! Communicate problem, continuity, order, and material
     write(*,*) '***** EXCHANGE GHOST INFO *****'
     call ghost_elements_exchange ( p_trian%p_context%icontxt, p_trian%f_el_import, femsp%lelem )
 
     ! Create ghost fem space (only partially, i.e., previous info)
-    write(*,*) '***** FILL GHOST ELEMENTS  *****'
+    ! write(*,*) '***** FILL GHOST ELEMENTS  *****'
+    call ghost_fe_list_create ( femsp, p_trian%num_ghosts ) 
 
-    
     !write(*,*) 'num_elems+1', femsp%g_trian%num_elems+1
     !write(*,*) 'num_ghosts', num_ghosts
     !do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
@@ -100,11 +104,16 @@ contains
     !   call fem_element_fixed_info_write( femsp%g_trian%elems(ielem)%topology )
     !end do
 
-    
-    call ghost_fe_list_create( femsp, num_ghosts )
-
   end subroutine par_fem_space_create
 
+
+  !*********************************************************************************
+  ! This subroutine takes the local finite element space, extended with ghost 
+  ! elements that include (after the element exchange) values for order, continuity,
+  ! material, problem. With this info, we create the fixed info pointers in ghost
+  ! elements, which are needed in order to sort dofs on different processors the 
+  ! same way.
+  !*********************************************************************************
   subroutine ghost_fe_list_create( femsp, num_ghosts )
     implicit none
     type(fem_space), intent(inout), target :: femsp
@@ -112,7 +121,7 @@ contains
 
     integer(ip) :: ielem, nvars, f_type, ivar, f_order, istat, pos_elinf, v_key
     logical(lg) :: created
-    
+
     do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
        write (*,*) '************* GHOST ELEMENT *************',ielem
        nvars = femsp%dof_handler%problems(femsp%lelem(ielem)%problem)%nvars
@@ -143,5 +152,6 @@ contains
        end do
     end do
   end subroutine ghost_fe_list_create
+
 end module par_fem_space_names
 
