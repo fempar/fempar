@@ -117,15 +117,17 @@ contains
 
     ! Locals
     type(hash_table_ip_ip)   :: parts_visited
-    integer(ip)              :: i, istat
+    integer(ip)              :: i, istat, touch
     
     call parts_visited%init(20)
 
     ! Traverse all external elements. Determine whether the part the element
     ! is mapped to has been already taken into account. If not, increment npadj.
     npadj = 0
+    touch = 1
     do i=1, pextn(nebou+1)-1
-       call parts_visited%put(key=lextp(i),val=1,stat=istat)
+       !call parts_visited%put(key=lextp(i),val=1,stat=istat)
+       call parts_visited%put(key=lextp(i),val=touch,stat=istat)
        if(istat==now_stored) npadj = npadj + 1 
     end do
     call parts_visited%free
@@ -142,15 +144,17 @@ contains
 
     ! Locals
     type(hash_table_ip_ip)   :: parts_visited
-    integer(ip)              :: i, j, istat
+    integer(ip)              :: i, j, istat, touch
     
     call parts_visited%init(20)
 
     ! Traverse all external elements. Determine whether the part the element
     ! is mapped to has been already taken into account. If not, list it in lpadj.
     j = 1
+    touch = 1
     do i=1, pextn(nebou+1)-1
-       call parts_visited%put(key=lextp(i),val=1,stat=istat)
+       !call parts_visited%put(key=lextp(i),val=1,stat=istat)
+       call parts_visited%put(key=lextp(i),val=touch,stat=istat)
        if(istat==now_stored) then
           lpadj(j) = lextp(i)
           j = j + 1
@@ -174,7 +178,7 @@ contains
     integer(ip) , intent(out) :: rcv_ptrs(npadj+1)
 
     ! Locals
-    integer(ip) :: i, j, istat, iedge 
+    integer(ip) :: i, j, istat, iedge , touch
     type(hash_table_ip_ip) , allocatable :: snd_lids_per_proc(:) 
     type(hash_table_igp_ip), allocatable :: rcv_gids_per_proc(:)
 
@@ -195,6 +199,7 @@ contains
        call rcv_gids_per_proc(i)%init( max ( int( real(pextn(nebou+1),rp)*0.05_rp,ip), 5) )
     end do
 
+    touch = 1
     do i=1, nebou
        do j=pextn(i), pextn(i+1)-1
           
@@ -204,12 +209,14 @@ contains
              iedge = iedge + 1
           end do
 
-          call snd_lids_per_proc(iedge)%put(key=lebou(i), val=1, stat=istat)
+          !call snd_lids_per_proc(iedge)%put(key=lebou(i), val=1, stat=istat)
+          call snd_lids_per_proc(iedge)%put(key=lebou(i), val=touch, stat=istat)
           if ( istat == now_stored ) then
              snd_ptrs(iedge+1) =  snd_ptrs(iedge+1) + 1
           end if 
           
-          call rcv_gids_per_proc(iedge)%put(key=lextn(j), val=1, stat=istat) 
+          !call rcv_gids_per_proc(iedge)%put(key=lextn(j), val=1, stat=istat) 
+          call rcv_gids_per_proc(iedge)%put(key=lextn(j), val=touch, stat=istat) 
           if ( istat == now_stored ) then
              rcv_ptrs(iedge+1) =  rcv_ptrs(iedge+1) + 1
           end if
@@ -247,7 +254,7 @@ contains
     integer(igp), intent(out)   :: rcv_geids(rcv_ptrs(npadj+1)-1)
 
     ! Locals
-    integer(ip) :: i, j, istat, iedge 
+    integer(ip) :: i, j, istat, iedge , touch
     type(hash_table_ip_ip) , allocatable :: snd_lids_per_proc(:) 
     type(hash_table_igp_ip), allocatable :: rcv_gids_per_proc(:)
     integer(igp) , allocatable           :: snd_geids(:)    
@@ -268,6 +275,7 @@ contains
        call rcv_gids_per_proc(i)%init(max(int(real(pextn(nebou+1),rp)*0.05_rp,ip),5))
     end do
 
+    touch = 1
     do i=1, nebou
        do j=pextn(i), pextn(i+1)-1
           
@@ -277,7 +285,8 @@ contains
              iedge = iedge + 1
           end do
 
-          call snd_lids_per_proc(iedge)%put(key=lebou(i), val=1, stat=istat)
+          !call snd_lids_per_proc(iedge)%put(key=lebou(i), val=1, stat=istat)
+          call snd_lids_per_proc(iedge)%put(key=lebou(i), val=touch, stat=istat)
 
           if ( istat == now_stored ) then
              ! Add to snd_elids
@@ -289,7 +298,8 @@ contains
              snd_ptrs(iedge) = snd_ptrs(iedge) + 1
           end if 
           
-          call rcv_gids_per_proc(iedge)%put(key=lextn(j), val=1, stat=istat) 
+          !call rcv_gids_per_proc(iedge)%put(key=lextn(j), val=1, stat=istat) 
+          call rcv_gids_per_proc(iedge)%put(key=lextn(j), val=touch, stat=istat) 
           
           if ( istat == now_stored ) then
              ! Add to rcv_geids

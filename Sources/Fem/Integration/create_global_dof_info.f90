@@ -329,7 +329,7 @@ contains
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var, inter, inode, l_node
-    integer(ip) :: gtype, idof, jdof, int_i, int_j, istat, jblock, jnode, job_g, jobje, jvars, k_var 
+    integer(ip) :: gtype, idof, jdof, int_i, int_j, istat, jblock, jnode, job_g, jobje, jvars, k_var , touch
     integer(ip) :: l_dof, m_dof, m_node, m_var, posi, posf, l_mat, m_mat
     integer(ip), allocatable :: aux_ia(:)
     type(hash_table_ip_ip) :: visited
@@ -349,7 +349,7 @@ contains
        end do
     end do
 
-
+    touch = 1
     do iblock = 1,dhand%nblocks
        do jblock = 1,dhand%nblocks
           gtype = dof_graph(iblock,jblock)%type
@@ -373,7 +373,8 @@ contains
                       do jobje = 1, trian%elems(jelem)%num_objects
                          job_g = trian%elems(jelem)%objects(jobje)
                          !write (*,*) 'job_g',job_g
-                         call visited%put(key=job_g, val=1, stat=istat)
+                         !call visited%put(key=job_g, val=1, stat=istat)
+                         call visited%put(key=job_g, val=touch, stat=istat)
                          !write (*,*) 'istat',istat
                          if ( istat == now_stored ) then
                             do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
@@ -531,7 +532,8 @@ contains
                       do jobje = 1, trian%elems(jelem)%num_objects
                          job_g = trian%elems(jelem)%objects(jobje)
                          !write (*,*) 'job_g',job_g
-                         call visited%put(key=job_g, val=1, stat=istat)
+                         !call visited%put(key=job_g, val=1, stat=istat)
+                         call visited%put(key=job_g, val=touch, stat=istat)
                          !write (*,*) 'istat',istat
                          if ( istat == now_stored ) then
                             write(*,*) '******** LOOP  OBJECTS IN ELEM **** JOBJE:',job_g

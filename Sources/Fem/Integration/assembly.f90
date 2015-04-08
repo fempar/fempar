@@ -53,9 +53,10 @@ contains
     type(fem_block_matrix), intent(inout)     :: a
 
     integer(ip) :: ivar, start(dhand%problems(elem%problem)%nvars+1)
+    ! JP: end not needed?
     integer(ip) :: end(dhand%problems(elem%problem)%nvars+1), iblock, jblock
     
-
+    ! JP: I also need start when writing problems to acces the element matrix...
     ! Assuming a monolithic problem matrix
     do ivar = 1,dhand%problems(elem%problem)%nvars
       start(ivar+1) = start(ivar+1) + elem%f_inf(ivar)%p%nnode
@@ -81,6 +82,7 @@ contains
     type(fem_matrix), intent(inout)           :: a
 
     integer(ip) :: ivar, start(dhand%problems(elem%problem)%nvars+1)
+    ! JP: end not needed?
     integer(ip) :: end(dhand%problems(elem%problem)%nvars+1), iblock, jblock
     
 

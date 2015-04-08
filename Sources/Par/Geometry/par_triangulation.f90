@@ -265,7 +265,7 @@ contains
 
     ! Locals
     integer(ip)               :: i, j, k, iobj, jelem, est_max_nparts
-    integer(ip)               :: ipart, istat, count 
+    integer(ip)               :: ipart, istat, count , touch
     integer(igp), allocatable :: lst_parts_per_itfc_obj (:,:)
     integer(igp), allocatable :: ws_lobjs_temp (:,:)
     integer(igp), allocatable :: sort_parts_per_itfc_obj_l1 (:)
@@ -286,11 +286,13 @@ contains
 
     call memalloc ( est_max_nparts+2, p_trian%num_itfc_objs, lst_parts_per_itfc_obj, __FILE__,__LINE__ )
 
+    touch = 1
     p_trian%max_nparts = 0
     lst_parts_per_itfc_obj = 0
     do i=1, p_trian%num_itfc_objs
        call ws_parts_visited%init(tbl_length)
-       call ws_parts_visited%put(key=ipart,val=1,stat=istat)
+       !call ws_parts_visited%put(key=ipart,val=1,stat=istat)
+       call ws_parts_visited%put(key=ipart,val=touch,stat=istat)
 
        lst_parts_per_itfc_obj (2,i) = ipart
        count = 1
@@ -300,7 +302,8 @@ contains
        ! Count/list parts around iobj 
        do j=1, p_trian%f_trian%objects(iobj)%num_elems_around 
           jelem=p_trian%f_trian%objects(iobj)%elems_around(j)
-          call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+          !call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+          call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=touch,stat=istat)
           if ( istat == now_stored ) then
                count = count + 1
                lst_parts_per_itfc_obj (count+1,i) = p_trian%elems(jelem)%mypart 

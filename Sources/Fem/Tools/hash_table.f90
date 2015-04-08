@@ -98,7 +98,25 @@ module hash_table_names
 #define status_hash_table  status_hash_table_igp_ip
 #include "hash_table_header.i90"
 
-  public :: hash_table_ip_ip, hash_table_igp_ip
+#define hash_table position_hash_table
+#define hash_node  position_hash_node
+#define key_type   integer(ip)
+#define val_type   integer(ip)
+#define put_hash_node     put_hash_node_position   
+#define get_hash_node     get_hash_node_position   
+#define del_hash_node     del_hash_node_position   
+#define free_hash_node    free_hash_node_position  
+#define print_hash_node   print_hash_node_position 
+#define init_hash_table   init_hash_table_position 
+#define put_hash_table    put_hash_table_position  
+#define get_hash_table    get_hash_table_position  
+#define del_hash_table    del_hash_table_position  
+#define free_hash_table   free_hash_table_position 
+#define print_hash_table  print_hash_table_position
+#define status_hash_table  status_hash_table_position
+#include "hash_table_header.i90"
+
+  public :: position_hash_table, hash_table_ip_ip, hash_table_igp_ip
 
   public :: was_stored, now_stored, bad_keyval, key_found, key_not_found, deleted, error
 
@@ -144,6 +162,25 @@ contains
 #define free_hash_table   free_hash_table_igp_ip 
 #define print_hash_table  print_hash_table_igp_ip
 #define status_hash_table  status_hash_table_igp_ip
+#include "hash_table_body.i90"
+
+#define position
+#define hash_table position_hash_table
+#define hash_node  position_hash_node
+#define key_type   integer(ip)
+#define val_type   integer(ip)
+#define put_hash_node     put_hash_node_position   
+#define get_hash_node     get_hash_node_position   
+#define del_hash_node     del_hash_node_position   
+#define free_hash_node    free_hash_node_position  
+#define print_hash_node   print_hash_node_position 
+#define init_hash_table   init_hash_table_position 
+#define put_hash_table    put_hash_table_position  
+#define get_hash_table    get_hash_table_position  
+#define del_hash_table    del_hash_table_position  
+#define free_hash_table   free_hash_table_position 
+#define print_hash_table  print_hash_table_position
+#define status_hash_table  status_hash_table_position
 #include "hash_table_body.i90"
 
 end module hash_table_names

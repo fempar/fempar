@@ -172,7 +172,7 @@ contains
      integer(ip)   , allocatable, intent(out) ::  lexte(:)    ! Edge information of external neighbors
      integer(ip)   , allocatable, optional, intent(out) ::  lextm(:)    ! Edge information of external neighbors
 
-     integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat
+     integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat, touch
      integer(ip) :: nextn, nexte, nepos
      integer(ip), allocatable :: local_visited(:)
      type(hash_table_ip_ip)   :: external_visited
@@ -210,6 +210,7 @@ contains
      call external_visited%init(20)
 
      ! 1) Count boundary elements and external edges
+     touch = 1
      nebou = 0 ! number of boundary elements
      nextn = 0 ! number of external edges
      do lelem = 1, lmesh%nelem
@@ -230,7 +231,8 @@ contains
                  jpart = dual_parts(pelem)
                  if(jpart/=my_part) then                                   ! This is an external element
                     if(local_visited(lelem) == 0 ) nebou = nebou +1        ! Count it
-                    call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
+                    !call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
+                    call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
                     if(istat==now_stored) nexte = nexte + 1                ! Count external neighbours of lelem
                     local_visited(lelem) = nexte                           ! Touch lelem also storing the number
                  end if                                                    ! of external neighbours it has
