@@ -61,9 +61,9 @@ program test_dirsol_mm
   character(len=256)       :: prefix
   character(len=256)       :: name 
 
-  integer(ip)      :: smoother
-  logical          :: one_pass_coarsen
-  real(rp)         :: st_parameter
+  integer(ip)      :: smoother = 2               ! Default value (Symmetric Gauss-Seidel)
+  logical          :: one_pass_coarsen = .false. ! Default value
+  real(rp)         :: st_parameter=0.25_rp       ! Default value
   real(8)          :: t1, t2, gerror, aerror
 
   logical          :: from_file

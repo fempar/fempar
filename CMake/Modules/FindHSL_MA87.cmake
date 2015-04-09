@@ -21,9 +21,9 @@ SET(DEFAULT_LIB_PATHS /lib /lib32 /lib64 /usr/lib /usr/lib32 /usr/lib64 /usr/loc
 
 SET(LIB_PREFIX HSL_MA87)
 SET(${LIB_PREFIX}_LIB_NAME hsl_ma87)
-SET(${LIB_PREFIX}_INC_FILENAME hsl_ma87.h)
-SET(${LIB_PREFIX}_INC_SUFFIXES "include" "hsl_ma87" "include/hsl_ma87")
-SET(${LIB_PREFIX}_LIB_SUFFIXES "lib" "hsl_ma87" "lib/hsl_ma87" "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "${CMAKE_LIBRARY_ARCHITECTURE}")
+SET(${LIB_PREFIX}_INC_FILENAME hsl_ma87_double.mod)
+SET(${LIB_PREFIX}_INC_SUFFIXES "include" "hsl_ma87" "include/hsl_ma87" "hsl_ma87/${CMAKE_Fortran_COMPILER_ID}")
+SET(${LIB_PREFIX}_LIB_SUFFIXES "lib" "hsl_ma87" "lib/hsl_ma87" "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "${CMAKE_LIBRARY_ARCHITECTURE}" "hsl_ma87/${CMAKE_Fortran_COMPILER_ID}")
 
 SET(${LIB_PREFIX}_FOUND FALSE)
 
