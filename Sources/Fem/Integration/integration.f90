@@ -76,7 +76,7 @@ module volumne_integration_names
   ! That way only one quadrature and gint per element type.
 
   type vol_integ
-     integer(ip)              :: ltype(2)    ! Tags to identify element
+     !integer(ip)              :: ltype(2)    ! Tags to identify element
      type(quadrature)         :: quad        ! Quadrature rules for elements
      type(interpolation)      :: uint_ref    ! Unknown interpolation in the reference element domain
      type(interpolation)      :: uint_phy    ! Unknown interpolation in the physical element domain
@@ -179,8 +179,6 @@ contains
 
   !==================================================================================================
 
-
-
   subroutine vol_integ_create(gtype,utype,ndime,g_ord,u_ord,integ,khie,mnode)
     implicit none
     ! Parameters
@@ -197,8 +195,8 @@ contains
     logical(lg) :: khier
 
     ! Store identifiers of element
-    integ%ltype(1) = gtype
-    integ%ltype(2) = utype
+    !integ%ltype(1) = gtype
+    !integ%ltype(2) = utype
 
     ! Hesssian interpolation
     if(.not.present(khie)) then    
@@ -491,7 +489,7 @@ contains
     ! Destruct fe map
     call femap_free(integ%femap)
 
-    integ%ltype = 0
+    !integ%ltype = 0
   end subroutine vol_integ_free
 
   ! ================================================================================================

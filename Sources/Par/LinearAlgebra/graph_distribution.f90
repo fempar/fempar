@@ -69,6 +69,10 @@ module graph_distribution_names
   contains
 
   !=============================================================================
+    ! dhand is pointed inside femsp. It is really needed as arg?
+    ! Could we eliminate this pointer inside femsp? That would require to
+    ! store the problem on each element instead of an integer a id to
+    ! identify it.
     subroutine graph_distribution_create(p_trian, femsp, dhand, gdist)
       implicit none
       ! Parameters
