@@ -269,7 +269,7 @@ contains
     integer(ip), optional, intent(in)      :: num_ghosts
 
     ! Locals
-    integer(ip)              :: ielem, iobj, jobj, istat, idime, num_elems
+    integer(ip)              :: ielem, iobj, jobj, istat, idime, num_elems, touch
     type(hash_table_ip_ip)   :: visited
     integer(ip), allocatable :: elems_around_pos(:)
 
@@ -285,11 +285,13 @@ contains
     ! Count objects
     call visited%init(max(5,int(real(num_elems,rp)*0.2_rp,ip))) 
     trian%num_objects = 0
+    touch = 1
     do ielem=1, num_elems
        do iobj=1, trian%elems(ielem)%num_objects
           jobj = trian%elems(ielem)%objects(iobj)
           if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
-             call visited%put(key=jobj, val=1, stat=istat)
+             !call visited%put(key=jobj, val=1, stat=istat)
+             call visited%put(key=jobj, val=touch, stat=istat)
              if (istat == now_stored) trian%num_objects = trian%num_objects + 1
           end if
        end do

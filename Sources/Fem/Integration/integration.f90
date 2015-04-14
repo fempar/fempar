@@ -60,8 +60,21 @@ module volume_integration_names
   ! In any case it seems that both geometry and unknonws interpolations should
   ! go together. The interest of separating then would be to have one geometric
   ! space and two different fem_spaces. But then, having two different interpolations
-  ! for the unknown would require two geometric interpolations too, as the quadrature
+  ! for the unknown would require two geometric interpolations too, as the quadratures
   ! are different...
+
+  ! The previous comments being correct, there is a problem with the current design:
+  ! in one element we have (potentially) many different interpolations for the unknown.
+  ! That is, u_int should be a vector of size num_vars, see fem_space.f90
+  ! In this (multiphysics) case...who decides the number of quadrature points?
+  ! Is that currently considered in the code?
+  ! No, each interpolation is built independently of each other, see fem_space.f90
+  ! lines 440-455. The number of quad points is selected from using max_nnode
+
+  ! I would change this to store uint_ref(nvars), uint_phy(nvars), order(nvars) inside
+  ! vol_integ (renamed to element_integrator) and face_integ (renamed to face_integrator).
+  ! That way only one quadrature and gint per element type.
+
   type vol_integ
      integer(ip)              :: ltype(2)    ! Tags to identify element
      type(quadrature)         :: quad        ! Quadrature rules for elements
@@ -169,6 +182,9 @@ module integration_names
 contains
 
   !==================================================================================================
+
+
+
   subroutine vol_integ_create(gtype,utype,ndime,g_ord,u_ord,integ,khie,mnode)
     implicit none
     ! Parameters

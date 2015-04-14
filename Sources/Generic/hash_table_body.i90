@@ -61,9 +61,9 @@
 recursive subroutine put_hash_node(list,key,val,stat)
   class(hash_node), target, intent(inout) :: list
   key_type                , intent(in)    :: key
-  val_type                , intent(in)    :: val
+  val_type                , intent(inout) :: val   ! val = list%val if it was stored
   integer(ip)             , intent(out)   :: stat
-  class(hash_node)         , pointer       :: newel => null()
+  class(hash_node)         , pointer      :: newel => null()
 
   if(key>list%key) then
      if(associated(list%child) ) then
@@ -83,7 +83,8 @@ recursive subroutine put_hash_node(list,key,val,stat)
   else if(key==list%key) then
      ! Already stored
      stat = was_stored
-     ! ! Already stored, check val
+     val = list%val
+     ! Already stored, check val
      ! if(val==list%val) then
      !    stat = was_stored
      ! else
@@ -94,16 +95,16 @@ recursive subroutine put_hash_node(list,key,val,stat)
      !
      ! Insert an element just after this one,
      ! copy list keyval and store keyval in list.
-!!$     allocate(newel)
-!!$     newel%child => list%child
-!!$     newel%parent => list
-!!$     newel%key = list%key
-!!$     newel%val = list%val
-!!$     if(associated(list%child)) list%child%parent => newel
-!!$     list%child => newel
-!!$     list%key = key
-!!$     list%val = val
-!!$     stat = now_stored
+     ! allocate(newel)
+     ! newel%child => list%child
+     ! newel%parent => list
+     ! newel%key = list%key
+     ! newel%val = list%val
+     ! if(associated(list%child)) list%child%parent => newel
+     ! list%child => newel
+     ! list%key = key
+     ! list%val = val
+     ! stat = now_stored
      !
      newel => list%child        ! keep the reference to old child
      allocate(list%child)       ! Allocate a new child
@@ -122,7 +123,7 @@ recursive subroutine del_hash_node(list,key,stat)
   class(hash_node), target, intent(inout) :: list
   key_type                , intent(in)    :: key
   integer(ip)             , intent(out)   :: stat
-  class(hash_node)         , pointer       :: tmp => null()
+  class(hash_node)         , pointer      :: tmp => null()
 
   if(key==list%key) then
      !if(associated(list%parent)) then ! this is not the first element
@@ -230,20 +231,46 @@ subroutine init_hash_table(tbl,tbl_len,tbl_min,tbl_max)
 
 end subroutine init_hash_table
 
+#ifdef position
+subroutine get_position_hash_table(tbl,key,pos,stat)
+  class(hash_table)  , intent(inout) :: tbl
+  key_type           , intent(in)    :: key
+  val_type           , intent(out)   :: pos
+  integer(ip)        , intent(out)   :: stat
+  integer(ip)                        :: hash
+
+  pos = tbl%counter+1
+
+  ! Copy body of put_hash_table to avoid the extra call
+  ! call put_hash_table(tbl,key,pos,stat)
+  assert (key>=int(tbl%vec_min,key_size))
+  hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
+  assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
+!$OMP CRITICAL (hash_table_lock)
+  call tbl%vec(hash)%put(key=key,val=pos,stat=stat)
+!$OMP END CRITICAL (hash_table_lock)
+
+  if(stat==now_stored) then
+     tbl%counter = tbl%counter + 1
+  end if
+
+end subroutine get_position_hash_table
+#endif 
+
 subroutine put_hash_table(tbl,key,val,stat)
   class(hash_table)  , intent(inout) :: tbl
   key_type           , intent(in)    :: key
-  val_type           , intent(in)    :: val
+  val_type           , intent(inout) :: val
   integer(ip)        , intent(out)   :: stat
   integer(ip)                        :: hash
 
   assert (key>=int(tbl%vec_min,key_size))
-  
   ! mod function is always a problem if mixed integers are used.
   ! hash = tbl%vec_min +  mod((key-tbl%vec_min),tbl%vec_len)
-  !hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
+  ! hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
   hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
+
 !$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%put(key=key,val=val,stat=stat)
 !$OMP END CRITICAL (hash_table_lock)

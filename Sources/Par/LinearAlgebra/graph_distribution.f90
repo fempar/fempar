@@ -80,7 +80,7 @@ module graph_distribution_names
       ! Locals
       integer(ip)               :: i, j, k, iobj, ielem, jelem, iprob, nvapb, l_var, g_var, mater, obje_l, idof, g_dof, g_mat, l_pos, iblock, ivars
       integer(ip)               :: est_max_nparts, est_max_itf_dofs
-      integer(ip)               :: ipart, nparts, istat, count, nparts_around
+      integer(ip)               :: ipart, nparts, istat, count, nparts_around, touching
       integer(igp), allocatable :: lst_parts_per_dof_obj (:,:)
       integer(igp), allocatable :: ws_lobjs_temp (:,:)
       integer(igp), allocatable :: sort_parts_per_itfc_obj_l1 (:)
@@ -202,6 +202,7 @@ module graph_distribution_names
          gdist(iblock)%num_parts = nparts
          npadj     = 0
 
+         touching = 1
          count = 0
          max_nparts = 0
          do i = 1, p_trian%num_itfc_objs
@@ -226,7 +227,8 @@ module graph_distribution_names
                         if ( p_trian%f_trian%elems(jelem)%objects(obje_l) == iobj ) exit
                      end do
 
-                     call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                     !call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                     call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=touching,stat=istat)
                      if ( istat == now_stored ) then
                         touch(mater,g_var,1) = touch(mater,g_var,1) + 1 ! New part in the counter  
                         !write(*,*) 'touch',touch
@@ -241,7 +243,8 @@ module graph_distribution_names
                         touch(mater,g_var,5) = obje_l
                      end if
                      if ( p_trian%elems(jelem)%mypart /= ipart ) then
-                        call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                        !call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
+                        call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=touching,stat=istat)
                         if ( istat == now_stored ) then
                            npadj = npadj + 1
                            ws_parts_visited_list_all(npadj) = p_trian%elems(jelem)%mypart

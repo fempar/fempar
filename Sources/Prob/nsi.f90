@@ -30,6 +30,7 @@ module nsi
  use memor
  use fem_space_names
  use problem_names
+ use element_fields_names
  use element_tools_names
  implicit none
  private 
@@ -105,6 +106,9 @@ contains
     prob%vars_of_unk(1) = ndime
     prob%vars_of_unk(2) = 1
 
+    !prob%vars_of_unk(2) = prob%vars_of_unk(1) + 1
+    !prob%vars_of_unk(3) = prob%vars_of_unk(2) + 1
+
     ! Should be overwritten by the driver in a multiphyiscs context
     call memalloc(prob%nvars,prob%l2g_var,__FILE__,__LINE__)
     do i = 1,prob%nvars
@@ -152,13 +156,13 @@ contains
     
   end subroutine nsi_create
 
-  subroutine nsi_matvec(prob,K,mat,vec)
+  subroutine nsi_matvec(prob,K)
     ! Thinking about e.g. iss + su
     implicit none
     class(nsi_problem), intent(inout) :: prob
-    type(fem_element), intent(inout) :: K
-    real(rp), intent(inout) :: mat(:,:)
-    real(rp), intent(inout) :: vec(:)
+    type(fem_element) , intent(inout) :: K
+    !real(rp), intent(inout) :: mat(:,:)
+    !real(rp), intent(inout) :: vec(:)
 
     type(basis_function) :: u ! Trial
     type(basis_function) :: p 
@@ -169,8 +173,8 @@ contains
     type(vector) :: u_n
     type(scalar) :: h,tau
 
-    integer(ip)     :: ndime
-
+    integer(ip)  :: ndime
+    real(rp)     :: dtinv, c1, c2, mu
     ndime = prob%ndime
 
     u = basis_function(prob,1,K)
@@ -178,26 +182,32 @@ contains
     v = basis_function(prob,1,K) 
     q = basis_function(prob,2,K)
 
-    ! With a_h declared as given_function we can do:
+    ! With a_h declared as given_function we could do:
     ! a_h   = given_function(prob,1,1,K)
     ! call interpolation(grad(a_h),grad_a) 
     ! with grad_a declared as tensor and, of course
     ! call interpolation(grad(given_function(prob,1,1,K)),grad_a)
-    !
+    ! is also possible.
     call interpolation(given_function(prob,1,1,K),a)
     call interpolation(given_function(prob,1,3,K),u_n)
 
-    !h   = K%length(1)
-    !h   = K%length(ndime)
+    ! Dirty, isnt'it?
+    !h%a=K%integ(u%ivar)%p%femap%hleng(1,:)     ! max
+    h%a=K%integ(u%ivar)%p%femap%hleng(ndime,:) ! min
 
-    !dt  = prob%dt
-    
-    !tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
-    !tau = inv(tau)
-    
-    !mat = inv(dt)*integral(v,u) + integral(v, a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
+    dtinv  = prob%dtinv
+    mu = prob%diffu
+    c1 = prob%k1tau
+    c2 = prob%k1tau
 
-    !mat = integral(v,inv(dt)*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+    tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
+    tau = inv(tau)
+    
+    K%p_mat = integral(v,dtinv*u)
+    !mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
+
+    ! This will not work right now becaus + of basis_functions and gradients is not defined.
+    !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
   end subroutine nsi_matvec
 

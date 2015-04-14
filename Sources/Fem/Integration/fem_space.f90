@@ -133,6 +133,7 @@ module fem_space_names
 
      ! Element common information
      type (hash_table_ip_ip)            :: ht_elem_info
+     ! JP: change to fixed size array? Inline to the previous cases...
      type (fem_fixed_info), allocatable :: lelem_info(:)
      integer(ip)                        :: cur_elinf
 
@@ -370,6 +371,7 @@ contains
           !write(*,*) 'l2g', fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar)
           !write(*,*) 'cont',continuity(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
 
+          ! JP: indices of these arrays (continuity and order) should be changed to (nvars,nelem)
           fspac%lelem(ielem)%continuity(ivar) = continuity(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
           fspac%lelem(ielem)%order(ivar) = order(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
           f_order = fspac%lelem(ielem)%order(ivar)
@@ -413,6 +415,8 @@ contains
        max_num_nodes = 0
        do ivar=1,nvars
           if ( fspac%static_condensation ) then
+             ! JP: Is this working? Because max_num_nodes is sent to integ_create to build the interpolation
+             !     which is needed even with static_condensation...
              nnode = fspac%lelem(ielem)%f_inf(ivar)%p%nnode -                                   &
                   &  fspac%lelem(ielem)%f_inf(ivar)%p%nodes_obj(dim+1) ! SB.alert : do not use nodes_obj
           else
@@ -451,6 +455,9 @@ contains
        ! Assign pointers to volume integration
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars
+          ! Here f_order should be taken from fspac%lelem(ielem)%order(ivar), doesn't it?
+          !f_order = fspac%lelem(ielem)%order(ivar)
+          ! Otherwise all the variables have the same order.
           ltype(1) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
           call fspac%ht_pos_vol_integ%put(key=v_key, val=fspac%cur_lvoli, stat = istat)

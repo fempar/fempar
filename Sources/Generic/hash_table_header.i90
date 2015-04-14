@@ -52,9 +52,10 @@
   end type hash_node
 
   type hash_table
-     type(hash_node)       , dimension(:), allocatable :: vec
+     type(hash_node), dimension(:), allocatable :: vec
      integer(ip)                                :: vec_min = 0
      integer(ip)                                :: vec_len = 0
+     integer(ip)                                :: counter = 0
      logical                                    :: is_init = .false.
    contains
      procedure :: init => init_hash_table
@@ -64,4 +65,7 @@
      procedure :: free => free_hash_table
      procedure :: print => print_hash_table
      procedure :: status => status_hash_table
+#ifdef position
+     procedure :: get_position => get_position_hash_table
+#endif
   end type hash_table
