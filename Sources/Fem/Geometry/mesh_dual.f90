@@ -108,7 +108,7 @@ contains
        ! For each face we construct two entities
        do one_or_two = 1,2
           ! One of the objects around iface
-          gelem = femsp%lface(iface)%nei_elem(one_or_two)
+          gelem = femsp%lface(iface)%neighbor_element(one_or_two)
           ! Loop over the objects of gelem
           do inode= primal_mesh%pnods(gelem),primal_mesh%pnods(gelem+1)-1
              ! Global id of the object
@@ -119,10 +119,10 @@ contains
           
           ! The other object (we will only take in account its objects on the face)
           ! TODO: For 3D, we are not considering the edges in the face
-          neigh_elem = femsp%lface(iface)%nei_elem(3-one_or_two)
+          neigh_elem = femsp%lface(iface)%neighbor_element(3-one_or_two)
           ! The local object corresponding to the face
           iobje = femsp%lelem(neigh_elem)%p_geo_info%nobje_dim(primal_mesh%ndime) +                 &
-               &  femsp%lface(iface)%pos_elem(3-one_or_two) - 1
+               &  femsp%lface(iface)%local_face(3-one_or_two) - 1
           ! Loop over the local corners in iobje
           do inode = femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje),                             &
                &     femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje+1)-1
@@ -223,7 +223,7 @@ contains
        ! For each face we construct two entities
        do one_or_two = 1,2
           ! One of the objects around iface
-          gelem = femsp%lface(iface)%nei_elem(one_or_two)
+          gelem = femsp%lface(iface)%neighbor_element(one_or_two)
           ! Loop over the objects of gelem
           do inode= primal_mesh%pnods(gelem),primal_mesh%pnods(gelem+1)-1
              ! Global id of the object
@@ -235,10 +235,10 @@ contains
           
           ! The other object (we will only take in account its objects on the face)
           ! TODO: For 3D, we are not considering the edges in the face
-          neigh_elem = femsp%lface(iface)%nei_elem(3-one_or_two)
+          neigh_elem = femsp%lface(iface)%neighbor_element(3-one_or_two)
           ! The local object corresponding to the face
           iobje = femsp%lelem(neigh_elem)%p_geo_info%nobje_dim(primal_mesh%ndime) +                 &
-               &  femsp%lface(iface)%pos_elem(3-one_or_two) - 1
+               &  femsp%lface(iface)%local_face(3-one_or_two) - 1
           ! Loop over the local corners in iobje
           do inode = femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje),                             &
                &     femsp%lelem(neigh_elem)%p_geo_info%crxob%p(iobje+1)-1

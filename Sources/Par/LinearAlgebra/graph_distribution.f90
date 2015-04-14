@@ -152,7 +152,7 @@ module graph_distribution_names
          call memalloc ( nparts, ws_parts_visited_list_all, __FILE__, __LINE__ )
 
          call memalloc ( est_max_nparts+4, est_max_itf_dofs, lst_parts_per_dof_obj, __FILE__, __LINE__ )
-         call memalloc ( femsp%num_materials, dhand%nvars_global, est_max_nparts+5 , touch, __FILE__, __LINE__ )
+         call memalloc ( femsp%num_continuity, dhand%nvars_global, est_max_nparts+5 , touch, __FILE__, __LINE__ )
          call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
          call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
 
@@ -219,7 +219,7 @@ module graph_distribution_names
                do ivars = 1, nvapb
                   !l_var = g2l(ivars,iprob)
                   l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                  if ( femsp%lelem(jelem)%continuity(l_var) ) then
+                  if ( femsp%lelem(jelem)%continuity(l_var) /= 0 ) then
                      g_var = dhand%problems(iprob)%l2g_var(l_var)
                      mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
                      do obje_l = 1, p_trian%f_trian%elems(jelem)%num_objects
@@ -258,7 +258,7 @@ module graph_distribution_names
 
             ! Sort list of parts in increasing order by part identifiers
             ! This is required by the call to icomp subroutine below 
-            do mater = 1, femsp%num_materials
+            do mater = 1, femsp%num_continuity
                do g_var = 1, dhand%nvars_global
                   call sort ( touch(mater,g_var,1), touch(mater,g_var,6:(touch(mater,g_var,1)+5)) )
                end do

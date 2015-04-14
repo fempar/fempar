@@ -86,7 +86,7 @@ contains
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
     integer(ip) :: obje_l, inode, l_node, elem_ext, obje_ext, prob_ext, l_var_ext, inode_ext, inode_l
     integer(ip) :: mater, order, nnode
-    integer(ip) :: touch(femsp%num_materials,dhand%nvars_global,2)
+    integer(ip) :: touch(femsp%num_continuity,dhand%nvars_global,2)
 
     integer(ip)     :: o2n(max_nnode)
 
@@ -107,10 +107,9 @@ contains
                    !l_var = g2l(ivars,iprob)
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%l2g_var(l_var)
-
-                   if ( femsp%lelem(jelem)%continuity(g_var) ) then
-
-                      mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
+                   
+                   if ( femsp%lelem(jelem)%continuity(g_var) /= 0 ) then
+                      mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
                       do obje_l = 1, trian%elems(jelem)%num_objects
                          if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                       end do
@@ -159,7 +158,7 @@ contains
                                elseif ( nnode ==  (order-1)**trian%objects(iobje)%dimension ) then
                                   order = order -2 ! cG case
                                else
-                                  assert ( 0 == 1) ! SB.alert : Other situations possible when dG_material, cdG, hp-adaptivity ?
+                                  assert ( 0 == 1) ! SB.alert : Other situations possible when dG_continuity, cdG, hp-adaptivity ?
                                end if
 
                                !write (*,*) 'order',order
@@ -190,7 +189,7 @@ contains
                                   femsp%lelem(jelem)%elem2dof(inode_l,l_var) = femsp%lelem(elem_ext)%elem2dof(inode_ext,l_var_ext)
                                end do ! SB.alert : 1) face object for cG and hdG, where the face must have all their nodes
                                !                   2) corner / edge only for cG
-                               !            * Never here for dG, material interface, hanging objects, etc.
+                               !            * Never here for dG, continuity interface, hanging objects, etc.
                             end if
                          end if
                       end if
@@ -245,7 +244,7 @@ contains
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
     integer(ip) :: obje_l, inode, l_node, mater, istat
-    integer(ip) :: touch(dhand%nvars_global,femsp%num_materials)
+    integer(ip) :: touch(dhand%nvars_global,femsp%num_continuity)
 
     allocate( femsp%object2dof(dhand%nblocks), stat = istat )
     check( istat == 0)
@@ -261,26 +260,28 @@ contains
              jelem = trian%objects(iobje)%elems_around(ielem)
              if ( jelem <= trian%num_elems ) then 
                 iprob = femsp%lelem(jelem)%problem
-                mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p
                 nvapb = dhand%prob_block(iblock,iprob)%nd1
                 !write(*,*) 'nvapb:',nvapb
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%l2g_var(l_var)
-                   if ( touch(g_var,mater) == 0 .and. femsp%lelem(jelem)%continuity(g_var) ) then
-                      touch(g_var,mater) = 1
-                      do obje_l = 1, trian%elems(jelem)%num_objects
-                         if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
-                      end do
-                      if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
-                         !write (*,*) 'ADD TO OBJECT',iobje,' #DOFS',femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
-                         ! & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
-                         femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
-                              & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
-                         !do inode = 1, femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje+1) - &
-                         !     & femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje)
-                         !femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje)%nd1
-                         !end do
+                   mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p
+                   if ( mater /= 0 ) then
+                      if ( touch(g_var,mater) == 0 ) then
+                         touch(g_var,mater) = 1
+                         do obje_l = 1, trian%elems(jelem)%num_objects
+                            if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
+                         end do
+                         if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
+                            !write (*,*) 'ADD TO OBJECT',iobje,' #DOFS',femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
+                            ! & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
+                            femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
+                                 & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
+                            !do inode = 1, femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje+1) - &
+                            !     & femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje)
+                            !femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%(iobje)%nd1
+                            !end do
+                         end if
                       end if
                    end if
                 end do
@@ -305,28 +306,30 @@ contains
              jelem = trian%objects(iobje)%elems_around(ielem)
              if ( jelem <= trian%num_elems ) then 
                 iprob = femsp%lelem(jelem)%problem
-                mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p
                 nvapb = dhand%prob_block(iblock,iprob)%nd1
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%l2g_var(l_var)
-                   if ( touch(g_var,mater) == 0 .and. femsp%lelem(jelem)%continuity(g_var) ) then
-                      touch(g_var,mater) = 1
-                      do obje_l = 1, trian%elems(jelem)%num_objects
-                         if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
-                      end do
-                      if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
-                         do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l), &
-                              &     femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
-
-                            !1, femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) - &
-                            !                        & femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
-                            l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
-                            count = count + 1
-                            femsp%object2dof(iblock)%l(count,1) = femsp%lelem(jelem)%elem2dof(l_node,l_var)
-                            femsp%object2dof(iblock)%l(count,2) = dhand%problems(iprob)%l2g_var(l_var)
-                            femsp%object2dof(iblock)%l(count,3) = mater
+                   mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p
+                   if ( mater /= 0) then
+                      if ( touch(g_var,mater) == 0 ) then
+                         touch(g_var,mater) = 1
+                         do obje_l = 1, trian%elems(jelem)%num_objects
+                            if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                          end do
+                         if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
+                            do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l), &
+                                 &     femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
+
+                               !1, femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) - &
+                               !                        & femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
+                               l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
+                               count = count + 1
+                               femsp%object2dof(iblock)%l(count,1) = femsp%lelem(jelem)%elem2dof(l_node,l_var)
+                               femsp%object2dof(iblock)%l(count,2) = dhand%problems(iprob)%l2g_var(l_var)
+                               femsp%object2dof(iblock)%l(count,3) = mater
+                            end do
+                         end if
                       end if
                    end if
                 end do
@@ -434,7 +437,6 @@ contains
                       if (.not.femsp%static_condensation) then  ! interface-interior
                          ! jobje = jobje 
                          iprob = femsp%lelem(jelem)%problem
-                         l_mat = femsp%lelem(jelem)%material
                          do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
                             l_dof = femsp%object2dof(iblock)%l(idof,1)
                             l_var = femsp%object2dof(iblock)%l(idof,2)
@@ -507,9 +509,9 @@ contains
                          end do
                       end if
                    end do
-                   if ( femsp%lelem(ielem)%continuity(g_var) ) then
+                   l_mat = femsp%lelem(ielem)%continuity(g_var)
+                   if ( l_mat /= 0 ) then
                       ! Interior - interface (inside element)
-                      l_mat = femsp%lelem(ielem)%material
                       do jobje = 1, trian%elems(ielem)%num_objects
                          job_g = trian%elems(ielem)%objects(jobje)
                          do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
@@ -546,9 +548,9 @@ contains
              do i=1,2
                 ielem = trian%objects(iobje)%elems_around(i)
                 jelem = trian%objects(iobje)%elems_around(3-i)
-                l_faci = local_position(femsp%integration_interior_faces(iface),trian%elems(ielem)%objects, &
+                l_faci = local_position(femsp%interior_faces(iface)%face_object,trian%elems(ielem)%objects, &
                      & trian%elems(ielem)%num_objects )
-                l_facj = local_position(femsp%integration_interior_faces(iface),trian%elems(jelem)%objects, &
+                l_facj = local_position(femsp%interior_faces(iface)%face_object,trian%elems(jelem)%objects, &
                      & trian%elems(jelem)%num_objects )
                 iprob = femsp%lelem(ielem)%problem
                 jprob = femsp%lelem(jelem)%problem
@@ -736,7 +738,7 @@ contains
                          end do
                       end if
                    end do
-                   if ( femsp%lelem(ielem)%continuity(g_var) ) then
+                   if ( femsp%lelem(ielem)%continuity(g_var) /= 0 ) then
                       ! Interior - border (inside element)
                       do jobje = 1, trian%elems(ielem)%num_objects
                          job_g = trian%elems(ielem)%objects(jobje)
@@ -772,9 +774,9 @@ contains
              do i=1,2
                 ielem = trian%objects(iobje)%elems_around(i)
                 jelem = trian%objects(iobje)%elems_around(3-i)
-                l_faci = local_position(femsp%integration_interior_faces(iface),trian%elems(ielem)%objects, &
+                l_faci = local_position(femsp%interior_faces(iface)%face_object,trian%elems(ielem)%objects, &
                      & trian%elems(ielem)%num_objects )
-                l_facj = local_position(femsp%integration_interior_faces(iface),trian%elems(jelem)%objects, &
+                l_facj = local_position(femsp%interior_faces(iface)%face_object,trian%elems(jelem)%objects, &
                      & trian%elems(jelem)%num_objects )
                 iprob = femsp%lelem(ielem)%problem
                 jprob = femsp%lelem(jelem)%problem
