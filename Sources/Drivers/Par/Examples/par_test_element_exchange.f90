@@ -116,7 +116,7 @@ program par_test_element_exchange
        & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
        & static_condensation = logical(.false.,lg), num_materials = 1 )
 
-  call create_global_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
+  call create_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
 
   ! call fem_space_print( 6, fspac )
 

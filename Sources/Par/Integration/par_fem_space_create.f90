@@ -61,17 +61,17 @@ contains
   ! dof graph distribution.
   !*********************************************************************************
   subroutine par_fem_space_create ( p_trian, dhand, femsp, problem, continuity, order, material, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials  )
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity  )
     implicit none
     type(par_triangulation), intent(inout) :: p_trian
     type(dof_handler), intent(in)       :: dhand
     type(fem_space), intent(inout)      :: femsp  
     integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
-    logical(lg),     intent(in)       :: continuity(:,:)
+    integer(ip),     intent(in)       :: continuity(:,:)
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_materials 
+    integer(ip), optional, intent(in) :: num_continuity 
 
     integer(ip) :: num_elems, num_ghosts, ielem
 
@@ -82,8 +82,8 @@ contains
     call fem_space_create( p_trian%f_trian, dhand, femsp, &
          & problem, continuity, order, material, time_steps_to_store = time_steps_to_store, &
          & hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
-         & num_materials = num_materials, num_ghosts = p_trian%num_ghosts )
- 
+         & num_continuity = num_continuity, num_ghosts = p_trian%num_ghosts )
+
     ! Communicate problem, continuity, order, and material
     write(*,*) '***** EXCHANGE GHOST INFO *****'
     call ghost_elements_exchange ( p_trian%p_context%icontxt, p_trian%f_el_import, femsp%lelem )
@@ -152,6 +152,47 @@ contains
        end do
     end do
   end subroutine ghost_fe_list_create
+
+  subroutine interface_faces_list( p_trian, femsp ) 
+    implicit none
+    ! Parameters
+    type(par_triangulation), intent(in)       :: p_trian 
+    type(fem_space), intent(inout)            :: femsp
+
+    integer(ip) :: count_int, iobje, ielem, istat
+
+    ! interface faces (among subdomains)
+
+    count_int = 0
+    do iobje = 1, p_trian%f_trian%num_objects
+       if ( p_trian%f_trian%objects(iobje)%dimension == p_trian%f_trian%num_dims-1 ) then
+          if (p_trian%objects(iobje)%interface == 1 ) then
+             assert( p_trian%f_trian%objects(iobje)%num_elems_around == 2 )
+             ielem = p_trian%f_trian%objects(iobje)%elems_around(1)
+             count_int = count_int + 1
+             !femsp%interface_faces(count_int) = iobje
+          end if
+       end if
+    end do
+
+    allocate( femsp%interface_faces(count_int), stat=istat)
+    check ( istat == 0 )
+
+    count_int = 0
+    do iobje = 1, p_trian%f_trian%num_objects
+       if ( p_trian%f_trian%objects(iobje)%dimension == p_trian%f_trian%num_dims-1 ) then
+          if (p_trian%objects(iobje)%interface == 1 ) then
+             assert( p_trian%f_trian%objects(iobje)%num_elems_around == 2 )
+             ielem = p_trian%f_trian%objects(iobje)%elems_around(1)
+             count_int = count_int + 1
+             femsp%interface_faces(count_int)%face_object = iobje
+          end if
+       end if
+    end do
+
+    femsp%num_interface_faces = count_int
+
+  end subroutine interface_faces_list
 
 end module par_fem_space_names
 

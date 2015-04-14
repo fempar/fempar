@@ -37,7 +37,7 @@
 # define generic_memmovealloc_interface  memmovealloc
 # include "debug.i90"
 !***********************************************************************
-module volumne_integration_names
+module volume_integration_names
   use types
   use memor
 #ifdef memcheck
@@ -96,7 +96,8 @@ module volumne_integration_names
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
 # include "mem_body.i90"
-end module volumne_integration_names
+
+end module volume_integration_names
 
 !***********************************************************************
 module face_integration_names
@@ -115,21 +116,25 @@ module face_integration_names
   private
 
   type face_integ 
-     integer(ip)              :: ltype(2)     ! List of combinations of face types
+     integer(ip)              :: ltype        ! List of combinations of face types
      type(quadrature)         :: quad         ! Quadrature rules for boundary faces
-     type(face_quadrature)    :: fquad(2)     ! Quadrature points on the faces of the element
+     type(face_quadrature)    :: fquad        ! Quadrature points on the faces of the element
      type(interpolation)      :: gint_ref     ! Geometry interpolation in the reference face domain
      type(bomap)              :: bomap        ! Boundary face mapping
-     type(femap)              :: femap(2)     ! FE mapping
-     type(face_interpolation) :: ufint_ref(2) ! Unknown interpolation in the reference face domain
-     type(face_interpolation) :: ufint_phy(2) ! Unknown interpolation in the physical face domain
-     type(face_interpolation) :: gfint_ref(2) ! Geometry interpolation in the reference face domain
-     type(face_interpolation) :: gfint_phy(2) ! Geometry interpolation in the physical face domain
+     type(femap)              :: femap        ! FE mapping
+     type(face_interpolation) :: ufint_ref    ! Unknown interpolation in the reference face domain
+     type(face_interpolation) :: ufint_phy    ! Unknown interpolation in the physical face domain
+     type(face_interpolation) :: gfint_ref    ! Geometry interpolation in the reference face domain
+     type(face_interpolation) :: gfint_phy    ! Geometry interpolation in the physical face domain
   end type face_integ
   type face_integ_pointer
      type(face_integ)          , pointer :: p => NULL() 
   end type face_integ_pointer
-  public :: face_integ, face_integ_pointer
+  type element_face_integrator
+     type(face_integ_pointer), allocatable :: p(:)  ! Pointer to face integration
+  end type element_face_integrator
+
+  public :: face_integ, face_integ_pointer, element_face_integrator
 
 # define var_type type(face_integ_pointer)
 # define var_size 8
@@ -146,7 +151,6 @@ module integration_names
   use types
   use memor
   use array_names
-  use fem_mesh_names 
   use quadrature_names
   use quadrature_faces
   use interpolation_names
@@ -157,7 +161,7 @@ module integration_names
   use bomap_interp
   use fem_space_types
   use element_gather_tools
-  use volumne_integration_names
+  use volume_integration_names
   use face_integration_names
   implicit none
   private
@@ -170,7 +174,7 @@ module integration_names
   end interface integ_free
 
   ! Functions
-  public :: integ_create, integ_element, integ_free, integ_faces 
+  public :: integ_create, integ_free!, integ_element, integ_faces 
   public :: vol_integ, vol_integ_pointer
   public :: face_integ, face_integ_pointer
   public :: memalloc,  memrealloc,  memfree, memmovealloc
@@ -241,235 +245,152 @@ contains
   subroutine face_integ_create(gfinf,ufinf,nd,integ,subface_ids_)
     implicit none
     ! Parameters
-    type(fem_fixed_info_pointer), intent(in)    :: gfinf(2),ufinf(2)
+    type(fem_fixed_info_pointer), intent(in)    :: gfinf,ufinf
     integer(ip)                 , intent(in)    :: nd
     type(face_integ)            , intent(inout) :: integ
-    integer(ip) ,      optional , intent(in)    :: subface_ids_(2)
+    integer(ip) ,      optional , intent(in)    :: subface_ids_
 
     ! Local variables
-    integer(ip)              :: gnode(2), unode(2), gfnod(2), ufnod(2)
-    integer(ip)              :: nface(2), utype, ngaux(2),nlocx(2),nlocs
-    integer(ip)              :: mnode,elnod(2),i,j, refinement_level
-    integer(ip)              :: ng,lrule,llapl,subface_ids(2)
+    integer(ip)              :: gnode, unode, gfnod, ufnod
+    integer(ip)              :: nface, utype, ngaux,nlocx,nlocs
+    integer(ip)              :: mnode,elnod,i,j, refinement_level
+    integer(ip)              :: ng,lrule,llapl,subface_ids
     logical                  :: istat
     real(rp)                 :: auxpo(max_order+1)
 
-    ! TO DO: Add refinement level as a variable
-    if (present(subface_ids_)) then
-       subface_ids=subface_ids_
-       refinement_level = 0
-       do i =1,2
-          if (subface_ids(i) > 0) then
-             refinement_level = 1
-          end if
-       end do
-    else
-       subface_ids = 0
-       refinement_level =0
-    end if
-
-    assert (subface_ids(1) == 0)
-    ! INTERIOR FACES
-    if (associated(gfinf(2)%p)) then
-
-       ! Choose integration rules and create them
-       call set_face_type    ( gfinf(1)%p%ftype, gfinf(2)%p%ftype,nd,utype)
-       do i = 1, 2
-         gnode(i) = gfinf(i)%p%nnode
-         unode(i) = ufinf(i)%p%nnode
-         nface(i) = gfinf(i)%p%nobje_dim(nd+1) -  gfinf(i)%p%nobje_dim(nd)
-         call set_integ (utype,nd-1,gfinf(i)%p%order,ufinf(i)%p%order,ngaux(i),nlocx(i),lrule,   &
-              &          llapl,gfnod(i),ufnod(i))
-         ! Store identifiers of element
-         integ%ltype(i) = gfinf(i)%p%ftype
-       end do
-       ! Maximum amount of nodes in faces and elements
-       mnode = max(maxval(gfnod),maxval(ufnod))
-       ng = maxval(ngaux)
-       nlocs = maxval(nlocx)
-          
-       !call set_integration  (nd-1,mnode,ng,lrule,llapl)
-       call quadrature_create(lrule,nd-1,ng,integ%quad) 
-       call bomap_create     (nd,ng,integ%bomap)
-       ! Allocate interpolations
-       call interpolation_create (1,1,1,nd-1,maxval(gfnod),ng,integ%gint_ref)
-       ! Define interpolations in the reference domain
-       call interpolation_local  (integ%quad%pos,integ%gint_ref)
-
-       do i =1, 2
-          ! Quadrature for the faces of element i
-          call face_quadrature_create(nd,nface(i),integ%quad,gfinf(i)%p,integ%fquad(i),subface_ids(i))
-          ! Allocate interpolation for element i
-          call face_interpolation_create (unode(i),ufnod(i),nd,ng,nlocs,nface(i),integ%ufint_ref(i))
-          call face_interpolation_create (unode(i),ufnod(i),nd,ng,nlocs,       1,integ%ufint_phy(i))
-          call face_interpolation_create (gnode(i),gfnod(i),nd,ng,nlocs,nface(i),integ%gfint_ref(i))
-          call face_interpolation_create (gnode(i),gfnod(i),nd,ng,nlocs,       1,integ%gfint_phy(i))
-          ! Create reference interpolations for element i
-          if     (ufinf(i)%p%ftype == Q_type_id) then
-                do j=1,nlocs
-                   auxpo(j) = integ%quad%pos(1,j)
-                end do
-             if (subface_ids(i) > 0) then
-                !call face_interpolation_local  (integ%fquad(i)%pos,integ%ufint_ref(i))
-                
-                call subface_interpolation_local_Q (auxpo,integ%ufint_ref(i),nd,ufinf(i)%p%order,   &
-                     &                           nlocs,refinement_level,subface_ids(i))
-             else
-                call face_interpolation_local_Q (auxpo,integ%ufint_ref(i),nd,ufinf(i)%p%order,nlocs)
-             end if
-          elseif (ufinf(i)%p%ftype == P_type_id) then
-             call face_interpolation_local  (integ%fquad(i)%pos,integ%ufint_ref(i))
-          else
-             write(*,*) __FILE__,__LINE__, 'ERROR! Unknown elemetn type.'
-          end if
-          if     (gfinf(i)%p%ftype == Q_type_id) then
-             do j=1,nlocs
-                auxpo(j) = integ%quad%pos(1,j)
-             end do
-             call face_interpolation_local_Q (auxpo,integ%gfint_ref(i),nd,gfinf(i)%p%order,nlocs)
-          elseif (gfinf(i)%p%ftype == P_type_id) then
-             call face_interpolation_local  (integ%fquad(i)%pos,integ%gfint_ref(i))
-          else
-             write(*,*) __FILE__,__LINE__, 'ERROR! Unknown elemetn type.'
-          end if
-          ! Create FE map
-          call femap_create(llapl,nd,ng,integ%femap(i))
-       end do
-    else
-       i = 1
-       call set_face_type    ( gfinf(1)%p%ftype, gfinf(1)%p%ftype,nd,utype)
-       gnode(i) = gfinf(i)%p%nnode
-       unode(i) = ufinf(i)%p%nnode
-       nface(i) = gfinf(i)%p%nobje_dim(nd+1) -  gfinf(i)%p%nobje_dim(nd)
-       call set_integ (utype,nd-1,gfinf(i)%p%order,ufinf(i)%p%order,ng,nlocs,lrule,llapl,           &
-            &          gfnod(i),ufnod(i))
+       call set_face_type    ( gfinf%p%ftype, gfinf%p%ftype,nd,utype)
+       gnode = gfinf%p%nnode
+       unode = ufinf%p%nnode
+       nface = gfinf%p%nobje_dim(nd+1) -  gfinf%p%nobje_dim(nd)
+       call set_integ (utype,nd-1,gfinf%p%order,ufinf%p%order,ng,nlocs,lrule,llapl,           &
+            &          gfnod,ufnod)
        ! Store identifiers of element
-       integ%ltype(i) = gfinf(i)%p%ftype
-       integ%ltype(2) = NULL_type_id
+       integ%ltype = gfinf%p%ftype
 
        ! Maximum amount of nodes in faces and elements
-       mnode = max(gfnod(1),ufnod(1))
+       mnode = max(gfnod,ufnod)
     
        call quadrature_create(lrule,nd-1,ng,integ%quad) 
        ! Create bf map
        call bomap_create(nd,ng,integ%bomap)
        ! Allocate interpolation
-       call interpolation_create(1,1,    1,nd-1,gfnod(1),ng,integ%gint_ref)
+       call interpolation_create(1,1,    1,nd-1,gfnod,ng,integ%gint_ref)
        ! Define interpolations in the reference domain
        call interpolation_local(integ%quad%pos,integ%gint_ref)
 
        ! Quadrature for the faces of element i
-       call face_quadrature_create(nd,nface(i),integ%quad,gfinf(i)%p,integ%fquad(i))
+       call face_quadrature_create(nd,nface,integ%quad,gfinf%p,integ%fquad)
        
        ! Allocate interpolation for element i
-       call face_interpolation_create (unode(i),ufnod(i),nd,ng,nlocs,nface(i),integ%ufint_ref(i))
-       call face_interpolation_create (unode(i),ufnod(i),nd,ng,nlocs,       1,integ%ufint_phy(i))
-       call face_interpolation_create (gnode(i),gfnod(i),nd,ng,nlocs,nface(i),integ%gfint_ref(i))
-       call face_interpolation_create (gnode(i),gfnod(i),nd,ng,nlocs,       1,integ%gfint_phy(i))
+       call face_interpolation_create (unode,ufnod,nd,ng,nlocs,nface,integ%ufint_ref)
+       call face_interpolation_create (unode,ufnod,nd,ng,nlocs,       1,integ%ufint_phy)
+       call face_interpolation_create (gnode,gfnod,nd,ng,nlocs,nface,integ%gfint_ref)
+       call face_interpolation_create (gnode,gfnod,nd,ng,nlocs,       1,integ%gfint_phy)
        ! Create reference interpolations for element i
-       if     (ufinf(i)%p%ftype == Q_type_id) then
+       if     (ufinf%p%ftype == Q_type_id) then
           do j=1,nlocs
              auxpo(j) = integ%quad%pos(1,j)
           end do
-          call face_interpolation_local_Q (auxpo,integ%ufint_ref(i),nd,ufinf(i)%p%order,nlocs)
-       elseif (ufinf(i)%p%ftype == P_type_id) then
-          call face_interpolation_local  (integ%fquad(i)%pos,integ%ufint_ref(i))
+          call face_interpolation_local_Q (auxpo,integ%ufint_ref,nd,ufinf%p%order,nlocs)
+       elseif (ufinf%p%ftype == P_type_id) then
+          call face_interpolation_local  (integ%fquad%pos,integ%ufint_ref)
        else
           write(*,*) __FILE__,__LINE__, 'ERROR! Unknown elemetn type.'
        end if
-       if     (gfinf(i)%p%ftype == Q_type_id) then
+       if     (gfinf%p%ftype == Q_type_id) then
           do j=1,nlocs
              auxpo(j) = integ%quad%pos(1,j)
           end do
-          call face_interpolation_local_Q (auxpo,integ%gfint_ref(i),nd,gfinf(i)%p%order,nlocs)
-       elseif (gfinf(i)%p%ftype == P_type_id) then
-          call face_interpolation_local  (integ%fquad(i)%pos,integ%gfint_ref(i))
+          call face_interpolation_local_Q (auxpo,integ%gfint_ref,nd,gfinf%p%order,nlocs)
+       elseif (gfinf%p%ftype == P_type_id) then
+          call face_interpolation_local  (integ%fquad%pos,integ%gfint_ref)
        else
           write(*,*) __FILE__,__LINE__, 'ERROR! Unknown elemetn type.'
        end if
-       !call face_interpolation_local  (integ%fquad(i)%pos,integ%ufint_ref(i))
-       !call face_interpolation_local  (integ%fquad(i)%pos,integ%gfint_ref(i))
+       !call face_interpolation_local  (integ%fquad%pos,integ%ufint_ref)
+       !call face_interpolation_local  (integ%fquad%pos,integ%gfint_ref)
        ! Create FE map
-       call femap_create(llapl,nd,ng,integ%femap(i))
-    end if
+       call femap_create(llapl,nd,ng,integ%femap)
 
   end subroutine face_integ_create
 
-  ! =================================================================================================
-  subroutine integ_element(ielem,gmesh,integ)
-    implicit none
-    ! Parameters
-    integer(ip)           , intent(in)    :: ielem      ! Element ID
-    type(fem_mesh)        , intent(in)    :: gmesh      ! Geometry interpolation space
-    type(vol_integ)       , intent(inout) :: integ      ! Volume integrator of ielem
 
-    integer(ip)              :: nnode
-    real(rp), allocatable    :: elcod(:,:)
+  ! SB.alert : integ_element and integ_faces would depend on the fem_space geom, and it would
+  ! create a cycle. To be put out ot here. For the moment I have commented it.
 
-    nnode = gmesh%pnods(ielem+1) - gmesh%pnods(ielem)
-    call memalloc(gmesh%ndime,nnode,elcod, __FILE__,__LINE__ )
+  ! ! =================================================================================================
+  ! subroutine integ_element(ielem,geom,integ)
+  !   implicit none
+  !   ! Parameters
+  !   integer(ip)           , intent(in)    :: ielem      ! Element ID
+  !   type(fem_space)        , intent(in)    :: geom      ! Geometry interpolation space
+  !   type(vol_integ)       , intent(inout) :: integ      ! Volume integrator of ielem
+
+  !   integer(ip)              :: nnode
+  !   real(rp), allocatable    :: elcod(:,:)
+
+  !   ! SB.alert :  I have modified this subroutine assuming that we have a fem_space-like
+  !   ! geometry descriptor. I have declared and used geom as a fem_space, but I am not sure
+  !   ! we want a full fem_space for the geometry. To be decided.
+
+  !   nnode = femsp%lelem(ielem)%f_inf(ivars)%p%nnode
+
+  !   call memalloc(femsp%g_trian%num_dims,nnode,elcod, __FILE__,__LINE__ )
+
+  !   call gather (femsp%g_trian%num_dims,nnode, geom%lelem(ielem)%elem2dof(1,:), &
+  !        & gmesh%lelem(ielem)%unkno,elcod)
+
+  !   ! Define fe map  by interpolation
+  !   call femap_from_interp(integ%gint_ref,elcod,integ%femap)
+
+  !   ! Obtain physical interpolation
+  !   call femap_apply_to_interp(integ%femap,integ%uint_ref,integ%uint_phy)
+
+  !   call memfree(elcod,__FILE__,__LINE__)
+
+  ! end subroutine integ_element
+
+  ! !==================================================================================================
+  ! subroutine integ_faces(elem,face,gmesh,integ,ntxob,nobje)
+  !   implicit none
+  !   ! Parameters
+  !   integer(ip)              , intent(in)    :: elem(2),face(2)
+  !   type(fem_space)           , intent(in)    :: geom     ! Geometry interpolation space
+  !   type(face_integ)         , intent(inout) :: integ
+  !   type(list)               , intent(in)    :: ntxob
+  !   integer(ip)              , intent(in)    :: nobje
+
+  !   integer(ip)                      :: i,gfnod,poins(integ%gint_ref%nnode),nelem
+  !   real(rp)                         :: TOL=1e-8
+  !   real(rp)                         :: facod(gmesh%ndime,integ%gint_ref%nnode)
+  !   real(rp)   , allocatable         :: elcod(:,:)
+  !   integer(ip), allocatable         :: elpos(:)
+  !   integer(ip)                      :: nnode,inode,iobje,jobje
+
+  !   ! Define face map (from reference to physical space) by interpolation
+  !   ! TODO: Assert that the first element is not the one which the subfaces are in
     
-    call gather (gmesh%ndime,nnode,gmesh%lnods(gmesh%pnods(ielem):gmesh%pnods(ielem+1)-1), &
-         & gmesh%coord,elcod)
+  !   nnode = 0
+  !   do inode = ntxob%p(nobje+face),ntxob%p(nobje+face+1)-1
+  !      nnode = nnode +1
+  !      poins(nnode) = geom%lelem(ielem)%elem2dof(1,ntxob%l(inode))
+  !   end do
 
-    ! Define fe map  by interpolation
-    call femap_from_interp(integ%gint_ref,elcod,integ%femap)
-       
-    ! Obtain physical interpolation
-    call femap_apply_to_interp(integ%femap,integ%uint_ref,integ%uint_phy)
+  !   call gather (femsp%g_trian%num_dims,integ%gint_ref%nnode,poins,geom%lelem(ielem)%unkno,facod)
+  !   call bomap_from_interp(integ%gint_ref,facod,integ%bomap)
 
-    call memfree(elcod,__FILE__,__LINE__)
+  !   ! Define elements map  by interpolation
+  !   call memalloc(femsp%g_trian%num_dims,integ%gfint_ref%nnode,elcod,__FILE__,__LINE__)
+  !   call memalloc(integ%gfint_ref%nnode,elpos,__FILE__,__LINE__)
+  !   elpos = geom%lelem(ielem)%elem2dof(1,:)
+  !   call gather (femsp%g_trian%num_dims,integ%gfint_ref%nnode,elpos,geom%lelem(ielem)%unkno,elcod)
+  !   call femap_from_face_interp(integ%gfint_ref,elcod,face,integ%femap)
+  !   call femap_face_to_interp(integ%femap,integ%ufint_ref,face,integ%ufint_phy)
+  !   call femap_face_to_interp(integ%femap,integ%gfint_ref,face,integ%gfint_phy)
+  !   call memfree(elcod,__FILE__,__LINE__)
+  !   call memfree(elpos,__FILE__,__LINE__)
 
-  end subroutine integ_element
-
-  !==================================================================================================
-  subroutine integ_faces(elem,face,gmesh,integ,ntxob,nobje)
-    implicit none
-    ! Parameters
-    integer(ip)              , intent(in)    :: elem(2),face(2)
-    type(fem_mesh)           , intent(in)    :: gmesh      ! Geometry interpolation space
-    type(face_integ)         , intent(inout) :: integ
-    type(list)               , intent(in)    :: ntxob
-    integer(ip)              , intent(in)    :: nobje
-
-    integer(ip)                      :: i,gfnod,poins(integ%gint_ref%nnode),nelem
-    real(rp)                         :: TOL=1e-8
-    real(rp)                         :: facod(gmesh%ndime,integ%gint_ref%nnode)
-    real(rp)   , allocatable         :: elcod(:,:)
-    integer(ip), allocatable         :: elpos(:)
-    integer(ip)                      :: nnode,inode,iobje,jobje
-
-    ! Define face map (from reference to physical space) by interpolation
-    ! TODO: Assert that the first element is not the one which the subfaces are in
-    nnode = 0
-    do inode = ntxob%p(nobje+face(1)),ntxob%p(nobje+face(1)+1)-1
-       nnode = nnode +1
-       poins(nnode) = gmesh%lnods(gmesh%pnods(elem(1))+ntxob%l(inode)-1)
-    end do
-
-    call gather (gmesh%ndime,integ%gint_ref%nnode,poins,gmesh%coord,facod)
-    call bomap_from_interp(integ%gint_ref,facod,integ%bomap)
-
-    if (elem(2)>0) then
-       nelem = 2
-    else
-       nelem = 1
-    end if
-
-    do i = 1, nelem
-       ! Define elements map  by interpolation
-       call memalloc(gmesh%ndime,integ%gfint_ref(i)%nnode,elcod,__FILE__,__LINE__)
-       call memalloc(integ%gfint_ref(i)%nnode,elpos,__FILE__,__LINE__)
-       elpos = gmesh%lnods(gmesh%pnods(elem(i)):gmesh%pnods(elem(i)+1)-1)
-       call gather (gmesh%ndime,integ%gfint_ref(i)%nnode,elpos,gmesh%coord,elcod)
-       call femap_from_face_interp(integ%gfint_ref(i),elcod,face(i),integ%femap(i))
-       call femap_face_to_interp(integ%femap(i),integ%ufint_ref(i),face(i),integ%ufint_phy(i))
-       call femap_face_to_interp(integ%femap(i),integ%gfint_ref(i),face(i),integ%gfint_phy(i))
-       call memfree(elcod,__FILE__,__LINE__)
-       call memfree(elpos,__FILE__,__LINE__)
-    end do
-    
-  end subroutine integ_faces
+  ! end subroutine integ_faces
 
   ! =================================================================================================
   subroutine vol_integ_free(integ)
@@ -500,27 +421,19 @@ contains
 
     ! Destruct quadratures
     call quadrature_free     (integ%quad)
-    call face_quadrature_free(integ%fquad(1))
+    call face_quadrature_free(integ%fquad)
 
     ! Destruct fe map
     call bomap_free(integ%bomap)
-    call femap_free(integ%femap(1))
+    call femap_free(integ%femap)
     call interpolation_free(integ%gint_ref)
 
     ! Deallocate Face interpolations
-    call face_interpolation_free(integ%ufint_ref(1))
-    call face_interpolation_free(integ%gfint_ref(1))
-    call face_interpolation_free(integ%ufint_phy(1))
-    call face_interpolation_free(integ%gfint_phy(1))
+    call face_interpolation_free(integ%ufint_ref)
+    call face_interpolation_free(integ%gfint_ref)
+    call face_interpolation_free(integ%ufint_phy)
+    call face_interpolation_free(integ%gfint_phy)
 
-    if (integ%ltype(2) /= NULL_type_id) then
-       call face_quadrature_free(integ%fquad(2))
-       call femap_free(integ%femap(2))
-       call face_interpolation_free(integ%ufint_ref(2))
-       call face_interpolation_free(integ%gfint_ref(2))
-       call face_interpolation_free(integ%ufint_phy(2))
-       call face_interpolation_free(integ%gfint_phy(2))
-    end if
   end subroutine face_integ_free
 
   !==================================================================================================

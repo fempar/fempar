@@ -34,6 +34,7 @@ module fem_space_names
   use fem_triangulation_names
   use hash_table_names
   use integration_names
+  use face_integration_names
   use fem_space_types
   use dof_handler_names
   use migratory_element_names
@@ -54,7 +55,7 @@ module fem_space_names
      integer(ip)                   :: problem           ! Problem to be solved
      integer(ip)                   :: num_vars          ! Number of variables of the problem
      integer(ip),      allocatable :: order(:)          ! Order per variable
-     logical(lg),      allocatable :: continuity(:)     ! Continuity flag per variable
+     integer(ip),      allocatable :: continuity(:)     ! Continuity flag per variable
      integer(ip)                   :: material          ! Material ! SB.alert : material can be used as p    
      
      integer(ip)     , allocatable   :: elem2dof(:,:)   ! Map from elem to dof
@@ -87,26 +88,23 @@ module fem_space_names
   ! Information relative to the faces
   type fem_face
 
-     integer(ip)               :: nei_elem(2)       ! Neighbor elements
-     integer(ip)               :: pos_elem(2)       ! Face pos in element
-     integer(ip)               :: subface(2)        ! It can be a portion of one of the elems face
-     integer(ip)               :: refinement_level(2)
+     integer(ip)               :: face_object
+
+     integer(ip)               :: neighbor_element(2) ! Neighbor elements
+     integer(ip)               :: local_face(2)       ! Face pos in element
 
      type(array_rp2), pointer  :: p_mat ! Pointer to the elemental matrix
-
-     !type(array_rp2), pointer  :: aux_mat(2)        ! Pointer to integration face matrices ! SB.alert
      type(array_rp1), pointer  :: p_vec   ! Pointer to face integration vector
-     type(face_integ_pointer), allocatable :: integ(:)  ! Pointer to face integration
+     type(element_face_integrator) :: integ(2)  ! Pointer to face integration
 
-     !integer(ip) , allocatable :: o2n(:)            ! permutation of the gauss points in elem2
-     type(array_ip1), allocatable:: o2n(:)           ! permutation of the gauss points in elem2
-
+     !type(array_ip1), allocatable:: o2n(2)           ! permutation of the gauss points in elem2
+     ! SB.alert : temporary, it is a lot of memory, and should be handled via a hash table
   end type fem_face
 
   ! Global information of the fem_space
   type fem_space  
 
-     integer(ip)                           :: num_materials        ! Number of materials (maximum value)
+     integer(ip)                           :: num_continuity        ! Number of materials (maximum value)
      logical(lg)                           :: static_condensation  ! Flag for static condensation 
      logical(lg)                           :: hierarchical_basis   ! Flag for hierarchical basis
      class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list
@@ -143,8 +141,8 @@ module fem_space_names
      integer(ip), allocatable           :: ndofs(:)
      integer(ip)                        :: time_steps_to_store        ! Time steps to store
 
-     integer(ip), allocatable :: integration_interior_faces(:), integration_boundary_faces(:)
-     integer(ip) :: num_interior_faces, num_boundary_faces
+     type(fem_face)       , allocatable    :: interior_faces(:), boundary_faces(:), interface_faces(:)
+     integer(ip) :: num_interior_faces, num_boundary_faces, num_interface_faces
 
   end type fem_space
 
@@ -168,25 +166,25 @@ contains
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
   subroutine fem_space_create(  g_trian, dofh, fspac, problem, continuity, order, material, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials, &
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity, &
        & num_ghosts )
     implicit none
     type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
     type(dof_handler) , intent(in), target           :: dofh   
     integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
-    logical(lg),     intent(in)       :: continuity(:,:)
+    integer(ip),     intent(in)       :: continuity(:,:)
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_materials   
+    integer(ip), optional, intent(in) :: num_continuity   
     integer(ip), optional, intent(in) :: num_ghosts        
 
     integer(ip) :: istat, num_ghosts_
 
     call fem_space_allocate_structures(  g_trian, dofh, fspac, &
          time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
-         static_condensation = static_condensation, num_materials = num_materials, &
+         static_condensation = static_condensation, num_continuity = num_continuity, &
          num_ghosts = num_ghosts )  
 
     call fem_space_fe_list_create ( fspac, problem, continuity, order, material )
@@ -196,7 +194,7 @@ contains
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
   subroutine fem_space_allocate_structures( g_trian, dofh, fspac, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_materials, &
+       & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity, &
        & num_ghosts )
     implicit none
     type(fem_space)   ,  target, intent(inout)                :: fspac
@@ -205,7 +203,7 @@ contains
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_materials 
+    integer(ip), optional, intent(in) :: num_continuity 
     integer(ip), optional, intent(in) :: num_ghosts            
 
     integer(ip) :: istat, num_ghosts_
@@ -226,10 +224,10 @@ contains
     end if
 
     ! Number materials flag
-    if (present(num_materials)) then
-       fspac%num_materials = num_materials
+    if (present(num_continuity)) then
+       fspac%num_continuity = num_continuity
     else
-       fspac%num_materials = 1
+       fspac%num_continuity = 1
     end if
 
     ! Time steps to store flag
@@ -311,7 +309,7 @@ contains
     implicit none
     type(fem_space), intent(inout), target  :: fspac
     integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
-    logical(lg),     intent(in)       :: continuity(:,:)
+    integer(ip),    intent(in)       :: continuity(:,:)
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof
@@ -390,7 +388,7 @@ contains
              assert ( istat == key_found )
           end if
           fspac%lelem(ielem)%f_inf(ivar)%p => fspac%lelem_info(pos_elinf)
-          if ( continuity(ielem, ivar) ) then
+          if ( continuity(ielem, ivar) /= 0 ) then
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob
           else 
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%l_nodes_object(1) ! SB.alert : Think about hdG
@@ -514,7 +512,7 @@ contains
 
     integer(ip) :: ielem
 
-    write (lunou,*) 'Number of materials: ', femsp%num_materials
+    write (lunou,*) 'Number of materials: ', femsp%num_continuity
     write (lunou,*) 'Static condensation flag: ', femsp%static_condensation
 
     write (lunou,*) '****PRINT ELEMENT LIST INFO****'
@@ -690,12 +688,11 @@ contains
     
     ! Locals
     integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip, size_of_lg
+    integer(ip)   :: size_of_ip
     
     size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_lg   = size(transfer(.false._lg,mold))
 
-    n = size_of_ip*3 + size_of_ip*(my%num_vars) + size_of_lg*(my%num_vars)
+    n = size_of_ip*3 + 2*size_of_ip*(my%num_vars)
 
   end subroutine fem_element_size
 
@@ -707,12 +704,11 @@ contains
     
     ! Locals
     integer(ieep) :: mold(1)
-    integer(ip) :: size_of_ip, size_of_lg
+    integer(ip) :: size_of_ip
 
     integer(ip) :: start, end
 
     size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_lg   = size(transfer(.false._lg,mold))
 
     start = 1
     end   = start + size_of_ip -1
@@ -731,7 +727,7 @@ contains
     buffer(start:end) = transfer(my%order,mold)
 
     start = end + 1
-    end   = start + my%num_vars*size_of_lg - 1
+    end   = start + my%num_vars*size_of_ip - 1
     buffer(start:end) = transfer(my%continuity,mold)
 
   end subroutine fem_element_pack
@@ -744,11 +740,10 @@ contains
 
     ! Locals
     integer(ieep) :: mold(1)
-    integer(ip) :: size_of_ip, size_of_lg
+    integer(ip) :: size_of_ip
     integer(ip) :: start, end
     
     size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_lg   = size(transfer(.false._lg,mold))
 
     start = 1
     end   = start + size_of_ip -1
@@ -771,7 +766,7 @@ contains
     call memalloc( my%num_vars, my%continuity, __FILE__, __LINE__ )
      
     start = end + 1
-    end   = start + my%num_vars*size_of_lg - 1
+    end   = start + my%num_vars*size_of_ip - 1
     my%continuity = transfer(buffer(start:end), my%continuity)
     
   end subroutine fem_element_unpack
@@ -783,41 +778,85 @@ contains
     type(fem_triangulation), intent(in)       :: trian 
     type(fem_space), intent(inout)               :: femsp
 
-    integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem
+    integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
+    integer(ip) :: g_var, iprob, jprob, ivars, jvars
 
     ! integration faces (interior / boundary)
-    call memalloc( trian%num_objects, femsp%integration_interior_faces, __FILE__, __LINE__ )
-    call memalloc( trian%num_objects, femsp%integration_boundary_faces, __FILE__, __LINE__ )
+    ! The list of boundary faces includes all faces, whereas the interior ones are only those
+    ! where we expect to integrate things (based on continuity flags)
     count_int = 0
     count_bou = 0
     do iobje = 1, trian%num_objects
-       if ( trian%objects(iobje)%dimension == trian%num_dims ) then
+       if ( trian%objects(iobje)%dimension == trian%num_dims-1 ) then
           if ( trian%objects(iobje)%border == -1 ) then
              assert( trian%objects(iobje)%num_elems_around == 2 )
              ielem = trian%objects(iobje)%elems_around(1)
              jelem = trian%objects(iobje)%elems_around(2)
-             mat_i = femsp%lelem(ielem)%material
-             mat_j = femsp%lelem(jelem)%material
-             if ( femsp%lelem(ielem)%material /= femsp%lelem(jelem)%material .or. &
-                  (.not.femsp%lelem(ielem)%continuity(ielem)) ) then
-                count_int = count_int + 1
-                femsp%integration_interior_faces(count_int) = iobje
-             end if
+             iprob = femsp%lelem(ielem)%problem
+             jprob = femsp%lelem(jelem)%problem
+             do ivars = 1, femsp%dof_handler%problems(iprob)%nvars
+                g_var = femsp%dof_handler%problems(iprob)%l2g_var(ivars)
+                jvars = femsp%dof_handler%g2l_vars(g_var,jprob)
+                mat_i = femsp%lelem(ielem)%continuity(ivars)
+                mat_j = femsp%lelem(jelem)%continuity(jvars)
+                if ( mat_i == 0 .or. mat_i /= mat_j ) then
+                   count_int = count_int + 1
+                   exit
+                   !femsp%interior_faces(count_int) = iobje
+                end if
+             end do
           else
              assert( trian%objects(iobje)%num_elems_around == 1 )
              ielem = trian%objects(iobje)%elems_around(1)
-             if ( .not.femsp%lelem(ielem)%continuity(ielem) ) then
+             if ( femsp%lelem(ielem)%continuity(ielem) == 0 ) then
                 count_bou = count_bou + 1
-                femsp%integration_boundary_faces(count_bou) = iobje
+                !femsp%boundary_faces(count_bou) = iobje
              end if
           end if
        end if
     end do
-    call realloc( count_int, femsp%integration_interior_faces, __FILE__, __LINE__ )
-    call realloc( count_bou, femsp%integration_boundary_faces, __FILE__, __LINE__ )
+
+    allocate( femsp%interior_faces(count_int), stat=istat)
+    check ( istat == 0 )
+    allocate( femsp%boundary_faces(count_bou), stat=istat)
+    check ( istat == 0 )
+    
 
     femsp%num_interior_faces = count_int
     femsp%num_boundary_faces = count_bou
+    
+    count_int = 0
+    count_bou = 0
+    do iobje = 1, trian%num_objects
+       if ( trian%objects(iobje)%dimension == trian%num_dims-1 ) then
+          if ( trian%objects(iobje)%border == -1 ) then
+             assert( trian%objects(iobje)%num_elems_around == 2 )
+             ielem = trian%objects(iobje)%elems_around(1)
+             jelem = trian%objects(iobje)%elems_around(2)
+             iprob = femsp%lelem(ielem)%problem
+             jprob = femsp%lelem(jelem)%problem
+             do ivars = 1, femsp%dof_handler%problems(iprob)%nvars
+                g_var = femsp%dof_handler%problems(iprob)%l2g_var(ivars)
+                jvars = femsp%dof_handler%g2l_vars(g_var,jprob)
+                mat_i = femsp%lelem(ielem)%continuity(ivars)
+                mat_j = femsp%lelem(jelem)%continuity(jvars)
+                if ( mat_i == 0 .or. mat_i /= mat_j ) then
+                   count_int = count_int + 1
+                   femsp%interior_faces(count_int)%face_object = iobje
+                   exit
+                end if
+             end do
+          else
+             assert( trian%objects(iobje)%num_elems_around == 1 )
+             ielem = trian%objects(iobje)%elems_around(1)
+             if ( femsp%lelem(ielem)%continuity(ielem) == 0 ) then
+                count_bou = count_bou + 1
+                femsp%boundary_faces(count_bou)%face_object = iobje
+             end if
+          end if
+       end if
+    end do
+
 
   end subroutine integration_faces_list
 
