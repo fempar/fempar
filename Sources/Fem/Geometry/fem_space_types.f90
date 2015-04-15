@@ -35,7 +35,7 @@ module fem_space_types
 
   implicit none
   private
-    
+
   integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element
   integer(ip), parameter       :: max_nobje  = 28   ! Maximum amount of objects in an element
   integer(ip), parameter       :: ht_length  = 10   ! hash tables length
@@ -52,7 +52,7 @@ module fem_space_types
   integer(ip), parameter       :: P_type_id    = 1
   integer(ip), parameter       :: Q_type_id    = 2
   integer(ip), parameter       :: max_FE_types = 2
-  
+
   ! Types
   type fem_fixed_info_pointer
      type(fem_fixed_info)     , pointer :: p => NULL()  
@@ -85,13 +85,13 @@ module fem_space_types
   public :: max_FE_types, max_elinf
   public :: scond_off, scond_on ! Static condensation flags (not active yet)
   public :: P_type_id, Q_type_id, NULL_type_id
-  
+
   ! Types
   public :: fem_fixed_info, fem_fixed_info_pointer
 
   ! Functions
   public :: fem_element_fixed_info_create, fem_element_fixed_info_free, &
-            fem_element_fixed_info_write, permute_nodes_object
+       fem_element_fixed_info_write, permute_nodes_object, get_order
 
   ! Functions
   public :: Q_ijkg, Q_gijk, Q_nnods, Q_set_integ
@@ -100,9 +100,9 @@ module fem_space_types
   ! Functions
   public :: P_set_integ, P_refcoord
 
-!***********************************************************************
-! Allocatable arrays of type(fem_fixed_info_pointer)
-!***********************************************************************
+  !***********************************************************************
+  ! Allocatable arrays of type(fem_fixed_info_pointer)
+  !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
 # define generic_status_test             allocated
@@ -139,13 +139,13 @@ contains
        created = .true.
     end if
   end subroutine fem_element_fixed_info_create
-  
+
   !==================================================================================================
   subroutine fem_element_fixed_info_write ( f )
     implicit none
     ! Parameters
     type(fem_fixed_info),  intent(inout) :: f
-    
+
     integer(ip) :: i
 
     write(*,*) 'ftype', f%ftype
@@ -160,12 +160,12 @@ contains
        write(*,*) f%ndxob%l(f%ndxob%p(i):f%ndxob%p(i+1)-1)
     end do
 
- write(*,*) 'ntxob'
+    write(*,*) 'ntxob'
     do i=1,f%nobje+1
        write(*,*) f%ntxob%l(f%ntxob%p(i):f%ntxob%p(i+1)-1)
     end do
 
- write(*,*) 'crxob'
+    write(*,*) 'crxob'
     do i=1,f%nobje+1
        write(*,*) f%crxob%l(f%crxob%p(i):f%crxob%p(i+1)-1)
     end do
@@ -202,7 +202,7 @@ contains
     integer(ip) :: i,c1,r, o=0, r0, num_corners
 
     ! TODO: CHECK THE R0 implementation, it is probably worng
-   
+
 
     if (present(subface1)) then
        if (subface1 == 0) then
@@ -247,7 +247,7 @@ contains
        write(*,*) __FILE__,__LINE__,'WARNING! elem type not identified!'
     end if
 
-    
+
   end subroutine permute_nodes_object
 
   !==================================================================================================
@@ -375,7 +375,7 @@ contains
           call P_orientation_object(fefi%o(co),k,nd,i)
           fefi%crxob%l(c3+1:c3+k+1) = idcro(2:k+2,co)
           c3 = c3 + k +1
-          
+
           ! Objec stores the coordinates of the corners defining object co
           objec(:,1) = nodes(:,idcro(2,co))
           do j=1,k
@@ -424,7 +424,7 @@ contains
     ! end do
   end subroutine P_fixed_info_fill
 
- !==================================================================================================
+  !==================================================================================================
   subroutine  P_fixed_info_free(fefi)
     implicit none
     ! Parameters
@@ -471,7 +471,7 @@ contains
     integer(ip) :: o,r,o_r
 
     call memalloc(6,int(((p+1)**2+p+1)/2),o2n,__FILE__,__LINE__)
-    
+
     ! Loop over possible orientations of a face
     do o = 0,1
        ! Loop over possible rotations of a face
@@ -511,7 +511,7 @@ contains
 
     ! Local variables
     integer(ip) :: i
-    
+
     ! Generic loop+rotation identifier  
     if (r==1) then
        o2n = (/(i,i=1,p+1)/)
@@ -842,25 +842,25 @@ contains
   !==================================================================================================
   ! Coord(:,g) = coordinates of the g-th node in the reference element
   subroutine P_refcoord (coord,nd,p,nn)
-     implicit none
-     ! Parameters
-     integer(ip), intent(in)    :: nd,p,nn
-     real(rp),    intent(inout) :: coord(nd,nn)
+    implicit none
+    ! Parameters
+    integer(ip), intent(in)    :: nd,p,nn
+    real(rp),    intent(inout) :: coord(nd,nn)
 
-     ! Local variables
-     integer(ip) :: ijk(nd),i,d
-     real(rp)    :: c1d(p+1)
-     
-     call P_coord_1d(c1d,p+1)
+    ! Local variables
+    integer(ip) :: ijk(nd),i,d
+    real(rp)    :: c1d(p+1)
 
-     do i=1,nn
+    call P_coord_1d(c1d,p+1)
 
-        call P_ijkg(ijk,i,nd,p)
-        do d=1,nd
-           coord(d,i) = c1d(ijk(d)+1)
-        end do
-     end do
-   end subroutine P_refcoord
+    do i=1,nn
+
+       call P_ijkg(ijk,i,nd,p)
+       do d=1,nd
+          coord(d,i) = c1d(ijk(d)+1)
+       end do
+    end do
+  end subroutine P_refcoord
 
   ! =================================================================================================
   ! Set n equidistant points in the segment [0,1]
@@ -953,7 +953,7 @@ contains
     fefi%ntxob%l=0   !Array of all nodes of each object
     fefi%crxob%p=0   !Pointer to crxob%l for each object
     fefi%crxob%l=0   !Array of corners for each object
-   
+
 
     !Initialize pointers
     fefi%ndxob%p(1) = 1
@@ -1075,7 +1075,7 @@ contains
           ! Corner numbering
           ! Loop over the translations
           do l = 1,2**(nd-od) 
-             
+
              ! Set orientation of the object
              co = co +1
              call Q_orientation_object(fefi%o(co),fdm(1:nd-od),od,nd,l)
@@ -1172,7 +1172,7 @@ contains
     ! do od = 1,nt
     !    write(*,*) fefi%ntxob%l(od), ', &'
     ! end do
-    
+
     ! write(*,*) 'no+1', no+1, 'crxob%p'
     ! do od = 1,no+1
     !    write(*,*) fefi%crxob%p(od), ', &'
@@ -1183,7 +1183,7 @@ contains
     ! end do
   end subroutine Q_fixed_info_fill
 
- !==================================================================================================
+  !==================================================================================================
   subroutine  Q_fixed_info_free(fefi)
     implicit none
     ! Parameters
@@ -1233,7 +1233,7 @@ contains
 
     ! Local variables
     integer(ip) :: o,r,o_r
-    
+
     call memalloc(8,int((p+1)**2),o2n,__FILE__,__LINE__)
     o2n = 1
 
@@ -1246,7 +1246,7 @@ contains
        end do
     end do
   end subroutine Q_o2n_2d_create
-  
+
   !=================================================================================================
   ! This subroutine gives the reodering (o2n) of the nodes of an object given an orientation 'o'
   ! and a delay 'r' wrt to a refence element sharing the same object.
@@ -1274,7 +1274,7 @@ contains
 
     ! Local variables
     integer(ip) :: i
-    
+
     ! Generic loop+rotation identifier  
     if (r==1) then
        o2n = (/(i,i=1,p+1)/)
@@ -1375,7 +1375,7 @@ contains
     end do
   end subroutine r_dim
 
- !=================================================================================================
+  !=================================================================================================
   ! Q_NNODS(k,p) computes the #nodes in a simplex of dim k and order p
   integer(ip) function Q_nnods(k,p)
     implicit none
@@ -1451,7 +1451,7 @@ contains
     else
        llapl = 0
     end if
-       
+
     ! Quadrilateral elements ---> tensorial product
     !ngaus = order + 1
     if (present(mnode)) then
@@ -1469,24 +1469,24 @@ contains
   !==================================================================================================
   ! Coord(:,g) = coordinates of the g-th node in the reference element
   subroutine Q_refcoord (coord,nd,p,nn)
-     implicit none
-     ! Parameters
-     integer(ip), intent(in)    :: nd,p,nn
-     real(rp),    intent(inout) :: coord(nd,nn)
+    implicit none
+    ! Parameters
+    integer(ip), intent(in)    :: nd,p,nn
+    real(rp),    intent(inout) :: coord(nd,nn)
 
-     ! Local variables
-     integer(ip) :: ijk(nd),i,d
-     real(rp)    :: c1d(p+1)
-     
-     call Q_coord_1d(c1d,p+1)
+    ! Local variables
+    integer(ip) :: ijk(nd),i,d
+    real(rp)    :: c1d(p+1)
 
-     do i=1,nn
+    call Q_coord_1d(c1d,p+1)
 
-        call Q_ijkg(ijk,i,nd,p)
-        do d=1,nd
-           coord(d,i) = c1d(ijk(d)+1)
-        end do
-     end do
+    do i=1,nn
+
+       call Q_ijkg(ijk,i,nd,p)
+       do d=1,nd
+          coord(d,i) = c1d(ijk(d)+1)
+       end do
+    end do
   end subroutine Q_refcoord
 
   ! =================================================================================================
@@ -1515,7 +1515,7 @@ contains
     ! Local variables
     logical(lg)                  :: assig = .false.
     integer(ip)              :: ilocs,i,j,iface 
-        
+
     ! Initialize
     outno = 0
 
@@ -1529,5 +1529,22 @@ contains
        end do
     end do
   end subroutine Q_face_outno
+
+  integer(ip) function get_order(type, ndime, nnodes)
+    implicit none
+    integer(ip) :: type, ndime, nnodes
+
+    if ( type == P_type_id ) then
+       do get_order=1,max_order
+          if ( P_nnods(ndime,get_order) == nnodes ) exit                
+       end do
+    else if ( type == Q_type_id ) then
+       do get_order=1,max_order
+          if ( int((get_order+1)**ndime) == nnodes ) exit                
+       end do
+    end if
+    assert ( get_order == max_order + 1 )
+
+  end function get_order
 
 end module fem_space_types
