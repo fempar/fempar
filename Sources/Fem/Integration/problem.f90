@@ -28,10 +28,13 @@
 module problem_names
   use types
   use memor
+  use array_names
+  use fem_space_types
+  use integration_tools_names
   implicit none
   private
 
-  type physical_problem
+  type :: physical_problem
      integer(ip)        ::             &
           nvars,                       &       ! Number of different variables
           nunks,                       &       ! Number of unknowns (groups of variables)
@@ -40,13 +43,38 @@ module problem_names
      integer(ip), allocatable ::       &
           vars_of_unk(:),              &       ! Number of variables of each unknown (size nunks)
           l2g_var(:)                           ! Order chosen for variables (size nvars)
-     integer(ip)        ::             &
-          problem_code                         ! An internal code that defines a problem in FEMPAR
+     !integer(ip)        ::             &
+     !     problem_code                         ! An internal code that defines a problem in FEMPAR
      character(len=:), allocatable ::  &
           unkno_names(:)                       ! Names for the gauss_properties (nunks)
-
   end type physical_problem
 
-public :: physical_problem
+
+  type, abstract :: discrete_problem
+     type(physical_problem), pointer :: prob
+   contains
+      procedure(create_interface), deferred :: create
+      procedure(matvec_interface), deferred :: matvec
+   end type discrete_problem
+
+  abstract interface
+     subroutine create_interface(aprox,ndime)
+       import :: discrete_problem, ip
+       implicit none
+       class(discrete_problem), intent(inout) :: aprox
+       integer(ip)            , intent(in)    :: ndime
+     end subroutine create_interface
+     subroutine matvec_interface(aprox,integ,unkno,mat,vec)
+       import :: discrete_problem, volume_integrator_pointer, array_rp2, array_rp1, rp
+       implicit none
+       class(discrete_problem)        , intent(in) :: aprox
+       type(volume_integrator_pointer), intent(in) :: integ(:)
+       real(rp)                       , intent(in) :: unkno(:,:,:)
+       type(array_rp2), intent(inout) :: mat
+       type(array_rp1), intent(inout) :: vec
+     end subroutine matvec_interface
+  end interface
+
+  public :: physical_problem, discrete_problem
 
 end module problem_names

@@ -28,11 +28,12 @@
 module base_operand_names
   use types
   use memory_guard_names
+  use integrable_names
   implicit none
 
   private
   ! Abstract operand
-  type, abstract, extends(memory_guard) :: base_operand
+  type, abstract, extends(integrable) :: base_operand
    contains
      procedure (dot_interface) , deferred  :: dot
      procedure (copy_interface), deferred  :: copy

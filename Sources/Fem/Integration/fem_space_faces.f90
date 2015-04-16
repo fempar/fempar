@@ -30,7 +30,8 @@ module fem_space_faces
   use memor
   use hash_table_names
   use fem_mesh_names
-  use integration_names
+  !use integration_names
+  use integration_tools_names
   !  use fem_mesh_faces
   use fem_space_names
   use fem_space_types
@@ -122,15 +123,15 @@ contains
                 ! SB.alert : The last part to include gauss points being used
                 v_key =  utype + (max_FE_types+1)*u_ord + (max_FE_types+1)*(max_order+1)*max_order
                 ! Put in hash table
-                call femsp%ht_pos_face_integ%put(key=v_key, val=femsp%cur_lfaci, stat = istat)
+                call femsp%ht_pos_face_integrator%put(key=v_key, val=femsp%cur_lfaci, stat = istat)
                 if ( istat == now_stored ) then 
                    gfinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%p_geo_info
                    ufinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p
-                   call integ_create(gfinf,ufinf,ndime,femsp%lfaci(femsp%cur_lfaci))
+                   call face_integrator_create(gfinf,ufinf,ndime,femsp%lfaci(femsp%cur_lfaci))
                    pos_faint       = femsp%cur_lfaci
                    femsp%cur_lfaci = femsp%cur_lfaci + 1
                 else if ( istat == was_stored ) then
-                   call femsp%ht_pos_face_integ%get(key=v_key,val=pos_faint,stat=istat)
+                   call femsp%ht_pos_face_integrator%get(key=v_key,val=pos_faint,stat=istat)
                    assert ( istat == key_found )
                 end if
                 femsp%lface(iface)%integ(i)%p(ivars)%p => femsp%lfaci(pos_faint)

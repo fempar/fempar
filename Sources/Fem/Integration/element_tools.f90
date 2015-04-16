@@ -30,6 +30,8 @@ module element_tools_names
   use types
   use memor
   use array_names
+  use volume_integration_tools_names
+  use face_integration_tools_names
   use element_fields_names
   use fem_space_names
   use memory_guard_names
@@ -37,30 +39,33 @@ module element_tools_names
   implicit none
   private
 
-  ! We assume that all dofs in this functions are interpolated using the same basis. 
-  ! It can be exteneded to the general case, complicating the machinery.
   type, extends(memory_guard) :: fem_function
-     integer(ip)                :: ivar=1
-     integer(ip)                :: ndof=1
-     type(fem_element), pointer :: elem => NULL()
+     integer(ip)  :: ivar=1
+     integer(ip)  :: ndof=1
+     type(volume_integrator_pointer), pointer :: integ(:) => NULL()
    contains
      procedure :: free => free_fem_function
   end type fem_function
 
-  ! Shape and deriv...
+  ! Basis functions can be left multiplied by a field.
+  ! scalar -> shape(inode,igaus)
+  ! vector -> shape(idime,jdime,inode,igaus) ! 2nd and 3rd index to to the matrix as one
+  ! tensor -> shape(idime,jdime,kdime,ldime,inode,igaus) ! 3rd, 4th and 5th indices go to the matrix.
   type, extends(fem_function) :: basis_function
      !real(rp), allocatable :: a(:,:)     ! shape(nnode,ngaus)
      real(rp) :: scaling=1.0_rp
      class(field), allocatable :: left_factor
-     class(field), allocatable :: right_factor
    contains
      procedure, pass(ul) :: scale_left     => scale_left_basis_function
      procedure, pass(ur) :: scale_right    => scale_right_basis_function
      procedure, pass(u)  :: product_left  => product_field_basis_function
-     procedure, pass(u)  :: product_right => product_basis_function_field
-     generic :: operator(*) => scale_right, scale_left, product_left, product_right
+     !procedure, pass(u)  :: product_right => product_basis_function_field
+     generic :: operator(*) => scale_right, scale_left, product_left !, product_right
   end type basis_function
 
+  ! scalar -> deriv(idime,inode,igaus)
+  ! vector -> deriv(idime,jdime,kdime,inode,igaus)
+  ! tensor -> deriv(idime,jdime,kdime,ldime,mdime,inode,igaus)
   type, extends(basis_function) :: basis_function_gradient
      !real(rp), allocatable :: a(:,:,:)   ! deriv(ndime,nnode,ngaus)
      !real(rp) :: scaling=0.0_rp
@@ -116,9 +121,9 @@ module element_tools_names
   interface interpolation
      module procedure scalar_interpolation
      module procedure vector_interpolation
-     module procedure scalar_gradient_interpolation
-     module procedure vector_gradient_interpolation
-     module procedure divergence_interpolation
+     ! module procedure scalar_gradient_interpolation
+     ! module procedure vector_gradient_interpolation
+     ! module procedure divergence_interpolation
   end interface interpolation
 
   interface integral
@@ -128,6 +133,8 @@ module element_tools_names
   public :: basis_function, basis_function_gradient, basis_function_divergence
   public :: given_function, given_function_gradient, given_function_divergence
   public :: grad, div, integral, interpolation
+
+  public :: create_scalar, create_vector
 
 contains
 
@@ -149,7 +156,7 @@ contains
     class(fem_function), intent(inout)       :: to
     to%ivar=from%ivar
     to%ndof=from%ndof
-    to%elem=>from%elem
+    to%integ=>from%integ
     call to%SetTemp()
   end subroutine copy_fem_function
 
@@ -158,15 +165,15 @@ contains
 ! basis_function (some code replication to avoid functions returning polymorphic allocatables)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  function basis_function_constructor(prob,ivar,elem) result(var)
+  function basis_function_constructor(prob,ivar,integ) result(var)
     implicit none
     class(physical_problem)  , intent(in) :: prob
     integer(ip)              , intent(in) :: ivar
-    type(fem_element), target, intent(in) :: elem
+    type(volume_integrator_pointer), target, intent(in) :: integ(:)
     type(basis_function) :: var
     integer(ip)          :: nnode,ngaus
     var%ivar = ivar
-    var%elem => elem
+    var%integ => integ
     var%ndof = prob%vars_of_unk(ivar)
     call var%SetTemp()
   end function basis_function_constructor
@@ -195,17 +202,17 @@ contains
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  function given_function_constructor(prob,ivar,icomp,elem) result(var)
+  function given_function_constructor(prob,ivar,icomp,integ) result(var)
     implicit none
     class(physical_problem) , intent(in) :: prob
     integer(ip)             , intent(in) :: ivar
     integer(ip)             , intent(in) :: icomp
-    type(fem_element),target, intent(in) :: elem
+    type(volume_integrator_pointer),target, intent(in) :: integ(:)
     type(given_function) :: var
     integer(ip)          :: nnode,ngaus
     var%ivar  = ivar
     var%icomp = icomp
-    var%elem => elem
+    var%integ => integ
     var%ndof = prob%vars_of_unk(ivar)
     call var%SetTemp()
   end function given_function_constructor
@@ -230,119 +237,179 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-! given_function interpolations
+! Interpolations
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  subroutine scalar_interpolation (u,res)
-    type(given_function)  , intent(in)    :: u
-    type(scalar)          , intent(inout) :: res
-    integer(ip)  :: ndof,nnode,ngaus
-    integer(ip)  :: idof,inode,igaus
-    call u%GuardTemp()
-    assert( u%ndof == 1)
-    nnode = u%elem%integ(u%ivar)%p%uint_phy%nnode
-    ngaus = u%elem%integ(u%ivar)%p%uint_phy%nlocs
+  subroutine create_scalar (prob, ivar, integ, res)
+    implicit none
+    type(physical_problem)         , intent(in)  :: prob
+    integer(ip)                    , intent(in)  :: ivar
+    type(volume_integrator_pointer), intent(in)  :: integ(:)
+    type(scalar)                   , intent(out) :: res
+    integer(ip)  :: ndof, ngaus
+    ndof = prob%vars_of_unk(ivar)
+    assert( ndof == 1)
+    ngaus = integ(ivar)%p%uint_phy%nlocs
     call memalloc(ngaus,res%a,__FILE__,__LINE__)
+  end subroutine create_scalar
+
+  subroutine scalar_interpolation (unkno, ivar, icomp, integ, res)
+    real(rp)     , intent(in)    :: unkno(:,:,:)
+    integer(ip)  , intent(in)    :: ivar, icomp
+    type(volume_integrator_pointer), intent(in)  :: integ(:)
+    type(scalar) , intent(inout) :: res
+    integer(ip)  :: nnode,ngaus
+    integer(ip)  :: inode,igaus
+    nnode = integ(ivar)%p%uint_phy%nnode
+    ngaus = integ(ivar)%p%uint_phy%nlocs
     do igaus=1,ngaus
        do inode =1,nnode
-          res%a(igaus) = u%elem%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%elem%unkno(inode,u%ivar,u%icomp)
+          res%a(igaus) = integ(ivar)%p%uint_phy%shape(inode,igaus) * unkno(inode,ivar,icomp)
        end do
     end do
-    call res%SetTemp()
-    call u%CleanTemp()
   end subroutine scalar_interpolation
 
-  subroutine vector_interpolation (u,vec)
-    type(given_function)  , intent(in)    :: u
-    type(vector)          , intent(inout) :: vec
+  subroutine create_vector (prob, ivar, integ, res)
+    implicit none
+    type(physical_problem)         , intent(in)  :: prob
+    integer(ip)                    , intent(in)  :: ivar
+    type(volume_integrator_pointer), intent(in)  :: integ(:)
+    type(vector)                   , intent(out) :: res
+    integer(ip)  :: ndof, ngaus
+    ndof = prob%vars_of_unk(ivar)
+    ngaus = integ(ivar)%p%uint_phy%nlocs
+    call memalloc(ndof,ngaus,res%a,__FILE__,__LINE__)
+  end subroutine create_vector
+
+  subroutine vector_interpolation (unkno, ivar, icomp, integ, res)
+    real(rp)     , intent(in)    :: unkno(:,:,:)
+    integer(ip)  , intent(in)    :: ivar, icomp
+    type(volume_integrator_pointer), intent(in)  :: integ(:)
+    type(vector) , intent(inout) :: res
     integer(ip)  :: ndof,nnode,ngaus
     integer(ip)  :: idof,inode,igaus
-    call u%GuardTemp()
-    nnode = u%elem%integ(u%ivar)%p%uint_phy%nnode
-    ngaus = u%elem%integ(u%ivar)%p%uint_phy%nlocs
-    call memalloc(u%ndof,ngaus,vec%a,__FILE__,__LINE__)
+    ndof  = size(res%a,1)
+    nnode = integ(ivar)%p%uint_phy%nnode
+    ngaus = integ(ivar)%p%uint_phy%nlocs
     do igaus=1,ngaus
-       do idof=1,u%ndof
+       do idof=1,ndof
           do inode =1,nnode
-             vec%a(idof,igaus) = u%elem%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%elem%unkno(inode, u%ivar-1+idof, u%icomp)
+             res%a(idof,igaus) = integ(ivar)%p%uint_phy%shape(inode,igaus) * unkno(inode, ivar-1+idof, icomp)
           end do
        end do
     end do
-    call vec%SetTemp()
-    call u%CleanTemp()
   end subroutine vector_interpolation
 
-  subroutine scalar_gradient_interpolation(g,vec)
-    type(given_function_gradient), intent(in)  :: g
-    type(vector)                 , intent(inout) :: vec
-    integer(ip) :: ndime, nnode, ngaus
-    integer(ip) :: idime, inode, igaus
-    call g%GuardTemp()
-    assert(g%ndof==1)
-    assert( associated(g%elem))
-    ndime = g%elem%integ(g%ivar)%p%uint_phy%ndime
-    ngaus = g%elem%integ(g%ivar)%p%uint_phy%nlocs
-    call memalloc(ndime,ngaus,vec%a,__FILE__,__LINE__)
-    do igaus=1,ngaus
-       do inode =1,nnode
-          do idime=1,ndime
-             vec%a(idime,igaus) = g%elem%integ(g%ivar)%p%uint_phy%deriv(idime,inode,igaus) * g%elem%unkno(inode,g%ivar, g%icomp)
-          end do
-       end do
-    end do
-    call vec%SetTemp()
-    call g%CleanTemp()
-  end subroutine scalar_gradient_interpolation
+  ! subroutine scalar_interpolation (u, res)
+  !   type(given_function)  , intent(in)    :: u
+  !   type(scalar)          , intent(inout) :: res
+  !   integer(ip)  :: ndof,nnode,ngaus
+  !   integer(ip)  :: idof,inode,igaus
+  !   call u%GuardTemp()
+  !   assert( u%ndof == 1)
+  !   nnode = u%integ(u%ivar)%p%uint_phy%nnode
+  !   ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
+  !   call memalloc(ngaus,res%a,__FILE__,__LINE__)
+  !   do igaus=1,ngaus
+  !      do inode =1,nnode
+  !         res%a(igaus) = u%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%unkno(inode,u%ivar,u%icomp)
+  !      end do
+  !   end do
+  !   call res%SetTemp()
+  !   call u%CleanTemp()
+  ! end subroutine scalar_interpolation
 
-  subroutine vector_gradient_interpolation(g,tens)
-    type(given_function_gradient), intent(in)  :: g
-    type(tensor)                 , intent(inout) :: tens
-    integer(ip) :: ndof, ndime, nnode, ngaus
-    integer(ip) :: idof, idime, inode, igaus
-    call g%GuardTemp()
-    assert(associated(g%elem))
-    ndime = g%elem%integ(g%ivar)%p%uint_phy%ndime
-    ndof  = g%ndof
-    ngaus = g%elem%integ(g%ivar)%p%uint_phy%nlocs
-    call memalloc(ndime,ndof,ngaus,tens%a,__FILE__,__LINE__)
-    do igaus=1,ngaus
-       do idof=1,ndof
-          do inode =1,nnode
-             do idime=1,ndime
-                tens%a(idime,idof,igaus) = g%elem%integ(g%ivar)%p%uint_phy%deriv(idime,inode,igaus) * g%elem%unkno(inode, g%ivar-1+idof, g%icomp)
-             end do
-          end do
-       end do
-    end do
-    call tens%SetTemp()
-    call g%CleanTemp()
-  end subroutine vector_gradient_interpolation
+  ! subroutine vector_interpolation (u,vec)
+  !   type(given_function)  , intent(in)    :: u
+  !   type(vector)          , intent(inout) :: vec
+  !   integer(ip)  :: ndof,nnode,ngaus
+  !   integer(ip)  :: idof,inode,igaus
+  !   call u%GuardTemp()
+  !   nnode = u%integ(u%ivar)%p%uint_phy%nnode
+  !   ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
+  !   call memalloc(u%ndof,ngaus,vec%a,__FILE__,__LINE__)
+  !   do igaus=1,ngaus
+  !      do idof=1,u%ndof
+  !         do inode =1,nnode
+  !            vec%a(idof,igaus) = u%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%unkno(inode, u%ivar-1+idof, u%icomp)
+  !         end do
+  !      end do
+  !   end do
+  !   call vec%SetTemp()
+  !   call u%CleanTemp()
+  ! end subroutine vector_interpolation
 
-  subroutine divergence_interpolation(u,res)
-    type(given_function_divergence), intent(in)  :: u
-    type(scalar)                   , intent(inout) :: res
-    integer(ip) :: ndof, ndime, nnode, ngaus
-    integer(ip) :: idof, idime, inode, igaus
-    call u%GuardTemp()
-    ndime = u%elem%integ(u%ivar)%p%uint_phy%ndime
-    assert( u%ndof == ndime)
-    assert(associated(u%elem))
-    ndof  = u%ndof
-    ngaus = u%elem%integ(u%ivar)%p%uint_phy%nlocs
-    call memalloc(ngaus,res%a,__FILE__,__LINE__)
-    do igaus=1,ngaus
-       do idof=1,ndof
-          do inode =1,nnode
-             do idime=1,ndime
-                res%a(igaus) = u%elem%integ(u%ivar)%p%uint_phy%deriv(idime,inode,igaus) * u%elem%unkno(inode, u%ivar-1+idof, u%icomp)
-             end do
-          end do
-       end do
-    end do
-    call res%SetTemp()
-    call u%CleanTemp()
-  end subroutine divergence_interpolation
+  ! subroutine scalar_gradient_interpolation(g,vec)
+  !   type(given_function_gradient), intent(in)  :: g
+  !   type(vector)                 , intent(inout) :: vec
+  !   integer(ip) :: ndime, nnode, ngaus
+  !   integer(ip) :: idime, inode, igaus
+  !   call g%GuardTemp()
+  !   assert(g%ndof==1)
+  !   assert( associated(g%integ))
+  !   ndime = g%integ(g%ivar)%p%uint_phy%ndime
+  !   ngaus = g%integ(g%ivar)%p%uint_phy%nlocs
+  !   call memalloc(ndime,ngaus,vec%a,__FILE__,__LINE__)
+  !   do igaus=1,ngaus
+  !      do inode =1,nnode
+  !         do idime=1,ndime
+  !            vec%a(idime,igaus) = g%integ(g%ivar)%p%uint_phy%deriv(idime,inode,igaus) * g%unkno(inode,g%ivar, g%icomp)
+  !         end do
+  !      end do
+  !   end do
+  !   call vec%SetTemp()
+  !   call g%CleanTemp()
+  ! end subroutine scalar_gradient_interpolation
+
+  ! subroutine vector_gradient_interpolation(g,tens)
+  !   type(given_function_gradient), intent(in)  :: g
+  !   type(tensor)                 , intent(inout) :: tens
+  !   integer(ip) :: ndof, ndime, nnode, ngaus
+  !   integer(ip) :: idof, idime, inode, igaus
+  !   call g%GuardTemp()
+  !   assert(associated(g%integ))
+  !   ndime = g%integ(g%ivar)%p%uint_phy%ndime
+  !   ndof  = g%ndof
+  !   ngaus = g%integ(g%ivar)%p%uint_phy%nlocs
+  !   call memalloc(ndime,ndof,ngaus,tens%a,__FILE__,__LINE__)
+  !   do igaus=1,ngaus
+  !      do idof=1,ndof
+  !         do inode =1,nnode
+  !            do idime=1,ndime
+  !               tens%a(idime,idof,igaus) = g%integ(g%ivar)%p%uint_phy%deriv(idime,inode,igaus) * g%unkno(inode, g%ivar-1+idof, g%icomp)
+  !            end do
+  !         end do
+  !      end do
+  !   end do
+  !   call tens%SetTemp()
+  !   call g%CleanTemp()
+  ! end subroutine vector_gradient_interpolation
+
+  ! subroutine divergence_interpolation(u,res)
+  !   type(given_function_divergence), intent(in)  :: u
+  !   type(scalar)                   , intent(inout) :: res
+  !   integer(ip) :: ndof, ndime, nnode, ngaus
+  !   integer(ip) :: idof, idime, inode, igaus
+  !   call u%GuardTemp()
+  !   ndime = u%integ(u%ivar)%p%uint_phy%ndime
+  !   assert( u%ndof == ndime)
+  !   assert(associated(u%integ))
+  !   ndof  = u%ndof
+  !   ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
+  !   call memalloc(ngaus,res%a,__FILE__,__LINE__)
+  !   do igaus=1,ngaus
+  !      do idof=1,ndof
+  !         do inode =1,nnode
+  !            do idime=1,ndime
+  !               res%a(igaus) = u%integ(u%ivar)%p%uint_phy%deriv(idime,inode,igaus) * u%unkno(inode, u%ivar-1+idof, u%icomp)
+  !            end do
+  !         end do
+  !      end do
+  !   end do
+  !   call res%SetTemp()
+  !   call u%CleanTemp()
+  ! end subroutine divergence_interpolation
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -369,22 +436,6 @@ contains
        res%left_factor = field_left
     end if
   end function product_field_basis_function
-
-  function product_basis_function_field(u,field_right) result(res)
-    implicit none
-    class(field)         , intent(in)  :: field_right
-    class(basis_function), intent(in)  :: u
-    class(basis_function), allocatable :: res
-    allocate(res,mold=u)
-    call res%SetTemp()
-    call copy_fem_function(u,res)
-    if(allocated(u%left_factor)) then
-       ! Here we need * and = overloading with corresponding allocation/deallocation.
-       res%right_factor = u%right_factor * field_right 
-    else
-       res%right_factor = field_right
-    end if
-  end function product_basis_function_field
 
   function scale_left_basis_function(alpha,ul) result(x)
     implicit none
@@ -824,20 +875,20 @@ contains
     real(rp)     :: factor
 
     call u%GuardTemp()
-    nnode = u%elem%integ(u%ivar)%p%uint_phy%nnode
-    ngaus = u%elem%integ(u%ivar)%p%uint_phy%nlocs
+    nnode = u%integ(u%ivar)%p%uint_phy%nnode
+    ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
 
-    ! Allocate mat with mold=elem%p_mat
-    call array_create(u%elem%p_mat%nd1,u%elem%p_mat%nd2,mat)
+    ! Allocate mat with mold=p_mat
+    call array_create(mat%nd1,mat%nd2,mat)
 
     ! Starting positions in the element matrix
     istart=0
     do ivar = 1, v%ivar-1
-       istart = istart + v%elem%f_inf(ivar)%p%nnode 
+       istart = istart + v%integ(ivar)%p%uint_phy%nnode
     end do
     jstart=0
     do jvar = 1, u%ivar-1
-       jstart = jstart + u%elem%f_inf(jvar)%p%nnode 
+       jstart = jstart + u%integ(u%ivar)%p%uint_phy%nnode
     end do
 
     ! Now perform operations according to left_factor and right_factor, currently only left_factor implemented
@@ -851,10 +902,10 @@ contains
                 ! Assuming interpolation independent of ivar:
                 call array_create(nnode,nnode,tmp)
                 do igaus=1,ngaus
-                   factor = v%elem%integ(v%ivar)%p%femap%detjm(igaus) * v%elem%integ(v%ivar)%p%quad%weight(igaus) * &
+                   factor = v%integ(v%ivar)%p%femap%detjm(igaus) * v%integ(v%ivar)%p%quad%weight(igaus) * &
                         &   v_left_factor%a(igaus) * u_left_factor%a(igaus) * v%scaling * u%scaling
                    tmp%a(inode,jnode) = tmp%a(inode,jnode) + factor * &
-                        & v%elem%integ(v%ivar)%p%uint_phy%shape(inode,igaus)*u%elem%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
+                        & v%integ(v%ivar)%p%uint_phy%shape(inode,igaus)*u%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
                 end do
                 do inode = 1, nnode
                    do jnode = 1, nnode
@@ -869,18 +920,18 @@ contains
                 ! General case:
                 ! do igaus=1,ngaus
                 !    ! Quadrature is actually independent of ivar. See comments in fem_space and integration.
-                !    factor = v%elem%integ(v%ivar)%p%femap%detjm(igaus)*v%elem%integ(v%ivar)%p%quad%weight(igaus)*v%left_factor(igaus)*u%left_factor(igaus)
+                !    factor = v%integ(v%ivar)%p%femap%detjm(igaus)*v%integ(v%ivar)%p%quad%weight(igaus)*v%left_factor(igaus)*u%left_factor(igaus)
                 !    ipos = 0
                 !    do ivar = v%ivar, v%ivar + v%ndof - 1
-                !       do inode = 1, elem%f_inf(ivar)%p%nnode
+                !       do inode = 1, u%integ(ivar)%p%uint_phy%nnode
                 !          ipos = ipos + 1
                 !          jpos = 0
                 !          do jvar = u%ivar, u%ivar + u%ndof - 1
-                !             do jnode = 1, elem%f_inf(jvar)%p%nnode
+                !             do jnode = 1, u%integ(jvar)%p%uint_phy%nnode
                 !                jpos = jpos + 1
                 !                if(jvar==ivar) then
                 !                   mat%a(istart+ipos,jstart+jpos) = mat%a(istart+ipos,jstart+jpos) + factor* &
-                !                     &  v%elem%integ(v%ivar)%p%uint_phy%shape(inode,igaus)*u%elem%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
+                !                     &  v%integ(v%ivar)%p%uint_phy%shape(inode,igaus)*u%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
                 !                end if
                 !             end do
                 !          end do
@@ -902,13 +953,13 @@ contains
 
     ! The following lines are needed to implement the non-diagonal case, e.g. a porosity tensor.
     ! do ivar = v%ivar, v%ivar + v%ndof - 1
-    !    do inode = 1, elem%f_inf(ivar)%p%nnode
+    !    do inode = 1, v%integ(ivar)%p%uint_phy%nnode
     !       ipos = ipos + 1
     !       do jvar = u%ivar, u%ivar + u%ndof - 1
-    !          do jnode = 1, elem%f_inf(jvar)%p%nnode
+    !          do jnode = 1, u%integ(jvar)%p%uint_phy%nnode
     !             jpos = jpos + 1
     !             mat%a(ipos,jpos) = mat%a(ipos,jpos) + &
-    !                  &  v%elem%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%elem%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
+    !                  &  v%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
     !          end do
     !       end do
     !    end do

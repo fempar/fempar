@@ -33,8 +33,8 @@ module fem_space_names
   use array_names
   use fem_triangulation_names
   use hash_table_names
-  use integration_names
-  use face_integration_names
+  use integration_tools_names
+  !use face_integration_names
   use fem_space_types
   use dof_handler_names
   use migratory_element_names
@@ -46,18 +46,20 @@ module fem_space_names
   private
 
   integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
+  
+  type(list) , target :: void_list
 
   ! Information of each element of the FE space
   type, extends(migratory_element) :: fem_element
      
      !type(physical_problem), pointer :: problem        
           
-     integer(ip)                   :: problem           ! Problem to be solved
+     integer(ip)                   :: problem           ! Physical problem to be solved
      integer(ip)                   :: num_vars          ! Number of variables of the problem
      integer(ip),      allocatable :: order(:)          ! Order per variable
      integer(ip),      allocatable :: continuity(:)     ! Continuity flag per variable
      integer(ip)                   :: material          ! Material ! SB.alert : material can be used as p    
-     
+
      integer(ip)     , allocatable   :: elem2dof(:,:)   ! Map from elem to dof
 
      type(fem_fixed_info_pointer), allocatable :: f_inf(:) ! Interpolation info of the FE space
@@ -77,7 +79,7 @@ module fem_space_names
      type(array_rp2), pointer :: p_mat ! Pointer to the elemental matrix
      type(array_rp1), pointer :: p_vec ! Pointer to the elemental vector
 
-     type(vol_integ_pointer)     , allocatable :: integ(:)  ! Pointer to integration parameters
+     type(volume_integrator_pointer)     , allocatable :: integ(:)  ! Pointer to integration parameters
 
    contains
      procedure :: size   => fem_element_size
@@ -119,15 +121,15 @@ module fem_space_names
      type (hash_table_ip_ip)            :: ht_pos_elvec
      type(array_rp2)                    :: lelmat(max_global_interpolations)
      type(array_rp1)                    :: lelvec(max_global_interpolations)
-     type(list)                         :: l_nodes_object(max_global_interpolations)
+     !type(list)                         :: l_nodes_object(max_global_interpolations)
      integer(ip)                        :: cur_elmat
      integer(ip)                        :: cur_elvec
 
      ! Integrator
-     type (hash_table_ip_ip)            :: ht_pos_vol_integ
-     type (hash_table_ip_ip)            :: ht_pos_face_integ
-     type(vol_integ)                    :: lvoli(max_global_interpolations)        
-     type(face_integ)                   :: lfaci(max_global_interpolations)
+     type (hash_table_ip_ip)            :: ht_pos_volume_integrator
+     type (hash_table_ip_ip)            :: ht_pos_face_integrator
+     type(volume_integrator)            :: lvoli(max_global_interpolations)        
+     type(face_integrator)              :: lfaci(max_global_interpolations)
      integer(ip)                        :: cur_lvoli
      integer(ip)                        :: cur_lfaci
 
@@ -157,11 +159,9 @@ module fem_space_names
 !,          &
 !       get_p_faces
 
+  !public :: void_list
+
 contains
-
-  
-
-
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
@@ -277,8 +277,8 @@ contains
     end if
 
     ! Initialization of volume and face integrators parameters
-    call fspac%ht_pos_vol_integ%init(ht_length)
-    call fspac%ht_pos_face_integ%init(ht_length)
+    call fspac%ht_pos_volume_integrator%init(ht_length)
+    call fspac%ht_pos_face_integrator%init(ht_length)
     fspac%cur_lvoli = 1
     fspac%cur_lfaci = 1
     !    allocate(fspac%lvoli(max_interpolations), stat=istat)
@@ -326,10 +326,13 @@ contains
     ! end if
 
     ! void nodes object
-    fspac%l_nodes_object(1)%n = max_nobje
-    call memalloc( max_nobje+1, fspac%l_nodes_object(1)%p, __FILE__, __LINE__ )
-    fspac%l_nodes_object(1)%p = 1
-    call memalloc( 0, fspac%l_nodes_object(1)%l, __FILE__, __LINE__ )
+ 
+    void_list = list(max_nobje)
+
+    ! fspac%l_nodes_object(1)%n = max_nobje
+    ! call memalloc( max_nobje+1, fspac%l_nodes_object(1)%p, __FILE__, __LINE__ )
+    ! fspac%l_nodes_object(1)%p = 1
+    ! call memalloc( 0, fspac%l_nodes_object(1)%l, __FILE__, __LINE__ )
 
     ! Loop over elements
     nvars_tot = fspac%dof_handler%nvars_global
@@ -391,7 +394,7 @@ contains
           if ( continuity(ielem, ivar) /= 0 ) then
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob
           else 
-             fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%l_nodes_object(1) ! SB.alert : Think about hdG
+             fspac%lelem(ielem)%nodes_object(ivar)%p => void_list ! fspac%l_nodes_object(1) ! SB.alert : Think about hdG
           end if
        end do
 
@@ -417,6 +420,8 @@ contains
           if ( fspac%static_condensation ) then
              ! JP: Is this working? Because max_num_nodes is sent to integ_create to build the interpolation
              !     which is needed even with static_condensation...
+             ! JP & SB: In fact we also need to think about it for the unknown. Only elem2dof can be reduced
+             !          to the interface.
              nnode = fspac%lelem(ielem)%f_inf(ivar)%p%nnode -                                   &
                   &  fspac%lelem(ielem)%f_inf(ivar)%p%nodes_obj(dim+1) ! SB.alert : do not use nodes_obj
           else
@@ -460,15 +465,15 @@ contains
           ! Otherwise all the variables have the same order.
           ltype(1) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
-          call fspac%ht_pos_vol_integ%put(key=v_key, val=fspac%cur_lvoli, stat = istat)
+          call fspac%ht_pos_volume_integrator%put(key=v_key, val=fspac%cur_lvoli, stat = istat)
           if ( istat == now_stored ) then
              ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
-             call integ_create(f_type,f_type,dim,1,f_order,fspac%lvoli(fspac%cur_lvoli),     &
-                  &            khie = fspac%hierarchical_basis, mnode=max_num_nodes)
+             call volume_integrator_create(f_type,f_type,dim,1,f_order,fspac%lvoli(fspac%cur_lvoli),     &
+                  &                         khie = fspac%hierarchical_basis, mnode=max_num_nodes)
              pos_voint       = fspac%cur_lvoli
              fspac%cur_lvoli = fspac%cur_lvoli + 1
           else if ( istat == was_stored ) then
-             call fspac%ht_pos_vol_integ%get(key=v_key,val=pos_voint,stat=istat)
+             call fspac%ht_pos_volume_integrator%get(key=v_key,val=pos_voint,stat=istat)
              assert ( istat == key_found )
           end if
           fspac%lelem(ielem)%integ(ivar)%p => fspac%lvoli(pos_voint)
@@ -595,7 +600,7 @@ contains
     !       call integ_free( f%lfaci(i) )
     !    end do
     !    f%cur_lfaci = 0
-    !    call f%ht_pos_face_integ%free
+    !    call f%ht_pos_face_integrator%free
     ! end if
 
     do i = 1, f%g_trian%num_elems
@@ -644,11 +649,11 @@ contains
     call f%ht_pos_elvec%free
 
     do i = 1,f%cur_lvoli-1
-       call integ_free( f%lvoli(i) )
+       call volume_integrator_free( f%lvoli(i) )
     end do
     !deallocate ( f%lvoli )
     f%cur_lvoli = 0
-    call f%ht_pos_vol_integ%free
+    call f%ht_pos_volume_integrator%free
 
     do i = 1,f%cur_elinf-1
        call fem_element_fixed_info_free (f%lelem_info(i))

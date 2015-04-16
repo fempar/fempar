@@ -129,6 +129,9 @@ module types
      integer(ip), allocatable :: p(:) 
      integer(ip), allocatable :: l(:) 
   end type list
+  interface list
+     module procedure list_constructor
+  end interface list
 
   type list_2d
      integer(ip) :: n
@@ -159,5 +162,16 @@ module types
      subroutine runend
      end subroutine runend
   end interface
+
+contains
+
+  function list_constructor(n) result(l)
+    implicit none
+    integer(ip) :: n
+    type(list)  :: l
+    !assert(n>0)
+    allocate(l%p(n))
+    l%p=0
+  end function list_constructor
 
 end module types

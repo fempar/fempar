@@ -52,7 +52,7 @@ module fem_space_types
   integer(ip), parameter       :: P_type_id    = 1
   integer(ip), parameter       :: Q_type_id    = 2
   integer(ip), parameter       :: max_FE_types = 2
-  
+
   ! Types
   type fem_fixed_info_pointer
      type(fem_fixed_info)     , pointer :: p => NULL()  

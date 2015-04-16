@@ -28,6 +28,7 @@
 module base_operator_names
   use types
   use memory_guard_names
+  use integrable_names
   use base_operand_names
   implicit none
 # include "debug.i90"
@@ -35,7 +36,7 @@ module base_operator_names
   private
 
   ! Abstract operator (and its pure virtual function apply)
-  type, abstract, extends(memory_guard) :: base_operator
+  type, abstract, extends(integrable) :: base_operator
    contains
      procedure (apply_interface)         , deferred :: apply
      procedure (apply_fun_interface)     , deferred :: apply_fun
