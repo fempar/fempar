@@ -149,7 +149,7 @@ contains
     call create_vector (aprox%nsi, 1, integ, u_n)
     ! Then for each element fill values
     call interpolation (unkno, 1, 1, integ, a)
-    call interpolation (unkno, 1, 1, integ, u_n)
+    call interpolation (unkno, 1, 3, integ, u_n)
 
     ! Dirty, isnt'it?
     !h%a=integ(1)%p%femap%hleng(1,:)     ! max

@@ -41,7 +41,7 @@ module element_tools_names
 
   type, extends(memory_guard) :: fem_function
      integer(ip)  :: ivar=1
-     integer(ip)  :: ndof=1
+     integer(ip)  :: nvar=1
      type(volume_integrator_pointer), pointer :: integ(:) => NULL()
    contains
      procedure :: free => free_fem_function
@@ -155,7 +155,7 @@ contains
     class(fem_function), intent(in), target  :: from
     class(fem_function), intent(inout)       :: to
     to%ivar=from%ivar
-    to%ndof=from%ndof
+    to%nvar=from%nvar
     to%integ=>from%integ
     call to%SetTemp()
   end subroutine copy_fem_function
@@ -165,16 +165,20 @@ contains
 ! basis_function (some code replication to avoid functions returning polymorphic allocatables)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  function basis_function_constructor(prob,ivar,integ) result(var)
+  function basis_function_constructor(prob,iunk,integ) result(var)
     implicit none
-    class(physical_problem)  , intent(in) :: prob
-    integer(ip)             , intent(in) :: ivar
+    class(physical_problem), intent(in) :: prob
+    integer(ip)            , intent(in) :: iunk
     type(volume_integrator_pointer), target, intent(in) :: integ(:)
     type(basis_function) :: var
-    integer(ip)          :: nnode,ngaus
-    var%ivar = ivar
+    integer(ip)          :: i,ivar
+    ivar = 1
+    do i=1,iunk-1
+       ivar = ivar + prob%vars_of_unk(i)
+    end do
+    var%ivar  = ivar
     var%integ => integ
-    var%ndof = prob%vars_of_unk(ivar)
+    var%nvar = prob%vars_of_unk(iunk)
     call var%SetTemp()
   end function basis_function_constructor
 
@@ -202,18 +206,22 @@ contains
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  function given_function_constructor(prob,ivar,icomp,integ) result(var)
+  function given_function_constructor(prob,iunk,icomp,integ) result(var)
     implicit none
     class(physical_problem) , intent(in) :: prob
-    integer(ip)             , intent(in) :: ivar
+    integer(ip)             , intent(in) :: iunk
     integer(ip)             , intent(in) :: icomp
     type(volume_integrator_pointer),target, intent(in) :: integ(:)
     type(given_function) :: var
-    integer(ip)          :: nnode,ngaus
+    integer(ip)          :: i,ivar
+    ivar = 1
+    do i=1,iunk-1
+       ivar = ivar + prob%vars_of_unk(i)
+    end do
     var%ivar  = ivar
     var%icomp = icomp
     var%integ => integ
-    var%ndof = prob%vars_of_unk(ivar)
+    var%nvar = prob%vars_of_unk(iunk)
     call var%SetTemp()
   end function given_function_constructor
 
@@ -247,9 +255,9 @@ contains
     integer(ip)                    , intent(in)  :: ivar
     type(volume_integrator_pointer), intent(in)  :: integ(:)
     type(scalar)                   , intent(out) :: res
-    integer(ip)  :: ndof, ngaus
-    ndof = prob%vars_of_unk(ivar)
-    assert( ndof == 1)
+    integer(ip)  :: nvar, ngaus
+    nvar = prob%vars_of_unk(ivar)
+    assert( nvar == 1)
     ngaus = integ(ivar)%p%uint_phy%nlocs
     call memalloc(ngaus,res%a,__FILE__,__LINE__)
   end subroutine create_scalar
@@ -276,10 +284,10 @@ contains
     integer(ip)                    , intent(in)  :: ivar
     type(volume_integrator_pointer), intent(in)  :: integ(:)
     type(vector)                   , intent(out) :: res
-    integer(ip)  :: ndof, ngaus
-    ndof = prob%vars_of_unk(ivar)
+    integer(ip)  :: nvar, ngaus
+    nvar = prob%vars_of_unk(ivar)
     ngaus = integ(ivar)%p%uint_phy%nlocs
-    call memalloc(ndof,ngaus,res%a,__FILE__,__LINE__)
+    call memalloc(nvar,ngaus,res%a,__FILE__,__LINE__)
   end subroutine create_vector
 
   subroutine vector_interpolation (unkno, ivar, icomp, integ, res)
@@ -287,13 +295,13 @@ contains
     integer(ip)  , intent(in)    :: ivar, icomp
     type(volume_integrator_pointer), intent(in)  :: integ(:)
     type(vector) , intent(inout) :: res
-    integer(ip)  :: ndof,nnode,ngaus
+    integer(ip)  :: nvar,nnode,ngaus
     integer(ip)  :: idof,inode,igaus
-    ndof  = size(res%a,1)
+    nvar  = size(res%a,1)
     nnode = integ(ivar)%p%uint_phy%nnode
     ngaus = integ(ivar)%p%uint_phy%nlocs
     do igaus=1,ngaus
-       do idof=1,ndof
+       do idof=1,nvar
           do inode =1,nnode
              res%a(idof,igaus) = integ(ivar)%p%uint_phy%shape(inode,igaus) * unkno(inode, ivar-1+idof, icomp)
           end do
@@ -304,10 +312,10 @@ contains
   ! subroutine scalar_interpolation (u, res)
   !   type(given_function)  , intent(in)    :: u
   !   type(scalar)          , intent(inout) :: res
-  !   integer(ip)  :: ndof,nnode,ngaus
+  !   integer(ip)  :: nvar,nnode,ngaus
   !   integer(ip)  :: idof,inode,igaus
   !   call u%GuardTemp()
-  !   assert( u%ndof == 1)
+  !   assert( u%nvar == 1)
   !   nnode = u%integ(u%ivar)%p%uint_phy%nnode
   !   ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
   !   call memalloc(ngaus,res%a,__FILE__,__LINE__)
@@ -323,14 +331,14 @@ contains
   ! subroutine vector_interpolation (u,vec)
   !   type(given_function)  , intent(in)    :: u
   !   type(vector)          , intent(inout) :: vec
-  !   integer(ip)  :: ndof,nnode,ngaus
+  !   integer(ip)  :: nvar,nnode,ngaus
   !   integer(ip)  :: idof,inode,igaus
   !   call u%GuardTemp()
   !   nnode = u%integ(u%ivar)%p%uint_phy%nnode
   !   ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
-  !   call memalloc(u%ndof,ngaus,vec%a,__FILE__,__LINE__)
+  !   call memalloc(u%nvar,ngaus,vec%a,__FILE__,__LINE__)
   !   do igaus=1,ngaus
-  !      do idof=1,u%ndof
+  !      do idof=1,u%nvar
   !         do inode =1,nnode
   !            vec%a(idof,igaus) = u%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%unkno(inode, u%ivar-1+idof, u%icomp)
   !         end do
@@ -346,7 +354,7 @@ contains
   !   integer(ip) :: ndime, nnode, ngaus
   !   integer(ip) :: idime, inode, igaus
   !   call g%GuardTemp()
-  !   assert(g%ndof==1)
+  !   assert(g%nvar==1)
   !   assert( associated(g%integ))
   !   ndime = g%integ(g%ivar)%p%uint_phy%ndime
   !   ngaus = g%integ(g%ivar)%p%uint_phy%nlocs
@@ -365,16 +373,16 @@ contains
   ! subroutine vector_gradient_interpolation(g,tens)
   !   type(given_function_gradient), intent(in)  :: g
   !   type(tensor)                 , intent(inout) :: tens
-  !   integer(ip) :: ndof, ndime, nnode, ngaus
+  !   integer(ip) :: nvar, ndime, nnode, ngaus
   !   integer(ip) :: idof, idime, inode, igaus
   !   call g%GuardTemp()
   !   assert(associated(g%integ))
   !   ndime = g%integ(g%ivar)%p%uint_phy%ndime
-  !   ndof  = g%ndof
+  !   nvar  = g%nvar
   !   ngaus = g%integ(g%ivar)%p%uint_phy%nlocs
-  !   call memalloc(ndime,ndof,ngaus,tens%a,__FILE__,__LINE__)
+  !   call memalloc(ndime,nvar,ngaus,tens%a,__FILE__,__LINE__)
   !   do igaus=1,ngaus
-  !      do idof=1,ndof
+  !      do idof=1,nvar
   !         do inode =1,nnode
   !            do idime=1,ndime
   !               tens%a(idime,idof,igaus) = g%integ(g%ivar)%p%uint_phy%deriv(idime,inode,igaus) * g%unkno(inode, g%ivar-1+idof, g%icomp)
@@ -389,17 +397,17 @@ contains
   ! subroutine divergence_interpolation(u,res)
   !   type(given_function_divergence), intent(in)  :: u
   !   type(scalar)                   , intent(inout) :: res
-  !   integer(ip) :: ndof, ndime, nnode, ngaus
+  !   integer(ip) :: nvar, ndime, nnode, ngaus
   !   integer(ip) :: idof, idime, inode, igaus
   !   call u%GuardTemp()
   !   ndime = u%integ(u%ivar)%p%uint_phy%ndime
-  !   assert( u%ndof == ndime)
+  !   assert( u%nvar == ndime)
   !   assert(associated(u%integ))
-  !   ndof  = u%ndof
+  !   nvar  = u%nvar
   !   ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
   !   call memalloc(ngaus,res%a,__FILE__,__LINE__)
   !   do igaus=1,ngaus
-  !      do idof=1,ndof
+  !      do idof=1,nvar
   !         do inode =1,nnode
   !            do idime=1,ndime
   !               res%a(igaus) = u%integ(u%ivar)%p%uint_phy%deriv(idime,inode,igaus) * u%unkno(inode, u%ivar-1+idof, u%icomp)
@@ -898,7 +906,7 @@ contains
           if(allocated(u%left_factor)) then
              select type(u_left_factor => u%left_factor)
              class is(scalar)
-                ! Diagonal in ivar,ivar contraction of a basis function vector (for ndof=ndime)
+                ! Diagonal in ivar,ivar contraction of a basis function vector (for nvar=ndime)
                 ! Assuming interpolation independent of ivar:
                 call array_create(nnode,nnode,tmp)
                 do igaus=1,ngaus
@@ -909,7 +917,7 @@ contains
                 end do
                 do inode = 1, nnode
                    do jnode = 1, nnode
-                      do ivar = v%ivar, v%ivar + v%ndof - 1
+                      do ivar = v%ivar, v%ivar + v%nvar - 1
                          ipos = istart + (ivar-v%ivar)*nnode + inode
                          jpos = jstart + (ivar-v%ivar)*nnode + jnode
                          mat%a(ipos,jpos) = mat%a(ipos,jpos) + tmp%a(inode,jnode) 
@@ -922,11 +930,11 @@ contains
                 !    ! Quadrature is actually independent of ivar. See comments in fem_space and integration.
                 !    factor = v%integ(v%ivar)%p%femap%detjm(igaus)*v%integ(v%ivar)%p%quad%weight(igaus)*v%left_factor(igaus)*u%left_factor(igaus)
                 !    ipos = 0
-                !    do ivar = v%ivar, v%ivar + v%ndof - 1
+                !    do ivar = v%ivar, v%ivar + v%nvar - 1
                 !       do inode = 1, u%integ(ivar)%p%uint_phy%nnode
                 !          ipos = ipos + 1
                 !          jpos = 0
-                !          do jvar = u%ivar, u%ivar + u%ndof - 1
+                !          do jvar = u%ivar, u%ivar + u%nvar - 1
                 !             do jnode = 1, u%integ(jvar)%p%uint_phy%nnode
                 !                jpos = jpos + 1
                 !                if(jvar==ivar) then
@@ -952,10 +960,10 @@ contains
     end if
 
     ! The following lines are needed to implement the non-diagonal case, e.g. a porosity tensor.
-    ! do ivar = v%ivar, v%ivar + v%ndof - 1
+    ! do ivar = v%ivar, v%ivar + v%nvar - 1
     !    do inode = 1, v%integ(ivar)%p%uint_phy%nnode
     !       ipos = ipos + 1
-    !       do jvar = u%ivar, u%ivar + u%ndof - 1
+    !       do jvar = u%ivar, u%ivar + u%nvar - 1
     !          do jnode = 1, u%integ(jvar)%p%uint_phy%nnode
     !             jpos = jpos + 1
     !             mat%a(ipos,jpos) = mat%a(ipos,jpos) + &

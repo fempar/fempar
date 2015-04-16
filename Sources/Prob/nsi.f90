@@ -25,6 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# include "debug.i90"
 module nsi_names
  use types
  use memor
@@ -67,7 +68,7 @@ contains
     implicit none
     class(nsi_problem), intent(out) :: prob
     integer(ip)       , intent(in)  :: ndime
-    integer(ip) :: i
+    integer(ip) :: i,istat
 
     ! Fill default problem data
     prob%ndime = ndime
@@ -87,6 +88,11 @@ contains
     do i = 1,prob%nvars
        prob%l2g_var(i) = i
     end do
+
+    ! allocate(prob%unkno_names(nunks),stat=istat)
+    ! check(istat==0)
+    ! prob%unkno_names(1)='velocity'
+    ! prob%unkno_names(2)='pressure'
 
     ! Flags
     prob%ksnsi = 1    ! Symmetry flag
