@@ -55,7 +55,7 @@ program par_test_element_exchange
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:) 
 
-  logical(lg), allocatable :: continuity(:,:)
+  integer(ip), allocatable :: continuity(:,:)
 
   call meminit
 
@@ -114,7 +114,7 @@ program par_test_element_exchange
 
   call par_fem_space_create ( p_trian, dhand, fspac, problem, continuity, order, material, &
        & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
-       & static_condensation = logical(.false.,lg), num_materials = 1 )
+       & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
   call create_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
 
