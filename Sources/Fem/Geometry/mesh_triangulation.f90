@@ -30,6 +30,7 @@ module mesh_triangulation
   use memor
   use fem_mesh_names
   use fem_triangulation_names
+  use fem_space_types
   use geom2topo
 
   implicit none
@@ -40,24 +41,25 @@ module mesh_triangulation
 
 contains
 
-   subroutine mesh_to_triangulation (gmesh,trian)
-     implicit none
-     ! Parameters
-     type(fem_mesh), intent(inout)          :: gmesh ! Geometry mesh
-     type(fem_triangulation), intent(inout) :: trian 
+  subroutine mesh_to_triangulation (gmesh,trian)
+    implicit none
+    ! Parameters
+    type(fem_mesh), intent(inout)          :: gmesh ! Geometry mesh
+    type(fem_triangulation), intent(inout) :: trian 
 
-     ! Locals
-     type(fem_mesh) :: tmesh ! Topological mesh
-     integer(ip)    :: istat, ielem, iobj
+    ! Locals
+    type(fem_mesh) :: tmesh ! Topological mesh
+    integer(ip)    :: istat, ielem, iobj
+    integer(ip)    :: count, g_node, inode, p
 
-     assert(trian%state == triangulation_created .or. trian%state == triangulation_elems_filled .or. trian%state == triangulation_elems_objects_filled)
+    assert(trian%state == triangulation_created .or. trian%state == triangulation_elems_filled .or. trian%state == triangulation_elems_objects_filled)
 
-     trian%num_elems = gmesh%nelem
-     trian%num_dims  = gmesh%ndime
-  
-     call fem_triangulation_free_elems_data(trian)
-     call fem_triangulation_free_objs_data(trian)
- 
+    trian%num_elems = gmesh%nelem
+    trian%num_dims  = gmesh%ndime
+
+    call fem_triangulation_free_elems_data(trian)
+    call fem_triangulation_free_objs_data(trian)
+
 !!$     AFM: I think this is not really needed. trian%elems could already be
 !!$     allocated with sufficient size (see next if-end block)
 !!$     if ( trian%state == triangulation_elems_objects_filled .or. &
@@ -67,19 +69,19 @@ contains
 !!$       check(istat==0)
 !!$       trian%elem_array_len = -1
 !!$    end if
- 
+
     if ( trian%num_elems > trian%elem_array_len ) then
-        if (allocated(trian%elems)) then
+       if (allocated(trian%elems)) then
           deallocate(trian%elems, stat=istat)
           check(istat==0)
-        end if
-        allocate(trian%elems(trian%num_elems), stat=istat)
-        check(istat==0)
-        trian%elem_array_len = trian%num_elems
+       end if
+       allocate(trian%elems(trian%num_elems), stat=istat)
+       check(istat==0)
+       trian%elem_array_len = trian%num_elems
     end if
 
     call geom2topo_mesh_cond(gmesh, tmesh)
-  
+
     do ielem=1, trian%num_elems
        trian%elems(ielem)%num_objects = tmesh%pnods(ielem+1)-tmesh%pnods(ielem)
        call memalloc(trian%elems(ielem)%num_objects, trian%elems(ielem)%objects, __FILE__, __LINE__)
@@ -92,7 +94,23 @@ contains
 
     call fem_mesh_free(tmesh)
     trian%state = triangulation_elems_filled
-   end subroutine mesh_to_triangulation
+
+
+    if( allocated(gmesh%coord) ) then
+       do ielem = 1, trian%num_elems
+          call memalloc( gmesh%pnods(ielem+1)-gmesh%pnods(ielem), trian%num_dims, &
+               & trian%elems(ielem)%coordinates, __FILE__, __LINE__ )
+          count = 0
+          do inode = gmesh%pnods(ielem),gmesh%pnods(ielem+1)-1
+             count = count+1
+             g_node = gmesh%lnods(inode)
+             trian%elems(ielem)%coordinates(count,1:trian%num_dims) = gmesh%coord(g_node,1:trian%num_dims)
+          end do
+          trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
+       end do
+    end if
+
+  end subroutine mesh_to_triangulation
 
 end module mesh_triangulation
 

@@ -52,34 +52,39 @@ module fem_space_names
   ! Information of each element of the FE space
   type, extends(migratory_element) :: fem_element
      
-     !type(physical_problem), pointer :: problem        
-          
-     integer(ip)                   :: problem           ! Physical problem to be solved
+     ! Reference element info          
+     type(fem_fixed_info_pointer), allocatable :: f_inf(:)    ! Topology of the reference finite element
+     type(fem_fixed_info), pointer :: p_geo_info => NULL()    ! Topology of the reference geometry ( idem fe w/ p=1)
+     integer(ip),      allocatable :: order(:)                ! Order per variable
+     type(volume_integrator_pointer), allocatable :: integ(:) ! Pointer to integration parameters
+     ! order in f_inf, it can be eliminated
+
+     ! Problem and unknowns
+     integer(ip)                   :: problem           ! Problem to be solved
      integer(ip)                   :: num_vars          ! Number of variables of the problem
-     integer(ip),      allocatable :: order(:)          ! Order per variable
-     integer(ip),      allocatable :: continuity(:)     ! Continuity flag per variable
-     integer(ip)                   :: material          ! Material ! SB.alert : material can be used as p    
 
+     ! Connectivity
+     integer(ip),      allocatable   :: continuity(:)     ! Continuity flag per variable
+     type(list_pointer), allocatable :: nodes_object(:) ! Nodes per object (including interior) (nvars)
+     integer(ip)                     :: material          ! Material ! SB.alert : material can be used as p   
+     ! use of material still unclear
+
+     ! Local to global 
      integer(ip)     , allocatable   :: elem2dof(:,:)   ! Map from elem to dof
-
-     type(fem_fixed_info_pointer), allocatable :: f_inf(:) ! Interpolation info of the FE space
-     type(list_pointer), allocatable :: nodes_object(:)    ! Nodes per object (including interior) (nvars)
-
+     
+     ! Unknown + other values
      real(rp)        , allocatable :: unkno(:,:,:)      ! Values of the solution on the nodes of the elem  (max_num_nodes, nvars, time_steps_to_store)
-
      real(rp)        , allocatable :: nodal_properties(:,:)   ! Values of (interpolated) properties on the nodes of the elem 
                                                               ! (max_num_nodes, num_nodal_props)
                                                               ! They can be used to store postprocessing fields, e.g. vorticity in nsi
      real(rp)        , allocatable :: gauss_properties(:,:,:) ! Gauss point level properties with history, e.g. subscales,  rank?
 
+     ! Boundary conditions
      integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
      
-     type(fem_fixed_info), pointer :: p_geo_info => NULL() ! Interpolation info of the geometry
-          
+     ! Auxiliary working arrays (element matrix and vector)
      type(array_rp2), pointer :: p_mat ! Pointer to the elemental matrix
      type(array_rp1), pointer :: p_vec ! Pointer to the elemental vector
-
-     type(volume_integrator_pointer)     , allocatable :: integ(:)  ! Pointer to integration parameters
 
    contains
      procedure :: size   => fem_element_size
@@ -89,15 +94,18 @@ module fem_space_names
 
   ! Information relative to the faces
   type fem_face
+     
+     ! Reference face info
+     type(element_face_integrator) :: integ(2)  ! Pointer to face integration
 
+     ! Face mesh info
      integer(ip)               :: face_object
-
      integer(ip)               :: neighbor_element(2) ! Neighbor elements
      integer(ip)               :: local_face(2)       ! Face pos in element
 
+     ! Auxiliary working arrays (face+element matrix and vector)
      type(array_rp2), pointer  :: p_mat ! Pointer to the elemental matrix
      type(array_rp1), pointer  :: p_vec   ! Pointer to face integration vector
-     type(element_face_integrator) :: integ(2)  ! Pointer to face integration
 
      !type(array_ip1), allocatable:: o2n(2)           ! permutation of the gauss points in elem2
      ! SB.alert : temporary, it is a lot of memory, and should be handled via a hash table
@@ -116,7 +124,7 @@ module fem_space_names
      type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler)        , pointer :: dof_handler
 
-     ! Elemental matrices and vector
+     ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
      type (hash_table_ip_ip)            :: ht_pos_elmat
      type (hash_table_ip_ip)            :: ht_pos_elvec
      type(array_rp2)                    :: lelmat(max_global_interpolations)
@@ -133,16 +141,18 @@ module fem_space_names
      integer(ip)                        :: cur_lvoli
      integer(ip)                        :: cur_lfaci
 
-     ! Element common information
+     ! Array of reference elements (to be pointed from fem_elements)
      type (hash_table_ip_ip)            :: ht_elem_info
      ! JP: change to fixed size array? Inline to the previous cases...
      type (fem_fixed_info), allocatable :: lelem_info(:)
      integer(ip)                        :: cur_elinf
 
-     type(list_2d), allocatable         :: object2dof(:)  ! An auxiliary array to accelerate some parts of the code
-     integer(ip), allocatable           :: ndofs(:)
-     integer(ip)                        :: time_steps_to_store        ! Time steps to store
+     ! Acceleration arrays
+     type(list_2d), allocatable         :: object2dof(:)       ! An auxiliary array to accelerate some parts of the code
+     integer(ip), allocatable           :: ndofs(:)            ! number of dofs (nblocks)
+     integer(ip)                        :: time_steps_to_store ! Time steps to store in unkno
 
+     ! List of faces where we want to integrate things
      type(fem_face)       , allocatable    :: interior_faces(:), boundary_faces(:), interface_faces(:)
      integer(ip) :: num_interior_faces, num_boundary_faces, num_interface_faces
 

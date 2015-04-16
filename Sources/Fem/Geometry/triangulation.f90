@@ -92,8 +92,12 @@ module fem_triangulation_names
 
   type elem_topology
      integer(ip)               :: num_objects = -1    ! Number of objects
-     integer(ip) , allocatable :: objects(:)          ! List of Local IDs of the objects (vertices, edges, faces) that make up this element
+     integer(ip), allocatable  :: objects(:)          ! List of Local IDs of the objects (vertices, edges, faces) that make up this element
      type(fem_fixed_info), pointer :: topology => NULL() ! Topological info of the geometry (SBmod)
+     
+     real(rp), allocatable     :: coordinates(:,:)
+     integer(ip)               :: order
+
   end type elem_topology
 
   type object_topology
