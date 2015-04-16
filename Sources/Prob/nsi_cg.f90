@@ -25,17 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module nsi
+# include "debug.i90"
+module nsi_cg
  use types
  use memor
- use fem_space_names
+ use array_names
  use problem_names
+ use nsi_names
  use element_fields_names
  use element_tools_names
+ use volume_integration_tools_names
  implicit none
  private 
 
  type, extends(discrete_problem) :: nsi_approximation
+    type(nsi_problem), pointer :: nsi
     integer(ip) ::   & 
          kfl_1vec,   & ! Flag for 1vec integration
          kfl_mtvc,   & ! Flag for matvec integration
@@ -48,6 +52,8 @@ module nsi
          tdimv,      & ! Number of temporal steps stored for velocity
          tdimp         ! Number of temporal steps stored for pressure   
     real(rp) ::      &
+         dtinv,      & ! Inverse of time step
+         ctime,      & ! Current time
          ktauc,      & ! Constant multiplying stabilization parameter tau_c 
          k1tau,      & ! C1 constant on stabilization parameter tau_m
          k2tau         ! C2 constant on stabilization parameter tau_m
@@ -67,11 +73,16 @@ contains
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_approximation), intent(out) :: aprox
-    type(nsi_problem)       , intent(in) :: prob
+    class(nsi_approximation)       , intent(out) :: aprox
+    class(physical_problem), target, intent(in)  :: prob
     integer(ip) :: i
 
-    aprox%prob => prob
+    select type (prob)
+    type is(nsi_problem)
+       aprox%nsi => prob
+    class default
+       check(.false.)
+    end select
 
     ! Flags
     aprox%kfl_1vec = 1 ! Integrate Full OSS
@@ -97,7 +108,7 @@ contains
 
   subroutine nsi_matvec(aprox,integ,unkno,mat,vec)
     implicit none
-    class(nsi_problem)             , intent(in) :: aprox
+    class(nsi_approximation)       , intent(in) :: aprox
     type(volume_integrator_pointer), intent(in) :: integ(:)
     real(rp)                       , intent(in) :: unkno(:,:,:)
     type(array_rp2), intent(inout) :: mat
@@ -114,12 +125,13 @@ contains
 
     integer(ip)  :: ndime
     real(rp)     :: dtinv, c1, c2, mu
-    ndime = aprox%ndime
 
-    u = basis_function(aprox,1,integ)
-    p = basis_function(aprox,2,integ)
-    v = basis_function(aprox,1,integ) 
-    q = basis_function(aprox,2,integ)
+    ndime = aprox%nsi%ndime
+
+    u = basis_function(aprox%nsi,1,integ)
+    p = basis_function(aprox%nsi,2,integ)
+    v = basis_function(aprox%nsi,1,integ) 
+    q = basis_function(aprox%nsi,2,integ)
 
     ! With a_h declared as given_function we could do:
     ! a_h   = given_function(aprox,1,1,integ)
@@ -133,8 +145,8 @@ contains
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and
     ! an initialization call.
-    call create_vector (aprox, 1, integ, a)
-    call create_vector (aprox, 1, integ, u_n)
+    call create_vector (aprox%nsi, 1, integ, a)
+    call create_vector (aprox%nsi, 1, integ, u_n)
     ! Then for each element fill values
     call interpolation (unkno, 1, 1, integ, a)
     call interpolation (unkno, 1, 1, integ, u_n)
@@ -143,7 +155,7 @@ contains
     !h%a=integ(1)%p%femap%hleng(1,:)     ! max
     h%a=integ(1)%p%femap%hleng(ndime,:) ! min
 
-    mu = aprox%prob%diffu
+    mu = aprox%nsi%diffu
 
     dtinv  = aprox%dtinv
     c1 = aprox%k1tau
@@ -160,4 +172,4 @@ contains
 
   end subroutine nsi_matvec
 
-end module nsi
+end module nsi_cg

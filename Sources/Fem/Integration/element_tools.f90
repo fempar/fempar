@@ -168,7 +168,7 @@ contains
   function basis_function_constructor(prob,ivar,integ) result(var)
     implicit none
     class(physical_problem)  , intent(in) :: prob
-    integer(ip)              , intent(in) :: ivar
+    integer(ip)             , intent(in) :: ivar
     type(volume_integrator_pointer), target, intent(in) :: integ(:)
     type(basis_function) :: var
     integer(ip)          :: nnode,ngaus
@@ -243,7 +243,7 @@ contains
 
   subroutine create_scalar (prob, ivar, integ, res)
     implicit none
-    type(physical_problem)         , intent(in)  :: prob
+    class(physical_problem)         , intent(in)  :: prob
     integer(ip)                    , intent(in)  :: ivar
     type(volume_integrator_pointer), intent(in)  :: integ(:)
     type(scalar)                   , intent(out) :: res
@@ -272,7 +272,7 @@ contains
 
   subroutine create_vector (prob, ivar, integ, res)
     implicit none
-    type(physical_problem)         , intent(in)  :: prob
+    class(physical_problem)        , intent(in)  :: prob
     integer(ip)                    , intent(in)  :: ivar
     type(volume_integrator_pointer), intent(in)  :: integ(:)
     type(vector)                   , intent(out) :: res

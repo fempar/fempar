@@ -51,18 +51,17 @@ module problem_names
 
 
   type, abstract :: discrete_problem
-     type(physical_problem), pointer :: prob
    contains
       procedure(create_interface), deferred :: create
       procedure(matvec_interface), deferred :: matvec
    end type discrete_problem
 
   abstract interface
-     subroutine create_interface(aprox,ndime)
-       import :: discrete_problem, ip
+     subroutine create_interface(aprox,prob)
+       import :: physical_problem, discrete_problem
        implicit none
-       class(discrete_problem), intent(inout) :: aprox
-       integer(ip)            , intent(in)    :: ndime
+       class(discrete_problem)        , intent(out) :: aprox
+       class(physical_problem), target, intent(in)  :: prob
      end subroutine create_interface
      subroutine matvec_interface(aprox,integ,unkno,mat,vec)
        import :: discrete_problem, volume_integrator_pointer, array_rp2, array_rp1, rp

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module nsi
+module nsi_names
  use types
  use memor
  use problem_names
@@ -112,4 +112,4 @@ contains
     
   end subroutine nsi_create
 
-end module nsi
+end module nsi_names
