@@ -56,6 +56,10 @@ module problem_names
       procedure(matvec_interface), deferred :: matvec
    end type discrete_problem
 
+   type :: discrete_problem_pointer
+      class(discrete_problem), pointer :: p
+   end type discrete_problem_pointer
+
   abstract interface
      subroutine create_interface(aprox,prob)
        import :: physical_problem, discrete_problem
@@ -74,6 +78,6 @@ module problem_names
      end subroutine matvec_interface
   end interface
 
-  public :: physical_problem, discrete_problem
+  public :: physical_problem, discrete_problem, discrete_problem_pointer
 
 end module problem_names

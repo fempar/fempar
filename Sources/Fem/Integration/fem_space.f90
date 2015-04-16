@@ -33,6 +33,7 @@ module fem_space_names
   use array_names
   use fem_triangulation_names
   use hash_table_names
+  use problem_names
   use integration_tools_names
   !use face_integration_names
   use fem_space_types
@@ -59,9 +60,10 @@ module fem_space_names
      type(volume_integrator_pointer), allocatable :: integ(:) ! Pointer to integration parameters
      ! order in f_inf, it can be eliminated
 
-     ! Problem and unknowns
+     ! Problem and approximation
      integer(ip)                   :: problem           ! Problem to be solved
      integer(ip)                   :: num_vars          ! Number of variables of the problem
+     integer(ip)                   :: approximation     ! Discretization to be used
 
      ! Connectivity
      integer(ip),      allocatable   :: continuity(:)     ! Continuity flag per variable
@@ -114,15 +116,19 @@ module fem_space_names
   ! Global information of the fem_space
   type fem_space  
 
-     integer(ip)                           :: num_continuity        ! Number of materials (maximum value)
+     integer(ip)                           :: num_continuity       ! Number of materials (maximum value)
      logical(lg)                           :: static_condensation  ! Flag for static condensation 
      logical(lg)                           :: hierarchical_basis   ! Flag for hierarchical basis
      class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list
-     type(fem_element)    , pointer        :: lelem(:)             ! List of FEs
-     type(fem_face)       , allocatable    :: lface(:)             ! List of active faces
+     type(fem_element)       , pointer     :: lelem(:)             ! List of FEs
+     type(fem_face)          , allocatable :: lface(:)             ! List of active faces
 
      type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler)        , pointer :: dof_handler
+
+     ! Formulations used to build the space
+     integer(ip) :: num_approximations
+     type(discrete_problem_pointer), allocatable :: approximations(:)
 
      ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
      type (hash_table_ip_ip)            :: ht_pos_elmat
@@ -175,15 +181,17 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_create(  g_trian, dofh, fspac, problem, continuity, order, material, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity, &
-       & num_ghosts )
+  subroutine fem_space_create( g_trian, dofh, fspac, problem, approximations, continuity, order, material, &
+       &                       which_approx, num_approximations, time_steps_to_store, hierarchical_basis, &
+       &                       static_condensation, num_continuity, num_ghosts )
     implicit none
-    type(fem_space)   ,  target, intent(inout)                :: fspac
-    type(fem_triangulation)   , intent(in), target   :: g_trian   
-    type(dof_handler) , intent(in), target           :: dofh   
-    integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
-    integer(ip),     intent(in)       :: continuity(:,:)
+    type(fem_space)        , target, intent(inout) :: fspac
+    type(fem_triangulation), target, intent(in)    :: g_trian   
+    type(dof_handler)      , target, intent(in)    :: dofh   
+    type(discrete_problem_pointer) , intent(in)    :: approximations(:)
+    integer(ip), intent(in) :: material(:), order(:,:), problem(:)
+    integer(ip), intent(in) :: continuity(:,:), which_approx(:)
+    integer(ip), intent(in) :: num_approximations
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
@@ -192,24 +200,28 @@ contains
 
     integer(ip) :: istat, num_ghosts_
 
-    call fem_space_allocate_structures(  g_trian, dofh, fspac, &
+    call fem_space_allocate_structures(  g_trian, dofh, fspac, num_approximations=num_approximations,&
          time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
          static_condensation = static_condensation, num_continuity = num_continuity, &
          num_ghosts = num_ghosts )  
 
-    call fem_space_fe_list_create ( fspac, problem, continuity, order, material )
+    assert(size(approximations)==num_approximations)
+    fspac%approximations = approximations
+
+    call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material )
 
   end subroutine fem_space_create
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, &
+  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, num_approximations, &
        & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity, &
        & num_ghosts )
     implicit none
     type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
     type(dof_handler) , intent(in), target           :: dofh  
+    integer(ip), optional, intent(in) :: num_approximations
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
@@ -219,6 +231,13 @@ contains
     integer(ip) :: istat, num_ghosts_
 
     
+    ! Approximations flag
+    if (present(num_approximations)) then
+       fspac%num_approximations = num_approximations
+    else
+       fspac%num_approximations = 1
+    end if
+
     ! Hierarchical flag
     if (present(hierarchical_basis)) then
        fspac%hierarchical_basis = hierarchical_basis
@@ -268,6 +287,10 @@ contains
     !  Initialization of pointer to dof_handler
     fspac%dof_handler => dofh
 
+    ! Allocation of discretizations
+    allocate(fspac%approximations(num_approximations),stat=istat)
+    check(istat==0)
+
     ! Allocation of elemental matrix and vector parameters
     call fspac%ht_pos_elmat%init(ht_length)
     fspac%cur_elmat = 1
@@ -315,11 +338,11 @@ contains
   !==================================================================================================
   ! Fill the fem_space assuming that all elements are of type f_type but each variable has different
   ! interpolation order
-  subroutine fem_space_fe_list_create( fspac, problem, continuity, order, material )
+  subroutine fem_space_fe_list_create( fspac, problem, which_approx, continuity, order, material )
     implicit none
     type(fem_space), intent(inout), target  :: fspac
-    integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
-    integer(ip),    intent(in)       :: continuity(:,:)
+    integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
+    integer(ip)    , intent(in)       :: continuity(:,:), which_approx(:)
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof
@@ -354,8 +377,10 @@ contains
     ! Continuity
     write(*,*) 'Continuity', continuity
     do ielem = 1, fspac%g_trian%num_elems
-       ! Assign type of problem to ielem
+       ! Assign type of problem and approximation to ielem
        fspac%lelem(ielem)%problem =  problem(ielem)
+       fspac%lelem(ielem)%approximation =  which_approx(ielem)
+
        nvars = fspac%dof_handler%problems(problem(ielem))%nvars
        fspac%lelem(ielem)%num_vars = nvars
        f_type = fspac%g_trian%elems(ielem)%topology%ftype

@@ -98,13 +98,13 @@ contains
 
     if( allocated(gmesh%coord) ) then
        do ielem = 1, trian%num_elems
-          call memalloc( gmesh%pnods(ielem+1)-gmesh%pnods(ielem), trian%num_dims, &
+          call memalloc( trian%num_dims, gmesh%pnods(ielem+1)-gmesh%pnods(ielem), &
                & trian%elems(ielem)%coordinates, __FILE__, __LINE__ )
           count = 0
           do inode = gmesh%pnods(ielem),gmesh%pnods(ielem+1)-1
              count = count+1
              g_node = gmesh%lnods(inode)
-             trian%elems(ielem)%coordinates(count,1:trian%num_dims) = gmesh%coord(g_node,1:trian%num_dims)
+             trian%elems(ielem)%coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
           end do
           trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
        end do

@@ -44,7 +44,8 @@ module assembly_names
   public :: assembly_element_matrix, &
        & assembly_face_element_matrix, &
        & assembly_element_vector, &
-       & assembly_face_vector
+       & assembly_face_vector, &
+       & impose_strong_dirichlet_data
 
   interface assembly_element_matrix
      module procedure assembly_element_matrix_block, &
@@ -402,28 +403,16 @@ contains
     end do
 
   end subroutine pointer_variable
-
-
-!
-!
-!
-!
-!
-
-
-
  
  !=============================================================================
-  subroutine impose_strong_dirichlet_data (el, dh, mp) 
+  subroutine impose_strong_dirichlet_data (el, dh) 
     implicit none
     ! Parameters
     type(fem_element)    , intent(inout)  :: el
     type(dof_handler)    , intent(in)     :: dh
-    integer(ip)          , intent(in)     :: mp
 
     ! Locals
     integer(ip) :: iprob, count, ivars, inode, idof
-
     
     iprob = el%problem
     count = 0

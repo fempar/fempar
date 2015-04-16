@@ -71,7 +71,7 @@ module volume_integration_tools_names
 
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 
-  public :: volume_integrator_create, volume_integrator_free, set_integ
+  public :: volume_integrator_create, volume_integrator_free, volume_integrator_update, set_integ
 
 
 contains
@@ -156,6 +156,17 @@ contains
 
     !integ%ltype = 0
   end subroutine volume_integrator_free
+  !==================================================================================================
+  subroutine volume_integrator_update(integ,coordinates)
+    implicit none
+    ! Parameters
+    type(volume_integrator), intent(inout) :: integ
+    real(rp), intent(in) :: coordinates(:,:)
+    ! Define fe map  by interpolation
+    call femap_from_interp(integ%gint_ref, coordinates, integ%femap)
+    ! Obtain physical interpolation
+    call femap_apply_to_interp(integ%femap,integ%uint_ref, integ%uint_phy)
+  end subroutine volume_integrator_update
   !==================================================================================================
   subroutine set_integ(utype,ndime,g_ord,u_ord,ngaus,nlocs,lrule,llapl,gnode,unode,mnode)
     implicit none
@@ -334,6 +345,48 @@ contains
     call face_interpolation_free(integ%gfint_phy)
 
   end subroutine face_integrator_free
+
+  ! !==================================================================================================
+  ! subroutine integ_faces(elem,face,gmesh,integ,ntxob,nobje)
+  !   implicit none
+  !   ! Parameters
+  !   integer(ip)              , intent(in)    :: elem(2),face(2)
+  !   type(fem_space)           , intent(in)    :: geom     ! Geometry interpolation space
+  !   type(face_integrator)         , intent(inout) :: integ
+  !   type(list)               , intent(in)    :: ntxob
+  !   integer(ip)              , intent(in)    :: nobje
+
+  !   integer(ip)                      :: i,gfnod,poins(integ%gint_ref%nnode),nelem
+  !   real(rp)                         :: TOL=1e-8
+  !   real(rp)                         :: facod(gmesh%ndime,integ%gint_ref%nnode)
+  !   real(rp)   , allocatable         :: elcod(:,:)
+  !   integer(ip), allocatable         :: elpos(:)
+  !   integer(ip)                      :: nnode,inode,iobje,jobje
+
+  !   ! Define face map (from reference to physical space) by interpolation
+  !   ! TODO: Assert that the first element is not the one which the subfaces are in
+
+  !   nnode = 0
+  !   do inode = ntxob%p(nobje+face),ntxob%p(nobje+face+1)-1
+  !      nnode = nnode +1
+  !      poins(nnode) = geom%lelem(ielem)%elem2dof(1,ntxob%l(inode))
+  !   end do
+
+  !   call gather (femsp%g_trian%num_dims,integ%gint_ref%nnode,poins,geom%lelem(ielem)%unkno,facod)
+  !   call bomap_from_interp(integ%gint_ref,facod,integ%bomap)
+
+  !   ! Define elements map  by interpolation
+  !   call memalloc(femsp%g_trian%num_dims,integ%gfint_ref%nnode,elcod,__FILE__,__LINE__)
+  !   call memalloc(integ%gfint_ref%nnode,elpos,__FILE__,__LINE__)
+  !   elpos = geom%lelem(ielem)%elem2dof(1,:)
+  !   call gather (femsp%g_trian%num_dims,integ%gfint_ref%nnode,elpos,geom%lelem(ielem)%unkno,elcod)
+  !   call femap_from_face_interp(integ%gfint_ref,elcod,face,integ%femap)
+  !   call femap_face_to_interp(integ%femap,integ%ufint_ref,face,integ%ufint_phy)
+  !   call femap_face_to_interp(integ%femap,integ%gfint_ref,face,integ%gfint_phy)
+  !   call memfree(elcod,__FILE__,__LINE__)
+  !   call memfree(elpos,__FILE__,__LINE__)
+
+  ! end subroutine integ_faces
 
  !==================================================================================================
   ! This routine gives the type of the face given the type of its surrounding elements

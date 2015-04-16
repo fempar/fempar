@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# include "debug.i90"
 module fem_triangulation_names
   use types
   use memor
   use fem_space_types
   use hash_table_names
   implicit none
-# include "debug.i90"
   private
 
   integer(ip), parameter :: triangulation_not_created          = 0 ! Initial state

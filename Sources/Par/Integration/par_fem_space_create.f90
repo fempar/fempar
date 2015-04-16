@@ -33,6 +33,7 @@ module par_fem_space_names
   use memor
   use fem_space_names
   use fem_space_types
+  use problem_names
   use dof_handler_names
   use hash_table_names
 
@@ -60,14 +61,16 @@ contains
   ! with the required info on ghost elements, together with the dof generation and the
   ! dof graph distribution.
   !*********************************************************************************
-  subroutine par_fem_space_create ( p_trian, dhand, femsp, problem, continuity, order, material, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity  )
+  subroutine par_fem_space_create ( p_trian, dhand, femsp, problem, approximations, continuity, order, material, &
+       & which_approx, num_approximations, time_steps_to_store, hierarchical_basis, static_condensation, num_continuity  )
     implicit none
     type(par_triangulation), intent(inout) :: p_trian
     type(dof_handler), intent(in)       :: dhand
     type(fem_space), intent(inout)      :: femsp  
+    type(discrete_problem_pointer) , intent(in)    :: approximations(:)
     integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
-    integer(ip),     intent(in)       :: continuity(:,:)
+    integer(ip),     intent(in)       :: continuity(:,:), which_approx(:)
+    integer(ip), intent(in) :: num_approximations
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
@@ -80,7 +83,8 @@ contains
     ! provided num_ghosts just in order to allocate element lists in 
     ! fem_space_allocate_structures that will also include ghost elements. 
     call fem_space_create( p_trian%f_trian, dhand, femsp, &
-         & problem, continuity, order, material, time_steps_to_store = time_steps_to_store, &
+         & problem, approximations, continuity, order, material, which_approx, num_approximations, &
+         & time_steps_to_store = time_steps_to_store, &
          & hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
          & num_continuity = num_continuity, num_ghosts = p_trian%num_ghosts )
 
