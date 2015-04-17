@@ -11,7 +11,7 @@
 # Serial tests
 #################################################################
 
-FILE(GLOB_RECURSE TESTS_FEM_SRC *.f90)
+FILE(GLOB_RECURSE TESTS_FEM_SRC *.f90 *.F90)
 SET(TESTS_FEM_SRC ${TESTS_FEM_SRC} PARENT_SCOPE)
 
 FOREACH(TEST_SRC ${TESTS_FEM_SRC})
