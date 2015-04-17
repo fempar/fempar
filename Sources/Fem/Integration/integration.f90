@@ -51,20 +51,25 @@ contains
     class(integrable), optional, intent(inout) :: res2
 
     ! Locals
-    integer(ip) :: ielem,ivar 
+    integer(ip) :: ielem,ivar,nvars 
     class(discrete_problem) , pointer :: discrete
+    integer(ip) :: start(femsp%dof_handler%nvars_global)
 
     ! Main element loop
     do ielem=1,femsp%g_trian%num_elems
 
+       nvars = femsp%lelem(ielem)%num_vars
        ! Compute integration tools on ielem for each ivar (they all share the quadrature inside integ)
-       do ivar=1,femsp%lelem(ielem)%num_vars
+       do ivar=1,nvars
           call volume_integrator_update(femsp%lelem(ielem)%integ(ivar)%p,femsp%g_trian%elems(ielem)%coordinates)
        end do
 
+       ! Starting position for each dof
+       call pointer_variable(femsp%lelem(ielem),femsp%dof_handler, start(1:nvars+1) )
+
        ! Compute element matrix and rhs
        discrete => femsp%approximations(femsp%lelem(ielem)%approximation)%p
-       call discrete%matvec(femsp%lelem(ielem)%integ,femsp%lelem(ielem)%unkno,femsp%lelem(ielem)%p_mat,femsp%lelem(ielem)%p_vec)
+       call discrete%matvec(femsp%lelem(ielem)%integ,femsp%lelem(ielem)%unkno,start(1:nvars+1),femsp%lelem(ielem)%p_mat,femsp%lelem(ielem)%p_vec)
 
        ! Apply boundary conditions
        call impose_strong_dirichlet_data (femsp%lelem(ielem),femsp%dof_handler) 
@@ -72,13 +77,13 @@ contains
        ! Assembly first contribution
        select type(res1)
        class is(fem_matrix)
-          call assembly_element_matrix_mono(femsp%lelem(ielem),femsp%dof_handler,res1) 
+          call assembly_element_matrix_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
        class is(fem_vector)
-          call assembly_element_vector_mono(femsp%lelem(ielem),femsp%dof_handler,res1) 
+          call assembly_element_vector_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
        ! class is(fem_block_matrix)
-       !    call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,res1) 
+       !    call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
        ! class is(fem_block_vector)
-       !    call assembly_element_vector_block(femsp%lelem(ielem),femsp%dof_handler,res1) 
+       !    call assembly_element_vector_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
        class default
           ! class not yet implemented
           check(.false.)
@@ -88,13 +93,13 @@ contains
        if(present(res2)) then
           select type(res2)
              class is(fem_matrix)
-             call assembly_element_matrix_mono(femsp%lelem(ielem),femsp%dof_handler,res2) 
+             call assembly_element_matrix_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              class is(fem_vector)
-             call assembly_element_vector_mono(femsp%lelem(ielem),femsp%dof_handler,res2) 
+             call assembly_element_vector_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              ! class is(fem_block_matrix)
-             ! call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,res2) 
+             ! call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              ! class is(fem_block_vector)
-             ! call assembly_element_vector_block(femsp%lelem(ielem),femsp%dof_handler,res2) 
+             ! call assembly_element_vector_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              class default
                 ! class not yet implemented
              check(.false.)

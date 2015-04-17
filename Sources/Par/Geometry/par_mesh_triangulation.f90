@@ -146,6 +146,9 @@ contains
              ! The ISHFT(1,50) is used to start numbering efs after vertices, assuming nvert < 2**60
              !p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))
              p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(6,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(6,igp))
+             ! JP: this is not actually
+             ! p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart+1,igp),int(6,igp)) + int(jobj, igp)
+             ! Besides this seems to be wrong because ISHFT shifts bits to the left...6 bits is not enough...it's only 64?!?!?!?!?!
           end if
        end do
     end do

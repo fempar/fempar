@@ -36,7 +36,7 @@ module fem_space_types
   implicit none
   private
 
-  integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element
+  integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element (512=2**9)
   integer(ip), parameter       :: max_nobje  = 28   ! Maximum amount of objects in an element
   integer(ip), parameter       :: ht_length  = 10   ! hash tables length
   integer(ip), parameter       :: max_eltype = 12   ! Total number of types

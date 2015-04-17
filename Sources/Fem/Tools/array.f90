@@ -117,6 +117,9 @@ module array_rp2_names
   type array_rp2
      integer(ip)               :: nd1, nd2
      real(rp)    , allocatable :: a(:,:) ! Simple real 2D array
+     contains
+       procedure :: sum => sum_array_rp2_array_rp2
+       generic   :: operator(+) => sum
   end type array_rp2
   public :: array_rp2
 # define var_type type(array_rp2)
@@ -126,6 +129,21 @@ module array_rp2_names
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
 # include "mem_body.i90"
+  function sum_array_rp2_array_rp2(x,y) result(z)
+    implicit none
+    class(array_rp2), intent(in) :: x
+    type(array_rp2), intent(in) :: y
+    type(array_rp2) :: z
+    !call x%GuardTemp()
+    !call y%GuardTemp()
+    !call z%SetTemp()
+    assert(size(x%a,1)==size(y%a,1))
+    assert(size(x%a,2)==size(y%a,2))
+    call memalloc(size(x%a,1),size(x%a,2),z%a,__FILE__,__LINE__)
+    z%a = x%a + y%a
+    !call x%CleanTemp()
+    !call y%CleanTemp()
+  end function sum_array_rp2_array_rp2
 end module array_rp2_names
 !=============================================================================
 module array_rp3_names

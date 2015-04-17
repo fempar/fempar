@@ -67,12 +67,13 @@ module problem_names
        class(discrete_problem)        , intent(out) :: aprox
        class(physical_problem), target, intent(in)  :: prob
      end subroutine create_interface
-     subroutine matvec_interface(aprox,integ,unkno,mat,vec)
-       import :: discrete_problem, volume_integrator_pointer, array_rp2, array_rp1, rp
+     subroutine matvec_interface(aprox,integ,unkno,start,mat,vec)
+       import :: discrete_problem, volume_integrator_pointer, array_rp2, array_rp1, rp, ip
        implicit none
        class(discrete_problem)        , intent(in) :: aprox
        type(volume_integrator_pointer), intent(in) :: integ(:)
        real(rp)                       , intent(in) :: unkno(:,:,:)
+       integer(ip)                    , intent(in) :: start(:)
        type(array_rp2), intent(inout) :: mat
        type(array_rp1), intent(inout) :: vec
      end subroutine matvec_interface

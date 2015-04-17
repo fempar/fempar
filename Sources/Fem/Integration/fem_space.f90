@@ -66,8 +66,8 @@ module fem_space_names
      integer(ip)                   :: approximation     ! Discretization to be used
 
      ! Connectivity
-     integer(ip),      allocatable   :: continuity(:)     ! Continuity flag per variable
-     type(list_pointer), allocatable :: nodes_object(:) ! Nodes per object (including interior) (nvars)
+     integer(ip)       , allocatable :: continuity(:)     ! Continuity flag per variable
+     type(list_pointer), allocatable :: nodes_object(:)   ! Nodes per object (including interior) (nvars)
      integer(ip)                     :: material          ! Material ! SB.alert : material can be used as p   
      ! use of material still unclear
 

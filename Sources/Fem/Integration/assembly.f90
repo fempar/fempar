@@ -69,15 +69,16 @@ module assembly_names
 
 contains
 
-  subroutine assembly_element_matrix_block(  elem, dhand, a ) 
+  subroutine assembly_element_matrix_block(  elem, dhand, start, a ) 
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
     type(fem_block_matrix), intent(inout)     :: a
     
-    integer(ip) :: ivar, start(dhand%problems(elem%problem)%nvars+1), iblock, jblock
+    integer(ip) :: ivar, iblock, jblock !, start(dhand%problems(elem%problem)%nvars+1)
 
-    call pointer_variable(  elem, dhand, start )
+    !call pointer_variable(  elem, dhand, start )
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
           call element_matrix_assembly( dhand, elem, start, a%blocks(iblock,jblock)%p_f_matrix, &
@@ -87,15 +88,15 @@ contains
 
   end subroutine assembly_element_matrix_block
 
-  subroutine assembly_element_matrix_mono(  elem, dhand, a ) 
+  subroutine assembly_element_matrix_mono(  elem, dhand, start, a ) 
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
     type(fem_matrix), intent(inout)           :: a
 
-    integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
-
-    call pointer_variable(  elem, dhand, start )
+    !integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
+    !call pointer_variable(  elem, dhand, start )
     call element_matrix_assembly( dhand, elem, start, a )
 
   end subroutine assembly_element_matrix_mono
@@ -149,15 +150,17 @@ contains
 
   end subroutine assembly_face_element_matrix_mono
 
-  subroutine assembly_element_vector_block(  elem, dhand, a ) 
+  subroutine assembly_element_vector_block(  elem, dhand, start, a ) 
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
     type(fem_block_vector), intent(inout)     :: a
 
-    integer(ip) :: start(dhand%problems(elem%problem)%nvars+1), iblock
+    integer(ip) :: iblock
+    !integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
 
-    call pointer_variable(  elem, dhand, start )
+    !call pointer_variable(  elem, dhand, start )
     do iblock = 1, dhand%nblocks
        call element_vector_assembly( dhand, elem, start, a%blocks(iblock), &
             & iblock )
@@ -166,15 +169,15 @@ contains
   end subroutine assembly_element_vector_block
 
 
-  subroutine assembly_element_vector_mono(  elem, dhand, a ) 
+  subroutine assembly_element_vector_mono(  elem, dhand, start, a ) 
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
     type(fem_vector), intent(inout)           :: a
 
-    integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
-    
-    call pointer_variable(  elem, dhand, start )
+    !integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
+    !call pointer_variable(  elem, dhand, start )
     call element_vector_assembly( dhand, elem, start, a )
 
   end subroutine assembly_element_vector_mono

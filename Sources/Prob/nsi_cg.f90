@@ -106,11 +106,12 @@ contains
     
   end subroutine nsi_create
 
-  subroutine nsi_matvec(aprox,integ,unkno,mat,vec)
+  subroutine nsi_matvec(aprox,integ,unkno,start,mat,vec)
     implicit none
     class(nsi_approximation)       , intent(in) :: aprox
     type(volume_integrator_pointer), intent(in) :: integ(:)
     real(rp)                       , intent(in) :: unkno(:,:,:)
+    integer(ip)                    , intent(in) :: start(:)
     type(array_rp2), intent(inout) :: mat
     type(array_rp1), intent(inout) :: vec
 
@@ -118,7 +119,7 @@ contains
     type(basis_function) :: p 
     type(basis_function) :: v ! Test
     type(basis_function) :: q 
-    !type(given_function) :: a_h
+
     type(vector) :: a
     type(vector) :: u_n
     type(scalar) :: h,tau
@@ -128,10 +129,10 @@ contains
 
     ndime = aprox%nsi%ndime
 
-    u = basis_function(aprox%nsi,1,integ)
-    p = basis_function(aprox%nsi,2,integ)
-    v = basis_function(aprox%nsi,1,integ) 
-    q = basis_function(aprox%nsi,2,integ)
+    u = basis_function(aprox%nsi,1,start,integ)
+    p = basis_function(aprox%nsi,2,start,integ)
+    v = basis_function(aprox%nsi,1,start,integ) 
+    q = basis_function(aprox%nsi,2,start,integ)
 
     ! With a_h declared as given_function we could do:
     ! a_h   = given_function(aprox,1,1,integ)
@@ -164,7 +165,7 @@ contains
     tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)
     
-    mat = integral(v,dtinv*u)
+    mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
     !mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
