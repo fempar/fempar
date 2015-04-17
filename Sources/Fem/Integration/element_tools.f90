@@ -42,6 +42,9 @@ module element_tools_names
   type, extends(memory_guard) :: fem_function
      integer(ip)  :: ivar=1
      integer(ip)  :: nvar=1
+     integer(ip)  :: idof=1 ! First dof corresponding to ivar (=sum of nnode for jvar<ivar)
+     integer(ip)  :: ndof=1
+     integer(ip)  :: ngaus=1
      type(volume_integrator_pointer), pointer :: integ(:) => NULL()
    contains
      procedure :: free => free_fem_function
@@ -95,27 +98,27 @@ module element_tools_names
   end type basis_function_divergence
 
   ! Interpolations
-  type, extends(fem_function) :: given_function
-     integer(ip)                :: icomp=1
-  end type given_function
-  type, extends(given_function) :: given_function_gradient
-     !integer(ip)                :: icomp=1
-  end type given_function_gradient
-  type, extends(given_function) :: given_function_divergence
-     !integer(ip)                :: icomp=1
-  end type given_function_divergence
+  ! type, extends(fem_function) :: given_function
+  !    integer(ip)                :: icomp=1
+  ! end type given_function
+  ! type, extends(given_function) :: given_function_gradient
+  !    !integer(ip)                :: icomp=1
+  ! end type given_function_gradient
+  ! type, extends(given_function) :: given_function_divergence
+  !    !integer(ip)                :: icomp=1
+  ! end type given_function_divergence
 
   interface basis_function
      module procedure basis_function_constructor
   end interface basis_function
-  interface given_function
-     module procedure given_function_constructor
-  end interface given_function
+  ! interface given_function
+  !    module procedure given_function_constructor
+  ! end interface given_function
   interface grad
-     module procedure basis_function_gradient_constructor, given_function_gradient_constructor
+     module procedure basis_function_gradient_constructor !, given_function_gradient_constructor
   end interface grad
   interface div
-     module procedure basis_function_divergence_constructor, given_function_divergence_constructor
+     module procedure basis_function_divergence_constructor !, given_function_divergence_constructor
   end interface div
 
   interface interpolation
@@ -128,10 +131,11 @@ module element_tools_names
 
   interface integral
      module procedure integral_basis_function_basis_function
+     module procedure integral_basis_function_gradient_basis_function_gradient
   end interface integral
 
   public :: basis_function, basis_function_gradient, basis_function_divergence
-  public :: given_function, given_function_gradient, given_function_divergence
+  !public :: given_function, given_function_gradient, given_function_divergence
   public :: grad, div, integral, interpolation
 
   public :: create_scalar, create_vector
@@ -156,6 +160,9 @@ contains
     class(fem_function), intent(inout)       :: to
     to%ivar=from%ivar
     to%nvar=from%nvar
+    to%idof=from%idof
+    to%ndof=from%ndof
+    to%ngaus=from%ngaus
     to%integ=>from%integ
     call to%SetTemp()
   end subroutine copy_fem_function
@@ -165,21 +172,27 @@ contains
 ! basis_function (some code replication to avoid functions returning polymorphic allocatables)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  function basis_function_constructor(prob,iunk,integ) result(var)
+  function basis_function_constructor(prob,iunk,start,integ) result(res)
     implicit none
     class(physical_problem), intent(in) :: prob
     integer(ip)            , intent(in) :: iunk
+    integer(ip)            , intent(in) :: start(prob%nvars)
     type(volume_integrator_pointer), target, intent(in) :: integ(:)
-    type(basis_function) :: var
+    type(basis_function) :: res
     integer(ip)          :: i,ivar
     ivar = 1
     do i=1,iunk-1
        ivar = ivar + prob%vars_of_unk(i)
     end do
-    var%ivar  = ivar
-    var%integ => integ
-    var%nvar = prob%vars_of_unk(iunk)
-    call var%SetTemp()
+    res%ivar  = ivar
+    res%nvar = prob%vars_of_unk(iunk)
+
+    res%idof  = start(ivar)                ! First dof this variable contributes to
+    res%ndof  = start(prob%nvars+1) - 1    ! nvar*nnode for equal interpolation of all variables
+    res%ngaus = integ(1)%p%uint_phy%nlocs  ! All variables must have same ngaus
+
+    res%integ => integ
+    call res%SetTemp()
   end function basis_function_constructor
 
  function basis_function_gradient_constructor(u) result(g)
@@ -206,42 +219,42 @@ contains
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  function given_function_constructor(prob,iunk,icomp,integ) result(var)
-    implicit none
-    class(physical_problem) , intent(in) :: prob
-    integer(ip)             , intent(in) :: iunk
-    integer(ip)             , intent(in) :: icomp
-    type(volume_integrator_pointer),target, intent(in) :: integ(:)
-    type(given_function) :: var
-    integer(ip)          :: i,ivar
-    ivar = 1
-    do i=1,iunk-1
-       ivar = ivar + prob%vars_of_unk(i)
-    end do
-    var%ivar  = ivar
-    var%icomp = icomp
-    var%integ => integ
-    var%nvar = prob%vars_of_unk(iunk)
-    call var%SetTemp()
-  end function given_function_constructor
+ !  function given_function_constructor(prob,iunk,icomp,integ) result(var)
+ !    implicit none
+ !    class(physical_problem) , intent(in) :: prob
+ !    integer(ip)             , intent(in) :: iunk
+ !    integer(ip)             , intent(in) :: icomp
+ !    type(volume_integrator_pointer),target, intent(in) :: integ(:)
+ !    type(given_function) :: var
+ !    integer(ip)          :: i,ivar
+ !    ivar = 1
+ !    do i=1,iunk-1
+ !       ivar = ivar + prob%vars_of_unk(i)
+ !    end do
+ !    var%ivar  = ivar
+ !    var%icomp = icomp
+ !    var%integ => integ
+ !    var%nvar = prob%vars_of_unk(iunk)
+ !    call var%SetTemp()
+ !  end function given_function_constructor
 
- function given_function_gradient_constructor(u) result(g)
-    type(given_function), intent(in) :: u
-    type(given_function_gradient)    :: g
-    integer(ip) :: ndime, nnode, ngaus
-    call u%GuardTemp()
-    call copy_fem_function(u,g)
-    call u%CleanTemp()
-  end function given_function_gradient_constructor
+ ! function given_function_gradient_constructor(u) result(g)
+ !    type(given_function), intent(in) :: u
+ !    type(given_function_gradient)    :: g
+ !    integer(ip) :: ndime, nnode, ngaus
+ !    call u%GuardTemp()
+ !    call copy_fem_function(u,g)
+ !    call u%CleanTemp()
+ !  end function given_function_gradient_constructor
 
- function given_function_divergence_constructor(u) result(g)
-    type(given_function), intent(in) :: u
-    type(given_function_divergence)  :: g
-    integer(ip) :: ndime, nnode, ngaus
-    call u%GuardTemp()
-    call copy_fem_function(u,g)
-    call u%CleanTemp()
-  end function given_function_divergence_constructor
+ ! function given_function_divergence_constructor(u) result(g)
+ !    type(given_function), intent(in) :: u
+ !    type(given_function_divergence)  :: g
+ !    integer(ip) :: ndime, nnode, ngaus
+ !    call u%GuardTemp()
+ !    call copy_fem_function(u,g)
+ !    call u%CleanTemp()
+ !  end function given_function_divergence_constructor
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -471,7 +484,6 @@ contains
     call ur%CleanTemp()
   end function scale_right_basis_function
 
-
   ! ! Temporarily I replicate code
   ! function product_field_basis_function(field_left,u) result(res)
   !   implicit none
@@ -479,12 +491,13 @@ contains
   !   type(basis_function), intent(in) :: u
   !   type(basis_function)             :: res
   !   call u%GuardTemp()
+  !   call res%SetTemp()
   !   call copy_fem_function(u,res)
   !   if(allocated(u%left_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
-  !      !res%left_factor = field_left * u%left_factor
+  !      res%left_factor = field_left * u%left_factor
   !   else
-  !      !res%left_factor = field_left
+  !      res%left_factor = field_left
   !   end if
   !   call u%CleanTemp()
   ! end function product_field_basis_function
@@ -494,12 +507,13 @@ contains
   !   type(basis_function_gradient), intent(in) :: u
   !   type(basis_function_gradient)             :: res
   !   call u%GuardTemp()
+  !   call res%SetTemp()
   !   call copy_fem_function(u,res)
   !   if(allocated(u%left_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
-  !      !res%left_factor = field_left * u%left_factor
+  !      res%left_factor = field_left * u%left_factor
   !   else
-  !      !res%left_factor = field_left
+  !      res%left_factor = field_left
   !   end if
   !   call u%CleanTemp()
   ! end function product_field_basis_function_gradient
@@ -509,12 +523,13 @@ contains
   !   type(basis_function_divergence), intent(in) :: u
   !   type(basis_function_divergence)             :: res
   !   call u%GuardTemp()
+  !   call res%SetTemp()
   !   call copy_fem_function(u,res)
   !   if(allocated(u%left_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
-  !      !res%left_factor = field_left * u%left_factor
+  !      res%left_factor = field_left * u%left_factor
   !   else
-  !      !res%left_factor = field_left
+  !      res%left_factor = field_left
   !   end if
   !   call u%CleanTemp()
   ! end function product_field_basis_function_divergence
@@ -876,103 +891,156 @@ contains
     implicit none
     type(basis_function), intent(in) :: v
     type(basis_function), intent(in) :: u
-    type(array_rp2) :: mat,tmp
+    type(array_rp2) :: mat
 
-    integer(ip)  :: nnode,ngaus
-    integer(ip)  :: istart,jstart,ipos,jpos,inode,jnode,ivar,jvar,igaus
+    integer(ip)  :: unode,vnode,ngaus
+    integer(ip)  :: ipos,jpos,inode,jnode,ivar,igaus
     real(rp)     :: factor
 
     call u%GuardTemp()
-    nnode = u%integ(u%ivar)%p%uint_phy%nnode
-    ngaus = u%integ(u%ivar)%p%uint_phy%nlocs
+    call v%GuardTemp()
+    ngaus = u%integ(1)%p%uint_phy%nlocs
 
     ! Allocate mat with mold=p_mat
-    call array_create(mat%nd1,mat%nd2,mat)
+    assert(v%ndof==u%ndof)
+    call array_create(v%ndof,u%ndof,mat)
 
-    ! Starting positions in the element matrix
-    istart=0
-    do ivar = 1, v%ivar-1
-       istart = istart + v%integ(ivar)%p%uint_phy%nnode
-    end do
-    jstart=0
-    do jvar = 1, u%ivar-1
-       jstart = jstart + u%integ(u%ivar)%p%uint_phy%nnode
-    end do
-
-    ! Now perform operations according to left_factor and right_factor, currently only left_factor implemented
+    ! Now perform operations according to left_factor TODO
     if(allocated(v%left_factor)) then
        select type(v_left_factor => v%left_factor)
-       class is(scalar)
+          class is(scalar)
           if(allocated(u%left_factor)) then
              select type(u_left_factor => u%left_factor)
-             class is(scalar)
-                ! Diagonal in ivar,ivar contraction of a basis function vector (for nvar=ndime)
-                ! Assuming interpolation independent of ivar:
-                call array_create(nnode,nnode,tmp)
-                do igaus=1,ngaus
-                   factor = v%integ(v%ivar)%p%femap%detjm(igaus) * v%integ(v%ivar)%p%quad%weight(igaus) * &
-                        &   v_left_factor%a(igaus) * u_left_factor%a(igaus) * v%scaling * u%scaling
-                   tmp%a(inode,jnode) = tmp%a(inode,jnode) + factor * &
-                        & v%integ(v%ivar)%p%uint_phy%shape(inode,igaus)*u%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
-                end do
-                do inode = 1, nnode
-                   do jnode = 1, nnode
-                      do ivar = v%ivar, v%ivar + v%nvar - 1
-                         ipos = istart + (ivar-v%ivar)*nnode + inode
-                         jpos = jstart + (ivar-v%ivar)*nnode + jnode
-                         mat%a(ipos,jpos) = mat%a(ipos,jpos) + tmp%a(inode,jnode) 
+                class is(scalar)
+                assert(v%nvar==u%nvar)
+                do ivar = 0, v%nvar -1
+                   vnode = v%integ(v%ivar+ivar)%p%uint_phy%nnode
+                   unode = u%integ(u%ivar+ivar)%p%uint_phy%nnode 
+                   ipos = v%idof + ivar*vnode
+                   jpos = u%idof + ivar*unode
+                   do igaus = 1,ngaus
+                      factor = v%integ(1)%p%femap%detjm(igaus) * v%integ(1)%p%quad%weight(igaus) * & ! Quadratures independent of u,v and ivar
+                           &   v_left_factor%a(igaus) * u_left_factor%a(igaus) * v%scaling * u%scaling
+                      do inode = 1, vnode
+                         do jnode = 1, unode
+                            mat%a(ipos+inode,jpos+jnode) = mat%a(ipos+inode,jpos+jnode) + factor * &
+                                 & v%integ(v%ivar+ivar)%p%uint_phy%shape(inode,igaus) * &
+                                 & u%integ(u%ivar+ivar)%p%uint_phy%shape(jnode,igaus)
+                         end do
                       end do
                    end do
                 end do
-                call array_free(tmp)
-                ! General case:
-                ! do igaus=1,ngaus
-                !    ! Quadrature is actually independent of ivar. See comments in fem_space and integration.
-                !    factor = v%integ(v%ivar)%p%femap%detjm(igaus)*v%integ(v%ivar)%p%quad%weight(igaus)*v%left_factor(igaus)*u%left_factor(igaus)
-                !    ipos = 0
-                !    do ivar = v%ivar, v%ivar + v%nvar - 1
-                !       do inode = 1, u%integ(ivar)%p%uint_phy%nnode
-                !          ipos = ipos + 1
-                !          jpos = 0
-                !          do jvar = u%ivar, u%ivar + u%nvar - 1
-                !             do jnode = 1, u%integ(jvar)%p%uint_phy%nnode
-                !                jpos = jpos + 1
-                !                if(jvar==ivar) then
-                !                   mat%a(istart+ipos,jstart+jpos) = mat%a(istart+ipos,jstart+jpos) + factor* &
-                !                     &  v%integ(v%ivar)%p%uint_phy%shape(inode,igaus)*u%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
-                !                end if
-                !             end do
-                !          end do
-                !       end do
-                !    end do
-                ! end do
-             class default
-                write(*,*) 'Wrong contraction'
-                check(1==0)
+                class default
+                check(.false.)
              end select
           else
           end if
-       class default
-          write(*,*) 'Wrong contraction'
-          check(1==0)
+          class default
+          check(.false.)
        end select
     else
+       assert(v%nvar==u%nvar)
+       do ivar = 0, v%nvar -1
+          vnode = v%integ(v%ivar+ivar)%p%uint_phy%nnode
+          unode = u%integ(u%ivar+ivar)%p%uint_phy%nnode 
+          ipos = v%idof + ivar*vnode
+          jpos = u%idof + ivar*unode
+          do igaus = 1,ngaus
+             factor = v%integ(1)%p%femap%detjm(igaus)*v%integ(1)%p%quad%weight(igaus)*v%scaling*u%scaling
+             do inode = 1, vnode
+                do jnode = 1, unode
+                   mat%a(ipos+inode,jpos+jnode) = mat%a(ipos+inode,jpos+jnode) + factor * &
+                        & v%integ(v%ivar+ivar)%p%uint_phy%shape(inode,igaus) * &
+                        & u%integ(u%ivar+ivar)%p%uint_phy%shape(jnode,igaus)
+                end do
+             end do
+          end do
+       end do
     end if
-
-    ! The following lines are needed to implement the non-diagonal case, e.g. a porosity tensor.
-    ! do ivar = v%ivar, v%ivar + v%nvar - 1
-    !    do inode = 1, v%integ(ivar)%p%uint_phy%nnode
-    !       ipos = ipos + 1
-    !       do jvar = u%ivar, u%ivar + u%nvar - 1
-    !          do jnode = 1, u%integ(jvar)%p%uint_phy%nnode
-    !             jpos = jpos + 1
-    !             mat%a(ipos,jpos) = mat%a(ipos,jpos) + &
-    !                  &  v%integ(u%ivar)%p%uint_phy%shape(inode,igaus) * u%integ(u%ivar)%p%uint_phy%shape(jnode,igaus)
-    !          end do
-    !       end do
-    !    end do
-    ! end do
+    call u%CleanTemp()
+    call v%CleanTemp()
 
   end function integral_basis_function_basis_function
+
+  function integral_basis_function_gradient_basis_function_gradient(gv,gu) result(mat)
+    implicit none
+    type(basis_function_gradient), intent(in) :: gv
+    type(basis_function_gradient), intent(in) :: gu
+    type(array_rp2) :: mat
+
+    integer(ip)  :: unode,vnode,ndime,ngaus
+    integer(ip)  :: ipos,jpos,inode,jnode,idime,ivar,igaus
+    real(rp)     :: factor
+
+    call gu%GuardTemp()
+    call gv%GuardTemp()
+    ngaus = gu%integ(1)%p%uint_phy%nlocs
+    ndime = gu%integ(1)%p%uint_phy%ndime
+
+    ! Allocate mat with mold=p_mat
+    assert(gv%ndof==gu%ndof)
+    call array_create(gv%ndof,gu%ndof,mat)
+
+    ! Now perform operations according to left_factor TODO
+    if(allocated(gv%left_factor)) then
+       select type(v_left_factor => gv%left_factor)
+          class is(scalar)
+          if(allocated(gu%left_factor)) then
+             select type(u_left_factor => gu%left_factor)
+                class is(scalar)
+                assert(gv%nvar==gu%nvar)
+                do ivar = 0, gv%nvar -1
+                   vnode = gv%integ(gv%ivar+ivar)%p%uint_phy%nnode
+                   unode = gu%integ(gu%ivar+ivar)%p%uint_phy%nnode 
+                   ipos = gv%idof + ivar*vnode
+                   jpos = gu%idof + ivar*unode
+                   do igaus = 1,ngaus
+                      factor = gv%integ(1)%p%femap%detjm(igaus) * gv%integ(1)%p%quad%weight(igaus) * & ! Quadratures independent of u,v and ivar
+                           &   v_left_factor%a(igaus) * u_left_factor%a(igaus) * gv%scaling * gu%scaling
+                      do inode = 1, vnode
+                         do jnode = 1, unode
+                            do idime = 1,ndime
+                               mat%a(ipos+inode,jpos+jnode) = mat%a(ipos+inode,jpos+jnode) + factor * &
+                                    & gv%integ(gv%ivar+ivar)%p%uint_phy%deriv(idime,inode,igaus) * &
+                                    & gu%integ(gu%ivar+ivar)%p%uint_phy%deriv(idime,jnode,igaus)
+                            end do
+                         end do
+                      end do
+                   end do
+                end do
+                class default
+                check(.false.)
+             end select
+          else
+          end if
+          class default
+          check(.false.)
+       end select
+    else
+       assert(gv%nvar==gu%nvar)
+       do ivar = 0, gv%nvar -1
+          vnode = gv%integ(gv%ivar+ivar)%p%uint_phy%nnode
+          unode = gu%integ(gu%ivar+ivar)%p%uint_phy%nnode 
+          ipos = gv%idof + ivar*vnode
+          jpos = gu%idof + ivar*unode
+          do igaus = 1,ngaus
+             factor = gv%integ(1)%p%femap%detjm(igaus)*gv%integ(1)%p%quad%weight(igaus)*gv%scaling*gu%scaling
+             do inode = 1, vnode
+                do jnode = 1, unode
+                   do idime = 1,ndime
+                      mat%a(ipos+inode,jpos+jnode) = mat%a(ipos+inode,jpos+jnode) + factor * &
+                           & gv%integ(gv%ivar+ivar)%p%uint_phy%deriv(idime,inode,igaus) * &
+                           & gu%integ(gu%ivar+ivar)%p%uint_phy%deriv(idime,jnode,igaus)
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end if
+    call gu%CleanTemp()
+    call gv%CleanTemp()
+
+  end function integral_basis_function_gradient_basis_function_gradient
+
 
 end module element_tools_names
