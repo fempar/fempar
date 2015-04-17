@@ -153,6 +153,8 @@ IF(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
    SET(MACROS "${MACROS} -DDEBUG -Dmemcheck")
 ENDIF()
 
+ADD_DEFINITIONS(-D${CMAKE_Fortran_COMPILER_ID})
+
 IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "gfortran*")
   # gfortran 
   set(FORTRAN_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ")
@@ -205,4 +207,16 @@ ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
 ADD_SUBDIRECTORY(${FEM_TESTS_PATH})
 #ADD_SUBDIRECTORY(${PROB_TESTS_PATH})
 ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
+
+#################################################################
+# CREATE TAGS
+# SOUCERS LIST PICKED FROM OTHER CMAKELISTS
+#################################################################
+
+FIND_PROGRAM(ETAGS etags)
+IF(ETAGS)
+    ADD_CUSTOM_TARGET(TAGS ALL COMMAND ${ETAGS} ${FEM_SRC} ${PROB_SRC} ${PAR_SRC} ${DRIVERS_FEM_SRC} ${DRIVERS_PAR_SRC} ${TESTS_FEM_SRC} ${TESTS_PAR_SRC})
+ENDIF()
+
+
 message ("-----------------------------------------")
