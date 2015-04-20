@@ -28,6 +28,7 @@
 module graph_renum
   use types
   use memor
+  use renum_names
   use fem_graph_names
   use metis_interface
   use fem_mesh_partition_base
@@ -37,14 +38,46 @@ module graph_renum
   private
   
   ! Functions
-  public :: graph_pt_renumbering
+  public :: graph_pt_renumbering, graph_nd_renumbering
   
 contains
-  
+
+  !=================================================================================================
+  subroutine graph_nd_renumbering(prt_parts, gp, ren)
+    !-----------------------------------------------------------------------
+    !-----------------------------------------------------------------------
+    implicit none
+    type(part_params), intent(in)        :: prt_parts
+    type(fem_graph), target, intent(in)  :: gp
+    type(renum), target,  intent(inout)  :: ren
+    
+    assert(ren%n==gp%nv)
+    
+    if ( gp%nv == 1 ) then
+       ren%lperm(1) = 1
+       ren%iperm(1) = 1
+    else
+#ifdef ENABLE_METIS
+       ierr = metis_setdefaultoptions(c_loc(options))
+       assert(ierr == METIS_OK) 
+       
+       options(METIS_OPTION_NUMBERING) = 1
+       options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
+       
+       ierr = metis_nodend ( c_loc(gp%nv),c_loc(gp%ia),c_loc(gp%ja),C_NULL_PTR,c_loc(options), &
+            &                c_loc(ren%iperm),c_loc(ren%lperm))
+       
+       assert(ierr == METIS_OK)
+#else
+       call enable_metis_error_message
+#endif
+    end if
+  end subroutine graph_nd_renumbering
+
   !=================================================================================================
   subroutine graph_pt_renumbering(prt_parts,gp,ldomn)
     !-----------------------------------------------------------------------
-    ! This routine computes a nparts-way-partitioning of graph
+    ! This routine computes a nparts-way-partitioning of the input graph gp
     !-----------------------------------------------------------------------
     implicit none
     type(part_params), target, intent(in)    :: prt_parts

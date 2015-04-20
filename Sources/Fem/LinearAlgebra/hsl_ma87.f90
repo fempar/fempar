@@ -342,7 +342,6 @@ contains
 
     ! Locals (required for the call to graph_nd_renumbering)
     type (fem_graph)                  :: aux_graph
-    integer(ip), allocatable      :: aux_ldomn(:)
     type(part_params)             :: prt_parts
     integer(ip)                   :: i
 
@@ -363,14 +362,8 @@ contains
 
     ! call fem_graph_print (6, matrix%gr)
     ! call fem_graph_print (6, aux_graph)
-
-    ! Allocate aux_ldomn
-    call memalloc ( matrix%gr%nv, aux_ldomn, __FILE__,__LINE__ )
     
-    call graph_nd_renumbering(prt_parts,aux_graph,1,context%ren,aux_ldomn)
-    
-    ! De-allocate aux_ldomn
-    call memfree ( aux_ldomn,__FILE__,__LINE__)  
+    call graph_nd_renumbering(prt_parts,aux_graph,context%ren) 
 
     ! De-allocate aux_graph
     call fem_graph_free ( aux_graph )

@@ -234,6 +234,13 @@ module metis_interface
   integer(c_int) :: ierr
 
   interface
+     function metis_nodend(nvtxs,xadj,adjncy,vwgt,options,perm,iperm) & 
+        & bind(c,NAME='METIS_NodeND')
+       use iso_c_binding
+       integer(c_int) :: fp_metis_nodendextractseparatortree
+       type(c_ptr), value :: nvtxs
+       type(c_ptr), value :: xadj, adjncy, vwgt, options, perm, iperm
+     end function metis_nodend
      function metis_partgraphkway(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
         & bind(c,NAME='METIS_PartGraphKway')
        use iso_c_binding
@@ -252,6 +259,7 @@ module metis_interface
        type(c_ptr), value :: tptwgts, ubvec 
        ! WARNING: metis.h, #define REALTYPEWIDTH 64 REQUIRED !!!
      end function metis_partgraphrecursive
+     
      function metis_setdefaultoptions(options) bind(c,NAME='METIS_SetDefaultOptions')
        use iso_c_binding
        integer(c_int)      :: fp_metis_setdefaultoptions
@@ -264,7 +272,6 @@ module metis_interface
 #endif
 
 #else
-
 contains 
   ! Public by default
   subroutine enable_metis_error_message
@@ -273,7 +280,6 @@ contains
     write (0,*) "Error: You must activate this cpp macro in order to use Fempar's interface to Metis(5)"
     call runend
   end subroutine enable_metis_error_message
-
 #endif 
 
 end module metis_interface
