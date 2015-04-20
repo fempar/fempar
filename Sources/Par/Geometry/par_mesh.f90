@@ -115,13 +115,13 @@ contains
   subroutine par_mesh_read ( dir_path, prefix, p_mesh )
     implicit none 
     ! Parameters
-    character *(*), intent(in)    :: dir_path
-    character *(*), intent(in)    :: prefix
+    character(*), intent(in)      :: dir_path
+    character(*), intent(in)      :: prefix
     type(par_mesh), intent(inout) :: p_mesh
 
     ! Locals
-    integer(ip)     :: lunio
-    character(256)  :: name 
+    integer(ip)                   :: lunio
+    character(len=:), allocatable :: name 
 
     assert ( associated(p_mesh%p_part%p_context) )
     assert ( p_mesh%p_part%p_context%created .eqv. .true.)
@@ -144,18 +144,16 @@ contains
   subroutine par_mesh_create_old ( dir_path, prefix, p_part, p_mesh )
     implicit none 
     ! Parameters
-    character *(*)             , intent(in)  :: dir_path
-    character *(*)             , intent(in)  :: prefix
+    character (*)              , intent(in)  :: dir_path
+    character (*)              , intent(in)  :: prefix
     type(par_partition), target, intent(in)  :: p_part
     type(par_mesh)             , intent(out) :: p_mesh
 
     ! Locals
     integer         :: iam, num_procs
     integer(ip)     :: j, ndigs_iam, ndigs_num_procs, lunio
-    character(256)  :: zeros
-    character(256)  :: part_id
-    character(256)  :: name 
-    logical         :: flag
+    character(len=:), allocatable  :: name 
+    logical                        :: flag
 
     assert ( associated(p_part%p_context) )
     assert ( p_part%p_context%created .eqv. .true.)
@@ -163,8 +161,7 @@ contains
     p_mesh%p_part => p_part
     if(p_part%p_context%iam>=0) then
        call fem_mesh_compose_name ( prefix, name )
-
-       call par_filename( p_part%p_context, name)
+       call par_filename( p_part%p_context, name )
        
        ! Read mesh
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )

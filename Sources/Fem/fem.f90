@@ -39,8 +39,11 @@ module fem
   use maps_names
   use map_apply
   use fem_partition_names
+
   !use fem_import_names
   !use partition_import
+  use fem_mesh_distribution_names
+
   use fem_element_import_names
   use partition_element_import
   use fem_conditions_names
@@ -56,6 +59,8 @@ module fem
   use fem_mesh_names
   use fem_mesh_partition_base
   use fem_mesh_partition
+  use fem_mesh_partition_distribution
+
   use fem_mesh_io
   use fem_mesh_gen
   use fem_mesh_gen_partition

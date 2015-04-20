@@ -38,17 +38,16 @@ contains
 
   subroutine par_filename( p_context, file )
     implicit none 
-    type(par_context),intent(in)    :: p_context
-    character(len=*), intent(inout) :: file
+    type(par_context),intent(in)                 :: p_context
+    character(len=:), allocatable, intent(inout) :: file
     integer         :: iam, num_procs
 
     ! Get context info
     call par_context_info ( p_context, iam, num_procs )
 
-    ! Form the file_path of the partition object to be read
-    iam = iam + 1 ! Partition identifers start from 1 !!
+    iam = iam + 1 ! File-name subdomain identifiers start from 1
 
-    call numbered_filename_compose( iam, num_procs, file)
+    call numbered_filename_compose_deferred_length( iam, num_procs, file)
 
   end subroutine par_filename
 

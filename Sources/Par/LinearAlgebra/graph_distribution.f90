@@ -58,6 +58,13 @@ module graph_distribution_names
      
      type(list)               :: int_objs    ! List of objects on each edge to an adjacent part / Interface_objects
      type(map)                :: omap        ! Objects local to global map
+
+     ! To add to the documentation, the contents of lobjs are as follows:
+     ! lobjs(1,*) : node of the separator tree/physical variable
+     ! lobjs(2,*) : first node of the object
+     ! lobjs(3,*) : last node of the object
+     ! lobjs(4,*) : number of parts around this object
+     ! lobjs(5:,*) : list of parts around this object
   end type graph_distribution
 
   ! Types

@@ -162,7 +162,7 @@ contains
     c1 = aprox%k1tau
     c2 = aprox%k1tau
 
-    tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
+    ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)
     
     mat = integral(v,dtinv*u) + integral(grad(v),grad(u))

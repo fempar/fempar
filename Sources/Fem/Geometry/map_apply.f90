@@ -47,6 +47,9 @@ module map_apply
      module procedure map_apply_g2l_r1, map_apply_g2l_r2, map_apply_g2l_i1, map_apply_g2l_i2
   end interface
 
+  interface fem_mesh_g2l
+     module procedure fem_mesh_g2l_emap_ip, fem_mesh_g2l_emap_igp
+  end interface
 
   ! Constants
   public :: l2g_add, l2g_copy
@@ -245,7 +248,7 @@ contains
   end subroutine map_apply_g2l_i2
 
   !================================================================================================
-  subroutine fem_mesh_g2l(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+  subroutine fem_mesh_g2l_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
     implicit none
     type(map)            , intent(in)  :: nmap,bmap
     type(map_igp)        , intent(in)  :: emap
@@ -410,8 +413,175 @@ contains
        call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nren)
     end if
 
-  end subroutine fem_mesh_g2l
+  end subroutine fem_mesh_g2l_emap_igp
 
+  !================================================================================================
+  subroutine fem_mesh_g2l_emap_ip(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+    implicit none
+    type(map)            , intent(in)  :: nmap,bmap
+    type(map)            , intent(in)  :: emap
+    type(fem_mesh)       , intent(in)  :: gmesh
+    type(fem_mesh)       , intent(out) :: lmesh
+    type(renum), optional, intent(in)  :: nren,eren
+    type(hash_table_ip_ip)       :: ws_inmap
+    type(hash_table_igp_ip)      :: el_inmap
+    integer(ip)                  :: ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
+    integer(ip)                  :: p_ielem_gmesh,p_ipoin_gmesh,p_ipoin_lmesh, istat
+
+    assert(nmap%ng == gmesh%npoin)
+    assert(emap%ng == gmesh%nelem)
+
+    ! both or none
+    assert( (present(nren).and.present(eren)) .or. ( (.not.present(nren)).and.(.not.present(eren)) ) )
+
+    ! We could be more precise and check how many
+    ! element types we have in the local mesh...
+    lmesh%nelty=gmesh%nelty
+
+    lmesh%ndime=gmesh%ndime
+    lmesh%nnode=gmesh%nnode
+    lmesh%npoin=nmap%nl
+    lmesh%nelem=emap%nl
+
+    if(lmesh%nelty==1) then
+       call memalloc (            1, lmesh%pnods, __FILE__,__LINE__)
+    else
+       call memalloc (lmesh%nelem+1, lmesh%pnods, __FILE__,__LINE__)
+    endif
+    call memalloc (lmesh%nnode*lmesh%nelem, lmesh%lnods, __FILE__,__LINE__)
+
+    ! call memalloc (nmap%ng , ws_inmap, __FILE__,__LINE__)
+    ! ws_inmap=-1
+    call ws_inmap%init(max(int(nmap%nl*0.25,ip),10))
+    do ipoin=1,nmap%nl
+       call ws_inmap%put(key=nmap%l2g(ipoin),val=ipoin,stat=istat) 
+       ! ws_inmap(nmap%l2g(ipoin))=ipoin
+    end do
+
+    ! call memalloc (emap%ng , el_inmap, __FILE__,__LINE__)
+    ! el_inmap=-1
+    call el_inmap%init(max(int(emap%nl*0.25,ip),10))
+    do ipoin=1,emap%nl
+       call el_inmap%put(key=emap%l2g(ipoin),val=ipoin,stat=istat) 
+       ! el_inmap(emap%l2g(ipoin))=ipoin
+    end do
+
+    if(present(nren).and.present(eren)) then
+       if(lmesh%nelty==1) then
+          do ielem_lmesh=1,lmesh%nelem
+             ielem_gmesh = eren%iperm(emap%l2g(ielem_lmesh))
+             p_ipoin_gmesh = (ielem_gmesh-1)*gmesh%nnode
+             knode = gmesh%nnode
+             do inode=1,knode
+                ! lmesh%lnods((ielem_lmesh-1)*lmesh%nnode +inode) =  ws_inmap(nren%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
+                call ws_inmap%get(key=nren%lperm(gmesh%lnods(p_ipoin_gmesh+inode)),val=lmesh%lnods((ielem_lmesh-1)*lmesh%nnode +inode),stat=istat) 
+             end do
+          end do
+       else 
+          lmesh%pnods=0
+          lmesh%pnods(1)=1
+          do ielem_lmesh=1,lmesh%nelem
+             ielem_gmesh = eren%iperm(emap%l2g(ielem_lmesh))
+             p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
+             p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
+             knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
+             lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
+             do inode=1,knode
+                ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(nren%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
+                call ws_inmap%get(key=gmesh%lnods(p_ipoin_gmesh+inode),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
+             end do
+          end do
+       end if
+    else
+       if(lmesh%nelty==1) then
+          do ielem_lmesh=1,lmesh%nelem
+             ielem_gmesh = emap%l2g(ielem_lmesh)
+             p_ipoin_gmesh = (ielem_gmesh-1)*gmesh%nnode
+             knode = gmesh%nnode
+             do inode=1,knode
+                ! lmesh%lnods((ielem_lmesh-1)*lmesh%nnode +inode) =  ws_inmap(gmesh%lnods(p_ipoin_gmesh+inode))
+                call ws_inmap%get(key=gmesh%lnods(p_ipoin_gmesh+inode),val=lmesh%lnods((ielem_lmesh-1)*lmesh%nnode +inode),stat=istat) 
+             end do
+          end do
+       else 
+          lmesh%pnods=0
+          lmesh%pnods(1)=1
+          do ielem_lmesh=1,lmesh%nelem
+             ielem_gmesh = emap%l2g(ielem_lmesh)
+             p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
+             p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
+             knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
+             lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
+             do inode=1,knode
+                ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(gmesh%lnods(p_ipoin_gmesh+inode))
+                call ws_inmap%get(key=gmesh%lnods(p_ipoin_gmesh+inode),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
+             end do
+          end do
+       end if
+    end if
+
+    if ( gmesh%nboun > 0 ) then 
+       ! Boundary elements
+       lmesh%nboun = bmap%nl
+       lmesh%nnodb = gmesh%nnodb
+       call memalloc(1,lmesh%pboun,__FILE__,__LINE__)
+       call memalloc(lmesh%nnodb*lmesh%nboun,lmesh%lboun,__FILE__,__LINE__)
+       call memalloc(lmesh%nnodb+1,lmesh%nboun,lmesh%lboel,__FILE__,__LINE__)
+
+       ! g2l
+       lmesh%pboun = 1
+       if(present(nren).and.present(eren)) then
+          do iboun=1,lmesh%nboun
+             gelem = bmap%l2g(iboun)
+             do inode=1,lmesh%nnodb
+                gnode = gmesh%lboun((gelem-1)*lmesh%nnodb+inode)
+                ! lmesh%lboun((iboun-1)*lmesh%nnodb+inode) = ws_inmap(nren%lperm(gnode))
+                call ws_inmap%get(key=gmesh%lnods(p_ipoin_gmesh+inode),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
+             end do
+          end do
+          do iboun=1,lmesh%nboun
+             gelem = bmap%l2g(iboun)
+             velem = gmesh%lboel(lmesh%nnodb+1,gelem)
+             do inode=1,lmesh%nnodb
+                lmesh%lboel(inode,iboun) = gmesh%lboel(inode,gelem)
+             end do
+             ! lmesh%lboel(lmesh%nnodb+1,iboun) = el_inmap(eren%lperm(velem))
+             call ws_inmap%get(key=eren%lperm(velem),val=lmesh%lboel(lmesh%nnodb+1,iboun),stat=istat) 
+          end do
+       else
+          do iboun=1,lmesh%nboun
+             gelem = bmap%l2g(iboun)
+             do inode=1,lmesh%nnodb
+                gnode = gmesh%lboun((gelem-1)*lmesh%nnodb+inode)
+                ! lmesh%lboun((iboun-1)*lmesh%nnodb+inode) = ws_inmap(gnode)
+                call ws_inmap%get(key=gnode,val=lmesh%lboun((iboun-1)*lmesh%nnodb+inode),stat=istat) 
+             end do
+          end do
+          do iboun=1,lmesh%nboun
+             gelem = bmap%l2g(iboun)
+             velem = gmesh%lboel(lmesh%nnodb+1,gelem)
+             do inode=1,lmesh%nnodb
+                lmesh%lboel(inode,iboun) = gmesh%lboel(inode,gelem)
+             end do
+             ! lmesh%lboel(lmesh%nnodb+1,iboun) = el_inmap(velem)
+             call el_inmap%get(key=int(velem,igp),val=lmesh%lboel(lmesh%nnodb+1,iboun),stat=istat) 
+          end do
+       end if
+    else
+       lmesh%nboun = 0
+       lmesh%nnodb = 0
+    end if
+    lmesh%nelpo = 0
+    
+    call ws_inmap%free
+    call el_inmap%free
+
+    if ( allocated(gmesh%coord) ) then
+       call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
+       call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nren)
+    end if
+
+  end subroutine fem_mesh_g2l_emap_ip
 
   !================================================================================================
   subroutine fem_mesh_l2l(nren,eren,lmeshin,lmeshout)

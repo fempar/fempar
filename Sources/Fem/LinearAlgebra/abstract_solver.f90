@@ -2445,7 +2445,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
     ! Check for convergence and output corresponding info. messages
     ctrl%converged = .true.
 
-    if ( .not. (istop==1 .or. istop==2) ) then
+    if ( .not. (istop==0 .or. istop==-1 .or. istop==1 .or. istop==2) ) then
         ctrl%converged = .false.
     end if
 
