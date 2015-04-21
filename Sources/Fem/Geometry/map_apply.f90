@@ -564,7 +564,7 @@ contains
                 lmesh%lboel(inode,iboun) = gmesh%lboel(inode,gelem)
              end do
              ! lmesh%lboel(lmesh%nnodb+1,iboun) = el_inmap(velem)
-             call el_inmap%get(key=int(velem,igp),val=lmesh%lboel(lmesh%nnodb+1,iboun),stat=istat) 
+             call el_inmap%get(key=velem,val=lmesh%lboel(lmesh%nnodb+1,iboun),stat=istat) 
           end do
        end if
     else
