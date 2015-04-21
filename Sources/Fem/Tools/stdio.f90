@@ -66,23 +66,23 @@ module stdio
        STRING_SEPARATOR = ' =:'//achar(9),               &
        CHAR_LOWERCASE   = 'abcdefghijklmnopqrstuvwxyz',  &
        CHAR_UPPERCASE   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',  &
-       CHAR_NUMERIC     = '0123456789-+.'!,               &
-!       CHAR_NEXTLINE    = '\'
+       CHAR_NUMERIC     = '0123456789-+.',               &
+       CHAR_NEXTLINE    = '\'
        
        character(*), parameter :: VALID_CHARS =  &
-       CHAR_LOWERCASE//CHAR_UPPERCASE//CHAR_NUMERIC//COMMENT_SYMBOL !//CHAR_NEXTLINE
+       CHAR_LOWERCASE//CHAR_UPPERCASE//CHAR_NUMERIC//COMMENT_SYMBOL//CHAR_NEXTLINE
 
 
-  character(CHAR_SIZE), parameter :: CHAR_NULL = ''
-  character(NAME_SIZE), parameter :: NAME_NULL = ''
+  character(len=*), parameter :: CHAR_NULL = ''
+  character(len=*), parameter :: NAME_NULL = ''
 
   ! standart units
   integer, save :: stdin  = INPUT_UNIT  ! iso_fortran_env
   integer, save :: stdout = OUTPUT_UNIT ! iso_fortran_env
   integer, save :: stderr = ERROR_UNIT  ! iso_fortran_env
-  character(FILE_SIZE), save :: inputfile  = ''
-  character(FILE_SIZE), save :: outputfile = ''
-  character(FILE_SIZE), save :: errorfile  = ''
+  character(len=:), allocatable, save :: inputfile  !  = ''
+  character(len=:), allocatable, save :: outputfile !  = ''
+  character(len=:), allocatable, save :: errorfile  !  = ''
   logical, save :: stdin_file  = .false.
   logical, save :: stdout_file = .false.
   logical, save :: stderr_file = .false.
@@ -91,7 +91,7 @@ module stdio
 
   type buffer_t
      integer :: length
-     character(CHAR_SIZE), dimension(BUFFER_STRING_SIZE) :: string
+     character(:), allocatable :: string(:)
   end type buffer_t
 
 #if defined(_DEBUG)
@@ -241,7 +241,7 @@ contains
   function real4_to_char( value ) result( string )
 
     real(kind=4), intent(in) :: value
-    character(CHAR_SIZE) :: string
+    character(len=:), allocatable :: string
     integer :: io_status
 
     write(string,fmt=REAL4_FORMAT,iostat=io_status) value
@@ -257,7 +257,7 @@ contains
 
     real(kind=4), intent(in) :: value
     character(*), intent(in) :: io_format
-    character(CHAR_SIZE) :: string
+    character(len=:), allocatable :: string
     integer :: io_status
 
     write(string,fmt=io_format,iostat=io_status) value
@@ -272,7 +272,7 @@ contains
   function real8_to_char( value ) result( string )
 
     real(kind=8), intent(in) :: value
-    character(CHAR_SIZE) :: string
+    character(len=:), allocatable :: string
     integer :: io_status
 
     write(string,fmt=REAL8_FORMAT,iostat=io_status) value
@@ -288,7 +288,7 @@ contains
 
     real(kind=8), intent(in) :: value
     character(*), intent(in) :: io_format
-    character(CHAR_SIZE) :: string
+    character(len=:), allocatable :: string
     integer :: io_status
 
     write(string,fmt=io_format,iostat=io_status) value
@@ -303,7 +303,7 @@ contains
   function integer_to_char( value ) result( string )
 
     integer,  intent(in) :: value
-    character(CHAR_SIZE) :: string
+    character(len=:), allocatable :: string
     integer :: io_status
 
     write(string,fmt=INT_FORMAT,iostat=io_status) value
@@ -318,7 +318,7 @@ contains
   function integer1_to_char( value ) result( string )
 
     integer(1), intent(in) :: value
-    character(CHAR_SIZE)   :: string
+    character(len=:), allocatable   :: string
     integer :: io_status
 
     write(string,fmt=INT_FORMAT,iostat=io_status) value
@@ -334,7 +334,7 @@ contains
 
     integer,      intent(in) :: value
     character(*), intent(in) :: io_format
-    character(CHAR_SIZE) :: string
+    character(len=:), allocatable :: string
     integer :: io_status
 
     write(string,fmt=io_format,iostat=io_status) value
@@ -349,7 +349,7 @@ contains
   function logical_to_char( value ) result( string )
 
     logical, intent(in) :: value
-    character(CHAR_SIZE) :: string
+    character(len=:), allocatable :: string
     integer :: io_status
 
     if( value ) then
@@ -367,7 +367,7 @@ contains
   function cat_char_int1(string,number) result(new_string)
     character(*),  intent(in) :: string
     integer(1),    intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = string//trim(integer1_to_char(number))
   end function cat_char_int1
 
@@ -376,7 +376,7 @@ contains
   function cat_char_int(string,number) result(new_string)
     character(*),  intent(in) :: string
     integer,       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = string//trim(integer_to_char(number))
   end function cat_char_int
 
@@ -385,7 +385,7 @@ contains
   function cat_int_char(number,string) result(new_string)
     character(*),  intent(in) :: string
     integer,       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = trim(integer_to_char(number))//string
   end function cat_int_char
 
@@ -394,7 +394,7 @@ contains
   function cat_char_real4(string,number) result(new_string)
     character(*),  intent(in) :: string
     real(4),       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = string//trim(real4_to_char(number))
   end function cat_char_real4
 
@@ -403,7 +403,7 @@ contains
   function cat_real4_char(number,string) result(new_string)
     character(*),  intent(in) :: string
     real(4),       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = trim(real4_to_char(number))//string
   end function cat_real4_char
 
@@ -412,7 +412,7 @@ contains
   function cat_char_real8(string,number) result(new_string)
     character(*),  intent(in) :: string
     real(8),       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = string//trim(real8_to_char(number))
   end function cat_char_real8
 
@@ -421,7 +421,7 @@ contains
   function cat_real8_char(number,string) result(new_string)
     character(*),  intent(in) :: string
     real(8),       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = trim(real8_to_char(number))//string
   end function cat_real8_char
 
@@ -430,7 +430,7 @@ contains
   function cat_char_logical(string,number) result(new_string)
     character(*),  intent(in) :: string
     logical,       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = string//trim(logical_to_char(number))
   end function cat_char_logical
 
@@ -439,7 +439,7 @@ contains
   function cat_logical_char(number,string) result(new_string)
     character(*),  intent(in) :: string
     logical,       intent(in) :: number
-    character(buffer_size) :: new_string
+    character(len=:), allocatable :: new_string
     new_string = trim(logical_to_char(number))//string
   end function cat_logical_char
 
@@ -482,7 +482,7 @@ contains
     character(len=*), intent(in), optional :: action, status, form, position
     integer,          intent(in), optional :: recl
 
-    character(CHAR_SIZE)   :: action_, status_, form_, position_
+    character(len=:), allocatable   :: action_, status_, form_, position_
     integer                :: iostat, io
 
     action_ = 'readwrite'
@@ -558,12 +558,14 @@ contains
   subroutine io_get_line( io, text )
 
     integer,          intent(in)  :: io
-    character(*), intent(out) :: text
+    character(len=:), allocatable, intent(inout) :: text
+    character(len=:), allocatable :: text_tmp
 
     integer :: stat, i
 
     do
-       read( io, fmt='(a)', iostat=stat ) text
+       read( io, fmt='(a)', iostat=stat ) text_tmp
+       text = text//text_tmp
        if(stat/=IOSTAT_OK) return
        i = max(scan(text,VALID_CHARS),1)
        if( verify(text(i:i),COMMENT_SYMBOL)==1 .and. len_trim(text) > 0 ) exit
@@ -579,10 +581,10 @@ contains
   subroutine io_get_buffer( io, buffer )
 
     integer, intent(in) :: io
-    type(buffer_t), intent(out) :: buffer
+    type(buffer_t), intent(inout) :: buffer
 
     integer :: i, nr_words, n, len, next
-    character(BUFFER_SIZE) :: text
+    character(len=:), allocatable :: text
 
 
     buffer%length = 0
@@ -590,13 +592,13 @@ contains
 
     i = 1
     do
-       call io_get_line( io, text(i:) )
+       call io_get_line( io, text )
        len = len_trim(text)
-!!$       if( text(len:len) == CHAR_NEXTLINE ) then
-!!$          i = len
-!!$       else
-!!$          exit
-!!$       end if
+       if( text(len:len) == CHAR_NEXTLINE ) then
+          i = len
+       else
+          exit
+       end if
     end do
 
     !i = 1
@@ -804,7 +806,7 @@ contains
   subroutine io_get_screen_char( question, text, len )
 
     character(*), intent(in)  :: question
-    character(*), intent(out) :: text
+    character(len=:), allocatable, intent(inout) :: text
     integer,      intent(out) :: len
 
     write(stdout,'(A)') question
@@ -878,7 +880,7 @@ contains
 
   subroutine io_get_extension( filename, ext )
     character(*), intent(in)  :: filename
-    character(*), intent(out) :: ext
+    character(len=:), allocatable, intent(inout) :: ext
     integer :: i, j
 
     i = index(filename, '.', back = .true.)
@@ -894,7 +896,7 @@ contains
   !********************************************************************!
 
   subroutine io_remove_extension( filename )
-    character(*), intent(inout) :: filename
+    character(len=:), allocatable, intent(inout) :: filename
     integer :: i
 
     i = index(filename, '.', back = .true.)
@@ -989,7 +991,7 @@ contains
   !********************************************************************!
 
   subroutine io_pwd( path )
-    character(*), intent(out) :: path
+    character(len=:), allocatable, intent(inout) :: path
 
     path = CHAR_NULL
     write(stdout,'(A)') ' io_pwd warning: subroutine not implemented'
@@ -998,9 +1000,9 @@ contains
 
   !********************************************************************!
 
-  elemental subroutine lowcase( str )
+  subroutine lowcase( str )
 
-    character(*), intent(inout) :: str
+    character(len=:), allocatable, intent(inout) :: str
     integer :: i,j
 
     do i=1,len_trim(str)
@@ -1018,8 +1020,8 @@ contains
     character(len=*), intent(inout) :: file
 
     integer         :: j, ndigs_i, ndigs_n
-    character(256)  :: zeros
-    character(256)  :: chari
+    character(len=:), allocatable  :: zeros
+    character(len=:), allocatable  :: chari
 
 
     ndigs_n = count_digits( n )
