@@ -424,7 +424,7 @@ contains
     type(fem_mesh)       , intent(out) :: lmesh
     type(renum), optional, intent(in)  :: nren,eren
     type(hash_table_ip_ip)       :: ws_inmap
-    type(hash_table_igp_ip)      :: el_inmap
+    type(hash_table_ip_ip)       :: el_inmap
     integer(ip)                  :: ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
     integer(ip)                  :: p_ielem_gmesh,p_ipoin_gmesh,p_ipoin_lmesh, istat
 
