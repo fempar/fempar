@@ -393,17 +393,19 @@ contains
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    integer(ip), intent(out)       :: start(:)
+    integer(ip)      , intent(out)       :: start(:)
 
     integer(ip) :: ivar
 
     do ivar = 1,dhand%problems(elem%problem)%nvars
-       start(ivar+1) = start(ivar+1) + elem%f_inf(ivar)%p%nnode
+       start(ivar+1) = elem%f_inf(ivar)%p%nnode
     end do
     start(1) = 1
     do ivar = 2, dhand%problems(elem%problem)%nvars+1
        start(ivar) = start(ivar) + start(ivar-1)
     end do
+
+
 
   end subroutine pointer_variable
  

@@ -51,6 +51,7 @@ module problem_names
 
 
   type, abstract :: discrete_problem
+     !class(physical_problem), pointer :: physics
    contains
       procedure(create_interface), deferred :: create
       procedure(matvec_interface), deferred :: matvec

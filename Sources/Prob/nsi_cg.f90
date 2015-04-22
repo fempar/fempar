@@ -39,7 +39,7 @@ module nsi_cg
  private 
 
  type, extends(discrete_problem) :: nsi_approximation
-    type(nsi_problem), pointer :: nsi
+    type(nsi_problem), pointer :: physics
     integer(ip) ::   & 
          kfl_1vec,   & ! Flag for 1vec integration
          kfl_mtvc,   & ! Flag for matvec integration
@@ -75,11 +75,14 @@ contains
     implicit none
     class(nsi_approximation)       , intent(out) :: aprox
     class(physical_problem), target, intent(in)  :: prob
+    !type(nsi_problem), target, intent(in)  :: prob
     integer(ip) :: i
+
 
     select type (prob)
     type is(nsi_problem)
-       aprox%nsi => prob
+       aprox%physics => prob
+       !aprox%nsi => prob
     class default
        check(.false.)
     end select
@@ -127,12 +130,12 @@ contains
     integer(ip)  :: ndime
     real(rp)     :: dtinv, c1, c2, mu
 
-    ndime = aprox%nsi%ndime
+    ndime = aprox%physics%ndime
 
-    u = basis_function(aprox%nsi,1,start,integ)
-    p = basis_function(aprox%nsi,2,start,integ)
-    v = basis_function(aprox%nsi,1,start,integ) 
-    q = basis_function(aprox%nsi,2,start,integ)
+    u = basis_function(aprox%physics,1,start,integ)
+    p = basis_function(aprox%physics,2,start,integ)
+    v = basis_function(aprox%physics,1,start,integ) 
+    q = basis_function(aprox%physics,2,start,integ)
 
     ! With a_h declared as given_function we could do:
     ! a_h   = given_function(aprox,1,1,integ)
@@ -146,8 +149,8 @@ contains
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and
     ! an initialization call.
-    call create_vector (aprox%nsi, 1, integ, a)
-    call create_vector (aprox%nsi, 1, integ, u_n)
+    call create_vector (aprox%physics, 1, integ, a)
+    call create_vector (aprox%physics, 1, integ, u_n)
     ! Then for each element fill values
     call interpolation (unkno, 1, 1, integ, a)
     call interpolation (unkno, 1, 3, integ, u_n)
@@ -156,7 +159,7 @@ contains
     !h%a=integ(1)%p%femap%hleng(1,:)     ! max
     h%a=integ(1)%p%femap%hleng(ndime,:) ! min
 
-    mu = aprox%nsi%diffu
+    mu = aprox%physics%diffu
 
     dtinv  = aprox%dtinv
     c1 = aprox%k1tau
