@@ -123,8 +123,7 @@ module par_partition_names
 
   interface par_partition_create
      module procedure par_partition_create_standard_execution_model,   &
-                      par_partition_create_multilevel_execution_model, &
-                      par_partition_create_old
+                      par_partition_create_multilevel_execution_model
   end interface par_partition_create
   
   interface par_partition_free
@@ -478,16 +477,14 @@ contains
   subroutine par_partition_read ( dir_path, prefix, p_part )
     implicit none 
     ! Parameters
-    character *(*)     , intent(in)    :: dir_path
-    character *(*)     , intent(in)    :: prefix
+    character(*), intent(in)           :: dir_path
+    character(*), intent(in)           :: prefix
     type(par_partition), intent(inout) :: p_part
 
     ! Locals
-    integer         :: iam, num_procs, lunio
-    integer(ip)     :: j, ndigs_iam, ndigs_num_procs, id_map
-    character(256)  :: name 
-    character(256)  :: zeros
-    character(256)  :: part_id
+    integer                        :: iam, num_procs, lunio
+    integer(ip)                    :: j, ndigs_iam, ndigs_num_procs, id_map
+    character(len=:), allocatable  :: name 
 
     assert ( associated(p_part%w_context) )
     assert ( associated(p_part%p_context) )
@@ -498,9 +495,9 @@ contains
 
     call par_context_info ( p_part%p_context, iam, num_procs )
 
-    call fem_partition_compose_name ( prefix, name )
+    call fem_partition_compose_name_deferred_length ( prefix, name )
 
-    call par_filename( p_part%p_context, name)
+    call par_filename( p_part%p_context, name )
 
     !lunio = io_open (trim(dir_path) // '/' // trim(name), 'read', status='old')
 
@@ -508,7 +505,7 @@ contains
     lunio = io_open (trim(dir_path) // '/' // trim(name))
     ! call fem_partition_read ( trim(dir_path) // '/' // trim(name), p_part%f_part ) !old partition
     !write(*,*) 'par_partition_create:'
-    call fem_partition_read ( lunio, p_part%f_part )
+    call fem_partition_read ( lunio, p_part%f_part ) 
     !write(*,*) 'par_partition_create: ',p_part%f_part%nparts, num_procs
     call io_close (lunio)
 
@@ -533,79 +530,6 @@ contains
     end if
 
   end subroutine par_partition_read
-
-  subroutine par_partition_create_old ( dir_path, prefix, p_context, p_part, g_context, c_context )
-    implicit none 
-    ! Parameters
-    character *(*)              , intent(in)  :: dir_path
-    character *(*)              , intent(in)  :: prefix
-    type(par_context)  , target , intent(in)  :: p_context
-    type(par_partition)         , intent(out) :: p_part
-    type(par_context)  , target , intent(in), optional  :: g_context
-    type(par_context)  , target , intent(in), optional  :: c_context
-
-    ! Locals
-    integer         :: iam, num_procs, lunio
-    integer(ip)     :: j, ndigs_iam, ndigs_num_procs, id_map
-    character(256)  :: name 
-    character(256)  :: zeros
-    character(256)  :: part_id
-
-    assert(p_context%created .eqv. .true.)
-    assert(p_context%handler == inhouse .or. p_context%handler == trilinos )
-
-    p_part%p_context => p_context
-    if(present(g_context)) then
-       p_part%g_context => g_context
-    else
-       nullify(p_part%g_context)
-    end if
-
-    if(present(c_context)) then
-       p_part%c_context => c_context
-    else
-       nullify(p_part%c_context)
-    end if
-
-    if(p_context%iam<0) return
-
-    call par_context_info ( p_context, iam, num_procs )
-
-    call fem_partition_compose_name ( prefix, name )
-
-    call par_filename( p_context, name)
-
-    !lunio = io_open (trim(dir_path) // '/' // trim(name), 'read', status='old')
-
-    ! Read fem_partition data from path_file file
-    lunio = io_open (trim(dir_path) // '/' // trim(name))
-    ! call fem_partition_read ( trim(dir_path) // '/' // trim(name), p_part%f_part ) !old partition
-    write(*,*) 'par_partition_create:'
-    call fem_partition_read ( lunio, p_part%f_part )
-    !write(*,*) 'par_partition_create: ',p_part%f_part%nparts, num_procs
-    call io_close (lunio)
-
-    assert ((p_context%handler==inhouse.and.p_part%f_part%ptype==element_based).or.(p_context%handler == trilinos.and.p_part%f_part%ptype == vertex_based))
-    !write(*,*) p_part%f_part%nparts, num_procs
-    assert ( p_part%f_part%nparts == num_procs )
-
-    if ( p_part%f_part%pinfo == interfaces ) then
-       call partition_to_import ( p_part%f_part, p_part%f_import )
-    end if
-
-    ! call fem_import_print ( 6, p_part%f_import ) ! DBG:
-
-    ! write(*,*) inhouse, element_based, trilinos, vertex_based, max_ndofs ! DBG: 
-
-    if ( p_context%handler == trilinos ) then
-
-       do id_map=1, max_ndofs
-          p_part%maps_state(id_map) = map_non_created
-       end do
-
-    end if
-
-  end subroutine par_partition_create_old
 
   !=============================================================================
   subroutine par_partition_free_one_shot ( p_part )

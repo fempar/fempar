@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_mesh_partition_base
   use types
-  use fem_partition_names, only : vertex_based, element_based
 
   ! Basic parameters and type definitions for serial partitioning routines
   ! All PUBLIC 
@@ -41,8 +40,6 @@ module fem_mesh_partition_base
   integer(ip), parameter :: primal=1
 
   type part_params
-     integer(ip) :: ptype       = element_based ! element_based or vertex_based
-     integer(ip) :: use_graph   = dual          ! primal or dual
      integer(ip) :: nparts      = 2             ! nparts
      integer(ip) :: debug       = 1             ! Print info partition
 
@@ -60,7 +57,6 @@ module fem_mesh_partition_base
      
      ! Applicable to both metis 4.0 and metis 5.0
      integer(ip) :: metis_option_debug  =  0 
-
   end type part_params
 
 

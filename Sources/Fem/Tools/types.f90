@@ -30,6 +30,7 @@ module types
 !    This module contains kind and type definitions.
 !-----------------------------------------------------------------------
   implicit none
+
   integer, parameter       :: ieep = 1    ! Integer precision for buffers in element exchanges
   integer, parameter       :: ip   = 4    ! Integer precision
   integer, parameter       :: rp   = 8    ! Real precision
@@ -129,9 +130,6 @@ module types
      integer(ip), allocatable :: p(:) 
      integer(ip), allocatable :: l(:) 
   end type list
-  interface list
-     module procedure list_constructor
-  end interface list
 
   type list_2d
      integer(ip) :: n
@@ -162,16 +160,5 @@ module types
      subroutine runend
      end subroutine runend
   end interface
-
-contains
-
-  function list_constructor(n) result(l)
-    implicit none
-    integer(ip) :: n
-    type(list)  :: l
-    !assert(n>0)
-    allocate(l%p(n))
-    l%p=0
-  end function list_constructor
 
 end module types

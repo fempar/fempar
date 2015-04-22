@@ -29,7 +29,6 @@ module fem_mesh_io
   use types
   use stdio
   use memor
-  use renum_names
   use fem_mesh_names
   use fem_space_names
   implicit none
@@ -248,20 +247,20 @@ contains
   end subroutine fem_mesh_read
 
   !=============================================================================
-  subroutine fem_mesh_write(lunio,msh,nren,eren,title)
+  subroutine fem_mesh_write(lunio,msh,title)
     !------------------------------------------------------------------------
     !
     ! This routine writes a fem_mesh in GiD format.
     !
     !------------------------------------------------------------------------
     implicit none
-    integer(ip)  , intent(in) :: lunio
-    type(fem_mesh)   , intent(in) :: msh
-    type(renum)  , intent(in), optional :: nren,eren
-    character(*) , intent(in), optional :: title
-    integer(ip)    :: ielem,idime,ipoin,inode
-    character(13)  :: elemt
-    character(80)  :: title_
+    integer(ip)      , intent(in)           :: lunio
+    type(fem_mesh)   , intent(in)           :: msh
+    character(*)     , intent(in), optional :: title
+
+    integer(ip)                    :: ielem, idime, ipoin, inode
+    character(13)                  :: elemt
+    character(len=:), allocatable  :: title_
 
     if(msh%ndime==2) then
        if(msh%nnode==3.or.msh%nnode==6.or.msh%nnode==7) then
@@ -282,47 +281,23 @@ contains
     ! Header
     title_ = 'TITLE'
     if(present(title)) title_=title
-write(*,*) lunio
     write(lunio,1) adjustl(trim(title_)),msh%ndime,adjustl(trim(elemt)),msh%nnode
 
     ! Coordinates
     write(lunio,2)'coordinates'
     if (allocated(msh%coord)) then
-       if(present(nren)) then
-          do ipoin=1,msh%npoin
-             write(lunio,3) nren%lperm(ipoin),(msh%coord(idime,ipoin),idime=1,msh%ndime)
-          end do
-       else
-          do ipoin=1,msh%npoin
-             write(lunio,3) ipoin,(msh%coord(idime,ipoin),idime=1,msh%ndime)
-          end do
-       end if
+       do ipoin=1,msh%npoin
+          write(lunio,3) ipoin,(msh%coord(idime,ipoin),idime=1,msh%ndime)
+       end do
     end if
     write(lunio,2)'end coordinates'
 
     ! Connectivity
     write(lunio,2)'elements'
-    if(present(nren).and.present(eren)) then
-       do ielem=1,msh%nelem
-          write(lunio,4) eren%lperm(ielem), &
-             &  (nren%lperm(msh%lnods(inode+(ielem-1)*msh%nnode)),inode=1,msh%nnode),1
-       end do
-    else if(present(nren)) then
-       do ielem=1,msh%nelem
-          write(lunio,4) ielem, &
-             &  (nren%lperm(msh%lnods(inode+(ielem-1)*msh%nnode)),inode=1,msh%nnode),1
-       end do
-    else if(present(eren)) then
-       do ielem=1,msh%nelem
-          write(lunio,4) eren%lperm(ielem), &
-             &  (msh%lnods(inode+(ielem-1)*msh%nnode),inode=1,msh%nnode),1
-       end do
-    else
-       do ielem=1,msh%nelem
-          write(lunio,4) ielem, &
-             &  (msh%lnods(inode+(ielem-1)*msh%nnode),inode=1,msh%nnode),1
-       end do
-    end if
+    do ielem=1,msh%nelem
+       write(lunio,4) ielem, &
+            &  (msh%lnods(inode+(ielem-1)*msh%nnode),inode=1,msh%nnode),1
+    end do
     write(lunio,2)'end elements'
 
     ! Boundary elements
@@ -350,62 +325,60 @@ write(*,*) lunio
 
   subroutine fem_mesh_compose_name ( prefix, name ) 
     implicit none
-    character *(*), intent(in)        :: prefix 
-    character *(*), intent(out)       :: name
+    character(len=*)             , intent(in)    :: prefix 
+    character(len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.msh'
-  end subroutine 
+  end subroutine fem_mesh_compose_name
 
-  subroutine fem_mesh_write_files ( dir_path, prefix, nparts, lmesh, nren, eren )
+  subroutine fem_mesh_write_files ( dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
-     character *(*), intent(in)       :: dir_path 
-     character *(*), intent(in)       :: prefix
-     integer(ip)   , intent(in)       :: nparts
-     type(fem_mesh), intent(in)       :: lmesh (nparts)
-     type(renum)  , intent(in), optional :: nren(nparts),eren(nparts)
-     character(256)                   :: name, rename
+     character(*)   , intent(in)  :: dir_path 
+     character(*)   , intent(in)  :: prefix
+     integer(ip)     , intent(in)  :: nparts
+     type(fem_mesh)  , intent(in)  :: lmesh (nparts)
+
+     character(len=:), allocatable :: name, rename ! Deferred-length allocatable character arrays
 
      ! Locals 
-     integer (ip)                     :: i,lunio
+     integer (ip) :: i,lunio
 
      call fem_mesh_compose_name ( prefix, name )
 
      do i=nparts, 1, -1  
-       rename=name
-       call numbered_filename_compose(i,nparts,rename)
-       lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
-       if(present(nren).and.present(eren)) then
-          call fem_mesh_write(lunio,lmesh(i),nren(i),eren(i))
-       else
-          call fem_mesh_write(lunio,lmesh(i))
-       end if
-       call io_close(lunio)
+        rename=name
+        call numbered_filename_compose_deferred_length(i,nparts,rename)
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
+        call fem_mesh_write(lunio,lmesh(i))
+        call io_close(lunio)
      end do
+     
+     ! name, and rename should be automatically deallocated by the compiler when they
+     ! go out of scope. Should we deallocate them explicitly for safety reasons?
+   end subroutine fem_mesh_write_files
 
-  end subroutine fem_mesh_write_files 
-
-  subroutine fem_mesh_read_files ( dir_path, prefix, nparts, lmesh )
-    implicit none
-    ! Parameters 
-    character *(*), intent(in)       :: dir_path 
-    character *(*), intent(in)       :: prefix
-    integer(ip)   , intent(in)       :: nparts
-    type(fem_mesh), intent(out)      :: lmesh (nparts)
-    character(256)                   :: name, rename
+   subroutine fem_mesh_read_files ( dir_path, prefix, nparts, lmesh )
+     implicit none
+     ! Parameters 
+     character(*), intent(in)       :: dir_path 
+     character(*), intent(in)       :: prefix
+     integer(ip)   , intent(in)     :: nparts
+     type(fem_mesh), intent(out)    :: lmesh (nparts)
+     character(len=:), allocatable  :: name, rename ! Deferred-length allocatable character arrays
+     
+     ! Locals 
+     integer (ip)                     :: i,lunio
+     
+     call fem_mesh_compose_name ( prefix, name )
     
-    ! Locals 
-    integer (ip)                     :: i,lunio
-    
-    call fem_mesh_compose_name ( prefix, name )
-    
-    do i=nparts, 1, -1  
-       rename=name
-       call numbered_filename_compose(i,nparts,rename)
-       lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' )
-       call fem_mesh_read(lunio,lmesh(i))
-       call io_close(lunio)
-    end do
-    
-  end subroutine fem_mesh_read_files
+     do i=nparts, 1, -1  
+        rename=name
+        call numbered_filename_compose_deferred_length(i,nparts,rename)
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' )
+        call fem_mesh_read(lunio,lmesh(i))
+        call io_close(lunio)
+     end do
+     
+   end subroutine fem_mesh_read_files
 
 end module fem_mesh_io

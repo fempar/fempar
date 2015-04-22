@@ -25,19 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_partition
+module fem_mesh_partition_distribution
   use types
   use memor
-  use sort_names
-  use fem_partition_names
-  use renum_names
+  use fem_mesh_distribution_names
   use maps_names
   use map_apply
   use fem_graph_names
   use graph_renum
   use fem_mesh_names
   use mesh_graph
-  use fem_materials_names
   use fem_mesh_partition_base
   use hash_table_names
 # include "debug.i90"
@@ -45,38 +42,33 @@ module fem_mesh_partition
   private
 
    ! Functions
-  public :: fem_mesh_partition_create, build_partition_adjacency
+  public :: fem_mesh_distribution_create !, build_partition_adjacency
 
 contains
-  !================================================================================================
-  ! Methods defined for fem_mesh are:
-  !
-  ! - fem_mesh_partition_create
-  ! - fem_mesh_get_parts
-  ! - fem_mesh_partition_write
-  !
-  !================================================================================================
 
-  subroutine fem_mesh_partition_create( prt_pars, femesh, parts, lmesh)
+  subroutine fem_mesh_distribution_create( prt_pars, femesh, distr, lmesh)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    type(part_params)   , intent(in)  :: prt_pars
-    type(fem_mesh)      , intent(in)  :: femesh
-    type(fem_partition) , intent(out) :: parts(prt_pars%nparts) ! Partition
-    type(fem_mesh)      , intent(out) :: lmesh(prt_pars%nparts) ! Local meshes
+    type(part_params)                        , intent(in)  :: prt_pars
+    type(fem_mesh)                           , intent(in)  :: femesh
+    type(fem_mesh_distribution) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
+    type(fem_mesh)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
     type(fem_mesh)               :: dual_femesh, dual_lmesh
     type(fem_graph)              :: fe_graph    ! Dual graph (to be partitioned)
-    type(fem_graph)              :: parts_graph
-    type(renum)                  :: eren        ! Element renumbering
     integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
     integer(ip)   , allocatable  :: dual_parts(:)
     integer(ip)                  :: ipart
+    integer                      :: istat
+    ! AFM. Dummy map declared and used for backward compatibility.
+    ! It should be re-considered when we decide how to implement
+    ! the boundary mesh.
+    type(map)                    :: dummy_bmap
 
 
     ! Generate dual mesh (i.e., list of elements around points)
@@ -92,83 +84,69 @@ contains
     ! write (*,*) 'fe_graph%nv', fe_graph%nv, 'fe_graph%nnz', fe_graph%ia(fe_graph%nv+1) 
     call graph_pt_renumbering(prt_pars,fe_graph,ldome)
 
-    call build_parts_graph (prt_pars%nparts, ldome, fe_graph, parts_graph)
-
     ! Now free fe_graph, not needed anymore?
+    
+    allocate(distr(prt_pars%nparts), stat=istat)
+    check(istat==0)
 
-    ! In the multilevel setting, simply call the last two procedures recursively
-    ! reallocating data
-    ! fe_graph <- parts_graph
-    ! call graph_pt_renumbering(prt_pars,fe_graph,eren,ldome)
-    ! parts(ipart)%id_parts(ilevel) = ldome(ipart)
-    ! call build_parts_graph (prt_pars%nparts, ldome, fe_graph, parts_graph)
+    allocate(lmesh(prt_pars%nparts), stat=istat)
+    check(istat==0) 
 
-    do ipart=1,prt_pars%nparts
-       parts(ipart)%pinfo  = extended_adjacencies
-       parts(ipart)%ptype  = element_based
-       parts(ipart)%ipart  = ipart
-       parts(ipart)%nparts = prt_pars%nparts
+    do ipart=1, prt_pars%nparts
+       distr(ipart)%ipart  = ipart
+       distr(ipart)%nparts = prt_pars%nparts
     end do
 
-    call build_partition_maps(prt_pars%nparts, ldome, femesh, parts)
+    call build_maps(prt_pars%nparts, ldome, femesh, distr)
 
     ! Build local meshes and their duals and generate partition adjacency
     do ipart=1,prt_pars%nparts
 
-       parts(ipart)%pinfo=extended_adjacencies
-
-       ! Local mesh
-       call fem_mesh_g2l(parts(ipart)%nmap,parts(ipart)%emap, parts(ipart)%bmap, femesh, lmesh(ipart))
+       ! Generate Local mesh
+       call fem_mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, dummy_bmap, femesh, lmesh(ipart))
 
        ! Mesh to dual with global element numbers in the dual (just get numbers applying g2l map to dual_femesh)
        ! Store dual_part too.
-       call dual_mesh_g2l(parts(ipart)%nmap, dual_femesh, ldome, lmesh(ipart), dual_lmesh, dual_parts)
+       call dual_mesh_g2l(distr(ipart)%nmap, dual_femesh, ldome, lmesh(ipart), dual_lmesh, dual_parts)
 
-       call build_partition_adjacency (ipart, &
-            &                          lmesh(ipart), &
-            &                          parts(ipart)%emap%l2g, &
-            &                          dual_lmesh, &
-            &                          dual_parts, &
-            &                          parts(ipart)%nebou, &
-            &                          parts(ipart)%nnbou, &
-            &                          parts(ipart)%lebou, &
-            &                          parts(ipart)%lnbou, &
-            &                          parts(ipart)%pextn, &
-            &                          parts(ipart)%lextn, &
-            &                          parts(ipart)%lextp, &
-            &                          parts(ipart)%lexte, &
-            &                          parts(ipart)%lextm)
+       call build_adjacency (ipart,                 &
+            &                lmesh(ipart),          &
+            &                distr(ipart)%emap%l2g, &
+            &                dual_lmesh,            &
+            &                dual_parts,            &
+            &                distr(ipart)%nebou,    &
+            &                distr(ipart)%nnbou,    &
+            &                distr(ipart)%lebou,    &
+            &                distr(ipart)%lnbou,    &
+            &                distr(ipart)%pextn,    &
+            &                distr(ipart)%lextn,    &
+            &                distr(ipart)%lextp )
 
        call fem_mesh_free(dual_lmesh)
        call memfree(dual_parts,__FILE__,__LINE__)
-
     end do
 
     call fem_mesh_free(dual_femesh)
     call fem_graph_free(fe_graph)
-    call fem_graph_free(parts_graph)
     call memfree(ldome,__FILE__,__LINE__)
-
-  end subroutine fem_mesh_partition_create
+  end subroutine fem_mesh_distribution_create
 
   !================================================================================================
-   subroutine build_partition_adjacency ( my_part, lmesh, l2ge, dual_lmesh, dual_parts, &
-        &                                 nebou, nnbou, lebou, lnbou, pextn, lextn, lextp, lexte, lextm)
+   subroutine build_adjacency ( my_part, lmesh, l2ge, dual_lmesh, dual_parts, &
+        &                       nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
      implicit none
      integer(ip)   , intent(in)  :: my_part
      type(fem_mesh), intent(in)  :: lmesh
      type(fem_mesh), intent(in)  :: dual_lmesh
-     integer(igp)  , intent(in)  :: l2ge(lmesh%npoin)
-     integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1) )
+     integer(ip)   , intent(in)  :: l2ge(lmesh%npoin)
+     integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
      integer(ip)   , intent(out) :: nebou
      integer(ip)   , intent(out) :: nnbou
      integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
      integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary nodes
      integer(ip)   , allocatable, intent(out) ::  pextn(:)    ! Pointers to the lextn
-     integer(igp)  , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
+     integer(ip)   , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
      integer(ip)   , allocatable, intent(out) ::  lextp(:)    ! List of parts of external neighbors
-     integer(ip)   , allocatable, intent(out) ::  lexte(:)    ! Edge information of external neighbors
-     integer(ip)   , allocatable, optional, intent(out) ::  lextm(:)    ! Edge information of external neighbors
 
      integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat, touch
      integer(ip) :: nextn, nexte, nepos
@@ -252,19 +230,16 @@ contains
               end do
            end do
         end if
+        call external_visited%print
+
      end do
+
 
      ! 2) Allocate arrays and store list and pointers to externals
      call memalloc(nebou  , lebou,__FILE__,__LINE__)
      call memalloc(nebou+1, pextn,__FILE__,__LINE__)
      call memalloc(nextn  , lextn,__FILE__,__LINE__)
      call memalloc(nextn  , lextp,__FILE__,__LINE__)
-     call memalloc(nextn  , lexte,__FILE__,__LINE__)
-     lexte = 0
-     if(present(lextm)) then ! TODO: material
-        call memalloc(nextn  , lextm,__FILE__,__LINE__)
-        lextm = 0
-     end if
 
      iebou = 0
      pextn(1) = 1
@@ -275,6 +250,7 @@ contains
            pextn(iebou+1) = local_visited(lelem) + pextn(iebou)
         end if
      end do
+
 
      ! 3) Store Count boundary elements and external edges
      !do lelem = 1, lmesh%nelem
@@ -296,23 +272,16 @@ contains
               if(jelem/=ielem) then
                  jpart = dual_parts(pelem)
                  if(jpart/=my_part) then                            ! This is an external element
-                    nepos=nexte
-                    call external_visited%put(key=jelem,val=nepos,stat=istat) ! Touch jelem as external neighbor of lelem.
+                    call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
                     if(istat==now_stored) then
                        lextn(pextn(iebou)+nexte) = jelem
                        lextp(pextn(iebou)+nexte) = jpart
-                       lexte(pextn(iebou)+nexte) =  ibset( lexte(pextn(iebou)+nexte), pnode-inode1 )
                        nexte = nexte + 1
-                    else
-                       assert(istat==was_stored)
-                       ! call external_visited%get(key=jelem,val=nepos, stat=istat) ! Touch jelem as external neighbor of lelem.
-                       lexte(pextn(iebou)+nepos) =  ibset( lexte(pextn(iebou)+nepos), pnode-inode1 )
                     end if
                  end if
               end if
            end do
         end do
-        nextn = nextn + nexte
         ! Clean hash table
         do pnode = inode1, inode2
            ipoin = lmesh%lnods(pnode)
@@ -330,8 +299,7 @@ contains
 
      call external_visited%free
      call memfree(local_visited,__FILE__,__LINE__)
-
-   end subroutine build_partition_adjacency
+   end subroutine build_adjacency
 
   subroutine dual_mesh_g2l(nmap, dual_mesh, ldome, lmesh, dual_lmesh, dual_parts)
     implicit none
@@ -366,82 +334,18 @@ contains
     
   end subroutine dual_mesh_g2l
 
-  subroutine build_parts_graph (nparts, ldome, fe_graph, parts_graph)
-    ! This procedure is order nparts**2 both in memory and complexity. This number could be
-    ! reduced using hash_tables but it is not easy: we need to use npart hash_tables to store
-    ! the touched parts in a sparse structure. Each table should be of size max_nparts, which
-    ! could be bounded by the maximum number of elements per node. 
-    !
-    ! However, this procedure will be executed serially, and therefore, we do not expect
-    ! nparts to be huge.
-    ! 
-    implicit none
-    integer(ip)                  , intent(in)  :: nparts
-    type(fem_graph)              , intent(in)  :: fe_graph
-    integer(ip)                  , intent(in)  :: ldome(fe_graph%nv)
-    type(fem_graph)              , intent(out) :: parts_graph
-    integer(ip), allocatable :: work(:,:)
-    integer(ip)              :: ielem,jelem,pelem,iz, ipart,jpart
-
-    parts_graph%nv = nparts
-    call memalloc(parts_graph%nv+1, parts_graph%ia, __FILE__,__LINE__)
-    parts_graph%ia = 0
-
-    !write(*,*) fe_graph%nv, fe_graph%ia(fe_graph%nv+1)
-
-    call memalloc(nparts, nparts, work, __FILE__,__LINE__)
-    work = 0
-    parts_graph%nzt = 0
-    do ielem = 1, fe_graph%nv
-       ipart = ldome(ielem)
-       do pelem = fe_graph%ia(ielem), fe_graph%ia(ielem+1) - 1
-          jelem = fe_graph%ja(pelem)
-          jpart = ldome(jelem)
-          if(work(jpart,ipart) == 0) then
-             work(jpart,ipart) = 1
-             parts_graph%ia(ipart+1) = parts_graph%ia(ipart+1) +1
-             parts_graph%nzt = parts_graph%nzt + 1
-          end if
-       end do
-    end do
-
-    call memalloc(parts_graph%nzt, parts_graph%ja, __FILE__,__LINE__)
-    parts_graph%nzt = parts_graph%nzt + 1
-
-    ! This loop could be replaced by a loop over the fe_graph vertices, as the previous one,
-    ! whose complexity is of order fe_graph%nv compared to the parts_graph%nv**2.
-    ! However, that would require
-    ! work = 0
-    ! which also of order parts_graph%nv**2.
-    iz = 0
-    parts_graph%ia(1) = 1
-    do ipart = 1, parts_graph%nv
-       ! Transform ia from length to header
-       parts_graph%ia(ipart+1) = parts_graph%ia(ipart+1) + parts_graph%ia(ipart)
-       do jpart = 1, parts_graph%nv
-          if(work(jpart,ipart) == 1) then
-             iz = iz + 1
-             parts_graph%ja(iz) = jpart
-          end if
-       end do
-    end do
-
-    call memfree(work, __FILE__,__LINE__)
-
-  end subroutine build_parts_graph
-
   !================================================================================================
-  subroutine build_partition_maps(nparts, ldome, femesh, parts)
+  subroutine build_maps( nparts, ldome, femesh, distr )
     ! This routine builds (node and element) partition maps without using the objects
     ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
     implicit none
-    integer(ip)                  , intent(in)  :: nparts
-    type(fem_mesh)               , intent(in)  :: femesh
-    integer(ip)                  , intent(in)  :: ldome(femesh%nelem)
-    type(fem_partition)          , intent(inout) :: parts(nparts)
-    integer(ip)   , allocatable  :: nedom(:)    ! Number of points per part (here is not header!)
-    integer(ip)   , allocatable  :: npdom(:)    ! Number of elements per part (here is not header!)
-    integer(ip)   , allocatable  :: nbdom(:)    ! Number of boundary elements per part
+    integer(ip)                , intent(in)    :: nparts
+    type(fem_mesh)             , intent(in)    :: femesh
+    integer(ip)                , intent(in)    :: ldome(femesh%nelem)
+    type(fem_mesh_distribution), intent(inout) :: distr(nparts)
+    
+    integer(ip)   , allocatable  :: nedom(:) ! Number of points per part (here is not header!)
+    integer(ip)   , allocatable  :: npdom(:) ! Number of elements per part (here is not header!)
     integer(ip)   , allocatable  :: work1(:)
     integer(ip)   , allocatable  :: work2(:)
     integer(ip) :: ielem, ipart, inode, iboun
@@ -455,23 +359,15 @@ contains
     end do
     ! Allocate local to global maps
     do ipart=1,nparts
-       call map_alloc(nedom(ipart),int(femesh%nelem,igp),parts(ipart)%emap)
+       call map_alloc(nedom(ipart),femesh%nelem,distr(ipart)%emap)
     end do
     nedom = 0
     do ielem=1,femesh%nelem
        ipart = ldome(ielem)
        nedom(ipart)=nedom(ipart)+1
-       parts(ipart)%emap%l2g(nedom(ipart)) = ielem
+       distr(ipart)%emap%l2g(nedom(ipart)) = ielem
     end do
 
-    ! Copy emap to l2ge
-    do ipart = 1, nparts
-       if (parts(ipart)%pinfo==extended_adjacencies) then
-          call memalloc (nedom(ipart),parts(ipart)%l2ge,__FILE__,__LINE__)
-          parts(ipart)%nelem = nedom(ipart)
-          parts(ipart)%l2ge = parts(ipart)%emap%l2g
-       end if
-    end do
     call memfree ( nedom,__FILE__,__LINE__)
 
     ! Number of nodes of each part and global to local node map (is NOT one to one)
@@ -493,39 +389,12 @@ contains
              end do
           end if
        end do
-       call map_alloc(npdom(ipart),femesh%npoin,parts(ipart)%nmap)
-       parts(ipart)%nmap%l2g = work2(1:npdom(ipart))
+       call map_alloc(npdom(ipart),femesh%npoin,distr(ipart)%nmap)
+       distr(ipart)%nmap%l2g = work2(1:npdom(ipart))
     end do
     call memfree ( work1,__FILE__,__LINE__)
     call memfree ( work2,__FILE__,__LINE__)
-
-    ! Copy emap to l2gn
-    do ipart = 1, nparts
-       if (parts(ipart)%pinfo==extended_adjacencies) then
-          call memalloc (npdom(ipart),parts(ipart)%l2gn,__FILE__,__LINE__)
-          parts(ipart)%npoin = npdom(ipart)
-          parts(ipart)%l2gn = parts(ipart)%nmap%l2g
-       end if
-    end do
     call memfree ( npdom,__FILE__,__LINE__)
+  end subroutine build_maps
 
-    ! Create map for boundary elements
-    if(femesh%nboun>0) then
-       call memalloc (nparts, nbdom, __FILE__,__LINE__)
-       nbdom=0
-       do ielem=1,femesh%nboun
-          nbdom(ldome(femesh%lboel(femesh%nnodb+1,ielem))) = &
-               nbdom(ldome(femesh%lboel(femesh%nnodb+1,ielem))) + 1
-       end do
-       nbdom=0
-       do iboun=1,femesh%nboun
-          ipart = ldome(femesh%lboel(femesh%nnodb+1,iboun))
-          nbdom(ipart) = nbdom(ipart) + 1
-          parts(ipart)%bmap%l2g(nbdom(ipart)) = iboun
-       end do
-       call memfree (nbdom, __FILE__,__LINE__)
-    end if
-
-  end subroutine build_partition_maps
-
-end module fem_mesh_partition
+end module fem_mesh_partition_distribution

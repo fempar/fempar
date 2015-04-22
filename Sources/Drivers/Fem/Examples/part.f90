@@ -38,8 +38,7 @@ program partitioner
   type(fem_conditions)              :: gnodes, gbouns
   type(fem_mesh)                    :: gmesh
   type(fem_materials)               :: gmat
-  type(renum)                       :: nren,eren
-  type(fem_partition) , allocatable :: parts(:)
+  type(fem_mesh_distribution) , allocatable :: distr(:)
   type(fem_mesh)      , allocatable :: lmesh(:)
   type(fem_conditions), allocatable :: lnodes(:),lbouns(:)
   type(fem_materials),  allocatable :: lmater(:)
@@ -53,8 +52,8 @@ program partitioner
   character(len=256)                :: dir_path,dir_path_out
   character(len=256)                :: prefix,comp_prefix
   character(len=256)                :: name,preord
-  character(len=256)                :: filemesh,filecond
   character(len=:), allocatable     :: name_mesh
+  character(len=256)                :: filemesh,filecond
   integer(ip), allocatable          :: ldome(:)
   integer(ip)                       :: i, j
 
@@ -244,14 +243,11 @@ program partitioner
      surf%valu(:,1)=0.0_rp
 
      call fem_conditions_box(gmesh,poin,line,surf,gnodes) 
-
   end if
   
-
   ! Write original mesh
   call fem_mesh_compose_name ( comp_prefix, name_mesh ) 
   lunio = io_open(name_mesh)
-  write(*,*) lunio, name_mesh 
   call fem_mesh_write(lunio,gmesh)
   call io_close(lunio)
 
@@ -272,7 +268,6 @@ program partitioner
 !!$  call io_close(lunio) 
 
   ! Create partition
-  allocate(parts(nparts))
   prt_pars%nparts                = nparts
   prt_pars%strat                 = part_kway
   prt_pars%metis_option_ufactor  = 1
@@ -280,30 +275,24 @@ program partitioner
   prt_pars%metis_option_minconn  = 1
   prt_pars%metis_option_debug    = 2
 
-  ! Allocate local meshes
-  allocate(lmesh(nparts))
-
-  !call fem_mesh_partition_create(prt_pars,gmesh,nren,eren,parts,material=gmat)
-  call fem_mesh_partition_create( prt_pars,gmesh, parts, lmesh)
+  call fem_mesh_distribution_create (prt_pars, gmesh, distr, lmesh)
 
   ! Output domain partition to GiD file
   call memalloc (gmesh%nelem, ldome, __FILE__,__LINE__)
   do i=1, nparts
-     do j=1, parts(i)%emap%nl
-        !ldome(eren%iperm(parts(i)%emap%l2g(j))) = i
-        ldome(parts(i)%emap%l2g(j)) = i
+     do j=1, distr(i)%emap%nl
+        ldome(distr(i)%emap%l2g(j)) = i
      end do
   end do
   name = trim(comp_prefix) // '.res'
   call postpro_open_file(1,name,lupos)
-  write(*,*) lupos, name
   call postpro_gp_init(lupos,1,gmesh%nnode,gmesh%ndime)
   call postpro_gp(lupos,gmesh%ndime,gmesh%nnode,ldome,'EDOMS',1,1.0)
   call postpro_close_file(lupos)
   call memfree (ldome,__FILE__,__LINE__)
 
   ! Write partition info
-  call fem_partition_write_files_new ( dir_path_out, prefix, nparts, parts )
+  call fem_mesh_distribution_write_files ( dir_path_out, prefix, nparts, distr )
 
   ! Write local meshes
   call fem_mesh_write_files ( dir_path_out, prefix, nparts, lmesh )
@@ -312,24 +301,24 @@ program partitioner
   allocate(lnodes(nparts))
   do ipart=1,nparts
      call fem_conditions_create(gnodes%ncode,gnodes%nvalu,lmesh(ipart)%npoin,lnodes(ipart))
-     call map_apply_g2l(parts(ipart)%nmap,gnodes%ncode,gnodes%code,lnodes(ipart)%code) ! ,nren)
-     call map_apply_g2l(parts(ipart)%nmap,gnodes%nvalu,gnodes%valu,lnodes(ipart)%valu) ! ,nren) 
+     call map_apply_g2l(distr(ipart)%nmap,gnodes%ncode,gnodes%code,lnodes(ipart)%code) ! ,nren)
+     call map_apply_g2l(distr(ipart)%nmap,gnodes%nvalu,gnodes%valu,lnodes(ipart)%valu) ! ,nren) 
   end do
 
-  ! Conditions on elements (Neumann bc's)
-  if(gmesh%nboun.gt.0) then
-     allocate(lbouns(nparts))
-     do ipart=1,nparts
-        call fem_conditions_create(gbouns%ncode,gbouns%nvalu,lmesh(ipart)%nboun,lbouns(ipart))
-        call map_apply_g2l(parts(ipart)%bmap,gbouns%ncode,gbouns%code,lbouns(ipart)%code)
-        call map_apply_g2l(parts(ipart)%bmap,gbouns%nvalu,gbouns%valu,lbouns(ipart)%valu)
-     end do
-     ! Write local conditions
-     call fem_conditions_write_files(dir_path_out, prefix, nparts, lnodes, lbouns )
-  else
-     ! Write local conditions
-     call fem_conditions_write_files(dir_path_out, prefix, nparts, lnodes )
-  end if
+!!$  ! Conditions on elements (Neumann bc's)
+!!$  if(gmesh%nboun.gt.0) then
+!!$     allocate(lbouns(nparts))
+!!$     do ipart=1,nparts
+!!$        call fem_conditions_create(gbouns%ncode,gbouns%nvalu,lmesh(ipart)%nboun,lbouns(ipart))
+!!$        call map_apply_g2l(distr(ipart)%bmap,gbouns%ncode,gbouns%code,lbouns(ipart)%code)
+!!$        call map_apply_g2l(distr(ipart)%bmap,gbouns%nvalu,gbouns%valu,lbouns(ipart)%valu)
+!!$     end do
+!!$     ! Write local conditions
+!!$     call fem_conditions_write_files(dir_path_out, prefix, nparts, lnodes, lbouns )
+!!$  else
+  ! Write local conditions
+  call fem_conditions_write_files(dir_path_out, prefix, nparts, lnodes )
+!!$  end if
 
   ! ! Create material  
   ! allocate(lmater(nparts))
@@ -343,20 +332,13 @@ program partitioner
 
   ! Deallocate partition objects
   do ipart=1,nparts
-     call fem_partition_free (parts(ipart))
-     ! TODO: correct fem_partition_free, maps are created in fem_partition_new
-     ! because they are needed to project fields. Another option (maybe better)
-     ! is to use separate arguments...
-     call map_free(parts(ipart)%nmap)
-     call map_free(parts(ipart)%emap)
-     call map_free(parts(ipart)%bmap)
-
+     call fem_mesh_distribution_free (distr(ipart))
      call fem_mesh_free (lmesh(ipart))
      call fem_conditions_free (lnodes(ipart))
 !!$     call fem_materials_free (lmater(ipart))
      if(gmesh%nboun.gt.0) call fem_conditions_free (lbouns(ipart))
   end do
-  deallocate (parts)
+  deallocate (distr)
   deallocate (lmesh)
   deallocate (lnodes)
 !!$  deallocate (lmater)

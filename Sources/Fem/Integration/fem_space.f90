@@ -48,8 +48,6 @@ module fem_space_names
 
   integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
   
-  type(list) , target :: void_list
-
   ! Information of each element of the FE space
   type, extends(migratory_element) :: fem_element
      
@@ -162,6 +160,8 @@ module fem_space_names
      type(fem_face)       , allocatable    :: interior_faces(:), boundary_faces(:), interface_faces(:)
      integer(ip) :: num_interior_faces, num_boundary_faces, num_interface_faces
 
+     ! Much better here rather than as a module variable
+     type(list) :: void_list
   end type fem_space
 
   ! Types
@@ -174,8 +174,6 @@ module fem_space_names
        &    fem_element_print, fem_space_free
 !,          &
 !       get_p_faces
-
-  !public :: void_list
 
 contains
 
@@ -359,8 +357,10 @@ contains
     ! end if
 
     ! void nodes object
- 
-    void_list = list(max_nobje)
+    fspac%void_list%n = max_nobje
+    call memalloc( max_nobje+1, fspac%void_list%p, __FILE__, __LINE__)
+    fspac%void_list%p = 1 
+    call memalloc( 0, fspac%void_list%l, __FILE__, __LINE__ )
 
     ! fspac%l_nodes_object(1)%n = max_nobje
     ! call memalloc( max_nobje+1, fspac%l_nodes_object(1)%p, __FILE__, __LINE__ )
@@ -429,7 +429,7 @@ contains
           if ( continuity(ielem, ivar) /= 0 ) then
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob
           else 
-             fspac%lelem(ielem)%nodes_object(ivar)%p => void_list ! fspac%l_nodes_object(1) ! SB.alert : Think about hdG
+             fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%void_list ! fspac%l_nodes_object(1) ! SB.alert : Think about hdG
           end if
        end do
 
@@ -638,6 +638,8 @@ contains
     !    call f%ht_pos_face_integrator%free
     ! end if
 
+    
+
     do i = 1, f%g_trian%num_elems
 !       nullify ( f%lelem(i)%problem )
        call memfree( f%lelem(i)%elem2dof,__FILE__,__LINE__)
@@ -698,6 +700,10 @@ contains
     call f%ht_elem_info%free
 
     nullify ( f%g_trian )
+
+    call memfree( f%void_list%p, __FILE__, __LINE__)
+    call memfree( f%void_list%l, __FILE__, __LINE__ )
+    f%void_list%n = 0
 
   end subroutine fem_space_free
 

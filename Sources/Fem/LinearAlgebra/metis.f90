@@ -30,7 +30,11 @@ module metis_interface
   use iso_c_binding
   implicit none
 
-#ifdef ENABLE_METIS5
+  !------------------------------------------------------------------!
+  ! An iso_c_bindings based Fortran2003 interface to metis (V5.1.0)  !
+  !------------------------------------------------------------------!
+
+#ifdef ENABLE_METIS
 
 !!$/* The maximum length of the options[] array */
 !!$#define METIS_NOPTIONS          40
@@ -230,137 +234,52 @@ module metis_interface
   integer(c_int) :: ierr
 
   interface
-     function fp_metis_nodendextractseparatortree(nvtxs,xadj,adjncy,vwgt,options,perm,iperm,nlevel,graphvert2nodesep) & 
-        & bind(c,NAME='FP_METIS_NodeNDExtractSeparatorTree')
+     function metis_nodend(nvtxs,xadj,adjncy,vwgt,options,perm,iperm) & 
+        & bind(c,NAME='METIS_NodeND')
        use iso_c_binding
        integer(c_int) :: fp_metis_nodendextractseparatortree
-       type(c_ptr), value :: nvtxs, nlevel
-       type(c_ptr), value :: xadj, adjncy, vwgt, options, perm, iperm, graphvert2nodesep
-     end function fp_metis_nodendextractseparatortree
-     function fp_metis_partgraphkway(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
-        & bind(c,NAME='FP_METIS_PartGraphKway')
+       type(c_ptr), value :: nvtxs
+       type(c_ptr), value :: xadj, adjncy, vwgt, options, perm, iperm
+     end function metis_nodend
+     function metis_partgraphkway(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
+        & bind(c,NAME='METIS_PartGraphKway')
        use iso_c_binding
        integer(c_int) :: fp_metis_partgraphkway
        type(c_ptr), value :: nvtxs, ncon, nparts, objval, part
        type(c_ptr), value :: xadj, adjncy, vwgt, vsize, adjwgt, options
        type(c_ptr), value :: tptwgts, ubvec 
        ! WARNING: metis.h, #define REALTYPEWIDTH 64 REQUIRED !!!
-     end function fp_metis_partgraphkway
-     function fp_metis_partgraphrecursive(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
-        & bind(c,NAME='FP_METIS_PartGraphRecursive')
+     end function metis_partgraphkway
+     function metis_partgraphrecursive(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
+        & bind(c,NAME='METIS_PartGraphRecursive')
        use iso_c_binding
        integer(c_int) :: fp_metis_partgraphrecursive
        type(c_ptr), value :: nvtxs, ncon, nparts, objval, part
        type(c_ptr), value :: xadj, adjncy, vwgt, vsize, adjwgt, options
        type(c_ptr), value :: tptwgts, ubvec 
        ! WARNING: metis.h, #define REALTYPEWIDTH 64 REQUIRED !!!
-     end function fp_metis_partgraphrecursive
-     function fp_metis_setdefaultoptions(options) bind(c,NAME='FP_METIS_SetDefaultOptions')
+     end function metis_partgraphrecursive
+     
+     function metis_setdefaultoptions(options) bind(c,NAME='METIS_SetDefaultOptions')
        use iso_c_binding
        integer(c_int)      :: fp_metis_setdefaultoptions
        type(c_ptr), value  :: options
-     end function fp_metis_setdefaultoptions
+     end function metis_setdefaultoptions
   end interface
 
 #else
-  ! TODO (done by Alberto in his private 64-bit version of Fempar).
+  ! TODO (done by A.F.M. in his private 64-bit copy of Fempar)
 #endif
 
 #else
-#ifdef ENABLE_METIS4
-
-#ifndef METIS_LONG_INTEGERS
-  ! Metis-4.0 default options except 6 (5 in metis C style).
-  integer(c_int)                :: optmt_nd(8)=(/1,3,1,2,0,0,0,1/)
-  !integer(ip)                :: optmt_nd(8)=(/1,3,1,2,1+2+4+8+16+32+64+128+256+512,0,0,1/)
-
-  ! Metis-4-0 default options
-  integer(c_int)                :: optmt_pr(5)=(/0,0,0,0,0/)
-
-  interface
-     subroutine fp_metis_nodendextractseparatortree(n,ia,ja,m,no,lo,li,nl,gv2ns) & 
-        & bind(c,NAME='fp_metis_nodendextractseparatortree')
-       use iso_c_binding
-       integer(c_int) :: n, m, no(8), nl
-       integer(c_int) :: ia(*), ja(*), lo(*), li(*), gv2ns(*)
-     end subroutine fp_metis_nodendextractseparatortree
-     subroutine fp_metis_nodend(n,ia,ja,m,no,lo,li) bind(c,NAME='fp_metis_nodend')
-       use iso_c_binding
-       integer(c_int) :: n,m,no(8)
-       integer(c_int) :: ia(*),ja(*),lo(*),li(*)
-     end subroutine fp_metis_nodend
-     subroutine fp_metis_nodewnd(n,ia,ja,iw,m,no,lo,li) bind(c,NAME='fp_metis_nodewnd')
-       use iso_c_binding
-       integer(c_int) :: n,m,no(8)
-       integer(c_int) :: ia(*),ja(*),iw(*),lo(*),li(*)
-     end subroutine fp_metis_nodewnd
-     subroutine fp_metis_partgraphkway(n,ie,je,i1,i2,kw,nf,np,no,nc,led) &
-        & bind(c,NAME='fp_metis_partgraphkway')
-       use iso_c_binding
-       integer(c_int) :: n,i1,i2,kw,nf,np,no(5),nc
-       integer(c_int) :: led(*),ie(*),je(*)
-     end subroutine fp_metis_partgraphkway
-     subroutine fp_metis_partgraphrecursive(n,ie,je,i1,i2,kw,nf,np,no,nc,led) &
-        & bind(c,NAME='fp_metis_partgraphrecursive')
-       use iso_c_binding
-       integer(c_int) :: n,i1,i2,kw,nf,np,no(5),nc
-       integer(c_int) :: led(*),ie(*),je(*)
-     end subroutine 
-  end interface
-
-#else
-
-  ! Metis-4.0 default options except 6 (5 in metis C style).
-  integer(c_long)                :: optmt_nd(8)=(/1,3,1,2,0,0,0,1/)
-  !integer(ip)                :: optmt_nd(8)=(/1,3,1,2,1+2+4+8+16+32+64+128+256+512,0,0,1/)
-
-  ! Metis-4-0 default options
-  integer(c_long)                :: optmt_pr(5)=(/1,3,1,3,0/)
-
-     function fp_metis_nodendextractseparatortree(n,ia,ja,m,no,lo,li,nl,gv2ns) & 
-        & bind(c,NAME='fp_metis_nodendextractseparatortree')
-       use iso_c_binding
-       integer(c_long)  :: n, m, no(8), nl
-       integer(c_long) :: ia(*), ja(*), lo(*), li(*), gv2ns(*)
-     end subroutine fp_metis_nodendextractseparatortree
-     subroutine fp_metis_nodend(n,ia,ja,m,no,lo,li) bind(c,NAME='fp_metis_nodend')
-       use iso_c_binding
-       integer(c_long)  :: n, m, no(8)
-       integer(c_long) :: ia(*), ja(*), lo(*), li(*)
-     end subroutine fp_metis_nodend
-     subroutine fp_metis_nodewnd(n,ia,ja,iw,m,no,lo,li) bind(c,NAME='fp_metis_nodewnd')
-       use iso_c_binding
-       integer(c_long)  :: n,m,no(8)
-       integer(c_long) :: ia(*),ja(*),iw(*),lo(*),li(*)
-     end subroutine fp_metis_nodewnd
-     subroutine fp_metis_partgraphkway(n,ie,je,i1,i2,kw,nf,np,no,nc,led) &
-        & bind(c,NAME='fp_metis_partgraphkway')
-       use iso_c_binding
-       integer(c_long)  :: n,kw,nf,np,no(5),nc
-       integer(c_long) :: ie(*),je(*),i1,i2,led(*)
-     end subroutine fp_metis_partgraphkway
-     subroutine fp_metis_partgraphrecursive(n,ie,je,i1,i2,kw,nf,np,no,nc,led) &
-        & bind(c,NAME='fp_metis_partgraphrecursive')
-       use iso_c_binding
-       integer(c_long)  :: n,kw,nf,np,no(5),nc
-       integer(c_long) :: ie(*),je(*),i1,i2,led(*)
-     end subroutine fp_metis_partgraphrecursive
-
-#endif ! Long integers
-
-#else 
-
 contains 
   ! Public by default
   subroutine enable_metis_error_message
     implicit none
-    write (0,*) 'Error: FemPar was not compiled with -DENABLE_METIS5 nor  -DENABLE_METIS4.'
-    write (0,*) "Error: You must activate any of these cpp macro in order to use Fempar's interface to Metis"
+    write (0,*) 'Error: Fempar was not compiled with -DENABLE_METIS'
+    write (0,*) "Error: You must activate this cpp macro in order to use Fempar's interface to Metis(5)"
     call runend
   end subroutine enable_metis_error_message
-
-#endif ! metis4
-
-#endif ! metis5
+#endif 
 
 end module metis_interface

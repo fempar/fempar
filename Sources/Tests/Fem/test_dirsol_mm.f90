@@ -246,7 +246,9 @@ program test_dirsol_mm
 #endif
                     case(4)
 #ifdef ENABLE_HSL_MA87
-                        ppars%type = hsl_ma87_prec 
+!						 Needs a symmetric positive definite matrix
+!                        ppars%type = hsl_ma87_prec 
+                        cycle
 #else
                         cycle
 #endif
