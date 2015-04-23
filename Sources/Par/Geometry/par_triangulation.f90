@@ -38,7 +38,6 @@ module par_triangulation_names
   ! Parallel modules
   use par_context_names
   use par_environment_names
-  use par_partition_names
 
   implicit none
 # include "debug.i90"

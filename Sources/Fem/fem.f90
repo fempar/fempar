@@ -38,7 +38,6 @@ module fem
   ! Geometry
   use maps_names
   use map_apply
-  use fem_partition_names
 
   !use fem_import_names
   !use partition_import
@@ -51,19 +50,15 @@ module fem
   use fem_materials_names
   use fem_materials_io
   use fem_graph_names
-  use fem_graph_partition
   use mesh_graph
-  use mesh_graph_partition
   use geom2topo
   use renum_names
   use fem_mesh_names
   use fem_mesh_partition_base
-  use fem_mesh_partition
   use fem_mesh_partition_distribution
 
   use fem_mesh_io
   use fem_mesh_gen
-  use fem_mesh_gen_partition
   use fem_mesh_refine
   !use fem_mesh_faces
   !use fem_mesh_lelpo

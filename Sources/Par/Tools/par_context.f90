@@ -41,11 +41,6 @@ module par_context_names
      ! Store that it was created
      logical              :: created = .false.
 
-     ! Epetra Communicator. 
-     ! This communicator handles the parallel environment and 
-     ! is required for creating epetra_maps
-     !type(epetra_mpicomm) :: epcomm
-
      ! The following member is an integer which identifies an initialized 
      ! parallel context which is created and manipulated using 
      ! our own wrappers to the MPI library (adapted from PSBLAS 2.4.0 library)
@@ -251,18 +246,6 @@ contains
     assert(p_context%created .eqv. .true.)
     my_pid = p_context%iam
     num_procs = p_context%np
-
-    ! assert ( p_context%handler == inhouse .or. p_context%handler == trilinos )
-
-    ! if ( p_context%handler == inhouse ) then
-    !    call psb_info ( p_context%icontxt, my_pid, num_procs )
-    ! else 
-    !    if ( p_context%handler == trilinos ) then
-    !       call epetra_mpicomm_my_pid   (p_context%epcomm, my_pid)
-    !       call epetra_mpicomm_num_proc (p_context%epcomm, num_procs)
-    !    end if
-    ! end if
-
   end subroutine par_context_info
 
   subroutine par_context_free ( p_context, close  )

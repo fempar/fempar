@@ -56,24 +56,6 @@ module par_block_vector_names
   !   par_block_vector_fill_complete method.
   !=============================================================
 
-  !=============================================================
-  ! TO-DO (CRUCIAL):
-  !
-  ! x This implementation of par_block_vector DOES NOT WORK for
-  !   element-based data distributions, as the following 
-  !   operations of par_vector:
-  !     * par_vector_comm
-  !     * par_vector_weight
-  !     * par_vector_nrm2 (nrm2_part_summed, nrm2_full_summed)
-  !     * par_vector_dot  (weighted_dot)
-  !   are well-defined if and only if the I/O par_vectors
-  !   are vectors on the interface. NOTE that the blocks of 
-  !   par_block_vector are not vectors on the interface 
-  !   (i.e., they are GLOBAL). 
-  ! 
-  !=============================================================
-
-
   ! par_vector
   type par_block_vector
      integer(ip)                   :: nblocks = 0
@@ -270,10 +252,10 @@ contains
     real(rp)              , intent(out) :: t
 
     ! p_part%p_context is required within this subroutine
-    assert ( associated(x%blocks(1)%p_part%p_context) )
-    assert ( x%blocks(1)%p_part%p_context%created .eqv. .true.)
+    assert ( associated(x%blocks(1)%p_env%p_context) )
+    assert ( x%blocks(1)%p_env%p_context%created .eqv. .true.)
 
-    if(x%blocks(1)%p_part%p_context%iam<0) return
+    if(x%blocks(1)%p_env%p_context%iam<0) return
 
     call par_block_vector_dot (x, x, t)
     t = sqrt(t)

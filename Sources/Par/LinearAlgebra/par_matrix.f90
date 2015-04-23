@@ -30,23 +30,17 @@ module par_matrix_names
   use types
   use memor
   use fem_matrix_names
-  use fem_partition_names
   use array_names
   use stdio
-  use psb_penv_mod
 #ifdef memcheck
   use iso_c_binding
 #endif
-  
-  ! Module associated with the F90 interface to Trilinos.
-  ! Remember: the F90 interface to Trilinos requires C
-  ! interoperability (i.e., iso_c_binding module)
-  !use for_trilinos_shadow_interfaces
 
   ! Parallel modules
+  use par_environment_names
   use par_graph_names
-  use par_context_names
-  use par_partition_names
+  use psb_penv_mod
+  use dof_distribution_names
 
   implicit none
 # include "debug.i90"
@@ -54,8 +48,6 @@ module par_matrix_names
   private
 
   type par_matrix
-     !type( epetra_crsmatrix ) :: epm
-
      ! Data structure which stores the local part 
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 
@@ -65,12 +57,14 @@ module par_matrix_names
      type(par_graph), pointer :: &
         p_graph => NULL()           ! Associated par_graph
      
-     type(par_partition), pointer :: &
-        p_part => NULL()            ! Associated (ROW) par_partition
+     type(dof_distribution), pointer :: &
+        dof_dist => NULL()            ! Associated (ROW) dof_distribution
      
-     type(par_partition), pointer :: &
-        p_part_cols => NULL()            ! Associated (COL) par_partition
+     type(dof_distribution), pointer :: &
+        dof_dist_cols => NULL()       ! Associated (COL) dof_distribution
 
+     type(par_environment), pointer :: &
+          p_env => NULL()
   end type par_matrix
 
   interface par_matrix_free
@@ -85,8 +79,8 @@ module par_matrix_names
          &  par_matrix_alloc, par_matrix_free,    & 
          &  par_matrix_assembly, par_matrix_info, &
          &  par_matrix_print, par_matrix_print_matrix_market, &
-         &  par_matrix_zero, &
-         &  par_matrix_bcast, par_matrix_fine_task
+         &  par_matrix_zero, & ! , par_matrix_bcast &
+         &  par_matrix_fine_task
 
 !***********************************************************************
 ! Allocatable arrays of type(par_matrix)
@@ -111,17 +105,19 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine par_matrix_create(type,symm,nd1,nd2,p_part,p_part_cols,p_matrix,def)
+  subroutine par_matrix_create(type,symm,dof_dist,dof_dist_cols,p_env,p_matrix,def)
     implicit none
-    integer(ip)     , intent(in)            :: type,symm,nd1,nd2
-    type(par_partition), target, intent(in) :: p_part
-    type(par_partition), target, intent(in) :: p_part_cols
-    type(par_matrix), intent(out)           :: p_matrix
-    integer(ip)     , optional, intent(in)  :: def
+    integer(ip)                  , intent(in)  :: type, symm
+    type(dof_distribution)  , target, intent(in)  :: dof_dist
+    type(dof_distribution)  , target, intent(in)  :: dof_dist_cols
+    type(par_environment), target, intent(in)  :: p_env
+    type(par_matrix)             , intent(out) :: p_matrix
+    integer(ip)        , optional, intent(in)  :: def
 
     call fem_matrix_create(type,symm,p_matrix%f_matrix,def)
-    p_matrix%p_part      => p_part 
-    p_matrix%p_part_cols => p_part_cols 
+    p_matrix%dof_dist      => dof_dist 
+    p_matrix%dof_dist_cols => dof_dist_cols 
+    p_matrix%p_env => p_env
 
   end subroutine par_matrix_create
 
@@ -131,14 +127,14 @@ contains
     type(par_matrix), intent(inout)        :: p_matrix
 
     ! Pointer to part/context object is required
-    assert ( associated(p_graph%p_part) )
-    assert ( associated(p_graph%p_part%p_context) )
-    assert ( p_graph%p_part%p_context%created .eqv. .true.)
+    assert ( associated(p_graph%dof_dist) )
+    assert ( associated(p_graph%p_env%p_context) )
+    assert ( p_graph%p_env%p_context%created .eqv. .true.)
 
     ! Point to input target parallel graph
     p_matrix%p_graph => p_graph
 
-    if(p_graph%p_part%p_context%iam>=0) call fem_matrix_graph ( p_graph%f_graph, p_matrix%f_matrix )
+    if(p_graph%p_env%p_context%iam>=0) call fem_matrix_graph ( p_graph%f_graph, p_matrix%f_matrix )
 
   end subroutine par_matrix_graph
 
@@ -147,7 +143,7 @@ contains
     implicit none
     type(par_matrix), intent(inout)          :: p_matrix
 
-    if(p_matrix%p_part%p_context%iam>=0) then
+    if(p_matrix%p_env%p_context%iam>=0) then
        call fem_matrix_fill_val(p_matrix%f_matrix)
     else
        return
@@ -155,68 +151,17 @@ contains
 
   end subroutine par_matrix_fill_val
 
-  subroutine par_matrix_alloc(type,symm,nd1,nd2,p_graph,p_matrix,def)
+  subroutine par_matrix_alloc(type,symm,p_graph,p_matrix,def)
     implicit none
 
-    integer(ip)     , intent(in)           :: type,symm,nd1,nd2
+    integer(ip)     , intent(in)           :: type,symm
     type(par_graph) , target, intent(in)   :: p_graph
     type(par_matrix), intent(out)          :: p_matrix
     integer(ip)     , optional, intent(in) :: def
 
-    call par_matrix_create(type,symm,nd1,nd2,p_graph%p_part,p_graph%p_part_cols,p_matrix,def)
+    call par_matrix_create(type,symm,p_graph%dof_dist,p_graph%dof_dist_cols,p_graph%p_env,p_matrix,def)
     call par_matrix_graph(p_graph,p_matrix)
     call par_matrix_fill_val(p_matrix)
-
-    ! ! Pointer to part/context object is required
-    ! assert ( associated(p_graph%p_part) )
-    ! assert ( associated(p_graph%p_part%p_context) )
-    ! assert ( p_graph%p_part%p_context%created .eqv. .true.)
-    
-    ! ! Trilinos requires (unsymm.) CSR sparse matrix format
-    ! assert ( (.not. (p_graph%p_part%p_context%handler == trilinos)) .or. (type == csr_mat .and. symm==symm_false) )
-
-    ! ! Point to input target parallel graph
-    ! p_matrix%p_graph => p_graph
-
-
-    ! if(p_graph%p_part%p_context%iam>=0) then
-    !    ! Allocate local part
-    !    if(present(def)) then
-    !       !write(*,*) 'Present',def
-    !       call fem_matrix_alloc ( storage, type, symm, nd1, nd2, & 
-    !            &   p_graph%f_graph, p_matrix%f_matrix, def )
-    !    else
-    !       !write(*,*) 'not present'
-    !       call fem_matrix_alloc ( storage, type, symm, nd1, nd2, & 
-    !            &   p_graph%f_graph, p_matrix%f_matrix )
-    !    end if
-    ! else
-    !    p_matrix%f_matrix%nd1     = nd1
-    !    p_matrix%f_matrix%nd2     = nd2
-    !    p_matrix%f_matrix%symm    = symm
-    !    if (present(def)) then
-    !       p_matrix%f_matrix%sign = def
-    !    else
-    !       p_matrix%f_matrix%sign = unknown
-    !    end if
-    !    p_matrix%f_matrix%storage = storage 
-    !    p_matrix%f_matrix%type    = type
-    ! end if
-
-    ! if(p_graph%p_part%p_context%iam<0) return
-
-    ! ! write (*,*) size(p_matrix%f_matrix%a,1), size(p_matrix%f_matrix%a,2), size(p_matrix%f_matrix%a,3) DBG:
-
-    ! if ( p_graph%p_part%p_context%handler == trilinos ) then 
-    !    ! epetra_crsmatrix (i.e., scalar matrix)
-    !    if ( storage == scal ) then 
-    !      call par_matrix_epetra_crsmatrix_create (p_matrix)
-    !    else ! epetra_vbrmatrix (i.e., block matrix)
-    !      write (0,*) 'Error: trilinos shadow interfaces do not yet support epetra_vbrmatrix object (i.e., block matrices)'
-    !      stop
-    !    end if 
-    ! end if
-
   end subroutine par_matrix_alloc
 
   !=============================================================================
@@ -236,33 +181,24 @@ contains
     integer(ip)     , intent(in)    :: mode
 
     ! The routine requires the partition/context info
-    assert ( associated(p_matrix%p_part) )
-    assert ( associated(p_matrix%p_part%p_context) )
-    assert ( p_matrix%p_part%p_context%created .eqv. .true.)
+    assert ( associated(p_matrix%dof_dist) )
+    assert ( associated(p_matrix%p_env%p_context) )
+    assert ( p_matrix%p_env%p_context%created .eqv. .true.)
     assert ( mode == free_clean .or. mode == free_only_struct .or. mode == free_only_values )
 
-    if(p_matrix%p_part%p_context%iam<0) return
+    if(p_matrix%p_env%p_context%iam<0) return
 
     if ( mode == free_clean ) then
-       nullify ( p_matrix%p_part )
-       nullify ( p_matrix%p_part_cols )
+       nullify ( p_matrix%dof_dist )
+       nullify ( p_matrix%dof_dist_cols )
+       nullify ( p_matrix%p_env )
     else if ( mode == free_only_struct ) then
        ! AFM: This nullification cannot be here as this means that it will not be longer possible
-       !      to access p_matrix%p_part after "free_only_struct"ing a par_matrix
+       !      to access p_matrix%dof_dist after "free_only_struct"ing a par_matrix
        !      (and it is done in many parts of the code). I will move it to free_clean.
        ! AFM: The comment above NO longer applies as par_matrix now directly points to
-       !      the par_partition instance 
+       !      the dof_distribution instance 
        nullify ( p_matrix%p_graph )
-       ! else if ( mode == free_only_values ) then
-       !    if ( p_matrix%p_part%p_context%handler == trilinos  ) then 
-       !       ! epetra_crsmatrix (i.e., scalar matrix)
-       !       if ( p_matrix%f_matrix%storage == scal ) then 
-       !          call epetra_crsmatrix_destruct ( p_matrix%epm )
-       !       else ! epetra_vbrmatrix (i.e., block matrix)
-       !          write (0,*) 'Error: trilinos shadow interfaces do not yet support epetra_vbrmatrix object (i.e., block matrices)'
-       !          stop
-       !       end if
-       !    end if
     end if
 
     ! Free local part
@@ -291,7 +227,6 @@ contains
     ! the external loop on the elements into two parts (internal+boundary
     ! elements)
     call fem_matrix_assembly ( nn, ln, ea, p_mat%f_matrix )
-
   end subroutine par_matrix_assembly
 
   subroutine par_matrix_info ( p_mat, me, np )
@@ -303,11 +238,11 @@ contains
     integer         , intent(out)   :: np
 
    ! Pointer to part/context object is required
-    assert ( associated(p_mat%p_part) )
-    assert ( associated(p_mat%p_part%p_context) )
-    assert ( p_mat%p_part%p_context%created .eqv. .true.)
-    me = p_mat%p_part%p_context%iam
-    np = p_mat%p_part%p_context%np
+    assert ( associated(p_mat%dof_dist) )
+    assert ( associated(p_mat%p_env%p_context) )
+    assert ( p_mat%p_env%p_context%created .eqv. .true.)
+    me = p_mat%p_env%p_context%iam
+    np = p_mat%p_env%p_context%np
 
   end subroutine par_matrix_info
 
@@ -317,21 +252,20 @@ contains
     type(par_matrix)  ,  intent(in) :: p_matrix
     integer(ip)      ,  intent(in) :: lunou
 
-    ! p_graph%p_part is required within this subroutine
-    assert ( associated(p_matrix%p_part) )
+    ! p_graph%dof_dist is required within this subroutine
+    assert ( associated(p_matrix%dof_dist) )
     
-    ! p_graph%p_part%p_context is required within this subroutine
-    assert ( associated(p_matrix%p_part%p_context) )
+    ! p_graph%p_env%p_context is required within this subroutine
+    assert ( associated(p_matrix%p_env%p_context) )
 
   end subroutine par_matrix_print
 
-  subroutine par_matrix_print_matrix_market ( dir_path, prefix, p_mat, global )
+  subroutine par_matrix_print_matrix_market ( dir_path, prefix, p_mat )
     implicit none
     ! Parameters
-    character *(*)  , intent(in)           :: dir_path
-    character *(*)  , intent(in)           :: prefix
-    type(par_matrix), intent(in)           :: p_mat
-    logical         , intent(in), optional :: global  
+    character (*)   , intent(in) :: dir_path
+    character (*)   , intent(in) :: prefix
+    type(par_matrix), intent(in) :: p_mat
 
     ! Locals
     integer         :: iam, num_procs, lunou
@@ -339,22 +273,16 @@ contains
     character(256)  :: name 
     character(256)  :: zeros
     character(256)  :: part_id
-    logical         :: global_
 
-    assert ( associated(p_mat%p_part%p_context) )
-    assert ( p_mat%p_part%p_context%created .eqv. .true.)
-    if(p_mat%p_part%p_context%iam<0) return
+    assert ( associated(p_mat%p_env%p_context) )
+    assert ( p_mat%p_env%p_context%created .eqv. .true.)
+    if(p_mat%p_env%p_context%iam<0) return
 
-    if (present(global)) then
-      global_ = global
-    else
-      global_ = .false.
-    end if
 
     name = trim(prefix) // '.par_matrix' // '.mtx'
 
     ! Get context info
-    call par_context_info ( p_mat%p_part%p_context, iam, num_procs )
+    call par_context_info ( p_mat%p_env%p_context, iam, num_procs )
 
     ! Form the file_path of the partition object to be read
     iam = iam + 1 ! Partition identifers start from 1 !!
@@ -373,13 +301,8 @@ contains
     ! Read fem_partition data from path_file file
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')
 
-    if (global_) then  
-       call fem_matrix_print_matrix_market ( lunou, p_mat%f_matrix,               &
-                                             p_mat%p_part%f_part%nmap%ng, &
-                                             p_mat%p_part%f_part%nmap%l2g )
-    else
-       call fem_matrix_print_matrix_market ( lunou, p_mat%f_matrix )
-    end if 
+
+    call fem_matrix_print_matrix_market ( lunou, p_mat%f_matrix )
 
     call io_close (lunou)
 
@@ -407,43 +330,35 @@ contains
     ! Parameters 
     type(par_matrix), intent(inout)    :: p_matrix
 
-    ! p_part%p_context is required within this subroutine
-    assert ( associated(p_matrix%p_part%p_context) )
-    assert ( p_matrix%p_part%p_context%created .eqv. .true.)
+    ! p_env%p_context is required within this subroutine
+    assert ( associated(p_matrix%p_env%p_context) )
+    assert ( p_matrix%p_env%p_context%created .eqv. .true.)
 
-    if(p_matrix%p_part%p_context%iam<0) return
+    if(p_matrix%p_env%p_context%iam<0) return
 
     call fem_matrix_zero ( p_matrix%f_matrix )
   end subroutine par_matrix_zero
 
-  subroutine par_matrix_bcast (p_matrix, conv)
-    implicit none
-    ! Parameters 
-    type(par_matrix), target, intent(in)    :: p_matrix    
-    logical                 , intent(inout) :: conv
-    assert ( associated(p_matrix%p_part   ) )
-    call par_partition_bcast(p_matrix%p_part,conv)
-  end subroutine par_matrix_bcast
+!!$  subroutine par_matrix_bcast (p_matrix, conv)
+!!$    implicit none
+!!$    ! Parameters 
+!!$    type(par_matrix), target, intent(in)    :: p_matrix    
+!!$    logical                 , intent(inout) :: conv
+!!$    assert ( associated(p_matrix%dof_dist   ) )
+!!$    call par_partition_bcast(p_matrix%dof_dist,conv)
+!!$  end subroutine par_matrix_bcast
 
   function par_matrix_fine_task (p_matrix)
     implicit none
     logical                         :: par_matrix_fine_task
     type(par_matrix), intent(in)    :: p_matrix
 
-    assert ( associated(p_matrix%p_part   ) )
-    assert ( associated(p_matrix%p_part%p_context) ) 
-    assert ( p_matrix%p_part%p_context%created .eqv. .true.)
+    assert ( associated(p_matrix%dof_dist   ) )
+    assert ( associated(p_matrix%p_env%p_context) ) 
+    assert ( p_matrix%p_env%p_context%created .eqv. .true.)
 
-    par_matrix_fine_task = .true. 
 
-    ! Only if global context has been created (i.e.,
-    ! there are coarse MPI Tasks) it is required to
-    ! broadcast conv
-    if ( associated(p_matrix%p_part%g_context) ) then
-       assert ( p_matrix%p_part%g_context%created .eqv. .true.)
-       par_matrix_fine_task = (p_matrix%p_part%p_context%iam >= 0)
-    end if
-
+    par_matrix_fine_task = (p_matrix%p_env%p_context%iam >= 0)
   end function par_matrix_fine_task
 
 

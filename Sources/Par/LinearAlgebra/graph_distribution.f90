@@ -29,7 +29,7 @@ module fem_graph_partition
   use types
   use memor
   use fem_graph_names
-  use fem_partition_names
+  use dof_distribution_names
   implicit none
 # include "debug.i90"
   private
@@ -38,10 +38,10 @@ module fem_graph_partition
 
 contains
   subroutine fem_graph_split_2x2_partitioning ( output_type, & 
-                                              & grph, prt, G_II, G_IG, G_GI, G_GG  )
+                                              & grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
-    ! "prt" input parameter: 
+    ! "dof_dist" input parameter: 
     !      
     !  A = [A_II A_IG]
     !      [A_GI A_GG]
@@ -61,9 +61,9 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    integer(ip)         , intent(in)              :: output_type
-    type(fem_graph)     , intent(in)              :: grph
-    type(fem_partition) , intent(in)              :: prt 
+    integer(ip)            , intent(in) :: output_type
+    type(fem_graph)        , intent(in) :: grph
+    type(dof_distribution) , intent(in) :: dof_dist 
 
     type(fem_graph)     , intent(out), optional   :: G_II
     type(fem_graph)     , intent(out), optional   :: G_IG
@@ -73,8 +73,6 @@ contains
 
     assert ( grph%type   == csr_symm .or. grph%type   == csr )
     assert ( output_type == csr_symm .or. output_type == csr )
-
-    assert ( prt%ptype == element_based )
     assert ( .not. present(G_GI) .or. output_type == csr )
     
     ! If any output fem_graph is present, we are done !
@@ -87,19 +85,19 @@ contains
         end if
     end if
 
-    call split_2x2_partitioning_count_list ( output_type, grph, prt, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
+    call split_2x2_partitioning_count_list ( output_type, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
 
   end subroutine fem_graph_split_2x2_partitioning
 
   ! Auxiliary routine. TO-DO: Unpack member allocatable arrays of graph
   ! into explicit size arrays and pass them to auxiliary routines for 
   ! performance reasons
-  subroutine split_2x2_partitioning_count_list ( output_type, grph, prt, G_II, G_IG, G_GI, G_GG  )
+  subroutine split_2x2_partitioning_count_list ( output_type, grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
     implicit none
     ! Parameters
     integer(ip)         , intent(in)              :: output_type
     type(fem_graph)     , intent(in)              :: grph
-    type(fem_partition) , intent(in)              :: prt 
+    type(dof_distribution) , intent(in)              :: dof_dist 
 
     type(fem_graph)     , intent(out), optional   :: G_II
     type(fem_graph)     , intent(out), optional   :: G_IG
@@ -115,10 +113,10 @@ contains
          & present_g_gi, present_g_gg
 
 
-    ni_rows = prt%nmap%ni 
-    nb_rows = prt%nmap%nb 
-    ni_cols = prt%nmap%ni  
-    nb_cols = prt%nmap%nb  
+    ni_rows = dof_dist%ni 
+    nb_rows = dof_dist%nb 
+    ni_cols = dof_dist%ni  
+    nb_cols = dof_dist%nb  
 
     present_g_ii = present( G_II )
     present_g_ig = present( G_IG )
@@ -207,7 +205,7 @@ contains
     end if
 
     !write (*,*), 'XXX', grph%nv, size(grph%ia), &
-    !              prt%nmap%ni + prt%nmap%nb,  prt%nmap%nl ! DBG
+    !              dof_dist%ni + dof_dist%nb,  dof_dist%nl ! DBG
 
     if ( present_g_gi .or. present_g_gg ) then  
        ! List number of nonzeros on each row of G_GI/G_GG)
@@ -362,10 +360,10 @@ contains
   end subroutine split_2x2_partitioning_count_list
   
   subroutine fem_graph_split_2x2_partitioning_symm ( output_type, & 
-                                              & grph, prt, G_II, G_IG, G_GG  )
+                                              & grph, dof_dist, G_II, G_IG, G_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
-    ! "prt" input parameter: 
+    ! "dof_dist" input parameter: 
     !      
     !  A = [A_II A_IG]
     !      [A_GI A_GG]
@@ -387,7 +385,7 @@ contains
     ! Parameters
     integer(ip)         , intent(in)              :: output_type
     type(fem_graph)     , intent(in)              :: grph
-    type(fem_partition) , intent(in)              :: prt 
+    type(dof_distribution) , intent(in)              :: dof_dist 
 
     type(fem_graph)     , intent(out) :: G_II
     type(fem_graph)     , intent(out) :: G_IG
@@ -395,22 +393,20 @@ contains
 
     ! assert ( grph%type   == csr_symm )
     assert ( output_type == csr_symm .or. output_type == csr )
-
-    assert ( prt%ptype == element_based )
     
-    call split_2x2_partitioning_count_list_symm ( output_type, grph, prt, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
+    call split_2x2_partitioning_count_list_symm ( output_type, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
 
   end subroutine fem_graph_split_2x2_partitioning_symm
 
   ! Auxiliary routine. TO-DO: Unpack member allocatable arrays of graph
   ! into explicit size arrays and pass them to auxiliary routines for 
   ! performance reasons
-  subroutine split_2x2_partitioning_count_list_symm ( output_type, grph, prt, G_II, G_IG, G_GG  )
+  subroutine split_2x2_partitioning_count_list_symm ( output_type, grph, dof_dist, G_II, G_IG, G_GG  )
     implicit none
     ! Parameters
-    integer(ip)         , intent(in)              :: output_type
-    type(fem_graph)     , intent(in)              :: grph
-    type(fem_partition) , intent(in)              :: prt 
+    integer(ip)            , intent(in) :: output_type
+    type(fem_graph)        , intent(in) :: grph
+    type(dof_distribution) , intent(in) :: dof_dist 
 
     type(fem_graph)     , intent(out)   :: G_II
     type(fem_graph)     , intent(out)   :: G_IG
@@ -424,10 +420,10 @@ contains
     logical :: tmp
 
     
-       ni_rows = prt%nmap%ni 
-       nb_rows = prt%nmap%nb 
-       ni_cols = prt%nmap%ni 
-       nb_cols = prt%nmap%nb 
+       ni_rows = dof_dist%ni 
+       nb_rows = dof_dist%nb 
+       ni_cols = dof_dist%ni 
+       nb_cols = dof_dist%nb 
  
        G_II%nv   = ni_rows
        G_II%nv2  = ni_cols
@@ -485,13 +481,12 @@ contains
          end if
          
             G_II%ia(ipoing+1) = nz_ii
-         
             G_IG%ia(ipoing+1) = nz_ig
          
       end do
 
     !write (*,*), 'XXX', grph%nv, size(grph%ia), &
-    !              prt%nmap%ni + prt%nmap%nb,  prt%nmap%nl ! DBG
+    !              dof_dist%ni + dof_dist%nb,  dof_dist%nl ! DBG
 
       ! List number of nonzeros on each row of G_GI/G_GG)
       do ipoing=ni_rows+1, ni_rows + nb_rows

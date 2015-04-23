@@ -30,16 +30,11 @@ module par_vector_krylov_basis_names
   use types
   use memor
   use fem_vector_krylov_basis_names
-  
-  ! Module associated with the F90 interface to Trilinos.
-  ! Remember: the F90 interface to Trilinos requires C
-  ! interoperability (i.e., iso_c_binding module)
-  !use for_trilinos_shadow_interfaces
 
   ! Parallel modules
-  use par_partition_names
-  use par_context_names
+  use dof_distribution_names
   use psb_penv_mod
+  use par_environment_names
   use par_vector_names
 
 # include "debug.i90"
@@ -59,8 +54,9 @@ module par_vector_krylov_basis_names
      ! Partially or fully summed
      integer(ip)  :: state = undefined
 
-     ! Parallel partition control info.
-     type ( par_partition ), pointer  :: p_part => NULL()
+     ! DoF distribution control info.
+     type ( dof_distribution ), pointer  :: dof_dist => NULL()
+     type ( par_environment ) , pointer  :: p_env => NULL()
   end type par_vector_krylov_basis
 
   ! Types
@@ -80,31 +76,19 @@ contains
     type(par_vector), intent(in) , target      :: p_v
     type(par_vector_krylov_basis), intent(out) :: Q 
 
-    ! p_part and p_part%p_context is required within this subroutine
-    assert ( associated(p_v%p_part)          )
-    assert ( associated(p_v%p_part%p_context) )
-    assert ( p_v%p_part%p_context%created .eqv. .true.)
-    Q%p_part => p_v%p_part
+    ! dof_dist and p_env%p_context is required within this subroutine
+    assert ( associated(p_v%dof_dist)          )
+    assert ( associated(p_v%p_env%p_context) )
+    assert ( p_v%p_env%p_context%created .eqv. .true.)
+    Q%dof_dist => p_v%dof_dist
+    Q%p_env    => p_v%p_env
 
-    if(p_v%p_part%p_context%iam<0) return
+
+    if(p_v%p_env%p_context%iam<0) return
 
     call fem_vector_krylov_basis_alloc ( k, p_v%f_vector, Q%f_basis )
 
-    ! Create epv_mown and epv_own_ext as views of f_vector 
-    ! if ( Q%p_part%p_context%handler == trilinos ) then 
-    !   ! epetra_multivector (i.e., set of scalar vectors)
-    !   if ( Q%f_basis%storage == scal ) then                                                
-    !     call epetra_multivector_construct_from_2D_array ( Q%epmv, Q%p_part%row_map(p_v%f_vector%nd), Q%f_basis%b, & 
-    !                                          ! MyLDA                     ! NumVectors
-    !                                       &  Q%f_basis%nd*Q%f_basis%neq, k )
-    !   else ! (block vector) 
-    !     write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !     stop
-    !   end if
-    ! else 
-      Q%state = p_v%state
-    ! end if
-
+    Q%state = p_v%state
   end subroutine par_vector_krylov_basis_alloc
 
   !=============================================================================
@@ -113,22 +97,12 @@ contains
     type(par_vector_krylov_basis), intent(inout) :: Q
 
     ! The routine requires the partition/context info
-    assert ( associated( Q%p_part ) )
-    assert ( associated( Q%p_part%p_context ) )
-    assert ( Q%p_part%p_context%created .eqv. .true.)
-    if(Q%p_part%p_context%iam<0) return
+    assert ( associated( Q%dof_dist ) )
+    assert ( associated( Q%p_env%p_context ) )
+    assert ( Q%p_env%p_context%created .eqv. .true.)
+    if(Q%p_env%p_context%iam<0) return
 
-    ! if ( Q%p_part%p_context%handler == trilinos  ) then 
-    !    ! epetra_vector (i.e., scalar vector)
-    !    if (  Q%f_basis%storage == scal ) then 
-    !       call epetra_multivector_destruct ( Q%epmv )
-    !    else ! (block vector)
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! else
-       Q%state = undefined
-    ! end if
+    Q%state = undefined
 
     call fem_vector_krylov_basis_free ( Q%f_basis )
 
@@ -142,32 +116,19 @@ contains
     type(par_vector), intent(out)                     :: p_v
 
     ! The routine requires the partition/context info
-    assert ( associated( Q%p_part ) )
-    assert ( associated( Q%p_part%p_context ) )
-    assert ( Q%p_part%p_context%created .eqv. .true.)
+    assert ( associated( Q%dof_dist ) )
+    assert ( associated( Q%p_env%p_context ) )
+    assert ( Q%p_env%p_context%created .eqv. .true.)
 
     ! 2. fill p_v members
-    p_v%p_part => Q%p_part
+    p_v%dof_dist => Q%dof_dist
 
-    if(Q%p_part%p_context%iam<0) return
+    if(Q%p_env%p_context%iam<0) return
 
     ! 1. fill p_v%f_vector members
     call fem_vector_krylov_basis_extract_view (i, Q%f_basis, p_v%f_vector )
 
-    ! Create epv_own and epv_own_ext as views of f_vector 
-    ! if ( p_v%p_part%p_context%handler == trilinos ) then 
-    !    ! epetra_vector (i.e., scalar vector)
-    !    if ( Q%f_basis%storage == scal ) then
-    !       assert ( Q%p_part%maps_state(p_v%f_vector%nd) == map_created  )
-    !       call epetra_vector_construct ( p_v%epv_own    , p_v%p_part%row_map(p_v%f_vector%nd), p_v%f_vector%b )
-    !       call epetra_vector_construct ( p_v%epv_own_ext, p_v%p_part%col_map(p_v%f_vector%nd), p_v%f_vector%b )
-    !    else ! (block vector) 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! else if ( p_v%p_part%p_context%handler == inhouse ) then
-       p_v%state  =  Q%state
-    !end if
+    p_v%state  =  Q%state
   end subroutine par_vector_krylov_basis_extract_view
 
   !=============================================================================
@@ -182,90 +143,35 @@ contains
 
      ! Locals
      integer(ip)                               :: i
-     !type(epetra_map)                          :: s_map
-     !type(epetra_multivector)                  :: s_epmv
-     !integer (kind=c_int), allocatable         :: s_myel(:)
-     !integer (kind=c_int)                      :: ierrc
-     !type(epetra_multivector)                  :: p_v_m
      type(par_vector)                          :: p_v_w
-     !type(epetra_multivector)                  :: Q_k
-
-
+     
      ! The routine requires the partition/context info
-     assert ( associated( Q%p_part ) )
-     assert ( associated( Q%p_part%p_context ) )
-     assert ( Q%p_part%p_context%created .eqv. .true.)
-     if(Q%p_part%p_context%iam<0) return
-
-     ! if ( Q%p_part%p_context%handler == trilinos  ) then 
-     !    ! epetra_multivector (i.e., set of scalars vectors)
-     !    if ( Q%f_basis%storage == scal ) then 
-     !      call memalloc(k, s_myel, __FILE__,__LINE__)
-  
-     !      ! Within Trilinos, s is a local replicated vector.
-     !      ! s_map and s_epvm have to be created accordingly
-     !      ! to this data distribution. 
-     !      do i=1,k
-     !         s_myel(i) = i-1
-     !      end do
-          
-     !      assert ( Q%p_part%maps_state(p_v%f_vector%nd) == map_created  )
-
-     !      ! Create epetra_multivector p_v_m
-     !      call epetra_multivector_construct_from_2D_array ( p_v_m, p_v%p_part%row_map(p_v%f_vector%nd),  & 
-     !                                                      & p_v%f_vector%b, p_v%f_vector%nd * p_v%f_vector%neq, 1 )
-
-     !      ! Create s_map
-     !      call epetra_map_construct ( s_map, k, k, s_myel, 0, Q%p_part%p_context%epcomm )
-     !      call memfree (s_myel,__FILE__,__LINE__)
-
-     !      ! Create s_epv
-     !      call epetra_multivector_construct_from_2D_array ( s_epmv, s_map, s, k, 1 )
-
-     !      call epetra_multivector_construct_from_epetra_multivector ( Q_k, Q%epmv, 0, k ) 
-
-     !      ! Multiply (this = ScalarThis*\e this + ScalarAB*A*B.)
-     !      call epetra_multivector_multiply  ( s_epmv, c_char_'T', c_char_'N', 1.0_c_double, Q_k, p_v_m, 0.0_c_double, ierrc )
-     !      assert ( ierrc == 0 )
-
-     !      call epetra_multivector_destruct ( Q_k )
-
-     !      call epetra_multivector_destruct ( s_epmv )
-     !      call epetra_map_destruct         ( s_map )
-
-     !      ! Create epetra_multivector p_v_m
-     !      call epetra_multivector_destruct ( p_v_m )
-
-     !    else ! (block vector)
-     !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-     !       stop
-     !    end if
-     ! else
-        assert ( p_v%state == Q%state )
- 
-        if ( p_v%state == full_summed ) then
-           ! ******** p_v%f_vector should be weighted in advance !!!!
-           call par_vector_clone  ( p_v, p_v_w )
-           call par_vector_copy   ( p_v, p_v_w )
-           call par_vector_weight ( p_v_w )
-        else if ( p_v%state == part_summed ) then
-           ! ******** p_v%f_vector should be comm. in advance !!!!
-           call par_vector_clone  ( p_v, p_v_w )
-           call par_vector_copy   ( p_v, p_v_w )
-           call par_vector_comm   ( p_v_w )
-        end if
-
-        ! call par_vector_print ( 6, p_v )   ! DBG:
-        ! call par_vector_print ( 6, p_v_w ) ! DBG:
-        
-        call fem_vector_krylov_basis_multidot ( k, Q%f_basis, p_v_w%f_vector, s )
-        
-        call par_vector_free  ( p_v_w )
-
-        ! Reduce-sum local dot products on all processes
-        call psb_sum ( Q%p_part%p_context%icontxt, s )
-     ! end if
-  end subroutine par_vector_krylov_basis_multidot
+     assert ( associated( Q%dof_dist ) )
+     assert ( associated( Q%p_env%p_context ) )
+     assert ( Q%p_env%p_context%created .eqv. .true.)
+     if(Q%p_env%p_context%iam<0) return
+     
+     assert ( p_v%state == Q%state )
+     
+     if ( p_v%state == full_summed ) then
+        ! ******** p_v%f_vector should be weighted in advance !!!!
+        call par_vector_clone  ( p_v, p_v_w )
+        call par_vector_copy   ( p_v, p_v_w )
+        call par_vector_weight ( p_v_w )
+     else if ( p_v%state == part_summed ) then
+        ! ******** p_v%f_vector should be comm. in advance !!!!
+        call par_vector_clone  ( p_v, p_v_w )
+        call par_vector_copy   ( p_v, p_v_w )
+        call par_vector_comm   ( p_v_w )
+     end if
+     
+     call fem_vector_krylov_basis_multidot ( k, Q%f_basis, p_v_w%f_vector, s )
+     
+     call par_vector_free  ( p_v_w )
+     
+     ! Reduce-sum local dot products on all processes
+     call psb_sum ( Q%p_env%p_context%icontxt, s )
+   end subroutine par_vector_krylov_basis_multidot
 
   !=============================================================================
   ! p_v <- p_v + alpha * Q_k * s
@@ -280,68 +186,16 @@ contains
 
      ! Locals
      integer(ip)                                  :: i
-     !type(epetra_map)                             :: s_map
-     !type(epetra_multivector)                     :: s_epmv
-     !integer (kind=c_int), allocatable            :: s_myel(:)
-     !integer (kind=c_int)                         :: ierrc
-     !type(epetra_multivector)                     :: p_v_m
-     !type(epetra_multivector)                     :: Q_k
 
 
      ! The routine requires the partition/context info
-     assert ( associated( Q%p_part ) )
-     assert ( associated( Q%p_part%p_context ) )
-     assert ( Q%p_part%p_context%created .eqv. .true.)
-     if(Q%p_part%p_context%iam<0) return
+     assert ( associated( Q%dof_dist ) )
+     assert ( associated( Q%p_env%p_context ) )
+     assert ( Q%p_env%p_context%created .eqv. .true.)
+     if(Q%p_env%p_context%iam<0) return
 
-
-     ! if ( Q%p_part%p_context%handler == trilinos ) then 
-     !    ! epetra_multivector (i.e., scalar vector)
-     !    if ( Q%f_basis%storage == scal ) then
-     !      call memalloc (k, s_myel, __FILE__,__LINE__)
-  
-     !      ! Within Trilinos, s is a local replicated vector.
-     !      ! s_map and s_epv have to be created accordingly
-     !      ! to this data distribution. 
-     !      do i=1,k
-     !         s_myel(i) = i-1
-     !      end do
-          
-     !      assert ( Q%p_part%maps_state(p_v%f_vector%nd) == map_created  )
-
-     !      ! Create epetra_multivector p_v_m
-     !      call epetra_multivector_construct_from_2D_array ( p_v_m, p_v%p_part%row_map(p_v%f_vector%nd),  & 
-     !                                                        p_v%f_vector%b, p_v%f_vector%nd * p_v%f_vector%neq, 1 )
-
-     !      ! Create s_map
-     !      call epetra_map_construct ( s_map, k, k, s_myel, 0, Q%p_part%p_context%epcomm )
-     !      call memfree (s_myel,__FILE__,__LINE__)
-
-     !      ! Create s_epv
-     !      call epetra_multivector_construct_from_2D_array ( s_epmv, s_map, s, k, 1 )
-
-     !      call epetra_multivector_construct_from_epetra_multivector ( Q_k, Q%epmv, 0, k ) 
-
-     !      ! Multiply
-     !      call epetra_multivector_multiply  ( p_v_m, c_char_'N', c_char_'N', alpha, Q_k, s_epmv, 1.0_c_double, ierrc )
-     !      assert ( ierrc == 0 )
-
-     !      call epetra_multivector_destruct ( Q_k )
-
-     !      call epetra_multivector_destruct ( s_epmv )
-     !      call epetra_map_destruct         ( s_map )
-
-     !      ! Create epetra_multivector p_v_m
-     !      call epetra_multivector_destruct ( p_v_m )
-
-     !    else ! (block vector)
-     !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-     !       stop
-     !    end if
-     ! else
-        assert ( p_v%state == Q%state )
-        call fem_vector_krylov_basis_multiaxpy (k, alpha, Q%f_basis, s, p_v%f_vector)
-     !end if
+     assert ( p_v%state == Q%state )
+     call fem_vector_krylov_basis_multiaxpy (k, alpha, Q%f_basis, s, p_v%f_vector)
 
   end subroutine par_vector_krylov_basis_multiaxpy
  

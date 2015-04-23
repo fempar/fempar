@@ -30,7 +30,6 @@ module par_mesh_triangulation
   use types
   use memor
   use fem_triangulation_names
-  use fem_partition_names
   use fem_element_import_names
   use fem_element_import_create_names
   use hash_table_names
@@ -40,7 +39,6 @@ module par_mesh_triangulation
   ! Parallel modules
   use par_triangulation_names
   use par_mesh_names
-  use par_partition_names
   use par_element_exchange
 
 # include "debug.i90"
@@ -130,7 +128,7 @@ contains
     p_trian%num_itfc_elems = p_gmesh%f_mesh_dist%nebou
     call memalloc( p_trian%num_itfc_elems, p_trian%lst_itfc_elems, __FILE__, __LINE__ )
     p_trian%lst_itfc_elems = p_gmesh%f_mesh_dist%lebou
-
+    
     ! Fill array of elements (local ones)
     do ielem=1, num_elems
        p_trian%elems(ielem)%mypart      = p_trian%p_env%p_context%iam + 1

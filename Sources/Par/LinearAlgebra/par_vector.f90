@@ -29,34 +29,24 @@ module par_vector_names
   ! Serial modules
   use types
   use memor
-  use fem_vector_names
-  use fem_partition_names
-  use fem_import_names
   use stdio
+  use fem_vector_names
   use map_apply
+
 #ifdef ENABLE_BLAS       
   use blas77_interfaces
 #endif
+
 #ifdef memcheck       
   use iso_c_binding
 #endif
 
-  ! Module associated with the F90 interface to Trilinos.
-  ! Remember: the F90 interface to Trilinos requires C
-  ! interoperability (i.e., iso_c_binding module)
-  !use for_trilinos_shadow_interfaces
-
   ! Parallel modules
-  use par_partition_names
-  use par_context_names
+  use par_environment_names
+  use dof_distribution_names
   use psb_penv_mod
 
 # include "debug.i90"
-
-  ! *** IMPORTANT NOTE: This cpp macro should go to a 
-  ! common include file or it should be a program 
-  ! subroutine otherwise
-#define blk2scal(iv,idof,ndof) (((iv)-1)*(ndof)+(idof))
 
   implicit none
   private
@@ -71,36 +61,26 @@ module par_vector_names
   ! 
   !=============================================================
 
-  integer(ip), parameter :: undefined     = -1 ! Undefined. State to be assigned by 
-  ! the user or externally.
+  integer(ip), parameter :: undefined     = -1 ! Undefined. State to be assigned by the user or externally.
   integer(ip), parameter :: part_summed   = 0  ! partially summed element-based vector
   integer(ip), parameter :: full_summed   = 1  ! fully     summed element-based vector
 
   ! Distributed Vector
   type par_vector
-     ! Local view of ONLY those components of f_vector
-     ! corresponding to vertices owned by the processor  
-     !type( epetra_vector ) :: epv_own
-
-     ! Local view of BOTH: 1. those components of f_vector
-     ! corresponding to vertices owned by the processor
-     ! and 2. those corresponding to external nodes (owned
-     ! by the neighbours of the processor)
-     !type( epetra_vector ) :: epv_own_ext
-
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( fem_vector )    :: f_vector
+     type( fem_vector ) :: f_vector
 
      ! Partially or fully summed
      integer(ip)  :: state 
 
-     ! Parallel partition control info.
-     type ( par_partition ), pointer  :: p_part => NULL()
-  end type par_vector
+     ! Parallel DoF distribution control info.
+     type ( dof_distribution ), pointer  :: dof_dist => NULL()
 
+     type ( par_environment ), pointer   :: p_env => NULL()
+  end type par_vector
 
 
   ! Types
@@ -117,9 +97,7 @@ module par_vector_names
        &  par_vector_init,                                                  &
        &  par_vector_scale,    par_vector_mxpy,     par_vector_axpy,        &
        &  par_vector_aypx,     par_vector_pxpy,     par_vector_pxmy ,       &
-       &  par_vector_print,    par_vector_print_matrix_market,              &
-       &  par_vector_l2g,      par_vector_g2l
-
+       &  par_vector_print,    par_vector_print_matrix_market
 
 !***********************************************************************
 ! Allocatable arrays of type(fem_vector)
@@ -144,71 +122,25 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine par_vector_alloc (storage, nd, p_part, p_vec)
+  subroutine par_vector_alloc (dof_dist, p_env, p_vec)
     implicit none
     ! Parameters
-    integer(ip)         ,         intent(in)  :: nd
-    type(par_partition) , target, intent(in)  :: p_part
-    integer(ip)         ,         intent(in)  :: storage
-    type(par_vector)    ,         intent(out) :: p_vec
+    type(dof_distribution), target, intent(in)  :: dof_dist
+    type(par_environment) , target, intent(in)  :: p_env
+    type(par_vector)              , intent(out) :: p_vec
 
     ! Locals
     integer(ip)                               :: idof, id
-  !    integer (c_int)     , allocatable         :: rc_map_values(:)
 
-    ! p_part%p_context is required within this subroutine
-    assert ( associated(p_part%p_context) )
-    assert ( p_part%p_context%created .eqv. .true.)
+    ! p_env%p_context is required within this subroutine
+    assert ( associated(p_env%p_context) )
+    assert ( p_env%p_context%created .eqv. .true.)
 
-    p_vec%p_part => p_part
-
-    if(p_part%p_context%iam<0) return
-
-    ! Allocate space for both own and external nodes.
-    ! TO-DO: House for external nodes is not always required
-    ! (e.g., for linear PDEs. right?). We should 
-    ! determine when it is actually needed, and avoid allocating it 
-    ! whenever it is not required 
-    call fem_vector_alloc ( p_part%f_part%nmap%nl, p_vec%f_vector )
-
-    ! Create epv_own and epv_own_ext as views of f_vector 
-    ! if ( p_part%p_context%handler == trilinos ) then 
-    !    ! epetra_vector (i.e., scalar vector)
-    !    if ( storage == scal ) then
-    !       assert ( nd <= max_ndofs )
-    !       if ( p_vec%p_part%maps_state(nd) == map_non_created ) then
-    !          call memalloc ( p_vec%p_part%f_part%nmap%nl*nd, rc_map_values,      __FILE__,__LINE__)
-
-    !          do id=1, p_vec%p_part%f_part%nmap%nl 
-    !             do idof=1, nd
-    !                rc_map_values(blk2scal(id,idof,nd)) = blk2scal(p_vec%p_part%f_part%nmap%l2g(id),idof,nd)-1
-    !             end do
-    !          end do
-
-    !          ! Create row-map
-    !          call epetra_map_construct ( p_vec%p_part%row_map(nd), -1, & 
-    !               &     (p_part%f_part%nmap%ni + p_part%f_part%nmap%nb)*nd, & 
-    !               &     rc_map_values, 0, p_part%p_context%epcomm)
-    !          ! Create col-map
-    !          call epetra_map_construct ( p_vec%p_part%col_map(nd), -1, p_part%f_part%nmap%nl*nd, &
-    !               &       rc_map_values, 0, p_part%p_context%epcomm) 
-    !          ! Create importer                                          TARGET             SOURCE
-    !          call epetra_import_construct ( p_vec%p_part%importer(nd), p_part%col_map(nd), p_part%row_map(nd) )
-
-    !          call memfree ( rc_map_values,__FILE__,__LINE__)
-
-    !          p_vec%p_part%maps_state(nd) = map_created
-    !       end if
-    !       call epetra_vector_construct ( p_vec%epv_own     , p_part%row_map(nd), p_vec%f_vector%b )
-    !       call epetra_vector_construct ( p_vec%epv_own_ext , p_part%col_map(nd), p_vec%f_vector%b )
-    !    else ! (block vector) 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! else if ( p_part%p_context%handler == inhouse ) then
-       p_vec%state = undefined
-    ! end if
-
+    p_vec%dof_dist => dof_dist
+    p_vec%p_env    => p_env 
+    if(p_env%p_context%iam<0) return
+    call fem_vector_alloc ( dof_dist%nl, p_vec%f_vector )
+    p_vec%state = undefined
   end subroutine par_vector_alloc
 
   !=============================================================================
@@ -217,28 +149,18 @@ contains
     type(par_vector), intent(inout) :: p_vec
 
     ! The routine requires the partition/context info
-    assert ( associated( p_vec%p_part ) )
-    assert ( associated( p_vec%p_part%p_context ) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
+    assert ( associated( p_vec%dof_dist ) )
+    assert ( associated( p_vec%p_env%p_context ) )
+    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    if(p_vec%p_env%p_context%iam<0) return
 
-    ! if ( p_vec%p_part%p_context%handler == trilinos  ) then 
-    !    ! epetra_vector (i.e., scalar vector)
-    !    if ( p_vec%f_vector%storage == scal ) then 
-    !       call epetra_vector_destruct ( p_vec%epv_own     )
-    !       call epetra_vector_destruct ( p_vec%epv_own_ext )
-    !    else ! (block vector)
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! elseif ( p_vec%p_part%p_context%handler == inhouse ) then
-       p_vec%state = undefined
-    ! end if
+    p_vec%state = undefined
 
     ! Free local part
     call fem_vector_free ( p_vec%f_vector )
 
-    nullify ( p_vec%p_part )
+    nullify ( p_vec%dof_dist )
+    nullify ( p_vec%p_env )
   end subroutine par_vector_free
 
   !=============================================================================
@@ -250,123 +172,23 @@ contains
     type(par_vector), intent(out)        :: t_p_vec
 
     ! The routine requires the partition/context info
-    assert ( associated( s_p_vec%p_part ) )
-    assert ( associated( s_p_vec%p_part%p_context ) )
-    assert ( s_p_vec%p_part%p_context%created .eqv. .true.)
+    assert ( associated( s_p_vec%dof_dist ) )
+    assert ( associated( s_p_vec%p_env%p_context ) )
+    assert ( s_p_vec%p_env%p_context%created .eqv. .true.)
 
-    ! Associate parallel partition 
-    t_p_vec%p_part => s_p_vec%p_part
+    ! Associate dof distribution and parallel environment 
+    t_p_vec%dof_dist => s_p_vec%dof_dist
+    t_p_vec%p_env    => s_p_vec%p_env
 
     assert ( s_p_vec%state /= undefined )
     t_p_vec%state = s_p_vec%state
     
-    if(s_p_vec%p_part%p_context%iam<0) return
+    if(s_p_vec%p_env%p_context%iam<0) return
 
     ! Call fem_vector_create_view
     call fem_vector_create_view ( s_p_vec%f_vector, start, end, t_p_vec%f_vector ) 
 
-    ! Create epv_own and epv_own_ext as views of f_vector 
-    ! if ( s_p_vec%p_part%p_context%handler == trilinos ) then 
-    !    ! epetra_vector (i.e., scalar vector)
-    !    if ( s_p_vec%f_vector%storage == scal ) then
-    !       call epetra_vector_construct ( t_p_vec%epv_own,                             & 
-    !                                      s_p_vec%p_part%row_map(s_p_vec%f_vector%nd), & 
-    !                                      t_p_vec%f_vector%b )
-
-    !       call epetra_vector_construct ( t_p_vec%epv_own_ext,                         & 
-    !                                      s_p_vec%p_part%col_map(s_p_vec%f_vector%nd), & 
-    !                                      t_p_vec%f_vector%b )
-    !    else ! (block vector) 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
   end subroutine par_vector_create_view
-
-
-  ! !=============================================================================
-  ! subroutine par_vector_create_view_new_ndof (s_p_vec, ndstart, ndend, start, end, t_p_vec)
-  !   implicit none
-  !   ! Parameters
-  !   type(par_vector), intent(in), target :: s_p_vec
-  !   integer(ip)     , intent(in)         :: ndstart
-  !   integer(ip)     , intent(in)         :: ndend
-  !   integer(ip)     , intent(in)         :: start
-  !   integer(ip)     , intent(in)         :: end
-  !   type(par_vector), intent(out)        :: t_p_vec
-
-  !   ! Locals
-  !   integer(ip) :: nd
-  !   integer(ip) :: idof, id
-  ! !    integer (c_int) , allocatable  :: rc_map_values(:)
-
-  !   ! The routine requires the partition/context info
-  !   assert ( associated( s_p_vec%p_part ) )
-  !   assert ( associated( s_p_vec%p_part%p_context ) )
-  !   assert ( s_p_vec%p_part%p_context%created .eqv. .true.)
-
-  !   ! Associate parallel partition 
-  !   t_p_vec%p_part => s_p_vec%p_part
-
-  !   if ( s_p_vec%p_part%p_context%handler == inhouse ) then
-  !      assert ( s_p_vec%state /= undefined )
-  !      t_p_vec%state = s_p_vec%state
-  !   end if
-
-  !   if(s_p_vec%p_part%p_context%iam<0) return
-
-  !   ! Call fem_vector_create_view
-  !   call fem_vector_create_view ( s_p_vec%f_vector, ndstart, ndend, start, end, t_p_vec%f_vector ) 
-
-  !   ! Create epv_own and epv_own_ext as views of f_vector 
-  !   ! if ( s_p_vec%p_part%p_context%handler == trilinos ) then 
-  !   !    nd = ndend -ndstart + 1
-  !   !    assert ( nd <= max_ndofs )
-  !   !    if ( s_p_vec%p_part%maps_state(nd) == map_non_created ) then
-  !   !       call memalloc ( s_p_vec%p_part%f_part%nmap%nl * nd, rc_map_values,   __FILE__,__LINE__)
-
-  !   !       do id=1, s_p_vec%p_part%f_part%nmap%nl 
-  !   !          do idof=1, nd
-  !   !             rc_map_values(blk2scal(id,idof,nd)) = blk2scal(s_p_vec%p_part%f_part%nmap%l2g(id),idof,nd)-1
-  !   !          end do
-  !   !       end do
-
-  !   !       ! Create row-map
-  !   !       call epetra_map_construct ( t_p_vec%p_part%row_map(nd), -1, & 
-  !   !            &                      (s_p_vec%p_part%f_part%nmap%ni + s_p_vec%p_part%f_part%nmap%nb)*nd, & 
-  !   !            &                      rc_map_values, 0, s_p_vec%p_part%p_context%epcomm)
-
-  !   !       ! Create col-map
-  !   !       call epetra_map_construct ( t_p_vec%p_part%col_map(nd), -1, & 
-  !   !            s_p_vec%p_part%f_part%nmap%nl*nd, &
-  !   !            &                      rc_map_values, 0, s_p_vec%p_part%p_context%epcomm) 
-
-  !   !       ! Create importer                                          
-  !   !       call epetra_import_construct ( t_p_vec%p_part%importer(nd), & 
-  !   !            s_p_vec%p_part%col_map(nd),   & ! TARGET
-  !   !            s_p_vec%p_part%row_map(nd) )    ! SOURCE
-
-  !   !       call memfree ( rc_map_values,__FILE__,__LINE__)
-
-  !   !       t_p_vec%p_part%maps_state(nd) = map_created
-  !   !    end if
-
-
-  !   !    ! epetra_vector (i.e., scalar vector)
-  !   !    if ( s_p_vec%f_vector%storage == scal ) then
-  !   !       call epetra_vector_construct ( t_p_vec%epv_own,            & 
-  !   !            s_p_vec%p_part%row_map(nd), & 
-  !   !            t_p_vec%f_vector%b )
-
-  !   !       call epetra_vector_construct ( t_p_vec%epv_own_ext,        & 
-  !   !            s_p_vec%p_part%col_map(nd), & 
-  !   !            t_p_vec%f_vector%b )
-  !   !    else ! (block vector) 
-  !   !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-  !   !       stop
-  !   !    end if
-  !   ! end if
-  ! end subroutine par_vector_create_view_new_ndof
 
   !=============================================================================
   subroutine par_vector_clone (s_p_vec, t_p_vec)
@@ -374,31 +196,18 @@ contains
     type(par_vector), intent(in), target :: s_p_vec
     type(par_vector), intent(out)        :: t_p_vec 
 
-    ! p_part%p_context is required within this subroutine 
-    assert ( associated(s_p_vec%p_part) )
-    assert ( associated(s_p_vec%p_part%p_context) )
-    assert ( s_p_vec%p_part%p_context%created .eqv. .true.)
+    ! p_env%p_context is required within this subroutine 
+    assert ( associated(s_p_vec%dof_dist) )
+    assert ( associated(s_p_vec%p_env%p_context) )
+    assert ( s_p_vec%p_env%p_context%created .eqv. .true.)
 
-    t_p_vec%p_part => s_p_vec%p_part
-    ! t_p_vec%state = undefined
+    t_p_vec%dof_dist => s_p_vec%dof_dist
+    t_p_vec%p_env    => s_p_vec%p_env
     t_p_vec%state = s_p_vec%state
 
-    if(s_p_vec%p_part%p_context%iam<0) return
+    if(s_p_vec%p_env%p_context%iam<0) return
 
     call fem_vector_clone ( s_p_vec%f_vector, t_p_vec%f_vector )
-
-    ! Create epv_own and epv_own_ext as views of f_vector 
-    ! if ( t_p_vec%p_part%p_context%handler == trilinos ) then 
-    !    ! epetra_vector (i.e., scalar vector)
-    !    if ( s_p_vec%f_vector%storage == scal ) then
-    !       assert ( s_p_vec%p_part%maps_state(s_p_vec%f_vector%nd) == map_created  )
-    !       call epetra_vector_construct ( t_p_vec%epv_own     , t_p_vec%p_part%row_map(s_p_vec%f_vector%nd), t_p_vec%f_vector%b )
-    !       call epetra_vector_construct ( t_p_vec%epv_own_ext , t_p_vec%p_part%col_map(s_p_vec%f_vector%nd), t_p_vec%f_vector%b )
-    !    else ! (block vector) 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
 
   end subroutine par_vector_clone
 
@@ -414,15 +223,13 @@ contains
     type(par_vector) :: p_vec_G
 
     ! Pointer to part/context object is required
-    assert ( associated(p_vec%p_part) )
-    assert ( associated(p_vec%p_part%p_context) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
+    assert ( associated(p_vec%dof_dist) )
+    assert ( associated(p_vec%p_env%p_context) )
+    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    if(p_vec%p_env%p_context%iam<0) return
 
-    ! Element-based partitioning/inhouse handler required
-    assert ( p_vec%p_part%f_part%ptype == element_based )
 
-    ni = p_vec%f_vector%neq - p_vec%p_part%f_part%nmap%nb
+    ni = p_vec%f_vector%neq - p_vec%dof_dist%nb
     call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
     call comm_interface ( p_vec_G, alpha, mode )
 
@@ -447,16 +254,10 @@ contains
     integer(ip) ::  mode_ 
 
     ! Pointer to part/context object is required
-    assert ( associated(p_vec%p_part) )
-    assert ( associated(p_vec%p_part%p_context) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
-
-    ! assert ( p_vec%state /= undefined )
-
-
-    ! Element-based partitioning/inhouse handler required
-    assert ( p_vec%p_part%f_part%ptype == element_based )
+    assert ( associated(p_vec%dof_dist) )
+    assert ( associated(p_vec%p_env%p_context) )
+    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    if(p_vec%p_env%p_context%iam<0) return
 
     if (present( alpha )) then
        alpha_ = alpha
@@ -470,20 +271,20 @@ contains
        mode_ = sp_all_to_all_default
     end if
 
-    ! call fem_import_print (6, p_vec%p_part%f_import)
+    ! call fem_import_print (6, p_vec%dof_dist%dof_import)
     ! write(*,*) 'SE 1', size(p_vec%f_vector%b)
     ! call fem_vector_print ( 6, p_vec%f_vector )
 
     ! First stage: owners receive/reduce, non-owners send
-    call single_exchange ( p_vec%p_part%p_context%icontxt, &
-         p_vec%p_part%f_import%num_rcv,    &
-         p_vec%p_part%f_import%list_rcv,   &
-         p_vec%p_part%f_import%rcv_ptrs,   &
-         p_vec%p_part%f_import%unpack_idx, &
-         p_vec%p_part%f_import%num_snd,    &
-         p_vec%p_part%f_import%list_snd,   &
-         p_vec%p_part%f_import%snd_ptrs,   &
-         p_vec%p_part%f_import%pack_idx,   &
+    call single_exchange ( p_vec%p_env%p_context%icontxt, &
+         p_vec%dof_dist%dof_import%num_rcv,    &
+         p_vec%dof_dist%dof_import%list_rcv,   &
+         p_vec%dof_dist%dof_import%rcv_ptrs,   &
+         p_vec%dof_dist%dof_import%unpack_idx, &
+         p_vec%dof_dist%dof_import%num_snd,    &
+         p_vec%dof_dist%dof_import%list_snd,   &
+         p_vec%dof_dist%dof_import%snd_ptrs,   &
+         p_vec%dof_dist%dof_import%pack_idx,   &
          alpha_,                         &
          1.0_rp,                         &
          p_vec%f_vector%b,               &
@@ -492,15 +293,15 @@ contains
     ! write(*,*) 'SE 2'
 
     ! Second stage: owners send, non-owners receive/insert
-    call single_exchange ( p_vec%p_part%p_context%icontxt, &
-         p_vec%p_part%f_import%num_snd,    &
-         p_vec%p_part%f_import%list_snd,   &
-         p_vec%p_part%f_import%snd_ptrs,   &
-         p_vec%p_part%f_import%pack_idx,   &
-         p_vec%p_part%f_import%num_rcv,    &
-         p_vec%p_part%f_import%list_rcv,   &
-         p_vec%p_part%f_import%rcv_ptrs,   &
-         p_vec%p_part%f_import%unpack_idx, &
+    call single_exchange ( p_vec%p_env%p_context%icontxt, &
+         p_vec%dof_dist%dof_import%num_snd,    &
+         p_vec%dof_dist%dof_import%list_snd,   &
+         p_vec%dof_dist%dof_import%snd_ptrs,   &
+         p_vec%dof_dist%dof_import%pack_idx,   &
+         p_vec%dof_dist%dof_import%num_rcv,    &
+         p_vec%dof_dist%dof_import%list_rcv,   &
+         p_vec%dof_dist%dof_import%rcv_ptrs,   &
+         p_vec%dof_dist%dof_import%unpack_idx, &
          1.0_rp,                         &
          0.0_rp,                         &
          p_vec%f_vector%b,               &
@@ -519,17 +320,13 @@ contains
     type(par_vector) :: p_vec_G
 
     ! Pointer to part/context object is required
-    assert ( associated(p_vec%p_part) )
-    assert ( associated(p_vec%p_part%p_context) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
+    assert ( associated(p_vec%dof_dist) )
+    assert ( associated(p_vec%p_env%p_context) )
+    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    if(p_vec%p_env%p_context%iam<0) return
 
-    ! assert ( p_vec%state /= undefined )
 
-    ! Element-based partitioning/inhouse handler required
-    assert ( p_vec%p_part%f_part%ptype == element_based )
-
-    ni = p_vec%f_vector%neq - p_vec%p_part%f_part%nmap%nb
+    ni = p_vec%f_vector%neq - p_vec%dof_dist%nb
     call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
     call weight_interface ( p_vec_G, weight )
 
@@ -551,28 +348,24 @@ contains
     real(rp)    :: weigt
 
     ! Pointer to part/context object is required
-    assert ( associated(p_vec%p_part) )
-    assert ( associated(p_vec%p_part%p_context) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
+    assert ( associated(p_vec%dof_dist) )
+    assert ( associated(p_vec%p_env%p_context) )
+    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    if(p_vec%p_env%p_context%iam<0) return
 
-    ! assert ( p_vec%state /= undefined )
-
-    ! Element-based partitioning/inhouse handler required
-    assert ( p_vec%p_part%f_part%ptype == element_based )
 
     if ( present(weight) ) then
        i1 = 1
-       i2 = p_vec%p_part%f_part%nmap%nb
+       i2 = p_vec%dof_dist%nb
        do i=i1,i2
           p_vec%f_vector%b(i) =  p_vec%f_vector%b(i) * weight(i)
        end do
     else 
 
-       do iobj=2, p_vec%p_part%f_part%nobjs
-          weigt=1.0_rp/real(p_vec%p_part%f_part%lobjs(4,iobj))
-          i1 = p_vec%p_part%f_part%lobjs(2,iobj) - p_vec%p_part%f_part%nmap%ni
-          i2 = p_vec%p_part%f_part%lobjs(3,iobj) - p_vec%p_part%f_part%nmap%ni
+       do iobj=2, p_vec%dof_dist%nobjs
+          weigt=1.0_rp/real(p_vec%dof_dist%lobjs(4,iobj))
+          i1 = p_vec%dof_dist%lobjs(2,iobj) - p_vec%dof_dist%ni
+          i2 = p_vec%dof_dist%lobjs(3,iobj) - p_vec%dof_dist%ni
           ! write (*,*) 'yyy', i1, i2, (i2-i1+1), weigt
 #ifdef ENABLE_BLAS
           call dscal ( (i2-i1+1), weigt, p_vec%f_vector%b(i1:i2), 1 )
@@ -591,124 +384,17 @@ contains
     integer(ip)                           :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( x%p_part%p_context%created .eqv. .true.)
-    if(x%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( x%p_env%p_context%created .eqv. .true.)
+    if(x%p_env%p_context%iam<0) return
 
-    ! if ( x%p_part%p_context%handler == inhouse ) then
-       assert ( x%state /= undefined )
-       ! write (*,*) 'PPP'
-       ! call fem_vector_print ( 6, x%f_vector )
-       call par_vector_dot (x,x,t)
-       t = sqrt(t)
-    ! else if ( x%p_part%p_context%handler == trilinos ) then
-    !    if ( x%f_vector%storage == scal ) then 
-    !       call epetra_vector_norm2 (x%epv_own, t, ierrc)
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
+    assert ( x%state /= undefined )
+    ! write (*,*) 'PPP'
+    ! call fem_vector_print ( 6, x%f_vector )
+    call par_vector_dot (x,x,t)
+    t = sqrt(t)
   end subroutine par_vector_nrm2
-
-!!$  !=============================================================================
-!!$  ! VERY IMPORTANT: nrm2_part_summed is well-defined if and only if x is a 
-!!$  !                 vector on the interface
-!!$  !=============================================================================
-!!$  subroutine nrm2_part_summed (x, t)
-!!$    implicit none
-!!$    type(par_vector), intent(in), target :: x
-!!$    real(rp)        , intent(out)        :: t
-!!$    integer                              :: icontxt
-!!$    type(par_vector)                     :: ws_vec
-!!$            
-!!$    ! Pointer to part/context object is required
-!!$    assert ( associated(x%p_part   ) )
-!!$    assert ( associated(x%p_part%p_context) )
-!!$
-!!$    ! Element-based partitioning/inhouse handler required
-!!$    assert ( x%p_part%f_part%ptype == element_based )
-!!$    assert ( x%p_part%p_context%handler == inhouse )
-!!$    
-!!$    ! This routine requires a partially summed interface
-!!$    assert ( x%state == part_summed ) 
-!!$
-!!$    ! Allocate space for ws_vec
-!!$    call par_vector_clone ( x, ws_vec )
-!!$    
-!!$    ! ws_vec <- x  
-!!$    call par_vector_copy  ( x, ws_vec )
-!!$
-!!$    ! Transform ws_vec from partially summed 
-!!$    ! to fully summed
-!!$    call par_vector_comm ( ws_vec )
-!!$    call par_vector_dot  ( x, ws_vec, t )
-!!$    t = sqrt (t)
-!!$
-!!$    call par_vector_free ( ws_vec )
-!!$  end subroutine nrm2_part_summed
-!!$
-!!$  !=============================================================================
-!!$  ! VERY IMPORTANT: nrm2_full_summed is well-defined if and only if x is a 
-!!$  !                 vector on the interface
-!!$  !=============================================================================  
-!!$  subroutine nrm2_full_summed (x, t)
-!!$    implicit none
-!!$    type(par_vector ), intent(in)    :: x
-!!$    real(rp)         , intent(out)   :: t
-!!$            
-!!$    ! Pointer to part/context object is required
-!!$    assert ( associated(x%p_part   ) )
-!!$    assert ( associated(x%p_part%p_context) )
-!!$    
-!!$    ! This routine requires a partially summed interface 
-!!$    assert ( x%state == full_summed ) 
-!!$
-!!$    ! Element-based partitioning/inhouse handler required
-!!$    assert ( x%p_part%f_part%ptype == element_based )
-!!$    assert ( x%p_part%p_context%handler == inhouse )
-!!$
-!!$    ! Perform local weighted dot products
-!!$    call weighted_dot (x, x, t)
-!!$    
-!!$    ! Reduce-sum local dot products on all processes
-!!$    call psb_sum ( x%p_part%p_context%icontxt, t )    
-!!$    t = sqrt (t)
-!!$  end subroutine nrm2_full_summed
-
-
-  ! !=============================================================================
-  ! subroutine par_vector_get_external_data (p_vec)
-  !   implicit none
-
-
-  !   ! Parameters
-  !   type(par_vector), intent(inout)  :: p_vec
-
-  !   ! Local variables
-  !   integer(c_int)                   :: ierrc
-
-  !   ! Pointer to part/context object is required
-  !   assert ( associated(p_vec%p_part   ) )
-  !   assert ( associated(p_vec%p_part%p_context) )
-
-  !   ! Vertex-based partitioning/trilinos handler required for Epetra
-  !   assert ( p_vec%p_part%f_part%ptype == vertex_based )
-  !   assert ( p_vec%p_part%p_context%handler == trilinos )  
-
-  !   if ( p_vec%f_vector%storage == scal ) then 
-  !      ! Get external data !!!
-  !      assert ( p_vec%p_part%maps_state(p_vec%f_vector%nd) == map_created  )
-  !      call epetra_vector_import_with_importer_insert ( p_vec%epv_own_ext, p_vec%epv_own, p_vec%p_part%importer(p_vec%f_vector%nd), ierrc )
-  !      assert ( ierrc == 0 )
-  !   else 
-  !      write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-  !      stop
-  !   end if
-
-  ! end subroutine par_vector_get_external_data
 
   !=============================================================================
   ! VERY IMPORTANT: dot_interface is well-defined if and only if x/y are 
@@ -726,10 +412,10 @@ contains
     type(par_vector)              :: ws_vec
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
 
     assert ( x%state /= undefined .and. y%state /= undefined  )
 
@@ -775,43 +461,32 @@ contains
     real(rp)                      :: s
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( x%p_part%p_context%created .eqv. .true.)
-    if(x%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( x%p_env%p_context%created .eqv. .true.)
+    if(x%p_env%p_context%iam<0) return
 
-    ! if ( y%p_part%p_context%handler == inhouse ) then
-       assert ( x%state /= undefined .and. y%state /= undefined  )
-
-       ni = x%f_vector%neq - x%p_part%f_part%nmap%nb
-       if ( ni > 0 ) then
-          call par_vector_create_view ( x, 1, ni, x_I )
-          call par_vector_create_view ( y, 1, ni, y_I )
-          call fem_vector_dot         ( x_I%f_vector, y_I%f_vector, t )
-       else
-          t = 0.0_rp
-       end if
-
-       call par_vector_create_view ( x, ni+1, x%f_vector%neq, x_G )
-       call par_vector_create_view ( y, ni+1, y%f_vector%neq, y_G )
-       call dot_interface          ( x_G, y_G, s )
-
-       t = t + s
-
-       ! Reduce-sum local dot products on all processes
-       call psb_sum ( y%p_part%p_context%icontxt, t )
-    ! else if ( y%p_part%p_context%handler == trilinos ) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_dot (x%epv_own, y%epv_own, t, ierrc)
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
-
+    assert ( x%state /= undefined .and. y%state /= undefined  )
+    
+    ni = x%f_vector%neq - x%dof_dist%nb
+    if ( ni > 0 ) then
+       call par_vector_create_view ( x, 1, ni, x_I )
+       call par_vector_create_view ( y, 1, ni, y_I )
+       call fem_vector_dot         ( x_I%f_vector, y_I%f_vector, t )
+    else
+       t = 0.0_rp
+    end if
+    
+    call par_vector_create_view ( x, ni+1, x%f_vector%neq, x_G )
+    call par_vector_create_view ( y, ni+1, y%f_vector%neq, y_G )
+    call dot_interface          ( x_G, y_G, s )
+    
+    t = t + s
+    
+    ! Reduce-sum local dot products on all processes
+    call psb_sum ( y%p_env%p_context%icontxt, t )
   end subroutine par_vector_dot
 
   !=============================================================================
@@ -822,31 +497,17 @@ contains
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( x%p_part%p_context%created .eqv. .true.)
-    if(x%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( x%p_env%p_context%created .eqv. .true.)
+    if(x%p_env%p_context%iam<0) return
 
-    ! Check matching partition/handler
-    assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-
-    ! if ( y%p_part%p_context%handler == inhouse ) then
-       assert ( x%state /= undefined  )
-       ! Perform local copy
-       call fem_vector_copy ( x%f_vector, y%f_vector )
-       y%state = x%state
-    ! else if( y%p_part%p_context%handler == trilinos ) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_scale (y%epv_own, 1.0_c_double, x%epv_own, ierrc)
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
-
+    assert ( x%state /= undefined  )
+    ! Perform local copy
+    call fem_vector_copy ( x%f_vector, y%f_vector )
+    y%state = x%state
   end subroutine par_vector_copy
 
   !=============================================================================
@@ -856,10 +517,10 @@ contains
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
 
     ! write(*,*) 'XXX'
@@ -877,10 +538,10 @@ contains
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
     if  ( t == 0.0_rp ) then
        call par_vector_zero(y)
@@ -901,31 +562,19 @@ contains
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
     ! Check matching partition/handler
-    assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
+    assert ( x%state /= undefined )
 
-    ! if (y%p_part%p_context%handler == inhouse) then
-       assert ( x%state /= undefined )
-       ! Scale local copy
-       call fem_vector_scale (t, x%f_vector, y%f_vector )
-       y%state = x%state
-    ! else if( y%p_part%p_context%handler == trilinos ) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_scale (y%epv_own, t, x%epv_own, ierrc)
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
-
+    ! Scale local copy
+    call fem_vector_scale (t, x%f_vector, y%f_vector )
+    y%state = x%state
   end subroutine par_vector_scale
 
   !=============================================================================
@@ -936,29 +585,19 @@ contains
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
     ! Check matching partition/handler
-    assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
+    assert ( x%state /= undefined .and. y%state /= undefined  )
+    assert ( x%state == y%state )
 
-    ! if ( y%p_part%p_context%handler == inhouse ) then
-       assert ( x%state /= undefined .and. y%state /= undefined  )
-       assert ( x%state == y%state )
-       call fem_vector_mxpy (x%f_vector, y%f_vector )
-    ! else if( y%p_part%p_context%handler == trilinos ) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_update ( y%epv_own, -1.0_c_double, x%epv_own, 1.0_c_double, ierrc  ) 
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
+    call fem_vector_mxpy (x%f_vector, y%f_vector )
+
   end subroutine par_vector_mxpy
 
   !=============================================================================
@@ -970,30 +609,18 @@ contains
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
     ! Check matching partition/handler
-    assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
+    assert ( x%state /= undefined .and. y%state /= undefined  )
+    assert ( x%state == y%state )
 
-    ! if ( y%p_part%p_context%handler == inhouse ) then
-       assert ( x%state /= undefined .and. y%state /= undefined  )
-       assert ( x%state == y%state )
-       call fem_vector_axpy  ( t, x%f_vector, y%f_vector )
-       ! call fem_vector_print ( 6, x%f_vector )
-    ! else if( y%p_part%p_context%handler == trilinos ) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_update ( y%epv_own, t, x%epv_own, 1.0_c_double, ierrc  )
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
+    call fem_vector_axpy  ( t, x%f_vector, y%f_vector )
   end subroutine par_vector_axpy
 
   !=============================================================================
@@ -1005,29 +632,17 @@ contains
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
     ! Check matching partition/handler
-    assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-
-    ! if ( y%p_part%p_context%handler == inhouse ) then
-       assert ( x%state /= undefined .and. y%state /= undefined  )
-       assert ( x%state == y%state )
-       call fem_vector_aypx (t, x%f_vector, y%f_vector )
-    ! else if(y%p_part%p_context%handler == trilinos) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_update ( y%epv_own, 1.0_c_double, x%epv_own, t, ierrc  )
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
+    assert ( x%state /= undefined .and. y%state /= undefined  )
+    assert ( x%state == y%state )
+    call fem_vector_aypx (t, x%f_vector, y%f_vector )
   end subroutine par_vector_aypx
 
   !=============================================================================
@@ -1038,29 +653,18 @@ contains
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
     ! Check matching partition/handler
-    assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
+    assert ( x%state /= undefined .and. y%state /= undefined  )
+    assert ( x%state == y%state )
+    call fem_vector_pxpy ( x%f_vector, y%f_vector )
 
-    ! if ( y%p_part%p_context%handler == inhouse ) then
-       assert ( x%state /= undefined .and. y%state /= undefined  )
-       assert ( x%state == y%state )
-       call fem_vector_pxpy ( x%f_vector, y%f_vector )
-    ! else if(y%p_part%p_context%handler == trilinos) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_update ( y%epv_own, 1.0_c_double, x%epv_own, 1.0_c_double, ierrc  ) 
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
   end subroutine par_vector_pxpy
 
   !=============================================================================
@@ -1071,35 +675,23 @@ contains
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-    assert ( y%p_part%p_context%created .eqv. .true.)
-    if(y%p_part%p_context%iam<0) return
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
+    assert ( y%p_env%p_context%created .eqv. .true.)
+    if(y%p_env%p_context%iam<0) return
 
     ! Check matching partition/handler
-    assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-
-    ! if (y%p_part%p_context%handler == inhouse) then
-       assert ( x%state /= undefined .and. y%state /= undefined  )
-       assert ( x%state == y%state )
-       ! write (*,*) 'XA'
-       ! call fem_vector_print ( 6, x%f_vector )
-       ! write (*,*) 'YA'
-       ! call fem_vector_print ( 6, y%f_vector )
-       call fem_vector_pxmy ( x%f_vector, y%f_vector )
-       ! write (*,*) 'YD'
-       ! call fem_vector_print ( 6, y%f_vector )
-    ! else if(y%p_part%p_context%handler == trilinos) then
-    !    if ( y%f_vector%storage == scal ) then 
-    !       call epetra_vector_update ( y%epv_own, 1.0_c_double, x%epv_own, -1.0_c_double, ierrc  ) 
-    !       assert ( ierrc == 0 )
-    !    else 
-    !       write (0,*) 'Error: trilinos shadow interfaces do not yet support block epetra_vector objects'
-    !       stop
-    !    end if
-    ! end if
+    assert ( x%state /= undefined .and. y%state /= undefined  )
+    assert ( x%state == y%state )
+    ! write (*,*) 'XA'
+    ! call fem_vector_print ( 6, x%f_vector )
+    ! write (*,*) 'YA'
+    ! call fem_vector_print ( 6, y%f_vector )
+    call fem_vector_pxmy ( x%f_vector, y%f_vector )
+    ! write (*,*) 'YD'
+    ! call fem_vector_print ( 6, y%f_vector )
   end subroutine par_vector_pxmy
 
   subroutine par_vector_print ( luout, p_vec )
@@ -1108,18 +700,14 @@ contains
     type(par_vector), intent(in) :: p_vec
 
     ! Pointer to part/context object is required
-    assert ( associated(p_vec%p_part   ) )
-    assert ( associated(p_vec%p_part%p_context) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
+    assert ( associated(p_vec%dof_dist   ) )
+    assert ( associated(p_vec%p_env%p_context) )
+    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    if(p_vec%p_env%p_context%iam<0) return
 
     write(luout,'(a)') '*** begin par_vector data structure ***'
-    call  par_partition_print (luout, p_vec%p_part)
+    call  dof_distribution_print (luout, p_vec%dof_dist)
     call  fem_vector_print    (luout, p_vec%f_vector)
-    ! if ( p_vec%p_part%p_context%handler == trilinos ) then 
-    !    call epetra_vector_print ( p_vec%epv_own      )
-    !    call epetra_vector_print ( p_vec%epv_own_ext  )
-    ! end if
     write(luout,'(a)') '*** end par_vector data structure ***'
 
   end subroutine par_vector_print
@@ -1138,15 +726,15 @@ contains
     character(256)  :: zeros
     character(256)  :: part_id
 
-    assert ( associated(p_vec%p_part   ) )
-    assert ( associated(p_vec%p_part%p_context) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
+    assert ( associated(p_vec%dof_dist   ) )
+    assert ( associated(p_vec%p_env%p_context) )
+    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    if(p_vec%p_env%p_context%iam<0) return
 
     name = trim(prefix) // '.par_vector' // '.mtx'
 
     ! Get context info
-    call par_context_info ( p_vec%p_part%p_context, iam, num_procs )
+    call par_context_info ( p_vec%p_env%p_context, iam, num_procs )
 
     ! Form the file_path of the partition object to be read
     iam = iam + 1 ! Partition identifers start from 1 !!
@@ -1202,19 +790,16 @@ contains
     real(rp)                      :: weigt
 
     ! Pointer to part/context object is required
-    assert ( associated(x%p_part   ) )
-    assert ( associated(x%p_part%p_context) )
-    assert ( associated(y%p_part   ) )
-    assert ( associated(y%p_part%p_context) )
-
-    ! Element-based partitioning/inhouse handler required
-    assert ( x%p_part%f_part%ptype == element_based )
+    assert ( associated(x%dof_dist   ) )
+    assert ( associated(x%p_env%p_context) )
+    assert ( associated(y%dof_dist   ) )
+    assert ( associated(y%p_env%p_context) )
 
     t = 0.0_rp 
-    do iobj=2, x%p_part%f_part%nobjs
-       weigt=1.0_rp/real(x%p_part%f_part%lobjs(4,iobj))
-       i1=x%p_part%f_part%lobjs(2,iobj) - x%p_part%f_part%nmap%ni
-       i2=x%p_part%f_part%lobjs(3,iobj) - x%p_part%f_part%nmap%ni
+    do iobj=2, x%dof_dist%nobjs
+       weigt=1.0_rp/real(x%dof_dist%lobjs(4,iobj))
+       i1=x%dof_dist%lobjs(2,iobj) - x%dof_dist%ni
+       i2=x%dof_dist%lobjs(3,iobj) - x%dof_dist%ni
        call flat_weighted_dot ( i1, i2, & 
             & x%f_vector%b, y%f_vector%b, weigt, t) 
     end do
@@ -1237,130 +822,5 @@ contains
           t = t + weigt * x(i) * y(i)
     end do
   end subroutine flat_weighted_dot
-
-  !================================================================================================
-  subroutine par_vector_l2g(p_vec,f_vec,root,ndime)
-    implicit none
-    type(par_vector), intent(in)  :: p_vec
-    type(fem_vector), intent(out) :: f_vec
-    integer(ip),      intent(in), optional :: root
-    integer(ip),      intent(in), optional :: ndime
-
-    integer(ip) :: me,np,neq,npoin,root_pid,mpi_comm,iret
-    integer(ip) :: i,idime,k
-
-    integer(ip), allocatable :: rcvcnt_l2g(:),displ_l2g(:),l2g_gather(:)
-    integer(ip), allocatable :: rcvcnt_vec(:),displ_vec(:)
-    real(rp),    allocatable :: vec_gather(:)
-
-    assert ( associated(p_vec%p_part   ) )
-    assert ( associated(p_vec%p_part%p_context) )
-    assert ( p_vec%p_part%p_context%created .eqv. .true.)
-    if(p_vec%p_part%p_context%iam<0) return
-
-    ! Set root
-    if(.not.present(root)) then
-       root_pid = 0
-    else
-       root_pid = root
-    end if
-
-    ! Get par_context info
-    call par_context_info(p_vec%p_part%p_context,me,np)
-    call psb_get_mpicomm(p_vec%p_part%p_context%icontxt,mpi_comm)
-
-    ! Allocate recvcounts
-    if(me==root_pid) then
-       call memalloc(np,rcvcnt_l2g,__FILE__,__LINE__)
-       call memalloc(np,rcvcnt_vec,__FILE__,__LINE__)
-    else
-       call memalloc(0,rcvcnt_l2g,__FILE__,__LINE__)
-       call memalloc(0,rcvcnt_vec,__FILE__,__LINE__)
-    end if
-
-    ! Gather recvcounts
-    call mpi_gather(p_vec%p_part%f_part%nmap%nl,1,psb_mpi_integer,rcvcnt_l2g,1,psb_mpi_integer, &
-         &          root_pid,mpi_comm,iret)
-    call mpi_gather(p_vec%f_vector%neq,1,psb_mpi_integer,rcvcnt_vec,1,        &
-         &          psb_mpi_integer,root_pid,mpi_comm,iret)
-
-    ! Set displs and allocate gathered vectors l2g and vec
-    if(me==root_pid) then
-       call memalloc(np+1,displ_l2g,__FILE__,__LINE__)
-       call memalloc(np+1,displ_vec,__FILE__,__LINE__)
-       displ_l2g(1) = 0
-       displ_vec(1) = 0
-       do i=1,np
-          displ_l2g(i+1) = displ_l2g(i) + rcvcnt_l2g(i)
-          displ_vec(i+1) = displ_vec(i) + rcvcnt_vec(i)
-       end do
-       call memalloc(displ_l2g(np+1),l2g_gather,__FILE__,__LINE__)
-       call memalloc(displ_vec(np+1),vec_gather,__FILE__,__LINE__)
-    else
-       call memalloc(0,displ_l2g,__FILE__,__LINE__)
-       call memalloc(0,displ_vec,__FILE__,__LINE__)
-       call memalloc(0,l2g_gather,__FILE__,__LINE__)
-       call memalloc(0,vec_gather,__FILE__,__LINE__)
-    end if
-
-    ! Gather local to global
-    call mpi_gatherv(p_vec%p_part%f_part%nmap%l2g,p_vec%p_part%f_part%nmap%nl,psb_mpi_integer, &
-         l2g_gather,rcvcnt_l2g,displ_l2g,psb_mpi_integer,root_pid,mpi_comm,iret)
-
-    ! Gather vector data
-    call mpi_gatherv(p_vec%f_vector%b,p_vec%f_vector%neq,psb_mpi_real, &
-         vec_gather,rcvcnt_vec,displ_vec,psb_mpi_real,root_pid,mpi_comm,iret)
-
-    ! Create fem vector
-    if(me==root_pid) then
-       ! Set number of global equations
-       neq = displ_vec(np)
-       call fem_vector_alloc(neq,f_vec)
-          npoin = neq/ndime
-          k=1
-          do i=1,npoin
-             do idime=1,ndime
-                f_vec%b((l2g_gather(i)-1)*ndime+idime) = vec_gather(k)
-                k=k+1
-             end do
-          end do
-    end if
-
-    ! Deallocate objects
-    call memfree(displ_l2g,__FILE__,__LINE__)
-    call memfree(displ_vec,__FILE__,__LINE__)
-    call memfree(rcvcnt_l2g,__FILE__,__LINE__)
-    call memfree(rcvcnt_vec,__FILE__,__LINE__)
-    call memfree(l2g_gather,__FILE__,__LINE__)
-    call memfree(vec_gather,__FILE__,__LINE__)
-
-  end subroutine par_vector_l2g
-
-  !================================================================================================
-  subroutine par_vector_g2l(root_pid,ndime,npoin,gvec,p_part,lvec)
-    implicit none
-    integer(ip),         intent(in)  :: root_pid,ndime,npoin
-    type(par_partition), intent(in)  :: p_part
-    real(rp),            intent(in)  :: gvec(ndime,npoin)
-    real(rp),            intent(out) :: lvec(ndime,p_part%f_part%nmap%nl)
-  
-    integer(ip) :: me,np,mpi_comm,iret,i
-    integer(ip) :: idime
-
-    ! Get par_context info
-    call par_context_info(p_part%p_context,me,np)
-    call psb_get_mpicomm(p_part%p_context%icontxt,mpi_comm)
-
-    ! Broadcast vector
-    call mpi_bcast(gvec,ndime*npoin,psb_mpi_real,root_pid,mpi_comm,iret)
-    !call mpi_bcast(gvec,ndime*p_part%f_part%nmap%ng,psb_mpi_real,root_pid,mpi_comm,iret)
-
-    ! Global to local mapping
-    do i=1,p_part%f_part%nmap%nl
-       lvec(:,i)=gvec(:,p_part%f_part%nmap%l2g(i))
-    end do
-    !call map_apply_g2l(p_part%f_part%nmap,ndime,gvec,lvec)
-
-  end subroutine par_vector_g2l
 
 end module par_vector_names

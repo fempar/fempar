@@ -29,15 +29,11 @@ module par_matrix_vector
   ! Serial modules
   use fem_vector_names
   
+  ! Parallel modules
   use par_matrix_names
   use par_vector_names
   use par_context_names
   
-  ! Module associated with the F90 interface to Trilinos.
-  ! Remember: the F90 interface to Trilinos requires C
-  ! interoperability (i.e., iso_c_binding module)
-  !use for_trilinos_shadow_interfaces
-  ! use matvec_dof
   implicit none
 # include "debug.i90"
 
@@ -58,33 +54,27 @@ contains
     real :: aux
 
     ! This routine requires the partition/context info
-    assert ( associated(a%p_part) )
-    assert ( associated(a%p_part%p_context) )
+    assert ( associated(a%p_env) )
+    assert ( associated(a%p_env%p_context) )
 
-    assert ( a%p_part%p_context%created .eqv. .true.)
-    if(a%p_part%p_context%iam<0) return
+    assert ( a%p_env%p_context%created .eqv. .true.)
+    if(a%p_env%p_context%iam<0) return
 
-    assert ( associated(x%p_part) )
-    assert ( associated(x%p_part%p_context) )
+    assert ( associated(x%p_env) )
+    assert ( associated(x%p_env%p_context) )
 
-    assert ( associated(y%p_part) )
-    assert ( associated(y%p_part%p_context) )
+    assert ( associated(y%p_env) )
+    assert ( associated(y%p_env%p_context) )
     
-    ! if ( a%p_part%p_context%handler == inhouse ) then
-      assert (x%state == full_summed) 
-      ! write (*,*) 'MVAX'
-      ! call fem_vector_print ( 6, x%f_vector )
-      ! write (*,*) 'MVAY'
-      ! call fem_vector_print ( 6, y%f_vector )
-      call fem_matvec (a%f_matrix, x%f_vector, y%f_vector) 
-      ! write (*,*) 'MVD'
-      ! call fem_vector_print ( 6, y%f_vector )
-      y%state = part_summed
-    ! else if ( a%p_part%p_context%handler == trilinos ) then
-    !    call epetra_crsmatrix_multiply ( a%epm, 0_c_int, x%epv_own, y%epv_own, ierrc ) 
-    !    assert(ierrc==0)
-    ! end if
-
+    assert (x%state == full_summed) 
+    ! write (*,*) 'MVAX'
+    ! call fem_vector_print ( 6, x%f_vector )
+    ! write (*,*) 'MVAY'
+    ! call fem_vector_print ( 6, y%f_vector )
+    call fem_matvec (a%f_matrix, x%f_vector, y%f_vector) 
+    ! write (*,*) 'MVD'
+    ! call fem_vector_print ( 6, y%f_vector )
+    y%state = part_summed
   end subroutine par_matvec
 
   subroutine par_matvec_trans(a,x,y)
@@ -97,23 +87,18 @@ contains
     !integer(c_int)                   :: ierrc
 	
     ! This routine requires the partition/context info
-    assert ( associated(a%p_part) )
-    assert ( associated(a%p_part%p_context) )
+    assert ( associated(a%p_env) )
+    assert ( associated(a%p_env%p_context) )
 
-    assert ( associated(x%p_part) )
-    assert ( associated(x%p_part%p_context) )
+    assert ( associated(x%p_env) )
+    assert ( associated(x%p_env%p_context) )
 
-    assert ( associated(y%p_part) )
-    assert ( associated(y%p_part%p_context) )
+    assert ( associated(y%p_env) )
+    assert ( associated(y%p_env%p_context) )
     
-    ! if ( a%p_part%p_context%handler == inhouse ) then
-      assert (x%state == full_summed) 
-      call fem_matvec_trans (a%f_matrix, x%f_vector, y%f_vector) 
-      y%state = part_summed
-    ! else if ( a%p_part%p_context%handler == trilinos ) then
-    !   call epetra_crsmatrix_multiply ( a%epm, 1_c_int, x%epv_own, y%epv_own, ierrc ) 
-    !   assert(ierrc==0)
-    ! end if 
+    assert (x%state == full_summed) 
+    call fem_matvec_trans (a%f_matrix, x%f_vector, y%f_vector) 
+    y%state = part_summed
   end subroutine par_matvec_trans
 
 end module par_matrix_vector

@@ -32,16 +32,16 @@ module par_mesh_partition_conditions
   use fem_mesh_names
   use fem_mesh_gen
   use fem_conditions_names
-  use fem_partition_names
+  !use fem_partition_names
   use fem_materials_names
-  use partition_import
+  ! use partition_import
   use fem_mesh_gen_partition
   !use fem_mesh_io
   !use stdio
-  use fem_import_names
+  ! use fem_import_names
 
   ! Parallel modules
-  use par_partition_names
+  !use par_partition_names
   use par_context_names
   use par_mesh_names
   
@@ -50,37 +50,35 @@ module par_mesh_partition_conditions
   implicit none
   private
 
-  public :: par_structured_create, par_structured_gen_partition
+  ! public :: par_structured_create, par_structured_gen_partition
 
 contains
 
-  !=============================================================================
-  subroutine par_structured_create (lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,    &
-       &                            line,surf,p_context,p_mesh,p_part,nodes,g_context, &
-       &                            c_context,mater,mtype)
-    !-----------------------------------------------------------------------
-    ! 
-    !-----------------------------------------------------------------------
-    implicit none
-    ! Parameters 
-    integer(ip),          intent(in)         :: isper(3),nedir(3),npdir(3),nsckt(3)
-    integer(ip),          intent(in)         :: ndime,lpart
-    type(mesh_size),      intent(in)         :: msize
-    type(fem_conditions), intent(in)         :: poin,line,surf
-    type(par_context)   , target, intent(in) :: p_context
-    type(par_partition) , target, intent(out):: p_part
-    type(par_mesh),       intent(out)        :: p_mesh
-    type(fem_conditions), intent(out)        :: nodes
-    type(par_context)  , target, intent(in), optional  :: g_context
-    type(par_context)  , target, intent(in), optional  :: c_context
-    type(fem_materials), optional, intent(inout) :: mater
-    integer(ip),         optional, intent(in)    :: mtype
-
-    ! Locals
-    integer         :: iam, num_procs
-
-    check(1==0) ! Pending code
-
+!!$  !=============================================================================
+!!$  subroutine par_structured_create (lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,    &
+!!$       &                            line,surf,p_context,p_mesh,p_part,nodes,g_context, &
+!!$       &                            c_context,mater,mtype)
+!!$    !-----------------------------------------------------------------------
+!!$    ! 
+!!$    !-----------------------------------------------------------------------
+!!$    implicit none
+!!$    ! Parameters 
+!!$    integer(ip),          intent(in)         :: isper(3),nedir(3),npdir(3),nsckt(3)
+!!$    integer(ip),          intent(in)         :: ndime,lpart
+!!$    type(mesh_size),      intent(in)         :: msize
+!!$    type(fem_conditions), intent(in)         :: poin,line,surf
+!!$    type(par_context)   , target, intent(in) :: p_context
+!!$    type(par_partition) , target, intent(out):: p_part
+!!$    type(par_mesh),       intent(out)        :: p_mesh
+!!$    type(fem_conditions), intent(out)        :: nodes
+!!$    type(par_context)  , target, intent(in), optional  :: g_context
+!!$    type(par_context)  , target, intent(in), optional  :: c_context
+!!$    type(fem_materials), optional, intent(inout) :: mater
+!!$    integer(ip),         optional, intent(in)    :: mtype
+!!$
+!!$    ! Locals
+!!$    integer         :: iam, num_procs
+!!$
 !!$    ! Finalize par_partition generation
 !!$    assert ( p_context%handler == inhouse )
 !!$    p_part%p_context => p_context
@@ -106,33 +104,30 @@ contains
 !!$
 !!$    ! Transfer ndime from fine-grid tasks to coarse-grid task
 !!$    call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
-
-  end subroutine par_structured_create
-
-   !=============================================================================
-   subroutine par_structured_gen_partition (lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,    &
-       &                                    line,surf,p_mesh,nodes,mater,mtype)
-    !------------------------------------------------------------------------------------------
-    ! Here we assume that (pre-conditions):
-    !    x p_mesh%p_part has already been fully created via par_partition_create in advance
-    !    x p_mesh has been (partially) been created via par_mesh_create. This is why it is
-    !      an intent(inout) instead of an intent(out) argument
-    !-----------------------------------------------------------------------------------------
-    implicit none
-    ! Parameters
-    integer(ip),          intent(in)              :: lpart, ndime
-    integer(ip),          intent(in)              :: isper(3),nedir(3),npdir(3),nsckt(3)
-    type(mesh_size),      intent(in)              :: msize
-    type(fem_conditions), intent(in)              :: poin,line,surf
-    type(par_mesh),       intent(inout)           :: p_mesh
-    type(fem_conditions), intent(out)             :: nodes
-    type(fem_materials) , optional, intent(inout) :: mater
-    integer(ip),          optional, intent(in)    :: mtype
-
-    
-    check(1==0) ! Pending code
-
-
+!!$
+!!$  end subroutine par_structured_create
+!!$
+!!$   !=============================================================================
+!!$   subroutine par_structured_gen_partition (lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,    &
+!!$       &                                    line,surf,p_mesh,nodes,mater,mtype)
+!!$    !------------------------------------------------------------------------------------------
+!!$    ! Here we assume that (pre-conditions):
+!!$    !    x p_mesh%p_part has already been fully created via par_partition_create in advance
+!!$    !    x p_mesh has been (partially) been created via par_mesh_create. This is why it is
+!!$    !      an intent(inout) instead of an intent(out) argument
+!!$    !-----------------------------------------------------------------------------------------
+!!$    implicit none
+!!$    ! Parameters
+!!$    integer(ip),          intent(in)              :: lpart, ndime
+!!$    integer(ip),          intent(in)              :: isper(3),nedir(3),npdir(3),nsckt(3)
+!!$    type(mesh_size),      intent(in)              :: msize
+!!$    type(fem_conditions), intent(in)              :: poin,line,surf
+!!$    type(par_mesh),       intent(inout)           :: p_mesh
+!!$    type(fem_conditions), intent(out)             :: nodes
+!!$    type(fem_materials) , optional, intent(inout) :: mater
+!!$    integer(ip),          optional, intent(in)    :: mtype
+!!$
+!!$
 !!$    ! This subroutine requires w_context (all tasks involved here), p_context (fine tasks, which
 !!$    ! are in charge of integration in the finner level) and q_context(unused tasks) to be 
 !!$    ! created by a call to par_context_create_by_split.
@@ -167,6 +162,6 @@ contains
 !!$    ! init by all MPI tasks within the calling driver
 !!$    p_mesh%f_mesh%ndime = ndime
 !!$    
-  end subroutine par_structured_gen_partition
+!!$  end subroutine par_structured_gen_partition
 
 end module par_mesh_partition_conditions

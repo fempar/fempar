@@ -29,7 +29,7 @@ module fem_matrix_partition
   use types
   use memor
   use fem_matrix_names
-  use fem_partition_names
+  use dof_distribution_names
   implicit none
 # include "debug.i90"
   private
@@ -38,10 +38,10 @@ module fem_matrix_partition
 
 contains
   subroutine fem_matrix_split_2x2_partitioning (  storage, ndof1, ndof2, output_symm, &
-       A, prt, A_II, A_IG, A_GI, A_GG  )
+                                                   A, dof_dist, A_II, A_IG, A_GI, A_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
-    ! "prt" input parameter: 
+    ! "dof_dist" input parameter: 
     !      
     !  A = [A_II A_IG]
     !      [A_GI A_GG]
@@ -70,9 +70,9 @@ contains
     implicit none
 
     ! Parameters
-    integer(ip)          , intent(in)                :: storage, ndof1, ndof2, output_symm
-    type(fem_matrix)     , intent(in)                :: A
-    type(fem_partition)  , intent(in)                :: prt 
+    integer(ip)           , intent(in)                :: storage, ndof1, ndof2, output_symm
+    type(fem_matrix)      , intent(in)                :: A
+    type(dof_distribution), intent(in)                :: dof_dist 
 
     type(fem_matrix)     , intent(inout), optional   :: A_II
     type(fem_matrix)     , intent(inout), optional   :: A_IG
@@ -93,13 +93,12 @@ contains
     csr_mat_unsymm = (A%type == csr_mat .and. output_symm == symm_false)
 
     assert ( csr_mat_symm .or. csr_mat_unsymm )
-    assert ( prt%ptype == element_based )
     assert ( .not. present(A_GI) .or. csr_mat_unsymm )
 
-       ni_rows = prt%nmap%ni  
-       nb_rows = prt%nmap%nb  
-       ni_cols = prt%nmap%ni  
-       nb_cols = prt%nmap%nb  
+       ni_rows = dof_dist%ni  
+       nb_rows = dof_dist%nb  
+       ni_cols = dof_dist%ni  
+       nb_cols = dof_dist%nb  
 
     ! If any inout fem_matrix is present, we are done !
     if ( csr_mat_unsymm ) then 
@@ -181,45 +180,25 @@ contains
                      A%a( A%gr%ia(ipoing+1)-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing)):A%gr%ia(ipoing+1)-1)
              end if
           end do
-
     end if
 
 
     ! List values on each row of G_GI/G_GG
     if ( present_a_gi .or. present_a_gg ) then
-
-
-          do ipoing=ni_rows+1, ni_rows + nb_rows
-             if ( present_a_gi ) then
-                ! write (*,*) A_GI%gr%ia( ipoing-ni_rows ),  A_GI%gr%ia( ipoing+1-ni_rows )-1                               ! DBG:
-                ! write (*,*) A%gr%ia(ipoing), A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1  ! DBG:
-                A_GI%a(  A_GI%gr%ia( ipoing-ni_rows ) : A_GI%gr%ia( ipoing+1-ni_rows )-1 ) = &  
-                     A%a ( A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1 )
-             end if
-             if ( present_a_gg ) then
-                A_GG%a( A_GG%gr%ia( ipoing-ni_rows ) : A_GG%gr%ia(ipoing+1-ni_rows)-1 )   = &  
-                     A%a ( A%gr%ia(ipoing+1)-(A_GG%gr%ia(ipoing+1-ni_rows)-A_GG%gr%ia(ipoing-ni_rows)):A%gr%ia(ipoing+1)-1 )        
-             end if
-          end do
-
-
+       do ipoing=ni_rows+1, ni_rows + nb_rows
+          if ( present_a_gi ) then
+             ! write (*,*) A_GI%gr%ia( ipoing-ni_rows ),  A_GI%gr%ia( ipoing+1-ni_rows )-1                               ! DBG:
+             ! write (*,*) A%gr%ia(ipoing), A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1  ! DBG:
+             A_GI%a(  A_GI%gr%ia( ipoing-ni_rows ) : A_GI%gr%ia( ipoing+1-ni_rows )-1 ) = &  
+                  A%a ( A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1 )
+          end if
+          if ( present_a_gg ) then
+             A_GG%a( A_GG%gr%ia( ipoing-ni_rows ) : A_GG%gr%ia(ipoing+1-ni_rows)-1 )   = &  
+                  A%a ( A%gr%ia(ipoing+1)-(A_GG%gr%ia(ipoing+1-ni_rows)-A_GG%gr%ia(ipoing-ni_rows)):A%gr%ia(ipoing+1)-1 )        
+          end if
+       end do
     end if
 
   end subroutine fem_matrix_split_2x2_partitioning
 
 end module fem_matrix_partition
-
-!!$<     if ( present_a_gi .or. present_a_gg ) then  
-!!$<       do ipoing=prt%nmap%ni+1, prt%nmap%ni + prt%nmap%nb
-!!$<          if ( present_a_gi ) then
-!!$<             ! write (*,*) A_GI%gr%ia( ipoing-prt%nmap%ni ),  A_GI%gr%ia( ipoing+1-prt%nmap%ni )-1                               ! DBG:
-!!$<             ! write (*,*) A%gr%ia(ipoing), A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-prt%nmap%ni)-A_GI%gr%ia(ipoing-prt%nmap%ni))-1  ! DBG:
-!!$<             A_GI%a( 1:A%nd1, 1:A%nd2, A_GI%gr%ia( ipoing-prt%nmap%ni ) : A_GI%gr%ia( ipoing+1-prt%nmap%ni )-1 ) = &  
-!!$<               A%a ( 1:A%nd1, 1:A%nd2, A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-prt%nmap%ni)-A_GI%gr%ia(ipoing-prt%nmap%ni))-1 )
-!!$<          end if
-!!$<          if ( present_a_gg ) then
-!!$<             A_GG%a( 1:A%nd1, 1:A%nd2, A_GG%gr%ia( ipoing-prt%nmap%ni ) : A_GG%gr%ia(ipoing+1-prt%nmap%ni)-1 )   = &  
-!!$<               A%a ( 1:A%nd1, 1:A%nd2, A%gr%ia(ipoing+1)-(A_GG%gr%ia(ipoing+1-prt%nmap%ni)-A_GG%gr%ia(ipoing-prt%nmap%ni)):A%gr%ia(ipoing+1)-1 )        
-!!$<          end if
-!!$<       end do
-!!$<     end if

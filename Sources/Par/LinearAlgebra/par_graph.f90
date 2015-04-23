@@ -30,63 +30,51 @@ module par_graph_names
   use types
   use memor
   use fem_graph_names
-  use fem_partition_names
 #ifdef memcheck       
   use iso_c_binding
 #endif
 
-  ! Module associated with the F90 interface to Trilinos.
-  ! Remember: the F90 interface to Trilinos requires C
-  ! interoperability (i.e., iso_c_binding module)
-  !use for_trilinos_shadow_interfaces
-
   ! Parallel modules
-  use par_partition_names
-  use par_context_names
+  use dof_distribution_names
+  use par_environment_names
 
 # include "debug.i90"
-
-! *** IMPORTANT NOTE: This cpp macro should go to a 
-! common include file or it should be a program 
-! subroutine otherwise
-#define blk2scal(iv,idof,ndof) (((iv)-1)*(ndof)+(idof))
   
   implicit none
   private
 
-  ! Distributed Graph (eb or vb)
+  ! Distributed Graph
   type par_graph
-       ! GENERAL COMMENT: Pointers and/or instances ? 
-       ! I will follow the following rules:
-       ! 
-       !    x I will declare as a pointer, data which
-       !      are potentially common to several objects,
-       !      such as the partition or the communicator (to
-       !      avoid data replication).
-
-       !    x I will declare as instances objects which are 
-       !      particular to the containing instance, such as graph or 
-       !      epetra_crsgraph below 
-       !
-       ! Agreed ? Pros, cons ... ?
-       !type( epetra_crsgraph ) :: epg
-
-       ! Data structure which stores the local part 
-       ! of the graph mapped to the current processor.
-       ! This is required for both eb and vb data 
-       ! distributions
-       type( fem_graph )       :: f_graph
-
-       ! Parallel partition control info.
-       type ( par_partition ), pointer  :: p_part      => NULL()
-       type ( par_partition ), pointer  :: p_part_cols => NULL()
-
-  end type par_graph    
-
+     ! GENERAL COMMENT: Pointers and/or instances ? 
+     ! I will follow the following rules:
+     ! 
+     !    x I will declare as a pointer, data which
+     !      are potentially common to several objects,
+     !      such as the partition or the communicator (to
+     !      avoid data replication).
+     
+     !    x I will declare as instances objects which are 
+     !      particular to the containing instance, such as
+     !      graph below 
+     
+     ! Data structure which stores the local part 
+     ! of the graph mapped to the current processor.
+     ! This is required for both eb and vb data 
+     ! distributions
+     type( fem_graph )       :: f_graph
+     
+     ! DoF distribution control info.
+     type ( dof_distribution ), pointer  :: dof_dist      => NULL()
+     type ( dof_distribution ), pointer  :: dof_dist_cols => NULL()
+     
+     ! Paralell environment control
+     type(par_environment), pointer :: p_env => NULL()
+  end type par_graph
+  
   interface par_graph_create
      module procedure par_graph_create_square, par_graph_create_rectangular
   end interface par_graph_create
-
+  
   interface par_graph_free
      module procedure par_graph_free_one_shot, par_graph_free_progressively
   end interface par_graph_free
@@ -95,7 +83,7 @@ module par_graph_names
   public :: par_graph
 
   ! Functions
-  public :: par_graph_create, par_graph_free, par_graph_print !, par_graph_epetra_crsgraph_create
+  public :: par_graph_create, par_graph_free, par_graph_print
 
 !***********************************************************************
 ! Allocatable arrays of type(par_graph)
@@ -120,24 +108,28 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine par_graph_create_square ( p_part, p_graph )
+  subroutine par_graph_create_square ( dof_dist, p_env, p_graph )
     implicit none 
     ! Parameters
-    type(par_partition), target, intent(in)  :: p_part
-    type(par_graph)            , intent(out) :: p_graph
-    p_graph%p_part => p_part
-    p_graph%p_part_cols => p_part
+    type(dof_distribution), target, intent(in)  :: dof_dist
+    type(par_environment) , target, intent(in)  :: p_env
+    type(par_graph)               , intent(out) :: p_graph
+    p_graph%p_env => p_env
+    p_graph%dof_dist => dof_dist
+    p_graph%dof_dist_cols => dof_dist
   end subroutine par_graph_create_square
 
-    !=============================================================================
-  subroutine par_graph_create_rectangular ( p_part, p_part_cols, p_graph )
+  !=============================================================================
+  subroutine par_graph_create_rectangular ( dof_dist, dof_dist_cols, p_env, p_graph )
     implicit none 
     ! Parameters
-    type(par_partition), target, intent(in)  :: p_part
-    type(par_partition), target, intent(in)  :: p_part_cols
-    type(par_graph)            , intent(out) :: p_graph
-    p_graph%p_part => p_part
-    p_graph%p_part_cols => p_part_cols
+    type(dof_distribution), target, intent(in)  :: dof_dist
+    type(dof_distribution), target, intent(in)  :: dof_dist_cols
+    type(par_environment) , target, intent(in)  :: p_env
+    type(par_graph)               , intent(out) :: p_graph
+    p_graph%p_env => p_env
+    p_graph%dof_dist => dof_dist
+    p_graph%dof_dist_cols => dof_dist_cols
   end subroutine par_graph_create_rectangular
 
   subroutine par_graph_free_one_shot(p_graph)
@@ -159,22 +151,23 @@ contains
     type(par_graph), intent(inout)  :: p_graph
     integer(ip)    , intent(in)     :: mode
     
-    ! p_graph%p_part is required within this subroutine
-    assert ( associated(p_graph%p_part) )
+    ! p_graph%dof_dist is required within this subroutine
+    assert ( associated(p_graph%dof_dist) )
     
-    ! p_graph%p_part%p_context is required within this subroutine
-    assert ( associated(p_graph%p_part%p_context) )
+    ! p_graph%p_env%p_context is required within this subroutine
+    assert ( associated(p_graph%p_env%p_context) )
     
     assert ( mode == free_only_struct .or. mode == free_clean  ) 
     
-    if(p_graph%p_part%p_context%iam<0) return
+    if(p_graph%p_env%p_context%iam<0) return
     
     if ( mode == free_only_struct ) then
        call fem_graph_free ( p_graph%f_graph )
     else if ( mode == free_clean ) then
        ! Nullify parallel partition
-       nullify( p_graph%p_part ) 
-       nullify( p_graph%p_part_cols ) 
+       nullify( p_graph%dof_dist ) 
+       nullify( p_graph%dof_dist_cols ) 
+       nullify( p_graph%p_env )
     end if
   end subroutine par_graph_free_progressively
 
@@ -184,12 +177,14 @@ contains
     type(par_graph)  ,  intent(in) :: p_graph
     integer(ip)      ,  intent(in) :: lunou
     
-    ! p_graph%p_part is required within this subroutine
-    assert ( associated(p_graph%p_part) )
+    ! p_graph%dof_dist is required within this subroutine
+    assert ( associated(p_graph%dof_dist) )
     
-    ! p_graph%p_part%p_context is required within this subroutine
-    assert ( associated(p_graph%p_part%p_context) )
-    
+    ! p_graph%p_env%p_context is required within this subroutine
+    assert ( associated(p_graph%p_env%p_context) )
+
+    if(p_graph%p_env%p_context%iam<0) return
+
     call fem_graph_print (lunou, p_graph%f_graph)
   end subroutine par_graph_print
 

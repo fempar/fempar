@@ -60,10 +60,10 @@ module fem_matrix_names
   ! Matrix
   type, extends(serial_operator) :: fem_matrix
      integer(ip)                :: &
-!!!          storage=undef_sto,         &         ! Storage layout (blk: block; scal: scalar)
+!!!          storage=undef_sto,         &      ! Storage layout (blk: block; scal: scalar)
           symm=symm_false,           &         ! Flag for symmetry
           sign=positive_definite,    &         ! Flag for positiveness
-          type=csr_mat                         ! fem_matrix type (csr, epetra, petsc )
+          type=csr_mat                         ! fem_matrix type
 
 
      ! We need to decide how blocks will be stored (transposed or not)
@@ -76,8 +76,6 @@ module fem_matrix_names
           a(:)                             ! Lower/Upper part components ordered as:
      ! Rows (nzt)                
      ! Cols (nzt)                
-
-     !type(epetra_csrmat) :: emp
 
      type(fem_graph),pointer :: &
           gr => NULL()                      ! Associated fem_graph

@@ -37,7 +37,6 @@ module par
   use par_environment_names
 
   ! Geometry
-  use par_partition_names
   use par_mesh_names
   use par_mesh_partition_conditions
   use par_triangulation_names
@@ -49,7 +48,6 @@ module par
   use par_graph_names
   use par_block_matrix_names
   use par_block_vector_names
-  use par_block_vector_krylov_basis_names
   use par_block_matrix_vector
   use dof_distribution_names
   use dof_distribution_create_names
