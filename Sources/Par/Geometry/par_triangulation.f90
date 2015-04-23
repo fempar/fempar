@@ -37,6 +37,7 @@ module par_triangulation_names
 
   ! Parallel modules
   use par_context_names
+  use par_environment_names
   use par_partition_names
 
   implicit none
@@ -88,7 +89,7 @@ module par_triangulation_names
      integer(ip), allocatable                :: lst_itfc_objs(:)    ! List of objects local IDs in the interface among subdomains 
      integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
      integer(ip), allocatable                :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
-     type(par_context),   pointer            :: p_context => NULL() ! Parallel context describing MPI tasks among which par_triangulation is distributed
+     type(par_environment),   pointer        :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
      type(fem_element_import)                :: f_el_import         ! Object describing the layout in distributed-memory of the dual graph
                                                                     ! (It is required for nearest neighbour comms on this graph)
      integer(ip)                             :: max_nparts          ! Maximum number of parts around any vef communication object
@@ -181,7 +182,7 @@ contains
        
        p_trian%num_elems  = -1 
        p_trian%num_ghosts = -1
-       nullify(p_trian%p_context)
+       nullify(p_trian%p_env)
     end if
 
   end subroutine par_triangulation_free_elems_data
@@ -274,7 +275,7 @@ contains
     integer(ip), parameter    :: tbl_length = 100
 
    
-    ipart = p_trian%p_context%iam + 1
+    ipart = p_trian%p_env%p_context%iam + 1
 
     ! Compute an estimation (upper bound) of the maximum number of parts around any local interface vef.
     ! This estimation assumes that all elements around all local interface vefs are associated to different parts.

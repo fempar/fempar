@@ -34,6 +34,7 @@ module par
   use par_element_exchange
   use par_timer_names
   use par_io 
+  use par_environment_names
 
   ! Geometry
   use par_partition_names
@@ -50,7 +51,8 @@ module par
   use par_block_vector_names
   use par_block_vector_krylov_basis_names
   use par_block_matrix_vector
-  use graph_distribution_names
+  use dof_distribution_names
+  use dof_distribution_create_names
 
   !Integration
   use par_fem_space_names

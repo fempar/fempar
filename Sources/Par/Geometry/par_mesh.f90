@@ -26,17 +26,16 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_mesh_names
-
   ! Serial modules
   use types
   use fem_mesh_names
+  use fem_mesh_distribution_names
   use fem_mesh_io
   use stdio
-  use psb_penv_mod
 
+  ! Parallel modules
   use par_io
-  use par_partition_names
-  use par_context_names
+  use par_environment_names
 
 # include "debug.i90"
   implicit none
@@ -45,12 +44,9 @@ module par_mesh_names
   ! Distributed mesh
   type par_mesh
      type(fem_mesh)                 :: f_mesh
-     type(par_partition), pointer   :: p_part
+     type(fem_mesh_distribution)    :: f_mesh_dist
+     type(par_environment), pointer :: p_env
   end type par_mesh
-
-  interface par_mesh_create
-     module procedure par_mesh_create_new, par_mesh_create_old
-  end interface par_mesh_create
 
   interface par_mesh_free
      module procedure par_mesh_free_progressively, par_mesh_free_one_shot
@@ -60,7 +56,7 @@ module par_mesh_names
   public :: par_mesh
 
   ! Functions
-  public :: par_mesh_free, par_mesh_create, par_mesh_bcast
+  public :: par_mesh_free, par_mesh_init, par_mesh_read
 
 contains
 
@@ -77,115 +73,86 @@ contains
     call par_mesh_free_progressively(p_mesh, free_clean)
   end subroutine par_mesh_free_one_shot
 
-  
+
+  !============================================================================!
+  ! This subroutine is provided for those contexts where the parallel mesh was ! 
+  ! created incrementally (as, e.g., coarse-grid mesh in MLBDDC)               !
+  !============================================================================!
   subroutine par_mesh_free_progressively (p_mesh, mode)
-    !-----------------------------------------------------------------------
-    ! This routine deallocates a partition object
-    !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
     type(par_mesh), intent(inout)  :: p_mesh
     integer(ip)   , intent(in)     :: mode
 
-    assert ( associated(p_mesh%p_part%p_context) )
-    assert ( p_mesh%p_part%p_context%created .eqv. .true.)
     assert ( mode == free_clean .or. mode == free_only_struct )
 
-    if(p_mesh%p_part%p_context%iam<0) return
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_mesh%p_env) )
+    assert ( p_mesh%p_env%created )
+
+    if(p_mesh%p_env%p_context%iam<0) return
 
     if ( mode == free_clean ) then
-       nullify (p_mesh%p_part)
+       nullify (p_mesh%p_env)
     else if ( mode == free_only_struct ) then
        call fem_mesh_free ( p_mesh%f_mesh )
+       call fem_mesh_distribution_free ( p_mesh%f_mesh_dist )
     end if
   end subroutine par_mesh_free_progressively
   
-
+  !============================================================================!
+  ! This subroutine is provided for those contexts where the parallel mesh is  ! 
+  ! created incrementally (as, e.g., coarse-grid mesh in MLBDDC)               !
+  !============================================================================!
+  subroutine par_mesh_init ( p_env, p_mesh )
+    implicit none 
+    ! Parameters
+    type(par_environment), target, intent(in)  :: p_env
+    type(par_mesh)               , intent(out) :: p_mesh
+    
+    ! Parallel environment MUST BE already created
+    assert ( p_env%created )
+    
+    p_mesh%p_env => p_env
+  end subroutine par_mesh_init
 
   !=============================================================================
-  subroutine par_mesh_create_new ( p_part, p_mesh )
+  subroutine par_mesh_read ( dir_path, prefix, p_env, p_mesh )
     implicit none 
     ! Parameters
-    type(par_partition), target, intent(in)  :: p_part
-    type(par_mesh)             , intent(out) :: p_mesh
-    p_mesh%p_part => p_part
-  end subroutine par_mesh_create_new
-
-  subroutine par_mesh_read ( dir_path, prefix, p_mesh )
-    implicit none 
-    ! Parameters
-    character(*), intent(in)      :: dir_path
-    character(*), intent(in)      :: prefix
-    type(par_mesh), intent(inout) :: p_mesh
+    character (*)                , intent(in)  :: dir_path
+    character (*)                , intent(in)  :: prefix
+    type(par_environment), target, intent(in)  :: p_env
+    type(par_mesh)               , intent(out) :: p_mesh
 
     ! Locals
-    integer(ip)                   :: lunio
-    character(len=:), allocatable :: name 
+    integer                        :: iam, num_procs
+    integer(ip)                    :: j, ndigs_iam, ndigs_num_procs, lunio
+    character(len=:), allocatable  :: name 
 
-    assert ( associated(p_mesh%p_part%p_context) )
-    assert ( p_mesh%p_part%p_context%created .eqv. .true.)
+    ! Parallel environment MUST BE already created
+    assert ( p_env%created )
 
-    if(p_mesh%p_part%p_context%iam>=0) then
+    p_mesh%p_env => p_env
+    if(p_env%p_context%iam>=0) then
        call fem_mesh_compose_name ( prefix, name )
-       call par_filename( p_mesh%p_part%p_context, name)
+       call par_filename( p_mesh%p_env%p_context, name )
        ! Read mesh
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-       ! Read fem_partition data from path_file file
        call fem_mesh_read ( lunio, p_mesh%f_mesh )
        call io_close(lunio)
-    end if
-    ! Transfer ndime from fine-grid tasks to coarse-grid task
-    call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
 
-  end subroutine par_mesh_read
-
-  !=============================================================================
-  subroutine par_mesh_create_old ( dir_path, prefix, p_part, p_mesh )
-    implicit none 
-    ! Parameters
-    character (*)              , intent(in)  :: dir_path
-    character (*)              , intent(in)  :: prefix
-    type(par_partition), target, intent(in)  :: p_part
-    type(par_mesh)             , intent(out) :: p_mesh
-
-    ! Locals
-    integer         :: iam, num_procs
-    integer(ip)     :: j, ndigs_iam, ndigs_num_procs, lunio
-    character(len=:), allocatable  :: name 
-    logical                        :: flag
-
-    assert ( associated(p_part%p_context) )
-    assert ( p_part%p_context%created .eqv. .true.)
-
-    p_mesh%p_part => p_part
-    if(p_part%p_context%iam>=0) then
-       call fem_mesh_compose_name ( prefix, name )
-       call par_filename( p_part%p_context, name )
-       
-       ! Read mesh
-       lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-       
-       ! Read fem_partition data from path_file file
-       flag = .true. ! Assuming that the partitioned meshes are already permuted
-       call fem_mesh_read ( lunio, p_mesh%f_mesh, flag )
-       
+       call fem_mesh_distribution_compose_name ( prefix, name )
+       call par_filename( p_mesh%p_env%p_context, name )
+       ! Read mesh distribution control data
+       lunio = io_open (trim(dir_path) // '/' // trim(name))
+       call fem_mesh_distribution_read ( lunio, p_mesh%f_mesh_dist )
        call io_close(lunio)
     end if
 
     ! Transfer ndime from fine-grid tasks to coarse-grid task
-    call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
-
-  end subroutine par_mesh_create_old
-
-  !=============================================================================
-  subroutine par_mesh_bcast (p_mesh, value)
-    implicit none
-    ! Parameters 
-    type(par_mesh), intent(in)    :: p_mesh    
-    integer(ip)   , intent(inout) :: value
-    assert ( associated(p_mesh%p_part))
-    call par_partition_bcast(p_mesh%p_part,value)
-  end subroutine par_mesh_bcast
+    ! *** MISSING ISSUE HERE: IMPORTANT !!!! call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
+  end subroutine par_mesh_read
 
 end module par_mesh_names

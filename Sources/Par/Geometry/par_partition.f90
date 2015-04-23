@@ -418,7 +418,6 @@ contains
     type(par_partition)         , intent(out) :: p_part
 
     assert(p_context%created .eqv. .true.)
-    assert(p_context%handler == inhouse .or. p_context%handler == trilinos )
     p_part%p_context => p_context
     nullify(p_part%w_context)
     nullify(p_part%q_context)
@@ -448,19 +447,15 @@ contains
     type(par_partition)      , intent(out) :: p_part
 
     assert(p_context%created .eqv. .true.)
-    assert(p_context%handler == inhouse .or. p_context%handler == trilinos )
     p_part%p_context => p_context
 
     assert(w_context%created .eqv. .true.)
-    assert(w_context%handler == inhouse .or. w_context%handler == trilinos )
     p_part%w_context => w_context
 
     assert(q_context%created .eqv. .true.)
-    assert(q_context%handler == inhouse .or. q_context%handler == trilinos )
     p_part%q_context => q_context
 
     assert(b_context%created .eqv. .true.)
-    assert(b_context%handler == inhouse .or. b_context%handler == trilinos )
     p_part%b_context => b_context
 
     assert(size(id_parts) == num_levels)
@@ -489,7 +484,6 @@ contains
     assert ( associated(p_part%w_context) )
     assert ( associated(p_part%p_context) )
     assert( p_part%p_context%created .eqv. .true.)
-    assert( p_part%p_context%handler == inhouse .or. p_part%p_context%handler == trilinos )
 
     if(p_part%p_context%iam<0) return
 
@@ -509,7 +503,6 @@ contains
     !write(*,*) 'par_partition_create: ',p_part%f_part%nparts, num_procs
     call io_close (lunio)
 
-    assert ((p_part%p_context%handler==inhouse.and.p_part%f_part%ptype==element_based).or.(p_part%p_context%handler == trilinos.and.p_part%f_part%ptype == vertex_based))
     !write(*,*) p_part%f_part%nparts, num_procs
     assert ( p_part%f_part%nparts == num_procs )
 
@@ -520,14 +513,6 @@ contains
     ! call fem_import_print ( 6, p_part%f_import ) ! DBG:
 
     ! write(*,*) inhouse, element_based, trilinos, vertex_based, max_ndofs ! DBG: 
-
-    if ( p_part%p_context%handler == trilinos ) then
-
-       do id_map=1, max_ndofs
-          p_part%maps_state(id_map) = map_non_created
-       end do
-
-    end if
 
   end subroutine par_partition_read
 
@@ -576,21 +561,6 @@ contains
           return          
        end  if
 
-       if ( p_part%p_context%handler == trilinos ) then
-          do id_map=1, max_ndofs
-             if (p_part%maps_state(id_map) == map_created) then
-                ! Destruct col-map
-                !call epetra_map_destruct   ( p_part%col_map(id_map) )
-
-                ! Destruct row-map
-                !call epetra_map_destruct   ( p_part%row_map(id_map) )
-
-                ! Destruct import
-                !call epetra_import_destruct ( p_part%importer(id_map) ) 
-             end if
-             p_part%maps_state(id_map) = map_non_created
-          end do
-       end if
        nullify ( p_part%w_context ) 
        nullify ( p_part%p_context )
        nullify ( p_part%q_context ) 
@@ -629,15 +599,6 @@ contains
 
     write(lunou,'(a)') '*** begin par_partition data structure ***'
     call fem_partition_print (lunou, p_part%f_part)
-    if ( p_part%p_context%handler == trilinos ) then 
-       do id_map=1, max_ndofs
-          if (p_part%maps_state(id_map) == map_created) then
-             !call epetra_map_print ( p_part%col_map(id_map) )
-             !call epetra_map_print ( p_part%row_map(id_map) )
-             !call epetra_import_print ( p_part%importer(id_map) ) 
-          end if
-       end do
-    end if
     write(lunou,'(a)') '*** end par_partition data structure ***'
   end subroutine par_partition_print
 

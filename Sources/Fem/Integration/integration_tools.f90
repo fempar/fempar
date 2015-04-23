@@ -46,6 +46,7 @@ module volume_integration_tools_names
   use quadrature_names
   use interpolation_names
   use femap_names
+  use femap_interp
   use fem_space_types
   implicit none
   private

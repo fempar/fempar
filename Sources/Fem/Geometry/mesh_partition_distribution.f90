@@ -138,14 +138,14 @@ contains
      integer(ip)   , intent(in)  :: my_part
      type(fem_mesh), intent(in)  :: lmesh
      type(fem_mesh), intent(in)  :: dual_lmesh
-     integer(ip)   , intent(in)  :: l2ge(lmesh%npoin)
+     integer(igp)  , intent(in)  :: l2ge(lmesh%npoin)
      integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
      integer(ip)   , intent(out) :: nebou
      integer(ip)   , intent(out) :: nnbou
      integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
      integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary nodes
      integer(ip)   , allocatable, intent(out) ::  pextn(:)    ! Pointers to the lextn
-     integer(ip)   , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
+     integer(igp)  , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
      integer(ip)   , allocatable, intent(out) ::  lextp(:)    ! List of parts of external neighbors
 
      integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat, touch
@@ -303,7 +303,7 @@ contains
 
   subroutine dual_mesh_g2l(nmap, dual_mesh, ldome, lmesh, dual_lmesh, dual_parts)
     implicit none
-    type(map)     , intent(in)  :: nmap
+    type(map_igp) , intent(in)  :: nmap
     type(fem_mesh), intent(in)  :: dual_mesh
     integer(ip)   , intent(in)  :: ldome(dual_mesh%npoin)
     type(fem_mesh), intent(in)  :: lmesh
@@ -359,7 +359,7 @@ contains
     end do
     ! Allocate local to global maps
     do ipart=1,nparts
-       call map_alloc(nedom(ipart),femesh%nelem,distr(ipart)%emap)
+       call map_alloc(nedom(ipart),int(femesh%nelem,igp),distr(ipart)%emap)
     end do
     nedom = 0
     do ielem=1,femesh%nelem
@@ -389,7 +389,7 @@ contains
              end do
           end if
        end do
-       call map_alloc(npdom(ipart),femesh%npoin,distr(ipart)%nmap)
+       call map_alloc(npdom(ipart),int(femesh%npoin,igp),distr(ipart)%nmap)
        distr(ipart)%nmap%l2g = work2(1:npdom(ipart))
     end do
     call memfree ( work1,__FILE__,__LINE__)

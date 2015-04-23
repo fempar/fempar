@@ -29,24 +29,12 @@ module par_context_names
   ! Serial modules
   use types
 
-  ! Trilinos-Interfaces modules 
-  !use for_trilinos_shadow_interfaces
-
   ! Parallel modules
   use psb_penv_mod
 
 # include "debug.i90"
   implicit none
   private
-
-  ! ***IMPORTANT NOTE***: I am assuming that the
-  ! constructor of par_context_names is responsible
-  ! for creating/destroying all the members/objects it 
-  ! contains, INCLUDING initialization/finalization of
-  ! the parallel environment
-  integer(ip), parameter :: inhouse  = 0
-  integer(ip), parameter :: trilinos = 1
-  integer(ip), parameter :: petsc    = 2
 
   ! Parallel context
   type par_context
@@ -69,9 +57,6 @@ module par_context_names
      integer              :: iam
      integer              :: np
 
-     ! Parallel Software responsible for performing 
-     ! parallel computations
-     integer(ip)          :: handler
   end type par_context
 
   interface par_context_create
@@ -80,9 +65,6 @@ module par_context_names
 
   ! Types
   public :: par_context
-
-  ! Constants
-  public :: inhouse, trilinos, petsc
 
   ! Functions
   public :: par_context_create, par_context_null, par_context_info, par_context_free
@@ -102,14 +84,13 @@ contains
     type(par_context), intent(out) :: p_context
 
     p_context%created = .true.
-    p_context%handler = inhouse
 
     p_context%icontxt = mpi_comm_null
     ! Store current info (who am I and how many we are in these contexts).
     call psb_info ( p_context%icontxt, p_context%iam, p_context%np )
   end subroutine par_context_null
 
-  subroutine par_context_create_by_list ( handler, p_context, nproc, b_context, lproc )
+  subroutine par_context_create_by_list ( p_context, nproc, b_context, lproc )
 #ifdef MPI_MOD
     use mpi
 #endif
@@ -118,8 +99,6 @@ contains
     include 'mpif.h'
 #endif
 
-    ! Parameters
-    integer(ip)      , intent(in)  :: handler
     type(par_context), intent(out) :: p_context
 
     integer(ip)      , intent(in), optional :: nproc
@@ -132,73 +111,25 @@ contains
     integer                         :: info
     logical                         :: initialized
 
-    assert ( handler == inhouse .or. handler == trilinos )
     if(p_context%created) then
        write(0,*) 'Error in par_context create,'
        write(0,*) 'it has been already created'
        stop 
     end if
     p_context%created = .true.
-    p_context%handler = handler
 
-    if ( handler == inhouse ) then
-       ! Initialize psb parallel environment and 
-       ! we are done
-       !call psb_init ( p_context%icontxt )
-
-       ! Using the complete interface initialize parallel environment
-       if(present(b_context)) then
-          call psb_init ( p_context%icontxt, nproc, b_context%icontxt, lproc)
-       else
-          call psb_init ( p_context%icontxt, np=nproc, ids=lproc)
-       end if
-       ! and store current info (who am I and how many we are in this context).
-       call psb_info ( p_context%icontxt, p_context%iam, p_context%np )
-
-    else 
-       if ( handler == trilinos ) then
-
-          ! Not ready to handle multiple contexts
-          if(present(nproc).or.present(b_context).or.present(lproc)) then
-             write(0,*) 'Error in par_context create:'
-             write(0,*) 'not ready to handle multiple contexts with trilinos'
-             stop 
-          end if
-
-          ! Initialize mpi parallel environment
-          call mpi_initialized(initialized, info)
-          if ((.not.initialized).or.(info /= mpi_success)) then 
-             !call mpi_init(info) 
-
-             ! *** VERY IMPORTANT NOTE ***: The following two lines are 
-             ! required instead of mpi_init above in order to properly
-             ! use par_timer when using Trilinos handler. This is
-             ! dirty as PSB communication layer is intended to use
-             ! only with inhouse handler. A cleaner solution is required here,
-             ! with an implementation of par_timer which takes into
-             ! account handler and uses corresponding communication routines
-             ! accordingly
-             call psb_init ( p_context%icontxt )
-             info = mpi_success
-
-             if (info /= mpi_success) then
-                write(0,*) 'Error in initalizing MPI, bailing out',info 
-                stop 
-             end if
-             ! Construct Epetra_mpicomm object
-             !call epetra_mpicomm_construct ( p_context%epcomm )
-
-             ! Store who am I and how many we are
-             !call epetra_mpicomm_my_pid   (p_context%epcomm, p_context%iam)
-             !call epetra_mpicomm_num_proc (p_context%epcomm, p_context%np)
-
-          end if
-       end if
+    ! Using the complete interface initialize parallel environment
+    if(present(b_context)) then
+       call psb_init ( p_context%icontxt, nproc, b_context%icontxt, lproc)
+    else
+       call psb_init ( p_context%icontxt, np=nproc, ids=lproc)
     end if
+    ! and store current info (who am I and how many we are in this context).
+    call psb_info ( p_context%icontxt, p_context%iam, p_context%np )
 
   end subroutine par_context_create_by_list
 
-  subroutine par_context_create_by_color ( handler, my_color, p_context, q_context, b_context )
+  subroutine par_context_create_by_color ( my_color, p_context, q_context, b_context )
 #ifdef MPI_MOD
     use mpi
 #endif
@@ -208,7 +139,6 @@ contains
 #endif
 
     ! Parameters
-    integer(ip)      , intent(in)  :: handler
     integer(ip)      , intent(in)  :: my_color
     type(par_context), intent(out) :: p_context
     type(par_context), intent(out) :: q_context
@@ -222,58 +152,45 @@ contains
     logical                         :: initialized
     type(par_context)               :: b_context_  ! Base context
 
-    assert ( handler == inhouse .or. handler == trilinos )
     if(p_context%created) then
        write(0,*) 'Error in par_context create,'
        write(0,*) 'it has been already created'
        stop 
     end if
     p_context%created = .true.
-    p_context%handler = handler
     q_context%created = .true.
-    q_context%handler = handler
 
-    if ( handler == inhouse ) then
 
-       ! If not given initialize parallel environment
-       if(present(b_context)) then
-          assert (b_context%created .eqv. .true.)
-          b_context_%icontxt = b_context%icontxt
-       else
-          call psb_init ( b_context_%icontxt)
-       end if
-
-       ! Create comm by split
-       if(my_color<0) then
-          my_color_ = mpi_undefined
-          !write(*,*) 'COLOR:',my_color, b_context_%icontxt
-          call mpi_comm_split(b_context_%icontxt, my_color_, key , q_context%icontxt, info)
-          p_context%icontxt = mpi_comm_null
-       else
-          my_color_ = my_color
-          !write(*,*) 'COLOR:',my_color, b_context_%icontxt
-          call mpi_comm_split(b_context_%icontxt, my_color_, key , p_context%icontxt, info)
-          q_context%icontxt = mpi_comm_null
-       end if
-       assert(info==MPI_SUCCESS)
-
-       ! and store current info (who am I and how many we are in these contexts).
-       call psb_info ( p_context%icontxt, p_context%iam, p_context%np )
-       call psb_info ( q_context%icontxt, q_context%iam, q_context%np )
-       !write(*,*) 'I AM:',my_color, p_context%iam, q_context%iam
-
-    else if ( handler == trilinos ) then
-
-       ! Not ready to handle multiple contexts
-       write(0,*) 'Error in par_context create:'
-       write(0,*) 'not ready to handle multiple contexts with trilinos'
-       stop 
-
+    ! If not given initialize parallel environment
+    if(present(b_context)) then
+       assert (b_context%created .eqv. .true.)
+       b_context_%icontxt = b_context%icontxt
+    else
+       call psb_init ( b_context_%icontxt)
     end if
+
+    ! Create comm by split
+    if(my_color<0) then
+       my_color_ = mpi_undefined
+       !write(*,*) 'COLOR:',my_color, b_context_%icontxt
+       call mpi_comm_split(b_context_%icontxt, my_color_, key , q_context%icontxt, info)
+       p_context%icontxt = mpi_comm_null
+    else
+       my_color_ = my_color
+       !write(*,*) 'COLOR:',my_color, b_context_%icontxt
+       call mpi_comm_split(b_context_%icontxt, my_color_, key , p_context%icontxt, info)
+       q_context%icontxt = mpi_comm_null
+    end if
+    assert(info==MPI_SUCCESS)
+
+    ! and store current info (who am I and how many we are in these contexts).
+    call psb_info ( p_context%icontxt, p_context%iam, p_context%np )
+    call psb_info ( q_context%icontxt, q_context%iam, q_context%np )
+    !write(*,*) 'I AM:',my_color, p_context%iam, q_context%iam
 
   end subroutine par_context_create_by_color
 
-  subroutine par_context_create_bridge ( handler, w_context, p_context, q_context, b_context )
+  subroutine par_context_create_bridge ( w_context, p_context, q_context, b_context )
 #ifdef MPI_MOD
     use mpi
 #endif
@@ -283,7 +200,6 @@ contains
 #endif
 
     ! Parameters
-    integer(ip)      , intent(in)  :: handler
     type(par_context), intent(in)  :: w_context
     type(par_context), intent(in)  :: p_context
     type(par_context), intent(in)  :: q_context
@@ -296,7 +212,6 @@ contains
     logical                         :: initialized
     type(par_context)               :: b_context_  ! Base context
 
-    assert ( handler == inhouse .or. handler == trilinos )
     if(b_context%created) then
        write(0,*) 'Error in par_context create,'
        write(0,*) 'it has been already created'
@@ -306,39 +221,25 @@ contains
     ! we assume that the ranks ids' (in w_context) of tasks in p_context go from 
     ! 0 to np-1 and ranks ids' of tasks in q context from np onwards
     assert ( w_context%created .eqv. .true.)
-    assert ( w_context%handler == inhouse )
     assert ( w_context%iam >= 0)
     assert ( p_context%created .eqv. .true.)
-    assert ( p_context%handler == inhouse )
     assert ( q_context%created .eqv. .true.)
-    assert ( q_context%handler == inhouse )
     b_context%created = .true.
-    b_context%handler = handler
 
-    if ( handler == inhouse ) then
 
-       ! Create intracomm
-       if(p_context%iam>=0) then
-          assert(q_context%iam<0)
-          !    mpi_intercomm_create (local_comm, local_leader, peer_comm, remote_leader, tag, newintercomm, info)
-          call mpi_intercomm_create(p_context%icontxt, 0, w_context%icontxt, p_context%np, 0, b_context%icontxt, info)
-       else 
-          assert(q_context%iam>=0)
-          call mpi_intercomm_create(q_context%icontxt, 0, w_context%icontxt, 0 , 0, b_context%icontxt, info)
-       end if
-       assert(info==MPI_SUCCESS)
-
-       ! and store current info (who am I and how many we are in these contexts).
-       call psb_info ( b_context%icontxt, b_context%iam, b_context%np )
- 
-    else if ( handler == trilinos ) then
-
-       ! Not ready to handle multiple contexts
-       write(0,*) 'Error in par_context create:'
-       write(0,*) 'not ready to handle multiple contexts with trilinos'
-       stop 
-
+    ! Create intracomm
+    if(p_context%iam>=0) then
+       assert(q_context%iam<0)
+       !    mpi_intercomm_create (local_comm, local_leader, peer_comm, remote_leader, tag, newintercomm, info)
+       call mpi_intercomm_create(p_context%icontxt, 0, w_context%icontxt, p_context%np, 0, b_context%icontxt, info)
+    else 
+       assert(q_context%iam>=0)
+       call mpi_intercomm_create(q_context%icontxt, 0, w_context%icontxt, 0 , 0, b_context%icontxt, info)
     end if
+    assert(info==MPI_SUCCESS)
+    
+    ! and store current info (who am I and how many we are in these contexts).
+    call psb_info ( b_context%icontxt, b_context%iam, b_context%np )
 
   end subroutine par_context_create_bridge
 
@@ -381,35 +282,12 @@ contains
     ! the kind parameter must NOT be specified. This requirement is 
     ! imposed by the underlying message-passing library, i.e., MPI 
     integer :: info
-
+    
     assert(p_context%created .eqv. .true.)
-    assert(p_context%handler==inhouse.or.p_context%handler==trilinos)
-
-    if ( p_context%handler == inhouse ) then
-       ! Finalize psb parallel environment and we are done
-       call psb_exit ( p_context%icontxt, close )
-    else 
-       if ( p_context%handler == trilinos ) then
-          ! Destruct epetra_mpicomm object
-          !call epetra_mpicomm_destruct ( p_context%epcomm )
-
-          ! *** VERY IMPORTANT NOTE ***: The following two lines are 
-          ! required instead of mpi_init above in order to properly
-          ! use par_timer when using Trilinos handler. This is
-          ! dirty as PSB communication layer is intended to use
-          ! only with inhouse handler. A cleaner solution is required here,
-          ! with an implementation of par_timer which takes into
-          ! account handler and uses corresponding communication routines
-          ! accordingly
-
-          ! Finalize mpi parallel environment
-          !call mpi_finalize(info)
-          call psb_exit ( p_context%icontxt, .true. )
-
-       end if
-    end if
+    
+    call psb_exit ( p_context%icontxt, close )
     p_context%created = .false.
-
+    
   end subroutine par_context_free
 
 end module par_context_names

@@ -112,7 +112,7 @@ module fem_mesh_names
   public :: fem_mesh
 
   ! Functions
-  public :: mesh_to_dual, fem_mesh_alloc, fem_mesh_free!, fem_mesh_perbcs, fem_mesh_unktogeo
+  public :: mesh_to_dual, fem_mesh_alloc, fem_mesh_free
   public :: print_fem_mesh
 
   ! Constants
@@ -445,7 +445,6 @@ contains
         write(ounit_used, fmt) idx, " -> ", mesh%lnods(mesh%pnods(idx) : mesh%pnods(idx+1)-1)
      end do
 
-  
   end subroutine print_fem_mesh
 
 end module fem_mesh_names

@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module partition_element_import
+module fem_element_import_create_names
   use types
   use memor
-  use fem_partition_names
+  use fem_mesh_distribution_names
   use fem_element_import_names
   use sort_names
   use hash_table_names
@@ -38,46 +38,44 @@ module partition_element_import
   private
 
   ! Functions
-  public :: partition_to_element_import 
+  public :: fem_element_import_create
 
 contains
 
-  subroutine partition_to_element_import (f_part, f_element_import)
+  subroutine fem_element_import_create (f_msh_dist, f_element_import)
     implicit none
 
     ! Parameters
-    type(fem_partition)     , intent(in)  :: f_part
-    type(fem_element_import), intent(out) :: f_element_import
+    type(fem_mesh_distribution), intent(in)  :: f_msh_dist
+    type(fem_element_import)   , intent(out) :: f_element_import
     
-    assert(f_part%pinfo == extended_adjacencies)
-
     ! Locals
-    f_element_import%nparts = f_part%nparts
-    f_element_import%nelem  = f_part%nelem
+    f_element_import%nparts = f_msh_dist%nparts
+    f_element_import%nelem  = f_msh_dist%emap%nl
    
     ! Count neighbours
-    call count_neighbours ( f_part%nebou, &
-                            f_part%pextn, &
-                            f_part%lextp, &
+    call count_neighbours ( f_msh_dist%nebou, &
+                            f_msh_dist%pextn, &
+                            f_msh_dist%lextp, &
                             f_element_import%npadj) 
 
     call memalloc ( f_element_import%npadj, f_element_import%lpadj, __FILE__, __LINE__)
 
     ! List neighbours
-    call list_neighbours ( f_part%nebou, &
-                           f_part%pextn, &
-                           f_part%lextp, &
+    call list_neighbours ( f_msh_dist%nebou, &
+                           f_msh_dist%pextn, &
+                           f_msh_dist%lextp, &
                            f_element_import%npadj, &
                            f_element_import%lpadj)
 
     call memalloc ( f_element_import%npadj+1, f_element_import%rcv_ptrs, __FILE__, __LINE__)
     call memalloc ( f_element_import%npadj+1, f_element_import%snd_ptrs, __FILE__, __LINE__)
     
-    call count_elements_snd_rcv (f_part%nebou, &
-                                 f_part%lebou, &
-                                 f_part%pextn, &
-                                 f_part%lextp, &
-                                 f_part%lextn, &
+    call count_elements_snd_rcv (f_msh_dist%nebou, &
+                                 f_msh_dist%lebou, &
+                                 f_msh_dist%pextn, &
+                                 f_msh_dist%lextp, &
+                                 f_msh_dist%lextn, &
                                  f_element_import%npadj, &
                                  f_element_import%lpadj, &
                                  f_element_import%snd_ptrs, &
@@ -91,13 +89,13 @@ contains
     call memalloc ( f_element_import%snd_ptrs(f_element_import%npadj+1)-1, &
                     f_element_import%snd_leids, __FILE__, __LINE__)
 
-    call list_elements_snd_rcv(f_part%nebou, &
-                               f_part%lebou, &
-                               f_part%nelem, &
-                               f_part%l2ge,  &
-                               f_part%pextn, &
-                               f_part%lextp, &
-                               f_part%lextn, &
+    call list_elements_snd_rcv(f_msh_dist%nebou, &
+                               f_msh_dist%lebou, &
+                               f_msh_dist%emap%nl, &
+                               f_msh_dist%emap%l2g,  &
+                               f_msh_dist%pextn, &
+                               f_msh_dist%lextp, &
+                               f_msh_dist%lextn, &
                                f_element_import%npadj, &
                                f_element_import%lpadj, &
                                f_element_import%snd_ptrs, &
@@ -105,8 +103,7 @@ contains
                                f_element_import%snd_leids, &
                                f_element_import%rcv_geids)
                            
-  end subroutine partition_to_element_import
-
+  end subroutine fem_element_import_create
 
   subroutine count_neighbours ( nebou, pextn, lextp, npadj)
     implicit none
@@ -333,4 +330,4 @@ contains
 
   end subroutine list_elements_snd_rcv
 
-end module partition_element_import
+end module fem_element_import_create_names

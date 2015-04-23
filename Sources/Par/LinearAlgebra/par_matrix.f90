@@ -134,9 +134,6 @@ contains
     assert ( associated(p_graph%p_part) )
     assert ( associated(p_graph%p_part%p_context) )
     assert ( p_graph%p_part%p_context%created .eqv. .true.)
-    
-    ! Trilinos requires (unsymm.) CSR sparse matrix format
-    assert ( (.not. (p_graph%p_part%p_context%handler == trilinos)) .or. (p_matrix%f_matrix%type == csr_mat .and. p_matrix%f_matrix%symm==symm_false) )
 
     ! Point to input target parallel graph
     p_matrix%p_graph => p_graph
@@ -154,13 +151,6 @@ contains
        call fem_matrix_fill_val(p_matrix%f_matrix)
     else
        return
-    end if
-
-    ! write (*,*) size(p_matrix%f_matrix%a,1), size(p_matrix%f_matrix%a,2), size(p_matrix%f_matrix%a,3) DBG:
-
-    if ( p_matrix%p_part%p_context%handler == trilinos ) then 
-       ! epetra_crsmatrix (i.e., scalar matrix)
-         call par_matrix_epetra_crsmatrix_create (p_matrix)
     end if
 
   end subroutine par_matrix_fill_val
@@ -304,72 +294,6 @@ contains
 
   end subroutine par_matrix_assembly
 
-
-  !===================================================
-  ! Creates and fills epetra_crsmatrix p_matrix%epm
-  ! as a view of the local matrix f_matrix
-  !===================================================
-  ! subroutine par_matrix_epetra_crsmatrix_create (p_matrix)
-!     implicit none
-
-!     ! Parameters 
-!     type(par_matrix), intent(inout) :: p_matrix
-
-!     ! Local variables
-!     integer (c_int)                 :: ierrc
-
-!     ! epetra_crsgraph is required
-!     assert ( associated(p_matrix%p_graph) )
-
-!     ! Vertex-based partitioning/trilinos handler required for Epetra
-!     assert ( p_matrix%p_part%f_part%ptype == vertex_based )
-!     assert ( p_matrix%p_part%p_context%handler == trilinos )
-
-!     call epetra_crsmatrix_construct ( p_matrix%epm, p_matrix%p_graph%epg )
-
-!     ! Insert row/column entries information via calls to InsertMyValues
-!     call insert_my_values ( p_matrix%epm,                                                   &  
-!          (p_matrix%p_part%f_part%nmap%ni +                       & 
-!          p_matrix%p_part%f_part%nmap%nb)*p_matrix%f_matrix%nd1,  &
-!          p_matrix%p_graph%f_graph%ia,                                    &
-!          p_matrix%p_graph%f_graph%ja,                                    &
-!          p_matrix%f_matrix%a )
-
-!     ! Signal to inform that we are done with matrix entries insertion
-!     ! call epetra_crsmatrix_fill_complete ( p_matrix%epm, ierrc )
-
-!     ! Signal to inform that we are done                       
-! !!$    call epetra_crsmatrix_fill_complete ( p_matrix%epm, p_matrix%p_part%row_map(p_matrix%f_matrix%nd2), &
-! !!$         & p_matrix%p_part%row_map(p_matrix%f_matrix%nd1), ierrc );
-! !!$    assert (ierrc == 0)
-
-!   end subroutine par_matrix_epetra_crsmatrix_create
-
-  ! Private routine which unpacks allocatable derived data type 
-  ! members as explicit size arrays
-  ! subroutine insert_my_values (epm, n, ia, ja, a)
-  !   ! Parameters
-  !   type(epetra_crsmatrix)  , intent(inout) :: epm
-  !   integer (c_int)         , intent(in)    :: n
-  !   integer (c_int)         , intent(in)    :: ia(n+1)
-  !   integer (c_int)         , intent(in)    :: ja(ia(n+1)-1)
-  !   real (c_double)         , intent(in)    :: a (ia(n+1)-1)
-
-  !   ! Local variables
-  !   integer (c_int)                 :: i, ierrc
-
-  !   ! Insert row and column entries information via calls to InsertMyValues
-  !   do i=1, n
-  !       call epetra_crsmatrix_insert_my_values ( epm, i-1,              & 
-  !            &                                   ia(i+1)-ia(i),         & 
-  !            &                                   a(ia(i):(ia(i+1)-1)),  & 
-  !            &                                   ja(ia(i):(ia(i+1)-1)), & 
-  !            &                                   ierrc )
-  !       assert (ierrc == 0)
-  !   end do 
-  
-  ! end subroutine insert_my_values
-
   subroutine par_matrix_info ( p_mat, me, np )
     implicit none
 
@@ -385,8 +309,6 @@ contains
     me = p_mat%p_part%p_context%iam
     np = p_mat%p_part%p_context%np
 
-    !call par_context_info ( p_mat%p_part%p_context, me, np )
-
   end subroutine par_matrix_info
 
   !=============================================================================
@@ -400,10 +322,6 @@ contains
     
     ! p_graph%p_part%p_context is required within this subroutine
     assert ( associated(p_matrix%p_part%p_context) )
-    
-    ! if ( p_matrix%p_part%p_context%handler == trilinos ) then 
-    !     call epetra_crsmatrix_print ( p_matrix%epm )
-    ! end if
 
   end subroutine par_matrix_print
 

@@ -36,11 +36,11 @@ program par_test_element_exchange
 #include "debug.i90"
   ! Our data
   type(par_context)        :: context
-  type(par_partition)      :: p_part
+  type(par_environment)    :: p_env
   type(par_mesh)           :: p_mesh
   type(par_triangulation)  :: p_trian
 
-  type(graph_distribution) , allocatable :: gdist(:)
+  type(dof_distribution) , allocatable :: dof_dist(:)
 
   type(dof_handler)  :: dhand
   type(fem_space)    :: fspac
@@ -51,33 +51,29 @@ program par_test_element_exchange
   integer(ip)              :: handler
   character(len=256)       :: dir_path, dir_path_out
   character(len=256)       :: prefix
-  integer(ip)              :: i, j, vars_prob(1) = 1, ierror
+  integer(ip)              :: i, j, vars_prob(1) = 1, ierror, iblock
 
-  integer(ip), allocatable :: order(:,:), material(:), problem(:) 
+  integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
 
   integer(ip), allocatable :: continuity(:,:)
+
+  type(discrete_problem_pointer) :: approximations(1)
 
   call meminit
 
   ! Start parallel execution
-  handler = inhouse
-  call par_context_create (handler, context)
+  call par_context_create (context)
+
+  ! Create parallel environment
+  call par_environment_create( p_env, context )
 
   ! Read parameters from command-line
   call  read_pars_cl_par_test_element_exchange ( dir_path, prefix, dir_path_out )
 
-  !if ( context%iam > 0 ) then
-  !   stop
-  !end if
-
-  ! Read partition info. Associate contexts
-  call par_partition_create ( dir_path, prefix, context, p_part )
-
   ! Read mesh
-  call par_mesh_create ( dir_path, prefix, p_part, p_mesh )
+  call par_mesh_read ( dir_path, prefix, p_env, p_mesh )
 
-
-  call par_mesh_to_triangulation (p_mesh, p_trian )
+  call par_mesh_to_triangulation (p_mesh, p_trian)
 
   !write (*,*) '********** CREATE DOF HANDLER**************'
   vars_prob = 1
@@ -92,7 +88,9 @@ program par_test_element_exchange
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
-
+  
+  call memalloc( p_trian%f_trian%num_elems, which_approx, __FILE__, __LINE__)
+  which_approx = 1
 
 
   ! if ( context%iam > 0 ) then
@@ -112,8 +110,8 @@ program par_test_element_exchange
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call par_fem_space_create ( p_trian, dhand, fspac, problem, continuity, order, material, &
-       & time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
+  call par_fem_space_create ( p_trian, dhand, fspac, problem, approximations, continuity, order, material, &
+       & which_approx, num_approximations=1, time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
        & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
   call create_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
@@ -125,7 +123,7 @@ program par_test_element_exchange
   !    call fem_element_print( 6, fspac%lelem(i) )
   ! end do
 
-  call graph_distribution_create(p_trian, fspac, dhand, gdist)
+  call dof_distribution_create(p_trian, fspac, dhand, dof_dist)
 
   ! write (*,*) 'ALL NODES BEFORE' 
   ! write (*,*) 'contxt:',context%iam
@@ -165,9 +163,13 @@ program par_test_element_exchange
   !    write(*,'(10i10)') p_trian%f_trian%elems(i)%objects
   ! end do
 
+  do iblock=1, dhand%nblocks
+     call dof_distribution_free(dof_dist(iblock))
+  end do
+  deallocate(dof_dist)
+
   call par_triangulation_free(p_trian)
   call par_mesh_free (p_mesh)
-  call par_partition_free (p_part)
   call par_context_free ( context )
 
   !call memstatus

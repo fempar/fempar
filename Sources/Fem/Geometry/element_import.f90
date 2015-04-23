@@ -105,7 +105,6 @@ contains
     integer (ip) :: i, j
 
     if(lu_out>0) then
-
        write(lu_out,'(a)') '*** begin fem_element_import data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
@@ -127,10 +126,7 @@ contains
        write(lu_out,'(10i10)') element_import%snd_ptrs(1:element_import%npadj+1)
        write(lu_out,'(a)') 'Snd_leids:'
        write(lu_out,'(10i10)') element_import%snd_leids
-
     end if
-
-    return
 
   end subroutine fem_element_import_print
 

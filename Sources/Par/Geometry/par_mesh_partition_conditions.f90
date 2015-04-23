@@ -79,31 +79,33 @@ contains
     ! Locals
     integer         :: iam, num_procs
 
-    ! Finalize par_partition generation
-    assert ( p_context%handler == inhouse )
-    p_part%p_context => p_context
-    if(present(g_context)) p_part%g_context => g_context
-    if(present(c_context)) p_part%c_context => c_context
+    check(1==0) ! Pending code
 
-    if(p_context%iam>=0) then
-       call fem_mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
-            &                                p_mesh%f_mesh,p_part%f_part,nodes,mater,mtype)
-
-       call par_context_info ( p_context, iam, num_procs )
-
-       assert ( p_context%handler==inhouse.and.p_part%f_part%ptype==element_based )
-       assert ( p_part%f_part%nparts == num_procs )
-       
-       call partition_to_import ( p_part%f_part, p_part%f_import )
-
-       ! call fem_import_print (6,p_part%f_import)
-    end if
-
-    assert ( associated(p_part%p_context) )
-    p_mesh%p_part => p_part
-
-    ! Transfer ndime from fine-grid tasks to coarse-grid task
-    call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
+!!$    ! Finalize par_partition generation
+!!$    assert ( p_context%handler == inhouse )
+!!$    p_part%p_context => p_context
+!!$    if(present(g_context)) p_part%g_context => g_context
+!!$    if(present(c_context)) p_part%c_context => c_context
+!!$
+!!$    if(p_context%iam>=0) then
+!!$       call fem_mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
+!!$            &                                p_mesh%f_mesh,p_part%f_part,nodes,mater,mtype)
+!!$
+!!$       call par_context_info ( p_context, iam, num_procs )
+!!$
+!!$       assert ( p_context%handler==inhouse.and.p_part%f_part%ptype==element_based )
+!!$       assert ( p_part%f_part%nparts == num_procs )
+!!$       
+!!$       call partition_to_import ( p_part%f_part, p_part%f_import )
+!!$
+!!$       ! call fem_import_print (6,p_part%f_import)
+!!$    end if
+!!$
+!!$    assert ( associated(p_part%p_context) )
+!!$    p_mesh%p_part => p_part
+!!$
+!!$    ! Transfer ndime from fine-grid tasks to coarse-grid task
+!!$    call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
 
   end subroutine par_structured_create
 
@@ -127,40 +129,44 @@ contains
     type(fem_materials) , optional, intent(inout) :: mater
     integer(ip),          optional, intent(in)    :: mtype
 
-    ! This subroutine requires w_context (all tasks involved here), p_context (fine tasks, which
-    ! are in charge of integration in the finner level) and q_context(unused tasks) to be 
-    ! created by a call to par_context_create_by_split.
-    assert ( associated(p_mesh%p_part%w_context) )
-    assert ( p_mesh%p_part%w_context%created .eqv. .true. )
-    assert ( associated(p_mesh%p_part%p_context) )
-    assert ( p_mesh%p_part%p_context%created .eqv. .true. )
-    assert ( associated(p_mesh%p_part%q_context) )
-    assert ( p_mesh%p_part%q_context%created .eqv. .true. )
-    ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( p_mesh%p_part%w_context%iam >= 0)
-    assert ( (p_mesh%p_part%p_context%iam >=0 .and. p_mesh%p_part%q_context%iam < 0) .or. (p_mesh%p_part%p_context%iam < 0 .and. p_mesh%p_part%q_context%iam >= 0))
-
-    ! Element-based partitioning/inhouse handler required 
-    assert ( p_mesh%p_part%f_part%ptype == element_based )
-    assert ( p_mesh%p_part%p_context%handler == inhouse  )
-
-    if(p_mesh%p_part%p_context%iam>=0) then
-       call fem_mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
-            &                              p_mesh%f_mesh,p_mesh%p_part%f_part,nodes,mater,mtype)       
-       call partition_to_import ( p_mesh%p_part%f_part, p_mesh%p_part%f_import )
-    end if
-
-    ! *** IMPORTANT NOTE: PENDING !!!!
-    ! AFM: How do we solve this with the new design of communicators?
-    !      In other words, which tasks and for what ndime is needed? 
-    ! Transfer ndime from fine-grid tasks to coarse-grid task
-    ! call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
-
-    ! AFM: TEMPORARILY I WILL FOLLOW THE FOLLOWING DIRTY SOLUTION.
-    ! IT WORKS AS ndime is an intent(in) argument that has been
-    ! init by all MPI tasks within the calling driver
-    p_mesh%f_mesh%ndime = ndime
     
+    check(1==0) ! Pending code
+
+
+!!$    ! This subroutine requires w_context (all tasks involved here), p_context (fine tasks, which
+!!$    ! are in charge of integration in the finner level) and q_context(unused tasks) to be 
+!!$    ! created by a call to par_context_create_by_split.
+!!$    assert ( associated(p_mesh%p_part%w_context) )
+!!$    assert ( p_mesh%p_part%w_context%created .eqv. .true. )
+!!$    assert ( associated(p_mesh%p_part%p_context) )
+!!$    assert ( p_mesh%p_part%p_context%created .eqv. .true. )
+!!$    assert ( associated(p_mesh%p_part%q_context) )
+!!$    assert ( p_mesh%p_part%q_context%created .eqv. .true. )
+!!$    ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
+!!$    assert ( p_mesh%p_part%w_context%iam >= 0)
+!!$    assert ( (p_mesh%p_part%p_context%iam >=0 .and. p_mesh%p_part%q_context%iam < 0) .or. (p_mesh%p_part%p_context%iam < 0 .and. p_mesh%p_part%q_context%iam >= 0))
+!!$
+!!$    ! Element-based partitioning/inhouse handler required 
+!!$    assert ( p_mesh%p_part%f_part%ptype == element_based )
+!!$    assert ( p_mesh%p_part%p_context%handler == inhouse  )
+!!$
+!!$    if(p_mesh%p_part%p_context%iam>=0) then
+!!$       call fem_mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
+!!$            &                              p_mesh%f_mesh,p_mesh%p_part%f_part,nodes,mater,mtype)       
+!!$       call partition_to_import ( p_mesh%p_part%f_part, p_mesh%p_part%f_import )
+!!$    end if
+!!$
+!!$    ! *** IMPORTANT NOTE: PENDING !!!!
+!!$    ! AFM: How do we solve this with the new design of communicators?
+!!$    !      In other words, which tasks and for what ndime is needed? 
+!!$    ! Transfer ndime from fine-grid tasks to coarse-grid task
+!!$    ! call par_mesh_bcast (p_mesh, p_mesh%f_mesh%ndime)
+!!$
+!!$    ! AFM: TEMPORARILY I WILL FOLLOW THE FOLLOWING DIRTY SOLUTION.
+!!$    ! IT WORKS AS ndime is an intent(in) argument that has been
+!!$    ! init by all MPI tasks within the calling driver
+!!$    p_mesh%f_mesh%ndime = ndime
+!!$    
   end subroutine par_structured_gen_partition
 
 end module par_mesh_partition_conditions

@@ -194,7 +194,7 @@ contains
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
     integer(ip), optional, intent(in) :: num_continuity   
-    integer(ip), optional, intent(in) :: num_ghosts        
+    integer(ip), optional, intent(in) :: num_ghosts         
 
     integer(ip) :: istat, num_ghosts_
 

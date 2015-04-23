@@ -306,6 +306,8 @@ contains
     character(len=:), allocatable :: string
     integer :: io_status
 
+    allocate( character(len=16) :: string )
+
     write(string,fmt=INT_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'INTEGER_TO_STRING',' fatal error.')

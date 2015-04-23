@@ -48,7 +48,7 @@ contains
   !  * implement other formats (when needed)
   !
   !=============================================================================
-  subroutine fem_mesh_read(lunio,msh,flag)
+  subroutine fem_mesh_read(lunio,msh)
     !------------------------------------------------------------------------
     !
     ! This routine reads a fem_mesh in GiD format.
@@ -57,17 +57,9 @@ contains
     implicit none
     integer(ip)      , intent(in)  :: lunio
     type(fem_mesh)   , intent(out) :: msh
-    logical, optional, intent(in)  :: flag
     integer(ip)       :: i,inode,idime,ipoin,jpoin,ielem,jelem,istat,iboun
     character(1000)     :: tel
-    integer(ip), allocatable :: aux(:),permu(:)
-    logical                  :: flag_
-
-    if(present(flag)) then
-       flag_ = flag
-    else
-       flag_ = .false.
-    end if
+    integer(ip), allocatable :: aux(:)
 
     ! Read first line to get ndime and nnode 
     read(lunio,'(a)') tel
@@ -148,53 +140,6 @@ contains
     end do
     msh%npoin = ipoin       
     call memfree(aux,__FILE__,__LINE__)
-
-    ! Reordering the nodes of the mesh
-    call memalloc(msh%nnode,permu,__FILE__,__LINE__)
-    if(msh%ndime == 2) then        ! 2D
-       if(msh%nnode == 3) then     ! Linear triangles (P1)
-          permu = (/ 1, 2, 3/)
-       elseif(msh%nnode == 4) then ! Linear quads (Q1)
-          if(flag_) then
-             permu = (/ 1, 2, 3, 4/) ! No permuted
-          else
-             permu = (/ 1, 2, 4, 3/)
-          end if
-       elseif(msh%nnode == 8) then ! Quadratic quads (Q2)
-          if(flag_) then
-             permu = (/ 1, 2, 3, 4, 5, 6, 7, 8/) ! No permuted
-          else
-             permu = (/ 1, 2, 4, 3, 5, 7, 8, 6/)
-          end if
-       end if
-    elseif(msh%ndime == 3) then    ! 3D
-       if(msh%nnode == 4) then     ! Linear tetrahedra (P1)
-          permu = (/ 1, 2, 3, 4/)
-       elseif(msh%nnode == 8) then ! Linear hexahedra (Q1)
-          if(flag_) then
-             permu = (/ 1, 2, 3, 4, 5, 6, 7, 8/) ! No permuted
-          else
-             permu = (/ 1, 2, 4, 3, 5, 6, 8, 7/)
-          end if
-       elseif(msh%nnode == 26) then ! Quadratic hexahedra (Q2)
-          if(flag_) then
-             permu = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, &
-                  &     22, 23, 24, 25, 26/) ! No permuted
-          else
-             permu = (/ 1, 9, 2, 12, 21, 10, 4, 11, 3, 13, 22, 14, 25, 27, 23, 16, 24, 15, 5, 17, 6, &
-                  &     20, 26, 18, 8, 19, 7/)
-          end if
-       end if
-    end if
-    call memalloc(msh%nnode,aux,__FILE__,__LINE__)
-    do ielem = 1,msh%nelem
-       aux = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
-       do i = 1,msh%nnode
-          msh%lnods(msh%pnods(ielem)+i-1) = aux(permu(i))
-       end do
-    end do
-    call memfree(aux,__FILE__,__LINE__)
-    call memfree(permu,__FILE__,__LINE__)
  
     ! Count boundary elements
     do while(tel(1:5).ne.'bound')

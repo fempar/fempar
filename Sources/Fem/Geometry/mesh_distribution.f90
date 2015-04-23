@@ -43,7 +43,7 @@ module fem_mesh_distribution_names
         pextn(:),                  &    ! Pointers to the lext*
         lextp(:)                        ! List of parts of external neighbors
      
-     integer(ip), allocatable ::   &
+     integer(igp), allocatable ::   &
         lextn(:)                        ! List of (GIDs of) external neighbors
 
      integer(ip) ::  nebou,        &    ! Number of boundary elements
@@ -53,7 +53,7 @@ module fem_mesh_distribution_names
         lebou(:),                  &  ! List of boundary elements 
         lnbou(:)                      ! List of boundary nodes
 
-     type(map) ::  & 
+     type(map_igp) ::  & 
         emap,                  &  ! Local2Global for elements 
         nmap                      ! Local2Global for vertices
   end type fem_mesh_distribution

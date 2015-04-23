@@ -45,7 +45,7 @@ module fem
   use fem_mesh_distribution_names
 
   use fem_element_import_names
-  use partition_element_import
+  use fem_element_import_create_names
   use fem_conditions_names
   use fem_conditions_io
   use fem_materials_names
@@ -98,5 +98,6 @@ module fem
   use femap_interp
   use create_global_dof_info_names
   !use element_gather_tools
+  use problem_names
 
 end module fem

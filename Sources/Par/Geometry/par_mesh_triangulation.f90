@@ -32,7 +32,7 @@ module par_mesh_triangulation
   use fem_triangulation_names
   use fem_partition_names
   use fem_element_import_names
-  use partition_element_import
+  use fem_element_import_create_names
   use hash_table_names
   use mesh_triangulation
   use psi_penv_mod
@@ -70,20 +70,19 @@ contains
     state = p_trian%f_trian%state
 
     assert(state == triangulation_not_created .or. state == triangulation_elems_filled .or. state == triangulation_elems_objects_filled)
-    assert(p_gmesh%p_part%f_part%pinfo == extended_adjacencies )
 
     ! Free objects data and elems data (if they are present on the p_trian instance)
     call par_triangulation_free_objs_data (p_trian)
     call par_triangulation_free_elems_data(p_trian)
 
-    ! Set a reference to the type(par_context) instance describing the set of MPI tasks
+    ! Set a reference to the type(par_environment) instance describing the set of MPI tasks
     ! among which this type(par_triangulation) instance is going to be distributed 
-    p_trian%p_context => p_gmesh%p_part%p_context 
+    p_trian%p_env => p_gmesh%p_env
 
     ! Create element_import from geometry mesh partition data
-    ! AFM: CURRENTLY partition_to_element_import is the only way to create a type(fem_element_import) instance.
+    ! AFM: CURRENTLY fem_element_import_create is the only way to create a type(fem_element_import) instance.
     !      I have stored it inside type(par_triangulation) as I do not have a better guess.
-    !      In the future, we should get rid of partition_to_element_import, and provide a new
+    !      In the future, we should get rid of fem_element_import_create, and provide a new
     !      subroutine which allows to create this instance using the dual graph and the gluing
     !      data describing its distributed-memory layout. Both the dual graph and associated gluing
     !      data are to be stored in type(par_neighborhood) according to Javier's UML diagram (i.e., fempar.dia). 
@@ -93,7 +92,7 @@ contains
     !      Assuming we agree in the first option, how type(par_triangulation) is going to access type(par_neighbourhood) ??? 
     !      This is related with a parallel discussion about the possibility of enriching type(par_triangulation) with the dual graph 
     !      and associated gluing data. Does it make sense? If yes, does type(par_neighborhood) still makes any sense?
-    call partition_to_element_import ( p_gmesh%p_part%f_part, p_trian%f_el_import)
+    call fem_element_import_create ( p_gmesh%f_mesh_dist, p_trian%f_el_import)
 
     ! Now we are sure that the local portion of p_trian, i.e., p_trian%f_trian is in triangulation_not_created state
     ! Let's create and fill it
@@ -112,7 +111,7 @@ contains
     ! This requirement is currently fulfilled by mesh_to_triangulation (in particular, by geom2topo within) but we should
     ! keep this in mind all the way through. If this were not assumed, we should find a way to identify a corner within
     ! p_trian%f_trian, and map from a corner local ID in p_trian%f_trian to a vertex local ID in p_gmesh%f_mesh.
-    num_verts = p_gmesh%p_part%f_part%npoin
+    num_verts = p_gmesh%f_mesh%npoin
 
     ! Create array of elements with room for ghost elements
     allocate( par_elem_topology :: p_trian%mig_elems(num_elems + num_ghosts), stat=istat)
@@ -124,34 +123,34 @@ contains
     end select
 
     p_trian%elems(:)%interface = -1 
-    do ielem=1, p_gmesh%p_part%f_part%nebou
-       p_trian%elems(p_gmesh%p_part%f_part%lebou(ielem))%interface = ielem
+    do ielem=1, p_gmesh%f_mesh_dist%nebou
+       p_trian%elems(p_gmesh%f_mesh_dist%lebou(ielem))%interface = ielem
     end do
 
-    p_trian%num_itfc_elems = p_gmesh%p_part%f_part%nebou
+    p_trian%num_itfc_elems = p_gmesh%f_mesh_dist%nebou
     call memalloc( p_trian%num_itfc_elems, p_trian%lst_itfc_elems, __FILE__, __LINE__ )
-    p_trian%lst_itfc_elems = p_gmesh%p_part%f_part%lebou
+    p_trian%lst_itfc_elems = p_gmesh%f_mesh_dist%lebou
 
     ! Fill array of elements (local ones)
     do ielem=1, num_elems
-       p_trian%elems(ielem)%mypart      = p_trian%p_context%iam + 1
-       p_trian%elems(ielem)%globalID    = p_gmesh%p_part%f_part%l2ge(ielem)
+       p_trian%elems(ielem)%mypart      = p_trian%p_env%p_context%iam + 1
+       p_trian%elems(ielem)%globalID    = p_gmesh%f_mesh_dist%emap%l2g(ielem)
        p_trian%elems(ielem)%num_objects = p_trian%f_trian%elems(ielem)%num_objects
        call memalloc( p_trian%elems(ielem)%num_objects, p_trian%elems(ielem)%objects_GIDs, __FILE__, __LINE__ )
        do iobj=1, p_trian%elems(ielem)%num_objects
           jobj = p_trian%f_trian%elems(ielem)%objects(iobj)
           if ( jobj <= num_verts ) then ! It is a corner => re-use global ID
-             p_trian%elems(ielem)%objects_GIDs(iobj) = p_gmesh%p_part%f_part%l2gn(jobj)
+             p_trian%elems(ielem)%objects_GIDs(iobj) = p_gmesh%f_mesh_dist%nmap%l2g(jobj)
           else ! It is an edge or face => generate new local-global ID (non-consistent, non-consecutive)
              ! The ISHFT(1,50) is used to start numbering efs after vertices, assuming nvert < 2**60
-             p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))
+             p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%f_mesh_dist%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))
              !p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(6,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(6,igp))
           end if
        end do
     end do
 
     ! Get objects_GIDs from ghost elements
-    call ghost_elements_exchange ( p_gmesh%p_part%p_context%icontxt, p_trian%f_el_import, p_trian%elems )
+    call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_trian%elems )
 
     ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
     do ielem = num_elems+1, num_elems+num_ghosts       
@@ -172,18 +171,18 @@ contains
        call hash%put( key = p_trian%elems(ielem)%globalID, val = ielem, stat=istat)
     end do
 
-    do ielem = 1, p_gmesh%p_part%f_part%nebou     ! Loop interface elements 
-       ! Step 1: Put LID of vertices in the ghost elements (p_part%f_part)
-       ilele = p_gmesh%p_part%f_part%lebou(ielem) ! local ID element
+    do ielem = 1, p_gmesh%f_mesh_dist%nebou     ! Loop interface elements 
+       ! Step 1: Put LID of vertices in the ghost elements (f_mesh_dist)
+       ilele = p_gmesh%f_mesh_dist%lebou(ielem) ! local ID element
        ! aux : array of ilele (LID) vertices in GID
        nvert  = p_trian%f_trian%elems(ilele)%topology%nobje_dim(2)-1
        call memalloc( nvert, aux_igp, __FILE__, __LINE__  )
        do iobj = 1, nvert                        ! vertices only
           aux_igp(iobj) = p_trian%elems(ilele)%objects_GIDs(iobj) ! extract GIDs vertices
        end do
-       do jelem = p_gmesh%p_part%f_part%pextn(ielem), & 
-            p_gmesh%p_part%f_part%pextn(ielem+1)-1  ! external neighbor elements
-          call hash%get(key = p_gmesh%p_part%f_part%lextn(jelem), val=jlele, stat=istat) ! LID external element
+       do jelem = p_gmesh%f_mesh_dist%pextn(ielem), & 
+            p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
+          call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
           do jobj = 1, p_trian%f_trian%elems(jlele)%topology%nobje_dim(2)-1 ! vertices external 
              if ( p_trian%f_trian%elems(jlele)%objects(jobj) == -1) then
                 do iobj = 1, nvert
@@ -198,12 +197,12 @@ contains
        call memfree(aux_igp, __FILE__, __LINE__) 
     end do
 
-    do ielem = 1, p_gmesh%p_part%f_part%nebou     ! Loop interface elements 
-       ! Step 2: Put LID of efs in the ghost elements (p_part%f_part) 
-       ilele = p_gmesh%p_part%f_part%lebou(ielem) ! local ID element
-       do jelem = p_gmesh%p_part%f_part%pextn(ielem), &
-            p_gmesh%p_part%f_part%pextn(ielem+1)-1  ! external neighbor elements
-          call hash%get(key = p_gmesh%p_part%f_part%lextn(jelem), val=jlele, stat=istat) ! LID external element
+    do ielem = 1, p_gmesh%f_mesh_dist%nebou     ! Loop interface elements 
+       ! Step 2: Put LID of efs in the ghost elements (f_mesh_dist) 
+       ilele = p_gmesh%f_mesh_dist%lebou(ielem) ! local ID element
+       do jelem = p_gmesh%f_mesh_dist%pextn(ielem), &
+            p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
+          call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
           ! loop over all efs of external elements
           do idime =2,p_trian%f_trian%num_dims
              do iobj = p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime), &

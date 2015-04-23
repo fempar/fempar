@@ -90,7 +90,7 @@ contains
 
     ! Communicate problem, continuity, order, and material
     write(*,*) '***** EXCHANGE GHOST INFO *****'
-    call ghost_elements_exchange ( p_trian%p_context%icontxt, p_trian%f_el_import, femsp%lelem )
+    call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, femsp%lelem )
 
     ! Create ghost fem space (only partially, i.e., previous info)
     ! write(*,*) '***** FILL GHOST ELEMENTS  *****'

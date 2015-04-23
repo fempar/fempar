@@ -257,10 +257,8 @@ contains
     ! Associate parallel partition 
     t_p_vec%p_part => s_p_vec%p_part
 
-    if ( s_p_vec%p_part%p_context%handler == inhouse ) then
-       assert ( s_p_vec%state /= undefined )
-       t_p_vec%state = s_p_vec%state
-    end if
+    assert ( s_p_vec%state /= undefined )
+    t_p_vec%state = s_p_vec%state
     
     if(s_p_vec%p_part%p_context%iam<0) return
 
@@ -382,10 +380,8 @@ contains
     assert ( s_p_vec%p_part%p_context%created .eqv. .true.)
 
     t_p_vec%p_part => s_p_vec%p_part
-    if ( t_p_vec%p_part%p_context%handler == inhouse ) then
-       ! t_p_vec%state = undefined
-       t_p_vec%state = s_p_vec%state
-    end if
+    ! t_p_vec%state = undefined
+    t_p_vec%state = s_p_vec%state
 
     if(s_p_vec%p_part%p_context%iam<0) return
 
@@ -423,19 +419,14 @@ contains
     assert ( p_vec%p_part%p_context%created .eqv. .true.)
     if(p_vec%p_part%p_context%iam<0) return
 
-    ! assert ( p_vec%state /= undefined )
-    if ( p_vec%p_part%f_part%ptype == element_based & 
-         & .and. p_vec%p_part%p_context%handler == inhouse ) then
-       ! Element-based partitioning/inhouse handler required
-       assert ( p_vec%p_part%f_part%ptype == element_based )
-       assert ( p_vec%p_part%p_context%handler == inhouse ) 
+    ! Element-based partitioning/inhouse handler required
+    assert ( p_vec%p_part%f_part%ptype == element_based )
 
-       ni = p_vec%f_vector%neq - p_vec%p_part%f_part%nmap%nb
-       call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
-       call comm_interface ( p_vec_G, alpha, mode )
+    ni = p_vec%f_vector%neq - p_vec%p_part%f_part%nmap%nb
+    call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
+    call comm_interface ( p_vec_G, alpha, mode )
 
-       p_vec%state = full_summed
-    end if
+    p_vec%state = full_summed
   end subroutine par_vector_comm
 
   !=============================================================================
@@ -466,7 +457,6 @@ contains
 
     ! Element-based partitioning/inhouse handler required
     assert ( p_vec%p_part%f_part%ptype == element_based )
-    assert ( p_vec%p_part%p_context%handler == inhouse )  
 
     if (present( alpha )) then
        alpha_ = alpha
@@ -536,10 +526,8 @@ contains
 
     ! assert ( p_vec%state /= undefined )
 
-
     ! Element-based partitioning/inhouse handler required
     assert ( p_vec%p_part%f_part%ptype == element_based )
-    assert ( p_vec%p_part%p_context%handler == inhouse ) 
 
     ni = p_vec%f_vector%neq - p_vec%p_part%f_part%nmap%nb
     call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
@@ -570,10 +558,8 @@ contains
 
     ! assert ( p_vec%state /= undefined )
 
-
     ! Element-based partitioning/inhouse handler required
     assert ( p_vec%p_part%f_part%ptype == element_based )
-    assert ( p_vec%p_part%p_context%handler == inhouse ) 
 
     if ( present(weight) ) then
        i1 = 1
@@ -845,7 +831,6 @@ contains
 
     ! Check matching partition/handler
     assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-    assert ( x%p_part%p_context%handler == y%p_part%p_context%handler ) 
 
     ! if ( y%p_part%p_context%handler == inhouse ) then
        assert ( x%state /= undefined  )
@@ -877,15 +862,11 @@ contains
     if(y%p_part%p_context%iam<0) return
 
 
-    if ( y%p_part%p_context%handler == inhouse ) then
-       ! write(*,*) 'XXX'
-       assert ( y%state /= undefined  )
-       ! Zero-out local copy
-       call fem_vector_zero ( y%f_vector )
-    else if( y%p_part%p_context%handler == trilinos ) then
-          call fem_vector_zero ( y%f_vector )
-    end if
-
+    ! write(*,*) 'XXX'
+    assert ( y%state /= undefined  )
+    ! Zero-out local copy
+    call fem_vector_zero ( y%f_vector )
+    
   end subroutine par_vector_zero
 
   !=============================================================================
@@ -904,13 +885,9 @@ contains
     if  ( t == 0.0_rp ) then
        call par_vector_zero(y)
     else 
-       if (y%p_part%p_context%handler == inhouse) then
-          ! Scale local copy
-          call fem_vector_init (t, y%f_vector)
-          y%state = full_summed
-       else if( y%p_part%p_context%handler == trilinos ) then
-          call fem_vector_init (t, y%f_vector )
-       end if
+       ! Scale local copy
+       call fem_vector_init (t, y%f_vector)
+       y%state = full_summed
     end if
   end subroutine par_vector_init
 
@@ -933,7 +910,6 @@ contains
 
     ! Check matching partition/handler
     assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-    assert ( x%p_part%p_context%handler == y%p_part%p_context%handler ) 
 
     ! if (y%p_part%p_context%handler == inhouse) then
        assert ( x%state /= undefined )
@@ -969,7 +945,6 @@ contains
 
     ! Check matching partition/handler
     assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-    assert ( x%p_part%p_context%handler == y%p_part%p_context%handler ) 
 
     ! if ( y%p_part%p_context%handler == inhouse ) then
        assert ( x%state /= undefined .and. y%state /= undefined  )
@@ -1004,7 +979,6 @@ contains
 
     ! Check matching partition/handler
     assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-    assert ( x%p_part%p_context%handler == y%p_part%p_context%handler ) 
 
     ! if ( y%p_part%p_context%handler == inhouse ) then
        assert ( x%state /= undefined .and. y%state /= undefined  )
@@ -1040,7 +1014,6 @@ contains
 
     ! Check matching partition/handler
     assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-    assert ( x%p_part%p_context%handler == y%p_part%p_context%handler ) 
 
     ! if ( y%p_part%p_context%handler == inhouse ) then
        assert ( x%state /= undefined .and. y%state /= undefined  )
@@ -1074,7 +1047,6 @@ contains
 
     ! Check matching partition/handler
     assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-    assert ( x%p_part%p_context%handler == y%p_part%p_context%handler ) 
 
     ! if ( y%p_part%p_context%handler == inhouse ) then
        assert ( x%state /= undefined .and. y%state /= undefined  )
@@ -1108,7 +1080,6 @@ contains
 
     ! Check matching partition/handler
     assert ( x%p_part%f_part%ptype == y%p_part%f_part%ptype )
-    assert ( x%p_part%p_context%handler == y%p_part%p_context%handler ) 
 
     ! if (y%p_part%p_context%handler == inhouse) then
        assert ( x%state /= undefined .and. y%state /= undefined  )
@@ -1143,9 +1114,6 @@ contains
     if(p_vec%p_part%p_context%iam<0) return
 
     write(luout,'(a)') '*** begin par_vector data structure ***'
-    if  (p_vec%p_part%p_context%handler == inhouse) then
-       write (luout, '(a,i10)') 'State:', p_vec%state
-    end if
     call  par_partition_print (luout, p_vec%p_part)
     call  fem_vector_print    (luout, p_vec%f_vector)
     ! if ( p_vec%p_part%p_context%handler == trilinos ) then 
@@ -1241,7 +1209,6 @@ contains
 
     ! Element-based partitioning/inhouse handler required
     assert ( x%p_part%f_part%ptype == element_based )
-    assert ( x%p_part%p_context%handler == inhouse ) 
 
     t = 0.0_rp 
     do iobj=2, x%p_part%f_part%nobjs
