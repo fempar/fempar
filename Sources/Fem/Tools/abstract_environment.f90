@@ -25,45 +25,44 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module serial_operator_names
+module abstract_environment_names
   use types
-  use base_operator_names
   implicit none
 
   private
-
-  ! Serial operator (overrides those methods that are 
-  ! trivially implemented in the sequential case)
-  type, abstract, extends(base_operator) :: serial_operator
+  ! Abstract environment
+  type, abstract :: abstract_environment
    contains
-     procedure  :: info => serial_operator_info
-     procedure  :: am_i_fine_task => serial_operator_am_i_fine_task
-     procedure  :: bcast => serial_operator_bcast
-  end type serial_operator
+     procedure (info_interface)           , deferred  :: info
+     procedure (am_i_fine_task_interface) , deferred  :: am_i_fine_task
+     procedure (bcast_interface)          , deferred  :: bcast
+  end type abstract_environment
 
-  public :: serial_operator
+  ! Abstract interfaces
+  abstract interface
+     subroutine info_interface(env,me,np) 
+       import :: abstract_environment, ip
+       implicit none
+       class(abstract_environment),intent(in)  :: env
+       integer(ip)                ,intent(out) :: me
+       integer(ip)                ,intent(out) :: np
+     end subroutine info_interface
 
-contains
-  subroutine serial_operator_info(op,me,np) 
-    implicit none
-    class(serial_operator), intent(in)  :: op
-    integer(ip)           , intent(out) :: me
-    integer(ip)           , intent(out) :: np
-    me = 0
-    np = 1
-  end subroutine serial_operator_info
+     function am_i_fine_task_interface(env) 
+       import :: abstract_environment, ip
+       implicit none
+       class(abstract_environment) ,intent(in)  :: env
+       logical                                  :: am_i_fine_task_interface 
+     end function am_i_fine_task_interface
 
-  function serial_operator_am_i_fine_task(op) 
-    implicit none
-    class(serial_operator), intent(in)  :: op
-    logical                             :: serial_operator_am_i_fine_task
-    serial_operator_am_i_fine_task = .true.
-  end function serial_operator_am_i_fine_task
-  
-  subroutine serial_operator_bcast (op, condition)
-    implicit none
-    class(serial_operator), intent(in) :: op
-    logical, intent(inout) :: condition
-  end subroutine serial_operator_bcast
+     subroutine bcast_interface (env, condition)
+       import :: abstract_environment
+       implicit none
+       class(abstract_environment) ,intent(in)    :: env
+       logical                     ,intent(inout) :: condition
+     end subroutine bcast_interface
+  end interface
 
-end module serial_operator_names
+  public :: abstract_environment
+
+end module abstract_environment_names

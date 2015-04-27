@@ -40,9 +40,6 @@ module base_operator_names
    contains
      procedure (apply_interface)         , deferred :: apply
      procedure (apply_fun_interface)     , deferred :: apply_fun
-     procedure (info_interface)          , deferred :: info
-     procedure (am_i_fine_task_interface), deferred :: am_i_fine_task
-     procedure (bcast_interface)         , deferred :: bcast
      procedure  :: sum       => sum_operator_constructor
      procedure  :: sub       => sub_operator_constructor
      procedure  :: mult      => mult_operator_constructor
@@ -80,9 +77,6 @@ module base_operator_names
    contains
      procedure  :: apply     => abs_operator_apply
      procedure  :: apply_fun => abs_operator_apply_fun
-     procedure  :: info => abs_operator_info
-     procedure  :: am_i_fine_task => abs_operator_am_i_fine_task
-     procedure  :: bcast => abs_operator_bcast
      procedure  :: free  => abs_operator_destructor
      procedure  :: assign => abs_operator_constructor
      generic    :: assignment(=) => assign
@@ -93,9 +87,6 @@ module base_operator_names
   contains
      procedure  :: apply => sum_operator_apply
      procedure  :: apply_fun => sum_operator_apply_fun 
-     procedure  :: info => sum_operator_info
-     procedure  :: am_i_fine_task => sum_operator_am_i_fine_task
-     procedure  :: bcast => sum_operator_bcast
   end type sum_operator
 
 
@@ -104,9 +95,6 @@ module base_operator_names
    contains
      procedure  :: apply => sub_operator_apply
      procedure  :: apply_fun => sub_operator_apply_fun 
-     procedure  :: info => sub_operator_info
-     procedure  :: am_i_fine_task => sub_operator_am_i_fine_task
-     procedure  :: bcast => sub_operator_bcast
   end type sub_operator
 
 
@@ -115,9 +103,6 @@ module base_operator_names
    contains
      procedure  :: apply => mult_operator_apply
      procedure  :: apply_fun => mult_operator_apply_fun 
-     procedure  :: info => mult_operator_info
-     procedure  :: am_i_fine_task => mult_operator_am_i_fine_task
-     procedure  :: bcast => mult_operator_bcast
   end type mult_operator
 
 
@@ -128,9 +113,6 @@ module base_operator_names
    contains
      procedure  :: apply => scal_operator_apply
      procedure  :: apply_fun => scal_operator_apply_fun
-     procedure  :: info => scal_operator_info
-     procedure  :: am_i_fine_task => scal_operator_am_i_fine_task
-     procedure  :: bcast => scal_operator_bcast
      procedure  :: free => scal_operator_destructor
      procedure  :: assign => scal_operator_copy
   end type scal_operator
@@ -142,9 +124,6 @@ module base_operator_names
    contains
      procedure  :: apply => minus_operator_apply
      procedure  :: apply_fun => minus_operator_apply_fun 
-     procedure  :: info => minus_operator_info
-     procedure  :: am_i_fine_task => minus_operator_am_i_fine_task
-     procedure  :: bcast => minus_operator_bcast
      procedure  :: free => minus_operator_destructor
      procedure  :: assign => minus_operator_copy
   end type minus_operator
@@ -170,28 +149,6 @@ module base_operator_names
        class(base_operand) , intent(in)  :: x
        class(base_operand) , allocatable :: y 
      end function apply_fun_interface
-
-     subroutine info_interface(op,me,np) 
-       import :: base_operator, ip
-       implicit none
-       class(base_operator), intent(in)  :: op
-       integer(ip)         , intent(out) :: me
-       integer(ip)         , intent(out) :: np
-     end subroutine info_interface
-
-     function am_i_fine_task_interface(op) 
-       import :: base_operator, ip
-       implicit none
-       class(base_operator), intent(in)  :: op
-       logical                           :: am_i_fine_task_interface 
-     end function am_i_fine_task_interface
-
-     subroutine bcast_interface (op, condition)
-       import :: base_operator
-       implicit none
-       class(base_operator), intent(in) :: op
-       logical, intent(inout) :: condition
-     end subroutine bcast_interface
 
      subroutine expression_operator_assign_interface(op1,op2)
        import :: base_operator, expression_operator
@@ -772,207 +729,5 @@ contains
     call x%CleanTemp()
     call op%CleanTemp()
   end subroutine abs_operator_apply
-
-  !-------------------------------------!
-  ! info implementations                !
-  !-------------------------------------!
-  subroutine sum_operator_info(op,me,np)
-    implicit none
-    class(sum_operator), intent(in)    :: op
-    integer(ip)        , intent(out)   :: me
-    integer(ip)        , intent(out)   :: np
-    call op%GuardTemp()
-    call op%op1%info(me,np)
-    call op%CleanTemp()
-  end subroutine sum_operator_info
-
-  subroutine sub_operator_info(op,me,np)
-    implicit none
-    class(sub_operator), intent(in)    :: op
-    integer(ip)        , intent(out)   :: me
-    integer(ip)        , intent(out)   :: np
-    call op%GuardTemp()
-    call op%op1%info(me,np)
-    call op%CleanTemp()
-  end subroutine sub_operator_info
-  
-  subroutine mult_operator_info(op,me,np)
-    implicit none
-    class(mult_operator), intent(in)    :: op
-    integer(ip)         , intent(out)   :: me
-    integer(ip)         , intent(out)   :: np
-    call op%GuardTemp()
-    call op%op1%info(me,np)
-    call op%CleanTemp()
-  end subroutine mult_operator_info
-
-  subroutine minus_operator_info(op,me,np)
-    implicit none
-    class(minus_operator), intent(in)   :: op
-    integer(ip)         , intent(out)   :: me
-    integer(ip)         , intent(out)   :: np
-    call op%GuardTemp()
-    call op%op%info(me,np)
-    call op%CleanTemp()
-  end subroutine minus_operator_info
-  
-  subroutine scal_operator_info(op,me,np)
-    implicit none
-    class(scal_operator), intent(in)    :: op
-    integer(ip)         , intent(out)   :: me
-    integer(ip)         , intent(out)   :: np
-    call op%GuardTemp()
-    call op%op%info(me,np)
-    call op%CleanTemp()
-  end subroutine scal_operator_info
-
-  subroutine abs_operator_info(op,me,np)
-    implicit none
-    class(abs_operator), intent(in)    :: op
-    integer(ip)        , intent(out)   :: me
-    integer(ip)        , intent(out)   :: np
-
-    call op%GuardTemp()
-    if(associated(op%op_stored)) then
-       assert(.not.associated(op%op))
-       call op%op_stored%info(me,np)
-    else if(associated(op%op)) then
-       assert(.not.associated(op%op_stored))
-       call op%op%info(me,np)
-    else
-       check(1==0)
-    end if
-    call op%CleanTemp()
-  end subroutine abs_operator_info
-
-  !-------------------------------------!
-  ! am_i_fine_task implementations      !
-  !-------------------------------------!
-  function sum_operator_am_i_fine_task(op)
-    implicit none
-    class(sum_operator), intent(in)    :: op
-    logical :: sum_operator_am_i_fine_task
-    call op%GuardTemp()
-    sum_operator_am_i_fine_task = op%op1%am_i_fine_task()
-    call op%CleanTemp()
-  end function sum_operator_am_i_fine_task
-  
-  function sub_operator_am_i_fine_task(op)
-    implicit none
-    class(sub_operator), intent(in)    :: op
-    logical :: sub_operator_am_i_fine_task
-    call op%GuardTemp()
-    sub_operator_am_i_fine_task = op%op1%am_i_fine_task()
-    call op%CleanTemp()
-  end function sub_operator_am_i_fine_task
-
-  function mult_operator_am_i_fine_task(op)
-    implicit none
-    class(mult_operator), intent(in)    :: op
-    logical :: mult_operator_am_i_fine_task
-    call op%GuardTemp()
-    mult_operator_am_i_fine_task = op%op1%am_i_fine_task()
-    call op%CleanTemp()
-  end function mult_operator_am_i_fine_task
-  
-  function minus_operator_am_i_fine_task(op)
-    implicit none
-    class(minus_operator), intent(in)    :: op
-    logical :: minus_operator_am_i_fine_task
-    call op%GuardTemp()
-    minus_operator_am_i_fine_task = op%op%am_i_fine_task()
-    call op%CleanTemp()
-  end function minus_operator_am_i_fine_task
-
-  function scal_operator_am_i_fine_task(op)
-    implicit none
-    class(scal_operator), intent(in)    :: op
-    logical :: scal_operator_am_i_fine_task
-    call op%GuardTemp()
-    scal_operator_am_i_fine_task = op%op%am_i_fine_task()
-    call op%CleanTemp()
-  end function scal_operator_am_i_fine_task
-
-  function abs_operator_am_i_fine_task(op)
-    implicit none
-    class(abs_operator), intent(in)    :: op
-    logical :: abs_operator_am_i_fine_task
-    call op%GuardTemp()
-    if(associated(op%op_stored)) then
-       assert(.not.associated(op%op))
-       abs_operator_am_i_fine_task = op%op_stored%am_i_fine_task()
-    else if(associated(op%op)) then
-       assert(.not.associated(op%op_stored))
-       abs_operator_am_i_fine_task = op%op%am_i_fine_task()
-    else
-       check(1==0)
-    end if
-    call op%CleanTemp()
-  end function abs_operator_am_i_fine_task
-
-  !-------------------------------------!
-  ! bcast implementations               !
-  !-------------------------------------!
-  subroutine sum_operator_bcast(op,condition)
-    implicit none
-    class(sum_operator), intent(in)    :: op
-    logical            , intent(inout)   :: condition
-    call op%GuardTemp()
-    call op%op1%bcast(condition)
-    call op%CleanTemp()
-  end subroutine sum_operator_bcast
-
-  subroutine sub_operator_bcast(op,condition)
-    implicit none
-    class(sub_operator), intent(in)    :: op
-    logical            , intent(inout)   :: condition
-    call op%GuardTemp()
-    call op%op1%bcast(condition)
-    call op%CleanTemp()
-  end subroutine sub_operator_bcast
-
-  subroutine mult_operator_bcast(op,condition)
-    implicit none
-    class(mult_operator), intent(in)   :: op
-    logical            , intent(inout)   :: condition
-    call op%GuardTemp()
-    call op%op1%bcast(condition)
-    call op%CleanTemp()
-  end subroutine mult_operator_bcast
-
-  subroutine minus_operator_bcast(op,condition)
-    implicit none
-    class(minus_operator), intent(in)   :: op
-    logical            , intent(inout)   :: condition
-    call op%GuardTemp()
-    call op%op%bcast(condition)
-    call op%CleanTemp()
-  end subroutine minus_operator_bcast
-
-  subroutine scal_operator_bcast(op,condition)
-    implicit none
-    class(scal_operator), intent(in)   :: op
-    logical            , intent(inout)   :: condition
-    call op%GuardTemp()
-    call op%op%bcast(condition)
-    call op%CleanTemp()
-  end subroutine scal_operator_bcast
-
-  subroutine abs_operator_bcast(op,condition)
-    implicit none
-    class(abs_operator), intent(in)     :: op
-    logical            , intent(inout)   :: condition
-    call op%GuardTemp()
-    if(associated(op%op_stored)) then
-       assert(.not.associated(op%op))
-       call op%op_stored%bcast(condition)
-    else if(associated(op%op)) then
-       assert(.not.associated(op%op_stored))
-       call op%op%bcast(condition)
-    else
-       check(1==0)
-    end if
-    call op%CleanTemp()
-  end subroutine abs_operator_bcast
 
 end module base_operator_names

@@ -52,6 +52,7 @@ program test_dirsol_mm
   type(fem_precond)        :: feprec
   type(fem_precond_params) :: ppars
   type(solver_control)     :: sctrl
+  type(serial_environment) :: senv
 
   integer(ip)              :: solver 
   integer(ip)              :: driver 
@@ -153,7 +154,7 @@ program test_dirsol_mm
      t1 = wtime()
      feunk%b=1.0_rp
      fevec%b=1.0_rp
-     call abstract_solve(mmmat,feprec,fevec,feunk,sctrl)
+     call abstract_solve(mmmat,feprec,fevec,feunk,sctrl,senv)
      t2 = wtime() 
      write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
 
@@ -290,7 +291,7 @@ program test_dirsol_mm
                     t1 = wtime()
                     feunk%b=1.0_rp
                     fevec%b=1.0_rp
-                    call abstract_solve(mmmat,feprec,fevec,feunk,sctrl)
+                    call abstract_solve(mmmat,feprec,fevec,feunk,sctrl,senv)
                     t2 = wtime() 
                     write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
                     aerror = sctrl%err1

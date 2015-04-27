@@ -61,9 +61,6 @@ module block_precond_lu_names
      procedure  :: apply          => block_precond_lu_apply
      procedure  :: apply_fun      => block_precond_lu_apply_fun
      procedure  :: free           => block_precond_lu_free_tbp
-     procedure  :: info           => block_precond_lu_info
-     procedure  :: am_i_fine_task => block_precond_lu_am_i_fine_task
-     procedure  :: bcast          => block_precond_lu_bcast
   end type block_precond_lu
 
   integer(ip), parameter :: lower = 0
@@ -119,28 +116,6 @@ contains
     implicit none
     class(block_precond_lu), intent(inout) :: this
   end subroutine block_precond_lu_free_tbp
-
-  subroutine block_precond_lu_info(op,me,np)
-    implicit none
-    class(block_precond_lu), intent(in)    :: op
-    integer(ip)        , intent(out)   :: me
-    integer(ip)        , intent(out)   :: np
-    call op%L%info(me,np)
-  end subroutine block_precond_lu_info
-
-  function block_precond_lu_am_i_fine_task(op)
-    implicit none
-    class(block_precond_lu), intent(in)    :: op
-    logical :: block_precond_lu_am_i_fine_task
-    block_precond_lu_am_i_fine_task = op%L%am_i_fine_task()
-  end function block_precond_lu_am_i_fine_task
-
-  subroutine block_precond_lu_bcast(op,condition)
-    implicit none
-    class(block_precond_lu), intent(in)    :: op
-    logical            , intent(inout)   :: condition
-    call op%L%bcast(condition)
-  end subroutine block_precond_lu_bcast
 
   subroutine block_precond_lu_create (bop, nblocks)
     implicit none

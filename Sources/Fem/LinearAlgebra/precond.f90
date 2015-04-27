@@ -42,7 +42,6 @@ module fem_precond_names
   ! Abstract modules
   use base_operand_names
   use base_operator_names
-  use serial_operator_names
 
 # include "debug.i90"
 
@@ -79,7 +78,7 @@ module fem_precond_names
   integer (ip), parameter  :: precond_free_struct = 8
   integer (ip), parameter  :: precond_free_clean  = 9
 
-  type, extends(serial_operator) :: fem_precond
+  type, extends(base_operator) :: fem_precond
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 

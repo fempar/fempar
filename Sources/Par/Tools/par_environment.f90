@@ -30,6 +30,7 @@ module par_environment_names
   use types
   use memor
   use maps_names
+  use abstract_environment_names
 
   ! Parallel modules
   use psb_penv_mod
@@ -39,7 +40,7 @@ module par_environment_names
   implicit none
   private
 
-  type par_environment
+  type, extends(abstract_environment) ::  par_environment
      logical                      :: created             ! Has the parallel environment been created?
      type (par_context), pointer  :: p_context => NULL() ! Fine process
      type (par_context), pointer  :: g_context => NULL() ! Fine_to coarse comm
@@ -63,7 +64,11 @@ module par_environment_names
                            par_environment_create_multilevel
      
      procedure :: par_environment_bcast_logical
-     generic :: bcast => par_environment_bcast_logical 
+
+     
+     procedure :: info           => par_environment_info
+     procedure :: am_i_fine_task => par_environment_am_i_fine_task
+     procedure :: bcast          => par_environment_bcast_logical
   end type par_environment
   
 
@@ -76,7 +81,34 @@ module par_environment_names
 
 contains
 
-  subroutine par_environment_bcast_logical(p_env,condition)
+
+  subroutine par_environment_info(env,me,np) 
+    implicit none
+    class(par_environment),intent(in)  :: env
+    integer(ip)           ,intent(out) :: me
+    integer(ip)           ,intent(out) :: np
+
+    ! Parallel environment MUST BE already created
+    assert ( env%created )
+
+    me = env%p_context%iam 
+    np = env%p_context%np
+
+  end subroutine par_environment_info
+  
+  function par_environment_am_i_fine_task(env) 
+    implicit none
+    class(par_environment) ,intent(in)  :: env
+    logical                             :: par_environment_am_i_fine_task 
+
+    ! Parallel environment MUST BE already created
+    assert ( env%created )
+
+    par_environment_am_i_fine_task = (env%p_context%iam >= 0)
+
+  end function par_environment_am_i_fine_task
+
+  subroutine par_environment_bcast_logical(env,condition)
 #ifdef MPI_MOD
     use mpi
 #endif
@@ -85,15 +117,15 @@ contains
     include 'mpif.h'
 #endif
     ! Parameters
-    class(par_environment), intent(in)    :: p_env
+    class(par_environment), intent(in)    :: env
     logical               , intent(inout) :: condition
 
     ! Locals
     integer :: mpi_comm_b, info
 
-    assert ( p_env%created .eqv. .true.)
+    assert ( env%created .eqv. .true.)
 
-    if ( p_env%num_levels > 1 ) then
+    if ( env%num_levels > 1 ) then
        ! b_context is an intercomm among p_context & q_context
        ! Therefore the semantics of the mpi_bcast subroutine slightly changes
        ! P_0 in p_context is responsible for bcasting condition to all the processes
@@ -103,17 +135,17 @@ contains
        ! the current implementation of our wrappers
        ! to the MPI library icontxt and mpi_comm are actually 
        ! the same)
-       call psb_get_mpicomm (p_env%b_context%icontxt, mpi_comm_b)
+       call psb_get_mpicomm (env%b_context%icontxt, mpi_comm_b)
        
-       if (p_env%p_context%iam >=0) then
-          if ( p_env%p_context%iam == psb_root_ ) then
+       if (env%p_context%iam >=0) then
+          if ( env%p_context%iam == psb_root_ ) then
              call mpi_bcast(condition,1,MPI_LOGICAL,MPI_ROOT,mpi_comm_b,info)
              check( info == mpi_success )
           else
              call mpi_bcast(condition,1,MPI_LOGICAL,MPI_PROC_NULL,mpi_comm_b,info)
              check( info == mpi_success )
           end if
-       else if (p_env%q_context%iam >=0) then
+       else if (env%q_context%iam >=0) then
           call mpi_bcast(condition,1,MPI_LOGICAL,psb_root_,mpi_comm_b,info)
           check( info == mpi_success )
        end if

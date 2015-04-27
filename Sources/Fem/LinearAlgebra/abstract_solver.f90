@@ -30,6 +30,7 @@ module abstract_solver
   use solver_base 
   use base_operator_names
   use base_operand_names
+  use abstract_environment_names
 
 # include "debug.i90"
 
@@ -44,13 +45,14 @@ contains
   !=============================================================================
   ! Abstract Solve (public driver)
   !=============================================================================
-  subroutine abstract_solve(A,M,b,x,ctrl)
+  subroutine abstract_solve(A,M,b,x,ctrl,env)
     implicit none
-    class(base_operator), intent(in) :: A        ! Matrix
-    class(base_operator), intent(in) :: M        ! Preconditioner
-    class(base_operand) , intent(in)    :: b        ! RHS
-    class(base_operand) , intent(inout) :: x        ! Approximate solution
-    type(solver_control), intent(inout) :: ctrl
+    class(base_operator), intent(in)        :: A        ! Matrix
+    class(base_operator), intent(in)        :: M        ! Preconditioner
+    class(base_operand) , intent(in)        :: b        ! RHS
+    class(base_operand) , intent(inout)     :: x        ! Approximate solution
+    type(solver_control), intent(inout)     :: ctrl     ! Solver parameters
+    class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
     
     call A%GuardTemp()
     call M%GuardTemp()
@@ -61,23 +63,23 @@ contains
     ! Invoke Krylov Subspace Solver
     select case( ctrl%method )
     case ( cg )
-        call abstract_pcg ( A, M, b, x, ctrl )
+        call abstract_pcg ( A, M, b, x, ctrl, env )
     case ( lgmres )
-        call abstract_plgmres ( A, M, b, x, ctrl )
+        call abstract_plgmres ( A, M, b, x, ctrl, env )
     case ( rgmres )
-        call abstract_prgmres ( A, M, b, x, ctrl )
+        call abstract_prgmres ( A, M, b, x, ctrl, env )
     case ( fgmres )
-        call abstract_pfgmres ( A, M, b, x, ctrl )
+        call abstract_pfgmres ( A, M, b, x, ctrl, env )
     case ( richard )
-        call abstract_prichard ( A, M, b, x, ctrl )
+        call abstract_prichard ( A, M, b, x, ctrl, env )
     case( direct )
         call M%apply(b, x)
     case ( icg )
-        call abstract_ipcg ( A, M, b, x, ctrl )
+        call abstract_ipcg ( A, M, b, x, ctrl, env )
     case ( lfom )
-        call abstract_plfom ( A, M, b, x, ctrl )
+        call abstract_plfom ( A, M, b, x, ctrl, env )
     case ( minres )
-        call abstract_pminres ( A, M, b, x, ctrl )
+        call abstract_pminres ( A, M, b, x, ctrl, env )
     case default
        ! Write an error message and stop ?      
     end select
@@ -85,24 +87,25 @@ contains
     call A%CleanTemp()
     call M%CleanTemp()
     call b%CleanTemp()
-
   end subroutine abstract_solve
 
   !=============================================================================
   ! Abstract Preconditioned Conjugate Gradient
   !=============================================================================
-  subroutine abstract_pcg( A, M, b, x, ctrl )
+  subroutine abstract_pcg( A, M, b, x, ctrl, env )
     !-----------------------------------------------------------------------------
     ! This routine performs pcg iterations on Ax=b with preconditioner M. 
     !-----------------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    class(base_operator) , intent(in)    :: A        ! Matrix
-    class(base_operator) , intent(in)    :: M        ! Preconditioner
-    class(base_operand)  , intent(in)    :: b        ! RHS
-    class(base_operand)  , intent(inout) :: x        ! Approximate solution
-    type(solver_control) , intent(inout) :: ctrl     ! Control data
+    class(base_operator) , intent(in)       :: A     ! Matrix
+    class(base_operator) , intent(in)       :: M     ! Preconditioner
+    class(base_operand)  , intent(in)       :: b     ! RHS
+    class(base_operand)  , intent(inout)    :: x     ! Approximate solution
+    type(solver_control) , intent(inout)    :: ctrl  ! Control data
+    class(abstract_environment), intent(in) :: env   ! Serial/parallel environment 
+
 
     ! Locals
     real(rp)                         :: r_nrm_M      ! |r|_inv(M) 
@@ -125,14 +128,14 @@ contains
     call z%clone ( x  )
     call p%clone ( x  )
 
-    call A%info(me,np)
+    call env%info(me,np)
 
     ! Evaluate |b|_inv(M) if required
     if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
        ! r = inv(M) b
        call M%apply(b, r)
        b_nrm_M = b%dot(r)
-       if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+       if ( env%am_i_fine_task() ) then ! Am I a fine task ?
           b_nrm_M = sqrt(b_nrm_M)
        end if
     else
@@ -153,7 +156,7 @@ contains
     ! 3) <r,z>
     r_z = r%dot(z) 
 
-    if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+    if ( env%am_i_fine_task() ) then ! Am I a fine task ?
        r_nrm_M = sqrt( r_z )
     end if
 
@@ -161,7 +164,7 @@ contains
     ! p=z
     call p%copy(z) 
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
        ! Init and log convergence 
        call pcg_conv_init (  b, r, b_nrm_M, r_nrm_M, ctrl )
        if ((me == 0).and.(ctrl%trace/=0))  call solver_control_log_header(ctrl)
@@ -191,19 +194,19 @@ contains
        ! r = r - alpha*Ap
        call r%axpby (-alpha, Ap, 1.0 )
 
-       if (M%am_i_fine_task()) then
+       if (env%am_i_fine_task()) then
           ! Check and log convergence
           call pcg_conv_check(r, r_nrm_M, alpha, p, ctrl )
           if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
        end if
        ! Send converged to coarse-grid tasks
-       call M%bcast(ctrl%converged)
+       call env%bcast(ctrl%converged)
        if(ctrl%converged.or.(ctrl%it>=ctrl%itmax)) exit loop_pcg
 
        ! z = inv(M) r
        call M%apply(r,z)
 
-       if ( M%am_i_fine_task()) then ! Am I a fine task ?
+       if ( env%am_i_fine_task()) then ! Am I a fine task ?
           beta = 1.0_rp/r_z
        else
           beta = 0.0_rp 
@@ -212,7 +215,7 @@ contains
        r_z=r%dot(z)
        beta = beta*r_z
 
-       if (M%am_i_fine_task()) then ! Am I a fine task ?
+       if (env%am_i_fine_task()) then ! Am I a fine task ?
           r_nrm_M = sqrt( r_z )
        end if
 
@@ -231,7 +234,7 @@ contains
     deallocate ( p )
 
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 
@@ -245,6 +248,7 @@ contains
     class(base_operand) , intent(in)   :: b, r
     real(rp)            , intent(in)    :: nrm_b_given, nrm_r_given 
     type(solver_control), intent(inout) :: ctrl
+    
 
     select case(ctrl%stopc)
     case ( delta_rhs, res_rhs, delta_rhs_and_res_rhs, delta_delta_and_res_rhs )
@@ -347,7 +351,7 @@ contains
 ! (Taken from Golub et. al paper 
 !  Inexact Preconditioned Conjugate Gradient Method with Inner-Outer Iteration)
 !=============================================================================
-subroutine abstract_ipcg( A, M, b, x, ctrl )
+subroutine abstract_ipcg( A, M, b, x, ctrl, env )
   !-----------------------------------------------------------------------------
   ! This routine performs pcg iterations on Ax=b with preconditioner M. 
   !-----------------------------------------------------------------------------
@@ -359,6 +363,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
   class(base_operand) , intent(in)    :: b        ! RHS
   class(base_operand) , intent(inout) :: x        ! Approximate solution
   type(solver_control), intent(inout) :: ctrl     ! Control data
+  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
 
   ! Locals
   real(rp)           :: r_nrm_M      ! |r|_inv(M) 
@@ -382,7 +387,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
     call z%clone(x)
     call p%clone(x)
 
-    call A%info(me, np)
+    call env%info(me, np)
 
     ! Evaluate |b|_inv(M) if required
     if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
@@ -390,7 +395,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
         call M%apply(b, r)
         b_nrm_M = b%dot(r)
 
-        if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+        if ( env%am_i_fine_task() ) then ! Am I a fine task ?
             b_nrm_M = sqrt(b_nrm_M)
         end if
     else
@@ -410,7 +415,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
     ! 3) <r,z>
     r_z = r%dot(z)
 
-    if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+    if ( env%am_i_fine_task() ) then ! Am I a fine task ?
         r_nrm_M = sqrt( r_z )
     end if
 
@@ -418,7 +423,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
     ! p=z
     call p%copy(z)
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
      ! Init and log convergence 
         call pcg_conv_init (  b, r, b_nrm_M, r_nrm_M, ctrl )
         if ((me == 0).and.(ctrl%trace/=0))  call solver_control_log_header(ctrl)
@@ -450,20 +455,20 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
         ! r = r - alpha*Ap
         call r%axpby(-alpha,Ap,1.0_rp)
 
-        if ( M%am_i_fine_task() ) then
+        if ( env%am_i_fine_task() ) then
             ! Check and log convergence
             call pcg_conv_check(r, r_nrm_M, alpha, p, ctrl )
             if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
         end if
         ! Send converged to coarse-grid tasks
-        call M%bcast(ctrl%converged)
+        call env%bcast(ctrl%converged)
 
         if(ctrl%converged.or.(ctrl%it>=ctrl%itmax)) exit loop_pcg
 
         ! z = inv(M) r
         call M%apply(r, z)
 
-        if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+        if ( env%am_i_fine_task() ) then ! Am I a fine task ?
             beta = 1.0_rp/r_z
             r_z = r%dot(z)
             r2_z = r2%dot(z)
@@ -472,7 +477,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
             beta = 0.0_rp
         end if
      
-        if (M%am_i_fine_task() ) then ! Am I a fine task ?
+        if (env%am_i_fine_task() ) then ! Am I a fine task ?
             r_nrm_M = sqrt( r_z )
         end if
 
@@ -486,7 +491,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl )
     call z%free()
     call p%free()
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 
@@ -535,7 +540,7 @@ end subroutine abstract_ipcg
 ! AztecOO uses double CGS by default. However, there may be instances where
 ! single MGS would be sufficient for robustness and it can have a lower cost in some
 ! situations.
-  subroutine abstract_plgmres ( A, M, b, x, ctrl ) 
+  subroutine abstract_plgmres ( A, M, b, x, ctrl, env ) 
     !--------------------------------------------------------------------
     ! This routine performs plgmres iterations on Ax=b with preconditioner M. 
     !--------------------------------------------------------------------
@@ -549,6 +554,8 @@ end subroutine abstract_ipcg
     class(base_operand)   , intent(inout) :: x ! Solution
     class(base_operand)   , intent(in)    :: b ! RHS
     type(solver_control), intent(inout) :: ctrl
+    class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+
 
     integer(ip)                    :: ierrc
     integer(ip)                    :: kloc, kloc_aux, i, j, k_hh, id
@@ -583,7 +590,7 @@ end subroutine abstract_ipcg
     end if
     call memalloc(2,ctrl%dkrymax+1,cs,__FILE__,__LINE__)
 
-    call A%info(me, np)
+    call env%info(me, np)
 
     ! Evaluate ||b||_2 if required
     if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven .or. ctrl%stopc == res_rhs  ) then
@@ -622,10 +629,10 @@ end subroutine abstract_ipcg
     exit_loop = (ctrl%err1 < ctrl%tol1)
 
     ! Send converged to coarse-grid tasks
-    call M%bcast(exit_loop )
+    call env%bcast(exit_loop )
 
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
        if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
     end if
 
@@ -670,7 +677,7 @@ end subroutine abstract_ipcg
           call M%apply(r, bkry(kloc+1) )
 
 
-          if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+          if ( env%am_i_fine_task() ) then ! Am I a fine task ?
              ! Orthogonalize
              select case( ctrl%orto )
              case ( mgs )
@@ -684,7 +691,7 @@ end subroutine abstract_ipcg
                 ! The coarse-grid task should exit 
                 ! the inner-do loop. Send signal.
                 exit_loop = .true.
-                call M%bcast(exit_loop) 
+                call env%bcast(exit_loop) 
                 exit inner ! Exit inner do-loop
              end if
 
@@ -730,8 +737,8 @@ end subroutine abstract_ipcg
                       ! The coarse-grid task should exit 
                       ! the outer-do loop. Send signal. 
                       exit_loop = .true.
-                      call M%bcast(exit_loop)
-                      call M%bcast(exit_loop)
+                      call env%bcast(exit_loop)
+                      call env%bcast(exit_loop)
                       exit outer ! Exit outer do loop     
                    end if
 
@@ -777,21 +784,21 @@ end subroutine abstract_ipcg
           ctrl%err1h(ctrl%it) = ctrl%err1
           exit_loop = (ctrl%err1 < ctrl%tol1)
           ! Send converged to coarse-grid tasks
-          call M%bcast(exit_loop)
+          call env%bcast(exit_loop)
 
-          if ( M%am_i_fine_task() ) then
+          if ( env%am_i_fine_task() ) then
              if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
           end if
        end do inner
 
 
-       if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+       if ( env%am_i_fine_task() ) then ! Am I a fine task ?
           if ( ierrc == -2 ) then
              write (ctrl%luout,*) '** Warning: LGMRES: ortho failed due to abnormal numbers, no way to proceed'
              ! The coarse-grid task should exit 
              ! the outer-do loop. Send signal. 
              exit_loop = .true.
-             call M%bcast(exit_loop)
+             call env%bcast(exit_loop)
              exit outer ! Exit outer do-loop
           end if
 
@@ -810,7 +817,7 @@ end subroutine abstract_ipcg
                    ! The coarse-grid task should exit 
                    ! the outer-do loop. Send signal. 
                    exit_loop = .true.
-                   call M%bcast(exit_loop)
+                   call env%bcast(exit_loop)
                    exit outer ! Exit outer do loop     
                 end if
                 
@@ -848,12 +855,12 @@ end subroutine abstract_ipcg
 
        exit_loop = (ctrl%err1 < ctrl%tol1)
        ! Send converged to coarse-grid tasks
-       call M%bcast(exit_loop)
+       call env%bcast(exit_loop)
     end do outer
 
     ctrl%converged = (ctrl%err1 < ctrl%tol1)
     ! Send converged to coarse-grid tasks
-    call M%bcast( ctrl%converged )
+    call env%bcast( ctrl%converged )
 
     call r%free()
     call z%free()
@@ -874,7 +881,7 @@ end subroutine abstract_ipcg
        call memfree(g_aux,__FILE__,__LINE__)
     end if
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
        if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 
@@ -918,7 +925,7 @@ end subroutine abstract_ipcg
 !           ICGS. This last option would imply defining a generic
 !           data structure for storing Krylov subspace bases.  (DONE)
 !        5. Breakdown detection ? (DONE: Taken from Y. Saad's SPARSKIT)
-subroutine abstract_prgmres ( A, M, b, x, ctrl)
+subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
   !--------------------------------------------------------------------
   ! This routine performs prgmres iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
@@ -931,6 +938,8 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
   class(base_operand)    , intent(inout) :: x              ! Solution
   class(base_operand)    , intent(in)    :: b              ! RHS
   type(solver_control)   , intent(inout) :: ctrl
+  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+      
 
   integer(ip)                :: ierrc
   integer(ip)                :: kloc, i, j, k_hh, id
@@ -963,7 +972,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
     call memalloc(ctrl%dkrymax+1,g,__FILE__,__LINE__)
     call memalloc(2,ctrl%dkrymax+1,cs,__FILE__,__LINE__)
 
-    call A%info(me, np)
+    call env%info(me, np)
 
     ! Evaluate ||b||_2 if required
     if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
@@ -991,9 +1000,9 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
     end if
     exit_loop = (ctrl%err1 < ctrl%tol1)
     ! Send converged to coarse-grid tasks
-    call M%bcast(exit_loop)
+    call env%bcast(exit_loop)
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
 
@@ -1041,7 +1050,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
             ! part_summed to full_summed
             call r%comm()
 
-            if ( M%am_i_fine_task() ) then
+            if ( env%am_i_fine_task() ) then
                 ! Orthogonalize
                 select case( ctrl%orto )
                     case ( mgs )
@@ -1056,7 +1065,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
                     ! The coarse-grid task should exit 
                     ! the inner-do loop. Send signal.
                     exit_loop = .true.
-                    call M%bcast(exit_loop) 
+                    call env%bcast(exit_loop) 
                     exit inner ! Exit inner do-loop
                 end if
            
@@ -1089,21 +1098,21 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
             end if
             exit_loop = (ctrl%err1 < ctrl%tol1) 
             ! Send converged to coarse-grid tasks
-            call M%bcast(exit_loop)
+            call env%bcast(exit_loop)
         
-            if ( M%am_i_fine_task() ) then
+            if ( env%am_i_fine_task() ) then
                 if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
             end if
         end do inner
 
         if ( kloc > 0 ) then
-            if ( M%am_i_fine_task() ) then
+            if ( env%am_i_fine_task() ) then
                 if ( ierrc == -2 ) then
                     write (ctrl%luout,*) '** Warning: RGMRES: ortho failed due to abnormal numbers, no way to proceed'
                     ! The coarse-grid task should exit 
                     ! the outer-do loop. Send signal. 
                     exit_loop = .true.
-                    call M%bcast(exit_loop)
+                    call env%bcast(exit_loop)
                     exit outer ! Exit main do-loop
                 end if
 
@@ -1118,7 +1127,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
                 if ( kloc <= 0 ) then
                     write (ctrl%luout,*) '** Warning: RGMRES: triangular system in GMRES has null rank'
                     exit_loop = .true.
-                    call M%bcast(exit_loop)
+                    call env%bcast(exit_loop)
                     exit outer ! Exit main do loop     
                 end if
 
@@ -1154,13 +1163,13 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
 
             exit_loop = (ctrl%err1 < ctrl%tol1)
             ! Send converged to coarse-grid tasks
-            call M%bcast(exit_loop)
+            call env%bcast(exit_loop)
         end if
     end do outer
 
     ctrl%converged = (ctrl%err1 < ctrl%tol1)
     ! Send converged to coarse-grid tasks
-    call M%bcast(ctrl%converged)
+    call env%bcast(ctrl%converged)
 
     ! Deallocate working vectors
     call memfree(hh,__FILE__,__LINE__)
@@ -1178,7 +1187,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl)
     end do
     deallocate ( bkry )
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 
@@ -1192,7 +1201,7 @@ end subroutine abstract_prgmres
 !
 ! Abstract Flexible GMRES
 !
-subroutine abstract_pfgmres ( A, M, b, x, ctrl)
+subroutine abstract_pfgmres ( A, M, b, x, ctrl, env)
   !--------------------------------------------------------------------
   ! This routine performs pfgmres iterations on Ax=b with (right)-preconditioner M. 
   !--------------------------------------------------------------------
@@ -1205,6 +1214,8 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
   class(base_operand)    , intent(inout) :: x              ! Solution
   class(base_operand)    , intent(in)    :: b              ! RHS
   type(solver_control)  , intent(inout) :: ctrl
+  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+
 
   integer(ip)                :: ierrc
   integer(ip)                :: kloc, i, j, k_hh, id
@@ -1238,7 +1249,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
     call memalloc(ctrl%dkrymax+1,g,__FILE__,__LINE__)
     call memalloc(2,ctrl%dkrymax+1,cs,__FILE__,__LINE__)
 
-    call A%info(me, np)
+    call env%info(me, np)
 
     ! Evaluate ||b||_2 if required
     if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
@@ -1266,8 +1277,8 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
     end if
     exit_loop = (ctrl%err1 < ctrl%tol1)
     ! Send converged to coarse-grid tasks
-    call M%bcast(exit_loop)
-    if ( M%am_i_fine_task() ) then
+    call env%bcast(exit_loop)
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
 
@@ -1314,7 +1325,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
             ! part_summed to full_summed
             call bkry(kloc+1)%comm()
         
-            if ( M%am_i_fine_task() ) then
+            if ( env%am_i_fine_task() ) then
                 ! Orthogonalize
                 select case( ctrl%orto )
                     case ( mgs )
@@ -1330,7 +1341,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
                     ! The coarse-grid task should exit 
                     ! the inner-do loop. Send signal.
                     exit_loop = .true.
-                    call M%bcast(exit_loop)
+                    call env%bcast(exit_loop)
                     exit inner ! Exit inner do-loop
                 end if
 
@@ -1363,21 +1374,21 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
             end if
             exit_loop = (ctrl%err1 < ctrl%tol1)
             ! Send converged to coarse-grid tasks
-            call M%bcast(exit_loop)
+            call env%bcast(exit_loop)
 
-            if ( M%am_i_fine_task() ) then
+            if ( env%am_i_fine_task() ) then
                 if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
             end if
         end do inner
 
         if ( kloc > 0 ) then
-            if ( M%am_i_fine_task() ) then
+            if ( env%am_i_fine_task() ) then
                 if ( ierrc == -2 ) then
                     write (ctrl%luout,*) '** Warning: FGMRES: ortho failed due to abnormal numbers, no way to proceed'
                     ! The coarse-grid task should exit 
                     ! the outer-do loop. Send signal. 
                     exit_loop = .true.
-                    call M%bcast(exit_loop)
+                    call env%bcast(exit_loop)
                     exit outer ! Exit main do-loop
                 end if
 
@@ -1392,7 +1403,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
                 if ( kloc <= 0 ) then
                     write (ctrl%luout,*) '** Warning: FGMRES: triangular system in FGMRES has null rank'
                     exit_loop = .true.
-                    call M%bcast(exit_loop)
+                    call env%bcast(exit_loop)
                     exit outer    
                 end if
 #ifdef ENABLE_BLAS       
@@ -1425,14 +1436,14 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
             exit_loop = (ctrl%err1 < ctrl%tol1)
 
             ! Send converged to coarse-grid tasks
-            call M%bcast(exit_loop)
+            call env%bcast(exit_loop)
 
         end if
     end do outer
 
     ctrl%converged = (ctrl%err1 < ctrl%tol1)
     ! Send converged to coarse-grid tasks
-    call M%bcast(ctrl%converged)
+    call env%bcast(ctrl%converged)
 
     ! Deallocate working vectors
     call memfree(hh,__FILE__,__LINE__)
@@ -1451,7 +1462,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl)
     deallocate ( bkry )
     deallocate ( bkryz )
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 
@@ -1466,7 +1477,7 @@ end subroutine abstract_pfgmres
 !
 ! Abstract preconditioned RICHARDSON
 !
-subroutine abstract_prichard (A, M, b, x, ctrl )
+subroutine abstract_prichard (A, M, b, x, ctrl, env )
   !-----------------------------------------------------------------------
   !
   ! This routine solves M^-1Ax = M^-1b where M is a given preconditioner
@@ -1480,6 +1491,8 @@ subroutine abstract_prichard (A, M, b, x, ctrl )
   class(base_operand)    , intent(inout) :: x              ! Solution
   class(base_operand)    , intent(in)    :: b              ! RHS
   type(solver_control)  , intent(inout) :: ctrl
+  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+
 
   integer                          :: me, np
   class(base_operand), allocatable :: r, z      ! Working vectors
@@ -1494,7 +1507,7 @@ subroutine abstract_prichard (A, M, b, x, ctrl )
     allocate(r, mold=x)
     allocate(z, mold=x)
 
-    call A%info(me, np)
+    call env%info(me, np)
     call r%clone(x)
     call z%clone(x)
 
@@ -1504,7 +1517,7 @@ subroutine abstract_prichard (A, M, b, x, ctrl )
     endif
 
     ctrl%converged = .false.
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
 
@@ -1533,9 +1546,9 @@ subroutine abstract_prichard (A, M, b, x, ctrl )
         ctrl%converged = (ctrl%err1 < ctrl%tol1)
 
         ! Send converged to coarse-grid tasks
-        call M%bcast(ctrl%converged)
+        call env%bcast(ctrl%converged)
 
-        if ( M%am_i_fine_task() ) then
+        if ( env%am_i_fine_task() ) then
             if ((ctrl%it > 0).and.(me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
         end if
 
@@ -1551,7 +1564,7 @@ subroutine abstract_prichard (A, M, b, x, ctrl )
     call r%free()
     call z%free()
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 
@@ -1566,7 +1579,7 @@ end subroutine abstract_prichard
 !====================================================
 ! Abstract Left Preconditioned FOM
 !====================================================
-subroutine abstract_plfom ( A, M, b, x, ctrl )
+subroutine abstract_plfom ( A, M, b, x, ctrl, env )
   !--------------------------------------------------------------------
   ! This routine performs plfom iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
@@ -1580,6 +1593,8 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
   class(base_operand),  intent(inout)  :: x      ! Solution
   class(base_operand),  intent(in)     :: b      ! RHS
   type(solver_control), intent(inout) :: ctrl
+  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+
 
   integer(ip)                    :: ierrc
   integer(ip)                    :: kloc, i, j, k_hh, id
@@ -1613,7 +1628,7 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
     call memalloc(ctrl%dkrymax+1,                 g, __FILE__,__LINE__)
     call memalloc(ctrl%dkrymax+1,              ipiv, __FILE__,__LINE__)
 
-    call A%info(me, np)
+    call env%info(me, np)
 
     ! Evaluate ||b||_2 if required
     if ( ctrl%stopc == res_rhs ) then
@@ -1645,9 +1660,9 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
 
     exit_loop = (ctrl%err1 < ctrl%tol1)
     ! Send converged to coarse-grid tasks
-    call M%bcast(exit_loop)
+    call env%bcast(exit_loop)
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
     end if
 
@@ -1687,7 +1702,7 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
             call bkry(kloc+1)%clone(x)
             call M%apply(r,bkry(kloc+1))
 
-            if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+            if ( env%am_i_fine_task() ) then ! Am I a fine task ?
                 ! Orthogonalize
                 select case( ctrl%orto )
                     case ( mgs )
@@ -1703,7 +1718,7 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
                     ! The coarse-grid task should exit 
                     ! the inner-do loop. Send signal.
                     exit_loop = .true.
-                    call M%bcast(exit_loop)
+                    call env%bcast(exit_loop)
                     exit inner ! Exit inner do-loop
                 end if
     
@@ -1721,8 +1736,8 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
                     if ( info /= 0 ) then
                         write (ctrl%luout,*) '** Warning: LFOM: dgetrf returned info /= 0'
                         exit_loop = .true.
-                        call M%bcast(exit_loop)
-                        call M%bcast(exit_loop)
+                        call env%bcast(exit_loop)
+                        call env%bcast(exit_loop)
                         exit outer ! Exit main do loop 
                     end if
     
@@ -1730,8 +1745,8 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
                     if ( info /= 0 ) then
                         write (ctrl%luout,*) '** Warning: LFOM: dgetrs returned info /= 0'
                         exit_loop = .true.
-                        call M%bcast(exit_loop)
-                        call M%bcast(exit_loop)
+                        call env%bcast(exit_loop)
+                        call env%bcast(exit_loop)
                         exit outer ! Exit main do loop 
                     end if
 #else
@@ -1762,21 +1777,21 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
             ctrl%err1h(ctrl%it) = ctrl%err1
             exit_loop = (ctrl%err1 < ctrl%tol1)
             ! Send converged to coarse-grid tasks
-            call M%bcast(exit_loop)
+            call env%bcast(exit_loop)
     
-            if ( M%am_i_fine_task() ) then
+            if ( env%am_i_fine_task() ) then
                 if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
             end if
 
         end do inner
 
-        if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+        if ( env%am_i_fine_task() ) then ! Am I a fine task ?
             if ( ierrc == -2 ) then
                 write (ctrl%luout,*) '** Warning: LFOM: ortho failed due to abnormal numbers, no way to proceed'
                 ! The coarse-grid task should exit 
                 ! the outer-do loop. Send signal. 
                 exit_loop = .true.
-                call M%bcast(exit_loop)
+                call env%bcast(exit_loop)
                 exit outer ! Exit outer do-loop
             end if
         end if
@@ -1786,13 +1801,13 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
 
         exit_loop = (ctrl%err1 < ctrl%tol1)
         ! Send converged to coarse-grid tasks
-        call M%bcast(exit_loop)
+        call env%bcast(exit_loop)
 
     end do outer
 
     ctrl%converged = (ctrl%err1 < ctrl%tol1)
     ! Send converged to coarse-grid tasks
-    call M%bcast(ctrl%converged)
+    call env%bcast(ctrl%converged)
 
     call r%free()
     call z%free()
@@ -1807,7 +1822,7 @@ subroutine abstract_plfom ( A, M, b, x, ctrl )
     call memfree(g,__FILE__,__LINE__)
     call memfree(ipiv,__FILE__,__LINE__)
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 
@@ -2064,7 +2079,7 @@ end subroutine abstract_plfom
 !              Subroutine minrestest2 in minresTestModule.f90
 !              tests this option.  (NB: Not yet working.)
 !-------------------------------------------------------------------
-subroutine abstract_pminres(A, M, b, x, ctrl)
+subroutine abstract_pminres(A, M, b, x, ctrl, env)
   !-----------------------------------------------------------------------------
   ! This routine performs pcg iterations on Ax=b with preconditioner M. 
   !-----------------------------------------------------------------------------
@@ -2076,6 +2091,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
   class(base_operand),  intent(in)    :: b        ! RHS
   class(base_operand), intent(inout)  :: x        ! Approximate solution
   type(solver_control), intent(inout) :: ctrl
+  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
 
 
   !     Local arrays and variables
@@ -2121,7 +2137,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
     call M%GuardTemp()
     call b%GuardTemp()
 
-    call A%info(me, np)
+    call env%info(me, np)
 
     ! RHS space working vectors
     allocate(r1, mold=b)
@@ -2173,7 +2189,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
     beta1 = r1%dot(v1)
 
     beta1_lt_zero = ( beta1 < zero )
-    call M%bcast(beta1_lt_zero)
+    call env%bcast(beta1_lt_zero)
 
     if (beta1_lt_zero) then     ! M must be indefinite.
         istop = 8
@@ -2181,14 +2197,14 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
     end if
 
     beta1_eq_zero = ( beta1 == zero )
-    call M%bcast(beta1_eq_zero)
+    call env%bcast(beta1_eq_zero)
 
     if (beta1_eq_zero) then    ! r1 = 0 exactly.  Stop with x
         istop = 0
         go to 900
     end if
 
-    if ( M%am_i_fine_task() ) then ! Am I a fine task ?
+    if ( env%am_i_fine_task() ) then ! Am I a fine task ?
         beta1  = sqrt( beta1 )         ! Normalize y to get v1 later.
     end if
 
@@ -2211,7 +2227,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
     call w2%init(0.0_rp)
     call r2%copy(r1)
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
     end if
 
@@ -2221,7 +2237,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
     do
         ctrl%it = ctrl%it + 1               ! k = itn = 1 first time through
 
-        if ( M%am_i_fine_task() ) then
+        if ( env%am_i_fine_task() ) then
             !----------------------------------------------------------------
             ! Obtain quantities for the next Lanczos vector vk+1, k = 1, 2,...
             ! The general iteration is similar to the case k = 1 with v0 = 0:
@@ -2268,7 +2284,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
 
             beta_lt_zero = (beta < zero)
 
-            call M%bcast(beta_lt_zero)
+            call env%bcast(beta_lt_zero)
             if (beta_lt_zero) then
                 istop = 6
                 go to 900
@@ -2409,21 +2425,21 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
 !!!$        end if
 
             istop_neq_zero = (istop /= 0)
-            call M%bcast(istop_neq_zero)
+            call env%bcast(istop_neq_zero)
 
             if (istop_neq_zero) exit
 
         else
             ! y = inv(M) r2
             call M%apply(r2, y)
-            call M%bcast(beta_lt_zero)
+            call env%bcast(beta_lt_zero)
 
             if (beta_lt_zero) then
                 istop = 6
                 go to 900
             end if
 
-            call M%bcast(istop_neq_zero)            
+            call env%bcast(istop_neq_zero)            
 
             if (istop_neq_zero) exit
 
@@ -2449,9 +2465,9 @@ subroutine abstract_pminres(A, M, b, x, ctrl)
         ctrl%converged = .false.
     end if
 
-    call M%bcast(ctrl%converged)
+    call env%bcast(ctrl%converged)
 
-    if ( M%am_i_fine_task() ) then
+    if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
     end if
 

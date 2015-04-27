@@ -35,8 +35,8 @@ module fem_matrix_names
   use matvec_dof
 
   ! Abstract types
-  use serial_operator_names
   use base_operand_names
+  use base_operator_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -58,7 +58,7 @@ module fem_matrix_names
   integer(ip), parameter :: unknown               = 3 ! No info
 
   ! Matrix
-  type, extends(serial_operator) :: fem_matrix
+  type, extends(base_operator) :: fem_matrix
      integer(ip)                :: &
 !!!          storage=undef_sto,         &      ! Storage layout (blk: block; scal: scalar)
           symm=symm_false,           &         ! Flag for symmetry

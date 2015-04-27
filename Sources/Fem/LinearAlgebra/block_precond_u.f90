@@ -61,9 +61,6 @@ module block_precond_u_names
      procedure  :: apply          => block_precond_u_apply
      procedure  :: apply_fun      => block_precond_u_apply_fun
      procedure  :: free           => block_precond_u_free_tbp
-     procedure  :: info           => block_precond_u_info
-     procedure  :: am_i_fine_task => block_precond_u_am_i_fine_task
-     procedure  :: bcast          => block_precond_u_bcast
   end type block_precond_u
 
 
@@ -167,69 +164,6 @@ contains
     implicit none
     class(block_precond_u), intent(inout) :: this
   end subroutine block_precond_u_free_tbp
-
-  subroutine block_precond_u_info(op,me,np)
-    implicit none
-    class(block_precond_u), intent(in)    :: op
-    integer(ip)        , intent(out)   :: me
-    integer(ip)        , intent(out)   :: np
-
-    ! Locals
-    integer(ip) :: iblk, jblk
-
-    do iblk=1, op%nblocks
-       do jblk=iblk, op%nblocks
-          if (associated(op%blocks(iblk,jblk)%p_op)) then
-             call op%blocks(iblk,jblk)%p_op%info(me,np)
-             return
-          end if
-       end do
-    end do
-    ! At least one block of op MUST be associated
-    check(1==0)
-  end subroutine block_precond_u_info
-
-  function block_precond_u_am_i_fine_task(op)
-    implicit none
-    class(block_precond_u), intent(in)    :: op
-    logical :: block_precond_u_am_i_fine_task
-
-    ! Locals
-    integer(ip) :: iblk, jblk
-    
-    do iblk=1, op%nblocks
-       do jblk=iblk, op%nblocks
-          if (associated(op%blocks(iblk,jblk)%p_op)) then
-             block_precond_u_am_i_fine_task = op%blocks(iblk,jblk)%p_op%am_i_fine_task()
-             return
-          end if
-       end do
-    end do
-
-    ! At least one block of op MUST be associated
-    check(1==0)
-  end function block_precond_u_am_i_fine_task
-
-  subroutine block_precond_u_bcast(op,condition)
-    implicit none
-    class(block_precond_u), intent(in)    :: op
-    logical            , intent(inout)   :: condition
-
-    ! Locals
-    integer(ip) :: iblk, jblk
-
-    do iblk=1, op%nblocks
-       do jblk=iblk, op%nblocks
-          if (associated(op%blocks(iblk,jblk)%p_op)) then
-             call op%blocks(iblk,jblk)%p_op%bcast(condition)
-             return
-          end if
-       end do
-    end do
-
-    ! At least one block of op MUST be associated
-    check(1==0)
-  end subroutine block_precond_u_bcast
 
   subroutine block_precond_u_create (bop, nblocks)
     implicit none

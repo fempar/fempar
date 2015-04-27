@@ -34,6 +34,7 @@ module fem
   use stdio
   use hash_table_names
   use postpro_names
+  use serial_environment_names
 
   ! Geometry
   use maps_names
