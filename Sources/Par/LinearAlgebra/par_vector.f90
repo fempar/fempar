@@ -42,9 +42,13 @@ module par_vector_names
 #endif
 
   ! Parallel modules
+  use par_context_names
   use par_environment_names
   use dof_distribution_names
   use psb_penv_mod
+
+  ! Abstract types
+  use base_operand_names
 
 # include "debug.i90"
 
@@ -66,7 +70,7 @@ module par_vector_names
   integer(ip), parameter :: full_summed   = 1  ! fully     summed element-based vector
 
   ! Distributed Vector
-  type par_vector
+  type, extends(base_operand) :: par_vector
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
      ! This is required for both eb and vb data 
@@ -79,7 +83,18 @@ module par_vector_names
      ! Parallel DoF distribution control info.
      type ( dof_distribution ), pointer  :: dof_dist => NULL()
 
-     type ( par_environment ), pointer   :: p_env => NULL()
+     type ( par_environment ) , pointer  :: p_env => NULL()
+   contains
+     ! Provide type bound procedures (tbp) implementors
+     procedure :: dot  => par_vector_dot_tbp
+     procedure :: copy => par_vector_copy_tbp
+     procedure :: init => par_vector_init_tbp
+     procedure :: scal => par_vector_scal_tbp
+     procedure :: axpby => par_vector_axpby_tbp
+     procedure :: nrm2 => par_vector_nrm2_tbp
+     procedure :: clone => par_vector_clone_tbp
+     procedure :: comm  => par_vector_comm_tbp
+     procedure :: free  => par_vector_free_tbp
   end type par_vector
 
 
@@ -822,5 +837,228 @@ contains
           t = t + weigt * x(i) * y(i)
     end do
   end subroutine flat_weighted_dot
+
+  ! alpha <- op1^T * op2
+ function par_vector_dot_tbp(op1,op2) result(alpha)
+   implicit none
+   class(par_vector), intent(in)    :: op1
+   class(base_operand), intent(in)  :: op2
+   real(rp) :: alpha
+
+   ! Locals 
+   integer(ip)                   :: ni 
+   type(par_vector)              :: x_I, x_G, y_I, y_G
+   real(rp)                      :: s
+
+   call op1%GuardTemp()
+   call op2%GuardTemp()
+   select type(op2)
+   class is (par_vector)
+      ! Pointer to part/context object is required
+      assert ( associated(op1%dof_dist   ) )
+      assert ( associated(op1%p_env%p_context) )
+      assert ( associated(op2%dof_dist   ) )
+      assert ( associated(op2%p_env%p_context) )
+      assert ( op1%p_env%p_context%created .eqv. .true.)
+      if(op1%p_env%p_context%iam<0) return
+      
+      assert ( op1%state /= undefined .and. op2%state /= undefined  )
+      
+      ni = op1%f_vector%neq - op1%dof_dist%nb
+      if ( ni > 0 ) then
+         call par_vector_create_view ( op1, 1, ni, x_I )
+         call par_vector_create_view ( op2, 1, ni, y_I )
+         alpha = x_I%f_vector%dot ( y_I%f_vector )
+      else
+         alpha = 0.0_rp
+      end if
+      
+      call par_vector_create_view ( op1, ni+1, op1%f_vector%neq, x_G )
+      call par_vector_create_view ( op2, ni+1, op2%f_vector%neq, y_G )
+      call dot_interface          ( x_G, y_G, s )
+      
+      alpha = alpha + s
+      
+      ! Reduce-sum local dot products on all processes
+      call psb_sum ( op2%p_env%p_context%icontxt, alpha )
+   class default
+      write(0,'(a)') 'par_vector%dot: unsupported op2 class'
+      check(1==0)
+   end select
+   call op1%CleanTemp()
+   call op2%CleanTemp()
+ end function par_vector_dot_tbp
+
+ ! op1 <- op2 
+ subroutine par_vector_copy_tbp(op1,op2)
+   implicit none
+   class(par_vector), intent(inout) :: op1
+   class(base_operand), intent(in)  :: op2
+   
+   call op2%GuardTemp()
+   select type(op2)
+   class is (par_vector)
+      ! Pointer to part/context object is required
+      assert ( associated(op2%dof_dist   ) )
+      assert ( associated(op2%p_env%p_context) )
+      assert ( associated(op1%dof_dist   ) )
+      assert ( associated(op1%p_env%p_context) )
+      assert ( op2%p_env%p_context%created .eqv. .true.)
+      if(op2%p_env%p_context%iam<0) return
+      
+      assert ( op2%state /= undefined  )
+      ! Perform local copy
+      call op1%f_vector%copy ( op2%f_vector )
+      op1%state = op2%state
+   class default
+      write(0,'(a)') 'par_vector%copy: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2%CleanTemp()
+ end subroutine par_vector_copy_tbp
+
+ ! op1 <- alpha * op2
+ subroutine par_vector_scal_tbp(op1,alpha,op2)
+   implicit none
+   class(par_vector), intent(inout) :: op1
+   real(rp), intent(in) :: alpha
+   class(base_operand), intent(in) :: op2
+
+   call op2%GuardTemp()
+   select type(op2)
+   class is (par_vector)
+      ! Pointer to part/context object is required
+      assert ( associated(op2%dof_dist   ) )
+      assert ( associated(op2%p_env%p_context) )
+      assert ( associated(op1%dof_dist   ) )
+      assert ( associated(op1%p_env%p_context) )
+      assert ( op1%p_env%p_context%created .eqv. .true.)
+      if(op1%p_env%p_context%iam<0) return
+      
+      ! Check matching partition/handler
+      assert ( op2%state /= undefined )
+      
+      ! Scal local copy
+      call op1%f_vector%scal ( alpha, op2%f_vector )
+      op1%state = op2%state
+   class default
+      write(0,'(a)') 'par_vector%scal: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2%CleanTemp()
+ end subroutine par_vector_scal_tbp
+ ! op <- alpha
+ subroutine par_vector_init_tbp(op,alpha)
+   implicit none
+   class(par_vector), intent(inout) :: op
+   real(rp), intent(in) :: alpha
+   
+   ! Pointer to part/context object is required
+   assert ( associated(op%dof_dist   ) )
+   assert ( associated(op%p_env%p_context) )
+   assert ( op%p_env%p_context%created .eqv. .true.)
+   if(op%p_env%p_context%iam<0) return
+  
+   ! Init local copy
+   call op%f_vector%init(alpha)
+   op%state = full_summed
+ end subroutine par_vector_init_tbp
+
+ ! op1 <- alpha*op2 + beta*op1
+ subroutine par_vector_axpby_tbp(op1, alpha, op2, beta)
+   implicit none
+   class(par_vector), intent(inout) :: op1
+   real(rp), intent(in) :: alpha
+   class(base_operand), intent(in) :: op2
+   real(rp), intent(in) :: beta
+
+   call op2%GuardTemp()
+   select type(op2)
+   class is (par_vector)
+      ! Pointer to part/context object is required
+      assert ( associated(op2%dof_dist   ) )
+      assert ( associated(op2%p_env%p_context) )
+      assert ( associated(op1%dof_dist   ) )
+      assert ( associated(op1%p_env%p_context) )
+      assert ( op1%p_env%p_context%created )
+      if(op1%p_env%p_context%iam<0) return
+      
+      ! Check matching partition/handler
+      assert ( op1%state /= undefined .and. op2%state /= undefined  )
+      assert ( op1%state == op2%state )
+      
+      call op1%f_vector%axpby( alpha, op2%f_vector, beta )
+   class default
+      write(0,'(a)') 'par_vector%axpby: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2%CleanTemp()
+ end subroutine par_vector_axpby_tbp
+
+ ! alpha <- nrm2(op)
+ function par_vector_nrm2_tbp(op) result(alpha)
+   implicit none
+   class(par_vector), intent(in)  :: op
+   real(rp) :: alpha
+   call op%GuardTemp()
+   
+   assert ( op%state /= undefined )
+   alpha = op%dot(op)
+   alpha = sqrt(alpha)
+   
+   call op%CleanTemp()
+ end function par_vector_nrm2_tbp
+
+ ! op1 <- clone(op2) 
+ subroutine par_vector_clone_tbp(op1,op2)
+   implicit none
+   class(par_vector)          , intent(inout) :: op1
+   class(base_operand), target, intent(in)    :: op2
+
+   call op2%GuardTemp()
+   select type(op2)
+   class is (par_vector)
+      ! p_env%p_context is required within this subroutine 
+      assert ( associated(op2%dof_dist) )
+      assert ( associated(op2%p_env%p_context) )
+      assert ( op2%p_env%p_context%created )
+      
+      op1%dof_dist => op2%dof_dist
+      op1%p_env    => op2%p_env
+      op1%state    =  op2%state
+
+      if(op2%p_env%p_context%iam<0) return
+
+      call op1%f_vector%clone ( op2%f_vector )
+
+!!$      if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
+!!$      op1%neq     =  op2%neq       ! Number of equations
+!!$         call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
+!!$      ! AFM: I think that clone should NOT init the memory just allocated.
+!!$      ! The code that surrounds clone (e.g., Krylov solvers) should not
+!!$      ! rely on par_vector_clone_tbp initializing the memory. I will comment
+!!$      ! it out, and expect that the codes continue working.
+!!$      ! op1%b = 0.0_rp 
+!!$      op1%mode = allocated
+   class default
+      write(0,'(a)') 'par_vector%clone: unsupported op2 class'
+      check(1==0)
+   end select
+   call op2%CleanTemp()
+ end subroutine par_vector_clone_tbp
+
+ ! op <- comm(op)
+ subroutine par_vector_comm_tbp(op)
+   implicit none
+   class(par_vector), intent(inout) :: op
+ end subroutine par_vector_comm_tbp
+
+ subroutine par_vector_free_tbp(this)
+   implicit none
+   class(par_vector), intent(inout) :: this
+
+
+ end subroutine par_vector_free_tbp
+
 
 end module par_vector_names

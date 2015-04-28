@@ -30,10 +30,11 @@ module par_block_matrix_names
   use types
   use memor
   use fem_block_matrix_names
-  !use block_elmat_names
 
   ! Parallel modules
   use par_matrix_names
+  use par_vector_names
+  use par_block_vector_names
 
   implicit none
 # include "debug.i90"
@@ -42,7 +43,6 @@ module par_block_matrix_names
 
   !=============================================================
   ! TO-CONSIDER:
-  ! 
   ! x Support for this parallel data structure in integrate.i90 
   !   would eliminate f_blk_matrix member of par_block_matrix and 
   !   par_block_matrix_fill_complete method
@@ -80,7 +80,8 @@ module par_block_matrix_names
             par_block_matrix_set_block_to_zero, par_block_matrix_print, & 
             par_block_matrix_fill_complete,                             &
             par_block_matrix_free,                                      & 
-            par_block_matrix_zero, par_block_matrix_info
+            par_block_matrix_zero, &
+            par_block_matvec
 
 contains
 
@@ -165,16 +166,7 @@ contains
     integer(ip)           , intent(in)    :: lunou
     integer(ip)                           :: i
 
-!!$    assert ( associated(f_matrix%gr) )
-!!$    call par_graph_print (lunou, f_matrix%gr)
-!!$
-!!$    if ( f_matrix%type == csr_mat ) then
-!!$       ! write (lunou, '(4E20.13)')  f_matrix%a(:, :, :)
-!!$       do i=1,f_matrix%gr%nv
-!!$         write(lunou,'(20 F7.1)') f_matrix%a(:,:,f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
-!!$       end do
-!!$    end if
-
+    check(.false.)
   end subroutine par_block_matrix_print
 
   !=============================================================================
@@ -202,27 +194,6 @@ contains
   end subroutine par_block_matrix_free
 
   !=============================================================================
-  ! subroutine par_block_matrix_assembly(nn,ln,bea,bmat)
-  !   implicit none
-  !   ! Parameters
-  !   integer(ip)           , intent(in)    :: nn
-  !   integer(ip)           , intent(in)    :: ln(:)
-  !   !type(block_elmat)     , intent(in)    :: bea
-  !   type(par_block_matrix), intent(inout) :: bmat
-
-  !   ! Locals
-  !   integer(ip) :: ib, jb
-  !   do ib=1, bmat%nblocks
-  !     do jb=1, bmat%nblocks
-  !        if ( associated(bmat%blocks(ib,jb)%p_p_matrix) ) then
-  !           call par_matrix_assembly (nn,ln,bea%blocks(ib,jb),bmat%blocks(ib,jb)%p_p_matrix)
-  !        end if
-  !     end do
-  !   end do
-  !
-  ! end subroutine par_block_matrix_assembly
-
-  !=============================================================================
   subroutine par_block_matrix_zero(bmat)
     implicit none
     ! Parameters
@@ -240,26 +211,43 @@ contains
 
   end subroutine par_block_matrix_zero
 
-  subroutine par_block_matrix_info ( p_blk_mat, me, np )
+  subroutine par_block_matvec (a, x, y)
     implicit none
-
-    ! Parameters 
-    type(par_block_matrix) , intent(in)    :: p_blk_mat
-    integer                , intent(out)   :: me
-    integer                , intent(out)   :: np
+    ! Parameters
+    type(par_block_matrix), intent(in)    :: a
+    type(par_block_vector), intent(in)    :: x
+    type(par_block_vector), intent(inout) :: y
 
     ! Locals
-    integer(ip) :: ib, jb
-    
-    do ib=1, p_blk_mat%nblocks
-      do jb=1, p_blk_mat%nblocks
-         if ( associated(p_blk_mat%blocks(ib,jb)%p_p_matrix) ) then
-            call par_matrix_info (p_blk_mat%blocks(ib,jb)%p_p_matrix, me, np)
-            return
-         end if
-      end do
+    type(par_vector)       :: aux
+    integer(ip)            :: ib, jb
+
+    assert ( a%nblocks == x%nblocks )
+    assert ( a%nblocks == y%nblocks )     
+
+
+    do ib=1, a%nblocks
+       y%blocks(ib)%state = part_summed
+       call par_vector_zero  ( y%blocks(ib) )
+       call par_vector_clone ( y%blocks(ib), aux ) 
+       do jb=1, a%nblocks
+          if ( associated(a%blocks(ib,jb)%p_p_matrix) ) then
+             ! aux <- A(ib,jb) * x(jb)
+             call par_matvec ( a%blocks(ib,jb)%p_p_matrix, x%blocks(jb), aux ) 
+
+             !write (*,*) 'XXXX', ib, '   ', jb                  ! DBG:
+             !call fem_vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG:
+
+             ! y(ib) <- y(ib) + aux 
+             call par_vector_pxpy ( aux, y%blocks(ib) )
+
+             ! write (*,*) 'XXXX', ib, '   ', jb                 ! DBG:
+             !call fem_vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG: 
+
+          end if
+       end do
+       call par_vector_free ( aux )
     end do
-    
-  end subroutine par_block_matrix_info
+  end subroutine par_block_matvec
 
 end module par_block_matrix_names

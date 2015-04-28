@@ -262,8 +262,8 @@ contains
  ! op1 <- clone(op2) 
  subroutine block_operand_clone_tbp(op1,op2)
    implicit none
-   class(block_operand), intent(inout) :: op1
-   class(base_operand), intent(in)  :: op2
+   class(block_operand)         , intent(inout) :: op1
+   class(base_operand) , target , intent(in)    :: op2
    ! Locals
    integer(ip) :: iblk
 

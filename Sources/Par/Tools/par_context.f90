@@ -243,7 +243,7 @@ contains
     type(par_context), intent(in)  :: p_context
     integer          , intent(out) :: my_pid, num_procs
 
-    assert(p_context%created .eqv. .true.)
+    assert( p_context%created )
     my_pid = p_context%iam
     num_procs = p_context%np
   end subroutine par_context_info
@@ -266,7 +266,7 @@ contains
     ! imposed by the underlying message-passing library, i.e., MPI 
     integer :: info
     
-    assert(p_context%created .eqv. .true.)
+    assert( p_context%created )
     
     call psb_exit ( p_context%icontxt, close )
     p_context%created = .false.

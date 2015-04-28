@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_graph_partition
+module fem_graph_distribution
   use types
   use memor
   use fem_graph_names
@@ -597,4 +597,4 @@ contains
 
   end subroutine split_2x2_partitioning_count_list_symm
 
-end module fem_graph_partition
+end module fem_graph_distribution

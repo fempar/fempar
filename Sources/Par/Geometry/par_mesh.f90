@@ -56,7 +56,7 @@ module par_mesh_names
   public :: par_mesh
 
   ! Functions
-  public :: par_mesh_free, par_mesh_init, par_mesh_read
+  public :: par_mesh_free, par_mesh_create, par_mesh_read
 
 contains
 
@@ -105,7 +105,7 @@ contains
   ! This subroutine is provided for those contexts where the parallel mesh is  ! 
   ! created incrementally (as, e.g., coarse-grid mesh in MLBDDC)               !
   !============================================================================!
-  subroutine par_mesh_init ( p_env, p_mesh )
+  subroutine par_mesh_create ( p_env, p_mesh )
     implicit none 
     ! Parameters
     type(par_environment), target, intent(in)  :: p_env
@@ -115,7 +115,7 @@ contains
     assert ( p_env%created )
     
     p_mesh%p_env => p_env
-  end subroutine par_mesh_init
+  end subroutine par_mesh_create
 
   !=============================================================================
   subroutine par_mesh_read ( dir_path, prefix, p_env, p_mesh )

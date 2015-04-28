@@ -35,10 +35,13 @@ program par_test_element_exchange
   implicit none
 #include "debug.i90"
   ! Our data
-  type(par_context)        :: context
-  type(par_environment)    :: p_env
-  type(par_mesh)           :: p_mesh
-  type(par_triangulation)  :: p_trian
+  type(par_context)                       :: context
+  type(par_environment)                   :: p_env
+  type(par_mesh)                          :: p_mesh
+  type(par_triangulation)                 :: p_trian
+  type(par_matrix)                        :: p_mat
+  type(par_precond_dd_mlevel_bddc)        :: mlbddc
+  type(par_precond_dd_mlevel_bddc_params) :: mlbddc_params
 
   type(dof_distribution) , allocatable :: dof_dist(:)
 
@@ -81,7 +84,7 @@ program par_test_element_exchange
   !call dof_handler_print ( dhand, 6 )
 
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
-  continuity = .true.
+  continuity = 1
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
   order = 3
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
@@ -162,6 +165,8 @@ program par_test_element_exchange
   ! do i=1,p_trian%num_elems + p_trian%num_ghosts
   !    write(*,'(10i10)') p_trian%f_trian%elems(i)%objects
   ! end do
+
+  ! call par_precond_dd_mlevel_bddc_create ( p_mat, mlbddc, mlbddc_params )
 
   do iblock=1, dhand%nblocks
      call dof_distribution_free(dof_dist(iblock))

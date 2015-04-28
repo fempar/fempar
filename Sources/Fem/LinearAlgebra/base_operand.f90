@@ -108,8 +108,8 @@ module base_operand_names
      subroutine clone_interface(op1,op2)
        import :: base_operand
        implicit none
-       class(base_operand), intent(inout) :: op1
-       class(base_operand), intent(in)    :: op2
+       class(base_operand)         ,intent(inout) :: op1
+       class(base_operand), target ,intent(in)    :: op2
      end subroutine clone_interface
      ! op <- comm(op)
      subroutine comm_interface(op)

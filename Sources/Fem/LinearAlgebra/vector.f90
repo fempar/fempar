@@ -698,15 +698,15 @@ contains
  ! op1 <- clone(op2) 
  subroutine fem_vector_clone_tbp(op1,op2)
    implicit none
-   class(fem_vector), intent(inout) :: op1
-   class(base_operand), intent(in)  :: op2
+   class(fem_vector)           ,intent(inout) :: op1
+   class(base_operand), target ,intent(in)    :: op2
 
    call op2%GuardTemp()
    select type(op2)
    class is (fem_vector)
       if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
       op1%neq     =  op2%neq       ! Number of equations
-         call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
+      call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
       ! AFM: I think that clone should NOT init the memory just allocated.
       ! The code that surrounds clone (e.g., Krylov solvers) should not
       ! rely on fem_vector_clone_tbp initializing the memory. I will comment

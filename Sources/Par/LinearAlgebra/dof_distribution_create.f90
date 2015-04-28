@@ -47,7 +47,7 @@ module dof_distribution_create_names
   private
   
   ! Functions
-  public :: dof_distribution_create
+  public :: dof_distribution_create, create_int_objs, create_omap
   
 contains
 

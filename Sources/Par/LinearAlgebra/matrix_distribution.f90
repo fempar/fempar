@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_matrix_partition
+module fem_matrix_distribution
   use types
   use memor
   use fem_matrix_names
@@ -37,7 +37,7 @@ module fem_matrix_partition
   public :: fem_matrix_split_2x2_partitioning
 
 contains
-  subroutine fem_matrix_split_2x2_partitioning (  storage, ndof1, ndof2, output_symm, &
+  subroutine fem_matrix_split_2x2_partitioning (  output_symm, &
                                                    A, dof_dist, A_II, A_IG, A_GI, A_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
@@ -70,7 +70,7 @@ contains
     implicit none
 
     ! Parameters
-    integer(ip)           , intent(in)                :: storage, ndof1, ndof2, output_symm
+    integer(ip)           , intent(in)                :: output_symm
     type(fem_matrix)      , intent(in)                :: A
     type(dof_distribution), intent(in)                :: dof_dist 
 
@@ -201,4 +201,4 @@ contains
 
   end subroutine fem_matrix_split_2x2_partitioning
 
-end module fem_matrix_partition
+end module fem_matrix_distribution

@@ -31,19 +31,6 @@ module par_dd_base
 
   implicit none
 
-  ! Common to BDDC/BNN
-  integer(ip), parameter :: f_tasks_w_coarse_duties = 0 ! (1) All MPI Tasks are in p_context communicator .or.
-                                                        ! (2) MPI Tasks separated into fine_tasks (p_context) 
-                                                        !     and coarse_tasks (c_contxt)
-                                                        ! In both cases tasks in p_context communicator responsible
-                                                        ! for the solution of the coarse-grid problem
-
-  integer(ip), parameter :: f_tasks_c_tasks_w_coarse_duties = 1 ! MPI Tasks MUST BE separated into  
-                                                                ! fine_tasks (p_context) 
-                                                                ! and coarse_tasks (c_contxt). The first ones 
-                                                                ! are responsible for fine-grid duties, the second ones
-                                                                ! for coarse-grid duties 
-
 
   integer(ip), parameter :: all_unknowns          = 0  ! Precondition the global linear system Ax=b
   integer(ip), parameter :: interface_unknowns    = 1  ! Precondition interface problem Sy=g
@@ -71,9 +58,21 @@ module par_dd_base
   ! the coarse grid system (corners are sufficient
   ! for 2D problems, while for 3D, both corners and
   ! edges are required)
-  integer (ip), parameter :: corners           = 0
-  integer (ip), parameter :: corners_and_edges = 1
-  integer (ip), parameter :: corners_edges_and_faces = 2 
+  integer (ip), parameter :: corners                 = 0
+  integer (ip), parameter :: corners_and_edges       = 1
+  integer (ip), parameter :: corners_edges_and_faces = 2
+
+  ! The forthcoming options cannot be used in the general case
+  ! as they would lead to singularities in the BDDC preconditioner 
+  ! (e.g. in cases of floating subdomains). These options can be used ONLY 
+  ! WHEN there is an additional mechanism (e.g. perturbation) to guarantee 
+  ! the invertibility of the systems in BDDC preconditioner (see the note 
+  ! "bddc preconditioner with perturbed formulation" in the Google Drive 
+  ! LSSC Group Documents or talk to H. Nguyen for more details)
+  integer (ip), parameter :: edges                   = 3
+  integer (ip), parameter :: faces                   = 4 
+  integer (ip), parameter :: edges_and_faces         = 5
+  integer (ip), parameter :: corners_and_faces       = 6
 
 
   integer (ip), parameter :: naive     =  0 ! Corners are degenerated edges. Does not allow 
@@ -108,7 +107,7 @@ module par_dd_base
 
   integer (ip), parameter :: recursive_bddc   = 3  ! A recursive call to bddc is performed (multilevel)
 
-  integer    , parameter :: root_pid           = 0 ! In case of serial_gather, the processor id in charge
+  integer    , parameter  :: root_pid          = 0 ! In case of serial_gather, the processor id in charge
                                                    ! of the global information (internal/private constant)
 
   integer (ip), parameter :: petrov_galerkin    = 0 ! Petrov-galerkin projection is considered(nonsymmetric)

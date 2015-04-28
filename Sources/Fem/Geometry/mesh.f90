@@ -165,7 +165,7 @@ contains
          &   primal_mesh%lnods,primal_mesh%nnode,dual_mesh%nnode,dual_mesh%pnods)
     
     ! List elements around points (lelpo)
-    call memalloc (dual_mesh%pnods(dual_mesh%nelem+1), dual_mesh%lnods,            __FILE__,__LINE__)
+    call memalloc (dual_mesh%pnods(dual_mesh%nelem+1),dual_mesh%lnods,__FILE__,__LINE__)
     
     call list_elements_around_points( &
          &   primal_mesh%nelty,primal_mesh%npoin,primal_mesh%nelem,primal_mesh%pnods, &

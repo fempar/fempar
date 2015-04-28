@@ -542,64 +542,62 @@ contains
        end do
     end if
 
-     end subroutine fem_matrix_transpose
+  end subroutine fem_matrix_transpose
 
-     subroutine fem_matvec (a,x,y)
-       implicit none
-       type(fem_matrix) , intent(in)    :: a
-       type(fem_vector) , intent(in)    :: x
-       type(fem_vector) , intent(inout) :: y
-       real(rp) :: aux
+  subroutine fem_matvec (a,x,y)
+    implicit none
+    type(fem_matrix) , intent(in)    :: a
+    type(fem_vector) , intent(in)    :: x
+    type(fem_vector) , intent(inout) :: y
+    real(rp) :: aux
 
+    if (a%symm == symm_false) then
+       call matvec_csr(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+    else if (a%symm == symm_true) then
+       call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
+    end if
 
+  end subroutine fem_matvec
 
+  subroutine fem_matmat (a, n, ldX, x, ldY, y)
+    implicit none
+
+    ! Parameters
+    type(fem_matrix) , intent(in)    :: a
+    integer(ip)      , intent(in)    :: n
+    integer(ip)      , intent(in)    :: ldX
+    real(rp)         , intent(in)    :: x(ldX, n)
+    integer(ip)      , intent(in)    :: ldY
+    real(rp)         , intent(inout) :: y(ldY, n)
+
+    ! Locals 
+    integer (ip) :: i
+
+    do i=1,n
        if (a%symm == symm_false) then
-          call matvec_csr(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+          call matvec_csr(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
        else if (a%symm == symm_true) then
-          call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
+          call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))          
        end if
-
-     end subroutine fem_matvec
-
-     subroutine fem_matmat (a, n, ldX, x, ldY, y)
-       implicit none
-
-       ! Parameters
-       type(fem_matrix) , intent(in)    :: a
-       integer(ip)      , intent(in)    :: n
-       integer(ip)      , intent(in)    :: ldX
-       real(rp)         , intent(in)    :: x(ldX, n)
-       integer(ip)      , intent(in)    :: ldY
-       real(rp)         , intent(inout) :: y(ldY, n)
-
-       ! Locals 
-       integer (ip) :: i
-
-       do i=1,n
-          if (a%symm == symm_false) then
-             call matvec_csr(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))
-          else if (a%symm == symm_true) then
-             call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))          
-          end if
-       end do
+    end do
 
 
 
-     end subroutine fem_matmat
+  end subroutine fem_matmat
 
-     subroutine fem_matvec_trans (a,x,y)
-       implicit none
-       type(fem_matrix) , intent(in)    :: a
-       type(fem_vector) , intent(in)    :: x
-       type(fem_vector) , intent(inout) :: y
+  subroutine fem_matvec_trans (a,x,y)
+    implicit none
+    type(fem_matrix) , intent(in)    :: a
+    type(fem_vector) , intent(in)    :: x
+    type(fem_vector) , intent(inout) :: y
 
-       if (a%symm == symm_false) then
-          call matvec_csr_trans(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
-       else if (a%symm == symm_true) then
-          call matvec_csr_symm_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
-       end if
+    if (a%symm == symm_false) then
+       call matvec_csr_trans(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
+    else if (a%symm == symm_true) then
+       call matvec_csr_symm_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
+    end if
 
-     end subroutine fem_matvec_trans
+  end subroutine fem_matvec_trans
 
   subroutine fem_matmat_trans (a, n, ldX, x, ldY, y)
     implicit none
@@ -667,7 +665,7 @@ contains
     select type(x)
     class is (fem_vector)
        allocate(local_y)
-       call fem_vector_alloc (  op%gr%nv, local_y)
+       call fem_vector_alloc ( op%gr%nv, local_y)
        call fem_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()
@@ -675,8 +673,6 @@ contains
        write(0,'(a)') 'fem_matrix%apply_fun: unsupported x class'
        check(1==0)
     end select
-    
- 
   end function fem_matrix_apply_fun
 
   subroutine fem_matrix_free_tbp(this)

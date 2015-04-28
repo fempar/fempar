@@ -68,7 +68,7 @@ module dof_distribution_names
   public :: dof_distribution
   
   ! Functions
-  public :: dof_distribution_free
+  public :: dof_distribution_free, dof_distribution_print
   
 contains
 
@@ -84,5 +84,12 @@ contains
     call dof_import_free ( dof_dist%dof_import )
 
   end subroutine dof_distribution_free
+
+  subroutine dof_distribution_print ( lunio, dof_dist )
+    implicit none
+    integer(ip)           , intent(in) :: lunio
+    type(dof_distribution), intent(in) :: dof_dist
+    check(.false.)
+  end subroutine dof_distribution_print
   
 end module dof_distribution_names

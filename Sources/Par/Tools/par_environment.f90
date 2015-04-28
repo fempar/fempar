@@ -77,7 +77,7 @@ module par_environment_names
   end interface par_environment_create
 
   ! Types
-  public :: par_environment, par_environment_create
+  public :: par_environment, par_environment_create, par_environment_free
 
 contains
 
@@ -123,7 +123,7 @@ contains
     ! Locals
     integer :: mpi_comm_b, info
 
-    assert ( env%created .eqv. .true.)
+    assert ( env%created )
 
     if ( env%num_levels > 1 ) then
        ! b_context is an intercomm among p_context & q_context
@@ -232,8 +232,8 @@ contains
     ! Parallel environment MUST BE already created
     assert ( p_env%created .eqv. .true.)
 
-    call memfree(p_env%id_parts,__FILE__,__LINE__ )
-    call memfree(p_env%num_parts,__FILE__,__LINE__ )
+    call memfree(p_env%id_parts , __FILE__, __LINE__ )
+    call memfree(p_env%num_parts, __FILE__, __LINE__ )
 
     nullify ( p_env%w_context ) 
     nullify ( p_env%p_context )

@@ -48,27 +48,10 @@ module sort_names
   end interface sort_array_cols_by_row_element
 
   public :: sort_array_cols_by_row_element
-  public :: sort_array_cols_by_row_section         ! would replace intsort if everything is ok.
+  public :: sort_array_cols_by_row_section
   public :: sort
   public :: intsort
   public :: icomp
-
-!-----------------------------------------------------------------------
-! 
-! sortix is used in mesh_partition.f90 line 2312
-! 
-! intsort is used in 
-! * matrix.f90 line 431
-! * mesh_partitipon.f90 lines 850 y 2240
-! * par_migration_mesh_partition.f90 lines 558 and 845
-! * par_dof_handler_mesh_partition.f90 lines 517 and 824
-!
-! icomp is used in
-! * mesh_partitipon.f90 line 2262
-! * par_migration_mesh_partition.f90 line 599
-! * par_dof_handler_mesh_partition.f90 lines 579
-!
-!-----------------------------------------------------------------------
 
 contains
 
@@ -374,7 +357,5 @@ contains
            end do
 
          end function icomp_igp
-
-
 
 end module sort_names

@@ -38,16 +38,22 @@ module par_matrix_names
 
   ! Parallel modules
   use par_environment_names
+  use par_context_names
   use par_graph_names
+  use par_vector_names
   use psb_penv_mod
   use dof_distribution_names
+
+  ! Abstract types
+  use base_operand_names
+  use base_operator_names
 
   implicit none
 # include "debug.i90"
 
   private
 
-  type par_matrix
+  type, extends(base_operator) :: par_matrix
      ! Data structure which stores the local part 
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 
@@ -55,7 +61,7 @@ module par_matrix_names
      type( fem_matrix )       :: f_matrix
 
      type(par_graph), pointer :: &
-        p_graph => NULL()           ! Associated par_graph
+        p_graph => NULL()             ! Associated par_graph
      
      type(dof_distribution), pointer :: &
         dof_dist => NULL()            ! Associated (ROW) dof_distribution
@@ -65,6 +71,10 @@ module par_matrix_names
 
      type(par_environment), pointer :: &
           p_env => NULL()
+   contains
+     procedure  :: apply     => par_matrix_apply
+     procedure  :: apply_fun => par_matrix_apply_fun
+     procedure  :: free      => par_matrix_free_tbp
   end type par_matrix
 
   interface par_matrix_free
@@ -77,10 +87,8 @@ module par_matrix_names
   ! Functions
   public :: par_matrix_create, par_matrix_graph, par_matrix_fill_val, &
          &  par_matrix_alloc, par_matrix_free,    & 
-         &  par_matrix_assembly, par_matrix_info, &
          &  par_matrix_print, par_matrix_print_matrix_market, &
-         &  par_matrix_zero, & ! , par_matrix_bcast &
-         &  par_matrix_fine_task
+         &  par_matrix_zero, par_matvec, par_matvec_trans
 
 !***********************************************************************
 ! Allocatable arrays of type(par_matrix)
@@ -107,12 +115,12 @@ contains
   !=============================================================================
   subroutine par_matrix_create(type,symm,dof_dist,dof_dist_cols,p_env,p_matrix,def)
     implicit none
-    integer(ip)                  , intent(in)  :: type, symm
-    type(dof_distribution)  , target, intent(in)  :: dof_dist
-    type(dof_distribution)  , target, intent(in)  :: dof_dist_cols
-    type(par_environment), target, intent(in)  :: p_env
-    type(par_matrix)             , intent(out) :: p_matrix
-    integer(ip)        , optional, intent(in)  :: def
+    integer(ip)                      ,intent(in)  :: type, symm
+    type(dof_distribution), target   ,intent(in)  :: dof_dist
+    type(dof_distribution), target   ,intent(in)  :: dof_dist_cols
+    type(par_environment) , target   ,intent(in)  :: p_env
+    type(par_matrix)                 ,intent(out) :: p_matrix
+    integer(ip)           , optional ,intent(in)  :: def
 
     call fem_matrix_create(type,symm,p_matrix%f_matrix,def)
     p_matrix%dof_dist      => dof_dist 
@@ -205,46 +213,6 @@ contains
     call fem_matrix_free ( p_matrix%f_matrix, mode )
 
   end subroutine par_matrix_free_progressively
-  !=============================================================================
-  subroutine par_matrix_assembly(nn,ln,ea,p_mat)
-    implicit none
-    
-    ! Parameters 
-    integer(ip) , intent(in)        :: nn
-    integer(ip) , intent(in)        :: ln(:)
-    type(array_rp2) , intent(in)        :: ea
-    type(par_matrix), intent(inout) :: p_mat
-     
-    ! TO-DO: currently we are calling serial matrix assembly
-    ! routine for both element-based and vertex-based
-    ! partitionings. For vertex-based partitionings this
-    ! is not very intelligent, as it involves assembling
-    ! (with partial contributions) the rows corresponding 
-    ! to external nodes. Rows corresponding to external nodes
-    ! are just wasted by the underlying linear algebra package.
-    ! It would be more intelligent to reduce memory traffic to
-    ! avoid accessing (i.e., read+write) these rows by splitting
-    ! the external loop on the elements into two parts (internal+boundary
-    ! elements)
-    call fem_matrix_assembly ( nn, ln, ea, p_mat%f_matrix )
-  end subroutine par_matrix_assembly
-
-  subroutine par_matrix_info ( p_mat, me, np )
-    implicit none
-
-    ! Parameters 
-    type(par_matrix), intent(in)    :: p_mat
-    integer         , intent(out)   :: me
-    integer         , intent(out)   :: np
-
-   ! Pointer to part/context object is required
-    assert ( associated(p_mat%dof_dist) )
-    assert ( associated(p_mat%p_env%p_context) )
-    assert ( p_mat%p_env%p_context%created .eqv. .true.)
-    me = p_mat%p_env%p_context%iam
-    np = p_mat%p_env%p_context%np
-
-  end subroutine par_matrix_info
 
   !=============================================================================
   subroutine par_matrix_print(lunou, p_matrix)
@@ -339,27 +307,119 @@ contains
     call fem_matrix_zero ( p_matrix%f_matrix )
   end subroutine par_matrix_zero
 
-!!$  subroutine par_matrix_bcast (p_matrix, conv)
-!!$    implicit none
-!!$    ! Parameters 
-!!$    type(par_matrix), target, intent(in)    :: p_matrix    
-!!$    logical                 , intent(inout) :: conv
-!!$    assert ( associated(p_matrix%dof_dist   ) )
-!!$    call par_partition_bcast(p_matrix%dof_dist,conv)
-!!$  end subroutine par_matrix_bcast
-
-  function par_matrix_fine_task (p_matrix)
+  subroutine par_matvec(a,x,y)
     implicit none
-    logical                         :: par_matrix_fine_task
-    type(par_matrix), intent(in)    :: p_matrix
+    ! Parameters
+    type(par_matrix) , intent(in)    :: a
+    type(par_vector) , intent(in)    :: x
+    type(par_vector) , intent(inout) :: y
+    ! Locals
+    !integer(c_int)                   :: ierrc
+    real :: aux
 
-    assert ( associated(p_matrix%dof_dist   ) )
-    assert ( associated(p_matrix%p_env%p_context) ) 
-    assert ( p_matrix%p_env%p_context%created .eqv. .true.)
+    ! This routine requires the partition/context info
+    assert ( associated(a%p_env) )
+    assert ( associated(a%p_env%p_context) )
 
+    assert ( a%p_env%p_context%created .eqv. .true.)
+    if(a%p_env%p_context%iam<0) return
 
-    par_matrix_fine_task = (p_matrix%p_env%p_context%iam >= 0)
-  end function par_matrix_fine_task
+    assert ( associated(x%p_env) )
+    assert ( associated(x%p_env%p_context) )
+
+    assert ( associated(y%p_env) )
+    assert ( associated(y%p_env%p_context) )
+    
+    assert (x%state == full_summed) 
+    ! write (*,*) 'MVAX'
+    ! call fem_vector_print ( 6, x%f_vector )
+    ! write (*,*) 'MVAY'
+    ! call fem_vector_print ( 6, y%f_vector )
+    call fem_matvec (a%f_matrix, x%f_vector, y%f_vector) 
+    ! write (*,*) 'MVD'
+    ! call fem_vector_print ( 6, y%f_vector )
+    y%state = part_summed
+  end subroutine par_matvec
+
+  subroutine par_matvec_trans(a,x,y)
+    implicit none
+    ! Parameters
+    type(par_matrix) , intent(in)    :: a
+    type(par_vector) , intent(in)    :: x
+    type(par_vector) , intent(inout) :: y
+    ! Locals
+    !integer(c_int)                   :: ierrc
+	
+    ! This routine requires the partition/context info
+    assert ( associated(a%p_env) )
+    assert ( associated(a%p_env%p_context) )
+
+    assert ( associated(x%p_env) )
+    assert ( associated(x%p_env%p_context) )
+
+    assert ( associated(y%p_env) )
+    assert ( associated(y%p_env%p_context) )
+    
+    assert (x%state == full_summed) 
+    call fem_matvec_trans (a%f_matrix, x%f_vector, y%f_vector) 
+    y%state = part_summed
+  end subroutine par_matvec_trans
+
+  ! op%apply(x,y) <=> y <- op*x
+  ! Implicitly assumes that y is already allocated
+  subroutine par_matrix_apply(op,x,y) 
+    implicit none
+    class(par_matrix), intent(in)    :: op
+    class(base_operand) , intent(in)    :: x
+    class(base_operand) , intent(inout) :: y 
+
+    call x%GuardTemp()
+
+    select type(x)
+    class is (par_vector)
+       select type(y)
+       class is(par_vector)
+          call par_matvec(op, x, y)
+          ! call fem_vector_print(6,y)
+       class default
+          write(0,'(a)') 'par_matrix%apply: unsupported y class'
+          check(1==0)
+       end select
+    class default
+       write(0,'(a)') 'par_matrix%apply: unsupported x class'
+       check(1==0)
+    end select
+
+    call x%CleanTemp()
+  end subroutine par_matrix_apply
+
+  ! op%apply(x)
+  ! Allocates room for (temporary) y
+  function par_matrix_apply_fun(op,x) result(y)
+    implicit none
+    class(par_matrix), intent(in)  :: op
+    class(base_operand) , intent(in)  :: x
+    class(base_operand) , allocatable :: y 
+
+    type(par_vector), allocatable :: local_y
+
+    select type(x)
+    class is (par_vector)
+       allocate(local_y)
+       call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
+       call par_matvec(op, x, local_y)
+       call move_alloc(local_y, y)
+       call y%SetTemp()
+    class default
+       write(0,'(a)') 'par_matrix%apply_fun: unsupported x class'
+       check(1==0)
+    end select
+  end function par_matrix_apply_fun
+
+  subroutine par_matrix_free_tbp(this)
+    implicit none
+    class(par_matrix), intent(inout) :: this
+  end subroutine par_matrix_free_tbp
 
 
 end module par_matrix_names
