@@ -61,7 +61,6 @@ module par_precond_dd_mlevel_bddc_names
   use par_dd_base
   use psb_penv_mod 
   use par_environment_names
-  use dof_distribution_import
   use dof_distribution_names
   use dof_distribution_create_names
   use par_matrix_names
@@ -8022,6 +8021,10 @@ end if
     end if
 
     call renum_free(nren)
+
+    ! Compute dof_import instance such that DoF nearest neighbour exchanges
+    ! can be performed among subdomains on any intermmediate coarse-grid mesh
+    call dof_distribution_compute_import(dof_dist)
 
   end subroutine dof_distribution_coarse_create
 

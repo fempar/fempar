@@ -477,7 +477,12 @@ contains
          call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
          call memfree ( lst_parts_per_dof_obj, __FILE__, __LINE__ )
          call memfree ( touch, __FILE__, __LINE__ )
-         call memfree ( ws_parts_visited_list_all, __FILE__, __LINE__ )         
+         call memfree ( ws_parts_visited_list_all, __FILE__, __LINE__ )  
+
+         ! Compute dof_import instance within dof_dist instance such that 
+         ! DoF nearest neighbour exchanges can be performed 
+         call dof_distribution_compute_import(dof_dist(iblock))
+       
       end do
 
     end subroutine dof_distribution_create
