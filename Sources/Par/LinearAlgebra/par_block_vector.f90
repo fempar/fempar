@@ -82,7 +82,6 @@ module par_block_vector_names
             par_block_vector_fill_complete, par_block_vector_create_view,       &
             par_block_vector_clone,         par_block_vector_comm,              &
             par_block_vector_weight,                                            &
-            par_block_vector_get_external_data,                                 &
             par_block_vector_dot,           par_block_vector_nrm2,              &
             par_block_vector_copy,          par_block_vector_zero,              &
             par_block_vector_init,          par_block_vector_scale,             & 
@@ -209,20 +208,6 @@ contains
     end do
 
   end subroutine par_block_vector_weight
-
-  subroutine par_block_vector_get_external_data (bvec)
-    implicit none
-    ! Parameters
-    type(par_block_vector), intent(inout)  :: bvec  
-
-    ! Locals
-    integer(ip)                            :: ib
-
-    do ib=1,bvec%nblocks
-      call par_vector_get_external_data ( bvec%blocks(ib) )
-    end do 
-
-  end subroutine par_block_vector_get_external_data
 
   !=============================================================================
   subroutine par_block_vector_dot (x, y, t)

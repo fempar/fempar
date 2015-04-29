@@ -111,7 +111,7 @@ contains
               end do
              call aux%free()
           end do
-          call deallocate(aux)
+          deallocate(aux)
        class default
           write(0,'(a)') 'block_operator%apply: unsupported y class'
           check(1==0)
@@ -142,7 +142,7 @@ contains
     select type(x)
     class is (block_operand)
        allocate(local_y)
-       call block_operand_alloc(op%mblocks, local_y)
+       call local_y%create(op%mblocks)
        allocate(aux, mold=x%blocks(1)%p_op)
        do iblk=1, op%mblocks
           first_block_in_row = 1
@@ -163,7 +163,7 @@ contains
           end do
           call aux%free()
        end do
-       call deallocate(aux)
+       deallocate(aux)
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default

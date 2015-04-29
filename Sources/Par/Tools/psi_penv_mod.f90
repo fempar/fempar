@@ -337,6 +337,13 @@ contains
 
   subroutine psb_abort(ictxt,errc)
     use psi_comm_buffers_mod 
+#ifdef MPI_MOD
+    use mpi
+#endif
+    implicit none 
+#ifdef MPI_H
+    include 'mpif.h'
+#endif
 
     integer, intent(in) :: ictxt
     integer, intent(in), optional :: errc

@@ -119,13 +119,13 @@ module par_precond_dd_mlevel_bddc_names
 
      real(rp), allocatable    :: weight(:)
 
-     integer(ip) :: num_neumann_solves   = 0
-     integer(ip) :: num_dirichlet_solves = 0
-     integer(ip) :: num_coarse_solves    = 0
-     integer(ip) :: neumann_its   (2000)      ! A much more sophisticated (dynamic) treatment is required here
-     integer(ip) :: dirichlet_its (2000)      ! This is already done in the new slover params type, defined as allocatable and
-     integer(ip) :: coarse_its    (2000)      ! allocated to max_it
-     integer(ip) :: harm_its_agg  = 0 
+     !integer(ip) :: num_neumann_solves   = 0
+     !integer(ip) :: num_dirichlet_solves = 0
+     !integer(ip) :: num_coarse_solves    = 0
+     !integer(ip) :: neumann_its   (2000)      ! A much more sophisticated (dynamic) treatment is required here
+     !integer(ip) :: dirichlet_its (2000)      ! This is already done in the new slover params type, defined as allocatable and
+     !integer(ip) :: coarse_its    (2000)      ! allocated to max_it
+     !integer(ip) :: harm_its_agg  = 0 
 
   end type par_precond_dd_mlevel_bddc_params
 
@@ -299,40 +299,42 @@ module par_precond_dd_mlevel_bddc_names
      type ( par_context )                :: b_context
 
      ! par_timer objects associated to f_tasks_c_tasks_w_coarse_duties timing
-     type(par_timer) :: timer_assprec_ov_coarse
-     type(par_timer) :: timer_assprec_ov_fine
-     type(par_timer) :: timer_assprec_ov_coarse_header
-     type(par_timer) :: timer_assprec_ov_fine_header
+     type(par_timer), pointer :: timer_assprec_ov_coarse
+     type(par_timer), pointer :: timer_assprec_ov_fine
+     type(par_timer), pointer :: timer_assprec_ov_coarse_header
+     type(par_timer), pointer :: timer_assprec_ov_fine_header
 
-     type(par_timer) :: timer_fillprec_ov_coarse
-     type(par_timer) :: timer_fillprec_ov_fine
-     type(par_timer) :: timer_fillprec_ov_coarse_header
-     type(par_timer) :: timer_fillprec_ov_fine_header
+     type(par_timer), pointer :: timer_fillprec_ov_coarse
+     type(par_timer), pointer :: timer_fillprec_ov_fine
+     type(par_timer), pointer :: timer_fillprec_ov_coarse_header
+     type(par_timer), pointer :: timer_fillprec_ov_fine_header
 
-     type(par_timer) :: timer_applyprec_ov_coarse
-     type(par_timer) :: timer_applyprec_ov_fine
-     type(par_timer) :: timer_applyprec_ov_coarse_header
-     type(par_timer) :: timer_applyprec_ov_coarse_tail
+     type(par_timer), pointer :: timer_applyprec_ov_coarse
+     type(par_timer), pointer :: timer_applyprec_ov_fine
+     type(par_timer), pointer :: timer_applyprec_ov_coarse_header
+     type(par_timer), pointer :: timer_applyprec_ov_coarse_tail
 
-     type(par_timer) :: timer_coll_assprec
-     type(par_timer) :: timer_coll_fillprec
-     type(par_timer) :: timer_coll_applyprec
+     type(par_timer), pointer :: timer_coll_assprec
+     type(par_timer), pointer :: timer_coll_fillprec
+     type(par_timer), pointer :: timer_coll_applyprec
 
-     type(fem_precond_params) :: ppars_harm 
-     type(solver_control)      :: spars_harm
-     type(solver_control)      :: spars_neumann
-     type(fem_precond_params) :: ppars_dirichlet 
-     type(solver_control)      :: spars_dirichlet 
-     type(solver_control)      :: spars_coarse
-     type(fem_precond_params)                      :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
+     type(fem_precond_params)        :: ppars_harm 
+     type(solver_control), pointer   :: spars_harm
+     type(solver_control), pointer   :: spars_neumann
+     type(fem_precond_params)        :: ppars_dirichlet 
+     type(solver_control), pointer   :: spars_dirichlet 
+     type(solver_control), pointer   :: spars_coarse
+     type(fem_precond_params)        :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
      type (par_precond_dd_mlevel_bddc_params ) :: ppars_coarse_bddc      ! co_sys_sol_strat = recursive_bddc
 
      integer(ip) :: num_neumann_solves   = 0
      integer(ip) :: num_dirichlet_solves = 0
      integer(ip) :: num_coarse_solves    = 0
+
      integer(ip) :: neumann_its   (2000)  ! A much more sophisticated (dynamic) treatment is required here
      integer(ip) :: dirichlet_its (2000)
      integer(ip) :: coarse_its    (2000)
+
      integer(ip) :: harm_its_agg         = 0 
    contains
      procedure :: apply => par_precond_dd_mlevel_bddc_apply_tbp
@@ -543,11 +545,25 @@ contains
     !call par_partition_bcast(mlbddc%p_part,mlbddc%p_env%id_parts)
 
     mlbddc%ppars_harm      = mlbddc_params%ppars_harm
+
+    allocate(mlbddc%spars_harm, stat=istat)
+    check( istat == 0 ) 
     mlbddc%spars_harm      = mlbddc_params%spars_harm
+
+    allocate(mlbddc%spars_neumann, stat=istat)
+    check( istat == 0 ) 
     mlbddc%spars_neumann   = mlbddc_params%spars_neumann
-    mlbddc%ppars_dirichlet = mlbddc_params% ppars_dirichlet
+
+    mlbddc%ppars_dirichlet = mlbddc_params%ppars_dirichlet
+
+    allocate(mlbddc%spars_dirichlet, stat=istat)
+    check( istat == 0 ) 
     mlbddc%spars_dirichlet = mlbddc_params%spars_dirichlet
+
+    allocate(mlbddc%spars_coarse, stat=istat)
+    check( istat == 0 ) 
     mlbddc%spars_coarse    = mlbddc_params%spars_coarse
+
     if(mlbddc%co_sys_sol_strat == serial_gather) then
        mlbddc%ppars_coarse_serial = mlbddc_params%ppars_coarse_serial
     else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -556,26 +572,51 @@ contains
 
    if ( temp_fine_coarse_grid_overlap ) then 
        if ( i_am_coarse_task ) then
+          allocate(mlbddc%timer_assprec_ov_coarse, stat=istat)
+          check(istat == 0)
+          allocate(mlbddc%timer_assprec_ov_coarse_header, stat=istat)
+          check(istat == 0)
+          allocate(mlbddc%timer_fillprec_ov_coarse, stat=istat)
+          check(istat == 0)
+          allocate(mlbddc%timer_applyprec_ov_coarse, stat=istat)
+          check(istat == 0)
           call par_timer_create ( mlbddc%timer_assprec_ov_coarse,  'Symb. Prec. region C',  mlbddc%p_env%c_context%icontxt )
           call par_timer_create ( mlbddc%timer_assprec_ov_coarse_header,  'Symb. Prec. region C header',  mlbddc%p_env%c_context%icontxt )
-
           call par_timer_create ( mlbddc%timer_fillprec_ov_coarse, 'Fill. Prec. region C',  mlbddc%p_env%c_context%icontxt )
           call par_timer_create ( mlbddc%timer_applyprec_ov_coarse,  'Apply Prec. region C',  mlbddc%p_env%c_context%icontxt )
-
        else if ( i_am_fine_task ) then
+          allocate ( mlbddc%timer_assprec_ov_fine, stat=istat)
+          check(istat == 0)
+          allocate ( mlbddc%timer_assprec_ov_fine_header,stat=istat)
+          check(istat == 0)
+          allocate ( mlbddc%timer_fillprec_ov_fine, stat=istat)
+          check(istat == 0)
+          allocate ( mlbddc%timer_fillprec_ov_fine_header, stat=istat)
+          check(istat == 0)
+          allocate ( mlbddc%timer_fillprec_ov_coarse_header,stat=istat)
+          check(istat == 0)
+          allocate ( mlbddc%timer_applyprec_ov_fine, stat=istat)
+          check(istat == 0)
+          allocate ( mlbddc%timer_applyprec_ov_coarse_header,stat=istat)
+          check(istat == 0)
+          allocate ( mlbddc%timer_applyprec_ov_coarse_tail,stat=istat)
+          check(istat == 0)
           call par_timer_create ( mlbddc%timer_assprec_ov_fine, 'Symb. Prec. region F',  mlbddc%p_env%p_context%icontxt )
           call par_timer_create ( mlbddc%timer_assprec_ov_fine_header, 'Symb. Prec. region F header',  mlbddc%p_env%p_context%icontxt )
-
           call par_timer_create ( mlbddc%timer_fillprec_ov_fine, 'Fill. Prec. region F',  mlbddc%p_env%p_context%icontxt )
           call par_timer_create ( mlbddc%timer_fillprec_ov_fine_header, 'Fill. Prec. region F header',  mlbddc%p_env%p_context%icontxt )
           call par_timer_create ( mlbddc%timer_fillprec_ov_coarse_header, 'Fill. Prec. region C header',  mlbddc%p_env%p_context%icontxt )
-
           call par_timer_create ( mlbddc%timer_applyprec_ov_fine, 'Apply Prec. region F',  mlbddc%p_env%p_context%icontxt )
           call par_timer_create ( mlbddc%timer_applyprec_ov_coarse_header,  'Apply Prec. region C header',  mlbddc%p_env%p_context%icontxt )
           call par_timer_create ( mlbddc%timer_applyprec_ov_coarse_tail, 'Apply Prec. region C tail',  mlbddc%p_env%p_context%icontxt )
-
        end if
        if ( i_am_coarse_task .or. i_am_fine_task ) then
+         allocate ( mlbddc%timer_coll_assprec  , stat=istat)
+         check(istat == 0)
+         allocate ( mlbddc%timer_coll_fillprec , stat=istat)
+         check(istat == 0)
+         allocate ( mlbddc%timer_coll_applyprec, stat=istat)
+         check(istat == 0)
          call par_timer_create ( mlbddc%timer_coll_assprec  , 'Collective Assembly preconditioner',  mlbddc%p_env%g_context%icontxt )
          call par_timer_create ( mlbddc%timer_coll_fillprec , 'Collective Fill preconditioner'    ,  mlbddc%p_env%g_context%icontxt )
          call par_timer_create ( mlbddc%timer_coll_applyprec, 'Collective Apply preconditioner'   ,  mlbddc%p_env%g_context%icontxt )
@@ -832,10 +873,36 @@ contains
           check(.false.)
        end if
        ! END COARSE-GRID PROBLEM DUTIES
+
+       if ( temp_fine_coarse_grid_overlap ) then 
+         if ( i_am_coarse_task ) then
+           deallocate ( mlbddc%timer_assprec_ov_coarse)
+           deallocate ( mlbddc%timer_assprec_ov_coarse_header)
+           deallocate ( mlbddc%timer_fillprec_ov_coarse)
+           deallocate ( mlbddc%timer_applyprec_ov_coarse)
+         else if ( i_am_fine_task ) then
+           deallocate ( mlbddc%timer_assprec_ov_fine)
+           deallocate ( mlbddc%timer_assprec_ov_fine_header)
+           deallocate ( mlbddc%timer_fillprec_ov_fine)
+           deallocate ( mlbddc%timer_fillprec_ov_fine_header)
+           deallocate ( mlbddc%timer_fillprec_ov_coarse_header)
+           deallocate ( mlbddc%timer_applyprec_ov_fine)
+           deallocate ( mlbddc%timer_applyprec_ov_coarse_header)
+           deallocate ( mlbddc%timer_applyprec_ov_coarse_tail)
+         end if
+         if ( i_am_coarse_task .or. i_am_fine_task ) then
+           deallocate ( mlbddc%timer_coll_assprec)
+           deallocate ( mlbddc%timer_coll_fillprec)
+           deallocate ( mlbddc%timer_coll_applyprec)
+         end if          
+       end if
        
        nullify ( mlbddc%p_env  )
        nullify ( mlbddc%p_mat  )
-       
+       deallocate(mlbddc%spars_harm)
+       deallocate(mlbddc%spars_neumann)
+       deallocate(mlbddc%spars_dirichlet)
+       deallocate(mlbddc%spars_coarse)
        return  
     end if
 
@@ -899,8 +966,6 @@ contains
                 call memfree ( mlbddc%ptr_coarse_dofs, __FILE__, __LINE__)
              end if
              
-             ! These lines should be uncommented when the structures are actually filled
-             ! In fact we should add flags to indicate that in each free routine
              ! Free coarse partition
              call dof_distribution_free ( mlbddc%dof_dist_c )
              
@@ -3353,13 +3418,13 @@ contains
              
 
               call solve_edge_lagrange_multipliers_explicit_schur ( mlbddc, &
-                                                                      mlbddc%S_rr, &
-                                                                      mlbddc%S_rr_neumann, &
-                                                                      mlbddc%ipiv, &
-                                                                      mlbddc%ipiv_neumann, &
-                                                                      reuse_from_phis, &
-                                                                     (mlbddc%nl_edges+mlbddc%nl_corners),&
-                                                                      rhs, lambda_r )
+                                                                    mlbddc%S_rr, &
+                                                                    mlbddc%S_rr_neumann, &
+                                                                    mlbddc%ipiv, &
+                                                                    mlbddc%ipiv_neumann, &
+                                                                    reuse_from_phis, &
+                                                                    (mlbddc%nl_edges+mlbddc%nl_corners),&
+                                                                    rhs, lambda_r )
                  call memfree ( rhs, __FILE__, __LINE__)
 
               if (mlbddc%projection == petrov_galerkin ) then 
@@ -5040,13 +5105,12 @@ contains
     implicit none
 
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc 
+    type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc 
 
-    real(rp), allocatable     , intent(inout)   :: S_rr(:,:), S_rr_neumann(:,:)
-    integer (ip), allocatable , intent(inout)   :: ipiv(:), ipiv_neumann(:) 
-   
-    integer (ip)              , intent(in)          :: schur_edge_lag_mult
-    integer (ip)              , intent(in)          :: nrhs
+    real(rp)                  , intent(in)   :: S_rr(:,:), S_rr_neumann(:,:)
+    integer (ip)              , intent(in)   :: ipiv(:), ipiv_neumann(:) 
+    integer (ip)              , intent(in)   :: schur_edge_lag_mult
+    integer (ip)              , intent(in)   :: nrhs
     real(rp)                  , intent(in), target  :: rhs (mlbddc%nl_edges, nrhs)
     real(rp)                  , intent(out), target :: lambda_r (mlbddc%nl_edges, nrhs)
 
@@ -6114,7 +6178,7 @@ end if
     implicit none
     ! Parameters
     type(par_matrix)         , intent(in)        :: p_mat
-    type(par_precond_dd_mlevel_bddc)             :: mlbddc ! ** IMPORTANT NONE work to let intent(in) compile 
+    type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc 
     type(par_vector)         , intent(in)        :: x
     type(par_vector)         , intent(inout)     :: y
 
@@ -6235,8 +6299,8 @@ end if
           call par_vector_create_view (  y, 1, mlbddc%dof_dist%ni, y_I  )
           call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, y_I%f_vector )
 
-          mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
-          mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
+          !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
+          !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
           call par_vector_free   (r)
 
@@ -6270,8 +6334,8 @@ end if
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
           call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%f_vector, dx_I%f_vector )
           call fem_vector_zero            ( dx_G%f_vector )
-          mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
-          mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
+          !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
+          !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
           ! 2) Compute x = x + dx     (idem x_I = x_I + dx_I,    x_G = x_G)
           call par_vector_copy ( dx, y )
@@ -6341,8 +6405,8 @@ end if
           ! 6) Compute 1), 2)
           call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, dx_I%f_vector )
           call fem_vector_zero            ( dx_G%f_vector )
-          mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
-          mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
+          !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
+          !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
           ! 2) Compute x = x + dx
           call par_vector_pxpy ( dx, y )
@@ -6372,10 +6436,10 @@ end if
                 call solve( mlbddc%A_c, mlbddc%M_c, r_c, z_c, mlbddc%spars_coarse)
              else
                 check(.false.)
-!!$                call solve( mlbddc%A_c_op, mlbddc%M_inv_op_c, r_c, z_c, mlbddc%spars_coarse)
+!!$             call solve( mlbddc%A_c_op, mlbddc%M_inv_op_c, r_c, z_c, mlbddc%spars_coarse)
              end if
-             mlbddc%num_coarse_solves = mlbddc%num_coarse_solves + 1
-             mlbddc%coarse_its (mlbddc%num_coarse_solves) = mlbddc%spars_coarse%it
+             !mlbddc%num_coarse_solves = mlbddc%num_coarse_solves + 1
+             !mlbddc%coarse_its (mlbddc%num_coarse_solves) = mlbddc%spars_coarse%it
 
              ! Scatter solution of coarse-grid problem 
              call par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, z_c, v1 )
@@ -6465,9 +6529,9 @@ end if
   subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r_G, r_c )
    implicit none
    ! Parameters
-   type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-   type(par_vector), intent(in) :: r_G
-   type(fem_vector), intent(inout) :: r_c 
+   type(par_precond_dd_mlevel_bddc) ,intent(in) :: mlbddc
+   type(par_vector)                 ,intent(in) :: r_G
+   type(fem_vector)                 ,intent(inout) :: r_c 
 
    ! Locals
    integer :: me, np
@@ -6584,9 +6648,9 @@ end if
  subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, z_c, v_G )
    implicit none
    ! Parameters
-   type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-   type(fem_vector)                    , intent(inout) :: z_c
-   type(par_vector)                    , intent(inout) :: v_G 
+   type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc
+   type(fem_vector)                , intent(inout) :: z_c
+   type(par_vector)                , intent(inout) :: v_G 
 
    ! Locals
    real(rp), allocatable :: z_ci(:)
@@ -6656,9 +6720,9 @@ end if
   subroutine par_precond_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v_G )
     implicit none
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-    type(par_vector)         , intent(in)    :: r       ! Local residual
-    type(par_vector)         , intent(inout) :: v_G 
+    type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc
+    type(par_vector)                , intent(in)    :: r       ! Local residual
+    type(par_vector)                , intent(inout) :: v_G 
 
     ! Locals
     real(rp), allocatable :: r_r (:), z_r (:)
@@ -6765,9 +6829,9 @@ end if
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-    type(par_vector)         , intent(in)    :: r
-    real(rp)                 , intent(inout) :: r_ci(mlbddc%nl_coarse  )
+    type(par_precond_dd_mlevel_bddc), intent(in)    :: mlbddc
+    type(par_vector)                , intent(in)    :: r
+    real(rp)                        , intent(inout) :: r_ci(mlbddc%nl_coarse  )
 
 #ifdef ENABLE_BLAS
       r_ci = 0.0_rp
@@ -6810,9 +6874,9 @@ end if
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-    real(rp)                 , intent(in)    :: r_ci(mlbddc%nl_coarse  )
-    type(par_vector)         , intent(inout) :: r
+    type(par_precond_dd_mlevel_bddc), intent(in)    :: mlbddc
+    real(rp)                        , intent(in)    :: r_ci(mlbddc%nl_coarse  )
+    type(par_vector)                , intent(inout) :: r
 
 #ifdef ENABLE_BLAS
       ! r <- 1.0 * rPhi * r_ci + 0.0 * r 
@@ -7308,7 +7372,7 @@ end if
   subroutine compute_neumann_edge_lagrange_multipliers_rhs (mlbddc, r_r, rhs, work, iparm, msglvl)
     implicit none
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc), intent(inout), target :: mlbddc
+    type(par_precond_dd_mlevel_bddc), intent(in), target :: mlbddc
 
     real(rp)                 , intent(inout)         :: r_r  (mlbddc%A_rr_gr%nv)
     real(rp)                 , intent(out)           :: rhs  (mlbddc%nl_edges )
@@ -7364,7 +7428,7 @@ end if
   ! A_rr z_r = r_r - C_r^T lamba_r 
   subroutine solve_neumann_problem (mlbddc, r_r, lambda_r, work, z_r)
     implicit none
-    type(par_precond_dd_mlevel_bddc), intent(inout), target        :: mlbddc
+    type(par_precond_dd_mlevel_bddc), intent(in), target        :: mlbddc
     real(rp)                 , intent(inout)                :: r_r (mlbddc%A_rr_gr%nv)
     real(rp)                 , intent(in)                   :: lambda_r (mlbddc%nl_edges  )
     real(rp)                 , intent(in)                   :: work (mlbddc%A_rr_gr%nv) 

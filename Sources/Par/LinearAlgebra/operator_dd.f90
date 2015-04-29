@@ -292,8 +292,8 @@ contains
     implicit none
     
     ! Parameters
-    type(fem_matrix)   , intent(in)              :: f_matrix
-    type(fem_operator_dd), intent(inout), target :: f_operator
+    type(fem_matrix)   , intent(in)      :: f_matrix
+    type(fem_operator_dd), intent(inout) :: f_operator
     ! integer(ip)          , intent(in)            :: me
 
     ! Locals
@@ -338,9 +338,9 @@ contains
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(inout),target             :: f_operator
-    type(fem_vector)     , intent(in)                       :: x_G
-    type(fem_vector)     , intent(inout)                    :: y_G
+    type(fem_operator_dd), intent(in)     :: f_operator
+    type(fem_vector)     , intent(in)     :: x_G
+    type(fem_vector)     , intent(inout)  :: y_G
 
     ! Locals 
     type(fem_vector)       :: ws_vec       ! Local workspace vector
@@ -403,9 +403,9 @@ contains
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(inout),target :: f_operator
-    type(fem_vector)     , intent(in)   ,target :: x_I
-    type(fem_vector)     , intent(inout),target :: y_I
+    type(fem_operator_dd), intent(in)    :: f_operator
+    type(fem_vector)     , intent(in)    :: x_I
+    type(fem_vector)     , intent(inout) :: y_I
 
     ! Locals
     type(serial_environment) :: senv
@@ -419,9 +419,9 @@ contains
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(inout)                    :: f_operator
-    type(fem_vector   )  , intent(in)                       :: x_G
-    type(fem_vector   )  , intent(inout)                    :: y_I
+    type(fem_operator_dd), intent(in)       :: f_operator
+    type(fem_vector   )  , intent(in)       :: x_G
+    type(fem_vector   )  , intent(inout)    :: y_I
     integer(ip)           :: ni
 
     ni = f_operator%dof_dist%ni ! # of interior nodes
@@ -440,15 +440,13 @@ contains
                       0.0,   &
                       y_I%b)
 #else
-    call matvec_csr_scal ( f_operator%A_IG%nd1,   &   
-                         & f_operator%A_IG%nd2,   &
-                         & f_operator%A_IG%gr%nv, &
-                         & f_operator%A_IG%gr%nv2,&
-                         & f_operator%A_IG%gr%ia, &
-                         & f_operator%A_IG%gr%ja, &
-                         & f_operator%A_IG%a,     &
-                         & x_G%b,        & 
-                         & y_I%b  )
+    call matvec_csr ( f_operator%A_IG%gr%nv, &
+                    & f_operator%A_IG%gr%nv2,&
+                    & f_operator%A_IG%gr%ia, &
+                    & f_operator%A_IG%gr%ja, &
+                    & f_operator%A_IG%a,     &
+                    & x_G%b,        & 
+                    & y_I%b  )
 #endif
 
   end subroutine fem_operator_dd_apply_A_IG
@@ -458,9 +456,9 @@ contains
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(inout)  :: f_operator
-    type(fem_vector)     , intent(in)     :: x_I
-    type(fem_vector)     , intent(inout)  :: y_G
+    type(fem_operator_dd), intent(in)    :: f_operator
+    type(fem_vector)     , intent(in)    :: x_I
+    type(fem_vector)     , intent(inout) :: y_G
 
     if ( f_operator%A_GG%symm == symm_false ) then
 #ifdef ENABLE_MKL
@@ -477,15 +475,13 @@ contains
                          0.0,    &
                          y_G%b) 
 #else
-       call matvec_csr_scal ( f_operator%A_GI%nd1,   &    
-                          &   f_operator%A_GI%nd2,   &
-                          &   f_operator%A_GI%gr%nv, &
-                          &   f_operator%A_GI%gr%nv2,&
-                          &   f_operator%A_GI%gr%ia, &
-                          &   f_operator%A_GI%gr%ja, &
-                          &   f_operator%A_GI%a,     &
-                          &   x_I%b,        & ! x_I
-                          &   y_G%b         ) ! y_G
+       call matvec_csr ( f_operator%A_GI%gr%nv, &
+                         f_operator%A_GI%gr%nv2,&
+                         f_operator%A_GI%gr%ia, &
+                         f_operator%A_GI%gr%ja, &
+                         f_operator%A_GI%a,     &
+                         x_I%b,        & ! x_I
+                         y_G%b         ) ! y_G
 #endif
     else if ( f_operator%A_GG%symm == symm_true ) then
 #ifdef ENABLE_MKL
@@ -502,15 +498,13 @@ contains
                          0.0,   &
                          y_G%b)
 #else
-       call matvec_csr_trans_scal ( f_operator%A_IG%nd1,   &   
-                    &               f_operator%A_IG%nd2,   &
-                    &               f_operator%A_IG%gr%nv, &
-                    &               f_operator%A_IG%gr%nv2,&
-                    &               f_operator%A_IG%gr%ia, &
-                    &               f_operator%A_IG%gr%ja, &
-                    &               f_operator%A_IG%a,     &
-                    &               x_I%b,        & ! x_I 
-                    &               y_G%b         ) ! y_G 
+       call matvec_csr_trans ( f_operator%A_IG%gr%nv, &
+                    &          f_operator%A_IG%gr%nv2,&
+                    &          f_operator%A_IG%gr%ia, &
+                    &          f_operator%A_IG%gr%ja, &
+                    &          f_operator%A_IG%a,     &
+                    &          x_I%b,        & ! x_I 
+                    &          y_G%b         ) ! y_G 
 #endif
     end if
   end subroutine fem_operator_dd_apply_A_GI
@@ -544,15 +538,13 @@ contains
                         0.0, &
                         y_G%b)
 #else
-      call matvec_csr_scal ( f_operator%A_GI%nd1,   &    
-                         &   f_operator%A_GI%nd2,   &
-                         &   f_operator%A_GI%gr%nv, &
-                         &   f_operator%A_GI%gr%nv2,&
-                         &   f_operator%A_GI%gr%ia, &
-                         &   f_operator%A_GI%gr%ja, &
-                         &   f_operator%A_GI%a,     &
-                         &   x_I%b,        & ! x_I
-                         &   y_G%b         ) ! y_G
+      call matvec_csr ( f_operator%A_GI%gr%nv, &
+                        f_operator%A_GI%gr%nv2,&
+                        f_operator%A_GI%gr%ia, &
+                        f_operator%A_GI%gr%ja, &
+                        f_operator%A_GI%a,     &
+                        x_I%b,        & ! x_I
+                        y_G%b         ) ! y_G
 #endif
    else if ( f_operator%A_GG%symm == symm_true ) then
 #ifdef ENABLE_MKL
@@ -569,15 +561,13 @@ contains
                         0.0,   &
                         y_G%b)
 #else
-      call matvec_csr_trans_scal ( f_operator%A_IG%nd1,   &   
-                   &               f_operator%A_IG%nd2,   &
-                   &               f_operator%A_IG%gr%nv, &
-                   &               f_operator%A_IG%gr%nv2,&
-                   &               f_operator%A_IG%gr%ia, &
-                   &               f_operator%A_IG%gr%ja, &
-                   &               f_operator%A_IG%a,     &
-                   &               x_I%b,        & ! x_I 
-                   &               y_G%b         ) ! y_G 
+      call matvec_csr ( f_operator%A_IG%gr%nv, &
+                   &    f_operator%A_IG%gr%nv2,&
+                   &    f_operator%A_IG%gr%ia, &
+                   &    f_operator%A_IG%gr%ja, &
+                   &    f_operator%A_IG%a,     &
+                   &    x_I%b,        & ! x_I 
+                   &    y_G%b         ) ! y_G 
 #endif
    end if
 
@@ -646,9 +636,9 @@ contains
   subroutine fem_operator_dd_apply_A_GG ( f_operator, x_G, y_G )
     implicit none
     ! Parameters 
-    type(fem_operator_dd), intent(inout)                 :: f_operator
-    type(fem_vector)     , intent(in)                    :: x_G
-    type(fem_vector)     , intent(inout)                 :: y_G
+    type(fem_operator_dd), intent(in)    :: f_operator
+    type(fem_vector)     , intent(in)    :: x_G
+    type(fem_vector)     , intent(inout) :: y_G
 
     if ( f_operator%A_GG%symm == symm_false ) then
 #ifdef ENABLE_MKL
@@ -672,15 +662,13 @@ contains
                          0.0,   &
                          y_G%b)
 #else
-       call matvec_csr_scal ( f_operator%A_GG%nd1,    &    
-                      &       f_operator%A_GG%nd2,    &
-                      &       f_operator%A_GG%gr%nv,  &
-                      &       f_operator%A_GG%gr%nv2, &
-                      &       f_operator%A_GG%gr%ia,  &
-                      &       f_operator%A_GG%gr%ja,  &
-                      &       f_operator%A_GG%a,      &
-                      &       x_G%b,         & 
-                      &       y_G%b          )
+       call matvec_csr ( f_operator%A_GG%gr%nv,  &
+                         f_operator%A_GG%gr%nv2, &
+                         f_operator%A_GG%gr%ia,  &
+                         f_operator%A_GG%gr%ja,  &
+                         f_operator%A_GG%a,      &
+                         x_G%b,         & 
+                         y_G%b          )
 #endif
        ! call fem_vector_print ( 6, y_G ) ! DBG:
     else if ( f_operator%A_GG%symm == symm_true ) then
@@ -705,15 +693,13 @@ contains
                          0.0,   &
                          y_G%b)
 #else
-       call matvec_csr_symm_scal ( f_operator%A_GG%nd1,    &   
-                    &              f_operator%A_GG%nd2,    &
-                    &              f_operator%A_GG%gr%nv,  &
-                    &              f_operator%A_GG%gr%nv2, &
-                    &              f_operator%A_GG%gr%ia,  &
-                    &              f_operator%A_GG%gr%ja,  &
-                    &              f_operator%A_GG%a,      &
-                    &              x_G%b,         & 
-                    &              y_G%b          )
+       call matvec_csr_symm ( f_operator%A_GG%gr%nv,  &
+                              f_operator%A_GG%gr%nv2, &
+                              f_operator%A_GG%gr%ia,  &
+                              f_operator%A_GG%gr%ja,  &
+                              f_operator%A_GG%a,      &
+                              x_G%b,         & 
+                              y_G%b          )
 #endif
        ! call fem_vector_print ( 6, y_G ) ! DBG:
     end if

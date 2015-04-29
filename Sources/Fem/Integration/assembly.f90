@@ -45,7 +45,8 @@ module assembly_names
        & assembly_face_element_matrix, &
        & assembly_element_vector, &
        & assembly_face_vector, &
-       & impose_strong_dirichlet_data
+       & impose_strong_dirichlet_data, &
+       & pointer_variable
 
   interface assembly_element_matrix
      module procedure assembly_element_matrix_block, &
@@ -391,9 +392,9 @@ contains
 
   subroutine pointer_variable(  elem, dhand, start ) 
     implicit none
-    type(dof_handler), intent(in)             :: dhand
-    type(fem_element), intent(in)             :: elem
-    integer(ip)      , intent(out)       :: start(:)
+    type(dof_handler), intent(in)  :: dhand
+    type(fem_element), intent(in)  :: elem
+    integer(ip)      , intent(out) :: start(:)
 
     integer(ip) :: ivar
 
@@ -404,9 +405,6 @@ contains
     do ivar = 2, dhand%problems(elem%problem)%nvars+1
        start(ivar) = start(ivar) + start(ivar-1)
     end do
-
-
-
   end subroutine pointer_variable
  
  !=============================================================================

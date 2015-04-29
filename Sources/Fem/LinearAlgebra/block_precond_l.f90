@@ -104,7 +104,7 @@ contains
              call aux1%free()
              call aux2%free()
           end do
-          call deallocate(aux1, aux2)
+          deallocate(aux1, aux2)
        class default
           write(0,'(a)') 'block_precond_l%apply: unsupported y class'
           check(1==0)
@@ -134,7 +134,7 @@ contains
     select type(x)
     class is (block_operand)
        allocate(local_y)
-       call block_operand_alloc(op%nblocks, local_y)
+       call local_y%create(op%nblocks)
        allocate(aux1, aux2, mold=x%blocks(1)%p_op)
        do iblk=1, op%nblocks
           call aux1%clone(x%blocks(iblk)%p_op)
@@ -152,7 +152,7 @@ contains
           call aux1%free()
           call aux2%free()
        end do
-       call deallocate(aux1, aux2)
+       deallocate(aux1, aux2)
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default

@@ -129,7 +129,6 @@ subroutine matvec_csr_symm (nv,nv2,ia,ja,a,x,y)
 
 end subroutine matvec_csr_symm
 
-
 ! Debugged
 subroutine matvec_csr_trans (nv,nv2,ia,ja,a,x,y)
   implicit none

@@ -28,6 +28,7 @@
 # include "debug.i90"
 module integration_names
   use types
+  use assembly_names
   use integrable_names
   use problem_names
   use integration_tools_names
@@ -77,9 +78,9 @@ contains
        ! Assembly first contribution
        select type(res1)
        class is(fem_matrix)
-          call assembly_element_matrix_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
+          call assembly_element_matrix(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
        class is(fem_vector)
-          call assembly_element_vector_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
+          call assembly_element_vector(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
        ! class is(fem_block_matrix)
        !    call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
        ! class is(fem_block_vector)
@@ -93,15 +94,15 @@ contains
        if(present(res2)) then
           select type(res2)
              class is(fem_matrix)
-             call assembly_element_matrix_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
+             call assembly_element_matrix(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              class is(fem_vector)
-             call assembly_element_vector_mono(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
+             call assembly_element_vector(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              ! class is(fem_block_matrix)
              ! call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              ! class is(fem_block_vector)
              ! call assembly_element_vector_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
              class default
-                ! class not yet implemented
+                ! class not yet implemented 
              check(.false.)
           end select
        end if
