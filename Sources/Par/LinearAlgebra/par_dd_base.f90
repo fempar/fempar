@@ -96,11 +96,7 @@ module par_dd_base
                                                    ! serially the coarse grid system by means
                                                    ! of a direct sparse solver (PARDISO)
 
-  integer (ip), parameter :: serial_all_gather = 1 ! All processors in the communicator gather
-                                                   ! and solve serially the coarse grid system
-                                                   ! by means of a direct sparse solver (PARDISO)
-
-  integer (ip), parameter :: distributed       = 2 ! All processors in the communicatior solve
+  integer (ip), parameter :: distributed       = 1 ! All processors in the communicatior solve
                                                    ! the coarse grid system by means of a distributed
                                                    ! direct sparse solver (e.g., MUMPS; not implemented 
                                                    ! yet at all)
@@ -110,28 +106,9 @@ module par_dd_base
   integer    , parameter  :: root_pid          = 0 ! In case of serial_gather, the processor id in charge
                                                    ! of the global information (internal/private constant)
 
-  integer (ip), parameter :: petrov_galerkin    = 0 ! Petrov-galerkin projection is considered(nonsymmetric)
+  integer (ip), parameter :: petrov_galerkin    = 0 ! Petrov-galerkin projection is considered (nonsymmetric)
   integer (ip), parameter :: galerkin           = 1 ! Galerkin projection for both test and solution function
 
-  ! BNN
-
-  ! Which rigid body motions to include in the coarse space ?
-  integer(ip), parameter :: translation              = 0
-  integer(ip), parameter :: translation_and_rotation = 1
-
-  ! Strategy for the solution of the neumann problem
-  integer(ip), parameter  :: impl_sol_aug_with_z_in_kernel = 0
-  integer(ip), parameter  :: impl_sol_aug_with_z_mapped    = 1
-  integer(ip), parameter  :: expl_sol_with_z_mapped        = 2
-
-  ! Contrain all unks (i.e., interior+interface) or only interface
-  ! unks in the computation of the fine grid correction 
-  integer(ip), parameter :: constrain_all_unks            = 0
-  integer(ip), parameter :: constrain_only_interface_unks = 1
-
-  ! How to treat non-floating subdomains fine-grid correction ?
-  integer (ip), parameter :: treat_as_floating    = 0 
-  integer (ip), parameter :: treat_wo_constrain   = 1
 
   ! Pad collectives ?
   integer(ip), parameter :: nopad  = 0
@@ -142,10 +119,6 @@ module par_dd_base
   ! from scratch using spars_neumann
   integer(ip), parameter  :: reuse_from_phis      = 0
   integer(ip), parameter  :: compute_from_scratch = 1
-  integer(ip), parameter  :: compute_as_Y_T_A_Y   = 2 ! Where Y=A_rr^{-1} C_r^T
-                                                       ! Javier's manuscript notes
-                                                       ! to symmetrize Var. 3 (art008)
-                                                       ! wo computing from scratch 
 
   ! How to calculate subdomain element matrices (subd_elmat_calc)?
   integer(ip), parameter :: phit_a_i_phi            = 0   ! \Phi_t A_i \Phi

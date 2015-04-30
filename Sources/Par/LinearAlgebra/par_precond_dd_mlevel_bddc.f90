@@ -130,9 +130,6 @@ module par_precond_dd_mlevel_bddc_names
 
   type, extends(base_operator) :: par_precond_dd_mlevel_bddc
      real(rp), pointer :: weight(:) => NULL()
-     ! integer (ip)              :: nd1 = 0   ! Number of degrees of freedom, ndof1
-     ! integer (ip)              :: nd2 = 0   ! Number of degrees of freedom, ndof2
-     ! integer (ip)              :: storage   ! Storage layout (blk: block; scal: scalar)
 
      ! Preconditioner params
      integer (ip)              :: unknowns           ! Ax=b (all_unknowns) .or. Sg=y (interface_unknowns) ? 
@@ -289,9 +286,6 @@ module par_precond_dd_mlevel_bddc_names
 
      type ( fem_operator_dd ) :: A_II_inv ! Only required if unknowns == all_unknowns
 
-     ! DoF distribution control info
-     type ( dof_distribution ), pointer  :: dof_dist => NULL()
-     type ( par_environment  ), pointer  :: p_env    => NULL()
      type ( par_matrix  )     , pointer  :: p_mat    => NULL()
 
      type (par_context)  :: g_context ! Fine to coarse comm
@@ -396,7 +390,9 @@ contains
     ! that do not have a multilevel structure (say, e.g., the diagonal preconditioner)
     assert ( associated(p_mat%p_env) )
     assert ( p_mat%p_env%created )
-    assert ( p_mat%p_env%num_levels > 1 ) 
+    assert ( p_mat%p_env%num_levels > 1 )
+    assert ( associated(p_mat%dof_dist) )
+
 
     assert ( p_mat%p_env%w_context%created .eqv. .true. )
     assert ( associated(p_mat%p_env%p_context) )
@@ -408,8 +404,6 @@ contains
     assert ( (p_mat%p_env%p_context%iam >=0 .and. p_mat%p_env%q_context%iam < 0) .or. (p_mat%p_env%p_context%iam < 0 .and. p_mat%p_env%q_context%iam >= 0))
     assert ( associated(p_mat%p_env%b_context) )
     assert ( p_mat%p_env%b_context%created .eqv. .true. )
-
-    mlbddc%p_mat   => p_mat
 
     mlbddc%symm    = p_mat%f_matrix%symm
     mlbddc%sign    = p_mat%f_matrix%sign
@@ -438,11 +432,11 @@ contains
     assert( mlbddc_params%projection == galerkin .or. mlbddc_params%projection == petrov_galerkin )
     mlbddc%projection = mlbddc_params%projection 
 
-    assert( mlbddc_params%enable_constraint_weights .eqv. .true. .or. mlbddc_params%enable_constraint_weights .eqv. .false. )
+    assert( mlbddc_params%enable_constraint_weights .or. .not. mlbddc_params%enable_constraint_weights  )
     mlbddc%enable_constraint_weights = mlbddc_params%enable_constraint_weights    
 
     ! Up to the moment, two strategies for the solution of the coarse grid system are implemented
-    assert ( mlbddc_params%co_sys_sol_strat == serial_gather .or. mlbddc_params%co_sys_sol_strat == serial_all_gather .or. mlbddc_params%co_sys_sol_strat == distributed .or. mlbddc_params%co_sys_sol_strat == recursive_bddc)
+    assert ( mlbddc_params%co_sys_sol_strat == serial_gather .or. mlbddc_params%co_sys_sol_strat == recursive_bddc)
     mlbddc%co_sys_sol_strat  = mlbddc_params%co_sys_sol_strat
     
     assert (mlbddc_params%nn_sys_sol_strat==corners_rest_part_solve_expl_schur.or.mlbddc_params%nn_sys_sol_strat==direct_solve_constrained_problem )
@@ -459,15 +453,14 @@ contains
     assert ( mlbddc_params%subd_elmat_calc == phit_a_i_phi .or. mlbddc_params%subd_elmat_calc == phit_minus_c_i_t_lambda )
     mlbddc%subd_elmat_calc = mlbddc_params%subd_elmat_calc
 
-    mlbddc%p_env    => p_mat%p_env
-    mlbddc%dof_dist => p_mat%dof_dist
+    mlbddc%p_mat    => p_mat
 
     mlbddc%num_dirichlet_solves = 0
     mlbddc%num_neumann_solves   = 0
     mlbddc%num_coarse_solves    = 0
 
    if(allocated(mlbddc_params%weight)) then
-       if (mlbddc%p_env%p_context%iam>=0) then
+       if (mlbddc%p_mat%p_env%p_context%iam>=0) then
           mlbddc%weight => mlbddc_params%weight(1:p_mat%dof_dist%nb)
        else
           nullify(mlbddc%weight)
@@ -477,25 +470,25 @@ contains
     end if
 
     ! Now create c_context (the coarse context) and d_context (the set of unused tasks) by spliting q_context
-    ! allocate(mlbddc%dof_dist%c_context, stat = istat)
+    ! allocate(mlbddc%p_mat%dof_dist%c_context, stat = istat)
     ! assert(istat==0)
-    ! allocate(mlbddc%dof_dist%d_context, stat = istat)
+    ! allocate(mlbddc%p_mat%dof_dist%d_context, stat = istat)
     ! assert(istat==0)
-    ! if(mlbddc%dof_dist%q_context%iam >= 0) then
-    !    if(mlbddc%dof_dist%q_context%iam < mlbddc%dof_dist%num_parts(2)) then
-    !       call par_context_create ( inhouse, 1, mlbddc%dof_dist%c_context, mlbddc%dof_dist%d_context, mlbddc%dof_dist%w_context )
+    ! if(mlbddc%p_mat%dof_dist%q_context%iam >= 0) then
+    !    if(mlbddc%p_mat%dof_dist%q_context%iam < mlbddc%p_mat%dof_dist%num_parts(2)) then
+    !       call par_context_create ( inhouse, 1, mlbddc%p_mat%dof_dist%c_context, mlbddc%p_mat%dof_dist%d_context, mlbddc%p_mat%dof_dist%w_context )
     !    else
-    !       call par_context_create ( inhouse, 2, mlbddc%dof_dist%d_context, mlbddc%dof_dist%c_context, mlbddc%dof_dist%w_context )
+    !       call par_context_create ( inhouse, 2, mlbddc%p_mat%dof_dist%d_context, mlbddc%p_mat%dof_dist%c_context, mlbddc%p_mat%dof_dist%w_context )
     !    end if
     ! else
-    !    call par_context_create ( inhouse, -1, mlbddc%dof_dist%c_context, mlbddc%dof_dist%d_context, mlbddc%dof_dist%w_context )
+    !    call par_context_create ( inhouse, -1, mlbddc%p_mat%dof_dist%c_context, mlbddc%p_mat%dof_dist%d_context, mlbddc%p_mat%dof_dist%w_context )
     ! end if
     ! write(*,*) 'c_context and d_context created'
-    if(mlbddc%p_env%q_context%iam >= 0) then
-       if(mlbddc%p_env%q_context%iam < mlbddc%p_env%num_parts(2)) then
-          call par_context_create ( 1, mlbddc%c_context, mlbddc%d_context, mlbddc%p_env%q_context )
+    if(mlbddc%p_mat%p_env%q_context%iam >= 0) then
+       if(mlbddc%p_mat%p_env%q_context%iam < mlbddc%p_mat%p_env%num_parts(2)) then
+          call par_context_create ( 1, mlbddc%c_context, mlbddc%d_context, mlbddc%p_mat%p_env%q_context )
        else
-          call par_context_create ( 2, mlbddc%d_context, mlbddc%c_context, mlbddc%p_env%q_context )
+          call par_context_create ( 2, mlbddc%d_context, mlbddc%c_context, mlbddc%p_mat%p_env%q_context )
        end if
     else
        call par_context_null (mlbddc%c_context)
@@ -503,40 +496,40 @@ contains
     end if
 
     ! Now create g_context, where communication actually occurs
-    if(mlbddc%p_env%p_context%iam >= 0) then
+    if(mlbddc%p_mat%p_env%p_context%iam >= 0) then
        ! my_color is id_parts(this_level+1)
-       call par_context_create ( mlbddc%p_env%id_parts(2)    , mlbddc%g_context, dum_context, mlbddc%p_env%w_context )
+       call par_context_create ( mlbddc%p_mat%p_env%id_parts(2)    , mlbddc%g_context, dum_context, mlbddc%p_mat%p_env%w_context )
     else if(mlbddc%c_context%iam >= 0) then
-       call par_context_create ( mlbddc%c_context%iam+1      , mlbddc%g_context, dum_context, mlbddc%p_env%w_context )
+       call par_context_create ( mlbddc%c_context%iam+1      , mlbddc%g_context, dum_context, mlbddc%p_mat%p_env%w_context )
     else
-       call par_context_create (                           -1, mlbddc%g_context, dum_context, mlbddc%p_env%w_context )
+       call par_context_create (                           -1, mlbddc%g_context, dum_context, mlbddc%p_mat%p_env%w_context )
     end if
 
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
     if ( debug_verbose_level_1 ) then
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'w_context: ',mlbddc%p_env%w_context%iam, mlbddc%p_env%w_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'p_context: ',mlbddc%p_env%p_context%iam, mlbddc%p_env%p_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'q_context: ',mlbddc%p_env%q_context%iam, mlbddc%p_env%q_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'c_context: ',mlbddc%c_context%iam, mlbddc%c_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'd_context: ',mlbddc%d_context%iam, mlbddc%d_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'g_context: ',mlbddc%g_context%iam, mlbddc%g_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'b_context: ',mlbddc%p_env%b_context%iam, mlbddc%p_env%b_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_mat%p_env%num_levels, 'w_context: ',mlbddc%p_mat%p_env%w_context%iam, mlbddc%p_mat%p_env%w_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_mat%p_env%num_levels, 'p_context: ',mlbddc%p_mat%p_env%p_context%iam, mlbddc%p_mat%p_env%p_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_mat%p_env%num_levels, 'q_context: ',mlbddc%p_mat%p_env%q_context%iam, mlbddc%p_mat%p_env%q_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_mat%p_env%num_levels, 'c_context: ',mlbddc%c_context%iam, mlbddc%c_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_mat%p_env%num_levels, 'd_context: ',mlbddc%d_context%iam, mlbddc%d_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_mat%p_env%num_levels, 'g_context: ',mlbddc%g_context%iam, mlbddc%g_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_mat%p_env%num_levels, 'b_context: ',mlbddc%p_mat%p_env%b_context%iam, mlbddc%p_mat%p_env%b_context%np
     end if
 
 
     ! Both the global number of objects and the maximum number
     ! of parts surrounding any node on the interface are required
     ! during preconditioner set-up in all tasks
-    ! call par_partition_bcast(mlbddc%p_part,mlbddc%p_env%f_part%omap%ng)
-    ! call par_partition_bcast(mlbddc%p_part,mlbddc%p_env%f_part%max_nparts)
-    ! call par_partition_bcast(mlbddc%p_part,mlbddc%p_env%num_levels)
+    ! call par_partition_bcast(mlbddc%p_part,mlbddc%p_mat%p_env%f_part%omap%ng)
+    ! call par_partition_bcast(mlbddc%p_part,mlbddc%p_mat%p_env%f_part%max_nparts)
+    ! call par_partition_bcast(mlbddc%p_part,mlbddc%p_mat%p_env%num_levels)
     ! Are these arrays allocated in the coarse process?
-    !call par_partition_bcast(mlbddc%p_part,mlbddc%p_env%num_parts)
-    !call par_partition_bcast(mlbddc%p_part,mlbddc%p_env%id_parts)
+    !call par_partition_bcast(mlbddc%p_part,mlbddc%p_mat%p_env%num_parts)
+    !call par_partition_bcast(mlbddc%p_part,mlbddc%p_mat%p_env%id_parts)
 
     mlbddc%ppars_harm      = mlbddc_params%ppars_harm
 
@@ -595,14 +588,14 @@ contains
           check(istat == 0)
           allocate ( mlbddc%timer_applyprec_ov_coarse_tail,stat=istat)
           check(istat == 0)
-          call par_timer_create ( mlbddc%timer_assprec_ov_fine, 'Symb. Prec. region F',  mlbddc%p_env%p_context%icontxt )
-          call par_timer_create ( mlbddc%timer_assprec_ov_fine_header, 'Symb. Prec. region F header',  mlbddc%p_env%p_context%icontxt )
-          call par_timer_create ( mlbddc%timer_fillprec_ov_fine, 'Fill. Prec. region F',  mlbddc%p_env%p_context%icontxt )
-          call par_timer_create ( mlbddc%timer_fillprec_ov_fine_header, 'Fill. Prec. region F header',  mlbddc%p_env%p_context%icontxt )
-          call par_timer_create ( mlbddc%timer_fillprec_ov_coarse_header, 'Fill. Prec. region C header',  mlbddc%p_env%p_context%icontxt )
-          call par_timer_create ( mlbddc%timer_applyprec_ov_fine, 'Apply Prec. region F',  mlbddc%p_env%p_context%icontxt )
-          call par_timer_create ( mlbddc%timer_applyprec_ov_coarse_header,  'Apply Prec. region C header',  mlbddc%p_env%p_context%icontxt )
-          call par_timer_create ( mlbddc%timer_applyprec_ov_coarse_tail, 'Apply Prec. region C tail',  mlbddc%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_assprec_ov_fine, 'Symb. Prec. region F',  mlbddc%p_mat%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_assprec_ov_fine_header, 'Symb. Prec. region F header',  mlbddc%p_mat%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_fillprec_ov_fine, 'Fill. Prec. region F',  mlbddc%p_mat%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_fillprec_ov_fine_header, 'Fill. Prec. region F header',  mlbddc%p_mat%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_fillprec_ov_coarse_header, 'Fill. Prec. region C header',  mlbddc%p_mat%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_applyprec_ov_fine, 'Apply Prec. region F',  mlbddc%p_mat%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_applyprec_ov_coarse_header,  'Apply Prec. region C header',  mlbddc%p_mat%p_env%p_context%icontxt )
+          call par_timer_create ( mlbddc%timer_applyprec_ov_coarse_tail, 'Apply Prec. region C tail',  mlbddc%p_mat%p_env%p_context%icontxt )
        end if
        if ( i_am_coarse_task .or. i_am_fine_task ) then
          allocate ( mlbddc%timer_coll_assprec  , stat=istat)
@@ -697,21 +690,21 @@ contains
           !else if(mlbddc%co_sys_sol_strat == distributed) then
 
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
-             assert(mlbddc%p_env%num_levels>2) ! Assuming last level serial
+             assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level serial
 
              ! Now create b_context (intercomm)
              assert(istat==0)
-             call par_context_create ( mlbddc%p_env%q_context, mlbddc%c_context, mlbddc%d_context, mlbddc%b_context )
+             call par_context_create ( mlbddc%p_mat%p_env%q_context, mlbddc%c_context, mlbddc%d_context, mlbddc%b_context )
 
              ! Create coarse partition (assign c_context -> p_context, q_context -> w_context, d_context -> q_context) 
              call par_environment_create ( mlbddc%p_env_c,         &
-                                           mlbddc%p_env%q_context, &  ! Intracomm including c & d
+                                           mlbddc%p_mat%p_env%q_context, &  ! Intracomm including c & d
                                            mlbddc%c_context, &  ! Fine-tasks intracomm
                                            mlbddc%d_context, &  ! Rest-of-tasks intracomm
                                            mlbddc%b_context,       &  ! Intercomm c<=>d
-                                           mlbddc%p_env%num_levels-1, &  
-                                           mlbddc%p_env%id_parts(2:mlbddc%p_env%num_levels), &
-                                           mlbddc%p_env%num_parts(2:mlbddc%p_env%num_levels) )
+                                           mlbddc%p_mat%p_env%num_levels-1, &  
+                                           mlbddc%p_mat%p_env%id_parts(2:mlbddc%p_mat%p_env%num_levels), &
+                                           mlbddc%p_mat%p_env%num_parts(2:mlbddc%p_mat%p_env%num_levels) )
 
              ! Create coarse mesh
              call par_mesh_create ( mlbddc%p_env_c, mlbddc%p_mesh_c )
@@ -758,30 +751,30 @@ contains
     logical           :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
 
     ! The routine requires the partition/context info
-    assert ( associated(mlbddc%p_env) )
-    assert ( mlbddc%p_env%created )
-    assert ( mlbddc%p_env%num_levels > 1 ) 
+    assert ( associated(mlbddc%p_mat%p_env) )
+    assert ( mlbddc%p_mat%p_env%created )
+    assert ( mlbddc%p_mat%p_env%num_levels > 1 ) 
 
-    assert ( associated(mlbddc%p_env%w_context) )
-    assert ( mlbddc%p_env%w_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%p_context) )
-    assert ( mlbddc%p_env%p_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%q_context) )
-    assert ( mlbddc%p_env%q_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%w_context) )
+    assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%p_context) )
+    assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%q_context) )
+    assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( mlbddc%p_env%w_context%iam >= 0)
-    assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
+    assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
+    assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
     assert ( mlbddc%c_context%created .eqv. .true. )
     assert ( mlbddc%d_context%created .eqv. .true. )
     assert ( mlbddc%g_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%b_context) )
-    assert ( mlbddc%p_env%b_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%b_context) )
+    assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
 
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
-    if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
+    if(i_am_fine_task) iam = mlbddc%p_mat%p_env%p_context%iam
     if(i_am_coarse_task) iam = mlbddc%c_context%iam
     if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
@@ -814,7 +807,7 @@ contains
              
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
 
-             assert(mlbddc%p_env%num_levels>2) ! Assuming last level direct
+             assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
              
              if ( i_am_coarse_task .or. i_am_higher_level_task ) then
                 ! Recursively call bddc_free
@@ -846,7 +839,7 @@ contains
                 
              end if
              
-             ! deallocate(mlbddc%p_env%c_context, stat = istat)
+             ! deallocate(mlbddc%p_mat%p_env%c_context, stat = istat)
              ! assert(istat==0)
              ! deallocate(mlbddc%d_context, stat = istat)
              ! assert(istat==0)
@@ -880,7 +873,6 @@ contains
          end if          
        end if
        
-       nullify ( mlbddc%p_env  )
        nullify ( mlbddc%p_mat  )
        deallocate(mlbddc%spars_harm)
        deallocate(mlbddc%spars_neumann)
@@ -937,7 +929,7 @@ contains
 
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
 
-          assert(mlbddc%p_env%num_levels>2) 
+          assert(mlbddc%p_mat%p_env%num_levels>2) 
           
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
@@ -1056,7 +1048,7 @@ contains
              call fem_matrix_free ( mlbddc%A_c, free_only_values )
           end if
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
-          assert(mlbddc%p_env%num_levels>2) 
+          assert(mlbddc%p_mat%p_env%num_levels>2) 
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
              call par_precond_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_values )
@@ -1088,28 +1080,28 @@ contains
     assert ( p_mat%p_env%created )
     assert ( p_mat%p_env%num_levels > 1 ) 
 
-    assert ( associated(mlbddc%p_env%w_context) )
-    assert ( mlbddc%p_env%w_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%p_context) )
-    assert ( mlbddc%p_env%p_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%q_context) )
-    assert ( mlbddc%p_env%q_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%w_context) )
+    assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%p_context) )
+    assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%q_context) )
+    assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( mlbddc%p_env%w_context%iam >= 0)
-    assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
+    assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
+    assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
     assert ( mlbddc%c_context%created .eqv. .true. )
     assert ( mlbddc%d_context%created .eqv. .true. )
     assert ( mlbddc%g_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%b_context) )
-    assert ( mlbddc%p_env%b_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%b_context) )
+    assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
 
     mlbddc%p_mat => p_mat
     
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
-    ! if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
+    ! if(i_am_fine_task) iam = mlbddc%p_mat%p_env%p_context%iam
     ! if(i_am_coarse_task) iam = mlbddc%c_context%iam
     ! if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
@@ -1227,7 +1219,7 @@ contains
 
     integer :: info
 
-    mlbddc%A_rr_gr%nv    = mlbddc%dof_dist%nl  + &
+    mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl  + &
                                  & mlbddc%nl_corners             + &
                                  & mlbddc%nl_edges              
  
@@ -1241,12 +1233,12 @@ contains
                                                       p_mat%f_matrix%gr%nv   ,  & 
                                                       p_mat%f_matrix%gr%ia   ,  & 
                                                       mlbddc%A_rr_gr%nv  , &
-                                                      mlbddc%dof_dist%nl, &
+                                                      mlbddc%p_mat%dof_dist%nl, &
                                                       mlbddc%nl_coarse, &
                                                       mlbddc%coarse_dofs, &
-                                                      mlbddc%dof_dist%max_nparts, &
-                                                      mlbddc%dof_dist%omap%nl, &
-                                                      mlbddc%dof_dist%lobjs, &
+                                                      mlbddc%p_mat%dof_dist%max_nparts, &
+                                                      mlbddc%p_mat%dof_dist%omap%nl, &
+                                                      mlbddc%p_mat%dof_dist%lobjs, &
                                                       mlbddc%A_rr_gr%ia  )
 
     call memalloc ( mlbddc%A_rr_gr%ia(mlbddc%A_rr_gr%nv+1)-1, mlbddc%A_rr_gr%ja,  __FILE__,__LINE__ )
@@ -1258,12 +1250,12 @@ contains
                                                      p_mat%f_matrix%gr%ja      , &
                                                      mlbddc%A_rr_gr%nv     , & 
                                                      mlbddc%A_rr_gr%ia     , &
-                                                     mlbddc%dof_dist%nl, &
+                                                     mlbddc%p_mat%dof_dist%nl, &
                                                      mlbddc%nl_coarse, &
                                                      mlbddc%coarse_dofs, &
-                                                     mlbddc%dof_dist%max_nparts, &
-                                                     mlbddc%dof_dist%omap%nl, &
-                                                     mlbddc%dof_dist%lobjs, &
+                                                     mlbddc%p_mat%dof_dist%max_nparts, &
+                                                     mlbddc%p_mat%dof_dist%omap%nl, &
+                                                     mlbddc%p_mat%dof_dist%lobjs, &
                                                      mlbddc%A_rr_gr%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
@@ -1442,9 +1434,9 @@ contains
     ! Locals
     integer (ip) :: iobj, icorner, iedge
 
-    call count_coarse_dofs ( mlbddc%dof_dist%max_nparts  , &
-                             mlbddc%dof_dist%omap%nl     , &
-                             mlbddc%dof_dist%lobjs       , &
+    call count_coarse_dofs ( mlbddc%p_mat%dof_dist%max_nparts  , &
+                             mlbddc%p_mat%dof_dist%omap%nl     , &
+                             mlbddc%p_mat%dof_dist%lobjs       , &
                              mlbddc%kind_coarse_dofs          , &
                              mlbddc%ndime                     , &
                              mlbddc%nl_corners                , &
@@ -1460,14 +1452,14 @@ contains
     
     if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then 
        
-       call memalloc ( mlbddc%dof_dist%nl,  mlbddc%perm,__FILE__,__LINE__ )
-       call memalloc ( mlbddc%dof_dist%nl, mlbddc%iperm,__FILE__,__LINE__ )
-       call list_coarse_dofs ( mlbddc%dof_dist%max_nparts, &
-                               mlbddc%dof_dist%omap%nl   , &
-                               mlbddc%dof_dist%lobjs     , &
+       call memalloc ( mlbddc%p_mat%dof_dist%nl,  mlbddc%perm,__FILE__,__LINE__ )
+       call memalloc ( mlbddc%p_mat%dof_dist%nl, mlbddc%iperm,__FILE__,__LINE__ )
+       call list_coarse_dofs ( mlbddc%p_mat%dof_dist%max_nparts, &
+                               mlbddc%p_mat%dof_dist%omap%nl   , &
+                               mlbddc%p_mat%dof_dist%lobjs     , &
                                mlbddc%kind_coarse_dofs        , &
                                mlbddc%ndime                   , &
-                               mlbddc%dof_dist%nl   , &
+                               mlbddc%p_mat%dof_dist%nl   , &
                                mlbddc%nl_corners              , &
                                mlbddc%nl_corners_dofs         , &
                                mlbddc%nl_edges                , &
@@ -1477,12 +1469,12 @@ contains
                                mlbddc%perm                    )
 
     else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-       call list_coarse_dofs ( mlbddc%dof_dist%max_nparts, &
-                               mlbddc%dof_dist%omap%nl   , &
-                               mlbddc%dof_dist%lobjs     , &
+       call list_coarse_dofs ( mlbddc%p_mat%dof_dist%max_nparts, &
+                               mlbddc%p_mat%dof_dist%omap%nl   , &
+                               mlbddc%p_mat%dof_dist%lobjs     , &
                                mlbddc%kind_coarse_dofs        , &
                                mlbddc%ndime                   , &
-                               mlbddc%dof_dist%nl   , &
+                               mlbddc%p_mat%dof_dist%nl   , &
                                mlbddc%nl_corners              , &
                                mlbddc%nl_corners_dofs         , &
                                mlbddc%nl_edges                , &
@@ -1712,7 +1704,7 @@ contains
     type(par_matrix)         , intent(in)                    :: p_mat
     type(par_precond_dd_mlevel_bddc), intent(inout)                 :: mlbddc
 
-    mlbddc%A_rr_gr%nv    = mlbddc%dof_dist%nl - mlbddc%nl_corners_dofs
+    mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
     mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
     mlbddc%A_rr_gr%type  = p_mat%f_matrix%gr%type
 
@@ -1868,10 +1860,10 @@ contains
     integer(ip)               :: i
 
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
-    if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
+    if(i_am_fine_task) iam = mlbddc%p_mat%p_env%p_context%iam
     if(i_am_coarse_task) iam = mlbddc%c_context%iam
     if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
@@ -1882,15 +1874,15 @@ contains
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%dof_dist%omap%ng )
+                                  mlbddc%p_mat%dof_dist%omap%ng )
 
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%dof_dist%max_nparts )
+                                  mlbddc%p_mat%dof_dist%max_nparts )
 
        ! write (*,*) 'I am fine task', mlbddc%g_context%iam, mlbddc%g_context%np
-       ! call psb_barrier ( mlbddc%p_env%p_context%icontxt)
+       ! call psb_barrier ( mlbddc%p_mat%p_env%p_context%icontxt)
 
        call snd_coarse_int_ip ( mlbddc%g_context%icontxt, & 
                                 mlbddc%g_context%np, &
@@ -1912,11 +1904,11 @@ contains
                                     mlbddc%nl_coarse,                &
                                     mlbddc%coarse_dofs,              &
                                     mlbddc%max_coarse_dofs,          &
-                                    mlbddc%dof_dist%omap%ng,    &
-                                    mlbddc%dof_dist%max_nparts, &
-                                    mlbddc%dof_dist%omap%nl,    &
-                                    mlbddc%dof_dist%omap%l2g,   &
-                                    mlbddc%dof_dist%lobjs)      
+                                    mlbddc%p_mat%dof_dist%omap%ng,    &
+                                    mlbddc%p_mat%dof_dist%max_nparts, &
+                                    mlbddc%p_mat%dof_dist%omap%nl,    &
+                                    mlbddc%p_mat%dof_dist%omap%l2g,   &
+                                    mlbddc%p_mat%dof_dist%lobjs)      
                                     ! AFM: ng_coarse is not ACTUALLY needed
                                     !      in the fine-grid tasks for the algorithm
                                     !      we are using for assembling coarse-grid graph
@@ -1929,12 +1921,12 @@ contains
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%dof_dist%omap%ng )
+                                  mlbddc%p_mat%dof_dist%omap%ng )
 
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%dof_dist%max_nparts )
+                                  mlbddc%p_mat%dof_dist%max_nparts )
 
        ! The elements in the coarse-grid mesh might be different
        ! to each other to an extent that there are as many element types
@@ -1981,7 +1973,7 @@ contains
        call memalloc ( c_mesh%pnods(c_mesh%nelem+1)-1, c_mesh%lnods,__FILE__,__LINE__ ) 
 
        ! lnods is given in local numbering, the global number of (coarse) nodes being
-       ! mlbddc%dof_dist%omap%ng which is used to allocate a work array
+       ! mlbddc%p_mat%dof_dist%omap%ng which is used to allocate a work array
        ! TODO: use a hash table to avoid it.
        ! If we were interested in the global numbering of nodes, it could be stored
        ! at this point, where it is lost.
@@ -1991,7 +1983,7 @@ contains
                                     mlbddc%c_context%np, &
                                     mlbddc%pad_collectives,  &  
                                     mlbddc%max_coarse_dofs,  &
-                                    mlbddc%dof_dist%omap%ng,  &
+                                    mlbddc%p_mat%dof_dist%omap%ng,  &
                                     mlbddc%ptr_coarse_dofs,   & 
                                     c_mesh%lnods,   &
                                     mlbddc%vars,   &
@@ -2536,7 +2528,7 @@ contains
     integer(ip)  :: gtype
 
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
@@ -2550,7 +2542,7 @@ contains
                                                         mlbddc%g_context%iam,     &
                                                         mlbddc%g_context%np,      &
                                                         mlbddc%pad_collectives,          &
-                                                        mlbddc%dof_dist%max_nparts, &  
+                                                        mlbddc%p_mat%dof_dist%max_nparts, &  
                                                         c_mesh%npoin,    &
                                                         c_mesh%nnode,    &
                                                         mlbddc%ptr_coarse_dofs,    &
@@ -2673,26 +2665,26 @@ contains
 
        else if ( i_am_fine_task ) then
 
-          call memalloc ( mlbddc%dof_dist%npadj, neighbours_coarse_parts, __FILE__,__LINE__) 
+          call memalloc ( mlbddc%p_mat%dof_dist%npadj, neighbours_coarse_parts, __FILE__,__LINE__) 
 
-          call fetch_parts_coarse_neighbours ( mlbddc%p_env%p_context%icontxt, & 
-                                               mlbddc%dof_dist%npadj, & 
-                                               mlbddc%dof_dist%lpadj, & 
-                                               mlbddc%p_env%id_parts(2), &
+          call fetch_parts_coarse_neighbours ( mlbddc%p_mat%p_env%p_context%icontxt, & 
+                                               mlbddc%p_mat%dof_dist%npadj, & 
+                                               mlbddc%p_mat%dof_dist%lpadj, & 
+                                               mlbddc%p_mat%p_env%id_parts(2), &
                                                neighbours_coarse_parts)
 
           call snd_subdomains_surrounding_coarse_dofs ( mlbddc%g_context%icontxt, &
                                                         mlbddc%g_context%iam,     &
                                                         mlbddc%g_context%np,      &
                                                         mlbddc%pad_collectives,          &
-                                                        mlbddc%dof_dist%max_nparts, &  
+                                                        mlbddc%p_mat%dof_dist%max_nparts, &  
                                                         mlbddc%nl_coarse,                &
                                                         mlbddc%coarse_dofs,              &
-                                                        mlbddc%dof_dist%omap%nl,    &
-                                                        mlbddc%dof_dist%lobjs,      &
-                                                        mlbddc%dof_dist%npadj,      &
-                                                        mlbddc%dof_dist%lpadj,      &
-                                                        mlbddc%p_env%id_parts,          &
+                                                        mlbddc%p_mat%dof_dist%omap%nl,    &
+                                                        mlbddc%p_mat%dof_dist%lobjs,      &
+                                                        mlbddc%p_mat%dof_dist%npadj,      &
+                                                        mlbddc%p_mat%dof_dist%lpadj,      &
+                                                        mlbddc%p_mat%p_env%id_parts,          &
                                                         neighbours_coarse_parts,            &
                                                         mlbddc%max_coarse_dofs)
 
@@ -2701,7 +2693,7 @@ contains
           ! TODO my_part = iam + 1 everywhere, right? just check it...
           call snd_coarse_int_ip( mlbddc%g_context%icontxt, &
                                    mlbddc%g_context%np,      &
-                                   mlbddc%p_env%p_context%iam+1 ) 
+                                   mlbddc%p_mat%p_env%p_context%iam+1 ) 
                                    ! snd_igp ) 
 
           if ( temp_fine_coarse_grid_overlap ) then
@@ -3061,7 +3053,7 @@ contains
     mlbddc%p_mat => p_mat
 
     ! Which duties do I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
@@ -3098,23 +3090,23 @@ contains
     assert ( p_mat%p_env%created )
     assert ( p_mat%p_env%num_levels > 1 ) 
 
-    assert ( associated(mlbddc%p_env%w_context) )
-    assert ( mlbddc%p_env%w_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%p_context) )
-    assert ( mlbddc%p_env%p_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%q_context) )
-    assert ( mlbddc%p_env%q_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%w_context) )
+    assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%p_context) )
+    assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%q_context) )
+    assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( mlbddc%p_env%w_context%iam >= 0)
-    assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
+    assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
+    assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
     assert ( mlbddc%c_context%created .eqv. .true. )
     assert ( mlbddc%d_context%created .eqv. .true. )
     assert ( mlbddc%g_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%b_context) )
-    assert ( mlbddc%p_env%b_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%b_context) )
+    assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
 
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
 
     if (i_am_fine_task) then
        ! BEG. FINE-GRID PROBLEM DUTIES
@@ -3205,16 +3197,16 @@ contains
                                                  mlbddc%A_rr_gr%nv   , & 
                                                  mlbddc%A_rr_gr%ia   , &
                                                  mlbddc%A_rr_gr%ja, &
-                                                 mlbddc%dof_dist%nl, &
+                                                 mlbddc%p_mat%dof_dist%nl, &
                                                  mlbddc%nl_corners, &
                                                  mlbddc%nl_edges, &
                                                  mlbddc%nl_coarse, &
                                                  mlbddc%coarse_dofs, &
-                                                 mlbddc%dof_dist%max_nparts, &
-                                                 mlbddc%dof_dist%omap%nl, &
-                                                 mlbddc%dof_dist%lobjs, &
+                                                 mlbddc%p_mat%dof_dist%max_nparts, &
+                                                 mlbddc%p_mat%dof_dist%omap%nl, &
+                                                 mlbddc%p_mat%dof_dist%lobjs, &
                                                  mlbddc%A_rr%a,  &
-                                                 mlbddc%dof_dist%nb, &
+                                                 mlbddc%p_mat%dof_dist%nb, &
                                                  mlbddc%C_weights )
 
          if (mlbddc%projection == petrov_galerkin ) then 
@@ -3229,16 +3221,16 @@ contains
                                                  mlbddc%A_rr_gr%nv   , & 
                                                  mlbddc%A_rr_gr%ia   , &
                                                  mlbddc%A_rr_gr%ja, &
-                                                 mlbddc%dof_dist%nl, &
+                                                 mlbddc%p_mat%dof_dist%nl, &
                                                  mlbddc%nl_corners, &
                                                  mlbddc%nl_edges, &
                                                  mlbddc%nl_coarse, &
                                                  mlbddc%coarse_dofs, &
-                                                 mlbddc%dof_dist%max_nparts, &
-                                                 mlbddc%dof_dist%omap%nl, &
-                                                 mlbddc%dof_dist%lobjs, &
+                                                 mlbddc%p_mat%dof_dist%max_nparts, &
+                                                 mlbddc%p_mat%dof_dist%omap%nl, &
+                                                 mlbddc%p_mat%dof_dist%lobjs, &
                                                  mlbddc%A_rr_trans%a, &
-                                                 mlbddc%dof_dist%nb, &
+                                                 mlbddc%p_mat%dof_dist%nb, &
                                                  mlbddc%C_weights  )
         
             call fem_matrix_free(p_mat_trans%f_matrix)
@@ -3248,8 +3240,8 @@ contains
        end if
 
        if ( debug_verbose_level_3 ) then
-          call par_context_info ( mlbddc%p_env%p_context, me, np )
-          lunou = io_open ( trim('fine_matrix_mlevel_bddc_' //  trim(ch(mlbddc%p_env%num_levels)) // trim('+') // trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
+          call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
+          lunou = io_open ( trim('fine_matrix_mlevel_bddc_' //  trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') // trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
           call fem_matrix_print_matrix_market ( lunou, mlbddc%A_rr )
           call io_close ( lunou )
        end if
@@ -3294,22 +3286,22 @@ contains
     assert ( p_mat%p_env%created )
     assert ( p_mat%p_env%num_levels > 1 ) 
 
-    assert ( mlbddc%p_env%w_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%p_context) )
-    assert ( mlbddc%p_env%p_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%q_context) )
-    assert ( mlbddc%p_env%q_context%created .eqv. .true. )
+    assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%p_context) )
+    assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%q_context) )
+    assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( mlbddc%p_env%w_context%iam >= 0)
-    assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
+    assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
+    assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
     assert ( mlbddc%c_context%created .eqv. .true. )
     assert ( mlbddc%d_context%created .eqv. .true. )
     assert ( mlbddc%g_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%b_context) )
-    assert ( mlbddc%p_env%b_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%b_context) )
+    assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
     
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
@@ -3430,7 +3422,7 @@ contains
                
           end if
 
-          call memalloc ( mlbddc%dof_dist%nl, & 
+          call memalloc ( mlbddc%p_mat%dof_dist%nl, & 
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%rPhi, __FILE__, __LINE__ )
 
@@ -3438,7 +3430,7 @@ contains
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%blk_lag_mul, __FILE__,__LINE__ )
 
-          call memalloc ( mlbddc%dof_dist%nl, & 
+          call memalloc ( mlbddc%p_mat%dof_dist%nl, & 
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%lPhi, __FILE__, __LINE__ )
 
@@ -3489,11 +3481,11 @@ contains
           end if
 
        else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-          call memalloc ( mlbddc%dof_dist%nl, &
+          call memalloc ( mlbddc%p_mat%dof_dist%nl, &
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%rPhi, __FILE__,__LINE__ )
 
-          call memalloc ( mlbddc%dof_dist%nl, &
+          call memalloc ( mlbddc%p_mat%dof_dist%nl, &
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%lPhi, __FILE__,__LINE__ )
 
@@ -3542,7 +3534,7 @@ contains
     ! BEG. COARSE-GRID PROBLEM DUTIES
 
 ! If the projection is symmetric (Galerkin), lPhi is created but not filled, and now is assigned to rPhi
-    if (mlbddc%p_env%p_context%iam >= 0) then
+    if (mlbddc%p_mat%p_env%p_context%iam >= 0) then
        if (mlbddc%projection == galerkin) then 
           mlbddc%lPhi = mlbddc%rPhi 
        end if
@@ -3595,8 +3587,8 @@ contains
           ! END. FINE-GRID PROBLEM DUTIES 
           
           if ( debug_verbose_level_3 ) then
-             call par_context_info ( mlbddc%p_env%p_context, me, np )
-             lunou = io_open ( trim('dirichlet_matrix_mlevel_bddc_' // trim(ch(mlbddc%p_env%num_levels)) // trim('+') //  trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
+             call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
+             lunou = io_open ( trim('dirichlet_matrix_mlevel_bddc_' // trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') //  trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
              call fem_matrix_print_matrix_market ( lunou, mlbddc%A_II_inv%A_II )
              call io_close ( lunou )
           end if
@@ -4006,15 +3998,15 @@ contains
        ! Y = alpha * Y + beta * C_r * X
        ! C_r => nl_edges x n(A_rr)
 
-       call update_with_c_r   ( mlbddc%dof_dist%nl, &
+       call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
                                 mlbddc%perm, &
                                 mlbddc%iperm, &
                                 mlbddc%nl_corners, &
                                 mlbddc%nl_edges, &
                                 mlbddc%coarse_dofs, &
-                                mlbddc%dof_dist%max_nparts, &
-                                mlbddc%dof_dist%omap%nl, &
-                                mlbddc%dof_dist%lobjs, &
+                                mlbddc%p_mat%dof_dist%max_nparts, &
+                                mlbddc%p_mat%dof_dist%omap%nl, &
+                                mlbddc%p_mat%dof_dist%lobjs, &
                                 mlbddc%nl_edges, & 
                                 mlbddc%A_rr_gr%nv, &
                                 mlbddc%nl_corners, & 
@@ -4022,7 +4014,7 @@ contains
                                 1.0_rp, &
                                 -1.0_rp, & 
                                 rhs, &
-                                mlbddc%dof_dist%nb, &
+                                mlbddc%p_mat%dof_dist%nb, &
                                 mlbddc%C_weights )
     end if
     
@@ -4677,17 +4669,17 @@ contains
 
 
     ! Compute C_r_T
-    call compute_c_r_trans ( mlbddc%dof_dist%nl, &
+    call compute_c_r_trans ( mlbddc%p_mat%dof_dist%nl, &
                              mlbddc%perm, &
                              mlbddc%iperm, &
                              mlbddc%nl_corners, &
                              mlbddc%nl_edges, &
                              mlbddc%coarse_dofs, &
-                             mlbddc%dof_dist%max_nparts, &
-                             mlbddc%dof_dist%omap%nl, &
-                             mlbddc%dof_dist%lobjs, &
+                             mlbddc%p_mat%dof_dist%max_nparts, &
+                             mlbddc%p_mat%dof_dist%omap%nl, &
+                             mlbddc%p_mat%dof_dist%lobjs, &
                              C_r_T, &  
-                             mlbddc%dof_dist%nb, &
+                             mlbddc%p_mat%dof_dist%nb, &
                              mlbddc%C_weights )
 
 
@@ -4740,15 +4732,15 @@ contains
     ! C_r => nl_edges x n(A_rr)
     S_rr = 0.0
 
-    call update_with_c_r   ( mlbddc%dof_dist%nl, &
+    call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
                              mlbddc%perm, &
                              mlbddc%iperm, &
                              mlbddc%nl_corners, &
                              mlbddc%nl_edges, &
                              mlbddc%coarse_dofs, &
-                             mlbddc%dof_dist%max_nparts, &
-                             mlbddc%dof_dist%omap%nl, &
-                             mlbddc%dof_dist%lobjs, &
+                             mlbddc%p_mat%dof_dist%max_nparts, &
+                             mlbddc%p_mat%dof_dist%omap%nl, &
+                             mlbddc%p_mat%dof_dist%lobjs, &
                              mlbddc%nl_edges, & 
                              mlbddc%A_rr_gr%nv, &
                              mlbddc%nl_edges, & 
@@ -4756,7 +4748,7 @@ contains
                              0.0_rp, &
                              1.0_rp, & 
                              S_rr,  & 
-                             mlbddc%dof_dist%nb, &
+                             mlbddc%p_mat%dof_dist%nb, &
                              mlbddc%C_weights )
 
 
@@ -4766,15 +4758,15 @@ contains
        ! C_r => nl_edges x n(A_rr)
        S_rr_neumann = 0.0
 
-       call update_with_c_r   ( mlbddc%dof_dist%nl, &
+       call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
                                 mlbddc%perm, &
                                 mlbddc%iperm, &
                                 mlbddc%nl_corners, &
                                 mlbddc%nl_edges, &
                                 mlbddc%coarse_dofs, &
-                                mlbddc%dof_dist%max_nparts, &
-                                mlbddc%dof_dist%omap%nl, &
-                                mlbddc%dof_dist%lobjs, &
+                                mlbddc%p_mat%dof_dist%max_nparts, &
+                                mlbddc%p_mat%dof_dist%omap%nl, &
+                                mlbddc%p_mat%dof_dist%lobjs, &
                                 mlbddc%nl_edges, & 
                                 mlbddc%A_rr_gr%nv, &
                                 mlbddc%nl_edges, & 
@@ -4782,7 +4774,7 @@ contains
                                 0.0_rp, &
                                 1.0_rp, & 
                                 S_rr_neumann, &
-                                mlbddc%dof_dist%nb, &
+                                mlbddc%p_mat%dof_dist%nb, &
                                 mlbddc%C_weights ) 
 
     end if
@@ -5332,7 +5324,7 @@ contains
     type(fem_precond)        , intent(inout)   :: M_rr
 
     real (rp)                , intent(in)      :: A_rr_inv_C_r_T (:,:) 
-    real(rp)                 , intent(inout)   :: rPhi (mlbddc%dof_dist%nl,&
+    real(rp)                 , intent(inout)   :: rPhi (mlbddc%p_mat%dof_dist%nl,&
                                                         mlbddc%nl_edges+mlbddc%nl_corners)
     real(rp)                 , intent(in)   :: lambda_r ( mlbddc%nl_edges  , & 
                                                           (mlbddc%nl_edges+mlbddc%nl_corners) )
@@ -5460,9 +5452,9 @@ contains
       end if
 
       base = mlbddc%nl_corners   
-      do j=1, mlbddc%dof_dist%nl  
+      do j=1, mlbddc%p_mat%dof_dist%nl  
          k =  mlbddc%iperm(j)
-         ! write (*,*) j, k, mlbddc%dof_dist%nl  , base DBG:
+         ! write (*,*) j, k, mlbddc%p_mat%dof_dist%nl  , base DBG:
          if (j <= base) then
             ! harm_c [I_c 0] 
             rPhi(k,:) = 0.0_rp
@@ -5475,13 +5467,13 @@ contains
 
       if ( debug_verbose_level_3 ) then
 
-            call memalloc ( mlbddc%dof_dist%nl, aux, __FILE__,__LINE__ )
+            call memalloc ( mlbddc%p_mat%dof_dist%nl, aux, __FILE__,__LINE__ )
 
-            call par_context_info ( mlbddc%p_env%p_context, me, np )
+            call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
 
             do iadj=1, mlbddc%nl_coarse 
 
-               do j=1,mlbddc %dof_dist%nl 
+               do j=1,mlbddc%p_mat%dof_dist%nl 
                   aux(j) = rPhi(j,iadj)
                end do
 
@@ -5514,7 +5506,7 @@ contains
 
     type(fem_matrix)      , intent(inout)   :: A_rr
     type(fem_precond)     , intent(inout)   :: M_rr
-    real(rp)              , intent(inout)   :: rPhi( mlbddc%dof_dist%nl, &
+    real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist%nl, &
                                                      mlbddc%nl_edges+mlbddc%nl_corners)    
     character(len=1)      , intent(in)      :: system ! Information about the regular system or the system assoc                                                        iated to the transpose matrix
 
@@ -5543,7 +5535,7 @@ contains
 
        work1 = 0.0_rp
        j = 1
-       do i = mlbddc%dof_dist%nl   + 1, mlbddc%A_rr_gr%nv
+       do i = mlbddc%p_mat%dof_dist%nl   + 1, mlbddc%A_rr_gr%nv
          work1 (i,j) = 1.0_rp
          j = j + 1 
        end do
@@ -5565,21 +5557,21 @@ contains
 !!$                      mlbddc%spars_harm)
        end if
 
-             rPhi = work2 (1:mlbddc%dof_dist%nl ,:) 
+             rPhi = work2 (1:mlbddc%p_mat%dof_dist%nl ,:) 
 
              if ( system == 'N' ) then 
                 if ( mlbddc%subd_elmat_calc == phit_minus_c_i_t_lambda ) then
-                   mlbddc%blk_lag_mul = work2 (mlbddc%dof_dist%nl +1:,:)
+                   mlbddc%blk_lag_mul = work2 (mlbddc%p_mat%dof_dist%nl +1:,:)
                 end if
              end if
 
        if ( debug_verbose_level_3 ) then
-          call memalloc ( 1, mlbddc%dof_dist%nl, work3, __FILE__,__LINE__ )
-          call par_context_info ( mlbddc%p_env%p_context, me, np )
+          call memalloc ( 1, mlbddc%p_mat%dof_dist%nl, work3, __FILE__,__LINE__ )
+          call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
 
 
           do iadj=1, mlbddc%nl_coarse 
-             do j=1,mlbddc%dof_dist%nl 
+             do j=1,mlbddc%p_mat%dof_dist%nl 
                 work3(1,j) = rPhi(j,iadj)
              end do
 
@@ -5625,10 +5617,10 @@ end if
     end if
 
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
-    if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
+    if(i_am_fine_task) iam = mlbddc%p_mat%p_env%p_context%iam
     if(i_am_coarse_task) iam = mlbddc%c_context%iam
     if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
@@ -5648,20 +5640,20 @@ end if
 
           if ( mlbddc%subd_elmat_calc == phit_minus_c_i_t_lambda ) then
 
-             call memalloc ( mlbddc%dof_dist%nb, (mlbddc%nl_edges+mlbddc%nl_corners), work, __FILE__,__LINE__ )
+             call memalloc ( mlbddc%p_mat%dof_dist%nb, (mlbddc%nl_edges+mlbddc%nl_corners), work, __FILE__,__LINE__ )
 
              work = 0.0_rp
 
              ! Compute S \PHI_G == -C_i^t * blk_lag_mul (see art002)
 
-             call update_with_c_i_trans ( mlbddc%dof_dist%nl, &
+             call update_with_c_i_trans ( mlbddc%p_mat%dof_dist%nl, &
                   mlbddc%nl_corners, &
                   mlbddc%nl_edges, &
                   mlbddc%coarse_dofs, &
-                  mlbddc%dof_dist%max_nparts, &
-                  mlbddc%dof_dist%omap%nl, &
-                  mlbddc%dof_dist%lobjs, &
-                  mlbddc%dof_dist%nb  , & 
+                  mlbddc%p_mat%dof_dist%max_nparts, &
+                  mlbddc%p_mat%dof_dist%omap%nl, &
+                  mlbddc%p_mat%dof_dist%lobjs, &
+                  mlbddc%p_mat%dof_dist%nb  , & 
                   (mlbddc%nl_edges+mlbddc%nl_corners) , & 
                   (mlbddc%nl_edges+mlbddc%nl_corners) , &
                   mlbddc%blk_lag_mul, & 
@@ -5678,12 +5670,12 @@ end if
                   'N', &
                   mlbddc%nl_coarse  , &
                   mlbddc%nl_coarse  , &
-                  mlbddc%dof_dist%nb  , &
+                  mlbddc%p_mat%dof_dist%nb  , &
                   1.0, &
-                  mlbddc%lPhi(mlbddc%dof_dist%ni  +1,1), &
-                  mlbddc%dof_dist%nl   , &
+                  mlbddc%lPhi(mlbddc%p_mat%dof_dist%ni  +1,1), &
+                  mlbddc%p_mat%dof_dist%nl   , &
                   work, &
-                  mlbddc%dof_dist%nb  , &
+                  mlbddc%p_mat%dof_dist%nb  , &
                   0.0, &
                   a_ci, &
                   mlbddc%nl_coarse  )
@@ -5698,7 +5690,7 @@ end if
           else
 
              ! HERE a_ci = \Phi^t A_i \Phi 
-             call memalloc ( mlbddc%dof_dist%nl, &
+             call memalloc ( mlbddc%p_mat%dof_dist%nl, &
                   (mlbddc%nl_edges+mlbddc%nl_corners),  &
                   work, 'assemble_a_c::work' )
 
@@ -5743,9 +5735,9 @@ end if
 #else
              call fem_matmat ( p_mat%f_matrix, & 
                   (mlbddc%nl_edges+mlbddc%nl_corners), &
-                  mlbddc%dof_dist%nl, &
+                  mlbddc%p_mat%dof_dist%nl, &
                   mlbddc%rPhi, &
-                  mlbddc%dof_dist%nl, &
+                  mlbddc%p_mat%dof_dist%nl, &
                   work )
 #endif
 
@@ -5756,12 +5748,12 @@ end if
                   'N', &
                   mlbddc%nl_coarse, &
                   mlbddc%nl_coarse, &
-                  mlbddc%dof_dist%nl, &
+                  mlbddc%p_mat%dof_dist%nl, &
                   1.0, &
                   mlbddc%lPhi, &
-                  mlbddc%dof_dist%nl , &
+                  mlbddc%p_mat%dof_dist%nl , &
                   work, &
-                  mlbddc%dof_dist%nl, &
+                  mlbddc%p_mat%dof_dist%nl, &
                   0.0, &
                   a_ci, &
                   mlbddc%nl_coarse)
@@ -5780,27 +5772,27 @@ end if
 
           ! if ( mlbddc%unknowns == interface_unknowns ) then
           ! Re-alloc right side harmonic extensions (rPhi)
-          call memalloc ( mlbddc%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
 
           work = mlbddc%rPhi( &
-               mlbddc%dof_dist%ni+1:,:)
+               mlbddc%p_mat%dof_dist%ni+1:,:)
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
 
-          call memalloc ( mlbddc%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%rPhi, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%rPhi, __FILE__,__LINE__ )
 
           mlbddc%rPhi = work
           call memfree ( work,__FILE__,__LINE__)
 
           ! Re-alloc left side harmonic extensions (lPhi)
-          call memalloc ( mlbddc%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
 
           work = mlbddc%lPhi( &
-               mlbddc%dof_dist%ni+1:,:)
+               mlbddc%p_mat%dof_dist%ni+1:,:)
 
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
 
-          call memalloc ( mlbddc%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%lPhi, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%lPhi, __FILE__,__LINE__ )
 
           mlbddc%lPhi = work
           call memfree ( work,__FILE__,__LINE__)
@@ -5854,7 +5846,7 @@ end if
                                                a_ci_gathered)
           
        else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
-          assert(mlbddc%p_env%num_levels>2) ! Assuming last level direct
+          assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
           
           call fem_matrix_fill_val (mlbddc%p_mat_c%f_matrix)
 
@@ -6147,14 +6139,13 @@ end if
 
   end subroutine rcv_coarse_stiffness_matrices
 
-!  !=================================================================================================
-  recursive subroutine par_precond_dd_mlevel_bddc_apply_all_unk (p_mat, mlbddc, x, y)
+  !=================================================================================================
+  recursive subroutine par_precond_dd_mlevel_bddc_apply_all_unk (mlbddc, x, y)
     implicit none
     ! Parameters
-    type(par_matrix)         , intent(in)        :: p_mat
     type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc 
-    type(par_vector)         , intent(in)        :: x
-    type(par_vector)         , intent(inout)     :: y
+    type(par_vector)                , intent(in)        :: x
+    type(par_vector)                , intent(inout)     :: y
 
     ! Locals
     type(par_vector)      :: r, dx, v1, v2, v3, aux
@@ -6164,27 +6155,28 @@ end if
     logical               :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
     ! The routine requires the partition/context info
-    assert ( associated(p_mat%p_env) )
-    assert ( p_mat%p_env%created )
-    assert ( p_mat%p_env%num_levels > 1 ) 
+    assert ( associated(mlbddc%p_mat) )
+    assert ( associated(mlbddc%p_mat%p_env) )
+    assert ( mlbddc%p_mat%p_env%created )
+    assert ( mlbddc%p_mat%p_env%num_levels > 1 ) 
 
-    assert ( associated(mlbddc%p_env%w_context) )
-    assert ( mlbddc%p_env%w_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%p_context) )
-    assert ( mlbddc%p_env%p_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%q_context) )
-    assert ( mlbddc%p_env%q_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%w_context) )
+    assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%p_context) )
+    assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%q_context) )
+    assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( mlbddc%p_env%w_context%iam >= 0)
-    assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
+    assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
+    assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
     assert ( mlbddc%c_context%created .eqv. .true. )
     assert ( mlbddc%d_context%created .eqv. .true. )
     assert ( mlbddc%g_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%b_context) )
-    assert ( mlbddc%p_env%b_context%created .eqv. .true. )
+    assert ( associated(mlbddc%p_mat%p_env%b_context) )
+    assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
 
     ! Which duties I have?
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
@@ -6203,14 +6195,14 @@ end if
        if ( mlbddc%correction_mode == additive ) then
 
           ! Create temporary vector
-          call par_vector_alloc ( mlbddc%dof_dist, mlbddc%p_env, r )
+          call par_vector_alloc ( mlbddc%p_mat%dof_dist, mlbddc%p_mat%p_env, r )
 
           ! par_vector_create view calls next
           ! requires a state to be assigned to r !!!
           r%state = x%state
-          call par_vector_create_view ( r,                                      1, mlbddc%dof_dist%ni, r_I )
-          call par_vector_create_view ( r, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, r_G )
-          call par_vector_create_view ( x, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, x_G )
+          call par_vector_create_view ( r,                                      1, mlbddc%p_mat%dof_dist%ni, r_I )
+          call par_vector_create_view ( r, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
+          call par_vector_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
           ! Init interior vertices to zero
           call fem_vector_zero ( r_I%f_vector )
@@ -6246,8 +6238,8 @@ end if
 
           call par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, dum_vec, v1 )
 
-          call par_vector_create_view ( y, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, y_G )
-          call par_vector_create_view ( x,                                 1, mlbddc%dof_dist%ni, x_I )
+          call par_vector_create_view ( y, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
+          call par_vector_create_view ( x,                                 1, mlbddc%p_mat%dof_dist%ni, x_I )
 
           call par_vector_copy ( v1, y_G )
           call par_vector_pxpy ( v2, y_G )
@@ -6267,7 +6259,7 @@ end if
           ! r <- x_I - r_I <- -r_I + x_I
           call par_vector_pxmy  ( x_I, r_I )
 
-          call par_vector_create_view (  y, 1, mlbddc%dof_dist%ni, y_I  )
+          call par_vector_create_view (  y, 1, mlbddc%p_mat%dof_dist%ni, y_I  )
           call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, y_I%f_vector )
 
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
@@ -6289,17 +6281,17 @@ end if
           ! par_vector_create view calls next
           ! requires a state to be assigned to r !!!
           r%state = x%state
-          call par_vector_create_view ( r,                                      1, mlbddc%dof_dist%ni, r_I )
-          call par_vector_create_view ( r, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, r_G )
+          call par_vector_create_view ( r,                                      1, mlbddc%p_mat%dof_dist%ni, r_I )
+          call par_vector_create_view ( r, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
 
-          call par_vector_create_view ( aux,                                      1, mlbddc%dof_dist%ni, x_I )
-          call par_vector_create_view ( aux, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, x_G )
+          call par_vector_create_view ( aux,                                      1, mlbddc%p_mat%dof_dist%ni, x_I )
+          call par_vector_create_view ( aux, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
-          call par_vector_create_view ( y,                                      1, mlbddc%dof_dist%ni, y_I )
-          call par_vector_create_view ( y, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, y_G )
+          call par_vector_create_view ( y,                                      1, mlbddc%p_mat%dof_dist%ni, y_I )
+          call par_vector_create_view ( y, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
 
-          call par_vector_create_view ( dx,                                      1, mlbddc%dof_dist%ni, dx_I )
-          call par_vector_create_view ( dx, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, dx_G )
+          call par_vector_create_view ( dx,                                      1, mlbddc%p_mat%dof_dist%ni, dx_I )
+          call par_vector_create_view ( dx, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, dx_G )
 
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
@@ -6313,7 +6305,7 @@ end if
 
           ! 3) Compute r = r - A dx
           ! r <- Adx
-          call par_matvec ( p_mat, dx, r ) 
+          call par_matvec ( mlbddc%p_mat, dx, r ) 
           ! r <- -r + x
           call par_vector_pxmy  ( aux, r )
 
@@ -6369,7 +6361,7 @@ end if
           ! 3) Compute r = r - A dx 
           call par_vector_copy ( r, aux )
           ! r <- Adx
-          call par_matvec ( p_mat, dx, r ) 
+          call par_matvec ( mlbddc%p_mat, dx, r ) 
           ! r <- -r + x
           call par_vector_pxmy  ( aux, r )
 
@@ -6420,7 +6412,7 @@ end if
           end if
 
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
-          assert(mlbddc%p_env%num_levels>2)
+          assert(mlbddc%p_mat%p_env%num_levels>2)
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Assemble coarse-grid residual in parallel
              call par_vector_alloc ( mlbddc%dof_dist_c, mlbddc%p_env_c, p_r_c)
@@ -6473,13 +6465,13 @@ end if
     assert ( p_mat%p_env%created )
     assert ( p_mat%p_env%num_levels > 1 ) 
 
-    if ( mlbddc%p_env%p_context%iam >= 0 ) then
+    if ( mlbddc%p_mat%p_env%p_context%iam >= 0 ) then
        call par_vector_clone ( b, r )
 
-       call par_vector_create_view ( r, 1, mlbddc%dof_dist%ni, r_I )
-       call par_vector_create_view ( b, 1, mlbddc%dof_dist%ni, b_I )
-       call par_vector_create_view ( x, 1, mlbddc%dof_dist%ni, x_I )
-       call par_vector_create_view ( x, mlbddc%dof_dist%ni+1, mlbddc%dof_dist%nl, x_G )
+       call par_vector_create_view ( r, 1, mlbddc%p_mat%dof_dist%ni, r_I )
+       call par_vector_create_view ( b, 1, mlbddc%p_mat%dof_dist%ni, b_I )
+       call par_vector_create_view ( x, 1, mlbddc%p_mat%dof_dist%ni, x_I )
+       call par_vector_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
        
        ! r_I <- A_IG * y_G
        call fem_operator_dd_apply_A_IG ( mlbddc%A_II_inv, x_G%f_vector, r_I%f_vector )
@@ -6514,7 +6506,7 @@ end if
    integer(ip) :: sum
 
    ! Which duties I have?
-   i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+   i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
@@ -6574,7 +6566,7 @@ end if
                                              sum, &
                                              r_ci_gathered)
       else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
-         assert(mlbddc%p_env%num_levels>2) ! Assuming last level direct
+         assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
          call sum_coarse_stiffness_vectors ( r_c, &
                                              mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
@@ -6628,7 +6620,7 @@ end if
    logical :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
 
    ! Which duties I have?
-   i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+   i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
 
    if ( i_am_fine_task ) then
@@ -6661,7 +6653,7 @@ end if
                        mlbddc%f_mesh_c%lnods,           &
                        z_c )
       else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
-         assert(mlbddc%p_env%num_levels>2) ! Assuming last level direct
+         assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
          call snd_z_c (mlbddc%g_context%icontxt, & 
                        mlbddc%g_context%np,      &
                        mlbddc%pad_collectives,          &
@@ -6707,7 +6699,7 @@ end if
 
        call memalloc ( mlbddc%A_rr_gr%nv, r_r, __FILE__,__LINE__ )
 
-       call apply_perm_to_residual ( mlbddc%dof_dist%nl , &
+       call apply_perm_to_residual ( mlbddc%p_mat%dof_dist%nl , &
                                      mlbddc%nl_corners , & 
                                      mlbddc%perm, &                                  
                                      r%f_vector%b, &
@@ -6752,8 +6744,8 @@ end if
        
 
        call apply_iperm_to_z_r ( mlbddc%unknowns, &  
-                                 mlbddc%dof_dist%nl , &
-                                 mlbddc%dof_dist%ni , &
+                                 mlbddc%p_mat%dof_dist%nl , &
+                                 mlbddc%p_mat%dof_dist%ni , &
                                  mlbddc%nl_corners , &
                                  mlbddc%iperm, &
                                  z_r, &
@@ -6765,11 +6757,11 @@ end if
 
     else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
 
-       call memalloc ( (mlbddc%dof_dist%nl+mlbddc%nl_coarse), aug_r, __FILE__, __LINE__ )
-       call memalloc ( (mlbddc%dof_dist%nl+mlbddc%nl_coarse), aug_v, __FILE__, __LINE__ )
+       call memalloc ( (mlbddc%p_mat%dof_dist%nl+mlbddc%nl_coarse), aug_r, __FILE__, __LINE__ )
+       call memalloc ( (mlbddc%p_mat%dof_dist%nl+mlbddc%nl_coarse), aug_v, __FILE__, __LINE__ )
 
-       aug_r(1:mlbddc%dof_dist%nl )  = r%f_vector%b
-       aug_r(mlbddc%dof_dist%nl+1:) = 0.0_rp
+       aug_r(1:mlbddc%p_mat%dof_dist%nl )  = r%f_vector%b
+       aug_r(mlbddc%p_mat%dof_dist%nl+1:) = 0.0_rp
 
        mlbddc%spars_neumann%nrhs=1
        ! mlbddc%spars%method=direct
@@ -6782,7 +6774,7 @@ end if
        end if
 
 
-       v_G%f_vector%b = aug_v ( mlbddc%dof_dist%ni+1:mlbddc%dof_dist%nl   ) 
+       v_G%f_vector%b = aug_v ( mlbddc%p_mat%dof_dist%ni+1:mlbddc%p_mat%dof_dist%nl   ) 
 
        call memfree ( aug_r,__FILE__,__LINE__)
        call memfree ( aug_v,__FILE__,__LINE__)
@@ -6809,11 +6801,11 @@ end if
       ! r_ci <- 1.0 * rPhi^T * r + 0.0 * r_ci 
       ! if ( mlbddc%unknowns == all_unknowns ) then
       !    call DGEMV(  'T', & 
-      !                mlbddc%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist%nl  , &
       !                mlbddc%nl_coarse  , &
       !                1.0, &
       !                mlbddc%rPhi, &
-      !                mlbddc%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist%nl  , &
       !                r%f_vector%b, &
       !                1, &
       !                0.0, & 
@@ -6821,11 +6813,11 @@ end if
       !                1)
       !else if ( mlbddc%unknowns == interface_unknowns ) then
          call DGEMV(  'T', & 
-                      mlbddc%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist%nb  , &
                       mlbddc%nl_coarse  , &
                       1.0, &
                       mlbddc%lPhi, &
-                      mlbddc%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist%nb  , &
                       r%f_vector%b, &
                       1, &
                       0.0, & 
@@ -6854,11 +6846,11 @@ end if
       r%f_vector%b = 0.0
       ! if ( mlbddc%unknowns == all_unknowns ) then
       !   call DGEMV(  'N', & 
-      !                mlbddc%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist%nl  , &
       !                mlbddc%nl_coarse  , &
       !                1.0, &
       !                mlbddc%rPhi, &
-      !                mlbddc%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist%nl  , &
       !                r_ci, &
       !                1,    &
       !                0.0,  & 
@@ -6866,11 +6858,11 @@ end if
       !                1)         
       !else if ( mlbddc%unknowns == interface_unknowns ) then
          call DGEMV(  'N', & 
-                      mlbddc%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist%nb  , &
                       mlbddc%nl_coarse  , &
                       1.0, &
                       mlbddc%rPhi, &
-                      mlbddc%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist%nb  , &
                       r_ci, &
                       1,    &
                       0.0,  & 
@@ -7374,15 +7366,15 @@ end if
     ! Y = alpha * Y + beta * C_r * X
     ! C_r => nl_edges x n(A_rr)
 
-    call update_with_c_r   ( mlbddc%dof_dist%nl, &
+    call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
                              mlbddc%perm, &
                              mlbddc%iperm, &
                              mlbddc%nl_corners, &
                              mlbddc%nl_edges, &
                              mlbddc%coarse_dofs, &
-                             mlbddc%dof_dist%max_nparts, &
-                             mlbddc%dof_dist%omap%nl, &
-                             mlbddc%dof_dist%lobjs, &
+                             mlbddc%p_mat%dof_dist%max_nparts, &
+                             mlbddc%p_mat%dof_dist%omap%nl, &
+                             mlbddc%p_mat%dof_dist%lobjs, &
                              mlbddc%nl_edges   , & 
                              mlbddc%A_rr_gr%nv, &
                              1, & 
@@ -7390,7 +7382,7 @@ end if
                              0.0_rp, &
                              1.0_rp, & 
                              rhs, &
-                             mlbddc%dof_dist%nb, &
+                             mlbddc%p_mat%dof_dist%nb, &
                              mlbddc%C_weights )
 
   end subroutine compute_neumann_edge_lagrange_multipliers_rhs
@@ -7497,14 +7489,14 @@ end if
       integer               :: iret 
       
       ! Get Rid of coarse-grid tasks 
-      if (mlbddc%p_env%p_context%iam<0) return
+      if (mlbddc%p_mat%p_env%p_context%iam<0) return
 
       avg_max_dirichlet_its = 0.0_rp
       avg_max_neumann_its   = 0.0_rp 
 
-      if (mlbddc%p_env%p_context%iam == 0) then
-         lunio = io_open('dirichlet_report_' // trim(prefix) // '.' // trim(ch(mlbddc%p_env%p_context%np)))
-         call memalloc ( (4+mlbddc%num_dirichlet_solves)*mlbddc%p_env%p_context%np, gathered_data, __FILE__,__LINE__ )
+      if (mlbddc%p_mat%p_env%p_context%iam == 0) then
+         lunio = io_open('dirichlet_report_' // trim(prefix) // '.' // trim(ch(mlbddc%p_mat%p_env%p_context%np)))
+         call memalloc ( (4+mlbddc%num_dirichlet_solves)*mlbddc%p_mat%p_env%p_context%np, gathered_data, __FILE__,__LINE__ )
       else
          call memalloc ( 0, gathered_data, __FILE__,__LINE__ )
       end if
@@ -7522,12 +7514,12 @@ end if
 
       
       call mpi_gather( snd_buffer   ,  4+mlbddc%num_dirichlet_solves, psb_mpi_real,  &
-                       gathered_data,  4+mlbddc%num_dirichlet_solves, psb_mpi_real, 0, mlbddc%p_env%p_context%icontxt, iret)
+                       gathered_data,  4+mlbddc%num_dirichlet_solves, psb_mpi_real, 0, mlbddc%p_mat%p_env%p_context%icontxt, iret)
 
-      if (mlbddc%p_env%p_context%iam == 0) then
+      if (mlbddc%p_mat%p_env%p_context%iam == 0) then
          cur=1
          aux = 0.0_rp
-         do i=1, mlbddc%p_env%p_context%np
+         do i=1, mlbddc%p_mat%p_env%p_context%np
             write (lunio, '(i10, 4f10.3)', advance='no') i, gathered_data(cur:cur+4-1)
             cur=cur+4
             do j=1, mlbddc%num_dirichlet_solves-1
@@ -7551,13 +7543,13 @@ end if
       call memfree ( snd_buffer,__FILE__,__LINE__)
       call memfree ( gathered_data,__FILE__,__LINE__)  
 
-      if (mlbddc%p_env%p_context%iam == 0) then
+      if (mlbddc%p_mat%p_env%p_context%iam == 0) then
          call io_close (lunio)
       end if
 
-      if (mlbddc%p_env%p_context%iam == 0) then
-         lunio = io_open('neumann_report_' // trim(prefix) // '.' // trim(ch(mlbddc%p_env%p_context%np)))
-         call memalloc ( (6+mlbddc%num_neumann_solves)*mlbddc%p_env%p_context%np, gathered_data, __FILE__,__LINE__ )
+      if (mlbddc%p_mat%p_env%p_context%iam == 0) then
+         lunio = io_open('neumann_report_' // trim(prefix) // '.' // trim(ch(mlbddc%p_mat%p_env%p_context%np)))
+         call memalloc ( (6+mlbddc%num_neumann_solves)*mlbddc%p_mat%p_env%p_context%np, gathered_data, __FILE__,__LINE__ )
       else
          call memalloc ( 0, gathered_data, __FILE__,__LINE__ )
       end if
@@ -7577,13 +7569,13 @@ end if
 
 
       call mpi_gather( snd_buffer   ,  6+mlbddc%num_neumann_solves, psb_mpi_real,  &
-                       gathered_data,  6+mlbddc%num_neumann_solves, psb_mpi_real, 0, mlbddc%p_env%p_context%icontxt, iret)
+                       gathered_data,  6+mlbddc%num_neumann_solves, psb_mpi_real, 0, mlbddc%p_mat%p_env%p_context%icontxt, iret)
 
-      if (mlbddc%p_env%p_context%iam == 0) then
+      if (mlbddc%p_mat%p_env%p_context%iam == 0) then
          cur=1
          aux = 0.0_rp
          max_harm_its_agg = 0.0_rp
-         do i=1, mlbddc%p_env%p_context%np
+         do i=1, mlbddc%p_mat%p_env%p_context%np
             write (lunio, '(i10, 6f10.3)', advance='no') i, gathered_data(cur:cur+6-1)
             if ( gathered_data(cur+6-1) > max_harm_its_agg ) then
                max_harm_its_agg = gathered_data(cur+6-1)
@@ -7617,9 +7609,9 @@ end if
       call memfree ( snd_buffer,__FILE__,__LINE__)
       call memfree ( gathered_data,__FILE__,__LINE__)
 
-      if (mlbddc%p_env%p_context%iam == 0) then
+      if (mlbddc%p_mat%p_env%p_context%iam == 0) then
          call io_close (lunio)
-         lunio = io_open('max_report_' // trim(prefix) // '.' // trim(ch(mlbddc%p_env%p_context%np)))
+         lunio = io_open('max_report_' // trim(prefix) // '.' // trim(ch(mlbddc%p_mat%p_env%p_context%np)))
          write (lunio, '(f10.3)') max_harm_its_agg, avg_max_dirichlet_its, avg_max_neumann_its, avg_coarse_solves
          call io_close (lunio)
       end if
@@ -7634,27 +7626,27 @@ end if
       ! Locals
       logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
-      assert ( associated(mlbddc%p_env) )
-      assert ( mlbddc%p_env%created )
-      assert ( mlbddc%p_env%num_levels > 1 ) 
+      assert ( associated(mlbddc%p_mat%p_env) )
+      assert ( mlbddc%p_mat%p_env%created )
+      assert ( mlbddc%p_mat%p_env%num_levels > 1 ) 
 
-      assert ( associated(mlbddc%p_env%w_context) )
-      assert ( mlbddc%p_env%w_context%created .eqv. .true. )
-      assert ( associated(mlbddc%p_env%p_context) )
-      assert ( mlbddc%p_env%p_context%created .eqv. .true. )
-      assert ( associated(mlbddc%p_env%q_context) )
-      assert ( mlbddc%p_env%q_context%created .eqv. .true. )
+      assert ( associated(mlbddc%p_mat%p_env%w_context) )
+      assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
+      assert ( associated(mlbddc%p_mat%p_env%p_context) )
+      assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
+      assert ( associated(mlbddc%p_mat%p_env%q_context) )
+      assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
       ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-      assert ( mlbddc%p_env%w_context%iam >= 0)
-      assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
+      assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
+      assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
       assert ( mlbddc%c_context%created .eqv. .true. )
       assert ( mlbddc%d_context%created .eqv. .true. )
       assert ( mlbddc%g_context%created .eqv. .true. )
-      assert ( associated(mlbddc%p_env%b_context) )
-      assert ( mlbddc%p_env%b_context%created .eqv. .true. )
+      assert ( associated(mlbddc%p_mat%p_env%b_context) )
+      assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
 
       ! Which duties I have?
-      i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+      i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
       i_am_coarse_task = (mlbddc%c_context%iam >= 0)
       i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
@@ -7726,7 +7718,7 @@ end if
     integer(ip)           :: nid, iobj, jd, j1, j2      
 
     ! Which duties I have  
-    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
+    i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
@@ -7742,12 +7734,12 @@ end if
        ! BEGIN FINE-GRID RELATED DUTIES
        ! if (allocated(mlbddc%C_weights) ) then 
        !    !First of all compute local CORNER DOF over next level edge value 
-       !    nid = mlbddc%dof_dist%nl -  mlbddc%dof_dist%nb
+       !    nid = mlbddc%p_mat%dof_dist%nl -  mlbddc%p_mat%dof_dist%nb
        !    do i=1, mlbddc%nl_coarse 
        !       iobj  = mlbddc%coarse_dofs (i)
        !       ! Each COARSE DOF is given its size
-       !       j1 = mlbddc%dof_dist%lobjs(2,iobj)
-       !       j2 = mlbddc%dof_dist%lobjs(3,iobj)
+       !       j1 = mlbddc%p_mat%dof_dist%lobjs(2,iobj)
+       !       j2 = mlbddc%p_mat%dof_dist%lobjs(3,iobj)
 
        !       do jd = j1, j2         
        !          if (j2-j1 .eq. 0) then 
@@ -7762,7 +7754,7 @@ end if
        C_weights_i = 0.0_rp
 
        if ( mlbddc%nl_coarse > 0 ) then           
-              call fem_vector_alloc(mlbddc%dof_dist%nb, constraint_weights%f_vector)
+              call fem_vector_alloc(mlbddc%p_mat%dof_dist%nb, constraint_weights%f_vector)
               constraint_weights%f_vector%b = mlbddc%C_weights
               call apply_harm_trans( mlbddc, constraint_weights, C_weights_i ) 
               call fem_vector_free ( constraint_weights%f_vector ) 
@@ -8806,7 +8798,7 @@ end if
           class is (par_vector)
           select type(y)
              class is(par_vector)
-               call par_precond_dd_mlevel_bddc_apply_all_unk ( op%p_mat, op, x, y )
+               call par_precond_dd_mlevel_bddc_apply_all_unk ( op, x, y )
              class default
              write(0,'(a)') 'fem_matrix%apply: unsupported y class'
              check(1==0)
@@ -8835,7 +8827,7 @@ end if
           class is (par_vector)
              allocate(local_y)
              call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
-             call par_precond_dd_mlevel_bddc_apply_all_unk ( op%p_mat, op, x, local_y )
+             call par_precond_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
              call move_alloc(local_y, y)
              call y%SetTemp()
           class default

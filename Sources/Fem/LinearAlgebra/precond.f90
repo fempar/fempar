@@ -505,8 +505,8 @@ contains
 #endif
     else if (prec%type==diag_prec) then
        ! Allocate + extract
-          call memalloc ( mat%gr%nv, prec%d, __FILE__,__LINE__)
-
+       call memalloc ( mat%gr%nv, prec%d, __FILE__,__LINE__)
+       call extract_diagonal(mat%symm,mat%gr%nv,mat%gr%ia,mat%gr%ja,mat%a,mat%gr%nv,prec%d)
        ! Invert diagonal
        call invert_diagonal  ( mat%gr%nv, prec%d )
     else if(prec%type/=no_prec) then
@@ -677,10 +677,10 @@ contains
 
   end subroutine apply_diagonal
 
-  subroutine extract_diagonal (ks,nv,nv2,ia,ja,a,d_nv,d)
+  subroutine extract_diagonal (ks,nv,ia,ja,a,d_nv,d)
     implicit none
     ! Parameters
-    integer(ip), intent(in)  :: ks,nv,nv2,d_nv
+    integer(ip), intent(in)  :: ks,nv,d_nv
     integer(ip), intent(in)  :: ia(nv+1),ja(ia(nv+1)-1)
     real(rp)   , intent(in)  :: a(ia(nv+1)-1)
     real(rp)   , intent(out) :: d(d_nv)
@@ -688,8 +688,7 @@ contains
     ! Locals
     integer(ip)              :: iv, iz, of, izc, ivc
 
-
-    if(ks==1) then                     ! Unsymmetric 
+    if(ks==symm_false) then                     ! Unsymmetric 
        do iv = 1, nv
           iz   = ia(iv)
           of   = 0
@@ -703,9 +702,8 @@ contains
              d(ivc) = a(izc) 
              of       = of + 1
           end do ! ivc
-
        end do ! iv
-    else if (ks==0) then                  ! Symmetric
+    else if (ks==symm_true) then               ! Symmetric
        do iv = 1, nv
           izc     = ia(iv)
           assert(ja(izc)==iv)
