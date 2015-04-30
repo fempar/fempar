@@ -289,13 +289,15 @@ module par_precond_dd_mlevel_bddc_names
 
      type ( fem_operator_dd ) :: A_II_inv ! Only required if unknowns == all_unknowns
 
-     ! Parallel partition control info. Actually required ?
-     ! I think it is required in order to properly abort 
-     ! the paralleldirect_solve_constrained_problem context in case of error.
+     ! DoF distribution control info
      type ( dof_distribution ), pointer  :: dof_dist => NULL()
      type ( par_environment  ), pointer  :: p_env    => NULL()
      type ( par_matrix  )     , pointer  :: p_mat    => NULL()
-     type ( par_context )                :: b_context
+
+     type (par_context)  :: g_context ! Fine to coarse comm
+     type (par_context)  :: c_context ! Coarse process
+     type (par_context)  :: d_context ! Available (coarse unused) process
+     type (par_context)  :: b_context ! Intercommunicator betwen c_context and d_context (bcast and recursive call)
 
      ! par_timer objects associated to f_tasks_c_tasks_w_coarse_duties timing
      type(par_timer), pointer :: timer_assprec_ov_coarse
@@ -489,46 +491,39 @@ contains
     !    call par_context_create ( inhouse, -1, mlbddc%dof_dist%c_context, mlbddc%dof_dist%d_context, mlbddc%dof_dist%w_context )
     ! end if
     ! write(*,*) 'c_context and d_context created'
-    allocate(mlbddc%p_env%c_context, stat = istat)
-    check(istat==0)
-    allocate(mlbddc%p_env%d_context, stat = istat)
-    check(istat==0)
     if(mlbddc%p_env%q_context%iam >= 0) then
        if(mlbddc%p_env%q_context%iam < mlbddc%p_env%num_parts(2)) then
-          call par_context_create ( 1, mlbddc%p_env%c_context, mlbddc%p_env%d_context, mlbddc%p_env%q_context )
+          call par_context_create ( 1, mlbddc%c_context, mlbddc%d_context, mlbddc%p_env%q_context )
        else
-          call par_context_create ( 2, mlbddc%p_env%d_context, mlbddc%p_env%c_context, mlbddc%p_env%q_context )
+          call par_context_create ( 2, mlbddc%d_context, mlbddc%c_context, mlbddc%p_env%q_context )
        end if
     else
-       call par_context_null (mlbddc%p_env%c_context)
-       call par_context_null (mlbddc%p_env%d_context)
+       call par_context_null (mlbddc%c_context)
+       call par_context_null (mlbddc%d_context)
     end if
 
     ! Now create g_context, where communication actually occurs
-    allocate(mlbddc%p_env%g_context, stat = istat)
-    assert(istat==0)
-    !if(mlbddc%p_env%w_context%iam < mlbddc%p_env%num_parts(1)) then
     if(mlbddc%p_env%p_context%iam >= 0) then
        ! my_color is id_parts(this_level+1)
-       call par_context_create ( mlbddc%p_env%id_parts(2)    , mlbddc%p_env%g_context, dum_context, mlbddc%p_env%w_context )
-    else if(mlbddc%p_env%c_context%iam >= 0) then
-       call par_context_create ( mlbddc%p_env%c_context%iam+1, mlbddc%p_env%g_context, dum_context, mlbddc%p_env%w_context )
+       call par_context_create ( mlbddc%p_env%id_parts(2)    , mlbddc%g_context, dum_context, mlbddc%p_env%w_context )
+    else if(mlbddc%c_context%iam >= 0) then
+       call par_context_create ( mlbddc%c_context%iam+1      , mlbddc%g_context, dum_context, mlbddc%p_env%w_context )
     else
-       call par_context_create (                           -1, mlbddc%p_env%g_context, dum_context, mlbddc%p_env%w_context )
+       call par_context_create (                           -1, mlbddc%g_context, dum_context, mlbddc%p_env%w_context )
     end if
 
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
     if ( debug_verbose_level_1 ) then
       write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'w_context: ',mlbddc%p_env%w_context%iam, mlbddc%p_env%w_context%np
       write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'p_context: ',mlbddc%p_env%p_context%iam, mlbddc%p_env%p_context%np
       write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'q_context: ',mlbddc%p_env%q_context%iam, mlbddc%p_env%q_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'c_context: ',mlbddc%p_env%c_context%iam, mlbddc%p_env%c_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'd_context: ',mlbddc%p_env%d_context%iam, mlbddc%p_env%d_context%np
-      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'g_context: ',mlbddc%p_env%g_context%iam, mlbddc%p_env%g_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'c_context: ',mlbddc%c_context%iam, mlbddc%c_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'd_context: ',mlbddc%d_context%iam, mlbddc%d_context%np
+      write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'g_context: ',mlbddc%g_context%iam, mlbddc%g_context%np
       write(*,*) 'LEVELS: ', mlbddc%p_env%num_levels, 'b_context: ',mlbddc%p_env%b_context%iam, mlbddc%p_env%b_context%np
     end if
 
@@ -579,10 +574,10 @@ contains
           check(istat == 0)
           allocate(mlbddc%timer_applyprec_ov_coarse, stat=istat)
           check(istat == 0)
-          call par_timer_create ( mlbddc%timer_assprec_ov_coarse,  'Symb. Prec. region C',  mlbddc%p_env%c_context%icontxt )
-          call par_timer_create ( mlbddc%timer_assprec_ov_coarse_header,  'Symb. Prec. region C header',  mlbddc%p_env%c_context%icontxt )
-          call par_timer_create ( mlbddc%timer_fillprec_ov_coarse, 'Fill. Prec. region C',  mlbddc%p_env%c_context%icontxt )
-          call par_timer_create ( mlbddc%timer_applyprec_ov_coarse,  'Apply Prec. region C',  mlbddc%p_env%c_context%icontxt )
+          call par_timer_create ( mlbddc%timer_assprec_ov_coarse,  'Symb. Prec. region C',  mlbddc%c_context%icontxt )
+          call par_timer_create ( mlbddc%timer_assprec_ov_coarse_header,  'Symb. Prec. region C header',  mlbddc%c_context%icontxt )
+          call par_timer_create ( mlbddc%timer_fillprec_ov_coarse, 'Fill. Prec. region C',  mlbddc%c_context%icontxt )
+          call par_timer_create ( mlbddc%timer_applyprec_ov_coarse,  'Apply Prec. region C',  mlbddc%c_context%icontxt )
        else if ( i_am_fine_task ) then
           allocate ( mlbddc%timer_assprec_ov_fine, stat=istat)
           check(istat == 0)
@@ -616,9 +611,9 @@ contains
          check(istat == 0)
          allocate ( mlbddc%timer_coll_applyprec, stat=istat)
          check(istat == 0)
-         call par_timer_create ( mlbddc%timer_coll_assprec  , 'Collective Assembly preconditioner',  mlbddc%p_env%g_context%icontxt )
-         call par_timer_create ( mlbddc%timer_coll_fillprec , 'Collective Fill preconditioner'    ,  mlbddc%p_env%g_context%icontxt )
-         call par_timer_create ( mlbddc%timer_coll_applyprec, 'Collective Apply preconditioner'   ,  mlbddc%p_env%g_context%icontxt )
+         call par_timer_create ( mlbddc%timer_coll_assprec  , 'Collective Assembly preconditioner',  mlbddc%g_context%icontxt )
+         call par_timer_create ( mlbddc%timer_coll_fillprec , 'Collective Fill preconditioner'    ,  mlbddc%g_context%icontxt )
+         call par_timer_create ( mlbddc%timer_coll_applyprec, 'Collective Apply preconditioner'   ,  mlbddc%g_context%icontxt )
        end if          
     end if
 
@@ -706,13 +701,13 @@ contains
 
              ! Now create b_context (intercomm)
              assert(istat==0)
-             call par_context_create ( mlbddc%p_env%q_context, mlbddc%p_env%c_context, mlbddc%p_env%d_context, mlbddc%b_context )
+             call par_context_create ( mlbddc%p_env%q_context, mlbddc%c_context, mlbddc%d_context, mlbddc%b_context )
 
              ! Create coarse partition (assign c_context -> p_context, q_context -> w_context, d_context -> q_context) 
              call par_environment_create ( mlbddc%p_env_c,         &
                                            mlbddc%p_env%q_context, &  ! Intracomm including c & d
-                                           mlbddc%p_env%c_context, &  ! Fine-tasks intracomm
-                                           mlbddc%p_env%d_context, &  ! Rest-of-tasks intracomm
+                                           mlbddc%c_context, &  ! Fine-tasks intracomm
+                                           mlbddc%d_context, &  ! Rest-of-tasks intracomm
                                            mlbddc%b_context,       &  ! Intercomm c<=>d
                                            mlbddc%p_env%num_levels-1, &  
                                            mlbddc%p_env%id_parts(2:mlbddc%p_env%num_levels), &
@@ -776,22 +771,19 @@ contains
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
     assert ( mlbddc%p_env%w_context%iam >= 0)
     assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
-    assert ( associated(mlbddc%p_env%c_context) )
-    assert ( mlbddc%p_env%c_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%d_context) )
-    assert ( mlbddc%p_env%d_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%g_context) )
-    assert ( mlbddc%p_env%g_context%created .eqv. .true. )
+    assert ( mlbddc%c_context%created .eqv. .true. )
+    assert ( mlbddc%d_context%created .eqv. .true. )
+    assert ( mlbddc%g_context%created .eqv. .true. )
     assert ( associated(mlbddc%p_env%b_context) )
     assert ( mlbddc%p_env%b_context%created .eqv. .true. )
 
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
     if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
-    if(i_am_coarse_task) iam = mlbddc%p_env%c_context%iam
-    if(i_am_higher_level_task) iam = mlbddc%p_env%d_context%iam
+    if(i_am_coarse_task) iam = mlbddc%c_context%iam
+    if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
     if ( mode == free_clean ) then
        if ( i_am_fine_task ) then
@@ -843,18 +835,10 @@ contains
                 ! Free coarse environment
                 call par_environment_free ( mlbddc%p_env_c )
                 
-                call par_context_free (mlbddc%p_env%c_context,.false.)
-                call par_context_free (mlbddc%p_env%d_context,.false.)
-                call par_context_free (mlbddc%p_env%g_context,.false.)
+                call par_context_free (mlbddc%c_context,.false.)
+                call par_context_free (mlbddc%d_context,.false.)
+                call par_context_free (mlbddc%g_context,.false.)
                 call par_context_free (mlbddc%b_context,.false.)
-                
-                ! Deallocate context
-                deallocate(mlbddc%p_env%c_context, stat = istat)
-                assert(istat==0)
-                deallocate(mlbddc%p_env%d_context, stat = istat)
-                assert(istat==0)
-                deallocate(mlbddc%p_env%g_context, stat = istat)
-                assert(istat==0)
                 
                 ! Deallocate inverse
                 deallocate(mlbddc%p_M_c, stat=istat)
@@ -864,7 +848,7 @@ contains
              
              ! deallocate(mlbddc%p_env%c_context, stat = istat)
              ! assert(istat==0)
-             ! deallocate(mlbddc%p_env%d_context, stat = istat)
+             ! deallocate(mlbddc%d_context, stat = istat)
              ! assert(istat==0)
              
           end if
@@ -1113,12 +1097,9 @@ contains
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
     assert ( mlbddc%p_env%w_context%iam >= 0)
     assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
-    assert ( associated(mlbddc%p_env%c_context) )
-    assert ( mlbddc%p_env%c_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%d_context) )
-    assert ( mlbddc%p_env%d_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%g_context) )
-    assert ( mlbddc%p_env%g_context%created .eqv. .true. )
+    assert ( mlbddc%c_context%created .eqv. .true. )
+    assert ( mlbddc%d_context%created .eqv. .true. )
+    assert ( mlbddc%g_context%created .eqv. .true. )
     assert ( associated(mlbddc%p_env%b_context) )
     assert ( mlbddc%p_env%b_context%created .eqv. .true. )
 
@@ -1126,11 +1107,11 @@ contains
     
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
     ! if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
-    ! if(i_am_coarse_task) iam = mlbddc%p_env%c_context%iam
-    ! if(i_am_higher_level_task) iam = mlbddc%p_env%d_context%iam
+    ! if(i_am_coarse_task) iam = mlbddc%c_context%iam
+    ! if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
     if ( i_am_fine_task ) then
        ! BEG. FINE-GRID PROBLEM DUTIES
@@ -1174,7 +1155,7 @@ contains
 !!$    if ( temp_fine_coarse_grid_overlap ) then
 !!$       if ( .not. i_am_higher_level_task ) then
 !!$          call par_timer_stop ( mlbddc%timer_coll_assprec  )
-!!$          call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+!!$          call psb_barrier ( mlbddc%g_context%icontxt )
 !!$          if ( i_am_fine_task ) then
 !!$             call par_timer_start ( mlbddc%timer_assprec_ov_fine  ) 
 !!$          else if ( i_am_coarse_task ) then
@@ -1888,45 +1869,45 @@ contains
 
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
     if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
-    if(i_am_coarse_task) iam = mlbddc%p_env%c_context%iam
-    if(i_am_higher_level_task) iam = mlbddc%p_env%d_context%iam
+    if(i_am_coarse_task) iam = mlbddc%c_context%iam
+    if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
     if( i_am_fine_task) then
        
        ! Both omap%ng and max_nparts are required next in the coarse-grid
        ! tasks. TRANSFER these data!
-       call transfer_coarse_int ( mlbddc%p_env%g_context%icontxt, &
-                                  mlbddc%p_env%g_context%iam, &
-                                  mlbddc%p_env%g_context%np, &
+       call transfer_coarse_int ( mlbddc%g_context%icontxt, &
+                                  mlbddc%g_context%iam, &
+                                  mlbddc%g_context%np, &
                                   mlbddc%dof_dist%omap%ng )
 
-       call transfer_coarse_int ( mlbddc%p_env%g_context%icontxt, &
-                                  mlbddc%p_env%g_context%iam, &
-                                  mlbddc%p_env%g_context%np, &
+       call transfer_coarse_int ( mlbddc%g_context%icontxt, &
+                                  mlbddc%g_context%iam, &
+                                  mlbddc%g_context%np, &
                                   mlbddc%dof_dist%max_nparts )
 
-       ! write (*,*) 'I am fine task', mlbddc%p_env%g_context%iam, mlbddc%p_env%g_context%np
+       ! write (*,*) 'I am fine task', mlbddc%g_context%iam, mlbddc%g_context%np
        ! call psb_barrier ( mlbddc%p_env%p_context%icontxt)
 
-       call snd_coarse_int_ip ( mlbddc%p_env%g_context%icontxt, & 
-                                mlbddc%p_env%g_context%np, &
+       call snd_coarse_int_ip ( mlbddc%g_context%icontxt, & 
+                                mlbddc%g_context%np, &
                                 mlbddc%nl_coarse)
 
        ! if( mlbddc%pad_collectives == pad ) then
        ! AFM: IMPORTANT NOTE !!!! You need to call all_reduce_coarse_mesh_nnode
        ! EVEN with nopad mode, as c_mesh%nnode is later required for the generation 
        ! of the primal graph in mesh_to_graph_matrix (mesh_graph.f90)
-       call allreduce_coarse_mesh_nnode(  mlbddc%p_env%g_context%icontxt, & 
-                                          mlbddc%p_env%g_context%np, &
+       call allreduce_coarse_mesh_nnode(  mlbddc%g_context%icontxt, & 
+                                          mlbddc%g_context%np, &
                                           mlbddc%nl_coarse, &
                                           mlbddc%max_coarse_dofs)
        ! end if
 
-       call snd_coarse_mesh_lnods ( mlbddc%p_env%g_context%icontxt, & 
-                                    mlbddc%p_env%g_context%np,      &
+       call snd_coarse_mesh_lnods ( mlbddc%g_context%icontxt, & 
+                                    mlbddc%g_context%np,      &
                                     mlbddc%pad_collectives,          &  
                                     mlbddc%nl_coarse,                &
                                     mlbddc%coarse_dofs,              &
@@ -1945,14 +1926,14 @@ contains
     else if( i_am_coarse_task ) then
        ! Both omap%ng and max_nparts are required next in the coarse-grid
        ! tasks. TRANSFER these data!
-       call transfer_coarse_int ( mlbddc%p_env%g_context%icontxt, &
-                                  mlbddc%p_env%g_context%iam, &
-                                  mlbddc%p_env%g_context%np, &
+       call transfer_coarse_int ( mlbddc%g_context%icontxt, &
+                                  mlbddc%g_context%iam, &
+                                  mlbddc%g_context%np, &
                                   mlbddc%dof_dist%omap%ng )
 
-       call transfer_coarse_int ( mlbddc%p_env%g_context%icontxt, &
-                                  mlbddc%p_env%g_context%iam, &
-                                  mlbddc%p_env%g_context%np, &
+       call transfer_coarse_int ( mlbddc%g_context%icontxt, &
+                                  mlbddc%g_context%iam, &
+                                  mlbddc%g_context%np, &
                                   mlbddc%dof_dist%max_nparts )
 
        ! The elements in the coarse-grid mesh might be different
@@ -1962,12 +1943,12 @@ contains
        ! choice 
        c_mesh%nelty = 0
 
-       c_mesh%nelem = mlbddc%p_env%g_context%np-1
+       c_mesh%nelem = mlbddc%g_context%np-1
        call memalloc ( c_mesh%nelem+1, c_mesh%pnods,__FILE__,__LINE__ ) 
-       call memalloc ( mlbddc%p_env%g_context%np+1, mlbddc%ptr_coarse_dofs,__FILE__,__LINE__ ) 
+       call memalloc ( mlbddc%g_context%np+1, mlbddc%ptr_coarse_dofs,__FILE__,__LINE__ ) 
 
-       call rcv_coarse_int_ip ( mlbddc%p_env%g_context%icontxt, & 
-                                mlbddc%p_env%g_context%np, &
+       call rcv_coarse_int_ip ( mlbddc%g_context%icontxt, & 
+                                mlbddc%g_context%np, &
                                 mlbddc%ptr_coarse_dofs(2) )
 
 
@@ -1975,8 +1956,8 @@ contains
        ! EVEN with nopad mode, as c_mesh%nnode is later required for the generation 
        ! of the primal graph in mesh_to_graph_matrix (mesh_graph.f90)
        ! if( mlbddc%pad_collectives == pad )  then
-       call allreduce_coarse_mesh_nnode(  mlbddc%p_env%g_context%icontxt, & 
-                                          mlbddc%p_env%g_context%np, &
+       call allreduce_coarse_mesh_nnode(  mlbddc%g_context%icontxt, & 
+                                          mlbddc%g_context%np, &
                                           mlbddc%nl_coarse, &
                                           mlbddc%max_coarse_dofs)
        ! end if
@@ -1986,7 +1967,7 @@ contains
        ! Transform length to header
        mlbddc%ptr_coarse_dofs(1)=0
        c_mesh%pnods(1)=1
-       do i = 1, mlbddc%p_env%g_context%np-1
+       do i = 1, mlbddc%g_context%np-1
           mlbddc%ptr_coarse_dofs(i+1) = mlbddc%ptr_coarse_dofs(i+1) + mlbddc%ptr_coarse_dofs(i)
           c_mesh%pnods(i+1) = mlbddc%ptr_coarse_dofs(i+1) + 1
        end do
@@ -1994,7 +1975,7 @@ contains
        
        if ( debug_verbose_level_2 ) then
           write (*,*)  'c_mesh%pnods:', c_mesh%pnods
-          call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+          call psb_barrier ( mlbddc%c_context%icontxt )
        end if
 
        call memalloc ( c_mesh%pnods(c_mesh%nelem+1)-1, c_mesh%lnods,__FILE__,__LINE__ ) 
@@ -2005,9 +1986,9 @@ contains
        ! If we were interested in the global numbering of nodes, it could be stored
        ! at this point, where it is lost.
        ! AFM: DONE
-       call rcv_coarse_mesh_lnods ( mlbddc%p_env%g_context%icontxt, & 
-                                    mlbddc%p_env%g_context%np, &
-                                    mlbddc%p_env%c_context%np, &
+       call rcv_coarse_mesh_lnods ( mlbddc%g_context%icontxt, & 
+                                    mlbddc%g_context%np, &
+                                    mlbddc%c_context%np, &
                                     mlbddc%pad_collectives,  &  
                                     mlbddc%max_coarse_dofs,  &
                                     mlbddc%dof_dist%omap%ng,  &
@@ -2020,7 +2001,7 @@ contains
 
        if ( debug_verbose_level_2 ) then
           write (*,*)  'cmesh%lnods:', c_mesh%lnods
-          call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+          call psb_barrier ( mlbddc%c_context%icontxt )
        end if
 
     end if
@@ -2029,7 +2010,7 @@ contains
        if ( i_am_fine_task .or. i_am_coarse_task ) then
           if (mlbddc%co_sys_sol_strat == serial_gather) then
              call par_timer_stop ( mlbddc%timer_coll_assprec  )
-             call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+             call psb_barrier ( mlbddc%g_context%icontxt )
              if ( i_am_fine_task ) then
                 call par_timer_start ( mlbddc%timer_assprec_ov_fine )
              else
@@ -2556,8 +2537,8 @@ contains
 
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
 
     if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -2565,9 +2546,9 @@ contains
        if ( i_am_coarse_task ) then
           ! TODO: all rcv_ rounties are wrong because ptr_coarse_dofs starts from 0.
           ! DONE: we now keep mlbddc%ptr_coarse_dofs  & c_mesh%lnods separately
-          call rcv_subdomains_surrounding_coarse_dofs ( mlbddc%p_env%g_context%icontxt, &
-                                                        mlbddc%p_env%g_context%iam,     &
-                                                        mlbddc%p_env%g_context%np,      &
+          call rcv_subdomains_surrounding_coarse_dofs ( mlbddc%g_context%icontxt, &
+                                                        mlbddc%g_context%iam,     &
+                                                        mlbddc%g_context%np,      &
                                                         mlbddc%pad_collectives,          &
                                                         mlbddc%dof_dist%max_nparts, &  
                                                         c_mesh%npoin,    &
@@ -2581,30 +2562,30 @@ contains
              write (*,*)  'dual_f_mesh%pnods:', dual_f_mesh%pnods
              write (*,*)  'dual_f_mesh%lnods:', dual_f_mesh%lnods
              write (*,*)  'dual_parts:', dual_parts
-             call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+             call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
 
-          !call memalloc (mlbddc%p_env%g_context%np-1, l2ge, __FILE__,__LINE__) 
+          !call memalloc (mlbddc%g_context%np-1, l2ge, __FILE__,__LINE__) 
           call memalloc (c_mesh%nelem, l2ge, __FILE__,__LINE__) 
           
-          call rcv_coarse_int_ip(mlbddc%p_env%g_context%icontxt, &
-                                 mlbddc%p_env%g_context%np,      &
+          call rcv_coarse_int_ip(mlbddc%g_context%icontxt, &
+                                 mlbddc%g_context%np,      &
                                  l2ge)
 
           if ( debug_verbose_level_2 ) then
              write (*,*)  'l2ge:', l2ge
-             call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+             call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
           if ( temp_fine_coarse_grid_overlap ) then
              call par_timer_stop ( mlbddc%timer_coll_assprec  )
-             call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+             call psb_barrier ( mlbddc%g_context%icontxt )
              call par_timer_start ( mlbddc%timer_assprec_ov_coarse )
              call par_timer_start ( mlbddc%timer_assprec_ov_coarse_header )
           end if
 
-!!$          call build_partition_adjacency (mlbddc%p_env%c_context%iam+1, &
+!!$          call build_partition_adjacency (mlbddc%c_context%iam+1, &
 !!$               &                          c_mesh,& 
 !!$               &                          l2ge, &
 !!$               &                          dual_f_mesh, & 
@@ -2621,7 +2602,7 @@ contains
 !!$             write (*,*)  'lextn:', lextn
 !!$             write (*,*)  'lextp:', lextp
 !!$             write (*,*)  'lexte:', lexte
-!!$             call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+!!$             call psb_barrier ( mlbddc%c_context%icontxt )
 !!$          end if
 
 
@@ -2638,13 +2619,13 @@ contains
           
           if ( debug_verbose_level_2 ) then 
              write (*,*)  'vars:', mlbddc%vars
-             call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+             call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
 
-          call dof_distribution_coarse_create ( mlbddc%p_env%c_context%icontxt, & ! Communication context
-                                                mlbddc%p_env%c_context%iam    , &
-                                                mlbddc%p_env%c_context%np     , &
+          call dof_distribution_coarse_create ( mlbddc%c_context%icontxt, & ! Communication context
+                                                mlbddc%c_context%iam    , &
+                                                mlbddc%c_context%np     , &
                                                 c_mesh                        , & ! Local mesh in an initial ARBITRARY local node/element ordering
                                                 l2ge                          , & ! local2global element correspondence
                                                 dual_f_mesh                   , & ! Associated dual_mesh with external elements also listed for boundary DoFs
@@ -2665,7 +2646,7 @@ contains
              write (*,*)  'eren_c%iperm:', mlbddc%eren_c%iperm 
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%lnods
              call dof_distribution_print ( 6, mlbddc%dof_dist_c )
-             call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+             call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
           ! AFM: Derived from the fact that f_graph within p_graph_c was not ACTUALLY created
@@ -2678,7 +2659,7 @@ contains
 
           if ( debug_verbose_level_2 ) then 
              call fem_graph_print ( 6,  mlbddc%p_graph_c%f_graph )
-             call psb_barrier ( mlbddc%p_env%c_context%icontxt )
+             call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
           if ( temp_fine_coarse_grid_overlap ) then
@@ -2700,9 +2681,9 @@ contains
                                                mlbddc%p_env%id_parts(2), &
                                                neighbours_coarse_parts)
 
-          call snd_subdomains_surrounding_coarse_dofs ( mlbddc%p_env%g_context%icontxt, &
-                                                        mlbddc%p_env%g_context%iam,     &
-                                                        mlbddc%p_env%g_context%np,      &
+          call snd_subdomains_surrounding_coarse_dofs ( mlbddc%g_context%icontxt, &
+                                                        mlbddc%g_context%iam,     &
+                                                        mlbddc%g_context%np,      &
                                                         mlbddc%pad_collectives,          &
                                                         mlbddc%dof_dist%max_nparts, &  
                                                         mlbddc%nl_coarse,                &
@@ -2718,14 +2699,14 @@ contains
           call memfree (neighbours_coarse_parts, __FILE__,__LINE__) 
 
           ! TODO my_part = iam + 1 everywhere, right? just check it...
-          call snd_coarse_int_ip( mlbddc%p_env%g_context%icontxt, &
-                                   mlbddc%p_env%g_context%np,      &
+          call snd_coarse_int_ip( mlbddc%g_context%icontxt, &
+                                   mlbddc%g_context%np,      &
                                    mlbddc%p_env%p_context%iam+1 ) 
                                    ! snd_igp ) 
 
           if ( temp_fine_coarse_grid_overlap ) then
              call par_timer_stop ( mlbddc%timer_coll_assprec  )
-             call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+             call psb_barrier ( mlbddc%g_context%icontxt )
              call par_timer_start ( mlbddc%timer_assprec_ov_fine )
           end if
 
@@ -3081,8 +3062,8 @@ contains
 
     ! Which duties do I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
     ! "Numerical factorization" of Neumann internal problem at the end of phase1
     call par_precond_dd_mlevel_bddc_fill_val_phase_1 (p_mat, mlbddc)
@@ -3126,12 +3107,9 @@ contains
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
     assert ( mlbddc%p_env%w_context%iam >= 0)
     assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
-    assert ( associated(mlbddc%p_env%c_context) )
-    assert ( mlbddc%p_env%c_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%d_context) )
-    assert ( mlbddc%p_env%d_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%g_context) )
-    assert ( mlbddc%p_env%g_context%created .eqv. .true. )
+    assert ( mlbddc%c_context%created .eqv. .true. )
+    assert ( mlbddc%d_context%created .eqv. .true. )
+    assert ( mlbddc%g_context%created .eqv. .true. )
     assert ( associated(mlbddc%p_env%b_context) )
     assert ( mlbddc%p_env%b_context%created .eqv. .true. )
 
@@ -3324,19 +3302,16 @@ contains
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
     assert ( mlbddc%p_env%w_context%iam >= 0)
     assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
-    assert ( associated(mlbddc%p_env%c_context) )
-    assert ( mlbddc%p_env%c_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%d_context) )
-    assert ( mlbddc%p_env%d_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%g_context) )
-    assert ( mlbddc%p_env%g_context%created .eqv. .true. )
+    assert ( mlbddc%c_context%created .eqv. .true. )
+    assert ( mlbddc%d_context%created .eqv. .true. )
+    assert ( mlbddc%g_context%created .eqv. .true. )
     assert ( associated(mlbddc%p_env%b_context) )
     assert ( mlbddc%p_env%b_context%created .eqv. .true. )
     
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
     if (i_am_fine_task) then
    
@@ -5651,15 +5626,15 @@ end if
 
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
     if(i_am_fine_task) iam = mlbddc%p_env%p_context%iam
-    if(i_am_coarse_task) iam = mlbddc%p_env%c_context%iam
-    if(i_am_higher_level_task) iam = mlbddc%p_env%d_context%iam
+    if(i_am_coarse_task) iam = mlbddc%c_context%iam
+    if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
     if( i_am_coarse_task ) then
        sum = 0
-       do i=1, mlbddc%p_env%g_context%np
+       do i=1, mlbddc%g_context%np
           sum = sum + (mlbddc%ptr_coarse_dofs(i+1)-mlbddc%ptr_coarse_dofs(i)) * & 
                & (mlbddc%ptr_coarse_dofs(i+1)-mlbddc%ptr_coarse_dofs(i))  
        end do
@@ -5851,8 +5826,8 @@ end if
     end if
 
     if ( i_am_coarse_task ) then
-       call rcv_coarse_stiffness_matrices ( mlbddc%p_env%g_context%icontxt, &
-                                            mlbddc%p_env%g_context%np,      &
+       call rcv_coarse_stiffness_matrices ( mlbddc%g_context%icontxt, &
+                                            mlbddc%g_context%np,      &
                                             mlbddc%pad_collectives,          &
                                             mlbddc%max_coarse_dofs,          &
                                             mlbddc%ptr_coarse_dofs,          &
@@ -5861,7 +5836,7 @@ end if
 
        if ( temp_fine_coarse_grid_overlap ) then
           call par_timer_stop ( mlbddc%timer_coll_fillprec  )
-          call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+          call psb_barrier ( mlbddc%g_context%icontxt )
           call par_timer_start ( mlbddc%timer_fillprec_ov_coarse )
           if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
              call par_timer_start ( mlbddc%p_M_c%timer_fillprec_ov_coarse_header )
@@ -5872,7 +5847,7 @@ end if
           call fem_matrix_fill_val (mlbddc%A_c)
 
           call sum_coarse_stiffness_matrices ( mlbddc%A_c, &
-                                               mlbddc%p_env%g_context%np, & 
+                                               mlbddc%g_context%np, & 
                                                mlbddc%ptr_coarse_dofs, &
                                                mlbddc%f_mesh_c%lnods, &
                                                sum, &
@@ -5884,7 +5859,7 @@ end if
           call fem_matrix_fill_val (mlbddc%p_mat_c%f_matrix)
 
           call sum_coarse_stiffness_matrices ( mlbddc%p_mat_c%f_matrix, &
-                                               mlbddc%p_env%g_context%np, & 
+                                               mlbddc%g_context%np, & 
                                                mlbddc%ptr_coarse_dofs, &
                                                mlbddc%p_mesh_c%f_mesh%lnods, &
                                                sum, &
@@ -5895,8 +5870,8 @@ end if
 
 
     else if ( i_am_fine_task ) then
-       call snd_coarse_stiffness_matrices ( mlbddc%p_env%g_context%icontxt, &
-                                            mlbddc%p_env%g_context%np,      &
+       call snd_coarse_stiffness_matrices ( mlbddc%g_context%icontxt, &
+                                            mlbddc%g_context%np,      &
                                             mlbddc%pad_collectives,          &
                                             mlbddc%nl_coarse,                &
                                             mlbddc%max_coarse_dofs,          &
@@ -5905,7 +5880,7 @@ end if
 
        if ( temp_fine_coarse_grid_overlap ) then
           call par_timer_stop ( mlbddc%timer_coll_fillprec  )
-          call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+          call psb_barrier ( mlbddc%g_context%icontxt )
           call par_timer_start ( mlbddc%timer_fillprec_ov_fine  )
        end if
 
@@ -6202,19 +6177,16 @@ end if
     ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
     assert ( mlbddc%p_env%w_context%iam >= 0)
     assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
-    assert ( associated(mlbddc%p_env%c_context) )
-    assert ( mlbddc%p_env%c_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%d_context) )
-    assert ( mlbddc%p_env%d_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_env%g_context) )
-    assert ( mlbddc%p_env%g_context%created .eqv. .true. )
+    assert ( mlbddc%c_context%created .eqv. .true. )
+    assert ( mlbddc%d_context%created .eqv. .true. )
+    assert ( mlbddc%g_context%created .eqv. .true. )
     assert ( associated(mlbddc%p_env%b_context) )
     assert ( mlbddc%p_env%b_context%created .eqv. .true. )
 
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
 !!$    if ( temp_fine_coarse_grid_overlap ) then 
 !!$       if (i_am_fine_task) then
@@ -6543,8 +6515,8 @@ end if
 
    ! Which duties I have?
    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-   i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-   i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+   i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+   i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
    if ( i_am_fine_task ) then
      call memalloc ( mlbddc%nl_coarse, r_ci, __FILE__,__LINE__ )
@@ -6570,14 +6542,14 @@ end if
    ! 1.4. r_c <- comm r_ci
    if ( i_am_coarse_task ) then
       sum = 0
-      do i=1, mlbddc%p_env%g_context%np
+      do i=1, mlbddc%g_context%np
          sum = sum + (mlbddc%ptr_coarse_dofs(i+1)- &
               mlbddc%ptr_coarse_dofs(i))  
       end do
       call memalloc (  sum, r_ci_gathered, __FILE__,__LINE__ )
 
-      call rcv_coarse_stiffness_vectors ( mlbddc%p_env%g_context%icontxt, &
-           mlbddc%p_env%g_context%np,      &
+      call rcv_coarse_stiffness_vectors ( mlbddc%g_context%icontxt, &
+           mlbddc%g_context%np,      &
            mlbddc%pad_collectives,          &
            mlbddc%max_coarse_dofs,          &
            mlbddc%ptr_coarse_dofs,          &
@@ -6586,7 +6558,7 @@ end if
 
       if ( temp_fine_coarse_grid_overlap ) then
          call par_timer_stop ( mlbddc%timer_coll_applyprec  )
-         call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+         call psb_barrier ( mlbddc%g_context%icontxt )
          call par_timer_start ( mlbddc%timer_applyprec_ov_coarse )
          if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
             call par_timer_start ( mlbddc%p_M_c%timer_applyprec_ov_coarse_header )
@@ -6595,7 +6567,7 @@ end if
 
       if (  mlbddc%co_sys_sol_strat == serial_gather ) then  
          call sum_coarse_stiffness_vectors ( r_c, &
-                                             mlbddc%p_env%g_context%np, & 
+                                             mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
                                              mlbddc%ptr_coarse_dofs, &
                                              mlbddc%f_mesh_c%lnods, &
@@ -6604,7 +6576,7 @@ end if
       else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
          assert(mlbddc%p_env%num_levels>2) ! Assuming last level direct
          call sum_coarse_stiffness_vectors ( r_c, &
-                                             mlbddc%p_env%g_context%np, & 
+                                             mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
                                              mlbddc%ptr_coarse_dofs, &
                                              mlbddc%p_mesh_c%f_mesh%lnods, &
@@ -6616,8 +6588,8 @@ end if
       call memfree (  r_ci_gathered,__FILE__,__LINE__)
 
    else if (i_am_fine_task) then
-      call snd_coarse_stiffness_vectors ( mlbddc%p_env%g_context%icontxt, &
-           mlbddc%p_env%g_context%np,      &
+      call snd_coarse_stiffness_vectors ( mlbddc%g_context%icontxt, &
+           mlbddc%g_context%np,      &
            mlbddc%pad_collectives,          &
            mlbddc%nl_coarse,                &
            mlbddc%max_coarse_dofs,          &
@@ -6625,7 +6597,7 @@ end if
 
       if ( temp_fine_coarse_grid_overlap ) then
          call par_timer_stop ( mlbddc%timer_coll_applyprec  )
-         call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+         call psb_barrier ( mlbddc%g_context%icontxt )
          call par_timer_start ( mlbddc%timer_applyprec_ov_fine  )
       end if
 
@@ -6657,7 +6629,7 @@ end if
 
    ! Which duties I have?
    i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-   i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
+   i_am_coarse_task = (mlbddc%c_context%iam >= 0)
 
    if ( i_am_fine_task ) then
       call memalloc ( mlbddc%nl_coarse, z_ci, __FILE__,__LINE__ )
@@ -6673,16 +6645,16 @@ end if
 
    ! 1.6. z_ci <- scatter z_c
    if ( i_am_fine_task ) then
-      call rcv_z_c( mlbddc%p_env%g_context%icontxt, & 
-                    mlbddc%p_env%g_context%np,      &
+      call rcv_z_c( mlbddc%g_context%icontxt, & 
+                    mlbddc%g_context%np,      &
                     mlbddc%pad_collectives,          &
                     mlbddc%nl_coarse,                &
                     mlbddc%max_coarse_dofs,          &
                     z_ci )
    else if ( i_am_coarse_task ) then
       if (  mlbddc%co_sys_sol_strat == serial_gather ) then  
-         call snd_z_c (mlbddc%p_env%g_context%icontxt, & 
-                       mlbddc%p_env%g_context%np,      &
+         call snd_z_c (mlbddc%g_context%icontxt, & 
+                       mlbddc%g_context%np,      &
                        mlbddc%pad_collectives,          &
                        mlbddc%max_coarse_dofs,          &
                        mlbddc%ptr_coarse_dofs,          &
@@ -6690,8 +6662,8 @@ end if
                        z_c )
       else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
          assert(mlbddc%p_env%num_levels>2) ! Assuming last level direct
-         call snd_z_c (mlbddc%p_env%g_context%icontxt, & 
-                       mlbddc%p_env%g_context%np,      &
+         call snd_z_c (mlbddc%g_context%icontxt, & 
+                       mlbddc%g_context%np,      &
                        mlbddc%pad_collectives,          &
                        mlbddc%max_coarse_dofs,          &
                        mlbddc%ptr_coarse_dofs,          &
@@ -7675,19 +7647,16 @@ end if
       ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
       assert ( mlbddc%p_env%w_context%iam >= 0)
       assert ( (mlbddc%p_env%p_context%iam >=0 .and. mlbddc%p_env%q_context%iam < 0) .or. (mlbddc%p_env%p_context%iam < 0 .and. mlbddc%p_env%q_context%iam >= 0))
-      assert ( associated(mlbddc%p_env%c_context) )
-      assert ( mlbddc%p_env%c_context%created .eqv. .true. )
-      assert ( associated(mlbddc%p_env%d_context) )
-      assert ( mlbddc%p_env%d_context%created .eqv. .true. )
-      assert ( associated(mlbddc%p_env%g_context) )
-      assert ( mlbddc%p_env%g_context%created .eqv. .true. )
+      assert ( mlbddc%c_context%created .eqv. .true. )
+      assert ( mlbddc%d_context%created .eqv. .true. )
+      assert ( mlbddc%g_context%created .eqv. .true. )
       assert ( associated(mlbddc%p_env%b_context) )
       assert ( mlbddc%p_env%b_context%created .eqv. .true. )
 
       ! Which duties I have?
       i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-      i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-      i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+      i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+      i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
       if ( temp_fine_coarse_grid_overlap ) then
         if (i_am_fine_task) then
@@ -7758,12 +7727,12 @@ end if
 
     ! Which duties I have  
     i_am_fine_task = (mlbddc%p_env%p_context%iam >= 0)
-    i_am_coarse_task = (mlbddc%p_env%c_context%iam >= 0)
-    i_am_higher_level_task = (mlbddc%p_env%d_context%iam >= 0)
+    i_am_coarse_task = (mlbddc%c_context%iam >= 0)
+    i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
   if( i_am_coarse_task ) then
        sum = 0
-       do i=1, mlbddc%p_env%g_context%np
+       do i=1, mlbddc%g_context%np
           sum = sum + ( mlbddc%ptr_coarse_dofs(i+1)-mlbddc%ptr_coarse_dofs(i) )  
        end do
        call memalloc ( sum, C_weights_i_gathered, __FILE__,__LINE__ )
@@ -7804,8 +7773,8 @@ end if
 
               ! Assemble COARSE constraint weights
               C_weights_i_gathered = 0.0_rp
-              call rcv_coarse_stiffness_vectors  ( mlbddc%p_env%g_context%icontxt, &
-                                            mlbddc%p_env%g_context%np,      &
+              call rcv_coarse_stiffness_vectors  ( mlbddc%g_context%icontxt, &
+                                            mlbddc%g_context%np,      &
                                             mlbddc%pad_collectives,          &
                                             mlbddc%max_coarse_dofs,          &
                                             mlbddc%ptr_coarse_dofs,          &
@@ -7813,12 +7782,12 @@ end if
                                             C_weights_i_gathered ) 
 
               if (temp_fine_coarse_grid_overlap ) then 
-                 call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+                 call psb_barrier ( mlbddc%g_context%icontxt )
               end if
       
          call fem_vector_alloc ( mlbddc%ng_coarse, C_weights_next_level )
          call sum_coarse_stiffness_vectors ( C_weights_next_level, &
-                                             mlbddc%p_env%g_context%np, & 
+                                             mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
                                              mlbddc%ptr_coarse_dofs, &
                                              mlbddc%p_mesh_c%f_mesh%lnods, &
@@ -7840,15 +7809,15 @@ end if
 
     elseif( i_am_fine_task ) then 
  
-       call snd_coarse_stiffness_vectors  ( mlbddc%p_env%g_context%icontxt, &
-                                            mlbddc%p_env%g_context%np,      &
+       call snd_coarse_stiffness_vectors  ( mlbddc%g_context%icontxt, &
+                                            mlbddc%g_context%np,      &
                                             mlbddc%pad_collectives,          &
                                             mlbddc%nl_coarse,                &
                                             mlbddc%max_coarse_dofs,          &
                                             C_weights_i )
    
        if ( temp_fine_coarse_grid_overlap ) then
-          call psb_barrier ( mlbddc%p_env%g_context%icontxt )
+          call psb_barrier ( mlbddc%g_context%icontxt )
        end if
 
        call memfree (C_weights_i, __FILE__ , __LINE__ )

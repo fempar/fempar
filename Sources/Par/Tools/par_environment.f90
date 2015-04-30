@@ -43,10 +43,7 @@ module par_environment_names
   type, extends(abstract_environment) ::  par_environment
      logical                      :: created             ! Has the parallel environment been created?
      type (par_context), pointer  :: p_context => NULL() ! Fine process
-     type (par_context), pointer  :: g_context => NULL() ! Fine_to coarse comm
-     type (par_context), pointer  :: c_context => NULL() ! Coarse process
      type (par_context), pointer  :: q_context => NULL() ! Available (unused) processes 
-     type (par_context), pointer  :: d_context => NULL() ! Available (coarse unused) process
      type (par_context), pointer  :: b_context => NULL() ! Intercommunicator betwen p_context and q_context (bcast and recursive call)
      type (par_context), pointer  :: w_context => NULL() ! World communicator (all process involved).
      
@@ -56,6 +53,7 @@ module par_environment_names
      integer(ip), allocatable ::     &
           id_parts(:),               &    ! Part identifier
           num_parts(:)                    ! Number of parts
+
    contains
      
      procedure :: par_environment_create_single_level 
@@ -160,15 +158,12 @@ contains
     class(par_environment)        , intent(out) :: p_env
     type(par_context)    , target , intent(in)  :: p_context
 
-
     assert(p_context%created)
     p_env%p_context => p_context
 
     nullify(p_env%w_context)
     nullify(p_env%q_context)
     nullify(p_env%b_context)
-    nullify(p_env%c_context)
-    nullify(p_env%d_context)
 
     p_env%num_levels = 1 
     call memalloc(p_env%num_levels, p_env%id_parts, __FILE__, __LINE__ )
@@ -238,9 +233,6 @@ contains
     nullify ( p_env%w_context ) 
     nullify ( p_env%p_context )
     nullify ( p_env%q_context ) 
-    nullify ( p_env%c_context ) 
-    nullify ( p_env%d_context ) 
-    nullify ( p_env%g_context )
     nullify ( p_env%b_context )
 
     p_env%created = .false. 
