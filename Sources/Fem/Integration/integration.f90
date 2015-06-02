@@ -42,6 +42,8 @@ module integration_names
   implicit none
   private
 
+  public :: volume_integral
+
 contains
 
   subroutine volume_integral(femsp,res1,res2)
@@ -70,7 +72,8 @@ contains
 
        ! Compute element matrix and rhs
        discrete => femsp%approximations(femsp%lelem(ielem)%approximation)%p
-       call discrete%matvec(femsp%lelem(ielem)%integ,femsp%lelem(ielem)%unkno,start(1:nvars+1),femsp%lelem(ielem)%p_mat,femsp%lelem(ielem)%p_vec)
+       call discrete%matvec(femsp%lelem(ielem)%integ,femsp%lelem(ielem)%unkno,start(1:nvars+1), &
+            &               femsp%lelem(ielem)%p_mat,femsp%lelem(ielem)%p_vec)
 
        ! Apply boundary conditions
        call impose_strong_dirichlet_data (femsp%lelem(ielem),femsp%dof_handler) 
