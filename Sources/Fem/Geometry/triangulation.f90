@@ -101,10 +101,11 @@ module fem_triangulation_names
   end type elem_topology
 
   type object_topology
-     integer(ip)               :: border     = -1 ! Border local id of this object
+     integer(ip)               :: border     = -1       ! Border local id of this object
      integer(ip)               :: dimension             ! Object dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around object 
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around object 
+     integer(ip), allocatable  :: border_code(:)        ! To be used to enforce Dirichlet bc's
   end type object_topology
 
   type fem_triangulation
@@ -125,7 +126,7 @@ module fem_triangulation_names
   public :: fem_triangulation
 
   ! Main Subroutines 
-  public :: fem_triangulation_create, fem_triangulation_free, fem_triangulation_to_dual
+  public :: fem_triangulation_create, fem_triangulation_free, fem_triangulation_to_dual, triangulation_print
 
   ! Auxiliary Subroutines (should only be used by modules that have control over type(fem_triangulation))
   public :: free_elem_topology, free_object_topology, put_topology_element_triangulation, local_id_from_vertices
@@ -424,5 +425,51 @@ contains
        end if
     end do
   end subroutine local_id_from_vertices
+
+  subroutine triangulation_print ( lunou,  trian ) ! (SBmod)
+    implicit none
+    ! Parameters
+    integer(ip)            , intent(in) :: lunou
+    type(fem_triangulation), intent(in) :: trian
+
+    ! Locals
+    integer(ip) :: ielem, iobje
+
+
+    write (lunou,*) '****PRINT TOPOLOGY****'
+    write (lunou,*) 'state:', trian%state
+    write (lunou,*) 'num_objects:', trian%num_objects
+    write (lunou,*) 'num_elems:', trian%num_elems
+    write (lunou,*) 'num_dims:', trian%num_dims
+    write (lunou,*) 'elem_array_len:', trian%elem_array_len
+
+
+    do ielem = 1, trian%num_elems
+       write (lunou,*) '****PRINT ELEMENT ',ielem,' INFO****'
+
+       write (lunou,*) 'num_objects:', trian%elems(ielem)%num_objects
+       write (lunou,*) 'objects:', trian%elems(ielem)%objects
+       write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
+       write (lunou,*) 'order:', trian%elems(ielem)%order
+
+       !call fem_element_fixed_info_write ( trian%elems(ielem)%topology )
+
+       write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
+    end do
+
+    do iobje = 1, trian%num_objects
+       write (lunou,*) '****PRINT OBJECT ',iobje,' INFO****'
+
+       write (lunou,*) 'border', trian%objects(iobje)%border
+       write (lunou,*) 'dimension', trian%objects(iobje)%dimension
+       write (lunou,*) 'num_elems_around', trian%objects(iobje)%num_elems_around
+       write (lunou,*) 'elems_around', trian%objects(iobje)%elems_around
+
+       write (lunou,*) '****END PRINT OBJECT ',iobje,' INFO****'
+    end do
+
+    
+    write (lunou,*) '****END PRINT TOPOLOGY****'
+  end subroutine triangulation_print
 
 end module fem_triangulation_names

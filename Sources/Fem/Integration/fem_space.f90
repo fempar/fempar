@@ -329,7 +329,7 @@ contains
        write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelem_info'
     end if
 
-    call integration_faces_list( g_trian, fspac )
+    ! call integration_faces_list( g_trian, fspac )
 
   end subroutine fem_space_allocate_structures
 
@@ -375,7 +375,6 @@ contains
     fspac%lelem(1:fspac%g_trian%num_elems)%material = material
 
     ! Continuity
-    write(*,*) 'Continuity', continuity
     do ielem = 1, fspac%g_trian%num_elems
        ! Assign type of problem and approximation to ielem
        fspac%lelem(ielem)%problem =  problem(ielem)

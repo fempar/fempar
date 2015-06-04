@@ -284,6 +284,7 @@ contains
     ! call memalloc(nd+2,fefi%nobje_dim,__FILE__,__LINE__)
     ! call memalloc(nd+1,fefi%nodes_obj,__FILE__,__LINE__)
     fefi%nodes_obj = 0
+    fefi%nobje_dim = 0
     fefi%nobje_dim(1) = 1
 
     ! Fill nobje_dim, nodes_obj and compute nt, nc, nn
@@ -916,6 +917,8 @@ contains
     ! Initialize nobje_dim, nodes_obj
     !call memalloc(nd+2,fefi%nobje_dim,__FILE__,__LINE__)
     !call memalloc(nd+1,fefi%nodes_obj,__FILE__,__LINE__)
+    fefi%nodes_obj = 0
+    fefi%nobje_dim = 0
     fefi%nobje_dim(1) = 1
 
     do k = 0,nd

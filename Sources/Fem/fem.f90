@@ -39,6 +39,8 @@ module fem
   ! Geometry
   use maps_names
   use map_apply
+  use fem_triangulation_names
+  use mesh_triangulation
 
   !use fem_import_names
   !use partition_import

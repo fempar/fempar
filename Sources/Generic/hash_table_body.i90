@@ -324,7 +324,7 @@ subroutine print_hash_table(tbl)
   if (allocated(tbl%vec)) then
      do i=low,high
         if(tbl%vec(i)%key>=tbl%vec_min) then
-           write(*,'(a,i3,a)') '------New list at i = ',i,'---------------'
+           !write(*,'(a,i3,a)') '------New list at i = ',i,'---------------'
            call tbl%vec(i)%print
         end if
      end do

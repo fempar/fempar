@@ -100,10 +100,8 @@ contains
     p_trian%num_ghosts = num_ghosts
     p_trian%num_elems  = num_elems
 
-    call fem_triangulation_create ( num_elems + num_ghosts, p_trian%f_trian )
-
     ! Fill local portion with local data
-    call mesh_to_triangulation ( p_gmesh%f_mesh, p_trian%f_trian )
+    call mesh_to_triangulation ( p_gmesh%f_mesh, p_trian%f_trian, num_elems + num_ghosts )
     ! p_trian%f_trian%num_elems = num_elems+num_ghosts
     ! **IMPORTANT NOTE**: the code that comes assumes that edges and faces in p_trian%f_trian are numbered after vertices.
     ! This requirement is currently fulfilled by mesh_to_triangulation (in particular, by geom2topo within) but we should

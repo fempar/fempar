@@ -26,18 +26,18 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module types
-!-----------------------------------------------------------------------
-!    This module contains kind and type definitions.
-!-----------------------------------------------------------------------
+  !-----------------------------------------------------------------------
+  !    This module contains kind and type definitions.
+  !-----------------------------------------------------------------------
   implicit none
 
   integer, parameter       :: ieep = 1    ! Integer precision for buffers in element exchanges
   integer, parameter       :: ip   = 4    ! Integer precision
   integer, parameter       :: rp   = 8    ! Real precision
   integer, parameter       :: lg   = 1    ! Logical precision
-  
+
   integer(ip)  , parameter :: imp = 8    ! Integer precision, 
-                                         ! memory consumption
+  ! memory consumption
 
   ! integer(ip), parameter :: igp = 8    ! Integer precision, 
   !                                      ! for global ids
@@ -48,9 +48,9 @@ module types
   ! the definition of this parameter from psb_const_mod PSBLAS 2.4.0 module
   integer, parameter  :: longndig=12
   integer, parameter  :: psb_long_int_k_ = selected_int_kind(longndig)
-  
+
   integer(ip)  , parameter :: igp = psb_long_int_k_ ! Integer precision, 
-                                                    ! for global ids
+  ! for global ids
 
   ! Error constant psb_success_ (extracted from PSBLAS 2.4.0 
   ! psb_const_mod module)
@@ -132,7 +132,8 @@ module types
   end type list
 
   type list_2d
-     integer(ip) :: n
+     integer(ip) :: n1
+     integer(ip) :: n2
      integer(ip), allocatable :: p(:) 
      integer(ip), allocatable :: l(:,:) 
   end type list_2d
@@ -161,4 +162,28 @@ module types
      end subroutine runend
   end interface
 
-end module types
+  ! Functions
+  public :: print_list_2d
+
+contains
+
+  subroutine print_list_2d( lunou, list2 )
+    implicit none
+    integer(ip)      , intent(in) :: lunou
+    type(list_2d)    , intent(in) :: list2
+
+    integer(ip) :: i,j
+
+    write(lunou,*) '****PRINT LIST_2D****'
+    write(lunou,*) 'size total list:',list2%n1
+    write(lunou,*) 'size components:',list2%n2
+    do j = 1,list2%n2
+       do i = 1,list2%n1
+          write(lunou,*) 'l(',i,',',j,')',list2%l(list2%p(i):list2%p(i+1)-1,j)
+       end do
+    end do
+    write(lunou,*) '****END PRINT LIST_2D****'
+
+  end subroutine print_list_2d
+
+  end module types

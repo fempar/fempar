@@ -41,17 +41,36 @@ module mesh_triangulation
 
 contains
 
-  subroutine mesh_to_triangulation (gmesh,trian)
+  !*********************************************************************************
+  ! This subroutine takes as input a 'plain' mesh and creates a triangulation,
+  ! filling both element and object (dual mesh) info. The triangulation includes
+  ! vertices, edges, and vertices (in 3D). The length_trian optional arguments 
+  ! is used when used from par_mesh_triangulation.f90, because in a parallel 
+  ! environment ghost elements are also included in the list of objects of the
+  ! triangulation, even though the triangulation is not aware of that, i.e., the
+  ! number of elements in triangulation does not include ghost elements, only
+  ! local elements
+  !*********************************************************************************
+  subroutine mesh_to_triangulation (gmesh,trian,length_trian)
     implicit none
     ! Parameters
     type(fem_mesh), intent(inout)          :: gmesh ! Geometry mesh
     type(fem_triangulation), intent(inout) :: trian 
+    integer(ip), optional, intent(in)      :: length_trian
 
     ! Locals
     type(fem_mesh) :: tmesh ! Topological mesh
     integer(ip)    :: istat, ielem, iobj
-    integer(ip)    :: count, g_node, inode, p
+    integer(ip)    :: count, g_node, inode, p, length_trian_
 
+    if (present(length_trian)) then
+       length_trian_ = length_trian
+    else
+       length_trian_ = gmesh%nelem 
+    endif
+
+    call fem_triangulation_create ( length_trian_, trian )
+    
     assert(trian%state == triangulation_created .or. trian%state == triangulation_elems_filled .or. trian%state == triangulation_elems_objects_filled)
 
     trian%num_elems = gmesh%nelem
@@ -109,6 +128,8 @@ contains
           trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
        end do
     end if
+
+    call fem_triangulation_to_dual ( trian )
 
   end subroutine mesh_to_triangulation
 

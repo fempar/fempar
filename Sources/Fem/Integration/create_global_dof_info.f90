@@ -57,7 +57,7 @@ contains
 
     call create_element_to_dof_and_ndofs( dhand, trian, femsp )
 
-    call fem_space_print( 6, femsp )
+    !call fem_space_print( 6, femsp )
 
     call create_object2dof( dhand, trian, femsp )
 
@@ -252,7 +252,9 @@ contains
     do iblock = 1, dhand%nblocks  
        ! Create object to dof
        !call memalloc ( dhand%nvars_global, touch, __FILE__, __LINE__ ) 
-       femsp%object2dof(iblock)%n = trian%num_objects
+       femsp%object2dof(iblock)%n1 = trian%num_objects
+       femsp%object2dof(iblock)%n2 = 3
+       
        call memalloc ( trian%num_objects+1, femsp%object2dof(iblock)%p, __FILE__, __LINE__, 0 )
        do iobje = 1, trian%num_objects
           touch = 0
@@ -336,8 +338,10 @@ contains
              end if
           end do
        end do
-       write (*,*) 'femsp%object2dof(iblock)%p', femsp%object2dof(iblock)%p
-       write (*,*) 'femsp%object2dof(iblock)%l', femsp%object2dof(iblock)%l
+       !write (*,*) 'femsp%object2dof(iblock)%p', femsp%object2dof(iblock)%p
+       !write (*,*) 'femsp%object2dof(iblock)%l', femsp%object2dof(iblock)%l
+       call print_list_2d(6,femsp%object2dof(iblock))
+
     end do
   end subroutine create_object2dof
 
