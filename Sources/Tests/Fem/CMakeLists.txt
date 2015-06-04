@@ -1,11 +1,3 @@
-#################################################################
-# Executable targets
-#################################################################
-#SET(EXAMPLE_TESTS_PATH ${SRC_PATH}/Tests/examples)
-#ADD_EXECUTABLE(part_new ${EXAMPLE_TESTS_PATH}/part_new.f90)
-#TARGET_LINK_LIBRARIES(part_new ${FEM_LIB})
-
-
 
 #################################################################
 # Serial tests
@@ -18,6 +10,7 @@ FOREACH(TEST_SRC ${TESTS_FEM_SRC})
     GET_FILENAME_COMPONENT(EXE_NAME ${TEST_SRC} NAME_WE)
     ADD_EXECUTABLE(${EXE_NAME} ${TEST_SRC})
     TARGET_LINK_LIBRARIES(${EXE_NAME} ${FEM_LIB})
+    TARGET_LINK_LIBRARIES(${EXE_NAME} ${PROB_LIB})
 #    TARGET_LINK_LIBRARIES(${EXE_NAME} ${PAR_LIB})
     FOREACH (EXT_LIB ${EXT_LIBS})
         IF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${EXT_LIB}_FOUND)
