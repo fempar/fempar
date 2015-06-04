@@ -157,7 +157,7 @@ module fem_space_names
      integer(ip)                        :: time_steps_to_store ! Time steps to store in unkno
 
      ! List of faces where we want to integrate things
-     type(fem_face)       , allocatable    :: interior_faces(:), boundary_faces(:), interface_faces(:)
+     type(fem_face), allocatable        :: interior_faces(:), boundary_faces(:), interface_faces(:)
      integer(ip) :: num_interior_faces, num_boundary_faces, num_interface_faces
 
      ! Much better here rather than as a module variable

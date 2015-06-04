@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module nsi_cg
+module nsi_cg_names
  use types
  use memor
  use array_names
@@ -58,8 +58,8 @@ module nsi_cg
          k1tau,      & ! C1 constant on stabilization parameter tau_m
          k2tau         ! C2 constant on stabilization parameter tau_m
     contains
-      procedure :: create => nsi_create
-      procedure :: matvec => nsi_matvec
+      procedure :: create => nsi_cg_create
+      procedure :: matvec => nsi_cg_matvec
    end type nsi_approximation
 
  public :: nsi_approximation
@@ -67,7 +67,7 @@ module nsi_cg
 contains
 
   !=================================================================================================
-  subroutine nsi_create(aprox,prob)
+  subroutine nsi_cg_create(aprox,prob)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
@@ -107,9 +107,9 @@ contains
     aprox%tdimv  =  2     ! Number of temporal steps stored for velocity
     aprox%tdimp  =  2     ! Number of temporal steps stored for pressure
     
-  end subroutine nsi_create
+  end subroutine nsi_cg_create
 
-  subroutine nsi_matvec(aprox,integ,unkno,start,mat,vec)
+  subroutine nsi_cg_matvec(aprox,integ,unkno,start,mat,vec)
     implicit none
     class(nsi_approximation)       , intent(in) :: aprox
     type(volume_integrator_pointer), intent(in) :: integ(:)
@@ -174,6 +174,6 @@ contains
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
     !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
-  end subroutine nsi_matvec
+  end subroutine nsi_cg_matvec
 
-end module nsi_cg
+end module nsi_cg_names

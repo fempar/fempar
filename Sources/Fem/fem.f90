@@ -44,6 +44,8 @@ module fem
 
   !use fem_import_names
   !use partition_import
+  use fem_triangulation_names
+  use mesh_triangulation
   use fem_mesh_distribution_names
 
   use fem_element_import_names
@@ -97,5 +99,6 @@ module fem
   use create_global_dof_info_names
   !use element_gather_tools
   use problem_names
+  use integration_names
 
 end module fem

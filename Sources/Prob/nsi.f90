@@ -66,7 +66,7 @@ contains
     !   This subroutine contains definitions of the Navier-Stokes problem                          !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_problem), intent(out) :: prob
+    class(nsi_problem), intent(inout) :: prob
     integer(ip)       , intent(in)  :: ndime
     integer(ip) :: i,istat
 
