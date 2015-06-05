@@ -138,7 +138,7 @@ contains
      integer(ip)   , intent(in)  :: my_part
      type(fem_mesh), intent(in)  :: lmesh
      type(fem_mesh), intent(in)  :: dual_lmesh
-     integer(igp)  , intent(in)  :: l2ge(lmesh%npoin)
+     integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
      integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
      integer(ip)   , intent(out) :: nebou
      integer(ip)   , intent(out) :: nnbou
