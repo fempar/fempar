@@ -151,6 +151,8 @@ module fem_precond_names
      integer :: post_smoothing    = 2
      integer :: v_iterations      = 1         ! number of V-cycles
      integer :: c_fail            = 1 
+     real    :: damping           = 0.8       ! Damping factor for smoother==DJ
+
   end type fem_precond_params
 
   interface fem_precond_apply
@@ -273,6 +275,8 @@ contains
          prec%hsl_mi20_ctrl%control%post_smoothing   = pars%post_smoothing
          prec%hsl_mi20_ctrl%control%v_iterations     = pars%v_iterations
          prec%hsl_mi20_ctrl%control%c_fail           = pars%c_fail
+         prec%hsl_mi20_ctrl%control%damping          = pars%damping
+
          if ( pars%verbosity == 1 ) then
             prec%hsl_mi20_ctrl%control%print_level = 2
          end if

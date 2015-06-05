@@ -137,23 +137,6 @@ contains
     integer(ip)                 :: first_free_pos
     integer(ip)                 :: num_neighbors
 
-    
-    ! I do not agree with the following
-    ! assertion. dual_mesh can actually be
-    ! a primal finite element mesh when this
-    ! routine has to compute dual graphs (i.e., elements 
-    ! around elements). This last  situation was not taken 
-    ! into account in the code below.
-    ! I have modified the code below so that it
-    ! is also able to compute dual graphs. 
-    
-    ! !!!! IMPORTANT NOTE: INCORRECT ASSERTION !!!
-    ! assert(dual_mesh%nelty/=1)
-
-    ! CORRECT ASSERTION: Either primal_mesh or dual_mesh has
-    !                    to be a dual_mesh
-    assert ( primal_mesh%nelty /= 1 .or. dual_mesh%nelty /= 1 ) 
-
     ! Initialize work space of filled-up 
     ! positions
     ws_position   = 0
@@ -186,26 +169,17 @@ contains
        num_neighbors  = 0
        ! Traverse the dual nodes of the dual element number ipoinpg
        ! (i.e., primal elements around primal node number ipoinpg)
-       if(dual_mesh%nelty==1) then
-          inods1d=(ipoinpg-1)*dual_mesh%nnode+1
-          inods2d=ipoinpg*dual_mesh%nnode
-       else
-          inods1d=dual_mesh%pnods(ipoinpg)
-          inods2d=dual_mesh%pnods(ipoinpg+1)-1
-       end if
+
+       inods1d=dual_mesh%pnods(ipoinpg)
+       inods2d=dual_mesh%pnods(ipoinpg+1)-1
        do p_ipoindm = inods1d, inods2d
        !do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
           ipoindm = dual_mesh%lnods(p_ipoindm)
 
           ! Traverse the primal nodes of the primal element number ipoindm
           ! (i.e., dual elements around dual node number ipoindm)
-          if(primal_mesh%nelty==1) then
-             inods1=(ipoindm-1)*primal_mesh%nnode+1
-             inods2=ipoindm*primal_mesh%nnode
-          else
-             inods1=primal_mesh%pnods(ipoindm)
-             inods2=primal_mesh%pnods(ipoindm+1)-1
-          end if
+          inods1=primal_mesh%pnods(ipoindm)
+          inods2=primal_mesh%pnods(ipoindm+1)-1
           do p_ipoinpm = inods1,inods2
              ipoinpm = primal_mesh%lnods(p_ipoinpm) 
 
@@ -272,23 +246,6 @@ contains
     integer(ip)                     :: first_free_pos
     integer(ip)                     :: num_neighbors
 
-    ! I do not agree with the following
-    ! assertion. dual_mesh can actually be
-    ! a primal finite element mesh when this
-    ! routine has to compute dual graphs (i.e., elements 
-    ! around elements). This last  situation was not taken 
-    ! into account in the code below.
-    ! I have modified the code below so that it
-    ! is also able to compute dual graphs. 
-    
-    ! !!!! IMPORTANT NOTE: INCORRECT ASSERTION !!!
-    ! assert(dual_mesh%nelty/=1)
-
-    ! CORRECT ASSERTION: Either primal_mesh or dual_mesh has
-    !                    to be a dual_mesh
-    assert ( primal_mesh%nelty /= 1 .or. dual_mesh%nelty /= 1 ) 
-
-
     ! Initialize work space of filled-up 
     ! positions to zeros
     ws_position   = 0
@@ -309,27 +266,17 @@ contains
 
        ! Traverse the dual nodes of the dual element number ipoinpg
        ! (i.e., primal elements around primal node number ipoinpg)
-       if(dual_mesh%nelty==1) then
-          inods1d=(ipoinpg-1)*dual_mesh%nnode+1
-          inods2d=ipoinpg*dual_mesh%nnode
-       else
-          inods1d=dual_mesh%pnods(ipoinpg)
-          inods2d=dual_mesh%pnods(ipoinpg+1)-1
-       end if
+       inods1d=dual_mesh%pnods(ipoinpg)
+       inods2d=dual_mesh%pnods(ipoinpg+1)-1
 
        do p_ipoindm = inods1d, inods2d
        ! do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
           ipoindm = dual_mesh%lnods(p_ipoindm)
 
           ! Traverse the primal nodes of the primal element number ipoindm
-          ! (i.e., dual elements around dual node number ipoindm)
-          if(primal_mesh%nelty==1) then
-             inods1=(ipoindm-1)*primal_mesh%nnode+1
-             inods2=ipoindm*primal_mesh%nnode
-          else
-             inods1=primal_mesh%pnods(ipoindm)
-             inods2=primal_mesh%pnods(ipoindm+1)-1
-          end if
+          ! (i.e., dual elements around dual node number ipoindm
+          inods1=primal_mesh%pnods(ipoindm)
+          inods2=primal_mesh%pnods(ipoindm+1)-1
           do p_ipoinpm = inods1,inods2
              ipoinpm = primal_mesh%lnods(p_ipoinpm)
              ! If ipoinpm not visited yet
@@ -419,13 +366,8 @@ contains
              head = head + 1
 
              ! Traverse the nodes of the element number j
-             if( m%nelty == 1 ) then
-                inods1d = (j-1) * m%nnode+1
-                inods2d = j     * m%nnode
-             else
-                inods1d = m%pnods(j)
-                inods2d = m%pnods(j+1)-1
-             end if
+             inods1d = m%pnods(j)
+             inods2d = m%pnods(j+1)-1
 
              do p_ipoin = inods1d, inods2d
                 ipoin = m%lnods(p_ipoin)
@@ -480,13 +422,8 @@ contains
           j=e(current)
 
           ! Traverse the nodes of the element number j
-          if( m%nelty == 1 ) then
-             inods1d = (j-1) * m%nnode+1
-             inods2d = j     * m%nnode
-          else
-             inods1d = m%pnods(j)
-             inods2d = m%pnods(j+1)-1
-          end if
+          inods1d = m%pnods(j)
+          inods2d = m%pnods(j+1)-1
 
           do p_ipoin = inods1d, inods2d
              ipoin = m%lnods(p_ipoin)

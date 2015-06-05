@@ -80,7 +80,6 @@ contains
           read(tel(i+5:80),*) msh%nnode
        end if
     end do
-    msh%nelty=1
    
     ! Count nodes
     do while(tel(1:5).ne.'coord')
@@ -93,7 +92,7 @@ contains
        read(lunio,'(a)') tel
     end do
     msh%npoin=ipoin
-    if(msh%npoin>0) call memalloc(msh%ndime,msh%npoin,msh%coord,__FILE__,__LINE__)
+    call memalloc(msh%ndime,msh%npoin,msh%coord,__FILE__,__LINE__)
     
     call io_rewind(lunio)
     ! Read nodes
@@ -134,21 +133,6 @@ contains
        read(lunio,'(a)') tel
     end do
 
-    ! Read nodes (if there aren't coordinates)
-    ipoin = 0
-    call memalloc(msh%nnode*msh%nelem,aux,__FILE__,__LINE__)
-    aux = 0
-    do ielem = 1,msh%nelem
-       do inode = 1,msh%nnode
-          if(aux(msh%lnods(inode+(ielem-1)*msh%nnode)) == 0) then
-             aux(msh%lnods(inode+(ielem-1)*msh%nnode)) = 1
-             ipoin = ipoin + 1
-          end if
-       end do
-    end do
-    msh%npoin = ipoin       
-    call memfree(aux,__FILE__,__LINE__)
-
     ! Reordering the nodes of the mesh
     call memalloc(msh%nnode,permu,__FILE__,__LINE__)
     if(msh%ndime == 2) then        ! 2D
@@ -186,64 +170,16 @@ contains
           end if
        end if
     end if
-    call memalloc(msh%nnode,aux,__FILE__,__LINE__)
+    call memalloc(msh%nnode, aux, __FILE__, __LINE__)
     do ielem = 1,msh%nelem
        aux = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
-       do i = 1,msh%nnode
+       do i = 1, msh%nnode
           msh%lnods(msh%pnods(ielem)+i-1) = aux(permu(i))
        end do
     end do
     call memfree(aux,__FILE__,__LINE__)
     call memfree(permu,__FILE__,__LINE__)
  
-    ! Count boundary elements
-    do while(tel(1:5).ne.'bound')
-       read(lunio,'(a)',IOSTAT=istat) tel
-       if(istat<0) return                      ! Check End-of-file for old files
-    end do
-
-    iboun = 0
-    read(lunio,'(a)') tel
-    do while(tel(1:5).ne.'end b')
-       iboun = iboun + 1
-       read(lunio,'(a)') tel
-    end do
-    msh%nboun = iboun
-
-    if(msh%nboun.gt.0) then
-       call io_rewind(lunio)
-
-       ! Read nnodb
-       do while(tel(1:5).ne.'end e')
-          read(lunio,'(a)') tel
-       end do
-        read(lunio,'(a)') tel
-       do i=1,50
-          if(tel(i:i+4)=='Nnodb') then
-             read(tel(i+5:50),*) msh%nnodb
-          end if
-       end do
-       call memalloc(1,msh%pboun,__FILE__,__LINE__)
-       call memalloc(msh%nnodb*msh%nboun,msh%lboun,__FILE__,__LINE__)
-       call memalloc(msh%nnodb+1,msh%nboun,msh%lboel,__FILE__,__LINE__)
-
-       ! Read boundary elements
-       read(lunio,'(a)') tel
-       read(lunio,'(a)') tel   ! We need 2 reads to get to the boundary elements
-       do while(tel(1:5).ne.'end b')
-          read(tel,*) iboun,(msh%lboun(inode+(iboun-1)*msh%nnodb),inode=1,msh%nnodb),&
-               &            (msh%lboel(inode,iboun),inode=1,msh%nnodb), msh%lboel(msh%nnodb+1,iboun)
-          read(lunio,'(a)') tel
-       end do
-    else
-      msh%nnodb=0
-    end if
-
-    msh%nelpo = 0
-
-    
-    return
-
   end subroutine fem_mesh_read
 
   !=============================================================================
@@ -298,21 +234,7 @@ contains
        write(lunio,4) ielem, &
             &  (msh%lnods(inode+(ielem-1)*msh%nnode),inode=1,msh%nnode),1
     end do
-    write(lunio,2)'end elements'
-
-    ! Boundary elements
-    if(msh%nboun>0) then
-       write(lunio,5) adjustl(trim(title_)),msh%nnodb
-       write(lunio,2)'boundaries'
-       do ielem=1,msh%nboun
-          write(lunio,6) ielem, (msh%lboun(inode+(ielem-1)*msh%nnodb),inode=1,msh%nnodb), &
-               &         (msh%lboel(inode,ielem),inode=1,msh%nnodb), msh%lboel(msh%nnodb+1,ielem)
-       end do
-       write(lunio,2)'end boundaries'
-    else
-       write(lunio,2)'boundaries'
-       write(lunio,2)'end boundaries'
-    end if
+    write(lunio,2) 'end elements'
 
 1   format('MESH ',a,' dimension ',i1,' Elemtype ',a,' Nnode ',i2)
 2   format(a)

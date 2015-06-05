@@ -67,7 +67,6 @@ module fem
   use fem_mesh_refine
   !use fem_mesh_faces
   !use fem_mesh_lelpo
-  use fem_mesh_dual
   use migratory_element_names
   use template_element_names
   use template_mesh_names

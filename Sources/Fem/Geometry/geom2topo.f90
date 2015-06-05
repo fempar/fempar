@@ -62,60 +62,6 @@ contains
 
   end subroutine refcoord2
 
-  ! SB.alert : needed ?
-  ! !===============================================================================================
-  ! subroutine geom2topo_coord(ielem,ivari,gmesh,felem,coord)
-  !   implicit none
-  !   ! Parameters
-  !   integer(ip)      , intent(in)    :: ielem,ivari
-  !   type(fem_mesh)   , intent(in)    :: gmesh
-  !   type(fem_element), intent(in)    :: felem
-  !   real(rp)         , intent(inout) :: coord(:,:)
-
-  !   ! Local variables
-  !   type(interpolation)   :: inter
-  !   integer(ip)           :: ndime,tnode,gnode,nlocs,i
-  !   integer(ip)           :: lnods(felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1)
-  !   real(rp)              :: elcod(gmesh%ndime,felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1)
-  !   real(rp), allocatable :: ref_coord(:,:),auxpo(:)
-
-  !   assert(size(coord,2)==felem%f_inf(felem%iv(ivari))%p%nnode)
-  !   assert(size(coord,1)==gmesh%ndime)
-
-  !   ! Unpack variables
-  !   ndime = gmesh%ndime
-  !   tnode = felem%f_inf(felem%iv(ivari))%p%nnode
-  !   gnode = felem%f_inf(felem%iv(ivari))%p%nobje_dim(2)-1
-  !   lnods = gmesh%lnods((ielem-1)*gnode+1:ielem*gnode)
-
-  !   ! Allocate ref_coord array
-  !   call memalloc(ndime,tnode,ref_coord,__FILE__,__LINE__)
-  !   call refcoord2(felem%f_inf(felem%iv(ivari))%p%ftype,ref_coord,ndime,                            &
-  !        &         felem%f_inf(felem%iv(ivari))%p%order)
-  !   ! Construct interpolation
-  !   if (felem%f_inf(felem%iv(ivari))%p%ftype == P_type_id) then
-  !      call interpolation_create(1,1,1,ndime,gnode,tnode,inter)
-  !      call interpolation_local(ref_coord,inter)
-  !   elseif (felem%f_inf(felem%iv(ivari))%p%ftype == Q_type_id) then
-  !      nlocs=nint(real(tnode,rp)**(1.0_rp/real(ndime,rp)))
-  !      call memalloc(nlocs,auxpo,__FILE__,__LINE__)
-  !      do i=1,nlocs
-  !         auxpo(i) = ref_coord(1,i)
-  !      end do
-  !      call interpolation_create(1,1,1,ndime,gnode,tnode,inter)
-  !      call interpolation_local(auxpo,inter,ndime,felem%p_geo_info%order,nlocs)
-  !      call memfree(auxpo,__FILE__,__LINE__)
-  !   end if
-  !   ! Interpolate coordinates
-  !   call gather(ndime,gnode,lnods,gmesh%coord,elcod)
-  !   call interpolate(ndime,gnode,tnode,inter%shape,elcod,coord)
-
-  !   ! Deallocate
-  !   call interpolation_free(inter)
-  !   call memfree(ref_coord,__FILE__,__LINE__)
-
-  ! end subroutine geom2topo_coord
-
   !==================================================================================================
   subroutine geom2topo_mesh_cond(gmsh,omsh,gcnd,ocnd)
     implicit none
@@ -145,26 +91,8 @@ contains
     ! Create ocnd flag
     kfl_bc = (present(gcnd) .and. present(ocnd))
     ! Set scalar parameters
-    omsh%mtype     = gmsh%mtype     ! Mesh type
-    omsh%nedir     = gmsh%nedir     ! Number of elements in each dir (if structured)
-    omsh%isper     = gmsh%isper     ! If direction is periodic
-    omsh%nelty     = gmsh%nelty     ! Number of element types
     omsh%nelem     = gmsh%nelem     ! Number of elements
-    omsh%nboun     = gmsh%nboun     ! Number of boundary faces
     omsh%ndime     = gmsh%ndime     ! Number of space dimensions
-    omsh%nelpo     = gmsh%nelpo     ! Maximum amount of elements per node
-
-    ! Set arrays that do not vary from gmsh to omsh
-    if (allocated(gmsh%pelpo)) then
-       call memalloc(gmsh%npoin              , omsh%pelpo, 'fem_mesh_topology::omsh%pelpo')
-       call memalloc(omsh%pelpo(gmsh%npoin)-1, omsh%pelpo, 'fem_mesh_topology::omsh%pelpo')
-       omsh%pelpo(:) = gmsh%pelpo(:)         ! pointers to the lelpo
-       omsh%lelpo(:) = gmsh%lelpo(:)         ! elements per node
-    end if
-    if (allocated(gmsh%facel)) then
-       call memalloc(omsh%tface+omsh%bou_tface, 4, omsh%facel, 'fem_mesh_topology::omsh%facel')
-       call memalloc(omsh%nodfac, omsh%nface,      omsh%permu, 'fem_mesh_topology::omsh%permu')
-    end if
 
     ! Variable values depending of the element
     if(gmsh%ndime == 2) then        ! 2D
@@ -202,7 +130,6 @@ contains
 
     ! Allocate omsh vectors
     call memalloc(       gmsh%nelem+1,  omsh%pnods, 'fem_mesh_topology::omsh%pnods')
-    call memalloc(         gmsh%nelem, omsh%p_face, 'fem_mesh_topology::omsh%pnods')
     call memalloc(gmsh%nelem*nobje, omsh%lnods , 'fem_mesh_topology::omsh%lnods')
 
     ! Initialization
@@ -219,7 +146,6 @@ contains
        gp = gmsh%nnode*(ielem-1)
        op = nobje*(ielem-1)
        omsh%pnods(ielem) = op+1
-       omsh%p_face(ielem) = op + f_inf%nobje_dim(gmsh%ndime)
 
        ! nelpo(i) computes how many elements surround i
        do i = 1,gmsh%nnode
@@ -518,17 +444,6 @@ contains
 
     ! Finally, create the mesh & conditions fields
     omsh%nnode = gmsh%nnode + nodim(2) + nodim(3)
-    if (omsh%ndime == 2) then
-       omsh%nface     = nodim(2)  ! Number of faces per element
-       omsh%nodfac    = nndim(2)  ! Number of nodes per face
-       omsh%tface     = iedge     ! Total amount of interior faces
-       omsh%bou_tface = iedgb     ! Number of boundary faces   
-    elseif (omsh%ndime == 3) then
-       omsh%nface     = nodim(3)  ! Number of faces per element
-       omsh%nodfac    = nndim(3)  ! Number of nodes per face
-       omsh%tface     = iface     ! Total amount of interior faces
-       omsh%bou_tface = ifacb     ! Number of boundary faces   
-    end if
 
     ! Deallocate auxiliar arrays
     call fem_element_fixed_info_free(f_inf)
