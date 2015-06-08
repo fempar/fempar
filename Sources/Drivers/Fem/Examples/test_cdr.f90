@@ -28,6 +28,7 @@
 program test_cdr
   use fem 
   use cdr_names
+  use cdr_stabilized_continuous_Galerkin_names
   implicit none
 #include "debug.i90"
   ! Our data
@@ -40,7 +41,7 @@ program test_cdr
   type(fem_graph), allocatable    :: dof_graph(:,:)
 
   type(cdr_problem)               :: my_problem
-  type(cdr_approximation), target :: my_aproximation
+  type(cdr_approximation), target :: my_approximation
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -86,7 +87,7 @@ program test_cdr
   call triangulation_print( 6 , f_trian )
 
   vars_prob = 1
-  call dhand%create( dhand, 1, 1, 1 ) !, vars_block, dof_coupl )
+  call dhand%create( 1, 1, 1 ) !, vars_block, dof_coupl )
   !                      ( dhand, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
   !call dof_handler_print ( dhand, 6 )
 
