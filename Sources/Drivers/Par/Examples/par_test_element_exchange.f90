@@ -49,6 +49,7 @@ program par_test_element_exchange
   type(fem_space)    :: fspac
 
   type(fem_graph), allocatable    :: dof_graph(:,:)
+  type(fem_conditions)  :: f_cond
 
   ! Arguments
   integer(ip)              :: handler
@@ -113,7 +114,7 @@ program par_test_element_exchange
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call par_fem_space_create ( p_trian, dhand, fspac, problem, approximations, continuity, order, material, &
+  call par_fem_space_create ( p_trian, dhand, fspac, problem, approximations, f_cond, continuity, order, material, &
        & which_approx, num_approximations=1, time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
        & static_condensation = logical(.false.,lg), num_continuity = 1 )
 

@@ -164,7 +164,7 @@ contains
              nvapb = dhand%prob_block(iblock,iprob)%nd1
              do ivars = 1, nvapb
                 l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                g_var = dhand%problems(iprob)%l2g_var(l_var)  
+                g_var = dhand%problems(iprob)%p%l2g_var(l_var)  
                 iobje = p_trian%f_trian%elems(ielem)%num_objects+1
                 do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                      &     femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1 
@@ -204,7 +204,7 @@ contains
                 !l_var = g2l(ivars,iprob)
                 l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                 if ( femsp%lelem(jelem)%continuity(l_var) /= 0 ) then
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    mater = femsp%lelem(jelem)%material ! SB.alert : material can be used as p 
                    do obje_l = 1, p_trian%f_trian%elems(jelem)%num_objects
                       if ( p_trian%f_trian%elems(jelem)%objects(obje_l) == iobj ) exit

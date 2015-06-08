@@ -35,6 +35,8 @@ module dof_handler_names
 # include "debug.i90"
   private
 
+
+
   type dof_handler
 
      integer(ip) ::     &
@@ -49,12 +51,15 @@ module dof_handler_names
           dof_coupl(:,:),            &        ! Dof_coupling(nvar,nvar) for avoiding allocation & assembly of zero blocks
           vars_block(:)                       ! Parameter per unknown (size nvars)
 
-     type(physical_problem), allocatable :: problems(:)
+     type(p_physical_problem), allocatable :: problems(:)
 
 
      ! Auxiliary arrays
      integer(ip), allocatable     :: g2l_vars(:,:)
      type(array_ip1), allocatable :: prob_block(:,:)
+
+   contains
+     procedure :: set_problem
 
   end type dof_handler
 
@@ -62,75 +67,48 @@ module dof_handler_names
   public :: dof_handler !, physical_problem!, physical_problem_pointer
 
   ! Functions
-  public ::  dof_handler_create, dof_handler_print !, dof_handler_fill, dof_handler_free
+  public ::  dof_handler_create, dof_handler_print, dof_handler_free !, dof_handler_fill
 
 contains
-  subroutine dof_handler_create( dhand, nblocks, nprobs, nvars_prob )
+
+  subroutine dof_handler_create( dhand, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
     implicit none
     ! Parameters
     type(dof_handler), intent(inout)          :: dhand
-    integer(ip), intent(in)                   :: nblocks, nprobs, nvars_prob(nprobs)
+    integer(ip), intent(in)                   :: nblocks, nprobs, nvars_global 
+    integer(ip), intent(in), optional         :: vars_block(:), dof_coupl(:,:)
 
-    integer(ip) :: istat, i, j, nvars_global, iprob, iblock, l_var, count
+    integer(ip) :: istat, i, j, iprob, iblock
 
 
 
     allocate( dhand%problems(nprobs), stat=istat)
     check( istat==0 )
 
-    nvars_global = 0
-    do i = 1, nprobs
-       dhand%problems(i)%nvars = nvars_prob(i)
-       call memalloc ( dhand%problems(i)%nvars, dhand%problems(i)%l2g_var, __FILE__, __LINE__ ) 
-       dhand%problems(i)%l2g_var(1:nvars_prob(i)) = (/ (j, j=1,nvars_prob(i)) /) !1:dhand%problems(i)%nvars /)
-       !dhand%problems(i)%problem_code = problem_code(i)
-       nvars_global = nvars_global + nvars_prob(i)
-    end do
-
     dhand%nblocks = nblocks
     dhand%nprobs = nprobs
-
     dhand%nvars_global = nvars_global
-
-    call memalloc ( dhand%nvars_global, dhand%nvars_global, dhand%dof_coupl, __FILE__, __LINE__ ) 
-    dhand%dof_coupl = 1
-
-    call memalloc ( dhand%nvars_global, dhand%vars_block, __FILE__, __LINE__ ) 
-    dhand%vars_block = 1
+    
+    if (present(dof_coupl)) then
+       assert ( size(dof_coupl,1) == nvars_global .and. size(dof_coupl,2) == nvars_global ) 
+       dhand%dof_coupl = dof_coupl
+    else
+       call memalloc ( dhand%nvars_global, dhand%nvars_global, dhand%dof_coupl, __FILE__, __LINE__ ) 
+       dhand%dof_coupl = 1
+    end if
+    
+    if (present(vars_block)) then
+       assert ( size(vars_block) == nvars_global )
+       dhand%vars_block = vars_block
+    else
+       call memalloc ( dhand%nvars_global, dhand%vars_block, __FILE__, __LINE__ ) 
+       dhand%vars_block = 1
+    end if
 
     ! Global to local of variables per problem
-
     call memalloc( dhand%nblocks, dhand%nprobs, dhand%g2l_vars, __FILE__, __LINE__ )
     
-    do iprob = 1, dhand%nprobs
-       do l_var = 1, dhand%problems(iprob)%nvars
-          dhand%g2l_vars( dhand%problems(iprob)%l2g_var(l_var), iprob) = l_var
-       end do
-    end do
-
-    allocate( dhand%prob_block(dhand%nblocks,dhand%nprobs), stat = istat )
-    check( istat == 0)
-
-    do iblock = 1, dhand%nblocks  
-       ! variables of a given problem for current block (prob_block)
-       do iprob = 1, dhand%nprobs
-          count = 0
-          do l_var = 1, dhand%problems(iprob)%nvars
-             if ( dhand%vars_block(dhand%problems(iprob)%l2g_var(l_var)) == iblock ) then
-                count = count + 1 
-             end if
-          end do
-          call array_create( count, dhand%prob_block(iblock,iprob))
-          count = 0 
-          do l_var = 1, dhand%problems(iprob)%nvars
-             if ( dhand%vars_block(dhand%problems(iprob)%l2g_var(l_var)) == iblock ) then
-                count = count + 1 
-                dhand%prob_block(iblock,iprob)%a(count) = l_var!dhand%problems(iprob)%l2g_var(l_var)
-             end if
-          end do
-       end do
-
-    end do
+    call memalloc( dhand%nblocks, dhand%nprobs, dhand%prob_block, __FILE__, __LINE__ )
 
   end subroutine dof_handler_create
 
@@ -140,7 +118,7 @@ contains
     integer(ip)      , intent(in)           :: lunou
     type(dof_handler), intent(in)           :: dhand
     
-    integer(ip) :: iprob
+    integer(ip) :: iprob, count
     
     write (lunou, '(a)')     '*** begin dof handler data structure ***'
 
@@ -151,8 +129,8 @@ contains
     do iprob = 1, dhand%nprobs
               
        write (lunou,*)     '*** physical problem ',iprob, ' ***'
-       write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%nvars
-       write (lunou,*)     'Local to global (of variables) for problem ',iprob, ' :' ,  dhand%problems(iprob)%l2g_var
+       write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%p%nvars
+       write (lunou,*)     'Local to global (of variables) for problem ',iprob, ' :' ,  dhand%problems(iprob)%p%l2g_var
        !write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%problem_code
        
     end do
@@ -161,7 +139,64 @@ contains
     write (lunou,*)     'Coupling flag between dofs: ', dhand%dof_coupl
   
   end subroutine dof_handler_print
+
+  subroutine dof_handler_free(  dhand )
+    implicit none
+    type(dof_handler), intent(inout)           :: dhand
+
+    integer(ip) :: i,j
+
+    call memfree( dhand%dof_coupl, __FILE__, __LINE__ )
+    call memfree( dhand%vars_block, __FILE__, __LINE__ )
+
+    call memfree( dhand%g2l_vars, __FILE__, __LINE__ )
+
+    do i = 1, size( dhand%prob_block,1 )
+       do j = 1, size( dhand%prob_block,2 )
+          call memfree ( dhand%prob_block(i,j)%a, __FILE__, __LINE__ )
+       end do
+    end do
+    call memfree ( dhand%prob_block, __FILE__, __LINE__ )
+
+  end subroutine dof_handler_free
     
+
+  subroutine set_problem ( dhand, iprob, prob )
+    implicit none
+    class(dof_handler), intent(inout)          :: dhand
+    integer(ip), intent(in) :: iprob
+    class(physical_problem), target, intent(in) :: prob
+    
+    integer(ip) :: l_var, iblock, count
+
+    dhand%problems(iprob)%p => prob
+   
+    do l_var = 1, dhand%problems(iprob)%p%nvars
+       dhand%g2l_vars( dhand%problems(iprob)%p%l2g_var(l_var), iprob) = l_var
+    end do
+
+
+    do iblock = 1, dhand%nblocks  
+       ! variables of a given problem for current block (prob_block)
+       count = 0
+       do l_var = 1, dhand%problems(iprob)%p%nvars
+          if ( dhand%vars_block(dhand%problems(iprob)%p%l2g_var(l_var)) == iblock ) then
+             count = count + 1 
+          end if
+       end do
+       call array_create( count, dhand%prob_block(iblock,iprob))
+       count = 0 
+       do l_var = 1, dhand%problems(iprob)%p%nvars
+          if ( dhand%vars_block(dhand%problems(iprob)%p%l2g_var(l_var)) == iblock ) then
+             count = count + 1 
+             dhand%prob_block(iblock,iprob)%a(count) = l_var !dhand%problems(iprob)%p%l2g_var(l_var)
+          end if
+       end do
+
+    end do
+
+  end subroutine set_problem
+
  
 !  Problem codes in types.f90   
 !  integer(ip), parameter :: nsi_code=1, ela_code=2, cdr_code=3, adr_code=4 

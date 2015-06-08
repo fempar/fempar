@@ -60,6 +60,7 @@ contains
     integer(ip) :: i, l_faci, pos_faint, iprob, istat
     integer(ip) :: gtype, utype, g_ord, u_ord, v_key, iface_l, max_elmat, ndime
     type(fem_fixed_info_pointer) :: gfinf, ufinf
+    integer(ip) :: aux_val
 
     !allocate(femsp%interior_faces( femsp%num_interior_faces ), stat=istat)
     !allocate(femsp%boundary_faces( femsp%num_boundary_faces ), stat=istat)
@@ -76,7 +77,7 @@ contains
           do i = 1,2
              ielem = trian%objects(iobje)%elems_around(i)
              iprob = femsp%lelem(ielem)%problem
-             nvars = femsp%dof_handler%problems(iprob)%nvars
+             nvars = femsp%dof_handler%problems(iprob)%p%nvars
              do ivars = 1, nvars
                 max_order = max(max_order,femsp%lelem(ielem)%order(ivars))
              end do
@@ -84,8 +85,10 @@ contains
           end do
 
           ! Create elemental matrix and vectors
-          call femsp%ht_pos_elmat%put(key=ndofs,val=femsp%cur_elmat,stat=istat)!
-          call femsp%ht_pos_elvec%put(key=ndofs,val=femsp%cur_elvec,stat=istat)!
+          aux_val = femsp%cur_elmat
+          call femsp%ht_pos_elmat%put(key=ndofs,val=aux_val,stat=istat)!
+          aux_val = femsp%cur_elvec
+          call femsp%ht_pos_elvec%put(key=ndofs,val=aux_val,stat=istat)!
           if ( istat == now_stored ) then
              call array_create ( ndofs, ndofs, femsp%lelmat(femsp%cur_elmat) )
              pos_elmat = femsp%cur_elmat!
@@ -110,7 +113,7 @@ contains
                   & trian%elems(ielem)%num_objects )
              femsp%interior_faces(iface_l)%local_face(i) = l_faci - &
                   femsp%g_trian%elems(ielem)%topology%nobje_dim(ndime) + 1 
-             nvars = femsp%dof_handler%problems(iprob)%nvars
+             nvars = femsp%dof_handler%problems(iprob)%p%nvars
 
              call memalloc( nvars, femsp%lface(iface)%integ(i)%p, __FILE__, __LINE__ )
 
@@ -122,8 +125,9 @@ contains
                 u_ord = femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p%order
                 ! SB.alert : The last part to include gauss points being used
                 v_key =  utype + (max_FE_types+1)*u_ord + (max_FE_types+1)*(max_order+1)*max_order
+                aux_val = femsp%cur_lfaci
                 ! Put in hash table
-                call femsp%ht_pos_face_integrator%put(key=v_key, val=femsp%cur_lfaci, stat = istat)
+                call femsp%ht_pos_face_integrator%put(key=v_key, val=aux_val, stat = istat)
                 if ( istat == now_stored ) then 
                    gfinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%p_geo_info
                    ufinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p

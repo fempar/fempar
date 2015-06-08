@@ -39,6 +39,7 @@ module fem_space_names
   use fem_space_types
   use dof_handler_names
   use migratory_element_names
+  use fem_conditions_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -179,7 +180,7 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_create( g_trian, dofh, fspac, problem, approximations, continuity, order, material, &
+  subroutine fem_space_create( g_trian, dofh, fspac, problem, approximations, bcond, continuity, order, material, &
        &                       which_approx, num_approximations, time_steps_to_store, hierarchical_basis, &
        &                       static_condensation, num_continuity, num_ghosts )
     implicit none
@@ -187,6 +188,7 @@ contains
     type(fem_triangulation), target, intent(in)    :: g_trian   
     type(dof_handler)      , target, intent(in)    :: dofh   
     type(discrete_problem_pointer) , intent(in)    :: approximations(:)
+    type(fem_conditions)           , intent(in)    :: bcond
     integer(ip), intent(in) :: material(:), order(:,:), problem(:)
     integer(ip), intent(in) :: continuity(:,:), which_approx(:)
     integer(ip), intent(in) :: num_approximations
@@ -206,7 +208,7 @@ contains
     assert(size(approximations)==num_approximations)
     fspac%approximations = approximations
 
-    call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material )
+    call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material, bcond )
 
   end subroutine fem_space_create
 
@@ -329,22 +331,22 @@ contains
        write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelem_info'
     end if
 
-    ! call integration_faces_list( g_trian, fspac )
-
   end subroutine fem_space_allocate_structures
 
   !==================================================================================================
   ! Fill the fem_space assuming that all elements are of type f_type but each variable has different
   ! interpolation order
-  subroutine fem_space_fe_list_create( fspac, problem, which_approx, continuity, order, material )
+  subroutine fem_space_fe_list_create( fspac, problem, which_approx, continuity, order, material, bcond )
     implicit none
     type(fem_space), intent(inout), target  :: fspac
     integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
     integer(ip)    , intent(in)       :: continuity(:,:), which_approx(:)
+    type(fem_conditions), intent(in)  :: bcond
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
-    integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof
+    integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof, iobje
     logical(lg) :: created
+    integer(ip) :: aux_val
 
     ! nunk_tot = total amount of unknowns
     ! if ( present(prob_list_nunk) ) then
@@ -380,7 +382,7 @@ contains
        fspac%lelem(ielem)%problem =  problem(ielem)
        fspac%lelem(ielem)%approximation =  which_approx(ielem)
 
-       nvars = fspac%dof_handler%problems(problem(ielem))%nvars
+       nvars = fspac%dof_handler%problems(problem(ielem))%p%nvars
        fspac%lelem(ielem)%num_vars = nvars
        f_type = fspac%g_trian%elems(ielem)%topology%ftype
        !assert(size(continuity,1)==nvars_tot)
@@ -405,15 +407,16 @@ contains
        do ivar=1,nvars
           !write(*,*) 'ielem,ivar',ielem,ivar,continuity(2,1)
           !write(*,*) 'POINT REACHED'
-          !write(*,*) 'l2g', fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar)
-          !write(*,*) 'cont',continuity(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
+          !write(*,*) 'l2g', fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar)
+          !write(*,*) 'cont',continuity(ielem,fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
 
           ! JP: indices of these arrays (continuity and order) should be changed to (nvars,nelem)
-          fspac%lelem(ielem)%continuity(ivar) = continuity(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
-          fspac%lelem(ielem)%order(ivar) = order(ielem,fspac%dof_handler%problems(problem(ielem))%l2g_var(ivar))
+          fspac%lelem(ielem)%continuity(ivar) = continuity(ielem,fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          fspac%lelem(ielem)%order(ivar) = order(ielem,fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
           f_order = fspac%lelem(ielem)%order(ivar)
           v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
-          call fspac%ht_elem_info%put(key=v_key,val=fspac%cur_elinf,stat=istat)
+          aux_val = fspac%cur_elinf
+          call fspac%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
           if ( istat == now_stored) then 
              call fem_element_fixed_info_create(fspac%lelem_info(fspac%cur_elinf),f_type,              &
                   &                             f_order,dim,created)
@@ -434,7 +437,8 @@ contains
 
        ! Assign pointer to geometrical fixed information (assumed to be of order 1)
        v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
-       call fspac%ht_elem_info%put(key=v_key,val=fspac%cur_elinf,stat=istat)
+       aux_val = fspac%cur_elinf
+       call fspac%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
        if ( istat == now_stored) then 
           call fem_element_fixed_info_create(fspac%lelem_info(fspac%cur_elinf),f_type,              &
                &                             1,dim,created)
@@ -466,13 +470,15 @@ contains
        end do
 
        ! Assign pointer to p_mat and p_vec in ielem
-       call fspac%ht_pos_elmat%put(key=lndof,val=fspac%cur_elmat,stat=istat)
-       call fspac%ht_pos_elvec%put(key=lndof,val=fspac%cur_elvec,stat=istat)
+       aux_val = fspac%cur_elmat
+       call fspac%ht_pos_elmat%put(key=lndof,val=aux_val,stat=istat)
+       aux_val = fspac%cur_elvec
+       call fspac%ht_pos_elvec%put(key=lndof,val=aux_val,stat=istat)
        if ( istat == now_stored ) then
           call array_create ( lndof, lndof, fspac%lelmat(fspac%cur_elmat) )
           pos_elmat = fspac%cur_elmat
           fspac%cur_elmat = fspac%cur_elmat + 1
-          call array_create ( lndof, fspac%lelvec(fspac%cur_elmat) )
+          call array_create ( lndof, fspac%lelvec(fspac%cur_elvec) )
           pos_elvec = fspac%cur_elvec
           fspac%cur_elvec = fspac%cur_elvec + 1
        else if ( istat == was_stored ) then
@@ -491,6 +497,14 @@ contains
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
        call memalloc(nvars,fspac%lelem(ielem)%p_geo_info%nobje,fspac%lelem(ielem)%bc_code,__FILE__,__LINE__, 0)
+
+       ! Fill bc_code
+       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+          do ivar=1,nvars
+             fspac%lelem(ielem)%bc_code(ivar,iobje) = bcond%code( fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar),  fspac%g_trian%elems(ielem)%objects(iobje) )
+          end do
+       end do
+
        ! Assign pointers to volume integration
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars
@@ -499,7 +513,8 @@ contains
           ! Otherwise all the variables have the same order.
           ltype(1) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
-          call fspac%ht_pos_volume_integrator%put(key=v_key, val=fspac%cur_lvoli, stat = istat)
+          aux_val = fspac%cur_lvoli
+          call fspac%ht_pos_volume_integrator%put(key=v_key, val=aux_val, stat = istat)
           if ( istat == now_stored ) then
              ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
              call volume_integrator_create(f_type,f_type,dim,1,f_order,fspac%lvoli(fspac%cur_lvoli),     &
@@ -515,6 +530,8 @@ contains
        end do
 
     end do
+
+    call integration_faces_list( fspac%g_trian, fspac )
 
   end subroutine fem_space_fe_list_create
 
@@ -561,6 +578,12 @@ contains
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
     end do
 
+    write (lunou,*) 'Number boundary faces: ', femsp%num_boundary_faces
+    write (lunou,*) 'Number interior faces: ', femsp%num_interior_faces
+    write (lunou,*) 'Boundary faces: ', femsp%boundary_faces(:)%face_object
+    write (lunou,*) 'Interior faces: ', femsp%interior_faces(:)%face_object
+    
+
   end subroutine fem_space_print
 
   subroutine fem_element_print ( lunou, elm )
@@ -579,6 +602,7 @@ contains
     write (lunou,*) 'Continuity of each variable: ', size(elm%continuity)
     write (lunou,*) 'Continuity of each variable: ', elm%continuity
     write (lunou,*) 'Element material: ', elm%material
+    write (lunou,*) 'Boundary conditions code: ', elm%bc_code
 
     write (lunou,*) 'Fixed info of each interpolation: '
     do ivar=1, elm%num_vars
@@ -619,7 +643,7 @@ contains
     !          nullify (f%lface(i)%p_vec)
     !          if (allocated(f%lface(i)%integ)) call memfree(f%lface(i)%integ,__FILE__,__LINE__)
     !          if ( trian%objects(i)%border /= -1) then
-    !             do j=1,f%lelem(f%lface(i)%nei_elem(1))%nvars
+    !             do j=1,f%lelem(f%lface(i)%nei_elem(1))%p%nvars
     !                call array_free(f%lface(i)%o2n(j))
     !             end do
     !             call memfree(f%lface(i)%o2n,__FILE__,__LINE__)
@@ -700,9 +724,23 @@ contains
 
     nullify ( f%g_trian )
 
-    call memfree( f%void_list%p, __FILE__, __LINE__)
+    call memfree( f%void_list%p, __FILE__, __LINE__ )
     call memfree( f%void_list%l, __FILE__, __LINE__ )
     f%void_list%n = 0
+
+    do i = 1, f%dof_handler%nblocks
+       call memfree (f%object2dof(i)%p , __FILE__, __LINE__ )
+       call memfree (f%object2dof(i)%l , __FILE__, __LINE__ )
+    end do
+
+    call memfree (f%ndofs , __FILE__, __LINE__ )
+
+
+
+    deallocate( f%interior_faces, stat=istat)
+    check ( istat == 0 )
+    deallocate( f%boundary_faces, stat=istat)
+    check ( istat == 0 )
 
   end subroutine fem_space_free
 
@@ -830,7 +868,7 @@ contains
     ! The list of boundary faces includes all faces, whereas the interior ones are only those
     ! where we expect to integrate things (based on continuity flags)
     count_int = 0
-    count_bou = 0
+    count_bou = trian%num_boundary_faces
     do iobje = 1, trian%num_objects
        if ( trian%objects(iobje)%dimension == trian%num_dims-1 ) then
           if ( trian%objects(iobje)%border == -1 ) then
@@ -839,8 +877,8 @@ contains
              jelem = trian%objects(iobje)%elems_around(2)
              iprob = femsp%lelem(ielem)%problem
              jprob = femsp%lelem(jelem)%problem
-             do ivars = 1, femsp%dof_handler%problems(iprob)%nvars
-                g_var = femsp%dof_handler%problems(iprob)%l2g_var(ivars)
+             do ivars = 1, femsp%dof_handler%problems(iprob)%p%nvars
+                g_var = femsp%dof_handler%problems(iprob)%p%l2g_var(ivars)
                 jvars = femsp%dof_handler%g2l_vars(g_var,jprob)
                 mat_i = femsp%lelem(ielem)%continuity(ivars)
                 mat_j = femsp%lelem(jelem)%continuity(jvars)
@@ -852,11 +890,6 @@ contains
              end do
           else
              assert( trian%objects(iobje)%num_elems_around == 1 )
-             ielem = trian%objects(iobje)%elems_around(1)
-             if ( femsp%lelem(ielem)%continuity(ielem) == 0 ) then
-                count_bou = count_bou + 1
-                !femsp%boundary_faces(count_bou) = iobje
-             end if
           end if
        end if
     end do
@@ -865,11 +898,11 @@ contains
     check ( istat == 0 )
     allocate( femsp%boundary_faces(count_bou), stat=istat)
     check ( istat == 0 )
-    
+
 
     femsp%num_interior_faces = count_int
     femsp%num_boundary_faces = count_bou
-    
+
     count_int = 0
     count_bou = 0
     do iobje = 1, trian%num_objects
@@ -880,8 +913,8 @@ contains
              jelem = trian%objects(iobje)%elems_around(2)
              iprob = femsp%lelem(ielem)%problem
              jprob = femsp%lelem(jelem)%problem
-             do ivars = 1, femsp%dof_handler%problems(iprob)%nvars
-                g_var = femsp%dof_handler%problems(iprob)%l2g_var(ivars)
+             do ivars = 1, femsp%dof_handler%problems(iprob)%p%nvars
+                g_var = femsp%dof_handler%problems(iprob)%p%l2g_var(ivars)
                 jvars = femsp%dof_handler%g2l_vars(g_var,jprob)
                 mat_i = femsp%lelem(ielem)%continuity(ivars)
                 mat_j = femsp%lelem(jelem)%continuity(jvars)
@@ -893,11 +926,8 @@ contains
              end do
           else
              assert( trian%objects(iobje)%num_elems_around == 1 )
-             ielem = trian%objects(iobje)%elems_around(1)
-             if ( femsp%lelem(ielem)%continuity(ielem) == 0 ) then
-                count_bou = count_bou + 1
-                femsp%boundary_faces(count_bou)%face_object = iobje
-             end if
+             count_bou = count_bou + 1
+             femsp%boundary_faces(count_bou)%face_object = iobje
           end if
        end if
     end do

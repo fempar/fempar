@@ -106,7 +106,7 @@ contains
                 do ivars = 1, nvapb
                    !l_var = g2l(ivars,iprob)
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    
                    if ( femsp%lelem(jelem)%continuity(g_var) /= 0 ) then
                       mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
@@ -206,7 +206,7 @@ contains
              nvapb = dhand%prob_block(iblock,iprob)%nd1
              do ivars = 1, nvapb
                 l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                g_var = dhand%problems(iprob)%l2g_var(l_var)  
+                g_var = dhand%problems(iprob)%p%l2g_var(l_var)  
                 iobje = trian%elems(ielem)%num_objects+1
                 do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                      &     femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1 
@@ -266,7 +266,7 @@ contains
                 !write(*,*) 'nvapb:',nvapb
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p
                    if ( mater /= 0 ) then
                       if ( touch(g_var,mater) == 0 ) then
@@ -311,7 +311,7 @@ contains
                 nvapb = dhand%prob_block(iblock,iprob)%nd1
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p
                    if ( mater /= 0) then
                       if ( touch(g_var,mater) == 0 ) then
@@ -328,7 +328,7 @@ contains
                                l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
                                count = count + 1
                                femsp%object2dof(iblock)%l(count,1) = femsp%lelem(jelem)%elem2dof(l_node,l_var)
-                               femsp%object2dof(iblock)%l(count,2) = dhand%problems(iprob)%l2g_var(l_var)
+                               femsp%object2dof(iblock)%l(count,2) = dhand%problems(iprob)%p%l2g_var(l_var)
                                femsp%object2dof(iblock)%l(count,3) = mater
                             end do
                          end if
@@ -449,7 +449,7 @@ contains
                             nvapb = dhand%prob_block(iblock,iprob)%nd1
                             do ivars = 1, nvapb
                                k_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                               m_var = dhand%problems(iprob)%l2g_var(k_var)
+                               m_var = dhand%problems(iprob)%p%l2g_var(k_var)
                                ! do ivars = 1, dhand%problems(femsp%lelem(jelem)%problem)%nvars
                                if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                                   if ( gtype == csr ) then
@@ -485,12 +485,12 @@ contains
                 do ivars = 1, nvapb
                    !l_var = g2l(ivars,iprob)
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    int_i = l_var
                    ! Interior - interior (inside element)
                    do jvars = 1, nvapb
                       m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                      k_var = dhand%problems(iprob)%l2g_var(m_var)
+                      k_var = dhand%problems(iprob)%p%l2g_var(m_var)
                       if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
                               & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
@@ -550,6 +550,7 @@ contains
           ! coupling by face integration (discontinuous Galerkin terms)
           ! count
           do iface = 1,femsp%num_interior_faces
+             write (*,*) 'iobje',iobje
              do i=1,2
                 ielem = trian%objects(iobje)%elems_around(i)
                 jelem = trian%objects(iobje)%elems_around(3-i)
@@ -563,10 +564,10 @@ contains
                 nvapbj = dhand%prob_block(iblock,jprob)%nd1 
                 do ivars = 1, nvapbi
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    do jvars = 1, nvapbj
                       m_var = dhand%prob_block(iblock,jprob)%a(jvars)
-                      k_var = dhand%problems(jprob)%l2g_var(m_var)
+                      k_var = dhand%problems(jprob)%p%l2g_var(m_var)
                       if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          if ( gtype == csr ) then
                             nnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1) &
@@ -668,7 +669,7 @@ contains
                             nvapb = dhand%prob_block(iblock,iprob)%nd1
                             do ivars = 1, nvapb
                                k_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                               m_var = dhand%problems(iprob)%l2g_var(k_var)
+                               m_var = dhand%problems(iprob)%p%l2g_var(k_var)
                                ! do ivars = 1, dhand%problems(femsp%lelem(jelem)%problem)%nvars
                                if ( dhand%dof_coupl(l_var, m_var) == 1 ) then                
                                   if ( gtype == csr ) then
@@ -710,11 +711,11 @@ contains
                 do ivars = 1, nvapb
                    !l_var = g2l(ivars,iprob)
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    ! Interior - interior (inside element)
                    do jvars = 1, nvapb
                       m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                      k_var = dhand%problems(iprob)%l2g_var(m_var)
+                      k_var = dhand%problems(iprob)%p%l2g_var(m_var)
                       if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                               & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
@@ -790,10 +791,10 @@ contains
                 nvapbj = dhand%prob_block(iblock,jprob)%nd1 
                 do ivars = 1, nvapbi
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dhand%problems(iprob)%l2g_var(l_var)
+                   g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    do jvars = 1, nvapbj
                       m_var = dhand%prob_block(iblock,jprob)%a(jvars)
-                      k_var = dhand%problems(jprob)%l2g_var(m_var)
+                      k_var = dhand%problems(jprob)%p%l2g_var(m_var)
                       if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
                          if ( gtype == csr ) then
                             do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode

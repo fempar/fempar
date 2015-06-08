@@ -74,10 +74,10 @@ contains
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
     type(fem_block_matrix), intent(inout)     :: a
     
-    integer(ip) :: ivar, iblock, jblock !, start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip) :: ivar, iblock, jblock !, start(dhand%problems(elem%problem)%p%nvars+1)
 
     !call pointer_variable(  elem, dhand, start )
     do iblock = 1, dhand%nblocks
@@ -93,10 +93,10 @@ contains
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
     type(fem_matrix), intent(inout)           :: a
 
-    !integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
+    !integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
     !call pointer_variable(  elem, dhand, start )
     call element_matrix_assembly( dhand, elem, start, a )
 
@@ -115,7 +115,7 @@ contains
     do i=1,2
        call pointer_variable(  elem(i), dhand, start(i)%a )
     end do
-    start(2)%a = start(2)%a + start(1)%a(dhand%problems(elem(1)%problem)%nvars+1) - 1
+    start(2)%a = start(2)%a + start(1)%a(dhand%problems(elem(1)%problem)%p%nvars+1) - 1
 
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
@@ -143,7 +143,7 @@ contains
     do i=1,2
        call pointer_variable(  elem(i), dhand, start(i)%a )
     end do
-    start(2)%a = start(2)%a + start(1)%a(dhand%problems(elem(1)%problem)%nvars+1) - 1
+    start(2)%a = start(2)%a + start(1)%a(dhand%problems(elem(1)%problem)%p%nvars+1) - 1
     do i = 1,2
        call element_matrix_assembly( dhand, elem(i), start(i)%a, a )
     end do
@@ -155,11 +155,11 @@ contains
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
     type(fem_block_vector), intent(inout)     :: a
 
     integer(ip) :: iblock
-    !integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
+    !integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
 
     !call pointer_variable(  elem, dhand, start )
     do iblock = 1, dhand%nblocks
@@ -174,10 +174,10 @@ contains
     implicit none
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
     type(fem_vector), intent(inout)           :: a
 
-    !integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
+    !integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
     !call pointer_variable(  elem, dhand, start )
     call element_vector_assembly( dhand, elem, start, a )
 
@@ -191,7 +191,7 @@ contains
     type(fem_element), intent(in)             :: elem
     type(fem_block_vector), intent(inout)     :: a
 
-    integer(ip) :: iblock, start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip) :: iblock, start(dhand%problems(elem%problem)%p%nvars+1)
 
     ! Note: This subroutine only has sense on interface / boundary faces, only
     ! related to ONE element.
@@ -209,7 +209,7 @@ contains
     type(fem_element), intent(in)             :: elem
     type(fem_vector), intent(inout)           :: a
 
-    integer(ip) :: start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
 
     ! Note: This subroutine only has sense on interface / boundary faces, only
     ! related to ONE element.
@@ -223,7 +223,7 @@ contains
     ! Parameters
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
     type(fem_matrix), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock, jblock
 
@@ -240,10 +240,10 @@ contains
     nvapb_j = dhand%prob_block(jblock,iprob)%nd1
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-       g_var = dhand%problems(iprob)%l2g_var(l_var)
+       g_var = dhand%problems(iprob)%p%l2g_var(l_var)
        do jvars = 1, nvapb_j
           m_var = dhand%prob_block(jblock,iprob)%a(jvars)
-          k_var = dhand%problems(iprob)%l2g_var(m_var)
+          k_var = dhand%problems(iprob)%p%l2g_var(m_var)
           do inode = 1,elem%f_inf(l_var)%p%nnode
              idof = elem%elem2dof(inode,l_var)
              if ( idof  > 0 ) then
@@ -295,10 +295,10 @@ contains
        nvapb_j = dhand%prob_block(jblock,jprob)%nd1
        do ivars = 1, nvapb_i
           l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-          g_var = dhand%problems(iprob)%l2g_var(l_var)
+          g_var = dhand%problems(iprob)%p%l2g_var(l_var)
           do jvars = 1, nvapb_j
              m_var = dhand%prob_block(jblock,jprob)%a(jvars)
-             k_var = dhand%problems(jprob)%l2g_var(m_var)
+             k_var = dhand%problems(jprob)%p%l2g_var(m_var)
              do inode = 1,elem(i)%f_inf(l_var)%p%nnode
                 idof = elem(i)%elem2dof(inode,l_var)
                 if ( idof  > 0 ) then
@@ -333,7 +333,7 @@ contains
     ! Parameters
     type(dof_handler), intent(in)             :: dhand
     type(fem_element), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%nvars+1)
+    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
     type(fem_vector), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock
 
@@ -346,7 +346,7 @@ contains
     nvapb_i = dhand%prob_block(iblock,iprob)%nd1
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-       g_var = dhand%problems(iprob)%l2g_var(l_var)
+       g_var = dhand%problems(iprob)%p%l2g_var(l_var)
        do inode = 1,elem%f_inf(l_var)%p%nnode
           idof = elem%elem2dof(inode,l_var)
           if ( idof  > 0 ) then
@@ -378,7 +378,7 @@ contains
     nvapb_i = dhand%prob_block(iblock,iprob)%nd1
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-       g_var = dhand%problems(iprob)%l2g_var(l_var)
+       g_var = dhand%problems(iprob)%p%l2g_var(l_var)
        iobje = face%face_object + elem%p_geo_info%nobje_dim(ndime) - 1
        do inode = elem%f_inf(l_var)%p%ntxob%p(iobje),elem%f_inf(l_var)%p%ntxob%p(iobje)-1
           idof = elem%elem2dof(elem%f_inf(l_var)%p%ntxob%l(inode),l_var)
@@ -398,11 +398,11 @@ contains
 
     integer(ip) :: ivar
 
-    do ivar = 1,dhand%problems(elem%problem)%nvars
+    do ivar = 1,dhand%problems(elem%problem)%p%nvars
        start(ivar+1) = elem%f_inf(ivar)%p%nnode
     end do
     start(1) = 1
-    do ivar = 2, dhand%problems(elem%problem)%nvars+1
+    do ivar = 2, dhand%problems(elem%problem)%p%nvars+1
        start(ivar) = start(ivar) + start(ivar-1)
     end do
   end subroutine pointer_variable
@@ -419,7 +419,7 @@ contains
     
     iprob = el%problem
     count = 0
-    do ivars = 1, dh%problems(iprob)%nvars
+    do ivars = 1, dh%problems(iprob)%p%nvars
        do inode = 1,el%f_inf(ivars)%p%nnode
           count = count + 1
           idof = el%elem2dof(inode,ivars)

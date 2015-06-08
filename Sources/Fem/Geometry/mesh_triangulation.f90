@@ -32,6 +32,7 @@ module mesh_triangulation
   use fem_triangulation_names
   use fem_space_types
   use geom2topo
+  use fem_conditions_names
 
   implicit none
 # include "debug.i90"
@@ -51,17 +52,19 @@ contains
   ! number of elements in triangulation does not include ghost elements, only
   ! local elements
   !*********************************************************************************
-  subroutine mesh_to_triangulation (gmesh,trian,length_trian)
+  subroutine mesh_to_triangulation (gmesh,trian,length_trian,gcond)
     implicit none
     ! Parameters
-    type(fem_mesh), intent(inout)          :: gmesh ! Geometry mesh
-    type(fem_triangulation), intent(inout) :: trian 
-    integer(ip), optional, intent(in)      :: length_trian
+    type(fem_mesh), intent(in)                       :: gmesh ! Geometry mesh
+    type(fem_triangulation), intent(inout)           :: trian 
+    integer(ip), optional, intent(in)                :: length_trian
+    type(fem_conditions), optional, intent(inout)    :: gcond
 
     ! Locals
-    type(fem_mesh) :: tmesh ! Topological mesh
-    integer(ip)    :: istat, ielem, iobj
-    integer(ip)    :: count, g_node, inode, p, length_trian_
+    type(fem_mesh)            :: tmesh ! Topological mesh
+    integer(ip)               :: istat, ielem, iobj
+    integer(ip)               :: count, g_node, inode, p, length_trian_
+    type(fem_conditions)      :: tcond
 
     if (present(length_trian)) then
        length_trian_ = length_trian
@@ -99,7 +102,19 @@ contains
        trian%elem_array_len = trian%num_elems
     end if
 
-    call geom2topo_mesh_cond(gmesh, tmesh)
+    if (present(gcond)) then
+       write(*,*) 'create tcond'
+       call geom2topo_mesh_cond(gmesh, tmesh, gcond, tcond)
+       write(*,*) 'free gcond'
+       call fem_conditions_free( gcond )
+       write(*,*) 'copy tcond to gcond'
+       call fem_conditions_copy( tcond, gcond )
+       write(*,*) 'free tcond'
+       call fem_conditions_free( tcond )
+    else
+       call geom2topo_mesh_cond(gmesh, tmesh)
+    end if
+       
 
     do ielem=1, trian%num_elems
        trian%elems(ielem)%num_objects = tmesh%pnods(ielem+1)-tmesh%pnods(ielem)

@@ -106,7 +106,7 @@ contains
              nvapb = dhand%prob_block(iblock,iprob)%nd1 
              do ivars = 1, nvapb
                 l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                g_var = dhand%problems(iprob)%l2g_var(l_var)
+                g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                 do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
                      & femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
                    l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)

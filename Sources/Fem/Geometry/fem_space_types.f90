@@ -95,7 +95,7 @@ module fem_space_types
 
   ! Functions
   public :: Q_ijkg, Q_gijk, Q_nnods, Q_set_integ
-  public :: Q_coord_1d, Q_refcoord, Q_face_outno, Q_fixed_info_fill, Q_fixed_info_free
+  public :: Q_coord_1d, Q_refcoord, Q_face_outno, Q_fixed_info_fill
 
   ! Functions
   public :: P_set_integ, P_refcoord
@@ -177,11 +177,18 @@ contains
     ! Parameters
     type(fem_fixed_info),  intent(inout) :: f_info 
 
-    if (f_info%ftype == P_type_id) then
-       call P_fixed_info_free( f_info)
-    elseif (f_info%ftype == Q_type_id) then
-       call Q_fixed_info_free( f_info)
-    end if
+    !Deallocate nobje_dim, nodes_obj
+    !call memfree(f_info%nobje_dim,__FILE__,__LINE__)
+    !call memfree(f_info%nodes_obj,__FILE__,__LINE__)
+    call memfree(        f_info%o,__FILE__,__LINE__)   
+
+    !Deallocate arrays
+    call memfree(f_info%ndxob%p,__FILE__,__LINE__)   !Pointer to f_info%ndxob%l for each object
+    call memfree(f_info%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memfree(f_info%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
+    call memfree(f_info%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memfree(f_info%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
+    call memfree(f_info%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
   end subroutine fem_element_fixed_info_free
 
   !==================================================================================================
@@ -424,27 +431,6 @@ contains
     !    write(*,*) fefi%crxob%l(k), ', &'
     ! end do
   end subroutine P_fixed_info_fill
-
-  !==================================================================================================
-  subroutine  P_fixed_info_free(fefi)
-    implicit none
-    ! Parameters
-    type(fem_fixed_info), intent(inout) :: fefi
-
-
-    ! Deallocate nobje_dim, nodes_obj
-    !call memfree(fefi%nobje_dim,__FILE__,__LINE__)
-    !call memfree(fefi%nodes_obj,__FILE__,__LINE__)
-    call memfree(        fefi%o,__FILE__,__LINE__)   
-
-    ! Deallocate arrays
-    call memfree(fefi%ndxob%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
-    call memfree(fefi%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memfree(fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
-    call memfree(fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memfree(fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
-    call memfree(fefi%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
-  end subroutine P_fixed_info_free
 
   !==================================================================================================
   subroutine P_orientation_object(o,od,nd,io)
@@ -938,7 +924,7 @@ contains
     fefi%ftype = Q_type_id
     fefi%order = p
     fefi%nobje = no-1
-    fefi%nnode = int((p+1)**nd)
+    fefi%nnode = int((p+1)**nd) 
 
     ! Allocate arrays
     call memalloc(no,        fefi%o,__FILE__,__LINE__)  ! Array of orientation of each object
@@ -1185,26 +1171,6 @@ contains
     !    write(*,*) fefi%crxob%l(od), ', &'
     ! end do
   end subroutine Q_fixed_info_fill
-
-  !==================================================================================================
-  subroutine  Q_fixed_info_free(fefi)
-    implicit none
-    ! Parameters
-    type(fem_fixed_info), intent(inout) :: fefi
-
-    !Deallocate nobje_dim, nodes_obj
-    !call memfree(fefi%nobje_dim,__FILE__,__LINE__)
-    !call memfree(fefi%nodes_obj,__FILE__,__LINE__)
-    call memfree(        fefi%o,__FILE__,__LINE__)   
-
-    !Deallocate arrays
-    call memfree(fefi%ndxob%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
-    call memfree(fefi%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memfree(fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
-    call memfree(fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memfree(fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
-    call memfree(fefi%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
-  end subroutine Q_fixed_info_free
 
   !==================================================================================================
   subroutine Q_orientation_object(o,fdm,od,nd,l)

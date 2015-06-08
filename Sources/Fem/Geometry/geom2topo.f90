@@ -125,7 +125,7 @@ contains
     !
     !------------------------------------------------------------------------------------------------
     ! Parameters
-    type(fem_mesh)                , intent(inout) :: gmsh
+    type(fem_mesh)                , intent(in)    :: gmsh
     type(fem_mesh)                , intent(out)   :: omsh
     type(fem_conditions), optional, intent(in)    :: gcnd
     type(fem_conditions), optional, intent(out)   :: ocnd

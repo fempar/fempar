@@ -36,8 +36,9 @@ program test_integration
   type(fem_mesh)                          :: f_mesh
   type(fem_triangulation)                 :: f_trian
   type(fem_matrix)                        :: f_mat
+  type(fem_conditions)                    :: f_cond
 
-  integer(ip)        :: i, j, vars_prob(1) = 1, ierror, iblock
+  integer(ip)        :: i, j, ierror, iblock
   type(dof_handler)  :: dhand
   type(fem_space)    :: my_fem_space
 
@@ -70,8 +71,7 @@ program test_integration
   call fem_triangulation_to_dual( f_trian )
 
   !write (*,*) '********** CREATE DOF HANDLER **********'
-  vars_prob = 1
-  call dof_handler_create( dhand, 1, 1, vars_prob )
+  call dhand%create( 1, 1, 1 )
   !call dof_handler_print ( dhand, 6 )
 
   call memalloc( f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
@@ -91,7 +91,7 @@ program test_integration
   approximations(1)%p => my_aproximation
 
   !write (*,*) '********** CREATE FEM SPACE AND DOF GRAPH **********'
-  call fem_space_create ( f_trian, dhand, my_fem_space, problem, approximations, continuity, order, material, &
+  call fem_space_create ( f_trian, dhand, my_fem_space, problem, approximations, f_cond, continuity, order, material, &
        & which_approx, num_approximations=1, time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), &
        & static_condensation = logical(.false.,lg), num_continuity = 1 )
   call create_dof_info( dhand, f_trian, my_fem_space, my_dof_graph )

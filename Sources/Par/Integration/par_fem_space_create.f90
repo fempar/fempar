@@ -36,6 +36,7 @@ module par_fem_space_names
   use problem_names
   use dof_handler_names
   use hash_table_names
+  use fem_conditions_names
 
   ! Par Modules
   use par_triangulation_names
@@ -61,13 +62,14 @@ contains
   ! with the required info on ghost elements, together with the dof generation and the
   ! dof graph distribution.
   !*********************************************************************************
-  subroutine par_fem_space_create ( p_trian, dhand, femsp, problem, approximations, continuity, order, material, &
+  subroutine par_fem_space_create ( p_trian, dhand, femsp, problem, approximations, bcond, continuity, order, material, &
        & which_approx, num_approximations, time_steps_to_store, hierarchical_basis, static_condensation, num_continuity  )
     implicit none
     type(par_triangulation), intent(inout) :: p_trian
     type(dof_handler), intent(in)       :: dhand
     type(fem_space), intent(inout)      :: femsp  
     type(discrete_problem_pointer) , intent(in)    :: approximations(:)
+    type(fem_conditions)           , intent(in)    :: bcond
     integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
     integer(ip),     intent(in)       :: continuity(:,:), which_approx(:)
     integer(ip), intent(in) :: num_approximations
@@ -83,7 +85,7 @@ contains
     ! provided num_ghosts just in order to allocate element lists in 
     ! fem_space_allocate_structures that will also include ghost elements. 
     call fem_space_create( p_trian%f_trian, dhand, femsp, &
-         & problem, approximations, continuity, order, material, which_approx, num_approximations, &
+         & problem, approximations, bcond, continuity, order, material, which_approx, num_approximations, &
          & time_steps_to_store = time_steps_to_store, &
          & hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
          & num_continuity = num_continuity, num_ghosts = p_trian%num_ghosts )
@@ -125,10 +127,11 @@ contains
 
     integer(ip) :: ielem, nvars, f_type, ivar, f_order, istat, pos_elinf, v_key
     logical(lg) :: created
+    integer(ip) :: aux_val
 
     do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
        write (*,*) '************* GHOST ELEMENT *************',ielem
-       nvars = femsp%dof_handler%problems(femsp%lelem(ielem)%problem)%nvars
+       nvars = femsp%dof_handler%problems(femsp%lelem(ielem)%problem)%p%nvars
        femsp%lelem(ielem)%num_vars = nvars
        f_type = femsp%g_trian%elems(ielem)%topology%ftype
        write(*,*) 'f_type ghosts',f_type
@@ -139,7 +142,8 @@ contains
           f_order = femsp%lelem(ielem)%order(ivar)
           write(*,*) 'f_order',f_order
           v_key = femsp%g_trian%num_dims + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
-          call femsp%ht_elem_info%put(key=v_key,val=femsp%cur_elinf,stat=istat)
+          aux_val = femsp%cur_elinf
+          call femsp%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
           if ( istat == now_stored) then 
              write (*,*) ' FIXED INFO NEW'
              call fem_element_fixed_info_create(femsp%lelem_info(femsp%cur_elinf),f_type,              &

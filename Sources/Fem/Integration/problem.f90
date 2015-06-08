@@ -33,6 +33,8 @@ module problem_names
   use integration_tools_names
   implicit none
   private
+  
+
 
   type :: physical_problem
      integer(ip)        ::             &
@@ -49,6 +51,9 @@ module problem_names
           unkno_names(:)                       ! Names for the gauss_properties (nunks)
   end type physical_problem
 
+  type :: p_physical_problem
+     type(physical_problem), pointer :: p 
+  end type p_physical_problem
 
   type, abstract :: discrete_problem
      !class(physical_problem), pointer :: physics
@@ -80,6 +85,18 @@ module problem_names
      end subroutine matvec_interface
   end interface
 
-  public :: physical_problem, discrete_problem, discrete_problem_pointer
+  public :: physical_problem, p_physical_problem, discrete_problem, &
+            discrete_problem_pointer, physical_problem_free
+
+contains 
+
+  subroutine physical_problem_free( prob  )
+    implicit none
+    type(physical_problem), intent(inout)           :: prob
+
+    !call memfree( prob%vars_of_unk, __FILE__, __LINE__ )
+    call memfree( prob%l2g_var, __FILE__, __LINE__ )
+
+  end subroutine physical_problem_free
 
 end module problem_names

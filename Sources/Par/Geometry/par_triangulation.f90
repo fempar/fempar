@@ -63,7 +63,7 @@ module par_triangulation_names
   end type par_object_topology
 
   type, extends(migratory_element) :: par_elem_topology
-     integer(ip)  :: interface     = -1              ! The boundary number ieboun (if this element is a interface element)
+     integer(ip)  :: interface  = -1              ! The boundary number ieboun (if this element is a interface element)
      integer(ip)  :: mypart     = -1              ! To which part this element is mapped to ?
      integer(igp) :: globalID   = -1              ! Global ID of this element
                                                   ! Local ID is the position in the array of elements
@@ -74,7 +74,6 @@ module par_triangulation_names
      procedure :: size   => par_elem_topology_size
      procedure :: pack   => par_elem_topology_pack
      procedure :: unpack => par_elem_topology_unpack
-
   end type par_elem_topology
 
   type :: par_triangulation

@@ -101,11 +101,10 @@ module fem_triangulation_names
   end type elem_topology
 
   type object_topology
-     integer(ip)               :: border     = -1       ! Border local id of this object
+     integer(ip)               :: border     = -1       ! Border local id of this object (only for faces)
      integer(ip)               :: dimension             ! Object dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around object 
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around object 
-     integer(ip), allocatable  :: border_code(:)        ! To be used to enforce Dirichlet bc's
   end type object_topology
 
   type fem_triangulation
@@ -114,12 +113,13 @@ module fem_triangulation_names
      integer(ip) :: num_elems      = -1  ! number of elements
      integer(ip) :: num_dims       = -1  ! number of dimensions
      integer(ip) :: elem_array_len = -1  ! length that the elements array is allocated for. 
-     type(elem_topology), allocatable :: elems(:) ! array of elements in the mesh.
-     type(object_topology) , allocatable :: objects(:)    ! array of objects in the mesh.
+     type(elem_topology), allocatable    :: elems(:) ! array of elements in the mesh.
+     type(object_topology) , allocatable :: objects(:) ! array of objects in the mesh.
      type (hash_table_ip_ip)             :: ht_elem_info  ! Topological info hash table (SBmod)
      integer(ip)                         :: cur_elinf = 0 !  "
      type (fem_fixed_info), allocatable  :: lelem_info(:) ! List of topological info's
-     !integer(ip), allocatable            :: lst_boundary_objs(:)    ! List of objects local IDs in the boundary 
+     integer(ip)                         :: num_boundary_faces ! Number of faces in the boundary 
+     integer(ip), allocatable            :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
   end type fem_triangulation
 
   ! Types
@@ -180,6 +180,7 @@ contains
 
     call fem_triangulation_free_elems_data(trian)
     call fem_triangulation_free_objs_data(trian)
+    call memfree ( trian%lst_boundary_faces, __FILE__, __LINE__ )
 
     ! Deallocate the element structure array */
     deallocate(trian%elems, stat=istat)
@@ -255,6 +256,11 @@ contains
     if (allocated(element%objects)) then
        call memfree(element%objects, __FILE__, __LINE__)
     end if
+
+    if (allocated(element%coordinates)) then
+       call memfree(element%coordinates, __FILE__, __LINE__)
+    end if
+
     element%num_objects = -1
     nullify( element%topology )
   end subroutine free_elem_topology
@@ -323,7 +329,7 @@ contains
     call memalloc ( trian%num_objects, elems_around_pos, __FILE__, __LINE__ )
     elems_around_pos = 1
 
-    ! List elements and add object dimensio
+    ! List elements and add object dimension
     do ielem=1, num_elems
        do idime =1, trian%num_dims    ! (SBmod)
           do iobj = trian%elems(ielem)%topology%nobje_dim(idime), &
@@ -342,6 +348,28 @@ contains
        end do
     end do
 
+    ! Assign border and count boundary faces
+    trian%num_boundary_faces = 0
+    do iobj = 1, trian%num_objects
+       if ( trian%objects(iobj)%dimension == trian%num_dims -1 ) then
+          if ( trian%objects(iobj)%num_elems_around == 1 ) then 
+             trian%num_boundary_faces = trian%num_boundary_faces + 1
+             trian%objects(iobj)%border = trian%num_boundary_faces
+          end if
+       end if
+    end do
+
+    ! List boundary faces
+    call memalloc (  trian%num_boundary_faces, trian%lst_boundary_faces,  __FILE__, __LINE__ )
+    do iobj = 1, trian%num_objects
+       if ( trian%objects(iobj)%dimension == trian%num_dims -1 ) then
+          if ( trian%objects(iobj)%num_elems_around == 1 ) then 
+             trian%lst_boundary_faces(trian%objects(iobj)%border) = iobj
+          end if
+       end if
+    end do
+
+
     call memfree ( elems_around_pos, __FILE__, __LINE__ )
     trian%state = triangulation_elems_objects_filled
 
@@ -353,8 +381,9 @@ contains
     type(fem_triangulation), intent(inout), target :: trian
     integer(ip),             intent(in)            :: ielem
     ! Locals
-    integer(ip)              :: nobje, v_key, ndime, etype, pos_elinf, istat
+    integer(ip) :: nobje, v_key, ndime, etype, pos_elinf, istat
     logical(lg) :: created
+    integer(ip) :: aux_val
 
     nobje = trian%elems(ielem)%num_objects 
     ndime = trian%num_dims
@@ -378,7 +407,8 @@ contains
 
     ! Assign pointer to topological information
     v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
-    call trian%ht_elem_info%put(key=v_key,val=trian%cur_elinf,stat=istat)
+    aux_val = trian%cur_elinf
+    call trian%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
     if ( istat == now_stored) then 
        ! Create fixed info if not constructed
        call fem_element_fixed_info_create(trian%lelem_info(trian%cur_elinf),etype,  &

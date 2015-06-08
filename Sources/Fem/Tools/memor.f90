@@ -79,8 +79,8 @@ module mem_base
   !***********************************************************************
 #ifdef memcheck
   type mem_data
-     character(30) :: file=' '
-     integer(ip)   :: line=0
+     character(512) :: file=' '
+     integer(ip)    :: line=0
   end type mem_data
 
 #include "debug.i90"
