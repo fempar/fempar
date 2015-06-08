@@ -145,6 +145,7 @@ program test_cdr
   !write (*,*) '********** FINISHED ASSEMBLY **********'
 
 
+  call fem_matrix_print( 6, my_matrix)
 
 
 

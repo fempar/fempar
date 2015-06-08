@@ -126,12 +126,15 @@ contains
     integer(ip)  :: ndime
     real(rp)     :: dtinv, c1, c2, mu
 
+    integer(ip)  :: idime,igaus,inode,jnode,ngaus,nnode
+    real(rp) :: factor
+
     ndime = approx%physics%ndime
 
-    u = basis_function(approx%physics,1,start,integ)
-    p = basis_function(approx%physics,2,start,integ)
-    v = basis_function(approx%physics,1,start,integ) 
-    q = basis_function(approx%physics,2,start,integ)
+    !u = basis_function(approx%physics,1,start,integ)
+    !p = basis_function(approx%physics,2,start,integ)
+    !v = basis_function(approx%physics,1,start,integ) 
+    !q = basis_function(approx%physics,2,start,integ)
 
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and
@@ -146,7 +149,7 @@ contains
     !h%a=integ(1)%p%femap%hleng(1,:)     ! max
     !h%a=integ(1)%p%femap%hleng(ndime,:) ! min
 
-    mu = approx%physics%diffu
+    !mu = approx%physics%diffu
 
     !dtinv  = approx%dtinv
     !c1 = approx%k1tau
@@ -155,8 +158,23 @@ contains
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     !tau = inv(tau)
 
-    mat = integral(grad(v),grad(u))
+    !mat = integral(grad(v),grad(u))
 
+    nnode = integ(1)%p%uint_phy%nnode
+    ngaus = integ(1)%p%uint_phy%nlocs
+    do igaus = 1,ngaus
+       factor = integ(1)%p%femap%detjm(igaus) * integ(1)%p%quad%weight(igaus)
+       do inode = 1, nnode
+          do jnode = 1, nnode
+             do idime = 1,ndime
+                mat%a(inode,jnode) = mat%a(inode,jnode) + factor * &
+                     & integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
+                     & integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
+             end do
+          end do
+       end do
+    end do
+ 
     !mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
     !mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
