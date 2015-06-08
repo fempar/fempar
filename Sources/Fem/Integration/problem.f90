@@ -67,16 +67,16 @@ module problem_names
    end type discrete_problem_pointer
 
   abstract interface
-     subroutine create_interface(aprox,prob)
+     subroutine create_interface(approx,prob)
        import :: physical_problem, discrete_problem
        implicit none
-       class(discrete_problem)        , intent(out) :: aprox
+       class(discrete_problem)        , intent(out) :: approx
        class(physical_problem), target, intent(in)  :: prob
      end subroutine create_interface
-     subroutine matvec_interface(aprox,integ,unkno,start,mat,vec)
+     subroutine matvec_interface(approx,integ,unkno,start,mat,vec)
        import :: discrete_problem, volume_integrator_pointer, array_rp2, array_rp1, rp, ip
        implicit none
-       class(discrete_problem)        , intent(in) :: aprox
+       class(discrete_problem)        , intent(in) :: approx
        type(volume_integrator_pointer), intent(in) :: integ(:)
        real(rp)                       , intent(in) :: unkno(:,:,:)
        integer(ip)                    , intent(in) :: start(:)

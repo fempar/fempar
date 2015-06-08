@@ -26,20 +26,20 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module nsi_cg_names
+module cdr_stabilized_continuous_Galerkin_names
  use types
  use memor
  use array_names
  use problem_names
- use nsi_names
+ use cdr_names
  use element_fields_names
  use element_tools_names
  use volume_integration_tools_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: nsi_approximation
-    type(nsi_problem), pointer :: physics
+ type, extends(discrete_problem) :: cdr_approximation
+    type(cdr_problem), pointer :: physics
     integer(ip) ::   & 
          kfl_1vec,   & ! Flag for 1vec integration
          kfl_mtvc,   & ! Flag for matvec integration
@@ -49,69 +49,65 @@ module nsi_cg_names
          kfl_lump,   & ! Flag for lumped mass submatrix
          kfl_stab,   & ! Flag for stabilization of the convective term (Off=0; OSS=2)
          kfl_proj,   & ! Flag for Projections weighted with tau's (On=1, Off=0)
-         tdimv,      & ! Number of temporal steps stored for velocity
-         tdimp         ! Number of temporal steps stored for pressure   
+         tdimv         ! Number of temporal steps stored
     real(rp) ::      &
          dtinv,      & ! Inverse of time step
-         ctime,      & ! Current time
-         ktauc,      & ! Constant multiplying stabilization parameter tau_c 
-         k1tau,      & ! C1 constant on stabilization parameter tau_m
-         k2tau         ! C2 constant on stabilization parameter tau_m
+         ctime,      & ! Current time 
+         k1tau,      & ! C1 constant on stabilization parameter 
+         k2tau         ! C2 constant on stabilization parameter 
     contains
-      procedure :: create => nsi_cg_create
-      procedure :: matvec => nsi_cg_matvec
-   end type nsi_approximation
+      procedure :: create => cdr_stabilized_continuous_Galerkin_create
+      procedure :: matvec => cdr_stabilized_continuous_Galerkin_matvec
+   end type cdr_approximation
 
- public :: nsi_approximation
+ public :: cdr_approximation
 
 contains
 
   !=================================================================================================
-  subroutine nsi_cg_create(approx,prob)
+  subroutine cdr_stabilized_continuous_Galerkin_create(approx,prob)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_approximation)       , intent(out) :: approx
+    class(cdr_approximation)       , intent(out) :: approx
     class(physical_problem), target, intent(in)  :: prob
-    !type(nsi_problem), target, intent(in)  :: prob
+    !type(cdr_problem), target, intent(in)  :: prob
     integer(ip) :: i
 
 
     select type (prob)
-    type is(nsi_problem)
+    type is(cdr_problem)
        approx%physics => prob
-       !approx%nsi => prob
+       !approx%cdr => prob
     class default
        check(.false.)
     end select
 
     ! Flags
     approx%kfl_1vec = 1 ! Integrate Full OSS
-    approx%kfl_mtvc = 1 ! Integrate nsi_element_matvec
-    approx%kfl_matr = 1 ! Integrate nsi_element_mat
+    approx%kfl_mtvc = 1 ! Integrate cdr_element_matvec
+    approx%kfl_matr = 1 ! Integrate cdr_element_mat
     approx%kfl_real = 0 ! Integrate errornorm
     approx%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
     approx%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
     approx%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
 
     ! Problem variables
-    approx%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
-    approx%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
-    approx%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
+    approx%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter
+    approx%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter
 
     ! Time integration variables
     approx%dtinv  = 1.0_rp ! Inverse of time step
     approx%ctime  = 0.0_rp ! Current time
-    approx%tdimv  =  2     ! Number of temporal steps stored for velocity
-    approx%tdimp  =  2     ! Number of temporal steps stored for pressure
+    approx%tdimv  =  2     ! Number of temporal steps stored
     
-  end subroutine nsi_cg_create
+  end subroutine cdr_stabilized_continuous_Galerkin_create
 
-  subroutine nsi_cg_matvec(approx,integ,unkno,start,mat,vec)
+  subroutine cdr_stabilized_continuous_Galerkin_matvec(approx,integ,unkno,start,mat,vec)
     implicit none
-    class(nsi_approximation)       , intent(in) :: approx
+    class(cdr_approximation)       , intent(in) :: approx
     type(volume_integrator_pointer), intent(in) :: integ(:)
     real(rp)                       , intent(in) :: unkno(:,:,:)
     integer(ip)                    , intent(in) :: start(:)
@@ -137,43 +133,36 @@ contains
     v = basis_function(approx%physics,1,start,integ) 
     q = basis_function(approx%physics,2,start,integ)
 
-    ! With a_h declared as given_function we could do:
-    ! a_h   = given_function(approx,1,1,integ)
-    ! call interpolation(grad(a_h),grad_a) 
-    ! with grad_a declared as tensor and, of course
-    ! call interpolation(grad(given_function(approx,1,1,integ)),grad_a)
-    ! is also possible.
-    !call interpolation(given_function(approx,1,1,integ),a)
-    !call interpolation(given_function(approx,1,3,integ),u_n)
-
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and
     ! an initialization call.
-    call create_vector (approx%physics, 1, integ, a)
-    call create_vector (approx%physics, 1, integ, u_n)
+    !call create_vector (approx%physics, 1, integ, a)
+    !call create_vector (approx%physics, 1, integ, u_n)
     ! Then for each element fill values
-    call interpolation (unkno, 1, 1, integ, a)
-    call interpolation (unkno, 1, 3, integ, u_n)
+    !call interpolation (unkno, 1, 1, integ, a)
+    !call interpolation (unkno, 1, 3, integ, u_n)
 
     ! Dirty, isnt'it?
     !h%a=integ(1)%p%femap%hleng(1,:)     ! max
-    h%a=integ(1)%p%femap%hleng(ndime,:) ! min
+    !h%a=integ(1)%p%femap%hleng(ndime,:) ! min
 
     mu = approx%physics%diffu
 
-    dtinv  = approx%dtinv
-    c1 = approx%k1tau
-    c2 = approx%k1tau
+    !dtinv  = approx%dtinv
+    !c1 = approx%k1tau
+    !c2 = approx%k1tau
 
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
-    tau = inv(tau)
-    
-    mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
+    !tau = inv(tau)
+
+    mat = integral(grad(v),grad(u))
+
+    !mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
     !mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
     !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
-  end subroutine nsi_cg_matvec
+  end subroutine cdr_stabilized_continuous_Galerkin_matvec
 
-end module nsi_cg_names
+end module cdr_stabilized_continuous_Galerkin_names

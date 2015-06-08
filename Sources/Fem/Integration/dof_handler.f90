@@ -60,21 +60,21 @@ module dof_handler_names
 
    contains
      procedure :: set_problem
-
+     procedure :: create => dof_handler_create
   end type dof_handler
 
   ! Types
   public :: dof_handler !, physical_problem!, physical_problem_pointer
 
   ! Functions
-  public ::  dof_handler_create, dof_handler_print, dof_handler_free !, dof_handler_fill
+  public ::  dof_handler_print, dof_handler_free !, dof_handler_fill
 
 contains
 
   subroutine dof_handler_create( dhand, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
     implicit none
     ! Parameters
-    type(dof_handler), intent(inout)          :: dhand
+    class(dof_handler), intent(inout)          :: dhand
     integer(ip), intent(in)                   :: nblocks, nprobs, nvars_global 
     integer(ip), intent(in), optional         :: vars_block(:), dof_coupl(:,:)
 
