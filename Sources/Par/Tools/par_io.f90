@@ -47,7 +47,7 @@ contains
 
     iam = iam + 1 ! File-name subdomain identifiers start from 1
 
-    call numbered_filename_compose_deferred_length( iam, num_procs, file)
+    call numbered_filename_compose ( iam, num_procs, file)
 
   end subroutine par_filename
 

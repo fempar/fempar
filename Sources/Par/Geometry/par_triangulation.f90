@@ -56,6 +56,10 @@ module par_triangulation_names
   !                I already did store these data on num_itfc_objs and lst_itfc_objs members of type(par_triangulation)
   !                but at the current state I do not know whether this is the most appropriate place. 
 
+  integer(ip), parameter :: par_triangulation_not_created  = 0 ! Initial state
+  integer(ip), parameter :: par_triangulation_filled       = 1 ! Elems + Objects arrays allocated and filled 
+
+
   type par_object_topology
      integer(ip)  :: interface  = -1 ! Interface local id of this object
      integer(igp) :: globalID   = -1 ! Global ID of this object
@@ -77,6 +81,7 @@ module par_triangulation_names
   end type par_elem_topology
 
   type :: par_triangulation
+     integer(ip)                             :: state = par_triangulation_not_created  
      type(fem_triangulation)                 :: f_trian             ! Data common with a centralized (serial) triangulation
      integer(ip)                             :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
      integer(ip)                             :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
@@ -104,6 +109,9 @@ module par_triangulation_names
   ! Auxiliary Subroutines (should only be used by modules that have control over type(par_triangulation))
   public :: free_par_elem_topology, free_par_object_topology, par_triangulation_free_elems_data, par_triangulation_free_objs_data 
 
+  ! Constants (should only be used by modules that have control over type(fem_triangulation))
+  public :: par_triangulation_not_created, par_triangulation_filled
+
 contains
 
   !=============================================================================
@@ -115,14 +123,16 @@ contains
     ! Locals
     integer(ip) :: iobj, istat, ielem
 
-    assert(.not. p_trian%f_trian%state == triangulation_not_created) 
-    assert(.not. p_trian%f_trian%state == triangulation_created)
+    assert(p_trian%state == par_triangulation_filled) 
     
     call par_triangulation_free_objs_data (p_trian)
     call par_triangulation_free_elems_data(p_trian)
     
     ! Free local portion of triangulation
     call fem_triangulation_free(p_trian%f_trian)
+
+    p_trian%state = par_triangulation_not_created
+
   end subroutine par_triangulation_free
 
   !=============================================================================
@@ -134,18 +144,18 @@ contains
     ! Locals
     integer(ip) :: iobj, istat
 
-    if ( p_trian%f_trian%state == triangulation_elems_objects_filled ) then
+    if ( p_trian%state == par_triangulation_filled ) then
        do iobj=1, p_trian%f_trian%num_objects 
           call free_par_object_topology(p_trian%objects(iobj)) 
        end do
-  
+       
        p_trian%num_itfc_objs = -1
        call memfree ( p_trian%lst_itfc_objs, __FILE__, __LINE__ )
        
        p_trian%max_nparts = -1 
        p_trian%nobjs      = -1 
        call memfree ( p_trian%lobjs, __FILE__, __LINE__ )
-
+       
        ! Deallocate the object structure array 
        deallocate(p_trian%objects, stat=istat)
        check(istat==0)
@@ -160,10 +170,8 @@ contains
 
     ! Locals
     integer(ip) :: ielem, istat
-    
-    if ( p_trian%f_trian%state == triangulation_elems_objects_filled .or.  &
-         p_trian%f_trian%state == triangulation_elems_filled ) then
-       
+
+    if ( p_trian%state == par_triangulation_filled ) then
        do ielem=1, p_trian%f_trian%elem_array_len 
           call free_par_elem_topology(p_trian%elems(ielem)) 
        end do
@@ -193,12 +201,6 @@ contains
 
     ! Locals
     integer(ip)              :: ielem, iobj, jobj, istat
-
-    assert(p_trian%f_trian%state == triangulation_elems_filled .or. p_trian%f_trian%state == triangulation_elems_objects_filled) 
-
-    call par_triangulation_free_objs_data(p_trian)
-
-    call fem_triangulation_to_dual ( p_trian%f_trian, p_trian%num_ghosts )
 
     ! Allocate p_trian%objects array
     allocate(p_trian%objects(p_trian%f_trian%num_objects), stat=istat)

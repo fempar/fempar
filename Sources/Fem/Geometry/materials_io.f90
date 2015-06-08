@@ -117,25 +117,23 @@ contains
 
   end subroutine fem_materials_write
 
- !=============================================================================
+  !=============================================================================
   subroutine fem_materials_compose_name ( prefix, name ) 
     implicit none
-    character *(*), intent(in)        :: prefix 
-    character *(*), intent(out)       :: name
+    character (len=*)             , intent(in)    :: prefix 
+    character (len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.mat'
   end subroutine fem_materials_compose_name
 
-
-
-!=============================================================================
+  !=============================================================================
   subroutine fem_materials_write_files ( dir_path, prefix, nparts, lmater )
     implicit none
     ! Parameters 
-    character *(*), intent(in)       :: dir_path 
-    character *(*), intent(in)       :: prefix
-    integer(ip)   , intent(in)       :: nparts
+    character(*), intent(in)        :: dir_path 
+    character(*), intent(in)        :: prefix
+    integer(ip)   , intent(in)      :: nparts
     type(fem_materials), intent(in) :: lmater (nparts)
-    character(256)                   :: name, rename
+    character(len=:), allocatable   :: name, rename ! Deferred-length allocatable character arrays
 
     ! Locals 
     integer (ip)                     :: i, lunio
