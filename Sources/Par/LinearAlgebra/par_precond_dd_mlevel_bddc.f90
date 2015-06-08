@@ -1928,13 +1928,6 @@ contains
                                   mlbddc%g_context%np, &
                                   mlbddc%p_mat%dof_dist%max_nparts )
 
-       ! The elements in the coarse-grid mesh might be different
-       ! to each other to an extent that there are as many element types
-       ! as coarse-grid elements. I will set it to 0 as we do with the 
-       ! dual mesh, although I don't know whether this is the most appropiate
-       ! choice 
-       c_mesh%nelty = 0
-
        c_mesh%nelem = mlbddc%g_context%np-1
        call memalloc ( c_mesh%nelem+1, c_mesh%pnods,__FILE__,__LINE__ ) 
        call memalloc ( mlbddc%g_context%np+1, mlbddc%ptr_coarse_dofs,__FILE__,__LINE__ ) 
@@ -3016,7 +3009,6 @@ contains
    !      is responsible for the proper initialization of ALL of its members, and not
    !      a subset of them (as it is done HERE). I will init at least npoin, nelty here
    !      as a temporal solution (what about ndime, nnode, nboun, etc.?)
-   dual_f_mesh%nelty = 0
    dual_f_mesh%npoin = np_g - 1
    dual_f_mesh%nelem = ng_coarse
    call memalloc (dual_f_mesh%nelem+1, dual_f_mesh%pnods, __FILE__,__LINE__) 
@@ -8637,8 +8629,6 @@ end if
 
     integer(ip)                     :: npoin, idof1
 
-    assert(dual_mesh%nelty/=1)
-
     ! Initialize work space of filled-up positions
     ws_position   = 0
 
@@ -8660,13 +8650,8 @@ end if
 
           ! Traverse the primal nodes of the primal element number ipoindm
           ! (i.e., dual elements around dual node number ipoindm)
-          if(primal_mesh%nelty==1) then
-             inods1=(ipoindm-1)*primal_mesh%nnode+1
-             inods2=ipoindm*primal_mesh%nnode
-          else
-             inods1=primal_mesh%pnods(ipoindm)
-             inods2=primal_mesh%pnods(ipoindm+1)-1
-          end if
+          inods1=primal_mesh%pnods(ipoindm)
+          inods2=primal_mesh%pnods(ipoindm+1)-1
           do p_ipoinpm = inods1,inods2
              ipoinpm = primal_mesh%lnods(p_ipoinpm)
              if ( gtype == csr .or. ( gtype == csr_symm .and. ipoinpg <= ipoindm ) ) then
@@ -8718,8 +8703,6 @@ end if
        integer(ip)                    :: first_free_pos
        integer(ip)                    :: num_neighbors, idof1, idof2
 
-       assert(dual_mesh%nelty/=1)
-
        ! Initialize work space of filled-up positions to zeros
        ws_position   = 0
 
@@ -8739,13 +8722,8 @@ end if
 
              ! Traverse the primal nodes of the primal element number ipoindm
              ! (i.e., dual elements around dual node number ipoindm)
-             if(primal_mesh%nelty==1) then
-                inods1=(ipoindm-1)*primal_mesh%nnode+1
-                inods2=ipoindm*primal_mesh%nnode
-             else
-                inods1=primal_mesh%pnods(ipoindm)
-                inods2=primal_mesh%pnods(ipoindm+1)-1
-             end if
+             inods1=primal_mesh%pnods(ipoindm)
+             inods2=primal_mesh%pnods(ipoindm+1)-1
              do p_ipoinpm = inods1,inods2
                 ipoinpm = primal_mesh%lnods(p_ipoinpm)
                 ! Only list edges (i,j) s.t., i <= j  

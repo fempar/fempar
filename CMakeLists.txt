@@ -47,6 +47,7 @@ SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/Modules/")
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 SET(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/modules)
+INCLUDE_DIRECTORIES(${CMAKE_Fortran_MODULE_DIRECTORY})
 
 #################################################################
 # ADD INCLUDE DIRS
@@ -74,7 +75,7 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 # LIBRARY ORDER IS IMPORTANT IN THE CASE OF MKL, BLAS AND LAPACK
 # IF MKL WAS FOUND BLAS AND LAPACK MACRO DEFITIONS ARE ACTIVE 
 # BUT LIBRARIES ARE NOT LINKED
-SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN)
+SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN OpenMP)
 SET(MKL_FIND_QUIETLY TRUE) 
 
 #################################################################
@@ -84,7 +85,7 @@ SET(MKL_FIND_QUIETLY TRUE)
 
 FOREACH(EXT_LIB ${EXT_LIBS})
     IF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND NOT ${EXT_LIB}_FOUND)
-        IF(MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
+        IF(DEFINED MKL_FOUND AND MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #           IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
             OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
             SET(${EXT_LIB}_FOUND TRUE)
@@ -93,7 +94,7 @@ FOREACH(EXT_LIB ${EXT_LIBS})
             FIND_PACKAGE( ${EXT_LIB} )
     
             IF (${EXT_LIB}_FOUND)
-                IF (MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
+                IF (DEFINED MKL_FOUND AND MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #                   IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
                 ELSE()
 #                  SET(MACROS "${MACROS} -DENABLE_${EXT_LIB}")
@@ -115,7 +116,7 @@ FOREACH(EXT_LIB ${EXT_LIBS})
         UNSET(${EXT_LIB}_LIBRARIES CACHE)
 
     ELSE(NOT DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB})
-        IF(MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
+        IF(DEFINED(MKL_FOUND) AND MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #           IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
             OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
             SET(${EXT_LIB}_FOUND TRUE)
@@ -123,10 +124,11 @@ FOREACH(EXT_LIB ${EXT_LIBS})
         ELSE()
             FIND_PACKAGE( ${EXT_LIB} )
 
-            IF (${EXT_LIB}_FOUND)
+            STRING( TOUPPER ${EXT_LIB}_FOUND UPPER_STRING)
+
+            IF (${${UPPER_STRING}})
                SET(NO_LIBS FALSE)
                OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
-               MESSAGE(STATUS "External ${EXT_LIB} library Found!")
 #              SET(MACROS "${MACROS} -DENABLE_${EXT_LIB}")
                ADD_DEFINITIONS(-DENABLE_${EXT_LIB})
                IF(IS_DIRECTORY ${${EXT_LIB}_INCLUDE_DIR})
@@ -157,20 +159,35 @@ ENDIF()
 
 ADD_DEFINITIONS(-D${CMAKE_Fortran_COMPILER_ID})
 
+IF(${${PROJECT_NAME}_ENABLE_OpenMP})
+  SET(EXTRA_FLAGS ${OpenMP_Fortran_FLAGS})
+ELSE()
+  SET(EXTRA_FLAGS "")
+ENDIF()
+
+message("COMPILER INFO: ${CMAKE_Fortran_COMPILER_ID} - ${Fortran_COMPILER_NAME}")
+
 IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "gfortran*")
   # gfortran 
-  set(FORTRAN_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ")
-  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface" CACHE STRING "" FORCE)
+  set(FORTRAN_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ${EXTRA_FLAGS} ")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "ifort*")
   # ifort (untested)
-  set(FORTRAN_FLAGS "-r8 -fpp -W1")
+  set(FORTRAN_FLAGS "-r8 -fpp -W1 ${EXTRA_FLAGS} ")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv -warn nointerfaces" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv -warn nointerfaces ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
 # A partir de CMake 3.1
 # -prof-gen:srcpos -prof-dir${PROJECT_BINARY_DIR}
+
+ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "XL" OR Fortran_COMPILER_NAME MATCHES "xlf*")
+  # xlf (untested)
+  set(FORTRAN_FLAGS "-q64 -qrealsize=8 -qsuffix=f=f90:cpp=f90 ${EXTRA_FLAGS} ")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 -qstrict ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -qfullpath -qkeepparm ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
 ELSE ()
   message ("No optimized Fortran compiler flags are known, we just try -O2...")
   set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
@@ -193,6 +210,14 @@ STRING(TIMESTAMP DATE "%Y-%m-%d_%H:%M")
 SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL} CACHE STRING "" )
 ENABLE_TESTING()
 INCLUDE(CTest)
+
+#################################################################
+# STATIC LIBRARIES
+#################################################################
+# Try to search first static libraries
+IF(NOT ${BUILD_SHARED_LIBS})
+    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a ${CMAKE_FIND_LIBRARY_SUFFIXES}")
+ENDIF()
 
 #################################################################
 # ADD SOURCE SUBDIRS

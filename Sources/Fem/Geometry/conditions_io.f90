@@ -46,7 +46,7 @@ contains
   !  * implement other formats (when needed)
   !
   !=============================================================================
-  subroutine fem_conditions_read(lunio,npoin,nodes,nboun,bouns)
+  subroutine fem_conditions_read(lunio,npoin,nodes)
     !------------------------------------------------------------------------
     !
     ! This routine reads conditions
@@ -55,8 +55,6 @@ contains
     implicit none
     integer(ip)         , intent(in)            :: lunio,npoin
     type(fem_conditions), intent(out)           :: nodes
-    integer(ip)         , optional, intent(in)  :: nboun
-    type(fem_conditions), optional, intent(out) :: bouns
     integer(ip)                                 :: i,ncode,nvalu,icode,ivalu,ipoin,iboun
     character(1024)                             :: tel
 
@@ -97,27 +95,6 @@ contains
        read(lunio,'(a)') tel
     end do
 
-    if(present(nboun).and.nboun>0) then
-       ! Check nboun > 0 and present(bouns))
-       call fem_conditions_create(ncode,nvalu,nboun,bouns)
-
-       ! Look for starting bouns conditions
-       read(lunio,'(a)') tel
-       do while(tel(1:5).ne.'FACES')
-          read(lunio,'(a)') tel
-       end do
-
-       read(lunio,'(a)') tel
-       do while(tel(1:9).ne.'END FACES')
-          read(tel,*) iboun,(bouns%code(icode,iboun),icode=1,ncode), &
-               &            (bouns%valu(ivalu,iboun),ivalu=1,nvalu)
-          read(lunio,'(a)') tel
-       end do
-
-    end if
-
-    return
-
   end subroutine fem_conditions_read
 
   !=============================================================================
@@ -144,15 +121,6 @@ contains
             &               (nodes%valu(ivalu,ipoin),ivalu=1,nodes%nvalu)
     end do
     write(lunio,1) 'END NODES'
-
-    if(present(bouns)) then
-       write(lunio,1) 'FACES'
-       do ipoin=1,bouns%ncond
-          write(lunio,fmt) ipoin,(bouns%code(icode,ipoin),icode=1,bouns%ncode), &
-               &               (bouns%valu(ivalu,ipoin),ivalu=1,bouns%nvalu)
-       end do
-       write(lunio,1) 'END FACES'
-    end if
 
 1   format(a)
 2   format(a5,i10)
