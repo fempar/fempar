@@ -135,7 +135,7 @@ contains
        call memalloc ( nparts, ws_parts_visited_list_all, __FILE__, __LINE__ )
 
        call memalloc ( est_max_nparts+4, est_max_itf_dofs, lst_parts_per_dof_obj, __FILE__, __LINE__ )
-       call memalloc ( femsp%num_continuity, dhand%nvars_global, est_max_nparts+5 , touch, __FILE__, __LINE__ )
+       call memalloc ( est_max_nparts+5, femsp%num_continuity, dhand%nvars_global, touch, __FILE__, __LINE__ )
        call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
        call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
 
@@ -155,7 +155,7 @@ contains
           end if
        end do
 
-       !write (*,*) 'nint',nint
+       write (*,*) 'nint',nint
 
        ! interior
        if ( .not. femsp%static_condensation ) then 
@@ -176,7 +176,7 @@ contains
           end do
        end if
 
-       !write (*,*) 'nint',nint
+       write (*,*) 'nint',nint
 
        call ws_parts_visited_all%init(tbl_length)
 
@@ -213,17 +213,17 @@ contains
                    !call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
                    call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=touching,stat=istat)
                    if ( istat == now_stored ) then
-                      touch(mater,g_var,1) = touch(mater,g_var,1) + 1 ! New part in the counter  
+                      touch(1,mater,g_var) = touch(1,mater,g_var) + 1 ! New part in the counter  
                       !write(*,*) 'touch',touch
-                      touch(mater,g_var,touch(mater,g_var,1)+5) = p_trian%elems(jelem)%mypart ! Put new part
+                      touch(touch(mater,g_var,1)+5,mater,g_var) = p_trian%elems(jelem)%mypart ! Put new part
                    end if
-                   if( p_trian%elems(jelem)%globalID > touch(mater,g_var,2) ) then
-                      touch(mater,g_var,2) = jelem 
-                      touch(mater,g_var,3) = obje_l
+                   if( p_trian%elems(jelem)%globalID > touch(2,mater,g_var) ) then
+                      touch(2,mater,g_var) = jelem 
+                      touch(3,mater,g_var) = obje_l
                    end if
                    if ( jelem <= p_trian%f_trian%num_elems ) then
-                      touch(mater,g_var,4) = jelem 
-                      touch(mater,g_var,5) = obje_l
+                      touch(4,mater,g_var) = jelem 
+                      touch(5,mater,g_var) = obje_l
                    end if
                    if ( p_trian%elems(jelem)%mypart /= ipart ) then
                       !call ws_parts_visited_all%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
@@ -237,16 +237,14 @@ contains
              end do
           end do
 
-          max_nparts = max(max_nparts, touch(mater,g_var,1))
+          max_nparts = max(max_nparts, touch(1,mater,g_var))
 
           !write(*,*) '**** TOUCH ****',touch
-
-
           ! Sort list of parts in increasing order by part identifiers
           ! This is required by the call to icomp subroutine below 
           do mater = 1, femsp%num_continuity
              do g_var = 1, dhand%nvars_global
-                call sort ( touch(mater,g_var,1), touch(mater,g_var,6:(touch(mater,g_var,1)+5)) )
+                call sort ( touch(1,mater,g_var), touch(6:(touch(mater,g_var,1)+5),mater,g_var) )
              end do
           end do
 
@@ -258,31 +256,31 @@ contains
              g_var = femsp%object2dof(iblock)%l(idof,2)  
              g_mat = femsp%object2dof(iblock)%l(idof,3)
              !write(*,*) 'g_mat',g_mat
-             if ( touch(g_mat,g_var,1) > 1 ) then ! Interface dof
+             if ( touch(1,g_mat,g_var) > 1 ) then ! Interface dof
                 g_dof = femsp%object2dof(iblock)%l(idof,1)
-                nparts_around = touch(g_mat,g_var,1)
+                nparts_around = touch(1,g_mat,g_var)
 
                 count = count + 1
                 lst_parts_per_dof_obj (1,count) = g_var ! Variable
 
                 ! Use the local pos of dof in elem w/ max GID to sort
-                l_var = dhand%g2l_vars(g_var,femsp%lelem(touch(g_mat,g_var,2))%problem)
+                l_var = dhand%g2l_vars(g_var,femsp%lelem(touch(2,g_mat,g_var))%problem)
 
-                if ( touch(g_mat,g_var,2) <= p_trian%f_trian%num_elems ) then
-                   l_pos =  local_node( g_dof, iobj, femsp%lelem(touch(g_mat,g_var,2)), l_var, &
-                        & p_trian%f_trian%elems(touch(g_mat,g_var,2))%num_objects, &
-                        & p_trian%f_trian%elems(touch(g_mat,g_var,2))%objects )
+                if ( touch(2,g_mat,g_var) <= p_trian%f_trian%num_elems ) then
+                   l_pos =  local_node( g_dof, iobj, femsp%lelem(touch(2,g_mat,g_var)), l_var, &
+                        & p_trian%f_trian%elems(touch(2,g_mat,g_var))%num_objects, &
+                        & p_trian%f_trian%elems(touch(2,g_mat,g_var))%objects )
                 else
-                   l_pos =  local_node( g_dof, iobj, femsp%lelem(touch(g_mat,g_var,4)), l_var, &
-                        & p_trian%f_trian%elems(touch(g_mat,g_var,4))%num_objects, &
-                        & p_trian%f_trian%elems(touch(g_mat,g_var,4))%objects )
+                   l_pos =  local_node( g_dof, iobj, femsp%lelem(touch(4,g_mat,g_var)), l_var, &
+                        & p_trian%f_trian%elems(touch(4,g_mat,g_var))%num_objects, &
+                        & p_trian%f_trian%elems(touch(4,g_mat,g_var))%objects )
                    ! SB.alert :  This part is difficult... can I simplify it ?
-                   elem_ghost = touch(g_mat,g_var,2)
-                   elem_local = touch(g_mat,g_var,4)
+                   elem_ghost = touch(2,g_mat,g_var)
+                   elem_local = touch(4,g_mat,g_var)
                    l_var_ghost = dhand%g2l_vars(g_var,femsp%lelem(elem_ghost)%problem)
                    l_var_local = dhand%g2l_vars(g_var,femsp%lelem(elem_local)%problem)
-                   obje_ghost = touch(g_mat,g_var,3)
-                   obje_local = touch(g_mat,g_var,5)
+                   obje_ghost = touch(3,g_mat,g_var)
+                   obje_local = touch(5,g_mat,g_var)
                    order = femsp%lelem(elem_local)%order(l_var_local)
                    ! SB.alert : We must think about it and the relation between material and interpolation
                    nnode = femsp%lelem(elem_local)%nodes_object(l_var_local)%p%p(obje_local+1) &
@@ -308,7 +306,7 @@ contains
                    l_pos = o2n(l_pos)
                 end if
                 lst_parts_per_dof_obj (2,count) = nparts_around ! Number parts 
-                lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(g_mat,g_var,6:(touch(g_mat,g_var,1)+5)) ! List parts
+                lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(6:(touch(g_mat,g_var,1)+5),g_mat,g_var) ! List parts
                 lst_parts_per_dof_obj (nparts_around+3:est_max_nparts+2,count) = 0 ! Zero the rest of entries in current col except last
                 lst_parts_per_dof_obj (est_max_nparts+3,count) = p_trian%objects(iobj)%globalID
                 lst_parts_per_dof_obj (est_max_nparts+4,count) = l_pos ! Local pos in Max elem GID
@@ -348,12 +346,12 @@ contains
          ! number of parts they belong and, for DoFs sharing the same number of parts,
          ! in increasing order by the list of parts shared by each DoF.
          call sort_array_cols_by_row_section( est_max_nparts+4,            & ! #Rows 
-              &                                 est_max_nparts+4,            & ! Leading dimension
-              &                                 nboun,                       & ! #Cols
-              &                                 lst_parts_per_dof_obj,       &
-              &                                 l2ln2o(nint+1:),             &
-              &                                 sort_parts_per_itfc_obj_l1,  &
-              &                                 sort_parts_per_itfc_obj_l2)
+              &                               est_max_nparts+4,            & ! Leading dimension
+              &                               nboun,                       & ! #Cols
+              &                               lst_parts_per_dof_obj,       &
+              &                               l2ln2o(nint+1:),             &
+              &                               sort_parts_per_itfc_obj_l1,  &
+              &                               sort_parts_per_itfc_obj_l2)
 
          ! write (*,*) 'l2ln2o:',l2ln2o
 
