@@ -176,7 +176,7 @@ contains
     implicit none
     class(physical_problem), intent(in) :: prob
     integer(ip)            , intent(in) :: iunk
-    integer(ip)            , intent(in) :: start(prob%nvars)
+    integer(ip)            , intent(in) :: start(prob%nvars+1)
     type(volume_integrator_pointer), target, intent(in) :: integ(:)
     type(basis_function) :: res
     integer(ip)          :: i,ivar

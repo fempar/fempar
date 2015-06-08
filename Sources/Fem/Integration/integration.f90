@@ -56,7 +56,7 @@ contains
     ! Locals
     integer(ip) :: ielem,ivar,nvars 
     class(discrete_problem) , pointer :: discrete
-    integer(ip) :: start(femsp%dof_handler%nvars_global)
+    integer(ip) :: start(femsp%dof_handler%nvars_global+1)
 
     ! Main element loop
     do ielem=1,femsp%g_trian%num_elems

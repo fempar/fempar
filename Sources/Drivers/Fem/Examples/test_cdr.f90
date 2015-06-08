@@ -42,6 +42,9 @@ program test_cdr
 
   type(cdr_problem)               :: my_problem
   type(cdr_approximation), target :: my_approximation
+  type(discrete_problem_pointer)  :: approximations(1)
+
+  type(fem_matrix)             :: my_matrix
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -51,8 +54,6 @@ program test_cdr
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
 
   integer(ip), allocatable :: continuity(:,:)
-
-  type(discrete_problem_pointer) :: approximations(1)
 
   integer(ip) :: lunio
 
@@ -98,7 +99,7 @@ program test_cdr
   ! ... for as many problems as we have
 
   call my_approximation%create(my_problem)
-!  approximations(1)%p => my_approximation
+  approximations(1)%p => my_approximation
 
 
   call memalloc( f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
@@ -137,6 +138,11 @@ program test_cdr
   call fem_space_print( 6, fspac )
 
 
+  call fem_matrix_alloc(csr_mat,symm_false, dof_graph(1,1), my_matrix)
+
+  !write (*,*) '********** STARTING ASSEMBLY **********'
+  call volume_integral(fspac,my_matrix)
+  !write (*,*) '********** FINISHED ASSEMBLY **********'
 
 
 
