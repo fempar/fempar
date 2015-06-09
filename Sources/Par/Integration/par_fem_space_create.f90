@@ -78,25 +78,38 @@ contains
     logical(lg), optional, intent(in) :: static_condensation
     integer(ip), optional, intent(in) :: num_continuity 
 
-    integer(ip) :: num_elems, num_ghosts, ielem
+    integer(ip) :: num_elems, ielem
 
     ! Create local fem space
     ! Note: When this subroutine is called from par_fem_space_create.f90, we have
     ! provided num_ghosts just in order to allocate element lists in 
     ! fem_space_allocate_structures that will also include ghost elements. 
-    call fem_space_create( p_trian%f_trian, dhand, femsp, &
-         & problem, approximations, bcond, continuity, order, material, which_approx, num_approximations, &
-         & time_steps_to_store = time_steps_to_store, &
-         & hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
-         & num_continuity = num_continuity, num_ghosts = p_trian%num_ghosts )
+    ! call fem_space_create( p_trian%f_trian, dhand, femsp, &
+    !      & problem, approximations, bcond, continuity, order, material, which_approx, num_approximations, &
+    !      & time_steps_to_store = time_steps_to_store, &
+    !      & hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
+    !      & num_continuity = num_continuity, num_ghosts = p_trian%num_ghosts )
+
+
+    call fem_space_allocate_structures(  p_trian%f_trian, dhand, femsp, num_approximations=num_approximations,&
+         time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
+         static_condensation = static_condensation, num_continuity = num_continuity, &
+         num_ghosts = p_trian%num_ghosts ) 
+
+    assert(size(approximations)==num_approximations)
+    femsp%approximations = approximations
+
+    call fem_space_fe_list_create ( femsp, problem, which_approx, continuity, order, material, bcond )
 
     ! Communicate problem, continuity, order, and material
-    write(*,*) '***** EXCHANGE GHOST INFO *****'
+    !write(*,*) '***** EXCHANGE GHOST INFO *****'
     call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, femsp%lelem )
 
     ! Create ghost fem space (only partially, i.e., previous info)
     ! write(*,*) '***** FILL GHOST ELEMENTS  *****'
     call ghost_fe_list_create ( femsp, p_trian%num_ghosts ) 
+
+    call integration_faces_list( femsp )
 
     !write(*,*) 'num_elems+1', femsp%g_trian%num_elems+1
     !write(*,*) 'num_ghosts', num_ghosts
@@ -130,22 +143,22 @@ contains
     integer(ip) :: aux_val
 
     do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
-       write (*,*) '************* GHOST ELEMENT *************',ielem
+       !write (*,*) '************* GHOST ELEMENT *************',ielem
        nvars = femsp%dof_handler%problems(femsp%lelem(ielem)%problem)%p%nvars
        femsp%lelem(ielem)%num_vars = nvars
        f_type = femsp%g_trian%elems(ielem)%topology%ftype
-       write(*,*) 'f_type ghosts',f_type
-       write(*,*) 'nvars',nvars
+       !write(*,*) 'f_type ghosts',f_type
+       !write(*,*) 'nvars',nvars
        assert ( f_type > 0)
        call memalloc(nvars, femsp%lelem(ielem)%f_inf, __FILE__, __LINE__ )
        do ivar=1,nvars
           f_order = femsp%lelem(ielem)%order(ivar)
-          write(*,*) 'f_order',f_order
+          !write(*,*) 'f_order',f_order
           v_key = femsp%g_trian%num_dims + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
 
           call femsp%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
-             write (*,*) ' FIXED INFO NEW'
+             !write (*,*) ' FIXED INFO NEW'
              call fem_element_fixed_info_create(femsp%lelem_info(pos_elinf),f_type,              &
                   &                             f_order,femsp%g_trian%num_dims,created)
              assert(created)

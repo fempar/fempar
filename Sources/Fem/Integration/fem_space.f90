@@ -164,7 +164,8 @@ module fem_space_names
 
   ! Functions
   public :: fem_space_create, fem_space_print, &
-       &    fem_element_print, fem_space_free
+       &    fem_element_print, fem_space_free, integration_faces_list, fem_space_allocate_structures, &
+       &    fem_space_fe_list_create 
 !,          &
 !       get_p_faces
 
@@ -201,6 +202,8 @@ contains
     fspac%approximations = approximations
 
     call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material, bcond )
+
+    call integration_faces_list( fspac )
 
   end subroutine fem_space_create
 
@@ -464,7 +467,7 @@ contains
 
     end do
 
-    call integration_faces_list( fspac%g_trian, fspac )
+    !call integration_faces_list( fspac%g_trian, fspac )
 
   end subroutine fem_space_fe_list_create
 
@@ -777,10 +780,9 @@ contains
   end subroutine fem_element_unpack
 
   
-  subroutine integration_faces_list( trian, femsp ) 
+  subroutine integration_faces_list( femsp ) 
     implicit none
     ! Parameters
-    type(fem_triangulation), intent(in)       :: trian 
     type(fem_space), intent(inout)               :: femsp
 
     integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
@@ -790,13 +792,13 @@ contains
     ! The list of boundary faces includes all faces, whereas the interior ones are only those
     ! where we expect to integrate things (based on continuity flags)
     count_int = 0
-    count_bou = trian%num_boundary_faces
-    do iobje = 1, trian%num_objects
-       if ( trian%objects(iobje)%dimension == trian%num_dims-1 ) then
-          if ( trian%objects(iobje)%border == -1 ) then
-             assert( trian%objects(iobje)%num_elems_around == 2 )
-             ielem = trian%objects(iobje)%elems_around(1)
-             jelem = trian%objects(iobje)%elems_around(2)
+    count_bou = femsp%g_trian%num_boundary_faces
+    do iobje = 1, femsp%g_trian%num_objects
+       if ( femsp%g_trian%objects(iobje)%dimension == femsp%g_trian%num_dims-1 ) then
+          if ( femsp%g_trian%objects(iobje)%border == -1 ) then
+             assert( femsp%g_trian%objects(iobje)%num_elems_around == 2 )
+             ielem = femsp%g_trian%objects(iobje)%elems_around(1)
+             jelem = femsp%g_trian%objects(iobje)%elems_around(2)
              iprob = femsp%lelem(ielem)%problem
              jprob = femsp%lelem(jelem)%problem
              do ivars = 1, femsp%dof_handler%problems(iprob)%p%nvars
@@ -811,7 +813,7 @@ contains
                 end if
              end do
           else
-             assert( trian%objects(iobje)%num_elems_around == 1 )
+             assert( femsp%g_trian%objects(iobje)%num_elems_around == 1 )
           end if
        end if
     end do
@@ -827,12 +829,12 @@ contains
 
     count_int = 0
     count_bou = 0
-    do iobje = 1, trian%num_objects
-       if ( trian%objects(iobje)%dimension == trian%num_dims-1 ) then
-          if ( trian%objects(iobje)%border == -1 ) then
-             assert( trian%objects(iobje)%num_elems_around == 2 )
-             ielem = trian%objects(iobje)%elems_around(1)
-             jelem = trian%objects(iobje)%elems_around(2)
+    do iobje = 1, femsp%g_trian%num_objects
+       if ( femsp%g_trian%objects(iobje)%dimension == femsp%g_trian%num_dims-1 ) then
+          if ( femsp%g_trian%objects(iobje)%border == -1 ) then
+             assert( femsp%g_trian%objects(iobje)%num_elems_around == 2 )
+             ielem = femsp%g_trian%objects(iobje)%elems_around(1)
+             jelem = femsp%g_trian%objects(iobje)%elems_around(2)
              iprob = femsp%lelem(ielem)%problem
              jprob = femsp%lelem(jelem)%problem
              do ivars = 1, femsp%dof_handler%problems(iprob)%p%nvars
@@ -847,7 +849,7 @@ contains
                 end if
              end do
           else
-             assert( trian%objects(iobje)%num_elems_around == 1 )
+             assert( femsp%g_trian%objects(iobje)%num_elems_around == 1 )
              count_bou = count_bou + 1
              femsp%boundary_faces(count_bou)%face_object = iobje
           end if
