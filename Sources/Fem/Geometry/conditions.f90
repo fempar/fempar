@@ -29,7 +29,6 @@ module fem_conditions_names
   use types
   use memor
   use stdio
-  use fem_mesh_names
   use renum_names
 # include "debug.i90"
   implicit none

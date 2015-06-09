@@ -232,37 +232,49 @@ subroutine init_hash_table(tbl,tbl_len,tbl_min,tbl_max)
 end subroutine init_hash_table
 
 #ifdef position
-subroutine get_position_hash_table(tbl,key,pos,stat)
+
+function last_hash_table(tbl) result(size)
+  class(hash_table)  , intent(inout) :: tbl
+  integer(ip)                        :: size
+  size = tbl%counter
+end function last_hash_table
+
+subroutine get_hash_table(tbl,key,val,stat)
   class(hash_table)  , intent(inout) :: tbl
   key_type           , intent(in)    :: key
-  val_type           , intent(out)   :: pos
+  val_type           , intent(out)   :: val
   integer(ip)        , intent(out)   :: stat
   integer(ip)                        :: hash
 
-  pos = tbl%counter+1
+  val = tbl%counter+1
 
   ! Copy body of put_hash_table to avoid the extra call
-  ! call put_hash_table(tbl,key,pos,stat)
+  ! call put_hash_table(tbl,key,val,stat)
   assert (key>=int(tbl%vec_min,key_size))
   hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
 !$OMP CRITICAL (hash_table_lock)
-  call tbl%vec(hash)%put(key=key,val=pos,stat=stat)
+  call tbl%vec(hash)%put(key=key,val=val,stat=stat)
 !$OMP END CRITICAL (hash_table_lock)
 
   if(stat==now_stored) then
+     stat = new_index
      tbl%counter = tbl%counter + 1
+  else
+     stat = old_index
   end if
 
-end subroutine get_position_hash_table
-#endif 
+end subroutine get_hash_table
+
+#else
 
 subroutine put_hash_table(tbl,key,val,stat)
   class(hash_table)  , intent(inout) :: tbl
   key_type           , intent(in)    :: key
-  val_type           , intent(inout) :: val
+  val_type           , intent(in)    :: val
   integer(ip)        , intent(out)   :: stat
   integer(ip)                        :: hash
+  val_type                           :: val_
 
   assert (key>=int(tbl%vec_min,key_size))
   ! mod function is always a problem if mixed integers are used.
@@ -270,9 +282,10 @@ subroutine put_hash_table(tbl,key,val,stat)
   ! hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
   hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
+  val_ = val 
 
 !$OMP CRITICAL (hash_table_lock)
-  call tbl%vec(hash)%put(key=key,val=val,stat=stat)
+  call tbl%vec(hash)%put(key=key,val=val_,stat=stat)
 !$OMP END CRITICAL (hash_table_lock)
 
 end subroutine put_hash_table
@@ -314,6 +327,8 @@ subroutine get_hash_table(tbl,key,val,stat)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
   call tbl%vec(hash)%get(key=key,val=val,stat=stat)
 end subroutine get_hash_table
+
+#endif 
 
 subroutine print_hash_table(tbl)
   class(hash_table), intent(inout) :: tbl    

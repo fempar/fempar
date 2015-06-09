@@ -130,8 +130,8 @@ contains
  !=============================================================================
   subroutine fem_conditions_compose_name ( prefix, name ) 
     implicit none
-    character *(*), intent(in)        :: prefix 
-    character *(*), intent(out)       :: name
+    character (len=*)             , intent(in)  :: prefix 
+    character (len=:), allocatable, intent(out) :: name
     name = trim(prefix) // '.cnd'
   end subroutine fem_conditions_compose_name
 
@@ -144,7 +144,7 @@ contains
     integer(ip)   , intent(in)       :: nparts
     type(fem_conditions), intent(in) :: lnodes (nparts)
     type(fem_conditions), optional, intent(in) :: lbouns (nparts)
-    character(256)                   :: name, rename
+    character(len=:), allocatable    :: name, rename
 
     ! Locals 
     integer (ip)                     :: i, lunio

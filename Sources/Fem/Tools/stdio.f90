@@ -171,7 +171,7 @@ module stdio
        screen, io_get_screen, io_file_exist, ch, io_end, io_eor,   &
        io_get_extension, io_remove_extension, io_mkdir, io_remove, &
        io_pwd, io_rewind, io_close, io_close_all, io_get_unit,     &
-       lowercase, operator(//), numbered_filename_compose, numbered_filename_compose_deferred_length, &
+       lowercase, operator(//), numbered_filename_compose, &
        count_digits
 
   ! public units
@@ -1015,32 +1015,7 @@ contains
   end subroutine lowcase
 
   !********************************************************************!
-  subroutine numbered_filename_compose( i, n, file ) ! AFM: to be removed in the future
-    implicit none 
-    ! Parameters
-    integer         , intent(in)    :: i, n 
-    character(len=*), intent(inout) :: file
-
-    integer         :: j, ndigs_i, ndigs_n
-    character(len=:), allocatable  :: zeros
-    character(len=:), allocatable  :: chari
-
-
-    ndigs_n = count_digits( n )
-    zeros = ' '
-    ndigs_i = count_digits( i )
-
-    do j= 1, ndigs_n - ndigs_i
-       zeros (j:j) = '0'
-    end do
-    chari = ch(i)
-   
-    file = trim(file) // '.' // trim(zeros) // trim(chari)
-
-  end subroutine numbered_filename_compose
-
-  !********************************************************************!
-  subroutine numbered_filename_compose_deferred_length( i, n, file )
+  subroutine numbered_filename_compose( i, n, file )
     implicit none 
     ! Parameters
     integer                      , intent(in)    :: i, n 
@@ -1070,7 +1045,7 @@ contains
     deallocate(chari, stat=istat)
     check(istat==0)
 
-  end subroutine numbered_filename_compose_deferred_length
+  end subroutine numbered_filename_compose
 
   !********************************************************************!
 

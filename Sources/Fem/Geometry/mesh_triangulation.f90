@@ -66,6 +66,10 @@ contains
     integer(ip)               :: count, g_node, inode, p, length_trian_
     type(fem_conditions)      :: tcond
 
+    assert(trian%state == triangulation_not_created .or. trian%state == triangulation_filled)
+
+    if ( trian%state == triangulation_filled ) call fem_triangulation_free(trian)
+
     if (present(length_trian)) then
        length_trian_ = length_trian
     else
@@ -74,13 +78,8 @@ contains
 
     call fem_triangulation_create ( length_trian_, trian )
     
-    assert(trian%state == triangulation_created .or. trian%state == triangulation_elems_filled .or. trian%state == triangulation_elems_objects_filled)
-
     trian%num_elems = gmesh%nelem
     trian%num_dims  = gmesh%ndime
-
-    call fem_triangulation_free_elems_data(trian)
-    call fem_triangulation_free_objs_data(trian)
 
 !!$     AFM: I think this is not really needed. trian%elems could already be
 !!$     allocated with sufficient size (see next if-end block)
@@ -123,24 +122,22 @@ contains
     end do
 
     call fem_mesh_free(tmesh)
-    trian%state = triangulation_elems_filled
 
-
-    if( allocated(gmesh%coord) ) then
-       do ielem = 1, trian%num_elems
-          call memalloc( trian%num_dims, gmesh%pnods(ielem+1)-gmesh%pnods(ielem), &
-               & trian%elems(ielem)%coordinates, __FILE__, __LINE__ )
-          count = 0
-          do inode = gmesh%pnods(ielem),gmesh%pnods(ielem+1)-1
-             count = count+1
-             g_node = gmesh%lnods(inode)
-             trian%elems(ielem)%coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
-          end do
-          trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
+    assert ( allocated(gmesh%coord) )
+    do ielem = 1, trian%num_elems
+       call memalloc( trian%num_dims, gmesh%pnods(ielem+1)-gmesh%pnods(ielem), &
+                   &  trian%elems(ielem)%coordinates, __FILE__, __LINE__ )
+       count = 0
+       do inode = gmesh%pnods(ielem),gmesh%pnods(ielem+1)-1
+          count = count+1
+          g_node = gmesh%lnods(inode)
+          trian%elems(ielem)%coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
        end do
-    end if
+       trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
+    end do
 
     call fem_triangulation_to_dual ( trian )
+    trian%state = triangulation_filled
 
   end subroutine mesh_to_triangulation
 

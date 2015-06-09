@@ -34,61 +34,8 @@ module fem_triangulation_names
   implicit none
   private
 
-  integer(ip), parameter :: triangulation_not_created          = 0 ! Initial state
-  integer(ip), parameter :: triangulation_created              = 1 ! Elems array allocated 
-  integer(ip), parameter :: triangulation_elems_filled         = 2 ! Elems array filled with data 
-  integer(ip), parameter :: triangulation_elems_objects_filled = 3 ! Objects array allocated and filled 
-
-
-  ! State graph for type(fem_triangulation) instances
-  ! case (state) 
-  !  triangulation_not_created:
-  !     case (action)
-  !        triangulation_create:
-  !            create_triangulation() 
-  !            state = triangulation_created
-  !        else:
-  !           ERROR
-  !  triangulation_created:
-  !     case (action):
-  !        mesh_to_triangulation:
-  !           mesh_to_triangulation()
-  !           state = triangulation_elems_filled
-  !        triangulation_free:
-  !           free_triangulation()
-  !           state = triangulation_not_created
-  !        else:
-  !          ERROR
-  ! triangulation_elems_filled:
-  !     case (action):
-  !        triangulation_to_dual:
-  !           triangulation_to_dual()
-  !           state = triangulation_elems_objects_filled
-  !        mesh_to_triangulation:
-  !          free_element_topology for all elements
-  !          free_element_array
-  !          mesh_to_triangulation()
-  !        triangulation_free:
-  !           free_triangulation()
-  !           state = triangulation_not_created
-  !        else:
-  !          ERROR
-  ! triangulation_elems_objects_filled:
-  !     case(action):
-  !        triangulation_to_dual:
-  !          free_object_topology for all objects
-  !          free_object_array
-  !          triangulation_to_dual()
-  !        mesh_to_triangulation: 
-  !          free_object_topology for all objects
-  !          free_object_array
-  !          free_element_topology for all elements
-  !          free_element_array
-  !          mesh_to_triangulation()
-  !          state = triangulation_elems_filled
-  !        triangulation_free:
-  !           free_triangulation()
-  !           state = triangulation_not_created
+  integer(ip), parameter :: triangulation_not_created  = 0 ! Initial state
+  integer(ip), parameter :: triangulation_filled       = 1 ! Elems + Objects arrays allocated and filled 
 
   type elem_topology
      integer(ip)               :: num_objects = -1    ! Number of objects
@@ -132,7 +79,7 @@ module fem_triangulation_names
   public :: free_elem_topology, free_object_topology, put_topology_element_triangulation, local_id_from_vertices
 
   ! Constants (should only be used by modules that have control over type(fem_triangulation))
-  public :: triangulation_not_created, triangulation_created, triangulation_elems_filled, triangulation_elems_objects_filled
+  public :: triangulation_not_created, triangulation_filled
   public :: fem_triangulation_free_elems_data, fem_triangulation_free_objs_data
 
 contains
@@ -143,8 +90,6 @@ contains
     integer(ip)            , intent(in)    :: len
     type(fem_triangulation), intent(inout) :: trian
     integer(ip) :: istat,ielem
-
-    assert(trian%state == triangulation_not_created)
 
     trian%elem_array_len = len
     trian%num_objects = -1
@@ -167,7 +112,6 @@ contains
     allocate(trian%lelem_info(max_elinf), stat=istat)
     check(istat==0)
 
-    trian%state = triangulation_created
   end subroutine fem_triangulation_create
 
   !=============================================================================
@@ -176,7 +120,7 @@ contains
     type(fem_triangulation), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
 
-    assert(.not. trian%state == triangulation_not_created) 
+    assert(trian%state == triangulation_filled) 
 
     call fem_triangulation_free_elems_data(trian)
     call fem_triangulation_free_objs_data(trian)
@@ -206,8 +150,8 @@ contains
     implicit none
     type(fem_triangulation), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
-        
-    if ( trian%state == triangulation_elems_objects_filled ) then
+    
+    if ( trian%state == triangulation_filled ) then
        do iobj=1, trian%num_objects 
           call free_object_topology(trian%objects(iobj)) 
        end do
@@ -222,12 +166,12 @@ contains
     type(fem_triangulation), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
     
-    if ( trian%state == triangulation_elems_objects_filled .or. & 
-         trian%state == triangulation_elems_filled ) then
+    if ( trian%state == triangulation_filled ) then
        do ielem=1, trian%elem_array_len 
           call free_elem_topology(trian%elems(ielem)) 
        end do
-    end if    
+    end if
+
   end subroutine fem_triangulation_free_elems_data
 
   ! Auxiliary subroutines
@@ -283,10 +227,6 @@ contains
     integer(ip)              :: ielem, iobj, jobj, istat, idime, num_elems, touch
     type(hash_table_ip_ip)   :: visited
     integer(ip), allocatable :: elems_around_pos(:)
-
-    assert(trian%state == triangulation_elems_filled .or. trian%state == triangulation_elems_objects_filled) 
-
-    call fem_triangulation_free_objs_data(trian)
 
     num_elems = trian%num_elems
     if ( present(num_ghosts) ) then
@@ -369,11 +309,7 @@ contains
        end if
     end do
 
-
     call memfree ( elems_around_pos, __FILE__, __LINE__ )
-    trian%state = triangulation_elems_objects_filled
-
-    ! Put dimension of the object
   end subroutine fem_triangulation_to_dual
 
   subroutine put_topology_element_triangulation( ielem, trian ) !(SBmod)
