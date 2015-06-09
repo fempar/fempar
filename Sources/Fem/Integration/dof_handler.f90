@@ -117,9 +117,9 @@ contains
     implicit none
     integer(ip)      , intent(in)           :: lunou
     type(dof_handler), intent(in)           :: dhand
-    
-    integer(ip) :: iprob, count
-    
+
+    integer(ip) :: iprob, count, iblock
+
     write (lunou, '(a)')     '*** begin dof handler data structure ***'
 
     write (lunou,*)     'Number of problems: ',   dhand%nprobs
@@ -127,17 +127,26 @@ contains
     write (lunou,*)     'Number of variables: ',  dhand%nvars_global
 
     do iprob = 1, dhand%nprobs
-              
+
        write (lunou,*)     '*** physical problem ',iprob, ' ***'
        write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%p%nvars
        write (lunou,*)     'Local to global (of variables) for problem ',iprob, ' :' ,  dhand%problems(iprob)%p%l2g_var
        !write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%problem_code
-       
+
+    end do
+
+
+    do iblock = 1, dhand%nblocks  
+       do iprob = 1, dhand%nprobs 
+          write (lunou,*) 'prob_block array iblock ',iblock,' problem ',iprob,' :', dhand%prob_block(iblock,iprob)%nd1
+          write (lunou,*) 'prob_block array iblock ',iblock,' problem ',iprob,' :', dhand%prob_block(iblock,iprob)%a
+         
+       end do
     end do
 
     write (lunou,*)     'Block of every variable: ',    dhand%vars_block
     write (lunou,*)     'Coupling flag between dofs: ', dhand%dof_coupl
-  
+
   end subroutine dof_handler_print
 
   subroutine dof_handler_free(  dhand )

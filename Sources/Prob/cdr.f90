@@ -45,6 +45,7 @@ module cdr_names
        diffu            ! Diffusion
 contains
   procedure :: create => cdr_create
+  procedure :: free => cdr_free
 end type cdr_problem
 
 public :: cdr_problem
@@ -97,5 +98,20 @@ subroutine cdr_create( prob, ndime, l2g )
 
 end subroutine cdr_create
 
+
+
+  !=================================================================================================
+subroutine cdr_free( prob )
+  !----------------------------------------------------------------------------------------------!
+  !   This subroutine contains definitions of the Navier-Stokes problem                          !
+  !----------------------------------------------------------------------------------------------!
+ implicit none
+ class(cdr_problem), intent(inout) :: prob
+
+ call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
+ call memfree ( prob%l2g_var,__FILE__,__LINE__)
+
+end subroutine cdr_free
+ 
 
 end module cdr_names
