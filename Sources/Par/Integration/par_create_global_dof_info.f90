@@ -38,6 +38,10 @@ module par_create_global_dof_info_names
 
   ! Par Modules
   use par_triangulation_names
+  use par_graph_names
+  use dof_distribution_names
+  use dof_distribution_create_names
+
 
   implicit none
 # include "debug.i90"
@@ -46,22 +50,28 @@ module par_create_global_dof_info_names
   public :: par_create_distributed_dof_info
 
 contains
+
   !*********************************************************************************
   ! This subroutine is intended to generate the dof generation and the dof graph 
   ! distribution. Here, the element2dof array is created as in serial, but next the
   ! dofs in ghost elements on interface faces coupled via interface discontinuous
   ! Galerkin terms are also included. Next, object2dof and the dof_graph are generated
-  ! using the same serial functions. Finally, he gluing info for dofs is generated,
+  ! using the same serial functions. Finally, the gluing info for dofs is generated,
   ! based on vefs objects, the parallel triangulation info, and the ghost element info,
   ! relying on the fact that, with this info, we know how to put together interior and
   ! ghost elements, and so, number the dofs in a conforming way.
   !*********************************************************************************
-  subroutine par_create_distributed_dof_info ( dhand, p_trian, femsp, dof_graph ) 
+  subroutine par_create_distributed_dof_info ( dhand, p_trian, femsp, dof_dist, dof_graph, gtype ) 
     implicit none
-    type(par_triangulation), intent(inout) :: p_trian
-    type(dof_handler), intent(in)          :: dhand
-    type(fem_space), intent(inout)         :: femsp  
-    type(fem_graph), allocatable, intent(out) :: dof_graph(:,:)
+    ! Paramters
+    type(dof_handler)                   , intent(in)     :: dhand
+    type(par_triangulation)             , intent(in)     :: p_trian
+    type(fem_space)                     , intent(inout)  :: femsp
+    type(dof_distribution), allocatable , intent(out)    :: dof_dist(:)
+    type(par_graph)       , allocatable , intent(out)    :: dof_graph(:,:)
+    integer(ip)            , optional   , intent(in)     :: gtype(dhand%nblocks) 
+    
+    integer(ip) :: iblock, jblock
 
     call create_element_to_dof_and_ndofs( dhand, p_trian%f_trian, femsp )
 
@@ -69,9 +79,21 @@ contains
 
     call create_object2dof( dhand, p_trian%f_trian, femsp )
 
-    call create_dof_graph( dhand, p_trian%f_trian, femsp, dof_graph )
+    call dof_distribution_create ( p_trian, femsp, dhand, dof_dist )
 
-    !call graph_distribution_create
+    call memalloc ( dhand%nblocks, dhand%nblocks, dof_graph, __FILE__, __LINE__ )
+    do iblock = 1, dhand%nblocks
+       do jblock = 1, dhand%nblocks
+          call par_graph_create ( dof_dist(iblock), dof_dist(jblock), p_trian%p_env, dof_graph(iblock,jblock) )
+          if ( iblock == jblock .and. present(gtype) ) then
+             call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, & 
+                                           femsp, dof_graph(iblock,jblock)%f_graph, gtype(iblock) )
+          else
+             call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, &
+                                           femsp, dof_graph(iblock,jblock)%f_graph )
+          end if
+       end do
+    end do
 
   end subroutine par_create_distributed_dof_info
 
