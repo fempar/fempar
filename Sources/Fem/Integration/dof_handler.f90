@@ -51,7 +51,8 @@ module dof_handler_names
           dof_coupl(:,:),            &        ! Dof_coupling(nvar,nvar) for avoiding allocation & assembly of zero blocks
           vars_block(:)                       ! Parameter per unknown (size nvars)
 
-     type(p_physical_problem), allocatable :: problems(:)
+     !type(p_physical_problem), allocatable :: problems(:)
+     type(discrete_problem_pointer), allocatable :: problems(:)
 
 
      ! Auxiliary arrays
@@ -174,7 +175,7 @@ contains
     implicit none
     class(dof_handler), intent(inout)          :: dhand
     integer(ip), intent(in) :: iprob
-    class(physical_problem), target, intent(in) :: prob
+    class(discrete_problem), target, intent(in) :: prob
     
     integer(ip) :: l_var, iblock, count
 

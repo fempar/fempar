@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module nsi_cg_names
+module nsi_cg_asgs_names
  use types
  use memor
  use array_names
@@ -34,11 +34,11 @@ module nsi_cg_names
  use nsi_names
  use element_fields_names
  use element_tools_names
- use volume_integration_tools_names
+ use fem_element_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: nsi_approximation
+ type, extends(discrete_problem) :: nsi_cg_asgs_approximation
     type(nsi_problem), pointer :: physics
     integer(ip) ::   & 
          kfl_1vec,   & ! Flag for 1vec integration
@@ -58,23 +58,24 @@ module nsi_cg_names
          k1tau,      & ! C1 constant on stabilization parameter tau_m
          k2tau         ! C2 constant on stabilization parameter tau_m
     contains
-      procedure :: create => nsi_cg_create
-      procedure :: matvec => nsi_cg_matvec
-   end type nsi_approximation
+      procedure :: create => nsi_create
+      procedure :: matvec => nsi_matvec
+   end type nsi_cg_asgs_approximation
 
- public :: nsi_approximation
+ public :: nsi_cg_asgs_approximation
 
 contains
 
   !=================================================================================================
-  subroutine nsi_cg_create(approx,prob)
+  subroutine nsi_create(approx,prob,l2g)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_approximation)       , intent(out) :: approx
-    class(physical_problem), target, intent(in)  :: prob
+    class(nsi_cg_asgs_approximation)  , intent(out) :: approx
+    class(physical_problem)   , target, intent(in)  :: prob
+    integer(ip), intent(in), optional :: l2g(:)
     !type(nsi_problem), target, intent(in)  :: prob
     integer(ip) :: i
 
@@ -86,6 +87,17 @@ contains
     class default
        check(.false.)
     end select
+
+    approx%nvars = prob%ndime+1
+    call memalloc(approx%nvars,approx%l2g_var,__FILE__,__LINE__)
+    if ( present(l2g) ) then
+       assert ( size(l2g) == approx%nvars )
+       approx%l2g_var = l2g
+    else
+       do i = 1,approx%nvars
+          approx%l2g_var(i) = i
+       end do
+    end if
 
     ! Flags
     approx%kfl_1vec = 1 ! Integrate Full OSS
@@ -107,16 +119,13 @@ contains
     approx%tdimv  =  2     ! Number of temporal steps stored for velocity
     approx%tdimp  =  2     ! Number of temporal steps stored for pressure
     
-  end subroutine nsi_cg_create
+  end subroutine nsi_create
 
-  subroutine nsi_cg_matvec(approx,integ,unkno,start,mat,vec)
+  subroutine nsi_matvec(approx,start,elem)
     implicit none
-    class(nsi_approximation)       , intent(in) :: approx
-    type(volume_integrator_pointer), intent(in) :: integ(:)
-    real(rp)                       , intent(in) :: unkno(:,:,:)
-    integer(ip)                    , intent(in) :: start(:)
-    type(array_rp2), intent(inout) :: mat
-    type(array_rp1), intent(inout) :: vec
+    class(nsi_cg_asgs_approximation), intent(inout) :: approx
+       integer(ip)            , intent(in)    :: start(:)
+    type(fem_element)       , intent(inout) :: elem
 
     type(basis_function) :: u ! Trial
     type(basis_function) :: p 
@@ -132,32 +141,32 @@ contains
 
     ndime = approx%physics%ndime
 
-    u = basis_function(approx%physics,1,start,integ)
-    p = basis_function(approx%physics,2,start,integ)
-    v = basis_function(approx%physics,1,start,integ) 
-    q = basis_function(approx%physics,2,start,integ)
+    u = basis_function(approx%physics,1,start,elem%integ)
+    p = basis_function(approx%physics,2,start,elem%integ)
+    v = basis_function(approx%physics,1,start,elem%integ) 
+    q = basis_function(approx%physics,2,start,elem%integ)
 
     ! With a_h declared as given_function we could do:
-    ! a_h   = given_function(approx,1,1,integ)
+    ! a_h   = given_function(approx,1,1,elem%integ)
     ! call interpolation(grad(a_h),grad_a) 
     ! with grad_a declared as tensor and, of course
-    ! call interpolation(grad(given_function(approx,1,1,integ)),grad_a)
+    ! call interpolation(grad(given_function(approx,1,1,elem%integ)),grad_a)
     ! is also possible.
-    !call interpolation(given_function(approx,1,1,integ),a)
-    !call interpolation(given_function(approx,1,3,integ),u_n)
+    !call interpolation(given_function(approx,1,1,elem%integ),a)
+    !call interpolation(given_function(approx,1,3,elem%integ),u_n)
 
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and
     ! an initialization call.
-    call create_vector (approx%physics, 1, integ, a)
-    call create_vector (approx%physics, 1, integ, u_n)
+    call create_vector (approx%physics, 1, elem%integ, a)
+    call create_vector (approx%physics, 1, elem%integ, u_n)
     ! Then for each element fill values
-    call interpolation (unkno, 1, 1, integ, a)
-    call interpolation (unkno, 1, 3, integ, u_n)
+    call interpolation (elem%unkno, 1, 1, elem%integ, a)
+    call interpolation (elem%unkno, 1, 3, elem%integ, u_n)
 
     ! Dirty, isnt'it?
-    !h%a=integ(1)%p%femap%hleng(1,:)     ! max
-    h%a=integ(1)%p%femap%hleng(ndime,:) ! min
+    !h%a=elem%integ(1)%p%femap%hleng(1,:)     ! max
+    h%a=elem%integ(1)%p%femap%hleng(ndime,:) ! min
 
     mu = approx%physics%diffu
 
@@ -168,12 +177,12 @@ contains
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)
     
-    mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
-    !mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
+    elem%p_mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
+    !elem%mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
-    !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+    !elem%mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
-  end subroutine nsi_cg_matvec
+  end subroutine nsi_matvec
 
-end module nsi_cg_names
+end module nsi_cg_asgs_names

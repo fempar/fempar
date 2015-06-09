@@ -29,7 +29,8 @@ module assembly_names
 
   use types
   use array_ip1_names
-  use fem_space_names
+  use fem_element_names
+  !use fem_space_names
   use dof_handler_names
   use fem_block_matrix_names
   use fem_matrix_names

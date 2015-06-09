@@ -32,7 +32,7 @@ program test_integration
   use fem
   !use problems
   use nsi_names
-  use nsi_cg_names
+  use nsi_cg_asgs_names
   type(fem_mesh)                          :: f_mesh
   type(fem_triangulation)                 :: f_trian
   type(fem_matrix)                        :: f_mat
@@ -48,7 +48,7 @@ program test_integration
 
   type(discrete_problem_pointer)  :: approximations(1)
   type(nsi_problem)               :: my_problem
-  type(nsi_approximation), target :: my_aproximation
+  type(nsi_cg_asgs_approximation), target :: my_aproximation
 
   character(len=:), allocatable  :: name 
   character(len=256)       :: dir_path, dir_path_out

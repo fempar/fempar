@@ -83,12 +83,6 @@ subroutine nsi_create(prob,ndime)
  !prob%vars_of_unk(2) = prob%vars_of_unk(1) + 1
  !prob%vars_of_unk(3) = prob%vars_of_unk(2) + 1
 
- ! Should be overwritten by the driver in a multiphyiscs context
- call memalloc(prob%nvars,prob%l2g_var,__FILE__,__LINE__)
- do i = 1,prob%nvars
-    prob%l2g_var(i) = i
- end do
-
  ! allocate(prob%unkno_names(nunks),stat=istat)
  ! check(istat==0)
  ! prob%unkno_names(1)='velocity'

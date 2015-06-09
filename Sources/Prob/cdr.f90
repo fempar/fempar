@@ -34,84 +34,70 @@ module cdr_names
   private 
 
   type, extends(physical_problem) :: cdr_problem
-  integer(ip) ::   & 
-       kfl_conv,   & ! Flag for enabling advection
-       kfl_tder,   & ! Flag for time derivative computation
-       case_space, & ! Exact solution (space function)
-       case_tempo    ! Exact solution (temporal function)
+     integer(ip) ::   & 
+          kfl_conv,   & ! Flag for enabling advection
+          kfl_tder,   & ! Flag for time derivative computation
+          case_space, & ! Exact solution (space function)
+          case_tempo    ! Exact solution (temporal function)
+     real(rp) ::         &
+          react,         & ! Reaction
+          diffu            ! Diffusion
+   contains
+     procedure :: create => cdr_create
+     procedure :: free => cdr_free
+  end type cdr_problem
 
-  real(rp) ::         &
-       react,         & ! Reaction
-       diffu            ! Diffusion
-contains
-  procedure :: create => cdr_create
-  procedure :: free => cdr_free
-end type cdr_problem
-
-public :: cdr_problem
+  public :: cdr_problem
 
 contains
 
   !=================================================================================================
-subroutine cdr_create( prob, ndime, l2g )
-  !----------------------------------------------------------------------------------------------!
-  !   This subroutine contains definitions of the Navier-Stokes problem                          !
-  !----------------------------------------------------------------------------------------------!
- implicit none
- class(cdr_problem), intent(inout) :: prob
- integer(ip)       , intent(in)  :: ndime
- integer(ip), intent(in), optional :: l2g(:)
+  subroutine cdr_create( prob, ndime)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine contains definitions of the Navier-Stokes problem                          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(cdr_problem), intent(inout) :: prob
+    integer(ip)       , intent(in)  :: ndime
 
- integer(ip) :: i
+    integer(ip) :: i
 
- ! Fill default problem data
- prob%ndime = ndime
- !prob%ntens = prob%ndime*(prob%ndime+1)/2 ! Number of tensor components 
- prob%nunks = 1     
- prob%nvars = 1     
+    ! Fill default problem data
+    prob%ndime = ndime
+    !prob%ntens = prob%ndime*(prob%ndime+1)/2 ! Number of tensor components 
+    prob%nunks = 1     
+    prob%nvars = 1     
 
- call memalloc(prob%nunks,prob%vars_of_unk,__FILE__,__LINE__)
- prob%vars_of_unk(1) = 1
+    call memalloc(prob%nunks,prob%vars_of_unk,__FILE__,__LINE__)
+    prob%vars_of_unk(1) = 1
 
- call memalloc(prob%nvars,prob%l2g_var,__FILE__,__LINE__)
+    ! Flags
+    prob%kfl_conv = 1 ! Enabling advection
+    prob%kfl_tder = 0 ! Time derivative not computed 
 
- if ( present(l2g) ) then
-    assert ( size(l2g) == prob%nvars )
-    prob%l2g_var = l2g
- else
-    do i = 1,prob%nvars
-       prob%l2g_var(i) = i
-    end do
- end if
+    ! Problem variables
+    prob%react  = 0.0_rp  ! Reaction
+    prob%diffu  = 1.0_rp  ! Diffusion
 
- ! Flags
- prob%kfl_conv = 1 ! Enabling advection
- prob%kfl_tder = 0 ! Time derivative not computed 
+    ! Analytical field variables
+    prob%case_space   = 0      ! Exact solution (in space)
+    prob%case_tempo   = 0      ! Exact solution (in time)
 
- ! Problem variables
- prob%react  = 0.0_rp  ! Reaction
- prob%diffu  = 1.0_rp  ! Diffusion
-
- ! Analytical field variables
- prob%case_space   = 0      ! Exact solution (in space)
- prob%case_tempo   = 0      ! Exact solution (in time)
-
-end subroutine cdr_create
+  end subroutine cdr_create
 
 
 
   !=================================================================================================
-subroutine cdr_free( prob )
-  !----------------------------------------------------------------------------------------------!
-  !   This subroutine contains definitions of the Navier-Stokes problem                          !
-  !----------------------------------------------------------------------------------------------!
- implicit none
- class(cdr_problem), intent(inout) :: prob
+  subroutine cdr_free( prob )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine contains definitions of the Navier-Stokes problem                          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(cdr_problem), intent(inout) :: prob
 
- call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
- call memfree ( prob%l2g_var,__FILE__,__LINE__)
+    call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
 
-end subroutine cdr_free
- 
+  end subroutine cdr_free
+
 
 end module cdr_names

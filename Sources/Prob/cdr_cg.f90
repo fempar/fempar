@@ -34,7 +34,7 @@ module cdr_stabilized_continuous_Galerkin_names
  use cdr_names
  use element_fields_names
  use element_tools_names
- use volume_integration_tools_names
+ use fem_element_names
  implicit none
  private 
 
@@ -56,8 +56,8 @@ module cdr_stabilized_continuous_Galerkin_names
          k1tau,      & ! C1 constant on stabilization parameter 
          k2tau         ! C2 constant on stabilization parameter 
     contains
-      procedure :: create => cdr_stabilized_continuous_Galerkin_create
-      procedure :: matvec => cdr_stabilized_continuous_Galerkin_matvec
+      procedure :: create => cdr_create
+      procedure :: matvec => cdr_matvec
    end type cdr_approximation
 
  public :: cdr_approximation
@@ -65,15 +65,15 @@ module cdr_stabilized_continuous_Galerkin_names
 contains
 
   !=================================================================================================
-  subroutine cdr_stabilized_continuous_Galerkin_create(approx,prob)
-    !----------------------------------------------------------------------------------------------!
-    !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
-    !   finite element formulation with inf-sup stable elemets.                                    !
-    !----------------------------------------------------------------------------------------------!
+  subroutine cdr_create(approx, prob, l2g)
+    !---------------------------------------------------------------------------!
+    !   This subroutine contains definitions of the cdr problem approximed by   !
+    !   a stabilised finite element formulation with inf-sup stable elemets.    !
+    !---------------------------------------------------------------------------!
     implicit none
     class(cdr_approximation)       , intent(out) :: approx
     class(physical_problem), target, intent(in)  :: prob
-    !type(cdr_problem), target, intent(in)  :: prob
+    integer(ip), intent(in), optional :: l2g(:)
     integer(ip) :: i
 
 
@@ -84,6 +84,17 @@ contains
     class default
        check(.false.)
     end select
+
+    approx%nvars = 1
+    call memalloc(approx%nvars,approx%l2g_var,__FILE__,__LINE__)
+    if ( present(l2g) ) then
+       assert ( size(l2g) == approx%nvars )
+       approx%l2g_var = l2g
+    else
+       do i = 1,approx%nvars
+          approx%l2g_var(i) = i
+       end do
+    end if
 
     ! Flags
     approx%kfl_1vec = 1 ! Integrate Full OSS
@@ -103,16 +114,13 @@ contains
     approx%ctime  = 0.0_rp ! Current time
     approx%tdimv  =  2     ! Number of temporal steps stored
     
-  end subroutine cdr_stabilized_continuous_Galerkin_create
+  end subroutine cdr_create
 
-  subroutine cdr_stabilized_continuous_Galerkin_matvec(approx,integ,unkno,start,mat,vec)
+  subroutine cdr_matvec(approx,start,elem)
     implicit none
-    class(cdr_approximation)       , intent(in) :: approx
-    type(volume_integrator_pointer), intent(in) :: integ(:)
-    real(rp)                       , intent(in) :: unkno(:,:,:)
-    integer(ip)                    , intent(in) :: start(:)
-    type(array_rp2), intent(inout) :: mat
-    type(array_rp1), intent(inout) :: vec
+    class(cdr_approximation), intent(inout) :: approx
+    integer(ip)            , intent(in)    :: start(:)
+    type(fem_element)       , intent(inout) :: elem
 
     type(basis_function) :: u ! Trial
     type(basis_function) :: p 
@@ -130,8 +138,8 @@ contains
     real(rp) :: factor
 
 
-    mat%a = 0.0_rp
-    vec%a = 0.0_rp
+    elem%p_mat%a = 0.0_rp
+    elem%p_vec%a = 0.0_rp
     ndime = approx%physics%ndime
 
     !u = basis_function(approx%physics,1,start,integ)
@@ -163,17 +171,17 @@ contains
 
     !mat = integral(grad(v),grad(u))
 
-    nnode = integ(1)%p%uint_phy%nnode
-    ngaus = integ(1)%p%uint_phy%nlocs
+    nnode = elem%integ(1)%p%uint_phy%nnode
+    ngaus = elem%integ(1)%p%uint_phy%nlocs
 
     do igaus = 1,ngaus
-       factor = integ(1)%p%femap%detjm(igaus) * integ(1)%p%quad%weight(igaus)
+       factor = elem%integ(1)%p%femap%detjm(igaus) * elem%integ(1)%p%quad%weight(igaus)
        do inode = 1, nnode
           do jnode = 1, nnode
              do idime = 1,ndime
-                mat%a(inode,jnode) = mat%a(inode,jnode) + factor * &
-                     & integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
-                     & integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
+                elem%p_mat%a(inode,jnode) = elem%p_mat%a(inode,jnode) + factor * &
+                     & elem%integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
+                     & elem%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
              end do
           end do
        end do
@@ -185,6 +193,6 @@ contains
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
     !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
-  end subroutine cdr_stabilized_continuous_Galerkin_matvec
+  end subroutine cdr_matvec
 
 end module cdr_stabilized_continuous_Galerkin_names

@@ -98,11 +98,11 @@ program par_test_cdr
 
 
   call my_problem%create( p_trian%f_trian%num_dims )
-  call dhand%set_problem( 1, my_problem )
-  ! ... for as many problems as we have
-
   call my_approximation%create(my_problem)
   approximations(1)%p => my_approximation
+
+  call dhand%set_problem( 1, my_approximation )
+  ! ... for as many problems as we have
 
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
   continuity = 1

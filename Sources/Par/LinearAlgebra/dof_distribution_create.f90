@@ -35,6 +35,7 @@ module dof_distribution_create_names
   use dof_handler_names
   use dof_distribution_names
   use fem_space_types
+  use fem_element_names
   use fem_space_names
   use hash_table_names
   
