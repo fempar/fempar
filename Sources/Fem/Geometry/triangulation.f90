@@ -62,9 +62,8 @@ module fem_triangulation_names
      integer(ip) :: elem_array_len = -1  ! length that the elements array is allocated for. 
      type(elem_topology), allocatable    :: elems(:) ! array of elements in the mesh.
      type(object_topology) , allocatable :: objects(:) ! array of objects in the mesh.
-     type (hash_table_ip_ip)             :: ht_elem_info  ! Topological info hash table (SBmod)
-     integer(ip)                         :: cur_elinf = 0 !  "
-     type (fem_fixed_info), allocatable  :: lelem_info(:) ! List of topological info's
+     type (position_hash_table)          :: pos_elem_info  ! Topological info hash table (SBmod)
+     type (fem_fixed_info)               :: lelem_info(max_elinf) ! List of topological info's
      integer(ip)                         :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable            :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
   end type fem_triangulation
@@ -105,12 +104,9 @@ contains
        call initialize_elem_topology(trian%elems(ielem))
     end do
 
-
     ! Initialization of element fixed info parameters (SBmod)
-    call trian%ht_elem_info%init(ht_length)
-    trian%cur_elinf = 1
-    allocate(trian%lelem_info(max_elinf), stat=istat)
-    check(istat==0)
+    call trian%pos_elem_info%init(ht_length)
+
 
   end subroutine fem_triangulation_create
 
@@ -131,12 +127,10 @@ contains
     check(istat==0)
 
     ! Deallocate fixed info
-    do iobj = 1,trian%cur_elinf-1
+    do iobj = 1,trian%pos_elem_info%last()
        call fem_element_fixed_info_free (trian%lelem_info(iobj))
     end do
-    deallocate (trian%lelem_info)
-    trian%cur_elinf = 0
-    call trian%ht_elem_info%free
+    call trian%pos_elem_info%free
 
     trian%elem_array_len = -1 
     trian%num_objects = -1
@@ -350,18 +344,11 @@ contains
 
     ! Assign pointer to topological information
     v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
-    aux_val = trian%cur_elinf
-    call trian%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
-    if ( istat == now_stored) then 
+    call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+    if ( istat == new_index) then
        ! Create fixed info if not constructed
-       call fem_element_fixed_info_create(trian%lelem_info(trian%cur_elinf),etype,  &
-            &                             1,ndime,created)
-       assert(created)
-       pos_elinf = trian%cur_elinf
-       trian%cur_elinf = trian%cur_elinf + 1
-    else if ( istat == was_stored ) then
-       call trian%ht_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-       assert ( istat == key_found )
+       call fem_element_fixed_info_create(trian%lelem_info(pos_elinf),etype,  &
+            &                                     1,ndime,created)
     end if
     trian%elems(ielem)%topology => trian%lelem_info(pos_elinf)
 
