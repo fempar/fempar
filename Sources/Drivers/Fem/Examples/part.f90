@@ -51,8 +51,8 @@ program partitioner
 
   character(len=256)                :: dir_path,dir_path_out
   character(len=256)                :: prefix,comp_prefix
-  character(len=256)                :: name,preord
-  character(len=:), allocatable     :: name_mesh
+  character(len=256)                :: preord
+  character(len=:), allocatable     :: name_mesh, name
   character(len=256)                :: filemesh,filecond
   integer(ip), allocatable          :: ldome(:)
   integer(ip)                       :: i, j

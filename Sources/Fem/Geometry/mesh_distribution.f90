@@ -205,7 +205,7 @@ contains
     
     do i=1,nparts
        rename=name
-       call numbered_filename_compose_deferred_length(i,nparts,rename)
+       call numbered_filename_compose(i,nparts,rename)
        lunio = io_open (trim(dir_path) // '/' // trim(rename))
        call fem_mesh_distribution_write ( lunio, parts(i) )
        call io_close (lunio)
@@ -232,7 +232,7 @@ contains
 
     do i=1,nparts
        rename=name
-       call numbered_filename_compose_deferred_length(i,nparts,rename)
+       call numbered_filename_compose(i,nparts,rename)
        lunio = io_open (trim(dir_path) // '/' // trim(rename))
        call fem_mesh_distribution_read ( lunio, parts(i) )
        call io_close (lunio)

@@ -30,6 +30,7 @@ module par_mesh_triangulation
   use types
   use memor
   use fem_triangulation_names
+  use fem_conditions_names
   use fem_element_import_names
   use fem_element_import_create_names
   use hash_table_names
@@ -49,11 +50,12 @@ module par_mesh_triangulation
 
 contains
 
-  subroutine par_mesh_to_triangulation (p_gmesh, p_trian)
+  subroutine par_mesh_to_triangulation (p_gmesh, p_trian, f_cond)
     implicit none
     ! Parameters
-    type(par_mesh)         , target, intent(inout) :: p_gmesh ! Geometry mesh
-    type(par_triangulation), target, intent(inout) :: p_trian 
+    type(par_mesh)         , target  , intent(in)    :: p_gmesh ! Geometry mesh
+    type(par_triangulation), target  , intent(inout) :: p_trian 
+    type(fem_conditions)   , optional, intent(inout) :: f_cond
 
     ! Locals
     integer(ip) :: istat, ielem, iobj, jobj, state
@@ -63,15 +65,14 @@ contains
     integer(igp):: iobjg
     integer(igp), allocatable :: aux_igp(:)
     integer(ip), allocatable :: aux(:)
+    integeR(ip) :: aux_val
     !     integer(ip), allocatable :: is_eboun(:)
 
-    state = p_trian%f_trian%state
+    state = p_trian%state
 
-    assert(state == triangulation_not_created .or. state == triangulation_elems_filled .or. state == triangulation_elems_objects_filled)
+    assert(state == par_triangulation_not_created .or. state == par_triangulation_filled )
 
-    ! Free objects data and elems data (if they are present on the p_trian instance)
-    call par_triangulation_free_objs_data (p_trian)
-    call par_triangulation_free_elems_data(p_trian)
+    if ( state == par_triangulation_filled ) call par_triangulation_free(p_trian)
 
     ! Set a reference to the type(par_environment) instance describing the set of MPI tasks
     ! among which this type(par_triangulation) instance is going to be distributed 
@@ -101,7 +102,7 @@ contains
     p_trian%num_elems  = num_elems
 
     ! Fill local portion with local data
-    call mesh_to_triangulation ( p_gmesh%f_mesh, p_trian%f_trian, num_elems + num_ghosts )
+    call mesh_to_triangulation ( p_gmesh%f_mesh, p_trian%f_trian, num_elems + num_ghosts, f_cond )
     ! p_trian%f_trian%num_elems = num_elems+num_ghosts
     ! **IMPORTANT NOTE**: the code that comes assumes that edges and faces in p_trian%f_trian are numbered after vertices.
     ! This requirement is currently fulfilled by mesh_to_triangulation (in particular, by geom2topo within) but we should
@@ -164,7 +165,8 @@ contains
     ! Hash table global to local for ghost elements
     call hash%init(num_ghosts)
     do ielem=num_elems+1, num_elems+num_ghosts
-       call hash%put( key = p_trian%elems(ielem)%globalID, val = ielem, stat=istat)
+       aux_val = ielem
+       call hash%put( key = p_trian%elems(ielem)%globalID, val = aux_val, stat=istat)
     end do
 
     do ielem = 1, p_gmesh%f_mesh_dist%nebou     ! Loop interface elements 
@@ -275,7 +277,7 @@ contains
        end if
     end do
 
-
+    p_trian%state = par_triangulation_filled
     ! Check results
     ! do ielem = 1,num_elems+num_ghosts
     !   write (*,*) '****ielem:',ielem          
