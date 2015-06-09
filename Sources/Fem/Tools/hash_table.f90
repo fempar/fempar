@@ -52,6 +52,8 @@ module hash_table_names
   integer(ip), parameter :: key_not_found  = 5
   integer(ip), parameter :: deleted        = 6
   integer(ip), parameter :: error          = 10
+  integer(ip), parameter :: new_index      = 11
+  integer(ip), parameter :: old_index      = 12
 
   ! Public status
   character(13), parameter :: stat(7)=(/'was_stored   ',&  
@@ -98,6 +100,7 @@ module hash_table_names
 #define status_hash_table  status_hash_table_igp_ip
 #include "hash_table_header.i90"
 
+#define position
 #define hash_table position_hash_table
 #define hash_node  position_hash_node
 #define key_type   integer(ip)
@@ -115,10 +118,11 @@ module hash_table_names
 #define print_hash_table  print_hash_table_position
 #define status_hash_table  status_hash_table_position
 #include "hash_table_header.i90"
+#undef position
 
   public :: position_hash_table, hash_table_ip_ip, hash_table_igp_ip
 
-  public :: was_stored, now_stored, bad_keyval, key_found, key_not_found, deleted, error
+  public :: was_stored, now_stored, bad_keyval, key_found, key_not_found, deleted, error, new_index, old_index
 
   public :: tbl_size, nod_size, stat
 

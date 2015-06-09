@@ -130,27 +130,19 @@ module fem_space_names
      type(discrete_problem_pointer), allocatable :: approximations(:)
 
      ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
-     type (hash_table_ip_ip)            :: ht_pos_elmat
-     type (hash_table_ip_ip)            :: ht_pos_elvec
+     type(position_hash_table)          :: pos_elmatvec
      type(array_rp2)                    :: lelmat(max_global_interpolations)
      type(array_rp1)                    :: lelvec(max_global_interpolations)
-     !type(list)                         :: l_nodes_object(max_global_interpolations)
-     integer(ip)                        :: cur_elmat
-     integer(ip)                        :: cur_elvec
 
      ! Integrator
-     type (hash_table_ip_ip)            :: ht_pos_volume_integrator
-     type (hash_table_ip_ip)            :: ht_pos_face_integrator
+     type(position_hash_table)          :: pos_volume_integrator
+     type(position_hash_table)          :: pos_face_integrator
      type(volume_integrator)            :: lvoli(max_global_interpolations)        
      type(face_integrator)              :: lfaci(max_global_interpolations)
-     integer(ip)                        :: cur_lvoli
-     integer(ip)                        :: cur_lfaci
 
      ! Array of reference elements (to be pointed from fem_elements)
-     type (hash_table_ip_ip)            :: ht_elem_info
-     ! JP: change to fixed size array? Inline to the previous cases...
-     type (fem_fixed_info), allocatable :: lelem_info(:)
-     integer(ip)                        :: cur_elinf
+     type(position_hash_table)          :: pos_elem_info
+     type(fem_fixed_info)               :: lelem_info(max_elinf)
 
      ! Acceleration arrays
      type(list_2d), allocatable         :: object2dof(:)       ! An auxiliary array to accelerate some parts of the code
@@ -292,44 +284,14 @@ contains
     check(istat==0)
 
     ! Allocation of elemental matrix and vector parameters
-    call fspac%ht_pos_elmat%init(ht_length)
-    fspac%cur_elmat = 1
-    !    allocate(fspac%lelmat(max_interpolations), stat=istat)
-    if(istat/=0) then 
-       write(6,'(a)') '[Fempar Fatal Error] ***Memory (de)allocation failed.'
-       write(6,'(a,i20)') 'Error code: ', istat
-       write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelmat'
-    end if
-    call fspac%ht_pos_elvec%init(ht_length)
-    fspac%cur_elvec = 1
-    !    allocate(fspac%lelvec(max_interpolations), stat=istat)
-    if(istat/=0) then 
-       write(6,'(a)') '[Fempar Fatal Error] ***Memory (de)allocation failed.'
-       write(6,'(a,i20)') 'Error code: ', istat
-       write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelvec'
-    end if
+    call fspac%pos_elmatvec%init(ht_length)
 
     ! Initialization of volume and face integrators parameters
-    call fspac%ht_pos_volume_integrator%init(ht_length)
-    call fspac%ht_pos_face_integrator%init(ht_length)
-    fspac%cur_lvoli = 1
-    fspac%cur_lfaci = 1
-    !    allocate(fspac%lvoli(max_interpolations), stat=istat)
-    if(istat/=0) then 
-       write(6,'(a)') '[Fempar Fatal Error] ***Memory (de)allocation failed.'
-       write(6,'(a,i20)') 'Error code: ', istat
-       write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lvoli'
-    end if
+    call fspac%pos_volume_integrator%init(ht_length)
+    call fspac%pos_face_integrator%init(ht_length)
 
     ! Initialization of element fixed info parameters
-    call fspac%ht_elem_info%init(ht_length)
-    fspac%cur_elinf = 1
-    allocate(fspac%lelem_info(max_elinf), stat=istat)
-    if(istat/=0) then 
-       write(6,'(a)') '[Fempar Fatal Error] ***Memory (de)allocation failed.'
-       write(6,'(a,i20)') 'Error code: ', istat
-       write(6,'(a)') 'Caller routine: fem_space::fem_space_create::lelem_info'
-    end if
+    call fspac%pos_elem_info%init(ht_length)
 
   end subroutine fem_space_allocate_structures
 
@@ -344,7 +306,7 @@ contains
     type(fem_conditions), intent(in)  :: bcond
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
-    integer(ip) :: ielem, istat, pos_elmat, pos_elinf, pos_elvec, pos_voint, ivar, lndof, iobje
+    integer(ip) :: ielem, istat, pos_elmatvec, pos_elinf, pos_voint, ivar, lndof, iobje
     logical(lg) :: created
     integer(ip) :: aux_val
 
@@ -413,21 +375,17 @@ contains
           ! JP: indices of these arrays (continuity and order) should be changed to (nvars,nelem)
           fspac%lelem(ielem)%continuity(ivar) = continuity(ielem,fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
           fspac%lelem(ielem)%order(ivar) = order(ielem,fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+
           f_order = fspac%lelem(ielem)%order(ivar)
           v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
-          aux_val = fspac%cur_elinf
-          call fspac%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
-          if ( istat == now_stored) then 
-             call fem_element_fixed_info_create(fspac%lelem_info(fspac%cur_elinf),f_type,              &
+          call fspac%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+          if ( istat == new_index) then 
+             call fem_element_fixed_info_create(fspac%lelem_info(pos_elinf),f_type,              &
                   &                             f_order,dim,created)
              assert(created)
-             pos_elinf = fspac%cur_elinf
-             fspac%cur_elinf = fspac%cur_elinf + 1
-          else if ( istat == was_stored ) then
-             call fspac%ht_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-             assert ( istat == key_found )
           end if
           fspac%lelem(ielem)%f_inf(ivar)%p => fspac%lelem_info(pos_elinf)
+
           if ( continuity(ielem, ivar) /= 0 ) then
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob
           else 
@@ -437,17 +395,11 @@ contains
 
        ! Assign pointer to geometrical fixed information (assumed to be of order 1)
        v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
-       aux_val = fspac%cur_elinf
-       call fspac%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
-       if ( istat == now_stored) then 
-          call fem_element_fixed_info_create(fspac%lelem_info(fspac%cur_elinf),f_type,              &
+       call fspac%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+       if ( istat == new_index) then 
+          call fem_element_fixed_info_create(fspac%lelem_info(pos_elinf),f_type,              &
                &                             1,dim,created)
           assert(created)
-          pos_elinf = fspac%cur_elinf
-          fspac%cur_elinf = fspac%cur_elinf + 1
-       else if ( istat == was_stored ) then
-          call fspac%ht_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-          assert ( istat == key_found )       
        end if
        fspac%lelem(ielem)%p_geo_info => fspac%lelem_info(pos_elinf)
 
@@ -470,27 +422,16 @@ contains
        end do
 
        ! Assign pointer to p_mat and p_vec in ielem
-       aux_val = fspac%cur_elmat
-       call fspac%ht_pos_elmat%put(key=lndof,val=aux_val,stat=istat)
-       aux_val = fspac%cur_elvec
-       call fspac%ht_pos_elvec%put(key=lndof,val=aux_val,stat=istat)
-       if ( istat == now_stored ) then
-          call array_create ( lndof, lndof, fspac%lelmat(fspac%cur_elmat) )
-          pos_elmat = fspac%cur_elmat
-          fspac%cur_elmat = fspac%cur_elmat + 1
-          call array_create ( lndof, fspac%lelvec(fspac%cur_elvec) )
-          pos_elvec = fspac%cur_elvec
-          fspac%cur_elvec = fspac%cur_elvec + 1
-       else if ( istat == was_stored ) then
-          call fspac%ht_pos_elmat%get(key=lndof,val=pos_elmat,stat=istat)
-          assert ( istat == key_found )
-          call fspac%ht_pos_elvec%get(key=lndof,val=pos_elvec,stat=istat)
-          assert ( istat == key_found )
+       call fspac%pos_elmatvec%get(key=lndof,val=pos_elmatvec,stat=istat)
+       if ( istat == new_index ) then
+          call array_create ( lndof, lndof, fspac%lelmat(pos_elmatvec) )
+          call array_create ( lndof, fspac%lelvec(pos_elmatvec) )
        end if
-       fspac%lelem(ielem)%p_mat => fspac%lelmat(pos_elmat)
-       fspac%lelem(ielem)%p_vec => fspac%lelvec(pos_elvec)
+       fspac%lelem(ielem)%p_mat => fspac%lelmat(pos_elmatvec)
+       fspac%lelem(ielem)%p_vec => fspac%lelvec(pos_elmatvec)
 
        ! Allocate elem2dof, unkno, bc_code
+       write(*,*) max_num_nodes, nvars
        call memalloc( max_num_nodes, nvars, fspac%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
        fspac%lelem(ielem)%elem2dof = 0
        call memalloc( max_num_nodes, nvars, fspac%time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
@@ -509,22 +450,14 @@ contains
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars
           ! Here f_order should be taken from fspac%lelem(ielem)%order(ivar), doesn't it?
-          !f_order = fspac%lelem(ielem)%order(ivar)
+          ! f_order = fspac%lelem(ielem)%order(ivar)
           ! Otherwise all the variables have the same order.
           ltype(1) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
-          aux_val = fspac%cur_lvoli
-          call fspac%ht_pos_volume_integrator%put(key=v_key, val=aux_val, stat = istat)
-          if ( istat == now_stored ) then
-             ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
-             call volume_integrator_create(f_type,f_type,dim,1,f_order,fspac%lvoli(fspac%cur_lvoli),     &
-                  &                         khie = fspac%hierarchical_basis, mnode=max_num_nodes)
-             pos_voint       = fspac%cur_lvoli
-             fspac%cur_lvoli = fspac%cur_lvoli + 1
-          else if ( istat == was_stored ) then
-             call fspac%ht_pos_volume_integrator%get(key=v_key,val=pos_voint,stat=istat)
-             assert ( istat == key_found )
-          end if
+          call fspac%pos_volume_integrator%get(key=v_key, val=pos_voint, stat = istat)
+          ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
+          if ( istat == new_index ) call volume_integrator_create(f_type,f_type,dim,1,f_order,fspac%lvoli(pos_voint),     &
+               &                                                  khie = fspac%hierarchical_basis, mnode=max_num_nodes)
           fspac%lelem(ielem)%integ(ivar)%p => fspac%lvoli(pos_voint)
 
        end do
@@ -691,36 +624,25 @@ contains
     check(istat==0)
     nullify ( f%lelem )
 
-    do i = 1,f%cur_elmat-1
+    do i = 1,f%pos_elmatvec%last()
        call array_free( f%lelmat(i) )
-    end do
-    !deallocate ( f%lelmat )
-
-    do i = 1,f%cur_elvec-1
        call array_free( f%lelvec(i) )
     end do
-
+    !deallocate ( f%lelmat )
     !deallocate ( f%lelvec )
+    call f%pos_elmatvec%free
+    call f%pos_elmatvec%free
 
-    f%cur_elmat = 0
-    f%cur_elvec = 0
-
-    call f%ht_pos_elmat%free
-    call f%ht_pos_elvec%free
-
-    do i = 1,f%cur_lvoli-1
+    do i = 1,f%pos_volume_integrator%last()
        call volume_integrator_free( f%lvoli(i) )
     end do
     !deallocate ( f%lvoli )
-    f%cur_lvoli = 0
-    call f%ht_pos_volume_integrator%free
+    call f%pos_volume_integrator%free
 
-    do i = 1,f%cur_elinf-1
+    do i = 1,f%pos_elem_info%last()
        call fem_element_fixed_info_free (f%lelem_info(i))
     end do
-    deallocate (f%lelem_info)
-    f%cur_elinf = 0
-    call f%ht_elem_info%free
+    call f%pos_elem_info%free
 
     nullify ( f%g_trian )
 
@@ -734,8 +656,6 @@ contains
     end do
 
     call memfree (f%ndofs , __FILE__, __LINE__ )
-
-
 
     deallocate( f%interior_faces, stat=istat)
     check ( istat == 0 )

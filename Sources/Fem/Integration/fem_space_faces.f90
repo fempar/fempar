@@ -56,7 +56,7 @@ contains
     type(fem_triangulation)   , intent(in), target   :: trian   
 
     ! Local variables
-    integer(ip) :: iface, iobje, max_order, ielem, nvars, ivars, ndofs, pos_elmat, pos_elvec
+    integer(ip) :: iface, iobje, max_order, ielem, nvars, ivars, ndofs, pos_elmatvec
     integer(ip) :: i, l_faci, pos_faint, iprob, istat
     integer(ip) :: gtype, utype, g_ord, u_ord, v_key, iface_l, max_elmat, ndime
     type(fem_fixed_info_pointer) :: gfinf, ufinf
@@ -85,25 +85,13 @@ contains
           end do
 
           ! Create elemental matrix and vectors
-          aux_val = femsp%cur_elmat
-          call femsp%ht_pos_elmat%put(key=ndofs,val=aux_val,stat=istat)!
-          aux_val = femsp%cur_elvec
-          call femsp%ht_pos_elvec%put(key=ndofs,val=aux_val,stat=istat)!
-          if ( istat == now_stored ) then
-             call array_create ( ndofs, ndofs, femsp%lelmat(femsp%cur_elmat) )
-             pos_elmat = femsp%cur_elmat!
-             femsp%cur_elmat = femsp%cur_elmat + 1!
-             call array_create ( ndofs, femsp%lelvec(femsp%cur_elmat) )
-             pos_elvec = femsp%cur_elvec!
-             femsp%cur_elvec = femsp%cur_elvec + 1!
-          else if ( istat == was_stored ) then
-             call femsp%ht_pos_elmat%get(key=ndofs,val=pos_elmat,stat=istat)!
-             assert ( istat == key_found )
-             call femsp%ht_pos_elvec%get(key=ndofs,val=pos_elvec,stat=istat)!
-             assert ( istat == key_found )
+          call femsp%pos_elmatvec%get(key=ndofs,val=pos_elmatvec,stat=istat)
+          if ( istat == new_index ) then 
+             call array_create ( ndofs, ndofs, femsp%lelmat(pos_elmatvec) )
+             call array_create ( ndofs, femsp%lelvec(pos_elmatvec) )
           end if
-          femsp%lface(iface)%p_mat        => femsp%lelmat(pos_elmat)!
-          femsp%lface(iface)%p_vec        => femsp%lelvec(pos_elvec)!
+          femsp%lface(iface)%p_mat => femsp%lelmat(pos_elmatvec)
+          femsp%lface(iface)%p_vec => femsp%lelvec(pos_elmatvec)
 
           do i = 1,2
              ielem = trian%objects(iobje)%elems_around(i)
@@ -125,22 +113,16 @@ contains
                 u_ord = femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p%order
                 ! SB.alert : The last part to include gauss points being used
                 v_key =  utype + (max_FE_types+1)*u_ord + (max_FE_types+1)*(max_order+1)*max_order
-                aux_val = femsp%cur_lfaci
-                ! Put in hash table
-                call femsp%ht_pos_face_integrator%put(key=v_key, val=aux_val, stat = istat)
-                if ( istat == now_stored ) then 
+
+                call femsp%pos_face_integrator%get(key=v_key, val=pos_faint, stat = istat)
+                if ( istat == new_index ) then 
                    gfinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%p_geo_info
                    ufinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p
-                   call face_integrator_create(gfinf,ufinf,ndime,femsp%lfaci(femsp%cur_lfaci))
-                   pos_faint       = femsp%cur_lfaci
-                   femsp%cur_lfaci = femsp%cur_lfaci + 1
-                else if ( istat == was_stored ) then
-                   call femsp%ht_pos_face_integrator%get(key=v_key,val=pos_faint,stat=istat)
-                   assert ( istat == key_found )
+                   call face_integrator_create(gfinf,ufinf,ndime,femsp%lfaci(pos_faint))
                 end if
                 femsp%lface(iface)%integ(i)%p(ivars)%p => femsp%lfaci(pos_faint)
-             end do
 
+             end do
           end do
        end do
 

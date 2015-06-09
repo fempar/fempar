@@ -59,13 +59,14 @@
      logical                                    :: is_init = .false.
    contains
      procedure :: init => init_hash_table
-     procedure :: put  => put_hash_table
      procedure :: get  => get_hash_table
+#ifdef position
+     procedure :: last  => last_hash_table
+#else
+     procedure :: put  => put_hash_table
      procedure :: del  => del_hash_table
+#endif
      procedure :: free => free_hash_table
      procedure :: print => print_hash_table
      procedure :: status => status_hash_table
-#ifdef position
-     procedure :: get_position => get_position_hash_table
-#endif
   end type hash_table

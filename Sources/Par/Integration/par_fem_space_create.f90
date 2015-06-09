@@ -142,21 +142,31 @@ contains
           f_order = femsp%lelem(ielem)%order(ivar)
           write(*,*) 'f_order',f_order
           v_key = femsp%g_trian%num_dims + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
-          aux_val = femsp%cur_elinf
-          call femsp%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
-          if ( istat == now_stored) then 
+
+          call femsp%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+          if ( istat == new_index) then 
              write (*,*) ' FIXED INFO NEW'
-             call fem_element_fixed_info_create(femsp%lelem_info(femsp%cur_elinf),f_type,              &
+             call fem_element_fixed_info_create(femsp%lelem_info(pos_elinf),f_type,              &
                   &                             f_order,femsp%g_trian%num_dims,created)
              assert(created)
-             pos_elinf = femsp%cur_elinf
-             femsp%cur_elinf = femsp%cur_elinf + 1
-          else if ( istat == was_stored ) then
-             write (*,*) ' FIXED INFO ALREADY STORED '
-             call femsp%ht_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-             assert ( istat == key_found )
           end if
           femsp%lelem(ielem)%f_inf(ivar)%p => femsp%lelem_info(pos_elinf)
+
+          ! aux_val = femsp%cur_elinf
+          ! call femsp%ht_elem_info%put(key=v_key,val=aux_val,stat=istat)
+          ! if ( istat == now_stored) then 
+          !    write (*,*) ' FIXED INFO NEW'
+          !    call fem_element_fixed_info_create(femsp%lelem_info(femsp%cur_elinf),f_type,              &
+          !         &                             f_order,femsp%g_trian%num_dims,created)
+          !    assert(created)
+          !    pos_elinf = femsp%cur_elinf
+          !    femsp%cur_elinf = femsp%cur_elinf + 1
+          ! else if ( istat == was_stored ) then
+          !    write (*,*) ' FIXED INFO ALREADY STORED '
+          !    call femsp%ht_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+          !    assert ( istat == key_found )
+          ! end if
+          ! femsp%lelem(ielem)%f_inf(ivar)%p => femsp%lelem_info(pos_elinf)
        end do
     end do
   end subroutine ghost_fe_list_create
