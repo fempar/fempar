@@ -234,16 +234,32 @@ contains
     jblock_ = 1
     if ( present(iblock) ) iblock_ = iblock
     if ( present(jblock) ) jblock_ = jblock
+    
+    
     gtype = a%gr%type
     iprob = elem%problem
-    nvapb_i = dhand%prob_block(iblock,iprob)%nd1
-    nvapb_j = dhand%prob_block(jblock,iprob)%nd1
+
+
+    nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
+    nvapb_j = dhand%prob_block(jblock_,iprob)%nd1
+
+    !write (*,*) 'nvapb_i:',nvapb_i
+    !write (*,*) 'nvapb_j:',nvapb_j
+    !write (*,*) 'start:',start
+
+    !write(*,*) 'local matrix',elem%p_mat%nd1, elem%p_mat%nd2
+    !write(*,*) 'local matrix',elem%p_mat%a
+    
+    
+
     do ivars = 1, nvapb_i
-       l_var = dhand%prob_block(iblock,iprob)%a(ivars)
+       l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
        do jvars = 1, nvapb_j
-          m_var = dhand%prob_block(jblock,iprob)%a(jvars)
+          m_var = dhand%prob_block(jblock_,iprob)%a(jvars)
           k_var = dhand%problems(iprob)%p%l2g_var(m_var)
+          !write (*,*) 'l_var:',l_var
+          !write (*,*) 'm_var:',m_var
           do inode = 1,elem%f_inf(l_var)%p%nnode
              idof = elem%elem2dof(inode,l_var)
              if ( idof  > 0 ) then
@@ -254,19 +270,23 @@ contains
                          if ( a%gr%ja(k) == jdof ) exit
                       end do
                       assert ( k < a%gr%ia(idof+1) )
-                      a%a(k) = elem%p_mat%a(start(l_var)+inode,start(m_var)+jnode)
+                      a%a(k) = a%a(k) + elem%p_mat%a(start(l_var)+inode-1,start(m_var)+jnode-1)
                    else if ( jdof >= idof ) then! gtype == csr_symm 
                       do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                          if ( a%gr%ja(k) == jdof ) exit
                       end do
                       assert ( k < a%gr%ia(idof+1) )
-                      a%a(k) = elem%p_mat%a(start(l_var)+inode,start(m_var)+jnode)
+                      a%a(k) = a%a(k) + elem%p_mat%a(start(l_var)+inode-1,start(m_var)+jnode-1)
                    end if
                 end do
              end if
           end do
        end do
     end do
+    
+    !write(*,*) 'system_matrix'
+    !call fem_matrix_print(6,a)
+
   end subroutine element_matrix_assembly
 
   subroutine face_element_matrix_assembly( dhand, elem, face, start, a, iblock, jblock )
@@ -291,13 +311,13 @@ contains
        j = 3 - i
        iprob = elem(i)%problem
        jprob = elem(j)%problem
-       nvapb_i = dhand%prob_block(iblock,iprob)%nd1
-       nvapb_j = dhand%prob_block(jblock,jprob)%nd1
+       nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
+       nvapb_j = dhand%prob_block(jblock_,jprob)%nd1
        do ivars = 1, nvapb_i
-          l_var = dhand%prob_block(iblock,iprob)%a(ivars)
+          l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
           g_var = dhand%problems(iprob)%p%l2g_var(l_var)
           do jvars = 1, nvapb_j
-             m_var = dhand%prob_block(jblock,jprob)%a(jvars)
+             m_var = dhand%prob_block(jblock_,jprob)%a(jvars)
              k_var = dhand%problems(jprob)%p%l2g_var(m_var)
              do inode = 1,elem(i)%f_inf(l_var)%p%nnode
                 idof = elem(i)%elem2dof(inode,l_var)
@@ -311,13 +331,13 @@ contains
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
-                         a%a(k) = face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode)
+                         a%a(k) = a%a(k) + face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode-1)
                       else if ( jdof >= idof ) then! gtype == csr_symm 
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
-                         a%a(k) = face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode)
+                         a%a(k) = a%a(k) + face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode-1)
                       end if
                    end do
                 end if
@@ -343,14 +363,14 @@ contains
     iblock_ = 1
     if ( present(iblock) ) iblock_ = iblock
     iprob = elem%problem
-    nvapb_i = dhand%prob_block(iblock,iprob)%nd1
+    nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
     do ivars = 1, nvapb_i
-       l_var = dhand%prob_block(iblock,iprob)%a(ivars)
+       l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
        do inode = 1,elem%f_inf(l_var)%p%nnode
           idof = elem%elem2dof(inode,l_var)
           if ( idof  > 0 ) then
-             a%b(idof) =  elem%p_vec%a(start(l_var)+inode)
+             a%b(idof) =  a%b(idof) + elem%p_vec%a(start(l_var)+inode-1)
           end if
        end do
     end do
@@ -375,15 +395,15 @@ contains
     ndime = elem%p_geo_info%ndime
     if ( present(iblock) ) iblock_ = iblock
     iprob = elem%problem
-    nvapb_i = dhand%prob_block(iblock,iprob)%nd1
+    nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
     do ivars = 1, nvapb_i
-       l_var = dhand%prob_block(iblock,iprob)%a(ivars)
+       l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
        iobje = face%face_object + elem%p_geo_info%nobje_dim(ndime) - 1
        do inode = elem%f_inf(l_var)%p%ntxob%p(iobje),elem%f_inf(l_var)%p%ntxob%p(iobje)-1
           idof = elem%elem2dof(elem%f_inf(l_var)%p%ntxob%l(inode),l_var)
           if ( idof  > 0 ) then
-             a%b(idof) = face%p_vec%a(start(l_var)+inode)
+             a%b(idof) = a%b(idof) + face%p_vec%a(start(l_var)+inode-1)
           end if
        end do
     end do
@@ -419,15 +439,20 @@ contains
     
     iprob = el%problem
     count = 0
+
+    !write (*,*) 'start assembly bc of matrix : ', el%p_mat%a
     do ivars = 1, dh%problems(iprob)%p%nvars
        do inode = 1,el%f_inf(ivars)%p%nnode
           count = count + 1
           idof = el%elem2dof(inode,ivars)
           if ( idof  == 0 ) then
              el%p_vec%a(:) = el%p_vec%a(:) - el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
+             !write (*,*) 'add to vector', -el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
           end if
        end do
     end do
+
+    !write(*,*) 'elvec :', el%p_vec%a
 
   end subroutine impose_strong_dirichlet_data
 

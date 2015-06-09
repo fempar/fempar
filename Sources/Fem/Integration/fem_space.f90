@@ -553,6 +553,8 @@ contains
        write (lunou, *) 'crxob%l:  ', elm%f_inf(ivar)%p%crxob%l
     end do
 
+    write (lunou,*) 'Unknown values: ', elm%unkno
+
   end subroutine fem_element_print
 
   !==================================================================================================

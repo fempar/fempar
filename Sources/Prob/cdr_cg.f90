@@ -129,6 +129,9 @@ contains
     integer(ip)  :: idime,igaus,inode,jnode,ngaus,nnode
     real(rp) :: factor
 
+
+    mat%a = 0.0_rp
+    vec%a = 0.0_rp
     ndime = approx%physics%ndime
 
     !u = basis_function(approx%physics,1,start,integ)
@@ -162,6 +165,7 @@ contains
 
     nnode = integ(1)%p%uint_phy%nnode
     ngaus = integ(1)%p%uint_phy%nlocs
+
     do igaus = 1,ngaus
        factor = integ(1)%p%femap%detjm(igaus) * integ(1)%p%quad%weight(igaus)
        do inode = 1, nnode

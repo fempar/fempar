@@ -47,13 +47,14 @@ module create_global_dof_info_names
 contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine create_dof_info ( dhand, trian, femsp, dof_graph ) ! graph
+  subroutine create_dof_info ( dhand, trian, femsp, dof_graph, gtype ) ! graph
     implicit none
     ! Parameters
     type(dof_handler), intent(in)             :: dhand
     type(fem_triangulation), intent(in)       :: trian 
     type(fem_space), intent(inout)            :: femsp 
     type(fem_graph), allocatable, intent(out) :: dof_graph(:,:) 
+    integer(ip), optional, intent(in)         :: gtype(dhand%nblocks) 
 
     call create_element_to_dof_and_ndofs( dhand, trian, femsp )
 
@@ -62,7 +63,7 @@ contains
     call create_object2dof( dhand, trian, femsp )
 
     ! To be called after the reordering of dofs
-    call create_dof_graph( dhand, trian, femsp, dof_graph )
+    call create_dof_graph( dhand, trian, femsp, dof_graph, gtype )
 
   end subroutine create_dof_info
 
@@ -124,7 +125,7 @@ contains
                                !femsp%lelem(jelem)%nodes_object(inter,obje_l)%a(inode)
                                count = count + 1
 
-                               write (*,*) '****PUT DOF**** (elem,obj_l,obj_g,node,idof) ',jelem,obje_l,iobje,l_node,count
+                               !write (*,*) '****PUT DOF**** (elem,obj_l,obj_g,node,idof) ',jelem,obje_l,iobje,l_node,count
 
                                femsp%lelem(jelem)%elem2dof(l_node,l_var) = count
                             end do
@@ -134,7 +135,7 @@ contains
                             prob_ext = femsp%lelem(elem_ext)%problem
                             l_var_ext = dhand%g2l_vars(g_var,prob_ext)
 
-                            write (*,*) '****EXTRACT DOF**** (object)', iobje, ' FROM: (elem,obj_l) ',elem_ext,obje_ext, ' TO  : (elem,obj_l)', jelem,obje_l
+                            !write (*,*) '****EXTRACT DOF**** (object)', iobje, ' FROM: (elem,obj_l) ',elem_ext,obje_ext, ' TO  : (elem,obj_l)', jelem,obje_l
 
                             assert ( l_var_ext > 0 )
 
@@ -184,8 +185,8 @@ contains
                                   l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l) + o2n(inode) - 1
                                   inode_l = femsp%lelem(jelem)%nodes_object(l_var)%p%l(l_node)
                                   !inode_l = femsp%lelem(jelem)%nodes_object(inter,obje_l)%a(o2n(inode_ext))
-                                  write (*,*) '****COPY FROM NODE: ',inode_ext,' TO NODE: ',inode_l, 'DOF', &
-                                       & femsp%lelem(elem_ext)%elem2dof(inode_ext,l_var_ext)
+                                  !write (*,*) '****COPY FROM NODE: ',inode_ext,' TO NODE: ',inode_l, 'DOF', &
+                                  !     & femsp%lelem(elem_ext)%elem2dof(inode_ext,l_var_ext)
                                   femsp%lelem(jelem)%elem2dof(inode_l,l_var) = femsp%lelem(elem_ext)%elem2dof(inode_ext,l_var_ext)
                                end do ! SB.alert : 1) face object for cG and hdG, where the face must have all their nodes
                                !                   2) corner / edge only for cG
@@ -221,7 +222,7 @@ contains
 
        femsp%ndofs(iblock) = count
 
-       write (*,*) 'NDOFS:',femsp%ndofs(iblock)
+       !write (*,*) 'NDOFS:',femsp%ndofs(iblock)
     end do
 
   end subroutine create_element_to_dof_and_ndofs
@@ -340,7 +341,7 @@ contains
        end do
        !write (*,*) 'femsp%object2dof(iblock)%p', femsp%object2dof(iblock)%p
        !write (*,*) 'femsp%object2dof(iblock)%l', femsp%object2dof(iblock)%l
-       call print_list_2d(6,femsp%object2dof(iblock))
+       !call print_list_2d(6,femsp%object2dof(iblock))
 
     end do
   end subroutine create_object2dof
@@ -353,17 +354,19 @@ contains
   ! condensation and without it. In order to call this subroutine, we need to compute 
   ! first element2dof and object2dof arrays.
   !*********************************************************************************
-  subroutine create_dof_graph( dhand, trian, femsp, dof_graph ) 
+  subroutine create_dof_graph( dhand, trian, femsp, dof_graph, gtype ) 
     implicit none
     ! Parameters
-    type(dof_handler), intent(in)             :: dhand
-    type(fem_triangulation), intent(in)       :: trian 
+    type(dof_handler), intent(in)               :: dhand
+    type(fem_triangulation), intent(in)         :: trian 
     type(fem_space), intent(in)                 :: femsp 
     type(fem_graph), allocatable, intent(out)   :: dof_graph(:,:) 
+    integer(ip), optional, intent(in)           :: gtype(dhand%nblocks) 
+    
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var, inter, inode, l_node
-    integer(ip) :: gtype, idof, jdof, int_i, int_j, istat, jblock, jnode, job_g, jobje, jvars, k_var , touch
+    integer(ip) :: ltype, idof, jdof, int_i, int_j, istat, jblock, jnode, job_g, jobje, jvars, k_var , touch
     integer(ip) :: l_dof, m_dof, m_node, m_var, posi, posf, l_mat, m_mat
 
     integer(ip) :: nvapbi, nvapbj, nnode, i, iface, jprob, l_faci, l_facj
@@ -380,7 +383,11 @@ contains
     do iblock=1,dhand%nblocks
        do jblock=1,dhand%nblocks
           if ( iblock == jblock ) then
-             dof_graph(iblock,jblock)%type = csr !SB.alert: to be considered ... gtype(iblock)
+             if (present(gtype) ) then 
+                dof_graph(iblock,jblock)%type = gtype(iblock)
+             else
+                dof_graph(iblock,jblock)%type = csr
+             end if
           else ! ibloc /= jbloc
              dof_graph(iblock,jblock)%type = csr
           end if
@@ -390,11 +397,11 @@ contains
     touch = 1
     do iblock = 1,dhand%nblocks
        do jblock = 1,dhand%nblocks
-          gtype = dof_graph(iblock,jblock)%type
-          assert ( gtype == csr_symm .or. gtype == csr )
+          ltype = dof_graph(iblock,jblock)%type
+          assert ( ltype == csr_symm .or. ltype == csr )
 
           ! Initialize
-          dof_graph(iblock,jblock)%type = gtype
+          dof_graph(iblock,jblock)%type = ltype
           dof_graph(iblock,jblock)%nv  = femsp%ndofs(iblock) ! SB.alert : not stored there anymore
           dof_graph(iblock,jblock)%nv2 = femsp%ndofs(jblock)
           call memalloc( dof_graph(iblock,jblock)%nv+1, dof_graph(iblock,jblock)%ia, __FILE__,__LINE__ )
@@ -424,10 +431,10 @@ contains
                                   m_var = femsp%object2dof(jblock)%l(jdof,2)
                                   m_mat = femsp%object2dof(jblock)%l(jdof,3)
                                   if ( dhand%dof_coupl(l_var,m_var) == 1 .and. l_mat == m_mat ) then
-                                     if ( gtype == csr ) then
+                                     if ( ltype == csr ) then
                                         dof_graph(iblock,jblock)%ia(l_dof+1) = &
                                              & dof_graph(iblock,jblock)%ia(l_dof+1) + 1
-                                     else ! gtype == csr_symm 
+                                     else ! ltype == csr_symm 
                                         if ( m_dof >= l_dof ) then
                                            dof_graph(iblock,jblock)%ia(l_dof+1) = &
                                                 & dof_graph(iblock,jblock)%ia(l_dof+1) + 1
@@ -452,11 +459,11 @@ contains
                                m_var = dhand%problems(iprob)%p%l2g_var(k_var)
                                ! do ivars = 1, dhand%problems(femsp%lelem(jelem)%problem)%nvars
                                if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
-                                  if ( gtype == csr ) then
+                                  if ( ltype == csr ) then
                                      dof_graph(iblock,jblock)%ia(l_dof+1) =  dof_graph(iblock,jblock)%ia(l_dof+1) &
                                           & + femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1) &
                                           & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje)
-                                  else ! gtype == csr_symm
+                                  else ! ltype == csr_symm
                                      do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje), &
                                           & femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1)-1
                                         l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
@@ -496,11 +503,11 @@ contains
                               & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                             l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
                             l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
-                            if ( gtype == csr ) then
+                            if ( ltype == csr ) then
                                dof_graph(iblock,jblock)%ia(l_dof+1) =  dof_graph(iblock,jblock)%ia(l_dof+1) &
                                     &  + femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1) &
                                     & - femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje)
-                            else ! gtype == csr_symm 
+                            else ! ltype == csr_symm 
                                do jnode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
                                     & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                                   m_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(jnode)
@@ -528,7 +535,7 @@ contains
                                     & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                                   l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
                                   l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
-                                  if ( gtype == csr ) then
+                                  if ( ltype == csr ) then
                                      dof_graph(iblock,jblock)%ia(l_dof+1) = &
                                           & dof_graph(iblock,jblock)%ia(l_dof+1) + 1 
                                   else if ( m_dof >= l_dof ) then
@@ -550,7 +557,7 @@ contains
           ! coupling by face integration (discontinuous Galerkin terms)
           ! count
           do iface = 1,femsp%num_interior_faces
-             write (*,*) 'iobje',iobje
+             !write (*,*) 'iobje',iobje
              do i=1,2
                 ielem = trian%objects(iobje)%elems_around(i)
                 jelem = trian%objects(iobje)%elems_around(3-i)
@@ -569,7 +576,7 @@ contains
                       m_var = dhand%prob_block(iblock,jprob)%a(jvars)
                       k_var = dhand%problems(jprob)%p%l2g_var(m_var)
                       if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
-                         if ( gtype == csr ) then
+                         if ( ltype == csr ) then
                             nnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1) &
                                  &  -femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj)
                             do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
@@ -580,7 +587,7 @@ contains
                                dof_graph(iblock,jblock)%ia(l_dof+1) = dof_graph(iblock,jblock)%ia(l_dof+1) &
                                     & + nnode
                             end do
-                         else ! gtype == csr_symm 
+                         else ! ltype == csr_symm 
                             do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
                                l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
                                do jnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj), &
@@ -613,17 +620,17 @@ contains
           call memalloc( dof_graph(iblock,jblock)%nv+1, aux_ia, __FILE__,__LINE__ )
           aux_ia = dof_graph(iblock,jblock)%ia
 
-          write(*,*) 'graph%ia : ',dof_graph(iblock,jblock)%ia
+          !write(*,*) 'graph%ia : ',dof_graph(iblock,jblock)%ia
 
-          write(*,*) '******* LIST *******'
+          !write(*,*) '******* LIST *******'
           count = 0
           do iobje = 1, trian%num_objects 
-             write(*,*) 'LOOP OBJECTS **** IOBJE:',iobje    
+             !write(*,*) 'LOOP OBJECTS **** IOBJE:',iobje    
              if ( femsp%object2dof(iblock)%p(iobje+1)-femsp%object2dof(iblock)%p(iobje) > 0) then
                 call visited%init(100) 
                 do ielem = 1, trian%objects(iobje)%num_elems_around
                    jelem = trian%objects(iobje)%elems_around(ielem)
-                   write(*,*) '**** LOOP ELEMENTS CONTAIN OBJECT **** ELEM:',jelem
+                   !write(*,*) '**** LOOP ELEMENTS CONTAIN OBJECT **** ELEM:',jelem
                    if ( jelem <= trian%num_elems ) then 
                       do jobje = 1, trian%elems(jelem)%num_objects
                          job_g = trian%elems(jelem)%objects(jobje)
@@ -632,7 +639,7 @@ contains
                          call visited%put(key=job_g, val=touch, stat=istat)
                          !write (*,*) 'istat',istat
                          if ( istat == now_stored ) then  ! interface-interface
-                            write(*,*) '******** LOOP  OBJECTS IN ELEM **** JOBJE:',job_g
+                            !write(*,*) '******** LOOP  OBJECTS IN ELEM **** JOBJE:',job_g
                             do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
                                l_dof = femsp%object2dof(iblock)%l(idof,1)
                                l_var = femsp%object2dof(iblock)%l(idof,2)
@@ -640,13 +647,13 @@ contains
                                   m_dof = femsp%object2dof(jblock)%l(jdof,1)
                                   m_var = femsp%object2dof(jblock)%l(jdof,2)
                                   if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
-                                     if ( gtype == csr ) then
-                                        write(*,*) '************INSERT IN IDOF: ',l_dof,' JDOF: ',m_dof
+                                     if ( ltype == csr ) then
+                                        !write(*,*) '************INSERT IN IDOF: ',l_dof,' JDOF: ',m_dof
                                         count = aux_ia(l_dof)
                                         dof_graph(iblock,jblock)%ja(count) = m_dof
                                         aux_ia(l_dof) = aux_ia(l_dof)+1
                                         !& dof_graph(iblock,jblock)%ia(l_dof+1) + 1
-                                     else ! gtype == csr_symm 
+                                     else ! ltype == csr_symm 
                                         if ( m_dof >= l_dof ) then
                                            count = aux_ia(l_dof)
                                            dof_graph(iblock,jblock)%ja(count) = m_dof
@@ -672,7 +679,7 @@ contains
                                m_var = dhand%problems(iprob)%p%l2g_var(k_var)
                                ! do ivars = 1, dhand%problems(femsp%lelem(jelem)%problem)%nvars
                                if ( dhand%dof_coupl(l_var, m_var) == 1 ) then                
-                                  if ( gtype == csr ) then
+                                  if ( ltype == csr ) then
                                      do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje), &
                                           & femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1)-1
                                         l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
@@ -681,7 +688,7 @@ contains
                                         dof_graph(iblock,jblock)%ja(count) = m_dof
                                         aux_ia(l_dof) = aux_ia(l_dof)+1
                                      end do
-                                  else ! gtype == csr_symm
+                                  else ! ltype == csr_symm
                                      do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje), &
                                           & femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1)-1
                                         l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
@@ -721,7 +728,7 @@ contains
                               & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                             l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
                             l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
-                            if ( gtype == csr ) then
+                            if ( ltype == csr ) then
                                do jnode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                                     & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                                   m_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(jnode)
@@ -730,7 +737,7 @@ contains
                                   dof_graph(iblock,jblock)%ja(count) = m_dof
                                   aux_ia(l_dof) = aux_ia(l_dof)+1
                                end do
-                            else ! gtype == csr_symm 
+                            else ! ltype == csr_symm 
                                do jnode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                                     & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                                   m_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(jnode)
@@ -757,7 +764,7 @@ contains
                                     & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                                   l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
                                   l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
-                                  if ( gtype == csr ) then
+                                  if ( ltype == csr ) then
                                      count = aux_ia(l_dof)
                                      dof_graph(iblock,jblock)%ja(count) = m_dof
                                      aux_ia(l_dof) = aux_ia(l_dof)+1
@@ -796,7 +803,7 @@ contains
                       m_var = dhand%prob_block(iblock,jprob)%a(jvars)
                       k_var = dhand%problems(jprob)%p%l2g_var(m_var)
                       if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
-                         if ( gtype == csr ) then
+                         if ( ltype == csr ) then
                             do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
                                l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
                                do jnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj), &
@@ -808,7 +815,7 @@ contains
                                   aux_ia(l_dof) = aux_ia(l_dof) + 1
                                end do
                             end do
-                         else ! gtype == csr_symm 
+                         else ! ltype == csr_symm 
                             do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
                                l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
                                do jnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj), &
@@ -837,12 +844,12 @@ contains
              call sort(posf-posi+1,dof_graph(iblock,jblock)%ja(posi:posf))
           end do
           do idof = 1, femsp%ndofs(iblock)
-             write (*,*) 'DOFS COUPLED TO IDOF:',idof
-             write (*,*) '****** START:'
+             !write (*,*) 'DOFS COUPLED TO IDOF:',idof
+             !write (*,*) '****** START:'
              do l_dof = dof_graph(iblock,jblock)%ia(idof),dof_graph(iblock,jblock)%ia(idof+1)-1
-                write(*,'(I5,$)') dof_graph(iblock,jblock)%ja(l_dof)
+                !write(*,'(I5,$)') dof_graph(iblock,jblock)%ja(l_dof)
              end do
-             write (*,*) '****** END'
+             !write (*,*) '****** END'
           end do
           !call fem_graph_print( 6, dof_graph(iblock,jblock) )
           call memfree (aux_ia,__FILE__,__LINE__)

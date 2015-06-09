@@ -102,13 +102,9 @@ contains
     end if
 
     if (present(gcond)) then
-       write(*,*) 'create tcond'
        call geom2topo_mesh_cond(gmesh, tmesh, gcond, tcond)
-       write(*,*) 'free gcond'
        call fem_conditions_free( gcond )
-       write(*,*) 'copy tcond to gcond'
        call fem_conditions_copy( tcond, gcond )
-       write(*,*) 'free tcond'
        call fem_conditions_free( tcond )
     else
        call geom2topo_mesh_cond(gmesh, tmesh)
