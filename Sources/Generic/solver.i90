@@ -424,7 +424,7 @@ subroutine pcg_conv_check ( r, nrm_r_given, alpha, p, ctrl )
         ! Compute || r(i) ||
         call generic_nrm2 ( r, ctrl%err2 )
         ctrl%converged = (ctrl%err2 <= ctrl%tol2 )
-        ctrl%err2h(ctrl%it) = ctrl%err2
+        if ( ctrl%track_conv_his ) ctrl%err2h(ctrl%it) = ctrl%err2
      end if
   end select
 
