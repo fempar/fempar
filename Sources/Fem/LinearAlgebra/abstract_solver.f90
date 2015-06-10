@@ -338,7 +338,7 @@ contains
           ! call generic_nrm2 ( r, ctrl%err2 )
           ctrl%err2 = r%nrm2()
           ctrl%converged = (ctrl%err2 <= ctrl%tol2 )
-          ctrl%err2h(ctrl%it) = ctrl%err2
+          if ( ctrl%track_conv_his ) ctrl%err2h(ctrl%it) = ctrl%err2
        end if
     end select
 
