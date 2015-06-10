@@ -179,18 +179,16 @@ contains
 
   end subroutine par_block_vector_clone
 
-  subroutine par_block_vector_comm ( p_vec, alpha, mode )
+  subroutine par_block_vector_comm ( p_vec )
     implicit none
 
     ! Parameters
     type(par_block_vector), intent(inout)         :: p_vec
-    real(rp)              , intent(in), optional  :: alpha
-    integer(ip)           , intent(in), optional  :: mode
 
     ! Local variables
     integer(ip) :: ib
     do ib=1, p_vec%nblocks
-       call par_vector_comm ( p_vec%blocks(ib), alpha, mode )
+       call par_vector_comm ( p_vec%blocks(ib) )
     end do
 
   end subroutine par_block_vector_comm

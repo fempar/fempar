@@ -413,7 +413,7 @@ subroutine pcg_conv_check ( r, nrm_r_given, alpha, p, ctrl )
      ctrl%err1 = nrm_r_given
 
   end select
-  ctrl%err1h(ctrl%it) = ctrl%err1
+  if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
   ctrl%converged = (ctrl%err1 <= ctrl%tol1 )
 
   ! Evaluate 2nd convergence criterion
@@ -702,7 +702,7 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
            end if
         end if
 
-        ctrl%err1h(ctrl%it) = ctrl%err1
+        if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
         exit_loop = (ctrl%err1 < ctrl%tol1)
         ! Send converged to coarse-grid tasks
         call generic_bcast ( M, exit_loop )
@@ -995,7 +995,7 @@ subroutine generic_prgmres ( A, M, b, x, ctrl)
            ! Error norm
            res_norm = abs(alpha)
            ctrl%err1  = res_norm
-           ctrl%err1h(ctrl%it) = ctrl%err1
+           if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
         end if
         exit_loop = (ctrl%err1 < ctrl%tol1) 
         ! Send converged to coarse-grid tasks
@@ -1255,7 +1255,7 @@ subroutine generic_pfgmres ( A, M, b, x, ctrl)
            ! Error norm
            res_norm = abs(alpha)
            ctrl%err1  = res_norm
-           ctrl%err1h(ctrl%it) = ctrl%err1
+           if (ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
         end if
         exit_loop = (ctrl%err1 < ctrl%tol1)
         ! Send converged to coarse-grid tasks
@@ -1404,7 +1404,7 @@ subroutine generic_prichard (A, M, b, x, ctrl )
         end if
      end if
      ctrl%err1 = res_norm
-     if (ctrl%it > 0) ctrl%err1h(ctrl%it) = ctrl%err1
+     if (ctrl%it > 0 .and. ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
      ctrl%converged = (ctrl%err1 < ctrl%tol1)
 
      ! Send converged to coarse-grid tasks
@@ -1623,7 +1623,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
            ctrl%err1 = res_2_norm
         end if
 
-        ctrl%err1h(ctrl%it) = ctrl%err1
+        if (ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
         exit_loop = (ctrl%err1 < ctrl%tol1)
         ! Send converged to coarse-grid tasks
         call generic_bcast ( M, exit_loop )

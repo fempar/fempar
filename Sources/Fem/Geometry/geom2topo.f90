@@ -330,8 +330,8 @@ contains
                       ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =                   &
                            &          ocnd%code(icode,nd_i(1))
                    else
-                      write(*,*) "fem_mesh_topology:: WARNING!! Arbitrary BC's on object",          &
-                           &        omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)
+                      !write(*,*) "fem_mesh_topology:: WARNING!! Arbitrary BC's on object",          &
+                      !     &        omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)
                       ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =  0
                    end if
                 end do
@@ -425,8 +425,8 @@ contains
                       if (s == 1) then
                          ocnd%code(icode,omsh%lnods(op+i)) =  ocnd%code(icode,nd_i(1)) 
                       else
-                         write(*,*) 'fem_mesh_topology:: WARNING!! Arbitrary BCs on object',        &
-                              &        omsh%lnods(op+i)
+                         !write(*,*) 'fem_mesh_topology:: WARNING!! Arbitrary BCs on object',        &
+                         !     &        omsh%lnods(op+i)
                          ocnd%code(icode,omsh%lnods(op+i)) =  0 
                       end if
                       ocnd%valu(icode,omsh%lnods(op+i)) =                                           &

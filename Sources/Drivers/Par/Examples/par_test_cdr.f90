@@ -36,14 +36,19 @@ program par_test_cdr
   use mpi
   
   implicit none
-#include "debug.i90"
+#include "debug.i90" 
   ! Our data
   type(par_context)                       :: context
   type(par_environment)                   :: p_env
   type(par_mesh)                          :: p_mesh
   type(par_triangulation)                 :: p_trian
-  type(par_matrix)                        :: p_mat
-  type(par_vector)                        :: p_vec, p_unk
+  type(par_matrix), target                :: p_mat
+  type(par_vector), target                :: p_vec, p_unk
+  class(base_operand) , pointer           :: x, y
+  class(base_operator), pointer           :: A
+  type(par_precond_dd_diagonal)           :: p_prec_dd_diag
+  type(solver_control)     :: sctrl
+
 
   type(dof_distribution) , allocatable :: dof_dist(:)
 
@@ -51,6 +56,7 @@ program par_test_cdr
   type(fem_space)    :: fspac
 
   type(par_graph), allocatable    :: dof_graph(:,:)
+  integer(ip)                     :: gtype(1) = (/ csr_symm /)
   type(fem_conditions)  :: f_cond
 
   type(cdr_problem)               :: my_problem
@@ -106,7 +112,7 @@ program par_test_cdr
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
   continuity = 1
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 1
+  order = 7
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
@@ -131,24 +137,57 @@ program par_test_cdr
 
 
   ! Continuity
-  !write(*,*) 'Continuity', continuity
-
+  ! write(*,*) 'Continuity', continuity
   call par_fem_space_create ( p_trian, dhand, fspac, problem, approximations, &
                               f_cond, continuity, order, material, &
                               which_approx, num_approximations=1, time_steps_to_store = 1, &
                               hierarchical_basis = logical(.false.,lg), &
                               & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
+  call update_strong_dirichlet_boundary_conditions( fspac )
 
-  call par_create_distributed_dof_info ( dhand, p_trian, fspac, dof_dist, dof_graph, (/ csr_symm /) )  
+  call par_create_distributed_dof_info ( dhand, p_trian, fspac, dof_dist, dof_graph, gtype )  
 
   call par_matrix_alloc ( csr_mat, symm_true, dof_graph(1,1), p_mat, positive_definite )
+
   call par_vector_alloc ( dof_dist(1), p_env, p_vec )
+  p_vec%state = part_summed
   call par_vector_alloc ( dof_dist(1), p_env, p_unk )
+  p_unk%state = full_summed
 
   call volume_integral( fspac, p_mat%f_matrix, p_vec%f_vector)
 
-  call dof_distribution_print ( 6, dof_dist(1) )
+  call p_unk%init(1.0_rp)
+
+  A => p_mat
+  x => p_vec
+  y => p_unk
+  y = x - A*y
+  write(*,*) 'XXX error norm XXX', y%nrm2()
+
+  call par_precond_dd_diagonal_create ( p_mat, p_prec_dd_diag )
+  call par_precond_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
+  call par_precond_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
+
+  sctrl%method=cg
+  sctrl%trace=1
+  sctrl%itmax=800
+  sctrl%dkrymax=800
+  sctrl%stopc=res_res
+  sctrl%orto=icgs
+  sctrl%rtol=1.0e-06
+
+  call p_unk%init(0.0_rp)
+
+  ! AFM: I had to re-assign the state of punk as the expression
+  ! y = x - A*y changed its state to part_summed!!! 
+  p_unk%state = full_summed
+
+  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
+
+  call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
+  call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
+  call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_clean )
 
   call par_matrix_free (p_mat)
   call par_vector_free (p_vec)
@@ -174,6 +213,7 @@ program par_test_cdr
 
   call fem_space_free(fspac) 
   call my_problem%free
+  call my_approximation%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
   call fem_conditions_free (f_cond)
@@ -208,5 +248,27 @@ contains
     dir_path_out = trim(argument)
 
   end subroutine read_pars_cl
+
+  subroutine update_strong_dirichlet_boundary_conditions( fspac )
+    implicit none
+    type(fem_space), intent(inout)    :: fspac
+    
+    integer(ip) :: ielem, iobje, ivar, inode, l_node
+
+    do ielem = 1, fspac%g_trian%num_elems
+       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+          do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+             
+             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
+                end if
+             end do
+          end do
+       end do
+    end do
+  end subroutine update_strong_dirichlet_boundary_conditions
 
 end program par_test_cdr

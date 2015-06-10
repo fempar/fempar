@@ -226,12 +226,10 @@ contains
 
   end subroutine par_vector_clone
 
-  subroutine par_vector_comm ( p_vec, alpha, mode )
+  subroutine par_vector_comm ( p_vec )
     implicit none
     ! Parameters
     type(par_vector), intent(inout) :: p_vec
-    real(rp)        , intent(in), optional  :: alpha
-    integer(ip)     , intent(in), optional  :: mode
 
     ! Local variables
     integer(ip)      :: ni 
@@ -246,7 +244,7 @@ contains
 
     ni = p_vec%f_vector%neq - p_vec%dof_dist%nb
     call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
-    call comm_interface ( p_vec_G, alpha, mode )
+    call comm_interface ( p_vec_G )
 
     p_vec%state = full_summed
   end subroutine par_vector_comm
@@ -255,18 +253,12 @@ contains
   ! VERY IMPORTANT: comm_interface is well-defined if and only if p_vec is a 
   !                 vector on the interface
   !=============================================================================
-  subroutine comm_interface (p_vec, alpha, mode)
+  subroutine comm_interface (p_vec)
     use par_sparse_global_collectives
     implicit none
 
     ! Parameters
     type(par_vector), intent(inout)         :: p_vec
-    real(rp)        , intent(in), optional  :: alpha
-    integer(ip)     , intent(in), optional  :: mode
-
-    ! Local variables
-    real(rp)    ::  alpha_
-    integer(ip) ::  mode_ 
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist) )
@@ -274,17 +266,6 @@ contains
     assert ( p_vec%p_env%p_context%created .eqv. .true.)
     if(p_vec%p_env%p_context%iam<0) return
 
-    if (present( alpha )) then
-       alpha_ = alpha
-    else
-       alpha_ = 1.0_rp
-    end if
-
-    if (present( mode )) then
-       mode_ = mode 
-    else
-       mode_ = sp_all_to_all_default
-    end if
 
     ! call fem_import_print (6, p_vec%dof_dist%dof_import)
     ! write(*,*) 'SE 1', size(p_vec%f_vector%b)
@@ -300,10 +281,9 @@ contains
          p_vec%dof_dist%dof_import%list_snd,   &
          p_vec%dof_dist%dof_import%snd_ptrs,   &
          p_vec%dof_dist%dof_import%pack_idx,   &
-         alpha_,                         &
          1.0_rp,                         &
-         p_vec%f_vector%b,               &
-         mode=mode_) 
+         1.0_rp,                         &
+         p_vec%f_vector%b ) 
 
     ! write(*,*) 'SE 2'
 
@@ -319,8 +299,7 @@ contains
          p_vec%dof_dist%dof_import%unpack_idx, &
          1.0_rp,                         &
          0.0_rp,                         &
-         p_vec%f_vector%b,               &
-         mode=mode_)
+         p_vec%f_vector%b )
 
   end subroutine comm_interface
 
@@ -563,7 +542,7 @@ contains
     else 
        ! Scale local copy
        call fem_vector_init (t, y%f_vector)
-       y%state = full_summed
+       ! y%state = full_summed
     end if
   end subroutine par_vector_init
 
@@ -961,7 +940,7 @@ contains
   
    ! Init local copy
    call op%f_vector%init(alpha)
-   op%state = full_summed
+   ! op%state = full_summed
  end subroutine par_vector_init_tbp
 
  ! op1 <- alpha*op2 + beta*op1
@@ -1051,12 +1030,42 @@ contains
  subroutine par_vector_comm_tbp(op)
    implicit none
    class(par_vector), intent(inout) :: op
+
+   ! Local variables
+   integer(ip)      :: ni 
+   type(par_vector) :: op_G
+
+   ! Pointer to part/context object is required
+   assert ( associated(op%dof_dist) )
+   assert ( associated(op%p_env%p_context) )
+   assert ( op%p_env%p_context%created .eqv. .true.)
+   if(op%p_env%p_context%iam<0) return
+   
+   ni = op%f_vector%neq - op%dof_dist%nb
+   call par_vector_create_view ( op, ni+1, op%f_vector%neq, op_G )
+   call comm_interface ( op_G )
+   
+   op%state = full_summed
+
  end subroutine par_vector_comm_tbp
 
  subroutine par_vector_free_tbp(this)
    implicit none
    class(par_vector), intent(inout) :: this
 
+   ! The routine requires the partition/context info
+   assert ( associated( this%dof_dist ) )
+   assert ( associated( this%p_env%p_context ) )
+   assert ( this%p_env%p_context%created .eqv. .true.)
+   if(this%p_env%p_context%iam<0) return
+   
+   this%state = undefined
+   
+   ! Free local part
+   call fem_vector_free ( this%f_vector )
+   
+   nullify ( this%dof_dist )
+   nullify ( this%p_env )
 
  end subroutine par_vector_free_tbp
 

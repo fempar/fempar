@@ -384,7 +384,7 @@ contains
        end do
        !write (*,*) 'femsp%object2dof(iblock)%p', femsp%object2dof(iblock)%p
        !write (*,*) 'femsp%object2dof(iblock)%l', femsp%object2dof(iblock)%l
-       call print_list_2d(6,femsp%object2dof(iblock))
+       ! call print_list_2d(6,femsp%object2dof(iblock))
 
     end do
   end subroutine create_object2dof
@@ -820,13 +820,13 @@ contains
 
     ! coupling by face integration (discontinuous Galerkin terms)
     ! list
-    write(*,*) 'femsp%num_interior_faces',femsp%num_interior_faces
+    ! write(*,*) 'femsp%num_interior_faces',femsp%num_interior_faces
     do iface = 1, femsp%num_interior_faces
-       write(*,*) 'iface',iface
+       ! write(*,*) 'iface',iface
        iobje = femsp%interior_faces(iface)%face_object
-       write (*,*) 'iobje',iobje
+       ! write (*,*) 'iobje',iobje
        assert ( trian%objects(iobje)%num_elems_around == 2 ) 
-       write (*,*) 'trian%objects(iobje)%elems_around',trian%objects(iobje)%elems_around
+       ! write (*,*) 'trian%objects(iobje)%elems_around',trian%objects(iobje)%elems_around
        do i=1,2
           ielem = trian%objects(iobje)%elems_around(i)
           jelem = trian%objects(iobje)%elems_around(3-i)
@@ -834,13 +834,13 @@ contains
                & trian%elems(ielem)%num_objects )
           l_facj = local_position(femsp%interior_faces(iface)%face_object,trian%elems(jelem)%objects, &
                & trian%elems(jelem)%num_objects )
-          write(*,*) 'ielem,jelem:',ielem,jelem
-          write(*,*) 'ielem femsp%lelem(ielem)%elem2dof :',femsp%lelem(ielem)%elem2dof
-          write(*,*) 'ielem femsp%lelem(jelem)%elem2dof :',femsp%lelem(jelem)%elem2dof
-          write(*,*) 'lfaces:',l_faci,l_facj
+          ! write(*,*) 'ielem,jelem:',ielem,jelem
+          ! write(*,*) 'ielem femsp%lelem(ielem)%elem2dof :',femsp%lelem(ielem)%elem2dof
+          ! write(*,*) 'ielem femsp%lelem(jelem)%elem2dof :',femsp%lelem(jelem)%elem2dof
+          ! write(*,*) 'lfaces:',l_faci,l_facj
           iprob = femsp%lelem(ielem)%problem
           jprob = femsp%lelem(jelem)%problem
-          write(*,*) 'probs:',iprob,jprob
+          ! write(*,*) 'probs:',iprob,jprob
           nvapbi = dhand%prob_block(iblock,iprob)%nd1 
           nvapbj = dhand%prob_block(iblock,jprob)%nd1 
           do ivars = 1, nvapbi
