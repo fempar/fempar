@@ -29,7 +29,8 @@ module assembly_names
 
   use types
   use array_ip1_names
-  use fem_space_names
+  use fem_element_names
+  !use fem_space_names
   use dof_handler_names
   use fem_block_matrix_names
   use fem_matrix_names
@@ -324,7 +325,7 @@ contains
                 if ( idof  > 0 ) then
                    ndime = elem(j)%p_geo_info%ndime
                    iobje = face%face_object + elem(j)%p_geo_info%nobje_dim(ndime) - 1
-                   do jnode = elem(j)%f_inf(m_var)%p%ntxob%p(iobje),elem(j)%f_inf(m_var)%p%ntxob%p(iobje)-1
+                   do jnode = elem(j)%f_inf(m_var)%p%ntxob%p(iobje),elem(j)%f_inf(m_var)%p%ntxob%p(iobje+1)-1
                       jdof = elem(j)%elem2dof(elem(j)%f_inf(m_var)%p%ntxob%l(jnode),m_var)
                       if (  gtype == csr .and. jdof > 0 ) then
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
@@ -400,7 +401,7 @@ contains
        l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
        iobje = face%face_object + elem%p_geo_info%nobje_dim(ndime) - 1
-       do inode = elem%f_inf(l_var)%p%ntxob%p(iobje),elem%f_inf(l_var)%p%ntxob%p(iobje)-1
+       do inode = elem%f_inf(l_var)%p%ntxob%p(iobje),elem%f_inf(l_var)%p%ntxob%p(iobje+1)-1
           idof = elem%elem2dof(elem%f_inf(l_var)%p%ntxob%l(inode),l_var)
           if ( idof  > 0 ) then
              a%b(idof) = a%b(idof) + face%p_vec%a(start(l_var)+inode-1)

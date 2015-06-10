@@ -43,15 +43,14 @@ program par_test_cdr
   type(par_mesh)                          :: p_mesh
   type(par_triangulation)                 :: p_trian
   type(par_matrix)                        :: p_mat
-  type(par_precond_dd_mlevel_bddc)        :: mlbddc
-  type(par_precond_dd_mlevel_bddc_params) :: mlbddc_params
+  type(par_vector)                        :: p_vec, p_unk
 
   type(dof_distribution) , allocatable :: dof_dist(:)
 
   type(dof_handler)  :: dhand
   type(fem_space)    :: fspac
 
-  type(fem_graph), allocatable    :: dof_graph(:,:)
+  type(par_graph), allocatable    :: dof_graph(:,:)
   type(fem_conditions)  :: f_cond
 
   type(cdr_problem)               :: my_problem
@@ -98,11 +97,11 @@ program par_test_cdr
 
 
   call my_problem%create( p_trian%f_trian%num_dims )
-  call dhand%set_problem( 1, my_problem )
-  ! ... for as many problems as we have
-
   call my_approximation%create(my_problem)
   approximations(1)%p => my_approximation
+
+  call dhand%set_problem( 1, my_approximation )
+  ! ... for as many problems as we have
 
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
   continuity = 1
@@ -140,58 +139,20 @@ program par_test_cdr
                               hierarchical_basis = logical(.false.,lg), &
                               & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
-  call create_dof_info( dhand, p_trian%f_trian, fspac, dof_graph )
 
-  ! call fem_space_print( 6, fspac )
+  call par_create_distributed_dof_info ( dhand, p_trian, fspac, dof_dist, dof_graph, (/ csr_symm /) )  
 
-  ! do i = p_trian%f_trian%num_elems+1,p_trian%f_trian%num_elems+p_trian%num_ghosts
-  !    write (*,*) 'GHOST ELEMENT****',i
-  !    call fem_element_print( 6, fspac%lelem(i) )
-  ! end do
+  call par_matrix_alloc ( csr_mat, symm_true, dof_graph(1,1), p_mat, positive_definite )
+  call par_vector_alloc ( dof_dist(1), p_env, p_vec )
+  call par_vector_alloc ( dof_dist(1), p_env, p_unk )
 
-  call dof_distribution_create(p_trian, fspac, dhand, dof_dist)
+  call volume_integral( fspac, p_mat%f_matrix, p_vec%f_vector)
 
-  !call dof_distribution_print ( 6, dof_dist(1) )
+  call dof_distribution_print ( 6, dof_dist(1) )
 
-  ! write (*,*) 'ALL NODES BEFORE' 
-  ! write (*,*) 'contxt:',context%iam
-  ! call mpi_barrier( context%icontxt, ierror )
-  ! write (*,*) 'ALL NODES AFTER' 
-  ! call mpi_barrier( context%icontxt, ierror )
-
-  !pause
-
-  !  nint = 1
-  !  tdim = 1
-  !  prob_code = ? 
-  !  prob_nunk = ?
-  !  prob_list_nunk = ?
-
-  ! I would pass the dof_handler !!!
-  ! ftype = tet_type (1) or hex_type (2) 
-
-
-  !  call fem_space_fe_list_create ( fspac, 
-
-  ! nint, iv, 
-
-  ! continuity = .true., material = 1, f_type = 2, & 
-  !        & order = ones, p_trian%f_trian%num_dims, time_steps_to_store = 1, &
-
-
-  !        & prob_code, prob_nunk, prob_list_nunk, 
-
-
-  ! hierarchical_basis = .false. , static_condensation = .false.  )
-
-  ! do i=1,p_trian%num_elems + p_trian%num_ghosts
-  !   write(*,'(10i10)') p_trian%elems(i)%objects_GIDs
-  ! end do
-  ! do i=1,p_trian%num_elems + p_trian%num_ghosts
-  !    write(*,'(10i10)') p_trian%f_trian%elems(i)%objects
-  ! end do
-
-  ! call par_precond_dd_mlevel_bddc_create ( p_mat, mlbddc, mlbddc_params )
+  call par_matrix_free (p_mat)
+  call par_vector_free (p_vec)
+  call par_vector_free (p_unk)
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
@@ -199,19 +160,28 @@ program par_test_cdr
   call memfree( problem, __FILE__, __LINE__)
   call memfree( which_approx, __FILE__, __LINE__)
 
+  do i = 1, dhand%nblocks
+     do j = 1, dhand%nblocks
+        call par_graph_free( dof_graph(i,j) )
+     end do
+  end do
+  call memfree ( dof_graph, __FILE__, __LINE__ )
+
   do iblock=1, dhand%nblocks
      call dof_distribution_free(dof_dist(iblock))
   end do
   deallocate(dof_dist)
 
   call fem_space_free(fspac) 
+  call my_problem%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
   call fem_conditions_free (f_cond)
   call par_mesh_free (p_mesh)
+  call par_environment_free (p_env)
   call par_context_free ( context )
 
-  !call memstatus
+  ! call memstatus
 
 contains
   subroutine read_pars_cl (dir_path, prefix, dir_path_out)

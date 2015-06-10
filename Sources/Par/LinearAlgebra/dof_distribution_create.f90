@@ -35,6 +35,7 @@ module dof_distribution_create_names
   use dof_handler_names
   use dof_distribution_names
   use fem_space_types
+  use fem_element_names
   use fem_space_names
   use hash_table_names
   
@@ -442,7 +443,7 @@ contains
          end do
 
          call memfree ( l2lo2n,__FILE__,__LINE__)
-
+         call memfree ( l2ln2o,__FILE__,__LINE__)
 
          call create_int_objs ( ipart, &
                                 dof_dist(iblock)%npadj, &

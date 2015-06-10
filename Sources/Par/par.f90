@@ -54,5 +54,6 @@ module par
 
   !Integration
   use par_fem_space_names
+  use par_create_global_dof_info_names
     
 end module par

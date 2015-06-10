@@ -31,24 +31,24 @@ module problem_names
   use array_names
   use fem_space_types
   use integration_tools_names
+  use fem_element_names
   implicit none
   private
-  
-
 
   type :: physical_problem
      integer(ip)        ::             &
-          nvars,                       &       ! Number of different variables
+          nvars,                       &       ! Number of variables
           nunks,                       &       ! Number of unknowns (groups of variables)
           ndime,                       &       ! Number of space dimensions
           ntens                                ! Number of tensor components
      integer(ip), allocatable ::       &
-          vars_of_unk(:),              &       ! Number of variables of each unknown (size nunks)
-          l2g_var(:)                           ! Order chosen for variables (size nvars)
-     !integer(ip)        ::             &
-     !     problem_code                         ! An internal code that defines a problem in FEMPAR
+          vars_of_unk(:)                       ! Number of variables of each unknown (size nunks)
      character(len=:), allocatable ::  &
           unkno_names(:)                       ! Names for the gauss_properties (nunks)
+   ! contains
+   !    procedure(create_interface), deferred :: create
+   !    procedure(matvec_interface), deferred :: matvec
+   !    procedure(free_interface), deferred :: free
   end type physical_problem
 
   type :: p_physical_problem
@@ -56,10 +56,14 @@ module problem_names
   end type p_physical_problem
 
   type, abstract :: discrete_problem
-     !class(physical_problem), pointer :: physics
+     integer(ip)        ::             &
+          nvars                                ! Number of discrete variables
+     integer(ip), allocatable ::       &
+          l2g_var(:)                           ! Order chosen for variables (size nvars)
    contains
       procedure(create_interface), deferred :: create
       procedure(matvec_interface), deferred :: matvec
+      procedure :: free => discrete_problem_free
    end type discrete_problem
 
    type :: discrete_problem_pointer
@@ -67,36 +71,36 @@ module problem_names
    end type discrete_problem_pointer
 
   abstract interface
-     subroutine create_interface(approx,prob)
-       import :: physical_problem, discrete_problem
+     subroutine create_interface(approx,prob,l2g)
+       import :: physical_problem, discrete_problem, ip
        implicit none
        class(discrete_problem)        , intent(out) :: approx
        class(physical_problem), target, intent(in)  :: prob
+       integer(ip), intent(in), optional :: l2g(:)
      end subroutine create_interface
-     subroutine matvec_interface(approx,integ,unkno,start,mat,vec)
-       import :: discrete_problem, volume_integrator_pointer, array_rp2, array_rp1, rp, ip
+     subroutine matvec_interface(approx,start,elem)
+       import :: discrete_problem, fem_element, ip
        implicit none
-       class(discrete_problem)        , intent(in) :: approx
-       type(volume_integrator_pointer), intent(in) :: integ(:)
-       real(rp)                       , intent(in) :: unkno(:,:,:)
-       integer(ip)                    , intent(in) :: start(:)
-       type(array_rp2), intent(inout) :: mat
-       type(array_rp1), intent(inout) :: vec
+       class(discrete_problem), intent(inout) :: approx
+       integer(ip)            , intent(in)    :: start(:)
+       type(fem_element)      , intent(inout) :: elem
      end subroutine matvec_interface
+     subroutine free_interface(approx)
+       import :: discrete_problem
+       implicit none
+       class(discrete_problem), intent(inout) :: approx
+     end subroutine free_interface
   end interface
 
   public :: physical_problem, p_physical_problem, discrete_problem, &
-            discrete_problem_pointer, physical_problem_free
+            discrete_problem_pointer, discrete_problem_free
 
 contains 
 
-  subroutine physical_problem_free( prob  )
+  subroutine discrete_problem_free( prob  )
     implicit none
-    type(physical_problem), intent(inout)           :: prob
-
-    !call memfree( prob%vars_of_unk, __FILE__, __LINE__ )
+    class(discrete_problem), intent(inout) :: prob
     call memfree( prob%l2g_var, __FILE__, __LINE__ )
-
-  end subroutine physical_problem_free
+  end subroutine discrete_problem_free
 
 end module problem_names

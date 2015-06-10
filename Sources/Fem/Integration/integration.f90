@@ -71,9 +71,10 @@ contains
        call pointer_variable(femsp%lelem(ielem),femsp%dof_handler, start(1:nvars+1) )
 
        ! Compute element matrix and rhs
-       discrete => femsp%approximations(femsp%lelem(ielem)%approximation)%p
-       call discrete%matvec(femsp%lelem(ielem)%integ,femsp%lelem(ielem)%unkno,start(1:nvars+1), &
-            &               femsp%lelem(ielem)%p_mat,femsp%lelem(ielem)%p_vec)
+       !if(associated(femsp%approximations(femsp%lelem(ielem)%approximation)%p)) then
+          discrete => femsp%approximations(femsp%lelem(ielem)%approximation)%p
+          call discrete%matvec(start,femsp%lelem(ielem))
+       !end if
 
        ! Apply boundary conditions
        call impose_strong_dirichlet_data (femsp%lelem(ielem),femsp%dof_handler) 

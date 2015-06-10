@@ -90,33 +90,32 @@ program test_cdr
 
   ! write(*,*) 'conditions%code', f_cond%code
   ! write(*,*) 'conditions%valu', f_cond%valu
-
+  f_cond%code = 0
   !call triangulation_print( 6 , f_trian )
 
   vars_prob = 1
   call dhand%create( 1, 1, 1 ) !, vars_block, dof_coupl )
   !                      ( dhand, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
 
-  call my_problem%create( f_trian%num_dims )
-
   !write (6,*) '*** physical problem  ***'
   !write (6,*) 'Number of variables of problem: ',  my_problem%nvars
   !write (6,*) 'Local to global (of variables) for problem: ' ,  my_problem%l2g_var
 
-  call dhand%set_problem( 1, my_problem )
+  call my_problem%create( f_trian%num_dims )
+  call my_approximation%create(my_problem)
+  approximations(1)%p => my_approximation
+
+  call dhand%set_problem( 1, my_approximation )
   !                     ( ndime, dhand, l2g_vars, iprob ) 
   ! ... for as many problems as we have
 
   !call dof_handler_print ( dhand, 6 )
 
-  call my_approximation%create(my_problem)
-  approximations(1)%p => my_approximation
-
 
   call memalloc( f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
-  continuity = 1
+  continuity = 0
   call memalloc( f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 15
+  order = 1
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
@@ -199,6 +198,8 @@ program test_cdr
   call fem_space_free(fspac) 
 
   call my_problem%free
+
+  call my_approximation%free
 
   call dof_handler_free ( dhand )
 
