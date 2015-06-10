@@ -97,9 +97,9 @@ subroutine generic_memalloc_1(ndim1, varia, file, line, valin, lb1)
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -146,9 +146,9 @@ subroutine generic_memalloc_2(ndim1, ndim2, varia, file, line, valin, lb1, lb2)
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -199,9 +199,9 @@ subroutine generic_memalloc_3(ndim1, ndim2, ndim3, varia, file, line, valin, lb1
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -257,9 +257,9 @@ subroutine generic_memalloc_4(ndim1, ndim2, ndim3, ndim4, varia, file, line, &
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -310,9 +310,9 @@ subroutine generic_memrealloc_1(ndim1, varia, file, line, valin, lb1)
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -377,9 +377,9 @@ subroutine generic_memrealloc_2(ndim1, ndim2, varia, file, line, valin, lb1, lb2
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !!write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -457,9 +457,9 @@ subroutine generic_memrealloc_3(ndim1, ndim2, ndim3, varia, file, line, &
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -547,9 +547,9 @@ subroutine generic_memrealloc_4(ndim1, ndim2, ndim3, ndim4, varia, file, line, &
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size allocation from: '//file,line
+              !write(*,*) 'Warning, zero size allocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size allocation from: '//file
+              !write(*,*) 'Warning, zero size allocation from: '//file
            end if
         end if
      end if
@@ -591,9 +591,9 @@ subroutine generic_memfree_1(varia,file,line)
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size deallocation from: '//file,line
+              !write(*,*) 'Warning, zero size deallocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size deallocation from: '//file
+              !write(*,*) 'Warning, zero size deallocation from: '//file
            end if
         end if
      end if
@@ -621,9 +621,9 @@ subroutine generic_memfree_2(varia,file,line)
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size deallocation from: '//file,line
+              !write(*,*) 'Warning, zero size deallocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size deallocation from: '//file
+              !write(*,*) 'Warning, zero size deallocation from: '//file
            end if
         end if
      end if
@@ -651,9 +651,9 @@ subroutine generic_memfree_3(varia,file,line)
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size deallocation from: '//file,line
+              !write(*,*) 'Warning, zero size deallocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size deallocation from: '//file
+              !write(*,*) 'Warning, zero size deallocation from: '//file
            end if
         end if
      end if
@@ -681,9 +681,9 @@ subroutine generic_memfree_4(varia,file,line)
      else
         if(present(file)) then
            if(present(line)) then
-              write(*,*) 'Warning, zero size deallocation from: '//file,line
+              !write(*,*) 'Warning, zero size deallocation from: '//file,line
            else
-              write(*,*) 'Warning, zero size deallocation from: '//file
+              !write(*,*) 'Warning, zero size deallocation from: '//file
            end if
         end if
      end if

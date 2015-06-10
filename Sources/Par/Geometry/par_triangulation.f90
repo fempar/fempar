@@ -202,6 +202,8 @@ contains
     ! Locals
     integer(ip)              :: ielem, iobj, jobj, istat
 
+    call fem_triangulation_to_dual ( p_trian%f_trian, p_trian%num_elems+p_trian%num_ghosts )		
+
     ! Allocate p_trian%objects array
     allocate(p_trian%objects(p_trian%f_trian%num_objects), stat=istat)
     check(istat==0)
@@ -392,13 +394,13 @@ contains
     call memfree ( lst_parts_per_itfc_obj, __FILE__,__LINE__ )
 
 
-    write(*,'(a,i10)') 'Number of local objects:', &
-       &  p_trian%nobjs
+    !write(*,'(a,i10)') 'Number of local objects:', &
+    !   &  p_trian%nobjs
 
-    write(*,'(a)') 'List of local objects:'
-    do i=1,p_trian%nobjs 
-       write(*,'(10i10)') i, p_trian%lobjs(:,i)
-    end do
+    !write(*,'(a)') 'List of local objects:'
+    !do i=1,p_trian%nobjs 
+    !   write(*,'(10i10)') i, p_trian%lobjs(:,i)
+    !end do
 
   end subroutine par_triangulation_create_lobjs
    

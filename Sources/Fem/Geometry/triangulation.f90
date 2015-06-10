@@ -211,27 +211,28 @@ contains
     element%num_objects = -1
   end subroutine initialize_elem_topology
 
-  subroutine fem_triangulation_to_dual(trian, num_ghosts)  
+  subroutine fem_triangulation_to_dual(trian, length_trian)  
     implicit none
     ! Parameters
     type(fem_triangulation), intent(inout) :: trian
-    integer(ip), optional, intent(in)      :: num_ghosts
+    integer(ip), optional, intent(in)      :: length_trian
 
     ! Locals
-    integer(ip)              :: ielem, iobj, jobj, istat, idime, num_elems, touch
+    integer(ip)              :: ielem, iobj, jobj, istat, idime, touch,  length_trian_
     type(hash_table_ip_ip)   :: visited
     integer(ip), allocatable :: elems_around_pos(:)
-
-    num_elems = trian%num_elems
-    if ( present(num_ghosts) ) then
-       num_elems = num_elems + num_ghosts
-    end if
+    
+    if (present(length_trian)) then
+       length_trian_ = length_trian
+    else
+       length_trian_ = trian%num_elems 
+    endif
 
     ! Count objects
-    call visited%init(max(5,int(real(num_elems,rp)*0.2_rp,ip))) 
+    call visited%init(max(5,int(real(length_trian_,rp)*0.2_rp,ip))) 
     trian%num_objects = 0
     touch = 1
-    do ielem=1, num_elems
+    do ielem=1, length_trian_
        do iobj=1, trian%elems(ielem)%num_objects
           jobj = trian%elems(ielem)%objects(iobj)
           if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
@@ -251,7 +252,7 @@ contains
     end do
 
     ! Count elements around each object
-    do ielem=1, num_elems
+    do ielem=1, length_trian_
        do iobj=1, trian%elems(ielem)%num_objects
           jobj = trian%elems(ielem)%objects(iobj)
           if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
@@ -263,8 +264,10 @@ contains
     call memalloc ( trian%num_objects, elems_around_pos, __FILE__, __LINE__ )
     elems_around_pos = 1
 
+    !call triangulation_print( 6, trian, length_trian_ )
+
     ! List elements and add object dimension
-    do ielem=1, num_elems
+    do ielem=1, length_trian_
        do idime =1, trian%num_dims    ! (SBmod)
           do iobj = trian%elems(ielem)%topology%nobje_dim(idime), &
                trian%elems(ielem)%topology%nobje_dim(idime+1)-1 
@@ -304,6 +307,10 @@ contains
     end do
 
     call memfree ( elems_around_pos, __FILE__, __LINE__ )
+
+    trian%state = triangulation_filled
+
+
   end subroutine fem_triangulation_to_dual
 
   subroutine put_topology_element_triangulation( ielem, trian ) !(SBmod)
@@ -379,14 +386,21 @@ contains
     end do
   end subroutine local_id_from_vertices
 
-  subroutine triangulation_print ( lunou,  trian ) ! (SBmod)
+  subroutine triangulation_print ( lunou,  trian, length_trian ) ! (SBmod)
     implicit none
     ! Parameters
     integer(ip)            , intent(in) :: lunou
     type(fem_triangulation), intent(in) :: trian
+    integer(ip), optional, intent(in)      :: length_trian
 
     ! Locals
-    integer(ip) :: ielem, iobje
+    integer(ip) :: ielem, iobje, length_trian_
+
+    if (present(length_trian)) then
+       length_trian_ = length_trian
+    else
+       length_trian_ = trian%num_elems 
+    endif
 
 
     write (lunou,*) '****PRINT TOPOLOGY****'
@@ -397,7 +411,7 @@ contains
     write (lunou,*) 'elem_array_len:', trian%elem_array_len
 
 
-    do ielem = 1, trian%num_elems
+    do ielem = 1, length_trian_
        write (lunou,*) '****PRINT ELEMENT ',ielem,' INFO****'
 
        write (lunou,*) 'num_objects:', trian%elems(ielem)%num_objects

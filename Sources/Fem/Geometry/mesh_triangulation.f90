@@ -38,7 +38,7 @@ module mesh_triangulation
 # include "debug.i90"
   private
 
-  public :: mesh_to_triangulation
+  public :: mesh_to_triangulation, mesh_to_triangulation_fill_elements
 
 contains
 
@@ -52,7 +52,19 @@ contains
   ! number of elements in triangulation does not include ghost elements, only
   ! local elements
   !*********************************************************************************
-  subroutine mesh_to_triangulation (gmesh,trian,length_trian,gcond)
+  subroutine mesh_to_triangulation (gmesh,trian,gcond)
+    implicit none
+    ! Parameters
+    type(fem_mesh), intent(in)                       :: gmesh ! Geometry mesh
+    type(fem_triangulation), intent(inout)           :: trian 
+    type(fem_conditions), optional, intent(inout)    :: gcond
+
+    call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond )
+    call fem_triangulation_to_dual ( trian )
+
+  end subroutine mesh_to_triangulation
+
+subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond)
     implicit none
     ! Parameters
     type(fem_mesh), intent(in)                       :: gmesh ! Geometry mesh
@@ -136,10 +148,9 @@ contains
        trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
     end do
 
-    call fem_triangulation_to_dual ( trian )
-    trian%state = triangulation_filled
 
-  end subroutine mesh_to_triangulation
+  end subroutine mesh_to_triangulation_fill_elements
+
 
 end module mesh_triangulation
 

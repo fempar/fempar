@@ -151,6 +151,8 @@ program par_test_cdr
 
   call dof_distribution_create(p_trian, fspac, dhand, dof_dist)
 
+  !call dof_distribution_print ( 6, dof_dist(1) )
+
   ! write (*,*) 'ALL NODES BEFORE' 
   ! write (*,*) 'contxt:',context%iam
   ! call mpi_barrier( context%icontxt, ierror )

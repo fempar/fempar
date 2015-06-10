@@ -156,7 +156,7 @@ contains
           end if
        end do
 
-       write (*,*) 'nint',nint
+       ! write (*,*) 'nint',nint
 
        ! interior
        if ( .not. femsp%static_condensation ) then 
@@ -177,7 +177,7 @@ contains
           end do
        end if
 
-       write (*,*) 'nint',nint
+       ! write (*,*) 'nint',nint
 
        call ws_parts_visited_all%init(tbl_length)
 
@@ -325,11 +325,11 @@ contains
 
        ! l2ln2o interface vefs to interface dofs from l2ln20_ext
        l2ln2o(nint+1:nint+nboun) = l2ln2o_ext(1:nboun)
-       write (*,*) 'nint,nboun,ndofs',nint,nboun,femsp%ndofs(iblock) 
+       ! write (*,*) 'nint,nboun,ndofs',nint,nboun,femsp%ndofs(iblock) 
        assert( nint + nboun == femsp%ndofs(iblock) )  ! check
        call memfree( l2ln2o_ext, __FILE__, __LINE__ )
 
-       write (*,*) 'l2ln2o:',l2ln2o
+       ! write (*,*) 'l2ln2o:',l2ln2o
 
        call ws_parts_visited_all%free()
 
@@ -622,11 +622,11 @@ contains
       call memfree ( ws_sort_l2,__FILE__,__LINE__)
       call memfree ( ws_elems_list,__FILE__,__LINE__)
 
-      write(*,'(a)') 'List of interface objects:'
-      do i=1,npadj
-         write(*,'(10i10)') i, &
-              & (l(j),j=p(i),p(i+1)-1)
-      end do
+      ! write(*,'(a)') 'List of interface objects:'
+      ! do i=1,npadj
+      !    write(*,'(10i10)') i, &
+      !         & (l(j),j=p(i),p(i+1)-1)
+      ! end do
 
       ! ========================================
       ! END Compute int_objs from npadj/lpadj

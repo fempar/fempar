@@ -61,7 +61,7 @@ module dof_distribution_names
      type(list)               :: int_objs    ! List of objects on each edge to an adjacent part / Interface_objects
      type(map)                :: omap        ! Objects local to global map
 
-     type(dof_import)         :: dof_import ! Object which contains the control data to drive DoF nearest neigbour exchanges
+     type(dof_import)         :: dof_import  ! Object which contains the control data to drive DoF nearest neigbour exchanges
   end type dof_distribution
 
   ! Types
@@ -84,13 +84,6 @@ contains
     call dof_import_free ( dof_dist%dof_import )
 
   end subroutine dof_distribution_free
-
-  subroutine dof_distribution_print ( lunio, dof_dist )
-    implicit none
-    integer(ip)           , intent(in) :: lunio
-    type(dof_distribution), intent(in) :: dof_dist
-    check(.false.)
-  end subroutine dof_distribution_print
 
   ! This module uses a naive algorithm to map
   ! shared DoFs on the interface to owner parts.
@@ -461,6 +454,55 @@ contains
     ! write(*,*) 'END'
 
   end subroutine compute_snd_rcv_control_data_list
+
+
+  !=============================================================================
+  subroutine dof_distribution_print (lu_out, dof_dist)
+    !-----------------------------------------------------------------------
+    ! This routine prints a dof_distribution object
+    !-----------------------------------------------------------------------
+    use types
+    implicit none
+
+
+    ! Parameters
+    type(dof_distribution), intent(in)  :: dof_dist
+    integer(ip)        , intent(in)  :: lu_out
+
+    ! Local variables
+    integer (ip) :: i, j
+
+    if(lu_out>0) then
+
+       write(lu_out,'(a)') '*** begin dof_distribution data structure ***'
+
+       write(lu_out,'(a,i10)') 'Number of parts:', &
+          &  dof_dist%nparts
+
+       write(lu_out,'(a,i10)') 'Number of adjacent parts:', &
+          &  dof_dist%npadj
+       
+       write(lu_out,'(10i10)') dof_dist%lpadj(1:dof_dist%npadj)
+
+       write(lu_out,'(a,i10)') 'Number of local objects:', &
+          &  dof_dist%nobjs
+
+       write(lu_out,'(a)') 'List of local objects:'
+       do i=1,dof_dist%omap%nl
+          write(lu_out,'(10i10)') dof_dist%omap%l2g(i),dof_dist%lobjs(:,i)
+       end do
+
+       write(lu_out,'(a)') 'List of interface objects:'
+       do i=1,dof_dist%npadj
+          write(lu_out,'(10i10)') i, &
+             & (dof_dist%int_objs%l(j),j=dof_dist%int_objs%p(i),dof_dist%int_objs%p(i+1)-1)
+       end do
+
+       write(lu_out,'(a)') '*** end dof_distribution data structure ***'
+
+    end if
+ 
+  end subroutine dof_distribution_print
 
   
 end module dof_distribution_names

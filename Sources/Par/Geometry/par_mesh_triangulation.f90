@@ -102,7 +102,8 @@ contains
     p_trian%num_elems  = num_elems
 
     ! Fill local portion with local data
-    call mesh_to_triangulation ( p_gmesh%f_mesh, p_trian%f_trian, num_elems + num_ghosts, f_cond )
+    call mesh_to_triangulation_fill_elements ( p_gmesh%f_mesh, p_trian%f_trian, num_elems + num_ghosts, f_cond )
+    
     ! p_trian%f_trian%num_elems = num_elems+num_ghosts
     ! **IMPORTANT NOTE**: the code that comes assumes that edges and faces in p_trian%f_trian are numbered after vertices.
     ! This requirement is currently fulfilled by mesh_to_triangulation (in particular, by geom2topo within) but we should
@@ -127,7 +128,7 @@ contains
     p_trian%num_itfc_elems = p_gmesh%f_mesh_dist%nebou
     call memalloc( p_trian%num_itfc_elems, p_trian%lst_itfc_elems, __FILE__, __LINE__ )
     p_trian%lst_itfc_elems = p_gmesh%f_mesh_dist%lebou
-    
+
     ! Fill array of elements (local ones)
     do ielem=1, num_elems
        p_trian%elems(ielem)%mypart      = p_trian%p_env%p_context%iam + 1
@@ -141,7 +142,7 @@ contains
           else ! It is an edge or face => generate new local-global ID (non-consistent, non-consecutive)
              ! The ISHFT(1,50) is used to start numbering efs after vertices, assuming nvert < 2**60
              p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%f_mesh_dist%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))
-             !p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%p_part%f_part%ipart,igp),int(6,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(6,igp))
+             !p_trian%elems(ielem)%objects_GIDs(iobj) = ISHFT(int(p_gmesh%f_mesh_dist%ipart,igp),int(6,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(6,igp))
           end if
        end do
     end do
@@ -243,14 +244,37 @@ contains
 
     !pause
 
+    ! Check results
+    ! if ( p_trian%p_env%p_context%iam == 0) then
+    !    do ielem = 1,num_elems+num_ghosts
+    !       write (*,*) '****ielem:',ielem          
+    !       write (*,*) '****LID_objects ghost:',p_trian%f_trian%elems(ielem)%objects
+    !       write (*,*) '****GID_objects ghost:',p_trian%elems(ielem)%objects_GIDs
+    !    end do
+    ! end if
+    ! pause
+
+    ! write (*,*) '*********************************'
+    ! write (*,*) '*********************************' 
+    ! if ( p_trian%p_env%p_context%iam == 0) then
+    !    do iobj = 1, p_trian%f_trian%num_objects 
+    !       write (*,*) 'is interface object',iobj, ' :', p_trian%objects(iobj)%interface 
+    !       write (*,*) 'is interface object',iobj, ' :', p_trian%f_trian%objects(iobj)%dimension
+    !    end do
+    ! end if
+    ! write (*,*) '*********************************'
+    ! write (*,*) '*********************************'
+
     ! Step 3: Make GID consistent among processors (p_part%elems%objects_GIDs)
     do iobj = 1, p_trian%f_trian%num_objects 
        if ( (p_trian%objects(iobj)%interface .ne. -1) .and. &
-            (p_trian%f_trian%objects(iobj)%dimension > 1) ) then
-          idime = p_trian%f_trian%objects(iobj)%dimension
+            (p_trian%f_trian%objects(iobj)%dimension >= 1) ) then
+          idime = p_trian%f_trian%objects(iobj)%dimension+1
           iobjg = -1
+
           do jelem = 1,p_trian%f_trian%objects(iobj)%num_elems_around
              jlele = p_trian%f_trian%objects(iobj)%elems_around(jelem)
+
              do jobj = p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime), &
                   & p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime+1)-1 ! efs of neighbor els
                 if ( p_trian%f_trian%elems(jlele)%objects(jobj) == iobj ) then
@@ -262,7 +286,10 @@ contains
                    end if
                 end if
              end do
+
           end do
+
+
           do jelem = 1,p_trian%f_trian%objects(iobj)%num_elems_around
              jlele = p_trian%f_trian%objects(iobj)%elems_around(jelem)
              do jobj = p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime), &
@@ -279,11 +306,13 @@ contains
 
     p_trian%state = par_triangulation_filled
     ! Check results
-    ! do ielem = 1,num_elems+num_ghosts
-    !   write (*,*) '****ielem:',ielem          
-    !   write (*,*) '****LID_objects ghost:',p_trian%f_trian%elems(ielem)%objects
-    !   write (*,*) '****GID_objects ghost:',p_trian%elems(ielem)%objects_GIDs
-    ! end do
+    ! if ( p_trian%p_env%p_context%iam == 0) then
+    !    do ielem = 1,num_elems+num_ghosts
+    !       write (*,*) '****ielem:',ielem          
+    !       write (*,*) '****LID_objects ghost:',p_trian%f_trian%elems(ielem)%objects
+    !       write (*,*) '****GID_objects ghost:',p_trian%elems(ielem)%objects_GIDs
+    !    end do
+    ! end if
     ! pause
 
   end subroutine par_mesh_to_triangulation
