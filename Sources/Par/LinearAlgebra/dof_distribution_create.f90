@@ -443,7 +443,7 @@ contains
          end do
 
          call memfree ( l2lo2n,__FILE__,__LINE__)
-
+         call memfree ( l2ln2o,__FILE__,__LINE__)
 
          call create_int_objs ( ipart, &
                                 dof_dist(iblock)%npadj, &
