@@ -854,11 +854,6 @@ contains
           !call fem_graph_print( 6, dof_graph(iblock,jblock) )
           call memfree (aux_ia,__FILE__,__LINE__)
        end do
-
-
-
-
-
     end do
 
   end subroutine create_dof_graph

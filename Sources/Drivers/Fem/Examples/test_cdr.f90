@@ -116,7 +116,7 @@ program test_cdr
   call memalloc( f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
   continuity = 1
   call memalloc( f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 7
+  order = 15
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
