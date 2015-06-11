@@ -42,18 +42,14 @@ program partitioner
   type(fem_mesh)      , allocatable :: lmesh(:)
   type(fem_conditions), allocatable :: lnodes(:),lbouns(:)
   type(fem_materials),  allocatable :: lmater(:)
-  integer(ip)                       :: lunio
   type(post_file)                   :: lupos
   integer(ip)                       :: ipart,idof,ndofn,ndime,prob,gid_sq
   integer(ip), parameter            :: cdr=1, sto=2, mhd=3
   integer(ip), parameter            :: gid=1, square=2
   integer(ip)                       :: isper(3),nedir(3)
 
-  character(len=256)                :: dir_path,dir_path_out
-  character(len=256)                :: prefix,comp_prefix
-  character(len=256)                :: preord
-  character(len=:), allocatable     :: name_mesh, name
-  character(len=256)                :: filemesh,filecond
+  character(len=256)                :: dir_path, dir_path_out
+  character(len=256)                :: name, prefix
   integer(ip), allocatable          :: ldome(:)
   integer(ip)                       :: i, j
 
@@ -61,41 +57,20 @@ program partitioner
 
   call meminit
 
-  call read_mesh_part_pars_cl(nparts,dir_path,dir_path_out)
-
-  ! Problem name ( without .gid/ )
-  nstr = len_trim(dir_path)
-  prefix = trim(dir_path(1:nstr-5))
-  dir_path = trim(dir_path)//'data/'
-  comp_prefix = trim(dir_path)//trim(prefix)
+  call read_mesh_part_pars_cl(nparts,dir_path,prefix,dir_path_out)
   
   ! Read mesh
-  call fem_mesh_compose_name ( comp_prefix, name_mesh ) 
-  lunio = io_open(name_mesh)
-  call fem_mesh_read(lunio,gmesh)
-  call io_close(lunio)
+  call fem_mesh_read(dir_path, prefix, gmesh, permute_c2z=.true.)
 
   ! Read conditions
-  call fem_conditions_compose_name ( comp_prefix, name ) 
-  lunio = io_open(name)
-  call fem_conditions_read(lunio,gmesh%npoin,gnodes)
-  call io_close(lunio)
+  call fem_conditions_read(dir_path, prefix, gmesh%npoin, gnodes)
 
   ! Read materials
-  call fem_materials_compose_name ( comp_prefix, name ) 
-  lunio = io_open(name)
-  call fem_materials_read(lunio,gmat)
+  call fem_materials_read(dir_path, prefix, gmat)
   gmat%list = 1 
-  call io_close(lunio)
   
-  ! Update comp_prefix for output folder
-  comp_prefix = trim(dir_path_out)//trim(prefix)
-  
-  ! Write original mesh
-  call fem_mesh_compose_name ( comp_prefix, name_mesh ) 
-  lunio = io_open(name_mesh)
-  call fem_mesh_write(lunio,gmesh)
-  call io_close(lunio)
+  ! Write original mesh for postprocess
+  call fem_mesh_write(dir_path_out, prefix, gmesh)
 
 !!$  ! Write original conditions
 !!$  call fem_conditions_compose_name ( comp_prefix, name ) 
@@ -106,12 +81,6 @@ program partitioner
 !!$     call fem_conditions_write(lunio,gnodes)
 !!$  end if
 !!$  call io_close(lunio)
-!!$
-!!$  ! Write original mesh for postprocess
-!!$  call postpro_compose_mesh_name( comp_prefix, name ) 
-!!$  lunio = io_open(name)
-!!$  call fem_mesh_write(lunio,gmesh)
-!!$  call io_close(lunio) 
 
   ! Create partition
   prt_pars%nparts                = nparts
@@ -130,7 +99,8 @@ program partitioner
         ldome(distr(i)%emap%l2g(j)) = i
      end do
   end do
-  name = trim(comp_prefix) // '.res'
+
+  name = trim(dir_path) // trim(prefix) // '.res'
   call postpro_open_file(1,name,lupos)
   call postpro_gp_init(lupos,1,gmesh%nnode,gmesh%ndime)
   call postpro_gp(lupos,gmesh%ndime,gmesh%nnode,ldome,'EDOMS',1,1.0)
@@ -208,17 +178,17 @@ contains
   ! Still to confirm whether this support is standard in f90 or depends          !
   ! on the compiler (i.e., INTEL, GNU, etc.)                                     !
   ! *****************************************************************************!
-  subroutine read_mesh_part_pars_cl(nparts,dir_path,dir_path_out)
+  subroutine read_mesh_part_pars_cl(nparts,dir_path,prefix,dir_path_out)
     implicit none 
-    character*(*), intent(out)  :: dir_path, dir_path_out
+    character*(*), intent(out)  :: dir_path, prefix, dir_path_out
     character(len=256)          :: program_name
     character(len=256)          :: argument 
     integer                     :: numargs, iargc, nparts
 
     numargs = iargc()
     call getarg(0, program_name)
-    if (.not. (numargs.eq.3)) then
-       write(*,*) 'Usage: ', trim(program_name), 'nparts dir_path_data dir_path_out'
+    if (.not. (numargs.eq.4)) then
+       write(*,*) 'Usage: ', trim(program_name), ' nparts dir_path_data prefix dir_path_out'
        stop
     end if
 
@@ -230,6 +200,9 @@ contains
     dir_path = trim(argument)
 
     call getarg(3, argument)
+    prefix = trim(argument)
+
+    call getarg(4, argument)
     dir_path_out = trim(argument)
 
   end subroutine read_mesh_part_pars_cl
