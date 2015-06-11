@@ -63,6 +63,7 @@ program test_cdr
 
   integer(ip) :: lunio
 
+
   call meminit
 
   ! Read parameters from command-line
@@ -90,7 +91,7 @@ program test_cdr
 
   ! write(*,*) 'conditions%code', f_cond%code
   ! write(*,*) 'conditions%valu', f_cond%valu
-  f_cond%code = 0
+  ! f_cond%code = 0 (dG)
   !call triangulation_print( 6 , f_trian )
 
   vars_prob = 1
@@ -113,9 +114,10 @@ program test_cdr
 
 
   call memalloc( f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
-  continuity = 0
+  ! continuity = 0 (dG)
+  continuity = 1
   call memalloc( f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 1
+  order = 15
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
@@ -130,7 +132,7 @@ program test_cdr
        & which_approx, num_approximations=1, time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), & 
        & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
-  call update_strong_dirichlet_bundary_conditions( fspac )
+  call update_strong_dirichlet_boundary_conditions( fspac )
 
   call create_dof_info( dhand, f_trian, fspac, dof_graph, (/ csr_symm /) )
 
@@ -144,7 +146,7 @@ program test_cdr
   !write (*,*) '********** STARTING ASSEMBLY **********'
   call volume_integral( fspac, my_matrix, my_vector)
 
-   sctrl%method=direct
+  sctrl%method=direct
   ppars%type = pardiso_mkl_prec
   call fem_precond_create  (my_matrix, feprec, ppars)
   call fem_precond_symbolic(my_matrix, feprec)
@@ -156,10 +158,15 @@ program test_cdr
 
   feunk = my_vector - my_matrix*feunk 
   !call fem_vector_print( 6, feunk)
-  write(*,*) 'XXX error norm XXX', feunk%nrm2()
+  write(*,*) 'XXX error vs exact norm XXX', feunk%nrm2()
 
+  
   call abstract_solve(my_matrix,feprec,my_vector,feunk,sctrl,senv)
   call solver_control_free_conv_his(sctrl)
+
+  feunk = my_vector - my_matrix*feunk 
+  !call fem_vector_print( 6, feunk)
+  write(*,*) 'XXX error solver norm XXX', feunk%nrm2()
 
   !call fem_vector_print( 6, feunk)
 
@@ -238,14 +245,19 @@ contains
 
   end subroutine read_pars_cl_test_cdr
 
-  subroutine update_strong_dirichlet_bundary_conditions( fspac )
+  subroutine update_strong_dirichlet_boundary_conditions( fspac )
     type(fem_space), intent(inout)    :: fspac
 
     integer(ip) :: ielem, iobje, ivar, inode, l_node
 
     do ielem = 1, fspac%g_trian%num_elems
-       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-          do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+       do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+          !write (*,*) 'ielem',ielem
+          !write (*,*) 'ivar',ivar
+          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
+          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%p',fspac%lelem(ielem)%nodes_object(ivar)%p%p
+          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%l',fspac%lelem(ielem)%nodes_object(ivar)%p%l
+          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
 
              do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
                   &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
@@ -258,6 +270,6 @@ contains
        end do
     end do
 
-  end subroutine update_strong_dirichlet_bundary_conditions
+  end subroutine update_strong_dirichlet_boundary_conditions
 
 end program test_cdr

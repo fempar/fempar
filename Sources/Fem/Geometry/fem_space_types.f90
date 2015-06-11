@@ -74,9 +74,10 @@ module fem_space_types
 
      integer(ip), allocatable  :: o(:)       ! Orientation of the objects
 
-     type(list)   :: ndxob   !array of interior nodes per object
-     type(list)   :: ntxob   !array of all nodes per object
-     type(list)   :: crxob   !array of corners per object
+     type(list)   :: ndxob       !array of interior nodes per object
+     type(list)   :: ntxob       !array of all nodes per object
+     type(list)   :: crxob       !array of corners per object
+     type(list)   :: ndxob_int   !array of interior nodes per object when all nodes belong to interior
 
   end type fem_fixed_info
 
@@ -185,6 +186,8 @@ contains
     !Deallocate arrays
     call memfree(f_info%ndxob%p,__FILE__,__LINE__)   !Pointer to f_info%ndxob%l for each object
     call memfree(f_info%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memfree(f_info%ndxob_int%p,__FILE__,__LINE__)   !Pointer to f_info%ndxob_int%l for each object
+    call memfree(f_info%ndxob_int%l,__FILE__,__LINE__)   !Array of nodes of each object when all interior
     call memfree(f_info%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
     call memfree(f_info%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
     call memfree(f_info%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
@@ -320,6 +323,8 @@ contains
     call memalloc(no,        fefi%o,__FILE__,__LINE__)   ! Array of orientation of each object
     call memalloc(no+1,fefi%ndxob%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
     call memalloc(nn,  fefi%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memalloc(no+1,fefi%ndxob_int%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
+    call memalloc(nn,  fefi%ndxob_int%l,__FILE__,__LINE__)   !Array of interior nodes of each object
     call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
     call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
     call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
@@ -328,6 +333,8 @@ contains
 
     fefi%ndxob%p=0   !Pointer to fefi%ndxob%l for each object
     fefi%ndxob%l=0     !Array of interior nodes of each object
+    fefi%ndxob_int%p=0   !Pointer to fefi%ndxob_int%l for each object
+    fefi%ndxob_int%l=0     !Array of interior nodes of each object when all nodes belong to volume
     fefi%ntxob%p=0   !Pointer to ntxob%l for each object
     fefi%ntxob%l=0     !Array of all nodes of each object
     fefi%crxob%p=0   !Pointer to crxob%l for each object
@@ -357,6 +364,9 @@ contains
           fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 !assign pointers 
        end do
     end do
+
+    fefi%ndxob_int%p = 1
+    fefi%ndxob_int%p(no+1) = nn+1
 
     ! Each object of dimension k is defined by a set of k+1 corners (idcro stores this info)
     i = 1
@@ -394,6 +404,10 @@ contains
           call ntxob_fill(fefi%ntxob%l,c4,0,p,1,idm,nd,k,p,objec,nt)
           call ntxob_fill(fefi%ndxob%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
        end do
+    end do
+
+    do i=1,nn
+       fefi%ndxob_int%l(i) = i
     end do
 
     ! Deallocation of variable
@@ -930,6 +944,8 @@ contains
     call memalloc(no,        fefi%o,__FILE__,__LINE__)  ! Array of orientation of each object
     call memalloc(no+1,fefi%ndxob%p,__FILE__,__LINE__)  !Pointer to fefi%ndxob%l for each object
     call memalloc(nn,  fefi%ndxob%l,__FILE__,__LINE__)  !Array of interior nodes of each object
+    call memalloc(no+1,fefi%ndxob_int%p,__FILE__,__LINE__)  !Pointer to fefi%ndxob%l for each object
+    call memalloc(nn,  fefi%ndxob_int%l,__FILE__,__LINE__)  !Array of interior nodes of each object
     call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each object
     call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each object
     call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each object
@@ -938,6 +954,8 @@ contains
 
     fefi%ndxob%p=0   !Pointer to fefi%ndxob%l for each object
     fefi%ndxob%l=0   !Array of interior nodes of each object
+    fefi%ndxob_int%p=0   !Pointer to fefi%ndxob%l for each object
+    fefi%ndxob_int%l=0   !Array of interior nodes of each object
     fefi%ntxob%p=0   !Pointer to ntxob%l for each object
     fefi%ntxob%l=0   !Array of all nodes of each object
     fefi%crxob%p=0   !Pointer to crxob%l for each object
@@ -962,6 +980,9 @@ contains
           fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 ! assign pointers 
        end do
     end do
+
+    fefi%ndxob_int%p = 1
+    fefi%ndxob_int%p(no+1) = nn+1
 
     ! Initialize auxiliar values
     k = 0
@@ -1131,6 +1152,10 @@ contains
           if (p > 1) call memfree(auxt3,__FILE__,__LINE__)
           call memfree(auxt4,__FILE__,__LINE__)
        end if
+    end do
+
+    do i=1,nn
+       fefi%ndxob_int%l(i) = i
     end do
 
     ! Deallocate OBDLA

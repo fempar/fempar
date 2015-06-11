@@ -92,7 +92,7 @@ module fem_space_names
      integer(ip) :: num_interior_faces, num_boundary_faces, num_interface_faces
 
      ! Much better here rather than as a module variable
-     type(list) :: void_list
+     !type(list) :: void_list
   end type fem_space
 
   ! Types
@@ -259,10 +259,10 @@ contains
     ! end if
 
     ! void nodes object
-    fspac%void_list%n = max_nobje
-    call memalloc( max_nobje+1, fspac%void_list%p, __FILE__, __LINE__)
-    fspac%void_list%p = 1 
-    call memalloc( 0, fspac%void_list%l, __FILE__, __LINE__ )
+    !fspac%void_list%n = max_nobje
+    !call memalloc( max_nobje+1, fspac%void_list%p, __FILE__, __LINE__)
+    !fspac%void_list%p = 1 
+    !call memalloc( 0, fspac%void_list%l, __FILE__, __LINE__ )
 
     ! fspac%l_nodes_object(1)%n = max_nobje
     ! call memalloc( max_nobje+1, fspac%l_nodes_object(1)%p, __FILE__, __LINE__ )
@@ -327,7 +327,13 @@ contains
           if ( continuity(ielem, ivar) /= 0 ) then
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob
           else 
-             fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%void_list ! fspac%l_nodes_object(1) ! SB.alert : Think about hdG
+             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%p',fspac%lelem_info(pos_elinf)%ndxob%p
+             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%l',fspac%lelem_info(pos_elinf)%ndxob%l
+             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%p',fspac%lelem_info(pos_elinf)%ndxob_int%p
+             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%l',fspac%lelem_info(pos_elinf)%ndxob_int%l
+
+             fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob_int
+             !fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%void_list ! fspac%l_nodes_object(1) ! SB.alert : Think about hdG
           end if
        end do
 
@@ -548,9 +554,9 @@ contains
 
     nullify ( f%g_trian )
 
-    call memfree( f%void_list%p, __FILE__, __LINE__ )
-    call memfree( f%void_list%l, __FILE__, __LINE__ )
-    f%void_list%n = 0
+    !call memfree( f%void_list%p, __FILE__, __LINE__ )
+    !call memfree( f%void_list%l, __FILE__, __LINE__ )
+    !f%void_list%n = 0
 
     do i = 1, f%dof_handler%nblocks
        call memfree (f%object2dof(i)%p , __FILE__, __LINE__ )
