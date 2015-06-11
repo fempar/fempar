@@ -59,10 +59,11 @@ program test_integration
 
   !write (*,*) '********** READ MESH **********'
 
-  call fem_mesh_compose_name ( prefix, name )
-  lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-  call fem_mesh_read ( lunio, f_mesh )
-  call io_close(lunio)
+  !call fem_mesh_compose_name ( prefix, name )
+  !lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+  !call fem_mesh_read ( lunio, f_mesh )
+  !call io_close(lunio)
+  call fem_mesh_read(dir_path, prefix, f_mesh,permute_c2z=.true.)
 
   !write (*,*) '********** CREATE TRIANGULATION **********'
 

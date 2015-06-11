@@ -74,10 +74,10 @@ program test_cdr
   call  read_pars_cl_test_cdr ( dir_path, prefix, dir_path_out )
 
   ! Read mesh
-  filename = trim(dir_path)//'data/'//trim(prefix)//'.msh'
-  lunio = io_open(filename,status='old')
-  call fem_mesh_read(lunio,f_mesh,permute_c2z=.true.)
-  call io_close(lunio)
+  !filename = trim(dir_path)//'data/'//trim(prefix)//'.msh'
+  !lunio = io_open(filename,status='old')
+  call fem_mesh_read(dir_path, prefix, f_mesh,permute_c2z=.true.)
+  !call io_close(lunio)
 
   ! Read conditions 
   filename = trim(dir_path)//'data/'//trim(prefix)//'.cnd'

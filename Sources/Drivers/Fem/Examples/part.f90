@@ -49,7 +49,7 @@ program partitioner
   integer(ip), parameter            :: gid=1, square=2
   integer(ip)                       :: isper(3),nedir(3)
 
-  character(len=256)                :: dir_path,dir_path_out
+  character(len=256)                :: dir_path,dir_path_out, dir_path_tmp
   character(len=256)                :: prefix,comp_prefix
   character(len=256)                :: preord
   character(len=:), allocatable     :: name_mesh, name
@@ -66,14 +66,16 @@ program partitioner
   ! Problem name ( without .gid/ )
   nstr = len_trim(dir_path)
   prefix = trim(dir_path(1:nstr-5))
-  dir_path = trim(dir_path)//'data/'
+  dir_path_tmp = dir_path 
+  dir_path     = trim(dir_path)//'data/'
   comp_prefix = trim(dir_path)//trim(prefix)
   
   ! Read mesh
-  call fem_mesh_compose_name ( comp_prefix, name_mesh ) 
-  lunio = io_open(name_mesh)
-  call fem_mesh_read(lunio,gmesh)
-  call io_close(lunio)
+  !call fem_mesh_compose_name ( comp_prefix, name_mesh ) 
+  !lunio = io_open(name_mesh)
+  !call fem_mesh_read(lunio,gmesh)
+  !call io_close(lunio)
+  call fem_mesh_read(dir_path_tmp, prefix, gmesh,permute_c2z=.true.)
 
   ! Read conditions
   call fem_conditions_compose_name ( comp_prefix, name ) 
