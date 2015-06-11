@@ -39,13 +39,17 @@ program test_cdr
   type(dof_handler)  :: dhand
   type(fem_space)    :: fspac
   type(fem_graph), allocatable    :: dof_graph(:,:)
+  integer(ip)                     :: gtype(1) = (/ csr_symm /)
+
 
   type(cdr_problem)               :: my_problem
   type(cdr_approximation), target :: my_approximation
   type(discrete_problem_pointer)  :: approximations(1)
 
-  type(fem_matrix)             :: my_matrix
-  type(fem_vector)             :: my_vector, feunk
+  type(fem_matrix), target             :: my_matrix
+  type(fem_vector), target             :: my_vector, feunk
+  class(base_operand) , pointer :: x, y
+  class(base_operator), pointer :: A
 
   type(fem_precond)        :: feprec
   type(fem_precond_params) :: ppars
@@ -61,7 +65,7 @@ program test_cdr
 
   integer(ip), allocatable :: continuity(:,:)
 
-  integer(ip) :: lunio
+  integer(ip) :: lunio, istat
 
 
   call meminit
@@ -134,10 +138,7 @@ program test_cdr
 
   call update_strong_dirichlet_boundary_conditions( fspac )
 
-  call create_dof_info( dhand, f_trian, fspac, dof_graph, (/ csr_symm /) )
-
-  !call fem_space_print( 6, fspac )
-
+  call create_dof_info( dhand, f_trian, fspac, dof_graph, gtype )
 
   call fem_matrix_alloc( csr_mat, symm_true, dof_graph(1,1), my_matrix, positive_definite )
 
@@ -154,14 +155,20 @@ program test_cdr
   call fem_precond_log_info(feprec)
 
   call fem_vector_alloc( dof_graph(1,1)%nv, feunk )
-  feunk%b=1.0_rp
+  call feunk%init(1.0_rp)
 
-  feunk = my_vector - my_matrix*feunk 
+  A => my_matrix
+  x => my_vector
+  y => feunk
+
+  ! feunk = my_vector - my_matrix*feunk 
+  y = x - A*y 
+
   !call fem_vector_print( 6, feunk)
   write(*,*) 'XXX error vs exact norm XXX', feunk%nrm2()
-
   
   call abstract_solve(my_matrix,feprec,my_vector,feunk,sctrl,senv)
+
   call solver_control_free_conv_his(sctrl)
 
   feunk = my_vector - my_matrix*feunk 
@@ -195,25 +202,18 @@ program test_cdr
         call fem_graph_free( dof_graph(i,j) )
      end do
   end do
+  deallocate (dof_graph, stat=istat)
+  check ( istat == 0 )
 
   call fem_vector_free( feunk )
-
   call fem_vector_free( my_vector )
-
   call fem_matrix_free( my_matrix) 
-
   call fem_space_free(fspac) 
-
   call my_problem%free
-
   call my_approximation%free
-
   call dof_handler_free ( dhand )
-
   call fem_triangulation_free ( f_trian )
-
   call fem_conditions_free ( f_cond )
-
   call fem_mesh_free (f_mesh)
 
   call memstatus
@@ -246,6 +246,8 @@ contains
   end subroutine read_pars_cl_test_cdr
 
   subroutine update_strong_dirichlet_boundary_conditions( fspac )
+    implicit none
+
     type(fem_space), intent(inout)    :: fspac
 
     integer(ip) :: ielem, iobje, ivar, inode, l_node

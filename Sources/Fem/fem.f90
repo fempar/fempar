@@ -84,6 +84,8 @@ module fem
   use solver_base
   use solver
   use abstract_solver
+  use base_operand_names
+  use base_operator_names
   
   ! Integration 
   use fem_space_names

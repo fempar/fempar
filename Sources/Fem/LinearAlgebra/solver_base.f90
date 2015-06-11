@@ -54,16 +54,18 @@ module solver_base
   integer (ip), parameter :: icgs = 2 ! icgs: Iterative Classical Gram-Schmidt 
                                       !       (appropriate for distributed GMRES)
 
-  real    (rp), parameter :: default_relax    = 1.0_rp
-  real    (rp), parameter :: default_atol     = 0.0_rp
-  real    (rp), parameter :: default_rtol     = 1.0e-08_rp
-  integer (ip), parameter :: default_luout    = 6
-  integer (ip), parameter :: default_stopc    = res_nrmgiven_res_nrmgiven
-  integer (ip), parameter :: default_trace    = 0
-  integer (ip), parameter :: default_itmax    = 1000
-  integer (ip), parameter :: default_dkrymax  = 30
-  integer (ip), parameter :: default_orto     = icgs
-  integer (ip), parameter :: default_nrhs     = 1
+
+  logical     , parameter :: default_track_conv_his  = .false.
+  real    (rp), parameter :: default_relax           = 1.0_rp
+  real    (rp), parameter :: default_atol            = 0.0_rp
+  real    (rp), parameter :: default_rtol            = 1.0e-08_rp
+  integer (ip), parameter :: default_luout           = 6
+  integer (ip), parameter :: default_stopc           = res_nrmgiven_res_nrmgiven
+  integer (ip), parameter :: default_trace           = 0
+  integer (ip), parameter :: default_itmax           = 1000
+  integer (ip), parameter :: default_dkrymax         = 30
+  integer (ip), parameter :: default_orto            = icgs
+  integer (ip), parameter :: default_nrhs            = 1
 
   ! List of Krylov subspace methods available
   integer (ip), parameter :: cg               = 1
@@ -94,6 +96,9 @@ module solver_base
 
   ! Control data (always initialized to default values)
   type solver_control
+     ! Is the solver machinery going to track the convergence history?
+     logical :: track_conv_his = default_track_conv_his
+
      ! Input parameters
      real(rp)      :: relax    = default_relax              ! Relaxation parameter
      real(rp)      :: rtol     = default_rtol               ! Relative tolerance
@@ -126,18 +131,22 @@ contains
     implicit none
     type(solver_control), intent(inout) :: ctrl
 
-    call memalloc(ctrl%itmax,ctrl%err1h,__FILE__,__LINE__)
-    call memalloc(ctrl%itmax,ctrl%err2h,__FILE__,__LINE__)
-    ctrl%err1h=0.0_rp
-    ctrl%err2h=0.0_rp
+    if (ctrl%track_conv_his) then
+       call memalloc(ctrl%itmax,ctrl%err1h,__FILE__,__LINE__)
+       call memalloc(ctrl%itmax,ctrl%err2h,__FILE__,__LINE__)
+       ctrl%err1h=0.0_rp
+       ctrl%err2h=0.0_rp
+    end if
   end subroutine solver_control_allocate_conv_his
 
   subroutine solver_control_free_conv_his( ctrl )
     implicit none
     type(solver_control), intent(inout) :: ctrl
 
-    call memfree(ctrl%err1h,__FILE__,__LINE__)
-    call memfree(ctrl%err2h,__FILE__,__LINE__)
+    if (ctrl%track_conv_his) then
+       call memfree(ctrl%err1h,__FILE__,__LINE__)
+       call memfree(ctrl%err2h,__FILE__,__LINE__)
+    end if
   end subroutine solver_control_free_conv_his
 
   subroutine solver_control_log_header( ctrl )
@@ -266,27 +275,29 @@ contains
     character(len=outlen)         :: outname
     integer(ip)                   :: i
 
-    call solver_control_log_header(ctrl)
+    if (ctrl%track_conv_his) then
+       call solver_control_log_header(ctrl)
 
-    mname = adjustl(trim(methdname(ctrl%method)))
-    write(outname,'(a)') mname(1:min(len_trim(mname),outlen-1))//':'
-    select case(ctrl%stopc)
-    case ( delta_rhs, delta_delta, res_res, res_rhs, & 
-         & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
-       do i=1,ctrl%it
-          write(ctrl%luout,fmt1) adjustl(outname), i, ctrl%err1h(i), ctrl%tol1
-       end do
-    case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, & 
-         & delta_delta_and_res_res, delta_delta_and_res_rhs )
-       do i=1,ctrl%it
-          write(ctrl%luout,fmt2) adjustl(outname), i, ctrl%err1h(i), ctrl%tol1, &
-               &                                      ctrl%err2h(i), ctrl%tol2 
-       end do
-    case default
-       ! Write an error message and stop ?
-    end select
+       mname = adjustl(trim(methdname(ctrl%method)))
+       write(outname,'(a)') mname(1:min(len_trim(mname),outlen-1))//':'
+       select case(ctrl%stopc)
+       case ( delta_rhs, delta_delta, res_res, res_rhs, & 
+            & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
+          do i=1,ctrl%it
+             write(ctrl%luout,fmt1) adjustl(outname), i, ctrl%err1h(i), ctrl%tol1
+          end do
+       case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, & 
+            & delta_delta_and_res_res, delta_delta_and_res_rhs )
+          do i=1,ctrl%it
+             write(ctrl%luout,fmt2) adjustl(outname), i, ctrl%err1h(i), ctrl%tol1, &
+                  &                                      ctrl%err2h(i), ctrl%tol2 
+          end do
+       case default
+          ! Write an error message and stop ?
+       end select
 
-    call solver_control_log_end(ctrl)
+       call solver_control_log_end(ctrl)
+    end if
 
   end subroutine solver_control_log_conv_his
 

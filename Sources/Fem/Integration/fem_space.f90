@@ -375,7 +375,7 @@ contains
        fspac%lelem(ielem)%p_vec => fspac%lelvec(pos_elmatvec)
 
        ! Allocate elem2dof, unkno, bc_code
-       write(*,*) max_num_nodes, nvars
+       ! write(*,*) max_num_nodes, nvars
        call memalloc( max_num_nodes, nvars, fspac%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
        fspac%lelem(ielem)%elem2dof = 0
        call memalloc( max_num_nodes, nvars, fspac%time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)

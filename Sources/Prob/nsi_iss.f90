@@ -32,6 +32,8 @@ module nsi_cg_iss_names
  use problem_names
  use nsi_names
  use fem_element_names
+ use eltrm_gen_names
+ use element_fields_names
  implicit none
 # include "debug.i90"
 
@@ -137,9 +139,9 @@ contains
     !   This subroutine performs the elemental matrix-vector integration selection.                !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_approximation), intent(inout)    :: approx
-    integer(ip)            , intent(in)    :: start(:)
-    type(fem_element),     intent(inout) :: elem
+    class(nsi_cg_iss_approximation), intent(inout) :: approx
+    integer(ip)                    , intent(in)    :: start(:)
+    type(fem_element)              , intent(inout) :: elem
     ! Locals
     ! type(block_elmat)        :: blk_elmat
     ! type(block_elvec)        :: blk_elvec
@@ -147,10 +149,9 @@ contains
     ! integer(ip)              :: ldofs(2),nblks,nnode(2),nd,nv,mn
     ! integer(ip), allocatable :: nnode_oss(:),ldofs_oss(:)
 
-    ! ! Asserts
-    ! assert(elem%nint==2)
-    ! assert(elem%iv(prob%ndime+1)==2)
-    ! assert(elem%integ(1)%p%quad%ngaus==elem%integ(2)%p%quad%ngaus)
+    ! Checks
+    check(elem%f_inf(1)%p%order > elem%f_inf(approx%physics%ndime+1)%p%order)
+    check(elem%integ(1)%p%quad%ngaus == elem%integ(approx%physics%ndime+1)%p%quad%ngaus)
     
     ! ! Allocate blk_elmat & blk_elvec locals
     ! nnode(1) = elem%f_inf(1)%p%nnode
@@ -186,6 +187,10 @@ contains
     !    call block_elvec_alloc(vars_s,nnode,blk_elvec)
     ! end if
 
+    ! Initialize matrix and vector
+    elem%p_mat%a = 0.0_rp
+    elem%p_vec%a = 0.0_rp
+
     ! ! Initialize to zero
     ! blk_elvec%blocks(1)%data   = 0.0_rp
     ! blk_elvec%blocks(2)%data   = 0.0_rp
@@ -217,9 +222,9 @@ contains
     !    blk_elmat%blocks(4,4)%data = 0.0_rp
     ! end if
     
-    ! ! Select integration subroutine
-    ! if(prob%kfl_mtvc==1) then
-    !    call nsi_iss_element_matvec_stdr(prob,elem,nnode,blk_elmat,blk_elvec)
+    ! Select integration subroutine
+    if(approx%kfl_mtvc==1) then
+       call nsi_iss_element_matvec_stdr(approx,elem,start)
     ! elseif(prob%kfl_mtvc==200) then
     !    call nsi_iss_element_mat_massu(prob,elem,nnode(1),blk_elmat%blocks(1,1))
     ! elseif(prob%kfl_mtvc==201) then
@@ -244,7 +249,7 @@ contains
     !    call nsi_iss_element_mat_ossxu(prob,elem,nnode(1),blk_elmat%blocks(3,1))
     ! elseif(prob%kfl_mtvc==217) then
     !    call nsi_iss_element_mat_ossxx(prob,elem,nnode(1),blk_elmat%blocks(3,3))
-    ! end if
+    end if
 
     ! ! Permute & reblock to monolithic emat & evec
     ! nd = size(elem%p_nod,1)
@@ -266,84 +271,72 @@ contains
     
   end subroutine nsi_matvec
 
-  ! !=================================================================================================
-  ! subroutine nsi_iss_element_matvec_stdr(prob,el,nnode,blk_elmat,blk_elvec)
-  !   !----------------------------------------------------------------------------------------------!
-  !   !   This subroutine computes the standard GALERKIN elemental matrix-vector integration.        !
-  !   !----------------------------------------------------------------------------------------------!
-  !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element),     intent(in)    :: el
-  !   integer(ip),           intent(in)    :: nnode(:)
-  !   type(block_elmat),     intent(inout) :: blk_elmat
-  !   type(block_elvec),     intent(inout) :: blk_elvec
-  !   ! Locals
-  !   integer(ip) :: idime,jdime,igaus,inode,jnode
-  !   integer(ip) :: ngaus,conve
-  !   real(rp)    :: ctime,dvolu,gpvno,dvolt
-  !   real(rp)    :: elvel(prob%ndime,nnode(1))
-  !   real(rp)    :: elveln(prob%ndime,nnode(1))
-  !   real(rp)    :: gpvel(prob%ndime,el%integ(1)%p%quad%ngaus)
-  !   real(rp)    :: gpveln(prob%ndime,el%integ(1)%p%quad%ngaus)
-  !   real(rp)    :: agran(nnode(1)),testf(nnode(1)),operu(nnode(1))
-  !   real(rp)    :: tau(2,el%integ(1)%p%quad%ngaus)
-  !   real(rp)    :: force(prob%ndime)
-  !   real(rp)    :: parv(30),parp(10),part(3),part_p(3)
-  !   real(rp)    :: work(4)
-  !   real(rp)    :: elmuv(nnode(1),nnode(1))
-  !   real(rp)    :: elmux(nnode(1),nnode(1))
-  !   real(rp)    :: elmxu(nnode(1),nnode(1))
-  !   real(rp)    :: elmxx(nnode(1),nnode(1))
-  !   real(rp)    :: elmpw(nnode(1),nnode(1))
-  !   real(rp)    :: elmwp(nnode(1),nnode(1))
+  !=================================================================================================
+  subroutine nsi_iss_element_matvec_stdr(approx,el,start)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the standard GALERKIN elemental matrix-vector integration.        !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_approximation), intent(in)    :: approx
+    type(fem_element)              , intent(inout) :: el
+    integer(ip)                    , intent(in)    :: start(:)
+    ! Locals
+    integer(ip)  :: igaus,idime,inode,jdime,jnode
+    integer(ip)  :: ngaus,ndime,nnodu,nnodp
+    real(rp)     :: ctime,dtinv,dvolu,diffu,react
+    real(rp)     :: work(4)
+    real(rp)     :: force(approx%physics%ndime)
+    real(rp)     :: agran(el%integ(1)%p%uint_phy%nnode)
+    real(rp)     :: elmuv(el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
+    real(rp)     :: elmat_uv(approx%physics%ndime,approx%physics%ndime,el%integ(1)%p%uint_phy%nnode, &
+         &                   el%integ(1)%p%uint_phy%nnode)
+    real(rp)     :: elmat_up(approx%physics%ndime,1,el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
+    real(rp)     :: elmat_pu(1,approx%physics%ndime,el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
+    real(rp)     :: elvec_u(approx%physics%ndime,el%integ(1)%p%uint_phy%nnode)
+    ! real(rp)    :: parv(30),parp(10),part(3),part_p(3)
+    type(vector) :: gpvel, gpveln
 
-  !   ! Asserts
-  !   do idime = 1,prob%ndime
-  !      assert(el%iv(idime)==1)
-  !   end do
+    ! Unpack variables
+    ndime = approx%physics%ndime
+    nnodu = el%integ(1)%p%uint_phy%nnode
+    nnodp = el%integ(1)%p%uint_phy%nnode
+    ngaus = el%integ(1)%p%quad%ngaus
+    diffu = approx%physics%diffu
+    react = approx%physics%react
+    dtinv = approx%dtinv
+    
+    ! Interpolation operations for velocity
+    call create_vector (approx%physics, 1, el%integ, gpvel)
+    call create_vector (approx%physics, 1, el%integ, gpveln)
+    call interpolation (el%unkno, 1, 1, el%integ, gpvel)
+    if(dtinv == 0.0_rp) then
+       call interpolation (el%unkno, 1, 2, el%integ, gpveln)
+    else
+       gpveln%a = 0.0_rp
+    end if
 
-  !   ! Interpolation operations for velocity
-  !   call elem2var(prob%ndofn,nnode(1),1,prob%ndime,el%unkno(:,:,1),elvel)
-  !   call interpolate(prob%ndime,nnode(1),el%integ(1)%p%quad%ngaus,el%integ(1)%p%uint_phy%shape,elvel,gpvel)
-  !   if(prob%dtinv>0.0_rp) then
-  !      call elem2var(prob%ndofn,nnode(1),1,prob%ndime,el%unkno(:,:,2),elveln)
-  !      call interpolate(prob%ndime,nnode(1),el%integ(1)%p%quad%ngaus,el%integ(1)%p%uint_phy%shape,elveln,gpveln)
-  !   else
-  !      gpveln = 0.0_rp
-  !   end if
+    ! Set real time
+    if(approx%kfl_thet==0) then        ! BE
+       ctime = approx%ctime
+    elseif(approx%kfl_thet==1) then    ! CN
+       ctime = approx%ctime - 1.0_rp/dtinv
+    end if
+    
+    ! Initializations
+    work     = 0.0_rp
+    force    = 0.0_rp
+    elmuv    = 0.0_rp
+    elmat_uv = 0.0_rp
+    elmat_up = 0.0_rp
+    elmat_pu = 0.0_rp
+    elvec_u  = 0.0_rp
+    ! parv     = 0.0_rp
+    ! parp     = 0.0_rp
+    ! part     = 0.0_rp    
 
-  !   ! Initializations
-  !   elmuv = 0.0_rp
-  !   elmux = 0.0_rp
-  !   elmxu = 0.0_rp
-  !   elmpw = 0.0_rp
-  !   elmwp = 0.0_rp
-  !   elmxx = 0.0_rp
-  !   agran = 0.0_rp
-  !   force = 0.0_rp
-  !   work  = 0.0_rp
-  !   parv  = 0.0_rp
-  !   parp  = 0.0_rp
-  !   part  = 0.0_rp    
-
-  !   ! Set real time
-  !   if(prob%kfl_thet==0) then        ! BE
-  !      ctime = prob%ctime
-  !   elseif(prob%kfl_thet==1) then    ! CN
-  !      ctime = prob%ctime - 1.0_rp/prob%dtinv
-  !   end if
-
-  !   ! Stabiliztion parameters
-  !   if(prob%kfl_stab>=2) then
-  !      call nsi_iss_elmvsg(nnode(1),prob,el%integ(1)%p%femap%hleng,el%integ(1)%p%quad%ngaus, &
-  !           &              el%integ(1)%p%femap%jainv,el%integ(1)%p%uint_phy%shape,elvel,gpvel,tau)
-  !   else
-  !      tau = 0.0_rp
-  !   end if
-
-  !   ! Loop on Gauss points
-  !   do igaus = 1,el%integ(1)%p%quad%ngaus
-  !      dvolu = el%integ(1)%p%quad%weight(igaus)*el%integ(1)%p%femap%detjm(igaus)
+    ! Loop on Gauss points
+    do igaus = 1,el%integ(1)%p%quad%ngaus
+       dvolu = el%integ(1)%p%quad%weight(igaus)*el%integ(1)%p%femap%detjm(igaus)
 
   !      ! Analytical solution
   !      if(prob%case_veloc>0.and.prob%case_press>0) then         
@@ -370,140 +363,94 @@ contains
   !         force=0.0_rp
   !      end if
 
-  !      ! Gravity field
-  !      do idime=1,prob%ndime
-  !         force(idime) = force(idime) + prob%gravi(idime)
-  !      end do
+       ! Gravity field
+       do idime=1,approx%physics%ndime
+          force(idime) = force(idime) + approx%physics%gravi(idime)
+       end do
 
-  !      ! Auxiliar variables
-  !      if(prob%kfl_conv.ne.0) then
-  !         do inode = 1,nnode(1)
-  !            agran(inode) = 0.0_rp
-  !            do idime = 1,prob%ndime
-  !               agran(inode) = agran(inode) + &
-  !                    &         gpvel(idime,igaus)*el%integ(1)%p%uint_phy%deriv(idime,inode,igaus)
-  !            end do
-  !            testf(inode) = tau(1,igaus)*agran(inode)
-  !            operu(inode) = agran(inode)
-  !         end do
-  !      end if
+       ! Auxiliar variables
+       if(approx%physics%kfl_conv.ne.0) then
+          do inode = 1,nnodu
+             agran(inode) = 0.0_rp
+             do idime = 1,ndime
+                agran(inode) = agran(inode) + &
+                     &         gpvel%a(idime,igaus)*el%integ(1)%p%uint_phy%deriv(idime,inode,igaus)
+             end do
+          end do
+       end if
 
-  !      ! Computation of elemental terms
-  !      ! ------------------------------
-  !      ! Block U-V
-  !      ! mu * ( grad u, grad v )
-  !      call elmvis_gal(dvolu,prob%diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),prob%ndime,     &
-  !           &          nnode(1),elmuv,work)
+       ! Computation of elemental terms
+       ! ------------------------------
+       ! Block U-V
+       ! mu * ( grad u, grad v )
+       call elmvis_gal(dvolu,diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elmuv,work)
 
-  !      ! Add cross terms for symmetric grad
-  !      if(prob%kfl_symg==1) then
-  !         call elmvis_gal_sym(dvolu,prob%diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),prob%ndime, &
-  !              &          nnode(1),blk_elmat%blocks(1,1)%data,work)
-  !      end if
-  !      if(prob%kfl_skew==0) then
-  !         ! (v, a·grad u) + s*(v,u) + (v, u/dt)
-  !         call elmbuv_gal(dvolu,prob%react,prob%dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran, &
-  !              &          nnode(1),elmuv,work)
-  !      elseif(prob%kfl_skew==1) then
-  !         ! 1/2(v, a·grad u) - 1/2(u,a·grad v) + s*(v,u) + (v, u/dt)
-  !         call elmbuv_gal_skew1(dvolu,prob%react,prob%dtinv,el%integ(1)%p%uint_phy%shape(:,igaus), &
-  !              &                agran,nnode(1),elmuv,work)
-  !      end if
+       ! Add cross terms for symmetric grad
+       if(approx%physics%kfl_symg==1) then
+          call elmvis_gal_sym(dvolu,diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+               &              elmat_uv,work)
+       end if
+       if(approx%physics%kfl_skew==0) then
+          ! (v, a·grad u) + s*(v,u) + (v, u/dt)
+          call elmbuv_gal(dvolu,react,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu,elmuv,work)
+       elseif(approx%physics%kfl_skew==1) then
+          ! 1/2(v, a·grad u) - 1/2(u,a·grad v) + s*(v,u) + (v, u/dt)
+          call elmbuv_gal_skew1(dvolu,react,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
+               &                elmuv,work)
+       end if
 
-  !      ! OSS
-  !      if(prob%kfl_stab>=2) then
-  !         ! Block U-U
-  !         ! tau*(a·grad u, a·grad v)
-  !         call elmbuv_oss(dvolu,testf,operu,nnode(1),elmuv,work)
-  !         ! tauc*(div v, div u)
-  !         if(prob%ktauc>0.0_rp) then
-  !            call elmdiv_stab(tau(2,igaus),dvolu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),prob%ndime, &
-  !                 &           nnode(1),blk_elmat%blocks(1,1)%data,work)
-  !         end if
-  !         ! Block U-X
-  !         ! -tau*(proj(a·grad u), a·grad v)
-  !         if(prob%kfl_proj==1) then
-  !            work(2) = -tau(1,igaus)*dvolu
-  !         else
-  !            work(2) = -dvolu
-  !         end if
-  !         call elmbvu_gal(work(2),el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnode(1),elmux,work)
-  !         ! Block X-U
-  !         ! -tau*(proj(a·grad u), a·grad u)
-  !         dvolt = -dvolu*tau(1,igaus)
-  !         call elmbuv_gal(dvolt,0.0_rp,0.0_rp,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnode(1), &
-  !              &          elmxu,work)
-  !         ! Block X-X (W-W)
-  !         ! tau*(proj(a·grad u),v)
-  !         if(prob%kfl_proj==1) then
-  !            call elmmss_gal(dvolu,tau(1,igaus),el%integ(1)%p%uint_phy%shape(:,igaus),nnode(1),elmxx, &
-  !                 &          work)
-  !         else
-  !            call elmmss_gal(dvolu,1.0_rp,el%integ(1)%p%uint_phy%shape(:,igaus),nnode(1),elmxx, &
-  !                 &          work)
-  !         end if
-  !         if(prob%kfl_stab==3) then
-  !            ! Block P-P
-  !            ! tau*(grad q, grad p)
-  !            call elmvis_gal(dvolu,tau(1,igaus),el%integ(2)%p%uint_phy%deriv(:,:,igaus),prob%ndime, &
-  !                 &          nnode(2),blk_elmat%blocks(2,2)%data,work)
-  !            ! Block P-W
-  !            ! -tau*(proj(grad p), grad q)
-  !            if(prob%kfl_proj==1) then
-  !               work(2) = tau(1,igaus)*dvolu
-  !            else
-  !               work(2) = dvolu
-  !            end if
-  !            call elmbuq_gal_grd_iss(work(2),el%integ(1)%p%uint_phy%shape(:,igaus),      &
-  !                 &                  el%integ(2)%p%uint_phy%deriv(:,:,igaus),prob%ndime, &
-  !                 &                  nnode(1),nnode(2),blk_elmat%blocks(2,4)%data,work)
-  !            ! Block W-P
-  !            ! -tau*(proj(grad p), grad p)
-  !            work(2) = -dvolu * tau(1,igaus)
-  !            call elmbpv_gal_grd_iss(work(2),el%integ(1)%p%uint_phy%shape(:,igaus),      &
-  !                 &                  el%integ(2)%p%uint_phy%deriv(:,:,igaus),prob%ndime, &
-  !                 &                  nnode(1),nnode(2),blk_elmat%blocks(4,2)%data,work)
-  !         end if
-  !      end if
+       ! Block P-V
+       ! - ( div v, p )
+       call elmbpv_gal_div_iss(dvolu,el%integ(2)%p%uint_phy%shape(:,igaus),               &
+            &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
+            &                  elmat_up,work)
 
-  !      ! Block P-V
-  !      ! - ( div v, p )
-  !      call elmbpv_gal_div_iss(dvolu,el%integ(2)%p%uint_phy%shape(:,igaus),                          &
-  !           &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),prob%ndime,nnode(1),nnode(2), &
-  !           &                  blk_elmat%blocks(1,2)%data,work)
+       ! Block U-Q
+       ! ( div u, q )
+       call elmbuq_gal_div_iss(dvolu,el%integ(2)%p%uint_phy%shape(:,igaus),               &
+            &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
+            &                  elmat_pu,work)
 
-  !      ! Block U-Q
-  !      ! ( div u, q )
-  !      call elmbuq_gal_div_iss(dvolu,el%integ(2)%p%uint_phy%shape(:,igaus),                          &
-  !           &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),prob%ndime,nnode(1),nnode(2), &
-  !           &                  blk_elmat%blocks(2,1)%data,work)
+       ! RHS: Block U
+       ! ( v, f ) + ( v, u_n/dt )
+       call elmrhu_gal(dvolu,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),gpveln%a(:,igaus), &
+            &          force,nnodu,ndime,elvec_u,work)
 
-  !      ! RHS: Block U
-  !      ! ( v, f ) + ( v, u_n/dt )
-  !      call elmrhu_gal(dvolu,prob%dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),gpveln(:,igaus),  &
-  !           &          force,nnode(1),prob%ndime,blk_elvec%blocks(1)%data,work)
+    end do
 
-  !   end do
+    ! Assembly to elemental p_mat and p_vec
+    do inode=1,nnodu
+       do idime=1,ndime
+          do jnode=1,nnodu
+             do jdime=1,ndime
+                ! Block V-U
+                el%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) = &
+                     & el%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) + elmat_uv(idime,jdime,inode,jnode)
+             end do    
+             ! Block V-U (diag)
+             el%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) = &
+                  & el%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) + elmuv(inode,jnode)
+          end do
+          do jnode=1,nnodp
+             ! Block V-P
+             el%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) = &
+                  & el%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) + elmat_up(idime,1,inode,jnode)
+          end do
+          ! Block U
+          el%p_vec%a(start(idime)+inode-1) = el%p_vec%a(start(idime)+inode-1) + elvec_u(idime,inode)
+       end do
+    end do
+    do inode=1,nnodp
+       do jdime=1,ndime
+          do jnode=1,nnodu
+             ! Block Q-U
+             el%p_mat%a(start(ndime+1)+inode-1,start(jdime)+jnode-1) = &
+                  & el%p_mat%a(start(ndime+1)+inode-1,start(jdime)+jnode-1) + elmat_uv(1,jdime,inode,jnode)
+          end do
+       end do
+    end do
     
-  !   ! Assembly elmuv to blk_elmat
-  !   call elmuv2elmat(prob%ndime,nnode(1),elmuv,blk_elmat%blocks(1,1)%data)
-  !   if(prob%kfl_stab>=2) then
-  !      call elmuv2elmat(prob%ndime,nnode(1),elmux,blk_elmat%blocks(1,3)%data)
-  !      call elmuv2elmat(prob%ndime,nnode(1),elmxu,blk_elmat%blocks(3,1)%data)
-  !      if(prob%kfl_lump==0) then
-  !         call elmuv2elmat(prob%ndime,nnode(1),elmxx,blk_elmat%blocks(3,3)%data)
-  !         if(prob%kfl_stab==3) then
-  !            call elmuv2elmat(prob%ndime,nnode(1),elmxx,blk_elmat%blocks(4,4)%data)
-  !         end if
-  !      elseif(prob%kfl_lump==1) then
-  !         call elmuv2elmat_lump(prob%ndime,nnode(1),elmxx,blk_elmat%blocks(3,3)%data)
-  !         if(prob%kfl_stab==3) then
-  !            call elmuv2elmat_lump(prob%ndime,nnode(1),elmxx,blk_elmat%blocks(4,4)%data)
-  !         end if
-  !      end if
-  !   end if
-    
-  ! end subroutine nsi_iss_element_matvec_stdr
+  end subroutine nsi_iss_element_matvec_stdr
 
   ! !=================================================================================================
   ! subroutine nsi_iss_element_mat(prob,ielem,elem)

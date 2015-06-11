@@ -50,6 +50,7 @@ module par
   use par_block_vector_names
   use dof_distribution_names
   use dof_distribution_create_names
+  use par_precond_dd_diagonal_names
   use par_precond_dd_mlevel_bddc_names
 
   !Integration

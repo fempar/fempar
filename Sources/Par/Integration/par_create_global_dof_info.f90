@@ -73,11 +73,7 @@ contains
 
     integer(ip) :: iblock, jblock
 
-    !if ( p_trian%p_env%p_context%iam == 0 ) then
-       call create_element_to_dof_and_ndofs( dhand, p_trian%f_trian, femsp )
-    !else
-       stop
-    !end if
+    call create_element_to_dof_and_ndofs( dhand, p_trian%f_trian, femsp )
 
     call ghost_discontinuous_Galerkin_dofs( dhand, p_trian, femsp  )
 

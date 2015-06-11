@@ -326,7 +326,7 @@ contains
     case ( res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
        ctrl%err1 = nrm_r_given
     end select
-    ctrl%err1h(ctrl%it) = ctrl%err1
+    if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
     ctrl%converged = (ctrl%err1 <= ctrl%tol1 )
 
     ! Evaluate 2nd convergence criterion
@@ -338,7 +338,7 @@ contains
           ! call generic_nrm2 ( r, ctrl%err2 )
           ctrl%err2 = r%nrm2()
           ctrl%converged = (ctrl%err2 <= ctrl%tol2 )
-          ctrl%err2h(ctrl%it) = ctrl%err2
+          if ( ctrl%track_conv_his ) ctrl%err2h(ctrl%it) = ctrl%err2
        end if
     end select
 
@@ -781,7 +781,7 @@ end subroutine abstract_ipcg
              end if
           end if
 
-          ctrl%err1h(ctrl%it) = ctrl%err1
+          if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
           exit_loop = (ctrl%err1 < ctrl%tol1)
           ! Send converged to coarse-grid tasks
           call env%bcast(exit_loop)
@@ -1094,7 +1094,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
                 ! Error norm
                 res_norm = abs(alpha)
                 ctrl%err1  = res_norm
-                ctrl%err1h(ctrl%it) = ctrl%err1
+                if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
             end if
             exit_loop = (ctrl%err1 < ctrl%tol1) 
             ! Send converged to coarse-grid tasks
@@ -1370,7 +1370,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl, env)
                 ! Error norm
                 res_norm = abs(alpha)
                 ctrl%err1  = res_norm
-                ctrl%err1h(ctrl%it) = ctrl%err1
+                if (ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
             end if
             exit_loop = (ctrl%err1 < ctrl%tol1)
             ! Send converged to coarse-grid tasks
@@ -1542,7 +1542,7 @@ subroutine abstract_prichard (A, M, b, x, ctrl, env )
             end if
         end if
         ctrl%err1 = res_norm
-        if (ctrl%it > 0) ctrl%err1h(ctrl%it) = ctrl%err1
+        if (ctrl%it > 0 .and. ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
         ctrl%converged = (ctrl%err1 < ctrl%tol1)
 
         ! Send converged to coarse-grid tasks
@@ -1774,7 +1774,7 @@ subroutine abstract_plfom ( A, M, b, x, ctrl, env )
                 ctrl%err1 = res_2_norm
             end if
 
-            ctrl%err1h(ctrl%it) = ctrl%err1
+            if (ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
             exit_loop = (ctrl%err1 < ctrl%tol1)
             ! Send converged to coarse-grid tasks
             call env%bcast(exit_loop)
