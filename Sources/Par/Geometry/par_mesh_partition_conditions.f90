@@ -35,7 +35,7 @@ module par_mesh_partition_conditions
   !use fem_partition_names
   use fem_materials_names
   ! use partition_import
-  use fem_mesh_gen_partition
+  use fem_mesh_gen_distribution_names
   !use fem_mesh_io
   !use stdio
   ! use fem_import_names

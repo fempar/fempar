@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_gen_distribution_names
+module fem_mesh_gen_distribution_names
   use types
   use fem_conditions_names
   use fem_triangulation_names
@@ -544,23 +544,23 @@ contains
     call fem_conditions_create(poin%ncode,poin%nvalu,tsize%notot,nodes)
    
     ! Interior nodes/elements
-    call volu_loop(ijkpart,ndime,gsize,tsize,gdata,npnumg,npnumt,nenum,coord,cnt)
-    call face_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,surf,npnumg,npnumt,nenum,coord,cnt,  &
-         &         inter,nodes)
-    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,line,surf,npnumg,npnumt,nenum,coord, &
+    call volu_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,npnumg,npnumt,nenum,coord,cnt)
+    call face_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,surf,npnumg,npnumt,nenum,coord, &
          &         cnt,inter,nodes)
-    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,poin,line,surf,npnumg,npnumt,nenum,  &
+    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,line,surf,npnumg,npnumt,nenum,  &
          &         coord,cnt,inter,nodes)
+    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,poin,line,surf,npnumg,npnumt,   &
+         &         nenum,coord,cnt,inter,nodes)
     pni = cnt(3)-1
     eni = cnt(2)-1
 
     ! Boundary nodes/elements
-    call face_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,surf,npnumg,npnumt,nenum,coord,cnt,  &
-         &         bound)
-    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,line,surf,npnumg,npnumt,nenum,coord, &
-         &         cnt,bound,nodes)
-    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,poin,line,surf,npnumg,npnumt,nenum,  &
+    call face_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,surf,npnumg,npnumt,nenum,coord, &
+         &         cnt,bound)
+    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,line,surf,npnumg,npnumt,nenum,  &
          &         coord,cnt,bound,nodes)
+    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,poin,line,surf,npnumg,npnumt,   &
+         &         nenum,coord,cnt,bound,nodes)
     pnb = cnt(3) - pni - 1
     enb = cnt(2) - eni - 1
 
@@ -632,17 +632,18 @@ contains
   end subroutine structured_mesh_gen
 
   !==================================================================================================
-  subroutine volu_loop(ijkpart,ndime,gsize,tsize,gdata,npnumg,npnumt,nenum,coord,cnt)
+  subroutine volu_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,npnumg,npnumt,nenum,coord,cnt)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)    , intent(in)    :: ijkpart(3),ndime
-    type(geom_size), intent(in)    :: gsize
-    type(topo_size), intent(in)    :: tsize
-    type(geom_data), intent(in)    :: gdata
-    integer(ip)    , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
-    real(rp)       , intent(inout) :: coord(:,:)
+    integer(ip)         , intent(in)    :: ijkpart(3),ndime
+    type(geom_size)     , intent(in)    :: gsize
+    type(topo_size)     , intent(in)    :: tsize
+    type(geom_data)     , intent(in)    :: gdata
+    type(fem_fixed_info), intent(in)    :: ginfo
+    integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
+    real(rp)            , intent(inout) :: coord(:,:)
 
     integer(ip) :: i,j,k,ijkpoin(3),ijkelem(3),glnum,npdomk,nedomk,nddomk,aux_cnt
     integer(ip) :: pdime,ijkface(3),ijkedge(3),jdime
@@ -679,7 +680,7 @@ contains
 
              ! Coordinates
              call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                  &         ndime,gdata,coord(:,cnt(3)))
+                  &         ndime,gdata,ginfo,coord(:,cnt(3)))
 
              ! Update counter
              cnt(1) = cnt(1) + 1
@@ -773,8 +774,8 @@ contains
   end subroutine volu_loop
 
   !==================================================================================================
-  subroutine face_loop(ijkpart,ndime,gsize,tsize,gdata,isper,surf,npnumg,npnumt,nenum,coord,cnt, &
-       &               case,nodes)
+  subroutine face_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,isper,surf,npnumg,npnumt,nenum,coord, &
+       &               cnt,case,nodes)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -783,6 +784,7 @@ contains
     type(geom_size)               , intent(in)    :: gsize
     type(topo_size)               , intent(in)    :: tsize
     type(geom_data)               , intent(in)    :: gdata
+    type(fem_fixed_info)          , intent(in)    :: ginfo
     type(fem_conditions)          , intent(in)    :: surf
     integer(ip)                   , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)                      , intent(inout) :: coord(:,:)
@@ -827,7 +829,7 @@ contains
 
                       ! Coordinates
                       call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                           &         ndime,gdata,coord(:,cnt(3)))
+                           &         ndime,gdata,ginfo,coord(:,cnt(3)))
 
                       ! Boundary conditions
                       if(case==inter) then
@@ -1069,8 +1071,8 @@ contains
   end subroutine face_loop_adj
 
   !==================================================================================================
-  subroutine edge_loop(ijkpart,ndime,gsize,tsize,gdata,isper,line,surf,npnumg,npnumt,nenum,coord, &
-       &               cnt,case,nodes)
+  subroutine edge_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,isper,line,surf,npnumg,npnumt,nenum, &
+       &               coord,cnt,case,nodes)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -1079,6 +1081,7 @@ contains
     type(geom_size),      intent(in)    :: gsize
     type(topo_size),      intent(in)    :: tsize
     type(geom_data),      intent(in)    :: gdata
+    type(fem_fixed_info), intent(in)    :: ginfo
     type(fem_conditions), intent(in)    :: line,surf
     integer(ip),          intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp),             intent(inout) :: coord(:,:)
@@ -1141,7 +1144,7 @@ contains
                
                    ! Coordinates
                    call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                        &         ndime,gdata,coord(:,cnt(3)))
+                        &         ndime,gdata,ginfo,coord(:,cnt(3)))
                    
                    ! Boundary conditions
                    if(case==inter) then
@@ -1443,8 +1446,8 @@ contains
   end subroutine edge_loop_adj
 
   !================================================================================================
-  subroutine corn_loop(ijkpart,ndime,gsize,tsize,gdata,isper,poin,line,surf,npnumg,npnumt,nenum, & 
-       &               coord,cnt,case,nodes)
+  subroutine corn_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,isper,poin,line,surf,npnumg,npnumt, & 
+       &               nenum,coord,cnt,case,nodes)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -1453,6 +1456,7 @@ contains
     type(geom_size)     , intent(in)    :: gsize
     type(topo_size)     , intent(in)    :: tsize
     type(geom_data)     , intent(in)    :: gdata
+    type(fem_fixed_info), intent(in)    :: ginfo
     type(fem_conditions), intent(in)    :: poin,line,surf
     integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)            , intent(inout) :: coord(:,:)
@@ -1509,7 +1513,7 @@ contains
               
                 ! Coordinates
                 call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                     &         ndime,gdata,coord(:,cnt(3)))
+                     &         ndime,gdata,ginfo,coord(:,cnt(3)))
 
                 ! Boundary conditions
                 if(case==inter) then
@@ -1758,6 +1762,297 @@ contains
     call memfree(auxv,__FILE__,__LINE__)
 
   end subroutine corn_loop_adj
+
+  !================================================================================================
+  subroutine coord_ijk(ijkpoin,ijkpart,npdir,nedom,nedir,ndime,msize,ginfo,coord)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip)         , intent(in)    :: ijkpoin(3),ijkpart(3),npdir(3),nedom(3),nedir(3)
+    integer(ip)         , intent(in)    :: ndime
+    type(geom_data)     , intent(in)    :: msize
+    type(fem_fixed_info), intent(in)    :: ginfo
+    real(rp)            , intent(inout) :: coord(:)
+
+    integer(ip) :: i,ntdis(3),pdegr,nebl(3)
+    real(rp)    :: leng(3),coor0(3),stret(3),istret,lengbl(3)
+    integer(ip) :: newijkpoin,newnedir,newnedom,info
+    real(rp)    :: newleng
+
+    ! Unpack geom_data
+    pdegr   = ginfo%order
+    leng(1) = msize%xleng
+    leng(2) = msize%yleng
+    leng(3) = msize%zleng
+    ntdis(1) = msize%ntdix
+    ntdis(2) = msize%ntdiy
+    ntdis(3) = msize%ntdiz
+    stret(1) = msize%xstret
+    stret(2) = msize%ystret
+    stret(3) = msize%zstret
+    nebl(1) = msize%neblx
+    nebl(2) = msize%nebly
+    nebl(3) = msize%neblz
+    lengbl(1) = msize%xlengbl
+    lengbl(2) = msize%ylengbl
+    lengbl(3) = msize%zlengbl
+
+    ! Set origin of coordinates
+    coor0(1) = msize%x0; coor0(2) = msize%y0; coor0(3) = msize%z0
+
+    ! Set origin of coordinates
+    coor0(1) = msize%x0; coor0(2) = msize%y0; coor0(3) = msize%z0
+
+    do i=1,ndime 
+       assert ( ntdis(i).ne.1 ) ! This case is not implemented
+       if(ntdis(i)==0) then
+          coord(i) = coor0(i) + leng(i)*((ijkpart(i)-1)*nedom(i)+(ijkpoin(i)-1)/real(pdegr))/nedir(i)
+       elseif(ntdis(i)==2) then
+          istret=stret(i)
+          coord(i) = coor0(i) - leng(i)*tanh(istret*(1.0_rp-2.0_rp*((ijkpart(i)-1)*nedom(i)+(ijkpoin(i)-1)/real(pdegr))/nedir(i)))/tanh(istret)
+       elseif(ntdis(i)==3.or.ntdis(i)==4) then ! boundary layers (Hunt's case: solid uniform + fluid unif==3 or tanh==4)
+          istret=stret(i)
+          
+!!$          !TO DO
+!!$          if((nebl(i)>0).and.(nedom(i)<nebl(i))) then
+!!$             write(*,*) 'boundary layer cannot be splitted over several sbds, dir ',i,'nedom',nedom,'nebl',nebl
+!!$             call mpi_barrier (1, info)
+!!$             call mpi_finalize( info )
+!!$             stop
+!!$          end if
+
+          !first boundary layer
+          if((ijkpart(i)==1).and.(ijkpoin(i)<=nebl(i))) then 
+             if(ntdis(i)==3) then
+                coord(i) = coor0(i) - lengbl(i) + lengbl(i)*(ijkpoin(i)-1)/nebl(i)
+             elseif(ntdis(i)==4) then
+                coord(i) = coor0(i) - leng(i) - lengbl(i) + lengbl(i)*(ijkpoin(i)-1)/nebl(i)
+             end if
+          !latest boundary layer
+          elseif((ijkpart(i)==npdir(i)).and.(ijkpoin(i)>(nedom(i)-nebl(i)+1))) then 
+             newijkpoin=ijkpoin(i)-(nedom(i)-nebl(i))
+             coord(i) = coor0(i) + leng(i) + lengbl(i)*(newijkpoin-1)/nebl(i)
+          else !core region
+             if(ntdis(i)==3) then
+                coord(i) = coor0(i) + leng(i)*((ijkpart(i)-1)*nedom(i)+(ijkpoin(i)-nebl(i)-1)/real(pdegr))/(nedir(i)-2*nebl(i))
+             elseif(ntdis(i)==4) then
+                coord(i) = coor0(i) - leng(i)*tanh(istret*(1.0_rp-2.0_rp*((ijkpart(i)-1)*nedom(i)+&
+                     (ijkpoin(i)-nebl(i)-1)/real(pdegr))/(nedir(i)-2*nebl(i))))/tanh(istret)
+             end if
+          end if
+       end if
+    end do
+   
+  end subroutine coord_ijk
+
+  !================================================================================================
+  subroutine check_part_boundary(ijk,npdir,ndime,isper)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)    :: npdir(3),ndime,isper(3)
+    integer(ip), intent(inout) :: ijk(3)
+
+    integer(ip) :: i
+
+    ! Periodic mesh with respect to all directions
+    do i=1,ndime
+       if(isper(i)==1) then
+          if(ijk(i)<1) then
+             ijk(i) = npdir(i)
+          else if(ijk(i)>npdir(i)) then
+             ijk(i) = 1!npdir(i)
+          end if
+       else
+          if(ijk(i)<1.or.ijk(i)>npdir(i)) then
+             ijk = 0*ijk
+          end if
+       end if
+    end do
+
+  end subroutine check_part_boundary
+
+  !================================================================================================
+  subroutine check_face_boundary(ijkpart,pdime,iface,npdir,nsckt,npsoc,ndime,isper,auxv,flag, &
+       &                         neigh,lface)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ijkpart(3),pdime,iface,npdir(3),ndime,isper(3),auxv(3,2)
+    integer(ip), intent(in)  :: nsckt(3),npsoc(3)
+    integer(ip), intent(out) :: flag,neigh(2),lface(2)
+
+    integer(ip)              :: i,ijkneig(3),newpo,cnt
+
+    cnt=1
+    flag = -1
+    lface = 0
+
+    do i=-1,0
+
+       ! Auxiliar variables
+       newpo = iface + i
+
+       ! Check neighbors
+       call neigh_face(newpo,pdime,auxv,ijkpart,ijkneig)
+
+       ! Check part boundary
+       call check_part_boundary(ijkneig,npdir,ndime,isper)
+
+       ! Global numbering
+       call globalid_2l(ijkneig,nsckt,npsoc,ndime,neigh(cnt))
+       
+       ! Set flag
+       if(neigh(cnt)>0) then
+          flag = min(flag+1,1)
+          lface(i+2) = 1 
+       end if
+
+       ! Update counter
+       cnt = cnt + 1
+
+    end do
+
+  end subroutine check_face_boundary
+
+  !================================================================================================
+  subroutine check_edge_boundary(ijkpart,pdime,ijedge,npdir,nsckt,npsoc,ndime,isper,auxv,flag, &
+       &                         neigh,ledge)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ijkpart(3),pdime,ijedge(2),npdir(3),ndime,isper(3),auxv(:,:)
+    integer(ip), intent(in)  :: nsckt(3),npsoc(3)
+    integer(ip), intent(out) :: flag,neigh(2*(ndime-1)),ledge(2,2)
+
+    integer(ip)              :: i,j,ijkneig(3),newpo(2),cnt
+
+    cnt=1
+    flag = -1
+    ledge = 0
+
+    do i=-1,0
+       do j=-1,0
+
+          ! Auxiliar variables
+          newpo = ijedge + (/i,j/)
+
+          ! Check neighbors
+          call neigh_edge(newpo,pdime,auxv,ijkpart,ijkneig)
+
+          ! Check part boundary
+          call check_part_boundary(ijkneig,npdir,ndime,isper)
+
+          ! Global numbering
+          call globalid_2l(ijkneig,nsckt,npsoc,ndime,neigh(cnt))
+
+          ! Set flag
+          if(neigh(cnt)>0) then
+             flag = min(flag+1,1)
+             ledge(i+2,j+2) = 1
+          end if
+
+          ! Update counter
+          cnt = cnt + 1
+
+          if(ndime==2) exit
+       end do
+    end do
+
+  end subroutine check_edge_boundary
+
+  !================================================================================================
+  subroutine check_corn_boundary(ijkpart,ijkvert,npdir,nsckt,npsoc,ndime,isper,auxv,flag,neigh, &
+       &                         lcorn)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ijkpart(3),ijkvert(3),npdir(3),ndime,isper(3),auxv(:,:)
+    integer(ip), intent(in)  :: nsckt(3),npsoc(3)
+    integer(ip), intent(out) :: flag,neigh(2**ndime),lcorn(2,2,2)
+
+    integer(ip)              :: i,j,k,ijkneig(3),newpo(3),cnt
+
+    cnt = 1
+    flag = -1
+    lcorn = 0
+
+    do i=-1,0
+       do j=-1,0
+          do k=-1,0
+
+             ! Auxiliar variables
+             newpo = ijkvert + (/i,j,k/)
+
+             ! Check neighbors
+             call neigh_corn(newpo,ijkpart,ijkneig)
+
+             ! Check part boundary
+             call check_part_boundary(ijkneig,npdir,ndime,isper)
+
+             ! Global numbering
+             call globalid_2l(ijkneig,nsckt,npsoc,ndime,neigh(cnt))
+
+             ! Set flag
+             if(neigh(cnt)>0) then
+                flag = min(flag+1,1)
+                lcorn(i+2,j+2,k+2) = 1
+             end if
+             ! Update counter
+             cnt = cnt + 1
+
+             if(ndime==2) exit
+          end do
+       end do
+    end do
+
+  end subroutine check_corn_boundary
+
+  !================================================================================================
+  subroutine neigh_face(newpo,pdime,auxv,ijkpart,ijkneig)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ijkpart(3),newpo,pdime,auxv(3,2)
+    integer(ip), intent(out) :: ijkneig(3)
+
+    ijkneig(auxv(pdime,:)) = ijkpart(auxv(pdime,:))
+    ijkneig(pdime) = ijkpart(pdime) + newpo
+
+  end subroutine neigh_face
+
+  !================================================================================================
+  subroutine neigh_edge(newpo,pdime,auxv,ijkpart,ijkneig)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ijkpart(3),newpo(2),pdime,auxv(:,:)
+    integer(ip), intent(out) :: ijkneig(3)
+
+    ijkneig(auxv(pdime,:)) = ijkpart(auxv(pdime,:)) + newpo(1:size(auxv(pdime,:)))
+    ijkneig(pdime) = ijkpart(pdime)
+
+  end subroutine neigh_edge
+
+  !================================================================================================
+  subroutine neigh_corn(newpo,ijkpart,ijkneig)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ijkpart(3),newpo(3)
+    integer(ip), intent(out) :: ijkneig(3)
+
+    ijkneig = ijkpart + newpo
+
+  end subroutine neigh_corn
 
   !==================================================================================================
   subroutine generic_l2g(subgl,npnumg,npnumt,nenum,ndime,pdegr,gsize,tsize,gdata,l2ge,l2gp,trian, &
@@ -2227,4 +2522,4 @@ contains
     
   end subroutine materialid
                 
-end module mesh_gen_distribution_names
+end module fem_mesh_gen_distribution_names
