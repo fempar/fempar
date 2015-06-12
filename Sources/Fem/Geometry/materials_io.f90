@@ -34,8 +34,9 @@ module fem_materials_io
   private
 
   ! Functions
-  public :: fem_materials_read, fem_materials_compose_name, fem_materials_write
-  public :: fem_materials_write_files
+  public :: fem_materials_read_file, fem_materials_read,     &
+            fem_materials_compose_name, fem_materials_write, &
+            fem_materials_write_file, fem_materials_write_files
 
 contains
 
@@ -46,7 +47,7 @@ contains
   !  * implement other formats (when needed)
   !
   !=============================================================================
-  subroutine fem_materials_read(lunio,mat)
+  subroutine fem_materials_read_file(lunio,mat)
     !------------------------------------------------------------------------
     !
     ! This routine reads materials
@@ -89,32 +90,51 @@ contains
 
     return
 
-  end subroutine fem_materials_read
+  end subroutine fem_materials_read_file
 
 
-!=============================================================================
-  subroutine fem_materials_write(lunio,mater)
+  !=============================================================================
+  subroutine fem_materials_write_file(lunio,mater)
     !------------------------------------------------------------------------
     !
     !------------------------------------------------------------------------
     implicit none
-    integer(ip)         , intent(in) :: lunio
+    ! Parameters
+    integer(ip)        , intent(in) :: lunio
     type(fem_materials), intent(in) :: mater
-    character(80) :: fmt
-    integer(ip)   :: ielem
-
-    !fmt='(2x,i10)','//trim(ch(nodes%ncode))//'(1x,i2),'//trim(ch(nodes%nvalu))//'(1x,e14.7))'
-    !write(*,*) fmt
-
+    
+    ! Locals
+    integer(ip)                     :: ielem
+    
     write(lunio,1) 'elements'
     do ielem=1,mater%nelem
        write(lunio,2) ielem,mater%list(ielem)
     end do
     write(lunio,1) 'end elements'
-
+    
 1   format(a)
 2   format(i10,i10)
+    
+  end subroutine fem_materials_write_file
 
+  !=============================================================================
+  subroutine fem_materials_write ( dir_path, prefix, f_material )
+    implicit none 
+    ! Parameters
+    character (*)       , intent(in)    :: dir_path
+    character (*)       , intent(in)    :: prefix
+    type(fem_materials) , intent(inout) :: f_material
+    
+    ! Locals
+    character(len=:), allocatable  :: name
+    integer(ip) :: lunio
+
+    ! Read materials
+    call fem_materials_compose_name ( prefix, name )
+    lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
+    call fem_materials_write_file(lunio, f_material)
+    call io_close(lunio)
+    
   end subroutine fem_materials_write
 
   !=============================================================================
@@ -144,10 +164,30 @@ contains
        rename = name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open(trim(dir_path)//'/'//trim(rename),'write' )
-       call fem_materials_write(lunio,lmater(i))
+       call fem_materials_write_file(lunio,lmater(i))
        call io_close(lunio)
     end do
 
   end subroutine fem_materials_write_files
+
+  !=============================================================================
+  subroutine fem_materials_read ( dir_path, prefix, f_materials )
+    implicit none 
+    ! Parameters
+    character (*)       , intent(in)  :: dir_path
+    character (*)       , intent(in)  :: prefix
+    type(fem_materials) , intent(out) :: f_materials
+    
+    ! Locals
+    character(len=:), allocatable  :: name
+    integer(ip) :: lunio
+
+    ! Read materials
+    call fem_materials_compose_name ( prefix, name )
+    lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+    call fem_materials_read_file(lunio, f_materials)
+    call io_close(lunio)
+    
+  end subroutine fem_materials_read
 
 end module fem_materials_io

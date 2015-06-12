@@ -67,23 +67,16 @@ program test_cdr
 
   integer(ip) :: lunio, istat
 
-
   call meminit
 
   ! Read parameters from command-line
   call  read_pars_cl_test_cdr ( dir_path, prefix, dir_path_out )
 
   ! Read mesh
-  !filename = trim(dir_path)//'data/'//trim(prefix)//'.msh'
-  !lunio = io_open(filename,status='old')
-  call fem_mesh_read(dir_path, prefix, f_mesh,permute_c2z=.true.)
-  !call io_close(lunio)
+  call fem_mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
 
   ! Read conditions 
-  filename = trim(dir_path)//'/'//trim(prefix)//'.cnd'
-  lunio = io_open(filename,status='old')
-  call fem_conditions_read(lunio,f_mesh%npoin,f_cond)
-  call io_close(lunio)
+  call fem_conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
 
   !call fem_mesh_write ( 6, f_mesh, 'square_uniform' )
 
@@ -127,7 +120,7 @@ program test_cdr
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
   call memalloc( f_trian%num_elems, which_approx, __FILE__, __LINE__)
-  which_approx = 1
+  which_approx = 1 
 
   ! Continuity
   !write(*,*) 'Continuity', continuity
@@ -177,7 +170,7 @@ program test_cdr
   call fem_matrix_print( 6, my_matrix)
 
   feunk = my_vector - my_matrix*feunk 
-  
+
   write(*,*) 'XXX error solver norm XXX', feunk%nrm2()
 
   !call fem_vector_print( 6, feunk)

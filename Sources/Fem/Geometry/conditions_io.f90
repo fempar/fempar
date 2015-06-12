@@ -34,8 +34,9 @@ module fem_conditions_io
   private
 
   ! Functions
-  public :: fem_conditions_read, fem_conditions_write, &
-       &    fem_conditions_compose_name, fem_conditions_write_files
+  public :: fem_conditions_read_file, fem_conditions_read, fem_conditions_write, &
+       &    fem_conditions_write_file, fem_conditions_compose_name, & 
+       &    fem_conditions_write_files
 
 contains
 
@@ -46,7 +47,7 @@ contains
   !  * implement other formats (when needed)
   !
   !=============================================================================
-  subroutine fem_conditions_read(lunio,npoin,nodes)
+  subroutine fem_conditions_read_file(lunio,npoin,nodes)
     !------------------------------------------------------------------------
     !
     ! This routine reads conditions
@@ -95,22 +96,21 @@ contains
        read(lunio,'(a)') tel
     end do
 
-  end subroutine fem_conditions_read
+  end subroutine fem_conditions_read_file
 
   !=============================================================================
-  subroutine fem_conditions_write(lunio,nodes,bouns)
+  subroutine fem_conditions_write_file(lunio, nodes, bouns)
     !------------------------------------------------------------------------
     !
     !------------------------------------------------------------------------
     implicit none
-    integer(ip)         , intent(in) :: lunio
-    type(fem_conditions), intent(in) :: nodes
+    integer(ip)                   , intent(in) :: lunio
+    type(fem_conditions)          , intent(in) :: nodes
     type(fem_conditions), optional, intent(in) :: bouns
     character(80) :: fmt
     integer(ip)   :: ipoin,iboun,icode,ivalu
 
     fmt='(i10,'//trim(ch(nodes%ncode))//'(1x,i2),'//trim(ch(nodes%nvalu))//'(1x,e14.7))'
-    !write(*,*) fmt
 
     write(lunio,1) 'CONDITIONS'
     write(lunio,2) 'NCODE', nodes%ncode
@@ -125,7 +125,7 @@ contains
 1   format(a)
 2   format(a5,i10)
 
-  end subroutine fem_conditions_write
+  end subroutine fem_conditions_write_file
 
  !=============================================================================
   subroutine fem_conditions_compose_name ( prefix, name ) 
@@ -156,13 +156,54 @@ contains
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open(trim(dir_path)//'/'//trim(rename),'write' )
        if(present(lbouns)) then
-          call fem_conditions_write(lunio,lnodes(i),lbouns(i))
+          call fem_conditions_write_file(lunio,lnodes(i),lbouns(i))
        else
-          call fem_conditions_write(lunio,lnodes(i))
+          call fem_conditions_write_file(lunio,lnodes(i))
        end if
        call io_close(lunio)
     end do
 
   end subroutine fem_conditions_write_files
+
+  !=============================================================================
+  subroutine fem_conditions_read ( dir_path, prefix, npoin, f_conditions )
+    implicit none 
+    ! Parameters
+    character (*)       , intent(in)  :: dir_path
+    character (*)       , intent(in)  :: prefix
+    integer(ip)         , intent(in)  :: npoin
+    type(fem_conditions), intent(out) :: f_conditions
+    
+    ! Locals
+    character(len=:), allocatable  :: name
+    integer(ip) :: lunio
+
+    ! Read conditions
+    call fem_conditions_compose_name ( prefix, name )
+    lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+    call fem_conditions_read_file(lunio, npoin, f_conditions)
+    call io_close(lunio)
+    
+  end subroutine fem_conditions_read
+
+  !=============================================================================
+  subroutine fem_conditions_write ( dir_path, prefix, f_conditions )
+    implicit none 
+    ! Parameters
+    character (*)       , intent(in) :: dir_path
+    character (*)       , intent(in) :: prefix
+    type(fem_conditions), intent(in) :: f_conditions
+    
+    ! Locals
+    character(len=:), allocatable  :: name
+    integer(ip) :: lunio
+
+    ! Read conditions
+    call fem_conditions_compose_name ( prefix, name )
+    lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+    call fem_conditions_write_file(lunio, f_conditions)
+    call io_close(lunio)
+    
+  end subroutine fem_conditions_write
 
 end module fem_conditions_io

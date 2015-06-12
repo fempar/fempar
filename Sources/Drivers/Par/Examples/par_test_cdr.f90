@@ -89,12 +89,13 @@ program par_test_cdr
   ! Read mesh
   call par_mesh_read ( dir_path, prefix, p_env, p_mesh )
 
-  ! Read conditions (next 5 lines should go in a subroutine...should they?)
+  ! Read boundary conditions
   call fem_conditions_compose_name(prefix,name) 
   call par_filename(context,name)
   lunio = io_open(trim(dir_path) // '/' // trim(name),status='old')
-  call fem_conditions_read(lunio,p_mesh%f_mesh%npoin,f_cond)
+  call fem_conditions_read_file(lunio,p_mesh%f_mesh%npoin,f_cond)
   !f_cond%code = 0 !(dG)
+
   call par_mesh_to_triangulation (p_mesh, p_trian, f_cond)
 
   !write (*,*) '********** CREATE DOF HANDLER**************'

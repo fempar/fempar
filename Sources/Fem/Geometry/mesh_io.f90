@@ -35,8 +35,8 @@ module fem_mesh_io
 
   ! Functions
   public :: fem_mesh_read, fem_mesh_write, &
-          & fem_mesh_compose_name, fem_mesh_write_files, &
-          & fem_mesh_read_file, fem_mesh_read_files
+          & fem_mesh_compose_name, fem_mesh_write_file, &
+          & fem_mesh_write_files, fem_mesh_read_file, fem_mesh_read_files
 
 contains
 
@@ -182,7 +182,7 @@ contains
   end subroutine fem_mesh_read_file
 
   !=============================================================================
-  subroutine fem_mesh_write(lunio,msh,title)
+  subroutine fem_mesh_write_file (lunio,msh,title)
     !------------------------------------------------------------------------
     !
     ! This routine writes a fem_mesh in GiD format.
@@ -242,7 +242,7 @@ contains
 5   format('BOUNDARY ',a,' Nnodb ',i2)
 6   format(i6,10(1x,i6))
 
-  end subroutine fem_mesh_write
+  end subroutine fem_mesh_write_file
 
   subroutine fem_mesh_compose_name ( prefix, name ) 
     implicit none
@@ -270,7 +270,7 @@ contains
         rename=name
         call numbered_filename_compose(i,nparts,rename)
         lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
-        call fem_mesh_write(lunio,lmesh(i))
+        call fem_mesh_write_file(lunio,lmesh(i))
         call io_close(lunio)
      end do
      
@@ -302,8 +302,6 @@ contains
      
    end subroutine fem_mesh_read_files
 
-
-
   !=============================================================================
    subroutine fem_mesh_read ( dir_path, prefix, f_mesh, permute_c2z )
      implicit none 
@@ -326,5 +324,28 @@ contains
      call io_close(lunio)
 
    end subroutine fem_mesh_read
+
+   !=============================================================================
+   subroutine fem_mesh_write ( dir_path, prefix, f_mesh )
+     implicit none 
+     ! Parameters
+     character (*)                , intent(in)  :: dir_path
+     character (*)                , intent(in)  :: prefix
+     type(fem_mesh)               , intent(in)  :: f_mesh
+
+     ! Locals
+     integer(ip)                    :: lunio
+     character(len=:), allocatable  :: name
+
+     ! Read mesh
+     call fem_mesh_compose_name ( prefix, name )
+     
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
+     call fem_mesh_write_file(lunio, f_mesh)
+     call io_close(lunio)
+
+   end subroutine fem_mesh_write
+   
+
 
  end module fem_mesh_io
