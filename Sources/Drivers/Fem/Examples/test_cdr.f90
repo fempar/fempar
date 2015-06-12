@@ -88,7 +88,7 @@ program test_cdr
 
   ! write(*,*) 'conditions%code', f_cond%code
   ! write(*,*) 'conditions%valu', f_cond%valu
-  ! f_cond%code = 0 (dG)
+   f_cond%code = 0 ! (dG)
   !call triangulation_print( 6 , f_trian )
 
   vars_prob = 1
@@ -111,10 +111,10 @@ program test_cdr
 
 
   call memalloc( f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
-  ! continuity = 0 (dG)
-  continuity = 1
+   continuity = 0 ! (dG)
+  ! continuity = 1
   call memalloc( f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 15
+  order = 5
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
@@ -137,16 +137,17 @@ program test_cdr
 
   call fem_vector_alloc( dof_graph(1,1)%nv, my_vector )
 
-  !write (*,*) '********** STARTING ASSEMBLY **********'
+  
   call volume_integral( fspac, my_matrix, my_vector)
 
-  sctrl%method=direct
-  ppars%type = pardiso_mkl_prec
-  call fem_precond_create  (my_matrix, feprec, ppars)
-  call fem_precond_symbolic(my_matrix, feprec)
-  call fem_precond_numeric (my_matrix, feprec)
-  call fem_precond_log_info(feprec)
+  !sctrl%method=direct
+  !ppars%type = pardiso_mkl_prec
+  !call fem_precond_create  (my_matrix, feprec, ppars)
+  !call fem_precond_symbolic(my_matrix, feprec)
+  !call fem_precond_numeric (my_matrix, feprec)
+  !call fem_precond_log_info(feprec)
 
+  write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',dof_graph(1,1)%nv
   call fem_vector_alloc( dof_graph(1,1)%nv, feunk )
   call feunk%init(1.0_rp)
 
@@ -155,24 +156,28 @@ program test_cdr
   y => feunk
 
   ! feunk = my_vector - my_matrix*feunk 
-  y = x - A*y 
+  !y = x - A*y 
 
   !call fem_vector_print( 6, feunk)
   write(*,*) 'XXX error vs exact norm XXX', feunk%nrm2()
   
-  call abstract_solve(my_matrix,feprec,my_vector,feunk,sctrl,senv)
+  !call abstract_solve(my_matrix,feprec,my_vector,feunk,sctrl,senv)
 
-  call solver_control_free_conv_his(sctrl)
+  !call solver_control_free_conv_his(sctrl)
 
-  ! feunk = my_vector - my_matrix*feunk 
-  !call fem_vector_print( 6, feunk)
+
+  call fem_vector_print( 6, feunk)
+  call fem_matrix_print( 6, my_matrix)
+
+  feunk = my_vector - my_matrix*feunk 
+
   write(*,*) 'XXX error solver norm XXX', feunk%nrm2()
 
   !call fem_vector_print( 6, feunk)
 
-  call fem_precond_free ( precond_free_values, feprec)
-  call fem_precond_free ( precond_free_struct, feprec)
-  call fem_precond_free ( precond_free_clean, feprec)
+  !call fem_precond_free ( precond_free_values, feprec)
+  !call fem_precond_free ( precond_free_struct, feprec)
+  !call fem_precond_free ( precond_free_clean, feprec)
 
   !write (*,*) '********** FINISHED ASSEMBLY **********'
 

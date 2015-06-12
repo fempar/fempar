@@ -140,7 +140,7 @@ contains
 
     integer(ip) :: ielem, nvars, f_type, ivar, f_order, istat, pos_elinf, v_key
     logical(lg) :: created
-    integer(ip) :: aux_val
+    integer(ip) :: aux_val, max_num_nodes, lndof, nnode
 
     do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
        !write (*,*) '************* GHOST ELEMENT *************',ielem
@@ -151,11 +151,11 @@ contains
        !write(*,*) 'nvars',nvars
        assert ( f_type > 0)
        call memalloc(nvars, femsp%lelem(ielem)%f_inf, __FILE__, __LINE__ )
+       allocate(femsp%lelem(ielem)%nodes_object(nvars), stat=istat )
        do ivar=1,nvars
           f_order = femsp%lelem(ielem)%order(ivar)
           !write(*,*) 'f_order',f_order
           v_key = femsp%g_trian%num_dims + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
-
           call femsp%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
              !write (*,*) ' FIXED INFO NEW'
@@ -164,8 +164,31 @@ contains
              assert(created)
           end if
           femsp%lelem(ielem)%f_inf(ivar)%p => femsp%lelem_info(pos_elinf)
-
+          if ( femsp%lelem(ielem)%continuity(ivar) /= 0 ) then
+             femsp%lelem(ielem)%nodes_object(ivar)%p => femsp%lelem_info(pos_elinf)%ndxob
+          else 
+             femsp%lelem(ielem)%nodes_object(ivar)%p => femsp%lelem_info(pos_elinf)%ndxob_int
+          end if
        end do
+       ! Compute number of DOFs in the elemental matrix associated to ielem
+       lndof = 0
+       max_num_nodes = 0
+       do ivar=1,nvars
+          if ( femsp%static_condensation ) then
+             nnode = femsp%lelem(ielem)%f_inf(ivar)%p%nnode -                                   &
+                  &  femsp%lelem(ielem)%f_inf(ivar)%p%nodes_obj(femsp%g_trian%num_dims+1) ! SB.alert : do not use nodes_obj
+          else
+             nnode = femsp%lelem(ielem)%f_inf(ivar)%p%nnode 
+          end if
+          lndof = lndof + nnode
+          max_num_nodes = max(max_num_nodes,nnode)
+       end do
+
+       call memalloc( max_num_nodes, nvars, femsp%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
+       femsp%lelem(ielem)%elem2dof = 0
+       call memalloc( max_num_nodes, nvars, femsp%time_steps_to_store, femsp%lelem(ielem)%unkno, __FILE__,__LINE__)
+       femsp%lelem(ielem)%unkno = 0.0_rp
+
     end do
   end subroutine ghost_fe_list_create
 

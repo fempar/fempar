@@ -312,7 +312,11 @@ contains
 
           ! JP: indices of these arrays (continuity and order) should be changed to (nvars,nelem)
           fspac%lelem(ielem)%continuity(ivar) = continuity(ielem,fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          
           fspac%lelem(ielem)%order(ivar) = order(ielem,fspac%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          if ( fspac%lelem(ielem)%continuity(ivar) /= 0 ) then
+             fspac%static_condensation = .false. ! Static condensation + dG not possible
+          end if
 
           f_order = fspac%lelem(ielem)%order(ivar)
           v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
@@ -324,13 +328,13 @@ contains
           end if
           fspac%lelem(ielem)%f_inf(ivar)%p => fspac%lelem_info(pos_elinf)
 
-          if ( continuity(ielem, ivar) /= 0 ) then
+          if ( fspac%lelem(ielem)%continuity(ivar) /= 0 ) then
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob
           else 
-             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%p',fspac%lelem_info(pos_elinf)%ndxob%p
-             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%l',fspac%lelem_info(pos_elinf)%ndxob%l
-             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%p',fspac%lelem_info(pos_elinf)%ndxob_int%p
-             write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%l',fspac%lelem_info(pos_elinf)%ndxob_int%l
+             !write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%p',fspac%lelem_info(pos_elinf)%ndxob%p
+             !write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%l',fspac%lelem_info(pos_elinf)%ndxob%l
+             !write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%p',fspac%lelem_info(pos_elinf)%ndxob_int%p
+             !write (*,*) 'fspac%lelem_info(pos_elinf)%ndxob_int%l',fspac%lelem_info(pos_elinf)%ndxob_int%l
 
              fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%lelem_info(pos_elinf)%ndxob_int
              !fspac%lelem(ielem)%nodes_object(ivar)%p => fspac%void_list ! fspac%l_nodes_object(1) ! SB.alert : Think about hdG
@@ -408,8 +412,6 @@ contains
 
     end do
 
-    !call integration_faces_list( fspac%g_trian, fspac )
-
   end subroutine fem_space_fe_list_create
 
   !==================================================================================================
@@ -438,18 +440,26 @@ contains
 
   end subroutine dof_to_elnod
 
-  subroutine fem_space_print (lunou, femsp )
+  subroutine fem_space_print ( lunou, femsp, num_ghosts )
     implicit none
     integer(ip)      , intent(in) :: lunou
     type(fem_space), intent(in) :: femsp
+    integer(ip), optional, intent(in) :: num_ghosts    
 
-    integer(ip) :: ielem
-
+    integer(ip) :: ielem, num_ghosts_
+    
+    ! Ghosts elements (parallel case)
+    if (present(num_ghosts)) then
+       num_ghosts_ = num_ghosts
+    else
+       num_ghosts_ = 0
+    end if
+    
     write (lunou,*) 'Number of materials: ', femsp%num_continuity
     write (lunou,*) 'Static condensation flag: ', femsp%static_condensation
 
     write (lunou,*) '****PRINT ELEMENT LIST INFO****'
-    do ielem = 1, femsp%g_trian%num_elems
+    do ielem = 1, femsp%g_trian%num_elems + num_ghosts_
        write (lunou,*) '****PRINT ELEMENT ',ielem,' INFO****'
        call fem_element_print ( lunou, femsp%lelem(ielem) )
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'

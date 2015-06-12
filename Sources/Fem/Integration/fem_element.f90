@@ -101,7 +101,7 @@ module fem_element_names
 
      ! Auxiliary working arrays (face+element matrix and vector)
      type(array_rp2), pointer  :: p_mat ! Pointer to the elemental matrix
-     type(array_rp1), pointer  :: p_vec   ! Pointer to face integration vector
+     type(array_rp1), pointer  :: p_vec ! Pointer to face integration vector
 
      !type(array_ip1), allocatable:: o2n(2)           ! permutation of the gauss points in elem2
      ! SB.alert : temporary, it is a lot of memory, and should be handled via a hash table

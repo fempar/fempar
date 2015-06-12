@@ -94,6 +94,7 @@ program par_test_cdr
   call par_filename(context,name)
   lunio = io_open(trim(dir_path) // '/' // trim(name),status='old')
   call fem_conditions_read_file(lunio,p_mesh%f_mesh%npoin,f_cond)
+  !f_cond%code = 0 !(dG)
 
   call par_mesh_to_triangulation (p_mesh, p_trian, f_cond)
 
@@ -110,9 +111,9 @@ program par_test_cdr
   ! ... for as many problems as we have
 
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
-  continuity = 1
+  continuity = 1 !(dG)
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 1
+  order = 3
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
@@ -147,6 +148,12 @@ program par_test_cdr
   call update_strong_dirichlet_boundary_conditions( fspac )
 
   call par_create_distributed_dof_info ( dhand, p_trian, fspac, dof_dist, dof_graph, gtype )  
+
+  if (p_trian%p_env%p_context%iam == 0 ) then
+     call triangulation_print ( 6, p_trian%f_trian, p_trian%num_elems + p_trian%num_ghosts)
+     call fem_space_print ( 6, fspac, p_trian%num_ghosts )
+  end if
+
 
   call par_matrix_alloc ( csr_mat, symm_true, dof_graph(1,1), p_mat, positive_definite )
 
@@ -183,7 +190,7 @@ program par_test_cdr
   ! y = x - A*y changed its state to part_summed!!! 
   p_unk%state = full_summed
 
-  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
+  !call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 
   call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
   call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
