@@ -47,6 +47,7 @@ module fem
   use fem_triangulation_names
   use mesh_triangulation
   use fem_mesh_distribution_names
+  use fem_mesh_gen_distribution_names
 
   use fem_element_import_names
   use fem_element_import_create_names

@@ -139,7 +139,7 @@ contains
                                !femsp%lelem(jelem)%nodes_object(inter,obje_l)%a(inode)
                                count = count + 1
 
-                               !write (*,*) '****PUT DOF**** (elem,obj_l,obj_g,node,idof) ',jelem,obje_l,iobje,l_node,count
+                               ! write (*,*) '****PUT DOF**** (elem,obj_l,obj_g,node,idof) ',jelem,obje_l,iobje,l_node,count
 
                                femsp%lelem(jelem)%elem2dof(l_node,l_var) = count
                             end do
@@ -540,7 +540,7 @@ contains
                         & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
                       l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
                       l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
-                      !write (*,*) 'l_node,l_dof',l_node,l_dof
+                      ! write (*,*) 'l_node,l_dof',l_node,l_dof
                       if ( ltype == csr ) then
                          dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
                               &  + femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1) &

@@ -34,6 +34,7 @@ module nsi_cg_iss_names
  use fem_element_names
  use eltrm_gen_names
  use element_fields_names
+ use element_tools_names
  implicit none
 # include "debug.i90"
 
@@ -150,7 +151,7 @@ contains
     ! integer(ip), allocatable :: nnode_oss(:),ldofs_oss(:)
 
     ! Checks
-    check(elem%f_inf(1)%p%order > elem%f_inf(approx%physics%ndime+1)%p%order)
+    !check(elem%f_inf(1)%p%order > elem%f_inf(approx%physics%ndime+1)%p%order)
     check(elem%integ(1)%p%quad%ngaus == elem%integ(approx%physics%ndime+1)%p%quad%ngaus)
     
     ! ! Allocate blk_elmat & blk_elvec locals
@@ -417,6 +418,9 @@ contains
             &          force,nnodu,ndime,elvec_u,work)
 
     end do
+
+    call memfree(gpvel%a,__FILE__,__LINE__)
+    call memfree(gpveln%a,__FILE__,__LINE__)
 
     ! Assembly to elemental p_mat and p_vec
     do inode=1,nnodu
