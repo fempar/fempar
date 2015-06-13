@@ -47,7 +47,7 @@ module fem_mesh_distribution_names
         lextn(:)                        ! List of (GIDs of) external neighbors
 
      integer(ip) ::  nebou,        &    ! Number of boundary elements
-                     nnbou                           ! Number of boundary nodes 
+                     nnbou              ! Number of boundary nodes 
 
      integer(ip), allocatable ::   & 
         lebou(:),                  &  ! List of boundary elements 

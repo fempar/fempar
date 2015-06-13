@@ -30,21 +30,21 @@ module par_create_global_dof_info_names
   ! Fem Modules
   use types
   use memor
-  use fem_space_names
   use dof_handler_names
   use fem_triangulation_names
   use fem_graph_names
   use create_global_dof_info_names
-
+  use fem_space_names
 
   use fem_element_names
 
   ! Par Modules
   use par_triangulation_names
+  use par_fem_space_names
   use par_graph_names
-  use dof_distribution_names
-  use dof_distribution_create_names
-
+  use par_block_graph_names
+  use block_dof_distribution_names
+  use block_dof_distribution_create_names 
 
   implicit none
 # include "debug.i90"
@@ -64,55 +64,52 @@ contains
   ! relying on the fact that, with this info, we know how to put together interior and
   ! ghost elements, and so, number the dofs in a conforming way.
   !*********************************************************************************
-  subroutine par_create_distributed_dof_info ( dhand, p_trian, femsp, dof_dist, dof_graph, gtype ) 
+  subroutine par_create_distributed_dof_info ( dhand, p_trian, p_femsp, &
+                                               blk_dof_dist, p_blk_graph, gtype ) 
     implicit none
     ! Paramters
-    type(dof_handler)                   , intent(in)     :: dhand
-    type(par_triangulation)             , intent(in)     :: p_trian
-    type(fem_space)                     , intent(inout)  :: femsp
-    type(dof_distribution), allocatable , intent(out)    :: dof_dist(:)
-    type(par_graph)       , allocatable , intent(out)    :: dof_graph(:,:)
-    integer(ip)            , optional   , intent(in)     :: gtype(dhand%nblocks) 
+    type(dof_handler)                  , intent(in)     :: dhand
+    type(par_triangulation)            , intent(in)     :: p_trian
+    type(par_fem_space)                , intent(inout)  :: p_femsp
+    type(block_dof_distribution)       , intent(inout)  :: blk_dof_dist 
+    type(par_block_graph)              , intent(inout)  :: p_blk_graph
+    integer(ip)              , optional, intent(in)     :: gtype(dhand%nblocks) 
 
     integer(ip) :: iblock, jblock
 
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_femsp%p_trian) )
+    assert ( p_femsp%p_trian%p_env%created )
 
+    if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
+       call create_element_to_dof_and_ndofs( dhand, p_trian%f_trian, p_femsp%f_space )
+       call ghost_discontinuous_Galerkin_dofs( dhand, p_trian, p_femsp%f_space )
+       call create_object2dof( dhand, p_trian%f_trian, p_femsp%f_space )
+    end if
 
-    call create_element_to_dof_and_ndofs( dhand, p_trian%f_trian, femsp )
+    ! Allocate block_dof_distribution
+    call blk_dof_dist%alloc(p_trian%p_env, dhand%nblocks )
 
-    call ghost_discontinuous_Galerkin_dofs( dhand, p_trian, femsp  )
-   
-    call create_object2dof( dhand, p_trian%f_trian, femsp )
+    ! Fill block_dof_distribution
+    call block_dof_distribution_create ( dhand, p_trian, p_femsp, blk_dof_dist )
 
-    !if ( p_trian%p_env%p_context%iam == 0 ) then
+    ! Allocate par_block_graph
+    call p_blk_graph%alloc(blk_dof_dist)
 
-    call dof_distribution_create ( p_trian, femsp, dhand, dof_dist )
-
-    !else
-    !   stop
-    !end if
-
-    !if ( p_trian%p_env%p_context%iam == 0 ) then
-    !   call fem_space_print (6, femsp, p_trian%num_ghosts)
-    !else
-    !   stop
-    !end if
-
-    call memalloc ( dhand%nblocks, dhand%nblocks, dof_graph, __FILE__, __LINE__ )
-    do iblock = 1, dhand%nblocks
-       do jblock = 1, dhand%nblocks
-          call par_graph_create ( dof_dist(iblock), dof_dist(jblock), p_trian%p_env, dof_graph(iblock,jblock) )
-          if ( iblock == jblock .and. present(gtype) ) then
-             call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, & 
-                  femsp, dof_graph(iblock,jblock)%f_graph, gtype(iblock) )
-          else
-             call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, &
-                  femsp, dof_graph(iblock,jblock)%f_graph )
-          end if
+    ! Fill par_block_graph
+    if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
+       do iblock = 1, dhand%nblocks
+         do jblock = 1, dhand%nblocks
+            if ( iblock == jblock .and. present(gtype) ) then
+               call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, & 
+                                             p_femsp%f_space, p_blk_graph%blocks(iblock,jblock)%p_p_graph%f_graph, gtype(iblock) )
+            else
+               call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, &
+                                             p_femsp%f_space, p_blk_graph%blocks(iblock,jblock)%p_p_graph%f_graph )
+            end if
+         end do
        end do
-    end do
-
-
+    end if       
   end subroutine par_create_distributed_dof_info
 
   !*********************************************************************************
@@ -123,9 +120,9 @@ contains
   !*********************************************************************************
   subroutine ghost_discontinuous_Galerkin_dofs( dhand, p_trian, femsp )
     implicit none
+    type(dof_handler)      , intent(in)       :: dhand
     type(par_triangulation), intent(in)       :: p_trian
-    type(dof_handler), intent(in)             :: dhand
-    type(fem_space), intent(inout)            :: femsp
+    type(fem_space)        , intent(inout)    :: femsp
 
     integer(ip) :: iobje, i, ielem, l_faci, iprob, nvapb, ivars, l_var, g_var, inode, l_node, count
     integer(ip) :: iblock, lobje
@@ -340,8 +337,6 @@ contains
       end do
 
     end function is_object_touched
-
-
 
 
   end module par_create_global_dof_info_names

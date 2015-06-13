@@ -44,6 +44,7 @@ program test_cdr
 
   type(cdr_problem)               :: my_problem
   type(cdr_approximation), target :: my_approximation
+  integer(ip)                     :: num_approximations
   type(discrete_problem_pointer)  :: approximations(1)
 
   type(fem_matrix), target             :: my_matrix
@@ -88,7 +89,7 @@ program test_cdr
 
   ! write(*,*) 'conditions%code', f_cond%code
   ! write(*,*) 'conditions%valu', f_cond%valu
-   f_cond%code = 0 ! (dG)
+  f_cond%code = 0 ! (dG)
   !call triangulation_print( 6 , f_trian )
 
   vars_prob = 1
@@ -101,6 +102,7 @@ program test_cdr
 
   call my_problem%create( f_trian%num_dims )
   call my_approximation%create(my_problem)
+  num_approximations=1
   approximations(1)%p => my_approximation
 
   call dhand%set_problem( 1, my_approximation )
@@ -125,8 +127,8 @@ program test_cdr
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call fem_space_create ( f_trian, dhand, fspac, problem, approximations, f_cond, continuity, order, material, &
-       & which_approx, num_approximations=1, time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), & 
+  call fem_space_create ( f_trian, dhand, fspac, problem, num_approximations, approximations, f_cond, continuity, order, material, &
+       & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), & 
        & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
   call update_strong_dirichlet_boundary_conditions( fspac )
@@ -182,11 +184,7 @@ program test_cdr
   !write (*,*) '********** FINISHED ASSEMBLY **********'
 
 
-  !call fem_matrix_print( 6, my_matrix)
-
-
-
-
+  ! call fem_matrix_print( 6, my_matrix)
   ! call fem_precond_dd_mlevel_bddc_create ( f_mat, mlbddc, mlbddc_params )
 
   call memfree( continuity, __FILE__, __LINE__)

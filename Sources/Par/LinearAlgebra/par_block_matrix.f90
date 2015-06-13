@@ -41,13 +41,6 @@ module par_block_matrix_names
 
   private
 
-  !=============================================================
-  ! TO-CONSIDER:
-  ! x Support for this parallel data structure in integrate.i90 
-  !   would eliminate f_blk_matrix member of par_block_matrix and 
-  !   par_block_matrix_fill_complete method
-  !=============================================================
-
   ! Pointer to matrix
   type p_par_matrix
     type(par_matrix), pointer :: p_p_matrix
@@ -58,18 +51,6 @@ module par_block_matrix_names
   type par_block_matrix
     integer(ip)                     :: nblocks
     type(p_par_matrix), allocatable :: blocks(:,:)
-
-     ! **IMPORTANT NOTE**: This is an auxiliary data 
-     ! structure provided in order to use SERIAL 
-     ! fem_block_matrix assembly routines. The blocks of this 
-     ! data structure are just VIEWS to the corresponding 
-     ! counterparts in type(p_par_matrix), allocatable :: blocks(:).
-     ! This is required because currently integrate.i90 only
-     ! accepts fem* data structures. If we provided support for 
-     ! par* data structures in integrate.i90 we would not require 
-     ! this aux. data structure
-     type(fem_block_matrix)        :: f_blk_matrix
-     logical                       :: fill_completed
   end type par_block_matrix
 
   ! Types
@@ -78,7 +59,6 @@ module par_block_matrix_names
   ! Functions
   public :: par_block_matrix_alloc, par_block_matrix_alloc_block,       & 
             par_block_matrix_set_block_to_zero, par_block_matrix_print, & 
-            par_block_matrix_fill_complete,                             &
             par_block_matrix_free,                                      & 
             par_block_matrix_zero, &
             par_block_matvec
@@ -100,7 +80,6 @@ contains
            allocate ( bmat%blocks(ib,jb)%p_p_matrix )
       end do
     end do
-    bmat%fill_completed = .false.
   end subroutine par_block_matrix_alloc
 
   subroutine par_block_matrix_alloc_block (ib,jb,bmat)
@@ -111,9 +90,6 @@ contains
 
     if ( .not. associated( bmat%blocks(ib,jb)%p_p_matrix)) then
        allocate ( bmat%blocks(ib,jb)%p_p_matrix )
-       if ( bmat%fill_completed ) then
-           bmat%f_blk_matrix%blocks(ib,jb)%p_f_matrix => bmat%blocks(ib,jb)%p_p_matrix%f_matrix
-       end if
     end if
   end subroutine par_block_matrix_alloc_block
 
@@ -126,39 +102,9 @@ contains
     if ( associated(bmat%blocks(ib,jb)%p_p_matrix) ) then
        deallocate (bmat%blocks(ib,jb)%p_p_matrix)
        nullify    (bmat%blocks(ib,jb)%p_p_matrix)
-       if ( bmat%fill_completed ) then
-           nullify( bmat%f_blk_matrix%blocks(ib,jb)%p_f_matrix )
-       end if
     end if
 
   end subroutine par_block_matrix_set_block_to_zero
-
-  !=============================================================================
-  subroutine par_block_matrix_fill_complete (bmat)
-    implicit none
-    ! Parameters
-    type(par_block_matrix), target, intent(inout) :: bmat
-    
-    ! Locals
-    integer(ip) :: ib,jb  
-  
-    assert ( .not. bmat%fill_completed )
-  
-    bmat%f_blk_matrix%nblocks = bmat%nblocks
-    allocate ( bmat%f_blk_matrix%blocks(bmat%nblocks,bmat%nblocks) )
-
-    do ib=1, bmat%nblocks
-      do jb=1, bmat%nblocks
-         if ( associated(bmat%blocks(ib,jb)%p_p_matrix) ) then
-            bmat%f_blk_matrix%blocks(ib,jb)%p_f_matrix => bmat%blocks(ib,jb)%p_p_matrix%f_matrix
-         else
-            nullify (bmat%f_blk_matrix%blocks(ib,jb)%p_f_matrix)
-         end if
-      end do
-    end do
-
-    bmat%fill_completed = .true.
-  end subroutine par_block_matrix_fill_complete
 
   subroutine par_block_matrix_print (lunou, p_b_matrix)
     implicit none
@@ -186,11 +132,6 @@ contains
     p_b_matrix%nblocks = 0
     deallocate ( p_b_matrix%blocks )
   
-    if ( p_b_matrix%fill_completed ) then
-      p_b_matrix%f_blk_matrix%nblocks = 0  
-      deallocate( p_b_matrix%f_blk_matrix%blocks ) 
-      p_b_matrix%fill_completed = .false.
-    end if 
   end subroutine par_block_matrix_free
 
   !=============================================================================

@@ -43,6 +43,7 @@ program test_nsi_iss
   type(nsi_problem)               :: myprob
   type(nsi_cg_iss_approximation), target :: myapprox
   type(discrete_problem_pointer)  :: approximations(1)
+  integer(ip)                     :: num_approximations = 1
   type(fem_matrix), target             :: femat
   type(fem_vector), target             :: fevec,feunk
   type(fem_precond)        :: feprec
@@ -93,6 +94,7 @@ program test_nsi_iss
 
   ! Create problem
   call myprob%create(gdata%ndime)
+  num_approximations = 1
   call myapprox%create(myprob)
   approximations(1)%p => myapprox
   call dhand%set_problem(1,myapprox)
@@ -111,8 +113,8 @@ program test_nsi_iss
   which_approx = 1 
   
   ! Create fem_space
-  call fem_space_create(f_trian,dhand,fspac,problem,approximations,f_cond,continuity,order,material, &
-       &                which_approx,num_approximations=1,time_steps_to_store=2,                     &
+  call fem_space_create(f_trian,dhand,fspac,problem,num_approximations,approximations,f_cond,continuity,order,material, &
+       &                which_approx,time_steps_to_store=2,                     &
        &                hierarchical_basis=logical(.false.,lg),                                      &
        &                static_condensation=logical(.false.,lg),num_continuity=1)
 

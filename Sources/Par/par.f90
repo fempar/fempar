@@ -26,7 +26,6 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par
-
   ! Tools
   use par_context_names
   use psb_penv_mod
@@ -41,6 +40,7 @@ module par
   use par_mesh_partition_conditions
   use par_triangulation_names
   use par_mesh_triangulation
+  use par_conditions_names
 
   ! Linear algebra
   use par_vector_names
@@ -48,12 +48,12 @@ module par
   use par_graph_names
   use par_block_matrix_names
   use par_block_vector_names
-  use dof_distribution_names
-  use dof_distribution_create_names
+  use par_block_graph_names
+  use block_dof_distribution_names
   use par_precond_dd_diagonal_names
   use par_precond_dd_mlevel_bddc_names
 
-  !Integration
+  ! Integration
   use par_fem_space_names
   use par_create_global_dof_info_names
     

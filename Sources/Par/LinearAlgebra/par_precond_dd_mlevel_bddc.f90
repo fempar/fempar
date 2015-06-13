@@ -62,7 +62,7 @@ module par_precond_dd_mlevel_bddc_names
   use psb_penv_mod 
   use par_environment_names
   use dof_distribution_names
-  use dof_distribution_create_names
+  use block_dof_distribution_create_names
   use par_matrix_names
   use par_vector_names
   use par_context_names

@@ -38,10 +38,12 @@ program par_test_cdr
   implicit none
 #include "debug.i90" 
   ! Our data
-  type(par_context)                       :: context
-  type(par_environment)                   :: p_env
-  type(par_mesh)                          :: p_mesh
-  type(par_triangulation)                 :: p_trian
+  type(par_context)       :: context
+  type(par_environment)   :: p_env
+  type(par_mesh)          :: p_mesh
+  type(par_triangulation) :: p_trian
+  type(par_fem_space)     :: p_fspac
+
   type(par_matrix), target                :: p_mat
   type(par_vector), target                :: p_vec, p_unk
   class(base_operand) , pointer           :: x, y
@@ -49,18 +51,17 @@ program par_test_cdr
   type(par_precond_dd_diagonal)           :: p_prec_dd_diag
   type(solver_control)     :: sctrl
 
-
-  type(dof_distribution) , allocatable :: dof_dist(:)
-
-  type(dof_handler)  :: dhand
-  type(fem_space)    :: fspac
-
-  type(par_graph), allocatable    :: dof_graph(:,:)
+  type(block_dof_distribution)    :: blk_dof_dist
+  type(dof_handler)               :: dhand
+  type(par_block_graph)           :: p_blk_graph
   integer(ip)                     :: gtype(1) = (/ csr_symm /)
-  type(fem_conditions)  :: f_cond
+  type(par_conditions)            :: p_cond
 
   type(cdr_problem)               :: my_problem
   type(cdr_approximation), target :: my_approximation
+  integer(ip)                     :: num_approximations
+  type(discrete_problem_pointer)  :: approximations(1)
+
 
   ! Arguments
   integer(ip)                   :: lunio
@@ -70,10 +71,7 @@ program par_test_cdr
   integer(ip)              :: i, j, ierror, iblock
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
-
   integer(ip), allocatable :: continuity(:,:)
-
-  type(discrete_problem_pointer) :: approximations(1)
 
   call meminit
 
@@ -90,23 +88,20 @@ program par_test_cdr
   call par_mesh_read ( dir_path, prefix, p_env, p_mesh )
 
   ! Read boundary conditions
-  call fem_conditions_compose_name(prefix,name) 
-  call par_filename(context,name)
-  lunio = io_open(trim(dir_path) // '/' // trim(name),status='old')
-  call fem_conditions_read_file(lunio,p_mesh%f_mesh%npoin,f_cond)
+  call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
   !f_cond%code = 0 !(dG)
 
-  call par_mesh_to_triangulation (p_mesh, p_trian, f_cond)
+  call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
 
   !write (*,*) '********** CREATE DOF HANDLER**************'
   call dhand%create( 1, 1, 1 )
-  !call dof_handler_print ( dhand, 6 )
 
 
   call my_problem%create( p_trian%f_trian%num_dims )
   call my_approximation%create(my_problem)
+  num_approximations=1
   approximations(1)%p => my_approximation
-
+  
   call dhand%set_problem( 1, my_approximation )
   ! ... for as many problems as we have
 
@@ -118,51 +113,32 @@ program par_test_cdr
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
-  
   call memalloc( p_trian%f_trian%num_elems, which_approx, __FILE__, __LINE__)
   which_approx = 1
 
 
-  ! if ( context%iam > 0 ) then
-  !    !pause
-  !    do while ( 1 > 0)
-  !       i = i + 1
-  !    end do
-  ! else
-  !    write (*,*) 'Processor 0 not stopped'
-  !    !i = 1
-  !    !do while ( 1 > 0)
-  !    !   i = i + 1
-  !    !end do
-  ! end if  
-
-
   ! Continuity
   ! write(*,*) 'Continuity', continuity
-  call par_fem_space_create ( p_trian, dhand, fspac, problem, approximations, &
-                              f_cond, continuity, order, material, &
-                              which_approx, num_approximations=1, time_steps_to_store = 1, &
+  call par_fem_space_create ( p_trian, dhand, p_fspac, problem, &
+                              num_approximations, approximations, &
+                              p_cond, continuity, order, material, &
+                              which_approx, time_steps_to_store = 1, &
                               hierarchical_basis = logical(.false.,lg), &
                               & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
-  call update_strong_dirichlet_boundary_conditions( fspac )
+  call update_strong_dirichlet_boundary_conditions( p_fspac%f_space )
 
-  call par_create_distributed_dof_info ( dhand, p_trian, fspac, dof_dist, dof_graph, gtype )  
+  call par_create_distributed_dof_info ( dhand, p_trian, p_fspac, blk_dof_dist, p_blk_graph, gtype )  
 
-  if (p_trian%p_env%p_context%iam == 0 ) then
-     call triangulation_print ( 6, p_trian%f_trian, p_trian%num_elems + p_trian%num_ghosts)
-     call fem_space_print ( 6, fspac, p_trian%num_ghosts )
-  end if
+  call par_matrix_alloc ( csr_mat, symm_true, p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
-
-  call par_matrix_alloc ( csr_mat, symm_true, dof_graph(1,1), p_mat, positive_definite )
-
-  call par_vector_alloc ( dof_dist(1), p_env, p_vec )
+  call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
   p_vec%state = part_summed
-  call par_vector_alloc ( dof_dist(1), p_env, p_unk )
+
+  call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_unk )
   p_unk%state = full_summed
 
-  call volume_integral( fspac, p_mat%f_matrix, p_vec%f_vector)
+  call volume_integral( p_fspac%f_space, p_mat%f_matrix, p_vec%f_vector)
 
   call p_unk%init(1.0_rp)
 
@@ -206,29 +182,19 @@ program par_test_cdr
   call memfree( problem, __FILE__, __LINE__)
   call memfree( which_approx, __FILE__, __LINE__)
 
-  do i = 1, dhand%nblocks
-     do j = 1, dhand%nblocks
-        call par_graph_free( dof_graph(i,j) )
-     end do
-  end do
-  call memfree ( dof_graph, __FILE__, __LINE__ )
-
-  do iblock=1, dhand%nblocks
-     call dof_distribution_free(dof_dist(iblock))
-  end do
-  deallocate(dof_dist)
-
-  call fem_space_free(fspac) 
+  call p_blk_graph%free
+  call blk_dof_dist%free
+  call par_fem_space_free(p_fspac) 
   call my_problem%free
   call my_approximation%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
-  call fem_conditions_free (f_cond)
+  call par_conditions_free (p_cond)
   call par_mesh_free (p_mesh)
   call par_environment_free (p_env)
   call par_context_free ( context )
 
-  ! call memstatus
+  call memstatus
 
 contains
   subroutine read_pars_cl (dir_path, prefix, dir_path_out)

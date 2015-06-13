@@ -25,9 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module par_fem_space_names
-
   ! Fem Modules
   use types
   use memor
@@ -36,11 +34,14 @@ module par_fem_space_names
   use problem_names
   use dof_handler_names
   use hash_table_names
-  use fem_conditions_names
+  use fem_element_names
+
 
   ! Par Modules
+  use par_environment_names
   use par_triangulation_names
   use par_element_exchange
+  use par_conditions_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -49,7 +50,23 @@ module par_fem_space_names
 # include "debug.i90"
   private
 
-  public :: par_fem_space_create 
+  type par_fem_space
+     ! Data structure which stores the local part
+     ! of the BC's mapped to the current subdomain
+     type(fem_space)              :: f_space
+     
+     integer(ip)                  :: num_interface_faces
+     type(fem_face), allocatable  :: interface_faces(:)
+
+     ! Pointer to parallel triangulation
+     type(par_triangulation), pointer :: p_trian => NULL()
+  end type par_fem_space
+
+  ! Types
+  public :: par_fem_space
+
+  ! Methods
+  public :: par_fem_space_create,  par_fem_space_print, par_fem_space_free
 
 contains
 
@@ -59,71 +76,108 @@ contains
   ! a set of arrays of size number of local elements times number of global variables
   ! for continuity and order, and number of local elements for material and problem,
   ! together with some optional flags. The output of this subroutine is a fem_space
-  ! with the required info on ghost elements, together with the dof generation and the
-  ! dof graph distribution.
+  ! with the required info on ghost elements.
   !*********************************************************************************
-  subroutine par_fem_space_create ( p_trian, dhand, femsp, problem, approximations, bcond, continuity, order, material, &
-       & which_approx, num_approximations, time_steps_to_store, hierarchical_basis, static_condensation, num_continuity  )
+  subroutine par_fem_space_create ( p_trian, dhand, p_femsp, problem, num_approximations, approximations, p_cond, &
+                                    continuity, order, material, which_approx, time_steps_to_store, &
+                                    hierarchical_basis, static_condensation, num_continuity )
     implicit none
-    type(par_triangulation), intent(inout) :: p_trian
-    type(dof_handler), intent(in)       :: dhand
-    type(fem_space), intent(inout)      :: femsp  
-    type(discrete_problem_pointer) , intent(in)    :: approximations(:)
-    type(fem_conditions)           , intent(in)    :: bcond
-    integer(ip),     intent(in)       :: material(:), order(:,:), problem(:)
-    integer(ip),     intent(in)       :: continuity(:,:), which_approx(:)
-    integer(ip), intent(in) :: num_approximations
-    integer(ip), optional, intent(in) :: time_steps_to_store
-    logical(lg), optional, intent(in) :: hierarchical_basis
-    logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_continuity 
+    ! Dummy arguments
+    type(par_triangulation), target, intent(in)    :: p_trian
+    type(dof_handler)              , intent(in)    :: dhand
+    type(par_fem_space)            , intent(inout) :: p_femsp  
+    integer(ip)                    , intent(in)    :: problem(:)
+    integer(ip)                    , intent(in)    :: num_approximations
+    type(discrete_problem_pointer) , intent(in)    :: approximations(num_approximations)
+    type(par_conditions)           , intent(in)    :: p_cond
+    integer(ip)                    , intent(in)    :: continuity(:,:)
+    integer(ip)                    , intent(in)    :: order(:,:)
+    integer(ip)                    , intent(in)    :: material(:)
+    integer(ip)                    , intent(in)    :: which_approx(:)
+    integer(ip)          , optional, intent(in)    :: time_steps_to_store
+    logical(lg)          , optional, intent(in)    :: hierarchical_basis
+    logical(lg)          , optional, intent(in)    :: static_condensation
+    integer(ip)          , optional, intent(in)    :: num_continuity   
+    
+    ! Local variables
+    integer(ip) :: istat
 
-    integer(ip) :: num_elems, ielem
+    ! Parallel environment MUST BE already created
+    assert ( p_trian%p_env%created )
+    p_femsp%p_trian => p_trian 
 
-    ! Create local fem space
-    ! Note: When this subroutine is called from par_fem_space_create.f90, we have
-    ! provided num_ghosts just in order to allocate element lists in 
-    ! fem_space_allocate_structures that will also include ghost elements. 
-    ! call fem_space_create( p_trian%f_trian, dhand, femsp, &
-    !      & problem, approximations, bcond, continuity, order, material, which_approx, num_approximations, &
-    !      & time_steps_to_store = time_steps_to_store, &
-    !      & hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
-    !      & num_continuity = num_continuity, num_ghosts = p_trian%num_ghosts )
+    if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
 
+       call fem_space_allocate_structures(  p_trian%f_trian, dhand, p_femsp%f_space, num_approximations=num_approximations, &
+            time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
+            static_condensation = static_condensation, num_continuity = num_continuity, &
+            num_ghosts = p_trian%num_ghosts ) 
 
-    call fem_space_allocate_structures(  p_trian%f_trian, dhand, femsp, num_approximations=num_approximations,&
-         time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
-         static_condensation = static_condensation, num_continuity = num_continuity, &
-         num_ghosts = p_trian%num_ghosts ) 
+!!$    AFM This allocate statement fails at runtime, i.e., istat/=0. Why ????
+!!$    allocate ( fspac%approximations(num_approximations), stat=istat)
+!!$    write (*,*) 'XXX', num_approximations, istat
+!!$    check (istat == 0)    
+       p_femsp%f_space%approximations = approximations
 
-    assert(size(approximations)==num_approximations)
-    femsp%approximations = approximations
+       call fem_space_fe_list_create ( p_femsp%f_space, problem, which_approx, continuity, order, material, p_cond%f_conditions )
 
-    call fem_space_fe_list_create ( femsp, problem, which_approx, continuity, order, material, bcond )
+       ! Communicate problem, continuity, order, and material
+       !write(*,*) '***** EXCHANGE GHOST INFO *****'
+       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_femsp%f_space%lelem )
 
-    ! Communicate problem, continuity, order, and material
-    !write(*,*) '***** EXCHANGE GHOST INFO *****'
-    call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, femsp%lelem )
+       ! Create ghost fem space (only partially, i.e., previous info)
+       ! write(*,*) '***** FILL GHOST ELEMENTS  *****'
+       call ghost_fe_list_create ( p_femsp ) 
 
-    ! Create ghost fem space (only partially, i.e., previous info)
-    ! write(*,*) '***** FILL GHOST ELEMENTS  *****'
-    call ghost_fe_list_create ( femsp, p_trian%num_ghosts ) 
+       call integration_faces_list( p_femsp%f_space )
 
-    call integration_faces_list( femsp )
+       !write(*,*) 'num_elems+1', p_femsp%g_trian%num_elems+1
+       !write(*,*) 'num_ghosts', num_ghosts
+       !do ielem = p_femsp%g_trian%num_elems+1, p_femsp%g_trian%num_elems+num_ghosts
+       !   call fem_element_fixed_info_write( p_trian%f_trian%elems(ielem)%topology )
+       !end do
 
-    !write(*,*) 'num_elems+1', femsp%g_trian%num_elems+1
-    !write(*,*) 'num_ghosts', num_ghosts
-    !do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
-    !   call fem_element_fixed_info_write( p_trian%f_trian%elems(ielem)%topology )
-    !end do
-
-    !write(*,*) 'num_elems+1', femsp%g_trian%num_elems+1
-    !write(*,*) 'num_ghosts', num_ghosts
-    !do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
-    !   call fem_element_fixed_info_write( femsp%g_trian%elems(ielem)%topology )
-    !end do
+       !write(*,*) 'num_elems+1', p_femsp%g_trian%num_elems+1
+       !write(*,*) 'num_ghosts', num_ghosts
+       !do ielem = p_femsp%g_trian%num_elems+1, p_femsp%g_trian%num_elems+num_ghosts
+       !   call fem_element_fixed_info_write( p_femsp%g_trian%elems(ielem)%topology )
+       !end do
+    end if
 
   end subroutine par_fem_space_create
+  
+  subroutine par_fem_space_free ( p_femsp )
+    implicit none
+    ! Dummy arguments
+    type(par_fem_space), intent(inout) :: p_femsp  
+    
+    ! Local variables
+    integer(ip) :: ielem
+    
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_femsp%p_trian) )
+    assert ( p_femsp%p_trian%p_env%created )
+    
+    if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
+       ! Deallocate type(fem_elements) associated to ghost elements
+       do ielem = p_femsp%p_trian%f_trian%num_elems+1, p_femsp%p_trian%f_trian%num_elems+p_femsp%p_trian%num_ghosts
+          if(allocated(p_femsp%f_space%lelem(ielem)%f_inf)) call memfree(p_femsp%f_space%lelem(ielem)%f_inf,__FILE__,__LINE__)
+          if(allocated(p_femsp%f_space%lelem(ielem)%elem2dof)) call memfree(p_femsp%f_space%lelem(ielem)%elem2dof,__FILE__,__LINE__)
+          if(allocated(p_femsp%f_space%lelem(ielem)%unkno)) call memfree(p_femsp%f_space%lelem(ielem)%unkno,__FILE__,__LINE__)
+          call fem_element_free_unpacked(p_femsp%f_space%lelem(ielem))
+       end do
+       call fem_space_free(p_femsp%f_space)
+    end if
+    
+    nullify ( p_femsp%p_trian )
+  end subroutine par_fem_space_free
+
+  subroutine par_fem_space_print ( p_femsp )
+    implicit none
+    type(par_fem_space), intent(in) :: p_femsp  
+
+    
+  end subroutine par_fem_space_print
 
 
   !*********************************************************************************
@@ -133,70 +187,70 @@ contains
   ! elements, which are needed in order to sort dofs on different processors the 
   ! same way.
   !*********************************************************************************
-  subroutine ghost_fe_list_create( femsp, num_ghosts )
+  subroutine ghost_fe_list_create( p_femsp )
     implicit none
-    type(fem_space), intent(inout), target :: femsp
-    integer(ip), intent(in)        :: num_ghosts
+    type(par_fem_space), target, intent(inout) :: p_femsp
 
     integer(ip) :: ielem, nvars, f_type, ivar, f_order, istat, pos_elinf, v_key
     logical(lg) :: created
     integer(ip) :: aux_val, max_num_nodes, lndof, nnode
 
-    do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
+    do ielem = p_femsp%p_trian%f_trian%num_elems+1, p_femsp%p_trian%f_trian%num_elems+p_femsp%p_trian%num_ghosts
        !write (*,*) '************* GHOST ELEMENT *************',ielem
-       nvars = femsp%dof_handler%problems(femsp%lelem(ielem)%problem)%p%nvars
-       femsp%lelem(ielem)%num_vars = nvars
-       f_type = femsp%g_trian%elems(ielem)%topology%ftype
+       nvars = p_femsp%f_space%dof_handler%problems(p_femsp%f_space%lelem(ielem)%problem)%p%nvars
+       p_femsp%f_space%lelem(ielem)%num_vars = nvars
+       f_type = p_femsp%p_trian%f_trian%elems(ielem)%topology%ftype
        !write(*,*) 'f_type ghosts',f_type
        !write(*,*) 'nvars',nvars
        assert ( f_type > 0)
-       call memalloc(nvars, femsp%lelem(ielem)%f_inf, __FILE__, __LINE__ )
-       allocate(femsp%lelem(ielem)%nodes_object(nvars), stat=istat )
+       call memalloc(nvars, p_femsp%f_space%lelem(ielem)%f_inf, __FILE__, __LINE__ )
+       allocate(p_femsp%f_space%lelem(ielem)%nodes_object(nvars), stat=istat )
        do ivar=1,nvars
-          f_order = femsp%lelem(ielem)%order(ivar)
+          f_order = p_femsp%f_space%lelem(ielem)%order(ivar)
           !write(*,*) 'f_order',f_order
-          v_key = femsp%g_trian%num_dims + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
-          call femsp%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+          v_key = p_femsp%p_trian%f_trian%num_dims + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
+          call p_femsp%f_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
              !write (*,*) ' FIXED INFO NEW'
-             call fem_element_fixed_info_create(femsp%lelem_info(pos_elinf),f_type,              &
-                  &                             f_order,femsp%g_trian%num_dims,created)
+             call fem_element_fixed_info_create(p_femsp%f_space%lelem_info(pos_elinf),f_type,              &
+                  &                             f_order,p_femsp%p_trian%f_trian%num_dims,created)
              assert(created)
           end if
-          femsp%lelem(ielem)%f_inf(ivar)%p => femsp%lelem_info(pos_elinf)
-          if ( femsp%lelem(ielem)%continuity(ivar) /= 0 ) then
-             femsp%lelem(ielem)%nodes_object(ivar)%p => femsp%lelem_info(pos_elinf)%ndxob
+          p_femsp%f_space%lelem(ielem)%f_inf(ivar)%p => p_femsp%f_space%lelem_info(pos_elinf)
+          if ( p_femsp%f_space%lelem(ielem)%continuity(ivar) /= 0 ) then
+             p_femsp%f_space%lelem(ielem)%nodes_object(ivar)%p => p_femsp%f_space%lelem_info(pos_elinf)%ndxob
           else 
-             femsp%lelem(ielem)%nodes_object(ivar)%p => femsp%lelem_info(pos_elinf)%ndxob_int
+             p_femsp%f_space%lelem(ielem)%nodes_object(ivar)%p => p_femsp%f_space%lelem_info(pos_elinf)%ndxob_int
           end if
        end do
+
        ! Compute number of DOFs in the elemental matrix associated to ielem
        lndof = 0
        max_num_nodes = 0
        do ivar=1,nvars
-          if ( femsp%static_condensation ) then
-             nnode = femsp%lelem(ielem)%f_inf(ivar)%p%nnode -                                   &
-                  &  femsp%lelem(ielem)%f_inf(ivar)%p%nodes_obj(femsp%g_trian%num_dims+1) ! SB.alert : do not use nodes_obj
+          if ( p_femsp%f_space%static_condensation ) then
+             nnode = p_femsp%f_space%lelem(ielem)%f_inf(ivar)%p%nnode -                                   &
+                  &  p_femsp%f_space%lelem(ielem)%f_inf(ivar)%p%nodes_obj(p_femsp%f_space%g_trian%num_dims+1) ! SB.alert : do not use nodes_obj
           else
-             nnode = femsp%lelem(ielem)%f_inf(ivar)%p%nnode 
+             nnode = p_femsp%f_space%lelem(ielem)%f_inf(ivar)%p%nnode 
           end if
           lndof = lndof + nnode
           max_num_nodes = max(max_num_nodes,nnode)
        end do
 
-       call memalloc( max_num_nodes, nvars, femsp%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
-       femsp%lelem(ielem)%elem2dof = 0
-       call memalloc( max_num_nodes, nvars, femsp%time_steps_to_store, femsp%lelem(ielem)%unkno, __FILE__,__LINE__)
-       femsp%lelem(ielem)%unkno = 0.0_rp
-
+       call memalloc( max_num_nodes, nvars, p_femsp%f_space%lelem(ielem)%elem2dof, __FILE__,__LINE__ )
+       p_femsp%f_space%lelem(ielem)%elem2dof = 0
+       call memalloc( max_num_nodes, nvars, p_femsp%f_space%time_steps_to_store, p_femsp%f_space%lelem(ielem)%unkno, __FILE__,__LINE__)
+       p_femsp%f_space%lelem(ielem)%unkno = 0.0_rp
     end do
+
   end subroutine ghost_fe_list_create
 
-  subroutine interface_faces_list( p_trian, femsp ) 
+  subroutine interface_faces_list( p_trian, p_femsp ) 
     implicit none
     ! Parameters
-    type(par_triangulation), intent(in)       :: p_trian 
-    type(fem_space), intent(inout)            :: femsp
+    type(par_triangulation), intent(in)     :: p_trian 
+    type(par_fem_space)    , intent(inout)  :: p_femsp
 
     integer(ip) :: count_int, iobje, ielem, istat
 
@@ -209,12 +263,11 @@ contains
              assert( p_trian%f_trian%objects(iobje)%num_elems_around == 2 )
              ielem = p_trian%f_trian%objects(iobje)%elems_around(1)
              count_int = count_int + 1
-             !femsp%interface_faces(count_int) = iobje
           end if
        end if
     end do
 
-    allocate( femsp%interface_faces(count_int), stat=istat)
+    allocate( p_femsp%interface_faces(count_int), stat=istat)
     check ( istat == 0 )
 
     count_int = 0
@@ -224,12 +277,12 @@ contains
              assert( p_trian%f_trian%objects(iobje)%num_elems_around == 2 )
              ielem = p_trian%f_trian%objects(iobje)%elems_around(1)
              count_int = count_int + 1
-             femsp%interface_faces(count_int)%face_object = iobje
+             p_femsp%interface_faces(count_int)%face_object = iobje
           end if
        end if
     end do
 
-    femsp%num_interface_faces = count_int
+   p_femsp%num_interface_faces = count_int
 
   end subroutine interface_faces_list
 

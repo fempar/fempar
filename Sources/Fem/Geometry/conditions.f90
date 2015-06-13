@@ -56,8 +56,8 @@ contains
   !===============================================================================================
   subroutine fem_conditions_create(ncode,nvalu,ncond,cnd)
     implicit none
-    integer(ip)         , intent(in)  :: ncode,nvalu,ncond
-    type(fem_conditions), intent(out) :: cnd
+    integer(ip)         , intent(in)    :: ncode,nvalu,ncond
+    type(fem_conditions), intent(inout) :: cnd
 
     cnd%ncode=ncode
     cnd%nvalu=nvalu
@@ -73,8 +73,8 @@ contains
   !===============================================================================================
   subroutine fem_conditions_copy(cnd_old,cnd_new)
     implicit none
-    type(fem_conditions), intent(in)  :: cnd_old
-    type(fem_conditions), intent(out) :: cnd_new
+    type(fem_conditions), intent(in)    :: cnd_old
+    type(fem_conditions), intent(inout) :: cnd_new
 
     call fem_conditions_create( cnd_old%ncode, cnd_old%nvalu, cnd_old%ncond, cnd_new)
     cnd_new%code=cnd_old%code
@@ -83,29 +83,29 @@ contains
   end subroutine fem_conditions_copy
 
   !===============================================================================================
-  subroutine fem_conditions_apply_renum(cnd, renumeration)
+  subroutine fem_conditions_apply_renum(ren, cnd)
     implicit none
-    type(fem_conditions), intent(inout)  :: cnd
-    type(renum),              intent(in) :: renumeration
+    type(renum)         , intent(in)    :: ren
+    type(fem_conditions), intent(inout) :: cnd
+
+    integer(ip), allocatable :: tmp_int(:,:)
+    real(rp)   , allocatable :: tmp_real(:,:)
+
+    ! Renum code 2D array
+    call memalloc ( cnd%ncode, cnd%ncond, tmp_int, __FILE__, __LINE__ )
+    tmp_int = cnd%code
+    call renum_apply(cnd%ncode, ren, tmp_int, cnd%code)
     
-    integer(ip)                          :: tmp_int1(cnd%ncond),tmp_int2(cnd%ncond)
-    real(rp)                             :: tmp_real1(cnd%ncond), tmp_real2(cnd%ncond)
-    integer(ip)                          :: idx
+    ! Renum valu 2D array
+    call memalloc ( cnd%nvalu, cnd%ncond, tmp_real, __FILE__, __LINE__ )
+    tmp_real = cnd%valu
+    call renum_apply(cnd%nvalu, ren, tmp_real, cnd%valu)
 
-    ! todo: do it without 2 temporary arrays.. if I try it, there is a warning that they were created it anyway
-    do idx = 1, cnd%ncode
-       tmp_int1 = cnd%code(idx, :)
-       call renum_apply(renumeration, tmp_int1, tmp_int2)
-       cnd%code(idx, :) = tmp_int2
-    end do
+    ! Free work space
+    call memfree ( tmp_real, __FILE__, __LINE__ )
+    call memfree ( tmp_int, __FILE__, __LINE__ )
 
-    do idx = 1, cnd%nvalu
-       tmp_real1 = cnd%valu(idx, :)
-       call renum_apply(renumeration, tmp_real1, tmp_real2)
-       cnd%valu(idx, :) = tmp_real2
-    end do
   end subroutine fem_conditions_apply_renum
-
 
   !===============================================================================================
   subroutine fem_conditions_free(cnd)

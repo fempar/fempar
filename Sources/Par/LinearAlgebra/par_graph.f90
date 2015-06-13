@@ -67,7 +67,7 @@ module par_graph_names
      type ( dof_distribution ), pointer  :: dof_dist      => NULL()
      type ( dof_distribution ), pointer  :: dof_dist_cols => NULL()
      
-     ! Paralell environment control
+     ! Parallel environment control
      type(par_environment), pointer :: p_env => NULL()
   end type par_graph
   
