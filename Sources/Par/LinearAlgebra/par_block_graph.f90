@@ -30,7 +30,9 @@ module par_block_graph_names
   use types
   use memor
 
-  ! Parallel modules
+  ! Parallel modules 
+  use par_environment_names
+  use dof_distribution_names
   use par_graph_names
   use block_dof_distribution_names
 
@@ -48,14 +50,15 @@ module par_block_graph_names
   ! Block Graph 
   type par_block_graph
     private
-    type(p_par_graph)           , allocatable :: blocks(:,:)
-    type(block_dof_distribution), pointer     :: blk_dof_dist 
+    integer(ip)                    :: nblocks = -1
+    type(p_par_graph), allocatable :: blocks(:,:)
   contains
     procedure :: alloc             => par_block_graph_alloc
     procedure :: alloc_block       => par_block_graph_alloc_block 
     procedure :: set_block_to_zero => par_block_graph_set_block_to_zero
     procedure :: free              => par_block_graph_free
     procedure :: get_block         => par_block_graph_get_block
+    procedure :: get_nblocks       => par_block_graph_get_nblocks
   end type par_block_graph
 
   ! Types
@@ -73,19 +76,17 @@ contains
     implicit none
     ! Parameters
     class(par_block_graph)              , intent(inout) :: p_b_graph
-    type(block_dof_distribution),target, intent(in)    :: blk_dof_dist 
+    type(block_dof_distribution),target, intent(in)     :: blk_dof_dist 
 
     ! Locals
     integer(ip) :: istat
-    integer(ip) :: nblocks,ib,jb
+    integer(ip) :: ib,jb
 
-    nblocks = blk_dof_dist%nblocks   
- 
-    p_b_graph%blk_dof_dist => blk_dof_dist
-    allocate ( p_b_graph%blocks(nblocks,nblocks), stat=istat )
+    p_b_graph%nblocks = blk_dof_dist%nblocks   
+    allocate ( p_b_graph%blocks(p_b_graph%nblocks,p_b_graph%nblocks), stat=istat )
     check(istat==0)
-    do ib=1, nblocks
-      do jb=1, nblocks
+    do ib=1, p_b_graph%nblocks
+      do jb=1, p_b_graph%nblocks
            allocate ( p_b_graph%blocks(ib,jb)%p_p_graph, stat=istat )
            check(istat==0)
            call par_graph_create ( blk_dof_dist%get_block(ib), & 
@@ -96,20 +97,23 @@ contains
     end do
   end subroutine par_block_graph_alloc
 
-  subroutine par_block_graph_alloc_block (p_b_graph,ib,jb)
+  subroutine par_block_graph_alloc_block (p_b_graph,dof_dist_rows,dof_dist_cols,p_env,ib,jb)
     implicit none
     ! Parameters
     class(par_block_graph), target, intent(inout) :: p_b_graph
-    integer(ip)                  , intent(in)    :: ib,jb
+    type(dof_distribution)        , intent(in)    :: dof_dist_rows
+    type(dof_distribution)        , intent(in)    :: dof_dist_cols
+    type(par_environment)         , intent(in)    :: p_env
+    integer(ip)                   , intent(in)    :: ib,jb
     ! Locals
     integer(ip) :: istat
 
     if ( .not. associated( p_b_graph%blocks(ib,jb)%p_p_graph)) then
        allocate ( p_b_graph%blocks(ib,jb)%p_p_graph, stat=istat )
        check(istat==0)
-       call par_graph_create ( p_b_graph%blk_dof_dist%get_block(ib), & 
-                               p_b_graph%blk_dof_dist%get_block(jb), & 
-                               p_b_graph%blk_dof_dist%p_env, & 
+       call par_graph_create ( dof_dist_rows, & 
+                               dof_dist_cols, & 
+                               p_env, & 
                                p_b_graph%blocks(ib,jb)%p_p_graph )
     end if
   end subroutine par_block_graph_alloc_block
@@ -143,6 +147,14 @@ contains
     par_block_graph_get_block =>  p_b_graph%blocks(ib,jb)%p_p_graph
   end function par_block_graph_get_block
 
+  function par_block_graph_get_nblocks (p_p_graph)
+    implicit none
+    ! Parameters
+    class(par_block_graph), target, intent(in) :: p_p_graph
+    integer(ip)                                :: par_block_graph_get_nblocks
+    par_block_graph_get_nblocks = p_p_graph%nblocks
+  end function par_block_graph_get_nblocks
+
   subroutine par_block_graph_print (lunou, p_b_graph)
     implicit none
     class(par_block_graph), intent(in)    :: p_b_graph
@@ -160,8 +172,8 @@ contains
     ! Locals
     integer(ip) :: istat
 
-    do ib=1, p_b_graph%blk_dof_dist%nblocks
-       do jb=1, p_b_graph%blk_dof_dist%nblocks
+    do ib=1, p_b_graph%nblocks
+       do jb=1, p_b_graph%nblocks
           if ( associated(p_b_graph%blocks(ib,jb)%p_p_graph) ) then
              call par_graph_free ( p_b_graph%blocks(ib,jb)%p_p_graph)
              deallocate (p_b_graph%blocks(ib,jb)%p_p_graph, stat=istat) 
@@ -173,7 +185,7 @@ contains
 
     deallocate ( p_b_graph%blocks, stat=istat )
     check(istat==0)
-    nullify(p_b_graph%blk_dof_dist)
+    p_b_graph%nblocks = -1
   end subroutine par_block_graph_free
 
 end module par_block_graph_names

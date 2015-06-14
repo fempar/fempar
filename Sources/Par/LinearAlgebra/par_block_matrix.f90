@@ -29,11 +29,14 @@ module par_block_matrix_names
   ! Serial modules
   use types
   use memor
-  use fem_block_matrix_names
+  use fem_graph_names
+  use fem_matrix_names
 
   ! Parallel modules
   use par_matrix_names
   use par_vector_names
+  use par_graph_names
+  use par_block_graph_names
   use par_block_vector_names
 
   implicit none
@@ -49,8 +52,16 @@ module par_block_matrix_names
 
   ! Block Matrix
   type par_block_matrix
+    private
     integer(ip)                     :: nblocks
     type(p_par_matrix), allocatable :: blocks(:,:)
+  contains
+    procedure :: alloc             => par_block_matrix_alloc
+    procedure :: alloc_block       => par_block_matrix_alloc_block
+    procedure :: set_block_to_zero => par_block_matrix_set_block_to_zero
+    procedure :: free              => par_block_matrix_free
+    procedure :: get_block         => par_block_matrix_get_block
+    procedure :: get_nblocks       => par_block_matrix_get_nblocks
   end type par_block_matrix
 
   ! Types
@@ -66,45 +77,109 @@ module par_block_matrix_names
 contains
 
   !=============================================================================
-  subroutine par_block_matrix_alloc (nblocks, bmat)
+  subroutine par_block_matrix_alloc (bmat,bgraph,sign)
     implicit none
     ! Parameters
-    integer(ip)           , intent(in)  :: nblocks
-    type(par_block_matrix), intent(out) :: bmat
-    integer(ip)                         :: ib,jb
+    class(par_block_matrix), intent(inout) :: bmat
+    type(par_block_graph)  , intent(in)    :: bgraph
+    integer(ip), optional  , intent(in)    :: sign(:)
 
-    bmat%nblocks = nblocks
-    allocate ( bmat%blocks(nblocks,nblocks) )
-    do ib=1, nblocks
-      do jb=1, nblocks
-           allocate ( bmat%blocks(ib,jb)%p_p_matrix )
+    ! Locals
+    integer(ip) :: ib,jb
+    type(par_graph), pointer :: p_graph
+
+
+    if ( present(sign) ) then
+      assert ( size(sign) == bgraph%get_nblocks() )
+    end if
+
+    bmat%nblocks = bgraph%get_nblocks()
+    allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks) )
+
+    do ib=1, bmat%nblocks
+      do jb=1, bmat%nblocks
+           p_graph => bgraph%get_block(ib,jb)
+           if (associated(p_graph)) then
+              allocate ( bmat%blocks(ib,jb)%p_p_matrix )
+              if ( (ib == jb) .and. present(sign) ) then
+                if ( p_graph%f_graph%type == csr ) then
+                   call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
+                else if ( p_graph%f_graph%type == csr_symm ) then
+                   call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
+                end if
+              else
+                if ( ib == jb ) then
+                  if ( p_graph%f_graph%type == csr ) then
+                   call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
+                  else if ( p_graph%f_graph%type == csr_symm ) then
+                   call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
+                  end if
+                else
+                end if
+              end if
+           else
+              nullify ( bmat%blocks(ib,jb)%p_p_matrix )
+           end if
       end do
     end do
   end subroutine par_block_matrix_alloc
 
-  subroutine par_block_matrix_alloc_block (ib,jb,bmat)
+  subroutine par_block_matrix_alloc_block (bmat,ib,jb,p_graph,sign)
     implicit none
     ! Parameters
-    integer(ip)                   , intent(in)    :: ib,jb
-    type(par_block_matrix), target, intent(inout) :: bmat
+    class(par_block_matrix), target, intent(inout) :: bmat
+    integer(ip)                    , intent(in)    :: ib,jb
+    type(par_graph)                , intent(in)    :: p_graph
+    integer(ip)          , optional, intent(in)    :: sign
 
-    if ( .not. associated( bmat%blocks(ib,jb)%p_p_matrix)) then
+    assert ( associated ( bmat%blocks(ib,jb)%p_p_matrix ) )
+    if ( .not. associated( bmat%blocks(ib,jb)%p_p_matrix) ) then
        allocate ( bmat%blocks(ib,jb)%p_p_matrix )
+       if ( (ib == jb) ) then
+          if ( p_graph%f_graph%type == csr ) then
+            call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
+          else if ( p_graph%f_graph%type == csr_symm ) then
+            call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
+          end if
+       else
+          call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
+       end if
     end if
+
   end subroutine par_block_matrix_alloc_block
 
-  subroutine par_block_matrix_set_block_to_zero (ib,jb,bmat)
+  subroutine par_block_matrix_set_block_to_zero (bmat,ib,jb)
     implicit none
     ! Parameters
+    class(par_block_matrix), intent(inout) :: bmat
     integer(ip)           , intent(in)  :: ib,jb
-    type(par_block_matrix), intent(inout) :: bmat
 
     if ( associated(bmat%blocks(ib,jb)%p_p_matrix) ) then
+       call par_matrix_free( bmat%blocks(ib,jb)%p_p_matrix )
        deallocate (bmat%blocks(ib,jb)%p_p_matrix)
-       nullify    (bmat%blocks(ib,jb)%p_p_matrix)
+       nullify ( bmat%blocks(ib,jb)%p_p_matrix )
     end if
 
   end subroutine par_block_matrix_set_block_to_zero
+
+  function par_block_matrix_get_block (bmat,ib,jb)
+    implicit none
+    ! Parameters
+    class(par_block_matrix), target, intent(in) :: bmat
+    integer(ip)                    , intent(in) :: ib,jb
+    type(par_matrix)               , pointer    :: par_block_matrix_get_block
+
+    par_block_matrix_get_block =>  bmat%blocks(ib,jb)%p_p_matrix
+  end function par_block_matrix_get_block
+
+  function par_block_matrix_get_nblocks (bmat)
+    implicit none
+    ! Parameters
+    class(par_block_matrix), target, intent(in) :: bmat
+    integer(ip)                                :: par_block_matrix_get_nblocks
+    par_block_matrix_get_nblocks = bmat%nblocks
+  end function par_block_matrix_get_nblocks
+
 
   subroutine par_block_matrix_print (lunou, p_b_matrix)
     implicit none
@@ -118,12 +193,13 @@ contains
   !=============================================================================
   subroutine par_block_matrix_free (p_b_matrix)
     implicit none
-    type(par_block_matrix), intent(inout) :: p_b_matrix
+    class(par_block_matrix), intent(inout) :: p_b_matrix
     integer(ip) :: ib,jb
 
     do ib=1, p_b_matrix%nblocks
        do jb=1, p_b_matrix%nblocks
           if ( associated(p_b_matrix%blocks(ib,jb)%p_p_matrix) ) then
+             call par_matrix_free( p_b_matrix%blocks(ib,jb)%p_p_matrix )
              deallocate (p_b_matrix%blocks(ib,jb)%p_p_matrix) 
           end if
        end do
@@ -138,7 +214,7 @@ contains
   subroutine par_block_matrix_zero(bmat)
     implicit none
     ! Parameters
-    type(par_block_matrix), intent(inout) :: bmat
+    class(par_block_matrix), intent(inout) :: bmat
 
     ! Locals
     integer(ip) :: ib, jb
