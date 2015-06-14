@@ -32,15 +32,15 @@ program test_cdr
   implicit none
 #include "debug.i90"
   ! Our data
-  type(fem_mesh)                          :: f_mesh
-  type(fem_triangulation)                 :: f_trian
-  type(fem_matrix)                        :: f_mat
-  type(fem_conditions)                    :: f_cond
-  type(dof_handler)  :: dhand
-  type(fem_space)    :: fspac
-  type(fem_graph), allocatable    :: dof_graph(:,:)
-  integer(ip)                     :: gtype(1) = (/ csr_symm /)
-
+  type(fem_mesh)           :: f_mesh
+  type(fem_triangulation)  :: f_trian
+  type(fem_matrix)         :: f_mat
+  type(fem_conditions)     :: f_cond
+  type(dof_handler)        :: dhand
+  type(fem_space)          :: fspac
+  type(fem_graph), pointer :: f_graph
+  type(fem_block_graph)    :: f_blk_graph
+  integer(ip)              :: gtype(1) = (/ csr_symm /)
 
   type(cdr_problem)               :: my_problem
   type(cdr_approximation), target :: my_approximation
@@ -133,12 +133,12 @@ program test_cdr
 
   call update_strong_dirichlet_boundary_conditions( fspac )
 
-  call create_dof_info( dhand, f_trian, fspac, dof_graph, gtype )
+  call create_dof_info( dhand, f_trian, fspac, f_blk_graph, gtype )
 
-  call fem_matrix_alloc( csr_mat, symm_true, dof_graph(1,1), my_matrix, positive_definite )
+  f_graph => f_blk_graph%get_block(1,1)
+  call fem_matrix_alloc( csr_mat, symm_true, f_graph, my_matrix, positive_definite )
 
-  call fem_vector_alloc( dof_graph(1,1)%nv, my_vector )
-
+  call fem_vector_alloc( f_graph%nv, my_vector )
   
   call volume_integral( fspac, my_matrix, my_vector)
 
@@ -149,8 +149,8 @@ program test_cdr
   !call fem_precond_numeric (my_matrix, feprec)
   !call fem_precond_log_info(feprec)
 
-  write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',dof_graph(1,1)%nv
-  call fem_vector_alloc( dof_graph(1,1)%nv, feunk )
+  write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',f_graph%nv
+  call fem_vector_alloc( f_graph%nv, feunk )
   call feunk%init(1.0_rp)
 
   A => my_matrix
@@ -193,14 +193,7 @@ program test_cdr
   call memfree( problem, __FILE__, __LINE__)
   call memfree( which_approx, __FILE__, __LINE__)
 
-  do i = 1, dhand%nblocks
-     do j = 1, dhand%nblocks
-        call fem_graph_free( dof_graph(i,j) )
-     end do
-  end do
-  deallocate (dof_graph, stat=istat)
-  check ( istat == 0 )
-
+  call f_blk_graph%free()
   call fem_vector_free( feunk )
   call fem_vector_free( my_vector )
   call fem_matrix_free( my_matrix) 

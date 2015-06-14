@@ -37,7 +37,7 @@ program test_nsi_iss
   type(bound_data) :: bdata
   type(fem_fixed_info) :: ginfo
   type(fem_triangulation) :: f_trian
-  type(fem_conditions)                    :: f_cond
+  type(fem_conditions)    :: f_cond
   type(dof_handler)  :: dhand
   type(fem_space)    :: fspac  
   type(nsi_problem)               :: myprob
@@ -57,7 +57,7 @@ program test_nsi_iss
   logical(lg) :: ginfo_state
 
   ! Integers
-  integer(ip)                     :: gtype(1) = (/ csr /)
+  integer(ip) :: gtype(1) = (/ csr /)
   integer(ip) :: ibloc,jbloc,istat
 
   ! Allocatable
@@ -66,7 +66,8 @@ program test_nsi_iss
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
   integer(ip), allocatable :: which_approx(:)
-  type(fem_graph), allocatable    :: dof_graph(:,:)
+  type(fem_graph), pointer :: f_graph
+  type(fem_block_graph)    :: f_blk_graph
 
   ! Arguments
   character(len=256) :: dir_path_out,prefix
@@ -119,13 +120,15 @@ program test_nsi_iss
        &                static_condensation=logical(.false.,lg),num_continuity=1)
 
   ! Create dof info
-  call create_dof_info(dhand,f_trian,fspac,dof_graph,gtype)
+  call create_dof_info(dhand,f_trian,fspac,f_blk_graph,gtype)
   !call fem_space_print(6,fspac)
 
+  f_graph => f_blk_graph%get_block(1,1)
+
   ! Allocate matrices and vectors
-  call fem_matrix_alloc(csr_mat,symm_false,dof_graph(1,1),femat)
-  call fem_vector_alloc(dof_graph(1,1)%nv,fevec)
-  call fem_vector_alloc(dof_graph(1,1)%nv,feunk)
+  call fem_matrix_alloc(csr_mat,symm_false,f_graph,femat)
+  call fem_vector_alloc(f_graph%nv,fevec)
+  call fem_vector_alloc(f_graph%nv,feunk)
   call fevec%init(0.0_rp)
 
   ! Integrate
@@ -160,13 +163,7 @@ program test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call memfree(which_approx,__FILE__,__LINE__)
-  do ibloc = 1, dhand%nblocks
-     do jbloc = 1, dhand%nblocks
-        call fem_graph_free( dof_graph(ibloc,jbloc) )
-     end do
-  end do
-  deallocate (dof_graph, stat=istat)
-  check ( istat == 0 )
+  call f_blk_graph%free()
   call fem_vector_free(feunk)
   call fem_vector_free(fevec)
   call fem_matrix_free(femat) 

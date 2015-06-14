@@ -47,6 +47,7 @@ module par_block_graph_names
 
   ! Block Graph 
   type par_block_graph
+    private
     type(p_par_graph)           , allocatable :: blocks(:,:)
     type(block_dof_distribution), pointer     :: blk_dof_dist 
   contains

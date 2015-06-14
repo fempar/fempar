@@ -35,6 +35,7 @@ module create_global_dof_info_names
   use fem_space_types
   use hash_table_names
   use fem_graph_names
+  use fem_block_graph_names
   use sort_names
   implicit none
 # include "debug.i90"
@@ -47,14 +48,14 @@ module create_global_dof_info_names
 contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine create_dof_info ( dhand, trian, femsp, dof_graph, gtype ) ! graph
+  subroutine create_dof_info ( dhand, trian, femsp, f_blk_graph, gtype ) ! graph
     implicit none
     ! Dummy arguments
-    type(dof_handler), intent(in)             :: dhand
-    type(fem_triangulation), intent(in)       :: trian 
-    type(fem_space), intent(inout)            :: femsp 
-    type(fem_graph), allocatable, intent(out) :: dof_graph(:,:) 
-    integer(ip), optional, intent(in)         :: gtype(dhand%nblocks) 
+    type(dof_handler)              , intent(in)    :: dhand
+    type(fem_triangulation)        , intent(in)    :: trian 
+    type(fem_space)                , intent(inout) :: femsp 
+    type(fem_block_graph)          , intent(inout) :: f_blk_graph 
+    integer(ip)          , optional, intent(in)    :: gtype(dhand%nblocks) 
 
     ! Locals
     integer(ip) :: iblock, jblock, istat
@@ -64,17 +65,17 @@ contains
 
     call create_object2dof( dhand, trian, femsp )
 
-    ! Create graph
-    allocate( dof_graph(dhand%nblocks,dhand%nblocks), stat = istat )
+    ! Create block graph
+    call f_blk_graph%alloc(dhand%nblocks)
     check( istat == 0)
 
     ! To be called after the reordering of dofs
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
           if ( iblock == jblock .and. present(gtype) ) then
-             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, dof_graph(iblock,jblock), gtype(iblock) )
+             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_blk_graph%get_block(iblock,jblock), gtype(iblock) )
           else
-             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, dof_graph(iblock,jblock) )
+             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_blk_graph%get_block(iblock,jblock) )
           end if
        end do
     end do

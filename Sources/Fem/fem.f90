@@ -74,6 +74,7 @@ module fem
 
   ! Linear Algebra
   use fem_matrix_names
+  use fem_block_graph_names
   use fem_precond_names
   use fem_vector_names
   use fem_vector_krylov_basis_names

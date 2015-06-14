@@ -75,7 +75,8 @@ contains
     type(par_block_graph)              , intent(inout)  :: p_blk_graph
     integer(ip)              , optional, intent(in)     :: gtype(dhand%nblocks) 
 
-    integer(ip) :: iblock, jblock
+    integer(ip)               :: iblock, jblock
+    type (par_graph), pointer :: p_graph
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_femsp%p_trian) )
@@ -100,12 +101,13 @@ contains
     if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
        do iblock = 1, dhand%nblocks
          do jblock = 1, dhand%nblocks
+            p_graph => p_blk_graph%get_block(iblock,jblock)
             if ( iblock == jblock .and. present(gtype) ) then
                call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, & 
-                                             p_femsp%f_space, p_blk_graph%blocks(iblock,jblock)%p_p_graph%f_graph, gtype(iblock) )
+                                             p_femsp%f_space, p_graph%f_graph, gtype(iblock) )
             else
                call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, &
-                                             p_femsp%f_space, p_blk_graph%blocks(iblock,jblock)%p_p_graph%f_graph )
+                                             p_femsp%f_space, p_graph%f_graph )
             end if
          end do
        end do
