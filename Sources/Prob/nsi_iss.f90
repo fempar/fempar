@@ -291,8 +291,8 @@ contains
     real(rp)     :: elmuv(el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
     real(rp)     :: elmat_uv(approx%physics%ndime,approx%physics%ndime,el%integ(1)%p%uint_phy%nnode, &
          &                   el%integ(1)%p%uint_phy%nnode)
-    real(rp)     :: elmat_up(approx%physics%ndime,1,el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
-    real(rp)     :: elmat_pu(1,approx%physics%ndime,el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
+    real(rp)     :: elmat_up(approx%physics%ndime,1,el%integ(1)%p%uint_phy%nnode,el%integ(approx%physics%ndime+1)%p%uint_phy%nnode)
+    real(rp)     :: elmat_pu(1,approx%physics%ndime,el%integ(approx%physics%ndime+1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
     real(rp)     :: elvec_u(approx%physics%ndime,el%integ(1)%p%uint_phy%nnode)
     ! real(rp)    :: parv(30),parp(10),part(3),part_p(3)
     type(vector) :: gpvel, gpveln
@@ -300,7 +300,7 @@ contains
     ! Unpack variables
     ndime = approx%physics%ndime
     nnodu = el%integ(1)%p%uint_phy%nnode
-    nnodp = el%integ(1)%p%uint_phy%nnode
+    nnodp = el%integ(ndime+1)%p%uint_phy%nnode
     ngaus = el%integ(1)%p%quad%ngaus
     diffu = approx%physics%diffu
     react = approx%physics%react
@@ -310,8 +310,9 @@ contains
     call create_vector (approx%physics, 1, el%integ, gpvel)
     call create_vector (approx%physics, 1, el%integ, gpveln)
     call interpolation (el%unkno, 1, 1, el%integ, gpvel)
+    gpvel%a=0.0_rp
     if(dtinv == 0.0_rp) then
-       call interpolation (el%unkno, 1, 2, el%integ, gpveln)
+       call interpolation (el%unkno, 1, 3, el%integ, gpveln)
     else
        gpveln%a = 0.0_rp
     end if
@@ -326,6 +327,7 @@ contains
     ! Initializations
     work     = 0.0_rp
     force    = 0.0_rp
+    agran    = 0.0_rp
     elmuv    = 0.0_rp
     elmat_uv = 0.0_rp
     elmat_up = 0.0_rp

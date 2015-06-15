@@ -420,20 +420,20 @@ contains
   end subroutine structured_topo_size_create
   
   !==================================================================================================
-  subroutine gen_triangulation(lpart,gdata,bdata,ginfo,trian,bcond,mdist,mater)
+  subroutine gen_triangulation(lpart,gdata,bdata,ginfo,trian,bcond,mater,mdist)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates a triangulation, boundary conditions and mesh_distribution for a  !
     !   structured mesh                                                                             !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    integer(ip)                          , intent(in)    :: lpart
-    type(geom_data)                      , intent(in)    :: gdata
-    type(bound_data)                     , intent(in)    :: bdata
-    type(fem_fixed_info)                 , intent(in)    :: ginfo
-    type(fem_triangulation)              , intent(out)   :: trian
-    type(fem_conditions)                 , intent(out)   :: bcond
-    type(fem_mesh_distribution), optional, intent(out)   :: mdist
-    type(fem_materials)        , optional, intent(inout) :: mater
+    integer(ip)                          , intent(in)  :: lpart
+    type(geom_data)                      , intent(in)  :: gdata
+    type(bound_data)                     , intent(in)  :: bdata
+    type(fem_fixed_info)                 , intent(in)  :: ginfo
+    type(fem_triangulation)              , intent(out) :: trian
+    type(fem_conditions)                 , intent(out) :: bcond
+    integer(ip), allocatable             , intent(out) :: mater(:)
+    type(fem_mesh_distribution), optional, intent(out) :: mdist
     
     ! Locals
     type(geom_size) :: gsize
@@ -463,12 +463,12 @@ contains
 
     ! Triangulation, bcond and distribution generation
     if(present(mdist)) then
-       call structured_mesh_gen(ijkpart,gdata,gsize,tsize,ginfo,bdata%poin,bdata%line,bdata%surf, &
-            &                   trian,bcond,nmap=mdist%nmap,emap=mdist%emap,pextn=mdist%pextn,    &
-            &                   lextn=mdist%lextn,lextp=mdist%lextp,mater=mater)
+       call structured_mesh_gen(ijkpart,gdata,gsize,tsize,ginfo,bdata%poin,bdata%line,bdata%surf,    &
+            &                   trian,bcond,mater,nmap=mdist%nmap,emap=mdist%emap,pextn=mdist%pextn, &
+            &                   lextn=mdist%lextn,lextp=mdist%lextp)
     else
        call structured_mesh_gen(ijkpart,gdata,gsize,tsize,ginfo,bdata%poin,bdata%line,bdata%surf, &
-            &                   trian,bcond,mater=mater)
+            &                   trian,bcond,mater)
     end if
 
     ! Dual triangulation
@@ -493,8 +493,8 @@ contains
   end subroutine gen_triangulation
 
   !================================================================================================
-  subroutine structured_mesh_gen(ijkpart,gdata,gsize,tsize,ginfo,poin,line,surf,trian,nodes,nmap, &
-       &                         emap,pextn,lextn,lextp,mater)
+  subroutine structured_mesh_gen(ijkpart,gdata,gsize,tsize,ginfo,poin,line,surf,trian,nodes,mater, &
+       &                         nmap,emap,pextn,lextn,lextp)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -507,10 +507,10 @@ contains
     type(fem_triangulation)            , intent(inout) :: trian
     type(fem_conditions)               , intent(in)    :: poin,line,surf
     type(fem_conditions)               , intent(out)   :: nodes
+    integer(ip), allocatable           , intent(out)   :: mater(:)
     type(map_igp)            , optional, intent(inout) :: nmap,emap
     integer(ip) , allocatable, optional, intent(out)   :: pextn(:),lextp(:)
     integer(igp), allocatable, optional, intent(out)   :: lextn(:)
-    type(fem_materials)      , optional, intent(inout) :: mater
 
     ! Local variables
     integer(ip)              :: nparts,ndime,isper(3)
@@ -534,6 +534,10 @@ contains
     call memalloc(gsize%npdomt,npnumg,__FILE__,__LINE__)
     call memalloc(tsize%notot,npnumt,__FILE__,__LINE__)
     call memalloc(ndime,gsize%npdomt,coord,__FILE__,__LINE__)
+    call memalloc(gsize%nedomt,mater,__FILE__,__LINE__)
+    
+    ! Initialize material
+    mater = 1
 
     ! Initialize counter
     cnt(1) = 1; cnt(2) = 1; cnt(3) = 1
@@ -569,11 +573,6 @@ contains
     do idime=1,ndime
        subgl(idime) = (ijkpart(idime)-1)*gsize%nedom(idime)
     end do
-
-    ! Initialize materia
-    if(gdata%mater>0 .and. present(mater)) then
-       call fem_materials_create(gsize%nedomt,mater)
-    end if
 
     ! Calculate lnods, coord and l2g vector for emap and nmap
     call generic_l2g(subgl,npnumg,npnumt,nenum,ndime,ginfo%order,gsize,tsize,gdata,l2ge,l2gp,trian, &
@@ -2016,15 +2015,15 @@ contains
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)                  , intent(in)    :: subgl(ndime),ndime,pdegr
-    integer(ip)                  , intent(in)    :: npnumg(:),npnumt(:),nenum(:)
-    type(geom_size)              , intent(in)    :: gsize
-    type(topo_size)              , intent(in)    :: tsize
-    type(geom_data)              , intent(in)    :: gdata
-    integer(igp)                 , intent(out)   :: l2ge(:),l2gp(:)
-    type(fem_triangulation)      , intent(inout) :: trian
-    real(rp)                     , intent(in)    :: coord(:,:)
-    type(fem_materials), optional, intent(inout) :: mater
+    integer(ip)             , intent(in)    :: subgl(ndime),ndime,pdegr
+    integer(ip)             , intent(in)    :: npnumg(:),npnumt(:),nenum(:)
+    type(geom_size)         , intent(in)    :: gsize
+    type(topo_size)         , intent(in)    :: tsize
+    type(geom_data)         , intent(in)    :: gdata
+    integer(igp)            , intent(out)   :: l2ge(:),l2gp(:)
+    type(fem_triangulation) , intent(inout) :: trian
+    real(rp)                , intent(in)    :: coord(:,:)
+    integer(ip)             , intent(inout) :: mater(:)
 
     integer(ip)               :: i,j,k,m,n,l,ijk(3),ijklnods(3),num,count,auxva((pdegr+1)**ndime)
     integer(ip)               :: ne_aux(3),np_aux(3),mcase,auxnum,nedir_l2g(ndime),nobje,aux_glb
@@ -2109,8 +2108,8 @@ contains
              call globalid(subgl_ijk,gsize%nedir,ndime,el_l2g(num))
 
              ! Fill material
-             if(mcase>0 .and. present(mater)) then
-                call materialid(mcase,subgl_ijk,gsize%nedir,nelbl,mater%list(nenum(num)))
+             if(mcase>0) then
+                call materialid(mcase,subgl_ijk,gsize%nedir,nelbl,mater(nenum(num)))
              end if
 
              ! Allocate triangulation elemental objects

@@ -403,9 +403,7 @@ contains
        ! Assign pointers to volume integration
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars
-          ! Here f_order should be taken from fspac%lelem(ielem)%order(ivar), doesn't it?
-          ! f_order = fspac%lelem(ielem)%order(ivar)
-          ! Otherwise all the variables have the same order.
+          f_order  = fspac%lelem(ielem)%order(ivar)
           ltype(1) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
           call fspac%pos_volume_integrator%get(key=v_key, val=pos_voint, stat = istat)
