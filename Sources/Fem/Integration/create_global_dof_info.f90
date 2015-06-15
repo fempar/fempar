@@ -429,7 +429,7 @@ contains
        !write (*,*) '****** END'
     end do
 
-    !call fem_graph_print( 6, dof_graph )
+    call fem_graph_print( 6, dof_graph )
 
     call memfree (aux_ia,__FILE__,__LINE__)
 
@@ -495,23 +495,24 @@ contains
                 !end do
                 if (.not.femsp%static_condensation) then  ! interface-interior
                    iprob = femsp%lelem(jelem)%problem
+                   nvapb = dhand%prob_block(iblock,iprob)%nd1
                    do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
                       l_dof = femsp%object2dof(iblock)%l(idof,1)
                       l_var = femsp%object2dof(iblock)%l(idof,2)
                       l_mat = femsp%object2dof(iblock)%l(idof,3)
-                      nvapb = dhand%prob_block(iblock,iprob)%nd1
                       do ivars = 1, nvapb
                          k_var = dhand%prob_block(iblock,iprob)%a(ivars)
                          m_var = dhand%problems(iprob)%p%l2g_var(k_var)
+                         m_mat = femsp%lelem(jelem)%continuity(m_var)
                          if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                             if ( ltype == csr ) then
                                dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
-                                    & + femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1) &
-                                    & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje)
+                                    & + femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1) &
+                                    & - femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje)
                             else ! ltype == csr_symm
-                               do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
+                               do inode = femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje), &
+                                    & femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1)-1
+                                  l_node = femsp%lelem(jelem)%nodes_object(m_var)%p%l(inode)
                                   m_dof = femsp%lelem(jelem)%elem2dof(l_node,m_var)
                                   if ( m_dof >= l_dof ) then
                                      dof_graph%ia(l_dof+1) = &
@@ -590,27 +591,29 @@ contains
                 !end do
                 if (.not.femsp%static_condensation) then  ! interface-interior
                    iprob = femsp%lelem(jelem)%problem
+                   nvapb = dhand%prob_block(iblock,iprob)%nd1
                    do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
                       l_dof = femsp%object2dof(iblock)%l(idof,1)
                       l_var = femsp%object2dof(iblock)%l(idof,2)
-                      nvapb = dhand%prob_block(iblock,iprob)%nd1
+                      l_mat = femsp%object2dof(iblock)%l(idof,3)
                       do ivars = 1, nvapb
                          k_var = dhand%prob_block(iblock,iprob)%a(ivars)
                          m_var = dhand%problems(iprob)%p%l2g_var(k_var)
-                         if ( dhand%dof_coupl(l_var, m_var) == 1 ) then                
+                         m_mat = femsp%lelem(jelem)%continuity(m_var)
+                         if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                             if ( ltype == csr ) then
-                               do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
+                               do inode = femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje), &
+                                    & femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1)-1
+                                  l_node = femsp%lelem(jelem)%nodes_object(m_var)%p%l(inode)
                                   m_dof = femsp%lelem(jelem)%elem2dof(l_node,m_var)
                                   ic = aux_ia(l_dof)
                                   dof_graph%ja(ic) = m_dof
                                   aux_ia(l_dof) = aux_ia(l_dof)+1
                                end do
                             else ! ltype == csr_symm
-                               do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(l_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
+                               do inode = femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje), &
+                                    & femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1)-1
+                                  l_node = femsp%lelem(jelem)%nodes_object(m_var)%p%l(inode)
                                   m_dof = femsp%lelem(jelem)%elem2dof(l_node,m_var)
                                   if ( m_dof >= l_dof ) then
                                      ic = aux_ia(l_dof)
