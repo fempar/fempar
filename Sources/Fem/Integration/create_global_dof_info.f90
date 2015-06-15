@@ -58,7 +58,8 @@ contains
     integer(ip)          , optional, intent(in)    :: gtype(dhand%nblocks) 
 
     ! Locals
-    integer(ip) :: iblock, jblock, istat
+    integer(ip) :: iblock, jblock
+    type(fem_graph), pointer :: f_graph
 
 
     call create_element_to_dof_and_ndofs( dhand, trian, femsp )
@@ -67,15 +68,15 @@ contains
 
     ! Create block graph
     call f_blk_graph%alloc(dhand%nblocks)
-    check( istat == 0)
 
     ! To be called after the reordering of dofs
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
+          f_graph => f_blk_graph%get_block(iblock,jblock)
           if ( iblock == jblock .and. present(gtype) ) then
-             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_blk_graph%get_block(iblock,jblock), gtype(iblock) )
+             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_graph, gtype(iblock) )
           else
-             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_blk_graph%get_block(iblock,jblock) )
+             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_graph )
           end if
        end do
     end do
@@ -455,6 +456,8 @@ contains
     integer(ip) :: jdof, jelem, job_g, jobje, k_var, l_dof, l_mat
     integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch, ltype
 
+    ltype = dof_graph%type
+
     do iobje = 1, trian%num_objects             
        if ( femsp%object2dof(iblock)%p(iobje+1)-femsp%object2dof(iblock)%p(iobje) > 0) then
           call visited%init(100) 
@@ -546,6 +549,8 @@ contains
     integer(ip) :: idof, ielem, inode, iobje, iprob, istat, ivars 
     integer(ip) :: jdof, jelem, job_g, jobje, k_var, l_dof, l_mat
     integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch, ltype, count, ic
+
+    ltype = dof_graph%type
 
     count = 0
     do iobje = 1, trian%num_objects 
@@ -644,6 +649,8 @@ contains
     integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, ltype, m_dof, m_mat
     integer(ip) :: m_node, m_var, nvapb
 
+    ltype = dof_graph%type
+
     ! As commented for elem2dof, static condensation is false for dG, by construction of the 
     ! fem space.
     if (.not.femsp%static_condensation) then
@@ -733,6 +740,7 @@ contains
     integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, ltype, m_dof, m_mat
     integer(ip) :: m_node, m_var, nvapb, i, ic
 
+    ltype = dof_graph%type
 
     if (.not.femsp%static_condensation) then   
        do ielem  = 1, trian%num_elems
@@ -838,6 +846,8 @@ contains
     integer(ip) :: count, g_var, i, ielem, iface, inode, iobje, iprob, ivars, jelem
     integer(ip) :: jnode, jprob, jvars, k_var, knode, l_dof, l_faci, l_facj, l_node
     integer(ip) :: l_var, ltype, m_dof, m_var, m_node, nnode, nvapbi, nvapbj
+
+    ltype = dof_graph%type
 
     ! Loop over all interior faces (boundary faces do not include additional coupling)
     do iface = 1,femsp%num_interior_faces
@@ -957,6 +967,7 @@ contains
     integer(ip) :: jnode, jprob, jvars, k_var, knode, l_dof, l_faci, l_facj, l_node
     integer(ip) :: l_var, ltype, m_dof, m_var, m_node, nnode, nvapbi, nvapbj, ic
 
+    ltype = dof_graph%type
 
     ! Loop over all interior faces (boundary faces do not include additional coupling)
     do iface = 1, femsp%num_interior_faces

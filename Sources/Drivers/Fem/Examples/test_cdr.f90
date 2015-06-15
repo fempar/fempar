@@ -153,9 +153,7 @@ program test_cdr
   call fem_vector_alloc( f_graph%nv, feunk )
   call feunk%init(1.0_rp)
 
-  A => my_matrix
-  x => my_vector
-  y => feunk
+
 
   ! feunk = my_vector - my_matrix*feunk 
   !y = x - A*y 
@@ -167,11 +165,14 @@ program test_cdr
 
   !call solver_control_free_conv_his(sctrl)
 
-
+  A => my_matrix
+  x => my_vector
+  y => feunk
   call fem_vector_print( 6, feunk)
   call fem_matrix_print( 6, my_matrix)
 
-  feunk = my_vector - my_matrix*feunk 
+  ! feunk = my_vector - my_matrix*feunk 
+  y = x - A*y 
 
   write(*,*) 'XXX error solver norm XXX', feunk%nrm2()
 
