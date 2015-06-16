@@ -113,9 +113,9 @@ contains
 
     !write(*,*) 'num_elems+1', femsp%g_trian%num_elems+1
     !write(*,*) 'num_ghosts', num_ghosts
-    !do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+num_ghosts
-    !   call fem_element_fixed_info_write( p_trian%f_trian%elems(ielem)%topology )
-    !end do
+    do ielem = femsp%g_trian%num_elems+1, femsp%g_trian%num_elems+p_trian%num_ghosts
+       call fem_element_fixed_info_write( p_trian%f_trian%elems(ielem)%topology )
+    end do
 
     !write(*,*) 'num_elems+1', femsp%g_trian%num_elems+1
     !write(*,*) 'num_ghosts', num_ghosts

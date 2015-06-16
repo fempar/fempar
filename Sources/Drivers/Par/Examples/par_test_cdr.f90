@@ -113,7 +113,7 @@ program par_test_cdr
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
   continuity = 1 !(dG)
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
-  order = 3
+  order = 1
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
@@ -150,8 +150,8 @@ program par_test_cdr
   call par_create_distributed_dof_info ( dhand, p_trian, fspac, dof_dist, dof_graph, gtype )  
 
   if (p_trian%p_env%p_context%iam == 0 ) then
-     call triangulation_print ( 6, p_trian%f_trian, p_trian%num_elems + p_trian%num_ghosts)
-     call fem_space_print ( 6, fspac, p_trian%num_ghosts )
+     !call triangulation_print ( 6, p_trian%f_trian, p_trian%num_elems + p_trian%num_ghosts)
+     !call fem_space_print ( 6, fspac, p_trian%num_ghosts )
   end if
 
 
