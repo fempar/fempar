@@ -140,7 +140,7 @@ program test_cdr
 
   call fem_vector_alloc( f_graph%nv, my_vector )
   
-  call volume_integral( fspac, my_matrix, my_vector)
+  call volume_integral( approximations, fspac, my_matrix, my_vector)
 
   !sctrl%method=direct
   !ppars%type = pardiso_mkl_prec

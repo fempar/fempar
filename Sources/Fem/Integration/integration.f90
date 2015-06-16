@@ -46,16 +46,17 @@ module integration_names
 
 contains
 
-  subroutine volume_integral(femsp,res1,res2)
+  subroutine volume_integral(approx,femsp,res1,res2)
     implicit none
     ! Parameters
     type(fem_space)  , intent(inout) :: femsp
     class(integrable), intent(inout) :: res1
     class(integrable), optional, intent(inout) :: res2
+    type(discrete_problem_pointer)   :: approx(:)
 
     ! Locals
-    integer(ip) :: ielem,ivar,nvars 
-    class(discrete_problem) , pointer :: discrete
+    integer(ip) :: ielem,ivar,nvars, current_approximation
+    !class(discrete_problem) , pointer :: discrete
     integer(ip) :: start(femsp%dof_handler%nvars_global+1)
 
     ! Main element loop
@@ -72,45 +73,21 @@ contains
 
        ! Compute element matrix and rhs
        !if(associated(femsp%approximations(femsp%lelem(ielem)%approximation)%p)) then
-          discrete => femsp%approximations(femsp%lelem(ielem)%approximation)%p
-          call discrete%matvec(start,femsp%lelem(ielem))
+          ! discrete => femsp%approximations(femsp%lelem(ielem)%approximation)%p
+          ! call discrete%matvec(start,femsp%lelem(ielem))
        !end if
+       
+       current_approximation = femsp%lelem(ielem)%approximation
+       call approx(current_approximation)%p%matvec(start,femsp%lelem(ielem))
 
        ! Apply boundary conditions
        call impose_strong_dirichlet_data (femsp%lelem(ielem),femsp%dof_handler) 
 
        ! Assembly first contribution
-       select type(res1)
-       class is(fem_matrix)
-          call assembly_element_matrix(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
-       class is(fem_vector)
-          call assembly_element_vector(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
-       ! class is(fem_block_matrix)
-       !    call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
-       ! class is(fem_block_vector)
-       !    call assembly_element_vector_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
-       class default
-          ! class not yet implemented
-          check(.false.)
-       end select
+       call assembly(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
 
-       ! Assembly second contribution if present
-       if(present(res2)) then
-          select type(res2)
-             class is(fem_matrix)
-             call assembly_element_matrix(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
-             class is(fem_vector)
-             call assembly_element_vector(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
-             ! class is(fem_block_matrix)
-             ! call assembly_element_matrix_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
-             ! class is(fem_block_vector)
-             ! call assembly_element_vector_block(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2) 
-             class default
-                ! class not yet implemented 
-             check(.false.)
-          end select
-       end if
-
+       if(present(res2)) call assembly(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2)
+ 
     end do
 
   end subroutine volume_integral

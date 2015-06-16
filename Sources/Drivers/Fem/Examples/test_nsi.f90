@@ -132,7 +132,7 @@ program test_nsi_iss
   call fevec%init(0.0_rp)
 
   ! Integrate
-  call volume_integral(fspac,femat,fevec)
+  call volume_integral(approximations,fspac,femat,fevec)
 
   ! Construct preconditioner
   sctrl%method = direct
