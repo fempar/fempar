@@ -419,29 +419,28 @@ contains
 
     logical :: tmp
 
-    
-       ni_rows = dof_dist%ni 
-       nb_rows = dof_dist%nb 
-       ni_cols = dof_dist%ni 
-       nb_cols = dof_dist%nb 
- 
-       G_II%nv   = ni_rows
-       G_II%nv2  = ni_cols
-       G_II%type = output_type
-       call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
-       G_II%ia(1) = 1
-    
-       G_IG%nv   = ni_rows
-       G_IG%nv2  = nb_cols
-       G_IG%type = csr
-       call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
-       G_IG%ia(1) = 1
-       
-       G_GG%nv   = nb_rows
-       G_GG%nv2  = nb_cols
-       G_GG%type = output_type 
-       call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
-       G_GG%ia(1) = 1
+    ni_rows = dof_dist%ni 
+    nb_rows = dof_dist%nb 
+    ni_cols = dof_dist%ni 
+    nb_cols = dof_dist%nb 
+
+    G_II%nv   = ni_rows
+    G_II%nv2  = ni_cols
+    G_II%type = output_type
+    call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
+    G_II%ia(1) = 1
+
+    G_IG%nv   = ni_rows
+    G_IG%nv2  = nb_cols
+    G_IG%type = csr
+    call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
+    G_IG%ia(1) = 1
+
+    G_GG%nv   = nb_rows
+    G_GG%nv2  = nb_cols
+    G_GG%type = output_type 
+    call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
+    G_GG%ia(1) = 1
 
     nz_ii = 1
     nz_ig = 1
@@ -449,85 +448,83 @@ contains
     nz_gg = 1
 
     ! List number of nonzeros on each row of G_II/G_IG
-      do ipoing=1, ni_rows
- 
-         if ( grph%type == output_type ) then
+    do ipoing=1, ni_rows
+       if ( grph%type == output_type ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
 
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ipoing_neig = grph%ja(pos_neig)
-               
-               if ( ipoing_neig <= ni_cols ) then
-                  nz_ii = nz_ii + 1
-               else 
-                  nz_ig = nz_ig + 1 
-               end if
-            end do
-            
-         else if ( grph%type == csr      .and. output_type == csr_symm ) then
+             if ( ipoing_neig <= ni_cols ) then
+                nz_ii = nz_ii + 1
+             else 
+                nz_ig = nz_ig + 1 
+             end if
+          end do
 
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ipoing_neig = grph%ja(pos_neig)
-               
-               if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
-                  nz_ii = nz_ii + 1
-               else if ( ipoing_neig > ni_cols ) then
-                  nz_ig = nz_ig + 1 
-               end if
-            end do
-            
-         else if ( grph%type == csr_symm .and. output_type == csr ) then
-            ! Not implemented yet. Trigger an assertion.
-            assert ( 1 == 0 )
-         end if
-         
-            G_II%ia(ipoing+1) = nz_ii
-            G_IG%ia(ipoing+1) = nz_ig
-         
-      end do
+       else if ( grph%type == csr .and. output_type == csr_symm ) then
+
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+
+             if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
+                nz_ii = nz_ii + 1
+             else if ( ipoing_neig > ni_cols ) then
+                nz_ig = nz_ig + 1 
+             end if
+          end do
+
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
+
+       G_II%ia(ipoing+1) = nz_ii
+       G_IG%ia(ipoing+1) = nz_ig
+
+    end do
 
     !write (*,*), 'XXX', grph%nv, size(grph%ia), &
     !              dof_dist%ni + dof_dist%nb,  dof_dist%nl ! DBG
 
-      ! List number of nonzeros on each row of G_GI/G_GG)
-      do ipoing=ni_rows+1, ni_rows + nb_rows
-         if ( grph%type == output_type ) then
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ipoing_neig = grph%ja(pos_neig)
-               if ( ipoing_neig <= ni_cols ) then
-                  nz_gi = nz_gi + 1
-               else
-                  nz_gg = nz_gg + 1
-               end if
-            end do
-         else if ( grph%type == csr      .and. output_type == csr_symm ) then
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ipoing_neig = grph%ja(pos_neig)
-               if ( ipoing_neig <= ni_cols ) then
-                  nz_gi = nz_gi + 1
-               else if ( ipoing_neig >= ipoing ) then
-                  nz_gg = nz_gg + 1
-               end if
-            end do
-            
-         else if ( grph%type == csr_symm .and. output_type == csr ) then
-            ! Not implemented yet. Trigger an assertion.
-            assert ( 1 == 0 )
-         end if
+    ! List number of nonzeros on each row of G_GI/G_GG)
+    do ipoing=ni_rows+1, ni_rows + nb_rows
+       if ( grph%type == output_type ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig <= ni_cols ) then
+                nz_gi = nz_gi + 1
+             else
+                nz_gg = nz_gg + 1
+             end if
+          end do
+       else if ( grph%type == csr      .and. output_type == csr_symm ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig <= ni_cols ) then
+                nz_gi = nz_gi + 1
+             else if ( ipoing_neig >= ipoing ) then
+                nz_gg = nz_gg + 1
+             end if
+          end do
 
-            G_GG%ia(ipoing+1-ni_rows) = nz_gg
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
 
-      end do
-       
+       G_GG%ia(ipoing+1-ni_rows) = nz_gg
+
+    end do
+
 
     ! write (*,*) nz_ii, nz_ig, nz_gi ! DBG:
-       ! write (*,'(10i10)') G_II%ia(1:G_II%nv+1)
-       call memalloc (nz_ii-1, G_II%ja, __FILE__,__LINE__)
-    
-       ! write (*,'(10i10)') G_IG%ia(1:G_IG%nv+1)
-       call memalloc (nz_ig-1, G_IG%ja, __FILE__,__LINE__)
+    ! write (*,'(10i10)') G_II%ia(1:G_II%nv+1)
+    call memalloc (nz_ii-1, G_II%ja, __FILE__,__LINE__)
 
-       ! write (*,'(10i10)') G_GG%ia(1:G_GG%nv+1)
-       call memalloc (nz_gg-1, G_GG%ja, __FILE__,__LINE__)
+    ! write (*,'(10i10)') G_IG%ia(1:G_IG%nv+1)
+    call memalloc (nz_ig-1, G_IG%ja, __FILE__,__LINE__)
+
+    ! write (*,'(10i10)') G_GG%ia(1:G_GG%nv+1)
+    call memalloc (nz_gg-1, G_GG%ja, __FILE__,__LINE__)
 
     nz_ii = 1
     nz_ig = 1
@@ -535,65 +532,65 @@ contains
     nz_gg = 1
 
     ! List nonzeros on each row of G_II/G_IG
-       do ipoing=1, ni_rows
-         if ( grph%type == output_type ) then
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ipoing_neig = grph%ja(pos_neig)
-               if ( ipoing_neig <= ni_cols ) then
-                     G_II%ja(nz_ii) = ipoing_neig
-                     nz_ii = nz_ii + 1 
-               else 
-                     G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
-                     nz_ig = nz_ig + 1 
-               end if
-            end do
-         else if ( grph%type == csr      .and. output_type == csr_symm ) then
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ipoing_neig = grph%ja(pos_neig)
-               if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
-                     G_II%ja(nz_ii) = ipoing_neig
-                     nz_ii = nz_ii + 1 
-               else if ( ipoing_neig > ni_cols ) then
-                     G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
-                     nz_ig = nz_ig + 1 
-               end if
-            end do
-         else if ( grph%type == csr_symm .and. output_type == csr ) then
-            ! Not implemented yet. Trigger an assertion.
-            assert ( 1 == 0 )
-         end if
+    do ipoing=1, ni_rows
+       if ( grph%type == output_type ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig <= ni_cols ) then
+                G_II%ja(nz_ii) = ipoing_neig
+                nz_ii = nz_ii + 1 
+             else 
+                G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
+                nz_ig = nz_ig + 1 
+             end if
+          end do
+       else if ( grph%type == csr      .and. output_type == csr_symm ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
+                G_II%ja(nz_ii) = ipoing_neig
+                nz_ii = nz_ii + 1 
+             else if ( ipoing_neig > ni_cols ) then
+                G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
+                nz_ig = nz_ig + 1 
+             end if
+          end do
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
 
-      end do
+    end do
 
     ! call fem_graph_print ( 6, grph )
 
 
     ! List number of nonzeros on each row of G_GI/G_GG
-      ! write (*,*) 'XXX', ni_rows, nb_rows, grph%type == output_type
-      do ipoing=ni_rows+1, ni_rows + nb_rows
-         if ( grph%type == output_type ) then
-            ! write (*,*) 'YYY', size(grph%ia), size(grph%ja), ni_cols
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ! write (*,*) 'ZZZ', pos_neig
-               ipoing_neig = grph%ja(pos_neig)
-               if ( ipoing_neig > ni_cols ) then
-                  G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
-                  nz_gg = nz_gg + 1
-               end if
-            end do
-         else if ( grph%type == csr      .and. output_type == csr_symm ) then
-            do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-               ipoing_neig = grph%ja(pos_neig)
-               if ( ipoing_neig >= ipoing ) then
-                  G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
-                  nz_gg = nz_gg + 1
-               end if
-            end do
-         else if ( grph%type == csr_symm .and. output_type == csr ) then
-            ! Not implemented yet. Trigger an assertion.
-            assert ( 1 == 0 )
-         end if
-      end do
+    ! write (*,*) 'XXX', ni_rows, nb_rows, grph%type == output_type
+    do ipoing=ni_rows+1, ni_rows + nb_rows
+       if ( grph%type == output_type ) then
+          ! write (*,*) 'YYY', size(grph%ia), size(grph%ja), ni_cols
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ! write (*,*) 'ZZZ', pos_neig
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig > ni_cols ) then
+                G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
+                nz_gg = nz_gg + 1
+             end if
+          end do
+       else if ( grph%type == csr      .and. output_type == csr_symm ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig >= ipoing ) then
+                G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
+                nz_gg = nz_gg + 1
+             end if
+          end do
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
+    end do
 
   end subroutine split_2x2_partitioning_count_list_symm
 

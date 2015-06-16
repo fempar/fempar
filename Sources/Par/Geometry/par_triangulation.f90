@@ -123,6 +123,8 @@ contains
     ! Locals
     integer(ip) :: iobj, istat, ielem
 
+    if(p_trian%p_env%p_context%iam<0) return
+
     assert(p_trian%state == par_triangulation_filled) 
     
     call par_triangulation_free_objs_data (p_trian)
@@ -202,7 +204,7 @@ contains
     ! Locals
     integer(ip)              :: ielem, iobj, jobj, istat
 
-    call fem_triangulation_to_dual ( p_trian%f_trian, p_trian%num_elems+p_trian%num_ghosts )		
+    call fem_triangulation_to_dual ( p_trian%f_trian, p_trian%num_elems+p_trian%num_ghosts )
 
     ! Allocate p_trian%objects array
     allocate(p_trian%objects(p_trian%f_trian%num_objects), stat=istat)

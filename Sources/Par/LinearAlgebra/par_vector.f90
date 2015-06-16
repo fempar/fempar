@@ -829,6 +829,9 @@ contains
    type(par_vector)              :: x_I, x_G, y_I, y_G
    real(rp)                      :: s
 
+   ! Alpha should be defined in all tasks (not only in coarse-grid ones)
+   alpha = 0.0_rp
+
    call op1%GuardTemp()
    call op2%GuardTemp()
    select type(op2)
@@ -979,12 +982,25 @@ contains
    implicit none
    class(par_vector), intent(in)  :: op
    real(rp) :: alpha
+   
+   ! Alpha should be defined in all tasks (not only in coarse-grid ones)
+   alpha = 0.0_rp
+
    call op%GuardTemp()
-   
-   assert ( op%state /= undefined )
-   alpha = op%dot(op)
-   alpha = sqrt(alpha)
-   
+   select type(op)
+   class is (par_vector)
+      ! p_env%p_context is required within this subroutine 
+      assert ( associated(op%dof_dist) )
+      assert ( associated(op%p_env%p_context) )
+      assert ( op%p_env%p_context%created )
+      if(op%p_env%p_context%iam<0) return
+      assert ( op%state /= undefined )
+      alpha = op%dot(op)
+      alpha = sqrt(alpha)
+   class default
+      write(0,'(a)') 'par_vector%nrm2: unsupported op2 class'
+      check(1==0)
+   end select   
    call op%CleanTemp()
  end function par_vector_nrm2_tbp
 
