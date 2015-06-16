@@ -141,7 +141,7 @@ program test_nsi_iss
   call update_strong_dirichlet_boundary_conditions(fspac)
 
   ! Integrate
-  call volume_integral(fspac,femat,fevec)
+  call volume_integral(approximations,fspac,femat,fevec)
 
   ! Construct preconditioner
   sctrl%method = direct

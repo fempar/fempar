@@ -29,6 +29,7 @@
 module fem_space_types
   use types
   use memor
+  use sort_names
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -78,6 +79,7 @@ module fem_space_types
      type(list)   :: ntxob       !array of all nodes per object
      type(list)   :: crxob       !array of corners per object
      type(list)   :: ndxob_int   !array of interior nodes per object when all nodes belong to interior
+     type(list)   :: obxob       !array that lists all the objects in an object (idem ntxob for p = 2)
 
   end type fem_fixed_info
 
@@ -165,6 +167,11 @@ contains
     do i=1,f%nobje+1
        write(*,*) f%ntxob%l(f%ntxob%p(i):f%ntxob%p(i+1)-1)
     end do
+    
+    write(*,*) 'obxob'
+    do i=1,f%nobje+1
+       write(*,*) f%obxob%l(f%obxob%p(i):f%obxob%p(i+1)-1)
+    end do
 
     write(*,*) 'crxob'
     do i=1,f%nobje+1
@@ -190,6 +197,8 @@ contains
     call memfree(f_info%ndxob_int%l,__FILE__,__LINE__)   !Array of nodes of each object when all interior
     call memfree(f_info%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
     call memfree(f_info%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memfree(f_info%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
+    call memfree(f_info%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
     call memfree(f_info%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
     call memfree(f_info%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
   end subroutine fem_element_fixed_info_free
@@ -327,6 +336,8 @@ contains
     call memalloc(nn,  fefi%ndxob_int%l,__FILE__,__LINE__)   !Array of interior nodes of each object
     call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
     call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memalloc(no+1,fefi%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
+    call memalloc(nt,  fefi%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
     call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
     call memalloc(nc,  fefi%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
     call memalloc(nd+2,no,idcro,__FILE__,__LINE__) !Array of dim and corners belonging to each object
@@ -337,6 +348,8 @@ contains
     fefi%ndxob_int%l=0     !Array of interior nodes of each object when all nodes belong to volume
     fefi%ntxob%p=0   !Pointer to ntxob%l for each object
     fefi%ntxob%l=0     !Array of all nodes of each object
+    fefi%obxob%p=0   !Pointer to ntxob%l for each object
+    fefi%obxob%l=0     !Array of all objects of each object
     fefi%crxob%p=0   !Pointer to crxob%l for each object
     fefi%crxob%l=0     !Array of corners for each object
 
@@ -895,23 +908,26 @@ contains
 
     ! Local variables
     integer(ip)               :: i,j,k,l,m
-    integer(ip)               :: aux1,aux2,aux3,aux(nd)
+    integer(ip)               :: aux1,aux2,aux3,aux4,aux(nd)
     integer(ip)               :: idm(nd),fdm(nd)
     integer(ip)               :: od,cd,kk,c
     integer(ip)               :: ijk(nd),ijk_g(nd)
-    integer(ip)               :: c2,c3,c4,co
+    integer(ip)               :: c2,c3,c4,c5,c6,co
     integer(ip)               :: no  ! #objects in nd-quad
     integer(ip)               :: nn  ! #nodes in the nd-quad of order p
     integer(ip)               :: nt  ! sum of the #nodes (all, not only interior) of the objects
+    integer(ip)               :: nt2 ! sum of the #objects (all, not only interior) of the objects
     integer(ip)               :: nc  ! #corners x #{objects delimited by each corner}
     integer(ip)               :: nod ! #corners in the quad. nod = 2^(nd)
-    integer(ip), allocatable  :: obdla(:,:),auxt1(:,:),auxt2(:,:),auxt3(:,:),auxt4(:,:)
+    integer(ip), allocatable  :: auxt1(:,:),auxt2(:,:),auxt3(:,:),auxt4(:,:),auxt5(:,:), auxt6(:,:)
+    integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
 
     ! Initilize values
     no = 0
     nn = 0
     nt = 0
     nc = 0
+    nt2 = 0
     nod = 0
 
     ! Initialize nobje_dim, nodes_obj
@@ -926,6 +942,7 @@ contains
        no = no + i                  ! compute #objects
        nn = nn + int(i*((p-1)**k))  ! #nodes inside objects of dimension k
        nt = nt + int(i*((p+1)**k))  ! nodes in the clousure of the object
+       nt2 = nt2 + int(i*((3)**k))! objects in the clousure of the object
        nc = nc + int(i*2**k)        ! corners delimiting objects of dimension k
        nod = nod + bnm(nd,k)        ! #nodes/{displacement} (2^n = sum(bnm(n,k)), k=0,..,n)
        ! Pointer to obj id by dim. Local obj of dim k are fefi%nobje_dim(k):fefi%nobje_dim(k+1)
@@ -948,15 +965,21 @@ contains
     call memalloc(nn,  fefi%ndxob_int%l,__FILE__,__LINE__)  !Array of interior nodes of each object
     call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each object
     call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each object
+    call memalloc(no+1,fefi%obxob%p,__FILE__,__LINE__)  !Pointer to obxob%l for each object
+    call memalloc(nt2,  fefi%obxob%l,__FILE__,__LINE__)  !Array of all objects of each object
     call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each object
     call memalloc(nc,  fefi%crxob%l,__FILE__,__LINE__)  !Array of corners for each object
     call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
+    call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
+    call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
 
     fefi%ndxob%p=0   !Pointer to fefi%ndxob%l for each object
     fefi%ndxob%l=0   !Array of interior nodes of each object
     fefi%ndxob_int%p=0   !Pointer to fefi%ndxob%l for each object
     fefi%ndxob_int%l=0   !Array of interior nodes of each object
     fefi%ntxob%p=0   !Pointer to ntxob%l for each object
+    fefi%obxob%l=0   !Array of all nodes of each object
+    fefi%obxob%p=0   !Pointer to obxob%l for each object
     fefi%ntxob%l=0   !Array of all nodes of each object
     fefi%crxob%p=0   !Pointer to crxob%l for each object
     fefi%crxob%l=0   !Array of corners for each object
@@ -965,6 +988,7 @@ contains
     !Initialize pointers
     fefi%ndxob%p(1) = 1
     fefi%ntxob%p(1) = 1
+    fefi%obxob%p(1) = 1
     fefi%crxob%p(1) = 1
 
     !Loop over dimensions
@@ -972,12 +996,14 @@ contains
        aux1 = int(((p-1)**k)) ! interior nodes for an object of dim k
        aux3 = int(((p+1)**k)) ! Total nodes for an object of dim k
        aux2 = int(2**k)       ! Corners for an object of dim k
+       aux4 = int((3**k)) ! Corners for an object of dim k (idem p=2)
 
        ! Loop over objects of dimension k
        do i = fefi%nobje_dim(k+1),fefi%nobje_dim(k+2)-1 
           fefi%ndxob%p(i+1) = fefi%ndxob%p(i) + aux1 ! assign pointers
           fefi%ntxob%p(i+1) = fefi%ntxob%p(i) + aux3 ! assign pointers
-          fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 ! assign pointers 
+          fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 ! assign pointers
+          fefi%obxob%p(i+1) = fefi%obxob%p(i) + aux4 ! assign pointers 
        end do
     end do
 
@@ -1009,6 +1035,8 @@ contains
     c2  = 0 ! fefi%ndxob%p counter
     c3  = 0 ! crxob%p counter
     c4  = 0 ! ntxob%p counter
+    c5  = 0 ! obxob%p counter
+    c6  = 0 ! ob2node   counter
     co  = 0 ! counter of objects
 
     ! Loop over objects dimensions
@@ -1044,13 +1072,30 @@ contains
              call Q_r_ijk(kk,aux1,ijk,od,auxt3,1,p-1)
           end if
 
-          ! Compute auxt3 the local numbering of all nodes in an object of dim od
+          ! Compute auxt4 the local numbering of all nodes in an object of dim od
           call memalloc(od,(p+1)**(od),auxt4,__FILE__,__LINE__)
           auxt4 = 0
           kk    = 0
           aux1  = 1
           ijk   = 0
           call Q_r_ijk(kk,aux1,ijk,od,auxt4,0,p)
+
+          ! Compute auxt5 the local numbering of all nodes in an object of dim od
+          call memalloc(od,(2+1)**(od),auxt5,__FILE__,__LINE__)
+          auxt5 = 0
+          kk    = 0
+          aux1  = 1
+          ijk   = 0
+          call Q_r_ijk(kk,aux1,ijk,od,auxt5,0,2)
+
+          ! Compute auxt6 the local numbering of the interior objects in an object of dim od
+          call memalloc(od,(2-1)**(od),auxt6,__FILE__,__LINE__)
+          auxt6 = 0
+          kk    = 0
+          aux1  = 1
+          ijk   = 0
+          call Q_r_ijk(kk,aux1,ijk,od,auxt6,1,2-1)
+
        end if
 
 
@@ -1143,6 +1188,57 @@ contains
                 fefi%ntxob%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
              end do
           end do
+
+          ! obxob array and auxiliar ob2node array 
+
+          ! Interior node numbering
+          ! Loop over the translations
+          do l = 1,2**(nd-od)
+             !ijk_g(jdm) will contain the translations from 1 object to another; must be scaled by p
+             !ijk_g(idm) will contain the variations inside the object
+             do k = 1,nd-od
+                ijk_g(fdm(k)+1) = auxt1(k,l)*2
+             end do
+
+             ! Loop over the interior nodes of the object
+             do m = 1,(2-1)**(od)
+                do k = 1,od
+                   ijk_g(idm(k)+1) = auxt6(k,m)
+                end do
+                c6 = c6+1
+                ob2node(c6) = Q_gijk(ijk_g,nd,2) ! Store the local numbering in fefi%ndxob%l
+             end do
+          end do
+
+
+          do l = 1,2**(nd-od)
+
+             ! Fixed values for the object
+             do k = 1,nd-od
+                ijk_g(fdm(k)+1) = auxt1(k,l)*2
+             end do
+
+             ! Fill obxob (equivalent to ntxob for p=2)
+             do m = 1,3**od
+                do k = 1,od
+                   ijk_g(idm(k)+1) = auxt5(k,m)
+                end do
+                c5 = c5 +1
+                fefi%obxob%l(c5) = Q_gijk(ijk_g,nd,2)
+             end do
+
+             ! Define ijk_g for the node in the center of the object
+             do k = 1,od
+                ijk_g(idm(k)+1) = 1
+             end do
+
+             ! Find the generic node numbering
+             m = Q_gijk(ijk_g,nd,2)
+
+             ! Fill ob2node array
+             !ob2node(m) = co
+          end do
+
        end do
 
        !Deallocate auxiliar arrays
@@ -1151,8 +1247,25 @@ contains
           call memfree(auxt2,__FILE__,__LINE__)
           if (p > 1) call memfree(auxt3,__FILE__,__LINE__)
           call memfree(auxt4,__FILE__,__LINE__)
+          call memfree(auxt5,__FILE__,__LINE__)
+          call memfree(auxt6,__FILE__,__LINE__)
        end if
     end do
+
+    do i=1,no
+       node2ob(ob2node(i)) = i
+    end do
+
+    write(*,*) 'node2ob',node2ob
+    ! Modify the identifiers of the nodes by the ids of the object in obxob
+    do c5 = 1, nt2
+       fefi%obxob%l(c5) = node2ob(fefi%obxob%l(c5))
+    end do
+
+    ! Sort the array 
+    !do co = 1, no
+    !   call sort(fefi%obxob%p(co+1)-fefi%obxob%p(co),fefi%obxob%l(fefi%obxob%p(co):fefi%obxob%p(co+1)))
+    !end do
 
     do i=1,nn
        fefi%ndxob_int%l(i) = i
@@ -1542,3 +1655,5 @@ contains
   end function get_order
 
 end module fem_space_types
+
+

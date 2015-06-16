@@ -31,8 +31,12 @@ module fem_block_matrix_names
   use fem_graph_names
   use fem_block_graph_names
   use fem_matrix_names
+  ! Abstract types
+  !use base_operand_names
+  !use base_operator_names
   implicit none
 # include "debug.i90"
+
 
   private
 
@@ -42,7 +46,8 @@ module fem_block_matrix_names
   end type p_fem_matrix
 
   ! Block Matrix
-  type fem_block_matrix
+  !type, extends(base_operator):: fem_block_matrix
+  type :: fem_block_matrix
     private
     integer(ip)                     :: nblocks = -1
     type(p_fem_matrix), allocatable :: blocks(:,:)

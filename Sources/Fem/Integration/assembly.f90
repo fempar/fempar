@@ -31,6 +31,7 @@ module assembly_names
   use array_ip1_names
   use fem_element_names
   !use fem_space_names
+  use integrable_names
   use dof_handler_names
   use fem_block_matrix_names
   use fem_matrix_names
@@ -42,34 +43,67 @@ module assembly_names
 # include "debug.i90"
   private
 
-  public :: assembly_element_matrix, &
-       & assembly_face_element_matrix, &
-       & assembly_element_vector, &
-       & assembly_face_vector, &
-       & impose_strong_dirichlet_data, &
-       & pointer_variable
+  ! public :: assembly_element_matrix, &
+  !      & assembly_face_element_matrix, &
+  !      & assembly_element_vector, &
+  !      & assembly_face_vector, &
+  !      & impose_strong_dirichlet_data, &
+  !      & pointer_variable
 
-  interface assembly_element_matrix
-     module procedure assembly_element_matrix_block, &
-          & assembly_element_matrix_mono
-  end interface assembly_element_matrix
+  public :: impose_strong_dirichlet_data, &
+       & pointer_variable, assembly
 
-  interface assembly_face_element_matrix
-     module procedure assembly_face_element_matrix_block, &
-          & assembly_face_element_matrix_mono
-  end interface assembly_face_element_matrix
+  ! interface assembly
+  !    module procedure assembly_element_matrix_block, &
+  !         & assembly_element_matrix_mono, &
+  !         & assembly_element_vector_block, &
+  !         & assembly_element_vector_mono
+  ! end interface assembly
 
-  interface assembly_element_vector
-     module procedure assembly_element_vector_block, &
-          & assembly_element_vector_mono
-  end interface assembly_element_vector
+  ! interface assembly_element_matrix
+  !    module procedure assembly_element_matrix_block, &
+  !         & assembly_element_matrix_mono
+  ! end interface assembly_element_matrix
 
-  interface assembly_face_vector
-     module procedure assembly_face_vector_block, &
-          & assembly_face_vector_mono
-  end interface assembly_face_vector
+  ! interface assembly_face_element_matrix
+  !    module procedure assembly_face_element_matrix_block, &
+  !         & assembly_face_element_matrix_mono
+  ! end interface assembly_face_element_matrix
+
+  ! interface assembly_element_vector
+  !    module procedure assembly_element_vector_block, &
+  !         & assembly_element_vector_mono
+  ! end interface assembly_element_vector
+
+  ! interface assembly_face_vector
+  !    module procedure assembly_face_vector_block, &
+  !         & assembly_face_vector_mono
+  ! end interface assembly_face_vector
 
 contains
+
+  subroutine assembly(elem, dhand, start, a ) 
+    implicit none
+    ! Parameters
+    type(dof_handler), intent(in)    :: dhand
+    type(fem_element), intent(in)    :: elem
+    integer(ip)      , intent(in)    :: start(dhand%problems(elem%problem)%p%nvars+1)
+    class(integrable), intent(inout) :: a
+
+    select type(a)
+    class is(fem_matrix)
+       call assembly_element_matrix_mono(elem, dhand, start,a) 
+    class is(fem_vector)
+       call assembly_element_vector_mono(elem, dhand, start,a)
+       !class is(fem_block_matrix)
+       !    call assembly_element_matrix_block(elem, dhand, start,a)
+       ! class is(fem_block_vector)
+       !    call assembly_element_vector_block(elem, dhand, start,a)
+    class default
+       ! class not yet implemented
+       check(.false.)
+    end select
+  end subroutine assembly
 
   subroutine assembly_element_matrix_block(  elem, dhand, start, a ) 
     implicit none
