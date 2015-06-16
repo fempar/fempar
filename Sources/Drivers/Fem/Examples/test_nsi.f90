@@ -255,7 +255,7 @@ contains
                &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
              l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
              if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                fspac%lelem(ielem)%unkno(l_node,ivar,1) = 0.0_rp
+                fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
              end if
           end do
        end do
