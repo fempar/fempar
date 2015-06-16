@@ -476,6 +476,12 @@ contains
 
        write(lu_out,'(a)') '*** begin dof_distribution data structure ***'
 
+       write(lu_out,'(a,i10)') 'Number of interior DOFs:', &
+          &  dof_dist%ni
+
+       write(lu_out,'(a,i10)') 'Number of boundary DOFs:', &
+          &  dof_dist%nb
+
        write(lu_out,'(a,i10)') 'Number of parts:', &
           &  dof_dist%nparts
 

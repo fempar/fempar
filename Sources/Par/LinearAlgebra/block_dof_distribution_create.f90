@@ -376,7 +376,7 @@ contains
 
        blk_dof_dist%blocks(iblock)%nl = blk_dof_dist%blocks(iblock)%lobjs (3,nobjs)
        blk_dof_dist%blocks(iblock)%ni = blk_dof_dist%blocks(iblock)%lobjs (3,1)
-       blk_dof_dist%blocks(iblock)%nb = blk_dof_dist%blocks(iblock)%nl - blk_dof_dist%blocks(iblock)%ni + 1
+       blk_dof_dist%blocks(iblock)%nb = blk_dof_dist%blocks(iblock)%nl - blk_dof_dist%blocks(iblock)%ni
 
        call memfree ( ws_lobjs_temp,__FILE__,__LINE__)
 
@@ -444,6 +444,8 @@ contains
        ! Compute dof_import instance within dof_dist instance such that 
        ! DoF nearest neighbour exchanges can be performed 
        call dof_distribution_compute_import(blk_dof_dist%blocks(iblock))
+       
+       ! call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
 
     end do
    end if
