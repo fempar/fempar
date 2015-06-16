@@ -62,7 +62,7 @@ module par_precond_dd_mlevel_bddc_names
   use psb_penv_mod 
   use par_environment_names
   use dof_distribution_names
-  use dof_distribution_create_names
+  use block_dof_distribution_create_names
   use par_matrix_names
   use par_vector_names
   use par_context_names
@@ -8574,7 +8574,6 @@ end if
     primal_graph%nv2 = primal_mesh%npoin
     call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
        
-
     ! Allocate working space for count_primal_graph and list_primal_graph routines
     ! (TOTAL WS SIZE = primal mesh npoin + maximum number of neighbours of any primal 
     ! graph node)
@@ -8584,18 +8583,14 @@ end if
 
     call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
     
-    if ( primal_graph%type == csr ) then         
-       call count_primal_graph_csr_scal ( primal_graph%type, primal_mesh, dual_mesh, primal_graph, &  
-                                          iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-    end if
+    call count_primal_graph_csr_scal ( primal_graph%type, primal_mesh, dual_mesh, primal_graph, &  
+                                       iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
 
     ! Allocate space for ja on the primal graph 
-    call memalloc ( primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,          __FILE__,__LINE__)
+    call memalloc ( primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja, __FILE__,__LINE__)
      
-    if ( primal_graph%type == csr ) then
-       call list_primal_graph_csr_scal  ( primal_graph%type, primal_mesh, dual_mesh, primal_graph, &
-                                          iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
-    end if
+    call list_primal_graph_csr_scal  ( primal_graph%type, primal_mesh, dual_mesh, primal_graph, &
+                                       iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
     
     ! Free dual_mesh
     call fem_mesh_free ( dual_mesh )
@@ -8654,7 +8649,7 @@ end if
           inods2=primal_mesh%pnods(ipoindm+1)-1
           do p_ipoinpm = inods1,inods2
              ipoinpm = primal_mesh%lnods(p_ipoinpm)
-             if ( gtype == csr .or. ( gtype == csr_symm .and. ipoinpg <= ipoindm ) ) then
+             if ( gtype == csr .or. ( gtype == csr_symm .and. ipoinpg <= ipoinpm ) ) then
                 ! write (*,*) ipoinpg, ipoindm, ipoinpm ! DBG: 
                 ! If ipoinpm not visited yet
                 if ( ws_position(ipoinpm) == 0 ) then
@@ -8727,7 +8722,7 @@ end if
              do p_ipoinpm = inods1,inods2
                 ipoinpm = primal_mesh%lnods(p_ipoinpm)
                 ! Only list edges (i,j) s.t., i <= j  
-                if ( gtype == csr .or. ( gtype == csr_symm .and. ipoinpg <= ipoindm ) ) then
+                if ( gtype == csr .or. ( gtype == csr_symm .and. ipoinpg <= ipoinpm ) ) then
                    ! If ipoinpm not visited yet
                    if ( ws_position(ipoinpm) == 0 ) then
                       ws_position(ipoinpm) = first_free_pos
@@ -8752,7 +8747,7 @@ end if
           ! Order increasingly column identifiers of current row 
           ! using heap sort algorithm
           ! write (*,*) 'A', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ) ! DBG:
-          call sort(primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg)+1, & 
+          call sort(primal_graph%ia(ipoinpg+1)-primal_graph%ia(ipoinpg), & 
                     primal_graph%ja(primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1))
           ! write (*,*) 'D', primal_graph%ja( primal_graph%ia(ipoinpg):primal_graph%ia(ipoinpg+1)-1 ) ! DBG:
 

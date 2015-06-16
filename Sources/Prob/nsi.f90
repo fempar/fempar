@@ -54,6 +54,7 @@ module nsi_names
           gravi(3)         ! Gravity field
    contains
      procedure :: create => nsi_create
+     procedure :: free => nsi_free
   end type nsi_problem
 
   public :: nsi_problem
@@ -111,5 +112,17 @@ contains
     prob%par_tempo(:) = 0.0_rp ! Exact temporal field
 
   end subroutine nsi_create
+
+  !=================================================================================================
+  subroutine nsi_free(prob)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates definitions of the Navier-Stokes problem                       !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_problem), intent(inout) :: prob
+
+    call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
+
+  end subroutine nsi_free
 
 end module nsi_names

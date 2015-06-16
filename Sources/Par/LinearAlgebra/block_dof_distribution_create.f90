@@ -25,21 +25,24 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module dof_distribution_create_names
-  ! Serial modules  use types
+module block_dof_distribution_create_names
+  ! Serial modules
+  use types
   use memor
   use sort_names
   use maps_names
   use dof_import_names
   use dof_handler_names
-  use dof_distribution_names
   use fem_space_types
-  use fem_element_names
   use fem_space_names
+  use fem_element_names
   use hash_table_names
 
   ! Parallel modules
+  use block_dof_distribution_names
+  use dof_distribution_names  
   use par_triangulation_names
+  use par_fem_space_names
   use psb_penv_mod
 
   implicit none
@@ -47,7 +50,7 @@ module dof_distribution_create_names
   private
 
   ! Functions
-  public :: dof_distribution_create, create_int_objs, create_omap
+  public :: block_dof_distribution_create, create_int_objs, create_omap
 
 contains
 
@@ -66,13 +69,14 @@ contains
   ! create the following list:
   ! 
   !*********************************************************************************
-  subroutine dof_distribution_create(p_trian, femsp, dhand, dof_dist)
+  subroutine block_dof_distribution_create(dhand, p_trian, p_femsp, blk_dof_dist)
     implicit none
+
     ! Parameters
-    type(par_triangulation)             , intent(in)     :: p_trian
-    type(fem_space)                     , intent(inout)  :: femsp
-    type(dof_handler)                   , intent(in)     :: dhand
-    type(dof_distribution) , allocatable, intent(out)    :: dof_dist(:)
+    type(dof_handler)           , intent(in)     :: dhand
+    type(par_triangulation)     , intent(in)     :: p_trian
+    type(par_fem_space)         , intent(inout)  :: p_femsp
+    type(block_dof_distribution), intent(inout)  :: blk_dof_dist
 
     ! Locals
     integer(ip)               :: i, j, k, iobj, ielem, jelem, iprob, nvapb, l_var, g_var, mater, obje_l, idof, g_dof, g_mat, l_pos, iblock, ivars
@@ -95,7 +99,12 @@ contains
     integer(ip) :: nint, nboun, l_node, inode, iobje, ndof_object
 
     integer(ip) :: elem_ghost, elem_local, l_var_ghost, l_var_local, nnode, obje_ghost, obje_local, order 
-    integer(ip) :: o2n(max_nnode), touch_obj(femsp%num_continuity,dhand%nvars_global), k_var
+    integer(ip) :: o2n(max_nnode), touch_obj(p_femsp%f_space%num_continuity,dhand%nvars_global), k_var
+
+    assert ( associated(p_trian%p_env) )
+    assert ( p_trian%p_env%created )
+
+    if ( p_trian%p_env%p_context%iam>=0) then
 
 !    integer(ip) :: count_interior, count_interface
 
@@ -112,22 +121,14 @@ contains
        est_max_nparts = max(p_trian%f_trian%objects(iobj)%num_elems_around, est_max_nparts)       
     end do
 
-    ! The size of the following array does not scale  
-    ! properly with nparts. We should think in the meantime
-    ! a strategy to keep bounded (below a local quantity) its size 
-
-    allocate(dof_dist(dhand%nblocks), stat=istat)
-    check(istat==0)
-
-
     do iblock = 1, dhand%nblocks  
 
        est_max_itf_dofs = 0
 
        do i=1, p_trian%num_itfc_objs
           iobj = p_trian%lst_itfc_objs(i)
-          est_max_itf_dofs = est_max_itf_dofs + femsp%object2dof(iblock)%p(iobj+1) &
-               & - femsp%object2dof(iblock)%p(iobj)
+          est_max_itf_dofs = est_max_itf_dofs + p_femsp%f_space%object2dof(iblock)%p(iobj+1) &
+               & - p_femsp%f_space%object2dof(iblock)%p(iobj)
        end do
 
 
@@ -136,14 +137,14 @@ contains
           if ( p_trian%f_trian%objects(iobj)%dimension == p_trian%f_trian%num_dims - 1 ) then
              do j =1,2
                 ielem = p_trian%f_trian%objects(iobj)%elems_around(j)
-                iprob = femsp%lelem(ielem)%problem
+                iprob = p_femsp%f_space%lelem(ielem)%problem
                 do ivars = 1,dhand%prob_block(iblock,iprob)%nd1
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                   if ( femsp%lelem(ielem)%continuity(l_var) == 0 ) then
-                      obje_l = femsp%lelem(ielem)%f_inf(l_var)%p%nobje_dim(p_trian%f_trian%num_dims)
+                   if ( p_femsp%f_space%lelem(ielem)%continuity(l_var) == 0 ) then
+                      obje_l = p_femsp%f_space%lelem(ielem)%f_inf(l_var)%p%nobje_dim(p_trian%f_trian%num_dims)
                       est_max_itf_dofs = est_max_itf_dofs + &
-                           femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l+1) - &
-                           femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l)
+                           p_femsp%f_space%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l+1) - &
+                           p_femsp%f_space%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l)
                    end if
                 end do
              end do
@@ -152,15 +153,14 @@ contains
 
 
 
-       call memalloc ( femsp%ndofs(iblock), l2ln2o, __FILE__, __LINE__ )
+       call memalloc ( p_femsp%f_space%ndofs(iblock), l2ln2o, __FILE__, __LINE__ )
 
        call memalloc ( nparts, ws_parts_visited_list_all, __FILE__, __LINE__ )
 
        call memalloc ( est_max_nparts+4, est_max_itf_dofs, lst_parts_per_dof_obj, __FILE__, __LINE__ )
-       call memalloc ( est_max_nparts+3, femsp%num_continuity, dhand%nvars_global, touch, __FILE__, __LINE__ )
+       call memalloc ( est_max_nparts+3, p_femsp%f_space%num_continuity, dhand%nvars_global, touch, __FILE__, __LINE__ )
        call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
        call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
-
        call memalloc ( est_max_itf_dofs, l2ln2o_ext, __FILE__, __LINE__ )
 
        call ws_parts_visited_all%init(tbl_length)
@@ -173,22 +173,22 @@ contains
        nboun = 0
        ndof_object = 0
 
-       call list_interior_dofs ( iblock, p_trian, femsp, dhand, nint, l2ln2o )
+       call list_interior_dofs ( iblock, p_trian, p_femsp%f_space, dhand, nint, l2ln2o )
 
        call ws_parts_visited_all%init(tbl_length)
 
-       call list_interface_dofs_by_continuity ( iblock, p_trian, femsp, dhand, nboun, &
+       call list_interface_dofs_by_continuity ( iblock, p_trian, p_femsp%f_space, dhand, nboun, &
             & nint, l2ln2o, l2ln2o_ext, est_max_nparts, touch, ws_parts_visited_all, &
             &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
-
-       ! Initialize trivial components of dof_dist(iblock)
-       dof_dist(iblock)%ipart     = ipart
-       dof_dist(iblock)%nparts = nparts
+       
+       ! Initialize trivial components of blk_dof_dist%blocks(iblock)
+       blk_dof_dist%blocks(iblock)%ipart     = ipart
+       blk_dof_dist%blocks(iblock)%nparts = nparts
 
        ! l2ln2o interface vefs to interface dofs from l2ln20_ext
        l2ln2o(nint+1:nint+nboun) = l2ln2o_ext(1:nboun)
-       write (*,*) 'nint,nboun,ndofs',nint,nboun,femsp%ndofs(iblock) 
-       assert( nint + nboun == femsp%ndofs(iblock) )  ! check
+       write (*,*) 'nint,nboun,ndofs',nint,nboun,p_femsp%f_space%ndofs(iblock) 
+       assert( nint + nboun == p_femsp%f_space%ndofs(iblock) )  ! check
        call memfree( l2ln2o_ext, __FILE__, __LINE__ )
 
        write (*,*) 'l2ln2o:',l2ln2o
@@ -196,15 +196,15 @@ contains
 
        call ws_parts_visited_all%free()
 
-       ! Initialize max_nparts for dof_dist(iblock)%npadj
-       dof_dist(iblock)%max_nparts = max_nparts
+       ! Initialize max_nparts for blk_dof_dist%blocks(iblock)%npadj
+       blk_dof_dist%blocks(iblock)%max_nparts = max_nparts
 
-       ! Initialize npadj/lpadj for dof_dist(iblock)%npadj
-       dof_dist(iblock)%npadj = npadj
-       call memalloc ( dof_dist(iblock)%npadj, dof_dist(iblock)%lpadj, __FILE__, __LINE__ )
-       dof_dist(iblock)%lpadj = ws_parts_visited_list_all(1:dof_dist(iblock)%npadj)
+       ! Initialize npadj/lpadj for blk_dof_dist%blocks(iblock)%npadj
+       blk_dof_dist%blocks(iblock)%npadj = npadj
+       call memalloc ( blk_dof_dist%blocks(iblock)%npadj, blk_dof_dist%blocks(iblock)%lpadj, __FILE__, __LINE__ )
+       blk_dof_dist%blocks(iblock)%lpadj = ws_parts_visited_list_all(1:blk_dof_dist%blocks(iblock)%npadj)
 
-       ! write (*,*) 'npadj=', dof_dist(iblock)%npadj, 'lpadj=', dof_dist(iblock)%lpadj
+       ! write (*,*) 'npadj=', blk_dof_dist%blocks(iblock)%npadj, 'lpadj=', blk_dof_dist%blocks(iblock)%lpadj
 
        ! Re-number boundary DoFs in increasing order by physical unknown identifier, the 
        ! number of parts they belong and, for DoFs sharing the same number of parts,
@@ -256,50 +256,50 @@ contains
 
        ! Reallocate lobjs and add internal object first
        nobjs = nobjs + 1
-       dof_dist(iblock)%nobjs = nobjs
-       call memalloc (max_nparts+4, nobjs, dof_dist(iblock)%lobjs,__FILE__,__LINE__)
-       dof_dist(iblock)%lobjs = 0
+       blk_dof_dist%blocks(iblock)%nobjs = nobjs
+       call memalloc (max_nparts+4, nobjs, blk_dof_dist%blocks(iblock)%lobjs,__FILE__,__LINE__)
+       blk_dof_dist%blocks(iblock)%lobjs = 0
 
 
        ! Internal object
-       dof_dist(iblock)%lobjs (1,1) = -1
-       dof_dist(iblock)%lobjs (2,1) = 1
-       dof_dist(iblock)%lobjs (3,1) = nint
-       dof_dist(iblock)%lobjs (4,1) = 1
-       dof_dist(iblock)%lobjs (5,1) = ipart
-       dof_dist(iblock)%lobjs (6:max_nparts+4,1) = 0
+       blk_dof_dist%blocks(iblock)%lobjs (1,1) = -1
+       blk_dof_dist%blocks(iblock)%lobjs (2,1) = 1
+       blk_dof_dist%blocks(iblock)%lobjs (3,1) = nint
+       blk_dof_dist%blocks(iblock)%lobjs (4,1) = 1
+       blk_dof_dist%blocks(iblock)%lobjs (5,1) = ipart
+       blk_dof_dist%blocks(iblock)%lobjs (6:max_nparts+4,1) = 0
 
        ! Copy ws_lobjs_temp to lobjs ...
        do i=1,nobjs-1
-          dof_dist(iblock)%lobjs(:,i+1)=ws_lobjs_temp(1:(max_nparts+4), i)
+          blk_dof_dist%blocks(iblock)%lobjs(:,i+1)=ws_lobjs_temp(1:(max_nparts+4), i)
        end do
 
-       dof_dist(iblock)%nl = dof_dist(iblock)%lobjs (3,nobjs)
-       dof_dist(iblock)%ni = dof_dist(iblock)%lobjs (3,1)
-       dof_dist(iblock)%nb = dof_dist(iblock)%nl - dof_dist(iblock)%ni + 1
+       blk_dof_dist%blocks(iblock)%nl = blk_dof_dist%blocks(iblock)%lobjs (3,nobjs)
+       blk_dof_dist%blocks(iblock)%ni = blk_dof_dist%blocks(iblock)%lobjs (3,1)
+       blk_dof_dist%blocks(iblock)%nb = blk_dof_dist%blocks(iblock)%nl - blk_dof_dist%blocks(iblock)%ni
 
        call memfree ( ws_lobjs_temp,__FILE__,__LINE__)
 
        ! Auxiliary inverse of l2ln2o
-       call memalloc ( femsp%ndofs(iblock), l2lo2n, __FILE__,__LINE__)
+       call memalloc ( p_femsp%f_space%ndofs(iblock), l2lo2n, __FILE__,__LINE__)
 
-       do i=1, femsp%ndofs(iblock)
+       do i=1, p_femsp%f_space%ndofs(iblock)
           l2lo2n(l2ln2o(i)) = i
        end do
 
        ! Update object2dof(iblock)
-       do i = 1,femsp%object2dof(iblock)%p(p_trian%f_trian%num_objects+1)-1
-          femsp%object2dof(iblock)%l(i,1) = l2lo2n(femsp%object2dof(iblock)%l(i,1))
+       do i = 1,p_femsp%f_space%object2dof(iblock)%p(p_trian%f_trian%num_objects+1)-1
+          p_femsp%f_space%object2dof(iblock)%l(i,1) = l2lo2n(p_femsp%f_space%object2dof(iblock)%l(i,1))
        end do
 
        do ielem = 1, p_trian%f_trian%num_elems + p_trian%num_ghosts
-          iprob = femsp%lelem(ielem)%problem
+          iprob = p_femsp%f_space%lelem(ielem)%problem
           nvapb = dhand%prob_block(iblock,iprob)%nd1
           do ivars = 1, nvapb
              l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-             do inode = 1,femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-                if ( femsp%lelem(ielem)%elem2dof(inode,l_var) > 0 ) then 
-                   femsp%lelem(ielem)%elem2dof(inode,l_var) = l2lo2n(femsp%lelem(ielem)%elem2dof(inode,l_var))
+             do inode = 1,p_femsp%f_space%lelem(ielem)%f_inf(l_var)%p%nnode
+                if ( p_femsp%f_space%lelem(ielem)%elem2dof(inode,l_var) > 0 ) then 
+                   p_femsp%f_space%lelem(ielem)%elem2dof(inode,l_var) = l2lo2n(p_femsp%f_space%lelem(ielem)%elem2dof(inode,l_var))
                 end if
              end do
           end do
@@ -309,31 +309,31 @@ contains
        call memfree ( l2ln2o,__FILE__,__LINE__)
 
        call create_int_objs ( ipart, &
-            dof_dist(iblock)%npadj, &
-            dof_dist(iblock)%lpadj, &
-            dof_dist(iblock)%max_nparts , &
-            dof_dist(iblock)%nobjs      , &
-            dof_dist(iblock)%lobjs      , &
-            dof_dist(iblock)%int_objs%n , &
-            dof_dist(iblock)%int_objs%p , &
-            dof_dist(iblock)%int_objs%l ) 
+            blk_dof_dist%blocks(iblock)%npadj, &
+            blk_dof_dist%blocks(iblock)%lpadj, &
+            blk_dof_dist%blocks(iblock)%max_nparts , &
+            blk_dof_dist%blocks(iblock)%nobjs      , &
+            blk_dof_dist%blocks(iblock)%lobjs      , &
+            blk_dof_dist%blocks(iblock)%int_objs%n , &
+            blk_dof_dist%blocks(iblock)%int_objs%p , &
+            blk_dof_dist%blocks(iblock)%int_objs%l ) 
 
        call create_omap ( p_trian%p_env%p_context%icontxt    , & ! Communication context
             p_trian%p_env%p_context%iam         , &
             p_trian%p_env%p_context%np         , &
-            dof_dist(iblock)%npadj, &
-            dof_dist(iblock)%lpadj, & 
-            dof_dist(iblock)%int_objs%p, &  
-            dof_dist(iblock)%int_objs%l, &
-            dof_dist(iblock)%max_nparts , & 
-            dof_dist(iblock)%nobjs      , & 
-            dof_dist(iblock)%lobjs      , &
-            dof_dist(iblock)%omap%nl,     &
-            dof_dist(iblock)%omap%ng,     &
-            dof_dist(iblock)%omap%ni,     &
-            dof_dist(iblock)%omap%nb,     &
-            dof_dist(iblock)%omap%ne,     &
-            dof_dist(iblock)%omap%l2g )
+            blk_dof_dist%blocks(iblock)%npadj, &
+            blk_dof_dist%blocks(iblock)%lpadj, & 
+            blk_dof_dist%blocks(iblock)%int_objs%p, &  
+            blk_dof_dist%blocks(iblock)%int_objs%l, &
+            blk_dof_dist%blocks(iblock)%max_nparts , & 
+            blk_dof_dist%blocks(iblock)%nobjs      , & 
+            blk_dof_dist%blocks(iblock)%lobjs      , &
+            blk_dof_dist%blocks(iblock)%omap%nl,     &
+            blk_dof_dist%blocks(iblock)%omap%ng,     &
+            blk_dof_dist%blocks(iblock)%omap%ni,     &
+            blk_dof_dist%blocks(iblock)%omap%nb,     &
+            blk_dof_dist%blocks(iblock)%omap%ne,     &
+            blk_dof_dist%blocks(iblock)%omap%l2g )
 
        call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
        call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
@@ -343,11 +343,14 @@ contains
 
        ! Compute dof_import instance within dof_dist instance such that 
        ! DoF nearest neighbour exchanges can be performed 
-       call dof_distribution_compute_import(dof_dist(iblock))
+       call dof_distribution_compute_import(blk_dof_dist%blocks(iblock))
+       
+       ! call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
 
     end do
+   end if
 
-  end subroutine dof_distribution_create
+  end subroutine block_dof_distribution_create 
 
   integer(ip) function local_node( g_dof, iobj, elem, l_var, nobje, objects )
     implicit none
@@ -1422,4 +1425,4 @@ integer(ip) function local_position(key,list,size)
 
 end function local_position
 
-end module dof_distribution_create_names
+end module block_dof_distribution_create_names

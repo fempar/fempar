@@ -49,8 +49,8 @@ module fem_mesh_gen_distribution_names
           ndime,               &         ! Dimension 
           nparts=1,            &         ! Number of partitions
           nedir(3),            &         ! Number of elements in each direction
-          npdir(3)=(/1,1,0/),  &         ! Number of parts on each direction           
-          nsckt(3)=(/1,1,0/),  &         ! Number of parts on each socket and direction
+          npdir(3)=(/1,1,1/),  &         ! Number of parts on each direction           
+          nsckt(3)=(/1,1,1/),  &         ! Number of parts on each socket and direction
           isper(3)=(/0,0,0/)             ! Flag for periodic boundary conditions on each direction
 
      real(rp)               :: &
@@ -123,11 +123,15 @@ module fem_mesh_gen_distribution_names
   integer(ip), parameter :: inter=0, bound=1
   integer(ip), parameter :: do_count=0, do_list=1
 
+  interface globalid
+     module procedure globalid_ip, globalid_igp
+  end interface
+
   ! Types
   public :: geom_data, bound_data
 
   ! Functions
-  public :: geom_data_create, bound_data_create
+  public :: geom_data_create, bound_data_create, gen_triangulation
   public :: bound_data_free
 
 contains
@@ -205,14 +209,19 @@ contains
     else
        gdata%nsckt(2) = gdata%npdir(2)
     end if
-    if(present(nsz)) then
-       check(nsz>0)
-       gdata%nsckt(3) = gdata%npdir(3)/nsz
-    else
-       gdata%nsckt(3) = gdata%npdir(3)
-    end if
     gdata%nparts = gdata%npdir(1)*gdata%npdir(2)
-    if(gdata%ndime==3) gdata%nparts = gdata%nparts*gdata%npdir(3)
+    if(gdata%ndime==3) then
+       if(present(nsz)) then
+          check(nsz>0)
+          gdata%nsckt(3) = gdata%npdir(3)/nsz
+       else
+          gdata%nsckt(3) = gdata%npdir(3)
+       end if
+       gdata%nparts = gdata%nparts*gdata%npdir(3)
+    else
+       gdata%nsckt(3) = 1
+       gdata%npdir(3) = 1
+    end if
     if(present(perix)) gdata%isper(1) = perix
     if(present(periy)) gdata%isper(2) = periy
     if(present(periz)) gdata%isper(3) = periz    
@@ -406,7 +415,7 @@ contains
     tsize%notot = tsize%nftot + tsize%ndtot + tsize%nctot
 
     ! Deallocate auxiliar vector of components
-    call memfree(auxv)
+    call memfree(auxv,__FILE__,__LINE__)
     
   end subroutine structured_topo_size_create
   
@@ -449,6 +458,8 @@ contains
 
     ! Create triangulation
     call fem_triangulation_create(gsize%nedomt,trian)
+    trian%num_elems = gsize%nedomt
+    trian%num_dims  = gdata%ndime
 
     ! Triangulation, bcond and distribution generation
     if(present(mdist)) then
@@ -459,6 +470,9 @@ contains
        call structured_mesh_gen(ijkpart,gdata,gsize,tsize,ginfo,bdata%poin,bdata%line,bdata%surf, &
             &                   trian,bcond,mater=mater)
     end if
+
+    ! Dual triangulation
+    call fem_triangulation_to_dual(trian)
 
     ! Create mesh_distribution
     if(present(mdist)) then
@@ -500,20 +514,7 @@ contains
 
     ! Local variables
     integer(ip)              :: nparts,ndime,isper(3)
-    integer(ip)              :: idime,aux_isp
-    integer(ip)              :: cnt(3),subgl(gdata%ndime),case,ni,nb,i,j,k,lpart,pni,eni,pnb,enb,pdime
-    integer(ip)              :: lobjs_int(4+2**gdata%ndime)
-    integer(ip)              :: lobjs_face(4+2**gdata%ndime,6),l2g_face(2*gdata%ndime)
-    integer(ip)              :: lobjs_edge(4+2**gdata%ndime,2*(gdata%ndime-1)*gdata%ndime),l2g_edge(2*(gdata%ndime-1)*gdata%ndime)
-    integer(ip)              :: lobjs_corn(4+2**gdata%ndime,4*(gdata%ndime-1)),l2g_corn(4*(gdata%ndime-1))
-    integer(ip)              :: nobjs_face,nobjs_edge,nobjs_corn,nfacet_tot,nedget_tot,nobjs_gl
-    integer(ip)              :: touch_face(3**gdata%ndime),touch_edge(3**gdata%ndime),touch_corn(3**gdata%ndime)
-    integer(ip)              :: neigh_obj_face(2*gdata%ndime,3**gdata%ndime)
-    integer(ip)              :: neigh_obj_edge(2*(gdata%ndime-1)*gdata%ndime,3**gdata%ndime)
-    integer(ip)              :: neigh_obj_corn(4*(gdata%ndime-1),3**gdata%ndime)
-    integer(ip)              :: neigh_obj_list(3**gdata%ndime,3**gdata%ndime),touch(3**gdata%ndime)
-    integer(ip)              :: neigh_obj(3**gdata%ndime,3**gdata%ndime)
-    integer(ip)              :: p_aux(3**gdata%ndime)
+    integer(ip)              :: cnt(3),subgl(gdata%ndime),idime,lpart,pni,eni,pnb,enb
     integer(ip)              :: pextn_cnt(2),nelbl(3)
 
     ! Local allocatables 
@@ -565,8 +566,8 @@ contains
     enb = cnt(2) - eni - 1
 
     ! Global part numeration
-    do i=1,ndime
-       subgl(i) = (ijkpart(i)-1)*gsize%nedom(i)
+    do idime=1,ndime
+       subgl(idime) = (ijkpart(idime)-1)*gsize%nedom(idime)
     end do
 
     ! Initialize materia
@@ -576,7 +577,7 @@ contains
 
     ! Calculate lnods, coord and l2g vector for emap and nmap
     call generic_l2g(subgl,npnumg,npnumt,nenum,ndime,ginfo%order,gsize,tsize,gdata,l2ge,l2gp,trian, &
-         &           mater)
+         &           coord,mater)
 
     ! Fill nmap
     if(present(nmap)) then
@@ -791,7 +792,7 @@ contains
     type(fem_conditions), optional, intent(inout) :: nodes
     
     integer(ip) :: auxv(3,2),i,j,k,pdime,iface,ijkpoin(3),ijkelem(3),ijkface(3),glnum,flag,neigh(2)
-    integer(ip) :: lpart,glface,lface(2),ijklocal(3),glocal,surf_cnt,nface_aux(3),aux_vec(3)
+    integer(ip) :: lface(2),surf_cnt
     integer(ip) :: idir,jdir,idime,jdime,aux_cnt_f,aux_cnt_d,ijkedge(3)
 
     ! Auxiliar vector of components
@@ -952,11 +953,9 @@ contains
     integer(igp), optional, intent(inout) :: lextn(:)
     integer(ip) , optional, intent(in)    :: mcase,nelbl(3)
     
-    integer(ip)  :: auxv(3,2),ijkelem(3),neigh(2),ijkneigh(3),subgl(3),subgl_ijk(3),ijkpart_neigh(3)
-    integer(ip)  :: i,j,pdime,iface,ielem,jelem,glnum,flag,gpart,lface(2),k,kedge,kdime,idime
+    integer(ip)  :: auxv(3,2),ijkelem(3),ijkneigh(3),subgl(3),subgl_ijk(3),ijkpart_neigh(3)
+    integer(ip)  :: i,j,pdime,iface,ielem,jelem,glnum,flag,gpart,lface(2),k,kedge,idime,neigh(2)
     integer(igp) :: gneigh 
-    integer(ip)  :: knode,mnode,auxva(2**ndime),auxk(3),auxkv(3,2),nnode(3),ijknode(3),gnode,ipos
-    integer(ip)  :: ijelem(2),auxvd(3,4),auxvf(3,2),auxdf(3,3)
 
     if(ndime==3) then
 
@@ -964,19 +963,6 @@ contains
        auxv(1,:) = (/2,3/)
        auxv(2,:) = (/1,3/)
        auxv(3,:) = (/1,2/)
-       auxva = (/1,5,3,7,2,6,4,8/)
-       auxk = (/1,2,1/)
-       auxkv(1,:) = (/0,0/)
-       auxkv(2,:) = (/0,1/)    
-       auxkv(3,:) = (/1,0/)
-       nnode = (/2,2,2/)
-       auxvd(1,:) = (/9,11,10,12/)
-       auxvd(2,:) = (/13,15,14,16/)
-       auxvd(3,:) = (/17,19,18,20/)
-       auxvf(1,:) = (/25,26/)
-       auxvf(2,:) = (/23,24/)
-       auxvf(3,:) = (/21,22/)
-       auxdf = reshape((/0,2,2,1,0,2,1,1,0/),(/3,3/))
 
        ! Face nodes loop
        do pdime = ndime,1,-1
@@ -1088,9 +1074,8 @@ contains
     type(fem_conditions), intent(inout) :: nodes
  
     integer(ip) :: i,j,k,pdime,iedge,jedge,ijedge(2),ijkpoin(3),ijkelem(3),ijkvert(3),ijkedge(3)
-    integer(ip) :: neigh(2*(ndime-1)),nedge_aux(ndime),aux_vec(3),jdime
-    integer(ip) :: glnum,flag,kron(ndime),gsurf,inode,aux_surf(4,2),gsurf_aux(4),aux_cnt,aux
-    integer(ip) :: inipo,lpart,gledge,ledge(2,2),ijklocal(3),glocal,line_cnt
+    integer(ip) :: inipo,ledge(2,2),line_cnt,neigh(2*(ndime-1))
+    integer(ip) :: glnum,flag,kron(ndime),gsurf,inode,aux_surf(4,2),gsurf_aux(4),aux_cnt
     integer(ip), allocatable :: auxv(:,:)
 
     ! Auxiliar vector of components 
@@ -1106,6 +1091,8 @@ contains
     end if
 
     ! Edge nodes loop
+    line_cnt = 0
+    aux_cnt = tsize%nctot
     do pdime = ndime,1,-1
        do iedge = 0,1!min(1,nedom(auxv(pdime,1))-1)
           do jedge =0,1!min(1,nedom(auxv(pdime,2))-1)
@@ -1260,11 +1247,10 @@ contains
     integer(igp), optional, intent(inout) :: lextn(:)
     integer(ip) , optional, intent(in)    :: mcase,nelbl(3)
     
-    integer(ip) :: ijkelem(3),neigh(2*(ndime-1)),ijedge(2),ijkvert(3),ijkneigh(3),ijkvert_aux(3),ijknode(3)
+    integer(ip) :: ijkelem(3),neigh(2*(ndime-1)),ijedge(2),ijkvert(3),ijkneigh(3)
     integer(ip) :: subgl(3),subgl_ijk(3),ijkpart_neigh(3),ledge(2,2),kron(ndime),lpart
-    integer(ip) :: i,j,pdime,iedge,jedge,kedge,medge,ielem,jelem,glnum,flag,gpart,idime,melem
-    integer(ip) :: inode,jnode,auxva(2**ndime),auxk(3),auxkv(3,2),kelem,nnode(3),gnode,ipos,iaux,jaux,iaux2,jaux2
-    integer(ip) :: ijk(3),kdime,idir,jdir,ijkedge(3),auxvd(ndime,2*(ndime-1)),auxvf(3,2)
+    integer(ip) :: i,j,pdime,iedge,jedge,kedge,medge,ielem,glnum,flag,gpart,idime
+    integer(ip) :: iaux,jaux,iaux2,jaux2
     integer(igp) :: gneigh
     integer(ip), allocatable :: auxv(:,:)
 
@@ -1273,28 +1259,12 @@ contains
        call memalloc(2,1,auxv,__FILE__,__LINE__)
        auxv(1,1) = 2
        auxv(2,1) = 1
-       auxva = (/1,3,2,4/)
-       auxvd(1,:) = (/5,6/)
-       auxvd(2,:) = (/7,8/)
     else if(ndime==3) then
        call memalloc(3,2,auxv,__FILE__,__LINE__)
        auxv(1,:) = (/2,3/)
        auxv(2,:) = (/1,3/)
        auxv(3,:) = (/1,2/)
-       auxva = (/1,5,3,7,2,6,4,8/)
-       auxvd(1,:) = (/9,11,10,12/) 
-       auxvd(2,:) = (/13,15,14,16/)
-       auxvd(3,:) = (/17,19,18,20/)
     end if
-    auxk = (/1,2,1/)
-    auxkv(1,:) = (/0,0/)
-    auxkv(2,:) = (/0,1/)    
-    auxkv(3,:) = (/1,0/)
-    nnode = (/2,2,2/)
-    auxvf(1,:) = (/25,26/)
-    auxvf(2,:) = (/23,24/)
-    auxvf(3,:) = (/21,22/)
-    ijk = 0
 
     ! Global numbering
     call globalid_2l(ijkpart,gsize%nsckt,gsize%npsoc,ndime,lpart)
@@ -1462,9 +1432,9 @@ contains
     real(rp)            , intent(inout) :: coord(:,:)
     type(fem_conditions), intent(inout) :: nodes
     
-    integer(ip) :: ivert,jvert,kvert,ijkpoin(3),ijkvert(3),glnum,flag,kron(ndime),neigh(2**ndime)
-    integer(ip) :: i,j,k,glcorn,lcorn(2,2,2),ijkelem(3),ijklocal(3),glocal,lpart
-    integer(ip) :: ijkcorn(3),poin_cnt,gline,gsurf,aux_vec(3)
+    integer(ip) :: ivert,jvert,kvert,ijkpoin(3),ijkvert(3),glnum,flag,neigh(2**ndime)
+    integer(ip) :: i,j,k,lcorn(2,2,2),ijkelem(3)
+    integer(ip) :: poin_cnt,gline,gsurf
     integer(ip) :: aux_line(2*(ndime-1)*ndime,2),aux_surf(2*ndime,4)
     integer(ip), allocatable :: auxv(:,:)
 
@@ -1489,6 +1459,7 @@ contains
     end if
 
     ! Corner nodes loop
+    poin_cnt = 1
     do ivert = 0,1
        do jvert = 0,1
           do kvert =0,1
@@ -1601,10 +1572,9 @@ contains
     integer(igp), optional, intent(inout) :: lextn(:)
     integer(ip) , optional, intent(in)    :: mcase,nelbl(3)
     
-    integer(ip) :: ijkelem(3),neigh(2**ndime),ijkvert(3),ijkneigh(3),subgl(3),subgl_ijk(3),ijkpart_neigh(3)
-    integer(ip) :: i,j,k,ivert,jvert,kvert,ielem,jelem,kelem,glnum,flag,gpart,lcorn(2,2,2),idime
-    integer(ip) :: iaux,jaux,kaux,iaux2,jaux2,kaux2,lpart,auxk(3),auxkv(3,2),nnode(3),ipos,gnode
-    integer(ip) :: auxva(2**ndime),ijknode(3),ijk(3),kdime,idir,jdir,ijkedge(3),auxvd(ndime,2*(ndime-1)),auxvf(3,2)
+    integer(ip) :: ijkelem(3),neigh(2**ndime),ijkvert(3),ijkneigh(3),subgl(3),subgl_ijk(3)
+    integer(ip) :: i,j,k,ivert,jvert,kvert,glnum,flag,gpart,lcorn(2,2,2),idime,ijkpart_neigh(3)
+    integer(ip) :: iaux,jaux,kaux,iaux2,jaux2,kaux2,lpart
     integer(ip), allocatable :: auxv(:,:)
     integer(igp) :: gneigh
 
@@ -1613,27 +1583,12 @@ contains
        call memalloc(2,1,auxv,__FILE__,__LINE__)
        auxv(1,1) = 2
        auxv(2,1) = 1
-       auxva = (/1,3,2,4/)
-       auxvd(1,:) = (/5,6/)
-       auxvd(2,:) = (/7,8/)
     else if(ndime==3) then
        call memalloc(3,2,auxv,__FILE__,__LINE__)
        auxv(1,:) = (/2,3/)
        auxv(2,:) = (/1,3/)
        auxv(3,:) = (/1,2/)
-       auxva = (/1,5,3,7,2,6,4,8/)
-       auxvd(1,:) = (/9,11,10,12/) 
-       auxvd(2,:) = (/13,15,14,16/)
-       auxvd(3,:) = (/17,19,18,20/)
     end if       
-    auxk = (/1,2,1/)
-    auxkv(1,:) = (/0,0/)
-    auxkv(2,:) = (/0,1/)    
-    auxkv(3,:) = (/1,0/)
-    nnode = (/2,2,2/)
-    auxvf(1,:) = (/25,26/)
-    auxvf(2,:) = (/23,24/)
-    auxvf(3,:) = (/21,22/)
 
     ! Global numbering
     call globalid_2l(ijkpart,gsize%nsckt,gsize%npsoc,ndime,lpart)
@@ -2056,7 +2011,7 @@ contains
 
   !==================================================================================================
   subroutine generic_l2g(subgl,npnumg,npnumt,nenum,ndime,pdegr,gsize,tsize,gdata,l2ge,l2gp,trian, &
-       &                 mater)
+       &                 coord,mater)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -2068,12 +2023,13 @@ contains
     type(geom_data)              , intent(in)    :: gdata
     integer(igp)                 , intent(out)   :: l2ge(:),l2gp(:)
     type(fem_triangulation)      , intent(inout) :: trian
+    real(rp)                     , intent(in)    :: coord(:,:)
     type(fem_materials), optional, intent(inout) :: mater
 
     integer(ip)               :: i,j,k,m,n,l,ijk(3),ijklnods(3),num,count,auxva((pdegr+1)**ndime)
     integer(ip)               :: ne_aux(3),np_aux(3),mcase,auxnum,nedir_l2g(ndime),nobje,aux_glb
-    integer(ip)               :: subgl_aux(3),subgl_ijk(3),nelbl(3)
-    integer(ip)               :: cnt,ipoin,jpoin,ielem,jelem,pdime,iedge,jedge,iface,nddomk
+    integer(ip)               :: subgl_aux(3),subgl_ijk(3),nelbl(3),ncorn
+    integer(ip)               :: cnt,ipoin,jpoin,ielem,pdime,iedge,jedge,iface,nddomk
     integer(ip)               :: auxvc(2**ndime),auxvf(2*ndime),auxvd(2*(ndime-1)*ndime),aux_cnt
     integer(ip) , allocatable :: auxv(:,:)
     integer(igp), allocatable :: po_l2g(:),el_l2g(:)
@@ -2106,6 +2062,7 @@ contains
        auxvc = (/1,3,2,4/)
        auxvd = (/7,8,5,6/)
        nobje = 8
+       ncorn = 4
     else if(ndime==3) then
        call memalloc(3,2,auxv,__FILE__,__LINE__)
        auxv(1,:) = (/2,3/)
@@ -2127,6 +2084,7 @@ contains
        auxvd = (/17,19,18,20,13,15,14,16,9,11,10,12/)
        auxvf = (/21,22,23,24,25,26/)
        nobje = 26
+       ncorn = 8
     end if
     mcase = gdata%mater
     nelbl(1) = gdata%neblx
@@ -2154,6 +2112,14 @@ contains
              if(mcase>0 .and. present(mater)) then
                 call materialid(mcase,subgl_ijk,gsize%nedir,nelbl,mater%list(nenum(num)))
              end if
+
+             ! Allocate triangulation elemental objects
+             trian%elems(nenum(num))%num_objects = nobje
+             call memalloc(trian%elems(nenum(num))%num_objects,trian%elems(nenum(num))%objects, &
+                  &        __FILE__,__LINE__)
+             call memalloc(trian%num_dims,ncorn,trian%elems(nenum(num))%coordinates, __FILE__, __LINE__ )
+             call put_topology_element_triangulation(nenum(num),trian)
+             trian%elems(nenum(num))%order = get_order(trian%elems(nenum(num))%topology%ftype,ncorn,trian%num_dims)
            
              count = 1
              ! Elemental corners
@@ -2169,7 +2135,7 @@ contains
                       trian%elems(nenum(num))%objects(auxvc(count)) = npnumt(auxnum)
 
                       ! Generate coords
-                      trian%elems(nenum(num))%coordinates(:,auxva(count)) = npnumg(auxnum)
+                      trian%elems(nenum(num))%coordinates(:,auxva(count)) = coord(:,npnumg(auxnum))
 
                       ! Update counter
                       count = count +1
@@ -2260,84 +2226,11 @@ contains
        if(ndime==2) exit
     end do
 
-    ! Edges
-    aux_cnt = tsize%nctot
-    aux_glb = tsize%ncglb
-    do pdime=ndime,1,-1
-       if(ndime==2) then
-          nddomk=1
-       elseif(ndime==3) then
-          nddomk=tsize%nddom(auxv(pdime,2),pdime)
-       end if
-       do i=1,tsize%nddom(pdime,pdime)
-          do j=1,tsize%nddom(auxv(pdime,1),pdime)
-             do k=1,nddomk
-
-                ! Identifier
-                ijk(pdime) = i
-                ijk(auxv(pdime,1)) = j
-                if(ndime==3) ijk(auxv(pdime,2)) = k
-                call globalid(ijk,tsize%nddom(:,pdime),ndime,num)
-
-                ! Local to global vector
-                subgl_ijk = subgl_aux + ijk
-                call globalid(subgl_ijk,tsize%ndglb(:,pdime),ndime,po_l2g(num+aux_cnt))
-                po_l2g(num+aux_cnt) = po_l2g(num+aux_cnt) + aux_glb
-
-             end do
-          end do
-       end do
-       aux_cnt = aux_cnt + tsize%nddir(pdime)
-       aux_glb = aux_glb + tsize%ndsum(pdime)
-    end do
-
-    ! Faces
-    if(ndime==3) then
-       aux_cnt = tsize%nctot + tsize%ndtot
-       do pdime=ndime,1,-1
-          do i=1,tsize%nfdom(pdime,pdime)
-             do j=1,tsize%nfdom(auxv(pdime,1),pdime)
-                do k=1,tsize%nfdom(auxv(pdime,2),pdime)
-
-                   ! Identifier
-                   ijk(pdime) = i
-                   ijk(auxv(pdime,:)) = (/j,k/)
-                   call globalid(ijk,tsize%nfdom(:,pdime),ndime,num)
-
-                   ! Local to global vector
-                   subgl_ijk = subgl_aux + ijk
-                   call globalid(subgl_ijk,tsize%nfglb(:,pdime),ndime,po_l2g(num+aux_cnt))
-                   po_l2g(num+aux_cnt) = po_l2g(num+aux_cnt) + aux_glb
-
-                end do
-             end do
-          end do
-          aux_cnt = aux_cnt + tsize%nfdir(pdime)
-          aux_glb = aux_glb + tsize%nfsum(pdime)
-       end do
-    end if
-
     ! Construct l2g nmap (ordered by objects)
     ! Elemental corners
     do ipoin=1,gsize%npdomt
-       l2gp(npnumt(ipoin)) = po_l2g(ipoin)
+       l2gp(npnumg(ipoin)) = po_l2g(ipoin)
     end do
-    ! Elemental edges
-    aux_cnt = tsize%nctot
-    do pdime=ndime,1,-1
-       do i=1,tsize%nddir(pdime)
-          l2gp(npnumt(i+aux_cnt)) = po_l2g(i+aux_cnt)
-       end do
-       aux_cnt = aux_cnt + tsize%nddir(pdime)
-    end do
-    ! Elemental faces
-    aux_cnt = tsize%nctot + tsize%ndtot
-    do pdime=ndime,1,-1
-       do i=1,tsize%nfdir(pdime)
-          l2gp(npnumt(i+aux_cnt)) = po_l2g(i+aux_cnt)
-       end do
-       aux_cnt = aux_cnt + tsize%nfdir(pdime)
-    end do 
 
     ! Deallocate
     call memfree(el_l2g,__FILE__,__LINE__)
@@ -2404,6 +2297,26 @@ contains
     end if
   
   end subroutine global_to_ijk
+
+  !================================================================================================
+  subroutine aux_surf_num(pdime,aux_surf,gsurf_aux)
+    implicit none
+    integer(ip), intent(in)  :: pdime
+    integer(ip), intent(out) :: aux_surf(4,2),gsurf_aux(4)
+
+    if(pdime==3) then
+       gsurf_aux = (/3,4,5,6/)
+    else if(pdime==2) then
+       gsurf_aux = (/1,2,5,6/)
+    else if(pdime==1) then
+       gsurf_aux = (/1,2,3,4/)
+    end if
+    aux_surf(1,:) = (/2,4/)
+    aux_surf(2,:) = (/1,3/)
+    aux_surf(3,:) = (/3,4/)
+    aux_surf(4,:) = (/1,2/)    
+
+  end subroutine aux_surf_num
 
   !==================================================================================================
   subroutine kronec(i,n,kron)

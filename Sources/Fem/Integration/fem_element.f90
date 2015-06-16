@@ -107,8 +107,11 @@ module fem_element_names
      ! SB.alert : temporary, it is a lot of memory, and should be handled via a hash table
   end type fem_face
 
+  ! Types
   public :: fem_element, fem_face
-  public :: fem_element_print
+
+  ! Methods
+  public :: fem_element_print, fem_element_free_unpacked
 
 contains
   subroutine fem_element_print ( lunou, elm )
@@ -240,5 +243,14 @@ contains
     my%continuity = transfer(buffer(start:end), my%continuity)
     
   end subroutine fem_element_unpack
+
+  subroutine fem_element_free_unpacked(my)
+    implicit none
+    type(fem_element), intent(inout) :: my
+
+    call memfree( my%order, __FILE__, __LINE__ )
+    call memfree( my%continuity, __FILE__, __LINE__ )
+    
+  end subroutine fem_element_free_unpacked
 
 end module fem_element_names

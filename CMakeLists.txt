@@ -75,7 +75,7 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 # LIBRARY ORDER IS IMPORTANT IN THE CASE OF MKL, BLAS AND LAPACK
 # IF MKL WAS FOUND BLAS AND LAPACK MACRO DEFITIONS ARE ACTIVE 
 # BUT LIBRARIES ARE NOT LINKED
-SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN OpenMP)
+SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN )
 SET(MKL_FIND_QUIETLY TRUE) 
 
 #################################################################
@@ -124,9 +124,10 @@ FOREACH(EXT_LIB ${EXT_LIBS})
         ELSE()
             FIND_PACKAGE( ${EXT_LIB} )
 
-            STRING( TOUPPER ${EXT_LIB}_FOUND UPPER_STRING)
+#            STRING( TOUPPER ${EXT_LIB}_FOUND UPPER_STRING)
 
-            IF (${${UPPER_STRING}})
+#            IF (${${UPPER_STRING}})
+            IF (${${EXT_LIB}_FOUND})
                SET(NO_LIBS FALSE)
                OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
 #              SET(MACROS "${MACROS} -DENABLE_${EXT_LIB}")
@@ -145,6 +146,13 @@ FOREACH(EXT_LIB ${EXT_LIBS})
     ENDIF()
 ENDFOREACH ()
 
+FIND_PACKAGE( OpenMP )
+IF(${OPENMP_FOUND})
+  SET(EXTRA_FLAGS ${OpenMP_Fortran_FLAGS})
+ELSE()
+  SET(EXTRA_FLAGS "")
+ENDIF()
+
 #################################################################
 # FFLAGS depend on the compiler and the build type
 #################################################################
@@ -159,13 +167,7 @@ ENDIF()
 
 ADD_DEFINITIONS(-D${CMAKE_Fortran_COMPILER_ID})
 
-IF(${${PROJECT_NAME}_ENABLE_OpenMP})
-  SET(EXTRA_FLAGS ${OpenMP_Fortran_FLAGS})
-ELSE()
-  SET(EXTRA_FLAGS "")
-ENDIF()
-
-message("COMPILER INFO: ${CMAKE_Fortran_COMPILER_ID} - ${Fortran_COMPILER_NAME}")
+message(STATUS "COMPILER INFO: ${CMAKE_Fortran_COMPILER_ID} - ${Fortran_COMPILER_NAME}")
 
 IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "gfortran*")
   # gfortran 
@@ -173,7 +175,7 @@ IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES} " CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
-ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "ifort*")
+ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" OR Fortran_COMPILER_NAME MATCHES "ifort*")
   # ifort (untested)
   set(FORTRAN_FLAGS "-r8 -fpp -W1 ${EXTRA_FLAGS} ")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)

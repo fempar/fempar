@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module fem_space_names
   ! Modules
   use types
@@ -46,6 +45,7 @@ module fem_space_names
   use iso_c_binding
 #endif
   implicit none
+# include "debug.i90"
   private
 
   integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
@@ -62,6 +62,7 @@ module fem_space_names
 
      type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler)        , pointer :: dof_handler
+
 
      ! Formulations used to build the space
      integer(ip) :: num_approximations
@@ -89,7 +90,7 @@ module fem_space_names
 
      ! List of faces where we want to integrate things
      type(fem_face), allocatable        :: interior_faces(:), boundary_faces(:), interface_faces(:)
-     integer(ip) :: num_interior_faces, num_boundary_faces, num_interface_faces
+     integer(ip)                        :: num_interior_faces, num_boundary_faces
 
      ! Much better here rather than as a module variable
      !type(list) :: void_list
@@ -98,8 +99,7 @@ module fem_space_names
   ! Types
   public :: fem_space
 
-  ! Functions
-
+  ! Methods
   public :: fem_space_create, fem_space_print, fem_space_free, &
        &    integration_faces_list, fem_space_allocate_structures, &
        &    fem_space_fe_list_create 
@@ -108,23 +108,26 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_create( g_trian, dofh, fspac, problem, approximations, bcond, continuity, order, material, &
-       &                       which_approx, num_approximations, time_steps_to_store, hierarchical_basis, &
-       &                       static_condensation, num_continuity, num_ghosts )
+  subroutine fem_space_create( g_trian, dofh, fspac, problem, num_approximations, approximations, bcond, & 
+                               continuity, order, material, which_approx, time_steps_to_store, & 
+                               hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
-    type(fem_space)        , target, intent(inout) :: fspac
     type(fem_triangulation), target, intent(in)    :: g_trian   
-    type(dof_handler)      , target, intent(in)    :: dofh   
-    type(discrete_problem_pointer) , intent(in)    :: approximations(:)
+    type(dof_handler)      , target, intent(in)    :: dofh
+    type(fem_space)        , target, intent(inout) :: fspac
+    integer(ip)                    , intent(in)    :: problem(:)
+    integer(ip)                    , intent(in)    :: num_approximations
+    type(discrete_problem_pointer) , intent(in)    :: approximations(num_approximations)
     type(fem_conditions)           , intent(in)    :: bcond
-    integer(ip), intent(in) :: material(:), order(:,:), problem(:)
-    integer(ip), intent(in) :: continuity(:,:), which_approx(:)
-    integer(ip), intent(in) :: num_approximations
-    integer(ip), optional, intent(in) :: time_steps_to_store
-    logical(lg), optional, intent(in) :: hierarchical_basis
-    logical(lg), optional, intent(in) :: static_condensation
-    integer(ip), optional, intent(in) :: num_continuity   
-    integer(ip), optional, intent(in) :: num_ghosts         
+    integer(ip)                    , intent(in)    :: continuity(:,:)
+    integer(ip)                    , intent(in)    :: order(:,:)
+    integer(ip)                    , intent(in)    :: material(:)
+    integer(ip)                    , intent(in)    :: which_approx(:)
+    integer(ip)          , optional, intent(in)    :: time_steps_to_store
+    logical(lg)          , optional, intent(in)    :: hierarchical_basis
+    logical(lg)          , optional, intent(in)    :: static_condensation
+    integer(ip)          , optional, intent(in)    :: num_continuity   
+    integer(ip)          , optional, intent(in)    :: num_ghosts         
 
     integer(ip) :: istat, num_ghosts_
 
@@ -133,7 +136,10 @@ contains
          static_condensation = static_condensation, num_continuity = num_continuity, &
          num_ghosts = num_ghosts )  
 
-    assert(size(approximations)==num_approximations)
+!!$   AFM This allocate statement fails at runtime, i.e., istat/=0. Why ????
+!!$   allocate ( fspac%approximations(num_approximations), stat=istat)
+!!$   write (*,*) 'XXX', num_approximations, istat
+!!$   check (istat == 0)    
     fspac%approximations = approximations
 
     call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material, bcond )
@@ -577,7 +583,11 @@ contains
 
     deallocate( f%interior_faces, stat=istat)
     check ( istat == 0 )
+
     deallocate( f%boundary_faces, stat=istat)
+    check ( istat == 0 )
+
+    deallocate(f%approximations, stat=istat)
     check ( istat == 0 )
 
   end subroutine fem_space_free

@@ -48,19 +48,21 @@ contains
     type(fem_block_vector), intent(inout) :: y
 
     ! Locals
-    type(fem_vector)       :: aux
-    integer(ip)            :: ib, jb
+    type(fem_matrix), pointer :: f_matrix
+    type(fem_vector)          :: aux
+    integer(ip)               :: ib, jb
 
-    assert ( a%nblocks == x%nblocks )
-    assert ( a%nblocks == y%nblocks )
+    assert ( a%get_nblocks() == x%nblocks )
+    assert ( a%get_nblocks() == y%nblocks )
     
-    do ib=1, a%nblocks
+    do ib=1, a%get_nblocks()
        call fem_vector_zero  ( y%blocks(ib) )
        call fem_vector_clone ( y%blocks(ib), aux ) 
-       do jb=1, a%nblocks
-          if ( associated(a%blocks(ib,jb)%p_f_matrix) ) then
+       do jb=1, a%get_nblocks()
+          f_matrix => a%get_block(ib,jb)
+          if ( associated(f_matrix) ) then
              ! aux <- A(ib,jb) * x(jb)
-             call fem_matvec ( a%blocks(ib,jb)%p_f_matrix, x%blocks(jb), aux )
+             call fem_matvec ( f_matrix, x%blocks(jb), aux )
              
              ! y(ib) <- y(ib) + aux 
              call fem_vector_pxpy ( aux, y%blocks(ib) ) 

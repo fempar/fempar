@@ -107,7 +107,7 @@ contains
     end if
 
     ! Global to local of variables per problem
-    call memalloc( dhand%nblocks, dhand%nprobs, dhand%g2l_vars, __FILE__, __LINE__ )
+    call memalloc( nvars_global, dhand%nprobs, dhand%g2l_vars, __FILE__, __LINE__ )
     
     call memalloc( dhand%nblocks, dhand%nprobs, dhand%prob_block, __FILE__, __LINE__ )
 

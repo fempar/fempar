@@ -80,11 +80,15 @@ contains
     
     integer(ip) :: ivar, iblock, jblock !, start(dhand%problems(elem%problem)%p%nvars+1)
 
+    type(fem_matrix), pointer :: f_matrix
+
     !call pointer_variable(  elem, dhand, start )
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
-          call element_matrix_assembly( dhand, elem, start, a%blocks(iblock,jblock)%p_f_matrix, &
-               & iblock, jblock )
+          f_matrix => a%get_block(iblock,jblock)
+          if ( associated(f_matrix) ) then
+             call element_matrix_assembly( dhand, elem, start, f_matrix, iblock, jblock )
+          end if 
        end do
     end do
 
@@ -112,6 +116,7 @@ contains
 
     integer(ip) :: iblock, jblock, i
     type(array_ip1) :: start(2)
+    type(fem_matrix), pointer :: f_matrix
 
     do i=1,2
        call pointer_variable(  elem(i), dhand, start(i)%a )
@@ -120,12 +125,15 @@ contains
 
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
-          do i = 1,2
-             call element_matrix_assembly( dhand, elem(i), start(i)%a, & 
-                  & a%blocks(iblock,jblock)%p_f_matrix, iblock, jblock )
-          end do
-          call face_element_matrix_assembly( dhand, elem, face, start, &
-               & a%blocks(iblock,jblock)%p_f_matrix, iblock, jblock )
+          f_matrix => a%get_block(iblock,jblock)
+          if ( associated(f_matrix) ) then
+            do i = 1,2
+               call element_matrix_assembly( dhand, elem(i), start(i)%a, & 
+                                           & f_matrix, iblock, jblock )
+            end do
+            call face_element_matrix_assembly( dhand, elem, face, start, &
+                                           &   f_matrix, iblock, jblock )
+          end if
        end do
     end do
 
