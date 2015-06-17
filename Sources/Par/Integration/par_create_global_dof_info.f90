@@ -169,7 +169,7 @@ contains
                       assert ( femsp%lelem(ielem)%elem2dof(l_node,l_var) == 0  )
                       !if ( femsp%lelem(ielem)%elem2dof(l_node,l_var) == 0 ) then
                       ! NEW INTERFACE DOFS DETECTED
-                      write(*,*) 'NEW INTERFACE DOFS DETECTED'
+                      ! write(*,*) 'NEW INTERFACE DOFS DETECTED'
                       count = count + 1
                       femsp%lelem(ielem)%elem2dof(l_node,l_var) = count
                       !end if
@@ -179,6 +179,7 @@ contains
           end if
        end do
 
+       femsp%ndofs(iblock) = count
     end do
 
   end subroutine ghost_discontinuous_Galerkin_dofs

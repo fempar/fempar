@@ -127,7 +127,7 @@ program par_test_cdr
 
   ! Read boundary conditions
   call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
-  !f_cond%code = 0 !(dG)
+  p_cond%f_conditions%code = 0 !(dG)
 
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
 
@@ -144,7 +144,7 @@ program par_test_cdr
   ! ... for as many problems as we have
 
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
-  continuity = 1 !(dG)
+  continuity = 0 !(dG)
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
   order = 1
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
