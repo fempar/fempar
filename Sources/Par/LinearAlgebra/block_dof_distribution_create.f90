@@ -114,6 +114,12 @@ contains
     ! Compute an estimation (upper bound) of the maximum number of parts around any local interface vef.
     ! This estimation assumes that all elements around all local interface vefs are associated to different parts.
 
+    ! if ( ipart == 1 ) then 
+    !    write (*,*) 'ONLY 0 PROC'
+    ! else
+    !    stop
+    ! end if
+
     est_max_nparts = 0
     est_max_itf_dofs = 0
     do i=1, p_trian%num_itfc_objs
@@ -966,7 +972,7 @@ contains
                 call ws_parts_visited%put(key=p_trian%elems(ielem)%mypart,val=touching,stat=istat)
                 if ( istat == now_stored ) then
                    touch(1,mater,g_var) = touch(1,mater,g_var) + 1 ! New part in the counter  
-                   write(*,*) 'touch',touch
+                   !write(*,*) 'touch',touch
                    touch(touch(mater,g_var,1)+3,mater,g_var) = p_trian%elems(ielem)%mypart ! Put new part
                 end if
                 if( p_trian%elems(ielem)%globalID > touch(2,mater,g_var) ) then
@@ -975,7 +981,7 @@ contains
                 end if
                 if ( p_trian%elems(ielem)%mypart /= ipart ) then
                    !call ws_parts_visited_all%put(key=p_trian%elems(ielem)%mypart,val=1,stat=istat)
-                   write (*,*) 'p_trian%elems(ielem)%mypart', p_trian%elems(ielem)%mypart
+                   !write (*,*) 'p_trian%elems(ielem)%mypart', p_trian%elems(ielem)%mypart
                    call ws_parts_visited_all%put(key=p_trian%elems(ielem)%mypart,val=touching,stat=istat)
                    write (*,*) 'istat',istat
                    if ( istat == now_stored ) then
@@ -1030,7 +1036,7 @@ contains
 
              ! l2ln2o interface vefs to interface dofs
              count_interface = count_interface + 1
-             write(*,*) 'count_interface',count_interface
+             !write(*,*) 'count_interface',count_interface
              l2ln2o_interface(count_interface) = femsp%object2dof(iblock)%l(idof,1)                  
           else
              ! l2ln2o interface vefs to interior dofs

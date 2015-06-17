@@ -1256,7 +1256,6 @@ contains
        node2ob(ob2node(i)) = i
     end do
 
-    write(*,*) 'node2ob',node2ob
     ! Modify the identifiers of the nodes by the ids of the object in obxob
     do c5 = 1, nt2
        fefi%obxob%l(c5) = node2ob(fefi%obxob%l(c5))
@@ -1273,6 +1272,8 @@ contains
 
     ! Deallocate OBDLA
     call memfree(obdla,__FILE__,__LINE__)
+    call memfree(ob2node,__FILE__,__LINE__)
+    call memfree(node2ob,__FILE__,__LINE__)
 
     ! ! Create the face permutation of nodes
     ! if (nd>2) then call memalloc(2*2**2,fefi%nodes_obj(3),fefi%o2n,__FILE__,__LINE__)

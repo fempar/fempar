@@ -170,7 +170,8 @@ contains
 
                       !write (*,*) 'INSERT DOF IN GHOST ELEMENT ELEM2DOF'
                       !write (*,*) 'OF iobje FROM ielem VALUE ',iobje,touch(mater,g_var,1)
-                      if ( touch(mater,g_var,1) /= 0) write(*,*) 'WITH ELEM2DOF(',touch(mater,g_var,1),')=', femsp%lelem(touch(mater,g_var,1))%elem2dof
+                      !if ( touch(mater,g_var,1) /= 0) 
+                      !write(*,*) 'WITH ELEM2DOF(',touch(mater,g_var,1),')=', femsp%lelem(touch(mater,g_var,1))%elem2dof
                       !write (*,*) 'INTO ghost elem',jelem
 
                       if ( touch(mater,g_var,1) /= 0) then
