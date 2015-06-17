@@ -67,6 +67,7 @@ program par_test_cdr
   type(par_conditions)            :: p_cond
 
   type(cdr_problem)               :: my_problem
+  type(cdr_data)                  :: my_data
   type(cdr_approximation), target :: my_approximation
   integer(ip)                     :: num_approximations
   type(discrete_problem_pointer)  :: approximations(1)
@@ -136,7 +137,8 @@ program par_test_cdr
 
 
   call my_problem%create( p_trian%f_trian%num_dims )
-  call my_approximation%create(my_problem)
+  call my_data%create
+  call my_approximation%create(my_problem,my_data)
   num_approximations=1
   approximations(1)%p => my_approximation
   

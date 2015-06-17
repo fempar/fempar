@@ -43,6 +43,7 @@ program test_cdr
   integer(ip)              :: gtype(1) = (/ csr_symm /)
 
   type(cdr_problem)               :: my_problem
+  type(cdr_data)                  :: my_data
   type(cdr_approximation), target :: my_approximation
   integer(ip)                     :: num_approximations
   type(discrete_problem_pointer)  :: approximations(1)
@@ -101,7 +102,8 @@ program test_cdr
   !write (6,*) 'Local to global (of variables) for problem: ' ,  my_problem%l2g_var
 
   call my_problem%create( f_trian%num_dims )
-  call my_approximation%create(my_problem)
+  call my_data%create
+  call my_approximation%create(my_problem,my_data)
   num_approximations=1
   approximations(1)%p => my_approximation
 

@@ -47,11 +47,9 @@ module assembly_names
   !      & assembly_face_element_matrix, &
   !      & assembly_element_vector, &
   !      & assembly_face_vector, &
-  !      & impose_strong_dirichlet_data, &
   !      & pointer_variable
 
-  public :: impose_strong_dirichlet_data, &
-       & pointer_variable, assembly
+  public :: pointer_variable, assembly
 
   ! interface assembly
   !    module procedure assembly_element_matrix_block, &
@@ -470,34 +468,6 @@ contains
     end do
   end subroutine pointer_variable
  
- !=============================================================================
-  subroutine impose_strong_dirichlet_data (el, dh) 
-    implicit none
-    ! Parameters
-    type(fem_element)    , intent(inout)  :: el
-    type(dof_handler)    , intent(in)     :: dh
-
-    ! Locals
-    integer(ip) :: iprob, count, ivars, inode, idof
-    
-    iprob = el%problem
-    count = 0
-
-    !write (*,*) 'start assembly bc of matrix : ', el%p_mat%a
-    do ivars = 1, dh%problems(iprob)%p%nvars
-       do inode = 1,el%f_inf(ivars)%p%nnode
-          count = count + 1
-          idof = el%elem2dof(inode,ivars)
-          if ( idof  == 0 ) then
-             el%p_vec%a(:) = el%p_vec%a(:) - el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
-             !write (*,*) 'add to vector', -el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
-          end if
-       end do
-    end do
-
-    !write(*,*) 'elvec :', el%p_vec%a
-
-  end subroutine impose_strong_dirichlet_data
 
 end module assembly_names
 

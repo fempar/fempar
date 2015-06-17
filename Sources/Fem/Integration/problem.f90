@@ -61,8 +61,8 @@ module problem_names
      integer(ip), allocatable ::       &
           l2g_var(:)                           ! Order chosen for variables (size nvars)
    contains
-      procedure(create_interface), deferred :: create
-      procedure(matvec_interface), deferred :: matvec
+      procedure(create_interface) , deferred :: create
+      procedure(compute_interface), deferred :: compute
       procedure :: free => discrete_problem_free
    end type discrete_problem
 
@@ -70,37 +70,48 @@ module problem_names
       class(discrete_problem), pointer :: p
    end type discrete_problem_pointer
 
+   type, abstract :: discrete_data
+      contains
+        procedure(create_data_interface), deferred :: create
+   end type discrete_data
+
   abstract interface
-     subroutine create_interface(approx,prob,l2g)
-       import :: physical_problem, discrete_problem, ip
+     subroutine create_interface(approx,prob,data,l2g)
+       import :: physical_problem, discrete_problem, discrete_data, ip
        implicit none
        class(discrete_problem)        , intent(out) :: approx
        class(physical_problem), target, intent(in)  :: prob
+       class(discrete_data)   , target, intent(in)  :: data
        integer(ip), intent(in), optional :: l2g(:)
      end subroutine create_interface
-     subroutine matvec_interface(approx,start,elem)
+     subroutine compute_interface(approx,start,elem)
        import :: discrete_problem, fem_element, ip
        implicit none
        class(discrete_problem), intent(inout) :: approx
        integer(ip)            , intent(in)    :: start(:)
        type(fem_element)      , intent(inout) :: elem
-     end subroutine matvec_interface
+     end subroutine compute_interface
      subroutine free_interface(approx)
        import :: discrete_problem
        implicit none
        class(discrete_problem), intent(inout) :: approx
      end subroutine free_interface
+     subroutine create_data_interface(data)
+       import :: discrete_data
+       implicit none
+       class(discrete_data), intent(out) :: data
+     end subroutine create_data_interface
   end interface
 
   public :: physical_problem, p_physical_problem, discrete_problem, &
-            discrete_problem_pointer, discrete_problem_free
+            discrete_problem_pointer, discrete_problem_free, discrete_data
 
 contains 
 
   subroutine discrete_problem_free( prob  )
     implicit none
     class(discrete_problem), intent(inout) :: prob
-    call memfree( prob%l2g_var, __FILE__, __LINE__ )
+    if(allocated(prob%l2g_var)) call memfree( prob%l2g_var, __FILE__, __LINE__ )
   end subroutine discrete_problem_free
 
 end module problem_names

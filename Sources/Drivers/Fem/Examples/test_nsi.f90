@@ -33,24 +33,25 @@ program test_nsi_iss
 # include "debug.i90"
   
   ! Types
-  type(geom_data)                        :: gdata
-  type(bound_data)                       :: bdata
-  type(fem_fixed_info)                   :: ginfo
-  type(fem_triangulation)                :: f_trian
-  type(fem_conditions)                   :: f_cond
-  type(dof_handler)                      :: dhand
-  type(fem_space)                        :: fspac  
-  type(nsi_problem)                      :: myprob
-  type(nsi_cg_iss_approximation), target :: myapprox
-  type(discrete_problem_pointer)         :: approximations(1)
-  type(fem_matrix)              , target :: femat
-  type(fem_vector)              , target :: fevec,feunk
-  type(fem_precond)                      :: feprec
-  type(fem_precond_params)               :: ppars
-  type(solver_control)                   :: sctrl
-  type(serial_environment)               :: senv
-  class(base_operand)          , pointer :: x, b
-  class(base_operator)         , pointer :: A, M
+  type(geom_data)                 :: gdata
+  type(bound_data)                :: bdata
+  type(fem_fixed_info)            :: ginfo
+  type(fem_triangulation)         :: f_trian
+  type(fem_conditions)            :: f_cond
+  type(dof_handler)               :: dhand
+  type(fem_space)                 :: fspac  
+  type(nsi_problem)               :: myprob
+  type(nsi_cg_iss_data)  , target :: mydata
+  type(nsi_cg_iss_matvec), target :: matvec
+  type(discrete_problem_pointer)  :: approx(1)
+  type(fem_matrix)       , target :: femat
+  type(fem_vector)       , target :: fevec,feunk
+  type(fem_precond)               :: feprec
+  type(fem_precond_params)        :: ppars
+  type(solver_control)            :: sctrl
+  type(serial_environment)        :: senv
+  class(base_operand)   , pointer :: x, b
+  class(base_operator)  , pointer :: A, M
 
   ! Logicals
   logical(lg) :: ginfo_state
@@ -102,10 +103,11 @@ program test_nsi_iss
 
   ! Create problem
   call myprob%create(gdata%ndime)
-  call myapprox%create(myprob)
-  approximations(1)%p => myapprox
-  call dhand%set_problem(1,myapprox)
-  myapprox%dtinv  = 0.0_rp
+  call mydata%create
+  call matvec%create(myprob,mydata)
+  call dhand%set_problem(1,matvec)
+  approx(1)%p     => matvec
+  mydata%dtinv    = 0.0_rp
   myprob%kfl_conv = 1
   myprob%diffu    = 1.0_rp
 
@@ -121,9 +123,9 @@ program test_nsi_iss
   which_approx           = 1 
   
   ! Create fem_space
-  call fem_space_create(f_trian,dhand,fspac,problem,num_approximations,approximations,f_cond, &
-       &                continuity,order,material,which_approx,time_steps_to_store=3,         &
-       &                hierarchical_basis=logical(.false.,lg),                               &
+  call fem_space_create(f_trian,dhand,fspac,problem,num_approximations,approx,f_cond, &
+       &                continuity,order,material,which_approx,time_steps_to_store=3, &
+       &                hierarchical_basis=logical(.false.,lg),                       &
        &                static_condensation=logical(.false.,lg),num_continuity=1)
 
   ! Create dof info
@@ -141,7 +143,7 @@ program test_nsi_iss
   call update_strong_dirichlet_boundary_conditions(fspac)
 
   ! Integrate
-  call volume_integral(approximations,fspac,femat,fevec)
+  call volume_integral(approx,fspac,femat,fevec)
 
   ! Construct preconditioner
   sctrl%method = direct
@@ -181,7 +183,7 @@ program test_nsi_iss
   call fem_matrix_free(femat) 
   call fem_space_free(fspac) 
   call myprob%free
-  call myapprox%free
+  call matvec%free
   call dof_handler_free(dhand)
   call fem_triangulation_free(f_trian)
   call fem_conditions_free(f_cond)

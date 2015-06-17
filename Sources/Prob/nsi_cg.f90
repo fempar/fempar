@@ -38,13 +38,9 @@ module nsi_cg_asgs_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: nsi_cg_asgs_approximation
+ type, extends(discrete_data) :: nsi_cg_asgs_data
     type(nsi_problem), pointer :: physics
     integer(ip) ::   & 
-         kfl_1vec,   & ! Flag for 1vec integration
-         kfl_mtvc,   & ! Flag for matvec integration
-         kfl_matr,   & ! Flag for matrix integration
-         kfl_real,   & ! Flag for real integration
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
          kfl_stab,   & ! Flag for stabilization of the convective term (Off=0; OSS=2)
@@ -58,16 +54,50 @@ module nsi_cg_asgs_names
          k1tau,      & ! C1 constant on stabilization parameter tau_m
          k2tau         ! C2 constant on stabilization parameter tau_m
     contains
-      procedure :: create => nsi_create
-      procedure :: matvec => nsi_matvec
+      procedure :: create => nsi_create_data
+   end type nsi_cg_asgs_data
+
+ type, extends(discrete_problem) :: nsi_cg_asgs_approximation
+    type(nsi_problem)     , pointer :: physics
+    type(nsi_cg_asgs_data), pointer :: data
+    contains
+      procedure :: create  => nsi_create
+      procedure :: compute => nsi_matvec
    end type nsi_cg_asgs_approximation
 
- public :: nsi_cg_asgs_approximation
+ public :: nsi_cg_asgs_approximation, nsi_cg_asgs_data
 
 contains
 
   !=================================================================================================
-  subroutine nsi_create(approx,prob,l2g)
+  subroutine nsi_create_data(data)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
+    !   finite element formulation with inf-sup stable elemets.                                    !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_asgs_data), intent(out) :: data
+
+    ! Flags
+    data%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
+    data%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
+    data%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
+
+    ! Problem variables
+    data%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
+    data%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
+    data%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
+
+    ! Time integration variables
+    data%dtinv  = 1.0_rp ! Inverse of time step
+    data%ctime  = 0.0_rp ! Current time
+    data%tdimv  =  2     ! Number of temporal steps stored for velocity
+    data%tdimp  =  2     ! Number of temporal steps stored for pressure
+    
+  end subroutine nsi_create_data
+
+  !=================================================================================================
+  subroutine nsi_create(approx,prob,data,l2g)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
@@ -75,6 +105,7 @@ contains
     implicit none
     class(nsi_cg_asgs_approximation)  , intent(out) :: approx
     class(physical_problem)   , target, intent(in)  :: prob
+    class(discrete_data)      , target, intent(in)  :: data
     integer(ip), intent(in), optional :: l2g(:)
     !type(nsi_problem), target, intent(in)  :: prob
     integer(ip) :: i
@@ -83,7 +114,13 @@ contains
     select type (prob)
     type is(nsi_problem)
        approx%physics => prob
-       !approx%nsi => prob
+    class default
+       check(.false.)
+    end select
+
+    select type (data)
+    type is(nsi_cg_asgs_data)
+       approx%data    => data
     class default
        check(.false.)
     end select
@@ -98,33 +135,13 @@ contains
           approx%l2g_var(i) = i
        end do
     end if
-
-    ! Flags
-    approx%kfl_1vec = 1 ! Integrate Full OSS
-    approx%kfl_mtvc = 1 ! Integrate nsi_element_matvec
-    approx%kfl_matr = 1 ! Integrate nsi_element_mat
-    approx%kfl_real = 0 ! Integrate errornorm
-    approx%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
-    approx%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
-    approx%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
-
-    ! Problem variables
-    approx%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
-    approx%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
-    approx%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
-
-    ! Time integration variables
-    approx%dtinv  = 1.0_rp ! Inverse of time step
-    approx%ctime  = 0.0_rp ! Current time
-    approx%tdimv  =  2     ! Number of temporal steps stored for velocity
-    approx%tdimp  =  2     ! Number of temporal steps stored for pressure
     
   end subroutine nsi_create
 
   subroutine nsi_matvec(approx,start,elem)
     implicit none
     class(nsi_cg_asgs_approximation), intent(inout) :: approx
-       integer(ip)            , intent(in)    :: start(:)
+    integer(ip)            , intent(in)    :: start(:)
     type(fem_element)       , intent(inout) :: elem
 
     type(basis_function) :: u ! Trial
@@ -170,9 +187,9 @@ contains
 
     mu = approx%physics%diffu
 
-    dtinv  = approx%dtinv
-    c1 = approx%k1tau
-    c2 = approx%k1tau
+    dtinv  = approx%data%dtinv
+    c1 = approx%data%k1tau
+    c2 = approx%data%k1tau
 
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)
@@ -182,6 +199,9 @@ contains
 
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
     !elem%mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(elem) 
 
   end subroutine nsi_matvec
 

@@ -111,7 +111,7 @@ module fem_element_names
   public :: fem_element, fem_face
 
   ! Methods
-  public :: fem_element_print, fem_element_free_unpacked
+  public :: fem_element_print, fem_element_free_unpacked, impose_strong_dirichlet_data
 
 contains
   subroutine fem_element_print ( lunou, elm )
@@ -252,5 +252,33 @@ contains
     call memfree( my%continuity, __FILE__, __LINE__ )
     
   end subroutine fem_element_free_unpacked
+
+ !=============================================================================
+  subroutine impose_strong_dirichlet_data (el) 
+    implicit none
+    ! Parameters
+    type(fem_element)    , intent(inout)  :: el
+
+    ! Locals
+    integer(ip) :: iprob, count, ivars, inode, idof
+    
+    iprob = el%problem
+    count = 0
+
+    !write (*,*) 'start assembly bc of matrix : ', el%p_mat%a
+    do ivars = 1, el%num_vars
+       do inode = 1,el%f_inf(ivars)%p%nnode
+          count = count + 1
+          idof = el%elem2dof(inode,ivars)
+          if ( idof  == 0 ) then
+             el%p_vec%a(:) = el%p_vec%a(:) - el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
+             !write (*,*) 'add to vector', -el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
+          end if
+       end do
+    end do
+
+    !write(*,*) 'elvec :', el%p_vec%a
+
+  end subroutine impose_strong_dirichlet_data
 
 end module fem_element_names
