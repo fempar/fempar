@@ -430,7 +430,7 @@ contains
        !write (*,*) '****** END'
     end do
 
-    !call fem_graph_print( 6, dof_graph )
+    ! call fem_graph_print( 6, dof_graph )
 
     call memfree (aux_ia,__FILE__,__LINE__)
 
@@ -508,13 +508,13 @@ contains
                          if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                             if ( ltype == csr ) then
                                dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
-                                    & + femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1) &
-                                    & - femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje)
+                                    & + femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1) &
+                                    & - femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje)
                             else ! ltype == csr_symm
-                               do inode = femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(m_var)%p%l(inode)
-                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,m_var)
+                               do inode = femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje), &
+                                    & femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
+                                  l_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(inode)
+                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,k_var)
                                   if ( m_dof >= l_dof ) then
                                      dof_graph%ia(l_dof+1) = &
                                           & dof_graph%ia(l_dof+1) + 1
@@ -603,19 +603,19 @@ contains
                          m_mat = femsp%lelem(jelem)%continuity(m_var)
                          if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                             if ( ltype == csr ) then
-                               do inode = femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(m_var)%p%l(inode)
-                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,m_var)
+                               do inode = femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje), &
+                                    & femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
+                                  l_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(inode)
+                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,k_var)
                                   ic = aux_ia(l_dof)
                                   dof_graph%ja(ic) = m_dof
                                   aux_ia(l_dof) = aux_ia(l_dof)+1
                                end do
                             else ! ltype == csr_symm
-                               do inode = femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(m_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(m_var)%p%l(inode)
-                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,m_var)
+                               do inode = femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje), &
+                                    & femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
+                                  l_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(inode)
+                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,k_var)
                                   if ( m_dof >= l_dof ) then
                                      ic = aux_ia(l_dof)
                                      dof_graph%ja(ic) = m_dof
@@ -665,25 +665,24 @@ contains
           do ivars = 1, nvapb
              l_var = dhand%prob_block(iblock,iprob)%a(ivars)
              g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-             int_i = l_var
              ! Interior - interior 
              do jvars = 1, nvapb
-                m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                k_var = dhand%problems(iprob)%p%l2g_var(m_var)
-                if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
-                   do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
-                        & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
-                      l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
+                k_var = dhand%prob_block(iblock,iprob)%a(jvars)
+                m_var = dhand%problems(iprob)%p%l2g_var(k_var)
+                if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
+                   do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
+                        & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
+                      l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
                       l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
                       if ( ltype == csr ) then
                          dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
-                              &  + femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1) &
-                              & - femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje)
+                              &  + femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1) &
+                              & - femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje)
                       else ! ltype == csr_symm 
-                         do jnode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
-                            m_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(jnode)
-                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,m_var)
+                         do jnode = femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje), &
+                              & femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
+                            m_node = femsp%lelem(ielem)%nodes_object(k_var)%p%l(jnode)
+                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,k_var)
                             if ( m_dof >= l_dof ) then
                                dof_graph%ia(l_dof+1) = &
                                     & dof_graph%ia(l_dof+1) + 1
@@ -703,9 +702,9 @@ contains
                       m_var = femsp%object2dof(jblock)%l(jdof,2)   
                       m_mat = femsp%object2dof(jblock)%l(jdof,3)                      
                       if ( dhand%dof_coupl(g_var,m_var) == 1 .and. l_mat == m_mat ) then
-                         do inode = femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(int_i)%p%p(iobje+1)-1
-                            l_node = femsp%lelem(ielem)%nodes_object(int_i)%p%l(inode)
+                         do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
+                              & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
+                            l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
                             l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
                             if ( ltype == csr ) then
                                dof_graph%ia(l_dof+1) = &
@@ -740,7 +739,7 @@ contains
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
     ! Local variables
-    integer(ip) :: g_var, ielem, inode, int_i, iobje, iprob, ivars, jdof, jnode, job_g
+    integer(ip) :: g_var, ielem, inode, iobje, iprob, ivars, jdof, jnode, job_g
     integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, ltype, m_dof, m_mat
     integer(ip) :: m_node, m_var, nvapb, i, ic
 
@@ -757,27 +756,27 @@ contains
              g_var = dhand%problems(iprob)%p%l2g_var(l_var)
              ! Interior - interior (inside element)
              do jvars = 1, nvapb
-                m_var = dhand%prob_block(iblock,iprob)%a(jvars)
-                k_var = dhand%problems(iprob)%p%l2g_var(m_var)
-                if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
+                k_var = dhand%prob_block(iblock,iprob)%a(jvars)
+                m_var = dhand%problems(iprob)%p%l2g_var(k_var)
+                if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
                    do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
                         & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
                       l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
                       l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
                       if ( ltype == csr ) then
-                         do jnode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
-                            m_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(jnode)
-                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,m_var)
+                         do jnode = femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje), &
+                              & femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
+                            m_node = femsp%lelem(ielem)%nodes_object(k_var)%p%l(jnode)
+                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,k_var)
                             i= aux_ia(l_dof)
                             dof_graph%ja(i) = m_dof
                             aux_ia(l_dof) = aux_ia(l_dof)+1
                          end do
                       else ! ltype == csr_symm 
-                         do jnode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
-                            m_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(jnode)
-                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,m_var)
+                         do jnode = femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje), &
+                              & femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
+                            m_node = femsp%lelem(ielem)%nodes_object(k_var)%p%l(jnode)
+                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,k_var)
                             if ( m_dof >= l_dof ) then
                                ic = aux_ia(l_dof)
                                dof_graph%ja(ic) = m_dof
@@ -872,19 +871,19 @@ contains
              l_var = dhand%prob_block(iblock,iprob)%a(ivars)
              g_var = dhand%problems(iprob)%p%l2g_var(l_var)
              do jvars = 1, nvapbj
-                m_var = dhand%prob_block(iblock,jprob)%a(jvars)
-                k_var = dhand%problems(jprob)%p%l2g_var(m_var)
-                if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
+                k_var = dhand%prob_block(iblock,jprob)%a(jvars)
+                m_var = dhand%problems(jprob)%p%l2g_var(k_var)
+                if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
                    if ( ltype == csr ) then
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
-                      nnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1) &
-                           &  -femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj)
+                      nnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1) &
+                           &  -femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
                       do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
                          l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
                          dof_graph%ia(l_dof+1) = dof_graph%ia(l_dof+1) &
                               & + nnode
                       end do
-                      nnode = femsp%lelem(jelem)%f_inf(m_var)%p%nnode - nnode
+                      nnode = femsp%lelem(jelem)%f_inf(k_var)%p%nnode - nnode
                       assert ( nnode > 0)
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
                       do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
@@ -898,10 +897,10 @@ contains
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
                       do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
                          l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
-                         do jnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj), &
-                              & femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1
-                            m_node = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,m_var)
+                         do jnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
+                              & femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
+                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
                             if ( m_dof >= l_dof ) then
                                dof_graph%ia(l_dof+1) = &
                                     & dof_graph%ia(l_dof+1) + 1
@@ -909,20 +908,20 @@ contains
                          end do
                       end do
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
-                      count = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj)
+                      count = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
                       knode = -1
-                      if (count <= femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1) then
-                         knode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(count)
+                      if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                         knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
                       end if
-                      do jnode = 1, femsp%lelem(jelem)%f_inf(m_var)%p%nnode
+                      do jnode = 1, femsp%lelem(jelem)%f_inf(k_var)%p%nnode
                          if ( jnode == knode) then
                             count = count+1
-                            if (count <= femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1) then
-                               knode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(count)
+                            if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                               knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
                             end if
                          else
-                            m_node = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,m_var)
+                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
 
                             do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
                                  &     femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
@@ -992,37 +991,37 @@ contains
              l_var = dhand%prob_block(iblock,iprob)%a(ivars)
              g_var = dhand%problems(iprob)%p%l2g_var(l_var)
              do jvars = 1, nvapbj
-                m_var = dhand%prob_block(iblock,jprob)%a(jvars)
-                k_var = dhand%problems(jprob)%p%l2g_var(m_var)
-                if ( dhand%dof_coupl(g_var,k_var) == 1 ) then
+                k_var = dhand%prob_block(iblock,jprob)%a(jvars)
+                m_var = dhand%problems(jprob)%p%l2g_var(k_var)
+                if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
                    if ( ltype == csr ) then
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
                       do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
                          l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
-                         do jnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj), &
-                              & femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1
-                            m_node = femsp%lelem(jelem)%nodes_object(m_var)%p%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,m_var)
+                         do jnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
+                              & femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
+                            m_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(jnode)
+                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
                             ic = aux_ia(l_dof)
                             dof_graph%ja(ic) = m_dof
                             aux_ia(l_dof) = aux_ia(l_dof) + 1
                          end do
                       end do
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
-                      count = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj)
+                      count = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
                       knode = -1
-                      if (count <= femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1) then
-                         knode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(count)
+                      if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                         knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
                       end if
-                      do jnode = 1, femsp%lelem(jelem)%f_inf(m_var)%p%nnode
+                      do jnode = 1, femsp%lelem(jelem)%f_inf(k_var)%p%nnode
                          if ( jnode == knode) then
                             count = count+1
-                            if (count <= femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1) then
-                               knode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(count)
+                            if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                               knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
                             end if
                          else
-                            m_node = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,m_var)
+                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
                             do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
                                  &     femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
                                l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
@@ -1037,10 +1036,10 @@ contains
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
                       do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
                          l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
-                         do jnode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj), &
-                              & femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1
-                            m_node = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,m_var)
+                         do jnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
+                              & femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
+                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
                             if ( m_dof >= l_dof ) then
                                !write (*,*) 'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV'
                                !write (*,*) 'INSERTION DUE TO COUPLING BY (ielem)-FACE(jelem)'
@@ -1054,20 +1053,20 @@ contains
                          end do
                       end do
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
-                      count = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj)
+                      count = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
                       knode = -1
-                      if (count <= femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1) then
-                         knode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(count)
+                      if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                         knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
                       end if
-                      do jnode = 1, femsp%lelem(jelem)%f_inf(m_var)%p%nnode
+                      do jnode = 1, femsp%lelem(jelem)%f_inf(k_var)%p%nnode
                          if ( jnode == knode) then
                             count = count+1
-                            if (count <= femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%p(l_facj+1)-1) then
-                               knode = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(count)
+                            if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                               knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
                             end if
                          else
-                            m_node = femsp%lelem(jelem)%f_inf(m_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,m_var)
+                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
                             do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
                                  &     femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
                                l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)

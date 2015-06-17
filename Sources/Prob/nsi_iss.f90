@@ -89,9 +89,9 @@ contains
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_approximation)       , intent(out) :: approx
+    class(nsi_cg_iss_approximation), intent(out) :: approx
     class(physical_problem), target, intent(in)  :: prob
-    integer(ip), intent(in), optional :: l2g(:)
+    integer(ip), optional          , intent(in)  :: l2g(:)
     !type(nsi_problem), target, intent(in)  :: prob
     integer(ip) :: i
 
@@ -144,88 +144,48 @@ contains
     integer(ip)                    , intent(in)    :: start(:)
     type(fem_element)              , intent(inout) :: elem
     ! Locals
-    ! type(block_elmat)        :: blk_elmat
-    ! type(block_elvec)        :: blk_elvec
-    ! type(fem_blocks)         :: vars_s
-    ! integer(ip)              :: ldofs(2),nblks,nnode(2),nd,nv,mn
-    ! integer(ip), allocatable :: nnode_oss(:),ldofs_oss(:)
+    real(rp), allocatable :: elmat_vu(:,:,:,:)
+    real(rp), allocatable :: elmat_vu_diag(:,:)
+    real(rp), allocatable :: elmat_vp(:,:,:,:)
+    real(rp), allocatable :: elmat_qu(:,:,:,:)
+    real(rp), allocatable :: elvec_u(:,:) 
+    integer(ip) :: ndime,nnodu,nnodp
+    integer(ip) :: idime,jdime,inode,jnode
 
     ! Checks
     !check(elem%f_inf(1)%p%order > elem%f_inf(approx%physics%ndime+1)%p%order)
     check(elem%integ(1)%p%quad%ngaus == elem%integ(approx%physics%ndime+1)%p%quad%ngaus)
-    
-    ! ! Allocate blk_elmat & blk_elvec locals
-    ! nnode(1) = elem%f_inf(1)%p%nnode
-    ! nnode(2) = elem%f_inf(2)%p%nnode
-    ! if(prob%kfl_stab==2) then
-    !    nblks=3
-    !    call memalloc(nblks,nnode_oss,__FILE__,__LINE__)
-    !    call memalloc(nblks,ldofs_oss,__FILE__,__LINE__)
-    !    ldofs_oss(1) = prob%ndime; ldofs_oss(2)=1; ldofs_oss(3)=prob%ndime;
-    !    nnode_oss(1) = elem%f_inf(1)%p%nnode
-    !    nnode_oss(2) = elem%f_inf(2)%p%nnode
-    !    nnode_oss(3) = elem%f_inf(1)%p%nnode
-    !    call fem_blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
-    !    call block_elmat_alloc(vars_s,nnode_oss,blk_elmat)
-    !    call block_elvec_alloc(vars_s,nnode_oss,blk_elvec)
-    ! elseif(prob%kfl_stab==3) then
-    !    nblks=4
-    !    call memalloc(nblks,nnode_oss,__FILE__,__LINE__)
-    !    call memalloc(nblks,ldofs_oss,__FILE__,__LINE__)
-    !    ldofs_oss(1) = prob%ndime; ldofs_oss(2)=1; ldofs_oss(3)=prob%ndime; ldofs_oss(4)=prob%ndime
-    !    nnode_oss(1) = elem%f_inf(1)%p%nnode
-    !    nnode_oss(2) = elem%f_inf(2)%p%nnode
-    !    nnode_oss(3) = elem%f_inf(1)%p%nnode
-    !    nnode_oss(4) = elem%f_inf(1)%p%nnode
-    !    call fem_blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
-    !    call block_elmat_alloc(vars_s,nnode_oss,blk_elmat)
-    !    call block_elvec_alloc(vars_s,nnode_oss,blk_elvec)
-    ! else
-    !    nblks=2
-    !    ldofs(1) = prob%ndime; ldofs(2)=1
-    !    call fem_blocks_alloc(scalar,nblks,ldofs,vars_s)
-    !    call block_elmat_alloc(vars_s,nnode,blk_elmat)
-    !    call block_elvec_alloc(vars_s,nnode,blk_elvec)
-    ! end if
+    do idime=2,approx%physics%ndime
+       check(elem%integ(1)%p%uint_phy%nnode == elem%integ(idime)%p%uint_phy%nnode)
+    end do
 
     ! Initialize matrix and vector
     elem%p_mat%a = 0.0_rp
     elem%p_vec%a = 0.0_rp
 
-    ! ! Initialize to zero
-    ! blk_elvec%blocks(1)%data   = 0.0_rp
-    ! blk_elvec%blocks(2)%data   = 0.0_rp
-    ! blk_elmat%blocks(1,1)%data = 0.0_rp
-    ! blk_elmat%blocks(1,2)%data = 0.0_rp
-    ! blk_elmat%blocks(2,1)%data = 0.0_rp
-    ! blk_elmat%blocks(2,2)%data = 0.0_rp
-    ! if(prob%kfl_stab==2) then
-    !    blk_elvec%blocks(3)%data   = 0.0_rp
-    !    blk_elmat%blocks(1,3)%data = 0.0_rp
-    !    blk_elmat%blocks(2,3)%data = 0.0_rp
-    !    blk_elmat%blocks(3,1)%data = 0.0_rp
-    !    blk_elmat%blocks(3,2)%data = 0.0_rp
-    !    blk_elmat%blocks(3,3)%data = 0.0_rp
-    ! elseif(prob%kfl_stab==3) then
-    !    blk_elvec%blocks(3)%data   = 0.0_rp
-    !    blk_elvec%blocks(4)%data   = 0.0_rp
-    !    blk_elmat%blocks(1,3)%data = 0.0_rp
-    !    blk_elmat%blocks(1,4)%data = 0.0_rp
-    !    blk_elmat%blocks(2,3)%data = 0.0_rp
-    !    blk_elmat%blocks(2,4)%data = 0.0_rp
-    !    blk_elmat%blocks(3,1)%data = 0.0_rp
-    !    blk_elmat%blocks(3,2)%data = 0.0_rp
-    !    blk_elmat%blocks(3,3)%data = 0.0_rp
-    !    blk_elmat%blocks(3,4)%data = 0.0_rp
-    !    blk_elmat%blocks(4,1)%data = 0.0_rp
-    !    blk_elmat%blocks(4,2)%data = 0.0_rp
-    !    blk_elmat%blocks(4,3)%data = 0.0_rp
-    !    blk_elmat%blocks(4,4)%data = 0.0_rp
-    ! end if
-    
+    ! Unpack variables
+    ndime = approx%physics%ndime
+    nnodu = elem%integ(1)%p%uint_phy%nnode
+    nnodp = elem%integ(ndime+1)%p%uint_phy%nnode
+
+    ! Allocate auxiliar matrices and vectors
+    call memalloc(ndime,ndime,nnodu,nnodu,elmat_vu,__FILE__,__LINE__)
+    call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
+    call memalloc(ndime,1,nnodu,nnodp,elmat_vp,__FILE__,__LINE__)
+    call memalloc(1,ndime,nnodp,nnodu,elmat_qu,__FILE__,__LINE__)
+    call memalloc(ndime,nnodu,elvec_u,__FILE__,__LINE__)
+
+    ! Initialize to zero
+    elmat_vu      = 0.0_rp
+    elmat_vu_diag = 0.0_rp
+    elmat_vp      = 0.0_rp
+    elmat_qu      = 0.0_rp
+    elvec_u       = 0.0_rp
+
     ! Select integration subroutine
     if(approx%kfl_mtvc==1) then
-       call nsi_iss_element_matvec_stdr(approx,elem,start)
+       call nsi_iss_element_matvec_stdr(approx,elem,start,elmat_vu,elmat_vu_diag,elmat_vp,elmat_qu, &
+            &                           elvec_u)
     ! elseif(prob%kfl_mtvc==200) then
     !    call nsi_iss_element_mat_massu(prob,elem,nnode(1),blk_elmat%blocks(1,1))
     ! elseif(prob%kfl_mtvc==201) then
@@ -252,28 +212,49 @@ contains
     !    call nsi_iss_element_mat_ossxx(prob,elem,nnode(1),blk_elmat%blocks(3,3))
     end if
 
-    ! ! Permute & reblock to monolithic emat & evec
-    ! nd = size(elem%p_nod,1)
-    ! nv = size(elem%iv,1)
-    ! mn = size(elem%jvars,1)
-    ! call block_elmat_permute_reblock(vars_s%ib,vars_s%jb,blk_elmat,elem%nint,nnode,nv,elem%iv, &
-    !      &                           nd,elem%p_nod,mn,elem%jvars,elem%p_mat)
-    ! call block_elvec_permute_reblock(vars_s%ib,vars_s%jb,blk_elvec,elem%nint,nnode,nv,elem%iv, &
-    !      &                           nd,elem%p_nod,mn,elem%jvars,elem%p_vec)
+    ! Assembly to elemental p_mat and p_vec
+    do inode=1,nnodu
+       do idime=1,ndime
+          do jnode=1,nnodu
+             do jdime=1,ndime
+                ! Block V-U
+                elem%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) =           &
+                     & elem%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) +    &
+                     & elmat_vu(idime,jdime,inode,jnode)
+             end do    
+             ! Block V-U (diag)
+             elem%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) =              &
+                  & elem%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) +       &
+                  & elmat_vu_diag(inode,jnode)
+          end do
+          do jnode=1,nnodp
+             ! Block V-P
+             elem%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) =            &
+                  & elem%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) +     &
+                  & elmat_vp(idime,1,inode,jnode)
+             ! Block Q-U
+             elem%p_mat%a(start(ndime+1)+jnode-1,start(idime)+inode-1) =            &
+                  & elem%p_mat%a(start(ndime+1)+jnode-1,start(idime)+inode-1) +     &
+                  & elmat_qu(1,idime,jnode,inode)
+          end do
+          ! Block U
+          elem%p_vec%a(start(idime)+inode-1) = elem%p_vec%a(start(idime)+inode-1) + &
+               & elvec_u(idime,inode)
+       end do
+    end do
 
-    ! ! Deallocate locals
-    ! if(prob%kfl_stab>=2) then
-    !    call memfree(nnode_oss,__FILE__,__LINE__)
-    !    call memfree(ldofs_oss,__FILE__,__LINE__)
-    ! end if
-    ! call fem_blocks_free(vars_s)
-    ! call block_elmat_free(blk_elmat)
-    ! call block_elvec_free(blk_elvec)
+    ! Deallocate auxiliar matrices and vectors
+    call memfree(elmat_vu,__FILE__,__LINE__)
+    call memfree(elmat_vu_diag,__FILE__,__LINE__)
+    call memfree(elmat_vp,__FILE__,__LINE__)
+    call memfree(elmat_qu,__FILE__,__LINE__)
+    call memfree(elvec_u,__FILE__,__LINE__)
     
   end subroutine nsi_matvec
 
   !=================================================================================================
-  subroutine nsi_iss_element_matvec_stdr(approx,el,start)
+  subroutine nsi_iss_element_matvec_stdr(approx,el,start,elmat_vu,elmat_vu_diag,elmat_vp,elmat_qu, &
+            &                           elvec_u)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine computes the standard GALERKIN elemental matrix-vector integration.        !
     !----------------------------------------------------------------------------------------------!
@@ -281,6 +262,11 @@ contains
     class(nsi_cg_iss_approximation), intent(in)    :: approx
     type(fem_element)              , intent(inout) :: el
     integer(ip)                    , intent(in)    :: start(:)
+    real(rp)                       , intent(inout) :: elmat_vu(:,:,:,:)
+    real(rp)                       , intent(inout) :: elmat_vu_diag(:,:)
+    real(rp)                       , intent(inout) :: elmat_vp(:,:,:,:)
+    real(rp)                       , intent(inout) :: elmat_qu(:,:,:,:)
+    real(rp)                       , intent(inout) :: elvec_u(:,:) 
     ! Locals
     integer(ip)  :: igaus,idime,inode,jdime,jnode
     integer(ip)  :: ngaus,ndime,nnodu,nnodp
@@ -288,19 +274,13 @@ contains
     real(rp)     :: work(4)
     real(rp)     :: force(approx%physics%ndime)
     real(rp)     :: agran(el%integ(1)%p%uint_phy%nnode)
-    real(rp)     :: elmuv(el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
-    real(rp)     :: elmat_uv(approx%physics%ndime,approx%physics%ndime,el%integ(1)%p%uint_phy%nnode, &
-         &                   el%integ(1)%p%uint_phy%nnode)
-    real(rp)     :: elmat_up(approx%physics%ndime,1,el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
-    real(rp)     :: elmat_pu(1,approx%physics%ndime,el%integ(1)%p%uint_phy%nnode,el%integ(1)%p%uint_phy%nnode)
-    real(rp)     :: elvec_u(approx%physics%ndime,el%integ(1)%p%uint_phy%nnode)
     ! real(rp)    :: parv(30),parp(10),part(3),part_p(3)
     type(vector) :: gpvel, gpveln
 
     ! Unpack variables
     ndime = approx%physics%ndime
     nnodu = el%integ(1)%p%uint_phy%nnode
-    nnodp = el%integ(1)%p%uint_phy%nnode
+    nnodp = el%integ(ndime+1)%p%uint_phy%nnode
     ngaus = el%integ(1)%p%quad%ngaus
     diffu = approx%physics%diffu
     react = approx%physics%react
@@ -310,8 +290,9 @@ contains
     call create_vector (approx%physics, 1, el%integ, gpvel)
     call create_vector (approx%physics, 1, el%integ, gpveln)
     call interpolation (el%unkno, 1, 1, el%integ, gpvel)
+    gpvel%a=0.0_rp
     if(dtinv == 0.0_rp) then
-       call interpolation (el%unkno, 1, 2, el%integ, gpveln)
+       call interpolation (el%unkno, 1, 3, el%integ, gpveln)
     else
        gpveln%a = 0.0_rp
     end if
@@ -326,11 +307,7 @@ contains
     ! Initializations
     work     = 0.0_rp
     force    = 0.0_rp
-    elmuv    = 0.0_rp
-    elmat_uv = 0.0_rp
-    elmat_up = 0.0_rp
-    elmat_pu = 0.0_rp
-    elvec_u  = 0.0_rp
+    agran    = 0.0_rp
     ! parv     = 0.0_rp
     ! parp     = 0.0_rp
     ! part     = 0.0_rp    
@@ -384,33 +361,35 @@ contains
        ! ------------------------------
        ! Block U-V
        ! mu * ( grad u, grad v )
-       call elmvis_gal(dvolu,diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elmuv,work)
+       call elmvis_gal(dvolu,diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elmat_vu_diag, &
+            &          work)
 
        ! Add cross terms for symmetric grad
        if(approx%physics%kfl_symg==1) then
           call elmvis_gal_sym(dvolu,diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-               &              elmat_uv,work)
+               &              elmat_vu,work)
        end if
        if(approx%physics%kfl_skew==0) then
           ! (v, a·grad u) + s*(v,u) + (v, u/dt)
-          call elmbuv_gal(dvolu,react,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu,elmuv,work)
+          call elmbuv_gal(dvolu,react,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
+               &          elmat_vu_diag,work)
        elseif(approx%physics%kfl_skew==1) then
           ! 1/2(v, a·grad u) - 1/2(u,a·grad v) + s*(v,u) + (v, u/dt)
           call elmbuv_gal_skew1(dvolu,react,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
-               &                elmuv,work)
+               &                elmat_vu_diag,work)
        end if
 
        ! Block P-V
        ! - ( div v, p )
-       call elmbpv_gal_div_iss(dvolu,el%integ(2)%p%uint_phy%shape(:,igaus),               &
+       call elmbpv_gal_div_iss(dvolu,el%integ(ndime+1)%p%uint_phy%shape(:,igaus),               &
             &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
-            &                  elmat_up,work)
+            &                  elmat_vp,work)
 
        ! Block U-Q
        ! ( div u, q )
-       call elmbuq_gal_div_iss(dvolu,el%integ(2)%p%uint_phy%shape(:,igaus),               &
+       call elmbuq_gal_div_iss(dvolu,el%integ(ndime+1)%p%uint_phy%shape(:,igaus),               &
             &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
-            &                  elmat_pu,work)
+            &                  elmat_qu,work)
 
        ! RHS: Block U
        ! ( v, f ) + ( v, u_n/dt )
@@ -421,38 +400,6 @@ contains
 
     call memfree(gpvel%a,__FILE__,__LINE__)
     call memfree(gpveln%a,__FILE__,__LINE__)
-
-    ! Assembly to elemental p_mat and p_vec
-    do inode=1,nnodu
-       do idime=1,ndime
-          do jnode=1,nnodu
-             do jdime=1,ndime
-                ! Block V-U
-                el%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) = &
-                     & el%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) + elmat_uv(idime,jdime,inode,jnode)
-             end do    
-             ! Block V-U (diag)
-             el%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) = &
-                  & el%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) + elmuv(inode,jnode)
-          end do
-          do jnode=1,nnodp
-             ! Block V-P
-             el%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) = &
-                  & el%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) + elmat_up(idime,1,inode,jnode)
-          end do
-          ! Block U
-          el%p_vec%a(start(idime)+inode-1) = el%p_vec%a(start(idime)+inode-1) + elvec_u(idime,inode)
-       end do
-    end do
-    do inode=1,nnodp
-       do jdime=1,ndime
-          do jnode=1,nnodu
-             ! Block Q-U
-             el%p_mat%a(start(ndime+1)+inode-1,start(jdime)+jnode-1) = &
-                  & el%p_mat%a(start(ndime+1)+inode-1,start(jdime)+jnode-1) + elmat_uv(1,jdime,inode,jnode)
-          end do
-       end do
-    end do
     
   end subroutine nsi_iss_element_matvec_stdr
 
