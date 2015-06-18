@@ -29,6 +29,7 @@ program test_nsi_iss
   use fem
   use nsi_names
   use nsi_cg_iss_names
+  use lib_vtk_io_interface
   implicit none
 # include "debug.i90"
   
@@ -50,6 +51,7 @@ program test_nsi_iss
   type(fem_precond_params)        :: ppars
   type(solver_control)            :: sctrl
   type(serial_environment)        :: senv
+  type(fem_vtk)                   :: fevtk
   class(base_operand)   , pointer :: x, b
   class(base_operator)  , pointer :: A, M
 
@@ -128,9 +130,12 @@ program test_nsi_iss
        &                hierarchical_basis=logical(.false.,lg),                       &
        &                static_condensation=logical(.false.,lg),num_continuity=1)
 
+
+  ! Initialize VTK output
+  call fevtk%initialize(f_trian,fspac,myprob,dir_path_out,prefix)
+
   ! Create dof info
   call create_dof_info(dhand,f_trian,fspac,f_blk_graph,gtype)
-
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Allocate matrices and vectors
@@ -139,7 +144,7 @@ program test_nsi_iss
   call fem_vector_alloc(f_graph%nv,feunk)
   call fevec%init(0.0_rp)
 
-  ! Update boundary conditions
+  ! Apply boundary conditions to unkno
   call update_strong_dirichlet_boundary_conditions(fspac)
 
   ! Integrate
@@ -164,7 +169,8 @@ program test_nsi_iss
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)
 
-  call fem_vector_print(6,feunk)
+  ! Print solution to VTK file
+  istat = fevtk%write_VTK()
 
   ! Free preconditioner
   call fem_precond_free(precond_free_values,feprec)
@@ -177,6 +183,7 @@ program test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call memfree(which_approx,__FILE__,__LINE__)
+  call fevtk%free
   call f_blk_graph%free()
   call fem_vector_free(feunk)
   call fem_vector_free(fevec)

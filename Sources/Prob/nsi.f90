@@ -68,7 +68,7 @@ contains
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_problem), intent(inout) :: prob
-    integer(ip)       , intent(in)  :: ndime
+    integer(ip)       , intent(in)    :: ndime
     integer(ip) :: i,istat
 
     ! Fill default problem data
