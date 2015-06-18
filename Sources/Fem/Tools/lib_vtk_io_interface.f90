@@ -391,7 +391,6 @@ contains
             if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
                 var_name = f_vtk%mesh(nm)%fields(i)%var_name
             else
-                write(aux_str,*)i
                 var_name = 'Unknown_'//trim(adjustl(ch(i)))
             endif
             E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
