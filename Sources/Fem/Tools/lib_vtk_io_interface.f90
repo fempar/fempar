@@ -88,9 +88,11 @@ module lib_vtk_io_interface
         procedure          :: free                    ! Deallocate
         procedure          :: write_VTK               ! Write a VTU file
         procedure          :: write_PVTK              ! Write a PVTU file
+        procedure          :: write_PVD               ! Write a PVD file
         procedure, private :: fill_mesh_from_triangulation
         procedure, private :: fill_fields_from_physical_problem
-        procedure, private :: get_time_output_path
+        procedure, private :: get_VTK_time_output_path
+        procedure, private :: get_PVD_time_output_path
         procedure, private :: get_vtk_filename
         procedure, private :: get_pvtk_filename
         procedure, private :: set_num_steps
@@ -103,6 +105,7 @@ module lib_vtk_io_interface
   character(len=5) :: part_prefix = 'part_'
   character(len=5) :: time_prefix = 'time_'
   character(len=4) :: vtk_ext = '.vtu'
+  character(len=4) :: pvd_ext = '.pvd'
   character(len=5) :: pvtk_ext = '.pvtu'
 
   integer(ip) :: ftype_conn(max_FE_types,max_nobje) ! Face connectivities for P and Q P1 elements
@@ -128,8 +131,6 @@ contains
     integer(ip), optional,   intent(OUT)   :: nmesh
     integer(ip)                            :: nm
   ! ----------------------------------------------------------------------------------
-    print*, dir_path
-    print*, prefix
 
     ! Face connectivities for P and Q P1 elements
     ftype_conn(:,:) = 0_ip
@@ -291,10 +292,9 @@ contains
     ts = f_vtk%num_steps
     if(present(t_step)) ts = t_step 
 
-    dp = f_vtk%get_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+    dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
     fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
     fn = dp//fn
-
     if(present(f_name)) fn = f_name
 
     ok = mkdir_recursive(dp//C_NULL_CHAR)
@@ -372,7 +372,7 @@ contains
     if(present(t_step)) ts = t_step 
 
 
-    dp = f_vtk%get_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+    dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
     fn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
     fn = dp//fn
     if(present(f_name)) fn = f_name
@@ -395,7 +395,7 @@ contains
             endif
             E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
         endif
-        E_IO = VTK_DAT_XML(var_location = trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)), var_block_action = 'CLOSE')
+        E_IO = PVTK_DAT_XML(var_location = trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)), var_block_action = 'CLOSE')
     enddo
     E_IO = PVTK_END_XML()
 
@@ -403,8 +403,42 @@ contains
   end function write_PVTK
 
 
-  ! Build time output dir path 
-  function get_time_output_path(f_vtk, f_path, t_step, n_mesh) result(dp)
+  ! Write the PVD file referencing several PVTK files in a timeline
+  function write_PVD(f_vtk, f_name, n_mesh) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(fem_vtk),             intent(INOUT) :: f_vtk
+    character(len=*), optional, intent(IN)    :: f_name
+    integer(ip),      optional, intent(IN)    :: n_mesh
+    integer(ip)                               :: nm, rf
+    character(len=:),allocatable              :: var_name
+    character(len=:),allocatable              :: pvdfn, pvtkfn ,dp
+    integer(ip)                               :: i, fid, nnods, nels, ts, E_IO
+  ! ----------------------------------------------------------------------------------
+
+    nm = f_vtk%num_meshes
+    if(present(n_mesh)) nm = n_mesh
+
+    pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//pvd_ext
+    if(present(f_name)) pvdfn = f_name
+
+
+    E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
+    do ts=1, f_vtk%num_steps
+      dp = f_vtk%get_PVD_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts)
+      pvtkfn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
+      pvtkfn = dp//pvtkfn
+      E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtkfn)),timestep=ts, cf=rf)
+    enddo
+    E_IO = PVD_END_XML(cf=rf)
+
+  ! ----------------------------------------------------------------------------------
+  end function write_PVD
+
+
+
+  ! Build time output dir path for the vtk files in each timestep
+  function get_VTK_time_output_path(f_vtk, f_path, t_step, n_mesh) result(dp)
   ! ----------------------------------------------------------------------------------
     implicit none
     class(fem_vtk),             intent(INOUT) :: f_vtk
@@ -427,7 +461,27 @@ contains
 
     dp = trim(adjustl(fp))//'/'//time_prefix//trim(adjustl(ch(ts)))//'/'
 
-  end function get_time_output_path
+  end function get_VTK_time_output_path
+
+
+  ! Build time output dir path for the vtk files in each timestep
+  function get_PVD_time_output_path(f_vtk, f_path, t_step) result(dp)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(fem_vtk),             intent(INOUT) :: f_vtk
+    character(len=*), optional, intent(IN)    :: f_path
+    integer(ip),      optional, intent(IN)    :: t_step
+    character(len=:), allocatable             :: dp
+    character(len=:), allocatable             :: fp
+    integer(ip)                               :: ts
+  ! ----------------------------------------------------------------------------------
+
+    ts = f_vtk%num_steps
+    if(present(t_step)) ts = t_step 
+
+    dp = time_prefix//trim(adjustl(ch(ts)))//'/'
+
+  end function get_PVD_time_output_path
 
 
   ! Build VTK filename
