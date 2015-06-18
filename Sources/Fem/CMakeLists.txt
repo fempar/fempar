@@ -2,7 +2,7 @@
 # Search F90 files recursively in all subdirs
 #################################################################
 
-FILE(GLOB_RECURSE FEM_SRC *.f90 *.F90)
+FILE(GLOB_RECURSE FEM_SRC *.f90 *.F90 *.c)
 SET(FEM_SRC ${FEM_SRC} PARENT_SCOPE)
 
 #################################################################

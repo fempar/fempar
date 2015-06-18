@@ -1,0 +1,28 @@
+
+#include <sys/stat.h>
+#include <string.h>
+#include <stdlib.h>
+#include <libgen.h>
+#include <stdbool.h>
+
+bool mkdir_recursive(char *path)
+{
+    char *subpath, *fullpath;
+    mode_t mode = 0775;
+    bool ok = 1;
+    struct stat fileStat;
+
+    fullpath = strdup(path);
+    subpath = dirname(path);
+    if (strlen(subpath) > 1)
+        ok = mkdir_recursive(subpath);
+
+    if(stat(fullpath,&fileStat) < 0)
+        if (mkdir(fullpath, mode) < 0)
+          ok = 0;
+
+    free(fullpath);
+    return ok;
+}
+
+
