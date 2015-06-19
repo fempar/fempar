@@ -571,16 +571,12 @@ contains
     eni = cnt(2)-1
 
     ! Boundary nodes/elements
-    write(*,*) cnt(2)
     call face_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,surf,npnumg,npnumt,nenum,coord, &
          &         cnt,bound)
-    write(*,*) cnt(2)
     call edge_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,line,surf,npnumg,npnumt,nenum,  &
          &         coord,cnt,bound,nodes)
-    write(*,*) cnt(2)
     call corn_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,poin,line,surf,npnumg,npnumt,   &
          &         nenum,coord,cnt,bound,nodes)
-    write(*,*) cnt(2)
     !pnb = cnt(3) - pni - 1
     pnb = cnt(1) - pni - 1
     enb = cnt(2) - eni - 1
