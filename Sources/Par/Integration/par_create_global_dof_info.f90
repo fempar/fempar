@@ -30,11 +30,13 @@ module par_create_global_dof_info_names
   ! Fem Modules
   use types
   use memor
+  use sort_names
   use dof_handler_names
   use fem_triangulation_names
   use fem_graph_names
   use create_global_dof_info_names
   use fem_space_names
+  use hash_table_names
 
   use fem_element_names
 
@@ -60,12 +62,12 @@ contains
   ! dofs in ghost elements on interface faces coupled via interface discontinuous
   ! Galerkin terms are also included. Next, object2dof and the dof_graph are generated
   ! using the same serial functions. Finally, the gluing info for dofs is generated,
-  ! based on vefs objects, the parallel triangulation info, and the ghost element info,
+  ! based on VEFs objects, the parallel triangulation info, and the ghost element info,
   ! relying on the fact that, with this info, we know how to put together interior and
   ! ghost elements, and so, number the dofs in a conforming way.
   !*********************************************************************************
   subroutine par_create_distributed_dof_info ( dhand, p_trian, p_femsp, &
-                                               blk_dof_dist, p_blk_graph, gtype ) 
+       blk_dof_dist, p_blk_graph, gtype ) 
     implicit none
     ! Paramters
     type(dof_handler)                  , intent(in)     :: dhand
@@ -100,18 +102,18 @@ contains
     ! Fill par_block_graph
     if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
        do iblock = 1, dhand%nblocks
-         do jblock = 1, dhand%nblocks
-            p_graph => p_blk_graph%get_block(iblock,jblock)
-            if ( iblock == jblock .and. present(gtype) ) then
-               call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, & 
-                                             p_femsp%f_space, p_graph%f_graph, gtype(iblock) )
-            else
-               call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, &
-                                             p_femsp%f_space, p_graph%f_graph )
-            end if
-         end do
+          do jblock = 1, dhand%nblocks
+             p_graph => p_blk_graph%get_block(iblock,jblock)
+             if ( iblock == jblock .and. present(gtype) ) then
+                call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, & 
+                     p_femsp%f_space, p_graph%f_graph, gtype(iblock) )
+             else
+                call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, &
+                     p_femsp%f_space, p_graph%f_graph )
+             end if
+          end do
        end do
-    end if       
+    end if
   end subroutine par_create_distributed_dof_info
 
   !*********************************************************************************
@@ -172,6 +174,41 @@ contains
   end subroutine ghost_dofs_by_integration
 
   !*********************************************************************************
+  ! Auxiliary function that says if key is in list
+  !*********************************************************************************
+  logical(lg) function is_object_in_element(key,list,size)
+    implicit none
+    integer(ip) :: key, size, list(size), i
+
+    is_object_in_element = .false.
+    do i = 1,size
+       if ( list(i) == key)  then
+          is_object_in_element = .true.
+          exit
+       end if
+    end do
+
+  end function is_object_in_element
+
+  !*********************************************************************************
+  ! Auxiliary function that says if key is in list
+  !*********************************************************************************
+  logical(lg) function is_object_touched(key,list,size)
+    implicit none
+    integer(ip) :: key, size, list(size), i
+
+    is_object_touched = .false.
+    do i = 1,size
+       if ( list(i) == key)  then
+          is_object_touched = .true.
+          exit
+       end if
+    end do
+
+  end function is_object_touched
+
+
+  !*********************************************************************************
   ! Auxiliary function that returns the position of key in list
   !*********************************************************************************
   integer(ip) function local_position(key,list,size)
@@ -186,138 +223,4 @@ contains
   end function local_position
 
 
-  subroutine new_ghost_discontinuous_Galerkin_dofs( dhand, p_trian, femsp )
-    implicit none
-    type(par_triangulation), intent(in)       :: p_trian
-    type(dof_handler), intent(in)             :: dhand
-    type(fem_space), intent(inout)            :: femsp
-
-    integer(ip) :: iobje, i, ielem, l_faci, iprob, nvapb, ivars, l_var, g_var, inode, l_node, count
-    integer(ip) :: iblock, lobje
-    integer(ip) :: ghost_elem, ghost_object, jobje, kelem, local_elem, mater, obje_l
-    logical(lg) :: is_local
-
-    do iblock = 1, dhand%nblocks
-
-       count = femsp%ndofs(iblock)
-    
-
-       do iobje = 1, p_trian%num_itfc_objs 
-          lobje = p_trian%lst_itfc_objs(iobje)
-          assert ( p_trian%objects(lobje)%interface /= -1 )
-          if ( p_trian%f_trian%objects(lobje)%dimension == p_trian%f_trian%num_dims -1 ) then 
-             assert ( p_trian%f_trian%objects(lobje)%num_elems_around == 2 )
-             do i=1,2
-                if ( ielem > p_trian%f_trian%num_elems ) exit
-             end do
-             ghost_elem = p_trian%f_trian%objects(lobje)%elems_around(i) 
-             local_elem = p_trian%f_trian%objects(lobje)%elems_around(3-i)              
-             assert ( i < 3 )          
-             l_faci = local_position(lobje,p_trian%f_trian%elems(ghost_elem)%objects, &
-                  & p_trian%f_trian%elems(ghost_elem)%num_objects )
-             iprob = femsp%lelem(ghost_elem)%problem
-             nvapb = dhand%prob_block(iblock,iprob)%nd1 
-             do ivars = 1, nvapb
-                l_var = dhand%prob_block(iblock,iprob)%a(ivars)
-                g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                mater = femsp%lelem(ghost_elem)%continuity(g_var) 
-                if ( mater == 0 ) then
-                   do inode = femsp%lelem(ghost_elem)%f_inf(l_var)%p%ntxob%p(l_faci), &
-                        & femsp%lelem(ghost_elem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
-                      l_node = femsp%lelem(ghost_elem)%f_inf(l_var)%p%ntxob%l(inode)
-                      !write(*,*) 'ghost_elem,l_node,l_var',ghost_elem,l_node,l_var,femsp%lelem(ghost_elem)%elem2dof
-                      ! assert ( femsp%lelem(ghost_elem)%elem2dof(l_node,l_var) == 0  )
-                      if ( femsp%lelem(ghost_elem)%elem2dof(l_node,l_var) == 0 ) then
-                         count = count + 1
-                         femsp%lelem(ghost_elem)%elem2dof(l_node,l_var) = count
-                      end if
-                   end do
-                else
-
-                   ! DO NOT DELETE THIS PART, IT DOES NOT COMPILE BUT IT IS ALMOST FINISHED, NEEDED FOR CDG AND WEIRD THINGS (SB.alert)
-
-                   ! do jobje = 1, p_trian%f_trian%elems(ghost_elem)%num_objects
-                   !    ghost_object = p_trian%f_trian%elems(ghost_elem)%objects(jobje)
-                   !    if ( ghost_object > 0 ) then
-                   !       obje_l = local_position( jobje, p_trian%f_trian%elems(ghost_elem)%objects, &
-                   !            &                   p_trian%f_trian%elems(ghost_elem)%num_objects )                      
-                   !       inode = femsp%lelem(ghost_elem)%nodes_object(l_var)%p%p(obje_l)
-                   !       l_node = femsp%lelem(ghost_elem)%nodes_object(l_var)%p%l(inode)
-                   !       ! is this object already touched
-                   !       if ( femsp%lelem(ghost_elem)%elem2dof(l_node,l_var) == 0 ) then
-                   !          ! if not touched is_object_on_face(local_elem)
-                   !          is_local = is_object_in_element( ghost_object, &
-                   !               p_trian%f_trian%elems(local_elem)%objects, &
-                   !               p_trian%f_trian%elems(local_elem)%num_objects )
-                   !          if ( is_local ) then
-                   !             ! object not touched and on face
-                   !             !PUT NEW VEFS ON OBJECT
-                   !             !call put_new_vefs_dofs_in_vef_of_element_2 ( dhand, p_trian%f_trian, femsp, g_var, &
-                   !             ! &  ghost_object, l_var, count, obje_l )
-                   !             do kelem = 1, p_trian%f_trian%objects(lobje)%num_elems_around
-                   !                if ( femsp%lelem(kelem)%continuity(g_var) == mater) then
-                   !                   ! element with same material 
-                   !                   assert (kelem > p_trian%f_trian%num_elems )
-                   !                   ! must be ghost     
-                   !                   obje_l = local_position( jobje, p_trian%f_trian%elems(kelem)%objects, &
-                   !                        &                   p_trian%f_trian%elems(kelem)%num_objects )   
-                   !                   inode = femsp%lelem(kelem)%nodes_object(l_var)%p%p(obje_l)
-                   !                   l_node = femsp%lelem(kelem)%nodes_object(l_var)%p%l(inode)
-                   !                   assert(femsp%lelem(kelem)%elem2dof(l_node,l_var) == 0)
-                   !                   ! cannot be previously touched
-                   !                   !call put_existing_vefs_dofs_in_vef_of_element ( dhand, p_trian%f_trian, femsp, touch, mater, g_var, iobje, &
-                   !                   !     &                                          jelem, l_var, o2n, obje_l )
-                   !                end if
-                   !             end do
-                   !          end if
-                   !       end if
-                   !    end if
-                   ! end do
-
-                end if
-             end do
-          end if
-       end do
-    end do
-
-
-  end subroutine new_ghost_discontinuous_Galerkin_dofs
-
-
-
-    !*********************************************************************************
-    ! Auxiliary function that says if key is in list
-    !*********************************************************************************
-    logical(lg) function is_object_in_element(key,list,size)
-      implicit none
-      integer(ip) :: key, size, list(size), i
-
-      is_object_in_element = .false.
-      do i = 1,size
-         if ( list(i) == key)  then
-            is_object_in_element = .true.
-            exit
-         end if
-      end do
-
-    end function is_object_in_element
-
-    !*********************************************************************************
-    ! Auxiliary function that says if key is in list
-    !*********************************************************************************
-    logical(lg) function is_object_touched(key,list,size)
-      implicit none
-      integer(ip) :: key, size, list(size), i
-
-      is_object_touched = .false.
-      do i = 1,size
-         if ( list(i) == key)  then
-            is_object_touched = .true.
-            exit
-         end if
-      end do
-
-    end function is_object_touched
-
-
-  end module par_create_global_dof_info_names
+end module par_create_global_dof_info_names

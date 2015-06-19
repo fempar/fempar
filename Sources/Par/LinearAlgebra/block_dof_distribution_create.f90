@@ -122,7 +122,7 @@ contains
 
        assert ( associated(p_trian%p_env) )
        assert ( p_trian%p_env%created )
-       
+
        ipart  = p_trian%p_env%p_context%iam + 1
        nparts = p_trian%p_env%p_context%np
 
@@ -180,21 +180,17 @@ contains
           count_interior = 0
           count_object_dof = 0
 
-          ! List the DOFs that are for sure on the interior. Sum of DOFs on interior objects and 
-          ! interior nodes of elements that are not dG + all DOFs of interior dG elements
+          ! See description of the subroutine 
           call list_interior_dofs ( iblock, p_trian, p_femsp%f_space, p_femsp%f_space%dof_handler, count_interior, dofs_object )
 
           call ws_parts_visited_all%init(tbl_length)
 
-          ! List DOFs on the interface among processors and put the DOFs on interface objects that 
-          ! are not interface DOFs (e.g., because they belong to an unknown not in the ghost elements)
-          ! in the list of interior DOFs
-
+          ! See description of the subroutine 
           call list_interface_dofs_by_continuity ( iblock, p_trian, p_femsp%f_space, p_femsp%f_space%dof_handler, count_object_dof, &
                & count_interior, dofs_object, dofs_object_ext, est_max_nparts, touch, ws_parts_visited_all, &
                &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
 
-          ! List DOFs on the interface due to interface dG elements, both local and ghost. 
+          ! See description of the subroutine  
           call list_interface_dofs_by_face_integration ( iblock, p_trian, p_femsp%f_space, p_femsp%f_space%dof_handler, &
                count_object_dof, count_interior, dofs_object, dofs_object_ext, est_max_nparts, ws_parts_visited_all, &
                &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
@@ -370,28 +366,6 @@ contains
     end if
 
   end subroutine block_dof_distribution_create
-
-  integer(ip) function local_node( g_dof, iobj, elem, l_var, nobje, objects )
-    implicit none
-    integer(ip) :: g_dof, iobj, l_node, l_var, nobje, objects(:)
-    type(fem_element) :: elem
-
-    integer(ip) :: inode, obje_l
-
-    do obje_l = 1, nobje
-       if ( objects(obje_l) == iobj ) exit
-    end do
-
-    do inode = elem%nodes_object(l_var)%p%p(obje_l), &
-         &     elem%nodes_object(l_var)%p%p(obje_l+1)-1  
-       l_node = elem%nodes_object(l_var)%p%l(inode)
-       if ( elem%elem2dof(l_node,l_var) == g_dof ) then
-          local_node = inode - elem%nodes_object(l_var)%p%p(obje_l) + 1
-          exit
-       end if
-    end do
-
-  end function local_node
 
   subroutine create_int_objs ( ipart      , &
        npadj      , &
@@ -880,7 +854,12 @@ contains
 
   end subroutine create_omap
 
-
+  !*********************************************************************************
+  ! This subroutine lists the DOFs that are for sure on the interior. Sum of DOFs on 
+  ! interior objects and interior nodes of elements that are not dG + all DOFs of interior 
+  ! dG elements. In a next stage, additional interior DOFs can be identified in 
+  ! *list_interface_dofs_by_continuity* and *list_interface_dofs_by_face_integration*
+  !*********************************************************************************
   subroutine list_interior_dofs ( iblock, p_trian, femsp, dhand, count_interior, dofs_object )
     implicit none
     ! Parameters
@@ -901,7 +880,6 @@ contains
           end do
        end if
     end do
-
 
     ! Here we put as interior DOFs of the subdomain all interior DOFs of cG elements and 
     ! all DOFs of dG elements not on the interface
@@ -928,6 +906,11 @@ contains
 
   end subroutine list_interior_dofs
 
+  !*********************************************************************************
+  ! List DOFs on the interface among processors and put the DOFs on interface objects that 
+  ! are not interface DOFs (e.g., because they belong to an unknown not in the ghost elements)
+  ! in the list of interior DOFs
+  !*********************************************************************************
   subroutine list_interface_dofs_by_continuity ( iblock, p_trian, femsp, dhand, count_object_dof, &
        & count_interior, dofs_object_interior, dofs_object_interface, est_max_nparts, touch, ws_parts_visited_all, &
        &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
@@ -1039,7 +1022,9 @@ contains
 
   end subroutine list_interface_dofs_by_continuity
 
-
+  !*********************************************************************************
+  ! List DOFs on the interface due to interface dG elements, both local and ghost. 
+  !*********************************************************************************
   subroutine list_interface_dofs_by_face_integration ( iblock, p_trian, femsp, dhand, count_obj_dof, &
        & count_interior, dofs_object_interior, dofs_object_interface, est_max_nparts, &
        & ws_parts_visited_all, ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
@@ -1159,249 +1144,44 @@ contains
 
   end subroutine list_interface_dofs_by_face_integration
 
-  ! SOME deprecated alg's that I want to leave here till dG will work in parallel... who knows, we will probably
-  ! need to re-implement things
+  !*********************************************************************************
+  ! Auxiliary function that returns the position of key in list
+  !*********************************************************************************
+  integer(ip) function local_position(key,list,size)
+    implicit none
+    integer(ip) :: key, size, list(size)
 
-    ! ! Additional interface DOFs due to ghost dG elements
-    ! do ielem = p_trian%num_elems+1, p_trian%num_elems+p_trian%num_ghosts
-    !    aux(1) = ipart
-    !    !write (*,*) 'ghost element', ielem
-    !    !write (*,*) 'femsp%lelem(ielem)%elem2dof', femsp%lelem(ielem)%elem2dof
-    !    aux(2) = p_trian%elems(ielem)%mypart
-    !    aux = sort(aux)
-    !    iprob = femsp%lelem(ielem)%problem  
-    !    do ivars = 1, dhand%prob_block(iblock,iprob)%nd1
-    !       l_var = dhand%prob_block(iblock,iprob)%a(ivars) 
-    !       g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-    !       !write (*,*) 'ivars', ivars
-    !       if ( femsp%lelem(ielem)%continuity(g_var) == 0 ) then ! dG ghost element on the interface
+    do local_position = 1,size
+       if ( list(local_position) == key) exit
+    end do
+    assert ( local_position < size + 1 )
 
+  end function local_position
 
-    !          do obje_l = p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims), &
-    !               &      p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims+1)-1
-    !             iobje = p_trian%f_trian%elems(ielem)%objects(obje_l)
-    !             ! iobje is a face by construction
-    !             if ( iobje /= -1 ) then
-    !                assert ( p_trian%f_trian%objects(iobje)%dimension == p_trian%f_trian%num_dims - 1 )
-    !                assert ( p_trian%objects(iobje)%interface /= -1 )
-    !                do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l), &
-    !                     & femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l+1)-1
-    !                   l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-    !                   if ( femsp%lelem(ielem)%elem2dof(l_node,l_var) /= 0 ) then
-    !                      if ( touch(l_node) == 0 ) then
-    !                         count_object_dof = count_object_dof + 1
-    !                         touch(l_node) = count_object_dof
-    !                         dofs_object_interface(count_object_dof) = femsp%lelem(ielem)%elem2dof(inode,l_var)
-    !                         nparts_around = 2
-    !                         lst_parts_per_dof_obj (1,count_object_dof) = g_var ! Variable
-    !                         lst_parts_per_dof_obj (2,count_object_dof) = 2 ! Number parts 
-    !                         lst_parts_per_dof_obj (3:4,count_object_dof) = aux ! List parts
-    !                         lst_parts_per_dof_obj (5:est_max_nparts+2,count_object_dof) = 0 ! Zero the rest of entries in current col except last
-    !                         ! Cuidado: HABLA CON ALBERTO
+  !*********************************************************************************
+  ! Auxiliary function that finds the local position of a node in an element
+  ! associated to a given DOF number
+  !*********************************************************************************
+  integer(ip) function local_node( g_dof, iobj, elem, l_var, nobje, objects )
+    implicit none
+    integer(ip) :: g_dof, iobj, l_node, l_var, nobje, objects(:)
+    type(fem_element) :: elem
 
-    !                         ESTA PARTE ESTA MAL, NO ESTA A FUEGO EL 2
+    integer(ip) :: inode, obje_l
 
-    !                         lst_parts_per_dof_obj (est_max_nparts+3,count) = p_trian%objects(iobje)%globalID
-    !                         lst_parts_per_dof_obj (est_max_nparts+3,count) = p_trian%elems(ielem)%globalID
-    !                         lst_parts_per_dof_obj (est_max_nparts+4,count) = inode
+    do obje_l = 1, nobje
+       if ( objects(obje_l) == iobj ) exit
+    end do
 
-    !                      end if
-    !                   end do
-    !                end if
-    !             end do
-    !          end do
-    !       end if
-    !    end do
-    ! end do
+    do inode = elem%nodes_object(l_var)%p%p(obje_l), &
+         &     elem%nodes_object(l_var)%p%p(obje_l+1)-1  
+       l_node = elem%nodes_object(l_var)%p%l(inode)
+       if ( elem%elem2dof(l_node,l_var) == g_dof ) then
+          local_node = inode - elem%nodes_object(l_var)%p%p(obje_l) + 1
+          exit
+       end if
+    end do
 
-    ! ! Additional interface DOFs due to local dG elements
-    ! do i = 1, p_trian%num_itfc_elems
-
-    !    ielem = p_trian%lst_itfc_elems(i)          
-    !    assert ( ielem <= p_trian%num_elems )
-    !    iprob = femsp%lelem(ielem)%problem 
-    !    aux(1) = ipart
-    !
-    !    femsp%lelem(ielem)%p_vec%a = 0.0_rp ! Used as touch array
-
-    !    do ivars = 1, dhand%prob_block(iblock,iprob)%nd1
-    !       l_var = dhand%prob_block(iblock,iprob)%a(ivars) 
-    !       g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-    !       if ( femsp%lelem(ielem)%continuity(g_var) == 0 ) then ! dG local element on the interface
-    !          ! Identify and put interface DOFs
-
-    !          touch ( nnode ) = 0
-
-
-    !          do obje_l = p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims), &
-    !               &      p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims+1)-1
-    !             iobje = p_trian%f_trian%elems(ielem)%objects(obje_l)
-    !             ! iobje is a face by construction
-    !             assert ( p_trian%f_trian%objects(iobje)%dimension == p_trian%f_trian%num_dims - 1 )
-    !             if ( p_trian%objects(iobje)%interface /= -1 ) then
-    !                ! if face on the interface
-    !                !do object in face
-
-    !                !end do
-    !                aux(1) = ipart
-    !                assert ( p_trian%f_trian%objects(iobje)%num_elems_around == 2 )
-    !                do j = 1,2
-    !                   jelem = p_trian%f_trian%objects(iobje)%elems_around(j)
-    !                   if ( jelem /= ielem ) aux(2) = p_trian%elems(jelem)%mypart
-    !                   !aux = sort( aux )
-    !                end do
-    !                assert ( aux(1) /= aux(2) )
-    !                if ( aux(2) /= ipart ) then
-    !                   !call ws_parts_visited_all%put(key=p_trian%elems(ielem)%mypart,val=1,stat=istat)
-    !                   write (*,*) 'p_trian%elems(ielem)%mypart', p_trian%elems(ielem)%mypart
-    !                   call ws_parts_visited_all%put(key=aux(2),val=1,stat=istat)
-    !                   write (*,*) 'istat',istat
-    !                   if ( istat == now_stored ) then
-    !                      npadj = npadj + 1
-    !                      ws_parts_visited_list_all(npadj) = aux(2)
-    !                   end if
-    !                end if
-    !                do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l), &
-    !                     & femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l+1)-1
-    !                   l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-
-    !                   istat = now_stored
-
-    !                   if ( touch(l_node) == 0 ) then
-    !                      count_object_dof = count_object_dof + 1
-    !                      dofs_object_interface(count_object_dof) = femsp%lelem(ielem)%elem2dof(l_node,l_var)
-    !                      touch( l_node ) = count_object_dof
-    !                      lst_parts_per_dof_obj (1,count_object_dof) = g_var ! Variable
-    !                      lst_parts_per_dof_obj (2,count_object_dof) = 2 ! Number parts  
-    !                      lst_parts_per_dof_obj (3,count_object_dof) = aux(1) ! Put new part
-    !                      lst_parts_per_dof_obj (4,count_object_dof) = aux(2) ! Put new part
-
-    !                      ! Cuidado: HABLA CON ALBERTO
-
-    !                      lst_parts_per_dof_obj (est_max_nparts+3,count) = p_trian%objects(iobje)%globalID
-    !                      lst_parts_per_dof_obj (est_max_nparts+4,count) = l_node
-    !                   end if
-
-
-    !                   do k = 3, lst_parts_per_dof_obj (2,touch(l_node))+2
-    !                      if ( aux(2) == lst_parts_per_dof_obj(k,touch(l_node)) ) then
-    !                         istat = was_stored
-    !                         exit
-    !                      end if
-    !                   end do
-    !                   if ( istat == now_stored ) then
-    !                      lst_parts_per_dof_obj (2,touch(l_node)) = lst_parts_per_dof_obj (2,touch(l_node)) + 1
-    !                      lst_parts_per_dof_obj (lst_parts_per_dof_obj (2,touch(l_node))+2,touch(l_node)) = aux(2)
-    !                   end if
-    !                end do
-    !             end if
-    !          end do
-
-    !          do l_node = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-    !             if ( touch(l_node) /= 0 ) then
-
-
-    !                lst_parts_per_dof_obj (lst_parts_per_dof_obj(2,touch(l_node))+3:est_max_nparts+2,count_object_dof) = 0 
-    !                ! Zero the rest of entries in current col except last
-    !                call sort ( lst_parts_per_dof_obj (2,touch(l_node)), &
-    !                     lst_parts_per_dof_obj (3:lst_parts_per_dof_obj(2,touch(l_node))+2,touch(l_node)) )
-    !             end if
-    !          end do
-    !       end if
-    !    end do
-    ! end do
-
-! subroutine count_object_dof_dofs_by_face_integration ( iblock, p_trian, femsp, dhand, count_object_dof, &
-!     count_interior, dofs_object_interior, dofs_object_interface, est_max_nparts, touch, ws_parts_visited_all, &
-!     &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
-!  implicit none
-!  ! Parameters
-!  integer(ip), intent(in)                     :: iblock
-!  type(par_triangulation), intent(in)         :: p_trian 
-!  type(fem_space), intent(in)                 :: femsp
-!  type(dof_handler), intent(in)               :: dhand
-!  integer(ip), intent(inout)                  :: count_object_dof, count_interior, dofs_object_interior(:), dofs_object_interface(:)
-!  integer(ip), intent(inout)                  :: est_max_nparts, touch(:,:,:)
-!  type(hash_table_ip_ip), intent(inout)       :: ws_parts_visited_all
-!  integer(ip), intent(inout)                  :: ws_parts_visited_list_all(:), max_nparts, npadj
-
-!  ! Local variables
-!  integer(ip) :: ielem, iprob, ivars, l_var, g_var, inode, i, obje_l, iobje, l_node
-
-!  ! Additional interface DOFs due to ghost dG elements
-!  do ielem = p_trian%num_elems+1, p_trian%num_elems+p_trian%num_ghosts
-!     !write (*,*) 'ghost element', ielem
-!     !write (*,*) 'femsp%lelem(ielem)%elem2dof', femsp%lelem(ielem)%elem2dof
-!     iprob = femsp%lelem(ielem)%problem    
-!     do ivars = 1, dhand%prob_block(iblock,iprob)%nd1
-!        l_var = dhand%prob_block(iblock,iprob)%a(ivars) 
-!        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-!        !write (*,*) 'ivars', ivars
-!        if ( femsp%lelem(ielem)%continuity(g_var) == 0 ) then ! dG ghost element on the interface
-!           do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-!              if ( femsp%lelem(ielem)%elem2dof(inode,l_var) /= 0 ) then 
-!                 count_object_dof = count_object_dof + 1
-!              end if
-!           end do
-!        end if
-!     end do
-!  end do
-
-!  write (*,*) ' ESTIMATED BY DG ON GHOSTS ',count_object_dof
-
-!  ! Additional interface DOFs due to local dG elements
-!  do i = 1, p_trian%num_itfc_elems
-!     ielem = p_trian%lst_itfc_elems(i)          
-!     assert ( ielem <= p_trian%num_elems )
-!     iprob = femsp%lelem(ielem)%problem    
-!     do ivars = 1, dhand%prob_block(iblock,iprob)%nd1
-!        l_var = dhand%prob_block(iblock,iprob)%a(ivars) 
-!        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-!        if ( femsp%lelem(ielem)%continuity(g_var) == 0 ) then ! dG local element on the interface
-!           ! Identify and put interface DOFs
-!           femsp%lelem(ielem)%p_vec%a = 0.0_rp ! Used as touch array
-!           do obje_l = p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims), &
-!                &      p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims+1)-1
-!              iobje = p_trian%f_trian%elems(ielem)%objects(obje_l)
-!              assert ( p_trian%f_trian%objects(iobje)%dimension == p_trian%f_trian%num_dims - 1 )
-!              if ( p_trian%objects(iobje)%interface /= -1 ) then
-!                 do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l), &
-!                      & femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(obje_l+1)-1
-!                    l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-!                    if ( femsp%lelem(ielem)%p_vec%a(l_node) == 0.0_rp ) then
-!                       femsp%lelem(ielem)%p_vec%a(l_node) = 1.0_rp
-!                       count_object_dof = count_object_dof + 1
-!                    end if
-!                 end do
-!              end if
-!           end do
-!           ! Put interior DOFs in the corresponding list
-!           do l_node = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-!              if ( femsp%lelem(ielem)%p_vec%a(l_node) == 0.0_rp ) then
-!                 count_interior = count_interior + 1
-!                 dofs_object(count_interior) = femsp%lelem(ielem)%elem2dof(l_node,l_var) 
-!              end if
-!           end do
-!        end if
-!     end do
-!  end do
-
-!  write (*,*) ' ESTIMATED BY DG ON LOCALS ',count_object_dof
-
-! end subroutine count_object_dof_dofs_by_face_integration
-
-!*********************************************************************************
-! Auxiliary function that returns the position of key in list
-!*********************************************************************************
-integer(ip) function local_position(key,list,size)
- implicit none
- integer(ip) :: key, size, list(size)
-
- do local_position = 1,size
-    if ( list(local_position) == key) exit
- end do
- assert ( local_position < size + 1 )
-
-end function local_position
+  end function local_node
 
 end module block_dof_distribution_create_names

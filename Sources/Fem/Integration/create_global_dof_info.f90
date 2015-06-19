@@ -47,7 +47,27 @@ module create_global_dof_info_names
 
 contains
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !*********************************************************************************
+  ! This subroutine generates ALL the DOF-related work for serial runs.
+  ! 1) It generates DOF numbering and fills the elem2dof arrays (see explanation of 
+  !    the subroutine below)
+  ! 2) It generates the object2dof array ( see explanation of the subroutine below)
+  ! 3) It generates the local graph (to be extended in *par_create_global_dof_info_names*
+  !    to put additional DOFs due to face integration coupling with DOFs from ghost 
+  !    elements) ( see explanation of the subroutine below and *ghost_dofs_by_integration*
+  !    in *par_create_global_dof_info_names* for more insight)
+
+  ! NOTE: In order to understand the following subroutines, it is useful to know that 
+  ! currently, the *par_fem_space* (parallel) has a pointer to a *fem_space*, which 
+  ! has not info about the distributed environment (since it is a serial object),
+  ! but it includes the *num_elems* local elements + *num_ghosts* ghost elements.
+  ! The ghost part is filled in *par_fem_space_create*. Thus, we know if we have a
+  ! local or ghost element below checking whether *ielem* <=  *num_elems* (local)
+  ! or not. We are using this trick below in some cases, to be able to use the same
+  ! subroutines for parallel runs, and fill properly ghost info. For serial runs, 
+  ! the only thing is that *ielem* <=  *num_elems* always, so it never goes to the
+  ! ghost element part.
+  !*********************************************************************************
   subroutine create_dof_info ( dhand, trian, femsp, f_blk_graph, gtype ) ! graph
     implicit none
     ! Dummy arguments
@@ -1067,6 +1087,9 @@ contains
 
   end subroutine list_nnz_all_dofs_vs_all_dofs_by_face_integration
 
+  !*********************************************************************************
+  ! Auxiliary function that generates new DOFs and put them in a particular VEF of a given element
+  !*********************************************************************************
   subroutine put_new_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, g_var, jelem, l_var, &
        count, obje_l )
     implicit none
@@ -1090,6 +1113,9 @@ contains
 
   end subroutine put_new_vefs_dofs_in_vef_of_element
 
+  !*********************************************************************************
+  ! Auxiliary function that puts existing DOFs in a particular VEF of a given element
+  !*********************************************************************************
   subroutine put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, touch, mater, g_var, iobje, jelem, l_var, &
        o2n, obje_l )
     implicit none
