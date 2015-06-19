@@ -34,26 +34,28 @@ program test_nsi_iss
 # include "debug.i90"
   
   ! Types
-  type(geom_data)                 :: gdata
-  type(bound_data)                :: bdata
-  type(fem_fixed_info)            :: ginfo
-  type(fem_triangulation)         :: f_trian
-  type(fem_conditions)            :: f_cond
-  type(dof_handler)               :: dhand
-  type(fem_space)                 :: fspac  
-  type(nsi_problem)               :: myprob
-  type(nsi_cg_iss_data)  , target :: mydata
-  type(nsi_cg_iss_matvec), target :: matvec
-  type(discrete_problem_pointer)  :: approx(1)
-  type(fem_matrix)       , target :: femat
-  type(fem_vector)       , target :: fevec,feunk
-  type(fem_precond)               :: feprec
-  type(fem_precond_params)        :: ppars
-  type(solver_control)            :: sctrl
-  type(serial_environment)        :: senv
-  type(fem_vtk)                   :: fevtk
-  class(base_operand)   , pointer :: x, b
-  class(base_operator)  , pointer :: A, M
+  type(geom_data)                    :: gdata
+  type(bound_data)                   :: bdata
+  type(fem_fixed_info)               :: ginfo
+  type(fem_triangulation)            :: f_trian
+  type(fem_conditions)               :: f_cond
+  type(dof_handler)                  :: dhand
+  type(fem_space)                    :: fspac  
+  type(nsi_problem)                  :: myprob
+  type(nsi_cg_iss_discrete) , target :: mydisc
+  type(nsi_cg_iss_matvec)   , target :: matvec
+  type(discrete_integration_pointer) :: approx(1)
+  type(fem_matrix)          , target :: femat
+  type(fem_vector)          , target :: fevec,feunk
+  type(fem_precond)                  :: feprec
+  type(fem_precond_params)           :: ppars
+  type(solver_control)               :: sctrl
+  type(serial_environment)           :: senv
+  type(fem_vtk)                      :: fevtk
+  class(base_operand)      , pointer :: x, b
+  class(base_operator)     , pointer :: A, M
+  type(fem_graph)          , pointer :: f_graph
+  type(fem_block_graph)              :: f_blk_graph
 
   ! Logicals
   logical(lg) :: ginfo_state
@@ -69,8 +71,6 @@ program test_nsi_iss
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
   integer(ip), allocatable :: which_approx(:)
-  type(fem_graph), pointer :: f_graph
-  type(fem_block_graph)    :: f_blk_graph
 
   ! Arguments
   character(len=256) :: dir_path_out,prefix
@@ -105,11 +105,11 @@ program test_nsi_iss
 
   ! Create problem
   call myprob%create(gdata%ndime)
-  call mydata%create
-  call matvec%create(myprob,mydata)
-  call dhand%set_problem(1,matvec)
+  call mydisc%create(myprob)
+  call matvec%create(myprob,mydisc)
+  call dhand%set_problem(1,mydisc)
   approx(1)%p     => matvec
-  mydata%dtinv    = 0.0_rp
+  mydisc%dtinv    = 0.0_rp
   myprob%kfl_conv = 1
   myprob%diffu    = 1.0_rp
 
@@ -125,11 +125,9 @@ program test_nsi_iss
   which_approx           = 1 
   
   ! Create fem_space
-  call fem_space_create(f_trian,dhand,fspac,problem,num_approximations,approx,f_cond, &
-       &                continuity,order,material,which_approx,time_steps_to_store=3, &
-       &                hierarchical_basis=logical(.false.,lg),                       &
+  call fem_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
+       &                time_steps_to_store=3, hierarchical_basis=logical(.false.,lg),             &
        &                static_condensation=logical(.false.,lg),num_continuity=1)
-
 
   ! Initialize VTK output
   call fevtk%initialize(f_trian,fspac,myprob,dir_path_out,prefix)
@@ -190,6 +188,7 @@ program test_nsi_iss
   call fem_matrix_free(femat) 
   call fem_space_free(fspac) 
   call myprob%free
+  call mydisc%free
   call matvec%free
   call dof_handler_free(dhand)
   call fem_triangulation_free(f_trian)

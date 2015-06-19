@@ -49,10 +49,10 @@ contains
   subroutine volume_integral(approx,femsp,res1,res2)
     implicit none
     ! Parameters
-    type(fem_space)  , intent(inout) :: femsp
-    class(integrable), intent(inout) :: res1
+    type(fem_space)            , intent(inout) :: femsp
+    class(integrable)          , intent(inout) :: res1
     class(integrable), optional, intent(inout) :: res2
-    type(discrete_problem_pointer)   :: approx(:)
+    type(discrete_integration_pointer)         :: approx(:)
 
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation

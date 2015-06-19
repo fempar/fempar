@@ -63,11 +63,6 @@ module fem_space_names
      type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler)        , pointer :: dof_handler
 
-
-     ! Formulations used to build the space
-     integer(ip) :: num_approximations
-     type(discrete_problem_pointer), allocatable :: approximations(:)
-
      ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
      type(position_hash_table)          :: pos_elmatvec
      type(array_rp2)                    :: lelmat(max_global_interpolations)
@@ -108,16 +103,14 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_create( g_trian, dofh, fspac, problem, num_approximations, approximations, bcond, & 
-                               continuity, order, material, which_approx, time_steps_to_store, & 
-                               hierarchical_basis, static_condensation, num_continuity, num_ghosts )
+  subroutine fem_space_create( g_trian, dofh, fspac, problem, bcond, continuity, order, material, & 
+                               which_approx, time_steps_to_store, hierarchical_basis,  & 
+                               static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fem_triangulation), target, intent(in)    :: g_trian   
     type(dof_handler)      , target, intent(in)    :: dofh
     type(fem_space)        , target, intent(inout) :: fspac
     integer(ip)                    , intent(in)    :: problem(:)
-    integer(ip)                    , intent(in)    :: num_approximations
-    type(discrete_problem_pointer) , intent(in)    :: approximations(num_approximations)
     type(fem_conditions)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
@@ -131,16 +124,14 @@ contains
 
     integer(ip) :: istat, num_ghosts_
 
-    call fem_space_allocate_structures(  g_trian, dofh, fspac, num_approximations=num_approximations,&
-         time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
-         static_condensation = static_condensation, num_continuity = num_continuity, &
-         num_ghosts = num_ghosts )  
+    call fem_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store = time_steps_to_store,&
+         hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
+          num_continuity = num_continuity, num_ghosts = num_ghosts )  
 
 !!$   AFM This allocate statement fails at runtime, i.e., istat/=0. Why ????
 !!$   allocate ( fspac%approximations(num_approximations), stat=istat)
 !!$   write (*,*) 'XXX', num_approximations, istat
 !!$   check (istat == 0)    
-    fspac%approximations = approximations
 
     call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material, bcond )
 
@@ -150,14 +141,12 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, num_approximations, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity, &
-       & num_ghosts )
+  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store, &
+       & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
     type(dof_handler) , intent(in), target           :: dofh  
-    integer(ip), optional, intent(in) :: num_approximations
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
@@ -165,14 +154,6 @@ contains
     integer(ip), optional, intent(in) :: num_ghosts            
 
     integer(ip) :: istat, num_ghosts_
-
-    
-    ! Approximations flag
-    if (present(num_approximations)) then
-       fspac%num_approximations = num_approximations
-    else
-       fspac%num_approximations = 1
-    end if
 
     ! Hierarchical flag
     if (present(hierarchical_basis)) then
@@ -222,10 +203,6 @@ contains
 
     !  Initialization of pointer to dof_handler
     fspac%dof_handler => dofh
-
-    ! Allocation of discretizations
-    allocate(fspac%approximations(num_approximations),stat=istat)
-    check(istat==0)
 
     ! Allocation of elemental matrix and vector parameters
     call fspac%pos_elmatvec%init(ht_length)
@@ -583,9 +560,6 @@ contains
     check ( istat == 0 )
 
     deallocate( f%boundary_faces, stat=istat)
-    check ( istat == 0 )
-
-    deallocate(f%approximations, stat=istat)
     check ( istat == 0 )
 
   end subroutine fem_space_free

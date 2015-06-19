@@ -38,7 +38,7 @@ module cdr_stabilized_continuous_Galerkin_names
  implicit none
  private 
 
- type, extends(discrete_data) :: cdr_data
+ type, extends(discrete_problem) :: cdr_discrete
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -51,87 +51,95 @@ module cdr_stabilized_continuous_Galerkin_names
          k1tau,      & ! C1 constant on stabilization parameter 
          k2tau         ! C2 constant on stabilization parameter 
     contains
-      procedure :: create  => cdr_create_data
-   end type cdr_data
+      procedure :: create => cdr_create_discrete
+   end type cdr_discrete
 
-   type, extends(discrete_problem) :: cdr_approximation
-      type(cdr_data)   , pointer :: data
-      type(cdr_problem), pointer :: physics
+   type, extends(discrete_integration) :: cdr_approximation
+      type(cdr_discrete), pointer :: discret
+      type(cdr_problem) , pointer :: physics
     contains
-      procedure :: create  => cdr_create
+      procedure :: create  => cdr_matvec_create
       procedure :: compute => cdr_matvec
+      procedure :: free    => cdr_matvec_free
    end type cdr_approximation
 
- public :: cdr_approximation, cdr_data
+ public :: cdr_approximation, cdr_discrete
 
 contains
 
   !=================================================================================================
-  subroutine cdr_create_data(data)
+  subroutine cdr_create_discrete(discret,physics,l2g)
     !---------------------------------------------------------------------------!
     !   This subroutine contains definitions of the cdr problem approximed by   !
     !   a stabilised finite element formulation with inf-sup stable elemets.    !
     !---------------------------------------------------------------------------!
     implicit none
-    class(cdr_data), intent(out) :: data
-
-    ! Flags
-    data%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
-    data%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
-    data%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
-
-    ! Problem variables
-    data%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter
-    data%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter
-
-    ! Time integration variables
-    data%dtinv  = 1.0_rp ! Inverse of time step
-    data%ctime  = 0.0_rp ! Current time
-    data%tdimv  =  2     ! Number of temporal steps stored
-    
-  end subroutine cdr_create_data
-
-  !=================================================================================================
-  subroutine cdr_create(approx, prob, data, l2g)
-    !---------------------------------------------------------------------------!
-    !   This subroutine creates the approximation of the cdr problem with       !
-    !   a stabilised finite element formulation with inf-sup stable elemets.    !
-    !---------------------------------------------------------------------------!
-    implicit none
-    class(cdr_approximation)       , intent(out) :: approx
-    class(physical_problem), target, intent(in)  :: prob
-    class(discrete_data)   , target, intent(in)  :: data
-    integer(ip), intent(in), optional :: l2g(:)
+    class(cdr_discrete)    , intent(out) :: discret
+    class(physical_problem), intent(in)  :: physics
+    integer(ip), optional  , intent(in)  :: l2g(:)
+    ! Locals
     integer(ip) :: i
 
+    ! Flags
+    discret%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
+    discret%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
+    discret%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
 
-    select type (prob)
-    type is(cdr_problem)
-       approx%physics => prob
-    class default
-       check(.false.)
-    end select
+    ! Problem variables
+    discret%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter
+    discret%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter
 
-    select type (data)
-    type is(cdr_data)
-       approx%data    => data
-    class default
-       check(.false.)
-    end select
+    ! Time integration variables
+    discret%dtinv  = 1.0_rp ! Inverse of time step
+    discret%ctime  = 0.0_rp ! Current time
+    discret%tdimv  =  2     ! Number of temporal steps stored
 
-    approx%nvars = 1
-    call memalloc(approx%nvars,approx%l2g_var,__FILE__,__LINE__)
+    discret%nvars = 1
+    call memalloc(discret%nvars,discret%l2g_var,__FILE__,__LINE__)
     if ( present(l2g) ) then
-       assert ( size(l2g) == approx%nvars )
-       approx%l2g_var = l2g
+       assert ( size(l2g) == discret%nvars )
+       discret%l2g_var = l2g
     else
-       do i = 1,approx%nvars
-          approx%l2g_var(i) = i
+       do i = 1,discret%nvars
+          discret%l2g_var(i) = i
        end do
     end if
+    
+  end subroutine cdr_create_discrete
 
-  end subroutine cdr_create
+  !=================================================================================================
+  subroutine cdr_matvec_create( approx, physics, discret )
+    implicit none
+    class(cdr_approximation)       , intent(inout) :: approx
+    class(physical_problem), target, intent(in)    :: physics
+    class(discrete_problem), target, intent(in)    :: discret
 
+    select type (physics)
+    type is(cdr_problem)
+       approx%physics => physics
+    class default
+       check(.false.)
+    end select 
+    select type (discret)
+    type is(cdr_discrete)
+       approx%discret => discret
+    class default
+       check(.false.)
+    end select
+
+  end subroutine cdr_matvec_create
+
+  !=================================================================================================
+  subroutine cdr_matvec_free(approx)
+    implicit none
+    class(cdr_approximation)  , intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+  end subroutine cdr_matvec_free
+
+  !=================================================================================================
   subroutine cdr_matvec(approx,start,elem)
     implicit none
     class(cdr_approximation), intent(inout) :: approx
@@ -178,9 +186,9 @@ contains
 
     !mu = approx%physics%diffu
 
-    !dtinv  = approx%data%dtinv
-    !c1 = approx%data%k1tau
-    !c2 = approx%data%k1tau
+    !dtinv  = approx%discret%dtinv
+    !c1 = approx%discret%k1tau
+    !c2 = approx%discret%k1tau
 
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     !tau = inv(tau)

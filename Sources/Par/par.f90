@@ -41,6 +41,7 @@ module par
   use par_triangulation_names
   use par_mesh_triangulation
   use par_conditions_names
+  use par_gen_triangulation_names
 
   ! Linear algebra
   use par_vector_names

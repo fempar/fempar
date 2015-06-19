@@ -42,7 +42,7 @@ module nsi_cg_iss_names
  
  ! INF-SUP STABLE (iss) NAVIER-STOKES types 
  ! Problem data
- type, extends(discrete_data) :: nsi_cg_iss_data
+ type, extends(discrete_problem) :: nsi_cg_iss_discrete
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -55,8 +55,8 @@ module nsi_cg_iss_names
          k1tau,         & ! C1 constant on stabilization parameter tau_m
          k2tau            ! C2 constant on stabilization parameter tau_m
   contains
-    procedure :: create  => nsi_create_data
- end type nsi_cg_iss_data
+    procedure :: create  => nsi_create_discrete
+ end type nsi_cg_iss_discrete
     
 !!$ ! Aproximation
 !!$ type, extends(discrete_problem) :: nsi_cg_iss_approximation
@@ -67,12 +67,13 @@ module nsi_cg_iss_names
 !!$ end type nsi_cg_iss_approximation
 
  ! Matvec
- type, extends(discrete_problem) :: nsi_cg_iss_matvec
-    type(nsi_cg_iss_data), pointer :: data
-    type(nsi_problem)    , pointer :: physics
+ type, extends(discrete_integration) :: nsi_cg_iss_matvec
+      type(nsi_cg_iss_discrete), pointer :: discret
+      type(nsi_problem)        , pointer :: physics
      contains
-      procedure :: create  => nsi_create_matvec
+      procedure :: create  => nsi_matvec_create
       procedure :: compute => nsi_matvec 
+      procedure :: free    => nsi_matvec_free
  end type nsi_cg_iss_matvec
 
  ! Unkno components parameter definition
@@ -81,7 +82,7 @@ module nsi_cg_iss_names
  integer(ip), parameter :: prev_step = 3
 
  ! Types
- public :: nsi_cg_iss_matvec, nsi_cg_iss_data
+ public :: nsi_cg_iss_matvec, nsi_cg_iss_discrete
 
  ! Functions
  ! public :: nsi_iss_create, nsi_iss_free, nsi_iss_element_matvec, nsi_iss_element_real, &
@@ -92,70 +93,83 @@ module nsi_cg_iss_names
 contains
 
   !=================================================================================================
-  subroutine nsi_create_data(data)
+  subroutine nsi_create_discrete(discret,physics,l2g)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_data)         , intent(out) :: data
-
-    ! Flags
-    data%kfl_lump = 0 ! Flag for lumped mass submatrix (Off=0, On=1)
-    data%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=1)
-
-    ! Problem variables
-    data%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
-    data%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
-    data%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
-
-    ! Time integration variables
-    data%dtinv  = 1.0_rp ! Inverse of time step
-    data%ctime  = 0.0_rp ! Current time
-    data%tdimv  =  2     ! Number of temporal steps stored for velocity
-    data%tdimp  =  2     ! Number of temporal steps stored for pressure
-    
-  end subroutine nsi_create_data
-
-  !=================================================================================================
-  subroutine nsi_create_matvec(approx,prob,data,l2g)
-    !----------------------------------------------------------------------------------------------!
-    !   This subroutine creates the approximation of the stable finite element formulation with    !
-    !   inf-sup stable elemets.                                                                    !
-    !----------------------------------------------------------------------------------------------!
-    implicit none
-    class(nsi_cg_iss_matvec)       , intent(out) :: approx
-    class(physical_problem), target, intent(in)  :: prob
-    class(discrete_data)   , target, intent(in)  :: data
-    integer(ip), optional          , intent(in)  :: l2g(:)
+    class(nsi_cg_iss_discrete), intent(out) :: discret
+    class(physical_problem)   , intent(in)  :: physics
+    integer(ip), optional     , intent(in)  :: l2g(:)
+    ! Locals
     integer(ip) :: i
 
-    select type (prob)
-    type is(nsi_problem)
-       approx%physics => prob
-    class default
-       check(.false.)
-    end select
+    ! Flags
+    discret%kfl_lump = 0 ! Flag for lumped mass submatrix (Off=0, On=1)
+    discret%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=1)
 
-    select type (data)
-    type is(nsi_cg_iss_data)
-       approx%data    => data
-    class default
-       check(.false.)
-    end select
+    ! Problem variables
+    discret%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
+    discret%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
+    discret%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
 
-    approx%nvars = prob%ndime+1
-    call memalloc(approx%nvars,approx%l2g_var,__FILE__,__LINE__)
+    ! Time integration variables
+    discret%dtinv  = 1.0_rp ! Inverse of time step
+    discret%ctime  = 0.0_rp ! Current time
+    discret%tdimv  =  2     ! Number of temporal steps stored for velocity
+    discret%tdimp  =  2     ! Number of temporal steps stored for pressure
+
+    discret%nvars = physics%ndime+1
+    call memalloc(discret%nvars,discret%l2g_var,__FILE__,__LINE__)
     if ( present(l2g) ) then
-       assert ( size(l2g) == approx%nvars )
-       approx%l2g_var = l2g
+       assert ( size(l2g) == discret%nvars )
+       discret%l2g_var = l2g
     else
-       do i = 1,approx%nvars
-          approx%l2g_var(i) = i
+       do i = 1,discret%nvars
+          discret%l2g_var(i) = i
        end do
     end if
     
-  end subroutine nsi_create_matvec
+  end subroutine nsi_create_discrete
+
+  !=================================================================================================
+  subroutine nsi_matvec_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_matvec)        , intent(inout) :: approx
+    class(physical_problem), target , intent(in)   :: physics
+    class(discrete_problem), target , intent(in)   :: discret
+
+    select type (physics)
+    type is(nsi_problem)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_discrete)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
+
+  end subroutine nsi_matvec_create
+
+  !=================================================================================================
+  subroutine nsi_matvec_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_matvec), intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+  end subroutine nsi_matvec_free
 
   !=================================================================================================
   subroutine nsi_matvec(approx,start,elem)
@@ -199,7 +213,7 @@ contains
     ngaus = elem%integ(1)%p%quad%ngaus
     diffu = approx%physics%diffu
     react = approx%physics%react
-    dtinv = approx%data%dtinv
+    dtinv = approx%discret%dtinv
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_vu,__FILE__,__LINE__)
@@ -227,10 +241,10 @@ contains
     end if
 
     ! Set real time
-    if(approx%data%kfl_thet==0) then        ! BE
-       ctime = approx%data%ctime
-    elseif(approx%data%kfl_thet==1) then    ! CN
-       ctime = approx%data%ctime - 1.0_rp/dtinv
+    if(approx%discret%kfl_thet==0) then        ! BE
+       ctime = approx%discret%ctime
+    elseif(approx%discret%kfl_thet==1) then    ! CN
+       ctime = approx%discret%ctime - 1.0_rp/dtinv
     end if
     
     ! Initializations
