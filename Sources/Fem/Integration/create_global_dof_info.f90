@@ -115,7 +115,7 @@ contains
        ! Part 1: Put DOFs on VEFs, taking into account that DOFs only belong to VEFs when we do not
        ! enforce continuity (continuity(ielem) /= 0). We go through all objects, elements around the
        ! object, variables of the element, and if for the value of continuity of this element no 
-       ! dofs have already been added, we add them and touch this object for this continuity value.
+       ! DOFs have already been added, we add them and touch this object for this continuity value.
        ! In FEMPAR, continuity is an elemental value. If it is different from 0, the nodes/DOFs 
        ! geometrically on the interface belong to the interface objects (VEFs). Next, we only
        ! enforce continuity for elements with same continuity value (mater below), in order to 
@@ -130,20 +130,15 @@ contains
              jelem = trian%objects(iobje)%elems_around(ielem)
              iprob = femsp%lelem(jelem)%problem
              nvapb = dhand%prob_block(iblock,iprob)%nd1
-             if ( jelem <= trian%num_elems ) then 
+             if ( jelem <= trian%num_elems ) then ! Local elements
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    if ( femsp%lelem(jelem)%continuity(g_var) /= 0 ) then
                       mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
-                      
-
-
                       do obje_l = 1, trian%elems(jelem)%num_objects
                          if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                       end do
-
-                      !obje_l = local_position( iobje, trian%elems(jelem)%objects, trian%elems(jelem)%num_objects)
                       if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
                          if ( touch(mater,g_var,1) == 0 ) then                            
                             touch(mater,g_var,1) = jelem
@@ -157,7 +152,7 @@ contains
                       end if
                    end if
                 end do
-             else
+             else ! Ghost elements
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
@@ -166,21 +161,10 @@ contains
                       do obje_l = 1, trian%elems(jelem)%num_objects
                          if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                       end do
-                      !if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
-
-                      !write (*,*) 'INSERT DOF IN GHOST ELEMENT ELEM2DOF'
-                      !write (*,*) 'OF iobje FROM ielem VALUE ',iobje,touch(mater,g_var,1)
-                      !if ( touch(mater,g_var,1) /= 0) 
-                      !write(*,*) 'WITH ELEM2DOF(',touch(mater,g_var,1),')=', femsp%lelem(touch(mater,g_var,1))%elem2dof
-                      !write (*,*) 'INTO ghost elem',jelem
-
                       if ( touch(mater,g_var,1) /= 0) then
                          call put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, touch, mater, g_var, iobje, &
                               &                                          jelem, l_var, o2n, obje_l )
                       end if
-
-                      !write(*,*) 'RESULTING ELEM2DOF(',jelem,')=', femsp%lelem(jelem)%elem2dof
-                      !end if
                    end if
                 end do
              end if
@@ -256,7 +240,7 @@ contains
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                   mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p
+                   mater = femsp%lelem(jelem)%continuity(g_var) 
                    if ( mater /= 0 ) then
                       if ( touch(g_var,mater) == 0 ) then
                          touch(g_var,mater) = 1
@@ -264,8 +248,6 @@ contains
                             if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                          end do
                          if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
-                            !write (*,*) 'ADD TO OBJECT',iobje,' #DOFS',femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
-                            ! & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
                             femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
                                  & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
                          end if
@@ -299,7 +281,7 @@ contains
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                   mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p
+                   mater = femsp%lelem(jelem)%continuity(g_var)
                    if ( mater /= 0) then
                       if ( touch(g_var,mater) == 0 ) then
                          touch(g_var,mater) = 1
@@ -309,9 +291,6 @@ contains
                          if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
                             do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l), &
                                  &     femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
-
-                               !1, femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) - &
-                               !                        & femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
                                l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
                                count = count + 1
                                femsp%object2dof(iblock)%l(count,1) = femsp%lelem(jelem)%elem2dof(l_node,l_var)
@@ -325,8 +304,6 @@ contains
              end if
           end do
        end do
-       ! call print_list_2d(6,femsp%object2dof(iblock))
-
     end do
   end subroutine create_object2dof
 
@@ -816,8 +793,6 @@ contains
           end do
        end do
     end if
-
-
   end subroutine list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity
 
   !*********************************************************************************
@@ -832,7 +807,7 @@ contains
   ! One could think that it could happen that two elements K1 and K2 with two different 
   ! values of continuity that share a face where we want to integrate could put more than
   ! once the coupling among two nodes. It can never happen AS SOON AS one never creates
-  ! an integration face between two elements with same continuity value, which is the
+  ! an integration face between two elements with same continuity value (not 0), which is the
   ! expected usage. 
   ! *** We could put an assert about it when creating the integration list.
   !*********************************************************************************
@@ -947,7 +922,6 @@ contains
           end do
        end do
     end do
-
   end subroutine count_nnz_all_dofs_vs_all_dofs_by_face_integration
 
   !*********************************************************************************
@@ -1094,7 +1068,7 @@ contains
   end subroutine list_nnz_all_dofs_vs_all_dofs_by_face_integration
 
   subroutine put_new_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, g_var, jelem, l_var, &
-                                                   count, obje_l )
+       count, obje_l )
     implicit none
     ! Parameters
     type(dof_handler), intent(in)               :: dhand
@@ -1117,7 +1091,7 @@ contains
   end subroutine put_new_vefs_dofs_in_vef_of_element
 
   subroutine put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, touch, mater, g_var, iobje, jelem, l_var, &
-                                                        o2n, obje_l )
+       o2n, obje_l )
     implicit none
     ! Parameters
     type(dof_handler), intent(in)               :: dhand
@@ -1171,22 +1145,20 @@ contains
     end if
   end subroutine put_existing_vefs_dofs_in_vef_of_element
 
+  !*********************************************************************************
+  ! Auxiliary function that returns the position of key in list
+  !*********************************************************************************
+  integer(ip) function local_position(key,list,size)
+    implicit none
+    integer(ip) :: key, size, list(size)
 
+    do local_position = 1,size
+       if ( list(local_position) == key) exit
+    end do
+    assert ( local_position < size + 1 )
 
-    !*********************************************************************************
-    ! Auxiliary function that returns the position of key in list
-    !*********************************************************************************
-    integer(ip) function local_position(key,list,size)
-      implicit none
-      integer(ip) :: key, size, list(size)
-
-      do local_position = 1,size
-         if ( list(local_position) == key) exit
-      end do
-      assert ( local_position < size + 1 )
-
-    end function local_position
+  end function local_position
 
 
 
-  end module create_global_dof_info_names
+end module create_global_dof_info_names
