@@ -58,22 +58,12 @@ subroutine matvec_csr (nv,nv2,ia,ja,a,x,y)
   integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
   real(rp)   , intent(in)  :: a(ia(nv+1)-1),x(nv2)
   real(rp)   , intent(out) :: y(nv)
-  integer(ip)              :: iv,iz,jv,id,jd
-  integer(ip)              :: of, ivc, izc, jvc
+  integer(ip)              :: iv,iz,jv
   y = 0.0_rp
-  do iv = 1, nv, ndof1
-     do iz = ia(iv), ia(iv+1)-1, ndof2
-        of   = iz - ia(iv)
+  do iv = 1, nv
+     do iz = ia(iv), ia(iv+1)-1
         jv   = ja(iz)
-        ! write (*,*) iv, jv, of !  DBG:
-        do ivc = iv, iv + ndof1 - 1
-           jvc   = jv
-           do izc = ia(ivc)+of, ia(ivc)+of+ndof2-1
-              ! write (*,*) 'XXX', ivc, jvc, ia(ivc)+of, ia(ivc)+of+ndof2-1 ! DBG:
-              y(ivc) = y(ivc) + x(jvc)*a(izc)
-              jvc      = jvc + 1
-           end do ! izc
-        end do ! ivc
+        y(iv) = y(iv) + x(jv)*a(iz)
      end do ! iz
   end do ! iv
 end subroutine matvec_csr

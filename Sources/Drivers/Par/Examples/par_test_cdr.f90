@@ -180,6 +180,8 @@ program par_test_cdr
 
   if ( p_env%am_i_fine_task() ) then
      call volume_integral( approximations, p_fspac%f_space, p_mat%f_matrix, p_vec%f_vector)
+     !call fem_matrix_print ( 6, p_mat%f_matrix )
+     !call fem_vector_print ( 6, p_vec%f_vector )
   end if
 
   call p_unk%init(1.0_rp)
