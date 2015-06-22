@@ -166,7 +166,8 @@ program par_test_cdr
                               & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
   if ( p_env%am_i_fine_task() ) then
-     call update_strong_dirichlet_boundary_conditions( p_fspac%f_space )
+     p_cond%f_conditions%valu=1.0_rp
+     call update_strong_dirichlet_boundary_conditions( p_fspac%f_space, p_cond%f_conditions )
   end if
 
   call par_create_distributed_dof_info ( dhand, p_trian, p_fspac, blk_dof_dist, p_blk_graph, gtype )  
@@ -357,26 +358,26 @@ contains
 
   end subroutine read_pars_cl
 
-  subroutine update_strong_dirichlet_boundary_conditions( fspac )
-    implicit none
-    type(fem_space), intent(inout)    :: fspac
-    
-    integer(ip) :: ielem, iobje, ivar, inode, l_node
-
-    do ielem = 1, fspac%g_trian%num_elems
-       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-          do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
-             
-             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-                end if
-             end do
-          end do
-       end do
-    end do
-  end subroutine update_strong_dirichlet_boundary_conditions
+!!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
+!!$    implicit none
+!!$    type(fem_space), intent(inout)    :: fspac
+!!$    
+!!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
+!!$
+!!$    do ielem = 1, fspac%g_trian%num_elems
+!!$       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+!!$          do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+!!$             
+!!$             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+!!$                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+!!$                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+!!$                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+!!$                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
+!!$                end if
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    end do
+!!$  end subroutine update_strong_dirichlet_boundary_conditions
 
 end program par_test_cdr

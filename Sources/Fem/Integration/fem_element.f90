@@ -32,6 +32,7 @@ module fem_element_names
   use memor
   use array_names
   use integration_tools_names
+  use interpolation_tools_names
   !use face_integration_names
   use fem_space_types
   !use dof_handler_names
@@ -52,6 +53,7 @@ module fem_element_names
      type(fem_fixed_info), pointer :: p_geo_info => NULL()    ! Topology of the reference geometry ( idem fe w/ p=1)
      integer(ip),      allocatable :: order(:)                ! Order per variable
      type(volume_integrator_pointer), allocatable :: integ(:) ! Pointer to integration parameters
+     type(interpolator_pointer)     , allocatable :: inter(:) ! Pointer to interpolator
      ! order in f_inf, it can be eliminated
 
      ! Problem and approximation

@@ -34,6 +34,7 @@ module fem_space_names
   use hash_table_names
   use problem_names
   use integration_tools_names
+  use interpolation_tools_names
   !use face_integration_names
   use fem_space_types
   use dof_handler_names
@@ -74,6 +75,10 @@ module fem_space_names
      type(volume_integrator)            :: lvoli(max_global_interpolations)        
      type(face_integrator)              :: lfaci(max_global_interpolations)
 
+     ! Interpolator
+     type(position_hash_table)          :: pos_interpolator
+     type(array_rp2)                    :: linter(max_global_interpolations)
+
      ! Array of reference elements (to be pointed from fem_elements)
      type(position_hash_table)          :: pos_elem_info
      type(fem_fixed_info)               :: lelem_info(max_elinf)
@@ -97,7 +102,7 @@ module fem_space_names
   ! Methods
   public :: fem_space_create, fem_space_print, fem_space_free, &
        &    integration_faces_list, fem_space_allocate_structures, &
-       &    fem_space_fe_list_create 
+       &    fem_space_fe_list_create, update_strong_dirichlet_boundary_conditions
 
 contains
 
@@ -213,6 +218,9 @@ contains
 
     ! Initialization of element fixed info parameters
     call fspac%pos_elem_info%init(ht_length)
+
+    ! Initialization of interpolation array
+    call fspac%pos_interpolator%init(ht_length)
 
   end subroutine fem_space_allocate_structures
 
@@ -368,6 +376,7 @@ contains
        call memalloc( max_num_nodes, nvars, fspac%time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
+       call memalloc(nvars,fspac%lelem(ielem)%inter,__FILE__,__LINE__)
        call memalloc(nvars,fspac%lelem(ielem)%p_geo_info%nobje,fspac%lelem(ielem)%bc_code,__FILE__,__LINE__, 0)
 
        ! Fill bc_code
@@ -388,7 +397,15 @@ contains
           if ( istat == new_index ) call volume_integrator_create(f_type,f_type,dim,1,f_order,fspac%lvoli(pos_voint),     &
                &                                                  khie = fspac%hierarchical_basis, mnode=max_num_nodes)
           fspac%lelem(ielem)%integ(ivar)%p => fspac%lvoli(pos_voint)
-
+          ! Create interpolators
+          call fspac%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
+          ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
+          if ( istat == new_index ) call interpolator_create(f_type,f_type,dim,1,f_order,            &
+               &                                             fspac%lelem(ielem)%f_inf(ivar)%p%nnode, &
+               &                                             fspac%lelem(ielem)%p_geo_info%nnode,    &
+               &                                             fspac%linter(pos_voint),                &
+               &                                             khie = fspac%hierarchical_basis)
+          fspac%lelem(ielem)%inter(ivar)%p => fspac%linter(pos_voint)
        end do
 
     end do
@@ -512,6 +529,7 @@ contains
        !if(allocated(f%lelem(i)%nodes_object)) call memfree(f%lelem(i)%nodes_object,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%f_inf)) call memfree(f%lelem(i)%f_inf,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%integ)) call memfree(f%lelem(i)%integ,__FILE__,__LINE__)
+       if(allocated(f%lelem(i)%inter)) call memfree(f%lelem(i)%inter,__FILE__,__LINE__)
        !if(allocated(f%lelem(i)%iv))    call memfree(f%lelem(i)%iv   ,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%continuity))    call memfree(f%lelem(i)%continuity   ,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%order))    call memfree(f%lelem(i)%order   ,__FILE__,__LINE__)
@@ -542,6 +560,12 @@ contains
        call fem_element_fixed_info_free (f%lelem_info(i))
     end do
     call f%pos_elem_info%free
+
+    do i = 1,f%pos_interpolator%last()
+       call interpolator_free( f%linter(i) )
+    end do
+    !deallocate ( f%lvoli )
+    call f%pos_interpolator%free
 
     nullify ( f%g_trian )
 
@@ -660,6 +684,33 @@ contains
 
 
   end subroutine integration_faces_list
+
+  subroutine update_strong_dirichlet_boundary_conditions( fspac, fcond )
+    implicit none
+    type(fem_space)     , intent(inout) :: fspac
+    type(fem_conditions), intent(in)    :: fcond
+    ! Locals
+    integer(ip) :: ielem, iobje, ivar, inode, l_node, gvar, lobje, prob
+
+    do ielem = 1, fspac%g_trian%num_elems
+       prob = fspac%lelem(ielem)%problem
+       do ivar=1, fspac%dof_handler%problems(prob)%p%nvars
+          gvar=fspac%dof_handler%problems(prob)%p%l2g_var(ivar)
+          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+             lobje = fspac%g_trian%elems(ielem)%objects(iobje)
+             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = fcond%valu(gvar,lobje)
+                end if
+             end do
+          end do
+       end do
+    end do
+
+  end subroutine update_strong_dirichlet_boundary_conditions
+
 
 end module fem_space_names
 

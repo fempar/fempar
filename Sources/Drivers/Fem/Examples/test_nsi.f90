@@ -143,7 +143,8 @@ program test_nsi_iss
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
-  call update_strong_dirichlet_boundary_conditions(fspac)
+  f_cond%valu = 1.0_rp
+  call update_strong_dirichlet_boundary_conditions(fspac,f_cond)
 
   ! Integrate
   call volume_integral(approx,fspac,femat,fevec)
@@ -233,43 +234,5 @@ contains
     read (argument,*) nez
 
   end subroutine read_pars_cl_test_nsi
-
-  subroutine update_strong_dirichlet_boundary_conditions( fspac )
-    implicit none
-
-    type(fem_space), intent(inout)    :: fspac
-
-    integer(ip) :: ielem, iobje, ivar, inode, l_node
-
-    do ielem = 1, fspac%g_trian%num_elems
-       do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars-1
-          !write (*,*) 'ielem',ielem
-          !write (*,*) 'ivar',ivar
-          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
-          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%p',fspac%lelem(ielem)%nodes_object(ivar)%p%p
-          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%l',fspac%lelem(ielem)%nodes_object(ivar)%p%l
-          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-
-             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-                end if
-             end do
-          end do
-       end do
-       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-          do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-               &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-             l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-             if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-             end if
-          end do
-       end do
-    end do
-
-  end subroutine update_strong_dirichlet_boundary_conditions
   
 end program test_nsi_iss
