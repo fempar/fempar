@@ -29,16 +29,20 @@
 module lib_vtk_io_interface
 
   use fem, only: fem_mesh, fem_triangulation, fem_mesh_print, triangulation_print
+  use types
   use memor
   use stdio
+  use array_names
+  use interpolation_names
   use fem_space_types
   use fem_space_names
   use problem_names
-  use types
+  use element_gather_tools
   use Lib_VTK_IO
   use ISO_C_BINDING
 
   implicit none
+# include "debug.i90"
 
   interface
     function mkdir_recursive(path) bind(c,name="mkdir_recursive")
@@ -68,10 +72,11 @@ module lib_vtk_io_interface
      integer(ip)                   :: nnods          ! Number of nodes
      integer(ip)                   :: ndim           ! Dimensions of the mesh
      type(vtk_field), allocatable  :: fields(:)      ! Array storing fields info
+     logical                       :: linear_order = .False.
      logical                       :: filled = .False.
 !     integer(ip), allocatable      :: elem2subelem_i(:),elem2subelem_j(:)
-!     integer(ip)                   :: num_sub_elems
-!     type(array_ip2)               :: nodes_subelem(max_order)
+     integer(ip)                   :: num_sub_elems
+     type(array_ip2)               :: nodes_subelem(max_order)
   end type vtk_mesh
 
   ! Type for storing several mesh data with its field descriptors
@@ -84,13 +89,17 @@ module lib_vtk_io_interface
      integer(ip)                   :: num_steps = 1   ! Number of time steps
      integer(ip)                   :: num_parts = 1   ! Number of parts
      contains
-        procedure          :: initialize              ! Initialize vtk_mesh derived type. Convert mesh to VTK
-        procedure          :: free                    ! Deallocate
+        procedure          :: initialize              ! Initialize fem_mesh derived type
         procedure          :: write_VTK               ! Write a VTU file
         procedure          :: write_PVTK              ! Write a PVTU file
         procedure          :: write_PVD               ! Write a PVD file
+        procedure          :: free                    ! Deallocate
+        procedure, private :: initialize_linear_order
+        procedure, private :: initialize_superlinear_order
         procedure, private :: fill_mesh_from_triangulation
+        procedure, private :: fill_mesh_superlinear_order
         procedure, private :: fill_fields_from_physical_problem
+        procedure, private :: create_dir_hierarchy
         procedure, private :: get_VTK_time_output_path
         procedure, private :: get_PVD_time_output_path
         procedure, private :: get_vtk_filename
@@ -101,27 +110,98 @@ module lib_vtk_io_interface
         procedure, private :: set_prefix
   end type fem_vtk
 
-  character(len=5) :: mesh_prefix = 'mesh_'
-  character(len=5) :: part_prefix = 'part_'
+!  character(len=5) :: mesh_prefix = 'mesh_'
+!  character(len=5) :: part_prefix = 'part_'
   character(len=5) :: time_prefix = 'time_'
   character(len=4) :: vtk_ext = '.vtu'
   character(len=4) :: pvd_ext = '.pvd'
   character(len=5) :: pvtk_ext = '.pvtu'
 
-  integer(ip) :: ftype_conn(max_FE_types,max_nobje) ! Face connectivities for P and Q P1 elements
+!  integer(ip) :: ftype_conn(max_FE_types,max_nobje) ! Connectivities for P and Q P1 elements
   integer(1)  :: celltypes(max_ndime,max_FE_types)  ! VTK cell type: (dimensions,P/Q_type_id) 
 !  integer(ip) :: type_id(12)                        ! Reverse VTK cell type
 
   public :: fem_vtk
 
-
 contains
 
   ! Subroutine to initialize fem_vtk derived type
-  subroutine initialize(f_vtk, f_trian, f_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
+  subroutine initialize(f_vtk, f_trian, f_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh, linear_order)
+    class(fem_vtk),          intent(INOUT) :: f_vtk
+    type(fem_triangulation), intent(IN)    :: f_trian
+    type(fem_space), target, intent(IN)    :: f_space
+    class(physical_problem), intent(IN)    :: phys_prob
+    character(len=*),        intent(IN)    :: dir_path
+    character(len=*),        intent(IN)    :: prefix  
+    integer(ip), optional,   intent(IN)    :: nparts
+    integer(ip), optional,   intent(IN)    :: nsteps
+    logical,     optional,   intent(IN)    :: linear_order
+    integer(ip), optional,   intent(OUT)   :: nmesh
+    integer(ip)                            :: nm = 1
+    logical                                :: lo = .False.
+  ! ----------------------------------------------------------------------------------
+
+!! Node permutation
+!    ! Face connectivities for P and Q P1 elements
+!    ftype_conn(:,:) = 0_ip
+!    ftype_conn(P_type_id,1:4) = (/1,2,3,4/)
+!    ftype_conn(Q_type_id,1:8) = (/1,2,4,3,5,6,8,7/)
+!
+!!    ! Reverse VTK type
+!!    type_id(:) = 0
+!!    type_id(5) =  P_type_id; type_id(10) =  P_type_id
+!!    type_id(9) =  Q_type_id; type_id(12) =  Q_type_id
+
+    ! VTK cell type: (dimensions,P/Q_type_id) 
+    celltypes(1,:) = 3          ! VTK_LINE
+    celltypes(2,P_type_id) = 5  ! VTK_TRIANGLE
+    celltypes(2,Q_type_id) = 8  ! VTK_PIXEL
+    celltypes(3,P_type_id) = 10 ! VTK_TETRA
+    celltypes(3,Q_type_id) = 11 ! VTK_VOXEL
+
+    if(present(linear_order)) lo = linear_order
+
+    if(lo) then 
+      call f_vtk%initialize_linear_order(f_trian, f_space, phys_prob, dir_path, prefix, nm)
+    else
+      call f_vtk%initialize_superlinear_order(f_space, phys_prob, dir_path, prefix, nm)
+    endif
+    f_vtk%p_f_space => f_space
+    if(present(nmesh)) nmesh = nm
+    call f_vtk%set_dir_path(dir_path,nm)
+    call f_vtk%set_prefix(prefix,nm)
+    if(present(nparts)) call f_vtk%set_num_parts(nparts)
+    if(present(nsteps)) call f_vtk%set_num_steps(nsteps)
+
+  ! ----------------------------------------------------------------------------------
+  end subroutine initialize
+
+
+  ! Subroutine to initialize fem_vtk derived type
+  subroutine initialize_linear_order(f_vtk, f_trian, f_space, phys_prob, dir_path, prefix, nmesh)
   ! ----------------------------------------------------------------------------------
     class(fem_vtk),          intent(INOUT) :: f_vtk
     type(fem_triangulation), intent(IN)    :: f_trian
+    type(fem_space), target, intent(IN)    :: f_space
+    class(physical_problem), intent(IN)    :: phys_prob
+    character(len=*),        intent(IN)    :: dir_path
+    character(len=*),        intent(IN)    :: prefix  
+    integer(ip), optional,   intent(OUT)   :: nmesh
+    integer(ip)                            :: nm
+  ! ----------------------------------------------------------------------------------
+
+    call f_vtk%fill_mesh_from_triangulation(f_trian, nm)
+    call f_vtk%fill_fields_from_physical_problem(phys_prob, nm)
+
+    if(present(nmesh)) nmesh = nm
+
+  ! ----------------------------------------------------------------------------------
+  end subroutine initialize_linear_order
+
+  ! Subroutine to initialize fem_vtk derived type with high order mesh
+  subroutine initialize_superlinear_order(f_vtk, f_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
+  ! ----------------------------------------------------------------------------------
+    class(fem_vtk),          intent(INOUT) :: f_vtk
     type(fem_space), target, intent(IN)    :: f_space
     class(physical_problem), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
@@ -132,36 +212,13 @@ contains
     integer(ip)                            :: nm
   ! ----------------------------------------------------------------------------------
 
-    ! Face connectivities for P and Q P1 elements
-    ftype_conn(:,:) = 0_ip
-    ftype_conn(P_type_id,1:4) = (/1,2,3,4/)
-    ftype_conn(Q_type_id,1:8) = (/1,2,4,3,5,6,8,7/)
+    call f_vtk%fill_mesh_superlinear_order(f_space, nm)
+!    call f_vtk%fill_fields_from_physical_problem(phys_prob, nm)
 
-    ! VTK cell type: (dimensions,P/Q_type_id) 
-    celltypes(1,:) = 3          ! VTK_LINE
-    celltypes(2,P_type_id) = 5  ! VTK_TRIANGLE
-    celltypes(2,Q_type_id) = 9  ! VTK_QUAD
-    celltypes(3,P_type_id) = 10 ! VTK_TETRA
-    celltypes(3,Q_type_id) = 12 ! VTK_HEXAHEDRON
-
-!    ! Reverse VTK type
-!    type_id(:) = 0
-!    type_id(5) =  P_type_id; type_id(10) =  P_type_id
-!    type_id(9) =  Q_type_id; type_id(12) =  Q_type_id
-
-
-    call f_vtk%fill_mesh_from_triangulation(f_trian, nm)
-    call f_vtk%fill_fields_from_physical_problem(phys_prob, nm)
-    f_vtk%p_f_space => f_space
-    call f_vtk%set_dir_path(dir_path,nm)
-    call f_vtk%set_prefix(prefix,nm)
-    if(present(nparts)) call f_vtk%set_num_parts(nparts)
-    if(present(nsteps)) call f_vtk%set_num_steps(nsteps)
     if(present(nmesh)) nmesh = nm
 
   ! ----------------------------------------------------------------------------------
-  end subroutine initialize
-
+  end subroutine initialize_superlinear_order
 
   ! Subroutine to store several meshes in a fem_vtk derived type
   subroutine fill_mesh_from_triangulation(f_vtk, f_trian, nmesh)
@@ -187,6 +244,7 @@ contains
         deallocate(f_vtk_tmp)
     endif
     if(present(nmesh)) nmesh = f_vtk%num_meshes
+    f_vtk%mesh(f_vtk%num_meshes)%linear_order = .True.
 
     call memalloc ( f_trian%num_elems, f_vtk%mesh(f_vtk%num_meshes)%ctype, __FILE__,__LINE__)
     call memalloc ( f_trian%num_elems, f_vtk%mesh(f_vtk%num_meshes)%offset, __FILE__,__LINE__)
@@ -213,7 +271,9 @@ contains
     ! Fill VTK coordinate arrays
     do i=1, f_trian%num_elems
         do j=1, f_trian%elems(i)%topology%nnode
-            f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = ftype_conn( f_trian%elems(i)%topology%ftype,mod(j-1,f_trian%elems(i)%topology%nnode)+1) - 1 + tnnod 
+! node permutation (only VTK elements 9 and 12)
+!            f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = ftype_conn( f_trian%elems(i)%topology%ftype,mod(j-1,f_trian%elems(i)%topology%nnode)+1) - 1 + tnnod
+            f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = j + tnnod - 1
             if (f_trian%num_dims >=1) f_vtk%mesh(f_vtk%num_meshes)%X(counter) = f_trian%elems(i)%coordinates(1,j)
             if (f_trian%num_dims >=2) f_vtk%mesh(f_vtk%num_meshes)%Y(counter) = f_trian%elems(i)%coordinates(2,j)
             if (f_trian%num_dims >=3) f_vtk%mesh(f_vtk%num_meshes)%Z(counter) = f_trian%elems(i)%coordinates(3,j)
@@ -225,6 +285,149 @@ contains
   ! ----------------------------------------------------------------------------------
   end subroutine fill_mesh_from_triangulation
 
+  subroutine fill_mesh_superlinear_order(f_vtk,f_space, nmesh)
+    implicit none
+    ! Parmeter
+    class(fem_vtk)    , intent(inout) :: f_vtk
+    type(fem_space)  , intent(in)    :: f_space
+    integer(ip),optional      , intent(out)   :: nmesh
+  
+    ! Local variables
+    type(vtk_mesh), allocatable            :: f_vtk_tmp(:)
+    integer(ip)           :: ielem, subelem, order, ndime, nnode, geo_nnode
+    integer(ip)           :: count_poinsX, count_subelem, lnode, gnode, num_subelems
+    integer(ip)           :: first_coord(f_space%g_trian%num_dims), g_coord(f_space%g_trian%num_dims)
+    integer(ip)           :: l_coord(f_space%g_trian%num_dims)
+    type(interpolation)   :: interp(max_order)
+    type(array_rp2)       :: coords(max_order)
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Meshes allocation
+    if(f_vtk%num_meshes == 0) then 
+        f_vtk%num_meshes = 1
+        if(allocated(f_vtk%mesh)) deallocate(f_vtk%mesh)
+        allocate(f_vtk%mesh(f_vtk%num_meshes))
+    else
+        f_vtk%num_meshes = f_vtk%num_meshes + 1 
+        call move_alloc(from=f_vtk%mesh, to=f_vtk_tmp)
+        allocate(f_vtk%mesh(f_vtk%num_meshes))
+        f_vtk%mesh(1:size(f_vtk_tmp,dim=1)) = f_vtk_tmp(:)
+        deallocate(f_vtk_tmp)
+    endif
+    if(present(nmesh)) nmesh = f_vtk%num_meshes
+    f_vtk%mesh(f_vtk%num_meshes)%linear_order = .False.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    ! TODO:: Do it for general type (for diferent type of interpolation in the same mesh also)
+    ! TODO: Consider different kind of interpolation per element
+    ! TODO: consider high order geometries
+    ndime = f_space%g_trian%num_dims
+
+    ! Construct of the interpolation and the nodes mapping for each order
+    do order = 1, max_order
+       ! Number of interpolation and Geometrical nodes (assumed to be linear)
+       nnode = Q_nnods(ndime,order)
+       geo_nnode = Q_nnods(ndime,1)
+
+       ! Construct the matrix of the coordinates of the node in the reference element
+       call array_create(ndime,nnode,coords(order))
+       call Q_refcoord(coords(order)%a,ndime,order,nnode)
+
+       ! Construct the interpolation of order=order
+       call interpolation_create(1,1,1,ndime,geo_nnode,nnode,interp(order))
+       call interpolation_local(coords(order)%a,interp(order))
+
+       ! Construct the mapping of the nodes of the subelems
+       num_subelems = Q_nnods(ndime,order-1)
+       call array_create(geo_nnode,num_subelems,f_vtk%mesh(f_vtk%num_meshes)%nodes_subelem(order))
+       do subelem = 1, num_subelems
+          call Q_ijkg(first_coord,subelem,ndime,order-1)
+          do lnode = 1, geo_nnode
+             call Q_ijkg(l_coord,lnode,ndime,1)
+             g_coord = first_coord + l_coord
+             gnode = Q_gijk(g_coord,ndime,order)
+             f_vtk%mesh(f_vtk%num_meshes)%nodes_subelem(order)%a(lnode,subelem) = gnode
+          end do
+       end do
+    end do
+
+
+    ! Count the number of subelems and points for the postprocess
+    count_poinsX = 0
+    count_subelem = 0
+    do ielem = 1, f_space%g_trian%num_elems
+       order = maxval(f_space%lelem(ielem)%order)
+       num_subelems = Q_nnods(ndime,order-1)
+       geo_nnode = interp(order)%nnode
+       count_subelem = count_subelem + num_subelems
+       count_poinsX = count_poinsX + num_subelems*geo_nnode
+    end do
+
+    ! Store the info
+    f_vtk%mesh(f_vtk%num_meshes)%nnods = count_poinsX
+    f_vtk%mesh(f_vtk%num_meshes)%num_sub_elems = count_subelem
+
+
+    ! Allocate the vectors
+    call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%nnods, f_vtk%mesh(f_vtk%num_meshes)%X, __FILE__,__LINE__)
+    call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%nnods, f_vtk%mesh(f_vtk%num_meshes)%Y, __FILE__,__LINE__)
+    call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%nnods, f_vtk%mesh(f_vtk%num_meshes)%Z, __FILE__,__LINE__)    
+    call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%nnods, f_vtk%mesh(f_vtk%num_meshes)%connec, __FILE__,__LINE__)    
+    call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%num_sub_elems, f_vtk%mesh(f_vtk%num_meshes)%ctype, __FILE__,__LINE__)    
+    call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%num_sub_elems, f_vtk%mesh(f_vtk%num_meshes)%offset, __FILE__,__LINE__)    
+
+
+    count_poinsX = 0
+    count_subelem = 0
+    f_vtk%mesh(f_vtk%num_meshes)%X = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Y = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Z = 0._rp
+    do ielem = 1, f_space%g_trian%num_elems
+       order = f_space%lelem(ielem)%f_inf(1)%p%order
+       num_subelems = Q_nnods(ndime,order-1)
+       geo_nnode = interp(order)%nnode
+       nnode     = interp(order)%nlocs
+
+       ! Take the coordinates from the geometry mesh
+       do lnode = 1, geo_nnode
+!          gnode = femsp%g_mesh%lnods(femsp%g_mesh%pnods(ielem)+lnode-1)
+!          coords(1)%a(:,lnode) = femsp%g_mesh%coord(:,gnode)
+            coords(1)%a(:,lnode) = f_space%g_trian%elems(ielem)%coordinates(:,lnode)
+       end do
+
+       ! Interpolate to the coordinate of all the nodes
+       if (order>1) then
+          call interpolate(ndime,geo_nnode,nnode,interp(order)%shape,coords(1)%a, coords(order)%a)
+       end if
+       ! Store the coordinates of each subelem
+       do subelem = 1, num_subelems
+         
+          count_subelem = count_subelem + 1
+          do lnode = 1, geo_nnode
+             gnode = f_vtk%mesh(f_vtk%num_meshes)%nodes_subelem(order)%a(lnode,subelem)
+             count_poinsX = count_poinsX + 1
+             if (ndime >= 1) f_vtk%mesh(f_vtk%num_meshes)%X(count_poinsX) = coords(order)%a(1,gnode)
+             if (ndime >= 2) f_vtk%mesh(f_vtk%num_meshes)%Y(count_poinsX) = coords(order)%a(2,gnode)
+             if (ndime >= 3) f_vtk%mesh(f_vtk%num_meshes)%Z(count_poinsX) = coords(order)%a(3,gnode)
+             f_vtk%mesh(f_vtk%num_meshes)%connec(count_poinsX) = count_poinsX-1
+          end do
+
+          ! Store the type of element
+          assert(f_space%lelem(ielem)%p_geo_info%ftype == Q_type_id)
+          f_vtk%mesh(f_vtk%num_meshes)%ctype(count_subelem) = celltypes(ndime,f_space%lelem(ielem)%p_geo_info%ftype)          
+
+           ! Fill offset
+           f_vtk%mesh(f_vtk%num_meshes)%offset(count_subelem) = count_poinsX
+        end do
+
+     end do
+     
+     ! Free memory
+     do order = 1, max_order
+        call array_free(coords(order))
+        call interpolation_free(interp(order))
+     end do
+
+  end subroutine fill_mesh_superlinear_order
 
   ! Fill fields information into fem_vtk derivet type
   subroutine fill_fields_from_physical_problem(f_vtk, phys_prob, nmesh)
@@ -249,7 +452,7 @@ contains
     endif
 
     do i=1, phys_prob%nunks
-        f_vtk%mesh(nm)%fields(i)%var_location = 'Node'
+        f_vtk%mesh(nm)%fields(i)%var_location = 'node'
         f_vtk%mesh(nm)%fields(i)%field_type = 'Float64'
         f_vtk%mesh(nm)%fields(i)%var_name = 'Unknown_'//trim(adjustl(ch(i)))
         if(allocated(phys_prob%vars_of_unk)) then
@@ -271,11 +474,12 @@ contains
     class(fem_vtk),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_name
     integer(ip),      optional, intent(IN)    :: n_part
-    integer(ip),      optional, intent(IN)    :: t_step
+    real(rp),         optional, intent(IN)    :: t_step
     integer(ip),      optional, intent(IN)    :: n_mesh
     character(len=*), optional, intent(IN)    :: o_fmt
     character(len=:), allocatable             :: fn,dp
-    integer(ip)                               :: nm, np, ts
+    integer(ip)                               :: nm, np
+    real(rp)                                  :: ts
     character(len=:), allocatable             :: of
     integer(ip)                               :: fid, nnods, nels, E_IO
     logical                                   :: ok
@@ -286,7 +490,7 @@ contains
     nm = f_vtk%num_meshes
     if(present(n_mesh)) nm = n_mesh
 
-    np = f_vtk%num_parts
+    np = f_vtk%num_parts-1
     if(present(n_part)) np = n_part
 
     ts = f_vtk%num_steps
@@ -297,8 +501,7 @@ contains
     fn = dp//fn
     if(present(f_name)) fn = f_name
 
-    ok = mkdir_recursive(dp//C_NULL_CHAR)
-!    print*, '-->', stat(dp//C_NULL_CHAR, int(o'775',c_int16_t))
+    ok = f_vtk%create_dir_hierarchy(dp)
 
     of = 'raw'
     if(present(o_fmt)) of = trim(adjustl(o_fmt))
@@ -358,11 +561,12 @@ contains
     class(fem_vtk),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_name
     integer(ip),      optional, intent(IN)    :: n_mesh
-    integer(ip),      optional, intent(IN)    :: t_step
+    real(rp),         optional, intent(IN)    :: t_step
     integer(ip)                               :: nm
     character(len=:),allocatable              :: var_name
     character(len=:),allocatable              :: fn ,dp
-    integer(ip)                               :: i, fid, nnods, nels, ts, E_IO
+    real(rp)                                  :: ts
+    integer(ip)                               :: i, fid, nnods, nels, E_IO
   ! ----------------------------------------------------------------------------------
 
     nm = f_vtk%num_meshes
@@ -385,18 +589,33 @@ contains
     do i=0, f_vtk%num_parts-1
         E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))))
     enddo
-    E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN')
-    do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
-        if(f_vtk%mesh(nm)%fields(i)%filled) then
-            if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
-                var_name = f_vtk%mesh(nm)%fields(i)%var_name
-            else
-                var_name = 'Unknown_'//trim(adjustl(ch(i)))
+
+    if(allocated(f_vtk%mesh(nm)%fields)) then
+        E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN')
+        do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
+            if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'node') then
+                if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
+                    var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                else
+                    var_name = 'Unknown_'//trim(adjustl(ch(i)))
+                endif
+                E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), Nc=f_vtk%mesh(nm)%fields(i)%num_comp )
             endif
-            E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
-        endif
-    enddo
-    E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE')
+        enddo
+        E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE')
+        E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN')
+        do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
+            if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'cell') then
+                if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
+                    var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                else
+                    var_name = 'Unknown_'//trim(adjustl(ch(i)))
+                endif
+                E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
+            endif
+        enddo
+        E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE')
+    endif
     E_IO = PVTK_END_XML()
 
   ! ----------------------------------------------------------------------------------
@@ -419,13 +638,13 @@ contains
     nm = f_vtk%num_meshes
     if(present(n_mesh)) nm = n_mesh
 
-    pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//pvd_ext
+    pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//'_'//trim(adjustl(ch(nm)))//pvd_ext
     if(present(f_name)) pvdfn = f_name
 
 
     E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
     do ts=1, f_vtk%num_steps
-      dp = f_vtk%get_PVD_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts)
+      dp = f_vtk%get_PVD_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=real(ts,rp))
       pvtkfn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
       pvtkfn = dp//pvtkfn
       E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtkfn)),timestep=ts, cf=rf)
@@ -436,6 +655,18 @@ contains
   end function write_PVD
 
 
+  function create_dir_hierarchy(f_vtk, path) result(res)
+  ! ----------------------------------------------------------------------------------
+    class(fem_vtk),   intent(INOUT) :: f_vtk
+    character(len=*), intent(IN)    :: path
+    logical                         :: res
+  ! ----------------------------------------------------------------------------------
+
+    res = mkdir_recursive(path//C_NULL_CHAR)
+
+  ! ----------------------------------------------------------------------------------
+  end function create_dir_hierarchy
+
 
   ! Build time output dir path for the vtk files in each timestep
   function get_VTK_time_output_path(f_vtk, f_path, t_step, n_mesh) result(dp)
@@ -443,11 +674,12 @@ contains
     implicit none
     class(fem_vtk),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_path
-    integer(ip),      optional, intent(IN)    :: t_step
+    real(rp),         optional, intent(IN)    :: t_step
     integer(ip),      optional, intent(IN)    :: n_mesh
     character(len=:), allocatable             :: dp
     character(len=:), allocatable             :: fp
-    integer(ip)                               :: nm, ts
+    integer(ip)                               :: nm
+    real(rp)                                  :: ts
   ! ----------------------------------------------------------------------------------
 
     nm = f_vtk%num_meshes
@@ -470,10 +702,10 @@ contains
     implicit none
     class(fem_vtk),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_path
-    integer(ip),      optional, intent(IN)    :: t_step
+    real(RP),         optional, intent(IN)    :: t_step
     character(len=:), allocatable             :: dp
     character(len=:), allocatable             :: fp
-    integer(ip)                               :: ts
+    real(rp)                                  :: ts
   ! ----------------------------------------------------------------------------------
 
     ts = f_vtk%num_steps
@@ -506,30 +738,35 @@ contains
     fp = f_vtk%mesh(nm)%prefix
     if(present(f_prefix)) fp = f_prefix
 
-    fn = trim(adjustl(fp))//'_'//mesh_prefix//trim(adjustl(ch(nm)))//'_'//part_prefix//trim(adjustl(ch(np)))//vtk_ext
+    fn = trim(adjustl(fp))//'_'//trim(adjustl(ch(nm)))//'_'//trim(adjustl(ch(np)))//vtk_ext
 
   end function get_VTK_filename
 
 
   ! Build VTK filename
-  function get_PVTK_filename(f_vtk, f_prefix, n_mesh) result(fn)
+  function get_PVTK_filename(f_vtk, f_prefix, n_mesh, t_step) result(fn)
   ! ----------------------------------------------------------------------------------
     implicit none
     class(fem_vtk),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_prefix
     integer(ip),      optional, intent(IN)    :: n_mesh
+    real(rp),         optional, intent(IN)    :: t_step
     character(len=:), allocatable             :: fn
     character(len=:), allocatable             :: fp
     integer(ip)                               :: nm
+    real(rp)                                  :: ts
   ! ----------------------------------------------------------------------------------
 
     nm = f_vtk%num_meshes
     if(present(n_mesh)) nm = n_mesh
 
+    ts = 0._rp
+    if(present(t_step)) ts = t_step
+
     fp = f_vtk%mesh(nm)%prefix
     if(present(f_prefix)) fp = f_prefix
 
-    fn = trim(adjustl(fp))//'_'//mesh_prefix//trim(adjustl(ch(nm)))//pvtk_ext
+    fn = trim(adjustl(fp))//'_'//trim(adjustl(ch(nm)))//'_'//trim(adjustl(ch(ts)))//pvtk_ext
 
   end function get_PVTK_filename
 
@@ -608,6 +845,11 @@ contains
             call memfree(f_vtk%mesh(i)%connec)
             call memfree(f_vtk%mesh(i)%offset)
             call memfree(f_vtk%mesh(i)%ctype)
+            if (.not. f_vtk%mesh(i)%linear_order) then
+                do j=1, max_order
+                    call array_free(f_vtk%mesh(i)%nodes_subelem(j))
+                enddo
+            endif
             if(allocated(f_vtk%mesh(i)%fields)) then
                 do j=1, size(f_vtk%mesh(i)%fields)
                     if(allocated(f_vtk%mesh(i)%fields(j)%var_location)) deallocate(f_vtk%mesh(i)%fields(j)%var_location)
