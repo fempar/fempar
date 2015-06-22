@@ -166,6 +166,7 @@ program test_nsi_iss
   !call abstract_solve(A,M,b,x,sctrl,senv)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)
+  call fem_vector_print(6,feunk)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()

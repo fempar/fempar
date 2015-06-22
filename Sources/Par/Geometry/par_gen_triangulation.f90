@@ -89,6 +89,9 @@ contains
        p_trian%num_ghosts = num_ghosts
        p_trian%num_elems  = num_elems
 
+       ! Resize elem_array_len
+       p_trian%f_trian%elem_array_len = num_elems+num_ghosts
+
        ! Create array of elements with room for ghost elements
        allocate( par_elem_topology :: p_trian%mig_elems(num_elems + num_ghosts), stat=istat)
        check(istat==0)
@@ -220,6 +223,7 @@ contains
        p_trian%state = par_triangulation_filled
 
     else
+       call memalloc(0,material,__FILE__,__LINE__)
        ! AFM: TODO: Partially broadcast p_trian%f_trian from 1st level tasks to 2nd level tasks (e.g., num_dims)
     end if
     

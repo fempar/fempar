@@ -382,12 +382,12 @@ contains
 
     ! pvtu
     E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64')
-    do i=1, f_vtk%num_parts
-        E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=f_vtk%num_parts, n_mesh=nm))))
+    do i=0, f_vtk%num_parts-1
+        E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))))
     enddo
+    E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN')
     do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
         if(f_vtk%mesh(nm)%fields(i)%filled) then
-            E_IO = PVTK_DAT_XML(var_location = trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)), var_block_action = 'OPEN')
             if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
                 var_name = f_vtk%mesh(nm)%fields(i)%var_name
             else
@@ -395,8 +395,8 @@ contains
             endif
             E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
         endif
-        E_IO = PVTK_DAT_XML(var_location = trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)), var_block_action = 'CLOSE')
     enddo
+    E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE')
     E_IO = PVTK_END_XML()
 
   ! ----------------------------------------------------------------------------------

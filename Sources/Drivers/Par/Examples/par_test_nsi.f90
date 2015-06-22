@@ -164,7 +164,8 @@ program par_test_nsi_iss
 
   ! Initialize VTK output
   if(p_env%am_i_fine_task()) then
-     call fevtk%initialize(p_trian%f_trian,p_fspac%f_space,myprob,dir_path_out,prefix)
+     call fevtk%initialize(p_trian%f_trian,p_fspac%f_space,myprob,dir_path_out,prefix, &
+          &                nparts=gdata%nparts)
   end if
 
   ! Create dof info
@@ -210,7 +211,7 @@ program par_test_nsi_iss
         if ( i == 1 ) then
            point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
            point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
-           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-08
+           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-20
            point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
            point_to_p_mlevel_bddc_pars%correction_mode     = additive
         end if
@@ -236,9 +237,9 @@ program par_test_nsi_iss
   sctrl%trace=100
   sctrl%itmax=800
   sctrl%dkrymax=800
-  sctrl%stopc=res_res
+  sctrl%stopc=res_nrmgiven_rhs_nrmgiven
   sctrl%orto=icgs
-  sctrl%rtol=1.0e-06
+  sctrl%rtol=1.0e-20
 
   ! Create Preconditioner 
   call par_precond_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
@@ -249,12 +250,11 @@ program par_test_nsi_iss
   call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)  
+  if(p_env%am_i_fine_task()) call fem_vector_print(6,p_unk%f_vector)
 
   ! Print solution to VTK file
-  if(p_env%am_i_fine_task()) then
-     istat = fevtk%write_VTK()
-     istat = fevtk%write_PVTK()
-  end if
+  if(p_env%am_i_fine_task()) istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')
+  if(p_env%p_context%iam==0) istat = fevtk%write_PVTK()
 
   ! Free preconditioner
   call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
@@ -269,6 +269,7 @@ program par_test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call memfree(which_approx,__FILE__,__LINE__)
+  if(p_env%am_i_fine_task()) call fevtk%free
   call par_matrix_free (p_mat)
   call par_vector_free (p_vec)
   call par_vector_free (p_unk)
