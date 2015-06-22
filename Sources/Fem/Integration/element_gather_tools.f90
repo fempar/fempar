@@ -37,8 +37,8 @@ module element_gather_tools
   ! Functions
   ! public :: gather,interp_gauss,interp_grad,interp_hess,elem2gauss,elem2gauss_grad, &
   !      &    elem2gauss_hess
-  ! public :: interpolate,interpolate_grad,interpolate_hess,elem2var, &
-  !      &    elmuv2elmat,elmuv2elmat_lump
+   public :: interpolate,interpolate_grad,interpolate_hess,elem2var, &
+        &    elmuv2elmat,elmuv2elmat_lump
 
 contains
   !==============================================================================
