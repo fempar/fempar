@@ -52,6 +52,11 @@ module stdio
   character(*), parameter :: REAL8_FORMAT = '(E16.6)'
   character(*), parameter :: INT_FORMAT = '(I16)'
 
+  integer, parameter :: REAL4_FORMAT_SIZE = 8
+  integer, parameter :: REAL8_FORMAT_SIZE = 16
+  integer, parameter :: INT_FORMAT_SIZE = 16
+  integer, parameter :: MAX_FORMAT_SIZE = 256
+
   integer, parameter :: FILE_SIZE     = 256
   integer, parameter :: FILE_NULL     = -1
 
@@ -244,10 +249,12 @@ contains
     character(len=:), allocatable :: string
     integer :: io_status
 
+    allocate( character(len=REAL4_FORMAT_SIZE) :: string )
+
     write(string,fmt=REAL4_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'REAL4_TO_STRING',' fatal error.')
-    string = adjustl(string)
+!    string = trim(adjustl(string))  
 
   end function real4_to_char
 
@@ -258,13 +265,13 @@ contains
     real(kind=4), intent(in) :: value
     character(*), intent(in) :: io_format
     character(len=:), allocatable :: string
+    character(len=MAX_FORMAT_SIZE):: tmpstr
     integer :: io_status
 
-    write(string,fmt=io_format,iostat=io_status) value
+    write(tmpstr,fmt=io_format,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'REAL4_TO_STRING',' fatal error.')
-    string = adjustl(string)
-
+    string = trim(adjustl(tmpstr))
   end function real4_to_char_fmt
 
   !********************************************************************!
@@ -275,10 +282,12 @@ contains
     character(len=:), allocatable :: string
     integer :: io_status
 
+    allocate( character(len=REAL8_FORMAT_SIZE) :: string )
+
     write(string,fmt=REAL8_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'REAL8_TO_STRING',' fatal error.')
-    string = adjustl(string)
+!    string = trim(adjustl(string))
 
   end function real8_to_char
 
@@ -289,12 +298,13 @@ contains
     real(kind=8), intent(in) :: value
     character(*), intent(in) :: io_format
     character(len=:), allocatable :: string
+    character(len=MAX_FORMAT_SIZE):: tmpstr
     integer :: io_status
 
-    write(string,fmt=io_format,iostat=io_status) value
+    write(tmpstr,fmt=io_format,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'REAL8_TO_STRING',' fatal error.')
-    string = adjustl(string)
+    string = trim(adjustl(tmpstr))
 
   end function real8_to_char_fmt
 
@@ -306,12 +316,12 @@ contains
     character(len=:), allocatable :: string
     integer :: io_status
 
-    allocate( character(len=16) :: string )
+    allocate( character(len=INT_FORMAT_SIZE) :: string )
 
     write(string,fmt=INT_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'INTEGER_TO_STRING',' fatal error.')
-    string = adjustl(string)
+    !string = trim(adjustl(string))
 
   end function integer_to_char
 
@@ -320,13 +330,14 @@ contains
   function integer1_to_char( value ) result( string )
 
     integer(1), intent(in) :: value
-    character(len=:), allocatable   :: string
+    character(len=:), allocatable :: string
+    character(len=MAX_FORMAT_SIZE):: tmpstr
     integer :: io_status
 
-    write(string,fmt=INT_FORMAT,iostat=io_status) value
+    write(tmpstr,fmt=INT_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'INTEGER_TO_STRING',' fatal error.')
-    string = adjustl(string)
+    string = trim(adjustl(tmpstr))
 
   end function integer1_to_char
 
@@ -339,10 +350,12 @@ contains
     character(len=:), allocatable :: string
     integer :: io_status
 
+    allocate( character(len=INT_FORMAT_SIZE) :: string )
+
     write(string,fmt=io_format,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'INTEGER_TO_STRING',' fatal error.')
-    string = adjustl(string)
+!    string = trim(adjustl(string))
 
   end function integer_to_char_fmt
 
@@ -352,15 +365,17 @@ contains
 
     logical, intent(in) :: value
     character(len=:), allocatable :: string
+    character(len=64)             :: tmpstr
     integer :: io_status
 
     if( value ) then
-       write(string,fmt='(A)',iostat=io_status) 'TRUE'
+       write(tmpstr,fmt='(A)',iostat=io_status) 'TRUE'
     else
-       write(string,fmt='(A)',iostat=io_status) 'FALSE'
+       write(tmpstr,fmt='(A)',iostat=io_status) 'FALSE'
     end if
     if(stdio_debug) &
          call iostat_error(io_status,'LOGICAL_TO_STRING',' fatal error.')
+    string= trim(adjustl(tmpstr))
 
   end function logical_to_char
 
