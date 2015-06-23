@@ -67,9 +67,10 @@ program par_test_cdr
   type(par_conditions)            :: p_cond
 
   type(cdr_problem)               :: my_problem
+  type(cdr_discrete)              :: my_discrete
   type(cdr_approximation), target :: my_approximation
   integer(ip)                     :: num_approximations
-  type(discrete_problem_pointer)  :: approximations(1)
+  type(discrete_integration_pointer)  :: approximations(1)
 
   integer(ip)              :: num_levels, nparts, ndime
   integer(ip), allocatable :: id_parts(:), num_parts(:)
@@ -136,11 +137,12 @@ program par_test_cdr
 
 
   call my_problem%create( p_trian%f_trian%num_dims )
-  call my_approximation%create(my_problem)
+  call my_discrete%create( my_problem )
+  call my_approximation%create(my_problem,my_discrete)
   num_approximations=1
   approximations(1)%p => my_approximation
   
-  call dhand%set_problem( 1, my_approximation )
+  call dhand%set_problem( 1, my_discrete )
   ! ... for as many problems as we have
 
   call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
@@ -158,14 +160,14 @@ program par_test_cdr
   ! Continuity
   ! write(*,*) 'Continuity', continuity
   call par_fem_space_create ( p_trian, dhand, p_fspac, problem, &
-                              num_approximations, approximations, &
                               p_cond, continuity, order, material, &
                               which_approx, time_steps_to_store = 1, &
                               hierarchical_basis = logical(.false.,lg), &
                               & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
   if ( p_env%am_i_fine_task() ) then
-     call update_strong_dirichlet_boundary_conditions( p_fspac%f_space )
+     p_cond%f_conditions%valu=1.0_rp
+     call update_strong_dirichlet_boundary_conditions( p_fspac%f_space, p_cond%f_conditions )
   end if
 
   call par_create_distributed_dof_info ( dhand, p_trian, p_fspac, blk_dof_dist, p_blk_graph, gtype )  
@@ -304,6 +306,7 @@ program par_test_cdr
   call blk_dof_dist%free
   call par_fem_space_free(p_fspac) 
   call my_problem%free
+  call my_discrete%free
   call my_approximation%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
@@ -355,26 +358,26 @@ contains
 
   end subroutine read_pars_cl
 
-  subroutine update_strong_dirichlet_boundary_conditions( fspac )
-    implicit none
-    type(fem_space), intent(inout)    :: fspac
-    
-    integer(ip) :: ielem, iobje, ivar, inode, l_node
-
-    do ielem = 1, fspac%g_trian%num_elems
-       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-          do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
-             
-             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-                end if
-             end do
-          end do
-       end do
-    end do
-  end subroutine update_strong_dirichlet_boundary_conditions
+!!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
+!!$    implicit none
+!!$    type(fem_space), intent(inout)    :: fspac
+!!$    
+!!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
+!!$
+!!$    do ielem = 1, fspac%g_trian%num_elems
+!!$       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+!!$          do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+!!$             
+!!$             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+!!$                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+!!$                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+!!$                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+!!$                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
+!!$                end if
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    end do
+!!$  end subroutine update_strong_dirichlet_boundary_conditions
 
 end program par_test_cdr

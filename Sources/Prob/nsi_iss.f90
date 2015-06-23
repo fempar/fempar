@@ -35,19 +35,16 @@ module nsi_cg_iss_names
  use eltrm_gen_names
  use element_fields_names
  use element_tools_names
+ use analytical_names
  implicit none
 # include "debug.i90"
 
  private
  
- ! INF-SUP STABLE (iss) NAVIER-STOKES Problem data
- type, extends(discrete_problem) :: nsi_cg_iss_approximation
-    type(nsi_problem), pointer :: physics
+ ! INF-SUP STABLE (iss) NAVIER-STOKES types 
+ ! Problem data
+ type, extends(discrete_problem) :: nsi_cg_iss_discrete
     integer(ip) ::   & 
-         kfl_1vec,   & ! Flag for 1vec integration
-         kfl_mtvc,   & ! Flag for matvec integration
-         kfl_matr,   & ! Flag for matrix integration
-         kfl_real,   & ! Flag for real integration
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
          tdimv,      & ! Number of temporal steps stored for velocity
@@ -58,21 +55,35 @@ module nsi_cg_iss_names
          ktauc,         & ! Constant multiplying stabilization parameter tau_c 
          k1tau,         & ! C1 constant on stabilization parameter tau_m
          k2tau            ! C2 constant on stabilization parameter tau_m
-    ! type(array_rp2), allocatable :: &
-    !      vorti(:),      & ! Vorticity field
-    !      dtunk(:)         ! Time derivative
-     contains
-      procedure :: create => nsi_create
-      procedure :: matvec => nsi_matvec
- end type nsi_cg_iss_approximation
+  contains
+    procedure :: create  => nsi_create_discrete
+ end type nsi_cg_iss_discrete
+    
+!!$ ! Aproximation
+!!$ type, extends(discrete_problem) :: nsi_cg_iss_approximation
+!!$    type(nsi_cg_iss_data), pointer :: data
+!!$     contains
+!!$      procedure :: create  => nsi_create
+!!$      procedure :: compute => nsi_matvec ! Default element computation points to matvec
+!!$ end type nsi_cg_iss_approximation
 
- type block_elmat
-    integer(ip)              :: nblocks = 0
-    real(rp)   , allocatable :: blocks(:,:)
- end type block_elmat
+ ! Matvec
+ type, extends(discrete_integration) :: nsi_cg_iss_matvec
+      type(nsi_cg_iss_discrete), pointer :: discret
+      type(nsi_problem)        , pointer :: physics
+     contains
+      procedure :: create  => nsi_matvec_create
+      procedure :: compute => nsi_matvec 
+      procedure :: free    => nsi_matvec_free
+ end type nsi_cg_iss_matvec
+
+ ! Unkno components parameter definition
+ integer(ip), parameter :: current   = 1
+ integer(ip), parameter :: prev_iter = 2
+ integer(ip), parameter :: prev_step = 3
 
  ! Types
- public :: nsi_cg_iss_approximation
+ public :: nsi_cg_iss_matvec, nsi_cg_iss_discrete
 
  ! Functions
  ! public :: nsi_iss_create, nsi_iss_free, nsi_iss_element_matvec, nsi_iss_element_real, &
@@ -83,56 +94,89 @@ module nsi_cg_iss_names
 contains
 
   !=================================================================================================
-  subroutine nsi_create(approx,prob,l2g)
+  subroutine nsi_create_discrete(discret,physics,l2g)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_approximation), intent(out) :: approx
-    class(physical_problem), target, intent(in)  :: prob
-    integer(ip), optional          , intent(in)  :: l2g(:)
-    !type(nsi_problem), target, intent(in)  :: prob
+    class(nsi_cg_iss_discrete), intent(out) :: discret
+    class(physical_problem)   , intent(in)  :: physics
+    integer(ip), optional     , intent(in)  :: l2g(:)
+    ! Locals
     integer(ip) :: i
 
-    select type (prob)
+    ! Flags
+    discret%kfl_lump = 0 ! Flag for lumped mass submatrix (Off=0, On=1)
+    discret%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=1)
+
+    ! Problem variables
+    discret%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
+    discret%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
+    discret%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
+
+    ! Time integration variables
+    discret%dtinv  = 1.0_rp ! Inverse of time step
+    discret%ctime  = 0.0_rp ! Current time
+    discret%tdimv  =  2     ! Number of temporal steps stored for velocity
+    discret%tdimp  =  2     ! Number of temporal steps stored for pressure
+
+    discret%nvars = physics%ndime+1
+    call memalloc(discret%nvars,discret%l2g_var,__FILE__,__LINE__)
+    if ( present(l2g) ) then
+       assert ( size(l2g) == discret%nvars )
+       discret%l2g_var = l2g
+    else
+       do i = 1,discret%nvars
+          discret%l2g_var(i) = i
+       end do
+    end if
+    
+  end subroutine nsi_create_discrete
+
+  !=================================================================================================
+  subroutine nsi_matvec_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_matvec)        , intent(inout) :: approx
+    ! type(nsi_problem)         , target, intent(in)  :: physics
+    ! type(nsi_cg_iss_discrete) , target, intent(in)  :: discret
+
+    ! approx%physics => physics
+    ! approx%discret => discret
+
+    class(physical_problem), target , intent(in)   :: physics
+    class(discrete_problem), target , intent(in)   :: discret
+
+    select type (physics)
     type is(nsi_problem)
-       approx%physics => prob
-       !approx%nsi => prob
-    class default
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_discrete)
+       approx%discret => discret
+       class default
        check(.false.)
     end select
 
-    approx%nvars = prob%ndime+1
-    call memalloc(approx%nvars,approx%l2g_var,__FILE__,__LINE__)
-    if ( present(l2g) ) then
-       assert ( size(l2g) == approx%nvars )
-       approx%l2g_var = l2g
-    else
-       do i = 1,approx%nvars
-          approx%l2g_var(i) = i
-       end do
-    end if
+  end subroutine nsi_matvec_create
 
-    ! Flags
-    approx%kfl_1vec = 1 ! Integrate Full OSS
-    approx%kfl_mtvc = 1 ! Integrate nsi_element_matvec
-    approx%kfl_matr = 1 ! Integrate nsi_element_mat
-    approx%kfl_real = 0 ! Integrate errornorm
-    approx%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
+  !=================================================================================================
+  subroutine nsi_matvec_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_matvec), intent(inout) :: approx
 
-    ! Problem variables
-    approx%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
-    approx%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
-    approx%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
+    approx%physics => null()
+    approx%discret => null()
 
-    ! Time integration variables
-    approx%dtinv  = 1.0_rp ! Inverse of time step
-    approx%ctime  = 0.0_rp ! Current time
-    approx%tdimv  =  2     ! Number of temporal steps stored for velocity
-    approx%tdimp  =  2     ! Number of temporal steps stored for pressure
-    
-  end subroutine nsi_create
+  end subroutine nsi_matvec_free
 
   !=================================================================================================
   subroutine nsi_matvec(approx,start,elem)
@@ -140,17 +184,21 @@ contains
     !   This subroutine performs the elemental matrix-vector integration selection.                !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_approximation), intent(inout) :: approx
-    integer(ip)                    , intent(in)    :: start(:)
-    type(fem_element)              , intent(inout) :: elem
+    class(nsi_cg_iss_matvec), intent(inout) :: approx
+    integer(ip)             , intent(in)    :: start(:)
+    type(fem_element)       , intent(inout) :: elem
     ! Locals
     real(rp), allocatable :: elmat_vu(:,:,:,:)
     real(rp), allocatable :: elmat_vu_diag(:,:)
     real(rp), allocatable :: elmat_vp(:,:,:,:)
     real(rp), allocatable :: elmat_qu(:,:,:,:)
     real(rp), allocatable :: elvec_u(:,:) 
-    integer(ip) :: ndime,nnodu,nnodp
-    integer(ip) :: idime,jdime,inode,jnode
+    integer(ip)           :: igaus,idime,inode,jdime,jnode
+    integer(ip)           :: ngaus,ndime,nnodu,nnodp
+    real(rp)              :: ctime,dtinv,dvolu,diffu,react
+    real(rp)              :: work(4)
+    real(rp)              :: agran(elem%integ(1)%p%uint_phy%nnode)
+    type(vector)          :: gpvel, gpveln, force
 
     ! Checks
     !check(elem%f_inf(1)%p%order > elem%f_inf(approx%physics%ndime+1)%p%order)
@@ -167,6 +215,10 @@ contains
     ndime = approx%physics%ndime
     nnodu = elem%integ(1)%p%uint_phy%nnode
     nnodp = elem%integ(ndime+1)%p%uint_phy%nnode
+    ngaus = elem%integ(1)%p%quad%ngaus
+    diffu = approx%physics%diffu
+    react = approx%physics%react
+    dtinv = approx%discret%dtinv
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_vu,__FILE__,__LINE__)
@@ -182,35 +234,101 @@ contains
     elmat_qu      = 0.0_rp
     elvec_u       = 0.0_rp
 
-    ! Select integration subroutine
-    if(approx%kfl_mtvc==1) then
-       call nsi_iss_element_matvec_stdr(approx,elem,start,elmat_vu,elmat_vu_diag,elmat_vp,elmat_qu, &
-            &                           elvec_u)
-    ! elseif(prob%kfl_mtvc==200) then
-    !    call nsi_iss_element_mat_massu(prob,elem,nnode(1),blk_elmat%blocks(1,1))
-    ! elseif(prob%kfl_mtvc==201) then
-    !    call nsi_iss_element_mat_diffu(prob,elem,nnode(1),blk_elmat%blocks(1,1))
-    ! elseif(prob%kfl_mtvc==202) then
-    !    call nsi_iss_element_mat_conve(prob,elem,nnode(1),blk_elmat%blocks(1,1))
-    ! elseif(prob%kfl_mtvc==203) then
-    !    call nsi_iss_element_mat_gradp(prob,elem,nnode,blk_elmat%blocks(1,2))
-    ! elseif(prob%kfl_mtvc==204) then
-    !    call nsi_iss_element_mat_react(prob,elem,nnode(1),blk_elmat%blocks(1,1))
-    ! elseif(prob%kfl_mtvc==206) then
-    !    call nsi_iss_element_mat_divuq(prob,elem,nnode,blk_elmat%blocks(2,1))
-    ! elseif(prob%kfl_mtvc==207) then
-    !    call nsi_iss_element_mat_ossuu(prob,elem,nnode(1),blk_elmat%blocks(1,1))
-    ! elseif(prob%kfl_mtvc==208) then
-    !    call nsi_iss_element_mat_ossux(prob,elem,nnode(1),blk_elmat%blocks(1,3))
-    ! elseif(prob%kfl_mtvc==212) then
-    !    call nsi_iss_element_mat_massp(prob,elem,nnode(2),blk_elmat%blocks(2,2))
-    ! elseif(prob%kfl_mtvc==214) then
-    !    call nsi_iss_element_mat_laplp(prob,elem,nnode(2),blk_elmat%blocks(2,2))
-    ! elseif(prob%kfl_mtvc==216) then
-    !    call nsi_iss_element_mat_ossxu(prob,elem,nnode(1),blk_elmat%blocks(3,1))
-    ! elseif(prob%kfl_mtvc==217) then
-    !    call nsi_iss_element_mat_ossxx(prob,elem,nnode(1),blk_elmat%blocks(3,3))
+    ! Interpolation operations for velocity
+    call create_vector (approx%physics, 1, elem%integ, gpvel)
+    call create_vector (approx%physics, 1, elem%integ, gpveln)
+    call interpolation (elem%unkno, 1, prev_iter, elem%integ, gpvel)
+    gpvel%a=0.0_rp
+    if(dtinv == 0.0_rp) then
+       call interpolation (elem%unkno, 1, prev_step, elem%integ, gpveln)
+    else
+       gpveln%a = 0.0_rp
     end if
+
+    ! Set real time
+    if(approx%discret%kfl_thet==0) then        ! BE
+       ctime = approx%discret%ctime
+    elseif(approx%discret%kfl_thet==1) then    ! CN
+       ctime = approx%discret%ctime - 1.0_rp/dtinv
+    end if
+
+    ! Set force term
+    call create_vector(approx%physics,1,elem%integ,force)
+    force%a=0.0_rp
+    ! Impose analytical solution
+    if(approx%physics%case_veloc>0.and.approx%physics%case_press>0) then 
+       call nsi_analytical_force(approx,elem,ctime,gpvel,force)
+    end if
+    
+    ! Initializations
+    work     = 0.0_rp
+    agran    = 0.0_rp 
+
+    ! Loop on Gauss points
+    do igaus = 1,elem%integ(1)%p%quad%ngaus
+       dvolu = elem%integ(1)%p%quad%weight(igaus)*elem%integ(1)%p%femap%detjm(igaus)
+
+       ! Auxiliar variables
+       if(approx%physics%kfl_conv.ne.0) then
+          do inode = 1,nnodu
+             agran(inode) = 0.0_rp
+             do idime = 1,ndime
+                agran(inode) = agran(inode) + &
+                     &         gpvel%a(idime,igaus)*elem%integ(1)%p%uint_phy%deriv(idime,inode,igaus)
+             end do
+          end do
+       end if
+
+       ! Add external force term
+       do idime=1,approx%physics%ndime    
+          force%a(idime,igaus) = force%a(idime,igaus) + approx%physics%gravi(idime)
+       end do
+
+       ! Computation of elemental terms
+       ! ------------------------------
+       ! Block U-V
+       ! mu * ( grad u, grad v )
+       call elmvis_gal(dvolu,diffu,elem%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elmat_vu_diag, &
+            &          work)
+
+       ! Add cross terms for symmetric grad
+       if(approx%physics%kfl_symg==1) then
+          call elmvis_gal_sym(dvolu,diffu,elem%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+               &              elmat_vu,work)
+       end if
+       if(approx%physics%kfl_skew==0) then
+          ! (v, a·grad u) + s*(v,u) + (v, u/dt)
+          call elmbuv_gal(dvolu,react,dtinv,elem%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
+               &          elmat_vu_diag,work)
+       elseif(approx%physics%kfl_skew==1) then
+          ! 1/2(v, a·grad u) - 1/2(u,a·grad v) + s*(v,u) + (v, u/dt)
+          call elmbuv_gal_skew1(dvolu,react,dtinv,elem%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
+               &                elmat_vu_diag,work)
+       end if
+
+       ! Block P-V
+       ! - ( div v, p )
+       call elmbpv_gal_div_iss(dvolu,elem%integ(ndime+1)%p%uint_phy%shape(:,igaus),               &
+            &                  elem%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
+            &                  elmat_vp,work)
+
+       ! Block U-Q
+       ! ( div u, q )
+       call elmbuq_gal_div_iss(dvolu,elem%integ(ndime+1)%p%uint_phy%shape(:,igaus),               &
+            &                  elem%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
+            &                  elmat_qu,work)
+
+       ! RHS: Block U
+       ! ( v, f ) + ( v, u_n/dt )
+       call elmrhu_gal(dvolu,dtinv,elem%integ(1)%p%uint_phy%shape(:,igaus),gpveln%a(:,igaus), &
+            &          force%a(:,igaus),nnodu,ndime,elvec_u,work)
+
+    end do
+
+    call memfree(gpvel%a,__FILE__,__LINE__)
+    call memfree(gpveln%a,__FILE__,__LINE__)
+    call memfree(force%a,__FILE__,__LINE__)
+
 
     ! Assembly to elemental p_mat and p_vec
     do inode=1,nnodu
@@ -249,160 +367,124 @@ contains
     call memfree(elmat_vp,__FILE__,__LINE__)
     call memfree(elmat_qu,__FILE__,__LINE__)
     call memfree(elvec_u,__FILE__,__LINE__)
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(elem) 
     
   end subroutine nsi_matvec
 
-  !=================================================================================================
-  subroutine nsi_iss_element_matvec_stdr(approx,el,start,elmat_vu,elmat_vu_diag,elmat_vp,elmat_qu, &
-            &                           elvec_u)
-    !----------------------------------------------------------------------------------------------!
-    !   This subroutine computes the standard GALERKIN elemental matrix-vector integration.        !
-    !----------------------------------------------------------------------------------------------!
+  !==================================================================================================
+  subroutine nsi_analytical_force(approx,elem,ctime,gpvel,force)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the elemental force needed to impose an analytical solution        !
+    !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_approximation), intent(in)    :: approx
-    type(fem_element)              , intent(inout) :: el
-    integer(ip)                    , intent(in)    :: start(:)
-    real(rp)                       , intent(inout) :: elmat_vu(:,:,:,:)
-    real(rp)                       , intent(inout) :: elmat_vu_diag(:,:)
-    real(rp)                       , intent(inout) :: elmat_vp(:,:,:,:)
-    real(rp)                       , intent(inout) :: elmat_qu(:,:,:,:)
-    real(rp)                       , intent(inout) :: elvec_u(:,:) 
+    class(nsi_cg_iss_matvec), intent(in)    :: approx
+    type(fem_element)       , intent(in)    :: elem
+    real(rp)                , intent(in)    :: ctime
+    type(vector)            , intent(in)    :: gpvel
+    type(vector)            , intent(inout) :: force
     ! Locals
-    integer(ip)  :: igaus,idime,inode,jdime,jnode
-    integer(ip)  :: ngaus,ndime,nnodu,nnodp
-    real(rp)     :: ctime,dtinv,dvolu,diffu,react
-    real(rp)     :: work(4)
-    real(rp)     :: force(approx%physics%ndime)
-    real(rp)     :: agran(el%integ(1)%p%uint_phy%nnode)
-    ! real(rp)    :: parv(30),parp(10),part(3),part_p(3)
-    type(vector) :: gpvel, gpveln
+    integer(ip) :: igaus,idime,conve
+    real(rp)    :: gpvno
+    real(rp)    :: parv(30),parp(10),part(3),part_p(3)
 
-    ! Unpack variables
-    ndime = approx%physics%ndime
-    nnodu = el%integ(1)%p%uint_phy%nnode
-    nnodp = el%integ(ndime+1)%p%uint_phy%nnode
-    ngaus = el%integ(1)%p%quad%ngaus
-    diffu = approx%physics%diffu
-    react = approx%physics%react
-    dtinv = approx%dtinv
+    ! Loop over gauss points
+    do igaus=1,elem%integ(1)%p%quad%ngaus
     
-    ! Interpolation operations for velocity
-    call create_vector (approx%physics, 1, el%integ, gpvel)
-    call create_vector (approx%physics, 1, el%integ, gpveln)
-    call interpolation (el%unkno, 1, 1, el%integ, gpvel)
-    gpvel%a=0.0_rp
-    if(dtinv == 0.0_rp) then
-       call interpolation (el%unkno, 1, 3, el%integ, gpveln)
-    else
-       gpveln%a = 0.0_rp
-    end if
-
-    ! Set real time
-    if(approx%kfl_thet==0) then        ! BE
-       ctime = approx%ctime
-    elseif(approx%kfl_thet==1) then    ! CN
-       ctime = approx%ctime - 1.0_rp/dtinv
-    end if
-    
-    ! Initializations
-    work     = 0.0_rp
-    force    = 0.0_rp
-    agran    = 0.0_rp
-    ! parv     = 0.0_rp
-    ! parp     = 0.0_rp
-    ! part     = 0.0_rp    
-
-    ! Loop on Gauss points
-    do igaus = 1,el%integ(1)%p%quad%ngaus
-       dvolu = el%integ(1)%p%quad%weight(igaus)*el%integ(1)%p%femap%detjm(igaus)
-
-  !      ! Analytical solution
-  !      if(prob%case_veloc>0.and.prob%case_press>0) then         
-  !         ! Velocity norm at gauss point
-  !         gpvno=0.0_rp
-  !         do idime = 1,prob%ndime
-  !            gpvno = gpvno + gpvel(idime,igaus)*gpvel(idime,igaus)
-  !         end do
-  !         gpvno = sqrt(gpvno)
-
-  !         ! Interpolation of coords
-  !         call analytical_field(prob%case_veloc,prob%ndime,el%integ(1)%p%femap%clocs(:,igaus),ctime,parv)
-  !         call analytical_field(prob%case_press,prob%ndime,el%integ(1)%p%femap%clocs(:,igaus),ctime,parp)
-  !         call analytical_field(prob%case_tempo,prob%ndime,el%integ(1)%p%femap%clocs(:,igaus),ctime,part)
-  !         call analytical_field(prob%case_t_pre,prob%ndime,el%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
-  !         if(gpvno.lt.1e-4) then
-  !            conve = 0
-  !         else
-  !            conve = prob%kfl_conv
-  !         end if
-  !         call nsi_basic_force(prob%ndime,prob%diffu,prob%react,conve,prob%kfl_symg,prob%case_tempo, &
-  !              &               parv,parp,part,prob%gravi,force,part_p)
-  !      else
-  !         force=0.0_rp
-  !      end if
-
-       ! Gravity field
-       do idime=1,approx%physics%ndime
-          force(idime) = force(idime) + approx%physics%gravi(idime)
+       ! Compute velocity norm
+       gpvno=0.0_rp
+       do idime = 1,approx%physics%ndime
+          gpvno = gpvno + gpvel%a(idime,igaus)*gpvel%a(idime,igaus)
        end do
+       gpvno = sqrt(gpvno)
 
-       ! Auxiliar variables
-       if(approx%physics%kfl_conv.ne.0) then
-          do inode = 1,nnodu
-             agran(inode) = 0.0_rp
-             do idime = 1,ndime
-                agran(inode) = agran(inode) + &
-                     &         gpvel%a(idime,igaus)*el%integ(1)%p%uint_phy%deriv(idime,inode,igaus)
-             end do
-          end do
+       ! Set convection flag
+       if(gpvno.lt.1e-4) then
+          conve = 0
+       else
+          conve = approx%physics%kfl_conv
        end if
+       
+       ! Evaluate unknowns and derivatives
+       parv   = 0.0_rp
+       parp   = 0.0_rp
+       part   = 0.0_rp
+       part_p = 0.0_rp
+       call analytical_field(approx%physics%case_veloc,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,parv)
+       call analytical_field(approx%physics%case_press,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,parp)
+       call analytical_field(approx%physics%case_tempo,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,part)
+       call analytical_field(approx%physics%case_t_pre,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
 
-       ! Computation of elemental terms
-       ! ------------------------------
-       ! Block U-V
-       ! mu * ( grad u, grad v )
-       call elmvis_gal(dvolu,diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elmat_vu_diag, &
-            &          work)
-
-       ! Add cross terms for symmetric grad
-       if(approx%physics%kfl_symg==1) then
-          call elmvis_gal_sym(dvolu,diffu,el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-               &              elmat_vu,work)
-       end if
-       if(approx%physics%kfl_skew==0) then
-          ! (v, a·grad u) + s*(v,u) + (v, u/dt)
-          call elmbuv_gal(dvolu,react,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
-               &          elmat_vu_diag,work)
-       elseif(approx%physics%kfl_skew==1) then
-          ! 1/2(v, a·grad u) - 1/2(u,a·grad v) + s*(v,u) + (v, u/dt)
-          call elmbuv_gal_skew1(dvolu,react,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
-               &                elmat_vu_diag,work)
-       end if
-
-       ! Block P-V
-       ! - ( div v, p )
-       call elmbpv_gal_div_iss(dvolu,el%integ(ndime+1)%p%uint_phy%shape(:,igaus),               &
-            &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
-            &                  elmat_vp,work)
-
-       ! Block U-Q
-       ! ( div u, q )
-       call elmbuq_gal_div_iss(dvolu,el%integ(ndime+1)%p%uint_phy%shape(:,igaus),               &
-            &                  el%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
-            &                  elmat_qu,work)
-
-       ! RHS: Block U
-       ! ( v, f ) + ( v, u_n/dt )
-       call elmrhu_gal(dvolu,dtinv,el%integ(1)%p%uint_phy%shape(:,igaus),gpveln%a(:,igaus), &
-            &          force,nnodu,ndime,elvec_u,work)
+       ! Evaluate force
+       call nsi_force(approx%physics%ndime,approx%physics%diffu,approx%physics%react,conve, &
+            &         approx%physics%kfl_symg,approx%physics%case_tempo,parv,parp,part,     &
+            &         approx%physics%gravi,force%a(:,igaus),part_p)
 
     end do
 
-    call memfree(gpvel%a,__FILE__,__LINE__)
-    call memfree(gpveln%a,__FILE__,__LINE__)
-    
-  end subroutine nsi_iss_element_matvec_stdr
+  end subroutine nsi_analytical_force
 
+  !=================================================================================================
+  subroutine nsi_force(ndime,diffu,react,kfl_conv,kfl_symg,caset,parv,parp,part,gravi,force,part_p)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine evaluates the elemental force needed to impose an analytical solution       !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip)       , intent(in)    :: ndime,kfl_conv,kfl_symg,caset
+    real(rp)          , intent(in)    :: diffu,react,parv(:),parp(:),part(:),gravi(3)
+    real(rp)          , intent(inout) :: force(ndime)
+    real(rp), optional, intent(in)    :: part_p(:)
+
+    real(rp)   :: u,v,w,dpdx,dpdy,dpdz,d2udx,d2udy,d2udz
+    real(rp)   :: d2vdx,d2vdy,d2vdz,d2wdx,d2wdy,d2wdz
+    real(rp)   :: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
+    real(rp)   :: d2udxy,d2udxz,d2vdxy,d2vdyz,d2wdxz,d2wdyz
+    real(rp)   :: dudt,dvdt,dwdt
+
+    !
+    if(caset>0) then
+       dudt = part(2)*parv(1); dvdt = part(2)*parv(2); dwdt = part(2)*parv(3)
+    else
+       dudt=0.0_rp; dvdt=0.0_rp; dwdt=0.0_rp
+    end if
+    !
+    u = parv(1)*part(1); v = parv(2)*part(1); w = parv(3)*part(1)
+    dudx = parv(4)*part(1); dudy = parv(5)*part(1); dudz = parv(6)*part(1)
+    dvdx = parv(7)*part(1); dvdy = parv(8)*part(1); dvdz = parv(9)*part(1)
+    dwdx = parv(10)*part(1); dwdy = parv(11)*part(1); dwdz = parv(12)*part(1)
+    !
+    d2udx = parv(13)*part(1); d2udy = parv(14)*part(1); d2udz = parv(15)*part(1)
+    d2vdx = parv(16)*part(1); d2vdy = parv(17)*part(1); d2vdz = parv(18)*part(1)
+    d2wdx = parv(19)*part(1); d2wdy = parv(20)*part(1); d2wdz = parv(21)*part(1)
+    !
+    d2udxy = parv(22)*part(1); d2udxz = parv(23)*part(1)
+    d2vdxy = parv(25)*part(1); d2vdyz = parv(27)*part(1)
+    d2wdxz = parv(29)*part(1); d2wdyz = parv(30)*part(1)
+    !
+    if(present(part_p)) then
+       dpdx = parp(2)*part_p(1); dpdy = parp(3)*part_p(1); dpdz = parp(4)*part_p(1)
+    else
+       dpdx = parp(2); dpdy = parp(3); dpdz = parp(4)
+    end if
+    !
+
+    force(1) = dudt - diffu*(d2udx+d2udy+d2udz) + dpdx + react*u + &
+         REAL(kfl_conv)*(u*dudx + v*dudy + w*dudz) - gravi(1) -    &
+         REAL(kfl_symg)*diffu*(d2udx+d2vdxy+d2wdxz)
+    force(2) = dvdt - diffu*(d2vdx+d2vdy+d2vdz) + dpdy + react*v + &
+         REAL(kfl_conv)*(u*dvdx + v*dvdy + w*dvdz) - gravi(2) -    &
+         REAL(kfl_symg)*diffu*(d2udxy+d2vdy+d2wdyz)
+    if(ndime==3) force(3) = dwdt - diffu*(d2wdx+d2wdy+d2wdz) + dpdz + react*w + &
+         REAL(kfl_conv)*(u*dwdx + v*dwdy + w*dwdz) - gravi(3) -    &
+         REAL(kfl_symg)*diffu*(d2udxz+d2vdyz+d2wdz)
+
+  end subroutine nsi_force
+  
   ! !=================================================================================================
   ! subroutine nsi_iss_element_mat(prob,ielem,elem)
   !   !----------------------------------------------------------------------------------------------!

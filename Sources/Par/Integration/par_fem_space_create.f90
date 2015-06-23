@@ -78,17 +78,15 @@ contains
   ! together with some optional flags. The output of this subroutine is a fem_space
   ! with the required info on ghost elements.
   !*********************************************************************************
-  subroutine par_fem_space_create ( p_trian, dhand, p_femsp, problem, num_approximations, approximations, p_cond, &
-                                    continuity, order, material, which_approx, time_steps_to_store, &
-                                    hierarchical_basis, static_condensation, num_continuity )
+  subroutine par_fem_space_create ( p_trian, dhand, p_femsp, problem, p_cond, continuity, order,     &
+                                    material, which_approx, time_steps_to_store, hierarchical_basis, &
+                                    static_condensation, num_continuity )
     implicit none
     ! Dummy arguments
     type(par_triangulation), target, intent(in)    :: p_trian
     type(dof_handler)              , intent(in)    :: dhand
     type(par_fem_space)            , intent(inout) :: p_femsp  
     integer(ip)                    , intent(in)    :: problem(:)
-    integer(ip)                    , intent(in)    :: num_approximations
-    type(discrete_problem_pointer) , intent(in)    :: approximations(num_approximations)
     type(par_conditions)           , intent(in)    :: p_cond
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
@@ -108,7 +106,7 @@ contains
 
     if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
 
-       call fem_space_allocate_structures(  p_trian%f_trian, dhand, p_femsp%f_space, num_approximations=num_approximations, &
+       call fem_space_allocate_structures(  p_trian%f_trian, dhand, p_femsp%f_space,            &
             time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
             static_condensation = static_condensation, num_continuity = num_continuity, &
             num_ghosts = p_trian%num_ghosts ) 
@@ -117,7 +115,6 @@ contains
 !!$    allocate ( fspac%approximations(num_approximations), stat=istat)
 !!$    write (*,*) 'XXX', num_approximations, istat
 !!$    check (istat == 0)    
-       p_femsp%f_space%approximations = approximations
 
        call fem_space_fe_list_create ( p_femsp%f_space, problem, which_approx, continuity, order, material, p_cond%f_conditions )
 

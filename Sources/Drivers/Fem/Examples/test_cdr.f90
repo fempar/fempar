@@ -42,10 +42,11 @@ program test_cdr
   type(fem_block_graph)    :: f_blk_graph
   integer(ip)              :: gtype(1) = (/ csr_symm /)
 
-  type(cdr_problem)               :: my_problem
-  type(cdr_approximation), target :: my_approximation
-  integer(ip)                     :: num_approximations
-  type(discrete_problem_pointer)  :: approximations(1)
+  type(cdr_problem)                   :: my_problem
+  type(cdr_discrete)                  :: my_discrete
+  type(cdr_approximation), target     :: my_approximation
+  integer(ip)                         :: num_approximations
+  type(discrete_integration_pointer)  :: approximations(1)
 
   type(fem_matrix), target             :: my_matrix
   type(fem_vector), target             :: my_vector, feunk
@@ -101,11 +102,12 @@ program test_cdr
   !write (6,*) 'Local to global (of variables) for problem: ' ,  my_problem%l2g_var
 
   call my_problem%create( f_trian%num_dims )
-  call my_approximation%create(my_problem)
+  call my_discrete%create( my_problem)
+  call my_approximation%create(my_problem,my_discrete)
   num_approximations=1
   approximations(1)%p => my_approximation
 
-  call dhand%set_problem( 1, my_approximation )
+  call dhand%set_problem( 1, my_discrete )
   !                     ( ndime, dhand, l2g_vars, iprob ) 
   ! ... for as many problems as we have
 
@@ -127,11 +129,12 @@ program test_cdr
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call fem_space_create ( f_trian, dhand, fspac, problem, num_approximations, approximations, f_cond, continuity, order, material, &
+  call fem_space_create ( f_trian, dhand, fspac, problem, f_cond, continuity, order, material, &
        & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), & 
        & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
-  call update_strong_dirichlet_boundary_conditions( fspac )
+  f_cond%valu = 1.0_rp
+  call update_strong_dirichlet_boundary_conditions( fspac, f_cond )
 
   call create_dof_info( dhand, f_trian, fspac, f_blk_graph, gtype )
 
@@ -200,6 +203,7 @@ program test_cdr
   call fem_matrix_free( my_matrix) 
   call fem_space_free(fspac) 
   call my_problem%free
+  call my_discrete%free
   call my_approximation%free
   call dof_handler_free ( dhand )
   call fem_triangulation_free ( f_trian )
@@ -235,33 +239,33 @@ contains
 
   end subroutine read_pars_cl_test_cdr
 
-  subroutine update_strong_dirichlet_boundary_conditions( fspac )
-    implicit none
-
-    type(fem_space), intent(inout)    :: fspac
-
-    integer(ip) :: ielem, iobje, ivar, inode, l_node
-
-    do ielem = 1, fspac%g_trian%num_elems
-       do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
-          !write (*,*) 'ielem',ielem
-          !write (*,*) 'ivar',ivar
-          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
-          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%p',fspac%lelem(ielem)%nodes_object(ivar)%p%p
-          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%l',fspac%lelem(ielem)%nodes_object(ivar)%p%l
-          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-
-             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-                end if
-             end do
-          end do
-       end do
-    end do
-
-  end subroutine update_strong_dirichlet_boundary_conditions
+!!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
+!!$    implicit none
+!!$
+!!$    type(fem_space), intent(inout)    :: fspac
+!!$
+!!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
+!!$
+!!$    do ielem = 1, fspac%g_trian%num_elems
+!!$       do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+!!$          !write (*,*) 'ielem',ielem
+!!$          !write (*,*) 'ivar',ivar
+!!$          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
+!!$          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%p',fspac%lelem(ielem)%nodes_object(ivar)%p%p
+!!$          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%l',fspac%lelem(ielem)%nodes_object(ivar)%p%l
+!!$          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+!!$
+!!$             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+!!$                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+!!$                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+!!$                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+!!$                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
+!!$                end if
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    end do
+!!$
+!!$  end subroutine update_strong_dirichlet_boundary_conditions
 
 end program test_cdr

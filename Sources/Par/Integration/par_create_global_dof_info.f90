@@ -114,7 +114,7 @@ contains
           end do
        end do
 
-       call fem_graph_print ( 6, p_graph%f_graph )
+       ! call fem_graph_print ( 6, p_graph%f_graph )
     end if
   end subroutine par_create_distributed_dof_info
 

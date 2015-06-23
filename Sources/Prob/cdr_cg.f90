@@ -38,13 +38,8 @@ module cdr_stabilized_continuous_Galerkin_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: cdr_approximation
-    type(cdr_problem), pointer :: physics
+ type, extends(discrete_problem) :: cdr_discrete
     integer(ip) ::   & 
-         kfl_1vec,   & ! Flag for 1vec integration
-         kfl_mtvc,   & ! Flag for matvec integration
-         kfl_matr,   & ! Flag for matrix integration
-         kfl_real,   & ! Flag for real integration
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
          kfl_stab,   & ! Flag for stabilization of the convective term (Off=0; OSS=2)
@@ -56,70 +51,99 @@ module cdr_stabilized_continuous_Galerkin_names
          k1tau,      & ! C1 constant on stabilization parameter 
          k2tau         ! C2 constant on stabilization parameter 
     contains
-      procedure :: create => cdr_create
-      procedure :: matvec => cdr_matvec
+      procedure :: create => cdr_create_discrete
+   end type cdr_discrete
+
+   type, extends(discrete_integration) :: cdr_approximation
+      type(cdr_discrete), pointer :: discret
+      type(cdr_problem) , pointer :: physics
+    contains
+      procedure :: create  => cdr_matvec_create
+      procedure :: compute => cdr_matvec
+      procedure :: free    => cdr_matvec_free
    end type cdr_approximation
 
- public :: cdr_approximation
+ public :: cdr_approximation, cdr_discrete
 
 contains
 
   !=================================================================================================
-  subroutine cdr_create(approx, prob, l2g)
+  subroutine cdr_create_discrete(discret,physics,l2g)
     !---------------------------------------------------------------------------!
     !   This subroutine contains definitions of the cdr problem approximed by   !
     !   a stabilised finite element formulation with inf-sup stable elemets.    !
     !---------------------------------------------------------------------------!
     implicit none
-    class(cdr_approximation)       , intent(out) :: approx
-    class(physical_problem), target, intent(in)  :: prob
-    integer(ip), intent(in), optional :: l2g(:)
+    class(cdr_discrete)    , intent(out) :: discret
+    class(physical_problem), intent(in)  :: physics
+    integer(ip), optional  , intent(in)  :: l2g(:)
+    ! Locals
     integer(ip) :: i
 
+    ! Flags
+    discret%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
+    discret%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
+    discret%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
 
-    select type (prob)
+    ! Problem variables
+    discret%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter
+    discret%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter
+
+    ! Time integration variables
+    discret%dtinv  = 1.0_rp ! Inverse of time step
+    discret%ctime  = 0.0_rp ! Current time
+    discret%tdimv  =  2     ! Number of temporal steps stored
+
+    discret%nvars = 1
+    call memalloc(discret%nvars,discret%l2g_var,__FILE__,__LINE__)
+    if ( present(l2g) ) then
+       assert ( size(l2g) == discret%nvars )
+       discret%l2g_var = l2g
+    else
+       do i = 1,discret%nvars
+          discret%l2g_var(i) = i
+       end do
+    end if
+    
+  end subroutine cdr_create_discrete
+
+  !=================================================================================================
+  subroutine cdr_matvec_create( approx, physics, discret )
+    implicit none
+    class(cdr_approximation)       , intent(inout) :: approx
+    class(physical_problem), target, intent(in)    :: physics
+    class(discrete_problem), target, intent(in)    :: discret
+
+    select type (physics)
     type is(cdr_problem)
-       approx%physics => prob
-       !approx%cdr => prob
+       approx%physics => physics
+    class default
+       check(.false.)
+    end select 
+    select type (discret)
+    type is(cdr_discrete)
+       approx%discret => discret
     class default
        check(.false.)
     end select
 
-    approx%nvars = 1
-    call memalloc(approx%nvars,approx%l2g_var,__FILE__,__LINE__)
-    if ( present(l2g) ) then
-       assert ( size(l2g) == approx%nvars )
-       approx%l2g_var = l2g
-    else
-       do i = 1,approx%nvars
-          approx%l2g_var(i) = i
-       end do
-    end if
+  end subroutine cdr_matvec_create
 
-    ! Flags
-    approx%kfl_1vec = 1 ! Integrate Full OSS
-    approx%kfl_mtvc = 1 ! Integrate cdr_element_matvec
-    approx%kfl_matr = 1 ! Integrate cdr_element_mat
-    approx%kfl_real = 0 ! Integrate errornorm
-    approx%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
-    approx%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
-    approx%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
+  !=================================================================================================
+  subroutine cdr_matvec_free(approx)
+    implicit none
+    class(cdr_approximation)  , intent(inout) :: approx
 
-    ! Problem variables
-    approx%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter
-    approx%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter
+    approx%physics => null()
+    approx%discret => null()
 
-    ! Time integration variables
-    approx%dtinv  = 1.0_rp ! Inverse of time step
-    approx%ctime  = 0.0_rp ! Current time
-    approx%tdimv  =  2     ! Number of temporal steps stored
-    
-  end subroutine cdr_create
+  end subroutine cdr_matvec_free
 
+  !=================================================================================================
   subroutine cdr_matvec(approx,start,elem)
     implicit none
     class(cdr_approximation), intent(inout) :: approx
-    integer(ip)            , intent(in)    :: start(:)
+    integer(ip)             , intent(in)    :: start(:)
     type(fem_element)       , intent(inout) :: elem
 
     type(basis_function) :: u ! Trial
@@ -162,9 +186,9 @@ contains
 
     !mu = approx%physics%diffu
 
-    !dtinv  = approx%dtinv
-    !c1 = approx%k1tau
-    !c2 = approx%k1tau
+    !dtinv  = approx%discret%dtinv
+    !c1 = approx%discret%k1tau
+    !c2 = approx%discret%k1tau
 
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     !tau = inv(tau)
@@ -192,6 +216,9 @@ contains
 
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
     !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(elem) 
 
   end subroutine cdr_matvec
 

@@ -29,28 +29,33 @@ program test_nsi_iss
   use fem
   use nsi_names
   use nsi_cg_iss_names
+  use lib_vtk_io_interface
   implicit none
 # include "debug.i90"
   
   ! Types
-  type(geom_data)                        :: gdata
-  type(bound_data)                       :: bdata
-  type(fem_fixed_info)                   :: ginfo
-  type(fem_triangulation)                :: f_trian
-  type(fem_conditions)                   :: f_cond
-  type(dof_handler)                      :: dhand
-  type(fem_space)                        :: fspac  
-  type(nsi_problem)                      :: myprob
-  type(nsi_cg_iss_approximation), target :: myapprox
-  type(discrete_problem_pointer)         :: approximations(1)
-  type(fem_matrix)              , target :: femat
-  type(fem_vector)              , target :: fevec,feunk
-  type(fem_precond)                      :: feprec
-  type(fem_precond_params)               :: ppars
-  type(solver_control)                   :: sctrl
-  type(serial_environment)               :: senv
-  class(base_operand)          , pointer :: x, b
-  class(base_operator)         , pointer :: A, M
+  type(geom_data)                    :: gdata
+  type(bound_data)                   :: bdata
+  type(fem_fixed_info)               :: ginfo
+  type(fem_triangulation)            :: f_trian
+  type(fem_conditions)               :: f_cond
+  type(dof_handler)                  :: dhand
+  type(fem_space)                    :: fspac  
+  type(nsi_problem)                  :: myprob
+  type(nsi_cg_iss_discrete) , target :: mydisc
+  type(nsi_cg_iss_matvec)   , target :: matvec
+  type(discrete_integration_pointer) :: approx(1)
+  type(fem_matrix)          , target :: femat
+  type(fem_vector)          , target :: fevec,feunk
+  type(fem_precond)                  :: feprec
+  type(fem_precond_params)           :: ppars
+  type(solver_control)               :: sctrl
+  type(serial_environment)           :: senv
+  type(fem_vtk)                      :: fevtk
+  class(base_operand)      , pointer :: x, b
+  class(base_operator)     , pointer :: A, M
+  type(fem_graph)          , pointer :: f_graph
+  type(fem_block_graph)              :: f_blk_graph
 
   ! Logicals
   logical(lg) :: ginfo_state
@@ -66,8 +71,6 @@ program test_nsi_iss
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
   integer(ip), allocatable :: which_approx(:)
-  type(fem_graph), pointer :: f_graph
-  type(fem_block_graph)    :: f_blk_graph
 
   ! Arguments
   character(len=256) :: dir_path_out,prefix
@@ -102,12 +105,15 @@ program test_nsi_iss
 
   ! Create problem
   call myprob%create(gdata%ndime)
-  call myapprox%create(myprob)
-  approximations(1)%p => myapprox
-  call dhand%set_problem(1,myapprox)
-  myapprox%dtinv  = 0.0_rp
-  myprob%kfl_conv = 1
-  myprob%diffu    = 1.0_rp
+  call mydisc%create(myprob)
+  call matvec%create(myprob,mydisc)
+  call dhand%set_problem(1,mydisc)
+  approx(1)%p       => matvec
+  mydisc%dtinv      = 0.0_rp
+  myprob%kfl_conv   = 1
+  myprob%diffu      = 1.0_rp
+  myprob%case_veloc = 1
+  myprob%case_press = 1
 
   ! Allocate auxiliar elemental arrays
   call memalloc(f_trian%num_elems,dhand%nvars_global,continuity, __FILE__,__LINE__)
@@ -121,14 +127,15 @@ program test_nsi_iss
   which_approx           = 1 
   
   ! Create fem_space
-  call fem_space_create(f_trian,dhand,fspac,problem,num_approximations,approximations,f_cond, &
-       &                continuity,order,material,which_approx,time_steps_to_store=3,         &
-       &                hierarchical_basis=logical(.false.,lg),                               &
+  call fem_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
+       &                time_steps_to_store=3, hierarchical_basis=logical(.false.,lg),             &
        &                static_condensation=logical(.false.,lg),num_continuity=1)
+
+  ! Initialize VTK output
+  call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix)
 
   ! Create dof info
   call create_dof_info(dhand,f_trian,fspac,f_blk_graph,gtype)
-
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Allocate matrices and vectors
@@ -137,11 +144,17 @@ program test_nsi_iss
   call fem_vector_alloc(f_graph%nv,feunk)
   call fevec%init(0.0_rp)
 
-  ! Update boundary conditions
-  call update_strong_dirichlet_boundary_conditions(fspac)
+  ! Apply boundary conditions to unkno
+  call update_strong_dirichlet_boundary_conditions(fspac,f_cond)
+  if(myprob%case_veloc>0) then
+     call update_analytical_boundary_conditions((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fspac)
+  end if
+  if(myprob%case_press>0) then
+     call update_analytical_boundary_conditions((/gdata%ndime+1/),myprob%case_press,0.0_rp,fspac)
+  end if
 
   ! Integrate
-  call volume_integral(approximations,fspac,femat,fevec)
+  call volume_integral(approx,fspac,femat,fevec)
 
   ! Construct preconditioner
   sctrl%method = direct
@@ -161,8 +174,10 @@ program test_nsi_iss
   !call abstract_solve(A,M,b,x,sctrl,senv)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)
-
   call fem_vector_print(6,feunk)
+
+  ! Print solution to VTK file
+  istat = fevtk%write_VTK()
 
   ! Free preconditioner
   call fem_precond_free(precond_free_values,feprec)
@@ -175,13 +190,15 @@ program test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call memfree(which_approx,__FILE__,__LINE__)
+  call fevtk%free
   call f_blk_graph%free()
   call fem_vector_free(feunk)
   call fem_vector_free(fevec)
   call fem_matrix_free(femat) 
   call fem_space_free(fspac) 
   call myprob%free
-  call myapprox%free
+  call mydisc%free
+  call matvec%free
   call dof_handler_free(dhand)
   call fem_triangulation_free(f_trian)
   call fem_conditions_free(f_cond)
@@ -224,43 +241,5 @@ contains
     read (argument,*) nez
 
   end subroutine read_pars_cl_test_nsi
-
-  subroutine update_strong_dirichlet_boundary_conditions( fspac )
-    implicit none
-
-    type(fem_space), intent(inout)    :: fspac
-
-    integer(ip) :: ielem, iobje, ivar, inode, l_node
-
-    do ielem = 1, fspac%g_trian%num_elems
-       do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars-1
-          !write (*,*) 'ielem',ielem
-          !write (*,*) 'ivar',ivar
-          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
-          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%p',fspac%lelem(ielem)%nodes_object(ivar)%p%p
-          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%l',fspac%lelem(ielem)%nodes_object(ivar)%p%l
-          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-
-             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-                end if
-             end do
-          end do
-       end do
-       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-          do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-               &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-             l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-             if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-                fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-             end if
-          end do
-       end do
-    end do
-
-  end subroutine update_strong_dirichlet_boundary_conditions
   
 end program test_nsi_iss

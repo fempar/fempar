@@ -34,12 +34,14 @@ module fem_space_names
   use hash_table_names
   use problem_names
   use integration_tools_names
+  use interpolation_tools_names
   !use face_integration_names
   use fem_space_types
   use dof_handler_names
   use migratory_element_names
   use fem_conditions_names
   use fem_element_names
+  use analytical_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -63,11 +65,6 @@ module fem_space_names
      type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler)        , pointer :: dof_handler
 
-
-     ! Formulations used to build the space
-     integer(ip) :: num_approximations
-     type(discrete_problem_pointer), allocatable :: approximations(:)
-
      ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
      type(position_hash_table)          :: pos_elmatvec
      type(array_rp2)                    :: lelmat(max_global_interpolations)
@@ -78,6 +75,10 @@ module fem_space_names
      type(position_hash_table)          :: pos_face_integrator
      type(volume_integrator)            :: lvoli(max_global_interpolations)        
      type(face_integrator)              :: lfaci(max_global_interpolations)
+
+     ! Interpolator
+     type(position_hash_table)          :: pos_interpolator
+     type(array_rp2)                    :: linter(max_global_interpolations)
 
      ! Array of reference elements (to be pointed from fem_elements)
      type(position_hash_table)          :: pos_elem_info
@@ -102,22 +103,21 @@ module fem_space_names
   ! Methods
   public :: fem_space_create, fem_space_print, fem_space_free, &
        &    integration_faces_list, fem_space_allocate_structures, &
-       &    fem_space_fe_list_create 
+       &    fem_space_fe_list_create, update_strong_dirichlet_boundary_conditions, &
+       &    update_analytical_boundary_conditions
 
 contains
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_create( g_trian, dofh, fspac, problem, num_approximations, approximations, bcond, & 
-                               continuity, order, material, which_approx, time_steps_to_store, & 
-                               hierarchical_basis, static_condensation, num_continuity, num_ghosts )
+  subroutine fem_space_create( g_trian, dofh, fspac, problem, bcond, continuity, order, material, & 
+                               which_approx, time_steps_to_store, hierarchical_basis,  & 
+                               static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fem_triangulation), target, intent(in)    :: g_trian   
     type(dof_handler)      , target, intent(in)    :: dofh
     type(fem_space)        , target, intent(inout) :: fspac
     integer(ip)                    , intent(in)    :: problem(:)
-    integer(ip)                    , intent(in)    :: num_approximations
-    type(discrete_problem_pointer) , intent(in)    :: approximations(num_approximations)
     type(fem_conditions)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
@@ -131,16 +131,14 @@ contains
 
     integer(ip) :: istat, num_ghosts_
 
-    call fem_space_allocate_structures(  g_trian, dofh, fspac, num_approximations=num_approximations,&
-         time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
-         static_condensation = static_condensation, num_continuity = num_continuity, &
-         num_ghosts = num_ghosts )  
+    call fem_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store = time_steps_to_store,&
+         hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
+          num_continuity = num_continuity, num_ghosts = num_ghosts )  
 
 !!$   AFM This allocate statement fails at runtime, i.e., istat/=0. Why ????
 !!$   allocate ( fspac%approximations(num_approximations), stat=istat)
 !!$   write (*,*) 'XXX', num_approximations, istat
 !!$   check (istat == 0)    
-    fspac%approximations = approximations
 
     call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material, bcond )
 
@@ -150,14 +148,12 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, num_approximations, &
-       & time_steps_to_store, hierarchical_basis, static_condensation, num_continuity, &
-       & num_ghosts )
+  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store, &
+       & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fem_space)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation)   , intent(in), target   :: g_trian   
     type(dof_handler) , intent(in), target           :: dofh  
-    integer(ip), optional, intent(in) :: num_approximations
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
@@ -165,14 +161,6 @@ contains
     integer(ip), optional, intent(in) :: num_ghosts            
 
     integer(ip) :: istat, num_ghosts_
-
-    
-    ! Approximations flag
-    if (present(num_approximations)) then
-       fspac%num_approximations = num_approximations
-    else
-       fspac%num_approximations = 1
-    end if
 
     ! Hierarchical flag
     if (present(hierarchical_basis)) then
@@ -223,10 +211,6 @@ contains
     !  Initialization of pointer to dof_handler
     fspac%dof_handler => dofh
 
-    ! Allocation of discretizations
-    allocate(fspac%approximations(num_approximations),stat=istat)
-    check(istat==0)
-
     ! Allocation of elemental matrix and vector parameters
     call fspac%pos_elmatvec%init(ht_length)
 
@@ -236,6 +220,9 @@ contains
 
     ! Initialization of element fixed info parameters
     call fspac%pos_elem_info%init(ht_length)
+
+    ! Initialization of interpolation array
+    call fspac%pos_interpolator%init(ht_length)
 
   end subroutine fem_space_allocate_structures
 
@@ -391,6 +378,7 @@ contains
        call memalloc( max_num_nodes, nvars, fspac%time_steps_to_store, fspac%lelem(ielem)%unkno, __FILE__,__LINE__)
        fspac%lelem(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fspac%lelem(ielem)%integ,__FILE__,__LINE__)
+       call memalloc(nvars,fspac%lelem(ielem)%inter,__FILE__,__LINE__)
        call memalloc(nvars,fspac%lelem(ielem)%p_geo_info%nobje,fspac%lelem(ielem)%bc_code,__FILE__,__LINE__, 0)
 
        ! Fill bc_code
@@ -411,7 +399,15 @@ contains
           if ( istat == new_index ) call volume_integrator_create(f_type,f_type,dim,1,f_order,fspac%lvoli(pos_voint),     &
                &                                                  khie = fspac%hierarchical_basis, mnode=max_num_nodes)
           fspac%lelem(ielem)%integ(ivar)%p => fspac%lvoli(pos_voint)
-
+          ! Create interpolators
+          call fspac%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
+          ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
+          if ( istat == new_index ) call interpolator_create(f_type,f_type,dim,1,f_order,            &
+               &                                             fspac%lelem(ielem)%p_geo_info%nnode,    &
+               &                                             fspac%lelem(ielem)%f_inf(ivar)%p%nnode, &
+               &                                             fspac%linter(pos_voint),                &
+               &                                             khie = fspac%hierarchical_basis)
+          fspac%lelem(ielem)%inter(ivar)%p => fspac%linter(pos_voint)
        end do
 
     end do
@@ -535,6 +531,7 @@ contains
        !if(allocated(f%lelem(i)%nodes_object)) call memfree(f%lelem(i)%nodes_object,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%f_inf)) call memfree(f%lelem(i)%f_inf,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%integ)) call memfree(f%lelem(i)%integ,__FILE__,__LINE__)
+       if(allocated(f%lelem(i)%inter)) call memfree(f%lelem(i)%inter,__FILE__,__LINE__)
        !if(allocated(f%lelem(i)%iv))    call memfree(f%lelem(i)%iv   ,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%continuity))    call memfree(f%lelem(i)%continuity   ,__FILE__,__LINE__)
        if(allocated(f%lelem(i)%order))    call memfree(f%lelem(i)%order   ,__FILE__,__LINE__)
@@ -566,6 +563,12 @@ contains
     end do
     call f%pos_elem_info%free
 
+    do i = 1,f%pos_interpolator%last()
+       call interpolator_free( f%linter(i) )
+    end do
+    !deallocate ( f%lvoli )
+    call f%pos_interpolator%free
+
     nullify ( f%g_trian )
 
     !call memfree( f%void_list%p, __FILE__, __LINE__ )
@@ -583,9 +586,6 @@ contains
     check ( istat == 0 )
 
     deallocate( f%boundary_faces, stat=istat)
-    check ( istat == 0 )
-
-    deallocate(f%approximations, stat=istat)
     check ( istat == 0 )
 
   end subroutine fem_space_free
@@ -686,6 +686,114 @@ contains
 
 
   end subroutine integration_faces_list
+
+  subroutine update_strong_dirichlet_boundary_conditions( fspac, fcond )
+    implicit none
+    type(fem_space)     , intent(inout) :: fspac
+    type(fem_conditions), intent(in)    :: fcond
+    ! Locals
+    integer(ip) :: ielem, iobje, ivar, inode, l_node, gvar, lobje, prob
+
+    do ielem = 1, fspac%g_trian%num_elems
+       prob = fspac%lelem(ielem)%problem
+       do ivar=1, fspac%dof_handler%problems(prob)%p%nvars
+          gvar=fspac%dof_handler%problems(prob)%p%l2g_var(ivar)
+          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+             lobje = fspac%g_trian%elems(ielem)%objects(iobje)
+             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = fcond%valu(gvar,lobje)
+                end if
+             end do
+          end do
+       end do
+    end do
+
+  end subroutine update_strong_dirichlet_boundary_conditions
+
+  subroutine update_analytical_boundary_conditions(vars_of_unk,case,ctime,fspac,caset,t)
+    implicit none
+    integer(ip)          , intent(in)    :: vars_of_unk(:)
+    integer(ip)          , intent(in)    :: case
+    real(rp)             , intent(in)    :: ctime
+    type(fem_space)      , intent(inout) :: fspac
+    integer(ip), optional, intent(in)    :: caset,t
+    ! Locals
+    integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
+    integer(ip) :: nvars,ivar,gvar,gnode,unode,cnt
+    real(rp)    :: part(3)
+    real(rp), allocatable :: coord(:,:),param(:)
+
+    nvars = size(vars_of_unk,1)
+    ndime = fspac%g_trian%num_dims
+
+    ! Allocate parameters
+    if(nvars==1) then
+       call memalloc(10,param,__FILE__,__LINE__)
+    else
+       call memalloc(30,param,__FILE__,__LINE__)
+    end if
+       
+
+    do ielem = 1, fspac%g_trian%num_elems
+       prob  = fspac%lelem(ielem)%problem
+       gnode = fspac%lelem(ielem)%p_geo_info%nnode
+       cnt   = 0
+       
+       do ivar=vars_of_unk(1),vars_of_unk(nvars)
+          
+          ! Global variable
+          cnt = cnt+1
+          gvar=fspac%dof_handler%problems(prob)%p%l2g_var(ivar)
+          
+          ! Interpolate coordinates
+          unode = fspac%lelem(ielem)%f_inf(ivar)%p%nnode
+          call memalloc(ndime,unode,coord,__FILE__,__LINE__)
+          call interpolate(ndime,gnode,unode,fspac%lelem(ielem)%inter(ivar)%p, &
+               &           fspac%g_trian%elems(ielem)%coordinates,coord)
+
+          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+             lobje = fspac%g_trian%elems(ielem)%objects(iobje)
+             
+             if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+
+                do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+                     &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+                   lnode = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+
+                   call analytical_field(case,ndime,coord(:,lnode),ctime,param)
+
+                   if(present(caset)) then
+                      if(caset>0) then
+                         call analytical_field(caset,ndime,coord(:,lnode),ctime,part)
+                         if(present(t)) then
+                            fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)*part(t)
+                         else
+                            fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)*part(1)
+                         end if
+                      else
+                         fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)
+                      end if
+                   else
+                      fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)
+                   end if
+                
+                end do
+             end if            
+          end do
+
+          ! Deallocate auxiliar coordinates
+          call memfree(coord,__FILE__,__LINE__)
+
+       end do
+    end do
+
+    ! Deallocate params
+    call memfree(param,__FILE__,__LINE__)
+    
+  end subroutine update_analytical_boundary_conditions
 
 end module fem_space_names
 

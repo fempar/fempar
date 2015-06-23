@@ -942,7 +942,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
       
 
   integer(ip)                :: ierrc
-  integer(ip)                :: kloc, i, j, k_hh, id
+  integer(ip)                :: kloc, max_kloc, i, j, k_hh, id
   real(rp)                   :: res_norm, rhs_norm
   real(rp)                   :: alpha, c, s
   real(rp)   , allocatable   :: hh(:,:), g(:), cs(:,:)
@@ -1006,6 +1006,8 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
 
+    max_kloc = 0
+
     ctrl%it = 0
   outer: do while ( (.not.exit_loop) .and. &
        &            (ctrl%it < ctrl%itmax))
@@ -1017,7 +1019,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
     
             ! r = b-r
             call r%axpby(1.0_rp,b,-1.0_rp)
-    
+            
             ! part_summed to full_summed
             call r%comm()
 
@@ -1027,8 +1029,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
 
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
         call bkry(1)%clone(x)
-        call bkry(1)%scal(1.0_rp/res_norm, r)
-
+        if ( env%am_i_fine_task() ) call bkry(1)%scal(1.0_rp/res_norm, r)
 
          ! residual in the krylov basis
          g(1) = res_norm
@@ -1048,7 +1049,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
             call A%apply(z, bkry(kloc+1))
 
             ! part_summed to full_summed
-            call r%comm()
+            call bkry(kloc+1)%comm()
 
             if ( env%am_i_fine_task() ) then
                 ! Orthogonalize
@@ -1104,6 +1105,8 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
                 if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
             end if
         end do inner
+
+        max_kloc = max(kloc+1, max_kloc)
 
         if ( kloc > 0 ) then
             if ( env%am_i_fine_task() ) then
@@ -1182,7 +1185,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
     deallocate(z)
 
     ! Deallocate Krylov basis
-    do i=1, ctrl%dkrymax+1
+    do i=1, max_kloc
        call bkry(i)%free()
     end do
     deallocate ( bkry )

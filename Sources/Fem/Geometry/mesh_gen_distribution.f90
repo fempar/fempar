@@ -97,7 +97,8 @@ module fem_mesh_gen_distribution_names
           nedget(3),           &         ! Number of edges on each direction
           nfacet(3),           &         ! Number of faces on each direction
           nedgett,             &         ! Number of edges on each domain
-          nfacett                        ! Number of faces on each domain
+          nfacett,             &         ! Number of faces on each domain
+          neghost                        ! Maximum of elements on each domain counting ghosts
   end type geom_size
 
   type topo_size
@@ -105,6 +106,7 @@ module fem_mesh_gen_distribution_names
           notot,               &         ! Total amount of elemental objects of the partition
           nctot,               &         ! Total amount of elemental corners of the partition
           ncglb,               &         ! Total amount of elemental corners of the domain
+          noglb,               &         ! Total amount of elemental corners of the domain
           neglb,               &         ! Total amount of elements of the domain
           ndtot,               &         ! Total amount of elemental edges of the partition
           nftot,               &         ! Total amount of elemental faces of the partition
@@ -293,7 +295,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(geom_data)     , intent(in)  :: gdata
-    type(fem_fixed_info), intent(in) :: ginfo
+    type(fem_fixed_info), intent(in)  :: ginfo
     type(geom_size)     , intent(out) :: gsize
 
     ! Local variables
@@ -327,10 +329,12 @@ contains
     gsize%nfacet  = 1
     gsize%nedgett = 0
     gsize%nfacett = 0
+    gsize%neghost = 1
     do idime=1,gdata%ndime
        gsize%npdomt = gsize%npdomt*gsize%npdom(idime)
        gsize%nedomt = gsize%nedomt*gsize%nedom(idime)
        gsize%ncornt = gsize%ncornt*gsize%ncorn(idime)
+       gsize%neghost = gsize%neghost*(gsize%nedom(idime)+2)
        do jdime=1,gdata%ndime
           gsize%nedget(idime) = gsize%nedget(idime)*gsize%nedge(idime,jdime)
           gsize%nfacet(idime) = gsize%nfacet(idime)*gsize%nface(idime,jdime) 
@@ -413,6 +417,7 @@ contains
        tsize%nfglb = 0
     end if
     tsize%notot = tsize%nftot + tsize%ndtot + tsize%nctot
+    tsize%noglb = tsize%notot*gdata%nparts
 
     ! Deallocate auxiliar vector of components
     call memfree(auxv,__FILE__,__LINE__)
@@ -457,7 +462,11 @@ contains
     call global_to_ijk(lpart,gdata%nsckt(1:gdata%ndime),gsize%npsoc(1:gdata%ndime),gdata%ndime,ijkpart)
 
     ! Create triangulation
-    call fem_triangulation_create(gsize%nedomt,trian)
+    if(present(mdist)) then
+       call fem_triangulation_create(gsize%neghost,trian)
+    else
+       call fem_triangulation_create(gsize%nedomt,trian)
+    end if
     trian%num_elems = gsize%nedomt
     trian%num_dims  = gdata%ndime
 
@@ -472,7 +481,7 @@ contains
     end if
 
     ! Dual triangulation
-    call fem_triangulation_to_dual(trian)
+    if(.not.present(mdist)) call fem_triangulation_to_dual(trian)
 
     ! Create mesh_distribution
     if(present(mdist)) then
@@ -482,11 +491,11 @@ contains
        mdist%nnbou  = mdist%nmap%nb
        call memalloc(mdist%nebou,mdist%lebou,__FILE__,__LINE__)
        do ielem = mdist%emap%ni+1,mdist%emap%ni+mdist%emap%nb
-          mdist%lebou(ielem) = ielem
+          mdist%lebou(ielem-mdist%emap%ni) = ielem
        end do
        call memalloc(mdist%nnbou,mdist%lnbou,__FILE__,__LINE__)
        do inode = mdist%nmap%ni+1,mdist%nmap%ni+mdist%nmap%nb
-          mdist%lnbou(inode) = inode
+          mdist%lnbou(inode-mdist%nmap%ni) = inode
        end do
     end if
 
@@ -528,7 +537,8 @@ contains
     isper  = gdata%isper
 
     ! Allocate 
-    call memalloc(gsize%npdomt,l2gp,__FILE__,__LINE__)
+    !call memalloc(gsize%npdomt,l2gp,__FILE__,__LINE__)
+    call memalloc(tsize%notot,l2gp,__FILE__,__LINE__)
     call memalloc(gsize%nedomt,l2ge,__FILE__,__LINE__)
     call memalloc(gsize%nedomt,nenum,__FILE__,__LINE__)
     call memalloc(gsize%npdomt,npnumg,__FILE__,__LINE__)
@@ -556,7 +566,8 @@ contains
          &         coord,cnt,inter,nodes)
     call corn_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,poin,line,surf,npnumg,npnumt,   &
          &         nenum,coord,cnt,inter,nodes)
-    pni = cnt(3)-1
+    !pni = cnt(3)-1
+    pni = cnt(1)-1
     eni = cnt(2)-1
 
     ! Boundary nodes/elements
@@ -566,7 +577,8 @@ contains
          &         coord,cnt,bound,nodes)
     call corn_loop(ijkpart,ndime,gsize,tsize,gdata,ginfo,gdata%isper,poin,line,surf,npnumg,npnumt,   &
          &         nenum,coord,cnt,bound,nodes)
-    pnb = cnt(3) - pni - 1
+    !pnb = cnt(3) - pni - 1
+    pnb = cnt(1) - pni - 1
     enb = cnt(2) - eni - 1
 
     ! Global part numeration
@@ -580,7 +592,8 @@ contains
 
     ! Fill nmap
     if(present(nmap)) then
-       call map_alloc(gsize%npdomt,int(tsize%ncglb,igp),nmap)
+       !call map_alloc(gsize%npdomt,int(tsize%ncglb,igp),nmap)
+       call map_alloc(tsize%notot,int(tsize%noglb,igp),nmap)
        nmap%ni  = pni
        nmap%nb  = pnb
        nmap%ne  = 0
@@ -1127,11 +1140,11 @@ contains
                    ! Global to local numeration (inside the part)
                    npnumg(glnum) = cnt(3)
                    npnumt(glnum) = cnt(1)
-               
+
                    ! Coordinates
                    call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
                         &         ndime,gdata,ginfo,coord(:,cnt(3)))
-                   
+
                    ! Boundary conditions
                    if(case==inter) then
                       nodes%code(:,cnt(1)) = line%code(:,line_cnt)
@@ -1189,7 +1202,7 @@ contains
                          nodes%valu(:,inode) = surf%valu(:,gsurf)
                       end do
                    end if
-                  
+
                 end if
 
                 if(iedge.gt.min(1,abs(gsize%nedom(auxv(pdime,1))-1))) cycle
@@ -1217,7 +1230,7 @@ contains
                 end do
 
              end if
-             
+
              if(ndime==2) exit
           end do
        end do
@@ -1231,7 +1244,7 @@ contains
 
   end subroutine edge_loop
 
- !===================================================================================================
+  !===================================================================================================
   subroutine edge_loop_adj(ijkpart,ndime,gsize,tsize,isper,nb,pextn_cnt,pextn,case,lextn,lextp, &
        &                   mcase,nelbl)
     !-----------------------------------------------------------------------
@@ -2035,7 +2048,8 @@ contains
 
     ! Allocate
     call memalloc(gsize%nedomt,el_l2g,__FILE__,__LINE__)
-    call memalloc(gsize%npdomt,po_l2g,__FILE__,__LINE__)
+    !call memalloc(gsize%npdomt,po_l2g,__FILE__,__LINE__)
+    call memalloc(tsize%notot ,po_l2g,__FILE__,__LINE__)
 
     ! Auxiliar vectro
     check( pdegr == 1 )  ! Only working for linear geometrical elements
@@ -2228,7 +2242,24 @@ contains
     ! Construct l2g nmap (ordered by objects)
     ! Elemental corners
     do ipoin=1,gsize%npdomt
-       l2gp(npnumg(ipoin)) = po_l2g(ipoin)
+       !l2gp(npnumg(ipoin)) = po_l2g(ipoin
+       l2gp(npnumt(ipoin)) = po_l2g(ipoin)
+    end do
+    ! Elemental edges
+    aux_cnt = tsize%nctot
+    do pdime=ndime,1,-1
+       do i=1,tsize%nddir(pdime)
+          l2gp(npnumt(i+aux_cnt)) = po_l2g(i+aux_cnt)
+       end do
+       aux_cnt = aux_cnt + tsize%nddir(pdime)
+    end do
+    ! Elemental faces
+    aux_cnt = tsize%nctot + tsize%ndtot
+    do pdime=ndime,1,-1
+       do i=1,tsize%nfdir(pdime)
+          l2gp(npnumt(i+aux_cnt)) = po_l2g(i+aux_cnt)
+       end do
+       aux_cnt = aux_cnt + tsize%nfdir(pdime)
     end do
 
     ! Deallocate

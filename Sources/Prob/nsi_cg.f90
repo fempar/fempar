@@ -38,13 +38,8 @@ module nsi_cg_asgs_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: nsi_cg_asgs_approximation
-    type(nsi_problem), pointer :: physics
+ type, extends(discrete_problem) :: nsi_cg_asgs_discrete
     integer(ip) ::   & 
-         kfl_1vec,   & ! Flag for 1vec integration
-         kfl_mtvc,   & ! Flag for matvec integration
-         kfl_matr,   & ! Flag for matrix integration
-         kfl_real,   & ! Flag for real integration
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
          kfl_stab,   & ! Flag for stabilization of the convective term (Off=0; OSS=2)
@@ -58,74 +53,102 @@ module nsi_cg_asgs_names
          k1tau,      & ! C1 constant on stabilization parameter tau_m
          k2tau         ! C2 constant on stabilization parameter tau_m
     contains
-      procedure :: create => nsi_create
-      procedure :: matvec => nsi_matvec
+      procedure :: create => nsi_create_discrete
+   end type nsi_cg_asgs_discrete
+
+ type, extends(discrete_integration) :: nsi_cg_asgs_approximation
+      type(nsi_cg_asgs_discrete), pointer :: discret
+      type(nsi_problem)         , pointer :: physics
+    contains
+      procedure :: create  => nsi_matvec_create
+      procedure :: compute => nsi_matvec
+      procedure :: free    => nsi_matvec_free
    end type nsi_cg_asgs_approximation
 
- public :: nsi_cg_asgs_approximation
+ public :: nsi_cg_asgs_approximation, nsi_cg_asgs_discrete
 
 contains
 
   !=================================================================================================
-  subroutine nsi_create(approx,prob,l2g)
+  subroutine nsi_create_discrete(discret,physics,l2g)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine contains definitions of the Navier-Stokes problem approximed by a stable   !
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_asgs_approximation)  , intent(out) :: approx
-    class(physical_problem)   , target, intent(in)  :: prob
-    integer(ip), intent(in), optional :: l2g(:)
-    !type(nsi_problem), target, intent(in)  :: prob
+    class(nsi_cg_asgs_discrete), intent(out) :: discret
+    class(physical_problem)    , intent(in)  :: physics
+    integer(ip), optional      , intent(in)  :: l2g(:)
+    ! Locals
     integer(ip) :: i
 
+    ! Flags
+    discret%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
+    discret%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
+    discret%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
 
-    select type (prob)
+    ! Problem variables
+    discret%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
+    discret%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
+    discret%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
+
+    ! Time integration variables
+    discret%dtinv  = 1.0_rp ! Inverse of time step
+    discret%ctime  = 0.0_rp ! Current time
+    discret%tdimv  =  2     ! Number of temporal steps stored for velocity
+    discret%tdimp  =  2     ! Number of temporal steps stored for pressure
+
+    discret%nvars = physics%ndime+1
+    call memalloc(discret%nvars,discret%l2g_var,__FILE__,__LINE__)
+    if ( present(l2g) ) then
+       assert ( size(l2g) == discret%nvars )
+       discret%l2g_var = l2g
+    else
+       do i = 1,discret%nvars
+          discret%l2g_var(i) = i
+       end do
+    end if
+    
+  end subroutine nsi_create_discrete
+
+  !=================================================================================================
+  subroutine nsi_matvec_create( approx, physics, discret )
+    implicit none
+    class(nsi_cg_asgs_approximation), intent(inout) :: approx
+    class(physical_problem), target , intent(in)    :: physics
+    class(discrete_problem), target , intent(in)    :: discret
+
+    select type (physics)
     type is(nsi_problem)
-       approx%physics => prob
-       !approx%nsi => prob
-    class default
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_asgs_discrete)
+       approx%discret => discret
+       class default
        check(.false.)
     end select
 
-    approx%nvars = prob%ndime+1
-    call memalloc(approx%nvars,approx%l2g_var,__FILE__,__LINE__)
-    if ( present(l2g) ) then
-       assert ( size(l2g) == approx%nvars )
-       approx%l2g_var = l2g
-    else
-       do i = 1,approx%nvars
-          approx%l2g_var(i) = i
-       end do
-    end if
+  end subroutine nsi_matvec_create
 
-    ! Flags
-    approx%kfl_1vec = 1 ! Integrate Full OSS
-    approx%kfl_mtvc = 1 ! Integrate nsi_element_matvec
-    approx%kfl_matr = 1 ! Integrate nsi_element_mat
-    approx%kfl_real = 0 ! Integrate errornorm
-    approx%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
-    approx%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
-    approx%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
+  !=================================================================================================
+  subroutine nsi_matvec_free(approx)
+    implicit none
+    class(nsi_cg_asgs_approximation)  , intent(inout) :: approx
 
-    ! Problem variables
-    approx%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter tau_m
-    approx%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter tau_m
-    approx%ktauc  = 0.0_rp  ! Constant multiplying stabilization parameter tau_c
+    approx%physics => null()
+    approx%discret => null()
 
-    ! Time integration variables
-    approx%dtinv  = 1.0_rp ! Inverse of time step
-    approx%ctime  = 0.0_rp ! Current time
-    approx%tdimv  =  2     ! Number of temporal steps stored for velocity
-    approx%tdimp  =  2     ! Number of temporal steps stored for pressure
-    
-  end subroutine nsi_create
+  end subroutine nsi_matvec_free
 
+  !=================================================================================================
   subroutine nsi_matvec(approx,start,elem)
     implicit none
     class(nsi_cg_asgs_approximation), intent(inout) :: approx
-       integer(ip)            , intent(in)    :: start(:)
-    type(fem_element)       , intent(inout) :: elem
+    integer(ip)                     , intent(in)    :: start(:)
+    type(fem_element)               , intent(inout) :: elem
 
     type(basis_function) :: u ! Trial
     type(basis_function) :: p 
@@ -140,7 +163,7 @@ contains
     real(rp)     :: dtinv, c1, c2, mu
 
     ndime = approx%physics%ndime
-
+       
     u = basis_function(approx%physics,1,start,elem%integ)
     p = basis_function(approx%physics,2,start,elem%integ)
     v = basis_function(approx%physics,1,start,elem%integ) 
@@ -168,11 +191,12 @@ contains
     !h%a=elem%integ(1)%p%femap%hleng(1,:)     ! max
     h%a=elem%integ(1)%p%femap%hleng(ndime,:) ! min
 
+    
     mu = approx%physics%diffu
 
-    dtinv  = approx%dtinv
-    c1 = approx%k1tau
-    c2 = approx%k1tau
+    dtinv  = approx%discret%dtinv
+    c1 = approx%discret%k1tau
+    c2 = approx%discret%k1tau
 
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)
@@ -182,6 +206,9 @@ contains
 
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
     !elem%mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(elem) 
 
   end subroutine nsi_matvec
 

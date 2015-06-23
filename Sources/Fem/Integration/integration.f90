@@ -49,10 +49,10 @@ contains
   subroutine volume_integral(approx,femsp,res1,res2)
     implicit none
     ! Parameters
-    type(fem_space)  , intent(inout) :: femsp
-    class(integrable), intent(inout) :: res1
+    type(fem_space)            , intent(inout) :: femsp
+    class(integrable)          , intent(inout) :: res1
     class(integrable), optional, intent(inout) :: res2
-    type(discrete_problem_pointer)   :: approx(:)
+    type(discrete_integration_pointer)         :: approx(:)
 
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation
@@ -70,18 +70,9 @@ contains
 
        ! Starting position for each dof
        call pointer_variable(femsp%lelem(ielem),femsp%dof_handler, start(1:nvars+1) )
-
-       ! Compute element matrix and rhs
-       !if(associated(femsp%approximations(femsp%lelem(ielem)%approximation)%p)) then
-          ! discrete => femsp%approximations(femsp%lelem(ielem)%approximation)%p
-          ! call discrete%matvec(start,femsp%lelem(ielem))
-       !end if
        
        current_approximation = femsp%lelem(ielem)%approximation
-       call approx(current_approximation)%p%matvec(start,femsp%lelem(ielem))
-
-       ! Apply boundary conditions
-       call impose_strong_dirichlet_data (femsp%lelem(ielem),femsp%dof_handler) 
+       call approx(current_approximation)%p%compute(start,femsp%lelem(ielem))
 
        ! Assembly first contribution
        call assembly(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
