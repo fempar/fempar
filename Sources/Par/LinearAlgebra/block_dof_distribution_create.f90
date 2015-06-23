@@ -108,7 +108,7 @@ contains
     integer(ip) :: count_interior, l_node, inode, iobje, count_object_dof, next
 
     integer(ip) :: elem_ghost, elem_local, l_var_ghost, l_var_local, nnode, obje_ghost, obje_local, order 
-    integer(ip) :: o2n(max_nnode), touch_obj(p_femsp%f_space%num_continuity,p_femsp%f_space%dof_handler%nvars_global), k_var
+    integer(ip) :: o2n(max_nnode), k_var
 
     ipart  = p_trian%p_env%p_context%iam + 1
 

@@ -127,7 +127,7 @@ program par_test_cdr
 
   ! Read boundary conditions
   call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
-  p_cond%f_conditions%code = 0 !(dG)
+  if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
 
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
 
@@ -255,8 +255,6 @@ program par_test_cdr
 
 
      call p_unk%init(0.0_rp)
-
-
 
      ! Create multilevel bddc inverse 
      call par_precond_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
