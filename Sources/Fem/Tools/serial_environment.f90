@@ -34,14 +34,21 @@ module serial_environment_names
   ! Abstract environment
   type, extends(abstract_environment) :: serial_environment
    contains
-     procedure :: info           => serial_environment_info
-     procedure :: am_i_fine_task => serial_environment_am_i_fine_task
-     procedure :: bcast          => serial_environment_bcast
+     procedure :: info                => serial_environment_info
+     procedure :: am_i_fine_task      => serial_environment_am_i_fine_task
+     procedure :: bcast               => serial_environment_bcast
+     procedure :: first_level_barrier => serial_environment_first_level_barrier
   end type serial_environment
   
   public :: serial_environment
   
 contains
+
+  subroutine serial_environment_first_level_barrier(env) 
+    implicit none
+    class(serial_environment),intent(in)  :: env
+  end subroutine serial_environment_first_level_barrier
+
   subroutine serial_environment_info(env,me,np) 
     implicit none
     class(serial_environment),intent(in)  :: env
