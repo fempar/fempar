@@ -132,7 +132,7 @@ program test_nsi_iss
        &                static_condensation=logical(.false.,lg),num_continuity=1)
 
   ! Initialize VTK output
-  call fevtk%initialize(f_trian,fspac,myprob,dir_path_out,prefix)
+  call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix)
 
   ! Create dof info
   call create_dof_info(dhand,f_trian,fspac,f_blk_graph,gtype)

@@ -514,9 +514,11 @@ contains
     check(associated(f_vtk%p_env))
  
     ft =  f_vtk%p_env%am_i_fine_task() 
+
+    E_IO = 0
     
     if(ft) then
-
+print*, 'ft',ft
         nm = f_vtk%num_meshes
         if(present(n_mesh)) nm = n_mesh
     
@@ -534,7 +536,7 @@ contains
         if(present(f_name)) fn = f_name
     
         if( f_vtk%create_dir_hierarchy(dp) == 0) then
-    
+    print*,'create_dir'
             of = 'raw'
             if(present(o_fmt)) of = trim(adjustl(o_fmt))
         
@@ -547,7 +549,7 @@ contains
          
         
             if(allocated(f_vtk%mesh(nm)%fields)) then
-        
+        print*, 'fields alloc'
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=fid)
         
                 tncomp = 0
@@ -609,6 +611,8 @@ contains
     check(associated(f_vtk%p_env))
     call f_vtk%p_env%info(me,np) 
     check(f_vtk%root_proc <= np-1)
+
+    E_IO = 0
 
     if(me == f_vtk%root_proc) then
 
@@ -689,6 +693,8 @@ contains
     call f_vtk%p_env%info(me,np) 
     check(f_vtk%root_proc <= np-1)
 
+    E_IO = 0
+
     if(me == f_vtk%root_proc) then
 
         nm = f_vtk%num_meshes
@@ -729,11 +735,11 @@ contains
     call f_vtk%p_env%info(me,np) 
     check(f_vtk%root_proc <= np-1)
 
-
-    if(me == f_vtk%root_proc) then
+    res=0
+!    if(me == f_vtk%root_proc) then
        res = mkdir_recursive(path//C_NULL_CHAR)
        check ( res == 0 ) 
-    end if
+!    end if
 
   ! ----------------------------------------------------------------------------------
   end function create_dir_hierarchy

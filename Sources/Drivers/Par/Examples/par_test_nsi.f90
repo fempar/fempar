@@ -166,10 +166,8 @@ program par_test_nsi_iss
        &                    static_condensation=logical(.false.,lg),num_continuity=1)
 
   ! Initialize VTK output
-  if(p_env%am_i_fine_task()) then
-     call fevtk%initialize(p_trian%f_trian,p_fspac%f_space,myprob,dir_path_out,prefix, &
-          &                nparts=gdata%nparts)
-  end if
+  call fevtk%initialize(p_trian%f_trian,p_fspac%f_space,myprob,p_env,dir_path_out,prefix, &
+       &                nparts=gdata%nparts,linear_order=.true.)
 
   ! Create dof info
   call par_create_distributed_dof_info(dhand,p_trian,p_fspac,blk_dof_dist,p_blk_graph,gtype)  
@@ -277,8 +275,8 @@ program par_test_nsi_iss
   call par_vector_print(6,p_unk)
 
   ! Print solution to VTK file
-  if(p_env%am_i_fine_task()) istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')
-  if(p_env%p_context%iam==0) istat = fevtk%write_PVTK()
+  istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')
+  if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
 
   ! Free preconditioner
   call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
@@ -293,7 +291,7 @@ program par_test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call memfree(which_approx,__FILE__,__LINE__)
-  if(p_env%am_i_fine_task()) call fevtk%free
+  call fevtk%free
   call par_matrix_free (p_mat)
   call par_vector_free (p_vec)
   call par_vector_free (p_unk)
