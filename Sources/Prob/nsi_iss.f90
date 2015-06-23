@@ -140,27 +140,27 @@ contains
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_matvec)        , intent(inout) :: approx
-    type(nsi_problem)         , target, intent(in)  :: physics
-    type(nsi_cg_iss_discrete) , target, intent(in)  :: discret
+    ! type(nsi_problem)         , target, intent(in)  :: physics
+    ! type(nsi_cg_iss_discrete) , target, intent(in)  :: discret
 
-    approx%physics => physics
-    approx%discret => discret
+    ! approx%physics => physics
+    ! approx%discret => discret
 
-    ! class(physical_problem), target , intent(in)   :: physics
-    ! class(discrete_problem), target , intent(in)   :: discret
+    class(physical_problem), target , intent(in)   :: physics
+    class(discrete_problem), target , intent(in)   :: discret
 
-    ! select type (physics)
-    ! type is(nsi_problem)
-    !    approx%physics => physics
-    !    class default
-    !    check(.false.)
-    ! end select
-    ! select type (discret)
-    ! type is(nsi_cg_iss_discrete)
-    !    approx%discret => discret
-    !    class default
-    !    check(.false.)
-    ! end select
+    select type (physics)
+    type is(nsi_problem)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_discrete)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
 
   end subroutine nsi_matvec_create
 

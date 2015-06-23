@@ -378,7 +378,7 @@ contains
           ! DoF nearest neighbour exchanges can be performed 
           call dof_distribution_compute_import(blk_dof_dist%blocks(iblock))
 
-          call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
+          ! call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
 
        end do
     end if
@@ -947,20 +947,17 @@ contains
     ! Local variables
     integer(ip) :: i, iobje, j, idof, g_var
     integer(ip) :: mater, k, ielem, iprob, ivars, l_var, k_var  
-    integer(ip) :: touching, obje_l, istat, g_dof, g_mat, ipart, l_pos, nparts_around, count
+    integer(ip) :: touching, obje_l, istat, g_dof, g_mat, ipart, l_pos, nparts_around, count, key
     type(hash_table_ip_ip)         :: ws_parts_visited
     integer(ip), parameter    :: tbl_length = 100
 
     ipart  = p_trian%p_env%p_context%iam + 1
 
     npadj = 0
-    touching = 1
     count = 0
     do i = 1, p_trian%num_itfc_objs
        iobje = p_trian%lst_itfc_objs(i)
-       mater = 0 
        touch = 0
-
        call ws_parts_visited%init(tbl_length)
 
        ! Decide every var of every mat to which parts belongs
@@ -974,18 +971,20 @@ contains
                 mater = femsp%lelem(ielem)%material ! SB.alert : material can be used as p 
                 obje_l = local_position( iobje, p_trian%f_trian%elems(ielem)%objects, &
                      &                   p_trian%f_trian%elems(ielem)%num_objects )
-                call ws_parts_visited%put(key=p_trian%elems(ielem)%mypart,val=touching,stat=istat)
+                key =  p_trian%elems(ielem)%mypart + (p_trian%p_env%p_context%np + 1)*(g_var-1) + &
+                       (p_trian%p_env%p_context%np + 1)*(dhand%nvars_global+1)*mater
+                call ws_parts_visited%put(key=key,val=1,stat=istat)
                 if ( istat == now_stored ) then
                    touch(1,mater,g_var) = touch(1,mater,g_var) + 1 ! New part in the counter  
                    max_nparts = max(max_nparts,touch(1,mater,g_var))
-                   touch(touch(mater,g_var,1)+3,mater,g_var) = p_trian%elems(ielem)%mypart ! Put new part
+                   touch(touch(1,mater,g_var)+3,mater,g_var) = p_trian%elems(ielem)%mypart ! Put new part
                 end if
                 if( p_trian%elems(ielem)%globalID > touch(2,mater,g_var) ) then
                    touch(2,mater,g_var) = ielem 
                    touch(3,mater,g_var) = obje_l
                 end if
                 if ( p_trian%elems(ielem)%mypart /= ipart ) then
-                   call ws_parts_visited_all%put(key=p_trian%elems(ielem)%mypart,val=touching,stat=istat)
+                   call ws_parts_visited_all%put(key=p_trian%elems(ielem)%mypart,val=1,stat=istat)
                    if ( istat == now_stored ) then
                       npadj = npadj + 1
                       ws_parts_visited_list_all(npadj) = p_trian%elems(ielem)%mypart
@@ -999,18 +998,19 @@ contains
        ! This is required by the call to icomp subroutine below 
        do mater = 1, femsp%num_continuity
           do g_var = 1, dhand%nvars_global
-             call sort ( touch(1,mater,g_var), touch(4:(touch(mater,g_var,1)+3),mater,g_var) )
+             call sort ( touch(1,mater,g_var), touch(4:(touch(1,mater,g_var)+3),mater,g_var) )
           end do
        end do
 
-       call ws_parts_visited%free
+       call ws_parts_visited%free()
+
 
        ! Put object DOFs in the interior or interface dofs 
        do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
           ! parts
           g_var = femsp%object2dof(iblock)%l(idof,2)  
           g_mat = femsp%object2dof(iblock)%l(idof,3)
-          write(*,*) 'XXX', femsp%object2dof(iblock)%l(idof,1), g_mat, g_var, touch(1,g_mat,g_var)
+          ! write(*,*) 'XXX', femsp%object2dof(iblock)%l(idof,1), g_mat, g_var, touch(1,g_mat,g_var)
           ! write(*,*) 'g_mat',g_mat
           if ( touch(1,g_mat,g_var) > 1 ) then ! Interface dof
              g_dof = femsp%object2dof(iblock)%l(idof,1)
@@ -1024,7 +1024,7 @@ contains
                   & p_trian%f_trian%elems(touch(2,g_mat,g_var))%num_objects, &
                   & p_trian%f_trian%elems(touch(2,g_mat,g_var))%objects )
              lst_parts_per_dof_obj (2,count) = nparts_around ! Number parts 
-             lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(4:(touch(g_mat,g_var,1)+3),g_mat,g_var) ! List parts
+             lst_parts_per_dof_obj (3:(nparts_around+2),count) = touch(4:(touch(1,g_mat,g_var)+3),g_mat,g_var) ! List parts
              lst_parts_per_dof_obj (nparts_around+3:est_max_nparts+2,count) = 0 ! Zero the rest of entries in current col except last
              lst_parts_per_dof_obj (est_max_nparts+3,count) = p_trian%objects(iobje)%globalID
              lst_parts_per_dof_obj (est_max_nparts+4,count) = l_pos ! Local pos in Max elem GID
