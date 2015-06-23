@@ -54,6 +54,7 @@ module par
   use par_dd_base
   use par_precond_dd_diagonal_names
   use par_precond_dd_mlevel_bddc_names
+  use par_precond_dd_identity_names
 
   ! Integration
   use par_fem_space_names

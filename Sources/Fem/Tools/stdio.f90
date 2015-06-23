@@ -214,7 +214,6 @@ contains
   end subroutine char_to_real8
 
   !********************************************************************!
-
   subroutine char_to_integer( value, string )
 
     integer,      intent(out) :: value
@@ -228,7 +227,6 @@ contains
   end subroutine char_to_integer
 
   !********************************************************************!
-
   subroutine char_to_logical( value, string )
 
     logical,      intent(out) :: value
@@ -242,9 +240,7 @@ contains
   end subroutine char_to_logical
 
   !********************************************************************!
-
   function real4_to_char( value ) result( string )
-
     real(kind=4), intent(in) :: value
     character(len=:), allocatable :: string
     integer :: io_status
@@ -254,14 +250,12 @@ contains
     write(string,fmt=REAL4_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'REAL4_TO_STRING',' fatal error.')
-!    string = trim(adjustl(string))  
+    string = trim(adjustl(string))  
 
   end function real4_to_char
 
   !********************************************************************!
-
   function real4_to_char_fmt( value, io_format ) result( string )
-
     real(kind=4), intent(in) :: value
     character(*), intent(in) :: io_format
     character(len=:), allocatable :: string
@@ -275,9 +269,7 @@ contains
   end function real4_to_char_fmt
 
   !********************************************************************!
-
   function real8_to_char( value ) result( string )
-
     real(kind=8), intent(in) :: value
     character(len=:), allocatable :: string
     integer :: io_status
@@ -287,7 +279,7 @@ contains
     write(string,fmt=REAL8_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'REAL8_TO_STRING',' fatal error.')
-!    string = trim(adjustl(string))
+    string = trim(adjustl(string))
 
   end function real8_to_char
 
@@ -321,7 +313,7 @@ contains
     write(string,fmt=INT_FORMAT,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'INTEGER_TO_STRING',' fatal error.')
-    !string = trim(adjustl(string))
+    string = trim(adjustl(string))
 
   end function integer_to_char
 
@@ -342,7 +334,6 @@ contains
   end function integer1_to_char
 
   !********************************************************************!
-
   function integer_to_char_fmt( value, io_format ) result( string )
 
     integer,      intent(in) :: value
@@ -355,7 +346,7 @@ contains
     write(string,fmt=io_format,iostat=io_status) value
     if(stdio_debug) &
          call iostat_error(io_status,'INTEGER_TO_STRING',' fatal error.')
-!    string = trim(adjustl(string))
+    string = trim(adjustl(string))
 
   end function integer_to_char_fmt
 

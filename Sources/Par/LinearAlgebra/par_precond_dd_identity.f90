@@ -153,7 +153,9 @@ module par_precond_dd_identity_names
     assert ( p_prec_dd_identity%p_mat%p_env%created )
     assert ( associated(p_prec_dd_identity%p_mat%dof_dist) )
 
-    nullify ( p_prec_dd_identity%p_mat )
+    if ( mode == free_clean ) then
+       nullify ( p_prec_dd_identity%p_mat )
+    end if
 
   end subroutine par_precond_dd_identity_free
 

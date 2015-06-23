@@ -56,6 +56,7 @@ program par_test_nsi_iss
   type(block_dof_distribution)                     :: blk_dof_dist
   type(par_precond_dd_mlevel_bddc)       , target  :: p_mlevel_bddc
   type(par_precond_dd_mlevel_bddc_params), target  :: p_mlevel_bddc_pars
+  type(par_precond_dd_identity)                    :: p_prec_dd_diag
   type(par_precond_dd_mlevel_bddc_params), pointer :: point_to_p_mlevel_bddc_pars 
   type(par_matrix), target                         :: p_mat
   type(par_vector), target                         :: p_vec
@@ -151,7 +152,7 @@ program par_test_nsi_iss
   call memalloc(p_trian%f_trian%num_elems,problem,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
-  order(:,1:gdata%ndime) = 2
+  order(:,1:gdata%ndime) = 1
   order(:,gdata%ndime+1) = 1
   problem                = 1
   which_approx           = 1 
@@ -177,7 +178,12 @@ program par_test_nsi_iss
   call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_unk)
   p_vec%state = part_summed
   p_unk%state = full_summed
-  call p_vec%init(0.0_rp)
+
+  call p_vec%init(1.0_rp)
+  call p_unk%init(1.0_rp)
+  call par_vector_weight(p_unk)
+  call p_unk%comm()
+  call par_vector_print( 6, p_unk )
   
   ! Apply boundary conditions to unkno
   if(p_env%am_i_fine_task()) then
@@ -190,77 +196,87 @@ program par_test_nsi_iss
      call volume_integral(approx,p_fspac%f_space,p_mat%f_matrix,p_vec%f_vector)
   end if
 
-  ! Define (recursive) parameters
-  point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-  do i=1, num_levels-1
-     point_to_p_mlevel_bddc_pars%ndime            = gdata%ndime
-     point_to_p_mlevel_bddc_pars%unknowns         = all_unknowns
-     point_to_p_mlevel_bddc_pars%pad_collectives  = pad
-     point_to_p_mlevel_bddc_pars%projection       = galerkin                           !default
-     point_to_p_mlevel_bddc_pars%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
-     point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric                 !default 
-     point_to_p_mlevel_bddc_pars%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
-     if(gdata%ndime==3) then
-        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = corners_edges_and_faces
-     else
-        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = corners_and_edges
-     end if
-     if ( i < num_levels-1 ) then
-        point_to_p_mlevel_bddc_pars%co_sys_sol_strat     = recursive_bddc
-        point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec !umfpack_prec 
-        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec !umfpack_prec   
-        if ( i == 1 ) then
-           point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
-           point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
-           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-20
-           point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
-           point_to_p_mlevel_bddc_pars%correction_mode     = additive
-        end if
-        allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = istat)
-        check(istat==0)
-        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
-     else
-        point_to_p_mlevel_bddc_pars%co_sys_sol_strat         = serial_gather
-        point_to_p_mlevel_bddc_pars%ppars_harm%type          = pardiso_mkl_prec !umfpack_prec  
-        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type     = pardiso_mkl_prec !umfpack_prec  
-        point_to_p_mlevel_bddc_pars%ppars_coarse_serial%type = pardiso_mkl_prec !umfpack_prec  
-        nullify ( point_to_p_mlevel_bddc_pars%ppars_coarse_bddc )
-     end if
-  end do
-  
-  point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-  do i=1, num_levels-1
-     point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
-  end do
+!!$  ! Define (recursive) parameters
+!!$  point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+!!$  do i=1, num_levels-1
+!!$     point_to_p_mlevel_bddc_pars%ndime            = gdata%ndime
+!!$     point_to_p_mlevel_bddc_pars%unknowns         = all_unknowns
+!!$     point_to_p_mlevel_bddc_pars%pad_collectives  = pad
+!!$     point_to_p_mlevel_bddc_pars%projection       = galerkin                           !default
+!!$     point_to_p_mlevel_bddc_pars%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
+!!$     point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric                 !default 
+!!$     point_to_p_mlevel_bddc_pars%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
+!!$     if(gdata%ndime==3) then
+!!$        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = corners_edges_and_faces
+!!$     else
+!!$        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = corners_and_edges
+!!$     end if
+!!$     if ( i < num_levels-1 ) then
+!!$        point_to_p_mlevel_bddc_pars%co_sys_sol_strat     = recursive_bddc
+!!$        point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec !umfpack_prec 
+!!$        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec !umfpack_prec   
+!!$        if ( i == 1 ) then
+!!$           point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
+!!$           point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
+!!$           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-20
+!!$           point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
+!!$           point_to_p_mlevel_bddc_pars%correction_mode     = additive
+!!$        end if
+!!$        allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = istat)
+!!$        check(istat==0)
+!!$        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+!!$     else
+!!$        point_to_p_mlevel_bddc_pars%co_sys_sol_strat         = serial_gather
+!!$        point_to_p_mlevel_bddc_pars%ppars_harm%type          = pardiso_mkl_prec !umfpack_prec  
+!!$        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type     = pardiso_mkl_prec !umfpack_prec  
+!!$        point_to_p_mlevel_bddc_pars%ppars_coarse_serial%type = pardiso_mkl_prec !umfpack_prec  
+!!$        nullify ( point_to_p_mlevel_bddc_pars%ppars_coarse_bddc )
+!!$     end if
+!!$  end do
+!!$  
+!!$  point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+!!$  do i=1, num_levels-1
+!!$     point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+!!$  end do
 
   ! Define solver control parameters
   sctrl%method=rgmres
-  sctrl%trace=100
+  sctrl%trace=1
   sctrl%itmax=800
   sctrl%dkrymax=800
   sctrl%stopc=res_nrmgiven_rhs_nrmgiven
   sctrl%orto=icgs
-  sctrl%rtol=1.0e-20
+  sctrl%rtol=1.0e-06
 
-  ! Create Preconditioner 
-  call par_precond_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
-  call par_precond_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
-  call par_precond_dd_mlevel_bddc_fill_val(p_mat,p_mlevel_bddc)
+!!$  ! Create Preconditioner 
+!!$  call par_precond_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
+!!$  call par_precond_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
+!!$  call par_precond_dd_mlevel_bddc_fill_val(p_mat,p_mlevel_bddc)
+!!$
+  call par_precond_dd_identity_create ( p_mat, p_prec_dd_diag )
+  call par_precond_dd_identity_ass_struct ( p_mat, p_prec_dd_diag )
+  call par_precond_dd_identity_fill_val ( p_mat, p_prec_dd_diag )
+
+  ! call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
+
+  call par_precond_dd_identity_free ( p_prec_dd_diag, free_only_values )
+  call par_precond_dd_identity_free ( p_prec_dd_diag, free_only_struct )
+  call par_precond_dd_identity_free ( p_prec_dd_diag, free_clean )
 
   ! Solve
-  call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
+!!$  call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)  
-  if(p_env%am_i_fine_task()) call fem_vector_print(6,p_unk%f_vector)
+  ! if(p_env%am_i_fine_task()) call fem_vector_print(6,p_unk%f_vector)
 
   ! Print solution to VTK file
   if(p_env%am_i_fine_task()) istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')
   if(p_env%p_context%iam==0) istat = fevtk%write_PVTK()
 
-  ! Free preconditioner
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_struct)
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
+!!$  ! Free preconditioner
+!!$  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
+!!$  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_struct)
+!!$  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
 
   ! Deallocate
   call memfree(id_parts , __FILE__, __LINE__)

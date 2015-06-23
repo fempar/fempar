@@ -103,9 +103,9 @@ contains
 
     integer(ip) :: max_nparts, nobjs, npadj
 
-    integer(ip), allocatable :: dofs_object(:), dofs_object_ext(:), l2lo2n(:) 
+    integer(ip), allocatable :: dofs_object(:), dofs_object_ext(:), l2lo2n(:), l2ln2o(:) 
 
-    integer(ip) :: count_interior, l_node, inode, iobje, count_object_dof
+    integer(ip) :: count_interior, l_node, inode, iobje, count_object_dof, next
 
     integer(ip) :: elem_ghost, elem_local, l_var_ghost, l_var_local, nnode, obje_ghost, obje_local, order 
     integer(ip) :: o2n(max_nnode), k_var
@@ -222,6 +222,10 @@ contains
                &                               sort_parts_per_itfc_obj_l1,  &
                &                               sort_parts_per_itfc_obj_l2)
 
+          do k = 1,count_object_dof 
+             write (*,*) 'lst_parts',lst_parts_per_dof_obj(:,k)
+          end do
+          write (*,*) 'dofs_object',dofs_object
           ! Identify interface communication objects 
           call memalloc ( max_nparts+4, count_object_dof, ws_lobjs_temp, __FILE__,__LINE__ )
           ws_lobjs_temp = 0
@@ -288,9 +292,31 @@ contains
           ! assert( count_interior + count_object_dof == p_femsp%f_space%ndofs(iblock) )
           ! Auxiliary inverse of dofs_object
           call memalloc ( p_femsp%f_space%ndofs(iblock), l2lo2n, __FILE__,__LINE__)
+          call memalloc ( p_femsp%f_space%ndofs(iblock), l2ln2o, __FILE__,__LINE__)
 
-          do i=1, p_femsp%f_space%ndofs(iblock)
-             l2lo2n(dofs_object(i)) = i
+          write (*,*) 'dofs_object',dofs_object
+          !l2ln2o = 0
+          l2lo2n = 0
+          do i = 1, count_interior
+             l2ln2o(i)=dofs_object(i)
+             l2lo2n(l2ln2o(i)) = i
+          end do
+          next = count_interior+1
+          do i=count_interior+1,count_interior+count_object_dof
+             if (l2lo2n(dofs_object(i)) == 0) then
+                l2ln2o(next) = dofs_object(i)
+                l2lo2n(l2ln2o(next)) = next
+                next = next + 1
+             end if
+          end do
+          write (*,*) 'l2ln2o',l2ln2o 
+          write (*,*) 'l2lo2n',l2lo2n              
+          !do i=1, p_femsp%f_space%ndofs(iblock)
+          !   l2lo2n(l2ln2o(i)) = i
+          !end do
+
+          do i=1,count_interior+count_object_dof
+             dofs_object(i) = l2lo2n(dofs_object(i))
           end do
 
           ! Update object2dof(iblock)
@@ -312,6 +338,7 @@ contains
           end do
 
           call memfree ( l2lo2n,__FILE__,__LINE__)
+          call memfree ( l2ln2o,__FILE__,__LINE__)
           call memfree ( dofs_object,__FILE__,__LINE__)
 
           call create_int_objs ( ipart, &
@@ -351,7 +378,7 @@ contains
           ! DoF nearest neighbour exchanges can be performed 
           call dof_distribution_compute_import(blk_dof_dist%blocks(iblock))
 
-          ! call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
+          call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
 
        end do
     end if
@@ -867,7 +894,7 @@ contains
        if ( p_trian%objects(iobj)%interface == -1 ) then
           do idof = femsp%object2dof(iblock)%p(iobj), femsp%object2dof(iblock)%p(iobj+1)-1
              count_interior = count_interior + 1
-             dofs_object(count_interior) = femsp%object2dof(iblock)%l(idof,1) 
+             dofs_object(count_interior) = femsp%object2dof(iblock)%l(idof,1)
           end do
        end if
     end do
@@ -983,7 +1010,8 @@ contains
           ! parts
           g_var = femsp%object2dof(iblock)%l(idof,2)  
           g_mat = femsp%object2dof(iblock)%l(idof,3)
-          !write(*,*) 'g_mat',g_mat
+          write(*,*) 'XXX', femsp%object2dof(iblock)%l(idof,1), g_mat, g_var, touch(1,g_mat,g_var)
+          ! write(*,*) 'g_mat',g_mat
           if ( touch(1,g_mat,g_var) > 1 ) then ! Interface dof
              g_dof = femsp%object2dof(iblock)%l(idof,1)
              nparts_around = touch(1,g_mat,g_var)
@@ -1015,6 +1043,9 @@ contains
 
   !*********************************************************************************
   ! List DOFs on the interface due to interface dG elements, both local and ghost. 
+  !
+  ! Note: It is unclear whether it will work with cdG. We need to include in the face 
+  ! DOFs in cG elements that are on the face.
   !*********************************************************************************
   subroutine list_interface_dofs_by_face_integration ( iblock, p_trian, femsp, dhand, count_obj_dof, &
        & count_interior, dofs_object_interior, dofs_object_interface, est_max_nparts, &

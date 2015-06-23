@@ -128,7 +128,7 @@ program par_test_cdr
 
   ! Read boundary conditions
   call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
-  p_cond%f_conditions%code = 0 !(dG)
+  if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
 
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
 
@@ -182,6 +182,8 @@ program par_test_cdr
 
   if ( p_env%am_i_fine_task() ) then
      call volume_integral( approximations, p_fspac%f_space, p_mat%f_matrix, p_vec%f_vector)
+     !call fem_matrix_print ( 6, p_mat%f_matrix )
+     !call fem_vector_print ( 6, p_vec%f_vector )
   end if
 
   call p_unk%init(1.0_rp)
@@ -255,8 +257,6 @@ program par_test_cdr
 
 
      call p_unk%init(0.0_rp)
-
-
 
      ! Create multilevel bddc inverse 
      call par_precond_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
