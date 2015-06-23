@@ -518,7 +518,7 @@ contains
     E_IO = 0
     
     if(ft) then
-print*, 'ft',ft
+
         nm = f_vtk%num_meshes
         if(present(n_mesh)) nm = n_mesh
     
@@ -536,7 +536,7 @@ print*, 'ft',ft
         if(present(f_name)) fn = f_name
     
         if( f_vtk%create_dir_hierarchy(dp) == 0) then
-    print*,'create_dir'
+    
             of = 'raw'
             if(present(o_fmt)) of = trim(adjustl(o_fmt))
         
@@ -549,7 +549,7 @@ print*, 'ft',ft
          
         
             if(allocated(f_vtk%mesh(nm)%fields)) then
-        print*, 'fields alloc'
+        
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=fid)
         
                 tncomp = 0
@@ -599,7 +599,7 @@ print*, 'ft',ft
     character(len=*), optional, intent(IN)    :: f_name
     integer(ip),      optional, intent(IN)    :: n_mesh
     real(rp),         optional, intent(IN)    :: t_step
-    integer(ip)                               :: nm
+    integer(ip)                               :: nm, rf
     character(len=:),allocatable              :: var_name
     character(len=:),allocatable              :: fn ,dp
     real(rp)                                  :: ts
@@ -610,11 +610,10 @@ print*, 'ft',ft
     me = 0; np = 1
     check(associated(f_vtk%p_env))
     call f_vtk%p_env%info(me,np) 
-    check(f_vtk%root_proc <= np-1)
 
     E_IO = 0
 
-    if(me == f_vtk%root_proc) then
+    if( f_vtk%p_env%am_i_fine_task() .and. me == f_vtk%root_proc) then
 
         nm = f_vtk%num_meshes
         if(present(n_mesh)) nm = n_mesh
@@ -627,46 +626,42 @@ print*, 'ft',ft
         fn = dp//fn
         if(present(f_name)) fn = f_name
 
-        if( f_vtk%create_dir_hierarchy(dp) == 0) then
+        nnods = f_vtk%mesh(nm)%nnods
+        nels = size(f_vtk%mesh(nm)%ctype, dim=1)
 
-            nnods = f_vtk%mesh(nm)%nnods
-            nels = size(f_vtk%mesh(nm)%ctype, dim=1)
+        ! pvtu
+        E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64', cf=rf)
+        do i=0, f_vtk%num_parts-1
+            E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))), cf=rf)
+        enddo
 
-            ! pvtu
-            E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64')
-            do i=0, f_vtk%num_parts-1
-                E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))))
+        if(allocated(f_vtk%mesh(nm)%fields)) then
+            E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=rf)
+            do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
+                if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'node') then
+                    if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
+                        var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                    else
+                        var_name = 'Unknown_'//trim(adjustl(ch(i)))
+                    endif
+                    E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), Nc=f_vtk%mesh(nm)%fields(i)%num_comp , cf=rf)
+                endif
             enddo
-
-            if(allocated(f_vtk%mesh(nm)%fields)) then
-                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN')
-                do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
-                    if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'node') then
-                        if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
-                            var_name = f_vtk%mesh(nm)%fields(i)%var_name
-                        else
-                            var_name = 'Unknown_'//trim(adjustl(ch(i)))
-                        endif
-                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), Nc=f_vtk%mesh(nm)%fields(i)%num_comp )
+            E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=rf)
+            E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN', cf=rf)
+            do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
+                if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'cell') then
+                    if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
+                        var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                    else
+                        var_name = 'Unknown_'//trim(adjustl(ch(i)))
                     endif
-                enddo
-                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE')
-                E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN')
-                do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
-                    if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'cell') then
-                        if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
-                            var_name = f_vtk%mesh(nm)%fields(i)%var_name
-                        else
-                            var_name = 'Unknown_'//trim(adjustl(ch(i)))
-                        endif
-                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
-                    endif
-                enddo
-                E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE')
-            endif
-            E_IO = PVTK_END_XML()
-
+                    E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), cf=rf)
+                endif
+            enddo
+            E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE', cf=rf)
         endif
+        E_IO = PVTK_END_XML(cf=rf)
 
     endif
 
@@ -703,18 +698,14 @@ print*, 'ft',ft
         pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//'_'//trim(adjustl(ch(nm)))//pvd_ext
         if(present(f_name)) pvdfn = f_name
     
-        if( f_vtk%create_dir_hierarchy(trim(adjustl(f_vtk%mesh(nm)%dir_path))) == 0 ) then    
-
-            E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
-            do ts=1, f_vtk%num_steps
-              dp = f_vtk%get_PVD_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=real(ts,rp))
-              pvtkfn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
-              pvtkfn = dp//pvtkfn
-              E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtkfn)),timestep=ts, cf=rf)
-            enddo
-            E_IO = PVD_END_XML(cf=rf)
-
-        endif
+        E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
+        do ts=1, f_vtk%num_steps
+            dp = f_vtk%get_PVD_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=real(ts,rp))
+            pvtkfn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
+            pvtkfn = dp//pvtkfn
+            E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtkfn)),timestep=ts, cf=rf)
+        enddo
+        E_IO = PVD_END_XML(cf=rf)
     
     endif
 
@@ -735,11 +726,13 @@ print*, 'ft',ft
     call f_vtk%p_env%info(me,np) 
     check(f_vtk%root_proc <= np-1)
 
-    res=0
-!    if(me == f_vtk%root_proc) then
+
+    if(me == f_vtk%root_proc) then
        res = mkdir_recursive(path//C_NULL_CHAR)
        check ( res == 0 ) 
-!    end if
+    end if
+
+    call f_vtk%p_env%first_level_barrier()
 
   ! ----------------------------------------------------------------------------------
   end function create_dir_hierarchy
