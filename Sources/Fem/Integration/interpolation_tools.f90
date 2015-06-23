@@ -64,7 +64,7 @@ module interpolation_tools_names
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 
   ! Functions
-  public :: interpolator_create, interpolator_free
+  public :: interpolator_create, interpolator_free, interpolate
 
 contains
 
@@ -106,6 +106,7 @@ contains
     end if
 
     ! Store shape
+    write(*,*) gnode,unode
     call array_create(gnode,unode,int_array)
     int_array%a = inter%shape
 
@@ -123,5 +124,29 @@ contains
     call array_free(int_array)
 
   end subroutine interpolator_free
+
+  !==================================================================================================
+  subroutine interpolate(ndime,gnode,unode,int_array,g_val,u_val)
+    !-----------------------------------------------------------------------
+    ! This routine computes the interpolation
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip)    , intent(in)  :: ndime,gnode,unode
+    type(array_rp2), intent(in)  :: int_array
+    real(rp)       , intent(in)  :: g_val(ndime,gnode)
+    real(rp)       , intent(out) :: u_val(ndime,unode)
+    ! Locals
+    integer(ip) :: inode,jnode
+
+    u_val=0.0_rp
+    do inode=1,unode
+       do jnode=1,gnode
+          u_val(1:ndime,inode) = u_val(1:ndime,inode) &
+               &               + int_array%a(jnode,inode)*g_val(1:ndime,jnode)
+       end do
+    end do
+
+  end subroutine interpolate
+
 
 end module interpolation_tools_names

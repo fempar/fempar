@@ -35,6 +35,7 @@ module nsi_cg_iss_names
  use eltrm_gen_names
  use element_fields_names
  use element_tools_names
+ use analytical_names
  implicit none
 # include "debug.i90"
 
@@ -196,10 +197,8 @@ contains
     integer(ip)           :: ngaus,ndime,nnodu,nnodp
     real(rp)              :: ctime,dtinv,dvolu,diffu,react
     real(rp)              :: work(4)
-    real(rp)              :: force(approx%physics%ndime)
     real(rp)              :: agran(elem%integ(1)%p%uint_phy%nnode)
-    ! real(rp)            :: parv(30),parp(10),part(3),part_p(3)
-    type(vector)          :: gpvel, gpveln
+    type(vector)          :: gpvel, gpveln, force
 
     ! Checks
     !check(elem%f_inf(1)%p%order > elem%f_inf(approx%physics%ndime+1)%p%order)
@@ -252,48 +251,22 @@ contains
     elseif(approx%discret%kfl_thet==1) then    ! CN
        ctime = approx%discret%ctime - 1.0_rp/dtinv
     end if
+
+    ! Set force term
+    call create_vector(approx%physics,1,elem%integ,force)
+    force%a=0.0_rp
+    ! Impose analytical solution
+    if(approx%physics%case_veloc>0.and.approx%physics%case_press>0) then 
+       call nsi_analytical_force(approx,elem,ctime,gpvel,force)
+    end if
     
     ! Initializations
     work     = 0.0_rp
-    force    = 0.0_rp
-    agran    = 0.0_rp
-    ! parv     = 0.0_rp
-    ! parp     = 0.0_rp
-    ! part     = 0.0_rp    
+    agran    = 0.0_rp 
 
     ! Loop on Gauss points
     do igaus = 1,elem%integ(1)%p%quad%ngaus
        dvolu = elem%integ(1)%p%quad%weight(igaus)*elem%integ(1)%p%femap%detjm(igaus)
-
-  !      ! Analytical solution
-  !      if(prob%case_veloc>0.and.prob%case_press>0) then         
-  !         ! Velocity norm at gauss point
-  !         gpvno=0.0_rp
-  !         do idime = 1,prob%ndime
-  !            gpvno = gpvno + gpvel(idime,igaus)*gpvel(idime,igaus)
-  !         end do
-  !         gpvno = sqrt(gpvno)
-
-  !         ! Interpolation of coords
-  !         call analytical_field(prob%case_veloc,prob%ndime,elem%integ(1)%p%femap%clocs(:,igaus),ctime,parv)
-  !         call analytical_field(prob%case_press,prob%ndime,elem%integ(1)%p%femap%clocs(:,igaus),ctime,parp)
-  !         call analytical_field(prob%case_tempo,prob%ndime,elem%integ(1)%p%femap%clocs(:,igaus),ctime,part)
-  !         call analytical_field(prob%case_t_pre,prob%ndime,elem%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
-  !         if(gpvno.lt.1e-4) then
-  !            conve = 0
-  !         else
-  !            conve = prob%kfl_conv
-  !         end if
-  !         call nsi_basic_force(prob%ndime,prob%diffu,prob%react,conve,prob%kfl_symg,prob%case_tempo, &
-  !              &               parv,parp,part,prob%gravi,force,part_p)
-  !      else
-  !         force=0.0_rp
-  !      end if
-
-       ! Gravity field
-       do idime=1,approx%physics%ndime
-          force(idime) = force(idime) + approx%physics%gravi(idime)
-       end do
 
        ! Auxiliar variables
        if(approx%physics%kfl_conv.ne.0) then
@@ -305,6 +278,11 @@ contains
              end do
           end do
        end if
+
+       ! Add external force term
+       do idime=1,approx%physics%ndime    
+          force%a(idime,igaus) = force%a(idime,igaus) + approx%physics%gravi(idime)
+       end do
 
        ! Computation of elemental terms
        ! ------------------------------
@@ -343,12 +321,13 @@ contains
        ! RHS: Block U
        ! ( v, f ) + ( v, u_n/dt )
        call elmrhu_gal(dvolu,dtinv,elem%integ(1)%p%uint_phy%shape(:,igaus),gpveln%a(:,igaus), &
-            &          force,nnodu,ndime,elvec_u,work)
+            &          force%a(:,igaus),nnodu,ndime,elvec_u,work)
 
     end do
 
     call memfree(gpvel%a,__FILE__,__LINE__)
     call memfree(gpveln%a,__FILE__,__LINE__)
+    call memfree(force%a,__FILE__,__LINE__)
 
 
     ! Assembly to elemental p_mat and p_vec
@@ -393,6 +372,118 @@ contains
     call impose_strong_dirichlet_data(elem) 
     
   end subroutine nsi_matvec
+
+  !==================================================================================================
+  subroutine nsi_analytical_force(approx,elem,ctime,gpvel,force)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the elemental force needed to impose an analytical solution        !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_matvec), intent(in)    :: approx
+    type(fem_element)       , intent(in)    :: elem
+    real(rp)                , intent(in)    :: ctime
+    type(vector)            , intent(in)    :: gpvel
+    type(vector)            , intent(inout) :: force
+    ! Locals
+    integer(ip) :: igaus,idime,conve
+    real(rp)    :: gpvno
+    real(rp)    :: parv(30),parp(10),part(3),part_p(3)
+
+    ! Loop over gauss points
+    do igaus=1,elem%integ(1)%p%quad%ngaus
+    
+       ! Compute velocity norm
+       gpvno=0.0_rp
+       do idime = 1,approx%physics%ndime
+          gpvno = gpvno + gpvel%a(idime,igaus)*gpvel%a(idime,igaus)
+       end do
+       gpvno = sqrt(gpvno)
+
+       ! Set convection flag
+       if(gpvno.lt.1e-4) then
+          conve = 0
+       else
+          conve = approx%physics%kfl_conv
+       end if
+       
+       ! Evaluate unknowns and derivatives
+       parv   = 0.0_rp
+       parp   = 0.0_rp
+       part   = 0.0_rp
+       part_p = 0.0_rp
+       call analytical_field(approx%physics%case_veloc,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,parv)
+       call analytical_field(approx%physics%case_press,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,parp)
+       call analytical_field(approx%physics%case_tempo,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,part)
+       call analytical_field(approx%physics%case_t_pre,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
+
+       ! Evaluate force
+       call nsi_force(approx%physics%ndime,approx%physics%diffu,approx%physics%react,conve, &
+            &         approx%physics%kfl_symg,approx%physics%case_tempo,parv,parp,part,     &
+            &         approx%physics%gravi,force%a(:,igaus),part_p)
+
+    end do
+
+  end subroutine nsi_analytical_force
+
+  !=================================================================================================
+  subroutine nsi_force(ndime,diffu,react,kfl_conv,kfl_symg,caset,parv,parp,part,gravi,force,part_p)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine evaluates the elemental force needed to impose an analytical solution       !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip)       , intent(in)    :: ndime,kfl_conv,kfl_symg,caset
+    real(rp)          , intent(in)    :: diffu,react,parv(:),parp(:),part(:),gravi(3)
+    real(rp)          , intent(inout) :: force(ndime)
+    real(rp), optional, intent(in)    :: part_p(:)
+
+    real(rp)   :: u,v,w,dpdx,dpdy,dpdz,d2udx,d2udy,d2udz
+    real(rp)   :: d2vdx,d2vdy,d2vdz,d2wdx,d2wdy,d2wdz
+    real(rp)   :: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
+    real(rp)   :: d2udxy,d2udxz,d2vdxy,d2vdyz,d2wdxz,d2wdyz
+    real(rp)   :: dudt,dvdt,dwdt
+
+    !
+    if(caset>0) then
+       dudt = part(2)*parv(1); dvdt = part(2)*parv(2); dwdt = part(2)*parv(3)
+    else
+       dudt=0.0_rp; dvdt=0.0_rp; dwdt=0.0_rp
+    end if
+    !
+    u = parv(1)*part(1); v = parv(2)*part(1); w = parv(3)*part(1)
+    dudx = parv(4)*part(1); dudy = parv(5)*part(1); dudz = parv(6)*part(1)
+    dvdx = parv(7)*part(1); dvdy = parv(8)*part(1); dvdz = parv(9)*part(1)
+    dwdx = parv(10)*part(1); dwdy = parv(11)*part(1); dwdz = parv(12)*part(1)
+    !
+    d2udx = parv(13)*part(1); d2udy = parv(14)*part(1); d2udz = parv(15)*part(1)
+    d2vdx = parv(16)*part(1); d2vdy = parv(17)*part(1); d2vdz = parv(18)*part(1)
+    d2wdx = parv(19)*part(1); d2wdy = parv(20)*part(1); d2wdz = parv(21)*part(1)
+    !
+    d2udxy = parv(22)*part(1); d2udxz = parv(23)*part(1)
+    d2vdxy = parv(25)*part(1); d2vdyz = parv(27)*part(1)
+    d2wdxz = parv(29)*part(1); d2wdyz = parv(30)*part(1)
+    !
+    if(present(part_p)) then
+       dpdx = parp(2)*part_p(1); dpdy = parp(3)*part_p(1); dpdz = parp(4)*part_p(1)
+    else
+       dpdx = parp(2); dpdy = parp(3); dpdz = parp(4)
+    end if
+    !
+
+    force(1) = dudt - diffu*(d2udx+d2udy+d2udz) + dpdx + react*u + &
+         REAL(kfl_conv)*(u*dudx + v*dudy + w*dudz) - gravi(1) -    &
+         REAL(kfl_symg)*diffu*(d2udx+d2vdxy+d2wdxz)
+    force(2) = dvdt - diffu*(d2vdx+d2vdy+d2vdz) + dpdy + react*v + &
+         REAL(kfl_conv)*(u*dvdx + v*dvdy + w*dvdz) - gravi(2) -    &
+         REAL(kfl_symg)*diffu*(d2udxy+d2vdy+d2wdyz)
+    if(ndime==3) force(3) = dwdt - diffu*(d2wdx+d2wdy+d2wdz) + dpdz + react*w + &
+         REAL(kfl_conv)*(u*dwdx + v*dwdy + w*dwdz) - gravi(3) -    &
+         REAL(kfl_symg)*diffu*(d2udxz+d2vdyz+d2wdz)
+
+  end subroutine nsi_force
   
   ! !=================================================================================================
   ! subroutine nsi_iss_element_mat(prob,ielem,elem)

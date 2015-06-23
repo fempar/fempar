@@ -108,10 +108,12 @@ program test_nsi_iss
   call mydisc%create(myprob)
   call matvec%create(myprob,mydisc)
   call dhand%set_problem(1,mydisc)
-  approx(1)%p     => matvec
-  mydisc%dtinv    = 0.0_rp
-  myprob%kfl_conv = 1
-  myprob%diffu    = 1.0_rp
+  approx(1)%p       => matvec
+  mydisc%dtinv      = 0.0_rp
+  myprob%kfl_conv   = 1
+  myprob%diffu      = 1.0_rp
+  myprob%case_veloc = 1
+  myprob%case_press = 1
 
   ! Allocate auxiliar elemental arrays
   call memalloc(f_trian%num_elems,dhand%nvars_global,continuity, __FILE__,__LINE__)
@@ -143,8 +145,13 @@ program test_nsi_iss
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
-  f_cond%valu = 1.0_rp
   call update_strong_dirichlet_boundary_conditions(fspac,f_cond)
+  if(myprob%case_veloc>0) then
+     call update_analytical_boundary_conditions((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fspac)
+  end if
+  if(myprob%case_press>0) then
+     call update_analytical_boundary_conditions((/gdata%ndime+1/),myprob%case_press,0.0_rp,fspac)
+  end if
 
   ! Integrate
   call volume_integral(approx,fspac,femat,fevec)

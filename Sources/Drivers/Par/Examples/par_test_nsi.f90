@@ -141,10 +141,12 @@ program par_test_nsi_iss
   call mydisc%create(myprob)
   call matvec%create(myprob,mydisc)
   call dhand%set_problem(1,mydisc)
-  approx(1)%p     => matvec
-  mydisc%dtinv    = 0.0_rp
-  myprob%kfl_conv = 1
-  myprob%diffu    = 1.0_rp
+  approx(1)%p       => matvec
+  mydisc%dtinv      = 0.0_rp
+  myprob%kfl_conv   = 1
+  myprob%diffu      = 1.0_rp
+  myprob%case_veloc = 1
+  myprob%case_press = 1
 
   ! Allocate auxiliar elemental arrays
   call memalloc(p_trian%f_trian%num_elems,dhand%nvars_global,continuity, __FILE__,__LINE__)
@@ -184,6 +186,14 @@ program par_test_nsi_iss
   if(p_env%am_i_fine_task()) then
      p_cond%f_conditions%valu = 1.0_rp
      call update_strong_dirichlet_boundary_conditions(p_fspac%f_space,p_cond%f_conditions)
+     if(myprob%case_veloc>0) then
+        call update_analytical_boundary_conditions((/1:gdata%ndime/),myprob%case_veloc,0.0_rp, &
+             &                                     p_fspac%f_space)
+     end if
+     if(myprob%case_press>0) then
+        call update_analytical_boundary_conditions((/gdata%ndime+1/),myprob%case_press,0.0_rp, &
+             &                                     p_fspac%f_space)
+     end if
   end if
 
   ! Integrate
@@ -264,7 +274,7 @@ program par_test_nsi_iss
   call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)  
-  !call par_vector_print(6,p_unk)
+  call par_vector_print(6,p_unk)
 
   ! Print solution to VTK file
   if(p_env%am_i_fine_task()) istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')

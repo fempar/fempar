@@ -41,6 +41,7 @@ module fem_space_names
   use migratory_element_names
   use fem_conditions_names
   use fem_element_names
+  use analytical_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -102,7 +103,8 @@ module fem_space_names
   ! Methods
   public :: fem_space_create, fem_space_print, fem_space_free, &
        &    integration_faces_list, fem_space_allocate_structures, &
-       &    fem_space_fe_list_create, update_strong_dirichlet_boundary_conditions
+       &    fem_space_fe_list_create, update_strong_dirichlet_boundary_conditions, &
+       &    update_analytical_boundary_conditions
 
 contains
 
@@ -401,8 +403,8 @@ contains
           call fspac%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
           ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
           if ( istat == new_index ) call interpolator_create(f_type,f_type,dim,1,f_order,            &
-               &                                             fspac%lelem(ielem)%f_inf(ivar)%p%nnode, &
                &                                             fspac%lelem(ielem)%p_geo_info%nnode,    &
+               &                                             fspac%lelem(ielem)%f_inf(ivar)%p%nnode, &
                &                                             fspac%linter(pos_voint),                &
                &                                             khie = fspac%hierarchical_basis)
           fspac%lelem(ielem)%inter(ivar)%p => fspac%linter(pos_voint)
@@ -711,6 +713,87 @@ contains
 
   end subroutine update_strong_dirichlet_boundary_conditions
 
+  subroutine update_analytical_boundary_conditions(vars_of_unk,case,ctime,fspac,caset,t)
+    implicit none
+    integer(ip)          , intent(in)    :: vars_of_unk(:)
+    integer(ip)          , intent(in)    :: case
+    real(rp)             , intent(in)    :: ctime
+    type(fem_space)      , intent(inout) :: fspac
+    integer(ip), optional, intent(in)    :: caset,t
+    ! Locals
+    integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
+    integer(ip) :: nvars,ivar,gvar,gnode,unode,cnt
+    real(rp)    :: part(3)
+    real(rp), allocatable :: coord(:,:),param(:)
+
+    nvars = size(vars_of_unk,1)
+    ndime = fspac%g_trian%num_dims
+
+    ! Allocate parameters
+    if(nvars==1) then
+       call memalloc(10,param,__FILE__,__LINE__)
+    else
+       call memalloc(30,param,__FILE__,__LINE__)
+    end if
+       
+
+    do ielem = 1, fspac%g_trian%num_elems
+       prob  = fspac%lelem(ielem)%problem
+       gnode = fspac%lelem(ielem)%p_geo_info%nnode
+       cnt   = 0
+       
+       do ivar=vars_of_unk(1),vars_of_unk(nvars)
+          
+          ! Global variable
+          cnt = cnt+1
+          gvar=fspac%dof_handler%problems(prob)%p%l2g_var(ivar)
+          
+          ! Interpolate coordinates
+          unode = fspac%lelem(ielem)%f_inf(ivar)%p%nnode
+          call memalloc(ndime,unode,coord,__FILE__,__LINE__)
+          call interpolate(ndime,gnode,unode,fspac%lelem(ielem)%inter(ivar)%p, &
+               &           fspac%g_trian%elems(ielem)%coordinates,coord)
+
+          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+             lobje = fspac%g_trian%elems(ielem)%objects(iobje)
+             
+             if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+
+                do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+                     &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+                   lnode = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+
+                   call analytical_field(case,ndime,coord(:,lnode),ctime,param)
+
+                   if(present(caset)) then
+                      if(caset>0) then
+                         call analytical_field(caset,ndime,coord(:,lnode),ctime,part)
+                         if(present(t)) then
+                            fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)*part(t)
+                         else
+                            fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)*part(1)
+                         end if
+                      else
+                         fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)
+                      end if
+                   else
+                      fspac%lelem(ielem)%unkno(lnode,ivar,1) =  param(cnt)
+                   end if
+                
+                end do
+             end if            
+          end do
+
+          ! Deallocate auxiliar coordinates
+          call memfree(coord,__FILE__,__LINE__)
+
+       end do
+    end do
+
+    ! Deallocate params
+    call memfree(param,__FILE__,__LINE__)
+    
+  end subroutine update_analytical_boundary_conditions
 
 end module fem_space_names
 
