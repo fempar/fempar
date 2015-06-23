@@ -64,9 +64,10 @@ module par_environment_names
      procedure :: par_environment_bcast_logical
 
      
-     procedure :: info           => par_environment_info
-     procedure :: am_i_fine_task => par_environment_am_i_fine_task
-     procedure :: bcast          => par_environment_bcast_logical
+     procedure :: info                => par_environment_info
+     procedure :: am_i_fine_task      => par_environment_am_i_fine_task
+     procedure :: bcast               => par_environment_bcast_logical
+     procedure :: first_level_barrier => par_environment_first_level_barrier
   end type par_environment
   
 
@@ -79,6 +80,26 @@ module par_environment_names
 
 contains
 
+  subroutine par_environment_first_level_barrier(env) 
+    implicit none
+    ! Dummy arguments
+    class(par_environment),intent(in)  :: env
+
+    ! Local variables
+    integer :: mpi_comm_p, ierr
+
+    ! Parallel environment MUST BE already created
+    assert ( env%created )
+    assert ( associated(env%p_context) )
+
+    ! Get MPI communicator associated to icontxt_b (in
+    ! the current implementation of our wrappers
+    ! to the MPI library icontxt and mpi_comm are actually 
+    ! the same)
+    call psb_get_mpicomm (env%p_context%icontxt, mpi_comm_p)
+    call mpi_barrier ( mpi_comm_p, ierr)
+    check ( ierr == 0 )
+  end subroutine par_environment_first_level_barrier
 
   subroutine par_environment_info(env,me,np) 
     implicit none

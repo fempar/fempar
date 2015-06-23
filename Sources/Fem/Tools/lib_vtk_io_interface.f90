@@ -38,6 +38,7 @@ module lib_vtk_io_interface
   use fem_space_names
   use problem_names
   use element_gather_tools
+  use abstract_environment_names
   use Lib_VTK_IO
   use ISO_C_BINDING
 
@@ -47,7 +48,7 @@ module lib_vtk_io_interface
   interface
     function mkdir_recursive(path) bind(c,name="mkdir_recursive")
       use iso_c_binding
-      logical :: mkdir_recursive
+      integer(kind=c_int) :: mkdir_recursive
       character(kind=c_char,len=1), intent(IN) :: path(*)
     end function mkdir_recursive
   end interface
@@ -85,9 +86,11 @@ module lib_vtk_io_interface
   type fem_vtk
      type(vtk_mesh), allocatable   :: mesh(:)         ! VTK mesh data and field descriptors
      type(fem_space), pointer      :: p_f_space => NULL()  ! Poins to fem_space
+     class(abstract_environment), pointer      :: p_env => NULL()  ! Poins to fem_space
      integer(ip)                   :: num_meshes = 0  ! Number of VTK meshes stored
-     integer(ip)                   :: num_steps = 1   ! Number of time steps
-     integer(ip)                   :: num_parts = 1   ! Number of parts
+     integer(ip)                   :: num_steps = 0   ! Number of time steps
+     integer(ip)                   :: num_parts = 0   ! Number of parts
+     integer(ip)                   :: root_proc = 0   ! Root processor
      contains
         procedure          :: initialize              ! Initialize fem_mesh derived type
         procedure          :: write_VTK               ! Write a VTU file
@@ -104,6 +107,7 @@ module lib_vtk_io_interface
         procedure, private :: get_PVD_time_output_path
         procedure, private :: get_vtk_filename
         procedure, private :: get_pvtk_filename
+        procedure, private :: set_root_proc
         procedure, private :: set_num_steps
         procedure, private :: set_num_parts
         procedure, private :: set_dir_path
@@ -126,19 +130,22 @@ module lib_vtk_io_interface
 contains
 
   ! Subroutine to initialize fem_vtk derived type
-  subroutine initialize(f_vtk, f_trian, f_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh, linear_order)
+  subroutine initialize(f_vtk, f_trian, f_space, phys_prob, env, dir_path, prefix, root_proc, nparts, nsteps, nmesh, linear_order)
     class(fem_vtk),          intent(INOUT) :: f_vtk
     type(fem_triangulation), intent(IN)    :: f_trian
     type(fem_space), target, intent(IN)    :: f_space
     class(physical_problem), intent(IN)    :: phys_prob
+    class(abstract_environment), target, intent(IN)    :: env
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
+    integer(ip), optional,   intent(IN)    :: root_proc
     integer(ip), optional,   intent(IN)    :: nparts
     integer(ip), optional,   intent(IN)    :: nsteps
     logical,     optional,   intent(IN)    :: linear_order
     integer(ip), optional,   intent(OUT)   :: nmesh
     integer(ip)                            :: nm = 1
-    logical                                :: lo = .False.
+    logical                                :: lo = .False., ft = .False.
+    integer(ip)                            :: me, np, st
   ! ----------------------------------------------------------------------------------
 
 !! Node permutation
@@ -161,17 +168,32 @@ contains
 
     if(present(linear_order)) lo = linear_order
 
-    if(lo) then 
-      call f_vtk%initialize_linear_order(f_trian, f_space, phys_prob, dir_path, prefix, nm)
-    else
-      call f_vtk%initialize_superlinear_order(f_space, phys_prob, dir_path, prefix, nm)
-    endif
     f_vtk%p_f_space => f_space
-    if(present(nmesh)) nmesh = nm
-    call f_vtk%set_dir_path(dir_path,nm)
-    call f_vtk%set_prefix(prefix,nm)
-    if(present(nparts)) call f_vtk%set_num_parts(nparts)
-    if(present(nsteps)) call f_vtk%set_num_steps(nsteps)
+    f_vtk%p_env => env
+
+    me = 0; np = 1
+    if(associated(f_vtk%p_env)) then 
+        call f_vtk%p_env%info(me,np) 
+        ft =  f_vtk%p_env%am_i_fine_task() 
+    endif
+
+    if(ft) then
+        if(lo) then 
+          call f_vtk%initialize_linear_order(f_trian, f_space, phys_prob, dir_path, prefix, nm)
+        else
+          call f_vtk%initialize_superlinear_order(f_space, phys_prob, dir_path, prefix, nm)
+        endif
+        if(present(nmesh)) nmesh = nm
+
+        call f_vtk%set_dir_path(dir_path,nm)
+        call f_vtk%set_prefix(prefix,nm)
+        if(present(nparts)) np = nparts
+        call f_vtk%set_num_parts(np)
+        st = 1
+        if(present(nsteps)) st = nsteps
+        call f_vtk%set_num_steps(st)
+
+    endif
 
   ! ----------------------------------------------------------------------------------
   end subroutine initialize
@@ -198,6 +220,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end subroutine initialize_linear_order
 
+
   ! Subroutine to initialize fem_vtk derived type with high order mesh
   subroutine initialize_superlinear_order(f_vtk, f_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
   ! ----------------------------------------------------------------------------------
@@ -219,6 +242,7 @@ contains
 
   ! ----------------------------------------------------------------------------------
   end subroutine initialize_superlinear_order
+
 
   ! Subroutine to store several meshes in a fem_vtk derived type
   subroutine fill_mesh_from_triangulation(f_vtk, f_trian, nmesh)
@@ -467,7 +491,7 @@ contains
   end subroutine fill_fields_from_physical_problem
 
 
-  ! Write a single VTK file to disk
+  ! Write a single VTK file to disk (if I am fine tast)
   function write_VTK(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -478,83 +502,94 @@ contains
     integer(ip),      optional, intent(IN)    :: n_mesh
     character(len=*), optional, intent(IN)    :: o_fmt
     character(len=:), allocatable             :: fn,dp
-    integer(ip)                               :: nm, np
+    integer(ip)                               :: nm, np, tidx
     real(rp)                                  :: ts
     character(len=:), allocatable             :: of
     integer(ip)                               :: fid, nnods, nels, E_IO
-    logical                                   :: ok
+    logical                                   :: ok, ft
     integer(ip)                               :: i, j, f, idx, tnnod, curr_nvar, tncomp, nnode, elnnod
     real(rp), allocatable                     :: field(:,:)
   ! ----------------------------------------------------------------------------------
 
-    nm = f_vtk%num_meshes
-    if(present(n_mesh)) nm = n_mesh
-
-    np = f_vtk%num_parts-1
-    if(present(n_part)) np = n_part
-
-    ts = f_vtk%num_steps
-    if(present(t_step)) ts = t_step 
-
-    dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
-    fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
-    fn = dp//fn
-    if(present(f_name)) fn = f_name
-
-    ok = f_vtk%create_dir_hierarchy(dp)
-
-    of = 'raw'
-    if(present(o_fmt)) of = trim(adjustl(o_fmt))
-
-    nnods = f_vtk%mesh(nm)%nnods
-    nels = size(f_vtk%mesh(nm)%ctype, dim=1)
-
-    E_IO = VTK_INI_XML(output_format = trim(adjustl(of)), filename = trim(adjustl(fn)), mesh_topology = 'UnstructuredGrid', cf=fid)
-    E_IO = VTK_GEO_XML(NN = nnods, NC = nels,  X=f_vtk%mesh(nm)%X, Y=f_vtk%mesh(nm)%Y, Z=f_vtk%mesh(nm)%Z, cf=fid)
-    E_IO = VTK_CON_XML(NC= nels, connect   = f_vtk%mesh(nm)%connec, offset    = f_vtk%mesh(nm)%offset, cell_type = f_vtk%mesh(nm)%ctype, cf=fid)
+    check(associated(f_vtk%p_env))
  
-
-    if(allocated(f_vtk%mesh(nm)%fields)) then
-
-        E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=fid)
-
-        tncomp = 0
-        do f=1, size(f_vtk%mesh(nm)%fields, dim=1) 
-            if(f_vtk%mesh(nm)%fields(f)%filled) then
-                tnnod = 0
-                curr_nvar = tncomp + f_vtk%mesh(nm)%fields(f)%num_comp
-!                allocate(field(f_vtk%mesh(nm)%fields(f)%num_comp,nnods))
-                call memalloc( f_vtk%mesh(nm)%fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
+    ft =  f_vtk%p_env%am_i_fine_task() 
     
-                do i=1, nels
-                    elnnod = f_vtk%p_f_space%lelem(i)%f_inf(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
-                    do j=1, elnnod
-                        nnode = f_vtk%p_f_space%lelem(i)%f_inf(curr_nvar)%p%ntxob%p(j)
-                        idx = f_vtk%p_f_space%lelem(i)%f_inf(curr_nvar)%p%ntxob%l(nnode)
-                        field(1:f_vtk%mesh(nm)%fields(f)%num_comp,j+tnnod) = &
-                             f_vtk%p_f_space%lelem(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%fields(f)%num_comp, ts)
-                    enddo
-                    tnnod = tnnod + elnnod 
+    if(ft) then
+
+        nm = f_vtk%num_meshes
+        if(present(n_mesh)) nm = n_mesh
+    
+        np = f_vtk%num_parts-1
+        if(present(n_part)) np = n_part
+    
+        tidx = 1
+    
+        ts = 0._rp
+        if(present(t_step)) ts = t_step 
+    
+        dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+        fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
+        fn = dp//fn
+        if(present(f_name)) fn = f_name
+    
+        if( f_vtk%create_dir_hierarchy(dp) == 0) then
+    
+            of = 'raw'
+            if(present(o_fmt)) of = trim(adjustl(o_fmt))
+        
+            nnods = f_vtk%mesh(nm)%nnods
+            nels = size(f_vtk%mesh(nm)%ctype, dim=1)
+        
+            E_IO = VTK_INI_XML(output_format = trim(adjustl(of)), filename = trim(adjustl(fn)), mesh_topology = 'UnstructuredGrid', cf=fid)
+            E_IO = VTK_GEO_XML(NN = nnods, NC = nels,  X=f_vtk%mesh(nm)%X, Y=f_vtk%mesh(nm)%Y, Z=f_vtk%mesh(nm)%Z, cf=fid)
+            E_IO = VTK_CON_XML(NC= nels, connect   = f_vtk%mesh(nm)%connec, offset    = f_vtk%mesh(nm)%offset, cell_type = f_vtk%mesh(nm)%ctype, cf=fid)
+         
+        
+            if(allocated(f_vtk%mesh(nm)%fields)) then
+        
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=fid)
+        
+                tncomp = 0
+                do f=1, size(f_vtk%mesh(nm)%fields, dim=1) 
+                    if(f_vtk%mesh(nm)%fields(f)%filled) then
+                        tnnod = 0
+                        curr_nvar = tncomp + f_vtk%mesh(nm)%fields(f)%num_comp
+!                       allocate(field(f_vtk%mesh(nm)%fields(f)%num_comp,nnods))
+                        call memalloc( f_vtk%mesh(nm)%fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
+            
+                        do i=1, nels
+                            elnnod = f_vtk%p_f_space%lelem(i)%f_inf(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                            do j=1, elnnod
+                                nnode = f_vtk%p_f_space%lelem(i)%f_inf(curr_nvar)%p%ntxob%p(j)
+                                idx = f_vtk%p_f_space%lelem(i)%f_inf(curr_nvar)%p%ntxob%l(nnode)
+                                field(1:f_vtk%mesh(nm)%fields(f)%num_comp,j+tnnod) = &
+                                     f_vtk%p_f_space%lelem(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%fields(f)%num_comp, tidx)
+                            enddo
+                            tnnod = tnnod + elnnod 
+                        enddo
+                
+                        tncomp = curr_nvar
+                        E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%fields(f)%num_comp, varname=f_vtk%mesh(nm)%fields(f)%var_name,var=field, cf=fid)
+                        if(allocated(field)) call memfree(field)
+                    endif
                 enddo
         
-                tncomp = curr_nvar
-                E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%fields(f)%num_comp, varname=f_vtk%mesh(nm)%fields(f)%var_name,var=field, cf=fid)
-                if(allocated(field)) call memfree(field)
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=fid)
             endif
-        enddo
+    
+            E_IO = VTK_GEO_XML(cf=fid)
+            E_IO = VTK_END_XML()
 
-        E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=fid)
+        endif
+
     endif
-
-    E_IO = VTK_GEO_XML(cf=fid)
-    E_IO = VTK_END_XML()
-
 
   ! ----------------------------------------------------------------------------------
   end function write_VTK
 
 
-  ! Write the PVTK file referencing serveral parts of the partitioned mesh
+  ! Write the PVTK file referencing serveral parts of the partitioned mesh (if I am root_proc)
   function write_PVTK(f_vtk, f_name, n_mesh, t_step) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -567,62 +602,75 @@ contains
     character(len=:),allocatable              :: fn ,dp
     real(rp)                                  :: ts
     integer(ip)                               :: i, fid, nnods, nels, E_IO
+    integer(ip)                               :: me, np
   ! ----------------------------------------------------------------------------------
 
-    nm = f_vtk%num_meshes
-    if(present(n_mesh)) nm = n_mesh
+    me = 0; np = 1
+    check(associated(f_vtk%p_env))
+    call f_vtk%p_env%info(me,np) 
+    check(f_vtk%root_proc <= np-1)
 
-    ts = f_vtk%num_steps
-    if(present(t_step)) ts = t_step 
+    if(me == f_vtk%root_proc) then
 
+        nm = f_vtk%num_meshes
+        if(present(n_mesh)) nm = n_mesh
 
-    dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
-    fn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
-    fn = dp//fn
-    if(present(f_name)) fn = f_name
+        ts = 0_rp
+        if(present(t_step)) ts = t_step 
 
-    nnods = f_vtk%mesh(nm)%nnods
-    nels = size(f_vtk%mesh(nm)%ctype, dim=1)
+        dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+        fn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
+        fn = dp//fn
+        if(present(f_name)) fn = f_name
 
-    ! pvtu
-    E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64')
-    do i=0, f_vtk%num_parts-1
-        E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))))
-    enddo
+        if( f_vtk%create_dir_hierarchy(dp) == 0) then
 
-    if(allocated(f_vtk%mesh(nm)%fields)) then
-        E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN')
-        do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
-            if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'node') then
-                if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
-                    var_name = f_vtk%mesh(nm)%fields(i)%var_name
-                else
-                    var_name = 'Unknown_'//trim(adjustl(ch(i)))
-                endif
-                E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), Nc=f_vtk%mesh(nm)%fields(i)%num_comp )
+            nnods = f_vtk%mesh(nm)%nnods
+            nels = size(f_vtk%mesh(nm)%ctype, dim=1)
+
+            ! pvtu
+            E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64')
+            do i=0, f_vtk%num_parts-1
+                E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))))
+            enddo
+
+            if(allocated(f_vtk%mesh(nm)%fields)) then
+                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN')
+                do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
+                    if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'node') then
+                        if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
+                            var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                        else
+                            var_name = 'Unknown_'//trim(adjustl(ch(i)))
+                        endif
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), Nc=f_vtk%mesh(nm)%fields(i)%num_comp )
+                    endif
+                enddo
+                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE')
+                E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN')
+                do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
+                    if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'cell') then
+                        if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
+                            var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                        else
+                            var_name = 'Unknown_'//trim(adjustl(ch(i)))
+                        endif
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
+                    endif
+                enddo
+                E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE')
             endif
-        enddo
-        E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE')
-        E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN')
-        do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
-            if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'cell') then
-                if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
-                    var_name = f_vtk%mesh(nm)%fields(i)%var_name
-                else
-                    var_name = 'Unknown_'//trim(adjustl(ch(i)))
-                endif
-                E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)))
-            endif
-        enddo
-        E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE')
+            E_IO = PVTK_END_XML()
+
+        endif
+
     endif
-    E_IO = PVTK_END_XML()
 
   ! ----------------------------------------------------------------------------------
   end function write_PVTK
 
 
-  ! Write the PVD file referencing several PVTK files in a timeline
+  ! Write the PVD file referencing several PVTK files in a timeline (if I am root proc)
   function write_PVD(f_vtk, f_name, n_mesh) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -633,23 +681,36 @@ contains
     character(len=:),allocatable              :: var_name
     character(len=:),allocatable              :: pvdfn, pvtkfn ,dp
     integer(ip)                               :: i, fid, nnods, nels, ts, E_IO
+    integer(ip)                               :: me, np
   ! ----------------------------------------------------------------------------------
 
-    nm = f_vtk%num_meshes
-    if(present(n_mesh)) nm = n_mesh
+    me = 0; np = 1
+    check(associated(f_vtk%p_env))
+    call f_vtk%p_env%info(me,np) 
+    check(f_vtk%root_proc <= np-1)
 
-    pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//'_'//trim(adjustl(ch(nm)))//pvd_ext
-    if(present(f_name)) pvdfn = f_name
+    if(me == f_vtk%root_proc) then
 
+        nm = f_vtk%num_meshes
+        if(present(n_mesh)) nm = n_mesh
+    
+        pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//'_'//trim(adjustl(ch(nm)))//pvd_ext
+        if(present(f_name)) pvdfn = f_name
+    
+        if( f_vtk%create_dir_hierarchy(trim(adjustl(f_vtk%mesh(nm)%dir_path))) == 0 ) then    
 
-    E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
-    do ts=1, f_vtk%num_steps
-      dp = f_vtk%get_PVD_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=real(ts,rp))
-      pvtkfn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
-      pvtkfn = dp//pvtkfn
-      E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtkfn)),timestep=ts, cf=rf)
-    enddo
-    E_IO = PVD_END_XML(cf=rf)
+            E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
+            do ts=1, f_vtk%num_steps
+              dp = f_vtk%get_PVD_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=real(ts,rp))
+              pvtkfn = f_vtk%get_PVTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_mesh=nm)
+              pvtkfn = dp//pvtkfn
+              E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtkfn)),timestep=ts, cf=rf)
+            enddo
+            E_IO = PVD_END_XML(cf=rf)
+
+        endif
+    
+    endif
 
   ! ----------------------------------------------------------------------------------
   end function write_PVD
@@ -659,10 +720,20 @@ contains
   ! ----------------------------------------------------------------------------------
     class(fem_vtk),   intent(INOUT) :: f_vtk
     character(len=*), intent(IN)    :: path
-    logical                         :: res
+    logical                         :: ft
+    integer(kind=c_int)             :: res
+    integer(ip)                     :: me, np
   ! ----------------------------------------------------------------------------------
+    me = 0; np = 1; ft = .False.
+    check(associated(f_vtk%p_env))
+    call f_vtk%p_env%info(me,np) 
+    check(f_vtk%root_proc <= np-1)
 
-    res = mkdir_recursive(path//C_NULL_CHAR)
+
+    if(me == f_vtk%root_proc) then
+       res = mkdir_recursive(path//C_NULL_CHAR)
+       check ( res == 0 ) 
+    end if
 
   ! ----------------------------------------------------------------------------------
   end function create_dir_hierarchy
@@ -771,6 +842,17 @@ contains
   end function get_PVTK_filename
 
 
+  ! Set the number of time steps of the simulation to be writen in the PVD
+  subroutine set_root_proc(f_vtk, root)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(fem_vtk), intent(INOUT) :: f_vtk
+    integer(ip),    intent(IN)    :: root
+  ! ----------------------------------------------------------------------------------
+
+    f_vtk%root_proc = root
+  ! ----------------------------------------------------------------------------------
+  end subroutine set_root_proc
 
 
   ! Set the number of time steps of the simulation to be writen in the PVD
@@ -834,36 +916,47 @@ contains
     implicit none
     class(fem_vtk), intent(inout) :: f_vtk
     integer(ip)                   :: i, j
+    logical                       :: ft
   ! ----------------------------------------------------------------------------------
 
+    check(associated(f_vtk%p_env))
+    ft = f_vtk%p_env%am_i_fine_task() 
 
-    if(allocated(f_vtk%mesh)) then
-        do i=1, size(f_vtk%mesh,1)
-            call memfree(f_vtk%mesh(i)%X)
-            call memfree(f_vtk%mesh(i)%Y)
-            call memfree(f_vtk%mesh(i)%Z)
-            call memfree(f_vtk%mesh(i)%connec)
-            call memfree(f_vtk%mesh(i)%offset)
-            call memfree(f_vtk%mesh(i)%ctype)
-            if (.not. f_vtk%mesh(i)%linear_order) then
-                do j=1, max_order
-                    call array_free(f_vtk%mesh(i)%nodes_subelem(j))
-                enddo
-            endif
-            if(allocated(f_vtk%mesh(i)%fields)) then
-                do j=1, size(f_vtk%mesh(i)%fields)
-                    if(allocated(f_vtk%mesh(i)%fields(j)%var_location)) deallocate(f_vtk%mesh(i)%fields(j)%var_location)
-                    if(allocated(f_vtk%mesh(i)%fields(j)%var_name)) deallocate(f_vtk%mesh(i)%fields(j)%var_name)
-                    if(allocated(f_vtk%mesh(i)%fields(j)%field_type)) deallocate(f_vtk%mesh(i)%fields(j)%field_type)
-                    f_vtk%mesh(i)%fields(j)%filled = .False.
-                enddo
-                deallocate(f_vtk%mesh(i)%fields)
-            endif
-            f_vtk%mesh(i)%filled = .False.
-        enddo
-        deallocate(f_vtk%mesh)
+    if(ft) then
+
+        if(allocated(f_vtk%mesh)) then
+            do i=1, size(f_vtk%mesh,1)
+                call memfree(f_vtk%mesh(i)%X)
+                call memfree(f_vtk%mesh(i)%Y)
+                call memfree(f_vtk%mesh(i)%Z)
+                call memfree(f_vtk%mesh(i)%connec)
+                call memfree(f_vtk%mesh(i)%offset)
+                call memfree(f_vtk%mesh(i)%ctype)
+                if (.not. f_vtk%mesh(i)%linear_order) then
+                    do j=1, max_order
+                        call array_free(f_vtk%mesh(i)%nodes_subelem(j))
+                    enddo
+                endif
+                if(allocated(f_vtk%mesh(i)%fields)) then
+                    do j=1, size(f_vtk%mesh(i)%fields)
+                        if(allocated(f_vtk%mesh(i)%fields(j)%var_location)) deallocate(f_vtk%mesh(i)%fields(j)%var_location)
+                        if(allocated(f_vtk%mesh(i)%fields(j)%var_name)) deallocate(f_vtk%mesh(i)%fields(j)%var_name)
+                        if(allocated(f_vtk%mesh(i)%fields(j)%field_type)) deallocate(f_vtk%mesh(i)%fields(j)%field_type)
+                        f_vtk%mesh(i)%fields(j)%filled = .False.
+                    enddo
+                    deallocate(f_vtk%mesh(i)%fields)
+                endif
+                f_vtk%mesh(i)%filled = .False.
+            enddo
+            deallocate(f_vtk%mesh)
+        endif
     endif
     f_vtk%num_meshes = 0
+    f_vtk%num_steps = 0
+    f_vtk%num_parts = 0
+    f_vtk%root_proc = 0
+    f_vtk%p_f_space => NULL()
+    f_vtk%p_env => NULL()
   ! ----------------------------------------------------------------------------------
   end subroutine free
 

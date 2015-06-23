@@ -33,9 +33,10 @@ module abstract_environment_names
   ! Abstract environment
   type, abstract :: abstract_environment
    contains
-     procedure (info_interface)           , deferred  :: info
-     procedure (am_i_fine_task_interface) , deferred  :: am_i_fine_task
-     procedure (bcast_interface)          , deferred  :: bcast
+     procedure (info_interface)                , deferred  :: info
+     procedure (am_i_fine_task_interface)      , deferred  :: am_i_fine_task
+     procedure (bcast_interface)               , deferred  :: bcast
+     procedure (first_level_barrier_interface) , deferred  :: first_level_barrier
   end type abstract_environment
 
   ! Abstract interfaces
@@ -61,6 +62,12 @@ module abstract_environment_names
        class(abstract_environment) ,intent(in)    :: env
        logical                     ,intent(inout) :: condition
      end subroutine bcast_interface
+
+     subroutine first_level_barrier_interface (env)
+       import :: abstract_environment
+       implicit none
+       class(abstract_environment) ,intent(in)    :: env
+     end subroutine first_level_barrier_interface
   end interface
 
   public :: abstract_environment

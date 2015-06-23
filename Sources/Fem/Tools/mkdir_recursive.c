@@ -3,13 +3,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <libgen.h>
-#include <stdbool.h>
 
-bool mkdir_recursive(char *path)
+int mkdir_recursive(char *path)
 {
     char *subpath, *fullpath;
     mode_t mode = 0775;
-    bool ok = 1;
+    int ok = 0;
     struct stat fileStat;
 
     fullpath = strdup(path);
@@ -19,7 +18,7 @@ bool mkdir_recursive(char *path)
 
     if(stat(fullpath,&fileStat) < 0)
         if (mkdir(fullpath, mode) < 0)
-          ok = 0;
+          ok = -1;
 
     free(fullpath);
     return ok;
