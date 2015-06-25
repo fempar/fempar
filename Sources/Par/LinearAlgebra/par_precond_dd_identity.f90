@@ -134,6 +134,8 @@ use psb_penv_mod_names
 
     if(p_prec_dd_identity%p_mat%p_env%p_context%iam<0) return
 
+    call y%copy(x)
+    
     ! Comm
     if ( x%state == part_summed ) then
        call y%comm()
