@@ -726,7 +726,7 @@ contains
     call f_vtk%p_env%info(me,np) 
     check(f_vtk%root_proc <= np-1)
 
-
+    res = 0
     if(me == f_vtk%root_proc) then
        res = mkdir_recursive(path//C_NULL_CHAR)
        check ( res == 0 ) 

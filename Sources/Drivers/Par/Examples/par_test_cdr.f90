@@ -165,10 +165,8 @@ program par_test_cdr
                               hierarchical_basis = logical(.false.,lg), &
                               & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
-  if ( p_env%am_i_fine_task() ) then
-     p_cond%f_conditions%valu=1.0_rp
-     call update_strong_dirichlet_boundary_conditions( p_fspac%f_space, p_cond%f_conditions )
-  end if
+  if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
+  call par_update_strong_dirichlet_bcond( p_fspac, p_cond )
 
   call par_create_distributed_dof_info ( dhand, p_trian, p_fspac, blk_dof_dist, p_blk_graph, gtype )  
 

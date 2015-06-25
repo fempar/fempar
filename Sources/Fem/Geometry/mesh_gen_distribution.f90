@@ -2239,6 +2239,63 @@ contains
        if(ndime==2) exit
     end do
 
+    ! Edges
+    aux_cnt = tsize%nctot
+    aux_glb = tsize%ncglb
+    do pdime=ndime,1,-1
+       if(ndime==2) then
+          nddomk=1
+       elseif(ndime==3) then
+          nddomk=tsize%nddom(auxv(pdime,2),pdime)
+       end if
+       do i=1,tsize%nddom(pdime,pdime)
+          do j=1,tsize%nddom(auxv(pdime,1),pdime)
+             do k=1,nddomk
+
+                ! Identifier
+                ijk(pdime) = i
+                ijk(auxv(pdime,1)) = j
+                if(ndime==3) ijk(auxv(pdime,2)) = k
+                call globalid(ijk,tsize%nddom(:,pdime),ndime,num)
+
+                ! Local to global vector
+                subgl_ijk = subgl_aux + ijk
+                call globalid(subgl_ijk,tsize%ndglb(:,pdime),ndime,po_l2g(num+aux_cnt))
+                po_l2g(num+aux_cnt) = po_l2g(num+aux_cnt) + aux_glb
+
+             end do
+          end do
+       end do
+       aux_cnt = aux_cnt + tsize%nddir(pdime)
+       aux_glb = aux_glb + tsize%ndsum(pdime)
+    end do
+
+    ! Faces
+    if(ndime==3) then
+       aux_cnt = tsize%nctot + tsize%ndtot
+       do pdime=ndime,1,-1
+          do i=1,tsize%nfdom(pdime,pdime)
+             do j=1,tsize%nfdom(auxv(pdime,1),pdime)
+                do k=1,tsize%nfdom(auxv(pdime,2),pdime)
+
+                   ! Identifier
+                   ijk(pdime) = i
+                   ijk(auxv(pdime,:)) = (/j,k/)
+                   call globalid(ijk,tsize%nfdom(:,pdime),ndime,num)
+
+                   ! Local to global vector
+                   subgl_ijk = subgl_aux + ijk
+                   call globalid(subgl_ijk,tsize%nfglb(:,pdime),ndime,po_l2g(num+aux_cnt))
+                   po_l2g(num+aux_cnt) = po_l2g(num+aux_cnt) + aux_glb
+
+                end do
+             end do
+          end do
+          aux_cnt = aux_cnt + tsize%nfdir(pdime)
+          aux_glb = aux_glb + tsize%nfsum(pdime)
+       end do
+    end if
+
     ! Construct l2g nmap (ordered by objects)
     ! Elemental corners
     do ipoin=1,gsize%npdomt

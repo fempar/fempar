@@ -34,6 +34,7 @@ use par_element_exchange_names
   use par_timer_names
 use par_io_names
   use par_environment_names
+  use par_update_names
 
   ! Geometry
   use par_mesh_names

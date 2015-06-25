@@ -134,7 +134,7 @@ program test_cdr
        & static_condensation = logical(.false.,lg), num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
-  call update_strong_dirichlet_boundary_conditions( fspac, f_cond )
+  call fem_update_strong_dirichlet_bcond( fspac, f_cond )
 
   call create_dof_info( dhand, f_trian, fspac, f_blk_graph, gtype )
 

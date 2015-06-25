@@ -132,7 +132,7 @@ use lib_vtk_io_interface_names
        &                static_condensation=logical(.false.,lg),num_continuity=1)
 
   ! Initialize VTK output
-  call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix)
+  call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix,linear_order=.true.)
 
   ! Create dof info
   call create_dof_info(dhand,f_trian,fspac,f_blk_graph,gtype)
@@ -145,13 +145,9 @@ use lib_vtk_io_interface_names
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
-  call update_strong_dirichlet_boundary_conditions(fspac,f_cond)
-  if(myprob%case_veloc>0) then
-     call update_analytical_boundary_conditions((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fspac)
-  end if
-  if(myprob%case_press>0) then
-     call update_analytical_boundary_conditions((/gdata%ndime+1/),myprob%case_press,0.0_rp,fspac)
-  end if
+  call fem_update_strong_dirichlet_bcond(fspac,f_cond)
+  call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fspac)
+  call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fspac)
 
   ! Integrate
   call volume_integral(approx,fspac,femat,fevec)
@@ -174,7 +170,10 @@ use lib_vtk_io_interface_names
   !call abstract_solve(A,M,b,x,sctrl,senv)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)
-  call fem_vector_print(6,feunk)
+  !call fem_vector_print(6,feunk)
+
+  ! Store solution to unkno
+  call fem_update_solution(feunk,fspac)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -183,7 +182,7 @@ use lib_vtk_io_interface_names
   call fem_precond_free(precond_free_values,feprec)
   call fem_precond_free(precond_free_struct,feprec)
   call fem_precond_free(precond_free_clean,feprec)
-  
+
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
   call memfree(order,__FILE__,__LINE__)
