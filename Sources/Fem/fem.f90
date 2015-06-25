@@ -35,6 +35,7 @@ module fem_names
   use hash_table_names
   use postpro_names
   use serial_environment_names
+  use fem_update_names
 
   ! Geometry
   use maps_names

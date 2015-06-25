@@ -1029,6 +1029,7 @@ contains
              lst_parts_per_dof_obj (est_max_nparts+3,count) = p_trian%objects(iobje)%globalID
              lst_parts_per_dof_obj (est_max_nparts+4,count) = l_pos ! Local pos in Max elem GID
              ! dofs_object interface vefs to interface dofs
+             ! write(*,'(a,10i10)') 'YYY', count, g_var, lst_parts_per_dof_obj (2:(nparts_around+2),count), p_trian%objects(iobje)%globalID, l_pos
              count_object_dof = count_object_dof + 1
              dofs_object_interface(count_object_dof) = femsp%object2dof(iblock)%l(idof,1)                  
           else

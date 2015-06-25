@@ -106,7 +106,6 @@ contains
     end if
 
     ! Store shape
-    write(*,*) gnode,unode
     call array_create(gnode,unode,int_array)
     int_array%a = inter%shape
 

@@ -62,6 +62,8 @@ use lib_vtk_io_interface_names
   type(par_vector), target                         :: p_vec
   type(par_vector), target                         :: p_unk
   type(solver_control)                             :: sctrl
+  class(base_operand) , pointer           :: x, y
+  class(base_operator), pointer           :: A
 
   ! Logicals
   logical(lg) :: ginfo_state
@@ -172,6 +174,8 @@ use lib_vtk_io_interface_names
   ! Create dof info
   call par_create_distributed_dof_info(dhand,p_trian,p_fspac,blk_dof_dist,p_blk_graph,gtype)  
 
+  !if(p_env%am_i_fine_task()) call par_graph_print(6,p_blk_graph%get_block(1,1))
+
   ! Allocate matrices and vectors
   call par_matrix_alloc(csr_mat,symm_false,p_blk_graph%get_block(1,1),p_mat)
   call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_vec)
@@ -179,20 +183,17 @@ use lib_vtk_io_interface_names
   p_vec%state = part_summed
   p_unk%state = full_summed
   call p_vec%init(0.0_rp)
+
+  !call p_unk%init(1.0_rp)
+  !call par_vector_weight(p_unk)
+  !call p_unk%comm()
+  !call par_vector_print(6,p_unk)
   
   ! Apply boundary conditions to unkno
-  if(p_env%am_i_fine_task()) then
-     p_cond%f_conditions%valu = 1.0_rp
-     call update_strong_dirichlet_boundary_conditions(p_fspac%f_space,p_cond%f_conditions)
-     if(myprob%case_veloc>0) then
-        call update_analytical_boundary_conditions((/1:gdata%ndime/),myprob%case_veloc,0.0_rp, &
-             &                                     p_fspac%f_space)
-     end if
-     if(myprob%case_press>0) then
-        call update_analytical_boundary_conditions((/gdata%ndime+1/),myprob%case_press,0.0_rp, &
-             &                                     p_fspac%f_space)
-     end if
-  end if
+  if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu = 1.0_rp
+  call par_update_strong_dirichlet_bcond(p_fspac,p_cond)
+  call par_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,p_fspac)
+  call par_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,p_fspac)
 
   ! Integrate
   if(p_env%am_i_fine_task()) then
@@ -205,7 +206,7 @@ use lib_vtk_io_interface_names
      point_to_p_mlevel_bddc_pars%ndime            = gdata%ndime
      point_to_p_mlevel_bddc_pars%unknowns         = all_unknowns
      point_to_p_mlevel_bddc_pars%pad_collectives  = pad
-     point_to_p_mlevel_bddc_pars%projection       = galerkin                           !default
+     point_to_p_mlevel_bddc_pars%projection       = petrov_galerkin                     
      point_to_p_mlevel_bddc_pars%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
      point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric                 !default 
      point_to_p_mlevel_bddc_pars%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
@@ -249,7 +250,15 @@ use lib_vtk_io_interface_names
   sctrl%dkrymax=800
   sctrl%stopc=res_nrmgiven_res_nrmgiven
   sctrl%orto=icgs
-  sctrl%rtol=1.0e-14
+  sctrl%rtol=1.0e-14_rp
+
+!!$  call p_unk%init(1.0_rp)
+!!$  A => p_mat
+!!$  x => p_vec
+!!$  y => p_unk
+!!$  y = x - A*y
+!!$  write(*,*) 'XXX error norm XXX', y%nrm2()
+!!$  p_unk%state = full_summed
 
   ! Create Preconditioner 
   call par_precond_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
@@ -272,7 +281,10 @@ use lib_vtk_io_interface_names
   call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)  
-  call par_vector_print(6,p_unk)
+  !call par_vector_print(6,p_unk)
+
+  ! Store solution to unkno
+  call par_update_solution(p_unk,p_fspac)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')

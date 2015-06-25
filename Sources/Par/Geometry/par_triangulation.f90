@@ -220,6 +220,7 @@ contains
        do iobj=1, p_trian%elems(ielem)%num_objects
           jobj = p_trian%f_trian%elems(ielem)%objects(iobj)
           if ( jobj /= -1 ) then
+             ! write(*,*) 'ZZZ', p_trian%elems(ielem)%objects_GIDs(iobj)
              p_trian%objects(jobj)%globalID = p_trian%elems(ielem)%objects_GIDs(iobj)
           end if
        end do
