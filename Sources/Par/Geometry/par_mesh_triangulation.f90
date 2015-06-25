@@ -25,21 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_mesh_triangulation
+module par_mesh_triangulation_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_triangulation_names
   use fem_element_import_names
   use fem_element_import_create_names
   use hash_table_names
-  use mesh_triangulation
-  use psi_penv_mod
+use mesh_triangulation_names
+use psi_penv_mod_names
 
   ! Parallel modules
   use par_triangulation_names
   use par_mesh_names
-  use par_element_exchange
+use par_element_exchange_names
   use par_conditions_names
 
 # include "debug.i90"
@@ -320,4 +320,4 @@ contains
 
   end subroutine par_mesh_to_triangulation
 
-end module par_mesh_triangulation
+end module par_mesh_triangulation_names

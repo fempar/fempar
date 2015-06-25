@@ -27,19 +27,19 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module fem_matrix_names
-  use types
-  use memor
+use types_names
+use memor_names
   use sort_names
   use fem_graph_names
   use fem_vector_names
-  use matvec_dof
+use matvec_dof_names
 
   ! Abstract types
   use base_operand_names
   use base_operator_names
 
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
 
   implicit none

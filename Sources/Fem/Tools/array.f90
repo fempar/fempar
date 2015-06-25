@@ -37,10 +37,10 @@
 # define generic_memmovealloc_interface  memmovealloc
 !***********************************************************************
 module array_ip1_names
-  use types
-  use memor
+use types_names
+use memor_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -60,10 +60,10 @@ contains
 end module array_ip1_names
 !=============================================================================
 module array_ip2_names
-  use types
-  use memor
+use types_names
+use memor_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -83,10 +83,10 @@ contains
 end module array_ip2_names
 !=============================================================================
 module array_rp1_names
-  use types
-  use memor
+use types_names
+use memor_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -106,10 +106,10 @@ contains
 end module array_rp1_names
 !=============================================================================
 module array_rp2_names
-  use types
-  use memor
+use types_names
+use memor_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -147,10 +147,10 @@ contains
 end module array_rp2_names
 !=============================================================================
 module array_rp3_names
-  use types
-  use memor
+use types_names
+use memor_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -171,15 +171,15 @@ end module array_rp3_names
 !=============================================================================
 
 module array_names
-  use types
-  use memor
+use types_names
+use memor_names
   use array_ip1_names
   use array_ip2_names
   use array_rp1_names
   use array_rp2_names
   use array_rp3_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"

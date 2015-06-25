@@ -27,14 +27,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_mesh_names
   ! Serial modules
-  use types
+use types_names
   use fem_mesh_names
   use fem_mesh_distribution_names
-  use fem_mesh_io
-  use stdio
+use fem_mesh_io_names
+use stdio_names
 
   ! Parallel modules
-  use par_io
+use par_io_names
   use par_environment_names
 
 # include "debug.i90"

@@ -36,8 +36,8 @@ module pardiso_mkl_names
   ! be performed here.
 
   ! Serial modules
-  use types
-  use memor
+  use types_names
+  use memor_names
   use fem_matrix_names
   use fem_vector_names 
 
@@ -46,7 +46,7 @@ module pardiso_mkl_names
   use mkl_pardiso
 #endif
   ! Temporary solution for using more than one wrapper
-  use mkl
+  use mkl_names
 
 # include "debug.i90"
   

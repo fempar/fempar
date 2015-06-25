@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_graph
-  use types
-  use memor
+module mesh_graph_names
+use types_names
+use memor_names
   use fem_mesh_names
   use fem_graph_names
   use renum_names
@@ -448,4 +448,4 @@ contains
 
   end subroutine mesh_graph_compute_connected_components
 
-end module mesh_graph
+end module mesh_graph_names

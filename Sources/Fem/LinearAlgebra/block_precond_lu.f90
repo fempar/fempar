@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module block_precond_lu_names
-  use types
-  use memor
+use types_names
+use memor_names
   use base_operator_names
   use base_operand_names
   use block_operand_names
@@ -36,7 +36,7 @@ module block_precond_lu_names
   use block_precond_u_names
 
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
 
   implicit none

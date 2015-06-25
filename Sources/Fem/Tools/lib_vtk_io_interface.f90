@@ -26,18 +26,18 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module lib_vtk_io_interface
+module lib_vtk_io_interface_names
 
-  use fem, only: fem_mesh, fem_triangulation, fem_mesh_print, triangulation_print
-  use types
-  use memor
-  use stdio
+  use fem_names, only: fem_mesh, fem_triangulation, fem_mesh_print, triangulation_print
+  use types_names
+  use memor_names
+  use stdio_names
   use array_names
   use interpolation_names
-  use fem_space_types
+  use fem_space_types_names
   use fem_space_names
   use problem_names
-  use element_gather_tools
+  use element_gather_tools_names
   use abstract_environment_names
   use Lib_VTK_IO
   use ISO_C_BINDING
@@ -47,7 +47,7 @@ module lib_vtk_io_interface
 
   interface
     function mkdir_recursive(path) bind(c,name="mkdir_recursive")
-      use iso_c_binding
+use iso_c_binding
       integer(kind=c_int) :: mkdir_recursive
       character(kind=c_char,len=1), intent(IN) :: path(*)
     end function mkdir_recursive
@@ -960,4 +960,4 @@ contains
   end subroutine free
 
 
-end module lib_vtk_io_interface
+end module lib_vtk_io_interface_names

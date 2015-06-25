@@ -27,10 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_context_names
   ! Serial modules
-  use types
+use types_names
 
   ! Parallel modules
-  use psb_penv_mod
+use psb_penv_mod_names
 
 # include "debug.i90"
   implicit none
@@ -70,7 +70,7 @@ contains
 
   subroutine par_context_null ( p_context )
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -87,7 +87,7 @@ contains
 
   subroutine par_context_create_by_list ( p_context, nproc, b_context, lproc )
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -126,7 +126,7 @@ contains
 
   subroutine par_context_create_by_color ( my_color, p_context, q_context, b_context )
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -187,7 +187,7 @@ contains
 
   subroutine par_context_create_bridge ( w_context, p_context, q_context, b_context )
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -250,7 +250,7 @@ contains
 
   subroutine par_context_free ( p_context, close  )
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H

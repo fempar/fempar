@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_io
-  use types
-  use stdio
-  use memor
+module fem_mesh_io_names
+use types_names
+use stdio_names
+use memor_names
   use fem_mesh_names
   implicit none
   private
@@ -348,4 +348,4 @@ contains
    
 
 
- end module fem_mesh_io
+end module fem_mesh_io_names

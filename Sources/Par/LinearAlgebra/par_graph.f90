@@ -27,11 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_graph_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_graph_names
 #ifdef memcheck       
-  use iso_c_binding
+use iso_c_binding
 #endif
 
   ! Parallel modules

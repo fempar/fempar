@@ -1,6 +1,6 @@
-module rcm_renum 
-  use types
-  use memor
+module rcm_renum_names
+use types_names
+use memor_names
   implicit none
   private
 
@@ -939,4 +939,4 @@ contains
     return
   end subroutine root_find
   
-end module rcm_renum
+end module rcm_renum_names

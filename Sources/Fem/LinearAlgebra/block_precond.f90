@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_block_precond_names
   ! Serial modules
-  use types
+use types_names
   use fem_block_matrix_names
   use fem_block_vector_names
 

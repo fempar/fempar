@@ -28,8 +28,8 @@
 module par_create_global_dof_info_names
 
   ! Fem Modules
-  use types
-  use memor
+use types_names
+use memor_names
   use sort_names
   use dof_handler_names
   use fem_triangulation_names

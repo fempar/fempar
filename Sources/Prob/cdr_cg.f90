@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module cdr_stabilized_continuous_Galerkin_names
- use types
- use memor
+use types_names
+use memor_names
  use array_names
  use problem_names
  use cdr_names

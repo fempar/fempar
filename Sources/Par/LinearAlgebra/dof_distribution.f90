@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module dof_distribution_names
   ! Serial modules
-  use types
-  use memor
+  use types_names
+  use memor_names
   use maps_names
   use dof_import_names
     
@@ -360,7 +360,6 @@ contains
                                                  num_snd, list_snd, snd_ptrs, pack_idx  , &
                                                  ws_parts_visited_rcv_edge_id,            &
                                                  ws_parts_visited_snd_edge_id             )
-    use types
     implicit none
 
     ! Parameters
@@ -461,7 +460,6 @@ contains
     !-----------------------------------------------------------------------
     ! This routine prints a dof_distribution object
     !-----------------------------------------------------------------------
-    use types
     implicit none
 
 

@@ -25,17 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_partition_distribution
-  use types
-  use memor
+module fem_mesh_partition_distribution_names
+use types_names
+use memor_names
   use fem_mesh_distribution_names
   use maps_names
-  use map_apply
+use map_apply_names
   use fem_graph_names
-  use graph_renum
+use graph_renum_names
   use fem_mesh_names
-  use mesh_graph
-  use fem_mesh_partition_base
+use mesh_graph_names
+use fem_mesh_partition_base_names
   use hash_table_names
 # include "debug.i90"
   implicit none
@@ -387,4 +387,4 @@ contains
     call memfree ( npdom,__FILE__,__LINE__)
   end subroutine build_maps
 
-end module fem_mesh_partition_distribution
+end module fem_mesh_partition_distribution_names

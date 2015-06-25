@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module geom2topo
-  use types
-  use memor
+module geom2topo_names
+  use types_names
+  use memor_names
   use fem_mesh_names
   use fem_space_names
-  use fem_space_types
+  use fem_space_types_names
   use interpolation_names
   use fem_conditions_names
   !use element_gather_tools
@@ -40,7 +40,7 @@ module geom2topo
 
   interface fem_mesh_topology
      module procedure geom2topo_mesh_cond!geom2topo_mesh,  
-  end interface fem_mesh_topology
+    end interface fem_mesh_topology
   ! Functions
   public ::  geom2topo_mesh_cond, fem_mesh_topology ! geom2topo_coord,
 
@@ -451,4 +451,4 @@ contains
     if(gmsh%ndime==3) call memfree(faceint,__FILE__,__LINE__)
   end subroutine geom2topo_mesh_cond
 
-end module geom2topo
+end module geom2topo_names

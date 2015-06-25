@@ -25,8 +25,8 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_matrix_vector
-  use types
+module fem_block_matrix_vector_names
+use types_names
   use fem_block_matrix_names
   use fem_block_vector_names
   use fem_matrix_names
@@ -72,4 +72,4 @@ contains
     end do
   end subroutine fem_block_matvec
 
-end module fem_block_matrix_vector
+end module fem_block_matrix_vector_names

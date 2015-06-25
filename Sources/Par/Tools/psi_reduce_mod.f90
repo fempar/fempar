@@ -1,6 +1,6 @@
-module psi_reduce_mod
-  use psi_penv_mod
-  use psb_realloc_mod ! This is required to access psb_realloc ...
+module psi_reduce_mod_names
+use psi_penv_mod_names
+use psb_realloc_mod_names
   interface psb_max
     !module procedure psb_imaxs, psb_imaxv, psb_imaxm,&
     !     & psb_smaxs, psb_smaxv, psb_smaxm,&
@@ -114,7 +114,7 @@ contains
 
   subroutine psb_imaxs(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -148,7 +148,7 @@ contains
   subroutine psb_imaxv(ictxt,dat,root)
     !use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -190,7 +190,7 @@ contains
   subroutine psb_imaxm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -232,7 +232,7 @@ contains
 #if !defined(LONG_INTEGERS)
   subroutine psb_i8maxs(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -267,7 +267,7 @@ contains
   subroutine psb_i8maxv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -309,7 +309,7 @@ contains
   subroutine psb_i8maxm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -472,7 +472,7 @@ contains
 
   subroutine psb_dmaxs(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -507,7 +507,7 @@ contains
   subroutine psb_dmaxv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -550,7 +550,7 @@ contains
   subroutine psb_dmaxm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -598,7 +598,7 @@ contains
 
   subroutine psb_imins(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -632,7 +632,7 @@ contains
   subroutine psb_iminv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -674,7 +674,7 @@ contains
   subroutine psb_iminm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -716,7 +716,7 @@ contains
 #if !defined(LONG_INTEGERS)
   subroutine psb_i8mins(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -751,7 +751,7 @@ contains
   subroutine psb_i8minv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -793,7 +793,7 @@ contains
   subroutine psb_i8minm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -956,7 +956,7 @@ contains
 
   subroutine psb_dmins(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -991,7 +991,7 @@ contains
   subroutine psb_dminv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1034,7 +1034,7 @@ contains
   subroutine psb_dminm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1084,7 +1084,7 @@ contains
   subroutine psb_iamxs(ictxt,dat,root)
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1120,7 +1120,7 @@ contains
   subroutine psb_iamxv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1162,7 +1162,7 @@ contains
   subroutine psb_iamxm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1206,7 +1206,7 @@ contains
   subroutine psb_i8amxs(ictxt,dat,root)
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1242,7 +1242,7 @@ contains
   subroutine psb_i8amxv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1284,7 +1284,7 @@ contains
   subroutine psb_i8amxm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1447,7 +1447,7 @@ contains
 
   subroutine psb_damxs(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1482,7 +1482,7 @@ contains
   subroutine psb_damxv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1525,7 +1525,7 @@ contains
   subroutine psb_damxm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1813,7 +1813,7 @@ contains
   subroutine psb_iamns(ictxt,dat,root)
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1849,7 +1849,7 @@ contains
   subroutine psb_iamnv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1891,7 +1891,7 @@ contains
   subroutine psb_iamnm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1935,7 +1935,7 @@ contains
   subroutine psb_i8amns(ictxt,dat,root)
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1971,7 +1971,7 @@ contains
   subroutine psb_i8amnv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2013,7 +2013,7 @@ contains
   subroutine psb_i8amnm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2176,7 +2176,7 @@ contains
 
   subroutine psb_damns(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2211,7 +2211,7 @@ contains
   subroutine psb_damnv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2254,7 +2254,7 @@ contains
   subroutine psb_damnm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2541,7 +2541,7 @@ contains
   subroutine psb_isums(ictxt,dat,root)
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2577,7 +2577,7 @@ contains
   subroutine psb_isumv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2619,7 +2619,7 @@ contains
   subroutine psb_isumm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2663,7 +2663,7 @@ contains
   subroutine psb_i8sums(ictxt,dat,root)
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2699,7 +2699,7 @@ contains
   subroutine psb_i8sumv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2741,7 +2741,7 @@ contains
   subroutine psb_i8summ(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2904,7 +2904,7 @@ contains
 
   subroutine psb_dsums(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2939,7 +2939,7 @@ contains
   subroutine psb_dsumv(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -2982,7 +2982,7 @@ contains
   subroutine psb_dsumm(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -3300,7 +3300,7 @@ contains
 
   subroutine psb_d_nrm2s(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -3380,7 +3380,7 @@ contains
   subroutine psb_d_nrm2v(ictxt,dat,root)
     ! use psb_realloc_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -3423,4 +3423,4 @@ contains
   end subroutine psb_d_nrm2v
 
 
-end module psi_reduce_mod
+end module psi_reduce_mod_names

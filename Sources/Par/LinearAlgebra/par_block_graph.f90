@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_graph_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
 
   ! Parallel modules 
   use par_environment_names

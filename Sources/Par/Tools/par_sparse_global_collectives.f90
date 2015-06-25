@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_sparse_global_collectives
+module par_sparse_global_collectives_names
    ! Serial modules
-   use types
-   use memor
+use types_names
+use memor_names
 
    implicit none
    private
@@ -73,10 +73,10 @@ contains
                                 num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
                                 num_snd, list_snd, snd_ptrs, pack_idx,   &
                                 alpha, beta, x, work, mode)
-     use psb_const_mod
-     use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-     use mpi
+use mpi
 #endif
      implicit none
 #ifdef MPI_H
@@ -553,4 +553,4 @@ contains
      end if
    end subroutine unpack
 
-end module par_sparse_global_collectives
+end module par_sparse_global_collectives_names

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program test_hash_table
-  use types
+use types_names
   use hash_table_names
   implicit none
   type(hash_table_igp_ip) :: table

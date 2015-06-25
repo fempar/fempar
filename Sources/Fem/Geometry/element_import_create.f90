@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_element_import_create_names
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_mesh_distribution_names
   use fem_element_import_names
   use sort_names

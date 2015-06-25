@@ -32,8 +32,8 @@ module hsl_ma87_names
   ! be performed here.
 
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_matrix_names
   use fem_vector_names 
   use fem_graph_names
@@ -41,7 +41,7 @@ module hsl_ma87_names
 
 
 #ifdef ENABLE_HSL_MA87
-  use hsl_ma87_double
+use hsl_ma87_double_names
 #endif
 
 # include "debug.i90"
@@ -330,8 +330,8 @@ contains
 
   !=============================================================================
   subroutine hsl_ma87_analysis ( context, matrix, ctrl, info )
-    use fem_mesh_partition_base
-    use graph_renum
+use fem_mesh_partition_base_names
+use graph_renum_names
     implicit none
 
     ! Parameters 

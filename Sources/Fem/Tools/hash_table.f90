@@ -36,7 +36,7 @@ module hash_table_names
   !   tbl_max=10^5)
 
 !$ use omp_lib
-  use types
+use types_names
   implicit none
 # include "debug.i90"
   private

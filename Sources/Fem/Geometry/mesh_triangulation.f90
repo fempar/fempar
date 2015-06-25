@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_triangulation
-  use types
-  use memor
+module mesh_triangulation_names
+  use types_names
+  use memor_names
   use fem_mesh_names
   use fem_triangulation_names
-  use fem_space_types
-  use geom2topo
+  use fem_space_types_names
+  use geom2topo_names
   use fem_conditions_names
 
   implicit none
@@ -152,7 +152,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
   end subroutine mesh_to_triangulation_fill_elements
 
 
-end module mesh_triangulation
+end module mesh_triangulation_names
 
 
 

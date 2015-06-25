@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module types
+module types_names
   !-----------------------------------------------------------------------
   !    This module contains kind and type definitions.
   !-----------------------------------------------------------------------
@@ -186,4 +186,4 @@ contains
 
   end subroutine print_list_2d
 
-  end module types
+end module types_names

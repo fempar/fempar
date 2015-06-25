@@ -27,24 +27,23 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_fem_space_names
   ! Fem Modules
-  use types
-  use memor
+  use types_names
+  use memor_names
   use fem_space_names
-  use fem_space_types
+  use fem_space_types_names
   use problem_names
   use dof_handler_names
   use hash_table_names
   use fem_element_names
 
-
   ! Par Modules
   use par_environment_names
   use par_triangulation_names
-  use par_element_exchange
+  use par_element_exchange_names
   use par_conditions_names
 
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module base_operator_names
-  use types
+use types_names
   use memory_guard_names
   use integrable_names
   use base_operand_names

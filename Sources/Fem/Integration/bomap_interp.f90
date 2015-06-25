@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module bomap_interp
-  use types
-  use memor
+module bomap_interp_names
+use types_names
+use memor_names
   use bomap_names
   use interpolation_names
   implicit none
@@ -164,4 +164,4 @@ contains
 
   end subroutine vecno2
 
-end module bomap_interp
+end module bomap_interp_names

@@ -26,10 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #ifdef ENABLE_PARDISO_MKL
- include 'mkl_pardiso.f90'
+  include 'mkl_pardiso.f90'
 #endif
-module mkl
+  module mkl_names
 #ifdef ENABLE_PARDISO_MKL
-   use mkl_pardiso
+    use mkl_pardiso
 #endif
-end module mkl
+  end module mkl_names
+ 

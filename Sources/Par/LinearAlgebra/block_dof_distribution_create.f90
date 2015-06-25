@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module block_dof_distribution_create_names
   ! Serial modules
-  use types
-  use memor
+  use types_names
+  use memor_names
   use sort_names
   use maps_names
   use dof_import_names
   use dof_handler_names
-  use fem_space_types
+  use fem_space_types_names
   use fem_space_names
   use fem_element_names
   use hash_table_names
@@ -43,7 +43,7 @@ module block_dof_distribution_create_names
   use dof_distribution_names  
   use par_triangulation_names
   use par_fem_space_names
-  use psb_penv_mod
+use psb_penv_mod_names
 
   implicit none
 # include "debug.i90"

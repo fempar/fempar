@@ -27,39 +27,39 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_precond_dd_mlevel_bddc_names
   ! Serial modules
-  use types
-  use memor
+  use types_names
+  use memor_names
   use hash_table_names
   use maps_names
-  use map_apply
+  use map_apply_names
   use sort_names
   use renum_names
 
 #ifdef ENABLE_BLAS
-  use blas77_interfaces
+  use blas77_interfaces_names
 #endif
 
 #ifdef ENABLE_LAPACK
-  use lapack77_interfaces
+  use lapack77_interfaces_names
 #endif
 
-  use solver_base
-  use abstract_solver
+  use solver_base_names
+  use abstract_solver_names
 
   use fem_mesh_names
-  use mesh_graph
+  use mesh_graph_names
   use fem_matrix_names
   use fem_precond_names
   use fem_graph_names
   use fem_vector_names
   use fem_operator_dd_names
   use postpro_names
-  use stdio
-  use fem_matrix_fem_precond_solver
+  use stdio_names
+  use fem_matrix_fem_precond_solver_names
  
   ! Parallel modules
-  use par_dd_base
-  use psb_penv_mod 
+use par_dd_base_names
+use psb_penv_mod_names
   use par_environment_names
   use dof_distribution_names
   use block_dof_distribution_create_names
@@ -363,7 +363,7 @@ contains
 
   recursive subroutine par_precond_dd_mlevel_bddc_create( p_mat, mlbddc, mlbddc_params )
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1064,7 +1064,7 @@ contains
 
   !=================================================================================================
   recursive subroutine par_precond_dd_mlevel_bddc_ass_struct ( p_mat, mlbddc ) 
-    use mpi
+use mpi
     implicit none
 
     ! Parameters 
@@ -2009,10 +2009,10 @@ contains
 
   subroutine transfer_coarse_int (icontxt_g, iam_g, np_g, data)
     ! Formerly count_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 #ifdef MPI_H
@@ -2043,10 +2043,10 @@ contains
 
   subroutine snd_coarse_int_ip (icontxt_g, np_g, nl_coarse)
     ! Formerly count_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 #ifdef MPI_H
@@ -2074,10 +2074,10 @@ contains
 
   subroutine snd_coarse_int_igp (icontxt_g, np_g, nl_coarse)
     ! Formerly count_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 #ifdef MPI_H
@@ -2106,10 +2106,10 @@ contains
 
   subroutine rcv_coarse_int_ip ( icontxt_g, np_g, vec_int)
     ! Formerly count_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 
@@ -2142,10 +2142,10 @@ contains
 
     subroutine rcv_coarse_int_igp ( icontxt_g, np_g, vec_int)
     ! Formerly count_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 
@@ -2178,10 +2178,10 @@ contains
   end subroutine rcv_coarse_int_igp
 
   subroutine allreduce_coarse_mesh_nnode( icontxt_g, np_g, nl_coarse, max_coarse_dofs)
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 
@@ -2211,11 +2211,11 @@ contains
                                      max_coarse_dofs, gnobjs, max_nparts, lnobjs, l2g, lobjs )!, &  
                                      ! ng_coarse)
     ! Formerly list_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
 
     implicit none
@@ -2290,11 +2290,11 @@ contains
     ! Formerly list_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
     ! TODO: avoid allocating work2(gnobjs) using a hash_table
     ! AFM: DONE
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
 
     implicit none
@@ -2468,7 +2468,7 @@ contains
   end subroutine rcv_coarse_mesh_lnods
 
   subroutine generate_coarse_graph (mlbddc)
-    use mpi
+use mpi
     implicit none
     ! Parameters 
     ! On input , mlbddc%f_mesh_c%pnods in C-based indexing
@@ -2494,7 +2494,7 @@ contains
   end subroutine generate_coarse_graph
 
   subroutine generate_coarse_partition_and_graph (c_mesh, mlbddc)
-    use mpi
+use mpi
     implicit none
     ! Parameters 
     type(fem_mesh), intent(inout) :: c_mesh
@@ -2707,7 +2707,7 @@ contains
                                             my_part_coarse, &
                                             parts_coarse_neigh)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif 
     implicit none
 
@@ -2805,11 +2805,11 @@ contains
                                                               lnobjs, lobjs, npadj, lpadj, id_parts, &
                                                               parts_coarse_neigh, max_coarse_dofs)
 
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 #ifdef MPI_H
@@ -2887,11 +2887,11 @@ contains
                                                       dual_f_mesh, &
                                                       dual_f_parts )
 
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 #ifdef MPI_H
@@ -4625,7 +4625,7 @@ contains
   ! Then, the schur complement it is factorized/overwritten on the same memory
   ! space using LAPACK.
   subroutine compute_edge_lagrange_multipliers_schur_complement ( mlbddc, A_rr, M_rr,  S_rr, S_rr_neumann, A_rr_inv_C_r_T, A_rr_inv_C_r_T_neumann, ipiv, ipiv_neumann,  iparm, msglvl )
-    use mpi
+use mpi
     implicit none
     ! Parameters 
     type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
@@ -5977,11 +5977,11 @@ end if
                                              nl_coarse,  &
                                              max_coarse_dofs, &
                                              a_ci )
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
 
     implicit none
@@ -6046,11 +6046,11 @@ end if
                                              ptr_coarse_dofs, &
                                              sz_a_ci_gathered, &
                                              a_ci_gathered  )
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
 
     implicit none
@@ -6874,11 +6874,11 @@ end if
                                              max_coarse_dofs, &  
                                              r_ci )
                                                      
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
 
     implicit none
@@ -6936,11 +6936,11 @@ end if
                                             ptr_coarse_dofs, &
                                             sz_r_ci_gathered, &
                                             r_ci_gathered  )
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
 
     implicit none
@@ -7077,11 +7077,11 @@ end if
                        lst_coarse_dofs,  & 
                        z_c, &
                        perm)
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 
@@ -7202,11 +7202,11 @@ end if
                        nl_coarse,        &
                        max_coarse_dofs,  &  
                        z_ci  )
-    use psb_const_mod
-    use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none
 
@@ -7456,11 +7456,11 @@ end if
   end subroutine solve_neumann_problem 
 
     subroutine par_precond_dd_mlevel_bddc_report ( mlbddc, prefix )
-      use psb_const_mod
-      use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
       
 #ifdef MPI_MOD
-      use mpi
+use mpi
 #endif  
       
       implicit none

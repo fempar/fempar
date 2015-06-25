@@ -26,10 +26,10 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_mesh_names
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_materials_names
-  use stdio
+use stdio_names
   use iso_fortran_env, only : output_unit
   !use fem_conditions_names
 # include "debug.i90"

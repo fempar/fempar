@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module femap_interp
-  use types
-  use memor
+module femap_interp_names
+use types_names
+use memor_names
   use femap_names
   use interpolation_names
   use face_interpolation_names
@@ -749,4 +749,4 @@ contains
 
   end subroutine invert
 
-end module femap_interp
+end module femap_interp_names

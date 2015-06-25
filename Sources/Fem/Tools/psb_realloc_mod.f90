@@ -36,8 +36,8 @@
 ! a module of the PSBLAS library, version 2.4.0.
 ! **** IMPORTANT NOTE **** !
 
-module psb_realloc_mod
-  use types
+module psb_realloc_mod_names
+use types_names
   implicit none
 
   !
@@ -3247,5 +3247,5 @@ Contains
 !#endif
   end Subroutine psb_i8move_alloc2d
 #endif
-end module psb_realloc_mod
+end module psb_realloc_mod_names
 

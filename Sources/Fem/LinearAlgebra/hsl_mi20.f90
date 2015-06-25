@@ -32,14 +32,14 @@ module hsl_mi20_names
   ! be performed here.
 
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_matrix_names
   use fem_vector_names 
   use fem_graph_names
 
 #ifdef ENABLE_HSL_MI20
-  use hsl_mi20_double
+use hsl_mi20_double_names
 #endif
 
 # include "debug.i90"

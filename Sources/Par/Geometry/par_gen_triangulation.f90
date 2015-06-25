@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_gen_triangulation_names
-  use types
-  use memor
-  use fem_space_types
+  use types_names
+  use memor_names
+  use fem_space_types_names
   use fem_triangulation_names
   use fem_mesh_gen_distribution_names
   use fem_mesh_distribution_names
@@ -37,7 +37,7 @@ module par_gen_triangulation_names
   use par_environment_names
   use par_triangulation_names
   use par_conditions_names
-  use par_element_exchange
+use par_element_exchange_names
 # include "debug.i90"
   implicit none
   private

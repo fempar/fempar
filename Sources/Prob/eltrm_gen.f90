@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module eltrm_gen_names
-  use types
+use types_names
   implicit none
 
 contains

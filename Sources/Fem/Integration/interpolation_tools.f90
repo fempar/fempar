@@ -38,12 +38,12 @@
 # include "debug.i90"
 !***********************************************************************
 module interpolation_tools_names
-  use types
-  use memor
+  use types_names
+  use memor_names
 #ifdef memcheck
   use iso_c_binding
 #endif
-  use fem_space_types
+  use fem_space_types_names
   use interpolation_names
   use array_names
   implicit none

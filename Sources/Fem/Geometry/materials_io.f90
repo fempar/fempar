@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_materials_io
-  use types
-  use stdio
-  use memor
+module fem_materials_io_names
+use types_names
+use stdio_names
+use memor_names
   use fem_materials_names
   implicit none
   private
@@ -190,4 +190,4 @@ contains
     
   end subroutine fem_materials_read
 
-end module fem_materials_io
+end module fem_materials_io_names

@@ -27,12 +27,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module integration_names
-  use types
+use types_names
   use assembly_names
   use integrable_names
   use problem_names
   use integration_tools_names
-  use femap_interp
+use femap_interp_names
   use fem_space_names
   use assembly_names
   use fem_block_matrix_names

@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module block_operand_names
-  use types
-  use memor
+use types_names
+use memor_names
   use base_operand_names
 
   implicit none

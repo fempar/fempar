@@ -38,16 +38,16 @@
 # include "debug.i90"
 !***********************************************************************
 module volume_integration_tools_names
-  use types
-  use memor
+  use types_names
+  use memor_names
 #ifdef memcheck
   use iso_c_binding
 #endif
   use quadrature_names
   use interpolation_names
   use femap_names
-  use femap_interp
-  use fem_space_types
+  use femap_interp_names
+  use fem_space_types_names
   implicit none
   private
 
@@ -201,19 +201,20 @@ end module volume_integration_tools_names
 !***********************************************************************
 
 module face_integration_tools_names
-  use types
-  use memor
+  use types_names
+  use memor_names
 #ifdef memcheck
   use iso_c_binding
 #endif
   use quadrature_names
-  use quadrature_faces
+  use quadrature_faces_names
   use interpolation_names
   use face_interpolation_names
   use femap_names
   use bomap_names
-  use fem_space_types
+  use fem_space_types_names 
   use volume_integration_tools_names
+
   implicit none
   private
 

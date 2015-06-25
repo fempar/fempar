@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module blas77_precision
+module blas77_precision_names
   implicit none
   private
 
@@ -34,15 +34,15 @@ module blas77_precision
   integer, parameter  :: SP = 4 ! kind(1.e0) ! Single precision
 
   public :: SP, DP
-end module blas77_precision
+end module blas77_precision_names
 
-module blas77_interfaces
+module blas77_interfaces_names
   implicit none
   ! private
 
   interface
      SUBROUTINE DSWAP(N,DX,INCX,DY,INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN)    :: INCX, INCY, N
@@ -52,7 +52,7 @@ module blas77_interfaces
      END SUBROUTINE DSWAP
 
      SUBROUTINE SSWAP(N,DX,INCX,DY,INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN)    :: INCX, INCY, N
@@ -62,7 +62,7 @@ module blas77_interfaces
      END SUBROUTINE SSWAP
 
      SUBROUTINE DSCAL(N, DA, DX, INCX)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        REAL(DP), INTENT(IN)    :: DA
@@ -73,7 +73,7 @@ module blas77_interfaces
      END SUBROUTINE DSCAL
 
      SUBROUTINE SSCAL(N, DA, DX, INCX)
-       use blas77_precision
+use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        REAL(SP), INTENT(IN)    :: DA
@@ -84,7 +84,7 @@ module blas77_interfaces
      END SUBROUTINE SSCAL
 
      SUBROUTINE DCOPY(N, DX, INCX, DY, INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -95,7 +95,7 @@ module blas77_interfaces
      END SUBROUTINE DCOPY
 
      SUBROUTINE SCOPY(N, DX, INCX, DY, INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -106,7 +106,7 @@ module blas77_interfaces
      END SUBROUTINE SCOPY
 
      SUBROUTINE DAXPY(N, DA, DX, INCX, DY, INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        REAL(DP), INTENT(IN) :: DA
@@ -118,7 +118,7 @@ module blas77_interfaces
      END SUBROUTINE DAXPY
 
      SUBROUTINE SAXPY(N, DA, DX, INCX, DY, INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        REAL(SP), INTENT(IN) :: DA
@@ -130,7 +130,7 @@ module blas77_interfaces
      END SUBROUTINE SAXPY
 
      FUNCTION DDOT(N, DX, INCX, DY, INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -142,7 +142,7 @@ module blas77_interfaces
      END FUNCTION DDOT
 
      FUNCTION SDOT(N, DX, INCX, DY, INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -154,7 +154,7 @@ module blas77_interfaces
      END FUNCTION SDOT
 
      FUNCTION DNRM2(N,X,INCX)
-       use blas77_precision
+use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, N
@@ -165,7 +165,7 @@ module blas77_interfaces
      END FUNCTION DNRM2
 
      FUNCTION SNRM2(N,X,INCX)
-       use blas77_precision
+use blas77_precision_names
        implicit none   
 
        ! .. Scalar Arguments ..
@@ -177,7 +177,7 @@ module blas77_interfaces
      END FUNCTION SNRM2
 
      SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none  
 
        ! .. Scalar Arguments ..
@@ -192,7 +192,7 @@ module blas77_interfaces
      END SUBROUTINE DGEMV
 
      SUBROUTINE SGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
-       use blas77_precision
+use blas77_precision_names
        implicit none  
 
        ! .. Scalar Arguments ..
@@ -207,7 +207,7 @@ module blas77_interfaces
      END SUBROUTINE SGEMV
 
      SUBROUTINE DTRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
-       use blas77_precision
+use blas77_precision_names
        implicit none
 
        ! .. Scalar Arguments ..
@@ -221,7 +221,7 @@ module blas77_interfaces
      END SUBROUTINE DTRSV
 
      SUBROUTINE STRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
-       use blas77_precision
+use blas77_precision_names
        implicit none
 
        ! .. Scalar Arguments ..
@@ -235,7 +235,7 @@ module blas77_interfaces
      END SUBROUTINE STRSV
 
      SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        REAL(DP) , INTENT(IN)   :: ALPHA, BETA
@@ -248,7 +248,7 @@ module blas77_interfaces
      END SUBROUTINE DGEMM
 
      SUBROUTINE SGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        REAL(SP) , INTENT(IN)   :: ALPHA, BETA
@@ -261,7 +261,7 @@ module blas77_interfaces
      END SUBROUTINE SGEMM
 
      SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! *     .. Scalar Arguments ..
        REAL(DP) , INTENT(IN)    :: ALPHA
@@ -274,7 +274,7 @@ module blas77_interfaces
      END SUBROUTINE DTRSM
 
      SUBROUTINE STRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
-       use blas77_precision
+use blas77_precision_names
        implicit none
        ! *     .. Scalar Arguments ..
        REAL(SP) , INTENT(IN)    :: ALPHA
@@ -287,15 +287,15 @@ module blas77_interfaces
      END SUBROUTINE STRSM
   end interface
 
-end module blas77_interfaces
+end module blas77_interfaces_names
 
-module lapack77_interfaces
+module lapack77_interfaces_names
   implicit none
   ! private
 
   interface
      SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
-       use blas77_precision
+use blas77_precision_names
        implicit none
 
        ! *     .. Scalar Arguments ..
@@ -309,7 +309,7 @@ module lapack77_interfaces
      END SUBROUTINE DGETRF
 
      SUBROUTINE DGETRS(TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO)
-       use blas77_precision
+use blas77_precision_names
        implicit none
 
        ! *     .. Scalar Arguments ..
@@ -325,7 +325,7 @@ module lapack77_interfaces
      END SUBROUTINE DGETRS 
 
      SUBROUTINE DPOTRF( UPLO, N, A, LDA, INFO )
-       use blas77_precision
+use blas77_precision_names
        implicit none  
        ! .. Scalar Arguments ..
        CHARACTER, INTENT(IN)     :: UPLO
@@ -337,14 +337,14 @@ module lapack77_interfaces
      END SUBROUTINE DPOTRF
 
      INTEGER FUNCTION ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
-       use blas77_precision
+use blas77_precision_names
        ! .. Scalar Arguments ..
        CHARACTER*(*), INTENT(IN) :: NAME, OPTS
        INTEGER      , INTENT(IN) :: ISPEC, N1, N2, N3, N4  
      END FUNCTION ILAENV
 
      SUBROUTINE DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
-       use blas77_precision
+use blas77_precision_names
        ! .. Scalar Arguments ..
        CHARACTER, INTENT(IN)  :: UPLO
        INTEGER  , INTENT(IN)  :: LDA, LWORK, N
@@ -356,7 +356,7 @@ module lapack77_interfaces
      END SUBROUTINE DSYTRF
 
      SUBROUTINE DSYTRS( UPLO, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-       use blas77_precision
+use blas77_precision_names
        ! .. Scalar Arguments ..
        CHARACTER, INTENT(IN)  :: UPLO
        INTEGER  , INTENT(IN)  :: LDA, LDB, N, NRHS
@@ -370,4 +370,4 @@ module lapack77_interfaces
 
   end interface
 
-end module lapack77_interfaces
+end module lapack77_interfaces_names

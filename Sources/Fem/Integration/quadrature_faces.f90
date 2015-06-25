@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module quadrature_faces
-  use types
-  use memor
-  use fem_space_types
+module quadrature_faces_names
+  use types_names
+  use memor_names
+  use fem_space_types_names
   use quadrature_names
 
 # include "debug.i90"
@@ -168,4 +168,4 @@ contains
     call memfree(rule%pos  ,__FILE__,__LINE__)
   end subroutine face_quadrature_free
 
-end module quadrature_faces
+end module quadrature_faces_names

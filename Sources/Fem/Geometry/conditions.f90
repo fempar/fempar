@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_conditions_names
-  use types
-  use memor
-  use stdio
+use types_names
+use memor_names
+use stdio_names
   use renum_names
 # include "debug.i90"
   implicit none

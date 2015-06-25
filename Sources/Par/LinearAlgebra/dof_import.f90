@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module dof_import_names
-  use types
-  use memor
+  use types_names
+  use memor_names
   implicit none
   private
 
@@ -99,7 +99,6 @@ contains
     !-----------------------------------------------------------------------
     ! This routine prints an import object
     !-----------------------------------------------------------------------
-    use types
     implicit none
 
 

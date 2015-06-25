@@ -30,9 +30,9 @@
 ! Base solver class containing parameters, control type and control functions.
 !
 !=============================================================================
-module solver_base
-  use types
-  use memor
+module solver_base_names
+use types_names
+use memor_names
 
   ! List of convergence criteria available for iterative solvers 
   integer(ip), parameter :: res_nrmgiven_rhs_nrmgiven  = 1  ! ||  r(i) ||g <= rtol*||  b    ||g + atol 
@@ -336,5 +336,5 @@ contains
     y = rzero
   end subroutine givens
 
-end module solver_base
+end module solver_base_names
 

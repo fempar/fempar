@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_block_matrix_names
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_graph_names
   use fem_block_graph_names
   use fem_matrix_names

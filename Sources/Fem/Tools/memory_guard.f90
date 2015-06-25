@@ -1,5 +1,5 @@
 module memory_guard_names
-  use types
+use types_names
   implicit none
   private
   

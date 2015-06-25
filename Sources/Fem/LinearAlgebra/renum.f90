@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module renum_names
-  use types
-  use memor
-  use stdio
+use types_names
+use memor_names
+use stdio_names
   implicit none
   private
 

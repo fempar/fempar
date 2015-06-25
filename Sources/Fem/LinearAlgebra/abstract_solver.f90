@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !=============================================================================
-module abstract_solver
-  use solver_base 
+module abstract_solver_names
+use solver_base_names
   use base_operator_names
   use base_operand_names
   use abstract_environment_names
@@ -545,7 +545,7 @@ end subroutine abstract_ipcg
     ! This routine performs plgmres iterations on Ax=b with preconditioner M. 
     !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
-    use blas77_interfaces
+use blas77_interfaces_names
 #endif
     implicit none
     ! Parameters
@@ -930,7 +930,7 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
   ! This routine performs prgmres iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
-  use blas77_interfaces  
+use blas77_interfaces_names
 #endif
   implicit none
   class(base_operator)   , intent(in)    :: A              ! Matrix
@@ -1209,7 +1209,7 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl, env)
   ! This routine performs pfgmres iterations on Ax=b with (right)-preconditioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
-  use blas77_interfaces
+use blas77_interfaces_names
 #endif
   implicit none
   class(base_operator)   , intent(in)    :: A              ! Matrix
@@ -1587,7 +1587,7 @@ subroutine abstract_plfom ( A, M, b, x, ctrl, env )
   ! This routine performs plfom iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_LAPACK
-  use lapack77_interfaces
+use lapack77_interfaces_names
 #endif
 
   implicit none
@@ -2685,4 +2685,4 @@ end subroutine abstract_pminres
   end subroutine icgsro
 
   
-end module abstract_solver
+end module abstract_solver_names

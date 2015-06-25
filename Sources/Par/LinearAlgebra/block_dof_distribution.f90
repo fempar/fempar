@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module block_dof_distribution_names
   ! Serial modules
-  use types
+use types_names
   
   ! Parallel modules 
   use dof_distribution_names

@@ -1,8 +1,8 @@
 !#if defined(SERIAL_MPI)
 #ifdef SERIAL_MPI
 ! Provide a fake mpi module just to keep the compiler(s) happy.
-module mpi
-  use psb_const_mod
+module mpi_names
+use psb_const_mod_names
   integer, parameter :: mpi_success=0
   integer, parameter :: mpi_request_null=0
   integer, parameter :: mpi_status_size=1
@@ -18,11 +18,11 @@ module mpi
   integer, parameter :: mpi_comm_world       = 1
   
   real(8), external :: mpi_wtime
-end module mpi
+end module mpi_names
 #endif    
 
-module psi_comm_buffers_mod
-  use psb_const_mod
+module psi_comm_buffers_mod_names
+use psb_const_mod_names
 
   ! integer, private, parameter:: psb_int_type      = 987543
   ! integer, private, parameter:: psb_real_type     = psb_int_type      + 1
@@ -101,7 +101,7 @@ contains
 
   subroutine psb_wait_buffer(node, info)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -116,7 +116,7 @@ contains
 
   subroutine psb_test_buffer(node, flag, info)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -230,7 +230,7 @@ contains
   ! !!!!!!!!!!!!!!!!!
   subroutine psi_isnd(icontxt,tag,dest,buffer,mesg_queue)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -265,7 +265,7 @@ contains
 #if !defined(LONG_INTEGERS)
   subroutine psi_i8snd(icontxt,tag,dest,buffer,mesg_queue)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -335,7 +335,7 @@ contains
 
   subroutine psi_dsnd(icontxt,tag,dest,buffer,mesg_queue)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -438,7 +438,7 @@ contains
 
   subroutine psi_lsnd(icontxt,tag,dest,buffer,mesg_queue)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -473,7 +473,7 @@ contains
 
   subroutine psi_hsnd(icontxt,tag,dest,buffer,mesg_queue)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -506,5 +506,5 @@ contains
   end subroutine psi_hsnd
 
 
-end module psi_comm_buffers_mod
+end module psi_comm_buffers_mod_names
 

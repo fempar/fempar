@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_matrix_distribution
-  use types
-  use memor
+module fem_matrix_distribution_names
+use types_names
+use memor_names
   use fem_matrix_names
   use dof_distribution_names
   implicit none
@@ -201,4 +201,4 @@ contains
 
   end subroutine fem_matrix_split_2x2_partitioning
 
-end module fem_matrix_distribution
+end module fem_matrix_distribution_names

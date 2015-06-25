@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module sort_names
-  use types
+use types_names
   implicit none
 # include "debug.i90"
   private

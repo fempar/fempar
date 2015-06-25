@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module assembly_names
 
-  use types
+use types_names
   use array_ip1_names
   use fem_element_names
   !use fem_space_names

@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module map_apply
-  use types
-  use memor
+module map_apply_names
+  use types_names
+  use memor_names
   use maps_names
   use renum_names
   use fem_mesh_names
@@ -41,12 +41,12 @@ module map_apply
 
   interface map_apply_l2g
      module procedure map_apply_l2g_r1, map_apply_l2g_r2, map_apply_l2g_i1
-  end interface
+  end interface map_apply_l2g
 
   interface map_apply_g2l
-     module procedure map_apply_g2l_r1, map_apply_g2l_r2, map_apply_g2l_i1, map_apply_g2l_i2, &
-                      map_igp_apply_g2l_r1, map_igp_apply_g2l_r2, map_igp_apply_g2l_i1, map_igp_apply_g2l_i2
-  end interface
+       module procedure map_apply_g2l_r1, map_apply_g2l_r2, map_apply_g2l_i1, map_apply_g2l_i2, &
+            map_igp_apply_g2l_r1, map_igp_apply_g2l_r2, map_igp_apply_g2l_i1, map_igp_apply_g2l_i2
+  end interface map_apply_g2l
 
   interface fem_mesh_g2l
      module procedure fem_mesh_g2l_emap_ip, fem_mesh_g2l_emap_igp, fem_mesh_g2l_nmap_igp_emap_igp
@@ -625,4 +625,4 @@ contains
 
   end subroutine fem_mesh_l2l
 
-end module map_apply
+end module map_apply_names

@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_graph_distribution
-  use types
-  use memor
+module fem_graph_distribution_names
+use types_names
+use memor_names
   use fem_graph_names
   use dof_distribution_names
   implicit none
@@ -594,4 +594,4 @@ contains
 
   end subroutine split_2x2_partitioning_count_list_symm
 
-end module fem_graph_distribution
+end module fem_graph_distribution_names

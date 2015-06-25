@@ -30,8 +30,8 @@
 !!$ 
 !!$  
 
-module psb_const_mod
-  use types
+module psb_const_mod_names
+use types_names
   
   ! This is the default integer 
   ! (A.F.M.: fem will be responsible for that)
@@ -154,4 +154,4 @@ module psb_const_mod
   !integer, parameter, public :: psb_err_invalid_istop_=5001
   !! integer, parameter, public :: ...
 
-end module psb_const_mod
+end module psb_const_mod_names

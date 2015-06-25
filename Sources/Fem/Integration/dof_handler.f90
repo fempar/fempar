@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module dof_handler_names
-  use types
-  use memor
+use types_names
+use memor_names
   use problem_names
   use array_names
 

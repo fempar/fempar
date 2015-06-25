@@ -27,12 +27,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !=============================================================================
-module fem_matrix_fem_precond_solver
+module fem_matrix_fem_precond_solver_names
   ! Serial modules
-  use types
-  use solver_base
+use types_names
+use solver_base_names
   use serial_environment_names
-  use abstract_solver
+use abstract_solver_names
   use fem_matrix_names
   use fem_vector_names
   use fem_precond_names
@@ -131,6 +131,6 @@ contains
 !!$    end if
   end subroutine fem_matrix_fem_precond_r2_solve
 
-end module fem_matrix_fem_precond_solver
+end module fem_matrix_fem_precond_solver_names
 
 

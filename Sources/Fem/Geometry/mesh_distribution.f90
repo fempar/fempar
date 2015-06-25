@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_mesh_distribution_names
-  use types
-  use memor
-  use stdio
+  use types_names
+  use memor_names
+  use stdio_names
   use maps_names
   implicit none
   private
@@ -94,7 +94,6 @@ contains
     !-----------------------------------------------------------------------
     ! This subroutine prints a mesh_distribution object
     !-----------------------------------------------------------------------
-    use types
     implicit none
 
     ! Parameters

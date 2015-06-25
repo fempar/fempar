@@ -25,16 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_space_faces
-  use types
-  use memor
+module fem_space_faces_names
+  use types_names
+  use memor_names
   use hash_table_names
   use fem_mesh_names
   !use integration_names
   use integration_tools_names
   !  use fem_mesh_faces
   use fem_space_names
-  use fem_space_types
+  use fem_space_types_names
   use fem_triangulation_names
   use array_names
 
@@ -143,4 +143,4 @@ contains
 
   end function local_position
 
-end module fem_space_faces
+end module fem_space_faces_names

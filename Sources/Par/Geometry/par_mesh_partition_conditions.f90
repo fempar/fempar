@@ -25,17 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_mesh_partition_conditions
+module par_mesh_partition_conditions_names
 
   ! Serial modules
-  use types
+use types_names
   use fem_mesh_names
-  use fem_mesh_gen
+use fem_mesh_gen_names
   use fem_conditions_names
   !use fem_partition_names
   use fem_materials_names
   ! use partition_import
-  use fem_mesh_gen_distribution_names
+use fem_mesh_gen_names
   !use fem_mesh_io
   !use stdio
   ! use fem_import_names
@@ -164,4 +164,4 @@ contains
 !!$    
 !!$  end subroutine par_structured_gen_partition
 
-end module par_mesh_partition_conditions
+end module par_mesh_partition_conditions_names

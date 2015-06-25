@@ -1,10 +1,10 @@
 subroutine runend
 #ifdef MPI_MOD
-    use mpi
+  use mpi
 #endif
-    implicit none 
+  implicit none 
 #ifdef MPI_H
-    include 'mpif.h'
+  include 'mpif.h'
 #endif	
   integer :: code, info 
   code = -1

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module stdio
+module stdio_names
   ! This module contains functions to manage io. It was 
   ! created by C. Labra (clabra@cimne.upc.edu) and slightly
   ! modified to fit our environment. The modifications are
@@ -1072,4 +1072,4 @@ contains
     end do
   end function count_digits
 
-end module stdio
+end module stdio_names

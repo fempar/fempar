@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_element_exchange
+module par_element_exchange_names
    ! Serial modules
-   use types
-   use memor
+use types_names
+use memor_names
    use fem_element_import_names
    use migratory_element_names
 
@@ -60,10 +60,10 @@ contains
                                             rcv_ptrs, snd_ptrs, snd_leids, &
                                             nelem, nghost, data)
                                              
-     use psb_const_mod
-     use psb_penv_mod
+use psb_const_mod_names
+use psb_penv_mod_names
 #ifdef MPI_MOD
-     use mpi
+use mpi
 #endif
      implicit none
 #ifdef MPI_H
@@ -236,4 +236,4 @@ contains
    
    end subroutine plain_ghost_element_exchange 
 
-end module par_element_exchange
+end module par_element_exchange_names

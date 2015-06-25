@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_refine
-  use types
-  use memor
+module fem_mesh_refine_names
+use types_names
+use memor_names
   use fem_mesh_names
   use fem_conditions_names
   use fem_materials_names
@@ -482,5 +482,5 @@ contains
 
   end subroutine fem_mesh_hexa9
 
-end module fem_mesh_refine
+end module fem_mesh_refine_names
 

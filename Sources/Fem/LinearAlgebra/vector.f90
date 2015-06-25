@@ -26,10 +26,10 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_vector_names
-  use types
-  use memor
+use types_names
+use memor_names
 #ifdef ENABLE_BLAS
-  use blas77_interfaces
+use blas77_interfaces_names
 #endif
   use base_operand_names
 

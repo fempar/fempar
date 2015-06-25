@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module cdr_names
-  use types
-  use memor
+use types_names
+use memor_names
   use problem_names
   implicit none
   private 

@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_io
-  use types
-  use stdio
+module par_io_names
+use types_names
+use stdio_names
   use par_context_names
   implicit none
   private
@@ -51,4 +51,4 @@ contains
 
   end subroutine par_filename
 
-end module par_io
+end module par_io_names

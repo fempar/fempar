@@ -27,25 +27,25 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_vector_names
   ! Serial modules
-  use types
-  use memor
-  use stdio
+use types_names
+use memor_names
+use stdio_names
   use fem_vector_names
-  use map_apply
+use map_apply_names
 
 #ifdef ENABLE_BLAS       
-  use blas77_interfaces
+use blas77_interfaces_names
 #endif
 
 #ifdef memcheck       
-  use iso_c_binding
+use iso_c_binding
 #endif
 
   ! Parallel modules
   use par_context_names
   use par_environment_names
   use dof_distribution_names
-  use psb_penv_mod
+use psb_penv_mod_names
 
   ! Abstract types
   use base_operand_names
@@ -254,7 +254,7 @@ contains
   !                 vector on the interface
   !=============================================================================
   subroutine comm_interface (p_vec)
-    use par_sparse_global_collectives
+use par_sparse_global_collectives_names
     implicit none
 
     ! Parameters

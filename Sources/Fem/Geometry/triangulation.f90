@@ -27,9 +27,9 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module fem_triangulation_names
-  use types
-  use memor
-  use fem_space_types
+  use types_names
+  use memor_names
+  use fem_space_types_names
   use hash_table_names
   implicit none
   private

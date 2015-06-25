@@ -27,15 +27,15 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module block_operator_names
-  use types
-  use memor
+use types_names
+use memor_names
   use base_operator_names
   use base_operand_names
 
   use block_operand_names
 
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
 
   implicit none

@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module maps_names
-  use types
-  use memor
+use types_names
+use memor_names
   implicit none
 #include "debug.i90"
   private

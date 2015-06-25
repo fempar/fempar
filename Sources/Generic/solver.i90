@@ -474,7 +474,7 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
   ! This routine performs plgmres iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
-  use blas77_interfaces
+  use blas77_interfaces_names
 #endif
   implicit none
   type(generic_mat)   , intent(inout) :: A              ! Matrix
@@ -837,7 +837,7 @@ subroutine generic_prgmres ( A, M, b, x, ctrl)
   ! This routine performs prgmres iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
-  use blas77_interfaces  
+  use blas77_interfaces_names
 #endif
   implicit none
   type(generic_mat)   , intent(inout) :: A              ! Matrix
@@ -1094,7 +1094,7 @@ subroutine generic_pfgmres ( A, M, b, x, ctrl)
   ! This routine performs pfgmres iterations on Ax=b with (right)-preconditioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
-  use blas77_interfaces
+  use blas77_interfaces_names
 #endif
   implicit none
   type(generic_mat)   , intent(inout) :: A              ! Matrix
@@ -1441,7 +1441,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
   ! This routine performs plfom iterations on Ax=b with preconditioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_LAPACK
-  use lapack77_interfaces
+  use lapack77_interfaces_names
 #endif
 
   implicit none

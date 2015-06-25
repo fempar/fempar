@@ -32,10 +32,10 @@ module umfpack_names
   ! be performed here.
 
   ! Serial modules
-  use iso_c_binding
-  use umfpack_interface
-  use types
-  use memor
+use iso_c_binding
+use umfpack_interface_names
+use types_names
+use memor_names
   use fem_matrix_names
   use fem_vector_names 
   use fem_graph_names
@@ -307,8 +307,8 @@ contains
 
   !=============================================================================
   subroutine umfpack_analysis ( context, matrix )
-    use fem_mesh_partition_base
-    use graph_renum
+use fem_mesh_partition_base_names
+use graph_renum_names
     implicit none
 
     ! Parameters 

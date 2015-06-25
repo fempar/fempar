@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_environment_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use maps_names
   use abstract_environment_names
 
   ! Parallel modules
-  use psb_penv_mod
+use psb_penv_mod_names
   use par_context_names
 
 # include "debug.i90"
@@ -129,7 +129,7 @@ contains
 
   subroutine par_environment_bcast_logical(env,condition)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H

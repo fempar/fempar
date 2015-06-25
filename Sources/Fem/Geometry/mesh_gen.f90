@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_gen
-  use types
-  use memor
+module fem_mesh_gen_names
+  use types_names
+  use memor_names
 !  use fem_conditions_names
 # include "debug.i90"
   implicit none
@@ -41,7 +41,7 @@ module fem_mesh_gen
         ntdix=0,                   &         ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
         ntdiy=0,                   &         ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
         ntdiz=0,                   &         ! Type of discretization in z (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
-        pdegr=1,                   &         ! Interpolation order p (1=liniar, 2=quadratic, 3=cubic) 
+        pdegr=1,                   &         ! Interpolation order p (1=linear, 2=quadratic, 3=cubic) 
         mater=0,                   &         ! Material case
         ierrc=0,                   &         ! Error code
         neblx=0,                   &         ! Number of elements in the x boundary layer
@@ -72,5 +72,5 @@ module fem_mesh_gen
   ! Types
   public :: mesh_size
 
-end module fem_mesh_gen
+end module fem_mesh_gen_names
 

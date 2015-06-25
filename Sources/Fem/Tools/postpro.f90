@@ -26,10 +26,10 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module postpro_names
-  use types
-  use stdio
+use types_names
+use stdio_names
 #ifdef ENABLE_GIDPOST
-  use gidpost
+use gidpost_names
 #endif
   use renum_names
   implicit none

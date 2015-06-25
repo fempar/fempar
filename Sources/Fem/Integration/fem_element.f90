@@ -28,13 +28,13 @@
 # include "debug.i90"
 module fem_element_names
   ! Modules
-  use types
-  use memor
+  use types_names
+  use memor_names
   use array_names
   use integration_tools_names
   use interpolation_tools_names
   !use face_integration_names
-  use fem_space_types
+  use fem_space_types_names
   !use dof_handler_names
   use migratory_element_names
   !use fem_conditions_names

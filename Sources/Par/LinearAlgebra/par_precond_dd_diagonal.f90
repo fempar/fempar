@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_precond_dd_diagonal_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_vector_names
   use fem_precond_names, only: invert_diagonal, apply_diagonal, extract_diagonal
 
@@ -38,7 +38,7 @@ module par_precond_dd_diagonal_names
   use par_context_names
   use par_environment_names
   use dof_distribution_names
-  use psb_penv_mod
+use psb_penv_mod_names
 
   ! Abstract modules
   use base_operand_names

@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_vector_krylov_basis_names
-  use types
-  use memor
+use types_names
+use memor_names
   use par_vector_names
   use par_block_vector_names
   use par_vector_krylov_basis_names

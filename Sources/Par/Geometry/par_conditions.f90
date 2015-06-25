@@ -27,16 +27,16 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_conditions_names
   ! Serial modules
-  use types
-  use memor
-  use stdio
+use types_names
+use memor_names
+use stdio_names
   use renum_names
   use fem_conditions_names
-  use fem_conditions_io
+use fem_conditions_io_names
 
   ! Parallel modules
   use par_environment_names
-  use par_io
+use par_io_names
 
 # include "debug.i90"
   implicit none

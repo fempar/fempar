@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_conditions_io
-  use types
-  use stdio
-  use memor
+module fem_conditions_io_names
+use types_names
+use stdio_names
+use memor_names
   use fem_conditions_names
   implicit none
   private
@@ -206,4 +206,4 @@ contains
     
   end subroutine fem_conditions_write
 
-end module fem_conditions_io
+end module fem_conditions_io_names

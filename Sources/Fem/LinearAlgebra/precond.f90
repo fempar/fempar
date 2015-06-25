@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_precond_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_graph_names
   use fem_matrix_names
   use fem_vector_names
@@ -36,7 +36,7 @@ module fem_precond_names
   use wsmp_names
   use hsl_mi20_names
   use hsl_ma87_names
-  use umfpack_interface
+use umfpack_interface_names
   use umfpack_names
 
   ! Abstract modules

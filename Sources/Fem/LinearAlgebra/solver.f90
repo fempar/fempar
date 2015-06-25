@@ -26,10 +26,10 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !=============================================================================
-module fem_matrix_fem_precond_fem_vector_solver
+module fem_matrix_precond_vector_solver_names
   ! Serial modules
-  use types
-  use solver_base
+  use types_names
+  use solver_base_names
 
   ! Specialize generic_mat data structure and associated methods
   use fem_matrix_names , only : &
@@ -70,19 +70,19 @@ contains
 
 # include "solver.i90"
 
-end module fem_matrix_fem_precond_fem_vector_solver
+end module fem_matrix_precond_vector_solver_names
 
 !=============================================================================
-module fem_block_matrix_fem_block_precond_fem_block_vector_solver
+module fem_block_matrix_block_precond_block_vector_solver_names
   ! Serial modules
-  use types
-  use solver_base
+  use types_names
+  use solver_base_names
 
   ! Specialize generic_mat data structure and associated methods
   use fem_block_matrix_names , only : &
        &  generic_mat => fem_block_matrix, generic_info => fem_block_matrix_info
 
-  use fem_block_matrix_vector, only : generic_matvec => fem_block_matvec  
+  use fem_block_matrix_vector_names, only : generic_matvec => fem_block_matvec  
 
   ! Specialize generic_pre data structure and associated methods
   use fem_block_precond_names, only :  &
@@ -118,15 +118,15 @@ contains
 
 # include "solver.i90"
 
-end module fem_block_matrix_fem_block_precond_fem_block_vector_solver
+end module fem_block_matrix_block_precond_block_vector_solver_names
 
 !=============================================================================
-module solver
-  use solver_base
-  use fem_matrix_fem_precond_fem_vector_solver, only: & 
+module solver_names
+  use solver_base_names
+  use fem_matrix_precond_vector_solver_names, only: & 
        &  fem_matrix_fem_precond_fem_vector_solve => generic_solve
 
-  use fem_block_matrix_fem_block_precond_fem_block_vector_solver, only: & 
+  use fem_block_matrix_block_precond_block_vector_solver_names, only: & 
        &  fem_block_matrix_fem_block_precond_fem_block_vector_solve => generic_solve
   
   implicit none
@@ -139,4 +139,4 @@ module solver
   
   public :: solve
   
-end module solver
+end module solver_names

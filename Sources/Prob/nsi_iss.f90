@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module nsi_cg_iss_names
- use types
- use memor
+use types_names
+use memor_names
  use array_names
  use problem_names
  use nsi_names

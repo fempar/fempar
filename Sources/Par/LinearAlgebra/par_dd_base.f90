@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_dd_base
+module par_dd_base_names
   ! Module that includes the parameters used in the several par_precond_dd's
-  use types
+use types_names
 
   implicit none
 
@@ -160,4 +160,4 @@ module par_dd_base
 
   integer(ip), parameter :: dd_default_preconditioner = dd_prec_none
 
-end module par_dd_base
+end module par_dd_base_names

@@ -32,7 +32,7 @@ program test_dirsol_mm
   !  using a matrix read from matrix market
   !
   !-----------------------------------------------------------------------
-  use fem
+use fem_names
 # include "debug.i90"
 
   implicit none

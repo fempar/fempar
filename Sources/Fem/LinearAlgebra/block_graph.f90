@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_block_graph_names
   ! Serial modules
-  use types
+use types_names
   use fem_graph_names
 
   implicit none

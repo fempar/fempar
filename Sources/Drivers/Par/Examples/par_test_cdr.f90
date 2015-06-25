@@ -29,8 +29,8 @@ program par_test_cdr
   !----------------------------------------------------------
   ! Parallel partitioner test
   !----------------------------------------------------------
-  use fem
-  use par
+  use fem_names
+  use par_names
   use cdr_names
   use cdr_stabilized_continuous_Galerkin_names 
   use mpi

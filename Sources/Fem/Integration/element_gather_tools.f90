@@ -25,8 +25,8 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module element_gather_tools
-  use types
+module element_gather_tools_names
+use types_names
   implicit none
   private
 
@@ -327,4 +327,4 @@ contains
 
   end subroutine elmuv2elmat_lump
 
-end module element_gather_tools
+end module element_gather_tools_names

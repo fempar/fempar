@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_vector_krylov_basis_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_vector_krylov_basis_names
 
   ! Parallel modules
   use dof_distribution_names
-  use psb_penv_mod
+use psb_penv_mod_names
   use par_environment_names
   use par_vector_names
 

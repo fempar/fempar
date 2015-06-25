@@ -26,10 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module problem_names
-  use types
-  use memor
+  use types_names
+  use memor_names
   use array_names
-  use fem_space_types
   use integration_tools_names
   use fem_element_names
   implicit none

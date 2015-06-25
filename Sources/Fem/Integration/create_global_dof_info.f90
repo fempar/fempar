@@ -26,13 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module create_global_dof_info_names
-  use types
+  use types_names
   use array_names
-  use memor
+  use memor_names
   use fem_triangulation_names
   use fem_space_names
   use dof_handler_names
-  use fem_space_types
+  use fem_space_types_names
   use hash_table_names
   use fem_graph_names
   use fem_block_graph_names

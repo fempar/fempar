@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_block_vector_names
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_vector_names
   implicit none
 # include "debug.i90"

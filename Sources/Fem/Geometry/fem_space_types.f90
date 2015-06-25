@@ -26,12 +26,12 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module fem_space_types
-  use types
-  use memor
+module fem_space_types_names
+use types_names
+use memor_names
   use sort_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
 
   implicit none
@@ -1655,6 +1655,6 @@ contains
 
   end function get_order
 
-end module fem_space_types
+end module fem_space_types_names
 
 

@@ -25,47 +25,47 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem
+module fem_names
 
   ! Tools
-  use types
-  use memor
+  use types_names
+  use memor_names
   use array_names
-  use stdio
+  use stdio_names
   use hash_table_names
   use postpro_names
   use serial_environment_names
 
   ! Geometry
   use maps_names
-  use map_apply
+  use map_apply_names
   use fem_triangulation_names
-  use mesh_triangulation
+  use mesh_triangulation_names
 
   !use fem_import_names
   !use partition_import
   use fem_triangulation_names
-  use mesh_triangulation
+  use mesh_triangulation_names
   use fem_mesh_distribution_names
   use fem_mesh_gen_distribution_names
 
   use fem_element_import_names
   use fem_element_import_create_names
   use fem_conditions_names
-  use fem_conditions_io
+  use fem_conditions_io_names
   use fem_materials_names
-  use fem_materials_io
+  use fem_materials_io_names
   use fem_graph_names
-  use mesh_graph
-  use geom2topo
+  use mesh_graph_names
+  use geom2topo_names
   use renum_names
   use fem_mesh_names
-  use fem_mesh_partition_base
-  use fem_mesh_partition_distribution
+  use fem_mesh_partition_base_names
+  use fem_mesh_partition_distribution_names
 
-  use fem_mesh_io
-  use fem_mesh_gen
-  use fem_mesh_refine
+  use fem_mesh_io_names
+  use fem_mesh_gen_names
+  use fem_mesh_refine_names
   !use fem_mesh_faces
   !use fem_mesh_lelpo
   use migratory_element_names
@@ -82,26 +82,26 @@ module fem
   use fem_block_precond_names
   use fem_block_vector_names
   use fem_block_vector_krylov_basis_names
-  use fem_block_matrix_vector
-  use solver_base
-  use solver
-  use abstract_solver
+  use fem_block_matrix_vector_names
+  use solver_base_names
+  use solver_names
+  use abstract_solver_names
   use base_operand_names
   use base_operator_names
   
   ! Integration 
   use fem_space_names
-  use fem_space_types
-  use fem_space_faces
+  use fem_space_types_names
+  use fem_space_faces_names
   use dof_handler_names
   use integration_names
   use quadrature_names
   use interpolation_names
   use femap_names
-  use femap_interp
+  use femap_interp_names
   use create_global_dof_info_names
   !use element_gather_tools
   use problem_names
   use integration_names
 
-end module fem
+end module fem_names

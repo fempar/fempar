@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_matrix_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_graph_names
   use fem_matrix_names
 

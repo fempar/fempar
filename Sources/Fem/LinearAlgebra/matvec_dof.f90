@@ -29,9 +29,9 @@
 ! Auxiliar modules to handle ndofs by a template like technique
 !=============================================================================
 
-module matvec_dof
+module matvec_dof_names
 
-  use types
+use types_names
 
   integer(ip), parameter :: ndof1 = 1, ndof2 = 1
 
@@ -187,7 +187,7 @@ subroutine matvec_csc (nv,nv2,ia,ja,a,x,y)
 end subroutine matvec_csc
 
 
-end module matvec_dof
+end module matvec_dof_names
 
 
 

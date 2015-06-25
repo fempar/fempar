@@ -1,7 +1,7 @@
 
-module psi_p2p_mod
-  use psi_penv_mod
-  use psi_comm_buffers_mod
+module psi_p2p_mod_names
+use psi_penv_mod_names
+use psi_comm_buffers_mod_names
 
   interface psb_snd
     module procedure psb_isnds, psb_isndv, psb_isndm, &
@@ -77,9 +77,9 @@ contains
   ! !!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine psb_isnds(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -100,10 +100,10 @@ contains
   end subroutine psb_isnds
 
   subroutine psb_isndv(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -125,10 +125,10 @@ contains
   end subroutine psb_isndv
 
   subroutine psb_isndm(ictxt,dat,dst,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -248,9 +248,9 @@ contains
 
 
   subroutine psb_dsnds(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -271,10 +271,10 @@ contains
   end subroutine psb_dsnds
 
   subroutine psb_dsndv(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -296,10 +296,10 @@ contains
   end subroutine psb_dsndv
 
   subroutine psb_dsndm(ictxt,dat,dst,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -506,9 +506,9 @@ contains
 
 
   subroutine psb_lsnds(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -529,10 +529,10 @@ contains
   end subroutine psb_lsnds
 
   subroutine psb_lsndv(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -554,10 +554,10 @@ contains
   end subroutine psb_lsndv
 
   subroutine psb_lsndm(ictxt,dat,dst,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -592,9 +592,9 @@ contains
 
 
   subroutine psb_hsnds(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -619,9 +619,9 @@ contains
 
 #if !defined(LONG_INTEGERS)
   subroutine psb_i8snds(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -642,10 +642,10 @@ contains
   end subroutine psb_i8snds
 
   subroutine psb_i8sndv(ictxt,dat,dst)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -667,10 +667,10 @@ contains
   end subroutine psb_i8sndv
 
   subroutine psb_i8sndm(ictxt,dat,dst,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -712,9 +712,9 @@ contains
   ! !!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine psb_ircvs(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -734,10 +734,10 @@ contains
   end subroutine psb_ircvs
 
   subroutine psb_ircvv(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -758,10 +758,10 @@ contains
   end subroutine psb_ircvv
 
   subroutine psb_ircvm(ictxt,dat,src,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -884,9 +884,9 @@ contains
 
 
   subroutine psb_drcvs(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -906,10 +906,10 @@ contains
   end subroutine psb_drcvs
 
   subroutine psb_drcvv(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -930,10 +930,10 @@ contains
   end subroutine psb_drcvv
 
   subroutine psb_drcvm(ictxt,dat,src,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1145,9 +1145,9 @@ contains
 
 
   subroutine psb_lrcvs(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1167,10 +1167,10 @@ contains
   end subroutine psb_lrcvs
 
   subroutine psb_lrcvv(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1190,10 +1190,10 @@ contains
   end subroutine psb_lrcvv
 
   subroutine psb_lrcvm(ictxt,dat,src,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1230,9 +1230,9 @@ contains
 
 
   subroutine psb_hrcvs(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1262,9 +1262,9 @@ contains
 #if !defined(LONG_INTEGERS)
 
   subroutine psb_i8rcvs(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1284,10 +1284,10 @@ contains
   end subroutine psb_i8rcvs
 
   subroutine psb_i8rcvv(ictxt,dat,src)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1307,10 +1307,10 @@ contains
   end subroutine psb_i8rcvv
 
   subroutine psb_i8rcvm(ictxt,dat,src,m)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -1347,4 +1347,4 @@ contains
 
 #endif
 
-end module psi_p2p_mod
+end module psi_p2p_mod_names

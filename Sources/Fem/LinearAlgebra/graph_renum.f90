@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module graph_renum
-  use types
-  use memor
+module graph_renum_names
+use types_names
+use memor_names
   use renum_names
   use fem_graph_names
-  use metis_interface
-  use fem_mesh_partition_base
-  use rcm_renum
+use metis_interface_names
+use fem_mesh_partition_base_names
+use rcm_renum_names
 #include "debug.i90"
   implicit none
   private
@@ -174,4 +174,4 @@ contains
 
   end subroutine graph_pt_renumbering
 
-end module graph_renum
+end module graph_renum_names

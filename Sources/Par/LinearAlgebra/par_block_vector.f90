@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_vector_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_block_vector_names
   use fem_vector_names
     

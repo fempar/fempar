@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_matrix_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_matrix_names
   use array_names
-  use stdio
+use stdio_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
 
   ! Parallel modules
@@ -41,7 +41,7 @@ module par_matrix_names
   use par_context_names
   use par_graph_names
   use par_vector_names
-  use psb_penv_mod
+use psb_penv_mod_names
   use dof_distribution_names
 
   ! Abstract types

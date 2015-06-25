@@ -1,8 +1,8 @@
 
 
-module psi_bcast_mod
-  use psb_const_mod
-  use psi_penv_mod
+module psi_bcast_mod_names
+use psb_const_mod_names
+use psi_penv_mod_names
   interface psb_bcast
   !module procedure psb_ibcasts, psb_ibcastv, psb_ibcastm,&
   !       & psb_dbcasts, psb_dbcastv, psb_dbcastm,&
@@ -30,7 +30,7 @@ contains
 
   subroutine psb_ibcasts(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -56,7 +56,7 @@ contains
 
   subroutine psb_ibcastv(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -81,7 +81,7 @@ contains
 
   subroutine psb_ibcastm(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -190,7 +190,7 @@ contains
 
   subroutine psb_dbcasts(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -217,7 +217,7 @@ contains
 
   subroutine psb_dbcastv(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -243,7 +243,7 @@ contains
 
   subroutine psb_dbcastm(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -426,7 +426,7 @@ contains
 
   subroutine psb_hbcasts(ictxt,dat,root,length)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -459,7 +459,7 @@ contains
 
   subroutine psb_hbcastv(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -489,7 +489,7 @@ contains
 
   subroutine psb_lbcasts(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -517,7 +517,7 @@ contains
 
   subroutine psb_lbcastv(ictxt,dat,root)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -542,4 +542,4 @@ contains
 
   end subroutine psb_lbcastv
 
-end module psi_bcast_mod
+end module psi_bcast_mod_names

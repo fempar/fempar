@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_materials_names
-  use types
-  use memor
-  use stdio
+use types_names
+use memor_names
+use stdio_names
 # include "debug.i90"
   implicit none
   private

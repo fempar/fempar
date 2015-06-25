@@ -1,6 +1,6 @@
-module psi_penv_mod
-  use psb_const_mod
-  use psi_comm_buffers_mod, only : psb_buffer_queue
+module psi_penv_mod_names
+use psb_const_mod_names
+use psi_comm_buffers_mod_names
 
   interface psb_init
     module procedure  psb_init
@@ -81,7 +81,7 @@ contains
 
   subroutine  psi_register_mpi_extras(info)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -130,12 +130,12 @@ contains
 
 
   subroutine psb_init(ictxt,np,basectxt,ids)
-    use psi_comm_buffers_mod 
-    use psb_const_mod
+use psi_comm_buffers_mod_names
+use psb_const_mod_names
     ! E use psb_error_mod
     ! use psb_rsb_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -254,10 +254,10 @@ contains
   end subroutine psb_init
 
   subroutine psb_exit(ictxt,close)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
     ! use psb_rsb_mod
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -304,7 +304,7 @@ contains
 
   subroutine psb_barrier(ictxt)
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -322,9 +322,9 @@ contains
   end subroutine psb_barrier
 
   function psb_wtime()
-    use psb_const_mod
+use psb_const_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -336,9 +336,9 @@ contains
   end function psb_wtime
 
   subroutine psb_abort(ictxt,errc)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -366,9 +366,9 @@ contains
 
 
   subroutine psb_info(ictxt,iam,np)
-    use psi_comm_buffers_mod 
+use psi_comm_buffers_mod_names
 #ifdef MPI_MOD
-    use mpi
+use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -599,4 +599,4 @@ contains
     end do
   end subroutine psi_dnrm2_op
 
-end module psi_penv_mod
+end module psi_penv_mod_names

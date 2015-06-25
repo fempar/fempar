@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module element_tools_names
-  use types
-  use memor
+  use types_names
+  use memor_names
   use array_names
   use volume_integration_tools_names
   use face_integration_tools_names

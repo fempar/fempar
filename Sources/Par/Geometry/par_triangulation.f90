@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_triangulation_names
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use sort_names
   use migratory_element_names
   use fem_triangulation_names

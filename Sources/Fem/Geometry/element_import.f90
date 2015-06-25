@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_element_import_names
-  use types
-  use memor
+  use types_names
+  use memor_names
   implicit none
   private
 
@@ -93,10 +93,7 @@ contains
     !-----------------------------------------------------------------------
     ! This routine prints an element_import object
     !-----------------------------------------------------------------------
-    use types
     implicit none
-
-
     ! Parameters
     type(fem_element_import)   , intent(in)  :: element_import
     integer(ip)        , intent(in)  :: lu_out

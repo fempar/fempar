@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module umfpack_interface
+module umfpack_interface_names
   ! use types
-  use iso_c_binding
+use iso_c_binding
   implicit none
 
 #ifdef ENABLE_UMFPACK
@@ -507,7 +507,7 @@ integer(c_int), parameter :: UMFPACK_WARNING_determinant_overflow = 3
       !   double Info [UMFPACK_INFO]
       ! ) ;
       function umfpack_di_symbolic(n_row, n_col, Ap, Ai, Ax, Symbolic, Control, Info) bind(c,NAME='umfpack_di_symbolic')
-         use iso_c_binding
+use iso_c_binding
          integer(c_int), value       :: n_row
          integer(c_int), value       :: n_col
          integer(c_int), intent(in)  :: Ap(*)
@@ -533,7 +533,7 @@ integer(c_int), parameter :: UMFPACK_WARNING_determinant_overflow = 3
       ! ) ;
        function umfpack_di_numeric(Ap, Ai, Ax, Symbolic, Numeric, Control, Info) & 
                & bind(c,NAME='umfpack_di_numeric')
-         use iso_c_binding
+use iso_c_binding
          integer(c_int), intent(in)     :: Ap(*)
          integer(c_int), intent(in)     :: Ai(*)
          real(c_double), intent(in)     :: Ax(*)
@@ -558,7 +558,7 @@ integer(c_int), parameter :: UMFPACK_WARNING_determinant_overflow = 3
       ! ) ;
       function umfpack_di_solve(sys, Ap, Ai, Ax, X, B, Numeric, Control, Info) & 
                & bind(c,NAME='umfpack_di_solve')
-         use iso_c_binding
+use iso_c_binding
          integer(c_int), value          :: sys 
          integer(c_int), intent(in)     :: Ap(*)
          integer(c_int), intent(in)     :: Ai(*)
@@ -577,7 +577,7 @@ integer(c_int), parameter :: UMFPACK_WARNING_determinant_overflow = 3
       ! ) ;
       subroutine umfpack_di_free_symbolic(Symbolic) &
                & bind(c,NAME='umfpack_di_free_symbolic')
-         use iso_c_binding
+use iso_c_binding
          type(c_ptr) :: Symbolic 
       end subroutine umfpack_di_free_symbolic
 
@@ -587,7 +587,7 @@ integer(c_int), parameter :: UMFPACK_WARNING_determinant_overflow = 3
       ! ) ;
       subroutine umfpack_di_free_numeric(Numeric) &
                 & bind(c,NAME='umfpack_di_free_numeric')
-          use iso_c_binding
+use iso_c_binding
          type(c_ptr) :: Numeric 
       end subroutine umfpack_di_free_numeric
 
@@ -597,11 +597,11 @@ integer(c_int), parameter :: UMFPACK_WARNING_determinant_overflow = 3
       ! ) ;
       subroutine umfpack_di_defaults(Control) &
                 & bind(c,NAME='umfpack_di_defaults')
-         use iso_c_binding
+use iso_c_binding
          real(c_double), intent(out)  :: Control(*) 
       end subroutine umfpack_di_defaults
   end interface
 
 #endif
 
-end module umfpack_interface
+end module umfpack_interface_names

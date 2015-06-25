@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mem_base
+module mem_base_names
   !-----------------------------------------------------------------------
   !
   !  This module contains memory allocation functions.
@@ -46,7 +46,7 @@ module mem_base
   !
   !-----------------------------------------------------------------------
 !$ use omp_lib
-  use types
+use types_names
   use hash_table_names ! Only used ifdef memcheck but this avoids passing 
                        ! the definition to configure
 #ifdef memcheck
@@ -323,7 +323,7 @@ contains
     write(*,*) '====================================================='
   end subroutine memstatus
 
-end module mem_base
+end module mem_base_names
 
 !***********************************************************************
 !***********************************************************************
@@ -340,11 +340,11 @@ end module mem_base
 !***********************************************************************
 ! integer(ip)
 !***********************************************************************
-module mem_ip_allocatable
-  use types
-  use mem_base
+module mem_ip_allocatable_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -355,15 +355,15 @@ module mem_ip_allocatable
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
 # include "mem_body.i90"
-end module mem_ip_allocatable
+end module mem_ip_allocatable_names
 !***********************************************************************
 ! integer(ieep)
 !***********************************************************************
-module mem_ieep_allocatable
-  use types
-  use mem_base
+module mem_ieep_allocatable_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -374,15 +374,15 @@ module mem_ieep_allocatable
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
 # include "mem_body.i90"
-end module mem_ieep_allocatable
+end module mem_ieep_allocatable_names
 !***********************************************************************
 ! integer(igp)
 !***********************************************************************
-module mem_igp_allocatable
-  use types
-  use mem_base
+module mem_igp_allocatable_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -393,15 +393,15 @@ module mem_igp_allocatable
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
 # include "mem_body.i90"
-end module mem_igp_allocatable
+end module mem_igp_allocatable_names
 !***********************************************************************
 ! real(rp)
 !***********************************************************************
-module mem_rp_allocatable
-  use types
-  use mem_base
+module mem_rp_allocatable_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -418,15 +418,15 @@ contains
 #ifdef exception
 #undef exception_real
 #endif
-end module mem_rp_allocatable
+end module mem_rp_allocatable_names
 !***********************************************************************
 ! logical(lg)
 !***********************************************************************
-module mem_lg_allocatable
-  use types
-  use mem_base
+module mem_lg_allocatable_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -437,7 +437,7 @@ module mem_lg_allocatable
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
 # include "mem_body.i90"
-end module mem_lg_allocatable
+end module mem_lg_allocatable_names
 !***********************************************************************
 ! mixed integer(ip)+integer(igp) specialization
 ! free and movealloc subroutines have exactly the same interface as in
@@ -445,11 +445,11 @@ end module mem_lg_allocatable
 !***********************************************************************
 #undef generic_memfree_interface
 #undef generic_memmovealloc_interface
-module mem_ip_igp_allocatable
-  use types
-  use mem_base
+module mem_ip_igp_allocatable_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -460,7 +460,7 @@ module mem_ip_igp_allocatable
   public :: memalloc,  memrealloc
 contains
 # include "mem_body.i90"
-end module mem_ip_igp_allocatable
+end module mem_ip_igp_allocatable_names
 !***********************************************************************
 !***********************************************************************
 ! Pointer routines
@@ -475,11 +475,11 @@ end module mem_ip_igp_allocatable
 !***********************************************************************
 ! integer(ip)
 !***********************************************************************
-module mem_ip_pointer
-  use types
-  use mem_base
+module mem_ip_pointer_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -490,15 +490,15 @@ module mem_ip_pointer
   public :: memallocp,  memreallocp,  memfreep
 contains
 # include "mem_body.i90"
-end module mem_ip_pointer
+end module mem_ip_pointer_names
 !***********************************************************************
 ! integer(igp)
 !***********************************************************************
-module mem_igp_pointer
-  use types
-  use mem_base
+module mem_igp_pointer_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -509,15 +509,15 @@ module mem_igp_pointer
   public :: memallocp,  memreallocp,  memfreep
 contains
 # include "mem_body.i90"
-end module mem_igp_pointer
+end module mem_igp_pointer_names
 !***********************************************************************
 ! real(rp)
 !***********************************************************************
-module mem_rp_pointer
-  use types
-  use mem_base
+module mem_rp_pointer_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -534,18 +534,18 @@ contains
 #ifdef exception
 #undef exception_real
 #endif
-end module mem_rp_pointer
+end module mem_rp_pointer_names
 !***********************************************************************
 ! mixed integer(ip)+integer(igp) specialization
 ! free and movealloc subroutines have exactly the same interface as in
 ! the case integer(ip) and therefore need not (cannot) be included here.
 !***********************************************************************
 #undef generic_memfree_interface
-module mem_ip_igp_pointer
-  use types
-  use mem_base
+module mem_ip_igp_pointer_names
+use types_names
+use mem_base_names
 #ifdef memcheck
-  use iso_c_binding
+use iso_c_binding
 #endif
   implicit none
   private
@@ -556,18 +556,18 @@ module mem_ip_igp_pointer
   public :: memallocp,  memreallocp
 contains
 # include "mem_body.i90"
-end module mem_ip_igp_pointer
+end module mem_ip_igp_pointer_names
 
-module memor
-  use mem_base
-  use mem_ip_allocatable
-  use mem_ieep_allocatable
-  use mem_igp_allocatable
-  use mem_rp_allocatable
-  use mem_lg_allocatable
-  use mem_ip_igp_allocatable
-  use mem_ip_pointer
-  use mem_igp_pointer
-  use mem_rp_pointer
-  use mem_ip_igp_pointer
-end module memor
+module memor_names
+use mem_base_names
+use mem_ip_allocatable_names
+use mem_ieep_allocatable_names
+use mem_igp_allocatable_names
+use mem_rp_allocatable_names
+use mem_lg_allocatable_names
+use mem_ip_igp_allocatable_names
+use mem_ip_pointer_names
+use mem_igp_pointer_names
+use mem_rp_pointer_names
+use mem_ip_igp_pointer_names
+end module memor_names

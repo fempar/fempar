@@ -30,23 +30,23 @@
 module fem_operator_dd_names
 
   ! Abstract modules
-  use solver_base
-  use abstract_solver
+use solver_base_names
+use abstract_solver_names
 
   ! Serial modules
-  use types
-  use memor
+use types_names
+use memor_names
   use fem_graph_names
   use fem_matrix_names
-  use matvec_dof
+use matvec_dof_names
   use fem_vector_names
   use fem_precond_names
   use serial_environment_names
   
   ! Parallel modules
   use dof_distribution_names
-  use fem_graph_distribution
-  use fem_matrix_distribution
+use fem_graph_distribution_names
+use fem_matrix_distribution_names
 
 # include "debug.i90"
   
@@ -288,7 +288,7 @@ contains
 
   !=============================================================================
   subroutine fem_operator_dd_fill_val ( f_matrix, f_operator ) !, me )
-    use stdio
+use stdio_names
     implicit none
     
     ! Parameters
@@ -812,7 +812,7 @@ contains
   !                  compilerpro/en-us/cpp/win/mkl/refman/bla/functn_mkl_dcsrmm.html#functn_mkl_dcsrmm
   subroutine fem_operator_dd_compute_ut_op_u (f_operator, n, u, v, opu)  
 #ifdef ENABLE_BLAS       
-    use blas77_interfaces
+use blas77_interfaces_names
 #endif
     implicit none 
     ! Parameters  
