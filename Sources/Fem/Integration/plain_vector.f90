@@ -32,7 +32,7 @@ module plain_vector_names
   implicit none
 # include "debug.i90"
 
-  type, extends(integrable) :: plain_vector_t
+  type, extends(integrable_t) :: plain_vector_t
      integer(ip)           :: neq      ! Number of equations
      real(rp), allocatable :: b(:)     ! Vector
   contains

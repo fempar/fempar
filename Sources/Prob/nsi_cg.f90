@@ -144,10 +144,9 @@ contains
   end subroutine nsi_matvec_free
 
   !=================================================================================================
-  subroutine nsi_matvec(approx,start,elem)
+  subroutine nsi_matvec(approx,elem)
     implicit none
     class(nsi_cg_asgs_approximation_t), intent(inout) :: approx
-    integer(ip)                     , intent(in)    :: start(:)
     type(fem_element_t)               , intent(inout) :: elem
 
     type(basis_function_t) :: u ! Trial
@@ -164,10 +163,10 @@ contains
 
     ndime = approx%physics%ndime
        
-    u = basis_function_t(approx%physics,1,start,elem%integ)
-    p = basis_function_t(approx%physics,2,start,elem%integ)
-    v = basis_function_t(approx%physics,1,start,elem%integ) 
-    q = basis_function_t(approx%physics,2,start,elem%integ)
+    u = basis_function_t(approx%physics,1,elem%start%a,elem%integ)
+    p = basis_function_t(approx%physics,2,elem%start%a,elem%integ)
+    v = basis_function_t(approx%physics,1,elem%start%a,elem%integ) 
+    q = basis_function_t(approx%physics,2,elem%start%a,elem%integ)
 
     ! With a_h declared as given_function we could do:
     ! a_h   = given_function(approx,1,1,elem%integ)

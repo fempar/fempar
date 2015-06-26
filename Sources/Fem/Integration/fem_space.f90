@@ -58,11 +58,11 @@ module fem_space_names
      logical(lg)                           :: static_condensation  ! Flag for static condensation 
      logical(lg)                           :: hierarchical_basis   ! Flag for hierarchical basis
      class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list_t
-     type(fem_element_t)       , pointer     :: lelem(:)             ! List of FEs
-     type(fem_face_t)          , allocatable :: lface(:)             ! List of active faces
+     type(fem_element_t)     , pointer     :: lelem(:)             ! List of FEs
+     type(fem_face_t)        , allocatable :: lface(:)             ! List of active faces
 
-     type(fem_triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
-     type(dof_handler_t)        , pointer :: dof_handler
+     type(fem_triangulation_t)   , pointer :: g_trian => NULL() ! Triangulation
+     type(dof_handler_t)         , pointer :: dof_handler
 
      ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
      type(position_hash_table_t)          :: pos_elmatvec
@@ -79,18 +79,22 @@ module fem_space_names
      type(position_hash_table_t)          :: pos_interpolator
      type(array_rp2_t)                    :: linter(max_global_interpolations)
 
+     ! Starting DOF position
+     type(position_hash_table_t)          :: pos_start
+     type(array_ip1_t)                    :: lstart(max_global_interpolations)
+
      ! Array of reference elements (to be pointed from fem_elements)
      type(position_hash_table_t)          :: pos_elem_info
      type(fem_fixed_info_t)               :: lelem_info(max_elinf)
 
      ! Acceleration arrays
      type(list_2d_t), allocatable         :: object2dof(:)       ! An auxiliary array to accelerate some parts of the code
-     integer(ip), allocatable           :: ndofs(:)            ! number of dofs (nblocks)
-     integer(ip)                        :: time_steps_to_store ! Time steps to store in unkno
+     integer(ip), allocatable             :: ndofs(:)            ! number of dofs (nblocks)
+     integer(ip)                          :: time_steps_to_store ! Time steps to store in unkno
 
      ! List of faces where we want to integrate things
      type(fem_face_t), allocatable        :: interior_faces(:), boundary_faces(:), interface_faces(:)
-     integer(ip)                        :: num_interior_faces, num_boundary_faces
+     integer(ip)                          :: num_interior_faces, num_boundary_faces
 
      ! Plain vector
      type(position_hash_table_t)          :: pos_plain_vector
@@ -226,6 +230,9 @@ contains
 
     ! Initialization of interpolation array
     call fspac%pos_interpolator%init(ht_length)
+
+    ! Initialization of starting DOF position array
+    call fspac%pos_start%init(ht_length)
 
     ! Initialization of plain_vector array
     call fspac%pos_plain_vector%init(ht_length)
@@ -416,6 +423,11 @@ contains
           fspac%lelem(ielem)%inter(ivar)%p => fspac%linter(pos_voint)
        end do
 
+       ! Assign pointers to starting DOF position
+       call fspac%pos_start%get(key=nvars, val=pos_voint, stat = istat)
+       if ( istat == new_index ) call pointer_variable(fspac%lelem(ielem),fspac%dof_handler,fspac%lstart(pos_voint))
+       fspac%lelem(ielem)%start => fspac%lstart(pos_voint)
+
     end do
 
   end subroutine fem_space_fe_list_create
@@ -532,6 +544,7 @@ contains
        nullify ( f%lelem(i)%p_mat )
        nullify ( f%lelem(i)%p_vec )
        nullify ( f%lelem(i)%p_plain_vector )
+       nullify ( f%lelem(i)%start )
        do j = 1, f%lelem(i)%num_vars
           nullify ( f%lelem(i)%nodes_object(j)%p )          
        end do
@@ -579,7 +592,12 @@ contains
        call array_free( f%l_plain_vector(i) )
     end do
     call memfree( f%l_plain_vector,__FILE__,__LINE__)
-    call f%pos_interpolator%free
+    call f%pos_plain_vector%free
+
+    do i = 1,f%pos_start%last()
+       call array_free( f%lstart(i) )
+    end do
+    call f%pos_start%free
 
     nullify ( f%g_trian )
 
@@ -735,6 +753,26 @@ contains
     end do
     
   end subroutine fem_space_plain_vector_point
+
+  !==================================================================================================
+  subroutine pointer_variable( elem, dhand, start ) 
+    implicit none
+    type(dof_handler_t), intent(in)  :: dhand
+    type(fem_element_t), intent(in)  :: elem
+    type(array_ip1_t)  , intent(out) :: start
+
+    integer(ip) :: ivar
+
+    call array_create(dhand%problems(elem%problem)%p%nvars+1,start)
+
+    do ivar = 1,dhand%problems(elem%problem)%p%nvars
+       start%a(ivar+1) = elem%f_inf(ivar)%p%nnode
+    end do
+    start%a(1) = 1
+    do ivar = 2, dhand%problems(elem%problem)%p%nvars+1
+       start%a(ivar) = start%a(ivar) + start%a(ivar-1)
+    end do
+  end subroutine pointer_variable
 
 end module fem_space_names
 

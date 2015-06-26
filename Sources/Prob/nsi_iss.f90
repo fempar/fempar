@@ -175,13 +175,12 @@ contains
   end subroutine nsi_matvec_free
 
   !=================================================================================================
-  subroutine nsi_matvec(approx,start,elem)
+  subroutine nsi_matvec(approx,elem)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine performs the elemental matrix-vector integration selection.                !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_matvec_t), intent(inout) :: approx
-    integer(ip)             , intent(in)    :: start(:)
     type(fem_element_t)       , intent(inout) :: elem
     ! Locals
     real(rp), allocatable :: elmat_vu(:,:,:,:)
@@ -332,27 +331,27 @@ contains
           do jnode=1,nnodu
              do jdime=1,ndime
                 ! Block V-U
-                elem%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) =           &
-                     & elem%p_mat%a(start(idime)+inode-1,start(jdime)+jnode-1) +    &
+                elem%p_mat%a(elem%start%a(idime)+inode-1,elem%start%a(jdime)+jnode-1) =           &
+                     & elem%p_mat%a(elem%start%a(idime)+inode-1,elem%start%a(jdime)+jnode-1) +    &
                      & elmat_vu(idime,jdime,inode,jnode)
              end do    
              ! Block V-U (diag)
-             elem%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) =              &
-                  & elem%p_mat%a(start(idime)+inode-1,start(idime)+jnode-1) +       &
+             elem%p_mat%a(elem%start%a(idime)+inode-1,elem%start%a(idime)+jnode-1) =              &
+                  & elem%p_mat%a(elem%start%a(idime)+inode-1,elem%start%a(idime)+jnode-1) +       &
                   & elmat_vu_diag(inode,jnode)
           end do
           do jnode=1,nnodp
              ! Block V-P
-             elem%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) =            &
-                  & elem%p_mat%a(start(idime)+inode-1,start(ndime+1)+jnode-1) +     &
+             elem%p_mat%a(elem%start%a(idime)+inode-1,elem%start%a(ndime+1)+jnode-1) =            &
+                  & elem%p_mat%a(elem%start%a(idime)+inode-1,elem%start%a(ndime+1)+jnode-1) +     &
                   & elmat_vp(idime,1,inode,jnode)
              ! Block Q-U
-             elem%p_mat%a(start(ndime+1)+jnode-1,start(idime)+inode-1) =            &
-                  & elem%p_mat%a(start(ndime+1)+jnode-1,start(idime)+inode-1) +     &
+             elem%p_mat%a(elem%start%a(ndime+1)+jnode-1,elem%start%a(idime)+inode-1) =            &
+                  & elem%p_mat%a(elem%start%a(ndime+1)+jnode-1,elem%start%a(idime)+inode-1) +     &
                   & elmat_qu(1,idime,jnode,inode)
           end do
           ! Block U
-          elem%p_vec%a(start(idime)+inode-1) = elem%p_vec%a(start(idime)+inode-1) + &
+          elem%p_vec%a(elem%start%a(idime)+inode-1) = elem%p_vec%a(elem%start%a(idime)+inode-1) + &
                & elvec_u(idime,inode)
        end do
     end do
@@ -492,13 +491,13 @@ contains
     class(discrete_problem), target , intent(in)    :: discret
 
     select type (physics)
-    type is(nsi_problem)
+    type is(nsi_problem_t)
        approx%physics => physics
        class default
        check(.false.)
     end select
     select type (discret)
-    type is(nsi_cg_iss_discrete)
+    type is(nsi_cg_iss_discrete_t)
        approx%discret => discret
        class default
        check(.false.)
@@ -520,13 +519,12 @@ contains
   end subroutine nsi_error_free
 
   !==================================================================================================
-  subroutine nsi_error(approx,start,elem)
+  subroutine nsi_error(approx,elem)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine computes the L2-norm of the error compared against an analytical solution.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none 
     class(nsi_cg_iss_error_t), intent(inout) :: approx
-    integer(ip)              , intent(in)    :: start(:)
     type(fem_element_t)      , intent(inout) :: elem
     ! Locals
     integer(ip)    :: igaus,idime

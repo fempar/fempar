@@ -140,10 +140,9 @@ contains
   end subroutine cdr_matvec_free
 
   !=================================================================================================
-  subroutine cdr_matvec(approx,start,elem)
+  subroutine cdr_matvec(approx,elem)
     implicit none
     class(cdr_approximation_t), intent(inout) :: approx
-    integer(ip)             , intent(in)    :: start(:)
     type(fem_element_t)       , intent(inout) :: elem
 
     type(basis_function_t) :: u ! Trial
@@ -166,10 +165,10 @@ contains
     elem%p_vec%a = 0.0_rp
     ndime = approx%physics%ndime
 
-    !u = basis_function(approx%physics,1,start,integ)
-    !p = basis_function(approx%physics,2,start,integ)
-    !v = basis_function(approx%physics,1,start,integ) 
-    !q = basis_function(approx%physics,2,start,integ)
+    !u = basis_function(approx%physics,1,elem%start%a,integ)
+    !p = basis_function(approx%physics,2,elem%start%a,integ)
+    !v = basis_function(approx%physics,1,elem%start%a,integ) 
+    !q = basis_function(approx%physics,2,elem%start%a,integ)
 
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and

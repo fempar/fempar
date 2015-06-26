@@ -54,6 +54,7 @@ module fem_element_names
      integer(ip),      allocatable :: order(:)                ! Order per variable
      type(volume_integrator_pointer_t), allocatable :: integ(:) ! Pointer to integration parameters
      type(interpolator_pointer_t)     , allocatable :: inter(:) ! Pointer to interpolator
+     type(array_ip1_t)                , pointer     :: start => NULL() ! Pointer to starting DOF position vector
      ! order in f_inf, it can be eliminated
 
      ! Problem and approximation

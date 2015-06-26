@@ -32,7 +32,7 @@ use types_names
   use integrable_names
   use problem_names
   use integration_tools_names
-use femap_interp_names
+  use femap_interp_names
   use fem_space_names
   use assembly_names
   use fem_block_matrix_names
@@ -57,7 +57,6 @@ contains
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation
     !class(discrete_problem) , pointer :: discrete
-    integer(ip) :: start(femsp%dof_handler%nvars_global+1)
 
     ! Main element loop
     do ielem=1,femsp%g_trian%num_elems
@@ -67,17 +66,14 @@ contains
        do ivar=1,nvars
           call volume_integrator_update(femsp%lelem(ielem)%integ(ivar)%p,femsp%g_trian%elems(ielem)%coordinates)
        end do
-
-       ! Starting position for each dof
-       call pointer_variable(femsp%lelem(ielem),femsp%dof_handler, start(1:nvars+1) )
        
        current_approximation = femsp%lelem(ielem)%approximation
-       call approx(current_approximation)%p%compute(start,femsp%lelem(ielem))
+       call approx(current_approximation)%p%compute(femsp%lelem(ielem))
 
        ! Assembly first contribution
-       call assembly(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
+       call assembly(femsp%lelem(ielem),femsp%dof_handler,res1) 
 
-       if(present(res2)) call assembly(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2)
+       if(present(res2)) call assembly(femsp%lelem(ielem),femsp%dof_handler,res2)
  
     end do
 
