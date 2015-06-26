@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_space_faces_names
+module fe_space_faces_names
   use types_names
   use memor_names
   use hash_table_names
@@ -33,8 +33,8 @@ module fem_space_faces_names
   !use integration_names
   use integration_tools_names
   !  use fem_mesh_faces
-  use fem_space_names
-  use fem_space_types_names
+  use fe_space_names
+  use fe_space_types_names
   use fem_triangulation_names
   use array_names
 
@@ -44,15 +44,15 @@ module fem_space_faces_names
   private
   integer(ip), parameter :: max_subfaces = 4
   ! Functions
-  public :: fem_space_faces_list_create
+  public :: fe_space_faces_list_create
 
 contains
 
   !===================================================================================================
-  subroutine fem_space_faces_list_create( trian, femsp )
+  subroutine fe_space_faces_list_create( trian, fe_space )
     implicit none
     ! Parameters
-    type(fem_space_t)      , intent(inout),target  :: femsp
+    type(fe_space_t)      , intent(inout),target  :: fe_space
     type(fem_triangulation_t)   , intent(in), target   :: trian   
 
     ! Local variables
@@ -62,65 +62,65 @@ contains
     type(fem_fixed_info_pointer_t) :: gfinf, ufinf
     integer(ip) :: aux_val
 
-    !allocate(femsp%interior_faces( femsp%num_interior_faces ), stat=istat)
-    !allocate(femsp%boundary_faces( femsp%num_boundary_faces ), stat=istat)
+    !allocate(fe_space%interior_faces( fe_space%num_interior_faces ), stat=istat)
+    !allocate(fe_space%boundary_faces( fe_space%num_boundary_faces ), stat=istat)
 
-    ndime = femsp%g_trian%num_dims
+    ndime = fe_space%g_trian%num_dims
 
-    if (femsp%num_interior_faces /= 0) then
+    if (fe_space%num_interior_faces /= 0) then
 
        ! Fill the list of faces with the neighbouring elements
-       do iface_l = 1,femsp%num_interior_faces
-          iobje = femsp%interior_faces(iface_l)%face_object
+       do iface_l = 1,fe_space%num_interior_faces
+          iobje = fe_space%interior_faces(iface_l)%face_object
           max_order = 0
           ndofs = 0
           do i = 1,2
              ielem = trian%objects(iobje)%elems_around(i)
-             iprob = femsp%lelem(ielem)%problem
-             nvars = femsp%dof_handler%problems(iprob)%p%nvars
+             iprob = fe_space%finite_elements(ielem)%problem
+             nvars = fe_space%dof_handler%problems(iprob)%p%nvars
              do ivars = 1, nvars
-                max_order = max(max_order,femsp%lelem(ielem)%order(ivars))
+                max_order = max(max_order,fe_space%finite_elements(ielem)%order(ivars))
              end do
-             ndofs = ndofs + femsp%lelem(ielem)%f_inf(ivars)%p%nnode
+             ndofs = ndofs + fe_space%finite_elements(ielem)%f_inf(ivars)%p%nnode
           end do
 
           ! Create elemental matrix and vectors
-          call femsp%pos_elmatvec%get(key=ndofs,val=pos_elmatvec,stat=istat)
+          call fe_space%pos_elmatvec%get(key=ndofs,val=pos_elmatvec,stat=istat)
           if ( istat == new_index ) then 
-             call array_create ( ndofs, ndofs, femsp%lelmat(pos_elmatvec) )
-             call array_create ( ndofs, femsp%lelvec(pos_elmatvec) )
+             call array_create ( ndofs, ndofs, fe_space%lelmat(pos_elmatvec) )
+             call array_create ( ndofs, fe_space%lelvec(pos_elmatvec) )
           end if
-          femsp%lface(iface)%p_mat => femsp%lelmat(pos_elmatvec)
-          femsp%lface(iface)%p_vec => femsp%lelvec(pos_elmatvec)
+          fe_space%fe_faces(iface)%p_mat => fe_space%lelmat(pos_elmatvec)
+          fe_space%fe_faces(iface)%p_vec => fe_space%lelvec(pos_elmatvec)
 
           do i = 1,2
              ielem = trian%objects(iobje)%elems_around(i)
-             iprob = femsp%lelem(ielem)%problem
-             femsp%interior_faces(iface_l)%neighbor_element(i) = ielem 
+             iprob = fe_space%finite_elements(ielem)%problem
+             fe_space%interior_faces(iface_l)%neighbor_element(i) = ielem 
              l_faci = local_position(iobje, trian%elems(ielem)%objects, &
                   & trian%elems(ielem)%num_objects )
-             femsp%interior_faces(iface_l)%local_face(i) = l_faci - &
-                  femsp%g_trian%elems(ielem)%topology%nobje_dim(ndime) + 1 
-             nvars = femsp%dof_handler%problems(iprob)%p%nvars
+             fe_space%interior_faces(iface_l)%local_face(i) = l_faci - &
+                  fe_space%g_trian%elems(ielem)%topology%nobje_dim(ndime) + 1 
+             nvars = fe_space%dof_handler%problems(iprob)%p%nvars
 
-             call memalloc( nvars, femsp%lface(iface)%integ(i)%p, __FILE__, __LINE__ )
+             call memalloc( nvars, fe_space%fe_faces(iface)%integ(i)%p, __FILE__, __LINE__ )
 
              do ivars = 1, nvars
-                gtype = femsp%lelem(femsp%lface(iface)%neighbor_element(i))%p_geo_info%ftype
-                utype = femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p%ftype
+                gtype = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_info%ftype
+                utype = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%f_inf(ivars)%p%ftype
                 !assert( utype == gtype )
-                g_ord = femsp%lelem(femsp%lface(iface)%neighbor_element(i))%p_geo_info%order
-                u_ord = femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p%order
+                g_ord = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_info%order
+                u_ord = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%f_inf(ivars)%p%order
                 ! SB.alert : The last part to include gauss points being used
                 v_key =  utype + (max_FE_types+1)*u_ord + (max_FE_types+1)*(max_order+1)*max_order
 
-                call femsp%pos_face_integrator%get(key=v_key, val=pos_faint, stat = istat)
+                call fe_space%pos_face_integrator%get(key=v_key, val=pos_faint, stat = istat)
                 if ( istat == new_index ) then 
-                   gfinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%p_geo_info
-                   ufinf%p => femsp%lelem(femsp%lface(iface)%neighbor_element(i))%f_inf(ivars)%p
-                   call face_integrator_create(gfinf,ufinf,ndime,femsp%lfaci(pos_faint))
+                   gfinf%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_info
+                   ufinf%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%f_inf(ivars)%p
+                   call face_integrator_create(gfinf,ufinf,ndime,fe_space%lfaci(pos_faint))
                 end if
-                femsp%lface(iface)%integ(i)%p(ivars)%p => femsp%lfaci(pos_faint)
+                fe_space%fe_faces(iface)%integ(i)%p(ivars)%p => fe_space%lfaci(pos_faint)
 
              end do
           end do
@@ -130,7 +130,7 @@ contains
 
     ! SB.alert : o2n pending... to be reconsidered. What does the key depend on? Hash table, etc.
 
-  end subroutine fem_space_faces_list_create
+  end subroutine fe_space_faces_list_create
 
   integer(ip) function local_position(key,list,size)
     implicit none
@@ -143,4 +143,4 @@ contains
 
   end function local_position
 
-end module fem_space_faces_names
+end module fe_space_faces_names

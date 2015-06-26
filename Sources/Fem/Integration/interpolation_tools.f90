@@ -43,7 +43,7 @@ module interpolation_tools_names
 #ifdef memcheck
   use iso_c_binding
 #endif
-  use fem_space_types_names
+  use fe_space_types_names
   use interpolation_names
   use array_names
   implicit none
@@ -77,7 +77,7 @@ contains
     integer(ip)          , intent(in)  :: gtype, utype
     integer(ip)          , intent(in)  :: ndime, g_ord, u_ord, gnode, unode
     type(array_rp2_t)      , intent(out) :: int_array
-    logical(lg), optional, intent(in)  :: khie
+    logical, optional, intent(in)  :: khie
     ! Locals
     integer(ip)           :: nlocs, i
     type(interpolation_t)   :: inter

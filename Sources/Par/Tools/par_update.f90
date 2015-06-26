@@ -32,7 +32,7 @@ module par_update_names
   use fem_update_names
 
   ! Parallel modules
-  use par_fem_space_names
+  use par_fe_space_names
   use par_conditions_names
   use par_vector_names
   use par_block_vector_names
@@ -51,27 +51,27 @@ module par_update_names
 contains
 
   !==================================================================================================
-  subroutine par_update_strong_dirichlet_bcond(p_fspac, p_cond)
+  subroutine par_update_strong_dirichlet_bcond(p_fe_space, p_cond)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine updates Dirichlet boundary conditions in unkno from par_conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_fem_space_t) , intent(inout) :: p_fspac
+    type(par_fe_space_t) , intent(inout) :: p_fe_space
     type(par_conditions_t), intent(in)    :: p_cond
 
     ! Parallel environment MUST BE already created
-    assert ( associated(p_fspac%p_trian) )
-    assert ( p_fspac%p_trian%p_env%created )
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
 
     ! If fine task call serial subroutine
-    if( p_fspac%p_trian%p_env%am_i_fine_task() ) then
-       call fem_update_strong_dirichlet_bcond( p_fspac%f_space, p_cond%f_conditions )
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+       call fem_update_strong_dirichlet_bcond( p_fe_space%fe_space, p_cond%f_conditions )
     end if
 
   end subroutine par_update_strong_dirichlet_bcond
 
   !==================================================================================================
-  subroutine par_update_analytical_bcond(vars_of_unk,case,ctime,p_fspac,caset,t)
+  subroutine par_update_analytical_bcond(vars_of_unk,case,ctime,p_fe_space,caset,t)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine updates Dirichlet boundary conditions in unkno from an analytical solution. !
     !-----------------------------------------------------------------------------------------------!
@@ -79,64 +79,64 @@ contains
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     integer(ip)          , intent(in)    :: case
     real(rp)             , intent(in)    :: ctime
-    type(par_fem_space_t)  , intent(inout) :: p_fspac
+    type(par_fe_space_t)  , intent(inout) :: p_fe_space
     integer(ip), optional, intent(in)    :: caset,t
 
     ! Parallel environment MUST BE already created
-    assert ( associated(p_fspac%p_trian) )
-    assert ( p_fspac%p_trian%p_env%created )
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
 
     ! If fine task call serial subroutine
-    if( p_fspac%p_trian%p_env%am_i_fine_task() ) then
-       call fem_update_analytical_bcond( vars_of_unk,case,ctime,p_fspac%f_space,caset,t)
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+       call fem_update_analytical_bcond( vars_of_unk,case,ctime,p_fe_space%fe_space,caset,t)
     end if
 
   end subroutine par_update_analytical_bcond
   
   !==================================================================================================
-  subroutine par_update_solution_mono(p_vec,p_fspac,iblock)
+  subroutine par_update_solution_mono(p_vec,p_fe_space,iblock)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the solution from a fem_vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_vector_t)     , intent(in)    :: p_vec   
-    type(par_fem_space_t)  , intent(inout) :: p_fspac
+    type(par_fe_space_t)  , intent(inout) :: p_fe_space
     integer(ip), optional, intent(in)    :: iblock
 
     ! Parallel environment MUST BE already created
-    assert ( associated(p_fspac%p_trian) )
-    assert ( p_fspac%p_trian%p_env%created )
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
 
     ! If fine task call serial subroutine
-    if( p_fspac%p_trian%p_env%am_i_fine_task() ) then
-       call fem_update_solution(p_vec%f_vector,p_fspac%f_space,iblock)
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+       call fem_update_solution(p_vec%f_vector,p_fe_space%fe_space,iblock)
     end if
 
   end subroutine par_update_solution_mono
 
   !==================================================================================================
-  subroutine par_update_solution_block(blk_p_vec,p_fspac)
+  subroutine par_update_solution_block(blk_p_vec,p_fe_space)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the solution from a fem_vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_block_vector_t), intent(in)    :: blk_p_vec   
-    type(par_fem_space_t)   , intent(inout) :: p_fspac
+    type(par_fe_space_t)   , intent(inout) :: p_fe_space
     ! Locals
     integer(ip) :: iblock
 
     ! Parallel environment MUST BE already created
-    assert ( associated(p_fspac%p_trian) )
-    assert ( p_fspac%p_trian%p_env%created )
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
 
     ! If fine task call serial subroutine
-    if( p_fspac%p_trian%p_env%am_i_fine_task() ) then 
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then 
 
        ! Loop over blocks
        do iblock = 1,blk_p_vec%nblocks
 
           ! Call monolithic update
-          call fem_update_solution(blk_p_vec%blocks(iblock)%f_vector,p_fspac%f_space,iblock)
+          call fem_update_solution(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
 
        end do
 

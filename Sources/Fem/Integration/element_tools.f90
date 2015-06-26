@@ -33,7 +33,7 @@ module element_tools_names
   use volume_integration_tools_names
   use face_integration_tools_names
   use element_fields_names
-  use fem_space_names
+  use fe_space_names
   use memory_guard_names
   use problem_names
   implicit none

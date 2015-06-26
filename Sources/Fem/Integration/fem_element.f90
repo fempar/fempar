@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module fem_element_names
+module finite_element_names
   ! Modules
   use types_names
   use memor_names
@@ -34,7 +34,7 @@ module fem_element_names
   use integration_tools_names
   use interpolation_tools_names
   !use face_integration_names
-  use fem_space_types_names
+  use fe_space_types_names
   !use dof_handler_names
   use migratory_element_names
   !use fem_conditions_names
@@ -46,7 +46,7 @@ module fem_element_names
   private
 
   ! Information of each element of the FE space
-  type, extends(migratory_element) :: fem_element_t
+  type, extends(migratory_element) :: finite_element_t
      
      ! Reference element info          
      type(fem_fixed_info_pointer_t), allocatable :: f_inf(:)    ! Topology of the reference finite element
@@ -89,13 +89,13 @@ module fem_element_names
      type(array_rp1_t), pointer :: p_plain_vector
 
    contains
-     procedure :: size   => fem_element_size
-     procedure :: pack   => fem_element_pack
-     procedure :: unpack => fem_element_unpack
-  end type fem_element_t
+     procedure :: size   => finite_element_size
+     procedure :: pack   => finite_element_pack
+     procedure :: unpack => finite_element_unpack
+  end type finite_element_t
 
   ! Information relative to the faces
-  type fem_face_t
+  type fe_face_t
      
      ! Reference face info
      type(element_face_integrator_t) :: integ(2)  ! Pointer to face integration
@@ -111,58 +111,58 @@ module fem_element_names
 
      !type(array_ip1_t), allocatable:: o2n(2)           ! permutation of the gauss points in elem2
      ! SB.alert : temporary, it is a lot of memory, and should be handled via a hash table
-  end type fem_face_t
+  end type fe_face_t
 
   ! Types
-  public :: fem_element_t, fem_face_t
+  public :: finite_element_t, fe_face_t
 
   ! Methods
-  public :: fem_element_print, fem_element_free_unpacked, impose_strong_dirichlet_data
+  public :: finite_element_print, finite_element_free_unpacked, impose_strong_dirichlet_data
 
 contains
-  subroutine fem_element_print ( lunou, elm )
+  subroutine finite_element_print ( lunou, finite_element )
     implicit none
     integer(ip)      , intent(in) :: lunou
-    type(fem_element_t), intent(in) :: elm
+    type(finite_element_t), intent(in) :: finite_element
 
     integer(ip) :: ivar
 
     write (lunou, '(a)')     '*** begin finite element data structure ***'
-    write (lunou, '(a,i10)') 'Problem: ', elm%problem
-    write (lunou,*) 'Element dofs: ', elm%elem2dof
+    write (lunou, '(a,i10)') 'Problem: ', finite_element%problem
+    write (lunou,*) 'Element dofs: ', finite_element%elem2dof
 
-    write (lunou,*) 'Number of unknowns: ', elm%num_vars
-    write (lunou,*) 'Order of each variable: ', elm%order
-    write (lunou,*) 'Continuity of each variable: ', size(elm%continuity)
-    write (lunou,*) 'Continuity of each variable: ', elm%continuity
-    write (lunou,*) 'Element material: ', elm%material
-    write (lunou,*) 'Boundary conditions code: ', elm%bc_code
+    write (lunou,*) 'Number of unknowns: ', finite_element%num_vars
+    write (lunou,*) 'Order of each variable: ', finite_element%order
+    write (lunou,*) 'Continuity of each variable: ', size(finite_element%continuity)
+    write (lunou,*) 'Continuity of each variable: ', finite_element%continuity
+    write (lunou,*) 'Element material: ', finite_element%material
+    write (lunou,*) 'Boundary conditions code: ', finite_element%bc_code
 
     write (lunou,*) 'Fixed info of each interpolation: '
-    do ivar=1, elm%num_vars
-       write (lunou, *) 'Type: ', elm%f_inf(ivar)%p%ftype
-       write (lunou, *) 'Order: ', elm%f_inf(ivar)%p%order
-       write (lunou, *) 'Nobje: ', elm%f_inf(ivar)%p%nobje
-       write (lunou, *) 'Nnode: ', elm%f_inf(ivar)%p%nnode
-       write (lunou, *) 'Nobje_dim: ', elm%f_inf(ivar)%p%nobje_dim
-       write (lunou, *) 'Nodes_obj: ', elm%f_inf(ivar)%p%nodes_obj
-       write (lunou, *) 'ndxob%p:  ', elm%f_inf(ivar)%p%ndxob%p
-       write (lunou, *) 'ndxob%l:  ', elm%f_inf(ivar)%p%ndxob%l
-       write (lunou, *) 'ntxob%p:  ', elm%f_inf(ivar)%p%ntxob%p
-       write (lunou, *) 'ntxob%l:  ', elm%f_inf(ivar)%p%ntxob%l
-       write (lunou, *) 'crxob%p:  ', elm%f_inf(ivar)%p%crxob%p
-       write (lunou, *) 'crxob%l:  ', elm%f_inf(ivar)%p%crxob%l
+    do ivar=1, finite_element%num_vars
+       write (lunou, *) 'Type: ', finite_element%f_inf(ivar)%p%ftype
+       write (lunou, *) 'Order: ', finite_element%f_inf(ivar)%p%order
+       write (lunou, *) 'Nobje: ', finite_element%f_inf(ivar)%p%nobje
+       write (lunou, *) 'Nnode: ', finite_element%f_inf(ivar)%p%nnode
+       write (lunou, *) 'Nobje_dim: ', finite_element%f_inf(ivar)%p%nobje_dim
+       write (lunou, *) 'Nodes_obj: ', finite_element%f_inf(ivar)%p%nodes_obj
+       write (lunou, *) 'ndxob%p:  ', finite_element%f_inf(ivar)%p%ndxob%p
+       write (lunou, *) 'ndxob%l:  ', finite_element%f_inf(ivar)%p%ndxob%l
+       write (lunou, *) 'ntxob%p:  ', finite_element%f_inf(ivar)%p%ntxob%p
+       write (lunou, *) 'ntxob%l:  ', finite_element%f_inf(ivar)%p%ntxob%l
+       write (lunou, *) 'crxob%p:  ', finite_element%f_inf(ivar)%p%crxob%p
+       write (lunou, *) 'crxob%l:  ', finite_element%f_inf(ivar)%p%crxob%l
     end do
 
-    write (lunou,*) 'Unknown values: ', elm%unkno
+    write (lunou,*) 'Unknown values: ', finite_element%unkno
 
-  end subroutine fem_element_print
+  end subroutine finite_element_print
 
    ! SB.alert : to be thought now
 
-  subroutine fem_element_size (my, n)
+  subroutine finite_element_size (my, n)
     implicit none
-    class(fem_element_t), intent(in)  :: my
+    class(finite_element_t), intent(in)  :: my
     integer(ip)            , intent(out) :: n
     
     ! Locals
@@ -173,11 +173,11 @@ contains
 
     n = size_of_ip*3 + 2*size_of_ip*(my%num_vars)
 
-  end subroutine fem_element_size
+  end subroutine finite_element_size
 
-  subroutine fem_element_pack (my, n, buffer)
+  subroutine finite_element_pack (my, n, buffer)
     implicit none
-    class(fem_element_t), intent(in)  :: my
+    class(finite_element_t), intent(in)  :: my
     integer(ip)            , intent(in)   :: n
     integer(ieep)            , intent(out)  :: buffer(n)
     
@@ -209,11 +209,11 @@ contains
     end   = start + my%num_vars*size_of_ip - 1
     buffer(start:end) = transfer(my%continuity,mold)
 
-  end subroutine fem_element_pack
+  end subroutine finite_element_pack
 
-  subroutine fem_element_unpack(my, n, buffer)
+  subroutine finite_element_unpack(my, n, buffer)
     implicit none
-    class(fem_element_t), intent(inout) :: my
+    class(finite_element_t), intent(inout) :: my
     integer(ip)            , intent(in)     :: n
     integer(ieep)            , intent(in)     :: buffer(n)
 
@@ -248,43 +248,43 @@ contains
     end   = start + my%num_vars*size_of_ip - 1
     my%continuity = transfer(buffer(start:end), my%continuity)
     
-  end subroutine fem_element_unpack
+  end subroutine finite_element_unpack
 
-  subroutine fem_element_free_unpacked(my)
+  subroutine finite_element_free_unpacked(finite_element)
     implicit none
-    type(fem_element_t), intent(inout) :: my
+    type(finite_element_t), intent(inout) :: finite_element
 
-    call memfree( my%order, __FILE__, __LINE__ )
-    call memfree( my%continuity, __FILE__, __LINE__ )
+    call memfree( finite_element%order, __FILE__, __LINE__ )
+    call memfree( finite_element%continuity, __FILE__, __LINE__ )
     
-  end subroutine fem_element_free_unpacked
+  end subroutine finite_element_free_unpacked
 
  !=============================================================================
-  subroutine impose_strong_dirichlet_data (el) 
+  subroutine impose_strong_dirichlet_data (finite_element) 
     implicit none
     ! Parameters
-    type(fem_element_t)    , intent(inout)  :: el
+    type(finite_element_t)    , intent(inout)  :: finite_element
 
     ! Locals
     integer(ip) :: iprob, count, ivars, inode, idof
     
-    iprob = el%problem
+    iprob = finite_element%problem
     count = 0
 
-    !write (*,*) 'start assembly bc of matrix : ', el%p_mat%a
-    do ivars = 1, el%num_vars
-       do inode = 1,el%f_inf(ivars)%p%nnode
+    !write (*,*) 'start assembly bc of matrix : ', finite_element%p_mat%a
+    do ivars = 1, finite_element%num_vars
+       do inode = 1,finite_element%f_inf(ivars)%p%nnode
           count = count + 1
-          idof = el%elem2dof(inode,ivars)
+          idof = finite_element%elem2dof(inode,ivars)
           if ( idof  == 0 ) then
-             el%p_vec%a(:) = el%p_vec%a(:) - el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
-             !write (*,*) 'add to vector', -el%p_mat%a(:,count)*el%unkno(inode,ivars,1)
+             finite_element%p_vec%a(:) = finite_element%p_vec%a(:) - finite_element%p_mat%a(:,count)*finite_element%unkno(inode,ivars,1)
+             !write (*,*) 'add to vector', -finite_element%p_mat%a(:,count)*finite_element%unkno(inode,ivars,1)
           end if
        end do
     end do
 
-    !write(*,*) 'elvec :', el%p_vec%a
+    !write(*,*) 'finite_elementvec :', finite_element%p_vec%a
 
   end subroutine impose_strong_dirichlet_data
 
-end module fem_element_names
+end module finite_element_names

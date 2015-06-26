@@ -35,14 +35,14 @@ module par_create_global_dof_info_names
   use fem_triangulation_names
   use fem_graph_names
   use create_global_dof_info_names
-  use fem_space_names
+  use fe_space_names
   use hash_table_names
 
-  use fem_element_names
+  use finite_element_names
 
   ! Par Modules
   use par_triangulation_names
-  use par_fem_space_names
+  use par_fe_space_names
   use par_graph_names
   use par_block_graph_names
   use block_dof_distribution_names
@@ -66,13 +66,13 @@ contains
   ! relying on the fact that, with this info, we know how to put together interior and
   ! ghost elements, and so, number the dofs in a conforming way.
   !*********************************************************************************
-  subroutine par_create_distributed_dof_info ( dhand, p_trian, p_femsp, &
+  subroutine par_create_distributed_dof_info ( dhand, p_trian, p_fe_space, &
        blk_dof_dist, p_blk_graph, gtype ) 
     implicit none
     ! Paramters
     type(dof_handler_t)                  , intent(in)     :: dhand
     type(par_triangulation_t)            , intent(in)     :: p_trian
-    type(par_fem_space_t)                , intent(inout)  :: p_femsp
+    type(par_fe_space_t)                , intent(inout)  :: p_fe_space
     type(block_dof_distribution_t)       , intent(inout)  :: blk_dof_dist 
     type(par_block_graph_t)              , intent(inout)  :: p_blk_graph
     integer(ip)              , optional, intent(in)     :: gtype(dhand%nblocks) 
@@ -81,35 +81,35 @@ contains
     type (par_graph_t), pointer :: p_graph
 
     ! Parallel environment MUST BE already created
-    assert ( associated(p_femsp%p_trian) )
-    assert ( p_femsp%p_trian%p_env%created )
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
 
-    if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
-       call create_element_to_dof_and_ndofs( dhand, p_trian%f_trian, p_femsp%f_space )
-       call ghost_dofs_by_integration( dhand, p_trian, p_femsp%f_space )
-       call create_object2dof( dhand, p_trian%f_trian, p_femsp%f_space )
+    if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
+       call create_element_to_dof_and_ndofs( dhand, p_trian%f_trian, p_fe_space%fe_space )
+       call ghost_dofs_by_integration( dhand, p_trian, p_fe_space%fe_space )
+       call create_object2dof( dhand, p_trian%f_trian, p_fe_space%fe_space )
     end if
 
     ! Allocate block_dof_distribution
     call blk_dof_dist%alloc(p_trian%p_env, dhand%nblocks )
 
     ! Fill block_dof_distribution
-    call block_dof_distribution_create ( p_trian, p_femsp, blk_dof_dist )
+    call block_dof_distribution_create ( p_trian, p_fe_space, blk_dof_dist )
 
     ! Allocate par_block_graph
     call p_blk_graph%alloc(blk_dof_dist)
 
     ! Fill par_block_graph
-    if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
+    if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
        do iblock = 1, dhand%nblocks
           do jblock = 1, dhand%nblocks
              p_graph => p_blk_graph%get_block(iblock,jblock)
              if ( iblock == jblock .and. present(gtype) ) then
                 call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, & 
-                     p_femsp%f_space, p_graph%f_graph, gtype(iblock) )
+                     p_fe_space%fe_space, p_graph%f_graph, gtype(iblock) )
              else
                 call create_dof_graph_block ( iblock, jblock, dhand, p_trian%f_trian, &
-                     p_femsp%f_space, p_graph%f_graph )
+                     p_fe_space%fe_space, p_graph%f_graph )
              end if
           end do
        end do
@@ -124,21 +124,21 @@ contains
   ! discontinuous Galerkin methods. In this case, the face dofs on the ghost element
   ! side are considered local elements (replicated among processors). 
   !*********************************************************************************
-  subroutine ghost_dofs_by_integration( dhand, p_trian, femsp )
+  subroutine ghost_dofs_by_integration( dhand, p_trian, fe_space )
     implicit none
     type(dof_handler_t)      , intent(in)       :: dhand
     type(par_triangulation_t), intent(in)       :: p_trian
-    type(fem_space_t)        , intent(inout)    :: femsp
+    type(fe_space_t)        , intent(inout)    :: fe_space
 
     integer(ip) :: iobje, i, ielem, l_faci, iprob, nvapb, ivars, l_var, g_var, inode, l_node, count
     integer(ip) :: iblock, lobje
 
     do iblock = 1, dhand%nblocks
 
-       count = femsp%ndofs(iblock)    
+       count = fe_space%ndofs(iblock)    
 
-       do iobje = 1,femsp%num_interior_faces
-          lobje = femsp%interior_faces(iobje)%face_object
+       do iobje = 1,fe_space%num_interior_faces
+          lobje = fe_space%interior_faces(iobje)%face_object
           !do iobje = 1, p_trian%num_itfc_objs
           !lobje = p_trian%lst_itfc_objs(iobje)
           if ( p_trian%objects(lobje)%interface /= -1 ) then
@@ -151,18 +151,18 @@ contains
                 assert ( i < 3 )            
                 l_faci = local_position(lobje,p_trian%f_trian%elems(ielem)%objects, &
                      & p_trian%f_trian%elems(ielem)%num_objects )
-                iprob = femsp%lelem(ielem)%problem
+                iprob = fe_space%finite_elements(ielem)%problem
                 nvapb = dhand%prob_block(iblock,iprob)%nd1 
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                   if ( femsp%lelem(ielem)%continuity(g_var) == 0 ) then
-                      do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
-                           & femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
-                         l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-                         assert ( femsp%lelem(ielem)%elem2dof(l_node,l_var) == 0  )
+                   if ( fe_space%finite_elements(ielem)%continuity(g_var) == 0 ) then
+                      do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
+                           & fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
+                         l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%l(inode)
+                         assert ( fe_space%finite_elements(ielem)%elem2dof(l_node,l_var) == 0  )
                          count = count + 1
-                         femsp%lelem(ielem)%elem2dof(l_node,l_var) = count
+                         fe_space%finite_elements(ielem)%elem2dof(l_node,l_var) = count
                       end do
                    end if
                 end do
@@ -170,7 +170,7 @@ contains
           end if
        end do
 
-       femsp%ndofs(iblock) = count
+       fe_space%ndofs(iblock) = count
     end do
 
   end subroutine ghost_dofs_by_integration
@@ -178,7 +178,7 @@ contains
   !*********************************************************************************
   ! Auxiliary function that says if key is in list
   !*********************************************************************************
-  logical(lg) function is_object_in_element(key,list,size)
+  logical function is_object_in_element(key,list,size)
     implicit none
     integer(ip) :: key, size, list(size), i
 
@@ -195,7 +195,7 @@ contains
   !*********************************************************************************
   ! Auxiliary function that says if key is in list
   !*********************************************************************************
-  logical(lg) function is_object_touched(key,list,size)
+  logical function is_object_touched(key,list,size)
     implicit none
     integer(ip) :: key, size, list(size), i
 

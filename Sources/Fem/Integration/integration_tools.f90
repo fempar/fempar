@@ -47,7 +47,7 @@ module volume_integration_tools_names
   use interpolation_names
   use femap_names
   use femap_interp_names
-  use fem_space_types_names
+  use fe_space_types_names
   implicit none
   private
 
@@ -87,13 +87,13 @@ contains
     integer(ip)            , intent(in)  :: gtype, utype
     integer(ip)            , intent(in)  :: ndime, g_ord, u_ord
     type(volume_integrator_t), intent(out) :: integ
-    logical(lg),   optional, intent(in)  :: khie
+    logical,   optional, intent(in)  :: khie
     integer(ip),   optional, intent(in)  :: mnode
 
     ! Local variables
     integer(ip) :: ngaus,lrule,llapl,gnode,unode,nlocs,i
     real(rp)    :: auxpo(max_nnode)
-    logical(lg) :: khier
+    logical :: khier
 
     ! Store identifiers of element
     !integ%ltype(1) = gtype
@@ -212,7 +212,7 @@ module face_integration_tools_names
   use face_interpolation_names
   use femap_names
   use bomap_names
-  use fem_space_types_names 
+  use fe_space_types_names 
   use volume_integration_tools_names
 
   implicit none
@@ -353,7 +353,7 @@ contains
   !   implicit none
   !   ! Parameters
   !   integer(ip)              , intent(in)    :: elem(2),face(2)
-  !   type(fem_space_t)           , intent(in)    :: geom     ! Geometry interpolation_t space
+  !   type(fe_space_t)           , intent(in)    :: geom     ! Geometry interpolation_t space
   !   type(face_integrator_t)         , intent(inout) :: integ
   !   type(list_t)               , intent(in)    :: ntxob
   !   integer(ip)              , intent(in)    :: nobje
@@ -374,14 +374,14 @@ contains
   !      poins(nnode) = geom%lelem(ielem)%elem2dof(1,ntxob%l(inode))
   !   end do
 
-  !   call gather (femsp%g_trian%num_dims,integ%gint_ref%nnode,poins,geom%lelem(ielem)%unkno,facod)
+  !   call gather (fe_space%g_trian%num_dims,integ%gint_ref%nnode,poins,geom%lelem(ielem)%unkno,facod)
   !   call bomap_from_interp(integ%gint_ref,facod,integ%bomap)
 
   !   ! Define elements map  by interpolation
-  !   call memalloc(femsp%g_trian%num_dims,integ%gfint_ref%nnode,elcod,__FILE__,__LINE__)
+  !   call memalloc(fe_space%g_trian%num_dims,integ%gfint_ref%nnode,elcod,__FILE__,__LINE__)
   !   call memalloc(integ%gfint_ref%nnode,elpos,__FILE__,__LINE__)
   !   elpos = geom%lelem(ielem)%elem2dof(1,:)
-  !   call gather (femsp%g_trian%num_dims,integ%gfint_ref%nnode,elpos,geom%lelem(ielem)%unkno,elcod)
+  !   call gather (fe_space%g_trian%num_dims,integ%gfint_ref%nnode,elpos,geom%lelem(ielem)%unkno,elcod)
   !   call femap_from_face_interp(integ%gfint_ref,elcod,face,integ%femap)
   !   call femap_face_to_interp(integ%femap,integ%ufint_ref,face,integ%ufint_phy)
   !   call femap_face_to_interp(integ%femap,integ%gfint_ref,face,integ%gfint_phy)

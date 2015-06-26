@@ -28,11 +28,11 @@
 module par_gen_triangulation_names
   use types_names
   use memor_names
-  use fem_space_types_names
+  use fe_space_types_names
   use fem_triangulation_names
   use fem_mesh_gen_distribution_names
   use fem_mesh_distribution_names
-  use fem_element_import_create_names
+  use element_import_create_names
   use hash_table_names
   use par_environment_names
   use par_triangulation_names
@@ -83,7 +83,7 @@ contains
             &                 p_cond%f_conditions,material,mdist)
 
        ! Create element_import
-       call fem_element_import_create(mdist,p_trian%f_el_import)
+       call element_import_create(mdist,p_trian%f_el_import)
        num_elems  = p_trian%f_el_import%nelem
        num_ghosts = p_trian%f_el_import%nghost
        p_trian%num_ghosts = num_ghosts

@@ -66,7 +66,7 @@ contains
 ! Any function could be used here
 # define greater(a,b) greater_by_row_element_ip(k,ld,a,b)
 # include "sort.i90"
-  logical(lg) function greater_by_row_element_ip(k,n,ia,ib)
+  logical function greater_by_row_element_ip(k,n,ia,ib)
     implicit none
     integer(ip) :: k,n,ia(n),ib(n)
     greater_by_row_element_ip = ia(k) > ib(k)
@@ -81,7 +81,7 @@ contains
 ! Any function could be used here
 # define greater(a,b) greater_by_row_element_igp(k,ld,a,b)
 # include "sort.i90"
-  logical(lg) function greater_by_row_element_igp(k,n,ia,ib)
+  logical function greater_by_row_element_igp(k,n,ia,ib)
     implicit none
     integer(ip)  :: k,n
     integer(igp) :: ia(n), ib(n)
@@ -120,7 +120,7 @@ contains
 ! Any function could be used here
 # define greater(a,b) greater_by_section_ip(k,ld,a,b)
 # include "sort.i90"
-  logical(lg) function greater_by_section_ip(k,n,ia,ib)
+  logical function greater_by_section_ip(k,n,ia,ib)
     implicit none
     integer(ip) :: k,n,ia(n),ib(n)
     integer(ip) :: i 
@@ -146,7 +146,7 @@ contains
 ! Any function could be used here
 # define greater(a,b) greater_by_section_igp(k,ld,a,b)
 # include "sort.i90"
-  logical(lg) function greater_by_section_igp(k,n,ia,ib)
+  logical function greater_by_section_igp(k,n,ia,ib)
     implicit none
     integer(ip) :: k, n
     integer(igp):: ia(n), ib(n)

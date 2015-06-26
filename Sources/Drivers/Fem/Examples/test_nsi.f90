@@ -40,11 +40,11 @@ use fem_names
   type(fem_triangulation_t)            :: f_trian
   type(fem_conditions_t)               :: f_cond
   type(dof_handler_t)                  :: dhand
-  type(fem_space_t)                    :: fspac  
+  type(fe_space_t)                     :: fe_space  
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
   type(nsi_cg_iss_matvec_t)   , target :: matvec
-  type(discrete_integration_pointer) :: approx(1)
+  type(discrete_integration_pointer)   :: approx(1)
   type(fem_matrix_t)          , target :: femat
   type(fem_vector_t)          , target :: fevec,feunk
   type(fem_precond_t)                  :: feprec
@@ -60,7 +60,7 @@ use fem_names
   type(nsi_cg_iss_error_t)    , target :: ecalc
 
   ! Logicals
-  logical(lg) :: ginfo_state
+  logical :: ginfo_state
 
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
@@ -97,7 +97,7 @@ use fem_names
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
 
   ! Generate element geometrical fixed info
-  call fem_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
+  call finite_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
 
   ! Generate triangulation
   call gen_triangulation(1,gdata,bdata,ginfo,f_trian,f_cond,material)
@@ -128,20 +128,20 @@ use fem_names
   problem                = 1
   which_approx           = 1 
   
-  ! Create fem_space
-  call fem_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
-       &                time_steps_to_store=3, hierarchical_basis=logical(.false.,lg),             &
-       &                static_condensation=logical(.false.,lg),num_continuity=1)
+  ! Create fe_space
+  call fe_space_create(f_trian,dhand,fe_space,problem,f_cond,continuity,order,material,which_approx, &
+       &                time_steps_to_store=3, hierarchical_basis=.false.,             &
+       &                static_condensation=.false.,num_continuity=1)
 
   ! Create plain vectors
-  call fem_space_plain_vector_create((/2/),fspac)
-  call fem_space_plain_vector_point(2,fspac)
+  call fe_space_plain_vector_create((/2/),fe_space)
+  call fe_space_plain_vector_point(2,fe_space)
 
   ! Initialize VTK output
-  call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix,linear_order=.true.)
+  call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
 
   ! Create dof info
-  call create_dof_info(dhand,f_trian,fspac,f_blk_graph,gtype)
+  call create_dof_info(dhand,f_trian,fe_space,f_blk_graph,gtype)
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Allocate matrices and vectors
@@ -151,12 +151,12 @@ use fem_names
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
-  call fem_update_strong_dirichlet_bcond(fspac,f_cond)
-  call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fspac)
-  call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fspac)
+  call fem_update_strong_dirichlet_bcond(fe_space,f_cond)
+  call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
+  call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
   ! Integrate
-  call volume_integral(approx,fspac,femat,fevec)
+  call volume_integral(approx,fe_space,femat,fevec)
 
   ! Define operators
   A => femat
@@ -184,7 +184,7 @@ use fem_names
   call fem_precond_free(precond_free_clean,feprec)
 
   ! Store solution to unkno
-  call fem_update_solution(feunk,fspac)
+  call fem_update_solution(feunk,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -193,7 +193,7 @@ use fem_names
   call enorm%create(2)
   call ecalc%create(myprob,mydisc)
   approx(1)%p => ecalc
-  call volume_integral(approx,fspac,enorm)
+  call volume_integral(approx,fe_space,enorm)
   write(*,*) 'Velocity error norm: ', sqrt(enorm%b(1))
   write(*,*) 'Pressure error norm: ', sqrt(enorm%b(2)) 
 
@@ -208,7 +208,7 @@ use fem_names
   call fem_vector_free(feunk)
   call fem_vector_free(fevec)
   call fem_matrix_free(femat) 
-  call fem_space_free(fspac) 
+  call fe_space_free(fe_space) 
   call myprob%free
   call mydisc%free
   call matvec%free
@@ -216,7 +216,7 @@ use fem_names
   call dof_handler_free(dhand)
   call fem_triangulation_free(f_trian)
   call fem_conditions_free(f_cond)
-  call fem_element_fixed_info_free(ginfo)
+  call finite_element_fixed_info_free(ginfo)
   call bound_data_free(bdata)
   call enorm%free
 

@@ -353,9 +353,9 @@ use psb_penv_mod_names
             par_precond_dd_mlevel_bddc_fill_val_phase_2, &
             assemble_A_c
 
-  logical (lg), parameter :: debug_verbose_level_1 = .false. 
-  logical (lg), parameter :: debug_verbose_level_2 = .false.
-  logical (lg), parameter :: debug_verbose_level_3 = .false.  ! Prints harmonic extensions 
+  logical, parameter :: debug_verbose_level_1 = .false. 
+  logical, parameter :: debug_verbose_level_2 = .false.
+  logical, parameter :: debug_verbose_level_3 = .false.  ! Prints harmonic extensions 
                                                               ! to gid files, and coarse grid system 
                                                               ! coefficient matrix to matrix market 
 

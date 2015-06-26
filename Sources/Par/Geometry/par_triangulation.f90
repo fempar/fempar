@@ -32,7 +32,7 @@ module par_triangulation_names
   use sort_names
   use migratory_element_names
   use fem_triangulation_names
-  use fem_element_import_names
+  use element_import_names
   use hash_table_names
 
   ! Parallel modules
@@ -93,7 +93,7 @@ module par_triangulation_names
      integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
      integer(ip), allocatable                :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
      type(par_environment_t),   pointer        :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
-     type(fem_element_import_t)                :: f_el_import         ! Object describing the layout in distributed-memory of the dual graph
+     type(element_import_t)                :: f_el_import         ! Object describing the layout in distributed-memory of the dual graph
                                                                     ! (It is required for nearest neighbour comms on this graph)
      integer(ip)                             :: max_nparts          ! Maximum number of parts around any vef communication object
      integer(ip)                             :: nobjs               ! Number of local vef communication objects
@@ -181,7 +181,7 @@ contains
        p_trian%num_itfc_elems = -1
        call memfree ( p_trian%lst_itfc_elems, __FILE__, __LINE__ )
        
-       call fem_element_import_free ( p_trian%f_el_import )
+       call element_import_free ( p_trian%f_el_import )
        
        ! Deallocate the element structure array */
        deallocate(p_trian%mig_elems, stat=istat)

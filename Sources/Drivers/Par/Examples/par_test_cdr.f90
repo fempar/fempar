@@ -42,7 +42,7 @@ program par_test_cdr
   type(par_environment_t)   :: p_env
   type(par_mesh_t)          :: p_mesh
   type(par_triangulation_t) :: p_trian
-  type(par_fem_space_t)     :: p_fspac
+  type(par_fe_space_t)     :: p_fe_space
 
   type(par_matrix_t), target                :: p_mat
   type(par_vector_t), target                :: p_vec, p_unk
@@ -159,16 +159,16 @@ program par_test_cdr
 
   ! Continuity
   ! write(*,*) 'Continuity', continuity
-  call par_fem_space_create ( p_trian, dhand, p_fspac, problem, &
+  call par_fe_space_create ( p_trian, dhand, p_fe_space, problem, &
                               p_cond, continuity, order, material, &
                               which_approx, time_steps_to_store = 1, &
-                              hierarchical_basis = logical(.false.,lg), &
-                              & static_condensation = logical(.false.,lg), num_continuity = 1 )
+                              hierarchical_basis = .false., &
+                              & static_condensation = .false., num_continuity = 1 )
 
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
-  call par_update_strong_dirichlet_bcond( p_fspac, p_cond )
+  call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
-  call par_create_distributed_dof_info ( dhand, p_trian, p_fspac, blk_dof_dist, p_blk_graph, gtype )  
+  call par_create_distributed_dof_info ( dhand, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, gtype )  
 
   call par_matrix_alloc ( csr_mat, symm_true, p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
@@ -179,7 +179,7 @@ program par_test_cdr
   p_unk%state = full_summed
 
   if ( p_env%am_i_fine_task() ) then
-     call volume_integral( approximations, p_fspac%f_space, p_mat%f_matrix, p_vec%f_vector)
+     call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
      !call fem_matrix_print ( 6, p_mat%f_matrix )
      !call fem_vector_print ( 6, p_vec%f_vector )
   end if
@@ -302,7 +302,7 @@ program par_test_cdr
 
   call p_blk_graph%free
   call blk_dof_dist%free
-  call par_fem_space_free(p_fspac) 
+  call par_fe_space_free(p_fe_space) 
   call my_problem%free
   call my_discrete%free
   call my_approximation%free
@@ -356,21 +356,21 @@ contains
 
   end subroutine read_pars_cl
 
-!!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
+!!$  subroutine update_strong_dirichlet_boundary_conditions( fe_space )
 !!$    implicit none
-!!$    type(fem_space_t), intent(inout)    :: fspac
+!!$    type(fe_space_t), intent(inout)    :: fe_space
 !!$    
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$
-!!$    do ielem = 1, fspac%g_trian%num_elems
-!!$       do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
-!!$          do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+!!$    do ielem = 1, fe_space%g_trian%num_elems
+!!$       do iobje = 1,fe_space%lelem(ielem)%p_geo_info%nobje
+!!$          do ivar=1, fe_space%dof_handler%problems(problem(ielem))%p%nvars
 !!$             
-!!$             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-!!$                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-!!$                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-!!$                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-!!$                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
+!!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+!!$                  &     fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+!!$                l_node = fe_space%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+!!$                if ( fe_space%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+!!$                   fe_space%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
 !!$                end if
 !!$             end do
 !!$          end do

@@ -30,7 +30,7 @@ module mesh_triangulation_names
   use memor_names
   use fem_mesh_names
   use fem_triangulation_names
-  use fem_space_types_names
+  use fe_space_types_names
   use geom2topo_names
   use fem_conditions_names
 

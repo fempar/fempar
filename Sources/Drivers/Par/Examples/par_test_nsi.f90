@@ -46,7 +46,7 @@ use lib_vtk_io_interface_names
   type(par_triangulation_t)                          :: p_trian
   type(par_conditions_t)                             :: p_cond
   type(dof_handler_t)                                :: dhand
-  type(par_fem_space_t)                              :: p_fspac  
+  type(par_fe_space_t)                              :: p_fe_space  
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
   type(nsi_cg_iss_matvec_t)                 , target :: matvec
@@ -66,7 +66,7 @@ use lib_vtk_io_interface_names
   class(base_operator_t), pointer           :: A
 
   ! Logicals
-  logical(lg) :: ginfo_state
+  logical :: ginfo_state
 
   ! Integers
   integer(ip) :: num_levels
@@ -106,7 +106,7 @@ use lib_vtk_io_interface_names
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
 
   ! Generate element geometrical fixed info
-  call fem_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
+  call finite_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
 
   ! Set levels
   num_levels = 2
@@ -161,18 +161,18 @@ use lib_vtk_io_interface_names
   problem                = 1
   which_approx           = 1 
 
-  ! Create par_fem_space
-  call par_fem_space_create(p_trian,dhand,p_fspac,problem,p_cond,continuity,order,material, &
+  ! Create par_fe_space
+  call par_fe_space_create(p_trian,dhand,p_fe_space,problem,p_cond,continuity,order,material, &
        &                    which_approx,time_steps_to_store=3,                             &
-       &                    hierarchical_basis=logical(.false.,lg),                         &
-       &                    static_condensation=logical(.false.,lg),num_continuity=1)
+       &                    hierarchical_basis=.false.,                         &
+       &                    static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
-  call fevtk%initialize(p_trian%f_trian,p_fspac%f_space,myprob,p_env,dir_path_out,prefix, &
+  call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
        &                nparts=gdata%nparts,linear_order=.true.)
 
   ! Create dof info
-  call par_create_distributed_dof_info(dhand,p_trian,p_fspac,blk_dof_dist,p_blk_graph,gtype)  
+  call par_create_distributed_dof_info(dhand,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
 
   !if(p_env%am_i_fine_task()) call par_graph_print(6,p_blk_graph%get_block(1,1))
 
@@ -191,13 +191,13 @@ use lib_vtk_io_interface_names
   
   ! Apply boundary conditions to unkno
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu = 1.0_rp
-  call par_update_strong_dirichlet_bcond(p_fspac,p_cond)
-  call par_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,p_fspac)
-  call par_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,p_fspac)
+  call par_update_strong_dirichlet_bcond(p_fe_space,p_cond)
+  call par_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,p_fe_space)
+  call par_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,p_fe_space)
 
   ! Integrate
   if(p_env%am_i_fine_task()) then
-     call volume_integral(approx,p_fspac%f_space,p_mat%f_matrix,p_vec%f_vector)
+     call volume_integral(approx,p_fe_space%fe_space,p_mat%f_matrix,p_vec%f_vector)
   end if
 
   ! Define (recursive) parameters
@@ -284,7 +284,7 @@ use lib_vtk_io_interface_names
   !call par_vector_print(6,p_unk)
 
   ! Store solution to unkno
-  call par_update_solution(p_unk,p_fspac)
+  call par_update_solution(p_unk,p_fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')
@@ -309,14 +309,14 @@ use lib_vtk_io_interface_names
   call par_vector_free (p_unk)
   call p_blk_graph%free
   call blk_dof_dist%free
-  call par_fem_space_free(p_fspac) 
+  call par_fe_space_free(p_fe_space) 
   call myprob%free
   call mydisc%free
   call matvec%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)
-  call fem_element_fixed_info_free(ginfo)
+  call finite_element_fixed_info_free(ginfo)
   call bound_data_free(bdata)
   call par_environment_free (p_env)
   call par_context_free ( b_context, .false. )

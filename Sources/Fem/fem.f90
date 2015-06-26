@@ -50,8 +50,8 @@ module fem_names
   use fem_mesh_distribution_names
   use fem_mesh_gen_distribution_names
 
-  use fem_element_import_names
-  use fem_element_import_create_names
+  use element_import_names
+  use element_import_create_names
   use fem_conditions_names
   use fem_conditions_io_names
   use fem_materials_names
@@ -91,9 +91,9 @@ module fem_names
   use base_operator_names
   
   ! Integration 
-  use fem_space_names
-  use fem_space_types_names
-  use fem_space_faces_names
+  use fe_space_names
+  use fe_space_types_names
+  use fe_space_faces_names
   use dof_handler_names
   use integration_names
   use quadrature_names

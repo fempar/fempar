@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_element_import_names
+module element_import_names
   use types_names
   use memor_names
   implicit none
@@ -34,7 +34,7 @@ module fem_element_import_names
   ! Element_Import
   ! Host for data needed to perform nearest neighbour communications for
   ! the distributed dual graph associated to the finite element mesh 
-  type fem_element_import_t
+  type element_import_t
      integer(ip)       ::          &
         ipart,                     &    ! Part identifier
         nparts                          ! Number of parts
@@ -54,25 +54,25 @@ module fem_element_import_names
         snd_ptrs(:)                     ! How many elements does does the part send to each neighbour?
      integer(ip), allocatable :: & 
         snd_leids(:)                    ! Local elements IDs of the elements to be sent to each neighbour ?
-  end type fem_element_import_t
+  end type element_import_t
 
   ! Types
-  public :: fem_element_import_t
+  public :: element_import_t
 
   ! Functions
-  public :: fem_element_import_free, fem_element_import_print
+  public :: element_import_free, element_import_print
 
 contains
 
   !=============================================================================
-  subroutine fem_element_import_free ( element_import )
+  subroutine element_import_free ( element_import )
     !-----------------------------------------------------------------------
     ! This routine frees an import object
     !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    type(fem_element_import_t), intent(inout)  :: element_import
+    type(element_import_t), intent(inout)  :: element_import
 
     ! Free lpadj vector
     call memfree ( element_import%lpadj,__FILE__,__LINE__)
@@ -86,23 +86,23 @@ contains
  
     return
 
-  end subroutine fem_element_import_free
+  end subroutine element_import_free
 
   !=============================================================================
-  subroutine fem_element_import_print (lu_out, element_import)
+  subroutine element_import_print (lu_out, element_import)
     !-----------------------------------------------------------------------
     ! This routine prints an element_import object
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    type(fem_element_import_t)   , intent(in)  :: element_import
+    type(element_import_t)   , intent(in)  :: element_import
     integer(ip)        , intent(in)  :: lu_out
 
     ! Local variables
     integer (ip) :: i, j
 
     if(lu_out>0) then
-       write(lu_out,'(a)') '*** begin fem_element_import_t data structure ***'
+       write(lu_out,'(a)') '*** begin element_import_t data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
             &  element_import%nparts
@@ -125,6 +125,6 @@ contains
        write(lu_out,'(10i10)') element_import%snd_leids
     end if
 
-  end subroutine fem_element_import_print
+  end subroutine element_import_print
 
-end module fem_element_import_names
+end module element_import_names

@@ -120,7 +120,7 @@ contains
 
   end subroutine postpro_open_file
 
-  logical(lg) function postpro_opened_file(pos)
+  logical function postpro_opened_file(pos)
     implicit none
     type(post_file_t), intent(in) :: pos
     if(pos%form==-1) then

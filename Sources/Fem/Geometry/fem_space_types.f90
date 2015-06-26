@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module fem_space_types_names
+module fe_space_types_names
 use types_names
 use memor_names
   use sort_names
@@ -93,8 +93,8 @@ use iso_c_binding
   public :: fem_fixed_info_t, fem_fixed_info_pointer_t
 
   ! Functions
-  public :: fem_element_fixed_info_create, fem_element_fixed_info_free, &
-       fem_element_fixed_info_write, permute_nodes_object, get_order
+  public :: finite_element_fixed_info_create, finite_element_fixed_info_free, &
+       finite_element_fixed_info_write, permute_nodes_object, get_order
 
   ! Functions
   public :: Q_ijkg, Q_gijk, Q_nnods, Q_set_integ
@@ -126,12 +126,12 @@ contains
 # include "mem_body.i90"
 
   !==================================================================================================
-  subroutine fem_element_fixed_info_create ( f_info, f_type, f_order, dim_space,created)
+  subroutine finite_element_fixed_info_create ( f_info, f_type, f_order, dim_space,created)
     implicit none
     ! Parameters
     type(fem_fixed_info_t),  intent(inout) :: f_info 
     integer(ip)          ,  intent(in)    :: f_type, f_order, dim_space
-    logical(lg)             ,  intent(inout) :: created
+    logical             ,  intent(inout) :: created
 
     created = .false.
     if (f_type == P_type_id) then
@@ -141,10 +141,10 @@ contains
        call Q_fixed_info_fill( f_info, dim_space,f_order)
        created = .true.
     end if
-  end subroutine fem_element_fixed_info_create
+  end subroutine finite_element_fixed_info_create
 
   !==================================================================================================
-  subroutine fem_element_fixed_info_write ( f )
+  subroutine finite_element_fixed_info_write ( f )
     implicit none
     ! Parameters
     type(fem_fixed_info_t),  intent(inout) :: f
@@ -177,10 +177,10 @@ contains
     do i=1,f%nobje+1
        write(*,*) f%crxob%l(f%crxob%p(i):f%crxob%p(i+1)-1)
     end do
-  end subroutine fem_element_fixed_info_write
+  end subroutine finite_element_fixed_info_write
 
   !==================================================================================================
-  subroutine fem_element_fixed_info_free ( f_info)
+  subroutine finite_element_fixed_info_free ( f_info)
     implicit none
     ! Parameters
     type(fem_fixed_info_t),  intent(inout) :: f_info 
@@ -201,7 +201,7 @@ contains
     call memfree(f_info%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
     call memfree(f_info%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
     call memfree(f_info%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
-  end subroutine fem_element_fixed_info_free
+  end subroutine finite_element_fixed_info_free
 
   !==================================================================================================
   ! This routine gives a permutation vector 'permu' that gives the relative position of nodes in
@@ -1621,7 +1621,7 @@ contains
     integer(ip), intent(in)  :: ndime,nlocf
 
     ! Local variables
-    logical(lg)                  :: assig = .false.
+    logical                  :: assig = .false.
     integer(ip)              :: ilocs,i,j,iface 
 
     ! Initialize
@@ -1655,6 +1655,6 @@ contains
 
   end function get_order
 
-end module fem_space_types_names
+end module fe_space_types_names
 
 

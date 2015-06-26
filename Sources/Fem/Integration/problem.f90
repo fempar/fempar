@@ -30,7 +30,7 @@ module problem_names
   use memor_names
   use array_names
   use integration_tools_names
-  use fem_element_names
+  use finite_element_names
   implicit none
   private
 
@@ -94,11 +94,11 @@ module problem_names
        class(physical_problem), target, intent(in)    :: physics
        class(discrete_problem), target, intent(in)    :: discret
      end subroutine create_integration_interface
-     subroutine compute_integration_interface(approx,elem)
-       import :: discrete_integration, fem_element_t
+     subroutine compute_integration_interface(approx,finite_element)
+       import :: discrete_integration, finite_element_t
        implicit none
        class(discrete_integration), intent(inout) :: approx
-       type(fem_element_t)        , intent(inout) :: elem
+       type(finite_element_t)     , intent(inout) :: finite_element
      end subroutine compute_integration_interface
      subroutine free_integration_interface(approx)
        import :: discrete_integration

@@ -34,8 +34,8 @@ module lib_vtk_io_interface_names
   use stdio_names
   use array_names
   use interpolation_names
-  use fem_space_types_names
-  use fem_space_names
+  use fe_space_types_names
+  use fe_space_names
   use problem_names
   use element_gather_tools_names
   use abstract_environment_names
@@ -85,8 +85,8 @@ use iso_c_binding
   ! It stores the directory path and the prefix where to write in disk
   type fem_vtk_t
      type(vtk_mesh_t), allocatable   :: mesh(:)         ! VTK mesh data and field_t descriptors
-     type(fem_space_t), pointer      :: p_f_space => NULL()  ! Poins to fem_space_t
-     class(abstract_environment), pointer      :: p_env => NULL()  ! Poins to fem_space_t
+     type(fe_space_t), pointer      :: p_fe_space => NULL()  ! Poins to fe_space_t
+     class(abstract_environment), pointer      :: p_env => NULL()  ! Poins to fe_space_t
      integer(ip)                   :: num_meshes = 0  ! Number of VTK meshes stored
      integer(ip)                   :: num_steps = 0   ! Number of time steps
      integer(ip)                   :: num_parts = 0   ! Number of parts
@@ -130,10 +130,10 @@ use iso_c_binding
 contains
 
   ! Subroutine to initialize fem_vtk_t derived type
-  subroutine initialize(f_vtk, f_trian, f_space, phys_prob, env, dir_path, prefix, root_proc, nparts, nsteps, nmesh, linear_order)
+  subroutine initialize(f_vtk, f_trian, fe_space, phys_prob, env, dir_path, prefix, root_proc, nparts, nsteps, nmesh, linear_order)
     class(fem_vtk_t),          intent(INOUT) :: f_vtk
     type(fem_triangulation_t), intent(IN)    :: f_trian
-    type(fem_space_t), target, intent(IN)    :: f_space
+    type(fe_space_t), target, intent(IN)    :: fe_space
     class(physical_problem), intent(IN)    :: phys_prob
     class(abstract_environment), target, intent(IN)    :: env
     character(len=*),        intent(IN)    :: dir_path
@@ -168,7 +168,7 @@ contains
 
     if(present(linear_order)) lo = linear_order
 
-    f_vtk%p_f_space => f_space
+    f_vtk%p_fe_space => fe_space
     f_vtk%p_env => env
 
     me = 0; np = 1
@@ -179,9 +179,9 @@ contains
 
     if(ft) then
         if(lo) then 
-          call f_vtk%initialize_linear_order(f_trian, f_space, phys_prob, dir_path, prefix, nm)
+          call f_vtk%initialize_linear_order(f_trian, fe_space, phys_prob, dir_path, prefix, nm)
         else
-          call f_vtk%initialize_superlinear_order(f_space, phys_prob, dir_path, prefix, nm)
+          call f_vtk%initialize_superlinear_order(fe_space, phys_prob, dir_path, prefix, nm)
         endif
         if(present(nmesh)) nmesh = nm
 
@@ -200,11 +200,11 @@ contains
 
 
   ! Subroutine to initialize fem_vtk_t derived type
-  subroutine initialize_linear_order(f_vtk, f_trian, f_space, phys_prob, dir_path, prefix, nmesh)
+  subroutine initialize_linear_order(f_vtk, f_trian, fe_space, phys_prob, dir_path, prefix, nmesh)
   ! ----------------------------------------------------------------------------------
     class(fem_vtk_t),          intent(INOUT) :: f_vtk
     type(fem_triangulation_t), intent(IN)    :: f_trian
-    type(fem_space_t), target, intent(IN)    :: f_space
+    type(fe_space_t), target, intent(IN)    :: fe_space
     class(physical_problem), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
@@ -222,10 +222,10 @@ contains
 
 
   ! Subroutine to initialize fem_vtk_t derived type with high order mesh
-  subroutine initialize_superlinear_order(f_vtk, f_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
+  subroutine initialize_superlinear_order(f_vtk, fe_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
   ! ----------------------------------------------------------------------------------
     class(fem_vtk_t),          intent(INOUT) :: f_vtk
-    type(fem_space_t), target, intent(IN)    :: f_space
+    type(fe_space_t), target, intent(IN)    :: fe_space
     class(physical_problem), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
@@ -235,7 +235,7 @@ contains
     integer(ip)                            :: nm
   ! ----------------------------------------------------------------------------------
 
-    call f_vtk%fill_mesh_superlinear_order(f_space, nm)
+    call f_vtk%fill_mesh_superlinear_order(fe_space, nm)
 !    call f_vtk%fill_fields_from_physical_problem(phys_prob, nm)
 
     if(present(nmesh)) nmesh = nm
@@ -309,19 +309,19 @@ contains
   ! ----------------------------------------------------------------------------------
   end subroutine fill_mesh_from_triangulation
 
-  subroutine fill_mesh_superlinear_order(f_vtk,f_space, nmesh)
+  subroutine fill_mesh_superlinear_order(f_vtk,fe_space, nmesh)
     implicit none
     ! Parmeter
     class(fem_vtk_t)    , intent(inout) :: f_vtk
-    type(fem_space_t)  , intent(in)    :: f_space
+    type(fe_space_t)  , intent(in)    :: fe_space
     integer(ip),optional      , intent(out)   :: nmesh
   
     ! Local variables
     type(vtk_mesh_t), allocatable            :: f_vtk_tmp(:)
     integer(ip)           :: ielem, subelem, order, ndime, nnode, geo_nnode
     integer(ip)           :: count_poinsX, count_subelem, lnode, gnode, num_subelems
-    integer(ip)           :: first_coord(f_space%g_trian%num_dims), g_coord(f_space%g_trian%num_dims)
-    integer(ip)           :: l_coord(f_space%g_trian%num_dims)
+    integer(ip)           :: first_coord(fe_space%g_trian%num_dims), g_coord(fe_space%g_trian%num_dims)
+    integer(ip)           :: l_coord(fe_space%g_trian%num_dims)
     type(interpolation_t)   :: interp(max_order)
     type(array_rp2_t)       :: coords(max_order)
     
@@ -346,7 +346,7 @@ contains
     ! TODO:: Do it for general type (for diferent type of interpolation_t in the same mesh also)
     ! TODO: Consider different kind of interpolation per element
     ! TODO: consider high order geometries
-    ndime = f_space%g_trian%num_dims
+    ndime = fe_space%g_trian%num_dims
 
     ! Construct of the interpolation and the nodes mapping for each order
     do order = 1, max_order
@@ -380,8 +380,8 @@ contains
     ! Count the number of subelems and points for the postprocess
     count_poinsX = 0
     count_subelem = 0
-    do ielem = 1, f_space%g_trian%num_elems
-       order = maxval(f_space%lelem(ielem)%order)
+    do ielem = 1, fe_space%g_trian%num_elems
+       order = maxval(fe_space%finite_elements(ielem)%order)
        num_subelems = Q_nnods(ndime,order-1)
        geo_nnode = interp(order)%nnode
        count_subelem = count_subelem + num_subelems
@@ -405,17 +405,17 @@ contains
     count_poinsX = 0
     count_subelem = 0
     f_vtk%mesh(f_vtk%num_meshes)%X = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Y = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Z = 0._rp
-    do ielem = 1, f_space%g_trian%num_elems
-       order = f_space%lelem(ielem)%f_inf(1)%p%order
+    do ielem = 1, fe_space%g_trian%num_elems
+       order = fe_space%finite_elements(ielem)%f_inf(1)%p%order
        num_subelems = Q_nnods(ndime,order-1)
        geo_nnode = interp(order)%nnode
        nnode     = interp(order)%nlocs
 
        ! Take the coordinates from the geometry mesh
        do lnode = 1, geo_nnode
-!          gnode = femsp%g_mesh%lnods(femsp%g_mesh%pnods(ielem)+lnode-1)
-!          coords(1)%a(:,lnode) = femsp%g_mesh%coord(:,gnode)
-            coords(1)%a(:,lnode) = f_space%g_trian%elems(ielem)%coordinates(:,lnode)
+!          gnode = fe_space%g_mesh%lnods(fe_space%g_mesh%pnods(ielem)+lnode-1)
+!          coords(1)%a(:,lnode) = fe_space%g_mesh%coord(:,gnode)
+            coords(1)%a(:,lnode) = fe_space%g_trian%elems(ielem)%coordinates(:,lnode)
        end do
 
        ! Interpolate to the coordinate of all the nodes
@@ -436,8 +436,8 @@ contains
           end do
 
           ! Store the type of element
-          assert(f_space%lelem(ielem)%p_geo_info%ftype == Q_type_id)
-          f_vtk%mesh(f_vtk%num_meshes)%ctype(count_subelem) = celltypes(ndime,f_space%lelem(ielem)%p_geo_info%ftype)          
+          assert(fe_space%finite_elements(ielem)%p_geo_info%ftype == Q_type_id)
+          f_vtk%mesh(f_vtk%num_meshes)%ctype(count_subelem) = celltypes(ndime,fe_space%finite_elements(ielem)%p_geo_info%ftype)          
 
            ! Fill offset
            f_vtk%mesh(f_vtk%num_meshes)%offset(count_subelem) = count_poinsX
@@ -561,12 +561,12 @@ contains
                         call memalloc( f_vtk%mesh(nm)%fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
             
                         do i=1, nels
-                            elnnod = f_vtk%p_f_space%lelem(i)%f_inf(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                            elnnod = f_vtk%p_fe_space%finite_elements(i)%f_inf(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
                             do j=1, elnnod
-                                nnode = f_vtk%p_f_space%lelem(i)%f_inf(curr_nvar)%p%ntxob%p(j)
-                                idx = f_vtk%p_f_space%lelem(i)%f_inf(curr_nvar)%p%ntxob%l(nnode)
+                                nnode = f_vtk%p_fe_space%finite_elements(i)%f_inf(curr_nvar)%p%ntxob%p(j)
+                                idx = f_vtk%p_fe_space%finite_elements(i)%f_inf(curr_nvar)%p%ntxob%l(nnode)
                                 field(1:f_vtk%mesh(nm)%fields(f)%num_comp,j+tnnod) = &
-                                     f_vtk%p_f_space%lelem(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%fields(f)%num_comp, tidx)
+                                     f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%fields(f)%num_comp, tidx)
                             enddo
                             tnnod = tnnod + elnnod 
                         enddo
@@ -954,7 +954,7 @@ contains
     f_vtk%num_steps = 0
     f_vtk%num_parts = 0
     f_vtk%root_proc = 0
-    f_vtk%p_f_space => NULL()
+    f_vtk%p_fe_space => NULL()
     f_vtk%p_env => NULL()
   ! ----------------------------------------------------------------------------------
   end subroutine free

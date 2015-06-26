@@ -29,8 +29,8 @@ module geom2topo_names
   use types_names
   use memor_names
   use fem_mesh_names
-  use fem_space_names
-  use fem_space_types_names
+  use fe_space_names
+  use fe_space_types_names
   use interpolation_names
   use fem_conditions_names
   !use element_gather_tools
@@ -86,7 +86,7 @@ contains
     integer(ip), allocatable :: nd_jf(:), fnode(:)
     integer(ip), allocatable :: nelpo_aux(:), lelpo_aux(:), aux1(:)
     integer(ip), allocatable :: edgeint(:,:), faceint(:,:)
-    logical(lg)              :: created,kfl_bc
+    logical              :: created,kfl_bc
 
     ! Create ocnd flag
     kfl_bc = (present(gcnd) .and. present(ocnd))
@@ -110,7 +110,7 @@ contains
     end if
     
     ! Construct fem_fixed_info
-    call fem_element_fixed_info_create(f_inf,etype,1,gmsh%ndime,created)
+    call finite_element_fixed_info_create(f_inf,etype,1,gmsh%ndime,created)
     assert(created)
 
     ! Construct the array of #objects(nodim) and #nodesxobject(nndim) for each dimension
@@ -446,7 +446,7 @@ contains
     omsh%nnode = gmsh%nnode + nodim(2) + nodim(3)
 
     ! Deallocate auxiliar arrays
-    call fem_element_fixed_info_free(f_inf)
+    call finite_element_fixed_info_free(f_inf)
     call memfree(edgeint,__FILE__,__LINE__)
     if(gmsh%ndime==3) call memfree(faceint,__FILE__,__LINE__)
   end subroutine geom2topo_mesh_cond
