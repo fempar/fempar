@@ -28,7 +28,7 @@
 module fem_update_names
   use types_names
   use memor_names
-  use fem_space_names
+  use fe_space_names
   use fem_vector_names
   use fem_block_vector_names
   use fem_conditions_names
@@ -54,7 +54,7 @@ contains
     !   This subroutine updates Dirichlet boundary conditions in unkno from fem_conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_space_t)     , intent(inout) :: fspac
+    type(fe_space_t)     , intent(inout) :: fspac
     type(fem_conditions_t), intent(in)    :: fcond
     ! Locals
     integer(ip) :: ielem, iobje, ivar, inode, l_node, gvar, lobje, prob
@@ -87,7 +87,7 @@ contains
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     integer(ip)          , intent(in)    :: case
     real(rp)             , intent(in)    :: ctime
-    type(fem_space_t)      , intent(inout) :: fspac
+    type(fe_space_t)      , intent(inout) :: fspac
     integer(ip), optional, intent(in)    :: caset,t
     ! Locals
     integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
@@ -175,7 +175,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(fem_vector_t)     , intent(in)    :: fevec   
-    type(fem_space_t)      , intent(inout) :: fspac
+    type(fe_space_t)      , intent(inout) :: fspac
     integer(ip), optional, intent(in)    :: iblock
     ! Locals
     integer(ip) :: ielem,iblock_,iprob,nvapb,ivar,lvar,inode,idof
@@ -216,7 +216,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(fem_block_vector_t), intent(in)    :: blvec   
-    type(fem_space_t)       , intent(inout) :: fspac
+    type(fe_space_t)       , intent(inout) :: fspac
     ! Locals
     integer(ip) :: iblock
 

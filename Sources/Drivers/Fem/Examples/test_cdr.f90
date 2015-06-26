@@ -37,7 +37,7 @@ program test_cdr
   type(fem_matrix_t)         :: f_mat
   type(fem_conditions_t)     :: f_cond
   type(dof_handler_t)        :: dhand
-  type(fem_space_t)          :: fspac
+  type(fe_space_t)          :: fspac
   type(fem_graph_t), pointer :: f_graph
   type(fem_block_graph_t)    :: f_blk_graph
   integer(ip)              :: gtype(1) = (/ csr_symm /)
@@ -129,7 +129,7 @@ program test_cdr
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call fem_space_create ( f_trian, dhand, fspac, problem, f_cond, continuity, order, material, &
+  call fe_space_create ( f_trian, dhand, fspac, problem, f_cond, continuity, order, material, &
        & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
 
@@ -201,7 +201,7 @@ program test_cdr
   call fem_vector_free( feunk )
   call fem_vector_free( my_vector )
   call fem_matrix_free( my_matrix) 
-  call fem_space_free(fspac) 
+  call fe_space_free(fspac) 
   call my_problem%free
   call my_discrete%free
   call my_approximation%free
@@ -242,7 +242,7 @@ contains
 !!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
 !!$    implicit none
 !!$
-!!$    type(fem_space_t), intent(inout)    :: fspac
+!!$    type(fe_space_t), intent(inout)    :: fspac
 !!$
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$

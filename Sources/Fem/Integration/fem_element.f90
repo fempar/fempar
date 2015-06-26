@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module fem_element_names
+module finite_element_names
   ! Modules
   use types_names
   use memor_names
@@ -34,7 +34,7 @@ module fem_element_names
   use integration_tools_names
   use interpolation_tools_names
   !use face_integration_names
-  use fem_space_types_names
+  use fe_space_types_names
   !use dof_handler_names
   use migratory_element_names
   !use fem_conditions_names
@@ -46,7 +46,7 @@ module fem_element_names
   private
 
   ! Information of each element of the FE space
-  type, extends(migratory_element) :: fem_element_t
+  type, extends(migratory_element) :: finite_element_t
      
      ! Reference element info          
      type(fem_fixed_info_pointer_t), allocatable :: f_inf(:)    ! Topology of the reference finite element
@@ -85,10 +85,10 @@ module fem_element_names
      type(array_rp1_t), pointer :: p_vec ! Pointer to the elemental vector_t
 
    contains
-     procedure :: size   => fem_element_size
-     procedure :: pack   => fem_element_pack
-     procedure :: unpack => fem_element_unpack
-  end type fem_element_t
+     procedure :: size   => finite_element_size
+     procedure :: pack   => finite_element_pack
+     procedure :: unpack => finite_element_unpack
+  end type finite_element_t
 
   ! Information relative to the faces
   type fem_face_t
@@ -110,16 +110,16 @@ module fem_element_names
   end type fem_face_t
 
   ! Types
-  public :: fem_element_t, fem_face_t
+  public :: finite_element_t, fem_face_t
 
   ! Methods
-  public :: fem_element_print, fem_element_free_unpacked, impose_strong_dirichlet_data
+  public :: finite_element_print, finite_element_free_unpacked, impose_strong_dirichlet_data
 
 contains
-  subroutine fem_element_print ( lunou, elm )
+  subroutine finite_element_print ( lunou, elm )
     implicit none
     integer(ip)      , intent(in) :: lunou
-    type(fem_element_t), intent(in) :: elm
+    type(finite_element_t), intent(in) :: elm
 
     integer(ip) :: ivar
 
@@ -152,13 +152,13 @@ contains
 
     write (lunou,*) 'Unknown values: ', elm%unkno
 
-  end subroutine fem_element_print
+  end subroutine finite_element_print
 
    ! SB.alert : to be thought now
 
-  subroutine fem_element_size (my, n)
+  subroutine finite_element_size (my, n)
     implicit none
-    class(fem_element_t), intent(in)  :: my
+    class(finite_element_t), intent(in)  :: my
     integer(ip)            , intent(out) :: n
     
     ! Locals
@@ -169,11 +169,11 @@ contains
 
     n = size_of_ip*3 + 2*size_of_ip*(my%num_vars)
 
-  end subroutine fem_element_size
+  end subroutine finite_element_size
 
-  subroutine fem_element_pack (my, n, buffer)
+  subroutine finite_element_pack (my, n, buffer)
     implicit none
-    class(fem_element_t), intent(in)  :: my
+    class(finite_element_t), intent(in)  :: my
     integer(ip)            , intent(in)   :: n
     integer(ieep)            , intent(out)  :: buffer(n)
     
@@ -205,11 +205,11 @@ contains
     end   = start + my%num_vars*size_of_ip - 1
     buffer(start:end) = transfer(my%continuity,mold)
 
-  end subroutine fem_element_pack
+  end subroutine finite_element_pack
 
-  subroutine fem_element_unpack(my, n, buffer)
+  subroutine finite_element_unpack(my, n, buffer)
     implicit none
-    class(fem_element_t), intent(inout) :: my
+    class(finite_element_t), intent(inout) :: my
     integer(ip)            , intent(in)     :: n
     integer(ieep)            , intent(in)     :: buffer(n)
 
@@ -244,22 +244,22 @@ contains
     end   = start + my%num_vars*size_of_ip - 1
     my%continuity = transfer(buffer(start:end), my%continuity)
     
-  end subroutine fem_element_unpack
+  end subroutine finite_element_unpack
 
-  subroutine fem_element_free_unpacked(my)
+  subroutine finite_element_free_unpacked(my)
     implicit none
-    type(fem_element_t), intent(inout) :: my
+    type(finite_element_t), intent(inout) :: my
 
     call memfree( my%order, __FILE__, __LINE__ )
     call memfree( my%continuity, __FILE__, __LINE__ )
     
-  end subroutine fem_element_free_unpacked
+  end subroutine finite_element_free_unpacked
 
  !=============================================================================
   subroutine impose_strong_dirichlet_data (el) 
     implicit none
     ! Parameters
-    type(fem_element_t)    , intent(inout)  :: el
+    type(finite_element_t)    , intent(inout)  :: el
 
     ! Locals
     integer(ip) :: iprob, count, ivars, inode, idof
@@ -283,4 +283,4 @@ contains
 
   end subroutine impose_strong_dirichlet_data
 
-end module fem_element_names
+end module finite_element_names

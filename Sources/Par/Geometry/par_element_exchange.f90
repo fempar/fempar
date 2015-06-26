@@ -29,7 +29,7 @@ module par_element_exchange_names
    ! Serial modules
    use types_names
    use memor_names
-   use fem_element_import_names
+   use element_import_names
    use migratory_element_names
 
    implicit none
@@ -46,7 +46,7 @@ contains
     implicit none
     ! Locals 
     integer(ip)              :: icontxt
-    type(fem_element_import_t) :: f_el_import
+    type(element_import_t) :: f_el_import
     ! Data is an array of polymorphic entries     
     class(migratory_element) :: data(f_el_import%nelem + f_el_import%nghost)
    

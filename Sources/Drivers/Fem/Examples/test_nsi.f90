@@ -40,7 +40,7 @@ use lib_vtk_io_interface_names
   type(fem_triangulation_t)            :: f_trian
   type(fem_conditions_t)               :: f_cond
   type(dof_handler_t)                  :: dhand
-  type(fem_space_t)                    :: fspac  
+  type(fe_space_t)                    :: fspac  
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
   type(nsi_cg_iss_matvec_t)   , target :: matvec
@@ -95,7 +95,7 @@ use lib_vtk_io_interface_names
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
 
   ! Generate element geometrical fixed info
-  call fem_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
+  call finite_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
 
   ! Generate triangulation
   call gen_triangulation(1,gdata,bdata,ginfo,f_trian,f_cond,material)
@@ -126,8 +126,8 @@ use lib_vtk_io_interface_names
   problem                = 1
   which_approx           = 1 
   
-  ! Create fem_space
-  call fem_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
+  ! Create fe_space
+  call fe_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
        &                time_steps_to_store=3, hierarchical_basis=.false.,             &
        &                static_condensation=.false.,num_continuity=1)
 
@@ -194,14 +194,14 @@ use lib_vtk_io_interface_names
   call fem_vector_free(feunk)
   call fem_vector_free(fevec)
   call fem_matrix_free(femat) 
-  call fem_space_free(fspac) 
+  call fe_space_free(fspac) 
   call myprob%free
   call mydisc%free
   call matvec%free
   call dof_handler_free(dhand)
   call fem_triangulation_free(f_trian)
   call fem_conditions_free(f_cond)
-  call fem_element_fixed_info_free(ginfo)
+  call finite_element_fixed_info_free(ginfo)
   call bound_data_free(bdata)
 
   call memstatus

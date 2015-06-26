@@ -33,16 +33,16 @@ module block_dof_distribution_create_names
   use maps_names
   use dof_import_names
   use dof_handler_names
-  use fem_space_types_names
-  use fem_space_names
-  use fem_element_names
+  use fe_space_types_names
+  use fe_space_names
+  use finite_element_names
   use hash_table_names
 
   ! Parallel modules
   use block_dof_distribution_names
   use dof_distribution_names  
   use par_triangulation_names
-  use par_fem_space_names
+  use par_fe_space_names
 use psb_penv_mod_names
 
   implicit none
@@ -84,7 +84,7 @@ contains
 
     ! Parameters
     type(par_triangulation_t)     , intent(in)     :: p_trian
-    type(par_fem_space_t)         , intent(inout)  :: p_femsp
+    type(par_fe_space_t)         , intent(inout)  :: p_femsp
     type(block_dof_distribution_t), intent(inout)  :: blk_dof_dist
 
     ! Locals
@@ -883,7 +883,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock
     type(par_triangulation_t), intent(in)         :: p_trian 
-    type(fem_space_t), intent(in)                 :: femsp
+    type(fe_space_t), intent(in)                 :: femsp
     type(dof_handler_t), intent(in)               :: dhand
     integer(ip), intent(inout)                  :: count_interior, dofs_object(:)
 
@@ -936,7 +936,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock
     type(par_triangulation_t), intent(in)         :: p_trian 
-    type(fem_space_t), intent(in)                 :: femsp
+    type(fe_space_t), intent(in)                 :: femsp
     type(dof_handler_t), intent(in)               :: dhand
     integer(ip), intent(inout)                  :: count_object_dof, count_interior, dofs_object_interior(:), dofs_object_interface(:)
     integer(ip), intent(inout)                  :: est_max_nparts, touch(:,:,:)
@@ -1055,7 +1055,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock
     type(par_triangulation_t), intent(in)         :: p_trian 
-    type(fem_space_t), intent(in)                 :: femsp
+    type(fe_space_t), intent(in)                 :: femsp
     type(dof_handler_t), intent(in)               :: dhand
     integer(ip), intent(inout)                  :: count_interior, count_obj_dof
     integer(ip), intent(inout)                  :: dofs_object_interior(:), dofs_object_interface(:), est_max_nparts
@@ -1188,7 +1188,7 @@ contains
   integer(ip) function local_node( g_dof, iobj, elem, l_var, nobje, objects )
     implicit none
     integer(ip) :: g_dof, iobj, l_node, l_var, nobje, objects(:)
-    type(fem_element_t) :: elem
+    type(finite_element_t) :: elem
 
     integer(ip) :: inode, obje_l
 

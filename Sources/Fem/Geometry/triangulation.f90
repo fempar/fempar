@@ -29,7 +29,7 @@
 module fem_triangulation_names
   use types_names
   use memor_names
-  use fem_space_types_names
+  use fe_space_types_names
   use hash_table_names
   implicit none
   private
@@ -128,7 +128,7 @@ contains
 
     ! Deallocate fixed info
     do iobj = 1,trian%pos_elem_info%last()
-       call fem_element_fixed_info_free (trian%lelem_info(iobj))
+       call finite_element_fixed_info_free (trian%lelem_info(iobj))
     end do
     call trian%pos_elem_info%free
 
@@ -347,7 +347,7 @@ contains
     call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
     if ( istat == new_index) then
        ! Create fixed info if not constructed
-       call fem_element_fixed_info_create(trian%lelem_info(pos_elinf),etype,  &
+       call finite_element_fixed_info_create(trian%lelem_info(pos_elinf),etype,  &
             &                                     1,ndime,created)
     end if
     trian%elems(ielem)%topology => trian%lelem_info(pos_elinf)
@@ -419,7 +419,7 @@ contains
        write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'order:', trian%elems(ielem)%order
 
-       !call fem_element_fixed_info_write ( trian%elems(ielem)%topology )
+       !call finite_element_fixed_info_write ( trian%elems(ielem)%topology )
 
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
     end do

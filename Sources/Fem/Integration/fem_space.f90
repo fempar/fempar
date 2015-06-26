@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_space_names
+module fe_space_names
   ! Modules
   use types_names
   use memor_names
@@ -36,11 +36,11 @@ module fem_space_names
   use integration_tools_names
   use interpolation_tools_names
   !use face_integration_names
-  use fem_space_types_names
+  use fe_space_types_names
   use dof_handler_names
   use migratory_element_names
   use fem_conditions_names
-  use fem_element_names
+  use finite_element_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -51,20 +51,20 @@ module fem_space_names
 
   integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
 
-  ! Global information of the fem_space
-  type fem_space_t  
+  ! Global information of the fe_space
+  type fe_space_t  
 
      integer(ip)                           :: num_continuity       ! Number of materials (maximum value)
      logical                           :: static_condensation  ! Flag for static condensation 
      logical                           :: hierarchical_basis   ! Flag for hierarchical basis
      class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list_t
-     type(fem_element_t)       , pointer     :: lelem(:)             ! List of FEs
+     type(finite_element_t)       , pointer     :: lelem(:)             ! List of FEs
      type(fem_face_t)          , allocatable :: lface(:)             ! List of active faces
 
      type(fem_triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler_t)        , pointer :: dof_handler
 
-     ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
+     ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elmatvec
      type(array_rp2_t)                    :: lelmat(max_global_interpolations)
      type(array_rp1_t)                    :: lelvec(max_global_interpolations)
@@ -79,7 +79,7 @@ module fem_space_names
      type(position_hash_table_t)          :: pos_interpolator
      type(array_rp2_t)                    :: linter(max_global_interpolations)
 
-     ! Array of reference elements (to be pointed from fem_elements)
+     ! Array of reference elements (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elem_info
      type(fem_fixed_info_t)               :: lelem_info(max_elinf)
 
@@ -94,27 +94,27 @@ module fem_space_names
 
      ! Much better here rather than as a module variable
      !type(list_t) :: void_list_t
-  end type fem_space_t
+  end type fe_space_t
 
   ! Types
-  public :: fem_space_t
+  public :: fe_space_t
 
   ! Methods
-  public :: fem_space_create, fem_space_print, fem_space_free, &
-       &    integration_faces_list, fem_space_allocate_structures, &
-       &    fem_space_fe_list_create
+  public :: fe_space_create, fe_space_print, fe_space_free, &
+       &    integration_faces_list, fe_space_allocate_structures, &
+       &    fe_space_fe_list_create
 
 contains
 
   !==================================================================================================
-  ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_create( g_trian, dofh, fspac, problem, bcond, continuity, order, material, & 
+  ! Allocation of variables in fe_space according to the values in g_trian
+  subroutine fe_space_create( g_trian, dofh, fspac, problem, bcond, continuity, order, material, & 
                                which_approx, time_steps_to_store, hierarchical_basis,  & 
                                static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fem_triangulation_t), target, intent(in)    :: g_trian   
     type(dof_handler_t)      , target, intent(in)    :: dofh
-    type(fem_space_t)        , target, intent(inout) :: fspac
+    type(fe_space_t)        , target, intent(inout) :: fspac
     integer(ip)                    , intent(in)    :: problem(:)
     type(fem_conditions_t)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
@@ -129,7 +129,7 @@ contains
 
     integer(ip) :: istat, num_ghosts_
 
-    call fem_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store = time_steps_to_store,&
+    call fe_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store = time_steps_to_store,&
          hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
           num_continuity = num_continuity, num_ghosts = num_ghosts )  
 
@@ -138,18 +138,18 @@ contains
 !!$   write (*,*) 'XXX', num_approximations, istat
 !!$   check (istat == 0)    
 
-    call fem_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material, bcond )
+    call fe_space_fe_list_create ( fspac, problem, which_approx, continuity, order, material, bcond )
 
     call integration_faces_list( fspac )
 
-  end subroutine fem_space_create
+  end subroutine fe_space_create
 
   !==================================================================================================
-  ! Allocation of variables in fem_space according to the values in g_trian
-  subroutine fem_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store, &
+  ! Allocation of variables in fe_space according to the values in g_trian
+  subroutine fe_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store, &
        & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
-    type(fem_space_t)   ,  target, intent(inout)                :: fspac
+    type(fe_space_t)   ,  target, intent(inout)                :: fspac
     type(fem_triangulation_t)   , intent(in), target   :: g_trian   
     type(dof_handler_t) , intent(in), target           :: dofh  
     integer(ip), optional, intent(in) :: time_steps_to_store
@@ -195,11 +195,11 @@ contains
        num_ghosts_ = 0
     end if
 
-    allocate( fem_element_t :: fspac%mig_elems(g_trian%num_elems + num_ghosts_), stat=istat)
+    allocate( finite_element_t :: fspac%mig_elems(g_trian%num_elems + num_ghosts_), stat=istat)
     check ( istat == 0 )
     
     select type( this => fspac%mig_elems )
-    type is(fem_element_t)
+    type is(finite_element_t)
        fspac%lelem => this
     end select
 
@@ -222,14 +222,14 @@ contains
     ! Initialization of interpolation array
     call fspac%pos_interpolator%init(ht_length)
 
-  end subroutine fem_space_allocate_structures
+  end subroutine fe_space_allocate_structures
 
   !==================================================================================================
-  ! Fill the fem_space_t assuming that all elements are of type f_type but each variable has different
+  ! Fill the fe_space_t assuming that all elements are of type f_type but each variable has different
   ! interpolation order
-  subroutine fem_space_fe_list_create( fspac, problem, which_approx, continuity, order, material, bcond )
+  subroutine fe_space_fe_list_create( fspac, problem, which_approx, continuity, order, material, bcond )
     implicit none
-    type(fem_space_t), intent(inout), target  :: fspac
+    type(fe_space_t), intent(inout), target  :: fspac
     integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
     integer(ip)    , intent(in)       :: continuity(:,:), which_approx(:)
     type(fem_conditions_t), intent(in)  :: bcond
@@ -313,7 +313,7 @@ contains
           v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           call fspac%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
-             call fem_element_fixed_info_create(fspac%lelem_info(pos_elinf),f_type,              &
+             call finite_element_fixed_info_create(fspac%lelem_info(pos_elinf),f_type,              &
                   &                             f_order,dim,created)
              assert(created)
           end if
@@ -336,7 +336,7 @@ contains
        v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        call fspac%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
        if ( istat == new_index) then 
-          call fem_element_fixed_info_create(fspac%lelem_info(pos_elinf),f_type,              &
+          call finite_element_fixed_info_create(fspac%lelem_info(pos_elinf),f_type,              &
                &                             1,dim,created)
           assert(created)
        end if
@@ -410,7 +410,7 @@ contains
 
     end do
 
-  end subroutine fem_space_fe_list_create
+  end subroutine fe_space_fe_list_create
 
   !==================================================================================================
   subroutine dof_to_elnod( el2dof, idof, ivar, nobje, pnodob, lnode )
@@ -438,10 +438,10 @@ contains
 
   end subroutine dof_to_elnod
 
-  subroutine fem_space_print ( lunou, femsp, num_ghosts )
+  subroutine fe_space_print ( lunou, femsp, num_ghosts )
     implicit none
     integer(ip)      , intent(in) :: lunou
-    type(fem_space_t), intent(in) :: femsp
+    type(fe_space_t), intent(in) :: femsp
     integer(ip), optional, intent(in) :: num_ghosts    
 
     integer(ip) :: ielem, num_ghosts_
@@ -459,7 +459,7 @@ contains
     write (lunou,*) '****PRINT ELEMENT LIST INFO****'
     do ielem = 1, femsp%g_trian%num_elems + num_ghosts_
        write (lunou,*) '****PRINT ELEMENT ',ielem,' INFO****'
-       call fem_element_print ( lunou, femsp%lelem(ielem) )
+       call finite_element_print ( lunou, femsp%lelem(ielem) )
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
     end do
 
@@ -469,12 +469,12 @@ contains
     write (lunou,*) 'Interior faces: ', femsp%interior_faces(:)%face_object
     
 
-  end subroutine fem_space_print
+  end subroutine fe_space_print
 
  !==================================================================================================
-  subroutine fem_space_free ( f )
+  subroutine fe_space_free ( f )
     implicit none
-    type(fem_space_t), intent(inout) :: f
+    type(fe_space_t), intent(inout) :: f
     integer(ip)                    :: i,j
     integer(ip) :: istat
 
@@ -557,7 +557,7 @@ contains
     call f%pos_volume_integrator%free
 
     do i = 1,f%pos_elem_info%last()
-       call fem_element_fixed_info_free (f%lelem_info(i))
+       call finite_element_fixed_info_free (f%lelem_info(i))
     end do
     call f%pos_elem_info%free
 
@@ -586,11 +586,11 @@ contains
     deallocate( f%boundary_faces, stat=istat)
     check ( istat == 0 )
 
-  end subroutine fem_space_free
+  end subroutine fe_space_free
 
   subroutine get_p_faces ( fspac, trian )
     implicit none
-    type(fem_space_t), intent(in)  :: fspac
+    type(fe_space_t), intent(in)  :: fspac
     type(fem_triangulation_t), intent(inout)    :: trian
 
     !   integer(ip) :: i
@@ -609,7 +609,7 @@ contains
   subroutine integration_faces_list( femsp ) 
     implicit none
     ! Parameters
-    type(fem_space_t), intent(inout)               :: femsp
+    type(fe_space_t), intent(inout)               :: femsp
 
     integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
     integer(ip) :: g_var, iprob, jprob, ivars, jvars
@@ -685,5 +685,5 @@ contains
 
   end subroutine integration_faces_list
 
-end module fem_space_names
+end module fe_space_names
 

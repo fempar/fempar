@@ -32,7 +32,7 @@ module par_update_names
   use fem_update_names
 
   ! Parallel modules
-  use par_fem_space_names
+  use par_fe_space_names
   use par_conditions_names
   use par_vector_names
   use par_block_vector_names
@@ -56,7 +56,7 @@ contains
     !   This subroutine updates Dirichlet boundary conditions in unkno from par_conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_fem_space_t) , intent(inout) :: p_fspac
+    type(par_fe_space_t) , intent(inout) :: p_fspac
     type(par_conditions_t), intent(in)    :: p_cond
 
     ! Parallel environment MUST BE already created
@@ -79,7 +79,7 @@ contains
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     integer(ip)          , intent(in)    :: case
     real(rp)             , intent(in)    :: ctime
-    type(par_fem_space_t)  , intent(inout) :: p_fspac
+    type(par_fe_space_t)  , intent(inout) :: p_fspac
     integer(ip), optional, intent(in)    :: caset,t
 
     ! Parallel environment MUST BE already created
@@ -100,7 +100,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_vector_t)     , intent(in)    :: p_vec   
-    type(par_fem_space_t)  , intent(inout) :: p_fspac
+    type(par_fe_space_t)  , intent(inout) :: p_fspac
     integer(ip), optional, intent(in)    :: iblock
 
     ! Parallel environment MUST BE already created
@@ -121,7 +121,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_block_vector_t), intent(in)    :: blk_p_vec   
-    type(par_fem_space_t)   , intent(inout) :: p_fspac
+    type(par_fe_space_t)   , intent(inout) :: p_fspac
     ! Locals
     integer(ip) :: iblock
 

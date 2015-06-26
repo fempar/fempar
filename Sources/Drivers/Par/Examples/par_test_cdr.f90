@@ -42,7 +42,7 @@ program par_test_cdr
   type(par_environment_t)   :: p_env
   type(par_mesh_t)          :: p_mesh
   type(par_triangulation_t) :: p_trian
-  type(par_fem_space_t)     :: p_fspac
+  type(par_fe_space_t)     :: p_fspac
 
   type(par_matrix_t), target                :: p_mat
   type(par_vector_t), target                :: p_vec, p_unk
@@ -159,7 +159,7 @@ program par_test_cdr
 
   ! Continuity
   ! write(*,*) 'Continuity', continuity
-  call par_fem_space_create ( p_trian, dhand, p_fspac, problem, &
+  call par_fe_space_create ( p_trian, dhand, p_fspac, problem, &
                               p_cond, continuity, order, material, &
                               which_approx, time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
@@ -302,7 +302,7 @@ program par_test_cdr
 
   call p_blk_graph%free
   call blk_dof_dist%free
-  call par_fem_space_free(p_fspac) 
+  call par_fe_space_free(p_fspac) 
   call my_problem%free
   call my_discrete%free
   call my_approximation%free
@@ -358,7 +358,7 @@ contains
 
 !!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
 !!$    implicit none
-!!$    type(fem_space_t), intent(inout)    :: fspac
+!!$    type(fe_space_t), intent(inout)    :: fspac
 !!$    
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$

@@ -28,7 +28,7 @@
 module quadrature_faces_names
   use types_names
   use memor_names
-  use fem_space_types_names
+  use fe_space_types_names
   use quadrature_names
 
 # include "debug.i90"

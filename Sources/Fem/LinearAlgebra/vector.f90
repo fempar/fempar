@@ -240,7 +240,7 @@ contains
   ! subroutine fem_vector_assembly_w_dof_handler(nn, dofh, el, l2g, ev, vec)
   !   implicit none
   !   type(dof_handler_t), intent(in)    :: dofh
-  !   type(fem_element_t), intent(in)    :: el
+  !   type(finite_element_t), intent(in)    :: el
   !   type(elvec) ,      intent(in)    :: ev
   !   integer(ip) ,      intent(in)    :: nn(:)
   !   type(fem_vector_t),  intent(inout) :: vec
@@ -271,7 +271,7 @@ contains
  !    implicit none
  !    integer(ip) ,      intent(in)    :: nn(:)
  !    type(dof_handler_t), intent(in)    :: dofh
- !    type(fem_element_t), intent(in)    :: el
+ !    type(finite_element_t), intent(in)    :: el
  !    type(fem_blocks),  intent(in)    :: bl
  !    type(elvec) ,      intent(in)    :: ev
  !    type(fem_vector_t),  intent(inout) :: vec
@@ -287,7 +287,7 @@ contains
  !    implicit none
  !    integer(ip) ,      intent(in)        :: nn(2)
  !    type(dof_handler_t), intent(in)        :: dofh
- !    type(fem_element_t), intent(in)        :: el1,el2
+ !    type(finite_element_t), intent(in)        :: el1,el2
  !    type(elvec) ,      intent(in)        :: ev
  !    integer(ip),       intent(inout)     :: l2g((nn(1)+nn(2))*dofh%nvarsxprob(el1%prob))
  !    type(fem_vector_t),  intent(inout)     :: vec

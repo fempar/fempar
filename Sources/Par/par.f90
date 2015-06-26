@@ -58,7 +58,7 @@ use par_dd_base_names
   use par_precond_dd_identity_names
 
   ! Integration
-  use par_fem_space_names
+  use par_fe_space_names
   use par_create_global_dof_info_names
     
 end module par_names

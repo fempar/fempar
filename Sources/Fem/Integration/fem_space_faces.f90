@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_space_faces_names
+module fe_space_faces_names
   use types_names
   use memor_names
   use hash_table_names
@@ -33,8 +33,8 @@ module fem_space_faces_names
   !use integration_names
   use integration_tools_names
   !  use fem_mesh_faces
-  use fem_space_names
-  use fem_space_types_names
+  use fe_space_names
+  use fe_space_types_names
   use fem_triangulation_names
   use array_names
 
@@ -44,15 +44,15 @@ module fem_space_faces_names
   private
   integer(ip), parameter :: max_subfaces = 4
   ! Functions
-  public :: fem_space_faces_list_create
+  public :: fe_space_faces_list_create
 
 contains
 
   !===================================================================================================
-  subroutine fem_space_faces_list_create( trian, femsp )
+  subroutine fe_space_faces_list_create( trian, femsp )
     implicit none
     ! Parameters
-    type(fem_space_t)      , intent(inout),target  :: femsp
+    type(fe_space_t)      , intent(inout),target  :: femsp
     type(fem_triangulation_t)   , intent(in), target   :: trian   
 
     ! Local variables
@@ -130,7 +130,7 @@ contains
 
     ! SB.alert : o2n pending... to be reconsidered. What does the key depend on? Hash table, etc.
 
-  end subroutine fem_space_faces_list_create
+  end subroutine fe_space_faces_list_create
 
   integer(ip) function local_position(key,list,size)
     implicit none
@@ -143,4 +143,4 @@ contains
 
   end function local_position
 
-end module fem_space_faces_names
+end module fe_space_faces_names

@@ -43,7 +43,7 @@ module interpolation_tools_names
 #ifdef memcheck
   use iso_c_binding
 #endif
-  use fem_space_types_names
+  use fe_space_types_names
   use interpolation_names
   use array_names
   implicit none

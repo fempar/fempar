@@ -31,7 +31,7 @@ module fem_mesh_gen_distribution_names
   use fem_triangulation_names
   use fem_mesh_distribution_names
   use fem_materials_names
-  use fem_space_types_names
+  use fe_space_types_names
   use maps_names
   implicit none
 # include "debug.i90"

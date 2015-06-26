@@ -34,7 +34,7 @@ use memor_names
  use nsi_names
  use element_fields_names
  use element_tools_names
- use fem_element_names
+ use finite_element_names
  implicit none
  private 
 
@@ -148,7 +148,7 @@ contains
     implicit none
     class(nsi_cg_asgs_approximation_t), intent(inout) :: approx
     integer(ip)                     , intent(in)    :: start(:)
-    type(fem_element_t)               , intent(inout) :: elem
+    type(finite_element_t)               , intent(inout) :: elem
 
     type(basis_function_t) :: u ! Trial
     type(basis_function_t) :: p 

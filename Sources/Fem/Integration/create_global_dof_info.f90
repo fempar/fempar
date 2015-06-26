@@ -30,9 +30,9 @@ module create_global_dof_info_names
   use array_names
   use memor_names
   use fem_triangulation_names
-  use fem_space_names
+  use fe_space_names
   use dof_handler_names
-  use fem_space_types_names
+  use fe_space_types_names
   use hash_table_names
   use fem_graph_names
   use fem_block_graph_names
@@ -58,10 +58,10 @@ contains
   !    in *par_create_global_dof_info_names* for more insight)
 
   ! NOTE: In order to understand the following subroutines, it is useful to know that 
-  ! currently, the *par_fem_space* (parallel) has a pointer to a *fem_space*, which 
+  ! currently, the *par_fe_space* (parallel) has a pointer to a *fe_space*, which 
   ! has not info about the distributed environment (since it is a serial object),
   ! but it includes the *num_elems* local elements + *num_ghosts* ghost elements.
-  ! The ghost part is filled in *par_fem_space_create*. Thus, we know if we have a
+  ! The ghost part is filled in *par_fe_space_create*. Thus, we know if we have a
   ! local or ghost element below checking whether *ielem* <=  *num_elems* (local)
   ! or not. We are using this trick below in some cases, to be able to use the same
   ! subroutines for parallel runs, and fill properly ghost info. For serial runs, 
@@ -73,7 +73,7 @@ contains
     ! Dummy arguments
     type(dof_handler_t)              , intent(in)    :: dhand
     type(fem_triangulation_t)        , intent(in)    :: trian 
-    type(fem_space_t)                , intent(inout) :: femsp 
+    type(fe_space_t)                , intent(inout) :: femsp 
     type(fem_block_graph_t)          , intent(inout) :: f_blk_graph 
     integer(ip)          , optional, intent(in)    :: gtype(dhand%nblocks) 
 
@@ -117,7 +117,7 @@ contains
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
     type(fem_triangulation_t), intent(in)       :: trian 
-    type(fem_space_t), intent(inout)            :: femsp 
+    type(fe_space_t), intent(inout)            :: femsp 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
@@ -194,7 +194,7 @@ contains
        ! Part 2: Put DOFs on nodes belonging to the volume object (element). For cG we only do that when 
        ! static condensation is not active. Static condensation is for all variables, elements, etc. BUT
        ! it cannot be used with dG. The following algorithm is ASSUMING that this is the case, and we are
-       ! not using dG + static condensations. In any case, when creating the fem_space there is an 
+       ! not using dG + static condensations. In any case, when creating the fe_space there is an 
        ! automatic check for satisfying that.
        ! No check about strong Dirichlet boundary conditions, because they are imposed weakly in dG, and
        ! never appear in interior nodes in cG.
@@ -235,7 +235,7 @@ contains
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
     type(fem_triangulation_t), intent(in)       :: trian 
-    type(fem_space_t), intent(inout)            :: femsp 
+    type(fe_space_t), intent(inout)            :: femsp 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
@@ -341,7 +341,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: femsp 
     type(fem_graph_t), intent(out)                :: dof_graph
     integer(ip), optional, intent(in)           :: gtype
 
@@ -445,7 +445,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: femsp 
     type(fem_graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
@@ -539,7 +539,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: femsp 
     type(fem_graph_t), intent(inout)                :: dof_graph
     integer(ip), intent(inout)                :: aux_ia(:)
 
@@ -642,7 +642,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: femsp 
     type(fem_graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
@@ -731,7 +731,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: femsp 
     type(fem_graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
@@ -837,7 +837,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: femsp 
     type(fem_graph_t), intent(inout)              :: dof_graph
 
     ! Local variables
@@ -961,7 +961,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: femsp 
     type(fem_graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
@@ -1112,7 +1112,7 @@ contains
     ! Parameters
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(inout)              :: femsp 
+    type(fe_space_t), intent(inout)              :: femsp 
     integer(ip), intent(inout)                  :: count
     integer(ip), intent(in)                     :: g_var, jelem, l_var, obje_l
 
@@ -1138,7 +1138,7 @@ contains
     ! Parameters
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fem_space_t), intent(inout)              :: femsp
+    type(fe_space_t), intent(inout)              :: femsp
     integer(ip), intent(in)                     :: touch(:,:,:), mater, g_var, iobje, jelem, l_var, obje_l
     integer(ip), intent(out)                    :: o2n(:)
 

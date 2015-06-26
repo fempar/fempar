@@ -25,11 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_element_import_create_names
+module element_import_create_names
   use types_names
   use memor_names
   use fem_mesh_distribution_names
-  use fem_element_import_names
+  use element_import_names
   use sort_names
   use hash_table_names
 
@@ -38,16 +38,16 @@ module fem_element_import_create_names
   private
 
   ! Functions
-  public :: fem_element_import_create
+  public :: element_import_create
 
 contains
 
-  subroutine fem_element_import_create (f_msh_dist, f_element_import)
+  subroutine element_import_create (f_msh_dist, f_element_import)
     implicit none
 
     ! Parameters
     type(fem_mesh_distribution_t), intent(in)  :: f_msh_dist
-    type(fem_element_import_t)   , intent(out) :: f_element_import
+    type(element_import_t)   , intent(out) :: f_element_import
     
     ! Locals
     f_element_import%nparts = f_msh_dist%nparts
@@ -103,7 +103,7 @@ contains
                                f_element_import%snd_leids, &
                                f_element_import%rcv_geids)
                            
-  end subroutine fem_element_import_create
+  end subroutine element_import_create
 
   subroutine count_neighbours ( nebou, pextn, lextp, npadj)
     implicit none
@@ -330,4 +330,4 @@ contains
 
   end subroutine list_elements_snd_rcv
 
-end module fem_element_import_create_names
+end module element_import_create_names

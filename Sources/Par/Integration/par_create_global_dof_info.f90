@@ -35,14 +35,14 @@ module par_create_global_dof_info_names
   use fem_triangulation_names
   use fem_graph_names
   use create_global_dof_info_names
-  use fem_space_names
+  use fe_space_names
   use hash_table_names
 
-  use fem_element_names
+  use finite_element_names
 
   ! Par Modules
   use par_triangulation_names
-  use par_fem_space_names
+  use par_fe_space_names
   use par_graph_names
   use par_block_graph_names
   use block_dof_distribution_names
@@ -72,7 +72,7 @@ contains
     ! Paramters
     type(dof_handler_t)                  , intent(in)     :: dhand
     type(par_triangulation_t)            , intent(in)     :: p_trian
-    type(par_fem_space_t)                , intent(inout)  :: p_femsp
+    type(par_fe_space_t)                , intent(inout)  :: p_femsp
     type(block_dof_distribution_t)       , intent(inout)  :: blk_dof_dist 
     type(par_block_graph_t)              , intent(inout)  :: p_blk_graph
     integer(ip)              , optional, intent(in)     :: gtype(dhand%nblocks) 
@@ -128,7 +128,7 @@ contains
     implicit none
     type(dof_handler_t)      , intent(in)       :: dhand
     type(par_triangulation_t), intent(in)       :: p_trian
-    type(fem_space_t)        , intent(inout)    :: femsp
+    type(fe_space_t)        , intent(inout)    :: femsp
 
     integer(ip) :: iobje, i, ielem, l_faci, iprob, nvapb, ivars, l_var, g_var, inode, l_node, count
     integer(ip) :: iblock, lobje

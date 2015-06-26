@@ -33,7 +33,7 @@ use types_names
   use problem_names
   use integration_tools_names
 use femap_interp_names
-  use fem_space_names
+  use fe_space_names
   use assembly_names
   use fem_block_matrix_names
   use fem_matrix_names
@@ -49,7 +49,7 @@ contains
   subroutine volume_integral(approx,femsp,res1,res2)
     implicit none
     ! Parameters
-    type(fem_space_t)            , intent(inout) :: femsp
+    type(fe_space_t)            , intent(inout) :: femsp
     class(integrable_t)          , intent(inout) :: res1
     class(integrable_t), optional, intent(inout) :: res2
     type(discrete_integration_pointer)         :: approx(:)

@@ -31,7 +31,7 @@ use memor_names
  use array_names
  use problem_names
  use nsi_names
- use fem_element_names
+ use finite_element_names
  use eltrm_gen_names
  use element_fields_names
  use element_tools_names
@@ -186,7 +186,7 @@ contains
     implicit none
     class(nsi_cg_iss_matvec_t), intent(inout) :: approx
     integer(ip)             , intent(in)    :: start(:)
-    type(fem_element_t)       , intent(inout) :: elem
+    type(finite_element_t)       , intent(inout) :: elem
     ! Locals
     real(rp), allocatable :: elmat_vu(:,:,:,:)
     real(rp), allocatable :: elmat_vu_diag(:,:)
@@ -380,7 +380,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_matvec_t), intent(in)    :: approx
-    type(fem_element_t)       , intent(in)    :: elem
+    type(finite_element_t)       , intent(in)    :: elem
     real(rp)                , intent(in)    :: ctime
     type(vector_t)            , intent(in)    :: gpvel
     type(vector_t)            , intent(inout) :: force
@@ -493,7 +493,7 @@ contains
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
   !   integer(ip),           intent(in)    :: ielem
-  !   type(fem_element_t),     intent(inout) :: elem
+  !   type(finite_element_t),     intent(inout) :: elem
   !   ! Locals
   !   type(block_elmat)        :: blk_elmat
   !   type(fem_blocks)         :: vars_s
@@ -613,7 +613,7 @@ contains
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -661,7 +661,7 @@ contains
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -699,7 +699,7 @@ contains
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -759,7 +759,7 @@ contains
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode(2)
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -789,7 +789,7 @@ contains
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -824,7 +824,7 @@ contains
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode(2)
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -851,7 +851,7 @@ contains
   ! subroutine nsi_iss_element_mat_massp(prob,el,nnode,emat)
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -895,7 +895,7 @@ contains
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
   !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
-  !   type(fem_element_t)    , intent(in)    :: el
+  !   type(finite_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals

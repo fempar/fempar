@@ -46,7 +46,7 @@ use lib_vtk_io_interface_names
   type(par_triangulation_t)                          :: p_trian
   type(par_conditions_t)                             :: p_cond
   type(dof_handler_t)                                :: dhand
-  type(par_fem_space_t)                              :: p_fspac  
+  type(par_fe_space_t)                              :: p_fspac  
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
   type(nsi_cg_iss_matvec_t)                 , target :: matvec
@@ -106,7 +106,7 @@ use lib_vtk_io_interface_names
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
 
   ! Generate element geometrical fixed info
-  call fem_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
+  call finite_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
 
   ! Set levels
   num_levels = 2
@@ -161,8 +161,8 @@ use lib_vtk_io_interface_names
   problem                = 1
   which_approx           = 1 
 
-  ! Create par_fem_space
-  call par_fem_space_create(p_trian,dhand,p_fspac,problem,p_cond,continuity,order,material, &
+  ! Create par_fe_space
+  call par_fe_space_create(p_trian,dhand,p_fspac,problem,p_cond,continuity,order,material, &
        &                    which_approx,time_steps_to_store=3,                             &
        &                    hierarchical_basis=.false.,                         &
        &                    static_condensation=.false.,num_continuity=1)
@@ -309,14 +309,14 @@ use lib_vtk_io_interface_names
   call par_vector_free (p_unk)
   call p_blk_graph%free
   call blk_dof_dist%free
-  call par_fem_space_free(p_fspac) 
+  call par_fe_space_free(p_fspac) 
   call myprob%free
   call mydisc%free
   call matvec%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)
-  call fem_element_fixed_info_free(ginfo)
+  call finite_element_fixed_info_free(ginfo)
   call bound_data_free(bdata)
   call par_environment_free (p_env)
   call par_context_free ( b_context, .false. )

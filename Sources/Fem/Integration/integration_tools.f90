@@ -47,7 +47,7 @@ module volume_integration_tools_names
   use interpolation_names
   use femap_names
   use femap_interp_names
-  use fem_space_types_names
+  use fe_space_types_names
   implicit none
   private
 
@@ -212,7 +212,7 @@ module face_integration_tools_names
   use face_interpolation_names
   use femap_names
   use bomap_names
-  use fem_space_types_names 
+  use fe_space_types_names 
   use volume_integration_tools_names
 
   implicit none
@@ -353,7 +353,7 @@ contains
   !   implicit none
   !   ! Parameters
   !   integer(ip)              , intent(in)    :: elem(2),face(2)
-  !   type(fem_space_t)           , intent(in)    :: geom     ! Geometry interpolation_t space
+  !   type(fe_space_t)           , intent(in)    :: geom     ! Geometry interpolation_t space
   !   type(face_integrator_t)         , intent(inout) :: integ
   !   type(list_t)               , intent(in)    :: ntxob
   !   integer(ip)              , intent(in)    :: nobje

@@ -28,7 +28,7 @@
 module interpolation_names
   use types_names
   use memor_names
-  use fem_space_types_names
+  use fe_space_types_names
 
   implicit none
 # include "debug.i90"

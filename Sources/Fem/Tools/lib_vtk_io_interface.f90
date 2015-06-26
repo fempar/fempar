@@ -34,8 +34,8 @@ module lib_vtk_io_interface_names
   use stdio_names
   use array_names
   use interpolation_names
-  use fem_space_types_names
-  use fem_space_names
+  use fe_space_types_names
+  use fe_space_names
   use problem_names
   use element_gather_tools_names
   use abstract_environment_names
@@ -85,8 +85,8 @@ use iso_c_binding
   ! It stores the directory path and the prefix where to write in disk
   type fem_vtk_t
      type(vtk_mesh_t), allocatable   :: mesh(:)         ! VTK mesh data and field_t descriptors
-     type(fem_space_t), pointer      :: p_f_space => NULL()  ! Poins to fem_space_t
-     class(abstract_environment), pointer      :: p_env => NULL()  ! Poins to fem_space_t
+     type(fe_space_t), pointer      :: p_f_space => NULL()  ! Poins to fe_space_t
+     class(abstract_environment), pointer      :: p_env => NULL()  ! Poins to fe_space_t
      integer(ip)                   :: num_meshes = 0  ! Number of VTK meshes stored
      integer(ip)                   :: num_steps = 0   ! Number of time steps
      integer(ip)                   :: num_parts = 0   ! Number of parts
@@ -133,7 +133,7 @@ contains
   subroutine initialize(f_vtk, f_trian, f_space, phys_prob, env, dir_path, prefix, root_proc, nparts, nsteps, nmesh, linear_order)
     class(fem_vtk_t),          intent(INOUT) :: f_vtk
     type(fem_triangulation_t), intent(IN)    :: f_trian
-    type(fem_space_t), target, intent(IN)    :: f_space
+    type(fe_space_t), target, intent(IN)    :: f_space
     class(physical_problem), intent(IN)    :: phys_prob
     class(abstract_environment), target, intent(IN)    :: env
     character(len=*),        intent(IN)    :: dir_path
@@ -204,7 +204,7 @@ contains
   ! ----------------------------------------------------------------------------------
     class(fem_vtk_t),          intent(INOUT) :: f_vtk
     type(fem_triangulation_t), intent(IN)    :: f_trian
-    type(fem_space_t), target, intent(IN)    :: f_space
+    type(fe_space_t), target, intent(IN)    :: f_space
     class(physical_problem), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
@@ -225,7 +225,7 @@ contains
   subroutine initialize_superlinear_order(f_vtk, f_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
   ! ----------------------------------------------------------------------------------
     class(fem_vtk_t),          intent(INOUT) :: f_vtk
-    type(fem_space_t), target, intent(IN)    :: f_space
+    type(fe_space_t), target, intent(IN)    :: f_space
     class(physical_problem), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
@@ -313,7 +313,7 @@ contains
     implicit none
     ! Parmeter
     class(fem_vtk_t)    , intent(inout) :: f_vtk
-    type(fem_space_t)  , intent(in)    :: f_space
+    type(fe_space_t)  , intent(in)    :: f_space
     integer(ip),optional      , intent(out)   :: nmesh
   
     ! Local variables
