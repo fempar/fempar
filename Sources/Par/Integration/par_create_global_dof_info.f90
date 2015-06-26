@@ -178,7 +178,7 @@ contains
   !*********************************************************************************
   ! Auxiliary function that says if key is in list
   !*********************************************************************************
-  logical(lg) function is_object_in_element(key,list,size)
+  logical function is_object_in_element(key,list,size)
     implicit none
     integer(ip) :: key, size, list(size), i
 
@@ -195,7 +195,7 @@ contains
   !*********************************************************************************
   ! Auxiliary function that says if key is in list
   !*********************************************************************************
-  logical(lg) function is_object_touched(key,list,size)
+  logical function is_object_touched(key,list,size)
     implicit none
     integer(ip) :: key, size, list(size), i
 

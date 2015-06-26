@@ -55,8 +55,8 @@ module fem_space_names
   type fem_space_t  
 
      integer(ip)                           :: num_continuity       ! Number of materials (maximum value)
-     logical(lg)                           :: static_condensation  ! Flag for static condensation 
-     logical(lg)                           :: hierarchical_basis   ! Flag for hierarchical basis
+     logical                           :: static_condensation  ! Flag for static condensation 
+     logical                           :: hierarchical_basis   ! Flag for hierarchical basis
      class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list_t
      type(fem_element_t)       , pointer     :: lelem(:)             ! List of FEs
      type(fem_face_t)          , allocatable :: lface(:)             ! List of active faces
@@ -122,8 +122,8 @@ contains
     integer(ip)                    , intent(in)    :: material(:)
     integer(ip)                    , intent(in)    :: which_approx(:)
     integer(ip)          , optional, intent(in)    :: time_steps_to_store
-    logical(lg)          , optional, intent(in)    :: hierarchical_basis
-    logical(lg)          , optional, intent(in)    :: static_condensation
+    logical          , optional, intent(in)    :: hierarchical_basis
+    logical          , optional, intent(in)    :: static_condensation
     integer(ip)          , optional, intent(in)    :: num_continuity   
     integer(ip)          , optional, intent(in)    :: num_ghosts         
 
@@ -153,8 +153,8 @@ contains
     type(fem_triangulation_t)   , intent(in), target   :: g_trian   
     type(dof_handler_t) , intent(in), target           :: dofh  
     integer(ip), optional, intent(in) :: time_steps_to_store
-    logical(lg), optional, intent(in) :: hierarchical_basis
-    logical(lg), optional, intent(in) :: static_condensation
+    logical, optional, intent(in) :: hierarchical_basis
+    logical, optional, intent(in) :: static_condensation
     integer(ip), optional, intent(in) :: num_continuity 
     integer(ip), optional, intent(in) :: num_ghosts            
 
@@ -236,7 +236,7 @@ contains
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmatvec, pos_elinf, pos_voint, ivar, lndof, iobje
-    logical(lg) :: created
+    logical :: created
     integer(ip) :: aux_val
 
     ! nunk_tot = total amount of unknowns

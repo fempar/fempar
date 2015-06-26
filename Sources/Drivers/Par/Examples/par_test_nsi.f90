@@ -66,7 +66,7 @@ use lib_vtk_io_interface_names
   class(base_operator_t), pointer           :: A
 
   ! Logicals
-  logical(lg) :: ginfo_state
+  logical :: ginfo_state
 
   ! Integers
   integer(ip) :: num_levels
@@ -164,8 +164,8 @@ use lib_vtk_io_interface_names
   ! Create par_fem_space
   call par_fem_space_create(p_trian,dhand,p_fspac,problem,p_cond,continuity,order,material, &
        &                    which_approx,time_steps_to_store=3,                             &
-       &                    hierarchical_basis=logical(.false.,lg),                         &
-       &                    static_condensation=logical(.false.,lg),num_continuity=1)
+       &                    hierarchical_basis=.false.,                         &
+       &                    static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
   call fevtk%initialize(p_trian%f_trian,p_fspac%f_space,myprob,p_env,dir_path_out,prefix, &

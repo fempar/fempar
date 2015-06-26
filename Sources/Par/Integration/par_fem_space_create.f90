@@ -92,8 +92,8 @@ contains
     integer(ip)                    , intent(in)    :: material(:)
     integer(ip)                    , intent(in)    :: which_approx(:)
     integer(ip)          , optional, intent(in)    :: time_steps_to_store
-    logical(lg)          , optional, intent(in)    :: hierarchical_basis
-    logical(lg)          , optional, intent(in)    :: static_condensation
+    logical          , optional, intent(in)    :: hierarchical_basis
+    logical          , optional, intent(in)    :: static_condensation
     integer(ip)          , optional, intent(in)    :: num_continuity   
     
     ! Local variables
@@ -188,7 +188,7 @@ contains
     type(par_fem_space_t), target, intent(inout) :: p_femsp
 
     integer(ip) :: ielem, nvars, f_type, ivar, f_order, istat, pos_elinf, v_key
-    logical(lg) :: created
+    logical :: created
     integer(ip) :: aux_val, max_num_nodes, lndof, nnode
 
     do ielem = p_femsp%p_trian%f_trian%num_elems+1, p_femsp%p_trian%f_trian%num_elems+p_femsp%p_trian%num_ghosts

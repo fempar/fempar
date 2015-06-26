@@ -319,7 +319,7 @@ contains
     integer(ip),             intent(in)            :: ielem
     ! Locals
     integer(ip) :: nobje, v_key, ndime, etype, pos_elinf, istat
-    logical(lg) :: created
+    logical :: created
     integer(ip) :: aux_val
 
     nobje = trian%elems(ielem)%num_objects 

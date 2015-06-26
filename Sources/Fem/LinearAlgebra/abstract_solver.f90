@@ -2108,7 +2108,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
        s     , sn    , t     , tnorm2, ynorm2, z
 
   integer(ip) :: i, istop, itn
-  logical(lg) :: debug, prnt
+  logical :: debug, prnt
   logical     :: beta1_lt_zero, beta1_eq_zero, beta_lt_zero, istop_neq_zero
 
   real(rp) ::   Anorm, Acond, rnorm, ynorm
@@ -2608,7 +2608,7 @@ end subroutine abstract_pminres
 
     ! Locals 
     real(rp), parameter              :: alpha = 0.5_rp, rone = 1.0_rp, rzero = 0.0_rp
-    logical(lg), parameter           :: debug = .false.
+    logical, parameter           :: debug = .false.
     integer(ip)                      :: i, j, m
     real(rp)                         :: p(k-1)
     real(rp)                         :: delta_i, delta_i_mone, beta_i

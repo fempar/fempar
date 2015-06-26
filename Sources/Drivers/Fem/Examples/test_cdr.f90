@@ -130,8 +130,8 @@ program test_cdr
   !write(*,*) 'Continuity', continuity
 
   call fem_space_create ( f_trian, dhand, fspac, problem, f_cond, continuity, order, material, &
-       & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = logical(.false.,lg), & 
-       & static_condensation = logical(.false.,lg), num_continuity = 1 )
+       & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = .false., & 
+       & static_condensation = .false., num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
   call fem_update_strong_dirichlet_bcond( fspac, f_cond )

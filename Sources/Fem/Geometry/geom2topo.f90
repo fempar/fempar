@@ -86,7 +86,7 @@ contains
     integer(ip), allocatable :: nd_jf(:), fnode(:)
     integer(ip), allocatable :: nelpo_aux(:), lelpo_aux(:), aux1(:)
     integer(ip), allocatable :: edgeint(:,:), faceint(:,:)
-    logical(lg)              :: created,kfl_bc
+    logical              :: created,kfl_bc
 
     ! Create ocnd flag
     kfl_bc = (present(gcnd) .and. present(ocnd))

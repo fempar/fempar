@@ -87,13 +87,13 @@ contains
     integer(ip)            , intent(in)  :: gtype, utype
     integer(ip)            , intent(in)  :: ndime, g_ord, u_ord
     type(volume_integrator_t), intent(out) :: integ
-    logical(lg),   optional, intent(in)  :: khie
+    logical,   optional, intent(in)  :: khie
     integer(ip),   optional, intent(in)  :: mnode
 
     ! Local variables
     integer(ip) :: ngaus,lrule,llapl,gnode,unode,nlocs,i
     real(rp)    :: auxpo(max_nnode)
-    logical(lg) :: khier
+    logical :: khier
 
     ! Store identifiers of element
     !integ%ltype(1) = gtype

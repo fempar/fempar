@@ -162,8 +162,8 @@ program par_test_cdr
   call par_fem_space_create ( p_trian, dhand, p_fspac, problem, &
                               p_cond, continuity, order, material, &
                               which_approx, time_steps_to_store = 1, &
-                              hierarchical_basis = logical(.false.,lg), &
-                              & static_condensation = logical(.false.,lg), num_continuity = 1 )
+                              hierarchical_basis = .false., &
+                              & static_condensation = .false., num_continuity = 1 )
 
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fspac, p_cond )

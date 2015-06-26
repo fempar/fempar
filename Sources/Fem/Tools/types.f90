@@ -34,7 +34,7 @@ module types_names
   integer, parameter       :: ieep = 1    ! Integer precision for buffers in element exchanges
   integer, parameter       :: ip   = 4    ! Integer precision
   integer, parameter       :: rp   = 8    ! Real precision
-  integer, parameter       :: lg   = 1    ! Logical precision
+  !integer, parameter       :: lg   = 1    ! Logical precision
 
   integer(ip)  , parameter :: imp = 8    ! Integer precision, 
   ! memory consumption

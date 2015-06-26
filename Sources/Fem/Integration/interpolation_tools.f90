@@ -77,7 +77,7 @@ contains
     integer(ip)          , intent(in)  :: gtype, utype
     integer(ip)          , intent(in)  :: ndime, g_ord, u_ord, gnode, unode
     type(array_rp2_t)      , intent(out) :: int_array
-    logical(lg), optional, intent(in)  :: khie
+    logical, optional, intent(in)  :: khie
     ! Locals
     integer(ip)           :: nlocs, i
     type(interpolation_t)   :: inter

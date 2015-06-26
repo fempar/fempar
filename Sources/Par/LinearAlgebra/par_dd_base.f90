@@ -132,13 +132,13 @@ use types_names
   ! Temporize coarse-grid computations in isolation for f_tasks_w_coarse_duties
   ! model of execution in case of the BDDC. Temporize coarse-grid computations
   ! in isolation in case of the BNN method 
-  logical(lg) , parameter :: temp_coarse_grid_computations = .false.
+  logical , parameter :: temp_coarse_grid_computations = .false.
 
   ! Temporize fine/coarse-grid overlap for f_tasks_c_tasks_w_coarse_duties model
   ! of execution in case of the BDDC. This does not apply to the BNN method as
   ! we have not still implemented f_tasks_c_tasks_w_coarse_duties model of execution
   ! for the BNN method
-  logical(lg) , parameter :: temp_fine_coarse_grid_overlap  = .false.
+  logical , parameter :: temp_fine_coarse_grid_overlap  = .false.
 
 
   integer (ip), parameter :: nokernel  =  0 ! The local Neumann operator has no kernel

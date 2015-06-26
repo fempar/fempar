@@ -58,7 +58,7 @@ use lib_vtk_io_interface_names
   type(fem_block_graph_t)              :: f_blk_graph
 
   ! Logicals
-  logical(lg) :: ginfo_state
+  logical :: ginfo_state
 
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
@@ -128,8 +128,8 @@ use lib_vtk_io_interface_names
   
   ! Create fem_space
   call fem_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
-       &                time_steps_to_store=3, hierarchical_basis=logical(.false.,lg),             &
-       &                static_condensation=logical(.false.,lg),num_continuity=1)
+       &                time_steps_to_store=3, hierarchical_basis=.false.,             &
+       &                static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
   call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix,linear_order=.true.)

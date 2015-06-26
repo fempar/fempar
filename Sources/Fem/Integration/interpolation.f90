@@ -47,7 +47,7 @@ module interpolation_names
           ndime = 2,               &    ! Number of space dimensions
           ntens = 3                     ! Number of tensor components 
 
-     logical(lg)                :: &
+     logical                :: &
           khie = .false.                ! Hierarchical shape functions (1=yes, 0=no)
 
      real(rp), allocatable      :: &
@@ -83,7 +83,7 @@ contains
     integer(ip)          , intent(in)    :: kfun,kder,khes,nlocs
     integer(ip)          , intent(in)    :: nnode,ndime
     type(interpolation_t)  , intent(out)   :: int
-    logical(lg), optional, intent(in)    :: khie
+    logical, optional, intent(in)    :: khie
     integer(ip) :: iloc,ntens
 
     if(ndime==1) then
@@ -196,7 +196,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)       , intent(in)  :: ndime,nnode,ntens,kder,khes
-    logical(lg)       , intent(in)  :: khie
+    logical       , intent(in)  :: khie
     real(rp)          , intent(in)  :: posgp(ndime)
     real(rp)          , intent(out) :: shape(nnode)
     real(rp), optional, intent(out) :: deriv(ndime,nnode)
@@ -418,7 +418,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)       , intent(in)  :: nnode,ntens,kder,khes
-    logical(lg)       , intent(in)  :: khie
+    logical       , intent(in)  :: khie
     real(rp)          , intent(in)  :: s,t
     real(rp)          , intent(out) :: shape(nnode)
     real(rp), optional, intent(out) :: deriv(2,nnode),heslo(ntens,nnode)
@@ -864,7 +864,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)       , intent(in)  :: nnode,ntens,kder,khes
-    logical(lg)       , intent(in)  :: khie
+    logical       , intent(in)  :: khie
     real(rp)          , intent(in)  :: s,t,z
     real(rp)          , intent(out) :: shape(nnode)
     real(rp), optional, intent(out) :: deriv(3,nnode),heslo(ntens,nnode)

@@ -420,7 +420,7 @@ contains
 #endif
 end module mem_rp_allocatable_names
 !***********************************************************************
-! logical(lg)
+! logical
 !***********************************************************************
 module mem_lg_allocatable_names
 use types_names
@@ -430,8 +430,8 @@ use iso_c_binding
 #endif
   implicit none
   private
-# define var_type logical(lg)
-# define var_size lg
+# define var_type logical
+# define var_size 1 
 # define bound_kind ip
 # include "mem_header.i90"
   public :: memalloc,  memrealloc,  memfree, memmovealloc
