@@ -44,7 +44,8 @@ module fem_update_names
      
 
   ! Functions
-  public :: fem_update_strong_dirichlet_bcond, fem_update_analytical_bcond, fem_update_solution
+  public :: fem_update_strong_dirichlet_bcond, fem_update_analytical_bcond, fem_update_solution, &
+       &    fem_update_nonlinear
  
 contains
   
@@ -228,6 +229,24 @@ contains
 
     end do
     
-  end subroutine fem_update_solution_block
+  end subroutine fem_update_solution_block 
+
+  !==================================================================================================
+  subroutine fem_update_nonlinear(fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the previous nonlinear solution.                                     !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(fe_space_t), intent(inout) :: fe_space
+    ! Locals
+    integer(ip) :: ielem
+    
+    ! Loop over elements
+    do ielem = 1, fe_space%g_trian%num_elems
+       ! Update unkno
+       fe_space%finite_elements(ielem)%unkno(:,:,2) = fe_space%finite_elements(ielem)%unkno(:,:,1)
+    end do
+    
+  end subroutine fem_update_nonlinear
 
 end module fem_update_names

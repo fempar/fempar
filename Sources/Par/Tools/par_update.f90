@@ -46,7 +46,8 @@ module par_update_names
   end interface par_update_solution
 
   ! Functions
-  public :: par_update_strong_dirichlet_bcond, par_update_analytical_bcond, par_update_solution
+  public :: par_update_strong_dirichlet_bcond, par_update_analytical_bcond, par_update_solution, &
+       &    par_update_nonlinear
   
 contains
 
@@ -142,7 +143,26 @@ contains
 
     end if
 
-  end subroutine par_update_solution_block
+  end subroutine par_update_solution_block 
+
+  !==================================================================================================
+  subroutine par_update_nonlinear(p_fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the previous nonlinear solution.                                     !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(par_fe_space_t), intent(inout) :: p_fe_space
+
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
+
+    ! If fine task call serial subroutine
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+       call fem_update_nonlinear(p_fe_space%fe_space)
+    end if
+
+  end subroutine par_update_nonlinear
 
 end module par_update_names
     

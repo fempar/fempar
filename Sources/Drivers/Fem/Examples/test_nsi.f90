@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program test_nsi_iss
-use fem_names
+  use fem_names
   use nsi_names
   use nsi_cg_iss_names
   use lib_vtk_io_interface_names
@@ -47,7 +47,7 @@ use fem_names
   type(discrete_integration_pointer)   :: approx(1)
   type(fem_matrix_t)          , target :: femat
   type(fem_vector_t)          , target :: fevec,feunk
-  type(fem_precond_t)                  :: feprec
+  type(fem_precond_t)         , target :: feprec
   type(fem_precond_params_t)           :: ppars
   type(solver_control_t)               :: sctrl
   type(serial_environment_t)           :: senv
@@ -56,7 +56,7 @@ use fem_names
   class(base_operator_t)     , pointer :: A, M
   type(fem_graph_t)          , pointer :: f_graph
   type(fem_block_graph_t)              :: f_blk_graph
-  type(plain_vector_t)        , target :: enorm
+  type(plain_vector_t)                 :: enorm
   type(nsi_cg_iss_error_t)    , target :: ecalc
 
   ! Logicals
@@ -112,7 +112,7 @@ use fem_names
   call dhand%set_problem(1,mydisc)
   approx(1)%p       => matvec
   mydisc%dtinv      = 0.0_rp
-  myprob%kfl_conv   = 0
+  myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
   myprob%case_veloc = 1
   myprob%case_press = 1
@@ -155,36 +155,42 @@ use fem_names
   call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
   call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
-  ! Integrate
-  call volume_integral(approx,fe_space,femat,fevec)
-
-  ! Define operators
-  A => femat
-  b => fevec
-  x => feunk
+  ! Solver control parameters
+  sctrl%method = direct
+  sctrl%trace  = 100
+  sctrl%track_conv_his = .true.
 
   ! Construct preconditioner
-  sctrl%method = direct
   ppars%type   = pardiso_mkl_prec
   call fem_precond_create(femat,feprec,ppars)
   call fem_precond_symbolic(femat,feprec)
-  call fem_precond_numeric(femat,feprec)
   call fem_precond_log_info(feprec)
 
-  ! Solve
-  !call fem_vector_print(6,fevec)
-  call abstract_solve(femat,feprec,fevec,feunk,sctrl,senv)
-  !call abstract_solve(A,M,b,x,sctrl,senv)
-  call solver_control_log_conv_his(sctrl)
-  call solver_control_free_conv_his(sctrl)
+!!$  ! Define operators
+!!$  A => femat
+!!$  M => feprec
+!!$  b => fevec
+!!$  x => feunk
+
+  ! Do nonlinear iterations
+  call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,femat,feprec,fevec,feunk)
+  
+!!$  ! Integrate
+!!$  call volume_integral(approx,fe_space,femat,fevec)
+!!$
+!!$  ! Solve
+!!$  !call fem_vector_print(6,fevec)
+!!$  call abstract_solve(femat,feprec,fevec,feunk,sctrl,senv)
+!!$  !call abstract_solve(A,M,b,x,sctrl,senv)
+!!$  call solver_control_log_conv_his(sctrl)
+!!$  call solver_control_free_conv_his(sctrl)
+!!$
+!!$  ! Store solution to unkno
+!!$  call fem_update_solution(feunk,fe_space)
 
   ! Free preconditioner
-  call fem_precond_free(precond_free_values,feprec)
   call fem_precond_free(precond_free_struct,feprec)
   call fem_precond_free(precond_free_clean,feprec)
-
-  ! Store solution to unkno
-  call fem_update_solution(feunk,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -256,5 +262,93 @@ contains
     read (argument,*) nez
 
   end subroutine read_pars_cl_test_nsi
+
+  !==================================================================================================
+  subroutine nonlinear_iteration( sctrl, nltol, maxit, env, approx, fe_space, A, M, b, x )
+    implicit none
+    type(solver_control_t)            , intent(inout) :: sctrl
+    real(rp)                          , intent(in)    :: nltol
+    integer(ip)                       , intent(in)    :: maxit    
+    class(abstract_environment)       , intent(in)    :: env
+    type(discrete_integration_pointer), intent(inout) :: approx(:)
+    type(fe_space_t)                  , intent(inout) :: fe_space
+    class(base_operator_t)            , intent(inout) :: A, M
+    class(base_operand_t)             , intent(inout) :: x, b
+    ! Locals
+    integer(ip) :: iiter
+    real(rp)    :: resnorm
+    
+    iiter = 0
+    do while( iiter < maxit )
+
+       ! Update counter
+       iiter = iiter+1
+
+       ! Initialize Matrix and vector
+       ! ***************** Abstract procedure to initialize a base_operator ************************!
+       select type (A)
+       type is(fem_matrix_t)
+          call fem_matrix_zero(A)
+       class default
+          check(.false.)
+       end select
+       !********************************************************************************************!
+       call b%init(0.0_rp)
+
+       ! Integrate system
+       call volume_integral(approx,fe_space,A,b)
+
+       ! Compute Numeric preconditioner
+       ! ***************** Abstract procedure to compute precond numeric ***************************!
+       select type (A)
+       type is(fem_matrix_t)
+          select type (M)
+          type is(fem_precond_t)
+             call fem_precond_numeric(A,M)
+          class default
+             check(.false.)
+          end select
+       class default
+          check(.false.)
+       end select
+       !********************************************************************************************!
+
+       ! Solve system
+       call abstract_solve(A,M,b,x,sctrl,env)
+       call solver_control_log_conv_his(sctrl)
+       call solver_control_free_conv_his(sctrl)
+
+       ! Free Numeric preconditioner
+       ! ******************** Abstract procedure to free precond numeric ***************************!
+       select type (M)
+       type is(fem_precond_t)
+          call fem_precond_free(precond_free_values,M)
+          class default
+          check(.false.)
+       end select
+       !********************************************************************************************!
+       
+       ! Store solution to unkno
+       ! ***************** Abstract procedure to update from a base operant ************************!
+       select type (x)
+       type is(fem_vector_t)
+          call fem_update_solution(x,fe_space)
+       class default
+          check(.false.)
+       end select
+       !********************************************************************************************!
+       
+       ! Store nonlinear iteration ( k+1 --> k )
+       call fem_update_nonlinear(fe_space)
+
+       ! Check convergence
+       x = b - A*x
+       resnorm = x%nrm2()
+       write(*,*) 'Nonlinear error norm: ', resnorm
+       if( resnorm < nltol) exit
+       
+    end do
+
+  end subroutine nonlinear_iteration
   
 end program test_nsi_iss

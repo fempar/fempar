@@ -493,13 +493,13 @@ contains
     select type (physics)
     type is(nsi_problem_t)
        approx%physics => physics
-       class default
+    class default
        check(.false.)
     end select
     select type (discret)
     type is(nsi_cg_iss_discrete_t)
        approx%discret => discret
-       class default
+    class default
        check(.false.)
     end select
 

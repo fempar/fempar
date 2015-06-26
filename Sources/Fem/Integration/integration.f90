@@ -49,10 +49,10 @@ contains
   subroutine volume_integral(approx,fe_space,res1,res2)
     implicit none
     ! Parameters
-    type(fe_space_t)             , intent(inout) :: fe_space
-    class(integrable_t)          , intent(inout) :: res1
-    class(integrable_t), optional, intent(inout) :: res2
-    type(discrete_integration_pointer)           :: approx(:)
+    type(fe_space_t)                  , intent(inout) :: fe_space
+    class(integrable_t)               , intent(inout) :: res1
+    class(integrable_t), optional     , intent(inout) :: res2
+    type(discrete_integration_pointer), intent(inout) :: approx(:)
 
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation
