@@ -40,7 +40,7 @@ use lib_vtk_io_interface_names
   type(fem_triangulation_t)            :: f_trian
   type(fem_conditions_t)               :: f_cond
   type(dof_handler_t)                  :: dhand
-  type(fe_space_t)                    :: fspac  
+  type(fe_space_t)                    :: fe_space  
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
   type(nsi_cg_iss_matvec_t)   , target :: matvec
@@ -127,15 +127,15 @@ use lib_vtk_io_interface_names
   which_approx           = 1 
   
   ! Create fe_space
-  call fe_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
+  call fe_space_create(f_trian,dhand,fe_space,problem,f_cond,continuity,order,material,which_approx, &
        &                time_steps_to_store=3, hierarchical_basis=.false.,             &
        &                static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
-  call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix,linear_order=.true.)
+  call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
 
   ! Create dof info
-  call create_dof_info(dhand,f_trian,fspac,f_blk_graph,gtype)
+  call create_dof_info(dhand,f_trian,fe_space,f_blk_graph,gtype)
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Allocate matrices and vectors
@@ -145,12 +145,12 @@ use lib_vtk_io_interface_names
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
-  call fem_update_strong_dirichlet_bcond(fspac,f_cond)
-  call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fspac)
-  call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fspac)
+  call fem_update_strong_dirichlet_bcond(fe_space,f_cond)
+  call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
+  call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
   ! Integrate
-  call volume_integral(approx,fspac,femat,fevec)
+  call volume_integral(approx,fe_space,femat,fevec)
 
   ! Construct preconditioner
   sctrl%method = direct
@@ -173,7 +173,7 @@ use lib_vtk_io_interface_names
   !call fem_vector_print(6,feunk)
 
   ! Store solution to unkno
-  call fem_update_solution(feunk,fspac)
+  call fem_update_solution(feunk,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -194,7 +194,7 @@ use lib_vtk_io_interface_names
   call fem_vector_free(feunk)
   call fem_vector_free(fevec)
   call fem_matrix_free(femat) 
-  call fe_space_free(fspac) 
+  call fe_space_free(fe_space) 
   call myprob%free
   call mydisc%free
   call matvec%free

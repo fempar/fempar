@@ -374,14 +374,14 @@ contains
   !      poins(nnode) = geom%lelem(ielem)%elem2dof(1,ntxob%l(inode))
   !   end do
 
-  !   call gather (femsp%g_trian%num_dims,integ%gint_ref%nnode,poins,geom%lelem(ielem)%unkno,facod)
+  !   call gather (fe_space%g_trian%num_dims,integ%gint_ref%nnode,poins,geom%lelem(ielem)%unkno,facod)
   !   call bomap_from_interp(integ%gint_ref,facod,integ%bomap)
 
   !   ! Define elements map  by interpolation
-  !   call memalloc(femsp%g_trian%num_dims,integ%gfint_ref%nnode,elcod,__FILE__,__LINE__)
+  !   call memalloc(fe_space%g_trian%num_dims,integ%gfint_ref%nnode,elcod,__FILE__,__LINE__)
   !   call memalloc(integ%gfint_ref%nnode,elpos,__FILE__,__LINE__)
   !   elpos = geom%lelem(ielem)%elem2dof(1,:)
-  !   call gather (femsp%g_trian%num_dims,integ%gfint_ref%nnode,elpos,geom%lelem(ielem)%unkno,elcod)
+  !   call gather (fe_space%g_trian%num_dims,integ%gfint_ref%nnode,elpos,geom%lelem(ielem)%unkno,elcod)
   !   call femap_from_face_interp(integ%gfint_ref,elcod,face,integ%femap)
   !   call femap_face_to_interp(integ%femap,integ%ufint_ref,face,integ%ufint_phy)
   !   call femap_face_to_interp(integ%femap,integ%gfint_ref,face,integ%gfint_phy)

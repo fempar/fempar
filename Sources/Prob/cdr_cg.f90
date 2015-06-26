@@ -140,11 +140,11 @@ contains
   end subroutine cdr_matvec_free
 
   !=================================================================================================
-  subroutine cdr_matvec(approx,start,elem)
+  subroutine cdr_matvec(approx,start,finite_element)
     implicit none
     class(cdr_approximation_t), intent(inout) :: approx
     integer(ip)             , intent(in)    :: start(:)
-    type(finite_element_t)       , intent(inout) :: elem
+    type(finite_element_t)       , intent(inout) :: finite_element
 
     type(basis_function_t) :: u ! Trial
     type(basis_function_t) :: p 
@@ -162,8 +162,8 @@ contains
     real(rp) :: factor
 
 
-    elem%p_mat%a = 0.0_rp
-    elem%p_vec%a = 0.0_rp
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
     ndime = approx%physics%ndime
 
     !u = basis_function(approx%physics,1,start,integ)
@@ -195,17 +195,17 @@ contains
 
     !mat = integral(grad(v),grad(u))
 
-    nnode = elem%integ(1)%p%uint_phy%nnode
-    ngaus = elem%integ(1)%p%uint_phy%nlocs
+    nnode = finite_element%integ(1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%uint_phy%nlocs
 
     do igaus = 1,ngaus
-       factor = elem%integ(1)%p%femap%detjm(igaus) * elem%integ(1)%p%quad%weight(igaus)
+       factor = finite_element%integ(1)%p%femap%detjm(igaus) * finite_element%integ(1)%p%quad%weight(igaus)
        do inode = 1, nnode
           do jnode = 1, nnode
              do idime = 1,ndime
-                elem%p_mat%a(inode,jnode) = elem%p_mat%a(inode,jnode) + factor * &
-                     & elem%integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
-                     & elem%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
+                finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) + factor * &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
              end do
           end do
        end do
@@ -218,7 +218,7 @@ contains
     !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
     ! Apply boundary conditions
-    call impose_strong_dirichlet_data(elem) 
+    call impose_strong_dirichlet_data(finite_element) 
 
   end subroutine cdr_matvec
 

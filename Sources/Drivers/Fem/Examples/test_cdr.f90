@@ -37,7 +37,7 @@ program test_cdr
   type(fem_matrix_t)         :: f_mat
   type(fem_conditions_t)     :: f_cond
   type(dof_handler_t)        :: dhand
-  type(fe_space_t)          :: fspac
+  type(fe_space_t)          :: fe_space
   type(fem_graph_t), pointer :: f_graph
   type(fem_block_graph_t)    :: f_blk_graph
   integer(ip)              :: gtype(1) = (/ csr_symm /)
@@ -129,21 +129,21 @@ program test_cdr
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call fe_space_create ( f_trian, dhand, fspac, problem, f_cond, continuity, order, material, &
+  call fe_space_create ( f_trian, dhand, fe_space, problem, f_cond, continuity, order, material, &
        & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
-  call fem_update_strong_dirichlet_bcond( fspac, f_cond )
+  call fem_update_strong_dirichlet_bcond( fe_space, f_cond )
 
-  call create_dof_info( dhand, f_trian, fspac, f_blk_graph, gtype )
+  call create_dof_info( dhand, f_trian, fe_space, f_blk_graph, gtype )
 
   f_graph => f_blk_graph%get_block(1,1)
   call fem_matrix_alloc( csr_mat, symm_true, f_graph, my_matrix, positive_definite )
 
   call fem_vector_alloc( f_graph%nv, my_vector )
   
-  call volume_integral( approximations, fspac, my_matrix, my_vector)
+  call volume_integral( approximations, fe_space, my_matrix, my_vector)
 
   !sctrl%method=direct
   !ppars%type = pardiso_mkl_prec
@@ -201,7 +201,7 @@ program test_cdr
   call fem_vector_free( feunk )
   call fem_vector_free( my_vector )
   call fem_matrix_free( my_matrix) 
-  call fe_space_free(fspac) 
+  call fe_space_free(fe_space) 
   call my_problem%free
   call my_discrete%free
   call my_approximation%free
@@ -239,27 +239,27 @@ contains
 
   end subroutine read_pars_cl_test_cdr
 
-!!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
+!!$  subroutine update_strong_dirichlet_boundary_conditions( fe_space )
 !!$    implicit none
 !!$
-!!$    type(fe_space_t), intent(inout)    :: fspac
+!!$    type(fe_space_t), intent(inout)    :: fe_space
 !!$
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$
-!!$    do ielem = 1, fspac%g_trian%num_elems
-!!$       do ivar=1, fspac%dof_handler%problems(problem(ielem))%p%nvars
+!!$    do ielem = 1, fe_space%g_trian%num_elems
+!!$       do ivar=1, fe_space%dof_handler%problems(problem(ielem))%p%nvars
 !!$          !write (*,*) 'ielem',ielem
 !!$          !write (*,*) 'ivar',ivar
 !!$          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
-!!$          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%p',fspac%lelem(ielem)%nodes_object(ivar)%p%p
-!!$          !write (*,*) 'fspac%lelem(ielem)%nodes_object(ivar)%p%l',fspac%lelem(ielem)%nodes_object(ivar)%p%l
-!!$          do iobje = 1,fspac%lelem(ielem)%p_geo_info%nobje
+!!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%p',fe_space%lelem(ielem)%nodes_object(ivar)%p%p
+!!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%l',fe_space%lelem(ielem)%nodes_object(ivar)%p%l
+!!$          do iobje = 1,fe_space%lelem(ielem)%p_geo_info%nobje
 !!$
-!!$             do inode = fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-!!$                  &     fspac%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-!!$                l_node = fspac%lelem(ielem)%nodes_object(ivar)%p%l(inode)
-!!$                if ( fspac%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-!!$                   fspac%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
+!!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
+!!$                  &     fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
+!!$                l_node = fe_space%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+!!$                if ( fe_space%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
+!!$                   fe_space%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
 !!$                end if
 !!$             end do
 !!$          end do

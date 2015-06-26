@@ -80,70 +80,70 @@ use types_names
 
 contains
 
-  subroutine assembly(elem, dhand, start, a ) 
+  subroutine assembly(finite_element, dhand, start, a ) 
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)    :: dhand
-    type(finite_element_t), intent(in)    :: elem
-    integer(ip)      , intent(in)    :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(finite_element_t), intent(in)    :: finite_element
+    integer(ip)      , intent(in)    :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     class(integrable_t), intent(inout) :: a
 
     select type(a)
     class is(fem_matrix_t)
-       call assembly_element_matrix_mono(elem, dhand, start,a) 
+       call assembly_element_matrix_mono(finite_element, dhand, start,a) 
     class is(fem_vector_t)
-       call assembly_element_vector_mono(elem, dhand, start,a)
+       call assembly_element_vector_mono(finite_element, dhand, start,a)
        !class is(fem_block_matrix_t)
-       !    call assembly_element_matrix_block(elem, dhand, start,a)
+       !    call assembly_element_matrix_block(finite_element, dhand, start,a)
        ! class is(fem_block_vector_t)
-       !    call assembly_element_vector_block(elem, dhand, start,a)
+       !    call assembly_element_vector_block(finite_element, dhand, start,a)
     class default
        ! class not yet implemented
        check(.false.)
     end select
   end subroutine assembly
 
-  subroutine assembly_element_matrix_block(  elem, dhand, start, a ) 
+  subroutine assembly_element_matrix_block(  finite_element, dhand, start, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(finite_element_t), intent(in)             :: finite_element
+    integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     type(fem_block_matrix_t), intent(inout)     :: a
     
-    integer(ip) :: ivar, iblock, jblock !, start(dhand%problems(elem%problem)%p%nvars+1)
+    integer(ip) :: ivar, iblock, jblock !, start(dhand%problems(finite_element%problem)%p%nvars+1)
 
     type(fem_matrix_t), pointer :: f_matrix
 
-    !call pointer_variable(  elem, dhand, start )
+    !call pointer_variable(  finite_element, dhand, start )
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
           f_matrix => a%get_block(iblock,jblock)
           if ( associated(f_matrix) ) then
-             call element_matrix_assembly( dhand, elem, start, f_matrix, iblock, jblock )
+             call element_matrix_assembly( dhand, finite_element, start, f_matrix, iblock, jblock )
           end if 
        end do
     end do
 
   end subroutine assembly_element_matrix_block
 
-  subroutine assembly_element_matrix_mono(  elem, dhand, start, a ) 
+  subroutine assembly_element_matrix_mono(  finite_element, dhand, start, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(finite_element_t), intent(in)             :: finite_element
+    integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     type(fem_matrix_t), intent(inout)           :: a
 
-    !integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
-    !call pointer_variable(  elem, dhand, start )
-    call element_matrix_assembly( dhand, elem, start, a )
+    !integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
+    !call pointer_variable(  finite_element, dhand, start )
+    call element_matrix_assembly( dhand, finite_element, start, a )
 
   end subroutine assembly_element_matrix_mono
 
-  subroutine assembly_face_element_matrix_block(  face, elem, dhand, a ) 
+  subroutine assembly_face_element_matrix_block(  fe_face, finite_element, dhand, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(fem_face_t)   , intent(in)             :: face
-    type(finite_element_t), intent(in)             :: elem(2)
+    type(fe_face_t)   , intent(in)             :: fe_face
+    type(finite_element_t), intent(in)             :: finite_element(2)
     type(fem_block_matrix_t), intent(inout)     :: a
 
     integer(ip) :: iblock, jblock, i
@@ -151,19 +151,19 @@ contains
     type(fem_matrix_t), pointer :: f_matrix
 
     do i=1,2
-       call pointer_variable(  elem(i), dhand, start(i)%a )
+       call pointer_variable(  finite_element(i), dhand, start(i)%a )
     end do
-    start(2)%a = start(2)%a + start(1)%a(dhand%problems(elem(1)%problem)%p%nvars+1) - 1
+    start(2)%a = start(2)%a + start(1)%a(dhand%problems(finite_element(1)%problem)%p%nvars+1) - 1
 
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
           f_matrix => a%get_block(iblock,jblock)
           if ( associated(f_matrix) ) then
             do i = 1,2
-               call element_matrix_assembly( dhand, elem(i), start(i)%a, & 
+               call element_matrix_assembly( dhand, finite_element(i), start(i)%a, & 
                                            & f_matrix, iblock, jblock )
             end do
-            call face_element_matrix_assembly( dhand, elem, face, start, &
+            call face_element_matrix_assembly( dhand, finite_element, fe_face, start, &
                                            &   f_matrix, iblock, jblock )
           end if
        end do
@@ -171,100 +171,100 @@ contains
 
   end subroutine assembly_face_element_matrix_block
 
-  subroutine assembly_face_element_matrix_mono(  face, elem, dhand, a ) 
+  subroutine assembly_face_element_matrix_mono(  fe_face, finite_element, dhand, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(fem_face_t)   , intent(in)             :: face
-    type(finite_element_t), intent(in)             :: elem(2)
+    type(fe_face_t)   , intent(in)             :: fe_face
+    type(finite_element_t), intent(in)             :: finite_element(2)
     type(fem_matrix_t), intent(inout)     :: a
 
     integer(ip) :: i
     type(array_ip1_t) :: start(2)
 
     do i=1,2
-       call pointer_variable(  elem(i), dhand, start(i)%a )
+       call pointer_variable(  finite_element(i), dhand, start(i)%a )
     end do
-    start(2)%a = start(2)%a + start(1)%a(dhand%problems(elem(1)%problem)%p%nvars+1) - 1
+    start(2)%a = start(2)%a + start(1)%a(dhand%problems(finite_element(1)%problem)%p%nvars+1) - 1
     do i = 1,2
-       call element_matrix_assembly( dhand, elem(i), start(i)%a, a )
+       call element_matrix_assembly( dhand, finite_element(i), start(i)%a, a )
     end do
-    call face_element_matrix_assembly( dhand, elem, face, start, a )
+    call face_element_matrix_assembly( dhand, finite_element, fe_face, start, a )
 
   end subroutine assembly_face_element_matrix_mono
 
-  subroutine assembly_element_vector_block(  elem, dhand, start, a ) 
+  subroutine assembly_element_vector_block(  finite_element, dhand, start, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(finite_element_t), intent(in)             :: finite_element
+    integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     type(fem_block_vector_t), intent(inout)     :: a
 
     integer(ip) :: iblock
-    !integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
+    !integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
 
-    !call pointer_variable(  elem, dhand, start )
+    !call pointer_variable(  finite_element, dhand, start )
     do iblock = 1, dhand%nblocks
-       call element_vector_assembly( dhand, elem, start, a%blocks(iblock), &
+       call element_vector_assembly( dhand, finite_element, start, a%blocks(iblock), &
             & iblock )
     end do
 
   end subroutine assembly_element_vector_block
 
 
-  subroutine assembly_element_vector_mono(  elem, dhand, start, a ) 
+  subroutine assembly_element_vector_mono(  finite_element, dhand, start, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(finite_element_t), intent(in)             :: finite_element
+    integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     type(fem_vector_t), intent(inout)           :: a
 
-    !integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
-    !call pointer_variable(  elem, dhand, start )
-    call element_vector_assembly( dhand, elem, start, a )
+    !integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
+    !call pointer_variable(  finite_element, dhand, start )
+    call element_vector_assembly( dhand, finite_element, start, a )
 
   end subroutine assembly_element_vector_mono
 
 
-  subroutine assembly_face_vector_block(  face, elem, dhand, a ) 
+  subroutine assembly_face_vector_block(  fe_face, finite_element, dhand, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(fem_face_t)   , intent(in)             :: face
-    type(finite_element_t), intent(in)             :: elem
+    type(fe_face_t)   , intent(in)             :: fe_face
+    type(finite_element_t), intent(in)             :: finite_element
     type(fem_block_vector_t), intent(inout)     :: a
 
-    integer(ip) :: iblock, start(dhand%problems(elem%problem)%p%nvars+1)
+    integer(ip) :: iblock, start(dhand%problems(finite_element%problem)%p%nvars+1)
 
     ! Note: This subroutine only has sense on interface / boundary faces, only
     ! related to ONE element.
-    call pointer_variable(  elem, dhand, start )
+    call pointer_variable(  finite_element, dhand, start )
     do iblock = 1, dhand%nblocks
-       call face_vector_assembly( dhand, elem, face, start, a%blocks(iblock), iblock )
+       call face_vector_assembly( dhand, finite_element, fe_face, start, a%blocks(iblock), iblock )
     end do
 
   end subroutine assembly_face_vector_block
 
-  subroutine assembly_face_vector_mono(  face, elem, dhand, a ) 
+  subroutine assembly_face_vector_mono(  fe_face, finite_element, dhand, a ) 
     implicit none
     type(dof_handler_t), intent(in)             :: dhand
-    type(fem_face_t)   , intent(in)             :: face
-    type(finite_element_t), intent(in)             :: elem
+    type(fe_face_t)   , intent(in)             :: fe_face
+    type(finite_element_t), intent(in)             :: finite_element
     type(fem_vector_t), intent(inout)           :: a
 
-    integer(ip) :: start(dhand%problems(elem%problem)%p%nvars+1)
+    integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
 
     ! Note: This subroutine only has sense on interface / boundary faces, only
     ! related to ONE element.
-    call pointer_variable(  elem, dhand, start )
-    call face_vector_assembly( dhand, elem, face, start, a )
+    call pointer_variable(  finite_element, dhand, start )
+    call face_vector_assembly( dhand, finite_element, fe_face, start, a )
 
   end subroutine assembly_face_vector_mono
 
-  subroutine element_matrix_assembly( dhand, elem, start, a, iblock, jblock )
+  subroutine element_matrix_assembly( dhand, finite_element, start, a, iblock, jblock )
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(finite_element_t), intent(in)             :: finite_element
+    integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     type(fem_matrix_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock, jblock
 
@@ -278,7 +278,7 @@ contains
     
     
     gtype = a%gr%type
-    iprob = elem%problem
+    iprob = finite_element%problem
 
 
     nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
@@ -288,8 +288,8 @@ contains
     !write (*,*) 'nvapb_j:',nvapb_j
     !write (*,*) 'start:',start
 
-    !write(*,*) 'local matrix',elem%p_mat%nd1, elem%p_mat%nd2
-    !write(*,*) 'local matrix',elem%p_mat%a
+    !write(*,*) 'local matrix',finite_element%p_mat%nd1, finite_element%p_mat%nd2
+    !write(*,*) 'local matrix',finite_element%p_mat%a
     
     
 
@@ -301,23 +301,23 @@ contains
           k_var = dhand%problems(iprob)%p%l2g_var(m_var)
           !write (*,*) 'l_var:',l_var
           !write (*,*) 'm_var:',m_var
-          do inode = 1,elem%f_inf(l_var)%p%nnode
-             idof = elem%elem2dof(inode,l_var)
+          do inode = 1,finite_element%f_inf(l_var)%p%nnode
+             idof = finite_element%elem2dof(inode,l_var)
              if ( idof  > 0 ) then
-                do jnode = 1,elem%f_inf(m_var)%p%nnode
-                   jdof = elem%elem2dof(jnode,m_var)
+                do jnode = 1,finite_element%f_inf(m_var)%p%nnode
+                   jdof = finite_element%elem2dof(jnode,m_var)
                    if (  gtype == csr .and. jdof > 0 ) then
                       do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                          if ( a%gr%ja(k) == jdof ) exit
                       end do
                       assert ( k < a%gr%ia(idof+1) )
-                      a%a(k) = a%a(k) + elem%p_mat%a(start(l_var)+inode-1,start(m_var)+jnode-1)
+                      a%a(k) = a%a(k) + finite_element%p_mat%a(start(l_var)+inode-1,start(m_var)+jnode-1)
                    else if ( jdof >= idof ) then! gtype == csr_symm 
                       do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                          if ( a%gr%ja(k) == jdof ) exit
                       end do
                       assert ( k < a%gr%ia(idof+1) )
-                      a%a(k) = a%a(k) + elem%p_mat%a(start(l_var)+inode-1,start(m_var)+jnode-1)
+                      a%a(k) = a%a(k) + finite_element%p_mat%a(start(l_var)+inode-1,start(m_var)+jnode-1)
                    end if
                 end do
              end if
@@ -330,12 +330,12 @@ contains
 
   end subroutine element_matrix_assembly
 
-  subroutine face_element_matrix_assembly( dhand, elem, face, start, a, iblock, jblock )
+  subroutine face_element_matrix_assembly( dhand, finite_element, fe_face, start, a, iblock, jblock )
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem(2)
-    type(fem_face_t)   , intent(in)             :: face
+    type(finite_element_t), intent(in)             :: finite_element(2)
+    type(fe_face_t)   , intent(in)             :: fe_face
     type(array_ip1_t), intent(in)               :: start(2)
     type(fem_matrix_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock, jblock
@@ -350,8 +350,8 @@ contains
     gtype = a%gr%type
     do i = 1, 2
        j = 3 - i
-       iprob = elem(i)%problem
-       jprob = elem(j)%problem
+       iprob = finite_element(i)%problem
+       jprob = finite_element(j)%problem
        nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
        nvapb_j = dhand%prob_block(jblock_,jprob)%nd1
        do ivars = 1, nvapb_i
@@ -360,25 +360,25 @@ contains
           do jvars = 1, nvapb_j
              m_var = dhand%prob_block(jblock_,jprob)%a(jvars)
              k_var = dhand%problems(jprob)%p%l2g_var(m_var)
-             do inode = 1,elem(i)%f_inf(l_var)%p%nnode
-                idof = elem(i)%elem2dof(inode,l_var)
+             do inode = 1,finite_element(i)%f_inf(l_var)%p%nnode
+                idof = finite_element(i)%elem2dof(inode,l_var)
                 if ( idof  > 0 ) then
-                   ndime = elem(j)%p_geo_info%ndime
-                   iobje = face%face_object + elem(j)%p_geo_info%nobje_dim(ndime) - 1
-                   do jnode = elem(j)%f_inf(m_var)%p%ntxob%p(iobje),elem(j)%f_inf(m_var)%p%ntxob%p(iobje+1)-1
-                      jdof = elem(j)%elem2dof(elem(j)%f_inf(m_var)%p%ntxob%l(jnode),m_var)
+                   ndime = finite_element(j)%p_geo_info%ndime
+                   iobje = fe_face%face_object + finite_element(j)%p_geo_info%nobje_dim(ndime) - 1
+                   do jnode = finite_element(j)%f_inf(m_var)%p%ntxob%p(iobje),finite_element(j)%f_inf(m_var)%p%ntxob%p(iobje+1)-1
+                      jdof = finite_element(j)%elem2dof(finite_element(j)%f_inf(m_var)%p%ntxob%l(jnode),m_var)
                       if (  gtype == csr .and. jdof > 0 ) then
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
-                         a%a(k) = a%a(k) + face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode-1)
+                         a%a(k) = a%a(k) + fe_face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode-1)
                       else if ( jdof >= idof ) then! gtype == csr_symm 
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
-                         a%a(k) = a%a(k) + face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode-1)
+                         a%a(k) = a%a(k) + fe_face%p_mat%a(start(i)%a(l_var)+inode,start(j)%a(m_var)+jnode-1)
                       end if
                    end do
                 end if
@@ -389,12 +389,12 @@ contains
 
   end subroutine face_element_matrix_assembly
 
-  subroutine element_vector_assembly( dhand, elem, start, a, iblock )
+  subroutine element_vector_assembly( dhand, finite_element, start, a, iblock )
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem
-    integer(ip), intent(in)                   :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(finite_element_t), intent(in)             :: finite_element
+    integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     type(fem_vector_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock
 
@@ -403,15 +403,15 @@ contains
 
     iblock_ = 1
     if ( present(iblock) ) iblock_ = iblock
-    iprob = elem%problem
+    iprob = finite_element%problem
     nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-       do inode = 1,elem%f_inf(l_var)%p%nnode
-          idof = elem%elem2dof(inode,l_var)
+       do inode = 1,finite_element%f_inf(l_var)%p%nnode
+          idof = finite_element%elem2dof(inode,l_var)
           if ( idof  > 0 ) then
-             a%b(idof) =  a%b(idof) + elem%p_vec%a(start(l_var)+inode-1)
+             a%b(idof) =  a%b(idof) + finite_element%p_vec%a(start(l_var)+inode-1)
           end if
        end do
     end do
@@ -419,12 +419,12 @@ contains
   end subroutine element_vector_assembly
 
 
-  subroutine face_vector_assembly( dhand, elem, face, start, a, iblock )
+  subroutine face_vector_assembly( dhand, finite_element, fe_face, start, a, iblock )
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
-    type(finite_element_t), intent(in)             :: elem
-    type(fem_face_t)   , intent(in)             :: face
+    type(finite_element_t), intent(in)             :: finite_element
+    type(fe_face_t)   , intent(in)             :: fe_face
     integer(ip),       intent(in)             :: start(:)
     type(fem_vector_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock
@@ -433,37 +433,37 @@ contains
     integer(ip) :: inode, idof, iblock_, iobje, ndime
 
     iblock_ = 1
-    ndime = elem%p_geo_info%ndime
+    ndime = finite_element%p_geo_info%ndime
     if ( present(iblock) ) iblock_ = iblock
-    iprob = elem%problem
+    iprob = finite_element%problem
     nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-       iobje = face%face_object + elem%p_geo_info%nobje_dim(ndime) - 1
-       do inode = elem%f_inf(l_var)%p%ntxob%p(iobje),elem%f_inf(l_var)%p%ntxob%p(iobje+1)-1
-          idof = elem%elem2dof(elem%f_inf(l_var)%p%ntxob%l(inode),l_var)
+       iobje = fe_face%face_object + finite_element%p_geo_info%nobje_dim(ndime) - 1
+       do inode = finite_element%f_inf(l_var)%p%ntxob%p(iobje),finite_element%f_inf(l_var)%p%ntxob%p(iobje+1)-1
+          idof = finite_element%elem2dof(finite_element%f_inf(l_var)%p%ntxob%l(inode),l_var)
           if ( idof  > 0 ) then
-             a%b(idof) = a%b(idof) + face%p_vec%a(start(l_var)+inode-1)
+             a%b(idof) = a%b(idof) + fe_face%p_vec%a(start(l_var)+inode-1)
           end if
        end do
     end do
 
   end subroutine face_vector_assembly
 
-  subroutine pointer_variable(  elem, dhand, start ) 
+  subroutine pointer_variable(  finite_element, dhand, start ) 
     implicit none
     type(dof_handler_t), intent(in)  :: dhand
-    type(finite_element_t), intent(in)  :: elem
+    type(finite_element_t), intent(in)  :: finite_element
     integer(ip)      , intent(out) :: start(:)
 
     integer(ip) :: ivar
 
-    do ivar = 1,dhand%problems(elem%problem)%p%nvars
-       start(ivar+1) = elem%f_inf(ivar)%p%nnode
+    do ivar = 1,dhand%problems(finite_element%problem)%p%nvars
+       start(ivar+1) = finite_element%f_inf(ivar)%p%nnode
     end do
     start(1) = 1
-    do ivar = 2, dhand%problems(elem%problem)%p%nvars+1
+    do ivar = 2, dhand%problems(finite_element%problem)%p%nvars+1
        start(ivar) = start(ivar) + start(ivar-1)
     end do
   end subroutine pointer_variable

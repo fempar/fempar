@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module nsi_cg_asgs_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
  use array_names
  use problem_names
  use nsi_names
@@ -144,11 +144,11 @@ contains
   end subroutine nsi_matvec_free
 
   !=================================================================================================
-  subroutine nsi_matvec(approx,start,elem)
+  subroutine nsi_matvec(approx,start,finite_element)
     implicit none
     class(nsi_cg_asgs_approximation_t), intent(inout) :: approx
     integer(ip)                     , intent(in)    :: start(:)
-    type(finite_element_t)               , intent(inout) :: elem
+    type(finite_element_t)               , intent(inout) :: finite_element
 
     type(basis_function_t) :: u ! Trial
     type(basis_function_t) :: p 
@@ -164,32 +164,32 @@ contains
 
     ndime = approx%physics%ndime
        
-    u = basis_function_t(approx%physics,1,start,elem%integ)
-    p = basis_function_t(approx%physics,2,start,elem%integ)
-    v = basis_function_t(approx%physics,1,start,elem%integ) 
-    q = basis_function_t(approx%physics,2,start,elem%integ)
+    u = basis_function_t(approx%physics,1,start,finite_element%integ)
+    p = basis_function_t(approx%physics,2,start,finite_element%integ)
+    v = basis_function_t(approx%physics,1,start,finite_element%integ) 
+    q = basis_function_t(approx%physics,2,start,finite_element%integ)
 
     ! With a_h declared as given_function we could do:
-    ! a_h   = given_function(approx,1,1,elem%integ)
+    ! a_h   = given_function(approx,1,1,finite_element%integ)
     ! call interpolation(grad(a_h),grad_a) 
     ! with grad_a declared as tensor and, of course
-    ! call interpolation(grad(given_function(approx,1,1,elem%integ)),grad_a)
+    ! call interpolation(grad(given_function(approx,1,1,finite_element%integ)),grad_a)
     ! is also possible.
-    !call interpolation(given_function(approx,1,1,elem%integ),a)
-    !call interpolation(given_function(approx,1,3,elem%integ),u_n)
+    !call interpolation(given_function(approx,1,1,finite_element%integ),a)
+    !call interpolation(given_function(approx,1,3,finite_element%integ),u_n)
 
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and
     ! an initialization call.
-    call create_vector (approx%physics, 1, elem%integ, a)
-    call create_vector (approx%physics, 1, elem%integ, u_n)
+    call create_vector (approx%physics, 1, finite_element%integ, a)
+    call create_vector (approx%physics, 1, finite_element%integ, u_n)
     ! Then for each element fill values
-    call interpolation (elem%unkno, 1, 1, elem%integ, a)
-    call interpolation (elem%unkno, 1, 3, elem%integ, u_n)
+    call interpolation (finite_element%unkno, 1, 1, finite_element%integ, a)
+    call interpolation (finite_element%unkno, 1, 3, finite_element%integ, u_n)
 
     ! Dirty, isnt'it?
-    !h%a=elem%integ(1)%p%femap%hleng(1,:)     ! max
-    h%a=elem%integ(1)%p%femap%hleng(ndime,:) ! min
+    !h%a=finite_element%integ(1)%p%femap%hleng(1,:)     ! max
+    h%a=finite_element%integ(1)%p%femap%hleng(ndime,:) ! min
 
     
     mu = approx%physics%diffu
@@ -201,14 +201,14 @@ contains
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)
     
-    elem%p_mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
-    !elem%mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
+    finite_element%p_mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
+    !finite_element%mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
 
     ! This will not work right now becaus + of basis_functions and gradients is not defined.
-    !elem%mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
+    !finite_element%mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
     ! Apply boundary conditions
-    call impose_strong_dirichlet_data(elem) 
+    call impose_strong_dirichlet_data(finite_element) 
 
   end subroutine nsi_matvec
 

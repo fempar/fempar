@@ -68,12 +68,12 @@ contains
   ! the only thing is that *ielem* <=  *num_elems* always, so it never goes to the
   ! ghost element part.
   !*********************************************************************************
-  subroutine create_dof_info ( dhand, trian, femsp, f_blk_graph, gtype ) ! graph
+  subroutine create_dof_info ( dhand, trian, fe_space, f_blk_graph, gtype ) ! graph
     implicit none
     ! Dummy arguments
     type(dof_handler_t)              , intent(in)    :: dhand
     type(fem_triangulation_t)        , intent(in)    :: trian 
-    type(fe_space_t)                , intent(inout) :: femsp 
+    type(fe_space_t)                , intent(inout) :: fe_space 
     type(fem_block_graph_t)          , intent(inout) :: f_blk_graph 
     integer(ip)          , optional, intent(in)    :: gtype(dhand%nblocks) 
 
@@ -82,9 +82,9 @@ contains
     type(fem_graph_t), pointer :: f_graph
 
 
-    call create_element_to_dof_and_ndofs( dhand, trian, femsp )
+    call create_element_to_dof_and_ndofs( dhand, trian, fe_space )
 
-    call create_object2dof( dhand, trian, femsp )
+    call create_object2dof( dhand, trian, fe_space )
 
     ! Create block graph
     call f_blk_graph%alloc(dhand%nblocks)
@@ -94,9 +94,9 @@ contains
        do jblock = 1, dhand%nblocks
           f_graph => f_blk_graph%get_block(iblock,jblock)
           if ( iblock == jblock .and. present(gtype) ) then
-             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_graph, gtype(iblock) )
+             call create_dof_graph_block ( iblock, jblock, dhand, trian, fe_space, f_graph, gtype(iblock) )
           else
-             call create_dof_graph_block ( iblock, jblock, dhand, trian, femsp, f_graph )
+             call create_dof_graph_block ( iblock, jblock, dhand, trian, fe_space, f_graph )
           end if
        end do
     end do
@@ -112,22 +112,22 @@ contains
   ! defined at the dof_handler. A global dof numbering is not needed in the code, 
   ! when blocks are being used.
   !*********************************************************************************
-  subroutine create_element_to_dof_and_ndofs( dhand, trian, femsp ) 
+  subroutine create_element_to_dof_and_ndofs( dhand, trian, fe_space ) 
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
     type(fem_triangulation_t), intent(in)       :: trian 
-    type(fe_space_t), intent(inout)            :: femsp 
+    type(fe_space_t), intent(inout)            :: fe_space 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
     integer(ip) :: obje_l, inode, l_node, elem_ext, obje_ext, prob_ext, l_var_ext, inode_ext, inode_l
     integer(ip) :: mater, order, nnode
-    integer(ip) :: touch(femsp%num_continuity,dhand%nvars_global,2)
+    integer(ip) :: touch(fe_space%num_continuity,dhand%nvars_global,2)
 
     integer(ip)     :: o2n(max_nnode)
 
-    call memalloc ( dhand%nblocks, femsp%ndofs, __FILE__, __LINE__ )
+    call memalloc ( dhand%nblocks, fe_space%ndofs, __FILE__, __LINE__ )
 
     do iblock = 1, dhand%nblocks  
        count = 0
@@ -148,25 +148,25 @@ contains
           touch = 0
           do ielem = 1, trian%objects(iobje)%num_elems_around
              jelem = trian%objects(iobje)%elems_around(ielem)
-             iprob = femsp%lelem(jelem)%problem
+             iprob = fe_space%finite_elements(jelem)%problem
              nvapb = dhand%prob_block(iblock,iprob)%nd1
              if ( jelem <= trian%num_elems ) then ! Local elements
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                   if ( femsp%lelem(jelem)%continuity(g_var) /= 0 ) then
-                      mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
+                   if ( fe_space%finite_elements(jelem)%continuity(g_var) /= 0 ) then
+                      mater = fe_space%finite_elements(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
                       do obje_l = 1, trian%elems(jelem)%num_objects
                          if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                       end do
-                      if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
+                      if ( fe_space%finite_elements(jelem)%bc_code(l_var,obje_l) == 0 ) then
                          if ( touch(mater,g_var,1) == 0 ) then                            
                             touch(mater,g_var,1) = jelem
                             touch(mater,g_var,2) = obje_l
-                            call put_new_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, g_var, jelem, l_var, &
+                            call put_new_vefs_dofs_in_vef_of_element ( dhand, trian, fe_space, g_var, jelem, l_var, &
                                  count, obje_l )
                          else
-                            call put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, touch, mater, g_var, iobje, &
+                            call put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, fe_space, touch, mater, g_var, iobje, &
                                  &                                          jelem, l_var, o2n, obje_l )
                          end if
                       end if
@@ -176,13 +176,13 @@ contains
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                   if ( femsp%lelem(jelem)%continuity(g_var) /= 0 ) then
-                      mater = femsp%lelem(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
+                   if ( fe_space%finite_elements(jelem)%continuity(g_var) /= 0 ) then
+                      mater = fe_space%finite_elements(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
                       do obje_l = 1, trian%elems(jelem)%num_objects
                          if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                       end do
                       if ( touch(mater,g_var,1) /= 0) then
-                         call put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, touch, mater, g_var, iobje, &
+                         call put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, fe_space, touch, mater, g_var, iobje, &
                               &                                          jelem, l_var, o2n, obje_l )
                       end if
                    end if
@@ -198,26 +198,26 @@ contains
        ! automatic check for satisfying that.
        ! No check about strong Dirichlet boundary conditions, because they are imposed weakly in dG, and
        ! never appear in interior nodes in cG.
-       if ( ( .not. femsp%static_condensation )  ) then
+       if ( ( .not. fe_space%static_condensation )  ) then
           do ielem = 1, trian%num_elems
-             iprob = femsp%lelem(ielem)%problem
+             iprob = fe_space%finite_elements(ielem)%problem
              nvapb = dhand%prob_block(iblock,iprob)%nd1
              do ivars = 1, nvapb
                 l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                 g_var = dhand%problems(iprob)%p%l2g_var(l_var) 
                 iobje = trian%elems(ielem)%num_objects+1
-                do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
-                     &     femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1 
-                   l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
+                do inode = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje), &
+                     &     fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje+1)-1 
+                   l_node = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%l(inode)
                    count = count +1
-                   femsp%lelem(ielem)%elem2dof(l_node,l_var) = count
+                   fe_space%finite_elements(ielem)%elem2dof(l_node,l_var) = count
                 end do
              end do
           end do
        end if
 
        ! Part 3: Assign total number of dofs created to fem space object
-       femsp%ndofs(iblock) = count
+       fe_space%ndofs(iblock) = count
     end do
 
   end subroutine create_element_to_dof_and_ndofs
@@ -230,46 +230,46 @@ contains
   ! acceleration array than a really needed structure, but it is convenient when
   ! creating the dof graph. 
   !*********************************************************************************
-  subroutine create_object2dof ( dhand, trian, femsp ) 
+  subroutine create_object2dof ( dhand, trian, fe_space ) 
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
     type(fem_triangulation_t), intent(in)       :: trian 
-    type(fe_space_t), intent(inout)            :: femsp 
+    type(fe_space_t), intent(inout)            :: fe_space 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
     integer(ip) :: obje_l, inode, l_node, mater, istat
-    integer(ip) :: touch(dhand%nvars_global,femsp%num_continuity)
+    integer(ip) :: touch(dhand%nvars_global,fe_space%num_continuity)
 
-    allocate( femsp%object2dof(dhand%nblocks), stat = istat )
+    allocate( fe_space%object2dof(dhand%nblocks), stat = istat )
     check( istat == 0)
 
     ! Part 1: Count DOFs on VEFs, using the notion of continuity described above (in elem2dof)
     do iblock = 1, dhand%nblocks  
-       femsp%object2dof(iblock)%n1 = trian%num_objects
-       femsp%object2dof(iblock)%n2 = 3
-       call memalloc ( trian%num_objects+1, femsp%object2dof(iblock)%p, __FILE__, __LINE__, 0 )
+       fe_space%object2dof(iblock)%n1 = trian%num_objects
+       fe_space%object2dof(iblock)%n2 = 3
+       call memalloc ( trian%num_objects+1, fe_space%object2dof(iblock)%p, __FILE__, __LINE__, 0 )
        do iobje = 1, trian%num_objects
           touch = 0
           do ielem = 1, trian%objects(iobje)%num_elems_around
              jelem = trian%objects(iobje)%elems_around(ielem)
              if ( jelem <= trian%num_elems ) then 
-                iprob = femsp%lelem(jelem)%problem
+                iprob = fe_space%finite_elements(jelem)%problem
                 nvapb = dhand%prob_block(iblock,iprob)%nd1
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                   mater = femsp%lelem(jelem)%continuity(g_var) 
+                   mater = fe_space%finite_elements(jelem)%continuity(g_var) 
                    if ( mater /= 0 ) then
                       if ( touch(g_var,mater) == 0 ) then
                          touch(g_var,mater) = 1
                          do obje_l = 1, trian%elems(jelem)%num_objects
                             if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                          end do
-                         if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
-                            femsp%object2dof(iblock)%p(iobje+1) = femsp%object2dof(iblock)%p(iobje+1) + femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
-                                 & - femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l)
+                         if ( fe_space%finite_elements(jelem)%bc_code(l_var,obje_l) == 0 ) then
+                            fe_space%object2dof(iblock)%p(iobje+1) = fe_space%object2dof(iblock)%p(iobje+1) + fe_space%finite_elements(jelem)%nodes_object(l_var)%p%p(obje_l+1) &
+                                 & - fe_space%finite_elements(jelem)%nodes_object(l_var)%p%p(obje_l)
                          end if
                       end if
                    end if
@@ -278,12 +278,12 @@ contains
           end do
        end do
 
-       femsp%object2dof(iblock)%p(1) = 1
+       fe_space%object2dof(iblock)%p(1) = 1
        do iobje = 2, trian%num_objects+1
-          femsp%object2dof(iblock)%p(iobje) = femsp%object2dof(iblock)%p(iobje) + femsp%object2dof(iblock)%p(iobje-1)
+          fe_space%object2dof(iblock)%p(iobje) = fe_space%object2dof(iblock)%p(iobje) + fe_space%object2dof(iblock)%p(iobje-1)
        end do
 
-       call memalloc ( femsp%object2dof(iblock)%p(trian%num_objects+1)-1, 3, femsp%object2dof(iblock)%l, __FILE__, __LINE__ )
+       call memalloc ( fe_space%object2dof(iblock)%p(trian%num_objects+1)-1, 3, fe_space%object2dof(iblock)%l, __FILE__, __LINE__ )
 
        ! Part 2: List DOFs on VEFs, using the notion of continuity described above (in elem2dof)
        ! We note that the object2dof(iblock)%l(:,X) is defined for X = 1,2,3
@@ -296,26 +296,26 @@ contains
           do ielem = 1, trian%objects(iobje)%num_elems_around
              jelem = trian%objects(iobje)%elems_around(ielem)
              if ( jelem <= trian%num_elems ) then 
-                iprob = femsp%lelem(jelem)%problem
+                iprob = fe_space%finite_elements(jelem)%problem
                 nvapb = dhand%prob_block(iblock,iprob)%nd1
                 do ivars = 1, nvapb
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-                   mater = femsp%lelem(jelem)%continuity(g_var)
+                   mater = fe_space%finite_elements(jelem)%continuity(g_var)
                    if ( mater /= 0) then
                       if ( touch(g_var,mater) == 0 ) then
                          touch(g_var,mater) = 1
                          do obje_l = 1, trian%elems(jelem)%num_objects
                             if ( trian%elems(jelem)%objects(obje_l) == iobje ) exit
                          end do
-                         if ( femsp%lelem(jelem)%bc_code(l_var,obje_l) == 0 ) then
-                            do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l), &
-                                 &     femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
-                               l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
+                         if ( fe_space%finite_elements(jelem)%bc_code(l_var,obje_l) == 0 ) then
+                            do inode = fe_space%finite_elements(jelem)%nodes_object(l_var)%p%p(obje_l), &
+                                 &     fe_space%finite_elements(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
+                               l_node = fe_space%finite_elements(jelem)%nodes_object(l_var)%p%l(inode)
                                count = count + 1
-                               femsp%object2dof(iblock)%l(count,1) = femsp%lelem(jelem)%elem2dof(l_node,l_var)
-                               femsp%object2dof(iblock)%l(count,2) = dhand%problems(iprob)%p%l2g_var(l_var)
-                               femsp%object2dof(iblock)%l(count,3) = mater
+                               fe_space%object2dof(iblock)%l(count,1) = fe_space%finite_elements(jelem)%elem2dof(l_node,l_var)
+                               fe_space%object2dof(iblock)%l(count,2) = dhand%problems(iprob)%p%l2g_var(l_var)
+                               fe_space%object2dof(iblock)%l(count,3) = mater
                             end do
                          end if
                       end if
@@ -335,13 +335,13 @@ contains
   ! condensation and without it. In order to call this subroutine, we need to compute 
   ! first element2dof and object2dof arrays.
   !*********************************************************************************
-  subroutine create_dof_graph_block( iblock, jblock, dhand, trian, femsp, dof_graph, gtype ) 
+  subroutine create_dof_graph_block( iblock, jblock, dhand, trian, fe_space, dof_graph, gtype ) 
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: fe_space 
     type(fem_graph_t), intent(out)                :: dof_graph
     integer(ip), optional, intent(in)           :: gtype
 
@@ -374,19 +374,19 @@ contains
 
     ! Initialize
     dof_graph%type = ltype
-    dof_graph%nv  = femsp%ndofs(iblock) ! SB.alert : not stored there anymore
-    dof_graph%nv2 = femsp%ndofs(jblock)
+    dof_graph%nv  = fe_space%ndofs(iblock) ! SB.alert : not stored there anymore
+    dof_graph%nv2 = fe_space%ndofs(jblock)
     call memalloc( dof_graph%nv+1, dof_graph%ia, __FILE__,__LINE__ )
     dof_graph%ia = 0
 
     ! COUNT PART
-    call count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph )  
-    call count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph )  
-    call count_nnz_all_dofs_vs_all_dofs_by_face_integration( iblock, jblock, dhand, trian, femsp, dof_graph )  
+    call count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph )  
+    call count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph )  
+    call count_nnz_all_dofs_vs_all_dofs_by_face_integration( iblock, jblock, dhand, trian, fe_space, dof_graph )  
 
     !
     dof_graph%ia(1) = 1
-    do idof = 2, femsp%ndofs(iblock)+1
+    do idof = 2, fe_space%ndofs(iblock)+1
        dof_graph%ia(idof) = dof_graph%ia(idof) + dof_graph%ia(idof-1)
     end do
 
@@ -395,30 +395,30 @@ contains
     ! write(*,*) 'dof_graph%ia',dof_graph%ia
     ! write(*,*) '****END****'
 
-    call memalloc ( dof_graph%ia(femsp%ndofs(iblock)+1)-1, dof_graph%ja, __FILE__, __LINE__ )
+    call memalloc ( dof_graph%ia(fe_space%ndofs(iblock)+1)-1, dof_graph%ja, __FILE__, __LINE__ )
 
     ! LIST PART
 
     call memalloc( dof_graph%nv+1, aux_ia, __FILE__,__LINE__ )
     aux_ia = dof_graph%ia
 
-    call list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph, aux_ia ) 
-    call list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph, aux_ia )
-    call list_nnz_all_dofs_vs_all_dofs_by_face_integration( iblock, jblock, dhand, trian, femsp, dof_graph, aux_ia ) 
+    call list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph, aux_ia ) 
+    call list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph, aux_ia )
+    call list_nnz_all_dofs_vs_all_dofs_by_face_integration( iblock, jblock, dhand, trian, fe_space, dof_graph, aux_ia ) 
 
     ! write(*,*) 'DOF_GRAPH%JA'
     ! write(*,*) '****START****'
     ! write(*,*) 'dof_graph%ja',dof_graph%ja
     ! write(*,*) '****END****'
 
-    do idof = 1, femsp%ndofs(iblock)
+    do idof = 1, fe_space%ndofs(iblock)
        ! Order increasingly column identifiers of current row 
        ! using heap sort algorithm
        posi = dof_graph%ia(idof)
        posf = dof_graph%ia(idof+1)-1
        call sort(posf-posi+1,dof_graph%ja(posi:posf))
     end do
-    do idof = 1, femsp%ndofs(iblock)
+    do idof = 1, fe_space%ndofs(iblock)
        !write (*,*) 'DOFS COUPLED TO IDOF:',idof
        !write (*,*) '****** START:'
        do l_dof = dof_graph%ia(idof),dof_graph%ia(idof+1)-1
@@ -439,13 +439,13 @@ contains
   ! Count NNZ (number of nonzero entries) for DOFs on the interface (VEFs) of elements against
   ! both interior and interface nodes.
   !*********************************************************************************
-  subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph )  
+  subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph )  
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: fe_space 
     type(fem_graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
@@ -457,7 +457,7 @@ contains
     ltype = dof_graph%type
 
     do iobje = 1, trian%num_objects             
-       if ( femsp%object2dof(iblock)%p(iobje+1)-femsp%object2dof(iblock)%p(iobje) > 0) then
+       if ( fe_space%object2dof(iblock)%p(iobje+1)-fe_space%object2dof(iblock)%p(iobje) > 0) then
           call visited%init(100) 
           do ielem = 1, trian%objects(iobje)%num_elems_around
              jelem = trian%objects(iobje)%elems_around(ielem)
@@ -467,14 +467,14 @@ contains
                    call visited%put(key=job_g, val=touch, stat=istat)
                    !write (*,*) 'istat',istat
                    if ( istat == now_stored ) then   ! interface-interface
-                      do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
-                         l_dof = femsp%object2dof(iblock)%l(idof,1)
-                         l_var = femsp%object2dof(iblock)%l(idof,2)
-                         l_mat = femsp%object2dof(iblock)%l(idof,3)
-                         do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
-                            m_dof = femsp%object2dof(jblock)%l(jdof,1)
-                            m_var = femsp%object2dof(jblock)%l(jdof,2)
-                            m_mat = femsp%object2dof(jblock)%l(jdof,3)
+                      do idof = fe_space%object2dof(iblock)%p(iobje), fe_space%object2dof(iblock)%p(iobje+1)-1
+                         l_dof = fe_space%object2dof(iblock)%l(idof,1)
+                         l_var = fe_space%object2dof(iblock)%l(idof,2)
+                         l_mat = fe_space%object2dof(iblock)%l(idof,3)
+                         do jdof = fe_space%object2dof(jblock)%p(job_g), fe_space%object2dof(jblock)%p(job_g+1)-1
+                            m_dof = fe_space%object2dof(jblock)%l(jdof,1)
+                            m_var = fe_space%object2dof(jblock)%l(jdof,2)
+                            m_mat = fe_space%object2dof(jblock)%l(jdof,3)
                             if ( dhand%dof_coupl(l_var,m_var) == 1 .and. l_mat == m_mat ) then
                                if ( ltype == csr ) then
                                   dof_graph%ia(l_dof+1) = &
@@ -491,27 +491,27 @@ contains
                    end if
                 end do
                 !end do
-                if (.not.femsp%static_condensation) then  ! interface-interior
-                   iprob = femsp%lelem(jelem)%problem
+                if (.not.fe_space%static_condensation) then  ! interface-interior
+                   iprob = fe_space%finite_elements(jelem)%problem
                    nvapb = dhand%prob_block(iblock,iprob)%nd1
-                   do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
-                      l_dof = femsp%object2dof(iblock)%l(idof,1)
-                      l_var = femsp%object2dof(iblock)%l(idof,2)
-                      l_mat = femsp%object2dof(iblock)%l(idof,3)
+                   do idof = fe_space%object2dof(iblock)%p(iobje), fe_space%object2dof(iblock)%p(iobje+1)-1
+                      l_dof = fe_space%object2dof(iblock)%l(idof,1)
+                      l_var = fe_space%object2dof(iblock)%l(idof,2)
+                      l_mat = fe_space%object2dof(iblock)%l(idof,3)
                       do ivars = 1, nvapb
                          k_var = dhand%prob_block(iblock,iprob)%a(ivars)
                          m_var = dhand%problems(iprob)%p%l2g_var(k_var)
-                         m_mat = femsp%lelem(jelem)%continuity(m_var)
+                         m_mat = fe_space%finite_elements(jelem)%continuity(m_var)
                          if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                             if ( ltype == csr ) then
                                dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
-                                    & + femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1) &
-                                    & - femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje)
+                                    & + fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje+1) &
+                                    & - fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje)
                             else ! ltype == csr_symm
-                               do inode = femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(inode)
-                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,k_var)
+                               do inode = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje), &
+                                    & fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
+                                  l_node = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%l(inode)
+                                  m_dof = fe_space%finite_elements(jelem)%elem2dof(l_node,k_var)
                                   if ( m_dof >= l_dof ) then
                                      dof_graph%ia(l_dof+1) = &
                                           & dof_graph%ia(l_dof+1) + 1
@@ -533,13 +533,13 @@ contains
   ! List NNZ (number of nonzero entries) for DOFs on the interface (VEFs) of elements against
   ! both interior and interface nodes.
   !*********************************************************************************
-  subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph, aux_ia )  
+  subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph, aux_ia )  
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: fe_space 
     type(fem_graph_t), intent(inout)                :: dof_graph
     integer(ip), intent(inout)                :: aux_ia(:)
 
@@ -553,7 +553,7 @@ contains
 
     count = 0
     do iobje = 1, trian%num_objects 
-       if ( femsp%object2dof(iblock)%p(iobje+1)-femsp%object2dof(iblock)%p(iobje) > 0) then
+       if ( fe_space%object2dof(iblock)%p(iobje+1)-fe_space%object2dof(iblock)%p(iobje) > 0) then
           call visited%init(100) 
           do ielem = 1, trian%objects(iobje)%num_elems_around
              jelem = trian%objects(iobje)%elems_around(ielem)
@@ -562,12 +562,12 @@ contains
                    job_g = trian%elems(jelem)%objects(jobje)
                    call visited%put(key=job_g, val=touch, stat=istat)
                    if ( istat == now_stored ) then  ! interface-interface
-                      do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
-                         l_dof = femsp%object2dof(iblock)%l(idof,1)
-                         l_var = femsp%object2dof(iblock)%l(idof,2)
-                         do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
-                            m_dof = femsp%object2dof(jblock)%l(jdof,1)
-                            m_var = femsp%object2dof(jblock)%l(jdof,2)
+                      do idof = fe_space%object2dof(iblock)%p(iobje), fe_space%object2dof(iblock)%p(iobje+1)-1
+                         l_dof = fe_space%object2dof(iblock)%l(idof,1)
+                         l_var = fe_space%object2dof(iblock)%l(idof,2)
+                         do jdof = fe_space%object2dof(jblock)%p(job_g), fe_space%object2dof(jblock)%p(job_g+1)-1
+                            m_dof = fe_space%object2dof(jblock)%l(jdof,1)
+                            m_var = fe_space%object2dof(jblock)%l(jdof,2)
                             if ( dhand%dof_coupl(l_var,m_var) == 1 ) then
                                if ( ltype == csr ) then
                                   !write(*,*) '************INSERT IN IDOF: ',l_dof,' JDOF: ',m_dof
@@ -587,32 +587,32 @@ contains
                    end if
                 end do
                 !end do
-                if (.not.femsp%static_condensation) then  ! interface-interior
-                   iprob = femsp%lelem(jelem)%problem
+                if (.not.fe_space%static_condensation) then  ! interface-interior
+                   iprob = fe_space%finite_elements(jelem)%problem
                    nvapb = dhand%prob_block(iblock,iprob)%nd1
-                   do idof = femsp%object2dof(iblock)%p(iobje), femsp%object2dof(iblock)%p(iobje+1)-1
-                      l_dof = femsp%object2dof(iblock)%l(idof,1)
-                      l_var = femsp%object2dof(iblock)%l(idof,2)
-                      l_mat = femsp%object2dof(iblock)%l(idof,3)
+                   do idof = fe_space%object2dof(iblock)%p(iobje), fe_space%object2dof(iblock)%p(iobje+1)-1
+                      l_dof = fe_space%object2dof(iblock)%l(idof,1)
+                      l_var = fe_space%object2dof(iblock)%l(idof,2)
+                      l_mat = fe_space%object2dof(iblock)%l(idof,3)
                       do ivars = 1, nvapb
                          k_var = dhand%prob_block(iblock,iprob)%a(ivars)
                          m_var = dhand%problems(iprob)%p%l2g_var(k_var)
-                         m_mat = femsp%lelem(jelem)%continuity(m_var)
+                         m_mat = fe_space%finite_elements(jelem)%continuity(m_var)
                          if ( dhand%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
                             if ( ltype == csr ) then
-                               do inode = femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(inode)
-                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,k_var)
+                               do inode = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje), &
+                                    & fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
+                                  l_node = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%l(inode)
+                                  m_dof = fe_space%finite_elements(jelem)%elem2dof(l_node,k_var)
                                      ic = aux_ia(l_dof)
                                      dof_graph%ja(ic) = m_dof
                                      aux_ia(l_dof) = aux_ia(l_dof)+1
                                end do
                             else ! ltype == csr_symm
-                               do inode = femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje), &
-                                    & femsp%lelem(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
-                                  l_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(inode)
-                                  m_dof = femsp%lelem(jelem)%elem2dof(l_node,k_var)
+                               do inode = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje), &
+                                    & fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(jobje+1)-1
+                                  l_node = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%l(inode)
+                                  m_dof = fe_space%finite_elements(jelem)%elem2dof(l_node,k_var)
                                   if ( m_dof >= l_dof ) then
                                      ic = aux_ia(l_dof)
                                      dof_graph%ja(ic) = m_dof
@@ -636,13 +636,13 @@ contains
   ! Count NNZ (number of nonzero entries) for DOFs on the interface (VEFs) of elements against
   ! both interior and interface nodes.
   !*********************************************************************************
-  subroutine count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph )  
+  subroutine count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph )  
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: fe_space 
     type(fem_graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
@@ -654,10 +654,10 @@ contains
 
     ! As commented for elem2dof, static condensation is false for dG, by construction of the 
     ! fem space.
-    if (.not.femsp%static_condensation) then
+    if (.not.fe_space%static_condensation) then
        do ielem  = 1, trian%num_elems
           iobje = trian%elems(ielem)%num_objects+1
-          iprob = femsp%lelem(ielem)%problem
+          iprob = fe_space%finite_elements(ielem)%problem
           nvapb = dhand%prob_block(iblock,iprob)%nd1 
           do ivars = 1, nvapb
              l_var = dhand%prob_block(iblock,iprob)%a(ivars)
@@ -667,19 +667,19 @@ contains
                 k_var = dhand%prob_block(iblock,iprob)%a(jvars)
                 m_var = dhand%problems(iprob)%p%l2g_var(k_var)
                 if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
-                   do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
-                        & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
-                      l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
-                      l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                   do inode = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje), &
+                        & fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
+                      l_node = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%l(inode)
+                      l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                       if ( ltype == csr ) then
                          dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
-                              &  + femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1) &
-                              & - femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje)
+                              &  + fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje+1) &
+                              & - fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje)
                       else ! ltype == csr_symm 
-                         do jnode = femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
-                            m_node = femsp%lelem(ielem)%nodes_object(k_var)%p%l(jnode)
-                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,k_var)
+                         do jnode = fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje), &
+                              & fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
+                            m_node = fe_space%finite_elements(ielem)%nodes_object(k_var)%p%l(jnode)
+                            m_dof = fe_space%finite_elements(ielem)%elem2dof(m_node,k_var)
                             if ( m_dof >= l_dof ) then
                                dof_graph%ia(l_dof+1) = &
                                     & dof_graph%ia(l_dof+1) + 1
@@ -689,20 +689,20 @@ contains
                    end do
                 end if
              end do
-             l_mat = femsp%lelem(ielem)%continuity(g_var)
+             l_mat = fe_space%finite_elements(ielem)%continuity(g_var)
              if ( l_mat /= 0 ) then
                 ! Interior - interface 
                 do jobje = 1, trian%elems(ielem)%num_objects
                    job_g = trian%elems(ielem)%objects(jobje)
-                   do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
-                      m_dof = femsp%object2dof(jblock)%l(jdof,1)
-                      m_var = femsp%object2dof(jblock)%l(jdof,2)   
-                      m_mat = femsp%object2dof(jblock)%l(jdof,3)                      
+                   do jdof = fe_space%object2dof(jblock)%p(job_g), fe_space%object2dof(jblock)%p(job_g+1)-1
+                      m_dof = fe_space%object2dof(jblock)%l(jdof,1)
+                      m_var = fe_space%object2dof(jblock)%l(jdof,2)   
+                      m_mat = fe_space%object2dof(jblock)%l(jdof,3)                      
                       if ( dhand%dof_coupl(g_var,m_var) == 1 .and. l_mat == m_mat ) then
-                         do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
-                            l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
-                            l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                         do inode = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje), &
+                              & fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
+                            l_node = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%l(inode)
+                            l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                             if ( ltype == csr ) then
                                dof_graph%ia(l_dof+1) = &
                                     & dof_graph%ia(l_dof+1) + 1 
@@ -725,13 +725,13 @@ contains
   ! List NNZ (number of nonzero entries) for DOFs on the interface (VEFs) of elements against
   ! both interior and interface nodes.
   !*********************************************************************************
-  subroutine list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, femsp, dof_graph, aux_ia )  
+  subroutine list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dhand, trian, fe_space, dof_graph, aux_ia )  
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: fe_space 
     type(fem_graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
@@ -742,10 +742,10 @@ contains
 
     ltype = dof_graph%type
 
-    if (.not.femsp%static_condensation) then   
+    if (.not.fe_space%static_condensation) then   
        do ielem  = 1, trian%num_elems
           iobje = trian%elems(ielem)%num_objects+1
-          iprob = femsp%lelem(ielem)%problem
+          iprob = fe_space%finite_elements(ielem)%problem
           nvapb = dhand%prob_block(iblock,iprob)%nd1  
           do ivars = 1, nvapb
              !l_var = g2l(ivars,iprob)
@@ -756,24 +756,24 @@ contains
                 k_var = dhand%prob_block(iblock,iprob)%a(jvars)
                 m_var = dhand%problems(iprob)%p%l2g_var(k_var)
                 if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
-                   do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
-                        & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
-                      l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
-                      l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                   do inode = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje), &
+                        & fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
+                      l_node = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%l(inode)
+                      l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                       if ( ltype == csr ) then
-                         do jnode = femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
-                            m_node = femsp%lelem(ielem)%nodes_object(k_var)%p%l(jnode)
-                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,k_var)
+                         do jnode = fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje), &
+                              & fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
+                            m_node = fe_space%finite_elements(ielem)%nodes_object(k_var)%p%l(jnode)
+                            m_dof = fe_space%finite_elements(ielem)%elem2dof(m_node,k_var)
                             i= aux_ia(l_dof)
                             dof_graph%ja(i) = m_dof
                             aux_ia(l_dof) = aux_ia(l_dof)+1
                          end do
                       else ! ltype == csr_symm 
-                         do jnode = femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
-                            m_node = femsp%lelem(ielem)%nodes_object(k_var)%p%l(jnode)
-                            m_dof = femsp%lelem(ielem)%elem2dof(m_node,k_var)
+                         do jnode = fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje), &
+                              & fe_space%finite_elements(ielem)%nodes_object(k_var)%p%p(iobje+1)-1
+                            m_node = fe_space%finite_elements(ielem)%nodes_object(k_var)%p%l(jnode)
+                            m_dof = fe_space%finite_elements(ielem)%elem2dof(m_node,k_var)
                             if ( m_dof >= l_dof ) then
                                ic = aux_ia(l_dof)
                                dof_graph%ja(ic) = m_dof
@@ -784,18 +784,18 @@ contains
                    end do
                 end if
              end do
-             if ( femsp%lelem(ielem)%continuity(g_var) /= 0 ) then
+             if ( fe_space%finite_elements(ielem)%continuity(g_var) /= 0 ) then
                 ! Interior - border (inside element)
                 do jobje = 1, trian%elems(ielem)%num_objects
                    job_g = trian%elems(ielem)%objects(jobje)
-                   do jdof = femsp%object2dof(jblock)%p(job_g), femsp%object2dof(jblock)%p(job_g+1)-1
-                      m_dof = femsp%object2dof(jblock)%l(jdof,1)
-                      m_var = femsp%object2dof(jblock)%l(jdof,2)                         
+                   do jdof = fe_space%object2dof(jblock)%p(job_g), fe_space%object2dof(jblock)%p(job_g+1)-1
+                      m_dof = fe_space%object2dof(jblock)%l(jdof,1)
+                      m_var = fe_space%object2dof(jblock)%l(jdof,2)                         
                       if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
-                         do inode = femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje), &
-                              & femsp%lelem(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
-                            l_node = femsp%lelem(ielem)%nodes_object(l_var)%p%l(inode)
-                            l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                         do inode = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje), &
+                              & fe_space%finite_elements(ielem)%nodes_object(l_var)%p%p(iobje+1)-1
+                            l_node = fe_space%finite_elements(ielem)%nodes_object(l_var)%p%l(inode)
+                            l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                             if ( ltype == csr ) then
                                ic = aux_ia(l_dof)
                                dof_graph%ja(ic) = m_dof
@@ -831,13 +831,13 @@ contains
   ! expected usage. 
   ! *** We could put an assert about it when creating the integration list.
   !*********************************************************************************
-  subroutine count_nnz_all_dofs_vs_all_dofs_by_face_integration ( iblock, jblock, dhand, trian, femsp, dof_graph )  
+  subroutine count_nnz_all_dofs_vs_all_dofs_by_face_integration ( iblock, jblock, dhand, trian, fe_space, dof_graph )  
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: fe_space 
     type(fem_graph_t), intent(inout)              :: dof_graph
 
     ! Local variables
@@ -848,18 +848,18 @@ contains
     ltype = dof_graph%type
 
     ! Loop over all interior faces (boundary faces do not include additional coupling)
-    do iface = 1,femsp%num_interior_faces
-       iobje = femsp%interior_faces(iface)%face_object
+    do iface = 1,fe_space%num_interior_faces
+       iobje = fe_space%interior_faces(iface)%face_object
        assert ( trian%objects(iobje)%num_elems_around == 2 ) 
        do i=1,2
           ielem = trian%objects(iobje)%elems_around(i)
           jelem = trian%objects(iobje)%elems_around(3-i)
-          l_faci = local_position(femsp%interior_faces(iface)%face_object,trian%elems(ielem)%objects, &
+          l_faci = local_position(fe_space%interior_faces(iface)%face_object,trian%elems(ielem)%objects, &
                & trian%elems(ielem)%num_objects )
-          l_facj = local_position(femsp%interior_faces(iface)%face_object,trian%elems(jelem)%objects, &
+          l_facj = local_position(fe_space%interior_faces(iface)%face_object,trian%elems(jelem)%objects, &
                & trian%elems(jelem)%num_objects )
-          iprob = femsp%lelem(ielem)%problem
-          jprob = femsp%lelem(jelem)%problem
+          iprob = fe_space%finite_elements(ielem)%problem
+          jprob = fe_space%finite_elements(jelem)%problem
           nvapbi = dhand%prob_block(iblock,iprob)%nd1 
           nvapbj = dhand%prob_block(iblock,jprob)%nd1 
           do ivars = 1, nvapbi
@@ -871,22 +871,22 @@ contains
                 if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
                    if ( ltype == csr ) then
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
-                      nnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1) &
-                           &  -femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
-                      do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-                         l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
+                      nnode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1) &
+                           &  -fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
+                      do inode = 1, fe_space%finite_elements(ielem)%f_inf(l_var)%p%nnode
+                         l_dof = fe_space%finite_elements(ielem)%elem2dof(inode,l_var)
                          if ( l_dof /= 0 ) then
                             dof_graph%ia(l_dof+1) = dof_graph%ia(l_dof+1) &
                                  & + nnode
                          end if
                       end do
-                      nnode = femsp%lelem(jelem)%f_inf(k_var)%p%nnode - nnode
+                      nnode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%nnode - nnode
                       assert ( nnode > 0)
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
-                      do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
-                           &     femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
-                         l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-                         l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                      do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
+                           &     fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
+                         l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%l(inode)
+                         l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                          if ( l_dof /= 0 ) then
                             dof_graph%ia(l_dof+1) = dof_graph%ia(l_dof+1) &
                                  & + nnode
@@ -894,13 +894,13 @@ contains
                       end do
                    else ! ltype == csr_symm 
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
-                      do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-                         l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
+                      do inode = 1, fe_space%finite_elements(ielem)%f_inf(l_var)%p%nnode
+                         l_dof = fe_space%finite_elements(ielem)%elem2dof(inode,l_var)
                          if ( l_dof /= 0 ) then
-                            do jnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
-                                 & femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
-                               m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
-                               m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
+                            do jnode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
+                                 & fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
+                               m_node = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                               m_dof = fe_space%finite_elements(jelem)%elem2dof(m_node,k_var)
                                if ( l_dof /= 0 .and. m_dof >= l_dof ) then
                                   dof_graph%ia(l_dof+1) = &
                                        & dof_graph%ia(l_dof+1) + 1
@@ -909,25 +909,25 @@ contains
                          end if
                       end do
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
-                      count = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
+                      count = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
                       knode = -1
-                      if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
-                         knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
+                      if (count <= fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                         knode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(count)
                       end if
-                      do jnode = 1, femsp%lelem(jelem)%f_inf(k_var)%p%nnode
+                      do jnode = 1, fe_space%finite_elements(jelem)%f_inf(k_var)%p%nnode
                          if ( jnode == knode) then
                             count = count+1
-                            if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
-                               knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
+                            if (count <= fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                               knode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(count)
                             end if
                          else
-                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
+                            m_node = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = fe_space%finite_elements(jelem)%elem2dof(m_node,k_var)
 
-                            do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
-                                 &     femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
-                               l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-                               l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                            do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
+                                 &     fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
+                               l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%l(inode)
+                               l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                                if ( m_dof >= l_dof ) then
                                   !write (*,*) 'INSERTION DUE TO COUPLING BY FACE(ielem)-INTERIOR(jelem)'
                                   !write (*,*) 'ielem,jelem,iobje,l_faci,l_facj',ielem,jelem,iobje,l_faci,l_facj
@@ -955,13 +955,13 @@ contains
   ! coupled due to integration on faces. *** This part requires more ellaboration for cdG
   ! generalization***
   !*********************************************************************************
-  subroutine list_nnz_all_dofs_vs_all_dofs_by_face_integration ( iblock, jblock, dhand, trian, femsp, dof_graph, aux_ia )  
+  subroutine list_nnz_all_dofs_vs_all_dofs_by_face_integration ( iblock, jblock, dhand, trian, fe_space, dof_graph, aux_ia )  
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: femsp 
+    type(fe_space_t), intent(in)                 :: fe_space 
     type(fem_graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
@@ -973,8 +973,8 @@ contains
     ltype = dof_graph%type
 
     ! Loop over all interior faces (boundary faces do not include additional coupling)
-    do iface = 1, femsp%num_interior_faces
-       iobje = femsp%interior_faces(iface)%face_object
+    do iface = 1, fe_space%num_interior_faces
+       iobje = fe_space%interior_faces(iface)%face_object
        assert ( trian%objects(iobje)%num_elems_around == 2 ) 
        do i=1,2
           ielem = trian%objects(iobje)%elems_around(i)
@@ -983,8 +983,8 @@ contains
                & trian%elems(ielem)%num_objects )
           l_facj = local_position(iobje,trian%elems(jelem)%objects, &
                & trian%elems(jelem)%num_objects )
-          iprob = femsp%lelem(ielem)%problem
-          jprob = femsp%lelem(jelem)%problem
+          iprob = fe_space%finite_elements(ielem)%problem
+          jprob = fe_space%finite_elements(jelem)%problem
           nvapbi = dhand%prob_block(iblock,iprob)%nd1 
           nvapbj = dhand%prob_block(iblock,jprob)%nd1 
           do ivars = 1, nvapbi
@@ -996,17 +996,17 @@ contains
                 if ( dhand%dof_coupl(g_var,m_var) == 1 ) then
                    if ( ltype == csr ) then
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
-                      do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-                         l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
+                      do inode = 1, fe_space%finite_elements(ielem)%f_inf(l_var)%p%nnode
+                         l_dof = fe_space%finite_elements(ielem)%elem2dof(inode,l_var)
                          if ( l_dof /= 0 ) then 
-                            !                         do jnode = femsp%lelem(jelem)%nodes_object(k_var)%p%p(l_facj), &
-                            !                              &     femsp%lelem(jelem)%nodes_object(k_var)%p%p(l_facj+1)-1 
-                            !                            m_node = femsp%lelem(ielem)%nodes_object(k_var)%p%l(jnode)
-                            do jnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
-                                 & femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
-                               m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
-                               !                            m_node = femsp%lelem(jelem)%nodes_object(k_var)%p%l(jnode)
-                               m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
+                            !                         do jnode = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(l_facj), &
+                            !                              &     fe_space%finite_elements(jelem)%nodes_object(k_var)%p%p(l_facj+1)-1 
+                            !                            m_node = fe_space%finite_elements(ielem)%nodes_object(k_var)%p%l(jnode)
+                            do jnode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
+                                 & fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
+                               m_node = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                               !                            m_node = fe_space%finite_elements(jelem)%nodes_object(k_var)%p%l(jnode)
+                               m_dof = fe_space%finite_elements(jelem)%elem2dof(m_node,k_var)
                                ic = aux_ia(l_dof)
                                dof_graph%ja(ic) = m_dof
                                aux_ia(l_dof) = aux_ia(l_dof) + 1
@@ -1014,24 +1014,24 @@ contains
                          end if
                       end do
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
-                      count = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
+                      count = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
                       knode = -1
-                      if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
-                         knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
+                      if (count <= fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                         knode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(count)
                       end if
-                      do jnode = 1, femsp%lelem(jelem)%f_inf(k_var)%p%nnode
+                      do jnode = 1, fe_space%finite_elements(jelem)%f_inf(k_var)%p%nnode
                          if ( jnode == knode) then
                             count = count+1
-                            if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
-                               knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
+                            if (count <= fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                               knode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(count)
                             end if
                          else
-                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
-                            do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
-                                 &     femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
-                               l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-                               l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                            m_node = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = fe_space%finite_elements(jelem)%elem2dof(m_node,k_var)
+                            do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
+                                 &     fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
+                               l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%l(inode)
+                               l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                                if (l_dof /= 0 ) then
                                   ic = aux_ia(l_dof)
                                   dof_graph%ja(ic) = m_dof
@@ -1042,13 +1042,13 @@ contains
                       end do
                    else ! ltype == csr_symm 
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
-                      do inode = 1, femsp%lelem(ielem)%f_inf(l_var)%p%nnode
-                         l_dof = femsp%lelem(ielem)%elem2dof(inode,l_var)
+                      do inode = 1, fe_space%finite_elements(ielem)%f_inf(l_var)%p%nnode
+                         l_dof = fe_space%finite_elements(ielem)%elem2dof(inode,l_var)
                          if (l_dof /= 0 ) then
-                            do jnode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
-                                 & femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
-                               m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
-                               m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
+                            do jnode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj), &
+                                 & fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1
+                               m_node = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                               m_dof = fe_space%finite_elements(jelem)%elem2dof(m_node,k_var)
                                if ( m_dof >= l_dof ) then
                                   !write (*,*) 'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV'
                                   !write (*,*) 'INSERTION DUE TO COUPLING BY (ielem)-FACE(jelem)'
@@ -1063,24 +1063,24 @@ contains
                          END if
                       end do
                       ! Couple all face DOFs in ielem with DOFs in jelem NOT in the face and viceversa (i=1,2)
-                      count = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
+                      count = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj)
                       knode = -1
-                      if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
-                         knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
+                      if (count <= fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                         knode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(count)
                       end if
-                      do jnode = 1, femsp%lelem(jelem)%f_inf(k_var)%p%nnode
+                      do jnode = 1, fe_space%finite_elements(jelem)%f_inf(k_var)%p%nnode
                          if ( jnode == knode) then
                             count = count+1
-                            if (count <= femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
-                               knode = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(count)
+                            if (count <= fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%p(l_facj+1)-1) then
+                               knode = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(count)
                             end if
                          else
-                            m_node = femsp%lelem(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
-                            m_dof = femsp%lelem(jelem)%elem2dof(m_node,k_var)
-                            do inode = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
-                                 &     femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
-                               l_node = femsp%lelem(ielem)%f_inf(l_var)%p%ntxob%l(inode)
-                               l_dof = femsp%lelem(ielem)%elem2dof(l_node,l_var)
+                            m_node = fe_space%finite_elements(jelem)%f_inf(k_var)%p%ntxob%l(jnode)
+                            m_dof = fe_space%finite_elements(jelem)%elem2dof(m_node,k_var)
+                            do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
+                                 &     fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
+                               l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%l(inode)
+                               l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                                if ( l_dof /= 0 .and. m_dof >= l_dof ) then
                                   !write (*,*) 'KKKKKKKKKKKKKK'
                                   !write (*,*) 'INSERTION DUE TO COUPLING BY FACE(ielem)-INTERIOR(jelem)'
@@ -1106,25 +1106,25 @@ contains
   !*********************************************************************************
   ! Auxiliary function that generates new DOFs and put them in a particular VEF of a given element
   !*********************************************************************************
-  subroutine put_new_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, g_var, jelem, l_var, &
+  subroutine put_new_vefs_dofs_in_vef_of_element ( dhand, trian, fe_space, g_var, jelem, l_var, &
        count, obje_l )
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(inout)              :: femsp 
+    type(fe_space_t), intent(inout)              :: fe_space 
     integer(ip), intent(inout)                  :: count
     integer(ip), intent(in)                     :: g_var, jelem, l_var, obje_l
 
     ! Local variables
     integer(ip) :: inode, l_node
 
-    do inode = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l), &
-         &     femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
-       l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%l(inode)
+    do inode = fe_space%finite_elements(jelem)%nodes_object(l_var)%p%p(obje_l), &
+         &     fe_space%finite_elements(jelem)%nodes_object(l_var)%p%p(obje_l+1)-1 
+       l_node = fe_space%finite_elements(jelem)%nodes_object(l_var)%p%l(inode)
        count = count + 1
        !write (*,*) '****PUT DOF**** (elem,obj_l,obj_g,node,idof) ',jelem,obje_l,iobje,l_node,count
-       femsp%lelem(jelem)%elem2dof(l_node,l_var) = count
+       fe_space%finite_elements(jelem)%elem2dof(l_node,l_var) = count
     end do
 
   end subroutine put_new_vefs_dofs_in_vef_of_element
@@ -1132,13 +1132,13 @@ contains
   !*********************************************************************************
   ! Auxiliary function that puts existing DOFs in a particular VEF of a given element
   !*********************************************************************************
-  subroutine put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, femsp, touch, mater, g_var, iobje, jelem, l_var, &
+  subroutine put_existing_vefs_dofs_in_vef_of_element ( dhand, trian, fe_space, touch, mater, g_var, iobje, jelem, l_var, &
        o2n, obje_l )
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)               :: dhand
     type(fem_triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(inout)              :: femsp
+    type(fe_space_t), intent(inout)              :: fe_space
     integer(ip), intent(in)                     :: touch(:,:,:), mater, g_var, iobje, jelem, l_var, obje_l
     integer(ip), intent(out)                    :: o2n(:)
 
@@ -1148,14 +1148,14 @@ contains
 
     elem_ext = touch(mater,g_var,1)
     obje_ext = touch(mater,g_var,2)
-    prob_ext = femsp%lelem(elem_ext)%problem
+    prob_ext = fe_space%finite_elements(elem_ext)%problem
     l_var_ext = dhand%g2l_vars(g_var,prob_ext)
     !write (*,*) '****EXTRACT DOF**** (object)', iobje, ' FROM: (elem,obj_l) ',elem_ext,obje_ext, ' TO  : (elem,obj_l)', jelem,obje_l
     assert ( l_var_ext > 0 )
-    nnode = femsp%lelem(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext+1) &
-         &  -femsp%lelem(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext) 
+    nnode = fe_space%finite_elements(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext+1) &
+         &  -fe_space%finite_elements(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext) 
     if ( nnode > 0) then  
-       order = femsp%lelem(elem_ext)%f_inf(l_var_ext)%p%order
+       order = fe_space%finite_elements(elem_ext)%f_inf(l_var_ext)%p%order
        if ( trian%objects(iobje)%dimension == trian%num_dims .and. &
             & nnode ==  (order+1)**trian%num_dims ) then
           order = order    ! hdG case
@@ -1165,20 +1165,20 @@ contains
           assert ( 0 == 1) ! SB.alert : Other situations possible when dG_continuity, cdG, hp-adaptivity ?
        end if
        call permute_nodes_object(                                                                 &
-            & femsp%lelem(elem_ext)%f_inf(l_var_ext)%p,                                           &
-            & femsp%lelem(jelem)%f_inf(l_var)%p,                                                  &
+            & fe_space%finite_elements(elem_ext)%f_inf(l_var_ext)%p,                                           &
+            & fe_space%finite_elements(jelem)%f_inf(l_var)%p,                                                  &
             & o2n,obje_ext,obje_l,                                                                &
             & trian%elems(elem_ext)%objects,                                                      &
             & trian%elems(jelem)%objects,                                                         &
             & trian%objects(iobje)%dimension,                                                     &
             & order )
-       do inode = 1, femsp%lelem(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext+1) - &
-            femsp%lelem(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext)
-          l_node = femsp%lelem(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext) + inode - 1
-          inode_ext = femsp%lelem(elem_ext)%nodes_object(l_var_ext)%p%l(l_node )
-          l_node = femsp%lelem(jelem)%nodes_object(l_var)%p%p(obje_l) + o2n(inode) - 1
-          inode_l = femsp%lelem(jelem)%nodes_object(l_var)%p%l(l_node)
-          femsp%lelem(jelem)%elem2dof(inode_l,l_var) = femsp%lelem(elem_ext)%elem2dof(inode_ext,l_var_ext)
+       do inode = 1, fe_space%finite_elements(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext+1) - &
+            fe_space%finite_elements(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext)
+          l_node = fe_space%finite_elements(elem_ext)%nodes_object(l_var_ext)%p%p(obje_ext) + inode - 1
+          inode_ext = fe_space%finite_elements(elem_ext)%nodes_object(l_var_ext)%p%l(l_node )
+          l_node = fe_space%finite_elements(jelem)%nodes_object(l_var)%p%p(obje_l) + o2n(inode) - 1
+          inode_l = fe_space%finite_elements(jelem)%nodes_object(l_var)%p%l(l_node)
+          fe_space%finite_elements(jelem)%elem2dof(inode_l,l_var) = fe_space%finite_elements(elem_ext)%elem2dof(inode_ext,l_var_ext)
        end do ! SB.alert : 1) face object for cG and hdG, where the face must have all their nodes
        !                   2) corner / edge only for cG
        !            * Never here for dG, continuity interface, hanging objects, etc.

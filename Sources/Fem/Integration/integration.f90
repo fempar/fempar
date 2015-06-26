@@ -27,12 +27,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module integration_names
-use types_names
+  use types_names
   use assembly_names
   use integrable_names
   use problem_names
   use integration_tools_names
-use femap_interp_names
+  use femap_interp_names
   use fe_space_names
   use assembly_names
   use fem_block_matrix_names
@@ -46,10 +46,10 @@ use femap_interp_names
 
 contains
 
-  subroutine volume_integral(approx,femsp,res1,res2)
+  subroutine volume_integral(approx,fe_space,res1,res2)
     implicit none
     ! Parameters
-    type(fe_space_t)            , intent(inout) :: femsp
+    type(fe_space_t)            , intent(inout) :: fe_space
     class(integrable_t)          , intent(inout) :: res1
     class(integrable_t), optional, intent(inout) :: res2
     type(discrete_integration_pointer)         :: approx(:)
@@ -57,27 +57,27 @@ contains
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation
     !class(discrete_problem) , pointer :: discrete
-    integer(ip) :: start(femsp%dof_handler%nvars_global+1)
+    integer(ip) :: start(fe_space%dof_handler%nvars_global+1)
 
     ! Main element loop
-    do ielem=1,femsp%g_trian%num_elems
+    do ielem=1,fe_space%g_trian%num_elems
 
-       nvars = femsp%lelem(ielem)%num_vars
+       nvars = fe_space%finite_elements(ielem)%num_vars
        ! Compute integration tools on ielem for each ivar (they all share the quadrature inside integ)
        do ivar=1,nvars
-          call volume_integrator_update(femsp%lelem(ielem)%integ(ivar)%p,femsp%g_trian%elems(ielem)%coordinates)
+          call volume_integrator_update(fe_space%finite_elements(ielem)%integ(ivar)%p,fe_space%g_trian%elems(ielem)%coordinates)
        end do
 
        ! Starting position for each dof
-       call pointer_variable(femsp%lelem(ielem),femsp%dof_handler, start(1:nvars+1) )
+       call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_handler, start(1:nvars+1) )
        
-       current_approximation = femsp%lelem(ielem)%approximation
-       call approx(current_approximation)%p%compute(start,femsp%lelem(ielem))
+       current_approximation = fe_space%finite_elements(ielem)%approximation
+       call approx(current_approximation)%p%compute(start,fe_space%finite_elements(ielem))
 
        ! Assembly first contribution
-       call assembly(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res1) 
+       call assembly(fe_space%finite_elements(ielem),fe_space%dof_handler,start(1:nvars+1),res1) 
 
-       if(present(res2)) call assembly(femsp%lelem(ielem),femsp%dof_handler,start(1:nvars+1),res2)
+       if(present(res2)) call assembly(fe_space%finite_elements(ielem),fe_space%dof_handler,start(1:nvars+1),res2)
  
     end do
 
