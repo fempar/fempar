@@ -70,8 +70,6 @@ module fem_names
   !use fem_mesh_faces
   !use fem_mesh_lelpo
   use migratory_element_names
-  use template_element_names
-  use template_mesh_names
 
   ! Linear Algebra
   use fem_matrix_names
