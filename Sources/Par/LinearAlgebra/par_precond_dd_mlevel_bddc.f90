@@ -30,7 +30,7 @@ module par_precond_dd_mlevel_bddc_names
   use types_names
   use memor_names
   use hash_table_names
-  use maps_names
+  use map_names
   use map_apply_names
   use sort_names
   use renum_names

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_triangulation_names
+module mesh_to_triangulation_names
   use types_names
   use memor_names
   use fem_mesh_names
@@ -152,7 +152,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
   end subroutine mesh_to_triangulation_fill_elements
 
 
-end module mesh_triangulation_names
+end module mesh_to_triangulation_names
 
 
 

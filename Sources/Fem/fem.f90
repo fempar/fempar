@@ -38,15 +38,15 @@ module fem_names
   use fem_update_names
 
   ! Geometry
-  use maps_names
+  use map_names
   use map_apply_names
   use fem_triangulation_names
-  use mesh_triangulation_names
+  use mesh_to_triangulation_names
 
   !use fem_import_names
   !use partition_import
   use fem_triangulation_names
-  use mesh_triangulation_names
+  use mesh_to_triangulation_names
   use fem_mesh_distribution_names
   use fem_mesh_gen_distribution_names
 

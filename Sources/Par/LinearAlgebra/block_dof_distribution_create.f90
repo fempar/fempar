@@ -30,7 +30,7 @@ module block_dof_distribution_create_names
   use types_names
   use memor_names
   use sort_names
-  use maps_names
+  use map_names
   use dof_import_names
   use dof_handler_names
   use fe_space_types_names

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_mesh_triangulation_names
+module par_mesh_to_triangulation_names
   ! Serial modules
   use types_names
   use memor_names
@@ -33,7 +33,7 @@ module par_mesh_triangulation_names
   use element_import_names
   use element_import_create_names
   use hash_table_names
-  use mesh_triangulation_names
+  use mesh_to_triangulation_names
   use psi_penv_mod_names
 
   ! Parallel modules
@@ -320,4 +320,4 @@ contains
 
   end subroutine par_mesh_to_triangulation
 
-end module par_mesh_triangulation_names
+end module par_mesh_to_triangulation_names

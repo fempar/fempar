@@ -29,7 +29,7 @@ module fem_mesh_distribution_names
   use types_names
   use memor_names
   use stdio_names
-  use maps_names
+  use map_names
   implicit none
   private
 

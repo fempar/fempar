@@ -28,7 +28,7 @@
 module map_apply_names
   use types_names
   use memor_names
-  use maps_names
+  use map_names
   use renum_names
   use fem_mesh_names
   use hash_table_names

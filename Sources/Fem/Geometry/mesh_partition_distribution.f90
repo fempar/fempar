@@ -29,7 +29,7 @@ module fem_mesh_partition_distribution_names
   use types_names
   use memor_names
   use fem_mesh_distribution_names
-  use maps_names
+  use map_names
   use map_apply_names
   use fem_graph_names
   use graph_renum_names
