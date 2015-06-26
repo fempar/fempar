@@ -41,7 +41,7 @@ module hsl_ma87_names
 
 
 #ifdef ENABLE_HSL_MA87
-use hsl_ma87_double_names
+use hsl_ma87_double
 #endif
 
 # include "debug.i90"
