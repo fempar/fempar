@@ -38,6 +38,7 @@ use types_names
   use fem_block_vector_names
   use fem_vector_names
   use fem_graph_names
+  use plain_vector_names
 
   implicit none
 # include "debug.i90"
@@ -93,6 +94,8 @@ contains
        call assembly_element_matrix_mono(elem, dhand, start,a) 
     class is(fem_vector_t)
        call assembly_element_vector_mono(elem, dhand, start,a)
+    class is(plain_vector_t)
+       call assembly_element_plain_vector(elem, dhand, start,a)
        !class is(fem_block_matrix_t)
        !    call assembly_element_matrix_block(elem, dhand, start,a)
        ! class is(fem_block_vector_t)
@@ -224,6 +227,16 @@ contains
 
   end subroutine assembly_element_vector_mono
 
+  subroutine assembly_element_plain_vector (  elem, dhand, start, a ) 
+    implicit none
+    type(dof_handler_t) , intent(in)    :: dhand
+    type(fem_element_t) , intent(in)    :: elem
+    integer(ip)         , intent(in)    :: start(dhand%problems(elem%problem)%p%nvars+1)
+    type(plain_vector_t), intent(inout) :: a
+    
+    a%b = a%b + elem%p_plain_vector%a
+
+  end subroutine assembly_element_plain_vector
 
   subroutine assembly_face_vector_block(  face, elem, dhand, a ) 
     implicit none

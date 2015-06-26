@@ -92,6 +92,10 @@ module fem_space_names
      type(fem_face_t), allocatable        :: interior_faces(:), boundary_faces(:), interface_faces(:)
      integer(ip)                        :: num_interior_faces, num_boundary_faces
 
+     ! Plain vector
+     type(position_hash_table_t)          :: pos_plain_vector
+     type(array_rp1_t), allocatable       :: l_plain_vector(:)
+
      ! Much better here rather than as a module variable
      !type(list_t) :: void_list_t
   end type fem_space_t
@@ -102,7 +106,8 @@ module fem_space_names
   ! Methods
   public :: fem_space_create, fem_space_print, fem_space_free, &
        &    integration_faces_list, fem_space_allocate_structures, &
-       &    fem_space_fe_list_create
+       &    fem_space_fe_list_create, fem_space_plain_vector_create, &
+       &    fem_space_plain_vector_point
 
 contains
 
@@ -221,6 +226,9 @@ contains
 
     ! Initialization of interpolation array
     call fspac%pos_interpolator%init(ht_length)
+
+    ! Initialization of plain_vector array
+    call fspac%pos_plain_vector%init(ht_length)
 
   end subroutine fem_space_allocate_structures
 
@@ -523,6 +531,7 @@ contains
        nullify ( f%lelem(i)%p_geo_info )
        nullify ( f%lelem(i)%p_mat )
        nullify ( f%lelem(i)%p_vec )
+       nullify ( f%lelem(i)%p_plain_vector )
        do j = 1, f%lelem(i)%num_vars
           nullify ( f%lelem(i)%nodes_object(j)%p )          
        end do
@@ -564,7 +573,12 @@ contains
     do i = 1,f%pos_interpolator%last()
        call interpolator_free( f%linter(i) )
     end do
-    !deallocate ( f%lvoli )
+    call f%pos_interpolator%free
+
+    do i = 1,f%pos_plain_vector%last()
+       call array_free( f%l_plain_vector(i) )
+    end do
+    call memfree( f%l_plain_vector,__FILE__,__LINE__)
     call f%pos_interpolator%free
 
     nullify ( f%g_trian )
@@ -684,6 +698,43 @@ contains
 
 
   end subroutine integration_faces_list
+
+  !==================================================================================================
+  subroutine fem_space_plain_vector_create(vecs_size,fspac)
+    implicit none
+    integer(ip)      , intent(in)    :: vecs_size(:)
+    type(fem_space_t), intent(inout) :: fspac
+    ! Locals
+    integer(ip) :: ivec,vsize,nvecs,position,istat
+    
+    ! Allocate auxiliar arrays
+    nvecs = size(vecs_size,1)
+    call memalloc(nvecs,fspac%l_plain_vector,__FILE__,__LINE__)
+    
+    do ivec = 1,nvecs
+       vsize = vecs_size(ivec)
+       call fspac%pos_plain_vector%get(key=vsize, val=position, stat = istat)
+       if ( istat == new_index ) call array_create ( vsize, fspac%l_plain_vector(position) )
+    end do
+  
+  end subroutine fem_space_plain_vector_create
+  
+  !==================================================================================================
+  subroutine fem_space_plain_vector_point(vsize,fspac)
+    implicit none
+    integer(ip)              , intent(in)    :: vsize
+    type(fem_space_t), target, intent(inout) :: fspac
+    ! Locals
+    integer(ip) :: ielem,position,istat
+    
+    call fspac%pos_plain_vector%get(key=vsize, val=position, stat = istat)
+    check( istat == old_index )
+
+    do ielem=1,fspac%g_trian%num_elems
+       fspac%lelem(ielem)%p_plain_vector => fspac%l_plain_vector(position)
+    end do
+    
+  end subroutine fem_space_plain_vector_point
 
 end module fem_space_names
 

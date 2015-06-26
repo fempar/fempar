@@ -84,6 +84,9 @@ module fem_element_names
      type(array_rp2_t), pointer :: p_mat ! Pointer to the elemental matrix
      type(array_rp1_t), pointer :: p_vec ! Pointer to the elemental vector_t
 
+     ! Auxiliary working plain_vector
+     type(array_rp1_t), pointer :: p_plain_vector
+
    contains
      procedure :: size   => fem_element_size
      procedure :: pack   => fem_element_pack

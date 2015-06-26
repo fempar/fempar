@@ -104,5 +104,6 @@ module fem_names
   !use element_gather_tools
   use problem_names
   use integration_names
+  use plain_vector_names
 
 end module fem_names

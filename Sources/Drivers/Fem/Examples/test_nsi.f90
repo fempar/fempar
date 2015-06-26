@@ -29,7 +29,7 @@ program test_nsi_iss
 use fem_names
   use nsi_names
   use nsi_cg_iss_names
-use lib_vtk_io_interface_names
+  use lib_vtk_io_interface_names
   implicit none
 # include "debug.i90"
   
@@ -56,6 +56,8 @@ use lib_vtk_io_interface_names
   class(base_operator_t)     , pointer :: A, M
   type(fem_graph_t)          , pointer :: f_graph
   type(fem_block_graph_t)              :: f_blk_graph
+  type(plain_vector_t)        , target :: enorm
+  type(nsi_cg_iss_error_t)    , target :: ecalc
 
   ! Logicals
   logical(lg) :: ginfo_state
@@ -110,7 +112,7 @@ use lib_vtk_io_interface_names
   call dhand%set_problem(1,mydisc)
   approx(1)%p       => matvec
   mydisc%dtinv      = 0.0_rp
-  myprob%kfl_conv   = 1
+  myprob%kfl_conv   = 0
   myprob%diffu      = 1.0_rp
   myprob%case_veloc = 1
   myprob%case_press = 1
@@ -130,6 +132,10 @@ use lib_vtk_io_interface_names
   call fem_space_create(f_trian,dhand,fspac,problem,f_cond,continuity,order,material,which_approx, &
        &                time_steps_to_store=3, hierarchical_basis=logical(.false.,lg),             &
        &                static_condensation=logical(.false.,lg),num_continuity=1)
+
+  ! Create plain vectors
+  call fem_space_plain_vector_create((/2/),fspac)
+  call fem_space_plain_vector_point(2,fspac)
 
   ! Initialize VTK output
   call fevtk%initialize(f_trian,fspac,myprob,senv,dir_path_out,prefix,linear_order=.true.)
@@ -152,6 +158,11 @@ use lib_vtk_io_interface_names
   ! Integrate
   call volume_integral(approx,fspac,femat,fevec)
 
+  ! Define operators
+  A => femat
+  b => fevec
+  x => feunk
+
   ! Construct preconditioner
   sctrl%method = direct
   ppars%type   = pardiso_mkl_prec
@@ -160,17 +171,17 @@ use lib_vtk_io_interface_names
   call fem_precond_numeric(femat,feprec)
   call fem_precond_log_info(feprec)
 
-  ! Define operators
-  A => femat
-  b => fevec
-  x => feunk
-
   ! Solve
+  !call fem_vector_print(6,fevec)
   call abstract_solve(femat,feprec,fevec,feunk,sctrl,senv)
   !call abstract_solve(A,M,b,x,sctrl,senv)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)
-  !call fem_vector_print(6,feunk)
+
+  ! Free preconditioner
+  call fem_precond_free(precond_free_values,feprec)
+  call fem_precond_free(precond_free_struct,feprec)
+  call fem_precond_free(precond_free_clean,feprec)
 
   ! Store solution to unkno
   call fem_update_solution(feunk,fspac)
@@ -178,10 +189,13 @@ use lib_vtk_io_interface_names
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
 
-  ! Free preconditioner
-  call fem_precond_free(precond_free_values,feprec)
-  call fem_precond_free(precond_free_struct,feprec)
-  call fem_precond_free(precond_free_clean,feprec)
+  ! Compute error norm
+  call enorm%create(2)
+  call ecalc%create(myprob,mydisc)
+  approx(1)%p => ecalc
+  call volume_integral(approx,fspac,enorm)
+  write(*,*) 'Velocity error norm: ', sqrt(enorm%b(1))
+  write(*,*) 'Pressure error norm: ', sqrt(enorm%b(2)) 
 
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
@@ -198,11 +212,13 @@ use lib_vtk_io_interface_names
   call myprob%free
   call mydisc%free
   call matvec%free
+  call ecalc%free
   call dof_handler_free(dhand)
   call fem_triangulation_free(f_trian)
   call fem_conditions_free(f_cond)
   call fem_element_fixed_info_free(ginfo)
   call bound_data_free(bdata)
+  call enorm%free
 
   call memstatus
 

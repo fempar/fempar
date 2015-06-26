@@ -284,9 +284,10 @@ contains
     integer(ip)  :: inode,igaus
     nnode = integ(ivar)%p%uint_phy%nnode
     ngaus = integ(ivar)%p%uint_phy%nlocs
+    res%a = 0.0_rp
     do igaus=1,ngaus
        do inode =1,nnode
-          res%a(igaus) = integ(ivar)%p%uint_phy%shape(inode,igaus) * unkno(inode,ivar,icomp)
+          res%a(igaus) = res%a(igaus) + integ(ivar)%p%uint_phy%shape(inode,igaus) * unkno(inode,ivar,icomp)
        end do
     end do
   end subroutine scalar_interpolation
@@ -313,10 +314,12 @@ contains
     nvar  = size(res%a,1)
     nnode = integ(ivar)%p%uint_phy%nnode
     ngaus = integ(ivar)%p%uint_phy%nlocs
+    res%a = 0.0_rp
     do igaus=1,ngaus
        do idof=1,nvar
           do inode =1,nnode
-             res%a(idof,igaus) = integ(ivar)%p%uint_phy%shape(inode,igaus) * unkno(inode, ivar-1+idof, icomp)
+             res%a(idof,igaus) = res%a(idof,igaus) + integ(ivar)%p%uint_phy%shape(inode,igaus) * &
+                  &              unkno(inode, ivar-1+idof, icomp)
           end do
        end do
     end do

@@ -26,56 +26,58 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module nsi_cg_iss_names
-use types_names
-use memor_names
- use array_names
- use problem_names
- use nsi_names
- use fem_element_names
- use eltrm_gen_names
- use element_fields_names
- use element_tools_names
- use analytical_names
- implicit none
+  use types_names
+  use memor_names
+  use array_names
+  use problem_names
+  use nsi_names
+  use fem_element_names
+  use eltrm_gen_names
+  use element_fields_names
+  use element_tools_names
+  use analytical_names
+  implicit none
 # include "debug.i90"
 
- private
- 
- ! INF-SUP STABLE (iss) NAVIER-STOKES types 
- ! Problem data
- type, extends(discrete_problem) :: nsi_cg_iss_discrete_t
-    integer(ip) ::   & 
-         kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
-         kfl_lump,   & ! Flag for lumped mass submatrix
-         tdimv,      & ! Number of temporal steps stored for velocity
-         tdimp         ! Number of temporal steps stored for pressure   
-    real(rp) ::         &
-         dtinv,         & ! Inverse of time step
-         ctime,         & ! Current time
-         ktauc,         & ! Constant multiplying stabilization parameter tau_c 
-         k1tau,         & ! C1 constant on stabilization parameter tau_m
-         k2tau            ! C2 constant on stabilization parameter tau_m
-  contains
-    procedure :: create  => nsi_create_discrete
- end type nsi_cg_iss_discrete_t
-    
-!!$ ! Aproximation
-!!$ type, extends(discrete_problem) :: nsi_cg_iss_approximation_t
-!!$    type(nsi_cg_iss_data), pointer :: data
-!!$     contains
-!!$      procedure :: create  => nsi_create
-!!$      procedure :: compute => nsi_matvec ! Default element computation points to matvec
-!!$ end type nsi_cg_iss_approximation_t
+  private
 
- ! Matvec
- type, extends(discrete_integration) :: nsi_cg_iss_matvec_t
-      type(nsi_cg_iss_discrete_t), pointer :: discret
-      type(nsi_problem_t)        , pointer :: physics
-     contains
-      procedure :: create  => nsi_matvec_create
-      procedure :: compute => nsi_matvec 
-      procedure :: free    => nsi_matvec_free
- end type nsi_cg_iss_matvec_t
+  ! INF-SUP STABLE (iss) NAVIER-STOKES types 
+  ! Problem data
+  type, extends(discrete_problem) :: nsi_cg_iss_discrete_t
+     integer(ip) ::   & 
+          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
+          kfl_lump,   & ! Flag for lumped mass submatrix
+          tdimv,      & ! Number of temporal steps stored for velocity
+          tdimp         ! Number of temporal steps stored for pressure   
+     real(rp) ::         &
+          dtinv,         & ! Inverse of time step
+          ctime,         & ! Current time
+          ktauc,         & ! Constant multiplying stabilization parameter tau_c 
+          k1tau,         & ! C1 constant on stabilization parameter tau_m
+          k2tau            ! C2 constant on stabilization parameter tau_m
+   contains
+     procedure :: create  => nsi_create_discrete
+  end type nsi_cg_iss_discrete_t
+
+  ! Matvec
+  type, extends(discrete_integration) :: nsi_cg_iss_matvec_t
+     type(nsi_cg_iss_discrete_t), pointer :: discret
+     type(nsi_problem_t)        , pointer :: physics
+   contains
+     procedure :: create  => nsi_matvec_create
+     procedure :: compute => nsi_matvec 
+     procedure :: free    => nsi_matvec_free
+  end type nsi_cg_iss_matvec_t
+
+  ! Error norm
+  type, extends(discrete_integration) :: nsi_cg_iss_error_t
+     type(nsi_cg_iss_discrete_t), pointer :: discret
+     type(nsi_problem_t)        , pointer :: physics
+   contains
+     procedure :: create  => nsi_error_create
+     procedure :: compute => nsi_error 
+     procedure :: free    => nsi_error_free
+  end type nsi_cg_iss_error_t
 
  ! Unkno components parameter definition
  integer(ip), parameter :: current   = 1
@@ -83,7 +85,7 @@ use memor_names
  integer(ip), parameter :: prev_step = 3
 
  ! Types
- public :: nsi_cg_iss_matvec_t, nsi_cg_iss_discrete_t
+ public :: nsi_cg_iss_matvec_t, nsi_cg_iss_discrete_t, nsi_cg_iss_error_t
 
  ! Functions
  ! public :: nsi_iss_create, nsi_iss_free, nsi_iss_element_matvec, nsi_iss_element_real, &
@@ -140,15 +142,9 @@ contains
     !   This subroutine creates the pointers needed for the discrete integration type              !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec_t)        , intent(inout) :: approx
-    ! type(nsi_problem_t)         , target, intent(in)  :: physics
-    ! type(nsi_cg_iss_discrete_t) , target, intent(in)  :: discret
-
-    ! approx%physics => physics
-    ! approx%discret => discret
-
-    class(physical_problem), target , intent(in)   :: physics
-    class(discrete_problem), target , intent(in)   :: discret
+    class(nsi_cg_iss_matvec_t)      , intent(inout) :: approx
+    class(physical_problem), target , intent(in)    :: physics
+    class(discrete_problem), target , intent(in)    :: discret
 
     select type (physics)
     type is(nsi_problem_t)
@@ -381,7 +377,7 @@ contains
     implicit none
     class(nsi_cg_iss_matvec_t), intent(in)    :: approx
     type(fem_element_t)       , intent(in)    :: elem
-    real(rp)                , intent(in)    :: ctime
+    real(rp)                  , intent(in)    :: ctime
     type(vector_t)            , intent(in)    :: gpvel
     type(vector_t)            , intent(inout) :: force
     ! Locals
@@ -421,9 +417,9 @@ contains
             &                elem%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
 
        ! Evaluate force
-       call nsi_force(approx%physics%ndime,approx%physics%diffu,approx%physics%react,conve, &
-            &         approx%physics%kfl_symg,approx%physics%case_tempo,parv,parp,part,     &
-            &         approx%physics%gravi,force%a(:,igaus),part_p)
+       call nsi_force(approx%physics%ndime,approx%physics%diffu,approx%physics%react,            &
+            &         approx%physics%kfl_conv,approx%physics%kfl_symg,approx%physics%case_tempo, &
+            &         parv,parp,part,approx%physics%gravi,force%a(:,igaus),part_p)
 
     end do
 
@@ -484,7 +480,107 @@ contains
          REAL(kfl_symg)*diffu*(d2udxz+d2vdyz+d2wdz)
 
   end subroutine nsi_force
-  
+
+  !=================================================================================================
+  subroutine nsi_error_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_error_t)       , intent(inout) :: approx
+    class(physical_problem), target , intent(in)    :: physics
+    class(discrete_problem), target , intent(in)    :: discret
+
+    select type (physics)
+    type is(nsi_problem)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_discrete)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
+
+  end subroutine nsi_error_create
+
+  !=================================================================================================
+  subroutine nsi_error_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_error_t), intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+  end subroutine nsi_error_free
+
+  !==================================================================================================
+  subroutine nsi_error(approx,start,elem)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the L2-norm of the error compared against an analytical solution.  !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none 
+    class(nsi_cg_iss_error_t), intent(inout) :: approx
+    integer(ip)              , intent(in)    :: start(:)
+    type(fem_element_t)      , intent(inout) :: elem
+    ! Locals
+    integer(ip)    :: igaus,idime
+    real(rp)       :: dvolu
+    real(rp)       :: parv(30),parp(10),part(3),part_p(3)
+    type(vector_t) :: gpvel
+    type(scalar_t) :: gppre
+
+    ! Interpolation operations for velocity
+    call create_vector (approx%physics, 1, elem%integ, gpvel)
+    call create_scalar (approx%physics, 2, elem%integ, gppre)
+    call interpolation (elem%unkno, 1, current, elem%integ, gpvel)
+    call interpolation (elem%unkno, approx%physics%ndime+1, current, elem%integ, gppre)
+
+    ! Initialize vector
+    elem%p_plain_vector%a = 0.0_rp
+    
+    ! Loop over Gauss points
+    do igaus=1,elem%integ(1)%p%quad%ngaus
+       dvolu=elem%integ(1)%p%quad%weight(igaus)*elem%integ(1)%p%femap%detjm(igaus)
+       
+       ! Evaluate unknowns and derivatives
+       parv   = 0.0_rp
+       parp   = 0.0_rp
+       part   = 0.0_rp
+       part_p = 0.0_rp
+       call analytical_field(approx%physics%case_veloc,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,parv)
+       call analytical_field(approx%physics%case_press,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,parp)
+       call analytical_field(approx%physics%case_tempo,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,part)
+       call analytical_field(approx%physics%case_t_pre,approx%physics%ndime, &
+            &                elem%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,part_p)
+
+       ! Error computation
+       ! ||u||_L2
+       do idime=1,approx%physics%ndime
+          elem%p_plain_vector%a(1) = elem%p_plain_vector%a(1) + &
+               &                     (gpvel%a(idime,igaus)-parv(idime)*part(1))* &
+               &                     (gpvel%a(idime,igaus)-parv(idime)*part(1))*dvolu 
+       end do
+       ! ||p||_L2
+       elem%p_plain_vector%a(2) = elem%p_plain_vector%a(2) + &
+            &                   (gppre%a(igaus)-parp(1)*part_p(1))* &
+            &                   (gppre%a(igaus)-parp(1)*part_p(1))*dvolu
+
+    end do
+
+    call memfree(gpvel%a,__FILE__,__LINE__)
+    call memfree(gppre%a,__FILE__,__LINE__)
+
+  end subroutine nsi_error
+
   ! !=================================================================================================
   ! subroutine nsi_iss_element_mat(prob,ielem,elem)
   !   !----------------------------------------------------------------------------------------------!
