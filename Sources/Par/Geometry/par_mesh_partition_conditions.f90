@@ -65,15 +65,15 @@ contains
 !!$    ! Parameters 
 !!$    integer(ip),          intent(in)         :: isper(3),nedir(3),npdir(3),nsckt(3)
 !!$    integer(ip),          intent(in)         :: ndime,lpart
-!!$    type(mesh_size),      intent(in)         :: msize
-!!$    type(fem_conditions), intent(in)         :: poin,line,surf
-!!$    type(par_context)   , target, intent(in) :: p_context
+!!$    type(mesh_size_t),      intent(in)         :: msize
+!!$    type(fem_conditions_t), intent(in)         :: poin,line,surf
+!!$    type(par_context_t)   , target, intent(in) :: p_context
 !!$    type(par_partition) , target, intent(out):: p_part
-!!$    type(par_mesh),       intent(out)        :: p_mesh
-!!$    type(fem_conditions), intent(out)        :: nodes
-!!$    type(par_context)  , target, intent(in), optional  :: g_context
-!!$    type(par_context)  , target, intent(in), optional  :: c_context
-!!$    type(fem_materials), optional, intent(inout) :: mater
+!!$    type(par_mesh_t),       intent(out)        :: p_mesh
+!!$    type(fem_conditions_t), intent(out)        :: nodes
+!!$    type(par_context_t)  , target, intent(in), optional  :: g_context
+!!$    type(par_context_t)  , target, intent(in), optional  :: c_context
+!!$    type(fem_materials_t), optional, intent(inout) :: mater
 !!$    integer(ip),         optional, intent(in)    :: mtype
 !!$
 !!$    ! Locals
@@ -120,11 +120,11 @@ contains
 !!$    ! Parameters
 !!$    integer(ip),          intent(in)              :: lpart, ndime
 !!$    integer(ip),          intent(in)              :: isper(3),nedir(3),npdir(3),nsckt(3)
-!!$    type(mesh_size),      intent(in)              :: msize
-!!$    type(fem_conditions), intent(in)              :: poin,line,surf
-!!$    type(par_mesh),       intent(inout)           :: p_mesh
-!!$    type(fem_conditions), intent(out)             :: nodes
-!!$    type(fem_materials) , optional, intent(inout) :: mater
+!!$    type(mesh_size_t),      intent(in)              :: msize
+!!$    type(fem_conditions_t), intent(in)              :: poin,line,surf
+!!$    type(par_mesh_t),       intent(inout)           :: p_mesh
+!!$    type(fem_conditions_t), intent(out)             :: nodes
+!!$    type(fem_materials_t) , optional, intent(inout) :: mater
 !!$    integer(ip),          optional, intent(in)    :: mtype
 !!$
 !!$

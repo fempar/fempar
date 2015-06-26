@@ -35,13 +35,13 @@ use gidpost_names
   implicit none
   private
 
-  type post_file
+  type post_file_t
      integer(ip)    :: form = -1
 #ifdef ENABLE_GIDPOST
      type(gid_file) :: gid_luou
 #endif
      integer(ip)    :: luou = -1
-  end type post_file
+  end type post_file_t
 
   interface postpro
      module procedure possca,posvec,poisca
@@ -52,7 +52,7 @@ use gidpost_names
   end interface
 
   ! Types
-  public :: post_file
+  public :: post_file_t
 
   ! Methods
   public :: postpro_open_file, postpro_close_file, postpro, postpro_gp, &
@@ -92,7 +92,7 @@ contains
     implicit none
     character(*)   , intent(in)  :: name
     integer(ip)    , intent(in)  :: form
-    type(post_file), intent(out) :: pos
+    type(post_file_t), intent(out) :: pos
 
     pos%form=form
 
@@ -122,7 +122,7 @@ contains
 
   logical(lg) function postpro_opened_file(pos)
     implicit none
-    type(post_file), intent(in) :: pos
+    type(post_file_t), intent(in) :: pos
     if(pos%form==-1) then
        postpro_opened_file = .false.
     else
@@ -132,7 +132,7 @@ contains
   !==================================================================================
   subroutine postpro_close_file(pos)
     implicit none
-    type(post_file), intent(in) :: pos
+    type(post_file_t), intent(in) :: pos
 
     if(pos%form==1.or.pos%form==2) then
        call io_close(pos%luou)
@@ -153,12 +153,12 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    type(post_file), intent(in)  :: pos
+    type(post_file_t), intent(in)  :: pos
     character(*)   , intent(in)  :: wopos
     real(rp)       , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    type(renum),optional,intent(in) :: nren
+    type(renum_t),optional,intent(in) :: nren
     integer(ip)               :: npoin,ipoin
     character(8)              :: state
 
@@ -230,7 +230,7 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    type(post_file), intent(in)  :: pos
+    type(post_file_t), intent(in)  :: pos
     character(*)   , intent(in)  :: wopos
     real(rp)       , intent(in)  :: bridge(:,:)
     integer(ip)    , intent(in)  :: istep
@@ -370,12 +370,12 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    type(post_file), intent(in)  :: pos
+    type(post_file_t), intent(in)  :: pos
     character(*)   , intent(in)  :: wopos
     integer(ip)    , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    type(renum)    , intent(in), optional   :: nren
+    type(renum_t)    , intent(in), optional   :: nren
     ! Locals
     integer(ip)  :: npoin,ipoin
     character(8) :: state
@@ -439,7 +439,7 @@ contains
   !==================================================================================
   subroutine postpro_gp_init(pos,ngaus,nnode,ndime)
     implicit none
-    type(post_file), intent(in) :: pos
+    type(post_file_t), intent(in) :: pos
     integer(ip)    , intent(in) :: ngaus, nnode, ndime
 
     character(13)             :: elemt
@@ -484,14 +484,14 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    type(post_file), intent(in)  :: pos
+    type(post_file_t), intent(in)  :: pos
     character(*)   , intent(in)  :: wopos
     integer(ip)    , intent(in)  :: ndime, nnode
     integer(ip)    , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
     integer(ip)    , intent(in), optional   :: eren(:)
-    !type(renum)    , intent(in), optional   :: eren
+    !type(renum_t)    , intent(in), optional   :: eren
 
     character(8)   :: state
     character(13)  :: elemt
@@ -541,7 +541,7 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    type(post_file), intent(in)  :: pos
+    type(post_file_t), intent(in)  :: pos
     character(*)   , intent(in)  :: wopos
     real(rp)       , intent(in)  :: bridge(:,:,:)
     integer(ip)    , intent(in)  :: istep,ndime
@@ -631,7 +631,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     character(*)   , intent(in)  :: wopos
-    type(post_file), intent(in)  :: pos
+    type(post_file_t), intent(in)  :: pos
     real(rp)       , intent(in)  :: bridge(:,:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
@@ -682,7 +682,7 @@ contains
   !     !-----------------------------------------------------------------------
   !     implicit none
   !     character(*), intent(in)  :: wopos
-  !     type(r1p),    intent(in)  :: bridge(:) 
+  !     type(r1p_t),    intent(in)  :: bridge(:) 
   !     integer(ip) , intent(in)  :: itste
   !     real(rp)    , intent(in)  :: ttime
   !     character(8)              :: state

@@ -44,11 +44,11 @@ use types_names
   implicit none
   private
 
-  type fem_block_precond
-  end type fem_block_precond
+  type fem_block_precond_t
+  end type fem_block_precond_t
 
   ! Types
-  public :: fem_block_precond
+  public :: fem_block_precond_t
 
   ! Functions
   public :: fem_block_precond_create, fem_block_precond_apply, fem_block_precond_bcast, fem_block_precond_fine_task
@@ -58,7 +58,7 @@ use types_names
   ! Dummy method required to specialize Krylov subspace methods
   subroutine fem_block_precond_bcast(prec,conv)
     implicit none
-    type(fem_block_precond) , intent(in)      :: prec
+    type(fem_block_precond_t) , intent(in)      :: prec
     logical                 , intent( inout ) :: conv
   end subroutine fem_block_precond_bcast
 
@@ -66,7 +66,7 @@ use types_names
   ! Needs to be filled with the abs operator machinery.
   function fem_block_precond_fine_task(prec)
     implicit none
-    type(fem_block_precond) , intent(in) :: prec
+    type(fem_block_precond_t) , intent(in) :: prec
     logical                        :: fem_block_precond_fine_task
     fem_block_precond_fine_task = .true. 
   end function fem_block_precond_fine_task
@@ -75,7 +75,7 @@ use types_names
   subroutine  fem_block_precond_create (f_b_prec)
     implicit none
     ! Parameters
-    type(fem_block_precond),  intent(out) :: f_b_prec
+    type(fem_block_precond_t),  intent(out) :: f_b_prec
 
     ! Compute preconditioner ... 
   end subroutine fem_block_precond_create
@@ -84,10 +84,10 @@ use types_names
   subroutine fem_block_precond_apply (f_b_mat, f_b_prec, x, y)
     implicit none
     ! Parameters
-    type(fem_block_matrix) , intent(in)    :: f_b_mat
-    type(fem_block_precond), intent(in)    :: f_b_prec
-    type(fem_block_vector) , intent(in)    :: x
-    type(fem_block_vector) , intent(inout) :: y
+    type(fem_block_matrix_t) , intent(in)    :: f_b_mat
+    type(fem_block_precond_t), intent(in)    :: f_b_prec
+    type(fem_block_vector_t) , intent(in)    :: x
+    type(fem_block_vector_t) , intent(inout) :: y
 
     call fem_block_vector_copy (x, y)
   end subroutine fem_block_precond_apply

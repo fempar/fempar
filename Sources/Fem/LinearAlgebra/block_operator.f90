@@ -41,26 +41,26 @@ use iso_c_binding
   implicit none
   private
 
-  ! Added type(block_operator) as a new implementation of class(base_operator).
+  ! Added type(block_operator_t) as a new implementation of class(base_operator_t).
   ! This new kind of linear operator provides the functionality to express
   ! recursively block operators where in turn their blocks can be block operators.
   ! If one aims at using the block LU recursive preconditioning machinery,
   ! then it is a MUST that the linear coefficient matrix is
-  ! provided as a type(block_operator) instance. type(block_operator) provides the
-  ! necessary (concrete) interface to build type(block_operator) instances as views, 
-  ! e.g., of the components of a type(fem_block_matrix) or type(par_block_matrix).
+  ! provided as a type(block_operator_t) instance. type(block_operator_t) provides the
+  ! necessary (concrete) interface to build type(block_operator_t) instances as views, 
+  ! e.g., of the components of a type(fem_block_matrix_t) or type(par_block_matrix_t).
 
   ! Pointer to operator
-  type p_abs_operator
-     type(abs_operator), pointer :: p_op => null()
-  end type p_abs_operator
+  type p_abs_operator_t
+     type(abs_operator_t), pointer :: p_op => null()
+  end type p_abs_operator_t
 
 
   ! Block operator
-  type, extends(base_operator) :: block_operator
+  type, extends(base_operator_t) :: block_operator_t
      private
      integer(ip)                       :: nblocks, mblocks
-     type(p_abs_operator), allocatable :: blocks(:,:)
+     type(p_abs_operator_t), allocatable :: blocks(:,:)
    contains
      procedure  :: create             => block_operator_create
      procedure  :: set_block          => block_operator_set_block
@@ -70,11 +70,11 @@ use iso_c_binding
      procedure  :: apply          => block_operator_apply
      procedure  :: apply_fun      => block_operator_apply_fun
      procedure  :: free           => block_operator_free_tbp
-  end type block_operator
+  end type block_operator_t
 
 
   ! Types
-  public :: block_operator
+  public :: block_operator_t
 
   ! Functions
   ! public :: 
@@ -85,20 +85,20 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_operator_apply (op,x,y)
     implicit none
-    class(block_operator)     , intent(in)   :: op
-    class(base_operand)      , intent(in)    :: x
-    class(base_operand)      , intent(inout) :: y
+    class(block_operator_t)     , intent(in)   :: op
+    class(base_operand_t)      , intent(in)    :: x
+    class(base_operand_t)      , intent(inout) :: y
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(base_operand), allocatable :: aux
+    class(base_operand_t), allocatable :: aux
 
     call x%GuardTemp()
 
     select type(x)
-    class is (block_operand)
+    class is (block_operand_t)
        select type(y)
-       class is(block_operand)
+       class is(block_operand_t)
           allocate(aux, mold=y%blocks(1)%p_op)
           do iblk=1, op%mblocks
              call y%blocks(iblk)%p_op%init(0.0_rp)
@@ -113,11 +113,11 @@ contains
           end do
           deallocate(aux)
        class default
-          write(0,'(a)') 'block_operator%apply: unsupported y class'
+          write(0,'(a)') 'block_operator_t%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'block_operator%apply: unsupported x class'
+       write(0,'(a)') 'block_operator_t%apply: unsupported x class'
        check(1==0)
     end select
 
@@ -129,18 +129,18 @@ contains
   ! Allocates room for (temporary) y
   function block_operator_apply_fun(op,x) result(y)
     implicit none
-    class(block_operator), intent(in)  :: op
-    class(base_operand) , intent(in)   :: x
-    class(base_operand) , allocatable  :: y
+    class(block_operator_t), intent(in)  :: op
+    class(base_operand_t) , intent(in)   :: x
+    class(base_operand_t) , allocatable  :: y
 
-    type(block_operand), allocatable :: local_y
-    class(base_operand), allocatable :: aux
+    type(block_operand_t), allocatable :: local_y
+    class(base_operand_t), allocatable :: aux
     integer(ip)                      :: iblk, jblk, first_block_in_row
 
     call x%GuardTemp()
 
     select type(x)
-    class is (block_operand)
+    class is (block_operand_t)
        allocate(local_y)
        call local_y%create(op%mblocks)
        allocate(aux, mold=x%blocks(1)%p_op)
@@ -167,7 +167,7 @@ contains
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'block_operator%apply_fun: unsupported x class'
+       write(0,'(a)') 'block_operator_t%apply_fun: unsupported x class'
        check(1==0)
     end select
 
@@ -177,13 +177,13 @@ contains
 
   subroutine block_operator_free_tbp(this)
     implicit none
-    class(block_operator), intent(inout) :: this
+    class(block_operator_t), intent(inout) :: this
   end subroutine block_operator_free_tbp
 
   subroutine block_operator_create (bop, mblocks, nblocks)
     implicit none
     ! Parameters
-    class(block_operator)   , intent(inout) :: bop
+    class(block_operator_t)   , intent(inout) :: bop
     integer(ip)             , intent(in)    :: mblocks, nblocks
 
     
@@ -206,9 +206,9 @@ contains
   subroutine block_operator_set_block (bop, ib, jb, op)
     implicit none
     ! Parameters
-    class(block_operator)               , intent(inout) :: bop
+    class(block_operator_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
-    type(abs_operator)                  , intent(in)    :: op 
+    type(abs_operator_t)                  , intent(in)    :: op 
 
     call op%GuardTemp()
     if ( .not. associated(bop%blocks(ib,jb)%p_op) ) then
@@ -222,7 +222,7 @@ contains
   subroutine block_operator_set_block_to_zero (bop,ib,jb)
     implicit none
     ! Parameters
-    class(block_operator)   , intent(inout) :: bop
+    class(block_operator_t)   , intent(inout) :: bop
     integer(ip)             , intent(in)    :: ib,jb
 
     if (associated(bop%blocks(ib,jb)%p_op)) then
@@ -236,7 +236,7 @@ contains
 
   subroutine block_operator_destroy (bop)
     implicit none
-    class(block_operator), intent(inout) :: bop
+    class(block_operator_t), intent(inout) :: bop
 
     ! Locals
     integer(ip) :: iblk, jblk

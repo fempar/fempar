@@ -62,13 +62,13 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in) :: output_type
-    type(fem_graph)        , intent(in) :: grph
-    type(dof_distribution) , intent(in) :: dof_dist 
+    type(fem_graph_t)        , intent(in) :: grph
+    type(dof_distribution_t) , intent(in) :: dof_dist 
 
-    type(fem_graph)     , intent(out), optional   :: G_II
-    type(fem_graph)     , intent(out), optional   :: G_IG
-    type(fem_graph)     , intent(out), optional   :: G_GI
-    type(fem_graph)     , intent(out), optional   :: G_GG
+    type(fem_graph_t)     , intent(out), optional   :: G_II
+    type(fem_graph_t)     , intent(out), optional   :: G_IG
+    type(fem_graph_t)     , intent(out), optional   :: G_GI
+    type(fem_graph_t)     , intent(out), optional   :: G_GG
 
 
     assert ( grph%type   == csr_symm .or. grph%type   == csr )
@@ -96,13 +96,13 @@ contains
     implicit none
     ! Parameters
     integer(ip)         , intent(in)              :: output_type
-    type(fem_graph)     , intent(in)              :: grph
-    type(dof_distribution) , intent(in)              :: dof_dist 
+    type(fem_graph_t)     , intent(in)              :: grph
+    type(dof_distribution_t) , intent(in)              :: dof_dist 
 
-    type(fem_graph)     , intent(out), optional   :: G_II
-    type(fem_graph)     , intent(out), optional   :: G_IG
-    type(fem_graph)     , intent(out), optional   :: G_GI
-    type(fem_graph)     , intent(out), optional   :: G_GG
+    type(fem_graph_t)     , intent(out), optional   :: G_II
+    type(fem_graph_t)     , intent(out), optional   :: G_IG
+    type(fem_graph_t)     , intent(out), optional   :: G_GI
+    type(fem_graph_t)     , intent(out), optional   :: G_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
@@ -384,12 +384,12 @@ contains
     implicit none
     ! Parameters
     integer(ip)         , intent(in)              :: output_type
-    type(fem_graph)     , intent(in)              :: grph
-    type(dof_distribution) , intent(in)              :: dof_dist 
+    type(fem_graph_t)     , intent(in)              :: grph
+    type(dof_distribution_t) , intent(in)              :: dof_dist 
 
-    type(fem_graph)     , intent(out) :: G_II
-    type(fem_graph)     , intent(out) :: G_IG
-    type(fem_graph)     , intent(out) :: G_GG
+    type(fem_graph_t)     , intent(out) :: G_II
+    type(fem_graph_t)     , intent(out) :: G_IG
+    type(fem_graph_t)     , intent(out) :: G_GG
 
     ! assert ( grph%type   == csr_symm )
     assert ( output_type == csr_symm .or. output_type == csr )
@@ -405,12 +405,12 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in) :: output_type
-    type(fem_graph)        , intent(in) :: grph
-    type(dof_distribution) , intent(in) :: dof_dist 
+    type(fem_graph_t)        , intent(in) :: grph
+    type(dof_distribution_t) , intent(in) :: dof_dist 
 
-    type(fem_graph)     , intent(out)   :: G_II
-    type(fem_graph)     , intent(out)   :: G_IG
-    type(fem_graph)     , intent(out)   :: G_GG
+    type(fem_graph_t)     , intent(out)   :: G_II
+    type(fem_graph_t)     , intent(out)   :: G_IG
+    type(fem_graph_t)     , intent(out)   :: G_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols

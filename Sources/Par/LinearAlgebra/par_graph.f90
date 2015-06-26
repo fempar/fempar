@@ -44,7 +44,7 @@ use iso_c_binding
   private
 
   ! Distributed Graph
-  type par_graph
+  type par_graph_t
      ! GENERAL COMMENT: Pointers and/or instances ? 
      ! I will follow the following rules:
      ! 
@@ -61,15 +61,15 @@ use iso_c_binding
      ! of the graph mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( fem_graph )       :: f_graph
+     type( fem_graph_t )       :: f_graph
      
      ! DoF distribution control info.
-     type ( dof_distribution ), pointer  :: dof_dist      => NULL()
-     type ( dof_distribution ), pointer  :: dof_dist_cols => NULL()
+     type ( dof_distribution_t ), pointer  :: dof_dist      => NULL()
+     type ( dof_distribution_t ), pointer  :: dof_dist_cols => NULL()
      
      ! Parallel environment control
-     type(par_environment), pointer :: p_env => NULL()
-  end type par_graph
+     type(par_environment_t), pointer :: p_env => NULL()
+  end type par_graph_t
   
   interface par_graph_create
      module procedure par_graph_create_square, par_graph_create_rectangular
@@ -80,13 +80,13 @@ use iso_c_binding
   end interface par_graph_free
 
   ! Types
-  public :: par_graph
+  public :: par_graph_t
 
   ! Functions
   public :: par_graph_create, par_graph_free, par_graph_print
 
 !***********************************************************************
-! Allocatable arrays of type(par_graph)
+! Allocatable arrays of type(par_graph_t)
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -96,7 +96,7 @@ use iso_c_binding
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(par_graph)
+# define var_type type(par_graph_t)
 # define var_size 80
 # define bound_kind ip
 # include "mem_header.i90"
@@ -111,9 +111,9 @@ contains
   subroutine par_graph_create_square ( dof_dist, p_env, p_graph )
     implicit none 
     ! Parameters
-    type(dof_distribution), target, intent(in)  :: dof_dist
-    type(par_environment) , target, intent(in)  :: p_env
-    type(par_graph)               , intent(out) :: p_graph
+    type(dof_distribution_t), target, intent(in)  :: dof_dist
+    type(par_environment_t) , target, intent(in)  :: p_env
+    type(par_graph_t)               , intent(out) :: p_graph
     p_graph%p_env => p_env
     p_graph%dof_dist => dof_dist
     p_graph%dof_dist_cols => dof_dist
@@ -123,10 +123,10 @@ contains
   subroutine par_graph_create_rectangular ( dof_dist, dof_dist_cols, p_env, p_graph )
     implicit none 
     ! Parameters
-    type(dof_distribution), target, intent(in)  :: dof_dist
-    type(dof_distribution), target, intent(in)  :: dof_dist_cols
-    type(par_environment) , target, intent(in)  :: p_env
-    type(par_graph)               , intent(out) :: p_graph
+    type(dof_distribution_t), target, intent(in)  :: dof_dist
+    type(dof_distribution_t), target, intent(in)  :: dof_dist_cols
+    type(par_environment_t) , target, intent(in)  :: p_env
+    type(par_graph_t)               , intent(out) :: p_graph
     p_graph%p_env => p_env
     p_graph%dof_dist => dof_dist
     p_graph%dof_dist_cols => dof_dist_cols
@@ -137,7 +137,7 @@ contains
     ! This routine
     !-----------------------------------------------------------------------
     implicit none
-    type(par_graph), intent(inout)  :: p_graph
+    type(par_graph_t), intent(inout)  :: p_graph
     
     call par_graph_free_progressively (p_graph, free_only_struct)
     call par_graph_free_progressively (p_graph, free_clean )
@@ -148,7 +148,7 @@ contains
     ! This routine
     !-----------------------------------------------------------------------
     implicit none
-    type(par_graph), intent(inout)  :: p_graph
+    type(par_graph_t), intent(inout)  :: p_graph
     integer(ip)    , intent(in)     :: mode
     
     ! p_graph%dof_dist is required within this subroutine
@@ -174,7 +174,7 @@ contains
   !=============================================================================
   subroutine par_graph_print(lunou, p_graph)
     implicit none
-    type(par_graph)  ,  intent(in) :: p_graph
+    type(par_graph_t)  ,  intent(in) :: p_graph
     integer(ip)      ,  intent(in) :: lunou
     
     ! p_graph%dof_dist is required within this subroutine

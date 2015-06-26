@@ -34,7 +34,7 @@ subroutine generic_solve(A,M,b,x,ctrl)
   type(generic_pre)   , intent(inout) :: M        ! Preconditioner
   type(generic_vec)   , intent(in)    :: b        ! RHS
   type(generic_vec)   , intent(inout) :: x        ! Approximate solution
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   call solver_control_allocate_conv_his ( ctrl )
 
@@ -78,7 +78,7 @@ subroutine generic_pcg( A, M, b, x, ctrl )
   type(generic_pre)   , intent(inout) :: M        ! Preconditioner
   type(generic_vec)   , intent(in)    :: b        ! RHS
   type(generic_vec)   , intent(inout) :: x        ! Approximate solution
-  type(solver_control), intent(inout) :: ctrl     ! Control data
+  type(solver_control_t), intent(inout) :: ctrl     ! Control data
 
   ! Locals
   real(rp)           :: r_nrm_M      ! |r|_inv(M) 
@@ -213,7 +213,7 @@ subroutine generic_ipcg( A, M, b, x, ctrl )
   type(generic_pre)   , intent(inout) :: M        ! Preconditioner
   type(generic_vec)   , intent(in)    :: b        ! RHS
   type(generic_vec)   , intent(inout) :: x        ! Approximate solution
-  type(solver_control), intent(inout) :: ctrl     ! Control data
+  type(solver_control_t), intent(inout) :: ctrl     ! Control data
 
   ! Locals
   real(rp)           :: r_nrm_M      ! |r|_inv(M) 
@@ -340,7 +340,7 @@ subroutine pcg_conv_init ( b, r , nrm_b_given, nrm_r_given, ctrl )
   implicit none 
   type(generic_vec)   , intent(in)    :: b, r
   real(rp)            , intent(in)    :: nrm_b_given, nrm_r_given 
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   select case(ctrl%stopc)
   case ( delta_rhs, res_rhs, delta_rhs_and_res_rhs, delta_delta_and_res_rhs )
@@ -374,7 +374,7 @@ subroutine pcg_conv_check ( r, nrm_r_given, alpha, p, ctrl )
   type(generic_vec)   , intent(in)    :: r, p
   real(rp)            , intent(in)    :: nrm_r_given
   real(rp)            , intent(in)    :: alpha
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   ! Compute 1st iteration error estimate and upper bound 
   ! for convergence criteria depending on ||dx(i)||
@@ -481,7 +481,7 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
   type(generic_pre)   , intent(inout) :: M              ! Preconditioner
   type(generic_vec)   , intent(inout) :: x              ! Solution
   type(generic_vec)   , intent(in)    :: b              ! RHS
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   integer(ip)                    :: ierrc
   integer(ip)                    :: kloc, kloc_aux, i, j, k_hh, id
@@ -844,7 +844,7 @@ subroutine generic_prgmres ( A, M, b, x, ctrl)
   type(generic_pre)   , intent(inout) :: M              ! Preconditioner
   type(generic_vec)   , intent(inout) :: x              ! Solution
   type(generic_vec)   , intent(in)    :: b              ! RHS
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   integer(ip)                :: ierrc
   integer(ip)                :: kloc, i, j, k_hh, id
@@ -1101,7 +1101,7 @@ subroutine generic_pfgmres ( A, M, b, x, ctrl)
   type(generic_pre)   , intent(inout) :: M              ! Preconditioner
   type(generic_vec)   , intent(inout) :: x              ! Solution
   type(generic_vec)   , intent(in)    :: b              ! RHS
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   integer(ip)                :: ierrc
   integer(ip)                :: kloc, i, j, k_hh, id
@@ -1361,7 +1361,7 @@ subroutine generic_prichard (A, M, b, x, ctrl )
   type(generic_pre)   , intent(inout) :: M              ! Preconditioner
   type(generic_vec)   , intent(in)    :: b              ! RHS
   type(generic_vec)   , intent(inout) :: x              ! Solution
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   integer                        :: me, np
   type(generic_vec)              :: r, z      ! Working vectors
@@ -1449,7 +1449,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
   type(generic_pre), intent(inout)    :: M      ! Preconditioner
   type(generic_vec), intent(inout)    :: x      ! Solution
   type(generic_vec), intent(in)       :: b      ! RHS
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
   integer(ip)                    :: ierrc
   integer(ip)                    :: kloc, i, j, k_hh, id
@@ -1931,7 +1931,7 @@ subroutine generic_pminres(A, M, b, x, ctrl)
   type(generic_pre), intent(inout) :: M        ! Preconditioner
   type(generic_vec), intent(in)    :: b        ! RHS
   type(generic_vec), intent(inout) :: x        ! Approximate solution
-  type(solver_control), intent(inout) :: ctrl
+  type(solver_control_t), intent(inout) :: ctrl
 
 
   !     Local arrays and variables

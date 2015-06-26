@@ -32,8 +32,8 @@ module hsl_ma87_names
   ! be performed here.
 
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use fem_matrix_names
   use fem_vector_names 
   use fem_graph_names
@@ -56,30 +56,30 @@ use hsl_ma87_double_names
   integer(ip), parameter :: num_computed  = 3 ! Numerical data already computed 
 
 
-  type hsl_ma87_context
+  type hsl_ma87_context_t
      ! Our components
      integer(ip)              :: state = not_created
-     type(renum)              :: ren
+     type(renum_t)              :: ren
 #ifdef ENABLE_HSL_MA87
      ! HSL_MA87 components
      type(MA87_keep) :: keep
 #endif
-  end type hsl_ma87_context
+  end type hsl_ma87_context_t
 
-  type hsl_ma87_control
+  type hsl_ma87_control_t
 #ifdef ENABLE_HSL_MA87
      type(MA87_control) :: control
 #endif
-  end type hsl_ma87_control
+  end type hsl_ma87_control_t
 
-  type hsl_ma87_info
+  type hsl_ma87_info_t
 #ifdef ENABLE_HSL_MA87
      type(MA87_info) :: info
 #endif
-  end type hsl_ma87_info
+  end type hsl_ma87_info_t
 
   ! Types
-  public :: hsl_ma87_context, hsl_ma87_control, hsl_ma87_info
+  public :: hsl_ma87_context_t, hsl_ma87_control_t, hsl_ma87_info_t
 
   ! Possible actions that can be perfomed by solve_hsl_ma87
   integer(ip), parameter :: hsl_ma87_init              = 1  ! Construct solve_hsl_ma87_state
@@ -132,15 +132,15 @@ contains
   subroutine hsl_ma87_vector ( action, context, A, b, x, ctrl, info )
     implicit none
     ! Mandatory Parameters
-    type(hsl_ma87_context), intent(inout) :: context   ! Information required between calls
+    type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)           , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
 
-    type(hsl_ma87_control) , intent(in)    :: ctrl
-    type(hsl_ma87_info)    , intent(inout) :: info
+    type(hsl_ma87_control_t) , intent(in)    :: ctrl
+    type(hsl_ma87_info_t)    , intent(inout) :: info
 
     select case(action)
 
@@ -217,18 +217,18 @@ contains
   subroutine hsl_ma87_r2 ( action, context, A, nrhs, b, ldb, x, ldx, ctrl, info)
     implicit none
     ! Mandatory Parameters
-    type(hsl_ma87_context), intent(inout) :: context   ! Information required between calls
+    type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-!    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-!    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+!    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+!    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)    :: nrhs, ldb, ldx
     real(rp)          , intent(in)    :: b (ldb, nrhs)
     real(rp)          , intent(inout) :: x (ldx, nrhs)
 
-    type(hsl_ma87_control) , intent(in)          :: ctrl
-    type(hsl_ma87_info)    , intent(inout)         :: info
+    type(hsl_ma87_control_t) , intent(in)          :: ctrl
+    type(hsl_ma87_info_t)    , intent(inout)         :: info
 
     select case(action)
 
@@ -250,15 +250,15 @@ contains
   subroutine hsl_ma87_r1 ( action, context, A, b, x, ctrl, info )
     implicit none
     ! Mandatory Parameters
-    type(hsl_ma87_context), intent(inout) :: context   ! Information required between calls
+    type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     real(rp)          , intent(in)    :: b (A%gr%nv)
     real(rp)          , intent(inout) :: x (A%gr%nv)
 
-    type(hsl_ma87_control) , intent(in)          :: ctrl
-    type(hsl_ma87_info)    , intent(inout)       :: info
+    type(hsl_ma87_control_t) , intent(in)          :: ctrl
+    type(hsl_ma87_info_t)    , intent(inout)       :: info
 
     select case(action)
 
@@ -290,8 +290,8 @@ contains
   subroutine hsl_ma87_ini ( context, matrix )
     implicit none
     ! Parameters
-    type(hsl_ma87_context), intent(inout), target :: context
-    type(fem_matrix)      , intent(in)            :: matrix
+    type(hsl_ma87_context_t), intent(inout), target :: context
+    type(fem_matrix_t)      , intent(in)            :: matrix
 
 #ifdef ENABLE_HSL_MA87
 
@@ -305,8 +305,8 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in)    :: mode
-    type(hsl_ma87_context) , intent(inout) :: context
-    type(hsl_ma87_control) , intent(in)    :: ctrl
+    type(hsl_ma87_context_t) , intent(inout) :: context
+    type(hsl_ma87_control_t) , intent(in)    :: ctrl
 
 #ifdef ENABLE_HSL_MA87
     ! Free hsl_ma87_context structures
@@ -335,14 +335,14 @@ use graph_renum_names
     implicit none
 
     ! Parameters 
-    type(hsl_ma87_context) , intent(inout) :: context
-    type(fem_matrix)       , intent(in)    :: matrix
-    type(hsl_ma87_control) , intent(in)    :: ctrl
-    type(hsl_ma87_info)    , intent(out)   :: info
+    type(hsl_ma87_context_t) , intent(inout) :: context
+    type(fem_matrix_t)       , intent(in)    :: matrix
+    type(hsl_ma87_control_t) , intent(in)    :: ctrl
+    type(hsl_ma87_info_t)    , intent(out)   :: info
 
     ! Locals (required for the call to graph_nd_renumbering)
-    type (fem_graph)                  :: aux_graph
-    type(part_params)             :: prt_parts
+    type (fem_graph_t)                  :: aux_graph
+    type(part_params_t)             :: prt_parts
     integer(ip)                   :: i
 
     assert ( matrix%gr%type == csr_symm )
@@ -439,10 +439,10 @@ use graph_renum_names
   subroutine hsl_ma87_factorization ( context, matrix, ctrl, info )
     implicit none
     ! Parameters 
-    type(hsl_ma87_context) , intent(inout) :: context
-    type(fem_matrix)       , target, intent(in) :: matrix
-    type(hsl_ma87_control) , intent(in)    :: ctrl
-    type(hsl_ma87_info)    , intent(inout) :: info
+    type(hsl_ma87_context_t) , intent(inout) :: context
+    type(fem_matrix_t)       , target, intent(in) :: matrix
+    type(hsl_ma87_control_t) , intent(in)    :: ctrl
+    type(hsl_ma87_info_t)    , intent(inout) :: info
 
     ! Locals
     real(rp), pointer :: a_(:)
@@ -477,12 +477,12 @@ use graph_renum_names
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     implicit none
     ! Parameters 
-    type(hsl_ma87_context), intent(inout)        :: context
-    type(fem_matrix)  , intent(in)               :: matrix
-    type(fem_vector)  , intent(in), target       :: x
-    type(fem_vector)  , intent(inout), target    :: y
-    type(hsl_ma87_control) , intent(in)          :: ctrl
-    type(hsl_ma87_info)    , intent(inout)       :: info
+    type(hsl_ma87_context_t), intent(inout)        :: context
+    type(fem_matrix_t)  , intent(in)               :: matrix
+    type(fem_vector_t)  , intent(in), target       :: x
+    type(fem_vector_t)  , intent(inout), target    :: y
+    type(hsl_ma87_control_t) , intent(in)          :: ctrl
+    type(hsl_ma87_info_t)    , intent(inout)       :: info
 
     ! Locals
     real(rp), pointer :: x_(:)
@@ -515,12 +515,12 @@ use graph_renum_names
   subroutine hsl_ma87_solution_real ( context, matrix, rhs, sol, ctrl, info )
     implicit none
     ! Parameters 
-    type(hsl_ma87_context), intent(inout) :: context
-    type(fem_matrix)  , intent(in)   :: matrix
+    type(hsl_ma87_context_t), intent(inout) :: context
+    type(fem_matrix_t)  , intent(in)   :: matrix
     real(rp)          , intent(in)    :: rhs (matrix%gr%nv)
     real(rp)          , intent(inout) :: sol (matrix%gr%nv)
-    type(hsl_ma87_control) , intent(in) :: ctrl
-    type(hsl_ma87_info)    , intent(inout):: info
+    type(hsl_ma87_control_t) , intent(in) :: ctrl
+    type(hsl_ma87_info_t)    , intent(inout):: info
 
 #ifdef ENABLE_HSL_MA87
     sol = rhs
@@ -545,14 +545,14 @@ use graph_renum_names
   subroutine hsl_ma87_solution_several_rhs ( context, matrix, nrhs, rhs, ldrhs, sol, ldsol, ctrl, info )
     implicit none
     ! Parameters 
-    type(hsl_ma87_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in)   , target :: matrix
+    type(hsl_ma87_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs, ldrhs, ldsol
     real(rp)          , intent(in)   , target :: rhs (ldrhs, nrhs)
     real(rp)          , intent(inout), target :: sol (ldsol, nrhs)
 
-    type(hsl_ma87_control) , intent(in)          :: ctrl
-    type(hsl_ma87_info)    , intent(out)         :: info
+    type(hsl_ma87_control_t) , intent(in)          :: ctrl
+    type(hsl_ma87_info_t)    , intent(out)         :: info
 
     ! Locals
     integer(ip) :: i 

@@ -43,15 +43,15 @@ use iso_c_binding
   private
 
   ! Pointer to operator
-  type p_abs_operator
-     type(abs_operator), pointer :: p_op => null()
-  end type p_abs_operator
+  type p_abs_operator_t
+     type(abs_operator_t), pointer :: p_op => null()
+  end type p_abs_operator_t
 
   ! Lower block triangular preconditioner 
-  type, extends(base_operator) :: block_precond_lu
+  type, extends(base_operator_t) :: block_precond_l_tu
      private
-     type(block_precond_l) :: L
-     type(block_precond_u) :: U
+     type(block_precond_l_t) :: L
+     type(block_precond_u_t) :: U
   contains
      procedure  :: create             => block_precond_lu_create
      procedure  :: set_block          => block_precond_lu_set_block
@@ -61,13 +61,13 @@ use iso_c_binding
      procedure  :: apply          => block_precond_lu_apply
      procedure  :: apply_fun      => block_precond_lu_apply_fun
      procedure  :: free           => block_precond_lu_free_tbp
-  end type block_precond_lu
+  end type block_precond_l_tu
 
   integer(ip), parameter :: lower = 0
   integer(ip), parameter :: upper = 1 
 
   ! Types
-  public :: block_precond_lu
+  public :: block_precond_l_tu
 
   ! Functions
   ! public :: 
@@ -78,11 +78,11 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_precond_lu_apply (op,x,y)
     implicit none
-    class(block_precond_lu)     , intent(in)   :: op
-    class(base_operand)      , intent(in)    :: x
-    class(base_operand)      , intent(inout) :: y
+    class(block_precond_l_tu)     , intent(in)   :: op
+    class(base_operand_t)      , intent(in)    :: x
+    class(base_operand_t)      , intent(inout) :: y
 
-    class(base_operand), allocatable :: z
+    class(base_operand_t), allocatable :: z
     allocate(z, mold=y)
     call z%clone(y)
     call x%GuardTemp()
@@ -97,11 +97,11 @@ contains
   ! Allocates room for (temporary) y
   function block_precond_lu_apply_fun(op,x) result(y)
     implicit none
-    class(block_precond_lu), intent(in)  :: op
-    class(base_operand) , intent(in)   :: x
-    class(base_operand) , allocatable  :: y
+    class(block_precond_l_tu), intent(in)  :: op
+    class(base_operand_t) , intent(in)   :: x
+    class(base_operand_t) , allocatable  :: y
 
-    class(base_operand), allocatable :: z
+    class(base_operand_t), allocatable :: z
 
     allocate(z, mold=x)
     call x%GuardTemp()
@@ -114,13 +114,13 @@ contains
 
   subroutine block_precond_lu_free_tbp(this)
     implicit none
-    class(block_precond_lu), intent(inout) :: this
+    class(block_precond_l_tu), intent(inout) :: this
   end subroutine block_precond_lu_free_tbp
 
   subroutine block_precond_lu_create (bop, nblocks)
     implicit none
     ! Parameters
-    class(block_precond_lu)   , intent(inout) :: bop
+    class(block_precond_l_tu)   , intent(inout) :: bop
     integer(ip)               , intent(in)    :: nblocks
 
     call bop%destroy()
@@ -131,9 +131,9 @@ contains
   subroutine block_precond_lu_set_block (bop, factor, ib, jb, op)
     implicit none
     ! Parameters
-    class(block_precond_lu)             , intent(inout) :: bop
+    class(block_precond_l_tu)             , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: factor, ib, jb
-    type(abs_operator)                  , intent(in)    :: op 
+    type(abs_operator_t)                  , intent(in)    :: op 
 
     assert(factor==lower .or. factor==upper)
 
@@ -149,7 +149,7 @@ contains
   subroutine block_precond_lu_set_block_to_zero (bop, factor, ib, jb)
     implicit none
     ! Parameters
-    class(block_precond_lu)   , intent(inout) :: bop
+    class(block_precond_l_tu)   , intent(inout) :: bop
     integer(ip)               , intent(in)    :: factor,ib,jb
 
     assert(factor==lower .or. factor==upper)
@@ -163,7 +163,7 @@ contains
 
   subroutine block_precond_lu_destroy (bop)
     implicit none
-    class(block_precond_lu), intent(inout) :: bop
+    class(block_precond_l_tu), intent(inout) :: bop
 
     ! Locals
     integer(ip) :: iblk, jblk

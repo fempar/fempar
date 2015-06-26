@@ -43,7 +43,7 @@ use memor_names
  
  ! INF-SUP STABLE (iss) NAVIER-STOKES types 
  ! Problem data
- type, extends(discrete_problem) :: nsi_cg_iss_discrete
+ type, extends(discrete_problem) :: nsi_cg_iss_discrete_t
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -57,25 +57,25 @@ use memor_names
          k2tau            ! C2 constant on stabilization parameter tau_m
   contains
     procedure :: create  => nsi_create_discrete
- end type nsi_cg_iss_discrete
+ end type nsi_cg_iss_discrete_t
     
 !!$ ! Aproximation
-!!$ type, extends(discrete_problem) :: nsi_cg_iss_approximation
+!!$ type, extends(discrete_problem) :: nsi_cg_iss_approximation_t
 !!$    type(nsi_cg_iss_data), pointer :: data
 !!$     contains
 !!$      procedure :: create  => nsi_create
 !!$      procedure :: compute => nsi_matvec ! Default element computation points to matvec
-!!$ end type nsi_cg_iss_approximation
+!!$ end type nsi_cg_iss_approximation_t
 
  ! Matvec
- type, extends(discrete_integration) :: nsi_cg_iss_matvec
-      type(nsi_cg_iss_discrete), pointer :: discret
-      type(nsi_problem)        , pointer :: physics
+ type, extends(discrete_integration) :: nsi_cg_iss_matvec_t
+      type(nsi_cg_iss_discrete_t), pointer :: discret
+      type(nsi_problem_t)        , pointer :: physics
      contains
       procedure :: create  => nsi_matvec_create
       procedure :: compute => nsi_matvec 
       procedure :: free    => nsi_matvec_free
- end type nsi_cg_iss_matvec
+ end type nsi_cg_iss_matvec_t
 
  ! Unkno components parameter definition
  integer(ip), parameter :: current   = 1
@@ -83,7 +83,7 @@ use memor_names
  integer(ip), parameter :: prev_step = 3
 
  ! Types
- public :: nsi_cg_iss_matvec, nsi_cg_iss_discrete
+ public :: nsi_cg_iss_matvec_t, nsi_cg_iss_discrete_t
 
  ! Functions
  ! public :: nsi_iss_create, nsi_iss_free, nsi_iss_element_matvec, nsi_iss_element_real, &
@@ -100,7 +100,7 @@ contains
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_discrete), intent(out) :: discret
+    class(nsi_cg_iss_discrete_t), intent(out) :: discret
     class(physical_problem)   , intent(in)  :: physics
     integer(ip), optional     , intent(in)  :: l2g(:)
     ! Locals
@@ -140,9 +140,9 @@ contains
     !   This subroutine creates the pointers needed for the discrete integration type              !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec)        , intent(inout) :: approx
-    ! type(nsi_problem)         , target, intent(in)  :: physics
-    ! type(nsi_cg_iss_discrete) , target, intent(in)  :: discret
+    class(nsi_cg_iss_matvec_t)        , intent(inout) :: approx
+    ! type(nsi_problem_t)         , target, intent(in)  :: physics
+    ! type(nsi_cg_iss_discrete_t) , target, intent(in)  :: discret
 
     ! approx%physics => physics
     ! approx%discret => discret
@@ -151,13 +151,13 @@ contains
     class(discrete_problem), target , intent(in)   :: discret
 
     select type (physics)
-    type is(nsi_problem)
+    type is(nsi_problem_t)
        approx%physics => physics
        class default
        check(.false.)
     end select
     select type (discret)
-    type is(nsi_cg_iss_discrete)
+    type is(nsi_cg_iss_discrete_t)
        approx%discret => discret
        class default
        check(.false.)
@@ -171,7 +171,7 @@ contains
     !   This subroutine deallocates the pointers needed for the discrete integration type          !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec), intent(inout) :: approx
+    class(nsi_cg_iss_matvec_t), intent(inout) :: approx
 
     approx%physics => null()
     approx%discret => null()
@@ -184,9 +184,9 @@ contains
     !   This subroutine performs the elemental matrix-vector integration selection.                !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec), intent(inout) :: approx
+    class(nsi_cg_iss_matvec_t), intent(inout) :: approx
     integer(ip)             , intent(in)    :: start(:)
-    type(fem_element)       , intent(inout) :: elem
+    type(fem_element_t)       , intent(inout) :: elem
     ! Locals
     real(rp), allocatable :: elmat_vu(:,:,:,:)
     real(rp), allocatable :: elmat_vu_diag(:,:)
@@ -198,7 +198,7 @@ contains
     real(rp)              :: ctime,dtinv,dvolu,diffu,react
     real(rp)              :: work(4)
     real(rp)              :: agran(elem%integ(1)%p%uint_phy%nnode)
-    type(vector)          :: gpvel, gpveln, force
+    type(vector_t)          :: gpvel, gpveln, force
 
     ! Checks
     !check(elem%f_inf(1)%p%order > elem%f_inf(approx%physics%ndime+1)%p%order)
@@ -379,11 +379,11 @@ contains
     !   This subroutine computes the elemental force needed to impose an analytical solution        !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec), intent(in)    :: approx
-    type(fem_element)       , intent(in)    :: elem
+    class(nsi_cg_iss_matvec_t), intent(in)    :: approx
+    type(fem_element_t)       , intent(in)    :: elem
     real(rp)                , intent(in)    :: ctime
-    type(vector)            , intent(in)    :: gpvel
-    type(vector)            , intent(inout) :: force
+    type(vector_t)            , intent(in)    :: gpvel
+    type(vector_t)            , intent(inout) :: force
     ! Locals
     integer(ip) :: igaus,idime,conve
     real(rp)    :: gpvno
@@ -491,9 +491,9 @@ contains
   !   !   This subroutine performs the elemental matrix integration selection.                       !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
   !   integer(ip),           intent(in)    :: ielem
-  !   type(fem_element),     intent(inout) :: elem
+  !   type(fem_element_t),     intent(inout) :: elem
   !   ! Locals
   !   type(block_elmat)        :: blk_elmat
   !   type(fem_blocks)         :: vars_s
@@ -612,8 +612,8 @@ contains
   !   !   This subroutine computes the (u,v) term.                                                   !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -660,8 +660,8 @@ contains
   !   !   This subroutine computes the mu*(grad u,grad v) term.                                      !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -698,8 +698,8 @@ contains
   !   !   This subroutine computes the (v, a·grad u) term.                                           !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -758,8 +758,8 @@ contains
   !   !   This subroutine computes the - (div v, p) term.                                            !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode(2)
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -788,8 +788,8 @@ contains
   !   !   This subroutine computes the s*(v,u) term.                                                 !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -823,8 +823,8 @@ contains
   !   !   This subroutine computes the (div u, q) term.                                              !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode(2)
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -850,8 +850,8 @@ contains
   ! !=================================================================================================
   ! subroutine nsi_iss_element_mat_massp(prob,el,nnode,emat)
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals
@@ -894,8 +894,8 @@ contains
   !   !   This subroutine computes the (grad p , grad q) term.                                       !
   !   !----------------------------------------------------------------------------------------------!
   !   implicit none
-  !   type(nsi_cg_iss_approximation), intent(in)    :: prob
-  !   type(fem_element)    , intent(in)    :: el
+  !   type(nsi_cg_iss_approximation_t), intent(in)    :: prob
+  !   type(fem_element_t)    , intent(in)    :: el
   !   integer(ip)          , intent(in)    :: nnode
   !   type(elmat)          , intent(inout) :: emat
   !   ! Locals

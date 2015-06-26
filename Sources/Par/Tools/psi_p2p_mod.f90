@@ -867,7 +867,7 @@ use mpi
 !      m_ = m
 !      ld = size(dat,1)
 !      n_ = size(dat,2)
-!      call mpi_type_vector(n_,m_,ld,mpi_real,mp_rcv_type,info)
+!      call mpi_type_vector_t(n_,m_,ld,mpi_real,mp_rcv_type,info)
 !      if (info == mpi_success) call mpi_type_commit(mp_rcv_type,info)
 !      if (info == mpi_success) call mpi_recv(dat,1,mp_rcv_type,src,&
 !           & psb_real_tag,ictxt,status,info)
@@ -1040,7 +1040,7 @@ use mpi
 !      m_ = m
 !      ld = size(dat,1)
 !      n_ = size(dat,2)
-!      call mpi_type_vector(n_,m_,ld,mpi_complex,mp_rcv_type,info)
+!      call mpi_type_vector_t(n_,m_,ld,mpi_complex,mp_rcv_type,info)
 !      if (info == mpi_success) call mpi_type_commit(mp_rcv_type,info)
 !      if (info == mpi_success) call mpi_recv(dat,1,mp_rcv_type,src,&
 !           & psb_complex_tag,ictxt,status,info)
@@ -1127,7 +1127,7 @@ use mpi
 !      m_ = m
 !      ld = size(dat,1)
 !      n_ = size(dat,2)
-!      call mpi_type_vector(n_,m_,ld,mpi_double_complex,mp_rcv_type,info)
+!      call mpi_type_vector_t(n_,m_,ld,mpi_double_complex,mp_rcv_type,info)
 !      if (info == mpi_success) call mpi_type_commit(mp_rcv_type,info)
 !      if (info == mpi_success) call mpi_recv(dat,1,mp_rcv_type,src,&
 !           & psb_dcomplex_tag,ictxt,status,info)

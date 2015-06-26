@@ -53,7 +53,7 @@ use memor_names
   integer(ip), parameter :: num_computed  = 3 ! Numerical data already computed 
 
 
-  type umfpack_context
+  type umfpack_context_t
      ! Our components
      integer(ip)    :: state = not_created
      type(c_ptr)    :: Symbolic
@@ -62,10 +62,10 @@ use memor_names
      real(c_double) :: Control(0:UMFPACK_CONTROL-1)            
      real(c_double) :: Info(0:UMFPACK_INFO-1)            
 #endif
-  end type umfpack_context
+  end type umfpack_context_t
 
   ! Types
-  public :: umfpack_context
+  public :: umfpack_context_t
 
   ! Possible actions that can be perfomed by solve_umfpack
   integer(ip), parameter :: umfpack_init              = 1  ! Construct solve_umfpack_state
@@ -99,12 +99,12 @@ contains
   subroutine umfpack_vector ( action, context, A, b, x )
     implicit none
     ! Mandatory Parameters
-    type(umfpack_context), intent(inout) :: context   ! Information required between calls
+    type(umfpack_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)           , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
 
     select case(action)
 
@@ -181,12 +181,12 @@ contains
   subroutine umfpack_r2 ( action, context, A, nrhs, b, ldb, x, ldx)
     implicit none
     ! Mandatory Parameters
-    type(umfpack_context), intent(inout) :: context   ! Information required between calls
+    type(umfpack_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-!    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-!    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+!    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+!    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)    :: nrhs, ldb, ldx
     real(rp)          , intent(in)    :: b (ldb, nrhs)
     real(rp)          , intent(inout) :: x (ldx, nrhs)
@@ -212,10 +212,10 @@ contains
   subroutine umfpack_r1 ( action, context, A, b, x )
     implicit none
     ! Mandatory Parameters
-    type(umfpack_context), intent(inout) :: context   ! Information required between calls
+    type(umfpack_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     real(rp)          , intent(in)    :: b (A%gr%nv)
     real(rp)          , intent(inout) :: x (A%gr%nv)
 
@@ -250,8 +250,8 @@ contains
   subroutine umfpack_ini ( context, matrix )
     implicit none
     ! Parameters
-    type(umfpack_context) , intent(inout) :: context
-    type(fem_matrix)      , intent(in)    :: matrix
+    type(umfpack_context_t) , intent(inout) :: context
+    type(fem_matrix_t)      , intent(in)    :: matrix
 
 #ifdef ENABLE_UMFPACK
     !
@@ -268,7 +268,7 @@ contains
     implicit none
     ! Parameters
     integer(ip)          , intent(in)    :: mode
-    type(umfpack_context), intent(inout) :: context
+    type(umfpack_context_t), intent(inout) :: context
 
 #ifdef ENABLE_UMFPACK
     ! Free umfpack_context structures
@@ -312,8 +312,8 @@ use graph_renum_names
     implicit none
 
     ! Parameters 
-    type(umfpack_context)  , intent(inout) :: context
-    type(fem_matrix)       , intent(in)    :: matrix
+    type(umfpack_context_t)  , intent(inout) :: context
+    type(fem_matrix_t)       , intent(in)    :: matrix
 
     ! Locals
     integer(ip) :: status
@@ -350,8 +350,8 @@ use graph_renum_names
   subroutine umfpack_factorization ( context, matrix )
     implicit none
     ! Parameters 
-    type(umfpack_context) , intent(inout) :: context
-    type(fem_matrix)       , target, intent(in) :: matrix
+    type(umfpack_context_t) , intent(inout) :: context
+    type(fem_matrix_t)       , target, intent(in) :: matrix
 
     ! Locals
     real(rp), pointer :: a_(:)
@@ -394,10 +394,10 @@ use graph_renum_names
     implicit none
 
     ! Parameters 
-    type(umfpack_context), intent(inout)         :: context
-    type(fem_matrix)     , intent(in), target    :: matrix
-    type(fem_vector)     , intent(in), target    :: x
-    type(fem_vector)     , intent(inout), target :: y
+    type(umfpack_context_t), intent(inout)         :: context
+    type(fem_matrix_t)     , intent(in), target    :: matrix
+    type(fem_vector_t)     , intent(in), target    :: x
+    type(fem_vector_t)     , intent(inout), target :: y
 
     ! Locals
     real(rp), pointer :: x_(:)
@@ -439,8 +439,8 @@ use graph_renum_names
   subroutine umfpack_solution_real ( context, matrix, rhs, sol )
     implicit none
     ! Parameters 
-    type(umfpack_context), intent(inout)   :: context
-    type(fem_matrix)  , intent(in), target :: matrix
+    type(umfpack_context_t), intent(inout)   :: context
+    type(fem_matrix_t)  , intent(in), target :: matrix
     real(rp)          , intent(in)         :: rhs (matrix%gr%nv)
     real(rp)          , intent(inout)      :: sol (matrix%gr%nv)
     
@@ -480,8 +480,8 @@ use graph_renum_names
   subroutine umfpack_solution_several_rhs ( context, matrix, nrhs, rhs, ldrhs, sol, ldsol )
     implicit none
     ! Parameters 
-    type(umfpack_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in)   , target :: matrix
+    type(umfpack_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs, ldrhs, ldsol
     real(rp)          , intent(in)   , target :: rhs (ldrhs, nrhs)
     real(rp)          , intent(inout), target :: sol (ldsol, nrhs)

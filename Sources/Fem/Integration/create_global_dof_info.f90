@@ -71,15 +71,15 @@ contains
   subroutine create_dof_info ( dhand, trian, femsp, f_blk_graph, gtype ) ! graph
     implicit none
     ! Dummy arguments
-    type(dof_handler)              , intent(in)    :: dhand
-    type(fem_triangulation)        , intent(in)    :: trian 
-    type(fem_space)                , intent(inout) :: femsp 
-    type(fem_block_graph)          , intent(inout) :: f_blk_graph 
+    type(dof_handler_t)              , intent(in)    :: dhand
+    type(fem_triangulation_t)        , intent(in)    :: trian 
+    type(fem_space_t)                , intent(inout) :: femsp 
+    type(fem_block_graph_t)          , intent(inout) :: f_blk_graph 
     integer(ip)          , optional, intent(in)    :: gtype(dhand%nblocks) 
 
     ! Locals
     integer(ip) :: iblock, jblock
-    type(fem_graph), pointer :: f_graph
+    type(fem_graph_t), pointer :: f_graph
 
 
     call create_element_to_dof_and_ndofs( dhand, trian, femsp )
@@ -115,9 +115,9 @@ contains
   subroutine create_element_to_dof_and_ndofs( dhand, trian, femsp ) 
     implicit none
     ! Parameters
-    type(dof_handler), intent(in)             :: dhand
-    type(fem_triangulation), intent(in)       :: trian 
-    type(fem_space), intent(inout)            :: femsp 
+    type(dof_handler_t), intent(in)             :: dhand
+    type(fem_triangulation_t), intent(in)       :: trian 
+    type(fem_space_t), intent(inout)            :: femsp 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
@@ -233,9 +233,9 @@ contains
   subroutine create_object2dof ( dhand, trian, femsp ) 
     implicit none
     ! Parameters
-    type(dof_handler), intent(in)             :: dhand
-    type(fem_triangulation), intent(in)       :: trian 
-    type(fem_space), intent(inout)            :: femsp 
+    type(dof_handler_t), intent(in)             :: dhand
+    type(fem_triangulation_t), intent(in)       :: trian 
+    type(fem_space_t), intent(inout)            :: femsp 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
@@ -339,10 +339,10 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(in)                 :: femsp 
-    type(fem_graph), intent(out)                :: dof_graph
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(in)                 :: femsp 
+    type(fem_graph_t), intent(out)                :: dof_graph
     integer(ip), optional, intent(in)           :: gtype
 
 
@@ -355,7 +355,7 @@ contains
 
 
     integer(ip), allocatable :: aux_ia(:)
-    type(hash_table_ip_ip) :: visited
+    type(hash_table_ip_ip_t) :: visited
 
     if ( iblock == jblock ) then
        if (present(gtype) ) then 
@@ -443,13 +443,13 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(in)                 :: femsp 
-    type(fem_graph), intent(inout)                :: dof_graph
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(in)                 :: femsp 
+    type(fem_graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
-    type(hash_table_ip_ip) :: visited
+    type(hash_table_ip_ip_t) :: visited
     integer(ip) :: idof, ielem, inode, iobje, iprob, istat, ivars 
     integer(ip) :: jdof, jelem, job_g, jobje, k_var, l_dof, l_mat
     integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch, ltype
@@ -537,14 +537,14 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(in)                 :: femsp 
-    type(fem_graph), intent(inout)                :: dof_graph
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(in)                 :: femsp 
+    type(fem_graph_t), intent(inout)                :: dof_graph
     integer(ip), intent(inout)                :: aux_ia(:)
 
     ! Local variables
-    type(hash_table_ip_ip) :: visited
+    type(hash_table_ip_ip_t) :: visited
     integer(ip) :: idof, ielem, inode, iobje, iprob, istat, ivars 
     integer(ip) :: jdof, jelem, job_g, jobje, k_var, l_dof, l_mat
     integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch, ltype, count, ic
@@ -640,10 +640,10 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(in)                 :: femsp 
-    type(fem_graph), intent(inout)                :: dof_graph
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(in)                 :: femsp 
+    type(fem_graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
     integer(ip) :: g_var, ielem, inode, int_i, iobje, iprob, ivars, jdof, jnode, job_g
@@ -729,10 +729,10 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(in)                 :: femsp 
-    type(fem_graph), intent(inout)              :: dof_graph
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(in)                 :: femsp 
+    type(fem_graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
     ! Local variables
@@ -835,10 +835,10 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(in)                 :: femsp 
-    type(fem_graph), intent(inout)              :: dof_graph
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(in)                 :: femsp 
+    type(fem_graph_t), intent(inout)              :: dof_graph
 
     ! Local variables
     integer(ip) :: count, g_var, i, ielem, iface, inode, iobje, iprob, ivars, jelem
@@ -959,10 +959,10 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(in)                 :: femsp 
-    type(fem_graph), intent(inout)              :: dof_graph
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(in)                 :: femsp 
+    type(fem_graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
     ! Local variables
@@ -1110,9 +1110,9 @@ contains
        count, obje_l )
     implicit none
     ! Parameters
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(inout)              :: femsp 
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(inout)              :: femsp 
     integer(ip), intent(inout)                  :: count
     integer(ip), intent(in)                     :: g_var, jelem, l_var, obje_l
 
@@ -1136,9 +1136,9 @@ contains
        o2n, obje_l )
     implicit none
     ! Parameters
-    type(dof_handler), intent(in)               :: dhand
-    type(fem_triangulation), intent(in)         :: trian 
-    type(fem_space), intent(inout)              :: femsp
+    type(dof_handler_t), intent(in)               :: dhand
+    type(fem_triangulation_t), intent(in)         :: trian 
+    type(fem_space_t), intent(inout)              :: femsp
     integer(ip), intent(in)                     :: touch(:,:,:), mater, g_var, iobje, jelem, l_var, obje_l
     integer(ip), intent(out)                    :: o2n(:)
 

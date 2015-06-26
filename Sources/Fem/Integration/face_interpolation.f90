@@ -34,7 +34,7 @@ module face_interpolation_names
 # include "debug.i90"
   private
 
-  type face_interpolation
+  type face_interpolation_t
      integer(ip)                :: &
           nnode = 3,               &    ! Number of interpolation coefs (nodes) in the vol element
           nnodf = 2,               &    ! Number of nodes in the specific face
@@ -46,10 +46,10 @@ module face_interpolation_names
           shapf(:,:,:),              &    ! Shape functions
           derif(:,:,:,:),            &    ! Derivatives
           outno(:,:,:)                    ! outside unit normal
-  end type face_interpolation
+  end type face_interpolation_t
 
   ! Types
-  public :: face_interpolation
+  public :: face_interpolation_t
 
   ! Functions
   public :: face_interpolation_create, face_interpolation_free,face_interpolation_local
@@ -63,7 +63,7 @@ contains
  subroutine face_interpolation_create(nnode,nnodf,ndime,ngaus,nlocf,nface,int)
     implicit none
     integer(ip)             , intent(in)  :: nnode,nnodf,ndime,ngaus,nlocf,nface
-    type(face_interpolation), intent(out) :: int
+    type(face_interpolation_t), intent(out) :: int
     
     int%nnode = nnode
     int%nnodf = nnodf
@@ -81,7 +81,7 @@ contains
 !==============================================================================
   subroutine face_interpolation_free(int)
     implicit none
-    type(face_interpolation), intent(inout) :: int
+    type(face_interpolation_t), intent(inout) :: int
 
     call memfree(int%shapf,__FILE__,__LINE__)
     call memfree(int%derif,__FILE__,__LINE__)
@@ -93,7 +93,7 @@ contains
   subroutine face_interpolation_local(clocs,int)
     implicit none
     ! Parameters
-    type(face_interpolation), intent(inout) :: int
+    type(face_interpolation_t), intent(inout) :: int
     real(rp)                , intent(in)    :: clocs(:,:,:) !i dime, j face, k gauss point
 
     ! Local variables
@@ -126,11 +126,11 @@ contains
   subroutine face_interpolation_local_Q(clocs,int,nd,p,nlocs)
     implicit none
     ! Parameters
-    type(face_interpolation), intent(inout) :: int
+    type(face_interpolation_t), intent(inout) :: int
     integer(ip)             , intent(in)    :: nd,p, nlocs
     real(rp)                , intent(in)    :: clocs(nlocs) ! gauss points
 
-    type(interpolation)   :: int1,vint
+    type(interpolation_t)   :: int1,vint
     real(rp)              :: crnrs(2)
     
     ! Compute out normal to the faces
@@ -216,12 +216,12 @@ contains
   subroutine subface_interpolation_local_Q(clocs,int,nd,p,nlocs,refinement_level,subface_id)
     implicit none
     ! Parameters
-    type(face_interpolation), intent(inout) :: int
+    type(face_interpolation_t), intent(inout) :: int
     integer(ip)             , intent(in)    :: nd,p, nlocs
     real(rp)                , intent(in)    :: clocs(nlocs) ! gauss points
     integer(ip)             , intent(in)    :: refinement_level,subface_id
 
-    type(interpolation)   :: int1,vint
+    type(interpolation_t)   :: int1,vint
     real(rp)              :: crnrs(2)
     
     ! Compute out normal to the faces
@@ -249,7 +249,7 @@ contains
   subroutine subface_interpolation_local_tp(clocs,int,nd,order,ngaus,refinement_level,subface_id)
     implicit none
     ! Parameters
-    type(interpolation), intent(inout) :: int
+    type(interpolation_t), intent(inout) :: int
     integer(ip)        , intent(in)    :: nd, order, ngaus
     real(rp)           , intent(in)    :: clocs(ngaus)
     integer(ip)        , intent(in)    :: refinement_level,subface_id

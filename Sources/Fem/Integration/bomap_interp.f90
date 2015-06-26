@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module bomap_interp_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use bomap_names
   use interpolation_names
   implicit none
@@ -46,9 +46,9 @@ contains
     !-----------------------------------------------------------------------
     !-----------------------------------------------------------------------
     implicit none
-    type(interpolation), intent(in)    :: int
+    type(interpolation_t), intent(in)    :: int
     real(rp)           , intent(in)    :: bocod(:,:)
-    type(bomap)        , intent(inout) :: map
+    type(bomap_t)        , intent(inout) :: map
     ! Locals
     integer(ip) :: ndime,ndimb,nnodb,nlocs
     integer(ip) :: ilocs, inode, idime

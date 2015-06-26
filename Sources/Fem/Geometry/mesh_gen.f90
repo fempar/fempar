@@ -35,7 +35,7 @@ module fem_mesh_gen_names
 
   integer(ip), parameter :: periodic = -1
 
-  type mesh_size
+  type mesh_size_t
      integer(ip)                :: &
         lverb=0,                   &         ! Verbosity level
         ntdix=0,                   &         ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
@@ -67,10 +67,10 @@ module fem_mesh_gen_names
         xlengbl = 0.0_rp,          &         ! Size of the boundary layer in x
         ylengbl = 0.0_rp,          &         ! Size of the boundary layer in y
         zlengbl = 0.0_rp                     ! Size of the boundary layer in z
-  end type mesh_size
+  end type mesh_size_t
 
   ! Types
-  public :: mesh_size
+  public :: mesh_size_t
 
 end module fem_mesh_gen_names
 

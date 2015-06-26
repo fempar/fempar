@@ -27,14 +27,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_mesh_names
   ! Serial modules
-use types_names
+  use types_names
   use fem_mesh_names
   use fem_mesh_distribution_names
-use fem_mesh_io_names
-use stdio_names
+  use fem_mesh_io_names
+  use stdio_names
 
   ! Parallel modules
-use par_io_names
+  use par_io_names
   use par_environment_names
 
 # include "debug.i90"
@@ -42,18 +42,18 @@ use par_io_names
   private
 
   ! Distributed mesh
-  type par_mesh
-     type(fem_mesh)                 :: f_mesh
-     type(fem_mesh_distribution)    :: f_mesh_dist
-     type(par_environment), pointer :: p_env
-  end type par_mesh
+  type par_mesh_t
+     type(fem_mesh_t)                 :: f_mesh
+     type(fem_mesh_distribution_t)    :: f_mesh_dist
+     type(par_environment_t), pointer :: p_env
+  end type par_mesh_t
 
   interface par_mesh_free
      module procedure par_mesh_free_progressively, par_mesh_free_one_shot
   end interface par_mesh_free
 
   ! Types
-  public :: par_mesh
+  public :: par_mesh_t
 
   ! Functions
   public :: par_mesh_free, par_mesh_create, par_mesh_read
@@ -68,7 +68,7 @@ contains
     implicit none
 
     ! Parameters
-    type(par_mesh), intent(inout)  :: p_mesh
+    type(par_mesh_t), intent(inout)  :: p_mesh
     call par_mesh_free_progressively(p_mesh, free_only_struct)
     call par_mesh_free_progressively(p_mesh, free_clean)
   end subroutine par_mesh_free_one_shot
@@ -82,7 +82,7 @@ contains
     implicit none
 
     ! Parameters
-    type(par_mesh), intent(inout)  :: p_mesh
+    type(par_mesh_t), intent(inout)  :: p_mesh
     integer(ip)   , intent(in)     :: mode
 
     assert ( mode == free_clean .or. mode == free_only_struct )
@@ -108,8 +108,8 @@ contains
   subroutine par_mesh_create ( p_env, p_mesh )
     implicit none 
     ! Parameters
-    type(par_environment), target, intent(in)  :: p_env
-    type(par_mesh)               , intent(out) :: p_mesh
+    type(par_environment_t), target, intent(in)  :: p_env
+    type(par_mesh_t)               , intent(out) :: p_mesh
     
     ! Parallel environment MUST BE already created
     assert ( p_env%created )
@@ -123,8 +123,8 @@ contains
     ! Parameters
     character (*)                , intent(in)  :: dir_path
     character (*)                , intent(in)  :: prefix
-    type(par_environment), target, intent(in)  :: p_env
-    type(par_mesh)               , intent(out) :: p_mesh
+    type(par_environment_t), target, intent(in)  :: p_env
+    type(par_mesh_t)               , intent(out) :: p_mesh
 
     ! Locals
     integer                        :: iam, num_procs

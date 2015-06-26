@@ -45,12 +45,12 @@ use iso_c_binding
   implicit none
 # include "debug.i90"
   private
-  type array_ip1
+  type array_ip1_t
      integer(ip)               :: nd1
      integer(ip), allocatable  :: a(:)
-  end type array_ip1
-  public :: array_ip1
-# define var_type type(array_ip1)
+  end type array_ip1_t
+  public :: array_ip1_t
+# define var_type type(array_ip1_t)
 # define var_size 52
 # define bound_kind ip
 # include "mem_header.i90"
@@ -68,12 +68,12 @@ use iso_c_binding
   implicit none
 # include "debug.i90"
   private
-  type array_ip2
+  type array_ip2_t
      integer(ip)               :: nd1, nd2
      integer(ip), allocatable  :: a(:,:)
-  end type array_ip2
-  public :: array_ip2
-# define var_type type(array_ip2)
+  end type array_ip2_t
+  public :: array_ip2_t
+# define var_type type(array_ip2_t)
 # define var_size 52
 # define bound_kind ip
 # include "mem_header.i90"
@@ -91,12 +91,12 @@ use iso_c_binding
   implicit none
 # include "debug.i90"
   private
-  type array_rp1
+  type array_rp1_t
      integer(ip)               :: nd1
      real(rp)    , allocatable :: a(:) ! Simple real 2D array
-  end type array_rp1
-  public :: array_rp1
-# define var_type type(array_rp1)
+  end type array_rp1_t
+  public :: array_rp1_t
+# define var_type type(array_rp1_t)
 # define var_size 52
 # define bound_kind ip
 # include "mem_header.i90"
@@ -114,15 +114,15 @@ use iso_c_binding
   implicit none
 # include "debug.i90"
   private
-  type array_rp2
+  type array_rp2_t
      integer(ip)               :: nd1, nd2
      real(rp)    , allocatable :: a(:,:) ! Simple real 2D array
      contains
        procedure :: sum => sum_array_rp2_array_rp2
        generic   :: operator(+) => sum
-  end type array_rp2
-  public :: array_rp2
-# define var_type type(array_rp2)
+  end type array_rp2_t
+  public :: array_rp2_t
+# define var_type type(array_rp2_t)
 # define var_size 52
 # define bound_kind ip
 # include "mem_header.i90"
@@ -131,9 +131,9 @@ contains
 # include "mem_body.i90"
   function sum_array_rp2_array_rp2(x,y) result(z)
     implicit none
-    class(array_rp2), intent(in) :: x
-    type(array_rp2), intent(in) :: y
-    type(array_rp2) :: z
+    class(array_rp2_t), intent(in) :: x
+    type(array_rp2_t), intent(in) :: y
+    type(array_rp2_t) :: z
     !call x%GuardTemp()
     !call y%GuardTemp()
     !call z%SetTemp()
@@ -155,12 +155,12 @@ use iso_c_binding
   implicit none
 # include "debug.i90"
   private
-  type array_rp3
+  type array_rp3_t
      integer(ip)               :: nd1, nd2,nd3
      real(rp)    , allocatable :: a(:,:,:) ! Simple real 2D array
-  end type array_rp3
-  public :: array_rp3
-# define var_type type(array_rp3)
+  end type array_rp3_t
+  public :: array_rp3_t
+# define var_type type(array_rp3_t)
 # define var_size 52
 # define bound_kind ip
 # include "mem_header.i90"
@@ -185,29 +185,29 @@ use iso_c_binding
 # include "debug.i90"
   private
 
-  type array_ip1_pointer
-     type(array_ip1)          , pointer :: p => NULL()
-  end type array_ip1_pointer
+  type array_ip1_pointer_t
+     type(array_ip1_t)          , pointer :: p => NULL()
+  end type array_ip1_pointer_t
 
-  type array_ip2_pointer
-     type(array_ip2)          , pointer :: p => NULL()
-  end type array_ip2_pointer
+  type array_ip2_pointer_t
+     type(array_ip2_t)          , pointer :: p => NULL()
+  end type array_ip2_pointer_t
 
-  type array_rp1_pointer
-     type(array_rp1)          , pointer :: p => NULL()
-  end type array_rp1_pointer
+  type array_rp1_pointer_t
+     type(array_rp1_t)          , pointer :: p => NULL()
+  end type array_rp1_pointer_t
 
-  type array_rp2_pointer
-     type(array_rp2)          , pointer :: p => NULL()
-  end type array_rp2_pointer
+  type array_rp2_pointer_t
+     type(array_rp2_t)          , pointer :: p => NULL()
+  end type array_rp2_pointer_t
 
-  type array_rp3_pointer
-     type(array_rp3)          , pointer :: p => NULL()
-  end type array_rp3_pointer
+  type array_rp3_pointer_t
+     type(array_rp3_t)          , pointer :: p => NULL()
+  end type array_rp3_pointer_t
 
   ! Types
-  public :: array_ip1_pointer, array_ip2_pointer, array_rp1_pointer, &
-       &    array_rp2_pointer, array_rp3_pointer
+  public :: array_ip1_pointer_t, array_ip2_pointer_t, array_rp1_pointer_t, &
+       &    array_rp2_pointer_t, array_rp3_pointer_t
 
   interface array_create
      module procedure array_ip1_create, array_ip2_create, array_rp1_create
@@ -222,7 +222,7 @@ use iso_c_binding
   ! Functions
   public :: array_create, array_free, memalloc, memrealloc, memfree, memmovealloc
   ! public :: memalloc,  memrealloc,  memfree, memmovealloc
-  public :: array_ip1, array_ip2, array_rp1, array_rp2, array_rp3
+  public :: array_ip1_t, array_ip2_t, array_rp1_t, array_rp2_t, array_rp3_t
 
 contains 
 
@@ -230,7 +230,7 @@ contains
   subroutine array_ip1_create(nd1,array)
     implicit none
     integer(ip)    , intent(in)  :: nd1
-    type(array_ip1), intent(out) :: array
+    type(array_ip1_t), intent(out) :: array
 
     array%nd1 = nd1
 
@@ -242,7 +242,7 @@ contains
   subroutine array_ip2_create(nd1,nd2,array)
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2
-    type(array_ip2), intent(out) :: array
+    type(array_ip2_t), intent(out) :: array
 
     array%nd1 = nd1
     array%nd2 = nd2
@@ -255,7 +255,7 @@ contains
   subroutine array_rp1_create(nd1,array)
     implicit none
     integer(ip)    , intent(in)  :: nd1
-    type(array_rp1), intent(out) :: array
+    type(array_rp1_t), intent(out) :: array
 
     array%nd1 = nd1
 
@@ -267,7 +267,7 @@ contains
   subroutine array_rp2_create(nd1,nd2,array)
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2
-    type(array_rp2), intent(out) :: array
+    type(array_rp2_t), intent(out) :: array
 
     array%nd1 = nd1
     array%nd2 = nd2
@@ -280,7 +280,7 @@ contains
   subroutine array_rp3_create(nd1,nd2,nd3,array)
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2, nd3
-    type(array_rp3), intent(out) :: array
+    type(array_rp3_t), intent(out) :: array
 
     array%nd1 = nd1
     array%nd2 = nd2
@@ -293,7 +293,7 @@ contains
   !=============================================================================
   subroutine array_ip1_free(array)
     implicit none
-    type(array_ip1), intent(inout) :: array
+    type(array_ip1_t), intent(inout) :: array
     array%nd1 = 0
     call memfree(array%a,__FILE__,__LINE__)
   end subroutine array_ip1_free
@@ -301,7 +301,7 @@ contains
   !=============================================================================
   subroutine array_ip2_free(array)
     implicit none
-    type(array_ip2), intent(inout) :: array
+    type(array_ip2_t), intent(inout) :: array
     array%nd1 = 0
     array%nd2 = 0
     call memfree(array%a,__FILE__,__LINE__)
@@ -310,7 +310,7 @@ contains
   !=============================================================================
   subroutine array_rp1_free(array)
     implicit none
-    type(array_rp1), intent(inout) :: array
+    type(array_rp1_t), intent(inout) :: array
     array%nd1 = 0
     call memfree(array%a,__FILE__,__LINE__)
   end subroutine array_rp1_free
@@ -318,7 +318,7 @@ contains
   !=============================================================================
   subroutine array_rp2_free(array)
     implicit none
-    type(array_rp2), intent(inout) :: array
+    type(array_rp2_t), intent(inout) :: array
     array%nd1 = 0
     array%nd2 = 0
     call memfree(array%a,__FILE__,__LINE__)
@@ -327,7 +327,7 @@ contains
   !=============================================================================
   subroutine array_rp3_free(array)
     implicit none
-    type(array_rp3), intent(inout) :: array
+    type(array_rp3_t), intent(inout) :: array
     array%nd1 = 0
     array%nd2 = 0
     array%nd3 = 0

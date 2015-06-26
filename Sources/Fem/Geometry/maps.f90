@@ -26,36 +26,36 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module maps_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   implicit none
 #include "debug.i90"
   private
   !================================================================================================
-  ! As maps may have overlap there are 3 types of entries:
+  ! As map_ts may have overlap there are 3 types of entries:
   !  i) internal (not replicated own entries ),
   !  b) boundary (own replicated entries) and 
   !  e) external (replicated not own entries)
   ! The number of local entries is
   ! nl=ni+nb+ne
   !================================================================================================
-  type map
+  type map_t
      integer(ip) :: nl=0 ! Number of local entries
      integer(ip) :: ng=0 ! Number of global entries
      integer(ip) :: ni=0 ! Internal entries
      integer(ip) :: nb=0 ! Boundary entries
      integer(ip) :: ne=0 ! External entries
      integer(ip), allocatable ::  l2g(:) ! Local to global list
-  end type map
+  end type map_t
 
-  type map_igp
+  type map_igp_t
      integer(ip)  :: nl=0 ! Number of local entries
      integer(igp) :: ng=0 ! Number of global entries
      integer(ip)  :: ni=0 ! Internal entries
      integer(ip)  :: nb=0 ! Boundary entries
      integer(ip)  :: ne=0 ! External entries
      integer(igp), allocatable ::  l2g(:) ! Local to global list
-  end type map_igp
+  end type map_igp_t
 
   interface map_alloc
     module procedure map_alloc_ip, map_alloc_igp
@@ -71,10 +71,10 @@ use memor_names
   end interface map_read
 
   ! Types
-  public :: map, map_igp
+  public :: map_t, map_igp_t
 
   ! Functions
-  public :: map_alloc, map_free, map_write, map_read !, map_one_to_zero_indexing
+  public :: map_alloc, map_free, map_write, map_read
 
 contains
 
@@ -88,7 +88,7 @@ contains
     ! of the structure (e.g., ne) that maye be set
     ! in advance to the call of the routine. I strongly
     ! recommend to leave it as inout
-    type(map), intent(inout) :: mp
+    type(map_t), intent(inout) :: mp
 
     assert(nl>=0)
 
@@ -100,7 +100,7 @@ contains
   !================================================================================================
   subroutine map_free_ip(mp)
     implicit none
-    type(map), intent(inout) :: mp
+    type(map_t), intent(inout) :: mp
 
   ! assert(allocated(mp%l2g))
   if (mp%nl > 0) then 
@@ -113,7 +113,7 @@ contains
   subroutine map_write_ip(lunio,mp)
     ! Parameters
     integer  , intent(in) :: lunio
-    type(map), intent(in) :: mp
+    type(map_t), intent(in) :: mp
 
     write ( lunio, '(10i10)' ) mp%nl, mp%ng, mp%ni, mp%nb, mp%ne
     if(mp%nl>0) write ( lunio,'(10i10)') mp%l2g
@@ -124,7 +124,7 @@ contains
   subroutine map_read_ip(lunio,mp)
     ! Parameters
     integer  , intent(in)    :: lunio
-    type(map), intent(inout) :: mp
+    type(map_t), intent(inout) :: mp
 
     read ( lunio, '(10i10)' ) mp%nl, mp%ng, mp%ni, mp%nb, mp%ne
     if(mp%nl>0) then
@@ -145,7 +145,7 @@ contains
     ! of the structure (e.g., ne) that maye be set
     ! in advance to the call of the routine. I strongly
     ! recommend to leave it as inout
-    type(map_igp), intent(inout) :: mp
+    type(map_igp_t), intent(inout) :: mp
 
     assert(nl>=0)
 
@@ -156,7 +156,7 @@ contains
 
   subroutine map_free_igp(mp)
     implicit none
-    type(map_igp), intent(inout) :: mp
+    type(map_igp_t), intent(inout) :: mp
 
     assert(allocated(mp%l2g))
     call memfree (mp%l2g,__FILE__,__LINE__)
@@ -166,7 +166,7 @@ contains
   subroutine map_write_igp(lunio,mp)
     ! Parameters
     integer  , intent(in) :: lunio
-    type(map_igp), intent(in) :: mp
+    type(map_igp_t), intent(in) :: mp
 
     write ( lunio, '(10i10)' ) mp%nl, mp%ng, mp%ni, mp%nb, mp%ne
     if(mp%nl>0) write ( lunio,'(10i10)') mp%l2g
@@ -176,7 +176,7 @@ contains
   subroutine map_read_igp(lunio,mp)
     ! Parameters
     integer  , intent(in)    :: lunio
-    type(map_igp), intent(inout) :: mp
+    type(map_igp_t), intent(inout) :: mp
 
     read ( lunio, '(10i10)' ) mp%nl, mp%ng, mp%ni, mp%nb, mp%ne
     if(mp%nl>0) then

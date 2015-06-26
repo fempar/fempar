@@ -33,16 +33,16 @@ use fem_names
   !use mesh_graph_partition
   implicit none
   integer(ip)                       :: power, type, use_graph, nparts, nstr
-  type(mesh_size)                   :: msize
-  type(fem_conditions)              :: poin,line,surf
-  type(fem_conditions)              :: gnodes, gbouns
-  type(fem_mesh)                    :: gmesh
-  type(fem_materials)               :: gmat
-  type(fem_mesh_distribution) , allocatable :: distr(:)
-  type(fem_mesh)      , allocatable :: lmesh(:)
-  type(fem_conditions), allocatable :: lnodes(:),lbouns(:)
-  type(fem_materials),  allocatable :: lmater(:)
-  type(post_file)                   :: lupos
+  type(mesh_size_t)                   :: msize
+  type(fem_conditions_t)              :: poin,line,surf
+  type(fem_conditions_t)              :: gnodes, gbouns
+  type(fem_mesh_t)                    :: gmesh
+  type(fem_materials_t)               :: gmat
+  type(fem_mesh_distribution_t) , allocatable :: distr(:)
+  type(fem_mesh_t)      , allocatable :: lmesh(:)
+  type(fem_conditions_t), allocatable :: lnodes(:),lbouns(:)
+  type(fem_materials_t),  allocatable :: lmater(:)
+  type(post_file_t)                   :: lupos
   integer(ip)                       :: ipart,idof,ndofn,ndime,prob,gid_sq
   integer(ip), parameter            :: cdr=1, sto=2, mhd=3
   integer(ip), parameter            :: gid=1, square=2
@@ -53,7 +53,7 @@ use fem_names
   integer(ip), allocatable          :: ldome(:)
   integer(ip)                       :: i, j
 
-  type(part_params) :: prt_pars
+  type(part_params_t) :: prt_pars
 
   call meminit
 

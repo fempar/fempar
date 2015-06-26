@@ -34,28 +34,28 @@ use lib_vtk_io_interface_names
 # include "debug.i90"
   
   ! Types
-  type(geom_data)                    :: gdata
-  type(bound_data)                   :: bdata
-  type(fem_fixed_info)               :: ginfo
-  type(fem_triangulation)            :: f_trian
-  type(fem_conditions)               :: f_cond
-  type(dof_handler)                  :: dhand
-  type(fem_space)                    :: fspac  
-  type(nsi_problem)                  :: myprob
-  type(nsi_cg_iss_discrete) , target :: mydisc
-  type(nsi_cg_iss_matvec)   , target :: matvec
+  type(geom_data_t)                    :: gdata
+  type(bound_data_t)                   :: bdata
+  type(fem_fixed_info_t)               :: ginfo
+  type(fem_triangulation_t)            :: f_trian
+  type(fem_conditions_t)               :: f_cond
+  type(dof_handler_t)                  :: dhand
+  type(fem_space_t)                    :: fspac  
+  type(nsi_problem_t)                  :: myprob
+  type(nsi_cg_iss_discrete_t) , target :: mydisc
+  type(nsi_cg_iss_matvec_t)   , target :: matvec
   type(discrete_integration_pointer) :: approx(1)
-  type(fem_matrix)          , target :: femat
-  type(fem_vector)          , target :: fevec,feunk
-  type(fem_precond)                  :: feprec
-  type(fem_precond_params)           :: ppars
-  type(solver_control)               :: sctrl
-  type(serial_environment)           :: senv
-  type(fem_vtk)                      :: fevtk
-  class(base_operand)      , pointer :: x, b
-  class(base_operator)     , pointer :: A, M
-  type(fem_graph)          , pointer :: f_graph
-  type(fem_block_graph)              :: f_blk_graph
+  type(fem_matrix_t)          , target :: femat
+  type(fem_vector_t)          , target :: fevec,feunk
+  type(fem_precond_t)                  :: feprec
+  type(fem_precond_params_t)           :: ppars
+  type(solver_control_t)               :: sctrl
+  type(serial_environment_t)           :: senv
+  type(fem_vtk_t)                      :: fevtk
+  class(base_operand_t)      , pointer :: x, b
+  class(base_operator_t)     , pointer :: A, M
+  type(fem_graph_t)          , pointer :: f_graph
+  type(fem_block_graph_t)              :: f_blk_graph
 
   ! Logicals
   logical(lg) :: ginfo_state

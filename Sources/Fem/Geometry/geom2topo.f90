@@ -71,13 +71,13 @@ contains
     !
     !------------------------------------------------------------------------------------------------
     ! Parameters
-    type(fem_mesh)                , intent(in)    :: gmsh
-    type(fem_mesh)                , intent(out)   :: omsh
-    type(fem_conditions), optional, intent(in)    :: gcnd
-    type(fem_conditions), optional, intent(out)   :: ocnd
+    type(fem_mesh_t)                , intent(in)    :: gmsh
+    type(fem_mesh_t)                , intent(out)   :: omsh
+    type(fem_conditions_t), optional, intent(in)    :: gcnd
+    type(fem_conditions_t), optional, intent(out)   :: ocnd
 
     ! Local variables
-    type(fem_fixed_info)     :: f_inf
+    type(fem_fixed_info_t)     :: f_inf
     integer(ip)              :: etype,nodim(3),nndim(3)
     integer(ip)              :: i,j,k,r,s, t
     integer(ip)              :: nobje,gp,op,nd_i(2),nd_j(2)

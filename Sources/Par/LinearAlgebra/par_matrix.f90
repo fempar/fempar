@@ -53,36 +53,36 @@ use psb_penv_mod_names
 
   private
 
-  type, extends(base_operator) :: par_matrix
+  type, extends(base_operator_t) :: par_matrix_t
      ! Data structure which stores the local part 
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( fem_matrix )       :: f_matrix
+     type( fem_matrix_t )       :: f_matrix
 
-     type(par_graph), pointer :: &
+     type(par_graph_t), pointer :: &
         p_graph => NULL()             ! Associated par_graph
      
-     type(dof_distribution), pointer :: &
+     type(dof_distribution_t), pointer :: &
         dof_dist => NULL()            ! Associated (ROW) dof_distribution
      
-     type(dof_distribution), pointer :: &
+     type(dof_distribution_t), pointer :: &
         dof_dist_cols => NULL()       ! Associated (COL) dof_distribution
 
-     type(par_environment), pointer :: &
+     type(par_environment_t), pointer :: &
           p_env => NULL()
    contains
      procedure  :: apply     => par_matrix_apply
      procedure  :: apply_fun => par_matrix_apply_fun
      procedure  :: free      => par_matrix_free_tbp
-  end type par_matrix
+  end type par_matrix_t
 
   interface par_matrix_free
      module procedure par_matrix_free_one_shot, par_matrix_free_progressively
   end interface par_matrix_free
 
   ! Types
-  public :: par_matrix
+  public :: par_matrix_t
 
   ! Functions
   public :: par_matrix_create, par_matrix_graph, par_matrix_fill_val, &
@@ -91,7 +91,7 @@ use psb_penv_mod_names
          &  par_matrix_zero, par_matvec, par_matvec_trans
 
 !***********************************************************************
-! Allocatable arrays of type(par_matrix)
+! Allocatable arrays of type(par_matrix_t)
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -101,7 +101,7 @@ use psb_penv_mod_names
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(par_matrix)
+# define var_type type(par_matrix_t)
 # define var_size 80
 # define bound_kind ip
 # include "mem_header.i90"
@@ -116,10 +116,10 @@ contains
   subroutine par_matrix_create(type,symm,dof_dist,dof_dist_cols,p_env,p_matrix,def)
     implicit none
     integer(ip)                      ,intent(in)  :: type, symm
-    type(dof_distribution), target   ,intent(in)  :: dof_dist
-    type(dof_distribution), target   ,intent(in)  :: dof_dist_cols
-    type(par_environment) , target   ,intent(in)  :: p_env
-    type(par_matrix)                 ,intent(out) :: p_matrix
+    type(dof_distribution_t), target   ,intent(in)  :: dof_dist
+    type(dof_distribution_t), target   ,intent(in)  :: dof_dist_cols
+    type(par_environment_t) , target   ,intent(in)  :: p_env
+    type(par_matrix_t)                 ,intent(out) :: p_matrix
     integer(ip)           , optional ,intent(in)  :: def
 
     call fem_matrix_create(type,symm,p_matrix%f_matrix,def)
@@ -131,8 +131,8 @@ contains
 
   subroutine par_matrix_graph(p_graph,p_matrix)
     implicit none
-    type(par_graph) , target, intent(in)   :: p_graph
-    type(par_matrix), intent(inout)        :: p_matrix
+    type(par_graph_t) , target, intent(in)   :: p_graph
+    type(par_matrix_t), intent(inout)        :: p_matrix
 
     ! Pointer to part/context object is required
     assert ( associated(p_graph%dof_dist) )
@@ -149,7 +149,7 @@ contains
 
   subroutine par_matrix_fill_val(p_matrix)
     implicit none
-    type(par_matrix), intent(inout)          :: p_matrix
+    type(par_matrix_t), intent(inout)          :: p_matrix
 
     if(p_matrix%p_env%p_context%iam>=0) then
        call fem_matrix_fill_val(p_matrix%f_matrix)
@@ -163,8 +163,8 @@ contains
     implicit none
 
     integer(ip)     , intent(in)           :: type,symm
-    type(par_graph) , target, intent(in)   :: p_graph
-    type(par_matrix), intent(out)          :: p_matrix
+    type(par_graph_t) , target, intent(in)   :: p_graph
+    type(par_matrix_t), intent(out)          :: p_matrix
     integer(ip)     , optional, intent(in) :: def
 
     call par_matrix_create(type,symm,p_graph%dof_dist,p_graph%dof_dist_cols,p_graph%p_env,p_matrix,def)
@@ -176,7 +176,7 @@ contains
   subroutine par_matrix_free_one_shot(p_matrix)
     implicit none
 
-    type(par_matrix), intent(inout) :: p_matrix
+    type(par_matrix_t), intent(inout) :: p_matrix
     call par_matrix_free_progressively(p_matrix, free_only_values)
     call par_matrix_free_progressively(p_matrix, free_only_struct)
     call par_matrix_free_progressively(p_matrix, free_clean)
@@ -185,7 +185,7 @@ contains
   !=============================================================================
   subroutine par_matrix_free_progressively(p_matrix, mode)
     implicit none
-    type(par_matrix), intent(inout) :: p_matrix
+    type(par_matrix_t), intent(inout) :: p_matrix
     integer(ip)     , intent(in)    :: mode
 
     ! The routine requires the partition/context info
@@ -217,7 +217,7 @@ contains
   !=============================================================================
   subroutine par_matrix_print(lunou, p_matrix)
     implicit none
-    type(par_matrix)  ,  intent(in) :: p_matrix
+    type(par_matrix_t)  ,  intent(in) :: p_matrix
     integer(ip)      ,  intent(in) :: lunou
 
     ! p_graph%dof_dist is required within this subroutine
@@ -233,7 +233,7 @@ contains
     ! Parameters
     character (*)   , intent(in) :: dir_path
     character (*)   , intent(in) :: prefix
-    type(par_matrix), intent(in) :: p_mat
+    type(par_matrix_t), intent(in) :: p_mat
 
     ! Locals
     integer         :: iam, num_procs, lunou
@@ -296,7 +296,7 @@ contains
   subroutine par_matrix_zero (p_matrix)
     implicit none
     ! Parameters 
-    type(par_matrix), intent(inout)    :: p_matrix
+    type(par_matrix_t), intent(inout)    :: p_matrix
 
     ! p_env%p_context is required within this subroutine
     assert ( associated(p_matrix%p_env%p_context) )
@@ -310,9 +310,9 @@ contains
   subroutine par_matvec(a,x,y)
     implicit none
     ! Parameters
-    type(par_matrix) , intent(in)    :: a
-    type(par_vector) , intent(in)    :: x
-    type(par_vector) , intent(inout) :: y
+    type(par_matrix_t) , intent(in)    :: a
+    type(par_vector_t) , intent(in)    :: x
+    type(par_vector_t) , intent(inout) :: y
     ! Locals
     !integer(c_int)                   :: ierrc
     real :: aux
@@ -344,9 +344,9 @@ contains
   subroutine par_matvec_trans(a,x,y)
     implicit none
     ! Parameters
-    type(par_matrix) , intent(in)    :: a
-    type(par_vector) , intent(in)    :: x
-    type(par_vector) , intent(inout) :: y
+    type(par_matrix_t) , intent(in)    :: a
+    type(par_vector_t) , intent(in)    :: x
+    type(par_vector_t) , intent(inout) :: y
     ! Locals
     !integer(c_int)                   :: ierrc
 	
@@ -369,24 +369,24 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine par_matrix_apply(op,x,y) 
     implicit none
-    class(par_matrix), intent(in)    :: op
-    class(base_operand) , intent(in)    :: x
-    class(base_operand) , intent(inout) :: y 
+    class(par_matrix_t), intent(in)    :: op
+    class(base_operand_t) , intent(in)    :: x
+    class(base_operand_t) , intent(inout) :: y 
 
     call x%GuardTemp()
 
     select type(x)
-    class is (par_vector)
+    class is (par_vector_t)
        select type(y)
-       class is(par_vector)
+       class is(par_vector_t)
           call par_matvec(op, x, y)
           ! call fem_vector_print(6,y)
        class default
-          write(0,'(a)') 'par_matrix%apply: unsupported y class'
+          write(0,'(a)') 'par_matrix_t%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'par_matrix%apply: unsupported x class'
+       write(0,'(a)') 'par_matrix_t%apply: unsupported x class'
        check(1==0)
     end select
 
@@ -397,28 +397,28 @@ contains
   ! Allocates room for (temporary) y
   function par_matrix_apply_fun(op,x) result(y)
     implicit none
-    class(par_matrix), intent(in)  :: op
-    class(base_operand) , intent(in)  :: x
-    class(base_operand) , allocatable :: y 
+    class(par_matrix_t), intent(in)  :: op
+    class(base_operand_t) , intent(in)  :: x
+    class(base_operand_t) , allocatable :: y 
 
-    type(par_vector), allocatable :: local_y
+    type(par_vector_t), allocatable :: local_y
 
     select type(x)
-    class is (par_vector)
+    class is (par_vector_t)
        allocate(local_y)
        call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
        call par_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'par_matrix%apply_fun: unsupported x class'
+       write(0,'(a)') 'par_matrix_t%apply_fun: unsupported x class'
        check(1==0)
     end select
   end function par_matrix_apply_fun
 
   subroutine par_matrix_free_tbp(this)
     implicit none
-    class(par_matrix), intent(inout) :: this
+    class(par_matrix_t), intent(inout) :: this
   end subroutine par_matrix_free_tbp
 
 

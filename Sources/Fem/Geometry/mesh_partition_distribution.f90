@@ -26,16 +26,16 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_mesh_partition_distribution_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use fem_mesh_distribution_names
   use maps_names
-use map_apply_names
+  use map_apply_names
   use fem_graph_names
-use graph_renum_names
+  use graph_renum_names
   use fem_mesh_names
-use mesh_graph_names
-use fem_mesh_partition_base_names
+  use mesh_graph_names
+  use fem_mesh_partition_base_names
   use hash_table_names
 # include "debug.i90"
   implicit none
@@ -53,14 +53,14 @@ contains
     implicit none
 
     ! Parameters
-    type(part_params)                        , intent(in)  :: prt_pars
-    type(fem_mesh)                           , intent(in)  :: femesh
-    type(fem_mesh_distribution) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
-    type(fem_mesh)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
+    type(part_params_t)                        , intent(in)  :: prt_pars
+    type(fem_mesh_t)                           , intent(in)  :: femesh
+    type(fem_mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
+    type(fem_mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
-    type(fem_mesh)               :: dual_femesh, dual_lmesh
-    type(fem_graph)              :: fe_graph    ! Dual graph (to be partitioned)
+    type(fem_mesh_t)               :: dual_femesh, dual_lmesh
+    type(fem_graph_t)              :: fe_graph    ! Dual graph (to be partitioned)
     integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
     integer(ip)   , allocatable  :: dual_parts(:)
     integer(ip)                  :: ipart
@@ -68,7 +68,7 @@ contains
     ! AFM. Dummy map declared and used for backward compatibility.
     ! It should be re-considered when we decide how to implement
     ! the boundary mesh.
-    type(map)                    :: dummy_bmap
+    type(map_t)                    :: dummy_bmap
 
 
     ! Generate dual mesh (i.e., list of elements around points)
@@ -136,8 +136,8 @@ contains
         &                       nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
      implicit none
      integer(ip)   , intent(in)  :: my_part
-     type(fem_mesh), intent(in)  :: lmesh
-     type(fem_mesh), intent(in)  :: dual_lmesh
+     type(fem_mesh_t), intent(in)  :: lmesh
+     type(fem_mesh_t), intent(in)  :: dual_lmesh
      integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
      integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
      integer(ip)   , intent(out) :: nebou
@@ -151,7 +151,7 @@ contains
      integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat, touch
      integer(ip) :: nextn, nexte, nepos
      integer(ip), allocatable :: local_visited(:)
-     type(hash_table_ip_ip)   :: external_visited
+     type(hash_table_ip_ip_t)   :: external_visited
 
      ! Count boundary nodes
      nnbou = 0 
@@ -293,11 +293,11 @@ contains
 
   subroutine dual_mesh_g2l(nmap, dual_mesh, ldome, lmesh, dual_lmesh, dual_parts)
     implicit none
-    type(map_igp) , intent(in)  :: nmap
-    type(fem_mesh), intent(in)  :: dual_mesh
+    type(map_igp_t) , intent(in)  :: nmap
+    type(fem_mesh_t), intent(in)  :: dual_mesh
     integer(ip)   , intent(in)  :: ldome(dual_mesh%npoin)
-    type(fem_mesh), intent(in)  :: lmesh
-    type(fem_mesh), intent(inout) :: dual_lmesh
+    type(fem_mesh_t), intent(in)  :: lmesh
+    type(fem_mesh_t), intent(inout) :: dual_lmesh
     integer(ip)   , allocatable, intent(inout)  :: dual_parts(:)
 
     integer(ip) :: ipart,lelem,ielem, pnode,i
@@ -330,9 +330,9 @@ contains
     ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
     implicit none
     integer(ip)                , intent(in)    :: nparts
-    type(fem_mesh)             , intent(in)    :: femesh
+    type(fem_mesh_t)             , intent(in)    :: femesh
     integer(ip)                , intent(in)    :: ldome(femesh%nelem)
-    type(fem_mesh_distribution), intent(inout) :: distr(nparts)
+    type(fem_mesh_distribution_t), intent(inout) :: distr(nparts)
     
     integer(ip)   , allocatable  :: nedom(:) ! Number of points per part (here is not header!)
     integer(ip)   , allocatable  :: npdom(:) ! Number of elements per part (here is not header!)

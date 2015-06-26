@@ -27,32 +27,32 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_conditions_names
   ! Serial modules
-use types_names
-use memor_names
-use stdio_names
+  use types_names
+  use memor_names
+  use stdio_names
   use renum_names
   use fem_conditions_names
-use fem_conditions_io_names
+  use fem_conditions_io_names
 
   ! Parallel modules
   use par_environment_names
-use par_io_names
+  use par_io_names
 
 # include "debug.i90"
   implicit none
   private
 
-  type par_conditions
+  type par_conditions_t
      ! Data structure which stores the local part
      ! of the BC's mapped to the current processor
-     type(fem_conditions) :: f_conditions
+     type(fem_conditions_t) :: f_conditions
 
      ! Parallel environment control
-     type(par_environment), pointer :: p_env => NULL()
-  end type par_conditions
+     type(par_environment_t), pointer :: p_env => NULL()
+  end type par_conditions_t
 
   ! Types
-  public :: par_conditions
+  public :: par_conditions_t
 
   ! Methods
   public :: par_conditions_create, par_conditions_free     , & 
@@ -65,8 +65,8 @@ contains
   subroutine par_conditions_create(ncode,nvalu,ncond,p_env,cnd)
     implicit none
     integer(ip)                  , intent(in)    :: ncode, nvalu, ncond
-    type(par_environment), target, intent(in)    :: p_env
-    type(par_conditions)         , intent(inout) :: cnd
+    type(par_environment_t), target, intent(in)    :: p_env
+    type(par_conditions_t)         , intent(inout) :: cnd
 
     ! Parallel environment MUST BE already created
     assert ( p_env%created )
@@ -82,8 +82,8 @@ contains
   !===============================================================================================
   subroutine par_conditions_copy(cnd_old,cnd_new)
     implicit none
-    type(par_conditions), target, intent(in)    :: cnd_old
-    type(par_conditions)        , intent(inout) :: cnd_new
+    type(par_conditions_t), target, intent(in)    :: cnd_old
+    type(par_conditions_t)        , intent(inout) :: cnd_new
 
     ! Parallel environment MUST BE already created
     assert ( cnd_old%p_env%created )
@@ -99,8 +99,8 @@ contains
   !===============================================================================================
   subroutine par_conditions_apply_renum(ren, cnd)
     implicit none
-    type(renum)         ,    intent(in)  :: ren
-    type(par_conditions), intent(inout)  :: cnd
+    type(renum_t)         ,    intent(in)  :: ren
+    type(par_conditions_t), intent(inout)  :: cnd
     
     ! Parallel environment MUST BE already created
     assert ( cnd%p_env%created )
@@ -114,7 +114,7 @@ contains
   !===============================================================================================
   subroutine par_conditions_free(cnd)
     implicit none
-    type(par_conditions), intent(inout) :: cnd
+    type(par_conditions_t), intent(inout) :: cnd
 
     ! Parallel environment MUST BE already created
     assert ( cnd%p_env%created )
@@ -132,8 +132,8 @@ contains
     character (*)                , intent(in)  :: dir_path
     character (*)                , intent(in)  :: prefix
     integer(ip)                  , intent(in)  :: npoin
-    type(par_environment), target, intent(in)  :: p_env
-    type(par_conditions)         , intent(out) :: p_conditions
+    type(par_environment_t), target, intent(in)  :: p_env
+    type(par_conditions_t)         , intent(out) :: p_conditions
     
     ! Locals
     character(len=:), allocatable  :: name

@@ -49,9 +49,9 @@ contains
   subroutine volume_integral(approx,femsp,res1,res2)
     implicit none
     ! Parameters
-    type(fem_space)            , intent(inout) :: femsp
-    class(integrable)          , intent(inout) :: res1
-    class(integrable), optional, intent(inout) :: res2
+    type(fem_space_t)            , intent(inout) :: femsp
+    class(integrable_t)          , intent(inout) :: res1
+    class(integrable_t), optional, intent(inout) :: res2
     type(discrete_integration_pointer)         :: approx(:)
 
     ! Locals

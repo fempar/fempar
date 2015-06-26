@@ -41,16 +41,16 @@ use memor_names
   private
 
   ! Pointer to matrix
-  type p_fem_matrix
-    type(fem_matrix), pointer :: p_f_matrix
-  end type p_fem_matrix
+  type p_fem_matrix_t
+    type(fem_matrix_t), pointer :: p_f_matrix
+  end type p_fem_matrix_t
 
   ! Block Matrix
-  !type, extends(base_operator):: fem_block_matrix
-  type :: fem_block_matrix
+  !type, extends(base_operator_t):: fem_block_matrix_t
+  type :: fem_block_matrix_t
     private
     integer(ip)                     :: nblocks = -1
-    type(p_fem_matrix), allocatable :: blocks(:,:)
+    type(p_fem_matrix_t), allocatable :: blocks(:,:)
   contains
     procedure :: alloc             => fem_block_matrix_alloc
     procedure :: alloc_block       => fem_block_matrix_alloc_block
@@ -58,10 +58,10 @@ use memor_names
     procedure :: free              => fem_block_matrix_free
     procedure :: get_block         => fem_block_matrix_get_block
     procedure :: get_nblocks       => fem_block_matrix_get_nblocks
-  end type fem_block_matrix
+  end type fem_block_matrix_t
 
   ! Types
-  public :: fem_block_matrix
+  public :: fem_block_matrix_t
 
   ! Functions
   public :: fem_block_matrix_alloc, fem_block_matrix_alloc_block,       & 
@@ -74,12 +74,12 @@ contains
   subroutine fem_block_matrix_alloc(bmat, bgraph, sign)
     implicit none
     ! Parameters
-    class(fem_block_matrix), intent(inout) :: bmat
-    type(fem_block_graph)  , intent(in)    :: bgraph
+    class(fem_block_matrix_t), intent(inout) :: bmat
+    type(fem_block_graph_t)  , intent(in)    :: bgraph
     integer(ip), optional  , intent(in)    :: sign(:)
 
     integer(ip)                             :: ib,jb
-    type(fem_graph), pointer                :: f_graph
+    type(fem_graph_t), pointer                :: f_graph
 
     if ( present(sign) ) then
       assert ( size(sign) == bgraph%get_nblocks() )
@@ -119,9 +119,9 @@ contains
   subroutine fem_block_matrix_alloc_block (bmat,ib,jb,f_graph,sign)
     implicit none
     ! Parameters
-    class(fem_block_matrix), intent(inout) :: bmat
+    class(fem_block_matrix_t), intent(inout) :: bmat
     integer(ip)           , intent(in)     :: ib,jb
-    type(fem_graph)       , intent(in)     :: f_graph
+    type(fem_graph_t)       , intent(in)     :: f_graph
     integer(ip), optional , intent(in)     :: sign
 
     assert ( associated ( bmat%blocks(ib,jb)%p_f_matrix ) )
@@ -142,7 +142,7 @@ contains
   subroutine fem_block_matrix_set_block_to_zero (bmat,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_matrix), intent(inout) :: bmat
+    class(fem_block_matrix_t), intent(inout) :: bmat
     integer(ip)           , intent(in)    :: ib,jb
 
     if ( associated(bmat%blocks(ib,jb)%p_f_matrix) ) then
@@ -155,7 +155,7 @@ contains
   subroutine fem_block_matrix_zero(bmat)
     implicit none
     ! Parameters
-    class(fem_block_matrix), intent(inout) :: bmat
+    class(fem_block_matrix_t), intent(inout) :: bmat
     integer(ip)                           :: ib,jb
 
     do ib=1,bmat%nblocks
@@ -170,7 +170,7 @@ contains
 
   subroutine fem_block_matrix_print (lunou, f_b_matrix)
     implicit none
-    type(fem_block_matrix), intent(in)    :: f_b_matrix
+    type(fem_block_matrix_t), intent(in)    :: f_b_matrix
     integer(ip)           , intent(in)    :: lunou
     integer(ip)                           :: i
     check(.false.)
@@ -178,7 +178,7 @@ contains
 
   subroutine fem_block_matrix_free(bmat)
     implicit none
-    class(fem_block_matrix), intent(inout) :: bmat
+    class(fem_block_matrix_t), intent(inout) :: bmat
     integer(ip) :: ib,jb
 
     do ib=1, bmat%nblocks 
@@ -197,9 +197,9 @@ contains
   function fem_block_matrix_get_block (bmat,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_matrix), target, intent(in) :: bmat
+    class(fem_block_matrix_t), target, intent(in) :: bmat
     integer(ip)                    , intent(in) :: ib,jb
-    type(fem_matrix)               , pointer    :: fem_block_matrix_get_block
+    type(fem_matrix_t)               , pointer    :: fem_block_matrix_get_block
 
     fem_block_matrix_get_block =>  bmat%blocks(ib,jb)%p_f_matrix
   end function fem_block_matrix_get_block
@@ -207,7 +207,7 @@ contains
   function fem_block_matrix_get_nblocks (bmat)
     implicit none
     ! Parameters
-    class(fem_block_matrix), target, intent(in) :: bmat
+    class(fem_block_matrix_t), target, intent(in) :: bmat
     integer(ip)                                :: fem_block_matrix_get_nblocks
     fem_block_matrix_get_nblocks = bmat%nblocks
   end function fem_block_matrix_get_nblocks
@@ -216,7 +216,7 @@ contains
     implicit none
 
     ! Parameters 
-    type(fem_block_matrix) , intent(in)    :: f_blk_mat
+    type(fem_block_matrix_t) , intent(in)    :: f_blk_mat
     integer                , intent(out)   :: me
     integer                , intent(out)   :: np
     

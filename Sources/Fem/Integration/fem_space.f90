@@ -52,52 +52,52 @@ module fem_space_names
   integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
 
   ! Global information of the fem_space
-  type fem_space  
+  type fem_space_t  
 
      integer(ip)                           :: num_continuity       ! Number of materials (maximum value)
      logical(lg)                           :: static_condensation  ! Flag for static condensation 
      logical(lg)                           :: hierarchical_basis   ! Flag for hierarchical basis
-     class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list
-     type(fem_element)       , pointer     :: lelem(:)             ! List of FEs
-     type(fem_face)          , allocatable :: lface(:)             ! List of active faces
+     class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list_t
+     type(fem_element_t)       , pointer     :: lelem(:)             ! List of FEs
+     type(fem_face_t)          , allocatable :: lface(:)             ! List of active faces
 
-     type(fem_triangulation)  , pointer :: g_trian => NULL() ! Triangulation
-     type(dof_handler)        , pointer :: dof_handler
+     type(fem_triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
+     type(dof_handler_t)        , pointer :: dof_handler
 
      ! Array of working arrays (element matrix/vector) (to be pointed from fem_elements)
-     type(position_hash_table)          :: pos_elmatvec
-     type(array_rp2)                    :: lelmat(max_global_interpolations)
-     type(array_rp1)                    :: lelvec(max_global_interpolations)
+     type(position_hash_table_t)          :: pos_elmatvec
+     type(array_rp2_t)                    :: lelmat(max_global_interpolations)
+     type(array_rp1_t)                    :: lelvec(max_global_interpolations)
 
      ! Integrator
-     type(position_hash_table)          :: pos_volume_integrator
-     type(position_hash_table)          :: pos_face_integrator
-     type(volume_integrator)            :: lvoli(max_global_interpolations)        
-     type(face_integrator)              :: lfaci(max_global_interpolations)
+     type(position_hash_table_t)          :: pos_volume_integrator
+     type(position_hash_table_t)          :: pos_face_integrator
+     type(volume_integrator_t)            :: lvoli(max_global_interpolations)        
+     type(face_integrator_t)              :: lfaci(max_global_interpolations)
 
      ! Interpolator
-     type(position_hash_table)          :: pos_interpolator
-     type(array_rp2)                    :: linter(max_global_interpolations)
+     type(position_hash_table_t)          :: pos_interpolator
+     type(array_rp2_t)                    :: linter(max_global_interpolations)
 
      ! Array of reference elements (to be pointed from fem_elements)
-     type(position_hash_table)          :: pos_elem_info
-     type(fem_fixed_info)               :: lelem_info(max_elinf)
+     type(position_hash_table_t)          :: pos_elem_info
+     type(fem_fixed_info_t)               :: lelem_info(max_elinf)
 
      ! Acceleration arrays
-     type(list_2d), allocatable         :: object2dof(:)       ! An auxiliary array to accelerate some parts of the code
+     type(list_2d_t), allocatable         :: object2dof(:)       ! An auxiliary array to accelerate some parts of the code
      integer(ip), allocatable           :: ndofs(:)            ! number of dofs (nblocks)
      integer(ip)                        :: time_steps_to_store ! Time steps to store in unkno
 
      ! List of faces where we want to integrate things
-     type(fem_face), allocatable        :: interior_faces(:), boundary_faces(:), interface_faces(:)
+     type(fem_face_t), allocatable        :: interior_faces(:), boundary_faces(:), interface_faces(:)
      integer(ip)                        :: num_interior_faces, num_boundary_faces
 
      ! Much better here rather than as a module variable
-     !type(list) :: void_list
-  end type fem_space
+     !type(list_t) :: void_list_t
+  end type fem_space_t
 
   ! Types
-  public :: fem_space
+  public :: fem_space_t
 
   ! Methods
   public :: fem_space_create, fem_space_print, fem_space_free, &
@@ -112,11 +112,11 @@ contains
                                which_approx, time_steps_to_store, hierarchical_basis,  & 
                                static_condensation, num_continuity, num_ghosts )
     implicit none
-    type(fem_triangulation), target, intent(in)    :: g_trian   
-    type(dof_handler)      , target, intent(in)    :: dofh
-    type(fem_space)        , target, intent(inout) :: fspac
+    type(fem_triangulation_t), target, intent(in)    :: g_trian   
+    type(dof_handler_t)      , target, intent(in)    :: dofh
+    type(fem_space_t)        , target, intent(inout) :: fspac
     integer(ip)                    , intent(in)    :: problem(:)
-    type(fem_conditions)           , intent(in)    :: bcond
+    type(fem_conditions_t)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
@@ -149,9 +149,9 @@ contains
   subroutine fem_space_allocate_structures( g_trian, dofh, fspac, time_steps_to_store, &
        & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
-    type(fem_space)   ,  target, intent(inout)                :: fspac
-    type(fem_triangulation)   , intent(in), target   :: g_trian   
-    type(dof_handler) , intent(in), target           :: dofh  
+    type(fem_space_t)   ,  target, intent(inout)                :: fspac
+    type(fem_triangulation_t)   , intent(in), target   :: g_trian   
+    type(dof_handler_t) , intent(in), target           :: dofh  
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical(lg), optional, intent(in) :: hierarchical_basis
     logical(lg), optional, intent(in) :: static_condensation
@@ -195,11 +195,11 @@ contains
        num_ghosts_ = 0
     end if
 
-    allocate( fem_element :: fspac%mig_elems(g_trian%num_elems + num_ghosts_), stat=istat)
+    allocate( fem_element_t :: fspac%mig_elems(g_trian%num_elems + num_ghosts_), stat=istat)
     check ( istat == 0 )
     
     select type( this => fspac%mig_elems )
-    type is(fem_element)
+    type is(fem_element_t)
        fspac%lelem => this
     end select
 
@@ -225,14 +225,14 @@ contains
   end subroutine fem_space_allocate_structures
 
   !==================================================================================================
-  ! Fill the fem_space assuming that all elements are of type f_type but each variable has different
+  ! Fill the fem_space_t assuming that all elements are of type f_type but each variable has different
   ! interpolation order
   subroutine fem_space_fe_list_create( fspac, problem, which_approx, continuity, order, material, bcond )
     implicit none
-    type(fem_space), intent(inout), target  :: fspac
+    type(fem_space_t), intent(inout), target  :: fspac
     integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
     integer(ip)    , intent(in)       :: continuity(:,:), which_approx(:)
-    type(fem_conditions), intent(in)  :: bcond
+    type(fem_conditions_t), intent(in)  :: bcond
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmatvec, pos_elinf, pos_voint, ivar, lndof, iobje
@@ -441,7 +441,7 @@ contains
   subroutine fem_space_print ( lunou, femsp, num_ghosts )
     implicit none
     integer(ip)      , intent(in) :: lunou
-    type(fem_space), intent(in) :: femsp
+    type(fem_space_t), intent(in) :: femsp
     integer(ip), optional, intent(in) :: num_ghosts    
 
     integer(ip) :: ielem, num_ghosts_
@@ -474,7 +474,7 @@ contains
  !==================================================================================================
   subroutine fem_space_free ( f )
     implicit none
-    type(fem_space), intent(inout) :: f
+    type(fem_space_t), intent(inout) :: f
     integer(ip)                    :: i,j
     integer(ip) :: istat
 
@@ -590,8 +590,8 @@ contains
 
   subroutine get_p_faces ( fspac, trian )
     implicit none
-    type(fem_space), intent(in)  :: fspac
-    type(fem_triangulation), intent(inout)    :: trian
+    type(fem_space_t), intent(in)  :: fspac
+    type(fem_triangulation_t), intent(inout)    :: trian
 
     !   integer(ip) :: i
 
@@ -609,7 +609,7 @@ contains
   subroutine integration_faces_list( femsp ) 
     implicit none
     ! Parameters
-    type(fem_space), intent(inout)               :: femsp
+    type(fem_space_t), intent(inout)               :: femsp
 
     integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
     integer(ip) :: g_var, iprob, jprob, ivars, jvars

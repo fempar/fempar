@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_mesh_refine_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use fem_mesh_names
   use fem_conditions_names
   use fem_materials_names
@@ -36,7 +36,6 @@ use memor_names
   private
 
   ! Functions
-  !public :: fem_mesh_refine_tetrahedra, fem_mesh_lin2quad_tetrahedra, fem_mesh_hexa9
   public :: fem_mesh_refine_tetrahedra
 
 contains
@@ -56,9 +55,9 @@ contains
     !
     !------------------------------------------------------------------------
     implicit none
-    type(fem_mesh),               intent(inout) :: msh
-    type(fem_conditions)        , intent(inout) :: nodes
-    type(fem_materials),optional, intent(inout) :: mat
+    type(fem_mesh_t),               intent(inout) :: msh
+    type(fem_conditions_t)        , intent(inout) :: nodes
+    type(fem_materials_t),optional, intent(inout) :: mat
     integer(ip), allocatable                    :: lnods_aux(:),tetr_perm(:,:),list_aux(:)
     integer(ip)                                 :: ielem,inode,ispos,ispos_old,isele,itetr,nnode,ntetr
 
@@ -149,8 +148,8 @@ contains
     !
     !------------------------------------------------------------------------
     implicit none
-    type(fem_mesh), intent(inout)       :: msh
-    type(fem_conditions), intent(inout) :: nodes
+    type(fem_mesh_t), intent(inout)       :: msh
+    type(fem_conditions_t), intent(inout) :: nodes
     integer(ip)                         :: nedge,nodfac,nnode_new
     integer(ip)                         :: iedge,ielem,jelem,inode,jnode,knode,ispos,ispos_new,ipoin
     integer(ip) , allocatable           :: nelpo_aux(:),aux1(:),lelpo_aux(:),lnods_aux(:)
@@ -398,8 +397,8 @@ contains
     !
     !------------------------------------------------------------------------
     implicit none
-    type(fem_mesh), intent(inout)       :: msh
-    type(fem_conditions), intent(inout) :: nodes
+    type(fem_mesh_t), intent(inout)       :: msh
+    type(fem_conditions_t), intent(inout) :: nodes
 
     integer(ip)                         :: nnode_new,ielem,inode,jnode,idime,ipoin,inipo,endpo,ncode,nvalu
     integer(ip) , allocatable           :: lnods_aux(:),code_aux(:,:)

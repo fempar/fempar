@@ -32,31 +32,31 @@ program test_cdr
   implicit none
 #include "debug.i90"
   ! Our data
-  type(fem_mesh)           :: f_mesh
-  type(fem_triangulation)  :: f_trian
-  type(fem_matrix)         :: f_mat
-  type(fem_conditions)     :: f_cond
-  type(dof_handler)        :: dhand
-  type(fem_space)          :: fspac
-  type(fem_graph), pointer :: f_graph
-  type(fem_block_graph)    :: f_blk_graph
+  type(fem_mesh_t)           :: f_mesh
+  type(fem_triangulation_t)  :: f_trian
+  type(fem_matrix_t)         :: f_mat
+  type(fem_conditions_t)     :: f_cond
+  type(dof_handler_t)        :: dhand
+  type(fem_space_t)          :: fspac
+  type(fem_graph_t), pointer :: f_graph
+  type(fem_block_graph_t)    :: f_blk_graph
   integer(ip)              :: gtype(1) = (/ csr_symm /)
 
-  type(cdr_problem)                   :: my_problem
-  type(cdr_discrete)                  :: my_discrete
-  type(cdr_approximation), target     :: my_approximation
+  type(cdr_problem_t)                   :: my_problem
+  type(cdr_discrete_t)                  :: my_discrete
+  type(cdr_approximation_t), target     :: my_approximation
   integer(ip)                         :: num_approximations
   type(discrete_integration_pointer)  :: approximations(1)
 
-  type(fem_matrix), target             :: my_matrix
-  type(fem_vector), target             :: my_vector, feunk
-  class(base_operand) , pointer :: x, y
-  class(base_operator), pointer :: A
+  type(fem_matrix_t), target             :: my_matrix
+  type(fem_vector_t), target             :: my_vector, feunk
+  class(base_operand_t) , pointer :: x, y
+  class(base_operator_t), pointer :: A
 
-  type(fem_precond)        :: feprec
-  type(fem_precond_params) :: ppars
-  type(solver_control)     :: sctrl
-  type(serial_environment) :: senv
+  type(fem_precond_t)        :: feprec
+  type(fem_precond_params_t) :: ppars
+  type(solver_control_t)     :: sctrl
+  type(serial_environment_t) :: senv
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -242,7 +242,7 @@ contains
 !!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
 !!$    implicit none
 !!$
-!!$    type(fem_space), intent(inout)    :: fspac
+!!$    type(fem_space_t), intent(inout)    :: fspac
 !!$
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$

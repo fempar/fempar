@@ -37,22 +37,22 @@ use fem_names
 
   implicit none
   ! Files
-  type conv
+  type conv_t
     integer, allocatable :: list(:)
-  end type conv
+  end type conv_t
 
-  type(conv), allocatable  :: methodstopc(:)
+  type(conv_t), allocatable  :: methodstopc(:)
   integer(ip)              :: lunio
 
-  type(fem_matrix)         :: mmmat
-  type(fem_graph)          :: mmgraph
-  type(fem_vector)         :: fevec
-  type(fem_vector)         :: feunk
+  type(fem_matrix_t)         :: mmmat
+  type(fem_graph_t)          :: mmgraph
+  type(fem_vector_t)         :: fevec
+  type(fem_vector_t)         :: feunk
 
-  type(fem_precond)        :: feprec
-  type(fem_precond_params) :: ppars
-  type(solver_control)     :: sctrl
-  type(serial_environment) :: senv
+  type(fem_precond_t)        :: feprec
+  type(fem_precond_params_t) :: ppars
+  type(solver_control_t)     :: sctrl
+  type(serial_environment_t) :: senv
 
   integer(ip)              :: solver 
   integer(ip)              :: driver 

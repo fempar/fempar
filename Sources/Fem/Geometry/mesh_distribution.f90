@@ -34,7 +34,7 @@ module fem_mesh_distribution_names
   private
 
   ! Data required to describe on each MPI task the distribution of the mesh
-  type fem_mesh_distribution
+  type fem_mesh_distribution_t
      integer(ip) ::                &
         ipart  = 1,                &    ! Part identifier
         nparts = 1                      ! Number of parts
@@ -53,13 +53,13 @@ module fem_mesh_distribution_names
         lebou(:),                  &  ! List of boundary elements 
         lnbou(:)                      ! List of boundary nodes
 
-     type(map_igp) ::  & 
+     type(map_igp_t) ::  & 
         emap,                  &  ! Local2Global for elements 
         nmap                      ! Local2Global for vertices
-  end type fem_mesh_distribution
+  end type fem_mesh_distribution_t
 
   ! Types
-  public :: fem_mesh_distribution
+  public :: fem_mesh_distribution_t
 
   ! Functions
   public :: fem_mesh_distribution_free, fem_mesh_distribution_print,               & 
@@ -76,7 +76,7 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh_distribution), intent(inout)  :: f_msh_dist
+    type(fem_mesh_distribution_t), intent(inout)  :: f_msh_dist
 
     call memfree ( f_msh_dist%lebou,__FILE__,__LINE__)
     call memfree ( f_msh_dist%lnbou,__FILE__,__LINE__)
@@ -98,7 +98,7 @@ contains
 
     ! Parameters
     integer(ip)                , intent(in)  :: lu_out
-    type(fem_mesh_distribution), intent(in)  :: msh_dist
+    type(fem_mesh_distribution_t), intent(in)  :: msh_dist
 
     ! Local variables
     integer (ip) :: i, j
@@ -128,7 +128,7 @@ contains
   subroutine fem_mesh_distribution_write (lunio, f_msh_dist)
     ! Parameters
     integer            , intent(in) :: lunio
-    type(fem_mesh_distribution), intent(in) :: f_msh_dist
+    type(fem_mesh_distribution_t), intent(in) :: f_msh_dist
     !-----------------------------------------------------------------------
     ! This subroutine writes a mesh_distribution to lunio
     !-----------------------------------------------------------------------
@@ -150,7 +150,7 @@ contains
   subroutine fem_mesh_distribution_read (lunio, f_msh_dist)
     ! Parameters
     integer(ip)        , intent(in)            :: lunio
-    type(fem_mesh_distribution), intent(inout) :: f_msh_dist
+    type(fem_mesh_distribution_t), intent(inout) :: f_msh_dist
     !-----------------------------------------------------------------------
     ! This subroutine reads a mesh_distribution object
     !-----------------------------------------------------------------------
@@ -193,7 +193,7 @@ contains
     character (len=*), intent(in)   :: dir_path
     character (len=*), intent(in)   :: prefix
     integer(ip)  , intent(in)       :: nparts
-    type(fem_mesh_distribution), intent(in)  :: parts(nparts)
+    type(fem_mesh_distribution_t), intent(in)  :: parts(nparts)
     ! Locals
     integer (ip)                     :: i
     character(len=:), allocatable    :: name, rename ! Deferred-length allocatable character arrays
@@ -220,7 +220,7 @@ contains
     character (*), intent(in)    :: dir_path 
     character (*), intent(in)    :: prefix
     integer(ip)  , intent(in)    :: nparts
-    type(fem_mesh_distribution), intent(inout)  :: parts(nparts)
+    type(fem_mesh_distribution_t), intent(inout)  :: parts(nparts)
 
     ! Locals 
     integer (ip)                        :: i

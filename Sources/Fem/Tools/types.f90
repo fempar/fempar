@@ -106,41 +106,41 @@ module types_names
 !!$                                                   ! not actually a Krylov subspace method)
 !!$  integer (ip), parameter :: default_kry_meth = lgmres 
 
-  type i1p
+  type i1p_t
      integer(ip), pointer :: l(:) => NULL()
-  end type i1p
-  type i2p
+  end type i1p_t
+  type i2p_t
      integer(ip), pointer :: l(:,:) => NULL()
-  end type i2p
-  type i3p
+  end type i2p_t
+  type i3p_t
      integer(ip), pointer :: l(:,:,:) => NULL()
-  end type i3p
-  type r1p
+  end type i3p_t
+  type r1p_t
      real(rp),    pointer :: a(:) => NULL()
-  end type r1p
-  type r2p
+  end type r1p_t
+  type r2p_t
      real(rp),    pointer :: a(:,:) => NULL()
-  end type r2p
-  type r3p
+  end type r2p_t
+  type r3p_t
      real(rp),    pointer :: a(:,:,:) => NULL()
-  end type r3p
+  end type r3p_t
 
-  type list
+  type list_t
      integer(ip) :: n
      integer(ip), allocatable :: p(:) 
      integer(ip), allocatable :: l(:) 
-  end type list
+  end type list_t
 
-  type list_2d
+  type list_2d_t
      integer(ip) :: n1
      integer(ip) :: n2
      integer(ip), allocatable :: p(:) 
      integer(ip), allocatable :: l(:,:) 
-  end type list_2d
+  end type list_2d_t
 
-  type list_pointer
-     type(list)          , pointer :: p => NULL()
-  end type list_pointer
+  type list_pointer_t
+     type(list_t)          , pointer :: p => NULL()
+  end type list_pointer_t
 
   ! Frequently used mathematical constants:
   real(rp),    parameter :: pi    = 3.141592653589793238462643383279502884197_rp
@@ -170,7 +170,7 @@ contains
   subroutine print_list_2d( lunou, list2 )
     implicit none
     integer(ip)      , intent(in) :: lunou
-    type(list_2d)    , intent(in) :: list2
+    type(list_2d_t)    , intent(in) :: list2
 
     integer(ip) :: i,j
 

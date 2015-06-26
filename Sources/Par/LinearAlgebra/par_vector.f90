@@ -70,20 +70,20 @@ use psb_penv_mod_names
   integer(ip), parameter :: full_summed   = 1  ! fully     summed element-based vector
 
   ! Distributed Vector
-  type, extends(base_operand) :: par_vector
+  type, extends(base_operand_t) :: par_vector_t
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( fem_vector ) :: f_vector
+     type( fem_vector_t ) :: f_vector
 
      ! Partially or fully summed
      integer(ip)  :: state 
 
      ! Parallel DoF distribution control info.
-     type ( dof_distribution ), pointer  :: dof_dist => NULL()
+     type ( dof_distribution_t ), pointer  :: dof_dist => NULL()
 
-     type ( par_environment ) , pointer  :: p_env => NULL()
+     type ( par_environment_t ) , pointer  :: p_env => NULL()
    contains
      ! Provide type bound procedures (tbp) implementors
      procedure :: dot  => par_vector_dot_tbp
@@ -95,11 +95,11 @@ use psb_penv_mod_names
      procedure :: clone => par_vector_clone_tbp
      procedure :: comm  => par_vector_comm_tbp
      procedure :: free  => par_vector_free_tbp
-  end type par_vector
+  end type par_vector_t
 
 
   ! Types
-  public :: par_vector
+  public :: par_vector_t
 
   ! Constants 
   public :: undefined, part_summed, full_summed
@@ -115,7 +115,7 @@ use psb_penv_mod_names
        &  par_vector_print,    par_vector_print_matrix_market
 
 !***********************************************************************
-! Allocatable arrays of type(fem_vector)
+! Allocatable arrays of type(fem_vector_t)
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -125,7 +125,7 @@ use psb_penv_mod_names
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(par_vector)
+# define var_type type(par_vector_t)
 # define var_size 52
 # define bound_kind ip
 # include "mem_header.i90"
@@ -140,9 +140,9 @@ contains
   subroutine par_vector_alloc (dof_dist, p_env, p_vec)
     implicit none
     ! Parameters
-    type(dof_distribution), target, intent(in)  :: dof_dist
-    type(par_environment) , target, intent(in)  :: p_env
-    type(par_vector)              , intent(out) :: p_vec
+    type(dof_distribution_t), target, intent(in)  :: dof_dist
+    type(par_environment_t) , target, intent(in)  :: p_env
+    type(par_vector_t)              , intent(out) :: p_vec
 
     ! Locals
     integer(ip)                               :: idof, id
@@ -161,7 +161,7 @@ contains
   !=============================================================================
   subroutine par_vector_free(p_vec)
     implicit none
-    type(par_vector), intent(inout) :: p_vec
+    type(par_vector_t), intent(inout) :: p_vec
 
     ! The routine requires the partition/context info
     assert ( associated( p_vec%dof_dist ) )
@@ -181,10 +181,10 @@ contains
   !=============================================================================
   subroutine par_vector_create_view (s_p_vec, start, end, t_p_vec)
     implicit none
-    type(par_vector), intent(in), target :: s_p_vec
+    type(par_vector_t), intent(in), target :: s_p_vec
     integer(ip)     , intent(in)         :: start
     integer(ip)     , intent(in)         :: end
-    type(par_vector), intent(out)        :: t_p_vec
+    type(par_vector_t), intent(out)        :: t_p_vec
 
     ! The routine requires the partition/context info
     assert ( associated( s_p_vec%dof_dist ) )
@@ -208,8 +208,8 @@ contains
   !=============================================================================
   subroutine par_vector_clone (s_p_vec, t_p_vec)
     implicit none
-    type(par_vector), intent(in), target :: s_p_vec
-    type(par_vector), intent(out)        :: t_p_vec 
+    type(par_vector_t), intent(in), target :: s_p_vec
+    type(par_vector_t), intent(out)        :: t_p_vec 
 
     ! p_env%p_context is required within this subroutine 
     assert ( associated(s_p_vec%dof_dist) )
@@ -229,11 +229,11 @@ contains
   subroutine par_vector_comm ( p_vec )
     implicit none
     ! Parameters
-    type(par_vector), intent(inout) :: p_vec
+    type(par_vector_t), intent(inout) :: p_vec
 
     ! Local variables
     integer(ip)      :: ni 
-    type(par_vector) :: p_vec_G
+    type(par_vector_t) :: p_vec_G
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist) )
@@ -258,7 +258,7 @@ use par_sparse_global_collectives_names
     implicit none
 
     ! Parameters
-    type(par_vector), intent(inout)         :: p_vec
+    type(par_vector_t), intent(inout)         :: p_vec
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist) )
@@ -306,12 +306,12 @@ use par_sparse_global_collectives_names
   subroutine par_vector_weight ( p_vec, weight )
     implicit none
     ! Parameters
-    type(par_vector), intent(inout)                :: p_vec
+    type(par_vector_t), intent(inout)                :: p_vec
     real(rp)        , intent(in), target, optional :: weight(*)
 
     ! Local variables
     integer(ip)      :: ni 
-    type(par_vector) :: p_vec_G
+    type(par_vector_t) :: p_vec_G
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist) )
@@ -334,7 +334,7 @@ use par_sparse_global_collectives_names
   subroutine weight_interface ( p_vec, weight )
     implicit none
     ! Parameters
-    type(par_vector), intent(inout)                :: p_vec
+    type(par_vector_t), intent(inout)                :: p_vec
     real(rp)        , intent(in), target, optional :: weight(*)
 
     ! Local variables
@@ -373,7 +373,7 @@ use par_sparse_global_collectives_names
 
   subroutine par_vector_nrm2 (x, t)
     implicit none
-    type(par_vector)   , intent(in), target  :: x
+    type(par_vector_t)   , intent(in), target  :: x
     real(rp)           , intent(out)         :: t
     integer(ip)                           :: ierrc
 
@@ -397,13 +397,13 @@ use par_sparse_global_collectives_names
   subroutine dot_interface(x,y,t)
     implicit none
     ! Parameters  
-    type(par_vector), intent(in)  :: x
-    type(par_vector), intent(in)  :: y
+    type(par_vector_t), intent(in)  :: x
+    type(par_vector_t), intent(in)  :: y
     real(rp)    , intent(out)     :: t
 
     ! Locals 
     integer(ip)                :: ierrc
-    type(par_vector)              :: ws_vec
+    type(par_vector_t)              :: ws_vec
 
     ! Pointer to part/context object is required
     assert ( associated(x%dof_dist   ) )
@@ -444,14 +444,14 @@ use par_sparse_global_collectives_names
   subroutine par_vector_dot (x,y,t)
     implicit none
     ! Parameters  
-    type(par_vector), intent(in)  :: x
-    type(par_vector), intent(in)  :: y
+    type(par_vector_t), intent(in)  :: x
+    type(par_vector_t), intent(in)  :: y
     real(rp)        , intent(out) :: t
 
     ! Locals 
     integer(ip)                :: ierrc
     integer(ip)                   :: ni 
-    type(par_vector)              :: x_I, x_G, y_I, y_G
+    type(par_vector_t)              :: x_I, x_G, y_I, y_G
     real(rp)                      :: s
 
     ! Pointer to part/context object is required
@@ -486,8 +486,8 @@ use par_sparse_global_collectives_names
   !=============================================================================
   subroutine par_vector_copy(x,y)
     implicit none
-    type(par_vector), intent(in)    :: x
-    type(par_vector), intent(inout) :: y
+    type(par_vector_t), intent(in)    :: x
+    type(par_vector_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -507,7 +507,7 @@ use par_sparse_global_collectives_names
   !=============================================================================
   subroutine par_vector_zero(y)
     implicit none
-    type(par_vector), intent(inout) :: y
+    type(par_vector_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -528,7 +528,7 @@ use par_sparse_global_collectives_names
   subroutine par_vector_init (t,y)
     implicit none
     real(rp)        , intent(in)     :: t
-    type(par_vector), intent(inout)  :: y
+    type(par_vector_t), intent(inout)  :: y
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
@@ -551,8 +551,8 @@ use par_sparse_global_collectives_names
   subroutine par_vector_scale(t,x,y)
     implicit none
     real(rp)    , intent(in)         :: t
-    type(par_vector), intent(in)     :: x
-    type(par_vector), intent(inout)  :: y
+    type(par_vector_t), intent(in)     :: x
+    type(par_vector_t), intent(inout)  :: y
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
@@ -574,8 +574,8 @@ use par_sparse_global_collectives_names
   !=============================================================================
   subroutine par_vector_mxpy(x,y)
     implicit none
-    type(par_vector), intent(in)    :: x
-    type(par_vector), intent(inout) :: y
+    type(par_vector_t), intent(in)    :: x
+    type(par_vector_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -598,8 +598,8 @@ use par_sparse_global_collectives_names
   subroutine par_vector_axpy(t,x,y)
     implicit none
     real(rp)   , intent(in)         :: t
-    type(par_vector), intent(in)    :: x
-    type(par_vector), intent(inout) :: y
+    type(par_vector_t), intent(in)    :: x
+    type(par_vector_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -621,8 +621,8 @@ use par_sparse_global_collectives_names
   subroutine par_vector_aypx(t,x,y)
     implicit none
     real(rp)    , intent(in)        :: t
-    type(par_vector), intent(in)    :: x
-    type(par_vector), intent(inout) :: y
+    type(par_vector_t), intent(in)    :: x
+    type(par_vector_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -642,8 +642,8 @@ use par_sparse_global_collectives_names
   !=============================================================================
   subroutine par_vector_pxpy(x,y)
     implicit none
-    type(par_vector), intent(in)    :: x
-    type(par_vector), intent(inout) :: y
+    type(par_vector_t), intent(in)    :: x
+    type(par_vector_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -664,8 +664,8 @@ use par_sparse_global_collectives_names
   !=============================================================================
   subroutine par_vector_pxmy(x,y)
     implicit none
-    type(par_vector), intent(in)     :: x
-    type(par_vector), intent(inout)  :: y
+    type(par_vector_t), intent(in)     :: x
+    type(par_vector_t), intent(inout)  :: y
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
@@ -691,7 +691,7 @@ use par_sparse_global_collectives_names
   subroutine par_vector_print ( luout, p_vec )
     implicit none
     integer(ip),      intent(in) :: luout
-    type(par_vector), intent(in) :: p_vec
+    type(par_vector_t), intent(in) :: p_vec
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist   ) )
@@ -711,7 +711,7 @@ use par_sparse_global_collectives_names
     ! Parameters
     character *(*)  , intent(in)  :: dir_path
     character *(*)  , intent(in)  :: prefix
-    type(par_vector), intent(in)  :: p_vec
+    type(par_vector_t), intent(in)  :: p_vec
 
     ! Locals
     integer         :: iam, num_procs, lunou
@@ -775,8 +775,8 @@ use par_sparse_global_collectives_names
   subroutine weighted_dot (x,y,t)
     implicit none
     ! Parameters  
-    type(par_vector), intent(in)  :: x
-    type(par_vector), intent(in)  :: y
+    type(par_vector_t), intent(in)  :: x
+    type(par_vector_t), intent(in)  :: y
     real(rp)    , intent(out)     :: t
 
     ! Local variables
@@ -820,13 +820,13 @@ use par_sparse_global_collectives_names
   ! alpha <- op1^T * op2
  function par_vector_dot_tbp(op1,op2) result(alpha)
    implicit none
-   class(par_vector), intent(in)    :: op1
-   class(base_operand), intent(in)  :: op2
+   class(par_vector_t), intent(in)    :: op1
+   class(base_operand_t), intent(in)  :: op2
    real(rp) :: alpha
 
    ! Locals 
    integer(ip)                   :: ni 
-   type(par_vector)              :: x_I, x_G, y_I, y_G
+   type(par_vector_t)              :: x_I, x_G, y_I, y_G
    real(rp)                      :: s
 
    ! Alpha should be defined in all tasks (not only in coarse-grid ones)
@@ -835,7 +835,7 @@ use par_sparse_global_collectives_names
    call op1%GuardTemp()
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector)
+   class is (par_vector_t)
       ! Pointer to part/context object is required
       assert ( associated(op1%dof_dist   ) )
       assert ( associated(op1%p_env%p_context) )
@@ -864,7 +864,7 @@ use par_sparse_global_collectives_names
       ! Reduce-sum local dot products on all processes
       call psb_sum ( op2%p_env%p_context%icontxt, alpha )
    class default
-      write(0,'(a)') 'par_vector%dot: unsupported op2 class'
+      write(0,'(a)') 'par_vector_t%dot: unsupported op2 class'
       check(1==0)
    end select
    call op1%CleanTemp()
@@ -874,12 +874,12 @@ use par_sparse_global_collectives_names
  ! op1 <- op2 
  subroutine par_vector_copy_tbp(op1,op2)
    implicit none
-   class(par_vector), intent(inout) :: op1
-   class(base_operand), intent(in)  :: op2
+   class(par_vector_t), intent(inout) :: op1
+   class(base_operand_t), intent(in)  :: op2
    
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector)
+   class is (par_vector_t)
       ! Pointer to part/context object is required
       assert ( associated(op2%dof_dist   ) )
       assert ( associated(op2%p_env%p_context) )
@@ -893,7 +893,7 @@ use par_sparse_global_collectives_names
       call op1%f_vector%copy ( op2%f_vector )
       op1%state = op2%state
    class default
-      write(0,'(a)') 'par_vector%copy: unsupported op2 class'
+      write(0,'(a)') 'par_vector_t%copy: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -902,13 +902,13 @@ use par_sparse_global_collectives_names
  ! op1 <- alpha * op2
  subroutine par_vector_scal_tbp(op1,alpha,op2)
    implicit none
-   class(par_vector), intent(inout) :: op1
+   class(par_vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(base_operand), intent(in) :: op2
+   class(base_operand_t), intent(in) :: op2
 
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector)
+   class is (par_vector_t)
       ! Pointer to part/context object is required
       assert ( associated(op2%dof_dist   ) )
       assert ( associated(op2%p_env%p_context) )
@@ -924,7 +924,7 @@ use par_sparse_global_collectives_names
       call op1%f_vector%scal ( alpha, op2%f_vector )
       op1%state = op2%state
    class default
-      write(0,'(a)') 'par_vector%scal: unsupported op2 class'
+      write(0,'(a)') 'par_vector_t%scal: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -932,7 +932,7 @@ use par_sparse_global_collectives_names
  ! op <- alpha
  subroutine par_vector_init_tbp(op,alpha)
    implicit none
-   class(par_vector), intent(inout) :: op
+   class(par_vector_t), intent(inout) :: op
    real(rp), intent(in) :: alpha
    
    ! Pointer to part/context object is required
@@ -949,14 +949,14 @@ use par_sparse_global_collectives_names
  ! op1 <- alpha*op2 + beta*op1
  subroutine par_vector_axpby_tbp(op1, alpha, op2, beta)
    implicit none
-   class(par_vector), intent(inout) :: op1
+   class(par_vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(base_operand), intent(in) :: op2
+   class(base_operand_t), intent(in) :: op2
    real(rp), intent(in) :: beta
 
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector)
+   class is (par_vector_t)
       ! Pointer to part/context object is required
       assert ( associated(op2%dof_dist   ) )
       assert ( associated(op2%p_env%p_context) )
@@ -971,7 +971,7 @@ use par_sparse_global_collectives_names
       
       call op1%f_vector%axpby( alpha, op2%f_vector, beta )
    class default
-      write(0,'(a)') 'par_vector%axpby: unsupported op2 class'
+      write(0,'(a)') 'par_vector_t%axpby: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -980,7 +980,7 @@ use par_sparse_global_collectives_names
  ! alpha <- nrm2(op)
  function par_vector_nrm2_tbp(op) result(alpha)
    implicit none
-   class(par_vector), intent(in)  :: op
+   class(par_vector_t), intent(in)  :: op
    real(rp) :: alpha
    
    ! Alpha should be defined in all tasks (not only in coarse-grid ones)
@@ -988,7 +988,7 @@ use par_sparse_global_collectives_names
 
    call op%GuardTemp()
    select type(op)
-   class is (par_vector)
+   class is (par_vector_t)
       ! p_env%p_context is required within this subroutine 
       assert ( associated(op%dof_dist) )
       assert ( associated(op%p_env%p_context) )
@@ -998,7 +998,7 @@ use par_sparse_global_collectives_names
       alpha = op%dot(op)
       alpha = sqrt(alpha)
    class default
-      write(0,'(a)') 'par_vector%nrm2: unsupported op2 class'
+      write(0,'(a)') 'par_vector_t%nrm2: unsupported op2 class'
       check(1==0)
    end select   
    call op%CleanTemp()
@@ -1007,12 +1007,12 @@ use par_sparse_global_collectives_names
  ! op1 <- clone(op2) 
  subroutine par_vector_clone_tbp(op1,op2)
    implicit none
-   class(par_vector)          , intent(inout) :: op1
-   class(base_operand), target, intent(in)    :: op2
+   class(par_vector_t)          , intent(inout) :: op1
+   class(base_operand_t), target, intent(in)    :: op2
 
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector)
+   class is (par_vector_t)
       ! p_env%p_context is required within this subroutine 
       assert ( associated(op2%dof_dist) )
       assert ( associated(op2%p_env%p_context) )
@@ -1036,7 +1036,7 @@ use par_sparse_global_collectives_names
 !!$      ! op1%b = 0.0_rp 
 !!$      op1%mode = allocated
    class default
-      write(0,'(a)') 'par_vector%clone: unsupported op2 class'
+      write(0,'(a)') 'par_vector_t%clone: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -1045,11 +1045,11 @@ use par_sparse_global_collectives_names
  ! op <- comm(op)
  subroutine par_vector_comm_tbp(op)
    implicit none
-   class(par_vector), intent(inout) :: op
+   class(par_vector_t), intent(inout) :: op
 
    ! Local variables
    integer(ip)      :: ni 
-   type(par_vector) :: op_G
+   type(par_vector_t) :: op_G
 
    ! Pointer to part/context object is required
    assert ( associated(op%dof_dist) )
@@ -1067,7 +1067,7 @@ use par_sparse_global_collectives_names
 
  subroutine par_vector_free_tbp(this)
    implicit none
-   class(par_vector), intent(inout) :: this
+   class(par_vector_t), intent(inout) :: this
 
    ! The routine requires the partition/context info
    assert ( associated( this%dof_dist ) )

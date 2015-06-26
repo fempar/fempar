@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_vector_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use fem_block_vector_names
   use fem_vector_names
     
@@ -57,25 +57,25 @@ use memor_names
   !=============================================================
 
   ! par_vector
-  type par_block_vector
+  type par_block_vector_t
      integer(ip)                   :: nblocks = 0
-     type(par_vector), allocatable :: blocks(:)
+     type(par_vector_t), allocatable :: blocks(:)
 
      ! **IMPORTANT NOTE**: This is an auxiliary data 
      ! structure provided in order to use SERIAL 
      ! fem_block_vector assembly routines. The blocks of this 
      ! data structure are just VIEWS to the corresponding 
-     ! counterparts in type(par_vector), allocatable :: blocks(:).
+     ! counterparts in type(par_vector_t), allocatable :: blocks(:).
      ! This is required because currently integrate.i90 only
      ! accepts fem* data structures. If we provided support for 
      ! par* data structures in integrate.i90 we would not require 
      ! this aux. data structure
-     type(fem_block_vector)        :: f_blk_vector
+     type(fem_block_vector_t)        :: f_blk_vector
      logical                       :: fill_completed
-  end type par_block_vector
+  end type par_block_vector_t
 
   ! Types
-  public :: par_block_vector
+  public :: par_block_vector_t
 
   ! Functions
   public :: par_block_vector_free,          par_block_vector_alloc,             &
@@ -93,7 +93,7 @@ contains
   !=============================================================================
   subroutine par_block_vector_free (bvec)
     implicit none
-    type(par_block_vector), intent(inout) :: bvec
+    type(par_block_vector_t), intent(inout) :: bvec
 
     ! Locals
     integer(ip) :: ib
@@ -114,7 +114,7 @@ contains
   subroutine par_block_vector_alloc (nblocks, bvec)
     implicit none
     integer(ip)           , intent(in)  :: nblocks
-    type(par_block_vector), intent(out) :: bvec
+    type(par_block_vector_t), intent(out) :: bvec
 
     bvec%nblocks        = nblocks
     bvec%fill_completed = .false.
@@ -125,7 +125,7 @@ contains
   subroutine par_block_vector_fill_complete (bvec)
     implicit none
     ! Parameters
-    type(par_block_vector), intent(inout) :: bvec
+    type(par_block_vector_t), intent(inout) :: bvec
     
     ! Locals
     integer(ip) :: ib  
@@ -146,10 +146,10 @@ contains
   subroutine par_block_vector_create_view (svec, start, end, tvec)
     implicit none
     ! Parameters
-    type(par_block_vector), intent(in)  :: svec
+    type(par_block_vector_t), intent(in)  :: svec
     integer(ip)     , intent(in)        :: start
     integer(ip)     , intent(in)        :: end
-    type(par_block_vector), intent(out) :: tvec
+    type(par_block_vector_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
@@ -165,8 +165,8 @@ contains
   subroutine par_block_vector_clone ( svec, tvec )
     implicit none
     ! Parameters
-    type(par_block_vector), intent( in ) :: svec
-    type(par_block_vector), intent(out) :: tvec
+    type(par_block_vector_t), intent( in ) :: svec
+    type(par_block_vector_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
@@ -183,7 +183,7 @@ contains
     implicit none
 
     ! Parameters
-    type(par_block_vector), intent(inout)         :: p_vec
+    type(par_block_vector_t), intent(inout)         :: p_vec
 
     ! Local variables
     integer(ip) :: ib
@@ -197,7 +197,7 @@ contains
     implicit none
 
     ! Parameters
-    type(par_block_vector), intent(inout)         :: p_vec
+    type(par_block_vector_t), intent(inout)         :: p_vec
 
     ! Local variables
     integer(ip) :: ib
@@ -211,8 +211,8 @@ contains
   subroutine par_block_vector_dot (x, y, t)
     implicit none
     ! Parameters
-    type(par_block_vector), intent(in)  :: x
-    type(par_block_vector), intent(in)  :: y
+    type(par_block_vector_t), intent(in)  :: x
+    type(par_block_vector_t), intent(in)  :: y
     real(rp)              , intent(out) :: t
      
     ! Locals
@@ -231,7 +231,7 @@ contains
   !=============================================================================
   subroutine par_block_vector_nrm2(x,t)
     implicit none
-    type(par_block_vector), intent(in)  :: x
+    type(par_block_vector_t), intent(in)  :: x
     real(rp)              , intent(out) :: t
 
     ! p_part%p_context is required within this subroutine
@@ -247,8 +247,8 @@ contains
   !=============================================================================
   subroutine par_block_vector_copy(x,y)
     implicit none
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
 
     ! Locals
     integer(ip) :: ib
@@ -261,7 +261,7 @@ contains
 
   subroutine par_block_vector_zero(y)
     implicit none
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip) :: ib
 
@@ -273,7 +273,7 @@ contains
 
   subroutine par_block_vector_init(alpha, y)
     implicit none
-    type(par_block_vector), intent(inout) :: y 
+    type(par_block_vector_t), intent(inout) :: y 
     real(rp), intent(in)                  :: alpha  
     ! Locals
     integer(ip)                           :: ib
@@ -287,8 +287,8 @@ contains
     implicit none
     ! Parameters 
     real(rp)              , intent(in)    :: t
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -301,8 +301,8 @@ contains
 
   subroutine par_block_vector_mxpy(x,y)
     implicit none
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -314,8 +314,8 @@ contains
   subroutine par_block_vector_axpy(t,x,y)
     implicit none
     real(rp)   , intent(in)         :: t
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -328,8 +328,8 @@ contains
   subroutine par_block_vector_aypx(t,x,y)
     implicit none
     real(rp)        , intent(in)    :: t
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
 
     ! Locals
     integer(ip)                           :: ib
@@ -343,8 +343,8 @@ contains
 
   subroutine par_block_vector_pxpy(x,y)
     implicit none
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -356,8 +356,8 @@ contains
 
   subroutine par_block_vector_pxmy(x,y)
     implicit none
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
        
@@ -369,7 +369,7 @@ contains
 
   subroutine par_block_vector_print (luout, x)
     implicit none
-    type(par_block_vector), intent(in) :: x
+    type(par_block_vector_t), intent(in) :: x
     integer(ip)           , intent(in) :: luout
     
     ! Locals

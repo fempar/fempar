@@ -55,9 +55,9 @@ contains
   subroutine mesh_to_triangulation (gmesh,trian,gcond)
     implicit none
     ! Parameters
-    type(fem_mesh), intent(in)                       :: gmesh ! Geometry mesh
-    type(fem_triangulation), intent(inout)           :: trian 
-    type(fem_conditions), optional, intent(inout)    :: gcond
+    type(fem_mesh_t), intent(in)                       :: gmesh ! Geometry mesh
+    type(fem_triangulation_t), intent(inout)           :: trian 
+    type(fem_conditions_t), optional, intent(inout)    :: gcond
 
     call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond )
     call fem_triangulation_to_dual ( trian )
@@ -67,16 +67,16 @@ contains
 subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond)
     implicit none
     ! Parameters
-    type(fem_mesh), intent(in)                       :: gmesh ! Geometry mesh
-    type(fem_triangulation), intent(inout)           :: trian 
+    type(fem_mesh_t), intent(in)                       :: gmesh ! Geometry mesh
+    type(fem_triangulation_t), intent(inout)           :: trian 
     integer(ip), optional, intent(in)                :: length_trian
-    type(fem_conditions), optional, intent(inout)    :: gcond
+    type(fem_conditions_t), optional, intent(inout)    :: gcond
 
     ! Locals
-    type(fem_mesh)            :: tmesh ! Topological mesh
+    type(fem_mesh_t)            :: tmesh ! Topological mesh
     integer(ip)               :: istat, ielem, iobj
     integer(ip)               :: count, g_node, inode, p, length_trian_
-    type(fem_conditions)      :: tcond
+    type(fem_conditions_t)      :: tcond
 
     assert(trian%state == triangulation_not_created .or. trian%state == triangulation_filled)
 

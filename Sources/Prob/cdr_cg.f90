@@ -38,7 +38,7 @@ use memor_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: cdr_discrete
+ type, extends(discrete_problem) :: cdr_discrete_t
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -52,18 +52,18 @@ use memor_names
          k2tau         ! C2 constant on stabilization parameter 
     contains
       procedure :: create => cdr_create_discrete
-   end type cdr_discrete
+   end type cdr_discrete_t
 
-   type, extends(discrete_integration) :: cdr_approximation
-      type(cdr_discrete), pointer :: discret
-      type(cdr_problem) , pointer :: physics
+   type, extends(discrete_integration) :: cdr_approximation_t
+      type(cdr_discrete_t), pointer :: discret
+      type(cdr_problem_t) , pointer :: physics
     contains
       procedure :: create  => cdr_matvec_create
       procedure :: compute => cdr_matvec
       procedure :: free    => cdr_matvec_free
-   end type cdr_approximation
+   end type cdr_approximation_t
 
- public :: cdr_approximation, cdr_discrete
+ public :: cdr_approximation_t, cdr_discrete_t
 
 contains
 
@@ -74,7 +74,7 @@ contains
     !   a stabilised finite element formulation with inf-sup stable elemets.    !
     !---------------------------------------------------------------------------!
     implicit none
-    class(cdr_discrete)    , intent(out) :: discret
+    class(cdr_discrete_t)    , intent(out) :: discret
     class(physical_problem), intent(in)  :: physics
     integer(ip), optional  , intent(in)  :: l2g(:)
     ! Locals
@@ -110,18 +110,18 @@ contains
   !=================================================================================================
   subroutine cdr_matvec_create( approx, physics, discret )
     implicit none
-    class(cdr_approximation)       , intent(inout) :: approx
+    class(cdr_approximation_t)       , intent(inout) :: approx
     class(physical_problem), target, intent(in)    :: physics
     class(discrete_problem), target, intent(in)    :: discret
 
     select type (physics)
-    type is(cdr_problem)
+    type is(cdr_problem_t)
        approx%physics => physics
     class default
        check(.false.)
     end select 
     select type (discret)
-    type is(cdr_discrete)
+    type is(cdr_discrete_t)
        approx%discret => discret
     class default
        check(.false.)
@@ -132,7 +132,7 @@ contains
   !=================================================================================================
   subroutine cdr_matvec_free(approx)
     implicit none
-    class(cdr_approximation)  , intent(inout) :: approx
+    class(cdr_approximation_t)  , intent(inout) :: approx
 
     approx%physics => null()
     approx%discret => null()
@@ -142,18 +142,18 @@ contains
   !=================================================================================================
   subroutine cdr_matvec(approx,start,elem)
     implicit none
-    class(cdr_approximation), intent(inout) :: approx
+    class(cdr_approximation_t), intent(inout) :: approx
     integer(ip)             , intent(in)    :: start(:)
-    type(fem_element)       , intent(inout) :: elem
+    type(fem_element_t)       , intent(inout) :: elem
 
-    type(basis_function) :: u ! Trial
-    type(basis_function) :: p 
-    type(basis_function) :: v ! Test
-    type(basis_function) :: q 
+    type(basis_function_t) :: u ! Trial
+    type(basis_function_t) :: p 
+    type(basis_function_t) :: v ! Test
+    type(basis_function_t) :: q 
 
-    type(vector) :: a
-    type(vector) :: u_n
-    type(scalar) :: h,tau
+    type(vector_t) :: a
+    type(vector_t) :: u_n
+    type(scalar_t) :: h,tau
 
     integer(ip)  :: ndime
     real(rp)     :: dtinv, c1, c2, mu

@@ -48,17 +48,17 @@ use blas77_interfaces_names
   private
 
   ! fem_vector_krylov_basis
-  type fem_vector_krylov_basis
+  type fem_vector_krylov_basis_t
      integer(ip)                :: &
         neq = 0,                   &  ! Number of equations
         k   = 0                       ! Number of Krylov basis vectors
 
      real(rp), allocatable      :: &
         b(:,:) 
-  end type fem_vector_krylov_basis
+  end type fem_vector_krylov_basis_t
 
   ! Types
-  public :: fem_vector_krylov_basis
+  public :: fem_vector_krylov_basis_t
 
   ! Functions
   public :: fem_vector_krylov_basis_alloc, fem_vector_krylov_basis_free,            & 
@@ -71,8 +71,8 @@ contains
   subroutine fem_vector_krylov_basis_alloc (k, f_v, Q) 
     implicit none
     integer(ip)                  , intent(in)          :: k
-    type(fem_vector)             , intent(in) , target :: f_v
-    type(fem_vector_krylov_basis), intent(out)         :: Q 
+    type(fem_vector_t)             , intent(in) , target :: f_v
+    type(fem_vector_krylov_basis_t), intent(out)         :: Q 
 
     Q%neq     = f_v%neq
     Q%k       = k
@@ -85,7 +85,7 @@ contains
   !=============================================================================
   subroutine fem_vector_krylov_basis_free (Q)
      implicit none
-     type(fem_vector_krylov_basis), intent(inout) :: Q
+     type(fem_vector_krylov_basis_t), intent(inout) :: Q
     
      Q%neq     = 0
      Q%k       = 0
@@ -97,8 +97,8 @@ contains
   subroutine fem_vector_krylov_basis_extract_view (i, Q, f_v)
      implicit none
      integer(ip)     , intent(in)                      :: i
-     type(fem_vector_krylov_basis), intent(in), target :: Q
-     type(fem_vector), intent(out)                     :: f_v
+     type(fem_vector_krylov_basis_t), intent(in), target :: Q
+     type(fem_vector_t), intent(out)                     :: f_v
 
      assert ( i >= 1 .and. i <= Q%k )
 
@@ -113,8 +113,8 @@ contains
   subroutine fem_vector_krylov_basis_multidot (k, Q, f_v, s)
      implicit none
      integer(ip)                  , intent(in) :: k
-     type(fem_vector_krylov_basis), intent(in) :: Q
-     type(fem_vector)             , intent(in) :: f_v
+     type(fem_vector_krylov_basis_t), intent(in) :: Q
+     type(fem_vector_t)             , intent(in) :: f_v
      real(rp), intent(out)                     :: s(k)
 
      assert ( f_v%neq == Q%neq )
@@ -136,9 +136,9 @@ contains
      implicit none
      integer(ip)                  , intent(in)    :: k
      real(rp)                     , intent(in)    :: alpha
-     type(fem_vector_krylov_basis), intent(in)    :: Q
+     type(fem_vector_krylov_basis_t), intent(in)    :: Q
      real(rp)                     , intent(in)    :: s(k)
-     type(fem_vector)             , intent(inout) :: f_v
+     type(fem_vector_t)             , intent(inout) :: f_v
      
      assert ( f_v%neq == Q%neq )  
  

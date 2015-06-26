@@ -74,14 +74,14 @@ use types_names
 
   !***********************************************************************
   ! Specific purpose hash table specification (only if memcheck is defined)
-  ! using a special purpose type mem_data to store where allocations have
+  ! using a special purpose type mem_data_t to store where allocations have
   ! been performed.
   !***********************************************************************
 #ifdef memcheck
-  type mem_data
+  type mem_data_t
      character(512) :: file=' '
      integer(ip)    :: line=0
-  end type mem_data
+  end type mem_data_t
 
 #include "debug.i90"
 
@@ -89,7 +89,7 @@ use types_names
 #define hash_node  hash_node_mem
 #define key_type   integer(igp)
 #define key_size   igp
-#define val_type   type(mem_data)
+#define val_type   type(mem_data_t)
 #define print_key_val     write(*,*) list%key, trim(list%val%file), list%val%line
 #define put_hash_node     put_hash_node_mem   
 #define get_hash_node     get_hash_node_mem   
@@ -260,7 +260,7 @@ contains
     character*(*), intent(in), optional :: file              ! Calling file
     integer(ip)  , intent(in), optional :: line              ! Calling line
     integer(igp)   :: key
-    type(mem_data) :: val, old_val
+    type(mem_data_t) :: val, old_val
     integer(ip)    :: istat
     key = transfer(varptr, 0_igp)
 

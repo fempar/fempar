@@ -90,7 +90,7 @@ use psb_penv_mod_names
   integer (ip), parameter :: default_schur_edge_lag_mult = reuse_from_phis
   integer (ip), parameter :: default_subd_elmat_calc     = phit_minus_c_i_t_lambda  
 
-  type par_precond_dd_mlevel_bddc_params
+  type par_precond_dd_mlevel_bddc_params_t
      ! Preconditioner params
      integer(ip) :: unknowns           =  default_unknowns            ! Ax=b (all_unknowns) .or. Sg=y (interface_unknowns) ? 
      integer(ip) :: internal_problems  =  default_internal_problems
@@ -107,14 +107,14 @@ use psb_penv_mod_names
      real(rp), allocatable    :: C_weights(:) 
 
      ! fem_precond_params and solver_control have their own defaults
-     type(fem_precond_params)  :: ppars_harm
-     type(solver_control)      :: spars_harm
-     type(solver_control)      :: spars_neumann
-     type(fem_precond_params)  :: ppars_dirichlet 
-     type(solver_control)      :: spars_dirichlet 
-     type(solver_control)      :: spars_coarse
-     type(fem_precond_params)  :: ppars_coarse_serial ! co_sys_sol_strat = serial
-     type (par_precond_dd_mlevel_bddc_params ), pointer :: ppars_coarse_bddc => NULL()  ! co_sys_sol_strat = recursive
+     type(fem_precond_params_t)  :: ppars_harm
+     type(solver_control_t)      :: spars_harm
+     type(solver_control_t)      :: spars_neumann
+     type(fem_precond_params_t)  :: ppars_dirichlet 
+     type(solver_control_t)      :: spars_dirichlet 
+     type(solver_control_t)      :: spars_coarse
+     type(fem_precond_params_t)  :: ppars_coarse_serial ! co_sys_sol_strat = serial
+     type (par_precond_dd_mlevel_bddc_params_t ), pointer :: ppars_coarse_bddc => NULL()  ! co_sys_sol_strat = recursive
 
      real(rp), allocatable    :: weight(:)
 
@@ -126,9 +126,9 @@ use psb_penv_mod_names
      !integer(ip) :: coarse_its    (2000)      ! allocated to max_it
      !integer(ip) :: harm_its_agg  = 0 
 
-  end type par_precond_dd_mlevel_bddc_params
+  end type par_precond_dd_mlevel_bddc_params_t
 
-  type, extends(base_operator) :: par_precond_dd_mlevel_bddc
+  type, extends(base_operator_t) :: par_precond_dd_mlevel_bddc_t
      real(rp), pointer :: weight(:) => NULL()
 
      ! Preconditioner params
@@ -180,9 +180,9 @@ use psb_penv_mod_names
      ! where corners are numbered first, and then the complement
      ! (edges+the rest of dofs of the subdomain). The arrays perm
      ! and iperm store the correspondence among A_i and P^T A_i P
-     type ( fem_graph )      :: A_rr_gr
-     type ( fem_graph )      :: A_rr_trans_gr
-     type ( fem_matrix )     :: A_rr, A_rr_trans
+     type ( fem_graph_t )      :: A_rr_gr
+     type ( fem_graph_t )      :: A_rr_trans_gr
+     type ( fem_matrix_t )     :: A_rr, A_rr_trans
      real(rp) , allocatable  :: A_rc(:,:), A_cr(:,:), A_cc(:,:)
      real(rp) , allocatable  :: A_cr_trans(:,:), A_rc_trans(:,:), A_cc_trans(:,:)
      logical                 :: enable_constraint_weights
@@ -261,66 +261,66 @@ use psb_penv_mod_names
      integer (ip)              :: max_coarse_dofs
 
      ! Coarse grid system coefficient matrix
-     type ( fem_graph )         :: A_c_gr     ! co_sys_sol_strat = serial
-     type ( fem_matrix )        :: A_c 
-     type ( fem_mesh )          :: f_mesh_c
+     type ( fem_graph_t )         :: A_c_gr     ! co_sys_sol_strat = serial
+     type ( fem_matrix_t )        :: A_c 
+     type ( fem_mesh_t )          :: f_mesh_c
 
-     type ( par_environment )   :: p_env_c      ! Parallel environment for the coarse-grid problem
-     type ( dof_distribution )  :: dof_dist_c   ! co_sys_sol_strat = recursive (or distributed, not implemented yet)
-     type ( renum )             :: eren_c       ! Element renumbering required to pass from c_mesh to p_mesh_c
+     type ( par_environment_t )   :: p_env_c      ! Parallel environment for the coarse-grid problem
+     type ( dof_distribution_t )  :: dof_dist_c   ! co_sys_sol_strat = recursive (or distributed, not implemented yet)
+     type ( renum_t )             :: eren_c       ! Element renum_tbering required to pass from c_mesh to p_mesh_c
                                                 ! (this is required for the assembly of the coarse-grid matrix)
-     type ( par_mesh )          :: p_mesh_c
-     type ( par_graph )         :: p_graph_c
-     type ( par_matrix )        :: p_mat_c
+     type ( par_mesh_t )          :: p_mesh_c
+     type ( par_graph_t )         :: p_graph_c
+     type ( par_matrix_t )        :: p_mat_c
 
      ! END. Global info preconditioner 
      ! (global data only in processor/s in charge of the coarse grid system)
 
      integer (ip)             :: symm
      integer (ip)             :: sign
-     type ( fem_precond )     :: M_rr ,M_rr_trans
-     type ( fem_precond )     :: M_c                                  ! co_sys_sol_strat = serial
+     type ( fem_precond_t )     :: M_rr ,M_rr_trans
+     type ( fem_precond_t )     :: M_c                                  ! co_sys_sol_strat = serial
    
 
-     type ( par_precond_dd_mlevel_bddc ), pointer :: p_M_c        ! co_sys_sol_strat = recursive
+     type ( par_precond_dd_mlevel_bddc_t ), pointer :: p_M_c        ! co_sys_sol_strat = recursive
 
-     type ( fem_operator_dd ) :: A_II_inv ! Only required if unknowns == all_unknowns
+     type ( fem_operator_dd_t ) :: A_II_inv ! Only required if unknowns == all_unknowns
 
-     type ( par_matrix  )     , pointer  :: p_mat    => NULL()
+     type ( par_matrix_t  )     , pointer  :: p_mat    => NULL()
 
-     type (par_context)  :: g_context ! Fine to coarse comm
-     type (par_context)  :: c_context ! Coarse process
-     type (par_context)  :: d_context ! Available (coarse unused) process
-     type (par_context)  :: b_context ! Intercommunicator betwen c_context and d_context (bcast and recursive call)
+     type (par_context_t)  :: g_context ! Fine to coarse comm
+     type (par_context_t)  :: c_context ! Coarse process
+     type (par_context_t)  :: d_context ! Available (coarse unused) process
+     type (par_context_t)  :: b_context ! Intercommunicator betwen c_context and d_context (bcast and recursive call)
 
      ! par_timer objects associated to f_tasks_c_tasks_w_coarse_duties timing
-     type(par_timer), pointer :: timer_assprec_ov_coarse
-     type(par_timer), pointer :: timer_assprec_ov_fine
-     type(par_timer), pointer :: timer_assprec_ov_coarse_header
-     type(par_timer), pointer :: timer_assprec_ov_fine_header
+     type(par_timer_t), pointer :: timer_assprec_ov_coarse
+     type(par_timer_t), pointer :: timer_assprec_ov_fine
+     type(par_timer_t), pointer :: timer_assprec_ov_coarse_header
+     type(par_timer_t), pointer :: timer_assprec_ov_fine_header
 
-     type(par_timer), pointer :: timer_fillprec_ov_coarse
-     type(par_timer), pointer :: timer_fillprec_ov_fine
-     type(par_timer), pointer :: timer_fillprec_ov_coarse_header
-     type(par_timer), pointer :: timer_fillprec_ov_fine_header
+     type(par_timer_t), pointer :: timer_fillprec_ov_coarse
+     type(par_timer_t), pointer :: timer_fillprec_ov_fine
+     type(par_timer_t), pointer :: timer_fillprec_ov_coarse_header
+     type(par_timer_t), pointer :: timer_fillprec_ov_fine_header
 
-     type(par_timer), pointer :: timer_applyprec_ov_coarse
-     type(par_timer), pointer :: timer_applyprec_ov_fine
-     type(par_timer), pointer :: timer_applyprec_ov_coarse_header
-     type(par_timer), pointer :: timer_applyprec_ov_coarse_tail
+     type(par_timer_t), pointer :: timer_applyprec_ov_coarse
+     type(par_timer_t), pointer :: timer_applyprec_ov_fine
+     type(par_timer_t), pointer :: timer_applyprec_ov_coarse_header
+     type(par_timer_t), pointer :: timer_applyprec_ov_coarse_tail
 
-     type(par_timer), pointer :: timer_coll_assprec
-     type(par_timer), pointer :: timer_coll_fillprec
-     type(par_timer), pointer :: timer_coll_applyprec
+     type(par_timer_t), pointer :: timer_coll_assprec
+     type(par_timer_t), pointer :: timer_coll_fillprec
+     type(par_timer_t), pointer :: timer_coll_applyprec
 
-     type(fem_precond_params)        :: ppars_harm 
-     type(solver_control), pointer   :: spars_harm
-     type(solver_control), pointer   :: spars_neumann
-     type(fem_precond_params)        :: ppars_dirichlet 
-     type(solver_control), pointer   :: spars_dirichlet 
-     type(solver_control), pointer   :: spars_coarse
-     type(fem_precond_params)        :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
-     type (par_precond_dd_mlevel_bddc_params ) :: ppars_coarse_bddc      ! co_sys_sol_strat = recursive_bddc
+     type(fem_precond_params_t)        :: ppars_harm 
+     type(solver_control_t), pointer   :: spars_harm
+     type(solver_control_t), pointer   :: spars_neumann
+     type(fem_precond_params_t)        :: ppars_dirichlet 
+     type(solver_control_t), pointer   :: spars_dirichlet 
+     type(solver_control_t), pointer   :: spars_coarse
+     type(fem_precond_params_t)        :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
+     type (par_precond_dd_mlevel_bddc_params_t ) :: ppars_coarse_bddc      ! co_sys_sol_strat = recursive_bddc
 
      integer(ip) :: num_neumann_solves   = 0
      integer(ip) :: num_dirichlet_solves = 0
@@ -335,12 +335,12 @@ use psb_penv_mod_names
      procedure :: apply => par_precond_dd_mlevel_bddc_apply_tbp
      procedure :: apply_fun => par_precond_dd_mlevel_bddc_apply_fun_tbp
      procedure :: free => par_precond_dd_mlevel_bddc_free_tbp
-  end type par_precond_dd_mlevel_bddc
+  end type par_precond_dd_mlevel_bddc_t
 
   ! public :: default_kind_coarse_dofs, default_co_sys_sol_strat, default_ndime
 
   ! Types
-  public :: par_precond_dd_mlevel_bddc, par_precond_dd_mlevel_bddc_params
+  public :: par_precond_dd_mlevel_bddc_t, par_precond_dd_mlevel_bddc_params_t
 
   ! Functions
   public :: par_precond_dd_mlevel_bddc_create, par_precond_dd_mlevel_bddc_ass_struct, &
@@ -371,16 +371,16 @@ use mpi
 #endif
     !implicit none
     ! Parameters
-    type(par_matrix)                       , target ,intent(in)  :: p_mat
-    type(par_precond_dd_mlevel_bddc)                ,intent(out) :: mlbddc
-    type(par_precond_dd_mlevel_bddc_params), target ,intent(in)  :: mlbddc_params
+    type(par_matrix_t)                       , target ,intent(in)  :: p_mat
+    type(par_precond_dd_mlevel_bddc_t)                ,intent(out) :: mlbddc
+    type(par_precond_dd_mlevel_bddc_params_t), target ,intent(in)  :: mlbddc_params
 
     ! Locals
     integer            :: i, istat
     logical            :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
-    type (fem_vector)  :: dum 
-    type (fem_matrix)  :: mat_dum
-    type (par_context) :: dum_context
+    type (fem_vector_t)  :: dum 
+    type (fem_matrix_t)  :: mat_dum
+    type (par_context_t) :: dum_context
 
 
     ! This module requires w_context (all tasks involved here), p_context (fine tasks, which
@@ -742,11 +742,11 @@ use mpi
   recursive subroutine par_precond_dd_mlevel_bddc_free ( mlbddc, mode )
     implicit none
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
     integer(ip)                     , intent(in)    :: mode
 
     ! Locals
-    type (fem_vector) :: dum 
+    type (fem_vector_t) :: dum 
     integer           :: iam, istat
     logical           :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
 
@@ -1068,10 +1068,10 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_matrix)                , target, intent(in)    :: p_mat
-    type(par_precond_dd_mlevel_bddc), target, intent(inout) :: mlbddc
+    type(par_matrix_t)                , target, intent(in)    :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
  
-    type (fem_mesh)  :: c_mesh
+    type (fem_mesh_t)  :: c_mesh
     logical          :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
     !integer(ip)      :: iam
 
@@ -1214,8 +1214,8 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_matrix)         , intent(in)     :: p_mat
-    type(par_precond_dd_mlevel_bddc), intent(inout)  :: mlbddc
+    type(par_matrix_t)         , intent(in)     :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
 
     integer :: info
 
@@ -1429,7 +1429,7 @@ use mpi
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
     integer (ip) :: iobj, icorner, iedge
@@ -1701,8 +1701,8 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_matrix)         , intent(in)                    :: p_mat
-    type(par_precond_dd_mlevel_bddc), intent(inout)                 :: mlbddc
+    type(par_matrix_t)         , intent(in)                    :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), intent(inout)                 :: mlbddc
 
     mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
     mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
@@ -1852,8 +1852,8 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-    type(fem_mesh), intent(out) :: c_mesh
+    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(fem_mesh_t), intent(out) :: c_mesh
     integer(ip), allocatable  :: idum (:)
     logical                   :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
     integer                   :: info, iam
@@ -2327,7 +2327,7 @@ use mpi
     integer(ip), allocatable :: work2 (:)
     integer(ip), allocatable :: work3 (:,:) 
     integer(ip), allocatable :: pad_buf_snd (:,:), pad_buf_rcv(:,:)
-    type(hash_table_ip_ip)   :: objs_visited, objs_positions 
+    type(hash_table_ip_ip_t)   :: objs_visited, objs_positions 
 
     ! Set size of the hash table as 10% of the average number of coarse
     ! DoFs per subdomain    
@@ -2473,7 +2473,7 @@ use mpi
     ! Parameters 
     ! On input , mlbddc%f_mesh_c%pnods in C-based indexing
     ! On output, mlbddc%f_mesh_c%pnods in F-based indexing 
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
     integer(ip)    :: gtype
@@ -2497,8 +2497,8 @@ use mpi
 use mpi
     implicit none
     ! Parameters 
-    type(fem_mesh), intent(inout) :: c_mesh
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
+    type(fem_mesh_t), intent(inout) :: c_mesh
+    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
     integer(ip)              :: i, sum_nnz, max_sum_nnz
@@ -2506,7 +2506,7 @@ use mpi
     integer(ip), allocatable :: nl_coarse_neigh(:)   ! Number of local coarse dofs of my neighbours
     logical                  :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
-    type(fem_mesh)           :: dual_f_mesh
+    type(fem_mesh_t)           :: dual_f_mesh
     integer(ip), allocatable :: neighbours_coarse_parts (:)
     integer(ip), allocatable :: dual_parts (:)
     integer(ip), allocatable :: l2ge(:)
@@ -2905,7 +2905,7 @@ use mpi
     integer(ip), intent(in)  :: max_coarse_dofs
     integer(ip), intent(in)  :: ptr_coarse_dofs(np_g+1)
     integer(ip), intent(in)  :: lst_coarse_dofs(ptr_coarse_dofs(np_g+1))
-    type(fem_mesh) , intent(out) :: dual_f_mesh
+    type(fem_mesh_t) , intent(out) :: dual_f_mesh
     integer(ip)    , allocatable, intent(out) :: dual_f_parts(:)
 
     ! Locals    
@@ -3036,8 +3036,8 @@ use mpi
                                            
     implicit none
     ! Parameters 
-    type(par_matrix)                , target, intent(in)    :: p_mat
-    type(par_precond_dd_mlevel_bddc), target, intent(inout) :: mlbddc
+    type(par_matrix_t)                , target, intent(in)    :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
 
     ! Locals
     logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
@@ -3068,13 +3068,13 @@ use mpi
                                            
     implicit none
     ! Parameters 
-    type(par_matrix)         , intent(in)                    :: p_mat
-    type(par_precond_dd_mlevel_bddc), intent(inout), target  :: mlbddc
+    type(par_matrix_t)         , intent(in)                    :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
 
     ! Locals
     integer(ip) :: me, np, lunou
     logical     :: i_am_fine_task
-    type(par_matrix) :: p_mat_trans
+    type(par_matrix_t) :: p_mat_trans
 
 
     ! The routine requires the partition/context info
@@ -3260,8 +3260,8 @@ use mpi
                                            
     implicit none
     ! Parameters 
-    type(par_matrix)         , intent(in)                    :: p_mat
-    type(par_precond_dd_mlevel_bddc), intent(inout), target  :: mlbddc
+    type(par_matrix_t)         , intent(in)                    :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
     logical, optional, intent(in)                            :: realloc_harm_extensions
 
     ! Locals 
@@ -3756,13 +3756,13 @@ use mpi
 
   subroutine extract_trans_matrix(A, gr_a, A_t, gr_t)
 
-    type(fem_matrix), intent(in)     :: A         ! Input matrix
-    type(fem_graph),  target, intent(in)     :: gr_a      ! Graph of the matrix
-    type(fem_matrix), intent(out)  :: A_t       ! Output matrix
-    type(fem_graph), pointer,  intent(out)  :: gr_t      ! Graph of the transpose matrix
+    type(fem_matrix_t), intent(in)     :: A         ! Input matrix
+    type(fem_graph_t),  target, intent(in)     :: gr_a      ! Graph of the matrix
+    type(fem_matrix_t), intent(out)  :: A_t       ! Output matrix
+    type(fem_graph_t), pointer,  intent(out)  :: gr_t      ! Graph of the transpose matrix
 
     ! Locals 
-    type(fem_graph) :: aux_graph
+    type(fem_graph_t) :: aux_graph
     integer :: k,i,j
 
     if ( gr_a%type == csr ) then
@@ -3938,10 +3938,10 @@ use mpi
   subroutine compute_edge_lagrange_multipliers_rhs (mlbddc, A_rr, M_rr,  A_rc, rhs, work)
     implicit none
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc), intent(inout), target :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
 
-    type(fem_matrix)       , intent(inout)            :: A_rr
-    type(fem_precond)      , intent(inout)            :: M_rr
+    type(fem_matrix_t)       , intent(inout)            :: A_rr
+    type(fem_precond_t)      , intent(inout)            :: M_rr
 
     real(rp)               , intent(inout)         :: A_rc ( mlbddc%A_rr_gr%nv  , &
                                                                mlbddc%nl_corners) 
@@ -3954,7 +3954,7 @@ use mpi
     ! Locals
     integer(ip)             :: base, i, start, icoarse
 
-   ! type(solver_control)      :: spars
+   ! type(solver_control_t)      :: spars
  
 
     if ( mlbddc%nl_corners > 0 ) then
@@ -4628,9 +4628,9 @@ use mpi
 use mpi
     implicit none
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-    type(fem_matrix)          , intent(inout)   :: A_rr
-    type(fem_precond)         , intent(inout)   :: M_rr
+    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(fem_matrix_t)          , intent(inout)   :: A_rr
+    type(fem_precond_t)         , intent(inout)   :: M_rr
 
     real(rp), allocatable     , intent(inout)   :: A_rr_inv_C_r_T(:,:) , A_rr_inv_C_r_T_neumann(:,:)
     real(rp), allocatable     , intent(inout)   :: S_rr(:,:), S_rr_neumann(:,:)
@@ -4645,7 +4645,7 @@ use mpi
     real (rp), allocatable :: C_r_T (:,:)
     real (rp), allocatable :: work(:)
     integer (ip)           :: lwork
-   ! type(solver_control)      :: spars
+   ! type(solver_control_t)      :: spars
 
 #ifdef ENABLE_LAPACK
     call memalloc (  mlbddc%nl_edges, mlbddc%nl_edges,  S_rr,  __FILE__,__LINE__ )
@@ -5063,7 +5063,7 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc 
+    type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc 
 
     real(rp)                  , intent(in)   :: S_rr(:,:), S_rr_neumann(:,:)
     integer (ip)              , intent(in)   :: ipiv(:), ipiv_neumann(:) 
@@ -5302,7 +5302,7 @@ use mpi
   ! A_rr rPhi_r = - ([A_rc 0] + C_r^T lamba_r) 
   subroutine compute_harmonic_extensions_corner_edges_partitioning (mlbddc, A_cr, A_rc, A_cc, A_rr, M_rr, A_rr_inv_C_r_T, rPhi, lambda_r, work, system, iparm, msglvl)
     implicit none
-    type(par_precond_dd_mlevel_bddc), intent(inout), target :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
     real(rp)                 , intent(in)   :: A_cr( mlbddc%nl_corners, &
                                                      mlbddc%A_rr_gr%nv  )
 
@@ -5312,8 +5312,8 @@ use mpi
     real(rp)                 , intent(in)   :: A_cc( mlbddc%nl_corners  , &
                                                      mlbddc%nl_corners  )
 
-    type(fem_matrix)         , intent(inout)   :: A_rr
-    type(fem_precond)        , intent(inout)   :: M_rr
+    type(fem_matrix_t)         , intent(inout)   :: A_rr
+    type(fem_precond_t)        , intent(inout)   :: M_rr
 
     real (rp)                , intent(in)      :: A_rr_inv_C_r_T (:,:) 
     real(rp)                 , intent(inout)   :: rPhi (mlbddc%p_mat%dof_dist%nl,&
@@ -5333,9 +5333,9 @@ use mpi
     real(rp), allocatable :: work1(:,:), work2(:,:), work3(:,:), aux(:)
     integer(ip)           :: j, k, base, iadj, jdof
 
-    type(post_file)      :: lupos
+    type(post_file_t)      :: lupos
     integer              :: me, np
-    ! type(solver_control)      :: spars
+    ! type(solver_control_t)      :: spars
 
     ! harm(:, 1:(mlbddc%nl_edges+mlbddc%nl_corners) ) = 0.0
     ! Set harm_c
@@ -5492,12 +5492,12 @@ use mpi
   ! Computes the harmonic extensions, i.e., mlbddc%rPhi(:,:)
   subroutine compute_harmonic_extensions_with_constraints (mlbddc, A_rr, M_rr, rPhi, system, iparm, msglvl)
     implicit none
-    type(par_precond_dd_mlevel_bddc), intent(inout), target        :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(inout), target        :: mlbddc
     integer                  , intent(in), target, optional :: iparm(64)
     integer                  , intent(in), optional         :: msglvl
 
-    type(fem_matrix)      , intent(inout)   :: A_rr
-    type(fem_precond)     , intent(inout)   :: M_rr
+    type(fem_matrix_t)      , intent(inout)   :: A_rr
+    type(fem_precond_t)     , intent(inout)   :: M_rr
     real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist%nl, &
                                                      mlbddc%nl_edges+mlbddc%nl_corners)    
     character(len=1)      , intent(in)      :: system ! Information about the regular system or the system assoc                                                        iated to the transpose matrix
@@ -5506,9 +5506,9 @@ use mpi
     real(rp), allocatable :: work1(:,:), work2(:,:), work3(:,:)
     integer(ip)           :: i, j, k, base, iadj, jdof, icoarse
 
-    type(post_file)      :: lupos
+    type(post_file_t)      :: lupos
     integer              :: me, np
-    ! type(solver_control)      :: spars
+    ! type(solver_control_t)      :: spars
     ! MATRIX MARKET          ! Write files with specified matrices
   integer(ip)              :: lunou    ! Creation of the file
   character(len=256)       :: filename ! Name of the file
@@ -5589,8 +5589,8 @@ end if
   subroutine assemble_A_c (p_mat, mlbddc, realloc_harm_extensions)
     implicit none
     ! Parameters  
-    type(par_matrix)         , intent(in)     :: p_mat
-    type(par_precond_dd_mlevel_bddc), intent(inout)  :: mlbddc
+    type(par_matrix_t)         , intent(in)     :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
     logical, intent(in), optional :: realloc_harm_extensions
 
     ! Locals
@@ -5882,7 +5882,7 @@ end if
     implicit none
 
     ! Parameters
-    type(fem_matrix), intent(inout) :: A_c
+    type(fem_matrix_t), intent(inout) :: A_c
     integer(ip)     , intent(in)    :: np, sz_a_ci_gathered
     integer(ip)     , intent(in)    :: ptr_coarse_dofs (np+1)
     integer(ip)     , intent(in)    :: lst_coarse_dofs (ptr_coarse_dofs(np+1))
@@ -6135,15 +6135,15 @@ use mpi
   recursive subroutine par_precond_dd_mlevel_bddc_apply_all_unk (mlbddc, x, y)
     implicit none
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc 
-    type(par_vector)                , intent(in)        :: x
-    type(par_vector)                , intent(inout)     :: y
+    type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc 
+    type(par_vector_t)                , intent(in)        :: x
+    type(par_vector_t)                , intent(inout)     :: y
 
     ! Locals
-    type(par_vector)      :: r, dx, v1, v2, v3, aux
-    type(par_vector)      :: r_I, r_G, x_I, x_G, r_v1, y_I, y_G, dx_I, dx_G
-    type(par_vector)      :: p_r_c, p_z_c
-    type(fem_vector)      :: r_c, z_c, dum_vec
+    type(par_vector_t)      :: r, dx, v1, v2, v3, aux
+    type(par_vector_t)      :: r_I, r_G, x_I, x_G, r_v1, y_I, y_G, dx_I, dx_G
+    type(par_vector_t)      :: p_r_c, p_z_c
+    type(fem_vector_t)      :: r_c, z_c, dum_vec
     logical               :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
     ! The routine requires the partition/context info
@@ -6443,14 +6443,14 @@ use mpi
   subroutine par_precond_dd_mlevel_bddc_static_condensation (p_mat, mlbddc, b, x)
     implicit none
     ! Parameters
-    type(par_matrix)                , intent(in)    :: p_mat
-    type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
-    type(par_vector)                , intent(in)    :: b
-    type(par_vector)                , intent(inout) :: x
+    type(par_matrix_t)                , intent(in)    :: p_mat
+    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_vector_t)                , intent(in)    :: b
+    type(par_vector_t)                , intent(inout) :: x
 
     ! Locals
-    type(par_vector)      :: r
-    type(par_vector)      :: r_I, b_I, x_G, x_I
+    type(par_vector_t)      :: r
+    type(par_vector_t)      :: r_I, b_I, x_G, x_I
 
     ! Pointer to part/context object is required
     assert ( associated(p_mat%p_env) )
@@ -6484,9 +6484,9 @@ use mpi
   subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r_G, r_c )
    implicit none
    ! Parameters
-   type(par_precond_dd_mlevel_bddc) ,intent(in) :: mlbddc
-   type(par_vector)                 ,intent(in) :: r_G
-   type(fem_vector)                 ,intent(inout) :: r_c 
+   type(par_precond_dd_mlevel_bddc_t) ,intent(in) :: mlbddc
+   type(par_vector_t)                 ,intent(in) :: r_G
+   type(fem_vector_t)                 ,intent(inout) :: r_c 
 
    ! Locals
    integer :: me, np
@@ -6603,9 +6603,9 @@ use mpi
  subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, z_c, v_G )
    implicit none
    ! Parameters
-   type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc
-   type(fem_vector)                , intent(inout) :: z_c
-   type(par_vector)                , intent(inout) :: v_G 
+   type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc
+   type(fem_vector_t)                , intent(inout) :: z_c
+   type(par_vector_t)                , intent(inout) :: v_G 
 
    ! Locals
    real(rp), allocatable :: z_ci(:)
@@ -6675,16 +6675,16 @@ use mpi
   subroutine par_precond_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v_G )
     implicit none
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(in) :: mlbddc
-    type(par_vector)                , intent(in)    :: r       ! Local residual
-    type(par_vector)                , intent(inout) :: v_G 
+    type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc
+    type(par_vector_t)                , intent(in)    :: r       ! Local residual
+    type(par_vector_t)                , intent(inout) :: v_G 
 
     ! Locals
     real(rp), allocatable :: r_r (:), z_r (:)
     real(rp), allocatable :: rhs (:), lambda_r (:)
     real(rp), allocatable :: work(:)
     real(rp), allocatable :: aug_r(:), aug_v(:)
-    ! type(solver_control)      :: spars
+    ! type(solver_control_t)      :: spars
 
     ! Phase 2: compute substructure correction v_G
     if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -6784,8 +6784,8 @@ use mpi
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(in)    :: mlbddc
-    type(par_vector)                , intent(in)    :: r
+    type(par_precond_dd_mlevel_bddc_t), intent(in)    :: mlbddc
+    type(par_vector_t)                , intent(in)    :: r
     real(rp)                        , intent(inout) :: r_ci(mlbddc%nl_coarse  )
 
 #ifdef ENABLE_BLAS
@@ -6829,9 +6829,9 @@ use mpi
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc), intent(in)    :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(in)    :: mlbddc
     real(rp)                        , intent(in)    :: r_ci(mlbddc%nl_coarse  )
-    type(par_vector)                , intent(inout) :: r
+    type(par_vector_t)                , intent(inout) :: r
 
 #ifdef ENABLE_BLAS
       ! r <- 1.0 * rPhi * r_ci + 0.0 * r 
@@ -7023,7 +7023,7 @@ use mpi
     implicit none
 
     ! Parameters
-    type(fem_vector), intent(inout)         :: r_c
+    type(fem_vector_t), intent(inout)         :: r_c
     integer(ip)     , intent(in)            :: np, ng_coarse, sz_r_ci_gathered
     integer(ip)     , intent(in)            :: ptr_coarse_dofs (np+1)
     integer(ip)     , intent(in)            :: lst_coarse_dofs (ptr_coarse_dofs(np+1))
@@ -7095,7 +7095,7 @@ use mpi
     integer(ip), intent(in)      :: max_coarse_dofs
     integer(ip), intent(in)      :: ptr_coarse_dofs (np_g+1)
     integer(ip), intent(in)      :: lst_coarse_dofs (ptr_coarse_dofs (np_g+1))
-    type(fem_vector), intent(in) :: z_c
+    type(fem_vector_t), intent(in) :: z_c
     integer(ip), optional, intent(in) :: perm(np_g-1)
 
     ! Locals
@@ -7327,7 +7327,7 @@ use mpi
   subroutine compute_neumann_edge_lagrange_multipliers_rhs (mlbddc, r_r, rhs, work, iparm, msglvl)
     implicit none
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc), intent(in), target :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(in), target :: mlbddc
 
     real(rp)                 , intent(inout)         :: r_r  (mlbddc%A_rr_gr%nv)
     real(rp)                 , intent(out)           :: rhs  (mlbddc%nl_edges )
@@ -7339,7 +7339,7 @@ use mpi
     ! Locals
     integer(ip)             :: base, i
 
-   ! type(solver_control)      :: spars
+   ! type(solver_control_t)      :: spars
 
     ! work <- A_rr^-1 * r_r
    mlbddc%spars_neumann%nrhs=1
@@ -7383,7 +7383,7 @@ use mpi
   ! A_rr z_r = r_r - C_r^T lamba_r 
   subroutine solve_neumann_problem (mlbddc, r_r, lambda_r, work, z_r)
     implicit none
-    type(par_precond_dd_mlevel_bddc), intent(in), target        :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(in), target        :: mlbddc
     real(rp)                 , intent(inout)                :: r_r (mlbddc%A_rr_gr%nv)
     real(rp)                 , intent(in)                   :: lambda_r (mlbddc%nl_edges  )
     real(rp)                 , intent(in)                   :: work (mlbddc%A_rr_gr%nv) 
@@ -7392,7 +7392,7 @@ use mpi
     ! Locals
     real(rp), allocatable :: work2(:)
     integer(ip)           :: j, k, base
-    ! type(solver_control)      :: spars
+    ! type(solver_control_t)      :: spars
 
     if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
        if ( mlbddc%kind_coarse_dofs == corners_and_edges .or. & 
@@ -7470,7 +7470,7 @@ use mpi
 #endif
 
       ! Parameters
-      type(par_precond_dd_mlevel_bddc), intent(inout) :: mlbddc
+      type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
       character *(*)           , intent(in)    :: prefix 
 
       ! Locals
@@ -7613,7 +7613,7 @@ use mpi
     recursive subroutine par_precond_dd_mlevel_bddc_time_report ( mlbddc )
       implicit none
       ! Parameters
-      type(par_precond_dd_mlevel_bddc), target, intent(inout) :: mlbddc
+      type(par_precond_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
 
       ! Locals
       logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
@@ -7698,12 +7698,12 @@ use mpi
     implicit none
 
     ! Parameters  
-    type(par_precond_dd_mlevel_bddc), intent(inout)  :: mlbddc
+    type(par_precond_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
 
     ! Locals
     real(rp), allocatable :: C_weights_i(:), C_weights_i_gathered(:)
-    type(fem_vector)      :: C_weights_next_level
-    type(par_vector)      :: constraint_weights
+    type(fem_vector_t)      :: C_weights_next_level
+    type(par_vector_t)      :: constraint_weights
     integer(ip)           :: i, j, sum
     logical               :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
     integer(ip)           :: nl_coarse_dofs, ni, nb
@@ -7826,22 +7826,22 @@ use mpi
                                               
     implicit none
     integer(ip)           , intent(in)    :: icontxt, me, np 
-    type(fem_mesh)        , intent(in)    :: f_mesh
+    type(fem_mesh_t)        , intent(in)    :: f_mesh
     integer(ip)           , intent(in)    :: l2ge(f_mesh%nelem)
-    type(fem_mesh)        , intent(in)    :: df_mesh
+    type(fem_mesh_t)        , intent(in)    :: df_mesh
     integer(ip)           , intent(in)    :: dual_parts(df_mesh%pnods(df_mesh%nelem+1)-1)
     integer(ip)           , intent(in)    :: vars(f_mesh%npoin)
-    type(fem_mesh)        , intent(out)   :: new_f_mesh
-    type(dof_distribution), intent(out)   :: dof_dist
-    type(renum)           , intent(out)   :: eren    
+    type(fem_mesh_t)        , intent(out)   :: new_f_mesh
+    type(dof_distribution_t), intent(out)   :: dof_dist
+    type(renum_t)           , intent(out)   :: eren    
 
 
     ! Locals
     integer(ip)                :: nboun, eboun, max_nelem
     integer(igp)               :: ngelem
     integer(ip) , allocatable  :: nlboun(:), elboun(:)
-    type(renum)                :: nren
-    type(par_timer)            :: t1, t2, t3, t4, t5
+    type(renum_t)                :: nren
+    type(par_timer_t)            :: t1, t2, t3, t4, t5
     logical, parameter         :: temporize_phases = .false. 
 
     dof_dist%nparts = np
@@ -7975,7 +7975,7 @@ use mpi
 
     call renum_free(nren)
 
-    ! Compute dof_import instance such that DoF nearest neighbour exchanges
+    ! Compute dof_import_t instance such that DoF nearest neighbour exchanges
     ! can be performed among subdomains on any intermmediate coarse-grid mesh
     call dof_distribution_compute_import(dof_dist)
 
@@ -7995,9 +7995,9 @@ use mpi
 
     ! Parameters
     integer(ip)   , intent(in)                :: ipart
-    type(fem_mesh), intent(in)                :: f_mesh
+    type(fem_mesh_t), intent(in)                :: f_mesh
     integer(ip)   , intent(in)                :: l2ge(f_mesh%nelem)
-    type(fem_mesh), intent(in)                :: df_mesh
+    type(fem_mesh_t), intent(in)                :: df_mesh
     integer(ip)   , intent(in)                :: dual_parts(df_mesh%pnods(df_mesh%nelem+1)-1)
     integer(ip)   , intent(out)               :: nboun
     integer(ip)   , intent(out)               :: eboun
@@ -8009,8 +8009,8 @@ use mpi
     integer(ip), allocatable :: auxn(:), auxe(:)
     integer(ip)              :: i, j, istat, aux_val
     logical                  :: is_boun_poin
-    type(hash_table_ip_ip)   :: boun_elems 
-    type(hash_table_ip_ip)   :: g2le
+    type(hash_table_ip_ip_t)   :: boun_elems 
+    type(hash_table_ip_ip_t)   :: g2le
 
     call boun_elems%init(max(int(real(f_mesh%npoin,rp)*0.05_rp,ip),5))
     call g2le%init(max(int(real(f_mesh%nelem,rp)*0.25_rp,ip),5))
@@ -8091,8 +8091,8 @@ use mpi
                                                         el2ln2o    )
     implicit none
 
-    type(fem_mesh), intent(in) :: f_mesh
-    type(fem_mesh), intent(in) :: df_mesh
+    type(fem_mesh_t), intent(in) :: f_mesh
+    type(fem_mesh_t), intent(in) :: df_mesh
     integer(ip)   , intent(in) :: dual_parts(df_mesh%pnods(df_mesh%nelem+1)-1)
     integer(ip)   , intent(in) :: icontxt
     integer(ip)   , intent(in) :: ipart
@@ -8118,8 +8118,8 @@ use mpi
     integer(ip)               :: est_max_nparts, i, j, k, jpart, count, pos, count_nelem, pos_jelem
     integer(ip)               :: start, end, ni, ielpo, jelem
     integer(igp), allocatable :: ws_parts_list_sep (:,:)
-    type(hash_table_ip_ip)    :: ws_parts_visited, ws_parts_visited_all
-    type(hash_table_igp_ip)   :: ws_elems_visited
+    type(hash_table_ip_ip_t)    :: ws_parts_visited, ws_parts_visited_all
+    type(hash_table_igp_ip_t)   :: ws_elems_visited
     ! integer(ip), allocatable :: ws_parts_visited (:)
     ! integer(ip), allocatable :: ws_parts_visited_all (:)
     integer(ip), allocatable  :: ws_parts_visited_list_all (:)
@@ -8130,7 +8130,7 @@ use mpi
     integer(ip)               :: istat
     integer(ip), parameter    :: tbl_length = 100
 
-    type(par_timer)    :: t1, t2, t3, t4, t5
+    type(par_timer_t)    :: t1, t2, t3, t4, t5
     logical, parameter :: temporize_phases = .false. 
     integer(ip) :: aux_val 
 
@@ -8472,7 +8472,7 @@ use mpi
     integer(ip)      ,intent(in)    :: nn
     integer(ip)      ,intent(in)    :: ln(:)
     real(rp)         ,intent(in)    :: ea(:,:)
-    type(fem_matrix) ,intent(inout) :: mat
+    type(fem_matrix_t) ,intent(inout) :: mat
     
     ! Locals
     integer(ip) :: nl, ne
@@ -8551,16 +8551,16 @@ use mpi
 
     ! Parameters
     integer(ip)          , intent(in)     :: gtype
-    type(fem_mesh)       , intent(in)     :: primal_mesh
-    type(fem_graph)      , intent(out)    :: primal_graph
+    type(fem_mesh_t)       , intent(in)     :: primal_mesh
+    type(fem_graph_t)      , intent(out)    :: primal_graph
 
 
     ! Local variables
-    type (fem_mesh)                        :: dual_mesh
+    type (fem_mesh_t)                        :: dual_mesh
     integer(ip), allocatable               :: iwork(:)       ! Integer ip working array
     integer(ip)                            :: pwork(3)       ! Pointers to work space
 
-    ! Valid fem_graph types for addressing sparse matrices are csr_symm or csr
+    ! Valid fem_graph_t types for addressing sparse matrices are csr_symm or csr
     assert( gtype==csr_symm .or. gtype==csr )
 
 
@@ -8605,8 +8605,8 @@ use mpi
 
     ! Parameters
     integer(ip)    , intent(in)     :: gtype
-    type(fem_mesh) , intent(in)     :: primal_mesh, dual_mesh
-    type(fem_graph), intent(inout)  :: primal_graph
+    type(fem_mesh_t) , intent(in)     :: primal_mesh, dual_mesh
+    type(fem_graph_t), intent(inout)  :: primal_graph
     integer(ip)    , intent(out)    :: ws_position  (primal_mesh%npoin)
     integer(ip)    , intent(out)    :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
 
@@ -8680,8 +8680,8 @@ use mpi
 
        ! Parameters
        integer(ip)    , intent(in)    :: gtype
-       type(fem_mesh) , intent(in)    :: primal_mesh, dual_mesh
-       type(fem_graph), intent(inout) :: primal_graph
+       type(fem_mesh_t) , intent(in)    :: primal_mesh, dual_mesh
+       type(fem_graph_t), intent(inout) :: primal_graph
        integer(ip)    , intent(out)   :: ws_position  (primal_mesh%npoin)
        integer(ip)    , intent(out)   :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
 
@@ -8759,25 +8759,25 @@ use mpi
      subroutine par_precond_dd_mlevel_bddc_apply_tbp (op, x, y)
        implicit none
        ! Parameters
-       class(par_precond_dd_mlevel_bddc)    , intent(in)    :: op
-       class(base_operand)   , intent(in)    :: x
-       class(base_operand)   , intent(inout) :: y
+       class(par_precond_dd_mlevel_bddc_t)    , intent(in)    :: op
+       class(base_operand_t)   , intent(in)    :: x
+       class(base_operand_t)   , intent(inout) :: y
 
 !!$       assert (associated(op%mat))
 
        call x%GuardTemp()
 
        select type(x)
-          class is (par_vector)
+          class is (par_vector_t)
           select type(y)
-             class is(par_vector)
+             class is(par_vector_t)
                call par_precond_dd_mlevel_bddc_apply_all_unk ( op, x, y )
              class default
-             write(0,'(a)') 'fem_matrix%apply: unsupported y class'
+             write(0,'(a)') 'fem_matrix_t%apply: unsupported y class'
              check(1==0)
           end select
           class default
-          write(0,'(a)') 'par_precond_dd_mlevel_bddc%apply: unsupported x class'
+          write(0,'(a)') 'par_precond_dd_mlevel_bddc_t%apply: unsupported x class'
           check(1==0)
        end select
 
@@ -8789,22 +8789,22 @@ use mpi
      function par_precond_dd_mlevel_bddc_apply_fun_tbp (op, x) result(y)
        implicit none
        ! Parameters
-       class(par_precond_dd_mlevel_bddc), intent(in)   :: op
-       class(base_operand), intent(in)  :: x
-       class(base_operand), allocatable :: y
-       type(par_vector), allocatable :: local_y
+       class(par_precond_dd_mlevel_bddc_t), intent(in)   :: op
+       class(base_operand_t), intent(in)  :: x
+       class(base_operand_t), allocatable :: y
+       type(par_vector_t), allocatable :: local_y
 
        call x%GuardTemp()
 
        select type(x)
-          class is (par_vector)
+          class is (par_vector_t)
              allocate(local_y)
              call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
              call par_precond_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
              call move_alloc(local_y, y)
              call y%SetTemp()
           class default
-             write(0,'(a)') 'par_precond_dd_mlevel_bddc%apply_fun: unsupported x class'
+             write(0,'(a)') 'par_precond_dd_mlevel_bddc_t%apply_fun: unsupported x class'
              check(1==0)
           end select
           
@@ -8813,7 +8813,7 @@ use mpi
 
         subroutine par_precond_dd_mlevel_bddc_free_tbp(this)
           implicit none
-          class(par_precond_dd_mlevel_bddc), intent(inout) :: this
+          class(par_precond_dd_mlevel_bddc_t), intent(inout) :: this
         end subroutine par_precond_dd_mlevel_bddc_free_tbp
 
 end module par_precond_dd_mlevel_bddc_names

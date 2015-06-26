@@ -31,7 +31,7 @@ use memor_names
   implicit none
   private
 
-  type femap
+  type femap_t
      integer(ip)            :: khes = 0       ! Second derivatives of the map (1=yes 0=no)
      integer(ip)            :: ndime = 2
      integer(ip)            :: nlocs = 1      ! Evaluation (usually Gauss) points
@@ -41,10 +41,10 @@ use memor_names
      real(rp), allocatable  :: detjm(:)       ! Map Jacobian det     (nlocs)
      real(rp), allocatable  :: hleng(:,:)     ! Local base length    (ndime,nlocs)
      real(rp), allocatable  :: d2sdx(:,:,:,:) ! 2nd derivatives (ndime,ndime,ndime,nlocs)
-  end type femap
+  end type femap_t
 
   ! Types
-  public :: femap
+  public :: femap_t
 
   ! Functions
   public :: femap_create, femap_free
@@ -56,7 +56,7 @@ contains
   subroutine femap_create(khes,ndime,nlocs,map)
     implicit none
     integer(ip), intent(in)  :: khes,ndime,nlocs
-    type(femap), intent(out) :: map
+    type(femap_t), intent(out) :: map
     integer(ip) :: iloc
 
     map%khes=khes
@@ -75,7 +75,7 @@ contains
   !==============================================================================
   subroutine femap_free(map)
     implicit none
-    type(femap), intent(inout) :: map
+    type(femap_t), intent(inout) :: map
 
     call memfree(map%clocs,__FILE__,__LINE__)
     call memfree(map%jacob,__FILE__,__LINE__)

@@ -54,8 +54,8 @@ contains
     !   This subroutine updates Dirichlet boundary conditions in unkno from fem_conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_space)     , intent(inout) :: fspac
-    type(fem_conditions), intent(in)    :: fcond
+    type(fem_space_t)     , intent(inout) :: fspac
+    type(fem_conditions_t), intent(in)    :: fcond
     ! Locals
     integer(ip) :: ielem, iobje, ivar, inode, l_node, gvar, lobje, prob
 
@@ -87,7 +87,7 @@ contains
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     integer(ip)          , intent(in)    :: case
     real(rp)             , intent(in)    :: ctime
-    type(fem_space)      , intent(inout) :: fspac
+    type(fem_space_t)      , intent(inout) :: fspac
     integer(ip), optional, intent(in)    :: caset,t
     ! Locals
     integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
@@ -174,8 +174,8 @@ contains
     !   This subroutine stores the solution from a fem_vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_vector)     , intent(in)    :: fevec   
-    type(fem_space)      , intent(inout) :: fspac
+    type(fem_vector_t)     , intent(in)    :: fevec   
+    type(fem_space_t)      , intent(inout) :: fspac
     integer(ip), optional, intent(in)    :: iblock
     ! Locals
     integer(ip) :: ielem,iblock_,iprob,nvapb,ivar,lvar,inode,idof
@@ -215,8 +215,8 @@ contains
     !   This subroutine stores the solution from a fem_vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_block_vector), intent(in)    :: blvec   
-    type(fem_space)       , intent(inout) :: fspac
+    type(fem_block_vector_t), intent(in)    :: blvec   
+    type(fem_space_t)       , intent(inout) :: fspac
     ! Locals
     integer(ip) :: iblock
 

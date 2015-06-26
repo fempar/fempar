@@ -38,37 +38,37 @@ program par_test_cdr
   implicit none
 #include "debug.i90" 
   ! Our data
-  type(par_context)       :: w_context, p_context, q_context, b_context
-  type(par_environment)   :: p_env
-  type(par_mesh)          :: p_mesh
-  type(par_triangulation) :: p_trian
-  type(par_fem_space)     :: p_fspac
+  type(par_context_t)       :: w_context, p_context, q_context, b_context
+  type(par_environment_t)   :: p_env
+  type(par_mesh_t)          :: p_mesh
+  type(par_triangulation_t) :: p_trian
+  type(par_fem_space_t)     :: p_fspac
 
-  type(par_matrix), target                :: p_mat
-  type(par_vector), target                :: p_vec, p_unk
-  class(base_operand) , pointer           :: x, y
-  class(base_operator), pointer           :: A
+  type(par_matrix_t), target                :: p_mat
+  type(par_vector_t), target                :: p_vec, p_unk
+  class(base_operand_t) , pointer           :: x, y
+  class(base_operator_t), pointer           :: A
 
   ! Preconditioner-related data structures
-  type(par_precond_dd_diagonal)           :: p_prec_dd_diag
-  type(par_precond_dd_mlevel_bddc), target :: p_mlevel_bddc
-  ! type(par_precond_dd_mlevel_bddc), pointer  :: point_to_p_mlevel_bddc
-  type(par_precond_dd_mlevel_bddc_params), target  :: p_mlevel_bddc_pars
-  type(par_precond_dd_mlevel_bddc_params), pointer :: point_to_p_mlevel_bddc_pars
+  type(par_precond_dd_diagonal_t)           :: p_prec_dd_diag
+  type(par_precond_dd_mlevel_bddc_t), target :: p_mlevel_bddc
+  ! type(par_precond_dd_mlevel_bddc_t), pointer  :: point_to_p_mlevel_bddc
+  type(par_precond_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
+  type(par_precond_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
   integer(ip), allocatable :: kind_coarse_dofs(:)
 
 
-  type(solver_control)     :: sctrl
+  type(solver_control_t)     :: sctrl
 
-  type(block_dof_distribution)    :: blk_dof_dist
-  type(dof_handler)               :: dhand
-  type(par_block_graph)           :: p_blk_graph
+  type(block_dof_distribution_t)    :: blk_dof_dist
+  type(dof_handler_t)               :: dhand
+  type(par_block_graph_t)           :: p_blk_graph
   integer(ip)                     :: gtype(1) = (/ csr_symm /)
-  type(par_conditions)            :: p_cond
+  type(par_conditions_t)            :: p_cond
 
-  type(cdr_problem)               :: my_problem
-  type(cdr_discrete)              :: my_discrete
-  type(cdr_approximation), target :: my_approximation
+  type(cdr_problem_t)               :: my_problem
+  type(cdr_discrete_t)              :: my_discrete
+  type(cdr_approximation_t), target :: my_approximation
   integer(ip)                     :: num_approximations
   type(discrete_integration_pointer)  :: approximations(1)
 
@@ -358,7 +358,7 @@ contains
 
 !!$  subroutine update_strong_dirichlet_boundary_conditions( fspac )
 !!$    implicit none
-!!$    type(fem_space), intent(inout)    :: fspac
+!!$    type(fem_space_t), intent(inout)    :: fspac
 !!$    
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$

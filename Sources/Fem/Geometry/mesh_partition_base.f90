@@ -39,7 +39,7 @@ use types_names
   integer(ip), parameter :: dual=0
   integer(ip), parameter :: primal=1
 
-  type part_params
+  type part_params_t
      integer(ip) :: nparts      = 2             ! nparts
      integer(ip) :: debug       = 1             ! Print info partition
 
@@ -57,7 +57,7 @@ use types_names
      
      ! Applicable to both metis 4.0 and metis 5.0
      integer(ip) :: metis_option_debug  =  0 
-  end type part_params
+  end type part_params_t
 
 
 end module fem_mesh_partition_base_names

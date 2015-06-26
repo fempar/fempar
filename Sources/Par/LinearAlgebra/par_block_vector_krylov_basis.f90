@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_vector_krylov_basis_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use par_vector_names
   use par_block_vector_names
   use par_vector_krylov_basis_names
@@ -46,13 +46,13 @@ use memor_names
 
   private
 
-  type par_block_vector_krylov_basis
+  type par_block_vector_krylov_basis_t
      integer(ip)                                :: nblocks = 0
-     type(par_vector_krylov_basis), allocatable :: blocks(:)
-  end type par_block_vector_krylov_basis
+     type(par_vector_krylov_basis_t), allocatable :: blocks(:)
+  end type par_block_vector_krylov_basis_t
 
   ! Types
-  public :: par_block_vector_krylov_basis
+  public :: par_block_vector_krylov_basis_t
 
   ! Functions
   public :: par_block_vector_krylov_basis_alloc,        par_block_vector_krylov_basis_free,     & 
@@ -66,8 +66,8 @@ contains
     implicit none
     ! Parameters
     integer (ip)                        , intent(in)  :: k
-    type (par_block_vector)             , intent(in)  :: p_v
-    type (par_block_vector_krylov_basis), intent(out) :: Q
+    type (par_block_vector_t)             , intent(in)  :: p_v
+    type (par_block_vector_krylov_basis_t), intent(out) :: Q
 
     ! Locals
     integer(ip) :: ib 
@@ -84,7 +84,7 @@ contains
   subroutine par_block_vector_krylov_basis_free (Q)
      implicit none
      ! Parameters
-     type(par_block_vector_krylov_basis), intent(inout) :: Q
+     type(par_block_vector_krylov_basis_t), intent(inout) :: Q
 
      ! Locals
      integer(ip) :: ib
@@ -100,8 +100,8 @@ contains
   subroutine par_block_vector_krylov_basis_extract_view (i, Q, p_v)
      implicit none
      integer(ip)     , intent(in)                      :: i
-     type(par_block_vector_krylov_basis), intent(in), target :: Q
-     type(par_block_vector), intent(out)                     :: p_v
+     type(par_block_vector_krylov_basis_t), intent(in), target :: Q
+     type(par_block_vector_t), intent(out)                     :: p_v
      ! Locals
      integer(ip) :: ib
 
@@ -118,8 +118,8 @@ contains
      implicit none
      ! Parameters
      integer(ip)                        , intent(in) :: k
-     type(par_block_vector_krylov_basis), intent(in) :: Q
-     type(par_block_vector)             , intent(in) :: p_v
+     type(par_block_vector_krylov_basis_t), intent(in) :: Q
+     type(par_block_vector_t)             , intent(in) :: p_v
      real(rp), intent(out)                           :: s(k)
  
      ! Locals 
@@ -139,9 +139,9 @@ contains
      implicit none
      integer(ip)                        , intent(in)    :: k
      real(rp)                           , intent(in)    :: alpha
-     type(par_block_vector_krylov_basis), intent(in)    :: Q
+     type(par_block_vector_krylov_basis_t), intent(in)    :: Q
      real(rp)                           , intent(in)    :: s(k)
-     type(par_block_vector)             , intent(inout) :: p_v
+     type(par_block_vector_t)             , intent(inout) :: p_v
 
      ! Locals
      integer(ip) :: ib 

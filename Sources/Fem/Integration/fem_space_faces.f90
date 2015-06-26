@@ -52,14 +52,14 @@ contains
   subroutine fem_space_faces_list_create( trian, femsp )
     implicit none
     ! Parameters
-    type(fem_space)      , intent(inout),target  :: femsp
-    type(fem_triangulation)   , intent(in), target   :: trian   
+    type(fem_space_t)      , intent(inout),target  :: femsp
+    type(fem_triangulation_t)   , intent(in), target   :: trian   
 
     ! Local variables
     integer(ip) :: iface, iobje, max_order, ielem, nvars, ivars, ndofs, pos_elmatvec
     integer(ip) :: i, l_faci, pos_faint, iprob, istat
     integer(ip) :: gtype, utype, g_ord, u_ord, v_key, iface_l, max_elmat, ndime
-    type(fem_fixed_info_pointer) :: gfinf, ufinf
+    type(fem_fixed_info_pointer_t) :: gfinf, ufinf
     integer(ip) :: aux_val
 
     !allocate(femsp%interior_faces( femsp%num_interior_faces ), stat=istat)

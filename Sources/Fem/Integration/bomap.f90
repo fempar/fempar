@@ -31,17 +31,17 @@ use memor_names
   implicit none
   private
 
-  type bomap
+  type bomap_t
      integer(ip)            :: ndime = 2
      integer(ip)            :: ndimb = 1
      integer(ip)            :: nlocs = 1      ! Evaluation (usually Gauss) points
      real(rp), allocatable  :: clocs(:,:)     ! Coordinates of evaluation points (ndime,nlocs)
      real(rp), allocatable  :: baloc(:,:,:)   ! Local base (ndime-1,ndime-1,nlocs)
      real(rp), allocatable  :: detjm(:)       ! Map Jacobian det     (nlocs)
-  end type bomap
+  end type bomap_t
 
   ! Types
-  public :: bomap
+  public :: bomap_t
 
   ! Functions
   public :: bomap_create, bomap_free
@@ -53,7 +53,7 @@ contains
   subroutine bomap_create(ndime,nlocs,map)
     implicit none
     integer(ip), intent(in)  :: ndime,nlocs
-    type(bomap), intent(out) :: map
+    type(bomap_t), intent(out) :: map
     integer(ip) :: iloc
 
     map%ndime=ndime
@@ -69,7 +69,7 @@ contains
   !==============================================================================
   subroutine bomap_free(map)
     implicit none
-    type(bomap), intent(inout) :: map
+    type(bomap_t), intent(inout) :: map
 
     call memfree(map%clocs,__FILE__,__LINE__)
     call memfree(map%baloc,__FILE__,__LINE__)

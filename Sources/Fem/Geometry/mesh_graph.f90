@@ -67,9 +67,9 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh) , intent(in)  :: primal_mesh, dual_mesh
+    type(fem_mesh_t) , intent(in)  :: primal_mesh, dual_mesh
     integer(ip), intent(in)      :: min_freq_neig
-    type(fem_graph), intent(out) :: primal_graph
+    type(fem_graph_t), intent(out) :: primal_graph
 
     ! Local variables
     integer(ip), allocatable :: iwork(:)            ! Integer ip working array
@@ -117,9 +117,9 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh) , intent(in)     :: primal_mesh, dual_mesh
+    type(fem_mesh_t) , intent(in)     :: primal_mesh, dual_mesh
     integer(ip), intent(in)         :: min_freq_neig
-    type(fem_graph), intent(inout)  :: primal_graph
+    type(fem_graph_t), intent(inout)  :: primal_graph
     integer(ip), intent(out)        :: ws_position  (primal_mesh%npoin)
     integer(ip), intent(out)        :: ws_freq      (primal_mesh%nnode*dual_mesh%nnode)
     integer(ip), intent(out)        :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
@@ -224,8 +224,8 @@ contains
        &                                 ws_position, ws_freq, ws_neighbors )
     implicit none
     ! Parameters
-    type(fem_mesh) , intent(in)    :: primal_mesh, dual_mesh
-    type(fem_graph), intent(inout) :: primal_graph
+    type(fem_mesh_t) , intent(in)    :: primal_mesh, dual_mesh
+    type(fem_graph_t), intent(inout) :: primal_graph
     integer(ip), intent(in)        :: min_freq_neig
     integer(ip), intent(out)       :: ws_position  (primal_mesh%npoin)
     integer(ip), intent(out)       :: ws_freq      (primal_mesh%nnode*dual_mesh%nnode)
@@ -317,9 +317,9 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh) , intent(in)   :: m   
-    type(fem_graph), intent(in)   :: g
-    type(list)     , intent(out)  :: lconn
+    type(fem_mesh_t) , intent(in)   :: m   
+    type(fem_graph_t), intent(in)   :: g
+    type(list_t)     , intent(out)  :: lconn
  
     ! Locals
     integer(ip), allocatable :: auxv(:), auxe(:), e(:)

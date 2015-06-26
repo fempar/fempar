@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module block_dof_distribution_names
   ! Serial modules
-use types_names
+  use types_names
   
   ! Parallel modules 
   use dof_distribution_names
@@ -37,25 +37,25 @@ use types_names
 # include "debug.i90"
   private
   
-  type block_dof_distribution
+  type block_dof_distribution_t
      integer(ip)                          :: nblocks = -1 
-     type (dof_distribution), allocatable :: blocks(:)
-     type (par_environment)     , pointer :: p_env
+     type (dof_distribution_t), allocatable :: blocks(:)
+     type (par_environment_t)     , pointer :: p_env
   contains
      procedure :: alloc     => block_dof_distribution_alloc
      procedure :: free      => block_dof_distribution_free
      procedure :: get_block => block_dof_distribution_get_block
-  end type block_dof_distribution
+  end type block_dof_distribution_t
 
   ! Types
-  public :: block_dof_distribution
+  public :: block_dof_distribution_t
   
 contains
 
   subroutine block_dof_distribution_alloc(blk_dof_dist,p_env,nblocks)
     implicit none
-    class(block_dof_distribution)     , intent(inout) :: blk_dof_dist 
-    type(par_environment)     , target, intent(in)    :: p_env
+    class(block_dof_distribution_t)     , intent(inout) :: blk_dof_dist 
+    type(par_environment_t)     , target, intent(in)    :: p_env
     integer(ip)                       , intent(in)    :: nblocks
 
     ! Locals
@@ -72,7 +72,7 @@ contains
 
   subroutine block_dof_distribution_free(blk_dof_dist)
     implicit none
-    class(block_dof_distribution), intent(inout) :: blk_dof_dist
+    class(block_dof_distribution_t), intent(inout) :: blk_dof_dist
 
     ! Locals
     integer(ip) :: istat, iblock
@@ -95,9 +95,9 @@ contains
   
   function block_dof_distribution_get_block(blk_dof_dist,iblock)
     implicit none
-    class(block_dof_distribution), target, intent(in) :: blk_dof_dist
+    class(block_dof_distribution_t), target, intent(in) :: blk_dof_dist
     integer(ip)                          , intent(in) :: iblock
-    type(dof_distribution)      , pointer             :: block_dof_distribution_get_block
+    type(dof_distribution_t)      , pointer             :: block_dof_distribution_get_block
 
     ! Parallel environment MUST BE already created
     assert ( associated(blk_dof_dist%p_env) )

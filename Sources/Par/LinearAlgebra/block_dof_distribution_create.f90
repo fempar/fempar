@@ -83,9 +83,9 @@ contains
     implicit none
 
     ! Parameters
-    type(par_triangulation)     , intent(in)     :: p_trian
-    type(par_fem_space)         , intent(inout)  :: p_femsp
-    type(block_dof_distribution), intent(inout)  :: blk_dof_dist
+    type(par_triangulation_t)     , intent(in)     :: p_trian
+    type(par_fem_space_t)         , intent(inout)  :: p_femsp
+    type(block_dof_distribution_t), intent(inout)  :: blk_dof_dist
 
     ! Locals
     integer(ip)               :: i, j, k, iobj, ielem, jelem, iprob, nvapb, l_var, g_var, mater, obje_l, idof, g_dof, g_mat, l_pos, iblock, ivars
@@ -95,7 +95,7 @@ contains
     integer(igp), allocatable :: ws_lobjs_temp (:,:)
     integer(igp), allocatable :: sort_parts_per_itfc_obj_l1 (:)
     integer(igp), allocatable :: sort_parts_per_itfc_obj_l2 (:)
-    type(hash_table_ip_ip)    :: ws_parts_visited, ws_parts_visited_all
+    type(hash_table_ip_ip_t)    :: ws_parts_visited, ws_parts_visited_all
     integer(ip), parameter    :: tbl_length = 100
 
     integer(ip), allocatable :: touch(:,:,:)
@@ -374,7 +374,7 @@ contains
           call memfree ( touch, __FILE__, __LINE__ )
           call memfree ( ws_parts_visited_list_all, __FILE__, __LINE__ )  
 
-          ! Compute dof_import instance within dof_dist instance such that 
+          ! Compute dof_import_t instance within dof_dist instance such that 
           ! DoF nearest neighbour exchanges can be performed 
           call dof_distribution_compute_import(blk_dof_dist%blocks(iblock))
 
@@ -882,9 +882,9 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock
-    type(par_triangulation), intent(in)         :: p_trian 
-    type(fem_space), intent(in)                 :: femsp
-    type(dof_handler), intent(in)               :: dhand
+    type(par_triangulation_t), intent(in)         :: p_trian 
+    type(fem_space_t), intent(in)                 :: femsp
+    type(dof_handler_t), intent(in)               :: dhand
     integer(ip), intent(inout)                  :: count_interior, dofs_object(:)
 
     ! Local variables
@@ -935,12 +935,12 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock
-    type(par_triangulation), intent(in)         :: p_trian 
-    type(fem_space), intent(in)                 :: femsp
-    type(dof_handler), intent(in)               :: dhand
+    type(par_triangulation_t), intent(in)         :: p_trian 
+    type(fem_space_t), intent(in)                 :: femsp
+    type(dof_handler_t), intent(in)               :: dhand
     integer(ip), intent(inout)                  :: count_object_dof, count_interior, dofs_object_interior(:), dofs_object_interface(:)
     integer(ip), intent(inout)                  :: est_max_nparts, touch(:,:,:)
-    type(hash_table_ip_ip), intent(inout)       :: ws_parts_visited_all
+    type(hash_table_ip_ip_t), intent(inout)       :: ws_parts_visited_all
     integer(ip), intent(inout)                  :: ws_parts_visited_list_all(:), max_nparts, npadj
     integer(igp), intent(inout)                  :: lst_parts_per_dof_obj(:,:)
 
@@ -948,7 +948,7 @@ contains
     integer(ip) :: i, iobje, j, idof, g_var
     integer(ip) :: mater, k, ielem, iprob, ivars, l_var, k_var  
     integer(ip) :: touching, obje_l, istat, g_dof, g_mat, ipart, l_pos, nparts_around, count, key
-    type(hash_table_ip_ip)         :: ws_parts_visited
+    type(hash_table_ip_ip_t)         :: ws_parts_visited
     integer(ip), parameter    :: tbl_length = 100
 
     ipart  = p_trian%p_env%p_context%iam + 1
@@ -1054,12 +1054,12 @@ contains
     implicit none
     ! Parameters
     integer(ip), intent(in)                     :: iblock
-    type(par_triangulation), intent(in)         :: p_trian 
-    type(fem_space), intent(in)                 :: femsp
-    type(dof_handler), intent(in)               :: dhand
+    type(par_triangulation_t), intent(in)         :: p_trian 
+    type(fem_space_t), intent(in)                 :: femsp
+    type(dof_handler_t), intent(in)               :: dhand
     integer(ip), intent(inout)                  :: count_interior, count_obj_dof
     integer(ip), intent(inout)                  :: dofs_object_interior(:), dofs_object_interface(:), est_max_nparts
-    type(hash_table_ip_ip), intent(inout)       :: ws_parts_visited_all
+    type(hash_table_ip_ip_t), intent(inout)       :: ws_parts_visited_all
     integer(ip), intent(inout)                  :: ws_parts_visited_list_all(:), max_nparts, npadj
     integer(igp), intent(inout)                  :: lst_parts_per_dof_obj(:,:)
 
@@ -1188,7 +1188,7 @@ contains
   integer(ip) function local_node( g_dof, iobj, elem, l_var, nobje, objects )
     implicit none
     integer(ip) :: g_dof, iobj, l_node, l_var, nobje, objects(:)
-    type(fem_element) :: elem
+    type(fem_element_t) :: elem
 
     integer(ip) :: inode, obje_l
 

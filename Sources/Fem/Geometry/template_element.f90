@@ -32,7 +32,7 @@ use types_names
   implicit none
   private
 
-  type, extends(migratory_element) ::template_element
+  type, extends(migratory_element) ::template_element_t
      integer(igp) :: globalID
      real(rp)     :: area 
    contains
@@ -41,14 +41,14 @@ use types_names
      procedure :: unpack => template_element_unpack
      procedure :: setglobalID => template_element_setglobalid
      procedure :: setarea     => template_element_setarea
-  end type template_element
+  end type template_element_t
 
-  public :: template_element
+  public :: template_element_t
 
 contains
   subroutine template_element_size (my, n)
     implicit none
-    class(template_element), intent(in)  :: my
+    class(template_element_t), intent(in)  :: my
     integer(ip)             , intent(out) :: n
     
     ! Locals
@@ -64,7 +64,7 @@ contains
 
   subroutine template_element_pack (my, n, buffer)
     implicit none
-    class(template_element), intent(in)  :: my
+    class(template_element_t), intent(in)  :: my
     integer(ip)            , intent(in)  :: n
     integer(ieep)             , intent(out) :: buffer(n)
 
@@ -90,7 +90,7 @@ contains
 
   subroutine template_element_unpack(my, n, buffer)
     implicit none
-    class(template_element), intent(inout) :: my
+    class(template_element_t), intent(inout) :: my
     integer(ip)            , intent(in)    :: n
     integer(ieep)             , intent(in)    :: buffer(n)
 
@@ -116,7 +116,7 @@ contains
 
   subroutine template_element_setglobalid (my, globalid)
     implicit none
-    class(template_element), intent(inout)  :: my
+    class(template_element_t), intent(inout)  :: my
     integer(igp)           , intent(in)     :: globalid
     
     my%globalID = globalid
@@ -125,7 +125,7 @@ contains
   
   subroutine template_element_setarea (my, area)
     implicit none
-    class(template_element), intent(inout) :: my
+    class(template_element_t), intent(inout) :: my
     real(rp)               , intent(in)    :: area
     
     my%area = area

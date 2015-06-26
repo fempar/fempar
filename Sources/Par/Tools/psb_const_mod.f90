@@ -123,7 +123,7 @@ use types_names
   !integer, parameter, public :: psb_err_mpi_error_=400
   !integer, parameter, public :: psb_err_parm_differs_among_procs_=550
   !integer, parameter, public :: psb_err_entry_out_of_bounds_=551
-  !integer, parameter, public :: psb_err_inconsistent_index_lists_=552
+  !integer, parameter, public :: psb_err_inconsistent_index_list_ts_=552
   !integer, parameter, public :: psb_err_partfunc_toomuchprocs_=570
   !integer, parameter, public :: psb_err_partfunc_toofewprocs_=575
   !integer, parameter, public :: psb_err_partfunc_wrong_pid_=580

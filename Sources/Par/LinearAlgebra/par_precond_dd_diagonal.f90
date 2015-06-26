@@ -49,18 +49,18 @@ use psb_penv_mod_names
   implicit none
   private
 
-  type, extends(base_operator) :: par_precond_dd_diagonal
+  type, extends(base_operator_t) :: par_precond_dd_diagonal_t
      ! Reference to parallel matrix
-     type( par_matrix ), pointer     :: p_mat => NULL()   
+     type( par_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal
    contains
      procedure :: apply     => par_precond_dd_diagonal_apply_tbp
      procedure :: apply_fun => par_precond_dd_diagonal_apply_fun_tbp
      procedure :: free      => par_precond_dd_diagonal_free_tbp
-  end type par_precond_dd_diagonal
+  end type par_precond_dd_diagonal_t
   
   ! Types
-  public :: par_precond_dd_diagonal
+  public :: par_precond_dd_diagonal_t
 
   ! Functions
   public :: par_precond_dd_diagonal_create, par_precond_dd_diagonal_free, &
@@ -74,8 +74,8 @@ use psb_penv_mod_names
   subroutine par_precond_dd_diagonal_create (p_matrix, p_prec_dd_diagonal)
     implicit none
     ! Parameters
-    type(par_matrix)             , target, intent(in)  :: p_matrix
-    type(par_precond_dd_diagonal)        , intent(out) :: p_prec_dd_diagonal
+    type(par_matrix_t)             , target, intent(in)  :: p_matrix
+    type(par_precond_dd_diagonal_t)        , intent(out) :: p_prec_dd_diagonal
 
     
     assert ( associated(p_matrix%p_env) )
@@ -90,8 +90,8 @@ use psb_penv_mod_names
   subroutine par_precond_dd_diagonal_ass_struct (p_matrix, p_prec_dd_diagonal)
     implicit none
     ! Parameters
-    type(par_matrix)             , target, intent(in)    :: p_matrix
-    type(par_precond_dd_diagonal)        , intent(inout) :: p_prec_dd_diagonal
+    type(par_matrix_t)             , target, intent(in)    :: p_matrix
+    type(par_precond_dd_diagonal_t)        , intent(inout) :: p_prec_dd_diagonal
 
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
@@ -105,12 +105,12 @@ use psb_penv_mod_names
   subroutine par_precond_dd_diagonal_fill_val (p_matrix, p_prec_dd_diagonal)
     implicit none
     ! Parameters
-    type(par_matrix)             , target, intent(in)    :: p_matrix
-    type(par_precond_dd_diagonal), target, intent(inout) :: p_prec_dd_diagonal
+    type(par_matrix_t)             , target, intent(in)    :: p_matrix
+    type(par_precond_dd_diagonal_t), target, intent(inout) :: p_prec_dd_diagonal
 
     ! Locals
     integer(ip)       :: neq
-    type (par_vector) :: p_vec
+    type (par_vector_t) :: p_vec
 
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
@@ -154,9 +154,9 @@ use psb_penv_mod_names
   subroutine par_precond_dd_diagonal_apply_all_unk (p_prec_dd_diagonal, x, y)
     implicit none
     ! Parameters
-    type(par_precond_dd_diagonal) , intent(in)    :: p_prec_dd_diagonal
-    type(par_vector)              , intent(in)    :: x
-    type(par_vector)              , intent(inout) :: y
+    type(par_precond_dd_diagonal_t) , intent(in)    :: p_prec_dd_diagonal
+    type(par_vector_t)              , intent(in)    :: x
+    type(par_vector_t)              , intent(inout) :: y
 
     assert ( associated(p_prec_dd_diagonal%p_mat) )
     assert ( associated(p_prec_dd_diagonal%p_mat%p_env) )
@@ -181,7 +181,7 @@ use psb_penv_mod_names
   subroutine  par_precond_dd_diagonal_free (p_prec_dd_diagonal, mode)
     implicit none
     ! Parameters
-    type(par_precond_dd_diagonal),  intent(inout) :: p_prec_dd_diagonal
+    type(par_precond_dd_diagonal_t),  intent(inout) :: p_prec_dd_diagonal
     integer(ip)                  ,  intent(in)    :: mode
 
     assert ( associated(p_prec_dd_diagonal%p_mat) )
@@ -201,25 +201,25 @@ use psb_penv_mod_names
   subroutine par_precond_dd_diagonal_apply_tbp (op, x, y)
     implicit none
     ! Parameters
-    class(par_precond_dd_diagonal)    , intent(in)    :: op
-    class(base_operand)   , intent(in)    :: x
-    class(base_operand)   , intent(inout) :: y
+    class(par_precond_dd_diagonal_t)    , intent(in)    :: op
+    class(base_operand_t)   , intent(in)    :: x
+    class(base_operand_t)   , intent(inout) :: y
     
 !!$       assert (associated(op%mat))
     
     call x%GuardTemp()
     
     select type(x)
-    class is (par_vector)
+    class is (par_vector_t)
        select type(y)
-       class is(par_vector)
+       class is(par_vector_t)
           call par_precond_dd_diagonal_apply_all_unk ( op, x, y )
        class default
-          write(0,'(a)') 'fem_matrix%apply: unsupported y class'
+          write(0,'(a)') 'fem_matrix_t%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'par_precond_dd_diagonal%apply: unsupported x class'
+       write(0,'(a)') 'par_precond_dd_diagonal_t%apply: unsupported x class'
        check(1==0)
     end select
     
@@ -231,22 +231,22 @@ use psb_penv_mod_names
   function par_precond_dd_diagonal_apply_fun_tbp (op, x) result(y)
     implicit none
     ! Parameters
-    class(par_precond_dd_diagonal), intent(in)   :: op
-    class(base_operand), intent(in)  :: x
-    class(base_operand), allocatable :: y
-    type(par_vector), allocatable :: local_y
+    class(par_precond_dd_diagonal_t), intent(in)   :: op
+    class(base_operand_t), intent(in)  :: x
+    class(base_operand_t), allocatable :: y
+    type(par_vector_t), allocatable :: local_y
     
     call x%GuardTemp()
     
     select type(x)
-    class is (par_vector)
+    class is (par_vector_t)
        allocate(local_y)
        call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
        call par_precond_dd_diagonal_apply_all_unk ( op, x, local_y )
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'par_precond_dd_diagonal%apply_fun: unsupported x class'
+       write(0,'(a)') 'par_precond_dd_diagonal_t%apply_fun: unsupported x class'
        check(1==0)
     end select
     
@@ -255,7 +255,7 @@ use psb_penv_mod_names
   
   subroutine par_precond_dd_diagonal_free_tbp(this)
     implicit none
-    class(par_precond_dd_diagonal), intent(inout) :: this
+    class(par_precond_dd_diagonal_t), intent(inout) :: this
   end subroutine par_precond_dd_diagonal_free_tbp
   
 end module par_precond_dd_diagonal_names

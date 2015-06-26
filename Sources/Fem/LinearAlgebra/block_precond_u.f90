@@ -42,16 +42,16 @@ use iso_c_binding
   private
 
   ! Pointer to operator
-  type p_abs_operator
-     type(abs_operator), pointer :: p_op => null()
-  end type p_abs_operator
+  type p_abs_operator_t
+     type(abs_operator_t), pointer :: p_op => null()
+  end type p_abs_operator_t
 
 
   ! Upper block triangular preconditioner 
-  type, extends(base_operator) :: block_precond_u
+  type, extends(base_operator_t) :: block_precond_u_t
      private
      integer(ip)                       :: nblocks
-     type(p_abs_operator), allocatable :: blocks(:,:)
+     type(p_abs_operator_t), allocatable :: blocks(:,:)
    contains
      procedure  :: create             => block_precond_u_create
      procedure  :: set_block          => block_precond_u_set_block
@@ -61,11 +61,11 @@ use iso_c_binding
      procedure  :: apply          => block_precond_u_apply
      procedure  :: apply_fun      => block_precond_u_apply_fun
      procedure  :: free           => block_precond_u_free_tbp
-  end type block_precond_u
+  end type block_precond_u_t
 
 
   ! Types
-  public :: block_precond_u
+  public :: block_precond_u_t
 
   ! Functions
   ! public :: 
@@ -76,19 +76,19 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_precond_u_apply (op,x,y)
     implicit none
-    class(block_precond_u)     , intent(in)   :: op
-    class(base_operand)      , intent(in)    :: x
-    class(base_operand)      , intent(inout) :: y
+    class(block_precond_u_t)     , intent(in)   :: op
+    class(base_operand_t)      , intent(in)    :: x
+    class(base_operand_t)      , intent(inout) :: y
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(base_operand), allocatable :: aux1, aux2
+    class(base_operand_t), allocatable :: aux1, aux2
 
     call x%GuardTemp()
     select type(x)
-    class is (block_operand)
+    class is (block_operand_t)
        select type(y)
-       class is(block_operand)
+       class is(block_operand_t)
           allocate(aux1, aux2, mold=x%blocks(1)%p_op)
           do iblk=op%nblocks, 1, -1
              call aux1%clone(x%blocks(iblk)%p_op)
@@ -106,11 +106,11 @@ contains
           end do
           deallocate(aux1, aux2)
        class default
-          write(0,'(a)') 'block_precond_u%apply: unsupported y class'
+          write(0,'(a)') 'block_precond_u_t%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'block_precond_u%apply: unsupported x class'
+       write(0,'(a)') 'block_precond_u_t%apply: unsupported x class'
        check(1==0)
     end select
     call x%CleanTemp()
@@ -120,17 +120,17 @@ contains
   ! Allocates room for (temporary) y
   function block_precond_u_apply_fun(op,x) result(y) 
     implicit none
-    class(block_precond_u), intent(in)  :: op
-    class(base_operand) , intent(in)   :: x
-    class(base_operand) , allocatable  :: y
+    class(block_precond_u_t), intent(in)  :: op
+    class(base_operand_t) , intent(in)   :: x
+    class(base_operand_t) , allocatable  :: y
 
-    type(block_operand), allocatable :: local_y
-    class(base_operand), allocatable :: aux1, aux2
+    type(block_operand_t), allocatable :: local_y
+    class(base_operand_t), allocatable :: aux1, aux2
     integer(ip)                      :: iblk, jblk
 
     call x%GuardTemp()
     select type(x)
-    class is (block_operand)
+    class is (block_operand_t)
        allocate(local_y)
        call local_y%create(op%nblocks)
        allocate(aux1, aux2, mold=x%blocks(1)%p_op)
@@ -154,7 +154,7 @@ contains
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'block_operand%apply_fun: unsupported x class'
+       write(0,'(a)') 'block_operand_t%apply_fun: unsupported x class'
        check(1==0)
     end select
     call x%CleanTemp()
@@ -162,13 +162,13 @@ contains
 
   subroutine block_precond_u_free_tbp(this)
     implicit none
-    class(block_precond_u), intent(inout) :: this
+    class(block_precond_u_t), intent(inout) :: this
   end subroutine block_precond_u_free_tbp
 
   subroutine block_precond_u_create (bop, nblocks)
     implicit none
     ! Parameters
-    class(block_precond_u)   , intent(inout) :: bop
+    class(block_precond_u_t)   , intent(inout) :: bop
     integer(ip)             , intent(in)     :: nblocks
 
     ! Locals
@@ -190,9 +190,9 @@ contains
   subroutine block_precond_u_set_block (bop, ib, jb, op)
     implicit none
     ! Parameters
-    class(block_precond_u), intent(inout) :: bop
+    class(block_precond_u_t), intent(inout) :: bop
     integer(ip)           , intent(in)    :: ib, jb
-    type(abs_operator)    , intent(in)    :: op 
+    type(abs_operator_t)    , intent(in)    :: op 
 
     assert ( ib <= jb )
 
@@ -208,7 +208,7 @@ contains
   subroutine block_precond_u_set_block_to_zero (bop,ib,jb)
     implicit none
     ! Parameters
-    class(block_precond_u), intent(inout) :: bop
+    class(block_precond_u_t), intent(inout) :: bop
     integer(ip)           , intent(in)    :: ib,jb
     
     assert ( ib <= jb )
@@ -224,7 +224,7 @@ contains
 
   subroutine block_precond_u_destroy (bop)
     implicit none
-    class(block_precond_u), intent(inout) :: bop
+    class(block_precond_u_t), intent(inout) :: bop
 
     ! Locals
     integer(ip) :: iblk, jblk

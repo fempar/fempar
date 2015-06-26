@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_materials_io_names
-use types_names
-use stdio_names
-use memor_names
+  use types_names
+  use stdio_names
+  use memor_names
   use fem_materials_names
   implicit none
   private
@@ -55,7 +55,7 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)         , intent(in)            :: lunio 
-    type(fem_materials) , intent(out)           :: mat
+    type(fem_materials_t) , intent(out)           :: mat
     integer(ip)                                 :: i,nelem,ielem
     character(1024)                             :: tel
 
@@ -101,7 +101,7 @@ contains
     implicit none
     ! Parameters
     integer(ip)        , intent(in) :: lunio
-    type(fem_materials), intent(in) :: mater
+    type(fem_materials_t), intent(in) :: mater
     
     ! Locals
     integer(ip)                     :: ielem
@@ -123,7 +123,7 @@ contains
     ! Parameters
     character (*)       , intent(in)    :: dir_path
     character (*)       , intent(in)    :: prefix
-    type(fem_materials) , intent(inout) :: f_material
+    type(fem_materials_t) , intent(inout) :: f_material
     
     ! Locals
     character(len=:), allocatable  :: name
@@ -152,7 +152,7 @@ contains
     character(*), intent(in)        :: dir_path 
     character(*), intent(in)        :: prefix
     integer(ip)   , intent(in)      :: nparts
-    type(fem_materials), intent(in) :: lmater (nparts)
+    type(fem_materials_t), intent(in) :: lmater (nparts)
     character(len=:), allocatable   :: name, rename ! Deferred-length allocatable character arrays
 
     ! Locals 
@@ -176,7 +176,7 @@ contains
     ! Parameters
     character (*)       , intent(in)  :: dir_path
     character (*)       , intent(in)  :: prefix
-    type(fem_materials) , intent(out) :: f_materials
+    type(fem_materials_t) , intent(out) :: f_materials
     
     ! Locals
     character(len=:), allocatable  :: name

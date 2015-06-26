@@ -95,7 +95,7 @@ use memor_names
        & 'MINRES    ' /)
 
   ! Control data (always initialized to default values)
-  type solver_control
+  type solver_control_t
      ! Is the solver machinery going to track the convergence history?
      logical :: track_conv_his = default_track_conv_his
 
@@ -123,13 +123,13 @@ use memor_names
      real(rp)              :: err2      = 0.0_rp            ! Current error estimate 2
      real(rp), allocatable :: err1h(:)                      ! Error estimates 1 history
      real(rp), allocatable :: err2h(:)                      ! Error estimates 2 history
-  end type solver_control
+  end type solver_control_t
 
 contains
 
   subroutine solver_control_allocate_conv_his( ctrl )
     implicit none
-    type(solver_control), intent(inout) :: ctrl
+    type(solver_control_t), intent(inout) :: ctrl
 
     if (ctrl%track_conv_his) then
        call memalloc(ctrl%itmax,ctrl%err1h,__FILE__,__LINE__)
@@ -141,7 +141,7 @@ contains
 
   subroutine solver_control_free_conv_his( ctrl )
     implicit none
-    type(solver_control), intent(inout) :: ctrl
+    type(solver_control_t), intent(inout) :: ctrl
 
     if (ctrl%track_conv_his) then
        call memfree(ctrl%err1h,__FILE__,__LINE__)
@@ -153,7 +153,7 @@ contains
     implicit none 
 
     ! Parameters
-    type(solver_control), intent(in) :: ctrl
+    type(solver_control_t), intent(in) :: ctrl
 
     ! Local variables
     character(len=*), parameter    :: fmt1='(a18,1x,a4,3(2x,a15))'
@@ -187,7 +187,7 @@ contains
     implicit none 
 
     ! Parameters
-    type(solver_control), intent(in) :: ctrl
+    type(solver_control_t), intent(in) :: ctrl
 
     ! Local variables
     character(len=*), parameter   :: fmt1='(a18,1x,i4,3(2x,es16.9))'
@@ -217,7 +217,7 @@ contains
   subroutine solver_control_log_end ( ctrl )
     implicit none
     ! Parameters
-    type(solver_control), intent(in) :: ctrl
+    type(solver_control_t), intent(in) :: ctrl
 
     character(len=*), parameter  :: fmt11='(a,2x,es16.9,1x,a,1x,i4,1x,a)'
     character(len=*), parameter  :: fmt12='(a,3(2x,es16.9))'
@@ -265,7 +265,7 @@ contains
     implicit none 
 
     ! Parameters
-    type(solver_control), intent(in) :: ctrl
+    type(solver_control_t), intent(in) :: ctrl
 
     ! Local variables
     character(len=*), parameter   :: fmt1='(a18,1x,i4,3(2x,es16.9))'

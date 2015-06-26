@@ -27,25 +27,25 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_environment_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use maps_names
   use abstract_environment_names
 
   ! Parallel modules
-use psb_penv_mod_names
+  use psb_penv_mod_names
   use par_context_names
 
 # include "debug.i90"
   implicit none
   private
 
-  type, extends(abstract_environment) ::  par_environment
+  type, extends(abstract_environment) ::  par_environment_t
      logical                      :: created             ! Has the parallel environment been created?
-     type (par_context), pointer  :: p_context => NULL() ! Fine process
-     type (par_context), pointer  :: q_context => NULL() ! Available (unused) processes 
-     type (par_context), pointer  :: b_context => NULL() ! Intercommunicator betwen p_context and q_context (bcast and recursive call)
-     type (par_context), pointer  :: w_context => NULL() ! World communicator (all process involved).
+     type (par_context_t), pointer  :: p_context => NULL() ! Fine process
+     type (par_context_t), pointer  :: q_context => NULL() ! Available (unused) processes 
+     type (par_context_t), pointer  :: b_context => NULL() ! Intercommunicator betwen p_context and q_context (bcast and recursive call)
+     type (par_context_t), pointer  :: w_context => NULL() ! World communicator (all process involved).
      
      ! Number of levels in the multilevel hierarchy of MPI tasks
      integer(ip) :: num_levels = -1 
@@ -68,7 +68,7 @@ use psb_penv_mod_names
      procedure :: am_i_fine_task      => par_environment_am_i_fine_task
      procedure :: bcast               => par_environment_bcast_logical
      procedure :: first_level_barrier => par_environment_first_level_barrier
-  end type par_environment
+  end type par_environment_t
   
 
   interface par_environment_create
@@ -76,14 +76,14 @@ use psb_penv_mod_names
   end interface par_environment_create
 
   ! Types
-  public :: par_environment, par_environment_create, par_environment_free
+  public :: par_environment_t, par_environment_create, par_environment_free
 
 contains
 
   subroutine par_environment_first_level_barrier(env) 
     implicit none
     ! Dummy arguments
-    class(par_environment),intent(in)  :: env
+    class(par_environment_t),intent(in)  :: env
 
     ! Local variables
     integer :: mpi_comm_p, ierr
@@ -103,7 +103,7 @@ contains
 
   subroutine par_environment_info(env,me,np) 
     implicit none
-    class(par_environment),intent(in)  :: env
+    class(par_environment_t),intent(in)  :: env
     integer(ip)           ,intent(out) :: me
     integer(ip)           ,intent(out) :: np
 
@@ -117,7 +117,7 @@ contains
   
   function par_environment_am_i_fine_task(env) 
     implicit none
-    class(par_environment) ,intent(in)  :: env
+    class(par_environment_t) ,intent(in)  :: env
     logical                             :: par_environment_am_i_fine_task 
 
     ! Parallel environment MUST BE already created
@@ -136,7 +136,7 @@ use mpi
     include 'mpif.h'
 #endif
     ! Parameters
-    class(par_environment), intent(in)    :: env
+    class(par_environment_t), intent(in)    :: env
     logical               , intent(inout) :: condition
 
     ! Locals
@@ -176,8 +176,8 @@ use mpi
   subroutine par_environment_create_single_level ( p_env, p_context )
     implicit none 
     ! Parameters
-    class(par_environment)        , intent(out) :: p_env
-    type(par_context)    , target , intent(in)  :: p_context
+    class(par_environment_t)        , intent(out) :: p_env
+    type(par_context_t)    , target , intent(in)  :: p_context
 
     assert(p_context%created)
     p_env%p_context => p_context
@@ -207,11 +207,11 @@ use mpi
                                                  num_parts )
     implicit none 
     ! Parameters
-    class(par_environment)   , intent(out)   :: p_env
-    type(par_context), target, intent(in)    :: w_context
-    type(par_context), target, intent(in)    :: p_context
-    type(par_context), target, intent(in)    :: q_context
-    type(par_context), target, intent(in)    :: b_context
+    class(par_environment_t)   , intent(out)   :: p_env
+    type(par_context_t), target, intent(in)    :: w_context
+    type(par_context_t), target, intent(in)    :: p_context
+    type(par_context_t), target, intent(in)    :: q_context
+    type(par_context_t), target, intent(in)    :: b_context
     integer(ip)              , intent(in)    :: num_levels
     integer(ip)              , intent(in)    :: id_parts(:)
     integer(ip)              , intent(in)    :: num_parts(:)
@@ -243,7 +243,7 @@ use mpi
   subroutine par_environment_free ( p_env )
     implicit none 
     ! Parameters
-    type(par_environment), intent(inout) :: p_env
+    type(par_environment_t), intent(inout) :: p_env
 
     ! Parallel environment MUST BE already created
     assert ( p_env%created .eqv. .true.)

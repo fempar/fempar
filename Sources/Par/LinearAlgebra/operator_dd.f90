@@ -30,23 +30,23 @@
 module fem_operator_dd_names
 
   ! Abstract modules
-use solver_base_names
-use abstract_solver_names
+  use solver_base_names
+  use abstract_solver_names
 
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use fem_graph_names
   use fem_matrix_names
-use matvec_dof_names
+  use matvec_dof_names
   use fem_vector_names
   use fem_precond_names
   use serial_environment_names
   
   ! Parallel modules
   use dof_distribution_names
-use fem_graph_distribution_names
-use fem_matrix_distribution_names
+  use fem_graph_distribution_names
+  use fem_matrix_distribution_names
 
 # include "debug.i90"
   
@@ -84,30 +84,30 @@ use fem_matrix_distribution_names
   end interface
 #endif 
 
-  type fem_operator_dd
-     type ( fem_graph )  :: A_II_gr 
-     type ( fem_graph )  :: A_IG_gr
-     type ( fem_graph )  :: A_GI_gr
-     type ( fem_graph )  :: A_GG_gr
+  type fem_operator_dd_t
+     type ( fem_graph_t )  :: A_II_gr 
+     type ( fem_graph_t )  :: A_IG_gr
+     type ( fem_graph_t )  :: A_GI_gr
+     type ( fem_graph_t )  :: A_GG_gr
 
-     type ( fem_matrix )  :: A_II 
-     type ( fem_matrix )  :: A_IG 
-     type ( fem_matrix )  :: A_GI
-     type ( fem_matrix )  :: A_GG
+     type ( fem_matrix_t )  :: A_II 
+     type ( fem_matrix_t )  :: A_IG 
+     type ( fem_matrix_t )  :: A_GI
+     type ( fem_matrix_t )  :: A_GG
 
      integer (ip)             :: symm
-     type ( fem_precond )     :: M_II
+     type ( fem_precond_t )     :: M_II
 
-     type(solver_control)    , pointer :: spars
+     type(solver_control_t)    , pointer :: spars
      logical                           :: spars_allocated
-     type(fem_precond_params), pointer :: ppars
+     type(fem_precond_params_t), pointer :: ppars
      logical                           :: ppars_allocated
 
-     type(dof_distribution) , pointer  :: dof_dist => NULL()
-  end type fem_operator_dd
+     type(dof_distribution_t) , pointer  :: dof_dist => NULL()
+  end type fem_operator_dd_t
 
   ! Types
-  public :: fem_operator_dd
+  public :: fem_operator_dd_t
 
 
   public :: fem_operator_dd_create, fem_operator_dd_free,             &  
@@ -124,11 +124,11 @@ contains
   subroutine fem_operator_dd_create ( f_matrix, dof_dist, f_operator, spars, ppars, symm, sign )
     implicit none
     ! Parameters
-    type(fem_matrix)        , intent(in), target           :: f_matrix
-    type(dof_distribution)  , intent(in), target           :: dof_dist
-    type(fem_operator_dd)   , intent(out)                  :: f_operator
-    type(solver_control)    , intent(in), target, optional :: spars
-    type(fem_precond_params), intent(in), target, optional :: ppars
+    type(fem_matrix_t)        , intent(in), target           :: f_matrix
+    type(dof_distribution_t)  , intent(in), target           :: dof_dist
+    type(fem_operator_dd_t)   , intent(out)                  :: f_operator
+    type(solver_control_t)    , intent(in), target, optional :: spars
+    type(fem_precond_params_t), intent(in), target, optional :: ppars
     ! With this two optional parameters one may select the
     ! structure and sign of the Schur complement operator
     ! independently of f_matrix
@@ -136,7 +136,7 @@ contains
     integer (ip)            , intent(in), optional :: sign
 
     ! Locals
-    type    (fem_matrix) :: mat_dum
+    type    (fem_matrix_t) :: mat_dum
     integer (ip)         :: symm_, sign_
 
     if ( present(symm) ) then
@@ -185,11 +185,11 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_operator_dd), intent(inout)             :: f_operator
+    type(fem_operator_dd_t), intent(inout)             :: f_operator
     integer(ip)       , intent(in)                   :: mode
 
     ! Locals
-    type (fem_vector) :: dum 
+    type (fem_vector_t) :: dum 
 
     if ( mode == free_clean ) then
        call fem_precond_free ( precond_free_clean  , f_operator%M_II )
@@ -250,8 +250,8 @@ contains
     implicit none
 
     ! Parameters 
-    type(fem_matrix)  , intent(in)                    :: f_matrix
-    type(fem_operator_dd), intent(inout)              :: f_operator
+    type(fem_matrix_t)  , intent(in)                    :: f_matrix
+    type(fem_operator_dd_t), intent(inout)              :: f_operator
 
       ! Split graph of local process into 2x2 block partitioning
     if ( f_operator%symm == symm_false ) then
@@ -292,8 +292,8 @@ use stdio_names
     implicit none
     
     ! Parameters
-    type(fem_matrix)   , intent(in)      :: f_matrix
-    type(fem_operator_dd), intent(inout) :: f_operator
+    type(fem_matrix_t)   , intent(in)      :: f_matrix
+    type(fem_operator_dd_t), intent(inout) :: f_operator
     ! integer(ip)          , intent(in)            :: me
 
     ! Locals
@@ -338,16 +338,16 @@ use stdio_names
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(in)     :: f_operator
-    type(fem_vector)     , intent(in)     :: x_G
-    type(fem_vector)     , intent(inout)  :: y_G
+    type(fem_operator_dd_t), intent(in)     :: f_operator
+    type(fem_vector_t)     , intent(in)     :: x_G
+    type(fem_vector_t)     , intent(inout)  :: y_G
 
     ! Locals 
-    type(fem_vector)       :: ws_vec       ! Local workspace vector
+    type(fem_vector_t)       :: ws_vec       ! Local workspace vector_t
 
-    type(fem_vector)       :: ws_vec_I     ! View of the interior nodes
-    type(fem_vector)       :: ws_vec_I_2   ! Extra ws required by pardiso
-    type(fem_vector)       :: ws_vec_G     ! View of the interfaces
+    type(fem_vector_t)       :: ws_vec_I     ! View of the interior nodes
+    type(fem_vector_t)       :: ws_vec_I_2   ! Extra ws required by pardiso
+    type(fem_vector_t)       :: ws_vec_G     ! View of the interfaces
                                            
     integer(ip)            :: ni, nl
 
@@ -403,12 +403,12 @@ use stdio_names
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(in)    :: f_operator
-    type(fem_vector)     , intent(in)    :: x_I
-    type(fem_vector)     , intent(inout) :: y_I
+    type(fem_operator_dd_t), intent(in)    :: f_operator
+    type(fem_vector_t)     , intent(in)    :: x_I
+    type(fem_vector_t)     , intent(inout) :: y_I
 
     ! Locals
-    type(serial_environment) :: senv
+    type(serial_environment_t) :: senv
 
     call abstract_solve(f_operator%A_II, f_operator%M_II, x_I, y_I, f_operator%spars, senv) 
 
@@ -419,9 +419,9 @@ use stdio_names
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(in)       :: f_operator
-    type(fem_vector   )  , intent(in)       :: x_G
-    type(fem_vector   )  , intent(inout)    :: y_I
+    type(fem_operator_dd_t), intent(in)       :: f_operator
+    type(fem_vector_t   )  , intent(in)       :: x_G
+    type(fem_vector_t   )  , intent(inout)    :: y_I
     integer(ip)           :: ni
 
     ni = f_operator%dof_dist%ni ! # of interior nodes
@@ -456,9 +456,9 @@ use stdio_names
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(in)    :: f_operator
-    type(fem_vector)     , intent(in)    :: x_I
-    type(fem_vector)     , intent(inout) :: y_G
+    type(fem_operator_dd_t), intent(in)    :: f_operator
+    type(fem_vector_t)     , intent(in)    :: x_I
+    type(fem_vector_t)     , intent(inout) :: y_G
 
     if ( f_operator%A_GG%symm == symm_false ) then
 #ifdef ENABLE_MKL
@@ -515,10 +515,10 @@ use stdio_names
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(inout)  :: f_operator
-    type(fem_vector)     , intent(in)     :: x
-    type(fem_vector)     , intent(inout)  :: y_G
-    type(fem_vector)                      :: x_I, x_G
+    type(fem_operator_dd_t), intent(inout)  :: f_operator
+    type(fem_vector_t)     , intent(in)     :: x
+    type(fem_vector_t)     , intent(inout)  :: y_G
+    type(fem_vector_t)                      :: x_I, x_G
 
    call fem_vector_create_view ( x, 1, f_operator%A_II%gr%nv, x_I )
    call fem_vector_create_view ( x, f_operator%A_II%gr%nv+1, f_operator%A_II%gr%nv+f_operator%A_GG%gr%nv, x_G )
@@ -636,9 +636,9 @@ use stdio_names
   subroutine fem_operator_dd_apply_A_GG ( f_operator, x_G, y_G )
     implicit none
     ! Parameters 
-    type(fem_operator_dd), intent(in)    :: f_operator
-    type(fem_vector)     , intent(in)    :: x_G
-    type(fem_vector)     , intent(inout) :: y_G
+    type(fem_operator_dd_t), intent(in)    :: f_operator
+    type(fem_vector_t)     , intent(in)    :: x_G
+    type(fem_vector_t)     , intent(inout) :: y_G
 
     if ( f_operator%A_GG%symm == symm_false ) then
 #ifdef ENABLE_MKL
@@ -709,14 +709,14 @@ use stdio_names
   subroutine fem_operator_dd_evaluate_rhs ( f_operator, b_I, b_G, g_G )
     implicit none
     ! Parameters 
-    type(fem_operator_dd), intent(inout) :: f_operator
-    type(fem_vector)     , intent(in)    :: b_I
-    type(fem_vector)     , intent(in)    :: b_G
-    type(fem_vector)     , intent(inout) :: g_G
+    type(fem_operator_dd_t), intent(inout) :: f_operator
+    type(fem_vector_t)     , intent(in)    :: b_I
+    type(fem_vector_t)     , intent(in)    :: b_G
+    type(fem_vector_t)     , intent(inout) :: g_G
     
     ! Locals 
-    type(fem_vector)                     :: ws_vec_I     ! Work space, interior nodes
-    type(fem_vector)                     :: ws_vec_G     ! Work space, interface
+    type(fem_vector_t)                     :: ws_vec_I     ! Work space, interior nodes
+    type(fem_vector_t)                     :: ws_vec_G     ! Work space, interface
 
     call fem_vector_clone ( b_I, ws_vec_I )
     call fem_vector_clone ( b_G, ws_vec_G )
@@ -747,13 +747,13 @@ use stdio_names
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(inout),target  :: f_operator
-    type(fem_vector)  , intent(in)      :: b_I
-    type(fem_vector)  , intent(in)      :: x_G
-    type(fem_vector)  , intent(inout)   :: x_I
+    type(fem_operator_dd_t), intent(inout),target  :: f_operator
+    type(fem_vector_t)  , intent(in)      :: b_I
+    type(fem_vector_t)  , intent(in)      :: x_G
+    type(fem_vector_t)  , intent(inout)   :: x_I
 
     ! Locals 
-    type(fem_vector)  :: ws_vec_I
+    type(fem_vector_t)  :: ws_vec_I
 
     call fem_vector_clone ( b_I, ws_vec_I   )
 
@@ -799,7 +799,7 @@ use stdio_names
     implicit none
 
     ! Parameters 
-    type(fem_operator_dd), intent(in)    :: f_operator
+    type(fem_operator_dd_t), intent(in)    :: f_operator
     integer              , intent(out)   :: me
     integer              , intent(out)   :: np
 
@@ -816,7 +816,7 @@ use blas77_interfaces_names
 #endif
     implicit none 
     ! Parameters  
-    type(fem_operator_dd) , intent(in)            :: f_operator
+    type(fem_operator_dd_t) , intent(in)            :: f_operator
     integer (ip)          , intent(in)            :: n
     real (rp)             , intent(in)            :: u (f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, n) 
     real (rp)             , intent(out)           :: v (n,n)
@@ -1004,7 +1004,7 @@ use blas77_interfaces_names
      implicit none
 
      ! Parameters 
-     type(fem_operator_dd), intent(in)    :: f_operator
+     type(fem_operator_dd_t), intent(in)    :: f_operator
      integer(ip), intent(in)              :: nrhs, ldX, ldY
      real(rp)   , intent(in)              :: alpha, beta
      real(rp)   , intent(in)              :: X (ldX, nrhs)

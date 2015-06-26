@@ -55,7 +55,7 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)      , intent(in)  :: lunio
-    type(fem_mesh)   , intent(out) :: msh
+    type(fem_mesh_t)   , intent(out) :: msh
     logical, optional, intent(in)  :: permute_c2z
     integer(ip)       :: i,inode,idime,ipoin,jpoin,ielem,jelem,istat,iboun
     character(1000)     :: tel
@@ -190,7 +190,7 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)      , intent(in)           :: lunio
-    type(fem_mesh)   , intent(in)           :: msh
+    type(fem_mesh_t)   , intent(in)           :: msh
     character(*)     , intent(in), optional :: title
 
     integer(ip)                    :: ielem, idime, ipoin, inode
@@ -257,7 +257,7 @@ contains
      character(*)   , intent(in)  :: dir_path 
      character(*)   , intent(in)  :: prefix
      integer(ip)     , intent(in)  :: nparts
-     type(fem_mesh)  , intent(in)  :: lmesh (nparts)
+     type(fem_mesh_t)  , intent(in)  :: lmesh (nparts)
 
      character(len=:), allocatable :: name, rename ! Deferred-length allocatable character arrays
 
@@ -284,7 +284,7 @@ contains
      character(*), intent(in)       :: dir_path 
      character(*), intent(in)       :: prefix
      integer(ip)   , intent(in)     :: nparts
-     type(fem_mesh), intent(out)    :: lmesh (nparts)
+     type(fem_mesh_t), intent(out)    :: lmesh (nparts)
      character(len=:), allocatable  :: name, rename ! Deferred-length allocatable character arrays
      
      ! Locals 
@@ -308,7 +308,7 @@ contains
      ! Parameters
      character (*)                , intent(in)  :: dir_path
      character (*)                , intent(in)  :: prefix
-     type(fem_mesh)               , intent(out) :: f_mesh
+     type(fem_mesh_t)               , intent(out) :: f_mesh
      logical, optional, intent(in)  :: permute_c2z
 
      ! Locals
@@ -331,7 +331,7 @@ contains
      ! Parameters
      character (*)                , intent(in)  :: dir_path
      character (*)                , intent(in)  :: prefix
-     type(fem_mesh)               , intent(in)  :: f_mesh
+     type(fem_mesh_t)               , intent(in)  :: f_mesh
 
      ! Locals
      integer(ip)                    :: lunio

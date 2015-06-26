@@ -34,7 +34,7 @@ use stdio_names
   implicit none
   private
 
-  type fem_conditions
+  type fem_conditions_t
      integer(ip)                :: &
           ncode=1,                 &         ! Number of codes  (=nvars)
           nvalu=1,                 &         ! Number of values (=nvars)
@@ -43,10 +43,10 @@ use stdio_names
           code(:,:)                          ! Codes
      real(rp), allocatable      :: &
           valu(:,:)                          ! Values
-  end type fem_conditions
+  end type fem_conditions_t
 
   ! Types
-  public :: fem_conditions
+  public :: fem_conditions_t
 
   ! Methods
   public :: fem_conditions_create, fem_conditions_free, fem_conditions_copy, fem_conditions_apply_renum
@@ -57,7 +57,7 @@ contains
   subroutine fem_conditions_create(ncode,nvalu,ncond,cnd)
     implicit none
     integer(ip)         , intent(in)    :: ncode,nvalu,ncond
-    type(fem_conditions), intent(inout) :: cnd
+    type(fem_conditions_t), intent(inout) :: cnd
 
     cnd%ncode=ncode
     cnd%nvalu=nvalu
@@ -73,8 +73,8 @@ contains
   !===============================================================================================
   subroutine fem_conditions_copy(cnd_old,cnd_new)
     implicit none
-    type(fem_conditions), intent(in)    :: cnd_old
-    type(fem_conditions), intent(inout) :: cnd_new
+    type(fem_conditions_t), intent(in)    :: cnd_old
+    type(fem_conditions_t), intent(inout) :: cnd_new
 
     call fem_conditions_create( cnd_old%ncode, cnd_old%nvalu, cnd_old%ncond, cnd_new)
     cnd_new%code=cnd_old%code
@@ -85,8 +85,8 @@ contains
   !===============================================================================================
   subroutine fem_conditions_apply_renum(ren, cnd)
     implicit none
-    type(renum)         , intent(in)    :: ren
-    type(fem_conditions), intent(inout) :: cnd
+    type(renum_t)         , intent(in)    :: ren
+    type(fem_conditions_t), intent(inout) :: cnd
 
     integer(ip), allocatable :: tmp_int(:,:)
     real(rp)   , allocatable :: tmp_real(:,:)
@@ -110,7 +110,7 @@ contains
   !===============================================================================================
   subroutine fem_conditions_free(cnd)
     implicit none
-    type(fem_conditions), intent(inout) :: cnd
+    type(fem_conditions_t), intent(inout) :: cnd
 
     cnd%ncode=-1
     cnd%nvalu=-1

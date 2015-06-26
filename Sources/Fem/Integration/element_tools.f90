@@ -39,41 +39,41 @@ module element_tools_names
   implicit none
   private
 
-  type, extends(memory_guard) :: fem_function
+  type, extends(memory_guard) :: fem_function_t
      integer(ip)  :: ivar=1
      integer(ip)  :: nvar=1
      integer(ip)  :: idof=1 ! First dof corresponding to ivar (=sum of nnode for jvar<ivar)
      integer(ip)  :: ndof=1
      integer(ip)  :: ngaus=1
-     type(volume_integrator_pointer), pointer :: integ(:) => NULL()
+     type(volume_integrator_pointer_t), pointer :: integ(:) => NULL()
    contains
      procedure :: free => free_fem_function
-  end type fem_function
+  end type fem_function_t
 
   ! Basis functions can be left multiplied by a field.
   ! scalar -> shape(inode,igaus)
   ! vector -> shape(idime,jdime,inode,igaus) ! 2nd and 3rd index to to the matrix as one
   ! tensor -> shape(idime,jdime,kdime,ldime,inode,igaus) ! 3rd, 4th and 5th indices go to the matrix.
-  type, extends(fem_function) :: basis_function
+  type, extends(fem_function_t) :: basis_function_t
      !real(rp), allocatable :: a(:,:)     ! shape(nnode,ngaus)
      real(rp) :: scaling=1.0_rp
-     class(field), allocatable :: left_factor
+     class(field_t), allocatable :: left_factor
    contains
      procedure, pass(ul) :: scale_left     => scale_left_basis_function
      procedure, pass(ur) :: scale_right    => scale_right_basis_function
      procedure, pass(u)  :: product_left  => product_field_basis_function
      !procedure, pass(u)  :: product_right => product_basis_function_field
      generic :: operator(*) => scale_right, scale_left, product_left !, product_right
-  end type basis_function
+  end type basis_function_t
 
   ! scalar -> deriv(idime,inode,igaus)
   ! vector -> deriv(idime,jdime,kdime,inode,igaus)
   ! tensor -> deriv(idime,jdime,kdime,ldime,mdime,inode,igaus)
-  type, extends(basis_function) :: basis_function_gradient
+  type, extends(basis_function_t) :: basis_function_gradient_t
      !real(rp), allocatable :: a(:,:,:)   ! deriv(ndime,nnode,ngaus)
      !real(rp) :: scaling=0.0_rp
-     !class(field), allocatable :: left_factor
-     !class(field), allocatable :: right_factor
+     !class(field_t), allocatable :: left_factor
+     !class(field_t), allocatable :: right_factor
    !contains
      ! procedure, pass(ul) :: scal_left => scal_left_basis_function_gradient
      ! procedure, pass(ur) :: scal_right => scal_right_basis_function_gradient
@@ -81,13 +81,13 @@ module element_tools_names
      ! procedure, pass(u)  :: product_by_vector => product_vector_x_basis_function
      ! procedure, pass(u)  :: product_by_tensor => product_tensor_x_basis_function
      ! generic    :: operator(*) => scal_right, scal_left, product_by_scalar, product_by_vector, product_by_tensor
-  end type basis_function_gradient
+  end type basis_function_gradient_t
 
-  type, extends(fem_function) :: basis_function_divergence
+  type, extends(fem_function_t) :: basis_function_divergence_t
      !real(rp), allocatable :: a(:,:,:)   ! deriv(ndime,nnode,ngaus)
      !real(rp) :: scaling=0.0_rp
-     !class(field), allocatable :: left_factor
-     !class(field), allocatable :: right_factor
+     !class(field_t), allocatable :: left_factor
+     !class(field_t), allocatable :: right_factor
    !contains
      ! procedure, pass(ul) :: scal_left => scal_left_basis_function_divergence
      ! procedure, pass(ur) :: scal_right => scal_right_basis_function_divergence
@@ -95,22 +95,22 @@ module element_tools_names
      ! procedure, pass(u)  :: product_by_vector => product_vector_x_basis_function
      ! procedure, pass(u)  :: product_by_tensor => product_tensor_x_basis_function
      ! generic    :: operator(*) => scal_right, scal_left, product_by_scalar, product_by_vector, product_by_tensor
-  end type basis_function_divergence
+  end type basis_function_divergence_t
 
   ! Interpolations
-  ! type, extends(fem_function) :: given_function
+  ! type, extends(fem_function_t) :: given_function_t
   !    integer(ip)                :: icomp=1
-  ! end type given_function
-  ! type, extends(given_function) :: given_function_gradient
+  ! end type given_function_t
+  ! type, extends(given_function_t) :: given_function_gradient_t
   !    !integer(ip)                :: icomp=1
-  ! end type given_function_gradient
-  ! type, extends(given_function) :: given_function_divergence
+  ! end type given_function_gradient_t
+  ! type, extends(given_function_t) :: given_function_divergence_t
   !    !integer(ip)                :: icomp=1
-  ! end type given_function_divergence
+  ! end type given_function_divergence_t
 
-  interface basis_function
+  interface basis_function_t
      module procedure basis_function_constructor
-  end interface basis_function
+  end interface basis_function_t
   ! interface given_function
   !    module procedure given_function_constructor
   ! end interface given_function
@@ -134,8 +134,8 @@ module element_tools_names
      module procedure integral_basis_function_gradient_basis_function_gradient
   end interface integral
 
-  public :: basis_function, basis_function_gradient, basis_function_divergence
-  !public :: given_function, given_function_gradient, given_function_divergence
+  public :: basis_function_t, basis_function_gradient_t, basis_function_divergence_t
+  !public :: given_function_t, given_function_gradient_t, given_function_divergence_t
   public :: grad, div, integral, interpolation
 
   public :: create_scalar, create_vector
@@ -147,7 +147,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine free_fem_function ( this )
-    class(fem_function), intent(inout) :: this
+    class(fem_function_t), intent(inout) :: this
   end subroutine free_fem_function
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -156,8 +156,8 @@ contains
 
   subroutine copy_fem_function(from,to)
     implicit none
-    class(fem_function), intent(in), target  :: from
-    class(fem_function), intent(inout)       :: to
+    class(fem_function_t), intent(in), target  :: from
+    class(fem_function_t), intent(inout)       :: to
     to%ivar=from%ivar
     to%nvar=from%nvar
     to%idof=from%idof
@@ -177,8 +177,8 @@ contains
     class(physical_problem), intent(in) :: prob
     integer(ip)            , intent(in) :: iunk
     integer(ip)            , intent(in) :: start(prob%nvars+1)
-    type(volume_integrator_pointer), target, intent(in) :: integ(:)
-    type(basis_function) :: res
+    type(volume_integrator_pointer_t), target, intent(in) :: integ(:)
+    type(basis_function_t) :: res
     integer(ip)          :: i,ivar
     ivar = 1
     do i=1,iunk-1
@@ -196,8 +196,8 @@ contains
   end function basis_function_constructor
 
  function basis_function_gradient_constructor(u) result(g)
-    type(basis_function), intent(in) :: u
-    type(basis_function_gradient)    :: g
+    type(basis_function_t), intent(in) :: u
+    type(basis_function_gradient_t)    :: g
     integer(ip) :: ndime, nnode, ngaus
     call u%GuardTemp()
     call copy_fem_function(u,g)
@@ -205,8 +205,8 @@ contains
   end function basis_function_gradient_constructor
 
  function basis_function_divergence_constructor(u) result(g)
-    type(basis_function), intent(in) :: u
-    type(basis_function_divergence)    :: g
+    type(basis_function_t), intent(in) :: u
+    type(basis_function_divergence_t)    :: g
     integer(ip) :: ndime, nnode, ngaus
     call u%GuardTemp()
     call copy_fem_function(u,g)
@@ -224,8 +224,8 @@ contains
  !    class(physical_problem) , intent(in) :: prob
  !    integer(ip)             , intent(in) :: iunk
  !    integer(ip)             , intent(in) :: icomp
- !    type(volume_integrator_pointer),target, intent(in) :: integ(:)
- !    type(given_function) :: var
+ !    type(volume_integrator_pointer_t),target, intent(in) :: integ(:)
+ !    type(given_function_t) :: var
  !    integer(ip)          :: i,ivar
  !    ivar = 1
  !    do i=1,iunk-1
@@ -239,8 +239,8 @@ contains
  !  end function given_function_constructor
 
  ! function given_function_gradient_constructor(u) result(g)
- !    type(given_function), intent(in) :: u
- !    type(given_function_gradient)    :: g
+ !    type(given_function_t), intent(in) :: u
+ !    type(given_function_gradient_t)    :: g
  !    integer(ip) :: ndime, nnode, ngaus
  !    call u%GuardTemp()
  !    call copy_fem_function(u,g)
@@ -248,8 +248,8 @@ contains
  !  end function given_function_gradient_constructor
 
  ! function given_function_divergence_constructor(u) result(g)
- !    type(given_function), intent(in) :: u
- !    type(given_function_divergence)  :: g
+ !    type(given_function_t), intent(in) :: u
+ !    type(given_function_divergence_t)  :: g
  !    integer(ip) :: ndime, nnode, ngaus
  !    call u%GuardTemp()
  !    call copy_fem_function(u,g)
@@ -266,8 +266,8 @@ contains
     implicit none
     class(physical_problem)         , intent(in)  :: prob
     integer(ip)                    , intent(in)  :: ivar
-    type(volume_integrator_pointer), intent(in)  :: integ(:)
-    type(scalar)                   , intent(out) :: res
+    type(volume_integrator_pointer_t), intent(in)  :: integ(:)
+    type(scalar_t)                   , intent(out) :: res
     integer(ip)  :: nvar, ngaus
     nvar = prob%vars_of_unk(ivar)
     assert( nvar == 1)
@@ -278,8 +278,8 @@ contains
   subroutine scalar_interpolation (unkno, ivar, icomp, integ, res)
     real(rp)     , intent(in)    :: unkno(:,:,:)
     integer(ip)  , intent(in)    :: ivar, icomp
-    type(volume_integrator_pointer), intent(in)  :: integ(:)
-    type(scalar) , intent(inout) :: res
+    type(volume_integrator_pointer_t), intent(in)  :: integ(:)
+    type(scalar_t) , intent(inout) :: res
     integer(ip)  :: nnode,ngaus
     integer(ip)  :: inode,igaus
     nnode = integ(ivar)%p%uint_phy%nnode
@@ -295,8 +295,8 @@ contains
     implicit none
     class(physical_problem)        , intent(in)  :: prob
     integer(ip)                    , intent(in)  :: ivar
-    type(volume_integrator_pointer), intent(in)  :: integ(:)
-    type(vector)                   , intent(out) :: res
+    type(volume_integrator_pointer_t), intent(in)  :: integ(:)
+    type(vector_t)                   , intent(out) :: res
     integer(ip)  :: nvar, ngaus
     nvar = prob%vars_of_unk(ivar)
     ngaus = integ(ivar)%p%uint_phy%nlocs
@@ -306,8 +306,8 @@ contains
   subroutine vector_interpolation (unkno, ivar, icomp, integ, res)
     real(rp)     , intent(in)    :: unkno(:,:,:)
     integer(ip)  , intent(in)    :: ivar, icomp
-    type(volume_integrator_pointer), intent(in)  :: integ(:)
-    type(vector) , intent(inout) :: res
+    type(volume_integrator_pointer_t), intent(in)  :: integ(:)
+    type(vector_t) , intent(inout) :: res
     integer(ip)  :: nvar,nnode,ngaus
     integer(ip)  :: idof,inode,igaus
     nvar  = size(res%a,1)
@@ -323,8 +323,8 @@ contains
   end subroutine vector_interpolation
 
   ! subroutine scalar_interpolation (u, res)
-  !   type(given_function)  , intent(in)    :: u
-  !   type(scalar)          , intent(inout) :: res
+  !   type(given_function_t)  , intent(in)    :: u
+  !   type(scalar_t)          , intent(inout) :: res
   !   integer(ip)  :: nvar,nnode,ngaus
   !   integer(ip)  :: idof,inode,igaus
   !   call u%GuardTemp()
@@ -342,8 +342,8 @@ contains
   ! end subroutine scalar_interpolation
 
   ! subroutine vector_interpolation (u,vec)
-  !   type(given_function)  , intent(in)    :: u
-  !   type(vector)          , intent(inout) :: vec
+  !   type(given_function_t)  , intent(in)    :: u
+  !   type(vector_t)          , intent(inout) :: vec
   !   integer(ip)  :: nvar,nnode,ngaus
   !   integer(ip)  :: idof,inode,igaus
   !   call u%GuardTemp()
@@ -362,8 +362,8 @@ contains
   ! end subroutine vector_interpolation
 
   ! subroutine scalar_gradient_interpolation(g,vec)
-  !   type(given_function_gradient), intent(in)  :: g
-  !   type(vector)                 , intent(inout) :: vec
+  !   type(given_function_gradient_t), intent(in)  :: g
+  !   type(vector_t)                 , intent(inout) :: vec
   !   integer(ip) :: ndime, nnode, ngaus
   !   integer(ip) :: idime, inode, igaus
   !   call g%GuardTemp()
@@ -384,8 +384,8 @@ contains
   ! end subroutine scalar_gradient_interpolation
 
   ! subroutine vector_gradient_interpolation(g,tens)
-  !   type(given_function_gradient), intent(in)  :: g
-  !   type(tensor)                 , intent(inout) :: tens
+  !   type(given_function_gradient_t), intent(in)  :: g
+  !   type(tensor_t)                 , intent(inout) :: tens
   !   integer(ip) :: nvar, ndime, nnode, ngaus
   !   integer(ip) :: idof, idime, inode, igaus
   !   call g%GuardTemp()
@@ -408,8 +408,8 @@ contains
   ! end subroutine vector_gradient_interpolation
 
   ! subroutine divergence_interpolation(u,res)
-  !   type(given_function_divergence), intent(in)  :: u
-  !   type(scalar)                   , intent(inout) :: res
+  !   type(given_function_divergence_t), intent(in)  :: u
+  !   type(scalar_t)                   , intent(inout) :: res
   !   integer(ip) :: nvar, ndime, nnode, ngaus
   !   integer(ip) :: idof, idime, inode, igaus
   !   call u%GuardTemp()
@@ -444,9 +444,9 @@ contains
   ! This, however, requires polymorphic allocatable.
   function product_field_basis_function(field_left,u) result(res)
     implicit none
-    class(field)         , intent(in)  :: field_left
-    class(basis_function), intent(in)  :: u
-    class(basis_function), allocatable :: res
+    class(field_t)         , intent(in)  :: field_left
+    class(basis_function_t), intent(in)  :: u
+    class(basis_function_t), allocatable :: res
     allocate(res,mold=u)
     call res%SetTemp()
     call copy_fem_function(u,res)
@@ -461,8 +461,8 @@ contains
   function scale_left_basis_function(alpha,ul) result(x)
     implicit none
     real(rp)             , intent(in)  :: alpha
-    class(basis_function), intent(in)  :: ul
-    class(basis_function), allocatable :: x
+    class(basis_function_t), intent(in)  :: ul
+    class(basis_function_t), allocatable :: x
     call ul%GuardTemp()
     allocate(x,mold=ul)
     call x%SetTemp()
@@ -474,8 +474,8 @@ contains
   function scale_right_basis_function(ur,alpha) result(x)
     implicit none
     real(rp)             , intent(in)  :: alpha
-    class(basis_function), intent(in)  :: ur
-    class(basis_function), allocatable :: x
+    class(basis_function_t), intent(in)  :: ur
+    class(basis_function_t), allocatable :: x
     call ur%GuardTemp()
     allocate(x,mold=ur)
     call x%SetTemp()
@@ -487,9 +487,9 @@ contains
   ! ! Temporarily I replicate code
   ! function product_field_basis_function(field_left,u) result(res)
   !   implicit none
-  !   class(field)        , intent(in) :: field_left
-  !   type(basis_function), intent(in) :: u
-  !   type(basis_function)             :: res
+  !   class(field_t)        , intent(in) :: field_left
+  !   type(basis_function_t), intent(in) :: u
+  !   type(basis_function_t)             :: res
   !   call u%GuardTemp()
   !   call res%SetTemp()
   !   call copy_fem_function(u,res)
@@ -503,9 +503,9 @@ contains
   ! end function product_field_basis_function
   ! function product_field_basis_function_gradient(field_left,u) result(res)
   !   implicit none
-  !   class(field)        , intent(in) :: field_left
-  !   type(basis_function_gradient), intent(in) :: u
-  !   type(basis_function_gradient)             :: res
+  !   class(field_t)        , intent(in) :: field_left
+  !   type(basis_function_gradient_t), intent(in) :: u
+  !   type(basis_function_gradient_t)             :: res
   !   call u%GuardTemp()
   !   call res%SetTemp()
   !   call copy_fem_function(u,res)
@@ -519,9 +519,9 @@ contains
   ! end function product_field_basis_function_gradient
   ! function product_field_basis_function_divergence(field_left,u) result(res)
   !   implicit none
-  !   class(field)        , intent(in) :: field_left
-  !   type(basis_function_divergence), intent(in) :: u
-  !   type(basis_function_divergence)             :: res
+  !   class(field_t)        , intent(in) :: field_left
+  !   type(basis_function_divergence_t), intent(in) :: u
+  !   type(basis_function_divergence_t)             :: res
   !   call u%GuardTemp()
   !   call res%SetTemp()
   !   call copy_fem_function(u,res)
@@ -536,9 +536,9 @@ contains
 
   ! function product_basis_function_field(u,field_right) result(res)
   !   implicit none
-  !   class(field)        , intent(in) :: field_right
-  !   type(basis_function), intent(in) :: u
-  !   type(basis_function)             :: res
+  !   class(field_t)        , intent(in) :: field_right
+  !   type(basis_function_t), intent(in) :: u
+  !   type(basis_function_t)             :: res
   !   call u%GuardTemp()
   !   call copy_fem_function(u,res)
   !   if(allocated(u%right_factor)) then
@@ -551,9 +551,9 @@ contains
   ! end function product_basis_function_field
   ! function product_basis_function_gradient_field(u,field_right) result(res)
   !   implicit none
-  !   class(field)        , intent(in) :: field_right
-  !   type(basis_function_gradient), intent(in) :: u
-  !   type(basis_function_gradient)             :: res
+  !   class(field_t)        , intent(in) :: field_right
+  !   type(basis_function_gradient_t), intent(in) :: u
+  !   type(basis_function_gradient_t)             :: res
   !   call u%GuardTemp()
   !   call copy_fem_function(u,res)
   !   if(allocated(u%right_factor)) then
@@ -566,9 +566,9 @@ contains
   ! end function product_basis_function_gradient_field
   ! function product_basis_function_divergence_field(u,field_right) result(res)
   !   implicit none
-  !   class(field)        , intent(in) :: field_right
-  !   type(basis_function_divergence), intent(in) :: u
-  !   type(basis_function_divergence)             :: res
+  !   class(field_t)        , intent(in) :: field_right
+  !   type(basis_function_divergence_t), intent(in) :: u
+  !   type(basis_function_divergence_t)             :: res
   !   call u%GuardTemp()
   !   call copy_fem_function(u,res)
   !   if(allocated(u%right_factor)) then
@@ -589,8 +589,8 @@ contains
   ! function scale_left_basis_function(alpha,ul) result(x)
   !   implicit none
   !   real(rp)            , intent(in) :: alpha
-  !   type(basis_function), intent(in) :: ul
-  !   type(basis_function)             :: x
+  !   type(basis_function_t), intent(in) :: ul
+  !   type(basis_function_t)             :: x
   !   call ul%GuardTemp()
   !   call copy_fem_function(ul,x)
   !   x%scaling = alpha
@@ -599,8 +599,8 @@ contains
   ! function scale_left_basis_function_gradient(alpha,ul) result(x)
   !   implicit none
   !   real(rp)                     , intent(in) :: alpha
-  !   type(basis_function_gradient), intent(in) :: ul
-  !   type(basis_function_gradient)             :: x
+  !   type(basis_function_gradient_t), intent(in) :: ul
+  !   type(basis_function_gradient_t)             :: x
   !   call ul%GuardTemp()
   !   call copy_fem_function(ul,x)
   !   x%scaling = alpha
@@ -609,8 +609,8 @@ contains
   ! function scale_left_basis_function_divergence(alpha,ul) result(x)
   !   implicit none
   !   real(rp)                     , intent(in) :: alpha
-  !   type(basis_function_divergence), intent(in) :: ul
-  !   type(basis_function_divergence)             :: x
+  !   type(basis_function_divergence_t), intent(in) :: ul
+  !   type(basis_function_divergence_t)             :: x
   !   call ul%GuardTemp()
   !   call copy_fem_function(ul,x)
   !   x%scaling = alpha
@@ -620,8 +620,8 @@ contains
   ! function scale_right_basis_function(ur,alpha) result(x)
   !   implicit none
   !   real(rp)            , intent(in) :: alpha
-  !   type(basis_function), intent(in) :: ur
-  !   type(basis_function)             :: x
+  !   type(basis_function_t), intent(in) :: ur
+  !   type(basis_function_t)             :: x
   !   call ur%GuardTemp()
   !   call copy_fem_function(ur,x)
   !   x%scaling = alpha
@@ -630,8 +630,8 @@ contains
   ! function scale_right_basis_function_gradient(ur,alpha) result(x)
   !   implicit none
   !   real(rp)                     , intent(in) :: alpha
-  !   type(basis_function_gradient), intent(in) :: ur
-  !   type(basis_function_gradient)             :: x
+  !   type(basis_function_gradient_t), intent(in) :: ur
+  !   type(basis_function_gradient_t)             :: x
   !   call ur%GuardTemp()
   !   call copy_fem_function(ur,x)
   !   x%scaling = alpha
@@ -640,8 +640,8 @@ contains
   ! function scale_right_basis_function_divergence(ur,alpha) result(x)
   !   implicit none
   !   real(rp)                       , intent(in) :: alpha
-  !   type(basis_function_divergence), intent(in) :: ur
-  !   type(basis_function_divergence)             :: x
+  !   type(basis_function_divergence_t), intent(in) :: ur
+  !   type(basis_function_divergence_t)             :: x
   !   call ur%GuardTemp()
   !   call copy_fem_function(ur,x)
   !   x%scaling = alpha
@@ -665,22 +665,22 @@ contains
 !   function product_real_scalar(xreal,yscalar) result(zscalar)
 !     implicit none
 !     real(rp)     , intent(in) :: xreal
-!     class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
-!     type(scalar)  :: zscalar    ! zscalar(ngaus)
+!     class(scalar_t), intent(in) :: yscalar_t    ! yscalar_t(ngaus)
+!     type(scalar_t)  :: zscalar_t    ! zscalar_t(ngaus)
 !     call real_scalar(xreal,yscalar,zscalar)
 !   end function product_real_scalar
 !   function product_scalar_real(xscalar,yreal) result(zscalar)
 !     implicit none
 !     real(rp)     , intent(in) :: yreal
-!     class(scalar), intent(in) :: xscalar    ! yscalar(ngaus)
-!     type(scalar)  :: zscalar    ! zscalar(ngaus)
+!     class(scalar_t), intent(in) :: xscalar_t    ! yscalar_t(ngaus)
+!     type(scalar_t)  :: zscalar_t    ! zscalar_t(ngaus)
 !     call real_scalar(yreal,xscalar,zscalar)
 !   end function product_scalar_real
 !   subroutine real_scalar(xreal,yscalar,zscalar)
 !     implicit none
 !     real(rp)     , intent(in) :: xreal
-!     class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
-!     type(scalar) :: zscalar    ! zscalar(ngaus)
+!     class(scalar_t), intent(in) :: yscalar_t    ! yscalar_t(ngaus)
+!     type(scalar_t) :: zscalar_t    ! zscalar_t(ngaus)
 !     integer(ip)  :: ng
 !     call yscalar%GuardTemp()
 !     call zscalar%SetTemp()
@@ -692,9 +692,9 @@ contains
 
 !   function product_scalar_scalar(xscalar,yscalar) result(zscalar)
 !     implicit none
-!     class(scalar), intent(in) :: xscalar    ! xscalar(ngaus)
-!     class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
-!     type(scalar)  :: zscalar    ! zscalar(ngaus)
+!     class(scalar_t), intent(in) :: xscalar_t    ! xscalar_t(ngaus)
+!     class(scalar_t), intent(in) :: yscalar_t    ! yscalar_t(ngaus)
+!     type(scalar_t)  :: zscalar_t    ! zscalar_t(ngaus)
 !     integer(ip)   :: ng
 !     call xscalar%GuardTemp()
 !     call yscalar%GuardTemp()
@@ -709,9 +709,9 @@ contains
 
 !   function sum_scalar_scalar(xscalar,yscalar) result(zscalar)
 !     implicit none
-!     class(scalar), intent(in) :: xscalar    ! xscalar(ngaus)
-!     class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
-!     type(scalar)  :: zscalar    ! zscalar(ngaus)
+!     class(scalar_t), intent(in) :: xscalar_t    ! xscalar_t(ngaus)
+!     class(scalar_t), intent(in) :: yscalar_t    ! yscalar_t(ngaus)
+!     type(scalar_t)  :: zscalar_t    ! zscalar_t(ngaus)
 !     integer(ip)   :: ng
 !     call xscalar%GuardTemp()
 !     call yscalar%GuardTemp()
@@ -726,9 +726,9 @@ contains
 
 !   function product_scalar_vector(xscalar,yvector) result(zvector)
 !     implicit none
-!     class(scalar), intent(in) :: xscalar    ! xscalar(ngaus)
-!     class(vector), intent(in) :: yvector    ! yvector(:,ngaus)
-!     type(vector)  :: zvector                ! zvector(:,ngaus)
+!     class(scalar_t), intent(in) :: xscalar_t    ! xscalar_t(ngaus)
+!     class(vector_t), intent(in) :: yvector_t    ! yvector_t(:,ngaus)
+!     type(vector_t)  :: zvector_t                ! zvector_t(:,ngaus)
 !     integer(ip)   :: i,j,nd,ng
 !     call xscalar%GuardTemp()
 !     call yvector%GuardTemp()
@@ -748,9 +748,9 @@ contains
 
 !   function product_vector_scalar(xvector,yscalar) result(zvector)
 !     implicit none
-!     class(vector), intent(in) :: xvector    ! xvector(:,ngaus)
-!     class(scalar), intent(in) :: yscalar    ! yscalar(ngaus)
-!     type(vector)  :: zvector                ! zvector(:,ngaus)
+!     class(vector_t), intent(in) :: xvector_t    ! xvector_t(:,ngaus)
+!     class(scalar_t), intent(in) :: yscalar_t    ! yscalar_t(ngaus)
+!     type(vector_t)  :: zvector_t                ! zvector_t(:,ngaus)
 !     integer(ip)   :: i,j,nd,ng
 !     call xvector%GuardTemp()
 !     call yscalar%GuardTemp()
@@ -770,22 +770,22 @@ contains
 !   function product_real_vector(xreal,yvector) result(zvector)
 !     implicit none
 !     real(rp)     , intent(in) :: xreal
-!     class(vector), intent(in) :: yvector    ! yvector(ngaus)
-!     type(vector)  :: zvector    ! zvector(ngaus)
+!     class(vector_t), intent(in) :: yvector_t    ! yvector_t(ngaus)
+!     type(vector_t)  :: zvector_t    ! zvector_t(ngaus)
 !     call real_vector(xreal,yvector,zvector)
 !   end function product_real_vector
 !   function product_vector_real(xvector,yreal) result(zvector)
 !     implicit none
 !     real(rp)     , intent(in) :: yreal
-!     class(vector), intent(in) :: xvector    ! yvector(ngaus)
-!     type(vector)  :: zvector    ! zvector(ngaus)
+!     class(vector_t), intent(in) :: xvector_t    ! yvector_t(ngaus)
+!     type(vector_t)  :: zvector_t    ! zvector_t(ngaus)
 !     call real_vector(yreal,xvector,zvector)
 !   end function product_vector_real
 !   subroutine real_vector(xreal,yvector,zvector)
 !     implicit none
 !     real(rp)     , intent(in) :: xreal
-!     class(vector), intent(in) :: yvector    ! yvector(ngaus)
-!     type(vector) :: zvector    ! zvector(ngaus)
+!     class(vector_t), intent(in) :: yvector_t    ! yvector_t(ngaus)
+!     type(vector_t) :: zvector_t    ! zvector_t(ngaus)
 !     integer(ip)  :: nd,ng
 !     call yvector%GuardTemp()
 !     call zvector%SetTemp()
@@ -798,9 +798,9 @@ contains
 
 !   function product_vector_tensor(xvector,ytensor) result(zvector)
 !     implicit none
-!     class(vector), intent(in) :: xvector    ! xvector%a(:,ngaus)
-!     type(tensor), intent(in) :: ytensor    ! ytensor%a(:,:,ngaus)
-!     type(vector) :: zvector    ! zvector%a(:,ngaus)
+!     class(vector_t), intent(in) :: xvector_t    ! xvector_t%a(:,ngaus)
+!     type(tensor_t), intent(in) :: ytensor_t    ! ytensor_t%a(:,:,ngaus)
+!     type(vector_t) :: zvector_t    ! zvector_t%a(:,ngaus)
 !     integer(ip)  :: i,j,k, n1,n2,ng
 !     call xvector%GuardTemp()
 !     call ytensor%GuardTemp()
@@ -826,9 +826,9 @@ contains
 
 !   function product_tensor_vector(xtensor,yvector) result(zvector)
 !     implicit none
-!     type(tensor), intent(in) :: xtensor    ! xtensor%a(:,:,ngaus)
-!     class(vector), intent(in) :: yvector    ! yvector%a(:,ngaus)
-!     type(vector) :: zvector    ! zvector%a(:,ngaus)
+!     type(tensor_t), intent(in) :: xtensor_t    ! xtensor_t%a(:,:,ngaus)
+!     class(vector_t), intent(in) :: yvector_t    ! yvector_t%a(:,ngaus)
+!     type(vector_t) :: zvector_t    ! zvector_t%a(:,ngaus)
 !     integer(ip)  :: i,j,k, n1,n2,ng
 !     call xtensor%GuardTemp()
 !     call yvector%GuardTemp()
@@ -855,8 +855,8 @@ contains
 ! ! term by term inverse
 !   function inv(x) result(z)
 !     implicit none
-!     type(scalar) :: x    ! x(ngaus)
-!     type(scalar) :: z    ! z(ngaus)
+!     type(scalar_t) :: x    ! x(ngaus)
+!     type(scalar_t) :: z    ! z(ngaus)
 !     integer(ip)  :: i,ng
 !     call x%GuardTemp()
 !     call z%SetTemp()
@@ -870,8 +870,8 @@ contains
 
 !   function norm(x) result(z)
 !     implicit none
-!     type(vector) :: x    ! x(ndime,ngaus)
-!     type(scalar) :: z    ! z(ngaus)
+!     type(vector_t) :: x    ! x(ndime,ngaus)
+!     type(scalar_t) :: z    ! z(ngaus)
 !     integer(ip)  :: i,j,k
 !     do i=1,size(x%a,2)
 !        z%a(i) = 0.0_rp
@@ -889,9 +889,9 @@ contains
 
   function integral_basis_function_basis_function(v,u) result(mat)
     implicit none
-    type(basis_function), intent(in) :: v
-    type(basis_function), intent(in) :: u
-    type(array_rp2) :: mat
+    type(basis_function_t), intent(in) :: v
+    type(basis_function_t), intent(in) :: u
+    type(array_rp2_t) :: mat
 
     integer(ip)  :: unode,vnode,ngaus
     integer(ip)  :: ipos,jpos,inode,jnode,ivar,igaus
@@ -908,10 +908,10 @@ contains
     ! Now perform operations according to left_factor TODO
     if(allocated(v%left_factor)) then
        select type(v_left_factor => v%left_factor)
-          class is(scalar)
+          class is(scalar_t)
           if(allocated(u%left_factor)) then
              select type(u_left_factor => u%left_factor)
-                class is(scalar)
+                class is(scalar_t)
                 assert(v%nvar==u%nvar)
                 do ivar = 0, v%nvar -1
                    vnode = v%integ(v%ivar+ivar)%p%uint_phy%nnode
@@ -964,9 +964,9 @@ contains
 
   function integral_basis_function_gradient_basis_function_gradient(gv,gu) result(mat)
     implicit none
-    type(basis_function_gradient), intent(in) :: gv
-    type(basis_function_gradient), intent(in) :: gu
-    type(array_rp2) :: mat
+    type(basis_function_gradient_t), intent(in) :: gv
+    type(basis_function_gradient_t), intent(in) :: gu
+    type(array_rp2_t) :: mat
 
     integer(ip)  :: unode,vnode,ndime,ngaus
     integer(ip)  :: ipos,jpos,inode,jnode,idime,ivar,igaus
@@ -984,10 +984,10 @@ contains
     ! Now perform operations according to left_factor TODO
     if(allocated(gv%left_factor)) then
        select type(v_left_factor => gv%left_factor)
-          class is(scalar)
+          class is(scalar_t)
           if(allocated(gu%left_factor)) then
              select type(u_left_factor => gu%left_factor)
-                class is(scalar)
+                class is(scalar_t)
                 assert(gv%nvar==gu%nvar)
                 do ivar = 0, gv%nvar -1
                    vnode = gv%integ(gv%ivar+ivar)%p%uint_phy%nnode

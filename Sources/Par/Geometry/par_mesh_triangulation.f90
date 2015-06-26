@@ -27,19 +27,19 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_mesh_triangulation_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use fem_triangulation_names
   use fem_element_import_names
   use fem_element_import_create_names
   use hash_table_names
-use mesh_triangulation_names
-use psi_penv_mod_names
+  use mesh_triangulation_names
+  use psi_penv_mod_names
 
   ! Parallel modules
   use par_triangulation_names
   use par_mesh_names
-use par_element_exchange_names
+  use par_element_exchange_names
   use par_conditions_names
 
 # include "debug.i90"
@@ -53,21 +53,21 @@ contains
   subroutine par_mesh_to_triangulation (p_gmesh, p_trian, p_cond)
     implicit none
     ! Parameters
-    type(par_mesh)         , target  , intent(in)    :: p_gmesh ! Geometry mesh
-    type(par_triangulation), target  , intent(inout) :: p_trian 
-    type(par_conditions)   , optional, intent(inout) :: p_cond
+    type(par_mesh_t)         , target  , intent(in)    :: p_gmesh ! Geometry mesh
+    type(par_triangulation_t), target  , intent(inout) :: p_trian 
+    type(par_conditions_t)   , optional, intent(inout) :: p_cond
 
     ! Locals
     integer(ip) :: istat, ielem, iobj, jobj, state
     integer(ip) :: num_elems, num_ghosts, num_verts
-    type (hash_table_igp_ip) :: hash ! Topological info hash table (SBmod)
+    type (hash_table_igp_ip_t) :: hash ! Topological info hash table (SBmod)
     integer(ip) :: ilele, nvert, jelem, jlele, idime, count, ivere 
     integer(igp):: iobjg
     integer(igp), allocatable :: aux_igp(:)
     integer(ip), allocatable :: aux(:)
     integeR(ip) :: aux_val
     
-    ! Set a reference to the type(par_environment) instance describing the set of MPI tasks
+    ! Set a reference to the type(par_environment_t) instance describing the set of MPI tasks
     ! among which this type(par_triangulation) instance is going to be distributed 
     p_trian%p_env => p_gmesh%p_env
 
@@ -81,7 +81,7 @@ contains
        ! Create element_import from geometry mesh partition data
        ! AFM: CURRENTLY fem_element_import_create is the only way to create a type(fem_element_import) instance.
        !      I have stored it inside type(par_triangulation) as I do not have a better guess.
-       !      In the future, we should get rid of fem_element_import_create, and provide a new
+       !      In the future, we should get rid of fem_element_t_import_create, and provide a new
        !      subroutine which allows to create this instance using the dual graph and the gluing
        !      data describing its distributed-memory layout. Both the dual graph and associated gluing
        !      data are to be stored in type(par_neighborhood) according to Javier's UML diagram (i.e., fempar.dia). 
@@ -112,11 +112,11 @@ contains
        num_verts = p_gmesh%f_mesh%npoin
 
        ! Create array of elements with room for ghost elements
-       allocate( par_elem_topology :: p_trian%mig_elems(num_elems + num_ghosts), stat=istat)
+       allocate( par_elem_topology_t :: p_trian%mig_elems(num_elems + num_ghosts), stat=istat)
        check(istat==0)
 
        select type( this => p_trian%mig_elems )
-       type is(par_elem_topology)
+       type is(par_elem_topology_t)
           p_trian%elems => this
        end select
 

@@ -28,8 +28,8 @@
 module par_create_global_dof_info_names
 
   ! Fem Modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use sort_names
   use dof_handler_names
   use fem_triangulation_names
@@ -70,15 +70,15 @@ contains
        blk_dof_dist, p_blk_graph, gtype ) 
     implicit none
     ! Paramters
-    type(dof_handler)                  , intent(in)     :: dhand
-    type(par_triangulation)            , intent(in)     :: p_trian
-    type(par_fem_space)                , intent(inout)  :: p_femsp
-    type(block_dof_distribution)       , intent(inout)  :: blk_dof_dist 
-    type(par_block_graph)              , intent(inout)  :: p_blk_graph
+    type(dof_handler_t)                  , intent(in)     :: dhand
+    type(par_triangulation_t)            , intent(in)     :: p_trian
+    type(par_fem_space_t)                , intent(inout)  :: p_femsp
+    type(block_dof_distribution_t)       , intent(inout)  :: blk_dof_dist 
+    type(par_block_graph_t)              , intent(inout)  :: p_blk_graph
     integer(ip)              , optional, intent(in)     :: gtype(dhand%nblocks) 
 
     integer(ip)               :: iblock, jblock
-    type (par_graph), pointer :: p_graph
+    type (par_graph_t), pointer :: p_graph
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_femsp%p_trian) )
@@ -126,9 +126,9 @@ contains
   !*********************************************************************************
   subroutine ghost_dofs_by_integration( dhand, p_trian, femsp )
     implicit none
-    type(dof_handler)      , intent(in)       :: dhand
-    type(par_triangulation), intent(in)       :: p_trian
-    type(fem_space)        , intent(inout)    :: femsp
+    type(dof_handler_t)      , intent(in)       :: dhand
+    type(par_triangulation_t), intent(in)       :: p_trian
+    type(fem_space_t)        , intent(inout)    :: femsp
 
     integer(ip) :: iobje, i, ielem, l_faci, iprob, nvapb, ivars, l_var, g_var, inode, l_node, count
     integer(ip) :: iblock, lobje

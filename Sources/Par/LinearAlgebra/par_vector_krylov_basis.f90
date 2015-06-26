@@ -33,7 +33,7 @@ use memor_names
 
   ! Parallel modules
   use dof_distribution_names
-use psb_penv_mod_names
+  use psb_penv_mod_names
   use par_environment_names
   use par_vector_names
 
@@ -44,23 +44,23 @@ use psb_penv_mod_names
 
 
   ! Distributed Krylov Basis (compatible with par_vector)
-  type par_vector_krylov_basis
+  type par_vector_krylov_basis_t
      ! Local view of ONLY those components of b
      ! corresponding to vertices owned by the processor  
-     !type( epetra_multivector ) :: epmv
+     !type( epetra_multivector_t ) :: epmv
 
-     type(fem_vector_krylov_basis) :: f_basis
+     type(fem_vector_krylov_basis_t) :: f_basis
      
      ! Partially or fully summed
      integer(ip)  :: state = undefined
 
      ! DoF distribution control info.
-     type ( dof_distribution ), pointer  :: dof_dist => NULL()
-     type ( par_environment ) , pointer  :: p_env => NULL()
-  end type par_vector_krylov_basis
+     type ( dof_distribution_t ), pointer  :: dof_dist => NULL()
+     type ( par_environment_t ) , pointer  :: p_env => NULL()
+  end type par_vector_krylov_basis_t
 
   ! Types
-  public :: par_vector_krylov_basis
+  public :: par_vector_krylov_basis_t
 
 
   ! Functions
@@ -73,8 +73,8 @@ contains
   subroutine par_vector_krylov_basis_alloc (k, p_v, Q)
     implicit none
     integer(ip)     , intent(in)               :: k
-    type(par_vector), intent(in) , target      :: p_v
-    type(par_vector_krylov_basis), intent(out) :: Q 
+    type(par_vector_t), intent(in) , target      :: p_v
+    type(par_vector_krylov_basis_t), intent(out) :: Q 
 
     ! dof_dist and p_env%p_context is required within this subroutine
     assert ( associated(p_v%dof_dist)          )
@@ -94,7 +94,7 @@ contains
   !=============================================================================
   subroutine par_vector_krylov_basis_free (Q)
     implicit none
-    type(par_vector_krylov_basis), intent(inout) :: Q
+    type(par_vector_krylov_basis_t), intent(inout) :: Q
 
     ! The routine requires the partition/context info
     assert ( associated( Q%dof_dist ) )
@@ -112,8 +112,8 @@ contains
   subroutine par_vector_krylov_basis_extract_view (i, Q, p_v)
     implicit none
     integer(ip)     , intent(in)                      :: i
-    type(par_vector_krylov_basis), intent(in), target :: Q
-    type(par_vector), intent(out)                     :: p_v
+    type(par_vector_krylov_basis_t), intent(in), target :: Q
+    type(par_vector_t), intent(out)                     :: p_v
 
     ! The routine requires the partition/context info
     assert ( associated( Q%dof_dist ) )
@@ -137,13 +137,13 @@ contains
      implicit none
      ! Parameters 
      integer(ip), intent(in)                   :: k
-     type(par_vector_krylov_basis), intent(in) :: Q
-     type(par_vector)             , intent(in) :: p_v
+     type(par_vector_krylov_basis_t), intent(in) :: Q
+     type(par_vector_t)             , intent(in) :: p_v
      real(rp), intent(out)                     :: s(k)
 
      ! Locals
      integer(ip)                               :: i
-     type(par_vector)                          :: p_v_w
+     type(par_vector_t)                          :: p_v_w
      
      ! The routine requires the partition/context info
      assert ( associated( Q%dof_dist ) )
@@ -180,9 +180,9 @@ contains
      ! Parameters
      integer(ip), intent(in)                      :: k
      real(rp)   , intent(in)                      :: alpha
-     type(par_vector_krylov_basis), intent(in)    :: Q
+     type(par_vector_krylov_basis_t), intent(in)    :: Q
      real(rp), intent(in)                         :: s(k)
-     type(par_vector)             , intent(inout) :: p_v
+     type(par_vector_t)             , intent(inout) :: p_v
 
      ! Locals
      integer(ip)                                  :: i

@@ -33,17 +33,17 @@ module fem_matrix_precond_vector_solver_names
 
   ! Specialize generic_mat data structure and associated methods
   use fem_matrix_names , only : &
-       &  generic_mat => fem_matrix, generic_info => fem_matrix_info, &
+       &  generic_mat => fem_matrix_t, generic_info => fem_matrix_info, &
        &  generic_matvec => fem_matvec
 
   ! Specialize generic_pre data structure and associated methods
   use fem_precond_names, only :  &
-       &  generic_pre    => fem_precond,   generic_precond => fem_precond_apply, &
+       &  generic_pre    => fem_precond_t,   generic_precond => fem_precond_apply, &
        &  generic_bcast  => fem_precond_bcast, generic_fine_task  => fem_precond_fine_task   
 
   ! Specialize generic_vec data structure and associated methods
   use fem_vector_names , only :  &
-       &  generic_vec    => fem_vector,       generic_dot     => fem_vector_dot,    &    
+       &  generic_vec    => fem_vector_t,       generic_dot     => fem_vector_dot,    &    
        &  generic_copy   => fem_vector_copy,  generic_zero    => fem_vector_zero,   & 
        &  generic_scale  => fem_vector_scale, generic_mxpy    => fem_vector_mxpy,   & 
        &  generic_axpy   => fem_vector_axpy,  generic_aypx    => fem_vector_aypx,   & 
@@ -53,7 +53,7 @@ module fem_matrix_precond_vector_solver_names
   
   ! Specialize generic_krylov_basis data structure and associated methods
   use fem_vector_krylov_basis_names, only :  &
-       &  generic_krylov_basis              => fem_vector_krylov_basis              , &
+       &  generic_krylov_basis              => fem_vector_krylov_basis_t            , &
        &  generic_krylov_basis_alloc        => fem_vector_krylov_basis_alloc        , & 
        &  generic_krylov_basis_free         => fem_vector_krylov_basis_free         , &
        &  generic_krylov_basis_extract_view => fem_vector_krylov_basis_extract_view , &
@@ -80,18 +80,18 @@ module fem_block_matrix_block_precond_block_vector_solver_names
 
   ! Specialize generic_mat data structure and associated methods
   use fem_block_matrix_names , only : &
-       &  generic_mat => fem_block_matrix, generic_info => fem_block_matrix_info
+       &  generic_mat => fem_block_matrix_t, generic_info => fem_block_matrix_info
 
   use fem_block_matrix_vector_names, only : generic_matvec => fem_block_matvec  
 
   ! Specialize generic_pre data structure and associated methods
   use fem_block_precond_names, only :  &
-       &  generic_pre    => fem_block_precond,   generic_precond => fem_block_precond_apply, &
+       &  generic_pre    => fem_block_precond_t,   generic_precond => fem_block_precond_apply, &
        &  generic_bcast  => fem_block_precond_bcast, generic_fine_task  => fem_block_precond_fine_task 
   
   ! Specialize generic_vec data structure and associated methods 
   use fem_block_vector_names , only :  &
-       &  generic_vec   => fem_block_vector,       generic_dot   => fem_block_vector_dot,   &    
+       &  generic_vec   => fem_block_vector_t,       generic_dot   => fem_block_vector_dot,   &    
        &  generic_copy  => fem_block_vector_copy,  generic_zero  => fem_block_vector_zero,  & 
        &  generic_scale => fem_block_vector_scale, generic_mxpy  => fem_block_vector_mxpy,  & 
        &  generic_axpy  => fem_block_vector_axpy,  generic_aypx  => fem_block_vector_aypx,  & 
@@ -101,7 +101,7 @@ module fem_block_matrix_block_precond_block_vector_solver_names
   
   ! Specialize generic_krylov_basis data structure and associated methods
   use fem_block_vector_krylov_basis_names, only :  &
-       &  generic_krylov_basis              => fem_block_vector_krylov_basis              , &
+       &  generic_krylov_basis              => fem_block_vector_krylov_basis_t              , &
        &  generic_krylov_basis_alloc        => fem_block_vector_krylov_basis_alloc        , & 
        &  generic_krylov_basis_free         => fem_block_vector_krylov_basis_free         , &
        &  generic_krylov_basis_extract_view => fem_block_vector_krylov_basis_extract_view , &

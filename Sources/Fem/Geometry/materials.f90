@@ -33,15 +33,15 @@ use stdio_names
   implicit none
   private
 
-  type fem_materials
+  type fem_materials_t
      integer(ip)                :: &
           nelem=0                          ! Number of elements
      integer(ip), allocatable   :: &
           list(:)                          ! Material type for every element
-  end type fem_materials
+  end type fem_materials_t
 
   ! Types
-  public :: fem_materials
+  public :: fem_materials_t
 
   ! Methods
   public :: fem_materials_create, fem_materials_free
@@ -52,7 +52,7 @@ contains
   subroutine fem_materials_create(nelem,mat)
     implicit none
     integer(ip)        , intent(in)  :: nelem
-    type(fem_materials), intent(out) :: mat
+    type(fem_materials_t), intent(out) :: mat
 
     mat%nelem=nelem
 
@@ -66,7 +66,7 @@ contains
   !===============================================================================================
   subroutine fem_materials_free(mat)
     implicit none
-    type(fem_materials), intent(inout) :: mat
+    type(fem_materials_t), intent(inout) :: mat
 
     mat%nelem= 0
 

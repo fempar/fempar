@@ -35,7 +35,7 @@ module quadrature_faces_names
   implicit none
   private
 
-  type face_quadrature
+  type face_quadrature_t
      integer(ip)              :: &
         ndime,                   &    ! Number of space dimensions
         etype,                   &    ! Element type ID
@@ -44,10 +44,10 @@ module quadrature_faces_names
 
      real(rp)   , allocatable :: &
         pos(:,:,:)                      ! Quadrature points position
-  end type face_quadrature
+  end type face_quadrature_t
 
   ! Types
-  public :: face_quadrature
+  public :: face_quadrature_t
 
   ! Functions
   public :: face_quadrature_create, face_quadrature_free
@@ -59,9 +59,9 @@ contains
     implicit none
     ! Parameters
     integer(ip)          , intent(in)  :: ndime,nface
-    type(fem_fixed_info) , intent(in)  :: fi
-    type(quadrature)     , intent(in)  :: quad
-    type(face_quadrature), intent(out) :: face_quad
+    type(fem_fixed_info_t) , intent(in)  :: fi
+    type(quadrature_t)     , intent(in)  :: quad
+    type(face_quadrature_t), intent(out) :: face_quad
     integer(ip)          , intent(in), optional :: subface
 
     ! Local variables
@@ -105,7 +105,7 @@ contains
     elseif (fi%ftype == Q_type_id) then
        call Q_refcoord (nopos, ndime, fi%order, fi%nnode)
     else
-       write(*,*) 'quadrature_faces:: ERROR! Unknown element type.'
+       write(*,*) 'quadrature_t_faces:: ERROR! Unknown element type.'
        check (1 == 0)
     end if
 
@@ -163,7 +163,7 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    type(face_quadrature), intent(inout) :: rule
+    type(face_quadrature_t), intent(inout) :: rule
 
     call memfree(rule%pos  ,__FILE__,__LINE__)
   end subroutine face_quadrature_free

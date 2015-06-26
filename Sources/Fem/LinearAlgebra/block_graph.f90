@@ -36,16 +36,16 @@ use types_names
   private
 
   ! Pointer to graph
-  type p_fem_graph
-    type(fem_graph), pointer :: p_f_graph
-  end type p_fem_graph
+  type p_fem_graph_t
+    type(fem_graph_t), pointer :: p_f_graph
+  end type p_fem_graph_t
 
 
   ! Block Graph 
-  type fem_block_graph
+  type fem_block_graph_t
      private
      integer(ip)                    :: nblocks = -1
-     type(p_fem_graph), allocatable :: blocks(:,:)
+     type(p_fem_graph_t), allocatable :: blocks(:,:)
   contains
     procedure :: alloc             => fem_block_graph_alloc
     procedure :: alloc_block       => fem_block_graph_alloc_block 
@@ -53,10 +53,10 @@ use types_names
     procedure :: free              => fem_block_graph_free
     procedure :: get_block         => fem_block_graph_get_block
     procedure :: get_nblocks       => fem_block_graph_get_nblocks
-  end type fem_block_graph
+  end type fem_block_graph_t
 
   ! Types
-  public :: fem_block_graph
+  public :: fem_block_graph_t
 
   ! Functions
   public :: fem_block_graph_alloc, fem_block_graph_alloc_block,       & 
@@ -69,7 +69,7 @@ contains
   subroutine fem_block_graph_alloc ( p_f_graph, nblocks)
     implicit none
     ! Parameters
-    class(fem_block_graph)              , intent(inout) :: p_f_graph
+    class(fem_block_graph_t)              , intent(inout) :: p_f_graph
     integer(ip)                         , intent(in)    :: nblocks
 
     ! Locals
@@ -90,7 +90,7 @@ contains
   subroutine fem_block_graph_alloc_block (p_f_graph,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_graph), target, intent(inout) :: p_f_graph
+    class(fem_block_graph_t), target, intent(inout) :: p_f_graph
     integer(ip)                  , intent(in)    :: ib,jb
     ! Locals
     integer(ip) :: istat
@@ -105,7 +105,7 @@ contains
   subroutine fem_block_graph_set_block_to_zero (p_f_graph,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_graph), intent(inout) :: p_f_graph
+    class(fem_block_graph_t), intent(inout) :: p_f_graph
     integer(ip)           , intent(in)   :: ib,jb
     ! Locals
     integer(ip) :: istat
@@ -122,9 +122,9 @@ contains
   function fem_block_graph_get_block (p_f_graph,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_graph), target, intent(in) :: p_f_graph
+    class(fem_block_graph_t), target, intent(in) :: p_f_graph
     integer(ip)                   , intent(in) :: ib,jb
-    type(fem_graph)               , pointer    :: fem_block_graph_get_block
+    type(fem_graph_t)               , pointer    :: fem_block_graph_get_block
 
     fem_block_graph_get_block =>  p_f_graph%blocks(ib,jb)%p_f_graph
   end function fem_block_graph_get_block
@@ -132,14 +132,14 @@ contains
   function fem_block_graph_get_nblocks (p_f_graph)
     implicit none
     ! Parameters
-    class(fem_block_graph), target, intent(in) :: p_f_graph
+    class(fem_block_graph_t), target, intent(in) :: p_f_graph
     integer(ip)                                :: fem_block_graph_get_nblocks
     fem_block_graph_get_nblocks = p_f_graph%nblocks
   end function fem_block_graph_get_nblocks
 
   subroutine fem_block_graph_print (lunou, p_f_graph)
     implicit none
-    class(fem_block_graph), intent(in)    :: p_f_graph
+    class(fem_block_graph_t), intent(in)    :: p_f_graph
     integer(ip)           , intent(in)    :: lunou
     integer(ip)                           :: i
 
@@ -149,7 +149,7 @@ contains
   !=============================================================================
   subroutine fem_block_graph_free (p_f_graph)
     implicit none
-    class(fem_block_graph), intent(inout) :: p_f_graph
+    class(fem_block_graph_t), intent(inout) :: p_f_graph
     integer(ip) :: ib,jb
     ! Locals
     integer(ip) :: istat

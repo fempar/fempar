@@ -54,7 +54,7 @@ use hsl_mi20_double_names
   integer(ip), parameter :: num_computed  = 3 ! Numerical data already computed 
 
 
-  type hsl_mi20_context
+  type hsl_mi20_context_t
      ! Our components
      integer(ip)     :: state = not_created
 #ifdef ENABLE_HSL_MI20
@@ -62,28 +62,28 @@ use hsl_mi20_double_names
      type(zd11_type) :: zd11_mat
      type(mi20_keep) :: keep
 #endif
-  end type hsl_mi20_context
+  end type hsl_mi20_context_t
 
-  type hsl_mi20_control
+  type hsl_mi20_control_t
 #ifdef ENABLE_HSL_MI20
      type(MI20_control) :: control
 #endif
-  end type hsl_mi20_control
+  end type hsl_mi20_control_t
 
-  type hsl_mi20_info
+  type hsl_mi20_info_t
 #ifdef ENABLE_HSL_MI20
      type(MI20_info) :: info
 #endif
-  end type hsl_mi20_info
+  end type hsl_mi20_info_t
 
-  type hsl_mi20_data
+  type hsl_mi20_data_t
 #ifdef ENABLE_HSL_MI20
      type(MI20_data), allocatable :: coarse_data(:) 
 #endif     
-  end type hsl_mi20_data
+  end type hsl_mi20_data_t
 
   ! Types
-  public :: hsl_mi20_context, hsl_mi20_control, hsl_mi20_info, hsl_mi20_data
+  public :: hsl_mi20_context_t, hsl_mi20_control_t, hsl_mi20_info_t, hsl_mi20_data_t
 
   ! Possible actions that can be perfomed by solve_hsl_mi20
   integer(ip), parameter :: hsl_mi20_init              = 1  ! Construct solve_hsl_mi20_state
@@ -136,16 +136,16 @@ contains
   subroutine hsl_mi20_vector ( action, context, A, b, x, data, ctrl, info )
     implicit none
     ! Mandatory Parameters
-    type(hsl_mi20_context), intent(inout) :: context   ! Information required between calls
+    type(hsl_mi20_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)           , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
 
-    type(hsl_mi20_data)    , intent(inout) :: data
-    type(hsl_mi20_control) , intent(in)    :: ctrl
-    type(hsl_mi20_info)    , intent(inout) :: info
+    type(hsl_mi20_data_t)    , intent(inout) :: data
+    type(hsl_mi20_control_t) , intent(in)    :: ctrl
+    type(hsl_mi20_info_t)    , intent(inout) :: info
 
     select case(action)
 
@@ -223,19 +223,19 @@ contains
   subroutine hsl_mi20_r2 ( action, context, A, nrhs, b, ldb, x, ldx, data, ctrl, info)
     implicit none
     ! Mandatory Parameters
-    type(hsl_mi20_context), intent(inout) :: context   ! Information required between calls
+    type(hsl_mi20_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-!    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-!    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+!    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+!    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)    :: nrhs, ldb, ldx
     real(rp)          , intent(in)    :: b (ldb, nrhs)
     real(rp)          , intent(inout) :: x (ldx, nrhs)
 
-    type(hsl_mi20_data)    , intent(in)          :: data
-    type(hsl_mi20_control) , intent(in)          :: ctrl
-    type(hsl_mi20_info)    , intent(out)         :: info
+    type(hsl_mi20_data_t)    , intent(in)          :: data
+    type(hsl_mi20_control_t) , intent(in)          :: ctrl
+    type(hsl_mi20_info_t)    , intent(out)         :: info
 
     select case(action)
 
@@ -257,16 +257,16 @@ contains
   subroutine hsl_mi20_r1 ( action, context, A, b, x, data, ctrl, info )
     implicit none
     ! Mandatory Parameters
-    type(hsl_mi20_context), intent(inout) :: context   ! Information required between calls
+    type(hsl_mi20_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     real(rp)          , intent(in)    :: b (A%gr%nv)
     real(rp)          , intent(inout) :: x (A%gr%nv)
 
-    type(hsl_mi20_data)    , intent(in)          :: data
-    type(hsl_mi20_control) , intent(in)          :: ctrl
-    type(hsl_mi20_info)    , intent(out)         :: info
+    type(hsl_mi20_data_t)    , intent(in)          :: data
+    type(hsl_mi20_control_t) , intent(in)          :: ctrl
+    type(hsl_mi20_info_t)    , intent(out)         :: info
 
     select case(action)
 
@@ -298,8 +298,8 @@ contains
   subroutine hsl_mi20_ini ( context, matrix )
     implicit none
     ! Parameters
-    type(hsl_mi20_context), intent(inout), target :: context
-    type(fem_matrix)      , intent(in)            :: matrix
+    type(hsl_mi20_context_t), intent(inout), target :: context
+    type(fem_matrix_t)      , intent(in)            :: matrix
 
 #ifdef ENABLE_HSL_MI20
 
@@ -313,10 +313,10 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in)    :: mode
-    type(hsl_mi20_context) , intent(inout) :: context
-    type(hsl_mi20_data)    , intent(inout) :: data
-    type(hsl_mi20_control) , intent(in)    :: ctrl
-    type(hsl_mi20_info)    , intent(out)   :: info
+    type(hsl_mi20_context_t) , intent(inout) :: context
+    type(hsl_mi20_data_t)    , intent(inout) :: data
+    type(hsl_mi20_control_t) , intent(in)    :: ctrl
+    type(hsl_mi20_info_t)    , intent(out)   :: info
 
 #ifdef ENABLE_HSL_MI20
     ! Free hsl_mi20_context structures
@@ -346,8 +346,8 @@ contains
   subroutine hsl_mi20_analysis ( context, matrix )
     implicit none
     ! Parameters 
-    type(hsl_mi20_context), intent(inout) :: context
-    type(fem_matrix)      , intent(in)    :: matrix
+    type(hsl_mi20_context_t), intent(inout) :: context
+    type(fem_matrix_t)      , intent(in)    :: matrix
 
 #ifdef ENABLE_HSL_MI20
 #else
@@ -360,17 +360,17 @@ contains
   subroutine hsl_mi20_factorization ( context, matrix, data, ctrl, info )
     implicit none
     ! Parameters 
-    type(hsl_mi20_context) , intent(inout) :: context
-    type(fem_matrix)       , intent(in)    :: matrix
-    type(hsl_mi20_data)    , intent(out)   :: data
-    type(hsl_mi20_control) , intent(in) :: ctrl
-    type(hsl_mi20_info)    , intent(out)   :: info
+    type(hsl_mi20_context_t) , intent(inout) :: context
+    type(fem_matrix_t)       , intent(in)    :: matrix
+    type(hsl_mi20_data_t)    , intent(out)   :: data
+    type(hsl_mi20_control_t) , intent(in) :: ctrl
+    type(hsl_mi20_info_t)    , intent(out)   :: info
 
 #ifdef ENABLE_HSL_MI20
     assert ( matrix%gr%type == csr )
     assert ( matrix%symm == symm_false )
     
-    ! Copy fem_matrix to type(ZD11_type)
+    ! Copy fem_matrix_t to type(ZD11_type)
     context%zd11_mat%m = matrix%gr%nv
     context%zd11_mat%n = matrix%gr%nv2
 
@@ -412,13 +412,13 @@ contains
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     implicit none
     ! Parameters 
-    type(hsl_mi20_context), intent(inout)        :: context
-    type(fem_matrix)  , intent(in)               :: matrix
-    type(fem_vector)  , intent(in), target       :: x
-    type(fem_vector)  , intent(inout), target    :: y
-    type(hsl_mi20_data)    , intent(in)          :: data
-    type(hsl_mi20_control) , intent(in)          :: ctrl
-    type(hsl_mi20_info)    , intent(out)         :: info
+    type(hsl_mi20_context_t), intent(inout)        :: context
+    type(fem_matrix_t)  , intent(in)               :: matrix
+    type(fem_vector_t)  , intent(in), target       :: x
+    type(fem_vector_t)  , intent(inout), target    :: y
+    type(hsl_mi20_data_t)    , intent(in)          :: data
+    type(hsl_mi20_control_t) , intent(in)          :: ctrl
+    type(hsl_mi20_info_t)    , intent(out)         :: info
 
     ! Locals
     real(rp), pointer :: x_(:)
@@ -455,13 +455,13 @@ contains
   subroutine hsl_mi20_solution_real ( context, matrix, rhs, sol, data, ctrl, info )
     implicit none
     ! Parameters 
-    type(hsl_mi20_context), intent(inout) :: context
-    type(fem_matrix)  , intent(in)   :: matrix
+    type(hsl_mi20_context_t), intent(inout) :: context
+    type(fem_matrix_t)  , intent(in)   :: matrix
     real(rp)          , intent(in)    :: rhs (matrix%gr%nv)
     real(rp)          , intent(inout) :: sol (matrix%gr%nv)
-    type(hsl_mi20_data)    , intent(in) :: data
-    type(hsl_mi20_control) , intent(in) :: ctrl
-    type(hsl_mi20_info)    , intent(out):: info
+    type(hsl_mi20_data_t)    , intent(in) :: data
+    type(hsl_mi20_control_t) , intent(in) :: ctrl
+    type(hsl_mi20_info_t)    , intent(out):: info
 
 #ifdef ENABLE_HSL_MI20
     ! Solve with AMG preconditioner
@@ -482,15 +482,15 @@ contains
   subroutine hsl_mi20_solution_several_rhs ( context, matrix, nrhs, rhs, ldrhs, sol, ldsol, data, ctrl, info )
     implicit none
     ! Parameters 
-    type(hsl_mi20_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in)   , target :: matrix
+    type(hsl_mi20_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs, ldrhs, ldsol
     real(rp)          , intent(in)   , target :: rhs (ldrhs, nrhs)
     real(rp)          , intent(inout), target :: sol (ldsol, nrhs)
 
-    type(hsl_mi20_data)    , intent(in)          :: data
-    type(hsl_mi20_control) , intent(in)          :: ctrl
-    type(hsl_mi20_info)    , intent(out)         :: info
+    type(hsl_mi20_data_t)    , intent(in)          :: data
+    type(hsl_mi20_control_t) , intent(in)          :: ctrl
+    type(hsl_mi20_info_t)    , intent(out)         :: info
 
     ! Locals
     integer(ip)       :: irhs

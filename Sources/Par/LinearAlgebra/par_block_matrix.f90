@@ -45,16 +45,16 @@ use memor_names
   private
 
   ! Pointer to matrix
-  type p_par_matrix
-    type(par_matrix), pointer :: p_p_matrix
-  end type p_par_matrix
+  type p_par_matrix_t
+    type(par_matrix_t), pointer :: p_p_matrix
+  end type p_par_matrix_t
 
 
   ! Block Matrix
-  type par_block_matrix
+  type par_block_matrix_t
     private
     integer(ip)                     :: nblocks
-    type(p_par_matrix), allocatable :: blocks(:,:)
+    type(p_par_matrix_t), allocatable :: blocks(:,:)
   contains
     procedure :: alloc             => par_block_matrix_alloc
     procedure :: alloc_block       => par_block_matrix_alloc_block
@@ -62,10 +62,10 @@ use memor_names
     procedure :: free              => par_block_matrix_free
     procedure :: get_block         => par_block_matrix_get_block
     procedure :: get_nblocks       => par_block_matrix_get_nblocks
-  end type par_block_matrix
+  end type par_block_matrix_t
 
   ! Types
-  public :: par_block_matrix
+  public :: par_block_matrix_t
 
   ! Functions
   public :: par_block_matrix_alloc, par_block_matrix_alloc_block,       & 
@@ -80,13 +80,13 @@ contains
   subroutine par_block_matrix_alloc (bmat,bgraph,sign)
     implicit none
     ! Parameters
-    class(par_block_matrix), intent(inout) :: bmat
-    type(par_block_graph)  , intent(in)    :: bgraph
+    class(par_block_matrix_t), intent(inout) :: bmat
+    type(par_block_graph_t)  , intent(in)    :: bgraph
     integer(ip), optional  , intent(in)    :: sign(:)
 
     ! Locals
     integer(ip) :: ib,jb
-    type(par_graph), pointer :: p_graph
+    type(par_graph_t), pointer :: p_graph
 
 
     if ( present(sign) ) then
@@ -127,9 +127,9 @@ contains
   subroutine par_block_matrix_alloc_block (bmat,ib,jb,p_graph,sign)
     implicit none
     ! Parameters
-    class(par_block_matrix), target, intent(inout) :: bmat
+    class(par_block_matrix_t), target, intent(inout) :: bmat
     integer(ip)                    , intent(in)    :: ib,jb
-    type(par_graph)                , intent(in)    :: p_graph
+    type(par_graph_t)                , intent(in)    :: p_graph
     integer(ip)          , optional, intent(in)    :: sign
 
     assert ( associated ( bmat%blocks(ib,jb)%p_p_matrix ) )
@@ -151,7 +151,7 @@ contains
   subroutine par_block_matrix_set_block_to_zero (bmat,ib,jb)
     implicit none
     ! Parameters
-    class(par_block_matrix), intent(inout) :: bmat
+    class(par_block_matrix_t), intent(inout) :: bmat
     integer(ip)           , intent(in)  :: ib,jb
 
     if ( associated(bmat%blocks(ib,jb)%p_p_matrix) ) then
@@ -165,9 +165,9 @@ contains
   function par_block_matrix_get_block (bmat,ib,jb)
     implicit none
     ! Parameters
-    class(par_block_matrix), target, intent(in) :: bmat
+    class(par_block_matrix_t), target, intent(in) :: bmat
     integer(ip)                    , intent(in) :: ib,jb
-    type(par_matrix)               , pointer    :: par_block_matrix_get_block
+    type(par_matrix_t)               , pointer    :: par_block_matrix_get_block
 
     par_block_matrix_get_block =>  bmat%blocks(ib,jb)%p_p_matrix
   end function par_block_matrix_get_block
@@ -175,7 +175,7 @@ contains
   function par_block_matrix_get_nblocks (bmat)
     implicit none
     ! Parameters
-    class(par_block_matrix), target, intent(in) :: bmat
+    class(par_block_matrix_t), target, intent(in) :: bmat
     integer(ip)                                :: par_block_matrix_get_nblocks
     par_block_matrix_get_nblocks = bmat%nblocks
   end function par_block_matrix_get_nblocks
@@ -183,7 +183,7 @@ contains
 
   subroutine par_block_matrix_print (lunou, p_b_matrix)
     implicit none
-    type(par_block_matrix), intent(in)    :: p_b_matrix
+    type(par_block_matrix_t), intent(in)    :: p_b_matrix
     integer(ip)           , intent(in)    :: lunou
     integer(ip)                           :: i
 
@@ -193,7 +193,7 @@ contains
   !=============================================================================
   subroutine par_block_matrix_free (p_b_matrix)
     implicit none
-    class(par_block_matrix), intent(inout) :: p_b_matrix
+    class(par_block_matrix_t), intent(inout) :: p_b_matrix
     integer(ip) :: ib,jb
 
     do ib=1, p_b_matrix%nblocks
@@ -214,7 +214,7 @@ contains
   subroutine par_block_matrix_zero(bmat)
     implicit none
     ! Parameters
-    class(par_block_matrix), intent(inout) :: bmat
+    class(par_block_matrix_t), intent(inout) :: bmat
 
     ! Locals
     integer(ip) :: ib, jb
@@ -231,12 +231,12 @@ contains
   subroutine par_block_matvec (a, x, y)
     implicit none
     ! Parameters
-    type(par_block_matrix), intent(in)    :: a
-    type(par_block_vector), intent(in)    :: x
-    type(par_block_vector), intent(inout) :: y
+    type(par_block_matrix_t), intent(in)    :: a
+    type(par_block_vector_t), intent(in)    :: x
+    type(par_block_vector_t), intent(inout) :: y
 
     ! Locals
-    type(par_vector)       :: aux
+    type(par_vector_t)       :: aux
     integer(ip)            :: ib, jb
 
     assert ( a%nblocks == x%nblocks )

@@ -34,7 +34,7 @@ module fem_import_names
   ! Import
   ! Host for data needed to perform communications for
   ! element-based data distributions (similar to epetra_import)
-  type fem_import
+  type fem_import_t
      integer(ip)       ::          &
         ipart,                     &    ! Part identifier
         nparts                          ! Number of parts
@@ -58,10 +58,10 @@ module fem_import_names
      integer(ip), allocatable :: & 
         pack_idx(:)                     ! Where is located the data to be sent to 
                                         ! each neighbour on the local vectors of the part ?
-  end type fem_import
+  end type fem_import_t
 
   ! Types
-  public :: fem_import
+  public :: fem_import_t
 
   ! Functions
   public :: fem_import_free, fem_import_print
@@ -76,7 +76,7 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_import), intent(inout)  :: import
+    type(fem_import_t), intent(inout)  :: import
 
     ! Free owner vector
     call memfree ( import%owner,__FILE__,__LINE__)
@@ -103,7 +103,7 @@ contains
 
 
     ! Parameters
-    type(fem_import)   , intent(in)  :: import
+    type(fem_import_t)   , intent(in)  :: import
     integer(ip)        , intent(in)  :: lu_out
 
     ! Local variables
@@ -111,7 +111,7 @@ contains
 
     if(lu_out>0) then
 
-       write(lu_out,'(a)') '*** begin fem_import data structure ***'
+       write(lu_out,'(a)') '*** begin fem_import_t data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
             &  import%nparts
@@ -142,7 +142,7 @@ contains
 
 !!$       write(lu_out,'(a)') 'Pack:'
 !!$       write(lu_out,'(10i10)') import%pack_idx(1:import%snd_ptrs(import%num_snd+1)-1)
-!!$       write(lu_out,'(a)') '*** end fem_import data structure ***'
+!!$       write(lu_out,'(a)') '*** end fem_import_t data structure ***'
 
     end if
 

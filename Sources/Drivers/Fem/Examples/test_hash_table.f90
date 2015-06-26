@@ -29,7 +29,7 @@ program test_hash_table
 use types_names
   use hash_table_names
   implicit none
-  type(hash_table_igp_ip) :: table
+  type(hash_table_igp_ip_t) :: table
   integer(ip), parameter :: tbl_length = 100
   integer(ip), parameter :: tbl_min    = 18
   integer(ip), parameter :: tbl_max    = 1300

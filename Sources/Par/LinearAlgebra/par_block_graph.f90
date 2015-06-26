@@ -42,16 +42,16 @@ use memor_names
   private
 
   ! Pointer to graph
-  type p_par_graph
-    type(par_graph), pointer :: p_p_graph
-  end type p_par_graph
+  type p_par_graph_t
+    type(par_graph_t), pointer :: p_p_graph
+  end type p_par_graph_t
 
 
   ! Block Graph 
-  type par_block_graph
+  type par_block_graph_t
     private
     integer(ip)                    :: nblocks = -1
-    type(p_par_graph), allocatable :: blocks(:,:)
+    type(p_par_graph_t), allocatable :: blocks(:,:)
   contains
     procedure :: alloc             => par_block_graph_alloc
     procedure :: alloc_block       => par_block_graph_alloc_block 
@@ -59,10 +59,10 @@ use memor_names
     procedure :: free              => par_block_graph_free
     procedure :: get_block         => par_block_graph_get_block
     procedure :: get_nblocks       => par_block_graph_get_nblocks
-  end type par_block_graph
+  end type par_block_graph_t
 
   ! Types
-  public :: par_block_graph
+  public :: par_block_graph_t
 
   ! Functions
   public :: par_block_graph_alloc, par_block_graph_alloc_block,       & 
@@ -75,8 +75,8 @@ contains
   subroutine par_block_graph_alloc (p_b_graph, blk_dof_dist)
     implicit none
     ! Parameters
-    class(par_block_graph)              , intent(inout) :: p_b_graph
-    type(block_dof_distribution),target, intent(in)     :: blk_dof_dist 
+    class(par_block_graph_t)              , intent(inout) :: p_b_graph
+    type(block_dof_distribution_t),target, intent(in)     :: blk_dof_dist 
 
     ! Locals
     integer(ip) :: istat
@@ -100,10 +100,10 @@ contains
   subroutine par_block_graph_alloc_block (p_b_graph,dof_dist_rows,dof_dist_cols,p_env,ib,jb)
     implicit none
     ! Parameters
-    class(par_block_graph), target, intent(inout) :: p_b_graph
-    type(dof_distribution)        , intent(in)    :: dof_dist_rows
-    type(dof_distribution)        , intent(in)    :: dof_dist_cols
-    type(par_environment)         , intent(in)    :: p_env
+    class(par_block_graph_t), target, intent(inout) :: p_b_graph
+    type(dof_distribution_t)        , intent(in)    :: dof_dist_rows
+    type(dof_distribution_t)        , intent(in)    :: dof_dist_cols
+    type(par_environment_t)         , intent(in)    :: p_env
     integer(ip)                   , intent(in)    :: ib,jb
     ! Locals
     integer(ip) :: istat
@@ -121,7 +121,7 @@ contains
   subroutine par_block_graph_set_block_to_zero (p_b_graph,ib,jb)
     implicit none
     ! Parameters
-    class(par_block_graph), intent(inout) :: p_b_graph
+    class(par_block_graph_t), intent(inout) :: p_b_graph
     integer(ip)           , intent(in)   :: ib,jb
     ! Locals
     integer(ip) :: istat
@@ -138,9 +138,9 @@ contains
   function par_block_graph_get_block (p_b_graph,ib,jb)
     implicit none
     ! Parameters
-    class(par_block_graph), target, intent(in) :: p_b_graph
+    class(par_block_graph_t), target, intent(in) :: p_b_graph
     integer(ip)                   , intent(in) :: ib,jb
-    type(par_graph)               , pointer    :: par_block_graph_get_block
+    type(par_graph_t)               , pointer    :: par_block_graph_get_block
     ! Locals
     integer(ip) :: istat
 
@@ -150,14 +150,14 @@ contains
   function par_block_graph_get_nblocks (p_p_graph)
     implicit none
     ! Parameters
-    class(par_block_graph), target, intent(in) :: p_p_graph
+    class(par_block_graph_t), target, intent(in) :: p_p_graph
     integer(ip)                                :: par_block_graph_get_nblocks
     par_block_graph_get_nblocks = p_p_graph%nblocks
   end function par_block_graph_get_nblocks
 
   subroutine par_block_graph_print (lunou, p_b_graph)
     implicit none
-    class(par_block_graph), intent(in)    :: p_b_graph
+    class(par_block_graph_t), intent(in)    :: p_b_graph
     integer(ip)           , intent(in)    :: lunou
     integer(ip)                           :: i
 
@@ -167,7 +167,7 @@ contains
   !=============================================================================
   subroutine par_block_graph_free (p_b_graph)
     implicit none
-    class(par_block_graph), intent(inout) :: p_b_graph
+    class(par_block_graph_t), intent(inout) :: p_b_graph
     integer(ip) :: ib,jb
     ! Locals
     integer(ip) :: istat

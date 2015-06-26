@@ -34,26 +34,26 @@ use memor_names
   private
 
   ! Graph
-  type fem_graph
+  type fem_graph_t
      integer(ip)                :: &
-        type=0,                    &         ! Type of fem_graph (csr_symm, csr, css, part)
+        type=0,                    &         ! Type of fem_graph_t (csr_symm, csr, css, part)
         nv=0,                      &         ! Number of vertices
         nv2=0,                     &         ! Number of vertices2 (bipartite fem_graphs)
         
         ! The following fields are only 
-        ! used for fem_graphs of type css
+        ! used for fem_graph_ts of type css
         nzs=0,                     &         ! Half size
         nzt=0                                ! Total size
      integer(ip), allocatable   :: &
         ia(:),                     &         ! Indices of adjacencies
         
         ! The following field is only 
-        ! used for fem_graphs of type css
+        ! used for fem_graph_ts of type css
         is(:),                     &         ! Indices to access lower/upper adjacencies
         
         ja(:)                                ! Adjacencies
 
-  end type fem_graph
+  end type fem_graph_t
 
   ! See comments on mesh_graph.f90 ...
   integer(ip), parameter :: csr_symm = 10    ! Compress storage row for SQUARE symmetric
@@ -77,13 +77,13 @@ use memor_names
                                              ! necessarily in ascending order (e.g., to 
                                              ! perform graph partitioning with METIS)
 
-  ! csr, csr_symm and css fem_graph types are intended to address sparse
+  ! csr, csr_symm and css fem_graph_t types are intended to address sparse
   ! matrices, while part type is used for sequential graph 
   ! partitioning. The separation of the mesh_to_graph interface is
   ! done accordingly to this criteria       
 
   ! Types
-  public :: fem_graph
+  public :: fem_graph_t
 
   ! Functions
   public :: fem_graph_copy, fem_graph_free, fem_graph_print, fem_graph_read, &
@@ -98,8 +98,8 @@ contains
   !=============================================================================
   subroutine fem_graph_copy (igraph, ograph)
     implicit none
-    type(fem_graph), intent(in)    :: igraph
-    type(fem_graph), intent(inout) :: ograph
+    type(fem_graph_t), intent(in)    :: igraph
+    type(fem_graph_t), intent(inout) :: ograph
 
     ! This routine is only provided for graphs stored in CSR/CSR_SYMM
     ! format. If you need to copy a graph in a different format,
@@ -129,7 +129,7 @@ contains
     ! This routine 
     !-----------------------------------------------------------------------
     implicit none
-    type(fem_graph), intent(inout)  :: g
+    type(fem_graph_t), intent(inout)  :: g
 
     call memfree (g%ia,__FILE__,__LINE__)
     call memfree (g%ja,__FILE__,__LINE__)
@@ -144,7 +144,7 @@ contains
   subroutine fem_graph_print(lunou, g)
     implicit none
     integer(ip)    ,  intent(in) :: lunou
-    type(fem_graph),  intent(in) :: g
+    type(fem_graph_t),  intent(in) :: g
 
     ! Local variables
     integer(ip) :: i,j
@@ -180,7 +180,7 @@ contains
   subroutine fem_graph_read(lunin, g)
     implicit none
     integer(ip)    ,  intent(in)    :: lunin
-    type(fem_graph),  intent(inout) :: g
+    type(fem_graph_t),  intent(inout) :: g
     character(256) :: text
     ! Local variables
     integer(ip) :: i,j
@@ -230,7 +230,7 @@ contains
   subroutine fem_graph_ja_one_to_zero_indexing (g)
     implicit none
     ! Parameters
-    type(fem_graph),  intent(inout) :: g
+    type(fem_graph_t),  intent(inout) :: g
     integer(ip)                 :: j
 
     do j=g%ia(1), g%ia(g%nv+1)-1
@@ -243,7 +243,7 @@ contains
   subroutine fem_graph_ja_zero_to_one_indexing (g)
     implicit none
     ! Local Variables
-    type(fem_graph),  intent(inout) :: g
+    type(fem_graph_t),  intent(inout) :: g
     integer(ip)                 :: j
 
     do j=g%ia(1), g%ia(g%nv+1)-1
@@ -257,8 +257,8 @@ contains
 !!$    implicit none
 !!$
 !!$    ! Parameters
-!!$    type(fem_graph), intent(in)   :: g
-!!$    type(list)     , intent(out)  :: lconn
+!!$    type(fem_graph_t), intent(in)   :: g
+!!$    type(list_t)     , intent(out)  :: lconn
 !!$ 
 !!$    ! Locals
 !!$    integer(ip), allocatable :: aux(:)

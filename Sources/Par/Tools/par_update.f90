@@ -56,8 +56,8 @@ contains
     !   This subroutine updates Dirichlet boundary conditions in unkno from par_conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_fem_space) , intent(inout) :: p_fspac
-    type(par_conditions), intent(in)    :: p_cond
+    type(par_fem_space_t) , intent(inout) :: p_fspac
+    type(par_conditions_t), intent(in)    :: p_cond
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_fspac%p_trian) )
@@ -79,7 +79,7 @@ contains
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     integer(ip)          , intent(in)    :: case
     real(rp)             , intent(in)    :: ctime
-    type(par_fem_space)  , intent(inout) :: p_fspac
+    type(par_fem_space_t)  , intent(inout) :: p_fspac
     integer(ip), optional, intent(in)    :: caset,t
 
     ! Parallel environment MUST BE already created
@@ -99,8 +99,8 @@ contains
     !   This subroutine stores the solution from a fem_vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_vector)     , intent(in)    :: p_vec   
-    type(par_fem_space)  , intent(inout) :: p_fspac
+    type(par_vector_t)     , intent(in)    :: p_vec   
+    type(par_fem_space_t)  , intent(inout) :: p_fspac
     integer(ip), optional, intent(in)    :: iblock
 
     ! Parallel environment MUST BE already created
@@ -120,8 +120,8 @@ contains
     !   This subroutine stores the solution from a fem_vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_block_vector), intent(in)    :: blk_p_vec   
-    type(par_fem_space)   , intent(inout) :: p_fspac
+    type(par_block_vector_t), intent(in)    :: blk_p_vec   
+    type(par_fem_space_t)   , intent(inout) :: p_fspac
     ! Locals
     integer(ip) :: iblock
 

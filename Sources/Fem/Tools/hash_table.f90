@@ -64,8 +64,8 @@ use types_names
                                         'deleted      ',&
                                         'error        '/)
 
-#define hash_table hash_table_ip_ip
-#define hash_node  hash_node_ip_ip
+#define hash_table hash_table_ip_ip_t
+#define hash_node  hash_node_ip_ip_t
 #define key_type   integer(ip)
 #define val_type   integer(ip)
 #define put_hash_node     put_hash_node_ip_ip   
@@ -82,8 +82,8 @@ use types_names
 #define status_hash_table  status_hash_table_ip_ip
 #include "hash_table_header.i90"
 
-#define hash_table hash_table_igp_ip
-#define hash_node  hash_node_igp_ip
+#define hash_table hash_table_igp_ip_t
+#define hash_node  hash_node_igp_ip_t
 #define key_type   integer(igp)
 #define val_type   integer(ip)
 #define put_hash_node     put_hash_node_igp_ip   
@@ -101,8 +101,8 @@ use types_names
 #include "hash_table_header.i90"
 
 #define position
-#define hash_table position_hash_table
-#define hash_node  position_hash_node
+#define hash_table position_hash_table_t
+#define hash_node  position_hash_node_t
 #define key_type   integer(ip)
 #define val_type   integer(ip)
 #define put_hash_node     put_hash_node_position   
@@ -120,7 +120,7 @@ use types_names
 #include "hash_table_header.i90"
 #undef position
 
-  public :: position_hash_table, hash_table_ip_ip, hash_table_igp_ip
+  public :: position_hash_table_t, hash_table_ip_ip_t, hash_table_igp_ip_t
 
   public :: was_stored, now_stored, bad_keyval, key_found, key_not_found, deleted, error, new_index, old_index
 
@@ -128,8 +128,8 @@ use types_names
 
 contains
 
-#define hash_table hash_table_ip_ip
-#define hash_node  hash_node_ip_ip
+#define hash_table hash_table_ip_ip_t
+#define hash_node  hash_node_ip_ip_t
 #define key_type   integer(ip)
 #define key_size   ip 
 #define val_type   integer(ip)
@@ -148,8 +148,8 @@ contains
 #define status_hash_table  status_hash_table_ip_ip
 #include "hash_table_body.i90"
 
-#define hash_table hash_table_igp_ip
-#define hash_node  hash_node_igp_ip
+#define hash_table hash_table_igp_ip_t
+#define hash_node  hash_node_igp_ip_t
 #define key_type   integer(igp)
 #define key_size   igp
 #define val_type   integer(ip)
@@ -169,8 +169,8 @@ contains
 #include "hash_table_body.i90"
 
 #define position
-#define hash_table position_hash_table
-#define hash_node  position_hash_node
+#define hash_table position_hash_table_t
+#define hash_node  position_hash_node_t
 #define key_type   integer(ip)
 #define val_type   integer(ip)
 #define put_hash_node     put_hash_node_position   

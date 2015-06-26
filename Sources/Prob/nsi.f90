@@ -33,13 +33,13 @@ use memor_names
 # include "debug.i90"
   private 
 
-  type, extends(physical_problem) :: nsi_problem
+  type, extends(physical_problem) :: nsi_problem_t
      integer(ip) ::   & 
           ksnsi,      & ! Symmetry flag (+-1) (1: no simetrica definida, -1: simetrica no definida)
           kfl_conv,   & ! Flag for enabling advection (Stokes=0; NavSto=1)
           kfl_symg,   & ! Flag for symmetric grad-grad term
           kfl_tder,   & ! Flag for time derivative computation
-          kfl_skew,   & ! Flag for enabling skewsymmetric convective terms (Off=0; type1=1, type2=2)
+          kfl_skew,   & ! Flag for enabling skewsymmetric conv_tective terms (Off=0; type1=1, type2=2)
           kfl_vort,   & ! Flag for vorticity computation
           case_veloc, & ! Exact velocity
           case_press, & ! Exact pressure
@@ -55,9 +55,9 @@ use memor_names
    contains
      procedure :: create => nsi_create
      procedure :: free => nsi_free
-  end type nsi_problem
+  end type nsi_problem_t
 
-  public :: nsi_problem
+  public :: nsi_problem_t
 
 contains
 
@@ -67,7 +67,7 @@ contains
     !   This subroutine contains definitions of the Navier-Stokes problem                          !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_problem), intent(inout) :: prob
+    class(nsi_problem_t), intent(inout) :: prob
     integer(ip)       , intent(in)    :: ndime
     integer(ip) :: i,istat
 
@@ -119,7 +119,7 @@ contains
     !   This subroutine deallocates definitions of the Navier-Stokes problem                       !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_problem), intent(inout) :: prob
+    class(nsi_problem_t), intent(inout) :: prob
 
     call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
 

@@ -26,36 +26,36 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module template_mesh_names
-use types_names
+  use types_names
   use migratory_element_names
   use template_element_names
   
   implicit none
   private
   
-  type :: template_mesh
+  type :: template_mesh_t
      integer(ip)                           :: num_elems
-     class(migratory_element), allocatable :: mig_elems(:) ! Migratory elements list
-     type(template_element)  ,     pointer :: tmp_elems(:) ! Template elements list
+     class(migratory_element), allocatable :: mig_elems(:) ! Migratory elements list_t
+     type(template_element_t)  ,     pointer :: tmp_elems(:) ! Template elements list_t
    contains
      procedure :: allocate => template_mesh_allocate
      procedure :: free     => template_mesh_free 
      procedure :: print    => template_mesh_print
-  end type template_mesh
+  end type template_mesh_t
   
-  public :: template_mesh
+  public :: template_mesh_t
 
 contains
   
   subroutine template_mesh_allocate (my, size)
     implicit none
-    class(template_mesh), intent(out),target :: my
+    class(template_mesh_t), intent(out),target :: my
     integer(ip)         , intent(in)  :: size
     
     my%num_elems = size
-    allocate( template_element :: my%mig_elems(size) )
+    allocate( template_element_t :: my%mig_elems(size) )
     select type( this => my%mig_elems )
-    type is(template_element)
+    type is(template_element_t)
        my%tmp_elems => this
     end select
     
@@ -63,7 +63,7 @@ contains
   
   subroutine template_mesh_free (my)
     implicit none
-    class(template_mesh), intent(inout) :: my
+    class(template_mesh_t), intent(inout) :: my
    
     my%num_elems = -1
     deallocate(my%mig_elems)
@@ -73,7 +73,7 @@ contains
 
   subroutine template_mesh_print (my)
     implicit none
-    class(template_mesh), intent(in) :: my
+    class(template_mesh_t), intent(in) :: my
    
     ! Locals
     integer(ip) :: i 

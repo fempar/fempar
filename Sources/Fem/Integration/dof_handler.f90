@@ -37,7 +37,7 @@ use memor_names
 
 
 
-  type dof_handler
+  type dof_handler_t
 
      integer(ip) ::     &
           nblocks,                   &       ! Number of blocks
@@ -57,25 +57,25 @@ use memor_names
 
      ! Auxiliary arrays
      integer(ip), allocatable     :: g2l_vars(:,:)
-     type(array_ip1), allocatable :: prob_block(:,:)
+     type(array_ip1_t), allocatable :: prob_block(:,:)
 
    contains
      procedure :: set_problem
      procedure :: create => dof_handler_create
-  end type dof_handler
+  end type dof_handler_t
 
   ! Types
-  public :: dof_handler !, physical_problem!, physical_problem_pointer
+  public :: dof_handler_t
 
   ! Functions
-  public ::  dof_handler_print, dof_handler_free !, dof_handler_fill
+  public ::  dof_handler_print, dof_handler_free
 
 contains
 
   subroutine dof_handler_create( dhand, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
     implicit none
     ! Parameters
-    class(dof_handler), intent(inout)          :: dhand
+    class(dof_handler_t), intent(inout)          :: dhand
     integer(ip), intent(in)                   :: nblocks, nprobs, nvars_global 
     integer(ip), intent(in), optional         :: vars_block(:), dof_coupl(:,:)
 
@@ -117,7 +117,7 @@ contains
   subroutine dof_handler_print(  dhand, lunou )
     implicit none
     integer(ip)      , intent(in)           :: lunou
-    type(dof_handler), intent(in)           :: dhand
+    type(dof_handler_t), intent(in)           :: dhand
 
     integer(ip) :: iprob, count, iblock
 
@@ -152,7 +152,7 @@ contains
 
   subroutine dof_handler_free(  dhand )
     implicit none
-    type(dof_handler), intent(inout)           :: dhand
+    type(dof_handler_t), intent(inout)           :: dhand
 
     integer(ip) :: i,j
 
@@ -173,7 +173,7 @@ contains
 
   subroutine set_problem ( dhand, iprob, prob )
     implicit none
-    class(dof_handler), intent(inout)          :: dhand
+    class(dof_handler_t), intent(inout)          :: dhand
     integer(ip), intent(in) :: iprob
     class(discrete_problem), target, intent(in) :: prob
     

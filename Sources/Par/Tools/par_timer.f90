@@ -39,17 +39,17 @@ module par_timer_names
   integer(ip), parameter :: max_message = 256
   ! integer(ip), parameter :: fmt_message =  20
 
-  type par_timer
+  type par_timer_t
       integer                :: ictxt    ! Parallel context
       integer                :: root     ! PID responsible of gathering/reporting timings
       character(max_message) :: message  ! Concept being measured (e.g., assembly)
       real(8)                :: start    ! last call to start
       real(8)                :: stop     ! last call to stop
       real(8)                :: accum    ! sum of all stop-start 
-  end type par_timer
+  end type par_timer_t
 
   ! Public types
-  public :: par_timer 
+  public :: par_timer_t 
 
   ! Public routines
   public :: par_timer_create, par_timer_init, & 
@@ -66,7 +66,7 @@ contains
       include 'mpif.h'
 #endif
       ! Parameters
-      type(par_timer), intent(out)          :: p_timer
+      type(par_timer_t), intent(out)          :: p_timer
       character*(*)  , intent(in)           :: message
       integer        , intent(in), optional :: ictxt
       integer        , intent(in), optional :: root
@@ -91,7 +91,7 @@ contains
     subroutine par_timer_init ( p_timer )
       implicit none 
       ! Parameters
-      type(par_timer), intent(inout)          :: p_timer
+      type(par_timer_t), intent(inout)          :: p_timer
       p_timer%start  = 0.0 
       p_timer%stop   = 0.0
       p_timer%accum  = 0.0
@@ -101,7 +101,7 @@ contains
     subroutine par_timer_start ( p_timer )
       implicit none 
       ! Parameters
-      type(par_timer), intent(inout)          :: p_timer
+      type(par_timer_t), intent(inout)          :: p_timer
       call psb_barrier (p_timer%ictxt)
       p_timer%start  = psb_wtime()
     end subroutine par_timer_start
@@ -109,7 +109,7 @@ contains
     subroutine par_timer_stop ( p_timer )
       implicit none 
       ! Parameters
-      type(par_timer), intent(inout)          :: p_timer
+      type(par_timer_t), intent(inout)          :: p_timer
       p_timer%stop = psb_wtime()
 
       if ( p_timer%stop - p_timer%start >= 0.0) then
@@ -125,7 +125,7 @@ contains
     subroutine par_timer_report ( p_timer, show_header, luout )
       implicit none 
       ! Parameters
-      type(par_timer), intent(inout)     :: p_timer
+      type(par_timer_t), intent(inout)     :: p_timer
       logical, intent(in), optional      :: show_header 
       integer(ip), intent(in), optional  :: luout
       

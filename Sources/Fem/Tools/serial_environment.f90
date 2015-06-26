@@ -32,26 +32,26 @@ use types_names
   
   private
   ! Abstract environment
-  type, extends(abstract_environment) :: serial_environment
+  type, extends(abstract_environment) :: serial_environment_t
    contains
      procedure :: info                => serial_environment_info
      procedure :: am_i_fine_task      => serial_environment_am_i_fine_task
      procedure :: bcast               => serial_environment_bcast
      procedure :: first_level_barrier => serial_environment_first_level_barrier
-  end type serial_environment
+  end type serial_environment_t
   
-  public :: serial_environment
+  public :: serial_environment_t
   
 contains
 
   subroutine serial_environment_first_level_barrier(env) 
     implicit none
-    class(serial_environment),intent(in)  :: env
+    class(serial_environment_t),intent(in)  :: env
   end subroutine serial_environment_first_level_barrier
 
   subroutine serial_environment_info(env,me,np) 
     implicit none
-    class(serial_environment),intent(in)  :: env
+    class(serial_environment_t),intent(in)  :: env
     integer(ip)              ,intent(out) :: me
     integer(ip)              ,intent(out) :: np
     me = 0
@@ -60,14 +60,14 @@ contains
   
   function serial_environment_am_i_fine_task(env) 
     implicit none
-    class(serial_environment) ,intent(in)  :: env
+    class(serial_environment_t) ,intent(in)  :: env
     logical                                :: serial_environment_am_i_fine_task 
     serial_environment_am_i_fine_task = .true.
   end function serial_environment_am_i_fine_task
   
   subroutine serial_environment_bcast (env, condition)
     implicit none
-    class(serial_environment) ,intent(in)    :: env
+    class(serial_environment_t) ,intent(in)    :: env
     logical                   ,intent(inout) :: condition
   end subroutine serial_environment_bcast
   

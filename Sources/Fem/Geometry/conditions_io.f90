@@ -55,7 +55,7 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)         , intent(in)            :: lunio,npoin
-    type(fem_conditions), intent(out)           :: nodes
+    type(fem_conditions_t), intent(out)           :: nodes
     integer(ip)                                 :: i,ncode,nvalu,icode,ivalu,ipoin,iboun
     character(1024)                             :: tel
 
@@ -105,8 +105,8 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)                   , intent(in) :: lunio
-    type(fem_conditions)          , intent(in) :: nodes
-    type(fem_conditions), optional, intent(in) :: bouns
+    type(fem_conditions_t)          , intent(in) :: nodes
+    type(fem_conditions_t), optional, intent(in) :: bouns
     character(80) :: fmt
     integer(ip)   :: ipoin,iboun,icode,ivalu
 
@@ -142,8 +142,8 @@ contains
     character *(*), intent(in)       :: dir_path 
     character *(*), intent(in)       :: prefix
     integer(ip)   , intent(in)       :: nparts
-    type(fem_conditions), intent(in) :: lnodes (nparts)
-    type(fem_conditions), optional, intent(in) :: lbouns (nparts)
+    type(fem_conditions_t), intent(in) :: lnodes (nparts)
+    type(fem_conditions_t), optional, intent(in) :: lbouns (nparts)
     character(len=:), allocatable    :: name, rename
 
     ! Locals 
@@ -172,7 +172,7 @@ contains
     character (*)       , intent(in)  :: dir_path
     character (*)       , intent(in)  :: prefix
     integer(ip)         , intent(in)  :: npoin
-    type(fem_conditions), intent(out) :: f_conditions
+    type(fem_conditions_t), intent(out) :: f_conditions
     
     ! Locals
     character(len=:), allocatable  :: name
@@ -192,7 +192,7 @@ contains
     ! Parameters
     character (*)       , intent(in) :: dir_path
     character (*)       , intent(in) :: prefix
-    type(fem_conditions), intent(in) :: f_conditions
+    type(fem_conditions_t), intent(in) :: f_conditions
     
     ! Locals
     character(len=:), allocatable  :: name

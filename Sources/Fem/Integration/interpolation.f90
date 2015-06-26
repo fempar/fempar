@@ -34,7 +34,7 @@ module interpolation_names
 # include "debug.i90"
   private
 
-  type interpolation
+  type interpolation_t
      integer(ip)                :: &
           kfun = 1,                &    ! Shape functions calculation (1=yes 0=no)
           kder = 1,                &    ! Derivatives calculation (1=yes 0=no)
@@ -54,7 +54,7 @@ module interpolation_names
           shape(:,:),              &    ! Shape functions
           deriv(:,:,:),            &    ! Derivatives
           hessi(:,:,:)                  ! Hessian
-  end type interpolation
+  end type interpolation_t
 
   interface interpolation_local
      module procedure interpolation_local_tp, interpolation_local_old
@@ -65,7 +65,7 @@ module interpolation_names
   end interface shape1
 
   ! Types
-  public :: interpolation
+  public :: interpolation_t
 
   ! Functions
   public :: interpolation_create, interpolation_free, interpolation_local
@@ -82,7 +82,7 @@ contains
     implicit none
     integer(ip)          , intent(in)    :: kfun,kder,khes,nlocs
     integer(ip)          , intent(in)    :: nnode,ndime
-    type(interpolation)  , intent(out)   :: int
+    type(interpolation_t)  , intent(out)   :: int
     logical(lg), optional, intent(in)    :: khie
     integer(ip) :: iloc,ntens
 
@@ -115,7 +115,7 @@ contains
   !==============================================================================
   subroutine interpolation_free(int)
     implicit none
-    type(interpolation), intent(inout) :: int
+    type(interpolation_t), intent(inout) :: int
 
     call memfree(int%shape,__FILE__,__LINE__)
     if(int%kder==1) call memfree(int%deriv,__FILE__,__LINE__)
@@ -126,7 +126,7 @@ contains
   !=============================================================================
   subroutine interpolation_local_old(clocs,int)
     implicit none
-    type(interpolation), intent(inout) :: int
+    type(interpolation_t), intent(inout) :: int
     real(rp)           , intent(in)    :: clocs(:,:)
     integer(ip) :: iloc,ndime,nnode,ntens,nlocs
 
@@ -165,7 +165,7 @@ contains
   subroutine interpolation_local_tp(clocs,int,nd,order,ngaus)
     implicit none
     ! Parameters
-    type(interpolation), intent(inout) :: int
+    type(interpolation_t), intent(inout) :: int
     integer(ip)        , intent(in)    :: nd, order, ngaus
     real(rp)           , intent(in)    :: clocs(ngaus)
 

@@ -46,14 +46,14 @@ module fem_element_names
   private
 
   ! Information of each element of the FE space
-  type, extends(migratory_element) :: fem_element
+  type, extends(migratory_element) :: fem_element_t
      
      ! Reference element info          
-     type(fem_fixed_info_pointer), allocatable :: f_inf(:)    ! Topology of the reference finite element
-     type(fem_fixed_info), pointer :: p_geo_info => NULL()    ! Topology of the reference geometry ( idem fe w/ p=1)
+     type(fem_fixed_info_pointer_t), allocatable :: f_inf(:)    ! Topology of the reference finite element
+     type(fem_fixed_info_t), pointer :: p_geo_info => NULL()    ! Topology of the reference geometry ( idem fe w/ p=1)
      integer(ip),      allocatable :: order(:)                ! Order per variable
-     type(volume_integrator_pointer), allocatable :: integ(:) ! Pointer to integration parameters
-     type(interpolator_pointer)     , allocatable :: inter(:) ! Pointer to interpolator
+     type(volume_integrator_pointer_t), allocatable :: integ(:) ! Pointer to integration parameters
+     type(interpolator_pointer_t)     , allocatable :: inter(:) ! Pointer to interpolator
      ! order in f_inf, it can be eliminated
 
      ! Problem and approximation
@@ -63,7 +63,7 @@ module fem_element_names
 
      ! Connectivity
      integer(ip)       , allocatable :: continuity(:)     ! Continuity flag per variable
-     type(list_pointer), allocatable :: nodes_object(:)   ! Nodes per object (including interior) (nvars)
+     type(list_pointer_t), allocatable :: nodes_object(:)   ! Nodes per object (including interior) (nvars)
      integer(ip)                     :: material          ! Material ! SB.alert : material can be used as p   
      ! use of material still unclear
 
@@ -81,20 +81,20 @@ module fem_element_names
      integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
      
      ! Auxiliary working arrays (element matrix and vector)
-     type(array_rp2), pointer :: p_mat ! Pointer to the elemental matrix
-     type(array_rp1), pointer :: p_vec ! Pointer to the elemental vector
+     type(array_rp2_t), pointer :: p_mat ! Pointer to the elemental matrix
+     type(array_rp1_t), pointer :: p_vec ! Pointer to the elemental vector_t
 
    contains
      procedure :: size   => fem_element_size
      procedure :: pack   => fem_element_pack
      procedure :: unpack => fem_element_unpack
-  end type fem_element
+  end type fem_element_t
 
   ! Information relative to the faces
-  type fem_face
+  type fem_face_t
      
      ! Reference face info
-     type(element_face_integrator) :: integ(2)  ! Pointer to face integration
+     type(element_face_integrator_t) :: integ(2)  ! Pointer to face integration
 
      ! Face mesh info
      integer(ip)               :: face_object
@@ -102,15 +102,15 @@ module fem_element_names
      integer(ip)               :: local_face(2)       ! Face pos in element
 
      ! Auxiliary working arrays (face+element matrix and vector)
-     type(array_rp2), pointer  :: p_mat ! Pointer to the elemental matrix
-     type(array_rp1), pointer  :: p_vec ! Pointer to face integration vector
+     type(array_rp2_t), pointer  :: p_mat ! Pointer to the elemental matrix
+     type(array_rp1_t), pointer  :: p_vec ! Pointer to face integration vector_t
 
-     !type(array_ip1), allocatable:: o2n(2)           ! permutation of the gauss points in elem2
+     !type(array_ip1_t), allocatable:: o2n(2)           ! permutation of the gauss points in elem2
      ! SB.alert : temporary, it is a lot of memory, and should be handled via a hash table
-  end type fem_face
+  end type fem_face_t
 
   ! Types
-  public :: fem_element, fem_face
+  public :: fem_element_t, fem_face_t
 
   ! Methods
   public :: fem_element_print, fem_element_free_unpacked, impose_strong_dirichlet_data
@@ -119,7 +119,7 @@ contains
   subroutine fem_element_print ( lunou, elm )
     implicit none
     integer(ip)      , intent(in) :: lunou
-    type(fem_element), intent(in) :: elm
+    type(fem_element_t), intent(in) :: elm
 
     integer(ip) :: ivar
 
@@ -158,7 +158,7 @@ contains
 
   subroutine fem_element_size (my, n)
     implicit none
-    class(fem_element), intent(in)  :: my
+    class(fem_element_t), intent(in)  :: my
     integer(ip)            , intent(out) :: n
     
     ! Locals
@@ -173,7 +173,7 @@ contains
 
   subroutine fem_element_pack (my, n, buffer)
     implicit none
-    class(fem_element), intent(in)  :: my
+    class(fem_element_t), intent(in)  :: my
     integer(ip)            , intent(in)   :: n
     integer(ieep)            , intent(out)  :: buffer(n)
     
@@ -209,7 +209,7 @@ contains
 
   subroutine fem_element_unpack(my, n, buffer)
     implicit none
-    class(fem_element), intent(inout) :: my
+    class(fem_element_t), intent(inout) :: my
     integer(ip)            , intent(in)     :: n
     integer(ieep)            , intent(in)     :: buffer(n)
 
@@ -248,7 +248,7 @@ contains
 
   subroutine fem_element_free_unpacked(my)
     implicit none
-    type(fem_element), intent(inout) :: my
+    type(fem_element_t), intent(inout) :: my
 
     call memfree( my%order, __FILE__, __LINE__ )
     call memfree( my%continuity, __FILE__, __LINE__ )
@@ -259,7 +259,7 @@ contains
   subroutine impose_strong_dirichlet_data (el) 
     implicit none
     ! Parameters
-    type(fem_element)    , intent(inout)  :: el
+    type(fem_element_t)    , intent(inout)  :: el
 
     ! Locals
     integer(ip) :: iprob, count, ivars, inode, idof

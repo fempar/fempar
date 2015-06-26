@@ -52,16 +52,16 @@ contains
     !   This subroutine generates a parallel triangulation.                                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_environment)  , target, intent(in)  :: p_env
-    type(geom_data)                , intent(in)  :: gdata
-    type(bound_data)               , intent(in)  :: bdata
-    type(fem_fixed_info)           , intent(in)  :: ginfo
-    type(par_triangulation), target, intent(out) :: p_trian 
-    type(par_conditions)           , intent(out) :: p_cond
+    type(par_environment_t)  , target, intent(in)  :: p_env
+    type(geom_data_t)                , intent(in)  :: gdata
+    type(bound_data_t)               , intent(in)  :: bdata
+    type(fem_fixed_info_t)           , intent(in)  :: ginfo
+    type(par_triangulation_t), target, intent(out) :: p_trian 
+    type(par_conditions_t)           , intent(out) :: p_cond
     integer(ip), allocatable       , intent(out) :: material(:)
     ! Locals
-    type(fem_mesh_distribution) :: mdist
-    type (hash_table_igp_ip)    :: hash
+    type(fem_mesh_distribution_t) :: mdist
+    type (hash_table_igp_ip_t)    :: hash
     integer(ip)                 :: num_elems, num_ghosts, aux_val
     integer(ip)                 :: istat, ielem, iobj, jobj, state
     integer(ip)                 :: ilele, nvert, jelem, jlele, idime, count, ivere 
@@ -93,11 +93,11 @@ contains
        p_trian%f_trian%elem_array_len = num_elems+num_ghosts
 
        ! Create array of elements with room for ghost elements
-       allocate( par_elem_topology :: p_trian%mig_elems(num_elems + num_ghosts), stat=istat)
+       allocate( par_elem_topology_t :: p_trian%mig_elems(num_elems + num_ghosts), stat=istat)
        check(istat==0)
 
        select type( this => p_trian%mig_elems )
-       type is(par_elem_topology)
+       type is(par_elem_topology_t)
           p_trian%elems => this
        end select
 

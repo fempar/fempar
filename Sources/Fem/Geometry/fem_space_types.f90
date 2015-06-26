@@ -55,11 +55,11 @@ use iso_c_binding
   integer(ip), parameter       :: max_FE_types = 2
 
   ! Types
-  type fem_fixed_info_pointer
-     type(fem_fixed_info)     , pointer :: p => NULL()  
-  end type fem_fixed_info_pointer
+  type fem_fixed_info_pointer_t
+     type(fem_fixed_info_t)     , pointer :: p => NULL()  
+  end type fem_fixed_info_pointer_t
 
-  type fem_fixed_info
+  type fem_fixed_info_t
 
      integer(ip)              ::    &
           ftype,                    &        ! type of fem, e.g. 'P' 'Q' 'prism'...
@@ -75,13 +75,13 @@ use iso_c_binding
 
      integer(ip), allocatable  :: o(:)       ! Orientation of the objects
 
-     type(list)   :: ndxob       !array of interior nodes per object
-     type(list)   :: ntxob       !array of all nodes per object
-     type(list)   :: crxob       !array of corners per object
-     type(list)   :: ndxob_int   !array of interior nodes per object when all nodes belong to interior
-     type(list)   :: obxob       !array that lists all the objects in an object (idem ntxob for p = 2)
+     type(list_t)   :: ndxob       !array of interior nodes per object
+     type(list_t)   :: ntxob       !array of all nodes per object
+     type(list_t)   :: crxob       !array of corners per object
+     type(list_t)   :: ndxob_int   !array of interior nodes per object when all nodes belong to interior
+     type(list_t)   :: obxob       !array that list_ts all the objects in an object (idem ntxob for p = 2)
 
-  end type fem_fixed_info
+  end type fem_fixed_info_t
 
   ! Parameters 
   public :: max_nobje, ht_length, max_eltype, max_ndime, max_nnode, max_order
@@ -90,7 +90,7 @@ use iso_c_binding
   public :: P_type_id, Q_type_id, NULL_type_id
 
   ! Types
-  public :: fem_fixed_info, fem_fixed_info_pointer
+  public :: fem_fixed_info_t, fem_fixed_info_pointer_t
 
   ! Functions
   public :: fem_element_fixed_info_create, fem_element_fixed_info_free, &
@@ -104,7 +104,7 @@ use iso_c_binding
   public :: P_set_integ, P_refcoord
 
   !***********************************************************************
-  ! Allocatable arrays of type(fem_fixed_info_pointer)
+  ! Allocatable arrays of type(fem_fixed_info_pointer_t)
   !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -114,7 +114,7 @@ use iso_c_binding
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(fem_fixed_info_pointer)
+# define var_type type(fem_fixed_info_pointer_t)
 # define var_size 8
 # define bound_kind ip
 # include "mem_header.i90"
@@ -129,7 +129,7 @@ contains
   subroutine fem_element_fixed_info_create ( f_info, f_type, f_order, dim_space,created)
     implicit none
     ! Parameters
-    type(fem_fixed_info),  intent(inout) :: f_info 
+    type(fem_fixed_info_t),  intent(inout) :: f_info 
     integer(ip)          ,  intent(in)    :: f_type, f_order, dim_space
     logical(lg)             ,  intent(inout) :: created
 
@@ -147,7 +147,7 @@ contains
   subroutine fem_element_fixed_info_write ( f )
     implicit none
     ! Parameters
-    type(fem_fixed_info),  intent(inout) :: f
+    type(fem_fixed_info_t),  intent(inout) :: f
 
     integer(ip) :: i
 
@@ -183,7 +183,7 @@ contains
   subroutine fem_element_fixed_info_free ( f_info)
     implicit none
     ! Parameters
-    type(fem_fixed_info),  intent(inout) :: f_info 
+    type(fem_fixed_info_t),  intent(inout) :: f_info 
 
     !Deallocate nobje_dim, nodes_obj
     !call memfree(f_info%nobje_dim,__FILE__,__LINE__)
@@ -209,7 +209,7 @@ contains
   subroutine permute_nodes_object(e1,e2,permu,o1,o2,ln1,ln2,od,q,subface1,subface2)
     implicit none
     ! Parameters
-    type(fem_fixed_info), intent(in)   :: e1, e2   ! Info of the elements
+    type(fem_fixed_info_t), intent(in)   :: e1, e2   ! Info of the elements
     integer(ip)         , intent(out)  :: permu(:) ! Permutation vector
     integer(ip)         , intent(in)   :: o1,o2    ! Local identifier of the object in each element
     integer(ip)         , intent(in)   :: ln1(e1%nobje), ln2(e2%nobje) ! lnods of each object
@@ -279,7 +279,7 @@ contains
   subroutine  P_fixed_info_fill(fefi,nd,p)
     implicit none
     ! Parameters
-    type(fem_fixed_info) ,  intent(inout) :: fefi
+    type(fem_fixed_info_t) ,  intent(inout) :: fefi
     integer(ip)          ,  intent(in)    :: nd, p ! nd = dimension. p = order.
 
     ! Local variables
@@ -903,7 +903,7 @@ contains
   subroutine  Q_fixed_info_fill(fefi,nd,p)
     implicit none
     ! Parameters
-    type(fem_fixed_info), intent(inout) :: fefi
+    type(fem_fixed_info_t), intent(inout) :: fefi
     integer(ip)          , intent(in)    :: nd,p ! nd = dimension. p = order.
 
     ! Local variables

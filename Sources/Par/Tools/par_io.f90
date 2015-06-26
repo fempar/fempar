@@ -38,7 +38,7 @@ contains
 
   subroutine par_filename( p_context, file )
     implicit none 
-    type(par_context),intent(in)                 :: p_context
+    type(par_context_t),intent(in)                 :: p_context
     character(len=:), allocatable, intent(inout) :: file
     integer         :: iam, num_procs
 

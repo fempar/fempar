@@ -71,13 +71,13 @@ contains
 
     ! Parameters
     integer(ip)           , intent(in)                :: output_symm
-    type(fem_matrix)      , intent(in)                :: A
-    type(dof_distribution), intent(in)                :: dof_dist 
+    type(fem_matrix_t)      , intent(in)                :: A
+    type(dof_distribution_t), intent(in)                :: dof_dist 
 
-    type(fem_matrix)     , intent(inout), optional   :: A_II
-    type(fem_matrix)     , intent(inout), optional   :: A_IG
-    type(fem_matrix)     , intent(inout), optional   :: A_GI
-    type(fem_matrix)     , intent(inout), optional   :: A_GG
+    type(fem_matrix_t)     , intent(inout), optional   :: A_II
+    type(fem_matrix_t)     , intent(inout), optional   :: A_IG
+    type(fem_matrix_t)     , intent(inout), optional   :: A_GI
+    type(fem_matrix_t)     , intent(inout), optional   :: A_GG
 
     integer :: ipoing, offset
 

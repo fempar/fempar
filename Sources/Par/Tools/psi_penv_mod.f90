@@ -41,7 +41,7 @@ use psi_comm_buffers_mod_names
   integer, save :: mpi_dnrm2_op
 
 
-  type(psb_buffer_queue), save :: psb_mesg_queue 
+  type(psb_buffer_queue_t), save :: psb_mesg_queue 
 
 #endif
 

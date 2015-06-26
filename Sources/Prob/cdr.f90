@@ -33,7 +33,7 @@ use memor_names
   implicit none
   private 
 
-  type, extends(physical_problem) :: cdr_problem
+  type, extends(physical_problem) :: cdr_problem_t
      integer(ip) ::   & 
           kfl_conv,   & ! Flag for enabling advection
           kfl_tder,   & ! Flag for time derivative computation
@@ -45,9 +45,9 @@ use memor_names
    contains
      procedure :: create => cdr_create
      procedure :: free => cdr_free
-  end type cdr_problem
+  end type cdr_problem_t
 
-  public :: cdr_problem
+  public :: cdr_problem_t
 
 contains
 
@@ -57,7 +57,7 @@ contains
     !   This subroutine contains definitions of the Navier-Stokes problem                          !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(cdr_problem), intent(inout) :: prob
+    class(cdr_problem_t), intent(inout) :: prob
     integer(ip)       , intent(in)  :: ndime
 
     integer(ip) :: i
@@ -93,7 +93,7 @@ contains
     !   This subroutine contains definitions of the Navier-Stokes problem                          !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(cdr_problem), intent(inout) :: prob
+    class(cdr_problem_t), intent(inout) :: prob
 
     call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
 

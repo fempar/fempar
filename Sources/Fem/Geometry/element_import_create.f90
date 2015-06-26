@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fem_element_import_create_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use fem_mesh_distribution_names
   use fem_element_import_names
   use sort_names
@@ -46,8 +46,8 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh_distribution), intent(in)  :: f_msh_dist
-    type(fem_element_import)   , intent(out) :: f_element_import
+    type(fem_mesh_distribution_t), intent(in)  :: f_msh_dist
+    type(fem_element_import_t)   , intent(out) :: f_element_import
     
     ! Locals
     f_element_import%nparts = f_msh_dist%nparts
@@ -113,7 +113,7 @@ contains
     integer(ip), intent(out) :: npadj
 
     ! Locals
-    type(hash_table_ip_ip)   :: parts_visited
+    type(hash_table_ip_ip_t)   :: parts_visited
     integer(ip)              :: i, istat, touch
     
     call parts_visited%init(20)
@@ -140,7 +140,7 @@ contains
     integer(ip), intent(out) :: lpadj(npadj)
 
     ! Locals
-    type(hash_table_ip_ip)   :: parts_visited
+    type(hash_table_ip_ip_t)   :: parts_visited
     integer(ip)              :: i, j, istat, touch
     
     call parts_visited%init(20)
@@ -176,8 +176,8 @@ contains
 
     ! Locals
     integer(ip) :: i, j, istat, iedge , touch
-    type(hash_table_ip_ip) , allocatable :: snd_lids_per_proc(:) 
-    type(hash_table_igp_ip), allocatable :: rcv_gids_per_proc(:)
+    type(hash_table_ip_ip_t) , allocatable :: snd_lids_per_proc(:) 
+    type(hash_table_igp_ip_t), allocatable :: rcv_gids_per_proc(:)
 
     snd_ptrs = 0
     rcv_ptrs = 0    
@@ -252,8 +252,8 @@ contains
 
     ! Locals
     integer(ip) :: i, j, istat, iedge , touch
-    type(hash_table_ip_ip) , allocatable :: snd_lids_per_proc(:) 
-    type(hash_table_igp_ip), allocatable :: rcv_gids_per_proc(:)
+    type(hash_table_ip_ip_t) , allocatable :: snd_lids_per_proc(:) 
+    type(hash_table_igp_ip_t), allocatable :: rcv_gids_per_proc(:)
     integer(igp) , allocatable           :: snd_geids(:)    
 
     allocate(snd_lids_per_proc(npadj))

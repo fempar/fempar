@@ -33,18 +33,18 @@ use types_names
   private
   ! Any linear algebra data structure that could be obtained
   ! by integration
-  type, abstract, extends(memory_guard) :: integrable
+  type, abstract, extends(memory_guard) :: integrable_t
    contains
      procedure(free_interface), deferred :: free
-  end type integrable
+  end type integrable_t
   
   abstract interface
      subroutine free_interface ( this )
-       import :: integrable
-       class(integrable), intent(inout) :: this
+       import :: integrable_t
+       class(integrable_t), intent(inout) :: this
      end subroutine free_interface
   end interface
 
-  public :: integrable
+  public :: integrable_t
 
 end module integrable_names

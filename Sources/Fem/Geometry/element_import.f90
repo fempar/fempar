@@ -34,7 +34,7 @@ module fem_element_import_names
   ! Element_Import
   ! Host for data needed to perform nearest neighbour communications for
   ! the distributed dual graph associated to the finite element mesh 
-  type fem_element_import
+  type fem_element_import_t
      integer(ip)       ::          &
         ipart,                     &    ! Part identifier
         nparts                          ! Number of parts
@@ -54,10 +54,10 @@ module fem_element_import_names
         snd_ptrs(:)                     ! How many elements does does the part send to each neighbour?
      integer(ip), allocatable :: & 
         snd_leids(:)                    ! Local elements IDs of the elements to be sent to each neighbour ?
-  end type fem_element_import
+  end type fem_element_import_t
 
   ! Types
-  public :: fem_element_import
+  public :: fem_element_import_t
 
   ! Functions
   public :: fem_element_import_free, fem_element_import_print
@@ -72,7 +72,7 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_element_import), intent(inout)  :: element_import
+    type(fem_element_import_t), intent(inout)  :: element_import
 
     ! Free lpadj vector
     call memfree ( element_import%lpadj,__FILE__,__LINE__)
@@ -95,14 +95,14 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    type(fem_element_import)   , intent(in)  :: element_import
+    type(fem_element_import_t)   , intent(in)  :: element_import
     integer(ip)        , intent(in)  :: lu_out
 
     ! Local variables
     integer (ip) :: i, j
 
     if(lu_out>0) then
-       write(lu_out,'(a)') '*** begin fem_element_import data structure ***'
+       write(lu_out,'(a)') '*** begin fem_element_import_t data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
             &  element_import%nparts

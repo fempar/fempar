@@ -53,7 +53,7 @@ use memor_names
   integer(ip), parameter :: max_contexts_symm   = 63
   integer(ip), parameter :: max_contexts_unsy   = 1
 
-  ! Posible matrix types managed in wsmp_context
+  ! Posible matrix types managed in wsmp_context_t
   integer , parameter    :: wsmp_symm = 2  ! Symmetric
   integer , parameter    :: wsmp_unsy = 1  ! Unsymmetric
 
@@ -102,7 +102,7 @@ use memor_names
 !!$     end subroutine wssmp
 !!$  end interface
 
-  type wsmp_context
+  type wsmp_context_t
      ! Our components
      integer(ip) :: mtype = wsmp_symm      ! Matrix symmetry (check consistency between calls)
      integer(ip) :: sign  = wsmp_undefined ! Matrix symmetry (check consistency between calls)
@@ -118,10 +118,10 @@ use memor_names
      integer, pointer :: iperm(:) => NULL()
      integer, pointer :: iparm(:) => NULL()
      real   , pointer :: dparm(:) => NULL()
-  end type wsmp_context
+  end type wsmp_context_t
 
   ! Types
-  public :: wsmp_context
+  public :: wsmp_context_t
 
   ! Constants (matrix types)
   public :: wsmp_symm, &
@@ -179,12 +179,12 @@ contains
   subroutine wsmp_vector ( action, context, A, b, x, iparm, dparm, perm, iperm, mrp, rmisc)
     implicit none
     ! Mandatory Parameters
-    type(wsmp_context), intent(inout) :: context   ! Information required between calls
+    type(wsmp_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     ! Optional parameters
 !!$    integer , intent(inout), target, optional :: perm(A%gr%nv)
 !!$    integer , intent(inout), target, optional :: iperm(A%gr%nv)
@@ -275,12 +275,12 @@ contains
   subroutine wsmp_r2 ( action, context, A, nrhs, b, x, iparm, dparm, perm, iperm, mrp, rmisc)
     implicit none
     ! Mandatory Parameters
-    type(wsmp_context), intent(inout) :: context   ! Information required between calls
+    type(wsmp_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
-!    type(fem_vector)  , intent(in)    :: b         ! RHS (Right-hand-side)
-!    type(fem_vector)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+!    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+!    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)            :: nrhs
     real(rp)          , intent(in)    :: b (A%gr%nv, nrhs)
     real(rp)          , intent(inout) :: x (A%gr%nv, nrhs)
@@ -313,10 +313,10 @@ contains
   subroutine wsmp_r1 ( action, context, A, b, x, iparm, dparm, perm, iperm, mrp, rmisc)
     implicit none
     ! Mandatory Parameters
-    type(wsmp_context), intent(inout) :: context   ! Information required between calls
+    type(wsmp_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     real(rp)          , intent(in)    :: b (A%gr%nv)
     real(rp)          , intent(inout) :: x (A%gr%nv)
 
@@ -358,8 +358,8 @@ contains
   subroutine wsmp_ini ( context, matrix, iparm, dparm)
     implicit none
     ! Parameters
-    type(wsmp_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in)            :: matrix
+    type(wsmp_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in)            :: matrix
     integer, intent(out), target, optional    :: iparm(64)
     real   , intent(out), target, optional    :: dparm(64)
     ! Locals
@@ -478,7 +478,7 @@ contains
 
     ! Parameters
     integer(ip)       , intent(in)    :: mode
-    type(wsmp_context), intent(inout) :: context
+    type(wsmp_context_t), intent(inout) :: context
     integer                           :: i0dum, nrhs, naux, i, info
 
 
@@ -553,8 +553,8 @@ contains
   subroutine wsmp_analysis ( context, matrix, iparm, dparm , perm, iperm)
     implicit none
     ! Parameters 
-    type(wsmp_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in), target    :: matrix
+    type(wsmp_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in), target    :: matrix
     integer, intent(inout), target, optional  :: perm(matrix%gr%nv)
     integer, intent(inout), target, optional  :: iperm(matrix%gr%nv)
     integer, intent(inout), target, optional  :: iparm(64)
@@ -664,8 +664,8 @@ contains
   subroutine wsmp_factorization ( context, matrix, iparm, dparm, perm, iperm, mrp )
     implicit none
     ! Parameters 
-    type(wsmp_context), intent(inout),target :: context
-    type(fem_matrix)  , intent(in), target   :: matrix
+    type(wsmp_context_t), intent(inout),target :: context
+    type(fem_matrix_t)  , intent(in), target   :: matrix
     integer, intent(inout), target, optional :: perm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
     integer, intent(inout), target, optional :: mrp(matrix%gr%nv)
@@ -781,11 +781,11 @@ contains
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     implicit none
     ! Parameters 
-    type(wsmp_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in)   , target :: matrix
-!    type(fem_vector)  , intent(in)   , target :: x
-    type(fem_vector)  , intent(in)            :: x
-    type(fem_vector)  , intent(inout), target :: y
+    type(wsmp_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in)   , target :: matrix
+!    type(fem_vector_t)  , intent(in)   , target :: x
+    type(fem_vector_t)  , intent(in)            :: x
+    type(fem_vector_t)  , intent(inout), target :: y
     integer, intent(inout), target, optional :: perm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iparm(64)
@@ -918,8 +918,8 @@ contains
        &                          iparm, dparm, perm, iperm ,rmisc )
     implicit none
     ! Parameters 
-    type(wsmp_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in)   , target :: matrix
+    type(wsmp_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in)   , target :: matrix
     real(rp)          , intent(in)   , target :: rhs (matrix%gr%nv)
     real(rp)          , intent(inout), target :: sol (matrix%gr%nv)
     integer, intent(inout), target, optional :: perm(matrix%gr%nv)
@@ -1041,8 +1041,8 @@ contains
        &                                 iparm, dparm, perm, iperm ,rmisc )
     implicit none
     ! Parameters 
-    type(wsmp_context), intent(inout), target :: context
-    type(fem_matrix)  , intent(in)   , target :: matrix
+    type(wsmp_context_t), intent(inout), target :: context
+    type(fem_matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs
     real(rp)          , intent(in)   , target :: rhs (matrix%gr%nv, nrhs)
     real(rp)          , intent(inout), target :: sol (matrix%gr%nv, nrhs)

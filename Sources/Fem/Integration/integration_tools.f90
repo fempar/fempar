@@ -51,21 +51,21 @@ module volume_integration_tools_names
   implicit none
   private
 
-  type volume_integrator
-     type(quadrature)         :: quad        ! Quadrature rules for elements
-     type(interpolation)      :: uint_ref    ! Unknown interpolation in the reference element domain
-     type(interpolation)      :: uint_phy    ! Unknown interpolation in the physical element domain
-     type(interpolation)      :: gint_ref    ! Geometry interpolation in the reference element domain
-     type(interpolation)      :: gint_phy    ! Geometry interpolation in the physical element domain
-     type(femap)              :: femap       ! FE mapping
-  end type volume_integrator
-  type volume_integrator_pointer
-     type(volume_integrator)          , pointer :: p => NULL() 
-  end type volume_integrator_pointer
+  type volume_integrator_t
+     type(quadrature_t)         :: quad        ! Quadrature rules for elements
+     type(interpolation_t)      :: uint_ref    ! Unknown interpolation_t in the reference element domain
+     type(interpolation_t)      :: uint_phy    ! Unknown interpolation_t in the physical element domain
+     type(interpolation_t)      :: gint_ref    ! Geometry interpolation_t in the reference element domain
+     type(interpolation_t)      :: gint_phy    ! Geometry interpolation_t in the physical element domain
+     type(femap_t)              :: femap       ! FE map_tping
+  end type volume_integrator_t
+  type volume_integrator_pointer_t
+     type(volume_integrator_t)          , pointer :: p => NULL() 
+  end type volume_integrator_pointer_t
 
-  public :: volume_integrator, volume_integrator_pointer
+  public :: volume_integrator_t, volume_integrator_pointer_t
 
-# define var_type type(volume_integrator_pointer)
+# define var_type type(volume_integrator_pointer_t)
 # define var_size 8
 # define bound_kind ip
 # include "mem_header.i90"
@@ -86,7 +86,7 @@ contains
     ! Parameters
     integer(ip)            , intent(in)  :: gtype, utype
     integer(ip)            , intent(in)  :: ndime, g_ord, u_ord
-    type(volume_integrator), intent(out) :: integ
+    type(volume_integrator_t), intent(out) :: integ
     logical(lg),   optional, intent(in)  :: khie
     integer(ip),   optional, intent(in)  :: mnode
 
@@ -141,7 +141,7 @@ contains
   subroutine volume_integrator_free(integ)
     implicit none
     ! Parameters
-    type(volume_integrator), intent(inout) :: integ    
+    type(volume_integrator_t), intent(inout) :: integ    
     
     ! Destruct quadratures
     call quadrature_free(integ%quad)
@@ -161,7 +161,7 @@ contains
   subroutine volume_integrator_update(integ,coordinates)
     implicit none
     ! Parameters
-    type(volume_integrator), intent(inout) :: integ
+    type(volume_integrator_t), intent(inout) :: integ
     real(rp), intent(in) :: coordinates(:,:)
     ! Define fe map  by interpolation
     call femap_from_interp(integ%gint_ref, coordinates, integ%femap)
@@ -218,28 +218,28 @@ module face_integration_tools_names
   implicit none
   private
 
-  type face_integrator 
+  type face_integrator_t 
      integer(ip)              :: ltype        ! List of combinations of face types
-     type(quadrature)         :: quad         ! Quadrature rules for boundary faces
-     type(face_quadrature)    :: fquad        ! Quadrature points on the faces of the element
-     type(interpolation)      :: gint_ref     ! Geometry interpolation in the reference face domain
-     type(bomap)              :: bomap        ! Boundary face mapping
-     type(femap)              :: femap        ! FE mapping
-     type(face_interpolation) :: ufint_ref    ! Unknown interpolation in the reference face domain
-     type(face_interpolation) :: ufint_phy    ! Unknown interpolation in the physical face domain
-     type(face_interpolation) :: gfint_ref    ! Geometry interpolation in the reference face domain
-     type(face_interpolation) :: gfint_phy    ! Geometry interpolation in the physical face domain
-  end type face_integrator
-  type face_integrator_pointer
-     type(face_integrator)          , pointer :: p => NULL() 
-  end type face_integrator_pointer
-  type element_face_integrator
-     type(face_integrator_pointer), allocatable :: p(:)  ! Pointer to face integration
-  end type element_face_integrator
+     type(quadrature_t)         :: quad         ! Quadrature rules for boundary faces
+     type(face_quadrature_t)    :: fquad        ! Quadrature points on the faces of the element
+     type(interpolation_t)      :: gint_ref     ! Geometry interpolation_t in the reference face domain
+     type(bomap_t)              :: bomap        ! Boundary face map_tping
+     type(femap_t)              :: femap        ! FE map_tping
+     type(face_interpolation_t) :: ufint_ref    ! Unknown interpolation_t in the reference face domain
+     type(face_interpolation_t) :: ufint_phy    ! Unknown interpolation_t in the physical face domain
+     type(face_interpolation_t) :: gfint_ref    ! Geometry interpolation_t in the reference face domain
+     type(face_interpolation_t) :: gfint_phy    ! Geometry interpolation_t in the physical face domain
+  end type face_integrator_t
+  type face_integrator_pointer_t
+     type(face_integrator_t)          , pointer :: p => NULL() 
+  end type face_integrator_pointer_t
+  type element_face_integrator_t
+     type(face_integrator_pointer_t), allocatable :: p(:)  ! Pointer to face integration
+  end type element_face_integrator_t
 
-  public :: face_integrator, face_integrator_pointer, element_face_integrator
+  public :: face_integrator_t, face_integrator_pointer_t, element_face_integrator_t
 
-# define var_type type(face_integrator_pointer)
+# define var_type type(face_integrator_pointer_t)
 # define var_size 8
 # define bound_kind ip
 # include "mem_header.i90"
@@ -257,9 +257,9 @@ contains
   subroutine face_integrator_create(gfinf,ufinf,nd,integ,subface_ids_)
     implicit none
     ! Parameters
-    type(fem_fixed_info_pointer), intent(in)    :: gfinf,ufinf
+    type(fem_fixed_info_pointer_t), intent(in)    :: gfinf,ufinf
     integer(ip)                 , intent(in)    :: nd
-    type(face_integrator)            , intent(inout) :: integ
+    type(face_integrator_t)            , intent(inout) :: integ
     integer(ip) ,      optional , intent(in)    :: subface_ids_
 
     ! Local variables
@@ -329,7 +329,7 @@ contains
   subroutine face_integrator_free(integ)
     implicit none
     ! Parameters
-    type(face_integrator), intent(inout) :: integ
+    type(face_integrator_t), intent(inout) :: integ
 
     ! Destruct quadratures
     call quadrature_free     (integ%quad)
@@ -353,9 +353,9 @@ contains
   !   implicit none
   !   ! Parameters
   !   integer(ip)              , intent(in)    :: elem(2),face(2)
-  !   type(fem_space)           , intent(in)    :: geom     ! Geometry interpolation space
-  !   type(face_integrator)         , intent(inout) :: integ
-  !   type(list)               , intent(in)    :: ntxob
+  !   type(fem_space_t)           , intent(in)    :: geom     ! Geometry interpolation_t space
+  !   type(face_integrator_t)         , intent(inout) :: integ
+  !   type(list_t)               , intent(in)    :: ntxob
   !   integer(ip)              , intent(in)    :: nobje
 
   !   integer(ip)                      :: i,gfnod,poins(integ%gint_ref%nnode),nelem

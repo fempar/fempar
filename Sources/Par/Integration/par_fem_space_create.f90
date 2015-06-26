@@ -49,20 +49,20 @@ use iso_c_binding
 # include "debug.i90"
   private
 
-  type par_fem_space
+  type par_fem_space_t
      ! Data structure which stores the local part
      ! of the BC's mapped to the current subdomain
-     type(fem_space)              :: f_space
+     type(fem_space_t)              :: f_space
      
      integer(ip)                  :: num_interface_faces
-     type(fem_face), allocatable  :: interface_faces(:)
+     type(fem_face_t), allocatable  :: interface_faces(:)
 
      ! Pointer to parallel triangulation
-     type(par_triangulation), pointer :: p_trian => NULL()
-  end type par_fem_space
+     type(par_triangulation_t), pointer :: p_trian => NULL()
+  end type par_fem_space_t
 
   ! Types
-  public :: par_fem_space
+  public :: par_fem_space_t
 
   ! Methods
   public :: par_fem_space_create,  par_fem_space_print, par_fem_space_free
@@ -82,11 +82,11 @@ contains
                                     static_condensation, num_continuity )
     implicit none
     ! Dummy arguments
-    type(par_triangulation), target, intent(in)    :: p_trian
-    type(dof_handler)              , intent(in)    :: dhand
-    type(par_fem_space)            , intent(inout) :: p_femsp  
+    type(par_triangulation_t), target, intent(in)    :: p_trian
+    type(dof_handler_t)              , intent(in)    :: dhand
+    type(par_fem_space_t)            , intent(inout) :: p_femsp  
     integer(ip)                    , intent(in)    :: problem(:)
-    type(par_conditions)           , intent(in)    :: p_cond
+    type(par_conditions_t)           , intent(in)    :: p_cond
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
@@ -145,7 +145,7 @@ contains
   subroutine par_fem_space_free ( p_femsp )
     implicit none
     ! Dummy arguments
-    type(par_fem_space), intent(inout) :: p_femsp  
+    type(par_fem_space_t), intent(inout) :: p_femsp  
     
     ! Local variables
     integer(ip) :: ielem
@@ -155,7 +155,7 @@ contains
     assert ( p_femsp%p_trian%p_env%created )
     
     if( p_femsp%p_trian%p_env%p_context%iam >= 0 ) then
-       ! Deallocate type(fem_elements) associated to ghost elements
+       ! Deallocate type(fem_element_ts) associated to ghost elements
        do ielem = p_femsp%p_trian%f_trian%num_elems+1, p_femsp%p_trian%f_trian%num_elems+p_femsp%p_trian%num_ghosts
           if(allocated(p_femsp%f_space%lelem(ielem)%f_inf)) call memfree(p_femsp%f_space%lelem(ielem)%f_inf,__FILE__,__LINE__)
           if(allocated(p_femsp%f_space%lelem(ielem)%elem2dof)) call memfree(p_femsp%f_space%lelem(ielem)%elem2dof,__FILE__,__LINE__)
@@ -170,7 +170,7 @@ contains
 
   subroutine par_fem_space_print ( p_femsp )
     implicit none
-    type(par_fem_space), intent(in) :: p_femsp  
+    type(par_fem_space_t), intent(in) :: p_femsp  
 
     
   end subroutine par_fem_space_print
@@ -185,7 +185,7 @@ contains
   !*********************************************************************************
   subroutine ghost_fe_list_create( p_femsp )
     implicit none
-    type(par_fem_space), target, intent(inout) :: p_femsp
+    type(par_fem_space_t), target, intent(inout) :: p_femsp
 
     integer(ip) :: ielem, nvars, f_type, ivar, f_order, istat, pos_elinf, v_key
     logical(lg) :: created
@@ -245,8 +245,8 @@ contains
   subroutine interface_faces_list( p_trian, p_femsp ) 
     implicit none
     ! Parameters
-    type(par_triangulation), intent(in)     :: p_trian 
-    type(par_fem_space)    , intent(inout)  :: p_femsp
+    type(par_triangulation_t), intent(in)     :: p_trian 
+    type(par_fem_space_t)    , intent(inout)  :: p_femsp
 
     integer(ip) :: count_int, iobje, ielem, istat
 

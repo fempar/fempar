@@ -31,17 +31,17 @@ use memor_names
   implicit none
   private
 
-  type quadrature
+  type quadrature_t
      integer(ip)           :: &
         ndime,                &    ! Number of space dimensions
         ngaus                      ! Number of integration points
      real(rp), allocatable :: &
         pos(:,:),             &    ! Quadrature points position
         weight(:)                  ! Quadrature points weight
-  end type quadrature
+  end type quadrature_t
 
   ! Types
-  public :: quadrature
+  public :: quadrature_t
 
   ! Functions
   public :: quadrature_create, quadrature_free
@@ -56,7 +56,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)     , intent(in)  :: nrule,ndime,ngaus
-    type(quadrature), intent(out) :: rule
+    type(quadrature_t), intent(out) :: rule
 
     rule%ndime=ndime
     rule%ngaus=ngaus
@@ -93,7 +93,7 @@ contains
     !
     !-----------------------------------------------------------------------
     implicit none
-    type(quadrature), intent(inout) :: rule
+    type(quadrature_t), intent(inout) :: rule
 
     call memfree(rule%pos,__FILE__,__LINE__)
     call memfree(rule%weight,__FILE__,__LINE__)

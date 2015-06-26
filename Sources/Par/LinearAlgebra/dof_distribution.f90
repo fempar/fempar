@@ -36,7 +36,7 @@ module dof_distribution_names
 # include "debug.i90"
   private
   
-  type dof_distribution
+  type dof_distribution_t
      integer(ip)              :: ipart
      integer(ip)              :: nparts
      
@@ -58,14 +58,14 @@ module dof_distribution_names
      integer(ip)              :: nobjs       ! Number of local DoF communication objects
      integer(ip), allocatable :: lobjs(:,:)  ! List of local DoF communication objects
      
-     type(list)               :: int_objs    ! List of objects on each edge to an adjacent part / Interface_objects
-     type(map)                :: omap        ! Objects local to global map
+     type(list_t)               :: int_objs    ! List of objects on each edge to an adjacent part / Interface_objects
+     type(map_t)                :: omap        ! Objects local to global map_t
 
-     type(dof_import)         :: dof_import  ! Object which contains the control data to drive DoF nearest neigbour exchanges
-  end type dof_distribution
+     type(dof_import_t)         :: dof_import  ! Object which contains the control data to drive DoF nearest neigbour exchanges
+  end type dof_distribution_t
 
   ! Types
-  public :: dof_distribution
+  public :: dof_distribution_t
   
   ! Functions
   public :: dof_distribution_compute_import, dof_distribution_free, dof_distribution_print
@@ -74,7 +74,7 @@ contains
 
   subroutine dof_distribution_free(dof_dist)
     implicit none
-    type(dof_distribution), intent(inout) :: dof_dist
+    type(dof_distribution_t), intent(inout) :: dof_dist
     
     call memfree ( dof_dist%lpadj, __FILE__,__LINE__  )  
     call memfree ( dof_dist%lobjs, __FILE__,__LINE__  )
@@ -95,7 +95,7 @@ contains
     implicit none
 
     ! Parameters
-    type(dof_distribution), intent(inout)  :: dof_dist
+    type(dof_distribution_t), intent(inout)  :: dof_dist
     
     ! Locals
     integer(ip), allocatable :: ws_parts_visited_rcv_pos(:), ws_parts_visited_snd_pos(:), &
@@ -464,7 +464,7 @@ contains
 
 
     ! Parameters
-    type(dof_distribution), intent(in)  :: dof_dist
+    type(dof_distribution_t), intent(in)  :: dof_dist
     integer(ip)        , intent(in)  :: lu_out
 
     ! Local variables

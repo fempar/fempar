@@ -95,11 +95,11 @@ module problem_names
        class(discrete_problem), target, intent(in)    :: discret
      end subroutine create_integration_interface
      subroutine compute_integration_interface(approx,start,elem)
-       import :: discrete_integration, fem_element, ip
+       import :: discrete_integration, fem_element_t, ip
        implicit none
        class(discrete_integration), intent(inout) :: approx
        integer(ip)                , intent(in)    :: start(:)
-       type(fem_element)          , intent(inout) :: elem
+       type(fem_element_t)          , intent(inout) :: elem
      end subroutine compute_integration_interface
      subroutine free_integration_interface(approx)
        import :: discrete_integration

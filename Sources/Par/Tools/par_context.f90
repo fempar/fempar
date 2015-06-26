@@ -37,7 +37,7 @@ use psb_penv_mod_names
   private
 
   ! Parallel context
-  type par_context
+  type par_context_t
      ! Store that it was created
      logical              :: created = .false.
 
@@ -52,14 +52,14 @@ use psb_penv_mod_names
      integer              :: iam
      integer              :: np
 
-  end type par_context
+  end type par_context_t
 
   interface par_context_create
      module procedure par_context_create_by_list, par_context_create_by_color, par_context_create_bridge
   end interface par_context_create
 
   ! Types
-  public :: par_context
+  public :: par_context_t
 
   ! Functions
   public :: par_context_create, par_context_null, par_context_info, par_context_free
@@ -76,7 +76,7 @@ use mpi
 #ifdef MPI_H
     include 'mpif.h'
 #endif
-    type(par_context), intent(out) :: p_context
+    type(par_context_t), intent(out) :: p_context
 
     p_context%created = .true.
 
@@ -94,10 +94,10 @@ use mpi
     include 'mpif.h'
 #endif
 
-    type(par_context), intent(out) :: p_context
+    type(par_context_t), intent(out) :: p_context
 
     integer(ip)      , intent(in), optional :: nproc
-    type(par_context), intent(in), optional :: b_context  ! Base context
+    type(par_context_t), intent(in), optional :: b_context  ! Base context
     integer(ip)      , intent(in), optional :: lproc(:)
 
     ! ***IMPORTANT NOTE***: for the following two variables, 
@@ -135,9 +135,9 @@ use mpi
 
     ! Parameters
     integer(ip)      , intent(in)  :: my_color
-    type(par_context), intent(out) :: p_context
-    type(par_context), intent(out) :: q_context
-    type(par_context), intent(in), optional :: b_context  ! Base context
+    type(par_context_t), intent(out) :: p_context
+    type(par_context_t), intent(out) :: q_context
+    type(par_context_t), intent(in), optional :: b_context  ! Base context
 
     ! ***IMPORTANT NOTE***: for the following two variables, 
     ! the kind parameter must NOT be specified. This requirement is 
@@ -145,7 +145,7 @@ use mpi
     integer                         :: info, my_color_
     integer             , parameter :: key=0
     logical                         :: initialized
-    type(par_context)               :: b_context_  ! Base context
+    type(par_context_t)               :: b_context_  ! Base context
 
     if(p_context%created) then
        write(0,*) 'Error in par_context create,'
@@ -195,17 +195,17 @@ use mpi
 #endif
 
     ! Parameters
-    type(par_context), intent(in)  :: w_context
-    type(par_context), intent(in)  :: p_context
-    type(par_context), intent(in)  :: q_context
-    type(par_context), intent(out) :: b_context
+    type(par_context_t), intent(in)  :: w_context
+    type(par_context_t), intent(in)  :: p_context
+    type(par_context_t), intent(in)  :: q_context
+    type(par_context_t), intent(out) :: b_context
 
     ! ***IMPORTANT NOTE***: for the following two variables, 
     ! the kind parameter must NOT be specified. This requirement is 
     ! imposed by the underlying message-passing library, i.e., MPI 
     integer                         :: info, my_color_
     logical                         :: initialized
-    type(par_context)               :: b_context_  ! Base context
+    type(par_context_t)               :: b_context_  ! Base context
 
     if(b_context%created) then
        write(0,*) 'Error in par_context create,'
@@ -240,7 +240,7 @@ use mpi
 
   subroutine par_context_info ( p_context, my_pid, num_procs )
     ! Parameters
-    type(par_context), intent(in)  :: p_context
+    type(par_context_t), intent(in)  :: p_context
     integer          , intent(out) :: my_pid, num_procs
 
     assert( p_context%created )
@@ -257,7 +257,7 @@ use mpi
     include 'mpif.h'
 #endif
     ! Parameters
-    type(par_context), intent(inout) :: p_context
+    type(par_context_t), intent(inout) :: p_context
     logical, intent(in), optional    :: close
 
 

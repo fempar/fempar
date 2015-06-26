@@ -37,47 +37,47 @@ module fem_triangulation_names
   integer(ip), parameter :: triangulation_not_created  = 0 ! Initial state
   integer(ip), parameter :: triangulation_filled       = 1 ! Elems + Objects arrays allocated and filled 
 
-  type elem_topology
+  type elem_topology_t
      integer(ip)               :: num_objects = -1    ! Number of objects
      integer(ip), allocatable  :: objects(:)          ! List of Local IDs of the objects (vertices, edges, faces) that make up this element
-     type(fem_fixed_info), pointer :: topology => NULL() ! Topological info of the geometry (SBmod)
+     type(fem_fixed_info_t), pointer :: topology => NULL() ! Topological info of the geometry (SBmod)
      
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
 
-  end type elem_topology
+  end type elem_topology_t
 
-  type object_topology
+  type object_topology_t
      integer(ip)               :: border     = -1       ! Border local id of this object (only for faces)
      integer(ip)               :: dimension             ! Object dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around object 
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around object 
-  end type object_topology
+  end type object_topology_t
 
-  type fem_triangulation
+  type fem_triangulation_t
      integer(ip) :: state          =  triangulation_not_created  
      integer(ip) :: num_objects    = -1  ! number of objects 
      integer(ip) :: num_elems      = -1  ! number of elements
      integer(ip) :: num_dims       = -1  ! number of dimensions
      integer(ip) :: elem_array_len = -1  ! length that the elements array is allocated for. 
-     type(elem_topology), allocatable    :: elems(:) ! array of elements in the mesh.
-     type(object_topology) , allocatable :: objects(:) ! array of objects in the mesh.
-     type (position_hash_table)          :: pos_elem_info  ! Topological info hash table (SBmod)
-     type (fem_fixed_info)               :: lelem_info(max_elinf) ! List of topological info's
+     type(elem_topology_t), allocatable    :: elems(:) ! array of elements in the mesh.
+     type(object_topology_t) , allocatable :: objects(:) ! array of objects in the mesh.
+     type (position_hash_table_t)          :: pos_elem_info  ! Topological info hash table (SBmod)
+     type (fem_fixed_info_t)               :: lelem_info(max_elinf) ! List of topological info's
      integer(ip)                         :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable            :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
-  end type fem_triangulation
+  end type fem_triangulation_t
 
   ! Types
-  public :: fem_triangulation
+  public :: fem_triangulation_t
 
   ! Main Subroutines 
   public :: fem_triangulation_create, fem_triangulation_free, fem_triangulation_to_dual, triangulation_print
 
-  ! Auxiliary Subroutines (should only be used by modules that have control over type(fem_triangulation))
+  ! Auxiliary Subroutines (should only be used by modules that have control over type(fem_triangulation_t))
   public :: free_elem_topology, free_object_topology, put_topology_element_triangulation, local_id_from_vertices
 
-  ! Constants (should only be used by modules that have control over type(fem_triangulation))
+  ! Constants (should only be used by modules that have control over type(fem_triangulation_t))
   public :: triangulation_not_created, triangulation_filled
   public :: fem_triangulation_free_elems_data, fem_triangulation_free_objs_data
 
@@ -87,7 +87,7 @@ contains
   subroutine fem_triangulation_create(len,trian)
     implicit none
     integer(ip)            , intent(in)    :: len
-    type(fem_triangulation), intent(inout) :: trian
+    type(fem_triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem
 
     trian%elem_array_len = len
@@ -113,7 +113,7 @@ contains
   !=============================================================================
   subroutine fem_triangulation_free(trian)
     implicit none
-    type(fem_triangulation), intent(inout) :: trian
+    type(fem_triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
 
     assert(trian%state == triangulation_filled) 
@@ -142,7 +142,7 @@ contains
 
   subroutine fem_triangulation_free_objs_data(trian)
     implicit none
-    type(fem_triangulation), intent(inout) :: trian
+    type(fem_triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
     
     if ( trian%state == triangulation_filled ) then
@@ -157,7 +157,7 @@ contains
 
   subroutine fem_triangulation_free_elems_data(trian)
     implicit none
-    type(fem_triangulation), intent(inout) :: trian
+    type(fem_triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
     
     if ( trian%state == triangulation_filled ) then
@@ -171,7 +171,7 @@ contains
   ! Auxiliary subroutines
   subroutine initialize_object_topology (object)
     implicit none
-    type(object_topology), intent(inout) :: object
+    type(object_topology_t), intent(inout) :: object
 
     assert(.not.allocated(object%elems_around))
     object%num_elems_around = 0 
@@ -179,7 +179,7 @@ contains
 
   subroutine free_object_topology (object)
     implicit none
-    type(object_topology), intent(inout) :: object
+    type(object_topology_t), intent(inout) :: object
 
     if (allocated(object%elems_around)) then
        call memfree(object%elems_around, __FILE__, __LINE__)
@@ -189,7 +189,7 @@ contains
 
   subroutine free_elem_topology(element)
     implicit none
-    type(elem_topology), intent(inout) :: element
+    type(elem_topology_t), intent(inout) :: element
 
     if (allocated(element%objects)) then
        call memfree(element%objects, __FILE__, __LINE__)
@@ -205,7 +205,7 @@ contains
 
   subroutine initialize_elem_topology(element)
     implicit none
-    type(elem_topology), intent(inout) :: element
+    type(elem_topology_t), intent(inout) :: element
 
     assert(.not. allocated(element%objects))
     element%num_objects = -1
@@ -214,12 +214,12 @@ contains
   subroutine fem_triangulation_to_dual(trian, length_trian)  
     implicit none
     ! Parameters
-    type(fem_triangulation), intent(inout) :: trian
+    type(fem_triangulation_t), intent(inout) :: trian
     integer(ip), optional, intent(in)      :: length_trian
 
     ! Locals
     integer(ip)              :: ielem, iobj, jobj, istat, idime, touch,  length_trian_
-    type(hash_table_ip_ip)   :: visited
+    type(hash_table_ip_ip_t)   :: visited
     integer(ip), allocatable :: elems_around_pos(:)
     
     if (present(length_trian)) then
@@ -315,7 +315,7 @@ contains
 
   subroutine put_topology_element_triangulation( ielem, trian ) !(SBmod)
     implicit none
-    type(fem_triangulation), intent(inout), target :: trian
+    type(fem_triangulation_t), intent(inout), target :: trian
     integer(ip),             intent(in)            :: ielem
     ! Locals
     integer(ip) :: nobje, v_key, ndime, etype, pos_elinf, istat
@@ -356,7 +356,7 @@ contains
 
   subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
     implicit none
-    type(elem_topology), intent(in) :: e
+    type(elem_topology_t), intent(in) :: e
     integer(ip), intent(in)  :: nd, list(:), no
     integer(ip), intent(out) :: lid
     ! Locals
@@ -390,7 +390,7 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in) :: lunou
-    type(fem_triangulation), intent(in) :: trian
+    type(fem_triangulation_t), intent(in) :: trian
     integer(ip), optional, intent(in)      :: length_trian
 
     ! Locals

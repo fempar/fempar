@@ -38,7 +38,7 @@ use memor_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: nsi_cg_asgs_discrete
+ type, extends(discrete_problem) :: nsi_cg_asgs_discrete_t
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -54,18 +54,18 @@ use memor_names
          k2tau         ! C2 constant on stabilization parameter tau_m
     contains
       procedure :: create => nsi_create_discrete
-   end type nsi_cg_asgs_discrete
+   end type nsi_cg_asgs_discrete_t
 
- type, extends(discrete_integration) :: nsi_cg_asgs_approximation
-      type(nsi_cg_asgs_discrete), pointer :: discret
-      type(nsi_problem)         , pointer :: physics
+ type, extends(discrete_integration) :: nsi_cg_asgs_approximation_t
+      type(nsi_cg_asgs_discrete_t), pointer :: discret
+      type(nsi_problem_t)         , pointer :: physics
     contains
       procedure :: create  => nsi_matvec_create
       procedure :: compute => nsi_matvec
       procedure :: free    => nsi_matvec_free
-   end type nsi_cg_asgs_approximation
+   end type nsi_cg_asgs_approximation_t
 
- public :: nsi_cg_asgs_approximation, nsi_cg_asgs_discrete
+ public :: nsi_cg_asgs_approximation_t, nsi_cg_asgs_discrete_t
 
 contains
 
@@ -76,7 +76,7 @@ contains
     !   finite element formulation with inf-sup stable elemets.                                    !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_asgs_discrete), intent(out) :: discret
+    class(nsi_cg_asgs_discrete_t), intent(out) :: discret
     class(physical_problem)    , intent(in)  :: physics
     integer(ip), optional      , intent(in)  :: l2g(:)
     ! Locals
@@ -114,18 +114,18 @@ contains
   !=================================================================================================
   subroutine nsi_matvec_create( approx, physics, discret )
     implicit none
-    class(nsi_cg_asgs_approximation), intent(inout) :: approx
+    class(nsi_cg_asgs_approximation_t), intent(inout) :: approx
     class(physical_problem), target , intent(in)    :: physics
     class(discrete_problem), target , intent(in)    :: discret
 
     select type (physics)
-    type is(nsi_problem)
+    type is(nsi_problem_t)
        approx%physics => physics
        class default
        check(.false.)
     end select
     select type (discret)
-    type is(nsi_cg_asgs_discrete)
+    type is(nsi_cg_asgs_discrete_t)
        approx%discret => discret
        class default
        check(.false.)
@@ -136,7 +136,7 @@ contains
   !=================================================================================================
   subroutine nsi_matvec_free(approx)
     implicit none
-    class(nsi_cg_asgs_approximation)  , intent(inout) :: approx
+    class(nsi_cg_asgs_approximation_t)  , intent(inout) :: approx
 
     approx%physics => null()
     approx%discret => null()
@@ -146,28 +146,28 @@ contains
   !=================================================================================================
   subroutine nsi_matvec(approx,start,elem)
     implicit none
-    class(nsi_cg_asgs_approximation), intent(inout) :: approx
+    class(nsi_cg_asgs_approximation_t), intent(inout) :: approx
     integer(ip)                     , intent(in)    :: start(:)
-    type(fem_element)               , intent(inout) :: elem
+    type(fem_element_t)               , intent(inout) :: elem
 
-    type(basis_function) :: u ! Trial
-    type(basis_function) :: p 
-    type(basis_function) :: v ! Test
-    type(basis_function) :: q 
+    type(basis_function_t) :: u ! Trial
+    type(basis_function_t) :: p 
+    type(basis_function_t) :: v ! Test
+    type(basis_function_t) :: q 
 
-    type(vector) :: a
-    type(vector) :: u_n
-    type(scalar) :: h,tau
+    type(vector_t) :: a
+    type(vector_t) :: u_n
+    type(scalar_t) :: h,tau
 
     integer(ip)  :: ndime
     real(rp)     :: dtinv, c1, c2, mu
 
     ndime = approx%physics%ndime
        
-    u = basis_function(approx%physics,1,start,elem%integ)
-    p = basis_function(approx%physics,2,start,elem%integ)
-    v = basis_function(approx%physics,1,start,elem%integ) 
-    q = basis_function(approx%physics,2,start,elem%integ)
+    u = basis_function_t(approx%physics,1,start,elem%integ)
+    p = basis_function_t(approx%physics,2,start,elem%integ)
+    v = basis_function_t(approx%physics,1,start,elem%integ) 
+    q = basis_function_t(approx%physics,2,start,elem%integ)
 
     ! With a_h declared as given_function we could do:
     ! a_h   = given_function(approx,1,1,elem%integ)

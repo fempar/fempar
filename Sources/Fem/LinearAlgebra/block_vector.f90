@@ -35,13 +35,13 @@ use memor_names
   private
 
   ! fem_vector
-  type fem_block_vector
+  type fem_block_vector_t
      integer(ip)                   :: nblocks = 0
-     type(fem_vector), allocatable :: blocks(:)
-  end type fem_block_vector
+     type(fem_vector_t), allocatable :: blocks(:)
+  end type fem_block_vector_t
 
   ! Types
-  public :: fem_block_vector
+  public :: fem_block_vector_t
 
   ! Functions
   public :: fem_block_vector_free, fem_block_vector_alloc,        & 
@@ -59,7 +59,7 @@ contains
   !=============================================================================
   subroutine fem_block_vector_free (bvec)
     implicit none
-    type(fem_block_vector), intent(inout) :: bvec
+    type(fem_block_vector_t), intent(inout) :: bvec
     integer(ip)  :: ib
    
     do ib=1, bvec%nblocks
@@ -74,7 +74,7 @@ contains
   subroutine fem_block_vector_alloc(nblocks, bvec)
     implicit none
     integer(ip)           , intent(in)  :: nblocks
-    type(fem_block_vector), intent(out) :: bvec
+    type(fem_block_vector_t), intent(out) :: bvec
     bvec%nblocks = nblocks
     allocate ( bvec%blocks(nblocks) )
   end subroutine fem_block_vector_alloc
@@ -83,10 +83,10 @@ contains
   subroutine fem_block_vector_create_view (svec, start, end, tvec)
     implicit none
     ! Parameters
-    type(fem_block_vector), intent(in)  :: svec
+    type(fem_block_vector_t), intent(in)  :: svec
     integer(ip)     , intent(in)        :: start
     integer(ip)     , intent(in)        :: end
-    type(fem_block_vector), intent(out) :: tvec
+    type(fem_block_vector_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
@@ -102,8 +102,8 @@ contains
   subroutine fem_block_vector_clone ( svec, tvec )
     implicit none
     ! Parameters
-    type(fem_block_vector), intent( in ) :: svec
-    type(fem_block_vector), intent(out) :: tvec
+    type(fem_block_vector_t), intent( in ) :: svec
+    type(fem_block_vector_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
@@ -120,15 +120,15 @@ contains
   ! Dummy method required to specialize Krylov subspace methods
   subroutine fem_block_vector_comm ( vec )
     implicit none
-    type(fem_block_vector), intent( inout ) :: vec 
+    type(fem_block_vector_t), intent( inout ) :: vec 
   end subroutine fem_block_vector_comm
 
   !=============================================================================
   subroutine fem_block_vector_dot (x, y, t)
     implicit none
     ! Parameters
-    type(fem_block_vector), intent(in)  :: x
-    type(fem_block_vector), intent(in)  :: y
+    type(fem_block_vector_t), intent(in)  :: x
+    type(fem_block_vector_t), intent(in)  :: y
     real(rp)              , intent(out) :: t
      
     ! Locals
@@ -146,7 +146,7 @@ contains
   !=============================================================================
   subroutine fem_block_vector_nrm2(x,t)
     implicit none
-    type(fem_block_vector), intent(in)  :: x
+    type(fem_block_vector_t), intent(in)  :: x
     real(rp)    , intent(out)     :: t
 
     call fem_block_vector_dot (x, x, t)
@@ -155,8 +155,8 @@ contains
   !=============================================================================
   subroutine fem_block_vector_copy(x,y)
     implicit none
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
 
     ! Locals
     integer(ip) :: ib
@@ -169,7 +169,7 @@ contains
 
   subroutine fem_block_vector_zero(y)
     implicit none
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip) :: ib
 
@@ -181,7 +181,7 @@ contains
 
   subroutine fem_block_vector_init(alpha, y)
     implicit none
-    type(fem_block_vector), intent(inout) :: y 
+    type(fem_block_vector_t), intent(inout) :: y 
     real(rp), intent(in)                  :: alpha  
     ! Locals
     integer(ip)                           :: ib
@@ -195,8 +195,8 @@ contains
     implicit none
     ! Parameters 
     real(rp)              , intent(in)    :: t
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -209,8 +209,8 @@ contains
 
   subroutine fem_block_vector_mxpy(x,y)
     implicit none
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -222,8 +222,8 @@ contains
   subroutine fem_block_vector_axpy(t,x,y)
     implicit none
     real(rp)   , intent(in)         :: t
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -236,8 +236,8 @@ contains
   subroutine fem_block_vector_aypx(t,x,y)
     implicit none
     real(rp)        , intent(in)    :: t
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
 
     ! Locals
     integer(ip)                           :: ib
@@ -251,8 +251,8 @@ contains
 
   subroutine fem_block_vector_pxpy(x,y)
     implicit none
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -264,8 +264,8 @@ contains
 
   subroutine fem_block_vector_pxmy(x,y)
     implicit none
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -277,7 +277,7 @@ contains
 
   subroutine fem_block_vector_print (luout, x)
     implicit none
-    type(fem_block_vector), intent(in) :: x
+    type(fem_block_vector_t), intent(in) :: x
     integer(ip)           , intent(in) :: luout
     
     ! Locals

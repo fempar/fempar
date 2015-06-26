@@ -43,13 +43,13 @@ contains
   subroutine fem_block_matvec (a, x, y)
     implicit none
     ! Parameters
-    type(fem_block_matrix), intent(in)    :: a
-    type(fem_block_vector), intent(in)    :: x
-    type(fem_block_vector), intent(inout) :: y
+    type(fem_block_matrix_t), intent(in)    :: a
+    type(fem_block_vector_t), intent(in)    :: x
+    type(fem_block_vector_t), intent(inout) :: y
 
     ! Locals
-    type(fem_matrix), pointer :: f_matrix
-    type(fem_vector)          :: aux
+    type(fem_matrix_t), pointer :: f_matrix
+    type(fem_vector_t)          :: aux
     integer(ip)               :: ib, jb
 
     assert ( a%get_nblocks() == x%nblocks )

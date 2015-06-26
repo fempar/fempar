@@ -36,7 +36,7 @@ use stdio_names
   implicit none
   private
 
-  type fem_mesh
+  type fem_mesh_t
      integer(ip)                :: &
           nelem,                   &         ! Number of elements
           nnode                              ! Maximum number of nodes per element
@@ -51,10 +51,10 @@ use stdio_names
 
      real(rp), allocatable ::      &
           coord(:,:)                         ! Node coordinates       
-  end type fem_mesh
+  end type fem_mesh_t
 
   ! Types
-  public :: fem_mesh
+  public :: fem_mesh_t
 
   ! Functions
   public :: mesh_to_dual, fem_mesh_free
@@ -92,8 +92,8 @@ contains
     ! and, as it is not used, we set it to 0.
     !-----------------------------------------------------------------------
     implicit none
-    type(fem_mesh), intent(in)     :: primal_mesh
-    type(fem_mesh), intent(out)    :: dual_mesh
+    type(fem_mesh_t), intent(in)     :: primal_mesh
+    type(fem_mesh_t), intent(out)    :: dual_mesh
     
     dual_mesh%ndime=primal_mesh%ndime
     dual_mesh%npoin=primal_mesh%nelem
@@ -207,7 +207,7 @@ contains
     ! This routine generates deallocates a fem_mesh
     !-----------------------------------------------------------------------
     implicit none
-    type(fem_mesh), intent(inout)  :: msh
+    type(fem_mesh_t), intent(inout)  :: msh
 
     call memfree (msh%pnods,__FILE__,__LINE__)
     call memfree (msh%lnods,__FILE__,__LINE__)
@@ -229,7 +229,7 @@ contains
   
   subroutine fem_mesh_print(mesh, ounit)
      implicit none
-     type(fem_mesh), intent(in)          :: mesh
+     type(fem_mesh_t), intent(in)          :: mesh
      integer(ip), intent(in), optional   :: ounit
      integer(ip)                         :: idx, num_nodes, ounit_used
      character(len=100)                  :: fmt

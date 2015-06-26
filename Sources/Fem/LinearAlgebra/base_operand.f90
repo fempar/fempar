@@ -33,7 +33,7 @@ use types_names
 
   private
   ! Abstract operand
-  type, abstract, extends(integrable) :: base_operand
+  type, abstract, extends(integrable_t) :: base_operand_t
    contains
      procedure (dot_interface) , deferred  :: dot
      procedure (copy_interface), deferred  :: copy
@@ -55,78 +55,78 @@ use types_names
      generic  :: operator(-) => sub_operand, minus_operand
      generic  :: operator(*) => scal_left_operand, scal_right_operand
      generic  :: assignment(=) => assign_operand
-  end type base_operand
+  end type base_operand_t
 
  ! Abstract interfaces
   abstract interface
      ! alpha <- op1^T * op2
      function dot_interface(op1,op2) result(alpha)
-       import :: base_operand, rp
+       import :: base_operand_t, rp
        implicit none
-       class(base_operand), intent(in)  :: op1,op2
+       class(base_operand_t), intent(in)  :: op1,op2
        real(rp) :: alpha
      end function dot_interface
      ! op1 <- op2 
      subroutine copy_interface(op1,op2)
-       import :: base_operand
+       import :: base_operand_t
        implicit none
-       class(base_operand), intent(inout) :: op1
-       class(base_operand), intent(in)    :: op2
+       class(base_operand_t), intent(inout) :: op1
+       class(base_operand_t), intent(in)    :: op2
      end subroutine copy_interface
      ! op1 <- alpha * op2
      subroutine scal_interface(op1,alpha,op2)
-       import :: base_operand, rp
+       import :: base_operand_t, rp
        implicit none
-       class(base_operand), intent(inout) :: op1
+       class(base_operand_t), intent(inout) :: op1
        real(rp), intent(in) :: alpha
-       class(base_operand), intent(in) :: op2
+       class(base_operand_t), intent(in) :: op2
      end subroutine scal_interface
      ! op <- alpha
      subroutine init_interface(op,alpha)
-       import :: base_operand, rp
+       import :: base_operand_t, rp
        implicit none
-       class(base_operand), intent(inout) :: op
+       class(base_operand_t), intent(inout) :: op
        real(rp), intent(in) :: alpha
      end subroutine init_interface
      ! op1 <- alpha*op2 + beta*op1
      subroutine axpby_interface(op1, alpha, op2, beta)
-       import :: base_operand, rp
+       import :: base_operand_t, rp
        implicit none
-       class(base_operand), intent(inout) :: op1
+       class(base_operand_t), intent(inout) :: op1
        real(rp), intent(in) :: alpha
-       class(base_operand), intent(in) :: op2
+       class(base_operand_t), intent(in) :: op2
        real(rp), intent(in) :: beta
      end subroutine axpby_interface
      ! alpha <- nrm2(op)
      function nrm2_interface(op) result(alpha)
-       import :: base_operand, rp
+       import :: base_operand_t, rp
        implicit none
-       class(base_operand), intent(in)  :: op
+       class(base_operand_t), intent(in)  :: op
        real(rp) :: alpha
      end function nrm2_interface
      ! op1 <- clone(op2) 
      subroutine clone_interface(op1,op2)
-       import :: base_operand
+       import :: base_operand_t
        implicit none
-       class(base_operand)         ,intent(inout) :: op1
-       class(base_operand), target ,intent(in)    :: op2
+       class(base_operand_t)         ,intent(inout) :: op1
+       class(base_operand_t), target ,intent(in)    :: op2
      end subroutine clone_interface
      ! op <- comm(op)
      subroutine comm_interface(op)
-       import :: base_operand
+       import :: base_operand_t
        implicit none
-       class(base_operand), intent(inout) :: op
+       class(base_operand_t), intent(inout) :: op
      end subroutine comm_interface
   end interface
 
-  public :: base_operand
+  public :: base_operand_t
 
 contains  
   ! res <- op1 + op2
   function sum_operand(op1,op2) result (res)
     implicit none
-    class(base_operand), intent(in)  :: op1, op2
-    class(base_operand), allocatable :: res
+    class(base_operand_t), intent(in)  :: op1, op2
+    class(base_operand_t), allocatable :: res
     
     call op1%GuardTemp()
     call op2%GuardTemp()
@@ -145,8 +145,8 @@ contains
   ! res <- op1 - op2
   function sub_operand(op1,op2) result (res)
     implicit none
-    class(base_operand), intent(in)  :: op1, op2
-    class(base_operand), allocatable :: res
+    class(base_operand_t), intent(in)  :: op1, op2
+    class(base_operand_t), allocatable :: res
 
     call op1%GuardTemp()
     call op2%GuardTemp()
@@ -165,8 +165,8 @@ contains
   ! res <- -op
   function minus_operand(op) result (res)
     implicit none
-    class(base_operand), intent(in)   :: op
-    class(base_operand), allocatable  :: res
+    class(base_operand_t), intent(in)   :: op
+    class(base_operand_t), allocatable  :: res
 
     call op%GuardTemp()
     
@@ -181,9 +181,9 @@ contains
     ! res <- op*alpha
   function scal_left_operand(left,alpha) result (res)
     implicit none
-    class(base_operand), intent(in)   :: left
+    class(base_operand_t), intent(in)   :: left
     real (rp), intent(in)             :: alpha
-    class(base_operand), allocatable  :: res
+    class(base_operand_t), allocatable  :: res
 
     call left%GuardTemp()
     
@@ -199,8 +199,8 @@ contains
   function scal_right_operand(alpha,right) result (res)
     implicit none
     real (rp), intent(in)             :: alpha
-    class(base_operand), intent(in)   :: right
-    class(base_operand), allocatable  :: res
+    class(base_operand_t), intent(in)   :: right
+    class(base_operand_t), allocatable  :: res
 
     call right%GuardTemp()
     
@@ -215,8 +215,8 @@ contains
   ! op1 <- op2
   subroutine assign_operand(op1,op2) 
     implicit none
-    class(base_operand), intent(inout):: op1
-    class(base_operand), intent(in):: op2
+    class(base_operand_t), intent(inout):: op1
+    class(base_operand_t), intent(in):: op2
 
     call op2%GuardTemp()
     

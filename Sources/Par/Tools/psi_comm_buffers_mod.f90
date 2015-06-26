@@ -40,7 +40,7 @@ use psb_const_mod_names
   integer, private, parameter:: psb_int8_type     = psb_char_type     + 1
 
 
-  type psb_buffer_node
+  type psb_buffer_node_t
     integer :: request
     integer :: icontxt 
     integer :: buffer_type
@@ -52,12 +52,12 @@ use psb_const_mod_names
     !complex(psb_dpk_), allocatable       :: dcomplbuf(:)
     logical, allocatable                  :: logbuf(:)
     character(len=1), allocatable         :: charbuf(:)
-    type(psb_buffer_node), pointer :: prev=>null(), next=>null()
-  end type psb_buffer_node
+    type(psb_buffer_node_t), pointer :: prev=>null(), next=>null()
+  end type psb_buffer_node_t
 
-  type psb_buffer_queue
-    type(psb_buffer_node), pointer :: head=>null(), tail=>null()
-  end type psb_buffer_queue
+  type psb_buffer_queue_t
+    type(psb_buffer_node_t), pointer :: head=>null(), tail=>null()
+  end type psb_buffer_queue_t
 
 
   interface psi_snd
@@ -77,9 +77,9 @@ use psb_const_mod_names
 contains
 
   subroutine psb_init_queue(mesg_queue,info)
-    type(psb_buffer_queue), intent(inout) :: mesg_queue
+    type(psb_buffer_queue_t), intent(inout) :: mesg_queue
     integer, intent(out) :: info 
-    type(psb_buffer_node), pointer :: item
+    type(psb_buffer_node_t), pointer :: item
 
     info = 0
     if ((.not.associated(mesg_queue%head)).and.&
@@ -107,7 +107,7 @@ use mpi
 #ifdef MPI_H
     include 'mpif.h'
 #endif
-    type(psb_buffer_node), intent(inout) :: node
+    type(psb_buffer_node_t), intent(inout) :: node
     integer, intent(out) :: info 
     integer :: status(mpi_status_size)
 
@@ -122,7 +122,7 @@ use mpi
 #ifdef MPI_H
     include 'mpif.h'
 #endif
-    type(psb_buffer_node), intent(inout) :: node
+    type(psb_buffer_node_t), intent(inout) :: node
     logical, intent(out) :: flag
     integer, intent(out) :: info 
     integer :: status(mpi_status_size)
@@ -132,10 +132,10 @@ use mpi
   
 
   subroutine psb_close_context(mesg_queue,icontxt)
-    type(psb_buffer_queue), intent(inout) :: mesg_queue
+    type(psb_buffer_queue_t), intent(inout) :: mesg_queue
     integer, intent(in) :: icontxt
     integer :: info
-    type(psb_buffer_node), pointer :: node, nextnode
+    type(psb_buffer_node_t), pointer :: node, nextnode
 
     node => mesg_queue%head
     do 
@@ -150,8 +150,8 @@ use mpi
   end subroutine psb_close_context
 
   subroutine psb_close_all_context(mesg_queue)
-    type(psb_buffer_queue), intent(inout) :: mesg_queue
-    type(psb_buffer_node), pointer :: node, nextnode
+    type(psb_buffer_queue_t), intent(inout) :: mesg_queue
+    type(psb_buffer_node_t), pointer :: node, nextnode
     integer :: info
     
     node => mesg_queue%head
@@ -166,9 +166,9 @@ use mpi
 
 
   subroutine psb_delete_node(mesg_queue,node)
-    type(psb_buffer_queue), intent(inout) :: mesg_queue
-    type(psb_buffer_node), pointer   :: node
-    type(psb_buffer_node), pointer  :: prevnode
+    type(psb_buffer_queue_t), intent(inout) :: mesg_queue
+    type(psb_buffer_node_t), pointer   :: node
+    type(psb_buffer_node_t), pointer  :: prevnode
     
     if (.not.associated(node)) then 
       return
@@ -183,8 +183,8 @@ use mpi
   end subroutine psb_delete_node
 
   subroutine psb_insert_node(mesg_queue,node)
-    type(psb_buffer_queue), intent(inout) :: mesg_queue
-    type(psb_buffer_node), pointer   :: node
+    type(psb_buffer_queue_t), intent(inout) :: mesg_queue
+    type(psb_buffer_node_t), pointer   :: node
 
     node%next => null()
     node%prev => null()
@@ -201,8 +201,8 @@ use mpi
   end subroutine psb_insert_node
 
   subroutine psb_test_nodes(mesg_queue)
-    type(psb_buffer_queue) :: mesg_queue
-    type(psb_buffer_node), pointer :: node, nextnode
+    type(psb_buffer_queue_t) :: mesg_queue
+    type(psb_buffer_node_t), pointer :: node, nextnode
     integer :: info
     logical :: flag
     
@@ -238,8 +238,8 @@ use mpi
 #endif
     integer :: icontxt, tag, dest
     integer(ip), allocatable, intent(inout) :: buffer(:)
-    type(psb_buffer_queue) :: mesg_queue
-    type(psb_buffer_node), pointer :: node
+    type(psb_buffer_queue_t) :: mesg_queue
+    type(psb_buffer_node_t), pointer :: node
     integer :: info
     
     allocate(node, stat=info)
@@ -273,8 +273,8 @@ use mpi
 #endif
     integer :: icontxt, tag, dest
     integer(psb_long_int_k_), allocatable, intent(inout) :: buffer(:)
-    type(psb_buffer_queue) :: mesg_queue
-    type(psb_buffer_node), pointer :: node
+    type(psb_buffer_queue_t) :: mesg_queue
+    type(psb_buffer_node_t), pointer :: node
     integer :: info
     
     allocate(node, stat=info)
@@ -309,8 +309,8 @@ use mpi
 !#endif
 !    integer :: icontxt, tag, dest
 !    real(psb_spk_), allocatable, intent(inout) :: buffer(:)
-!    type(psb_buffer_queue) :: mesg_queue
-!    type(psb_buffer_node), pointer :: node
+!    type(psb_buffer_queue_t) :: mesg_queue
+!    type(psb_buffer_node_t), pointer :: node
 !    integer :: info
 !    
 !    allocate(node, stat=info)
@@ -343,8 +343,8 @@ use mpi
 #endif
     integer :: icontxt, tag, dest
     real(rp), allocatable, intent(inout) :: buffer(:)
-    type(psb_buffer_queue) :: mesg_queue
-    type(psb_buffer_node), pointer :: node
+    type(psb_buffer_queue_t) :: mesg_queue
+    type(psb_buffer_node_t), pointer :: node
     integer :: info
     
     allocate(node, stat=info)
@@ -377,8 +377,8 @@ use mpi
 !#endif
 !    integer :: icontxt, tag, dest
 !    complex(psb_spk_), allocatable, intent(inout) :: buffer(:)
-!    type(psb_buffer_queue) :: mesg_queue
-!    type(psb_buffer_node), pointer :: node
+!    type(psb_buffer_queue_t) :: mesg_queue
+!    type(psb_buffer_node_t), pointer :: node
 !    integer :: info
 !    
 !    allocate(node, stat=info)
@@ -411,8 +411,8 @@ use mpi
 !#endif
 !    integer :: icontxt, tag, dest
 !    complex(psb_dpk_), allocatable, intent(inout) :: buffer(:)
-!    type(psb_buffer_queue) :: mesg_queue
-!    type(psb_buffer_node), pointer :: node
+!    type(psb_buffer_queue_t) :: mesg_queue
+!    type(psb_buffer_node_t), pointer :: node
 !    integer :: info
 !    
 !    allocate(node, stat=info)
@@ -446,8 +446,8 @@ use mpi
 #endif
     integer :: icontxt, tag, dest
     logical, allocatable, intent(inout) :: buffer(:)
-    type(psb_buffer_queue) :: mesg_queue
-    type(psb_buffer_node), pointer :: node
+    type(psb_buffer_queue_t) :: mesg_queue
+    type(psb_buffer_node_t), pointer :: node
     integer :: info
     
     allocate(node, stat=info)
@@ -481,8 +481,8 @@ use mpi
 #endif
     integer :: icontxt, tag, dest
     character(len=1), allocatable, intent(inout) :: buffer(:)
-    type(psb_buffer_queue) :: mesg_queue
-    type(psb_buffer_node), pointer :: node
+    type(psb_buffer_queue_t) :: mesg_queue
+    type(psb_buffer_node_t), pointer :: node
     integer :: info
     
     allocate(node, stat=info)

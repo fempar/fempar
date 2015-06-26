@@ -49,14 +49,14 @@ module interpolation_tools_names
   implicit none
   private
 
-  type interpolator_pointer
-     type(array_rp2), pointer :: p => NULL()
-  end type interpolator_pointer
+  type interpolator_pointer_t
+     type(array_rp2_t), pointer :: p => NULL()
+  end type interpolator_pointer_t
 
   ! Types
-  public :: interpolator_pointer
+  public :: interpolator_pointer_t
 
-# define var_type type(interpolator_pointer)
+# define var_type type(interpolator_pointer_t)
 # define var_size 8
 # define bound_kind ip
 # include "mem_header.i90"
@@ -76,11 +76,11 @@ contains
     implicit none
     integer(ip)          , intent(in)  :: gtype, utype
     integer(ip)          , intent(in)  :: ndime, g_ord, u_ord, gnode, unode
-    type(array_rp2)      , intent(out) :: int_array
+    type(array_rp2_t)      , intent(out) :: int_array
     logical(lg), optional, intent(in)  :: khie
     ! Locals
     integer(ip)           :: nlocs, i
-    type(interpolation)   :: inter
+    type(interpolation_t)   :: inter
     real(rp), allocatable :: ref_coord(:,:),auxpo(:)
 
     call memalloc(ndime,unode,ref_coord,__FILE__,__LINE__)
@@ -118,7 +118,7 @@ contains
   !==================================================================================================
   subroutine interpolator_free(int_array)
     implicit none
-    type(array_rp2), intent(inout) :: int_array
+    type(array_rp2_t), intent(inout) :: int_array
 
     call array_free(int_array)
 
@@ -131,7 +131,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)    , intent(in)  :: ndime,gnode,unode
-    type(array_rp2), intent(in)  :: int_array
+    type(array_rp2_t), intent(in)  :: int_array
     real(rp)       , intent(in)  :: g_val(ndime,gnode)
     real(rp)       , intent(out) :: u_val(ndime,unode)
     ! Locals

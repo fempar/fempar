@@ -37,7 +37,7 @@ module fem_mesh_gen_distribution_names
 # include "debug.i90"
   private
 
-  type geom_data
+  type geom_data_t
      integer(ip)            :: &
           ntdix=0,             &         ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
           ntdiy=0,             &         ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
@@ -70,16 +70,16 @@ module fem_mesh_gen_distribution_names
           xlengbl = 0.0_rp,    &         ! Size of the boundary layer in x
           ylengbl = 0.0_rp,    &         ! Size of the boundary layer in y
           zlengbl = 0.0_rp               ! Size of the boundary layer in z
-  end type geom_data     
+  end type geom_data_t     
 
-  type bound_data
-     type(fem_conditions)   :: &
+  type bound_data_t
+     type(fem_conditions_t)   :: &
           poin,                &         ! Boundary conditions on geometry conrners
           line,                &         ! Boundary conditions on geometry edges
           surf                           ! Boundary conditions on geometry faces
-  end type bound_data
+  end type bound_data_t
   
-  type geom_size 
+  type geom_size_t 
      integer(ip)            :: &
           nnode,               &         ! Number of nodes on each element
           nedir(3),            &         ! Number of elements in each direction
@@ -99,9 +99,9 @@ module fem_mesh_gen_distribution_names
           nedgett,             &         ! Number of edges on each domain
           nfacett,             &         ! Number of faces on each domain
           neghost                        ! Maximum of elements on each domain counting ghosts
-  end type geom_size
+  end type geom_size_t
 
-  type topo_size
+  type topo_size_t
      integer(ip)            :: &
           notot,               &         ! Total amount of elemental objects of the partition
           nctot,               &         ! Total amount of elemental corners of the partition
@@ -118,7 +118,7 @@ module fem_mesh_gen_distribution_names
           nfglb(3,3),          &         ! # faces for each direction given the face normal direction (global)
           ndsum(3),            &         ! Total amount of elemental edges of the domain for each direction
           nfsum(3)                       ! Total amount of elemental faces of the domain for each direction
-  end type topo_size
+  end type topo_size_t
 
   ! Declare constants
   integer(ip), parameter :: geom =0, topo=1 
@@ -130,7 +130,7 @@ module fem_mesh_gen_distribution_names
   end interface
 
   ! Types
-  public :: geom_data, bound_data
+  public :: geom_data_t, bound_data_t
 
   ! Functions
   public :: geom_data_create, bound_data_create, gen_triangulation
@@ -146,7 +146,7 @@ contains
     !   This subroutine generates geometry data to construct a structured mesh                      !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(geom_data)      , intent(out) :: gdata
+    type(geom_data_t)      , intent(out) :: gdata
     integer(ip)          , intent(in)  :: nex,ney,nez
     integer(ip), optional, intent(in)  :: npx,npy,npz,nsx,nsy,nsz
     integer(ip), optional, intent(in)  :: ntdix,ntdiy,ntdiz
@@ -238,7 +238,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     integer(ip)     , intent(in)  :: ncode,nvalu,ndime
-    type(bound_data), intent(out) :: bdata
+    type(bound_data_t), intent(out) :: bdata
 
     ! 2D:
     ! Points code: 1=bottom left; 2=top left;   3=bottom right; 4=top right
@@ -279,7 +279,7 @@ contains
     !   structured domain                                                                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(bound_data), intent(inout) :: bdata
+    type(bound_data_t), intent(inout) :: bdata
     
     ! Free fem conditions
     call fem_conditions_free(bdata%poin)
@@ -291,12 +291,12 @@ contains
   !==================================================================================================
   subroutine structured_geom_size_create(gdata,ginfo,gsize)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine generates geom_size type from geom_data and fem_fixed_info types            !
+    !   This subroutine generates geom_size_t type from geom_data_t and fem_fixed_info_t types            !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(geom_data)     , intent(in)  :: gdata
-    type(fem_fixed_info), intent(in)  :: ginfo
-    type(geom_size)     , intent(out) :: gsize
+    type(geom_data_t)     , intent(in)  :: gdata
+    type(fem_fixed_info_t), intent(in)  :: ginfo
+    type(geom_size_t)     , intent(out) :: gsize
 
     ! Local variables
     integer(ip) :: pdegr,idime,jdime
@@ -348,12 +348,12 @@ contains
   !==================================================================================================
   subroutine structured_topo_size_create(gdata,gsize,tsize)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine generates topo_size type from geom_data and geom_size types            !
+    !   This subroutine generates topo_size_t type from geom_data_t and geom_size_t types            !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(geom_data), intent(in)  :: gdata
-    type(geom_size), intent(in)  :: gsize
-    type(topo_size), intent(out) :: tsize
+    type(geom_data_t), intent(in)  :: gdata
+    type(geom_size_t), intent(in)  :: gsize
+    type(topo_size_t), intent(out) :: tsize
 
     ! Local variables
     integer(ip) :: pdime,i,nfaux,ndaux
@@ -432,17 +432,17 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     integer(ip)                          , intent(in)  :: lpart
-    type(geom_data)                      , intent(in)  :: gdata
-    type(bound_data)                     , intent(in)  :: bdata
-    type(fem_fixed_info)                 , intent(in)  :: ginfo
-    type(fem_triangulation)              , intent(out) :: trian
-    type(fem_conditions)                 , intent(out) :: bcond
+    type(geom_data_t)                      , intent(in)  :: gdata
+    type(bound_data_t)                     , intent(in)  :: bdata
+    type(fem_fixed_info_t)                 , intent(in)  :: ginfo
+    type(fem_triangulation_t)              , intent(out) :: trian
+    type(fem_conditions_t)                 , intent(out) :: bcond
     integer(ip), allocatable             , intent(out) :: mater(:)
-    type(fem_mesh_distribution), optional, intent(out) :: mdist
+    type(fem_mesh_distribution_t), optional, intent(out) :: mdist
     
     ! Locals
-    type(geom_size) :: gsize
-    type(topo_size) :: tsize
+    type(geom_size_t) :: gsize
+    type(topo_size_t) :: tsize
     integer(ip)     :: ijkpart(3),ielem,inode
 
     ! Allocatables
@@ -509,15 +509,15 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)                        , intent(in)    :: ijkpart(3)
-    type(geom_data)                    , intent(in)    :: gdata
-    type(geom_size)                    , intent(in)    :: gsize
-    type(topo_size)                    , intent(in)    :: tsize
-    type(fem_fixed_info)               , intent(in)    :: ginfo
-    type(fem_triangulation)            , intent(inout) :: trian
-    type(fem_conditions)               , intent(in)    :: poin,line,surf
-    type(fem_conditions)               , intent(out)   :: nodes
+    type(geom_data_t)                    , intent(in)    :: gdata
+    type(geom_size_t)                    , intent(in)    :: gsize
+    type(topo_size_t)                    , intent(in)    :: tsize
+    type(fem_fixed_info_t)               , intent(in)    :: ginfo
+    type(fem_triangulation_t)            , intent(inout) :: trian
+    type(fem_conditions_t)               , intent(in)    :: poin,line,surf
+    type(fem_conditions_t)               , intent(out)   :: nodes
     integer(ip), allocatable           , intent(out)   :: mater(:)
-    type(map_igp)            , optional, intent(inout) :: nmap,emap
+    type(map_igp_t)            , optional, intent(inout) :: nmap,emap
     integer(ip) , allocatable, optional, intent(out)   :: pextn(:),lextp(:)
     integer(igp), allocatable, optional, intent(out)   :: lextn(:)
 
@@ -651,10 +651,10 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)         , intent(in)    :: ijkpart(3),ndime
-    type(geom_size)     , intent(in)    :: gsize
-    type(topo_size)     , intent(in)    :: tsize
-    type(geom_data)     , intent(in)    :: gdata
-    type(fem_fixed_info), intent(in)    :: ginfo
+    type(geom_size_t)     , intent(in)    :: gsize
+    type(topo_size_t)     , intent(in)    :: tsize
+    type(geom_data_t)     , intent(in)    :: gdata
+    type(fem_fixed_info_t), intent(in)    :: ginfo
     integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)            , intent(inout) :: coord(:,:)
 
@@ -794,14 +794,14 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)                   , intent(in)    :: ijkpart(3),isper(3),ndime,case
-    type(geom_size)               , intent(in)    :: gsize
-    type(topo_size)               , intent(in)    :: tsize
-    type(geom_data)               , intent(in)    :: gdata
-    type(fem_fixed_info)          , intent(in)    :: ginfo
-    type(fem_conditions)          , intent(in)    :: surf
+    type(geom_size_t)               , intent(in)    :: gsize
+    type(topo_size_t)               , intent(in)    :: tsize
+    type(geom_data_t)               , intent(in)    :: gdata
+    type(fem_fixed_info_t)          , intent(in)    :: ginfo
+    type(fem_conditions_t)          , intent(in)    :: surf
     integer(ip)                   , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)                      , intent(inout) :: coord(:,:)
-    type(fem_conditions), optional, intent(inout) :: nodes
+    type(fem_conditions_t), optional, intent(inout) :: nodes
     
     integer(ip) :: auxv(3,2),i,j,k,pdime,iface,ijkpoin(3),ijkelem(3),ijkface(3),glnum,flag,neigh(2)
     integer(ip) :: lface(2),surf_cnt
@@ -958,8 +958,8 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)           , intent(in)    :: ijkpart(3),isper(3),ndime,case,nb
-    type(geom_size)       , intent(in)    :: gsize
-    type(topo_size)       , intent(in)    :: tsize
+    type(geom_size_t)       , intent(in)    :: gsize
+    type(topo_size_t)       , intent(in)    :: tsize
     integer(ip)           , intent(inout) :: pextn_cnt(2),pextn(nb+1)
     integer(ip) , optional, intent(inout) :: lextp(:)
     integer(igp), optional, intent(inout) :: lextn(:)
@@ -1076,14 +1076,14 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip),          intent(in)    :: ijkpart(3),isper(3),ndime,case
-    type(geom_size),      intent(in)    :: gsize
-    type(topo_size),      intent(in)    :: tsize
-    type(geom_data),      intent(in)    :: gdata
-    type(fem_fixed_info), intent(in)    :: ginfo
-    type(fem_conditions), intent(in)    :: line,surf
+    type(geom_size_t),      intent(in)    :: gsize
+    type(topo_size_t),      intent(in)    :: tsize
+    type(geom_data_t),      intent(in)    :: gdata
+    type(fem_fixed_info_t), intent(in)    :: ginfo
+    type(fem_conditions_t), intent(in)    :: line,surf
     integer(ip),          intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp),             intent(inout) :: coord(:,:)
-    type(fem_conditions), intent(inout) :: nodes
+    type(fem_conditions_t), intent(inout) :: nodes
  
     integer(ip) :: i,j,k,pdime,iedge,jedge,ijedge(2),ijkpoin(3),ijkelem(3),ijkvert(3),ijkedge(3)
     integer(ip) :: inipo,ledge(2,2),line_cnt,neigh(2*(ndime-1))
@@ -1252,8 +1252,8 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)           , intent(in)    :: ijkpart(3),isper(3),ndime,case,nb
-    type(geom_size)       , intent(in)    :: gsize
-    type(topo_size)       , intent(in)    :: tsize
+    type(geom_size_t)       , intent(in)    :: gsize
+    type(topo_size_t)       , intent(in)    :: tsize
     integer(ip)           , intent(inout) :: pextn_cnt(2),pextn(nb+1)
     integer(ip) , optional, intent(inout) :: lextp(:)
     integer(igp), optional, intent(inout) :: lextn(:)
@@ -1435,14 +1435,14 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)         , intent(in)    :: ijkpart(3),isper(3),ndime,case
-    type(geom_size)     , intent(in)    :: gsize
-    type(topo_size)     , intent(in)    :: tsize
-    type(geom_data)     , intent(in)    :: gdata
-    type(fem_fixed_info), intent(in)    :: ginfo
-    type(fem_conditions), intent(in)    :: poin,line,surf
+    type(geom_size_t)     , intent(in)    :: gsize
+    type(topo_size_t)     , intent(in)    :: tsize
+    type(geom_data_t)     , intent(in)    :: gdata
+    type(fem_fixed_info_t), intent(in)    :: ginfo
+    type(fem_conditions_t), intent(in)    :: poin,line,surf
     integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)            , intent(inout) :: coord(:,:)
-    type(fem_conditions), intent(inout) :: nodes
+    type(fem_conditions_t), intent(inout) :: nodes
     
     integer(ip) :: ivert,jvert,kvert,ijkpoin(3),ijkvert(3),glnum,flag,neigh(2**ndime)
     integer(ip) :: i,j,k,lcorn(2,2,2),ijkelem(3)
@@ -1577,8 +1577,8 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)           , intent(in)    :: ijkpart(3),isper(3),ndime,case,nb
-    type(geom_size)       , intent(in)    :: gsize
-    type(topo_size)       , intent(in)    :: tsize
+    type(geom_size_t)       , intent(in)    :: gsize
+    type(topo_size_t)       , intent(in)    :: tsize
     integer(ip)           , intent(inout) :: pextn_cnt(2),pextn(nb+1)
     integer(ip) , optional, intent(inout) :: lextp(:)
     integer(igp), optional, intent(inout) :: lextn(:)
@@ -1738,8 +1738,8 @@ contains
     implicit none
     integer(ip)         , intent(in)    :: ijkpoin(3),ijkpart(3),npdir(3),nedom(3),nedir(3)
     integer(ip)         , intent(in)    :: ndime
-    type(geom_data)     , intent(in)    :: msize
-    type(fem_fixed_info), intent(in)    :: ginfo
+    type(geom_data_t)     , intent(in)    :: msize
+    type(fem_fixed_info_t), intent(in)    :: ginfo
     real(rp)            , intent(inout) :: coord(:)
 
     integer(ip) :: i,ntdis(3),pdegr,nebl(3)
@@ -2030,11 +2030,11 @@ contains
     implicit none
     integer(ip)             , intent(in)    :: subgl(ndime),ndime,pdegr
     integer(ip)             , intent(in)    :: npnumg(:),npnumt(:),nenum(:)
-    type(geom_size)         , intent(in)    :: gsize
-    type(topo_size)         , intent(in)    :: tsize
-    type(geom_data)         , intent(in)    :: gdata
+    type(geom_size_t)         , intent(in)    :: gsize
+    type(topo_size_t)         , intent(in)    :: tsize
+    type(geom_data_t)         , intent(in)    :: gdata
     integer(igp)            , intent(out)   :: l2ge(:),l2gp(:)
-    type(fem_triangulation) , intent(inout) :: trian
+    type(fem_triangulation_t) , intent(inout) :: trian
     real(rp)                , intent(in)    :: coord(:,:)
     integer(ip)             , intent(inout) :: mater(:)
 

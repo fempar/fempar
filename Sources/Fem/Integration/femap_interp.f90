@@ -46,9 +46,9 @@ contains
   !==============================================================================
   subroutine femap_apply_to_interp(map,ref,phy)
     implicit none
-    type(interpolation), intent(in)    :: ref
-    type(femap)        , intent(in)    :: map
-    type(interpolation), intent(inout) :: phy
+    type(interpolation_t), intent(in)    :: ref
+    type(femap_t)        , intent(in)    :: map
+    type(interpolation_t), intent(inout) :: phy
     real(rp), allocatable :: wmat1(:,:,:)
     real(rp), allocatable :: wmat2(:,:,:)
     integer(ip) :: ndime,nnode,nlocs,ntens
@@ -134,10 +134,10 @@ contains
  !==============================================================================
   subroutine femap_face_to_interp(map,ref,fac,phy)
     implicit none
-    type(face_interpolation), intent(in)    :: ref
-    type(femap)             , intent(in)    :: map
+    type(face_interpolation_t), intent(in)    :: ref
+    type(femap_t)             , intent(in)    :: map
     integer(ip)             , intent(in)    :: fac
-    type(face_interpolation), intent(inout) :: phy
+    type(face_interpolation_t), intent(inout) :: phy
  
     real(rp)    :: norm2
     integer(ip) :: ndime,nnode,nlocs
@@ -183,10 +183,10 @@ contains
     ! A map obtained from the (usually isoparametric) interpolation of the geometry
     !-----------------------------------------------------------------------
     implicit none
-    type(interpolation), intent(in)    :: int
+    type(interpolation_t), intent(in)    :: int
 !    real(rp)           , intent(inout) :: hnatu
     real(rp)           , intent(in)    :: elcod(:,:)
-    type(femap)        , intent(inout) :: map
+    type(femap_t)        , intent(inout) :: map
     ! Locals
     real(rp), allocatable :: wmat1(:,:,:)
     real(rp), allocatable :: wmat2(:,:,:)
@@ -354,10 +354,10 @@ contains
     ! A map obtained from the (usually isoparametric) interpolation of the geometry
     !-----------------------------------------------------------------------
     implicit none
-    type(face_interpolation), intent(in)    :: int
+    type(face_interpolation_t), intent(in)    :: int
     real(rp)                , intent(in)    :: elcod(:,:)
     integer(ip)             , intent(in)    :: iface
-    type(femap)             , intent(inout) :: map
+    type(femap_t)             , intent(inout) :: map
 
     ! Locals
     real(rp)    :: hnatu

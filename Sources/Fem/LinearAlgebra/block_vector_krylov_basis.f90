@@ -46,13 +46,13 @@ use memor_names
 
   private
 
-  type fem_block_vector_krylov_basis
+  type fem_block_vector_krylov_basis_t
      integer(ip)                                :: nblocks = 0
-     type(fem_vector_krylov_basis), allocatable :: blocks(:)
-  end type fem_block_vector_krylov_basis
+     type(fem_vector_krylov_basis_t), allocatable :: blocks(:)
+  end type fem_block_vector_krylov_basis_t
 
   ! Types
-  public :: fem_block_vector_krylov_basis
+  public :: fem_block_vector_krylov_basis_t
 
   ! Functions
   public :: fem_block_vector_krylov_basis_alloc,        fem_block_vector_krylov_basis_free,     & 
@@ -66,8 +66,8 @@ contains
     implicit none
     ! Parameters
     integer (ip)                        , intent(in)  :: k
-    type (fem_block_vector)             , intent(in)  :: f_v
-    type (fem_block_vector_krylov_basis), intent(out) :: Q
+    type (fem_block_vector_t)             , intent(in)  :: f_v
+    type (fem_block_vector_krylov_basis_t), intent(out) :: Q
 
     ! Locals
     integer(ip) :: ib 
@@ -84,7 +84,7 @@ contains
   subroutine fem_block_vector_krylov_basis_free (Q)
      implicit none
      ! Parameters
-     type(fem_block_vector_krylov_basis), intent(inout) :: Q
+     type(fem_block_vector_krylov_basis_t), intent(inout) :: Q
 
      ! Locals
      integer(ip) :: ib
@@ -100,8 +100,8 @@ contains
   subroutine fem_block_vector_krylov_basis_extract_view (i, Q, f_v)
      implicit none
      integer(ip)     , intent(in)                      :: i
-     type(fem_block_vector_krylov_basis), intent(in), target :: Q
-     type(fem_block_vector), intent(out)                     :: f_v
+     type(fem_block_vector_krylov_basis_t), intent(in), target :: Q
+     type(fem_block_vector_t), intent(out)                     :: f_v
      ! Locals
      integer(ip) :: ib
 
@@ -118,8 +118,8 @@ contains
      implicit none
      ! Parameters
      integer(ip)                        , intent(in) :: k
-     type(fem_block_vector_krylov_basis), intent(in) :: Q
-     type(fem_block_vector)             , intent(in) :: f_v
+     type(fem_block_vector_krylov_basis_t), intent(in) :: Q
+     type(fem_block_vector_t)             , intent(in) :: f_v
      real(rp), intent(out)                           :: s(k)
  
      ! Locals 
@@ -139,9 +139,9 @@ contains
      implicit none
      integer(ip)                        , intent(in)    :: k
      real(rp)                           , intent(in)    :: alpha
-     type(fem_block_vector_krylov_basis), intent(in)    :: Q
+     type(fem_block_vector_krylov_basis_t), intent(in)    :: Q
      real(rp)                           , intent(in)    :: s(k)
-     type(fem_block_vector)             , intent(inout) :: f_v
+     type(fem_block_vector_t)             , intent(inout) :: f_v
 
      ! Locals
      integer(ip) :: ib 

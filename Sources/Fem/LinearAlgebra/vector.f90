@@ -55,7 +55,7 @@ use blas77_interfaces_names
   private
 
   ! fem_vector
-  type, extends(base_operand) :: fem_vector
+  type, extends(base_operand_t) :: fem_vector_t
      integer(ip)                :: &
         neq = 0                       ! Number of equations
    
@@ -75,7 +75,7 @@ use blas77_interfaces_names
      procedure :: clone => fem_vector_clone_tbp
      procedure :: comm  => fem_vector_comm_tbp
      procedure :: free  => fem_vector_free_tbp
-  end type fem_vector
+  end type fem_vector_t
 
   ! interface fem_vector_assembly
   !    module procedure fem_vector_assembly_w_dof_handler
@@ -106,7 +106,7 @@ use blas77_interfaces_names
 !!$  end interface memmovealloc
 
   ! Types
-  public :: fem_vector
+  public :: fem_vector_t
 
   ! Constants 
   public :: reference
@@ -124,10 +124,10 @@ contains
 
 !!$  !***********************************************************************
 !!$  !***********************************************************************
-!!$  ! Specialization to allocate type(fem_vector)
+!!$  ! Specialization to allocate type(fem_vector_t)
 !!$  !***********************************************************************
 !!$  !***********************************************************************
-!!$# define var_type type(fem_vector)
+!!$# define var_type type(fem_vector_t)
 !!$# define var_size 24
 !!$# define var_attr allocatable,target
 !!$# define point(a,b) call move_alloc(a,b)
@@ -155,7 +155,7 @@ contains
   !=============================================================================
   subroutine fem_vector_free (vec)
     implicit none
-    type(fem_vector), intent(inout) :: vec
+    type(fem_vector_t), intent(inout) :: vec
     assert (vec%mode == allocated .or. vec%mode == reference)
     vec%neq     = 0          ! Number of equations
     if (vec%mode == allocated) call memfreep(vec%b,__FILE__,__LINE__)
@@ -166,7 +166,7 @@ contains
   subroutine fem_vector_alloc(neq,vec)
     implicit none
     integer(ip)     , intent(in)    :: neq
-    type(fem_vector), intent(inout) :: vec
+    type(fem_vector_t), intent(inout) :: vec
     assert ( vec%mode == not_created )
     vec%neq     = neq  ! Number of equations
     call memallocp(vec%neq,vec%b,__FILE__,__LINE__)
@@ -176,10 +176,10 @@ contains
   
   subroutine fem_vector_create_view (svec, start, end, tvec)
     implicit none
-    type(fem_vector), intent(in), target  :: svec
+    type(fem_vector_t), intent(in), target  :: svec
     integer(ip)     , intent(in)          :: start
     integer(ip)     , intent(in)          :: end
-    type(fem_vector), intent(inout)       :: tvec
+    type(fem_vector_t), intent(inout)       :: tvec
 
     assert ( tvec%mode == not_created )
 
@@ -193,12 +193,12 @@ contains
   ! subroutine fem_vector_create_view_new_ndof (svec, ndstart, ndend, start, end, tvec)
   !   implicit none
   !   ! Parameters
-  !   type(fem_vector), intent(in), target  :: svec
+  !   type(fem_vector_t), intent(in), target  :: svec
   !   integer(ip)     , intent(in)          :: ndstart
   !   integer(ip)     , intent(in)          :: ndend
   !   integer(ip)     , intent(in)          :: start
   !   integer(ip)     , intent(in)          :: end
-  !   type(fem_vector), intent(inout)       :: tvec
+  !   type(fem_vector_t), intent(inout)       :: tvec
 
   !   ! Locals
   !   integer(ip) :: off, start_aux, end_aux
@@ -221,8 +221,8 @@ contains
 
   subroutine fem_vector_clone ( svec, tvec )
     implicit none
-    type(fem_vector), intent( in ) :: svec
-    type(fem_vector), intent(out) :: tvec
+    type(fem_vector_t), intent( in ) :: svec
+    type(fem_vector_t), intent(out) :: tvec
     tvec%neq     =  svec%neq       ! Number of equations
       call memallocp(tvec%neq,tvec%b,__FILE__,__LINE__)
     tvec%b = 0.0_rp
@@ -233,17 +233,17 @@ contains
   ! Dummy method required to specialize Krylov subspace methods
   subroutine fem_vector_comm ( vec )
     implicit none
-    type(fem_vector), intent( inout ) :: vec 
+    type(fem_vector_t), intent( inout ) :: vec 
   end subroutine fem_vector_comm
 
   ! !=============================================================================
   ! subroutine fem_vector_assembly_w_dof_handler(nn, dofh, el, l2g, ev, vec)
   !   implicit none
-  !   type(dof_handler), intent(in)    :: dofh
-  !   type(fem_element), intent(in)    :: el
+  !   type(dof_handler_t), intent(in)    :: dofh
+  !   type(fem_element_t), intent(in)    :: el
   !   type(elvec) ,      intent(in)    :: ev
   !   integer(ip) ,      intent(in)    :: nn(:)
-  !   type(fem_vector),  intent(inout) :: vec
+  !   type(fem_vector_t),  intent(inout) :: vec
   !   integer(ip),       intent(inout) :: l2g(:)
   !   ! Locals
   !   integer(ip) :: nd,nl,ne,i,inode,j
@@ -270,11 +270,11 @@ contains
  ! subroutine fem_vector_assembly_nosq_w_dof_handler(nn, dofh, el, l2g, bl, ev, vec)
  !    implicit none
  !    integer(ip) ,      intent(in)    :: nn(:)
- !    type(dof_handler), intent(in)    :: dofh
- !    type(fem_element), intent(in)    :: el
+ !    type(dof_handler_t), intent(in)    :: dofh
+ !    type(fem_element_t), intent(in)    :: el
  !    type(fem_blocks),  intent(in)    :: bl
  !    type(elvec) ,      intent(in)    :: ev
- !    type(fem_vector),  intent(inout) :: vec
+ !    type(fem_vector_t),  intent(inout) :: vec
  !    integer(ip),       intent(inout) :: l2g(:)
  !    ! Locals
  !    integer(ip) :: nd,nl,ne,i,inode,j,maxnode
@@ -286,11 +286,11 @@ contains
  !  subroutine fem_face_vector_assembly_w_dof_handler(nn, l2g, dofh, el1, el2, ev, vec)
  !    implicit none
  !    integer(ip) ,      intent(in)        :: nn(2)
- !    type(dof_handler), intent(in)        :: dofh
- !    type(fem_element), intent(in)        :: el1,el2
+ !    type(dof_handler_t), intent(in)        :: dofh
+ !    type(fem_element_t), intent(in)        :: el1,el2
  !    type(elvec) ,      intent(in)        :: ev
  !    integer(ip),       intent(inout)     :: l2g((nn(1)+nn(2))*dofh%nvarsxprob(el1%prob))
- !    type(fem_vector),  intent(inout)     :: vec
+ !    type(fem_vector_t),  intent(inout)     :: vec
  !    integer(ip)                          :: i,inode,j
 
 
@@ -303,7 +303,7 @@ contains
   !   integer(ip) , intent(in)    :: l2g(nl)
   !   real(rp)    , intent(in)    :: ev(1,nl)
   !   real(rp)    , intent(inout) :: b(1,nv)
-  !   type(dof_handler), intent(in), optional :: dofhandler
+  !   type(dof_handler_t), intent(in), optional :: dofhandler
     
   !   integer(ip)                 :: il,ig
   !   integer(ip)                 :: block_i, l_cing_i, cing_node, num_dofs, cing_glob_dof_i
@@ -374,8 +374,8 @@ contains
   !=============================================================================
   subroutine fem_vector_dot (x, y, t)
     implicit none
-    type(fem_vector), intent(in)  :: x
-    type(fem_vector), intent(in)  :: y
+    type(fem_vector_t), intent(in)  :: x
+    type(fem_vector_t), intent(in)  :: y
     real(rp)        , intent(out) :: t
 
     assert ( x%neq == y%neq )
@@ -392,7 +392,7 @@ contains
   !=============================================================================
   subroutine fem_vector_nrm2(x,t)
     implicit none
-    type(fem_vector), intent(in)  :: x
+    type(fem_vector_t), intent(in)  :: x
     real(rp)    , intent(out)     :: t
 
 #ifdef ENABLE_BLAS
@@ -405,8 +405,8 @@ contains
   !=============================================================================
   subroutine fem_vector_copy(x,y)
     implicit none
-    type(fem_vector), intent(in)    :: x
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(in)    :: x
+    type(fem_vector_t), intent(inout) :: y
 
     assert ( x%neq == y%neq )
 
@@ -418,13 +418,13 @@ contains
   end subroutine fem_vector_copy
   subroutine fem_vector_zero(y)
     implicit none
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(inout) :: y
     y%b=0.0_rp
   end subroutine fem_vector_zero
 
   subroutine fem_vector_init(alpha, y)
     implicit none
-    type(fem_vector), intent(inout) :: y 
+    type(fem_vector_t), intent(inout) :: y 
     real(rp), intent(in)            :: alpha  
     y%b=alpha
   end subroutine fem_vector_init
@@ -432,8 +432,8 @@ contains
   subroutine fem_vector_scale(t,x,y)
     implicit none
     real(rp)        , intent(in)    :: t
-    type(fem_vector), intent(in)    :: x
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(in)    :: x
+    type(fem_vector_t), intent(inout) :: y
 
     assert ( x%neq == y%neq )
 
@@ -452,8 +452,8 @@ contains
 
   subroutine fem_vector_mxpy(x,y)
     implicit none
-    type(fem_vector), intent(in)    :: x
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(in)    :: x
+    type(fem_vector_t), intent(inout) :: y
     assert ( x%neq == y%neq )
 #ifdef ENABLE_BLAS
     call daxpy ( x%neq, -1.0, x%b, 1, y%b, 1 )
@@ -464,8 +464,8 @@ contains
   subroutine fem_vector_axpy(t,x,y)
     implicit none
     real(rp)   , intent(in)         :: t
-    type(fem_vector), intent(in)    :: x
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(in)    :: x
+    type(fem_vector_t), intent(inout) :: y
     assert ( x%neq == y%neq )
 #ifdef ENABLE_BLAS
     call daxpy ( x%neq, t, x%b, 1, y%b, 1 )
@@ -477,8 +477,8 @@ contains
   subroutine fem_vector_aypx(t,x,y)
     implicit none
     real(rp)        , intent(in)    :: t
-    type(fem_vector), intent(in)    :: x
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(in)    :: x
+    type(fem_vector_t), intent(inout) :: y
     assert ( x%neq == y%neq )
 #ifdef ENABLE_BLAS
     ! I guess that two calls to the level 1
@@ -495,8 +495,8 @@ contains
 
   subroutine fem_vector_pxpy(x,y)
     implicit none
-    type(fem_vector), intent(in)    :: x
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(in)    :: x
+    type(fem_vector_t), intent(inout) :: y
     assert ( x%neq == y%neq )
 #ifdef ENABLE_BLAS
     call daxpy ( x%neq, 1.0, x%b, 1, y%b, 1 )    
@@ -507,8 +507,8 @@ contains
 
   subroutine fem_vector_pxmy(x,y)
     implicit none
-    type(fem_vector), intent(in)    :: x
-    type(fem_vector), intent(inout) :: y
+    type(fem_vector_t), intent(in)    :: x
+    type(fem_vector_t), intent(inout) :: y
     assert ( x%neq == y%neq )
 #ifdef ENABLE_BLAS
     ! I guess that two calls to the level 1
@@ -525,7 +525,7 @@ contains
 
   subroutine fem_vector_print (luout, x)
     implicit none
-    type(fem_vector), intent(in) :: x
+    type(fem_vector_t), intent(in) :: x
     integer(ip),      intent(in) :: luout
     
     ! Locals
@@ -544,7 +544,7 @@ contains
   subroutine fem_vector_print_matrix_market ( luout, x )
    implicit none
    ! Parameters
-   type(fem_vector), intent(in) :: x
+   type(fem_vector_t), intent(in) :: x
    integer(ip),      intent(in) :: luout
 
    ! Locals
@@ -561,14 +561,14 @@ contains
  ! alpha <- op1^T * op2
  function fem_vector_dot_tbp(op1,op2) result(alpha)
    implicit none
-   class(fem_vector), intent(in)    :: op1
-   class(base_operand), intent(in)  :: op2
+   class(fem_vector_t), intent(in)    :: op1
+   class(base_operand_t), intent(in)  :: op2
    real(rp) :: alpha
 
    call op1%GuardTemp()
    call op2%GuardTemp()
    select type(op2)
-   class is (fem_vector)
+   class is (fem_vector_t)
       assert ( op1%neq == op2%neq )
 #ifdef ENABLE_BLAS
       alpha = ddot( op1%neq, op1%b, 1, op2%b, 1 )
@@ -576,7 +576,7 @@ contains
     check(1==0)
 #endif
    class default
-      write(0,'(a)') 'fem_vector%dot: unsupported op2 class'
+      write(0,'(a)') 'fem_vector_t%dot: unsupported op2 class'
       check(1==0)
    end select
    call op1%CleanTemp()
@@ -586,12 +586,12 @@ contains
  ! op1 <- op2 
  subroutine fem_vector_copy_tbp(op1,op2)
    implicit none
-   class(fem_vector), intent(inout) :: op1
-   class(base_operand), intent(in)  :: op2
+   class(fem_vector_t), intent(inout) :: op1
+   class(base_operand_t), intent(in)  :: op2
    
    call op2%GuardTemp()
    select type(op2)
-   class is (fem_vector)
+   class is (fem_vector_t)
       assert ( op2%neq == op1%neq )
 #ifdef ENABLE_BLAS
       call dcopy ( op2%neq, op2%b, 1, op1%b, 1 ) 
@@ -599,7 +599,7 @@ contains
       op1%b=op2%b
 #endif
    class default
-      write(0,'(a)') 'fem_vector%copy: unsupported op2 class'
+      write(0,'(a)') 'fem_vector_t%copy: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -608,13 +608,13 @@ contains
  ! op1 <- alpha * op2
  subroutine fem_vector_scal_tbp(op1,alpha,op2)
    implicit none
-   class(fem_vector), intent(inout) :: op1
+   class(fem_vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(base_operand), intent(in) :: op2
+   class(base_operand_t), intent(in) :: op2
 
    call op2%GuardTemp()
    select type(op2)
-   class is (fem_vector)
+   class is (fem_vector_t)
       assert ( op2%neq == op1%neq )
 #ifdef ENABLE_BLAS
       ! I guess that two calls to the level 1
@@ -628,7 +628,7 @@ contains
       op1%b=alpha*op2%b
 #endif
    class default
-      write(0,'(a)') 'fem_vector%scal: unsupported op2 class'
+      write(0,'(a)') 'fem_vector_t%scal: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -636,7 +636,7 @@ contains
  ! op <- alpha
  subroutine fem_vector_init_tbp(op,alpha)
    implicit none
-   class(fem_vector), intent(inout) :: op
+   class(fem_vector_t), intent(inout) :: op
    real(rp), intent(in) :: alpha
    op%b=alpha
  end subroutine fem_vector_init_tbp
@@ -644,14 +644,14 @@ contains
  ! op1 <- alpha*op2 + beta*op1
  subroutine fem_vector_axpby_tbp(op1, alpha, op2, beta)
    implicit none
-   class(fem_vector), intent(inout) :: op1
+   class(fem_vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(base_operand), intent(in) :: op2
+   class(base_operand_t), intent(in) :: op2
    real(rp), intent(in) :: beta
 
    call op2%GuardTemp()
    select type(op2)
-   class is (fem_vector)
+   class is (fem_vector_t)
       assert ( op2%neq == op1%neq )
       if ( beta == 0.0_rp ) then
          call op1%scal(alpha, op2)
@@ -672,7 +672,7 @@ contains
 #endif  
       end if
    class default
-      write(0,'(a)') 'fem_vector%axpby: unsupported op2 class'
+      write(0,'(a)') 'fem_vector_t%axpby: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -681,7 +681,7 @@ contains
  ! alpha <- nrm2(op)
  function fem_vector_nrm2_tbp(op) result(alpha)
    implicit none
-   class(fem_vector), intent(in)  :: op
+   class(fem_vector_t), intent(in)  :: op
    real(rp) :: alpha
    call op%GuardTemp()
 
@@ -698,12 +698,12 @@ contains
  ! op1 <- clone(op2) 
  subroutine fem_vector_clone_tbp(op1,op2)
    implicit none
-   class(fem_vector)           ,intent(inout) :: op1
-   class(base_operand), target ,intent(in)    :: op2
+   class(fem_vector_t)           ,intent(inout) :: op1
+   class(base_operand_t), target ,intent(in)    :: op2
 
    call op2%GuardTemp()
    select type(op2)
-   class is (fem_vector)
+   class is (fem_vector_t)
       if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
       op1%neq     =  op2%neq       ! Number of equations
       call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
@@ -714,7 +714,7 @@ contains
       ! op1%b = 0.0_rp 
       op1%mode = allocated
    class default
-      write(0,'(a)') 'fem_vector%clone: unsupported op2 class'
+      write(0,'(a)') 'fem_vector_t%clone: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -723,12 +723,12 @@ contains
  ! op <- comm(op)
  subroutine fem_vector_comm_tbp(op)
    implicit none
-   class(fem_vector), intent(inout) :: op
+   class(fem_vector_t), intent(inout) :: op
  end subroutine fem_vector_comm_tbp
 
  subroutine fem_vector_free_tbp(this)
    implicit none
-   class(fem_vector), intent(inout) :: this
+   class(fem_vector_t), intent(inout) :: this
 
    this%neq     = 0          ! Number of equations
    if (this%mode == allocated) call memfreep(this%b,__FILE__,__LINE__)

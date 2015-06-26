@@ -64,10 +64,10 @@ contains
   subroutine map_apply_l2g_r1(ope,mp,xl,xg,ren)
     implicit none
     integer(ip), intent(in)  :: ope
-    type(map)  , intent(in)  :: mp
+    type(map_t)  , intent(in)  :: mp
     real(rp)   , intent(in)  :: xl(mp%nl)
     real(rp)   , intent(out) :: xg(mp%ng)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -98,10 +98,10 @@ contains
   subroutine map_apply_l2g_i1(ope,mp,xl,xg,ren)
     implicit none
     integer(ip), intent(in)  :: ope
-    type(map)  , intent(in)  :: mp
+    type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: xl(mp%nl)
     integer(ip), intent(out) :: xg(mp%ng)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -132,11 +132,11 @@ contains
   subroutine map_apply_l2g_r2(ope,mp,ld,xl,xg,ren)
     implicit none
     integer(ip), intent(in)  :: ope
-    type(map)  , intent(in)  :: mp
+    type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     real(rp)   , intent(in)  :: xl(ld,mp%nl)
     real(rp)   , intent(out) :: xg(ld,mp%ng)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip)                   :: i
 
     if(present(ren)) then
@@ -166,10 +166,10 @@ contains
   !================================================================================================
   subroutine map_apply_g2l_r1(mp,xg,xl,ren)
     implicit none
-    type(map)  , intent(in)  :: mp
+    type(map_t)  , intent(in)  :: mp
     real(rp)   , intent(in)  :: xg(mp%ng)
     real(rp)   , intent(out) :: xl(mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -187,11 +187,11 @@ contains
   !================================================================================================
   subroutine map_apply_g2l_r2(mp,ld,xg,xl,ren)
     implicit none
-    type(map)  , intent(in)  :: mp
+    type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     real(rp)   , intent(in)  :: xg(ld,mp%ng)
     real(rp)   , intent(out) :: xl(ld,mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -208,10 +208,10 @@ contains
   !================================================================================================
   subroutine map_apply_g2l_i1(mp,xg,xl,ren)
     implicit none
-    type(map)  , intent(in)  :: mp
+    type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: xg(mp%ng)
     integer(ip), intent(out) :: xl(mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -229,11 +229,11 @@ contains
   !================================================================================================
   subroutine map_apply_g2l_i2(mp,ld,xg,xl,ren)
     implicit none
-    type(map)  , intent(in)  :: mp
+    type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     integer(ip), intent(in)  :: xg(ld,mp%ng)
     integer(ip), intent(out) :: xl(ld,mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -251,10 +251,10 @@ contains
    !================================================================================================
   subroutine map_igp_apply_g2l_r1(mp,xg,xl,ren)
     implicit none
-    type(map_igp)  , intent(in)  :: mp
+    type(map_igp_t)  , intent(in)  :: mp
     real(rp)   , intent(in)  :: xg(mp%ng)
     real(rp)   , intent(out) :: xl(mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -272,11 +272,11 @@ contains
   !================================================================================================
   subroutine map_igp_apply_g2l_r2(mp,ld,xg,xl,ren)
     implicit none
-    type(map_igp)  , intent(in)  :: mp
+    type(map_igp_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     real(rp)   , intent(in)  :: xg(ld,mp%ng)
     real(rp)   , intent(out) :: xl(ld,mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -293,10 +293,10 @@ contains
   !================================================================================================
   subroutine map_igp_apply_g2l_i1(mp,xg,xl,ren)
     implicit none
-    type(map_igp)  , intent(in)  :: mp
+    type(map_igp_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: xg(mp%ng)
     integer(ip), intent(out) :: xl(mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -314,11 +314,11 @@ contains
   !================================================================================================
   subroutine map_igp_apply_g2l_i2(mp,ld,xg,xl,ren)
     implicit none
-    type(map_igp)  , intent(in)  :: mp
+    type(map_igp_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     integer(ip), intent(in)  :: xg(ld,mp%ng)
     integer(ip), intent(out) :: xl(ld,mp%nl)
-    type(renum), intent(in), optional :: ren
+    type(renum_t), intent(in), optional :: ren
     integer(ip) :: i
 
     if(present(ren)) then
@@ -337,13 +337,13 @@ contains
   !================================================================================================
   subroutine fem_mesh_g2l_nmap_igp_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
     implicit none
-    type(map_igp)        , intent(in)  :: nmap, emap
-    type(map)            , intent(in)  :: bmap
-    type(fem_mesh)       , intent(in)  :: gmesh
-    type(fem_mesh)       , intent(out) :: lmesh
-    type(renum), optional, intent(in)  :: nren,eren
-    type(hash_table_igp_ip)      :: ws_inmap
-    type(hash_table_igp_ip)      :: el_inmap
+    type(map_igp_t)        , intent(in)  :: nmap, emap
+    type(map_t)            , intent(in)  :: bmap
+    type(fem_mesh_t)       , intent(in)  :: gmesh
+    type(fem_mesh_t)       , intent(out) :: lmesh
+    type(renum_t), optional, intent(in)  :: nren,eren
+    type(hash_table_igp_ip_t)      :: ws_inmap
+    type(hash_table_igp_ip_t)      :: el_inmap
     integer(ip)                  :: aux, ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
     integer(ip)                  :: p_ielem_gmesh,p_ipoin_gmesh,p_ipoin_lmesh, istat
 
@@ -424,13 +424,13 @@ contains
   !================================================================================================
   subroutine fem_mesh_g2l_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
     implicit none
-    type(map)            , intent(in)  :: nmap,bmap
-    type(map_igp)        , intent(in)  :: emap
-    type(fem_mesh)       , intent(in)  :: gmesh
-    type(fem_mesh)       , intent(out) :: lmesh
-    type(renum), optional, intent(in)  :: nren,eren
-    type(hash_table_ip_ip)       :: ws_inmap
-    type(hash_table_igp_ip)      :: el_inmap
+    type(map_t)            , intent(in)  :: nmap,bmap
+    type(map_igp_t)        , intent(in)  :: emap
+    type(fem_mesh_t)       , intent(in)  :: gmesh
+    type(fem_mesh_t)       , intent(out) :: lmesh
+    type(renum_t), optional, intent(in)  :: nren,eren
+    type(hash_table_ip_ip_t)       :: ws_inmap
+    type(hash_table_igp_ip_t)      :: el_inmap
     integer(ip)                  :: ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
     integer(ip)                  :: p_ielem_gmesh,p_ipoin_gmesh,p_ipoin_lmesh, istat
 
@@ -507,13 +507,13 @@ contains
   !================================================================================================
   subroutine fem_mesh_g2l_emap_ip(nmap,emap,bmap,gmesh,lmesh,nren,eren)
     implicit none
-    type(map)            , intent(in)  :: nmap,bmap
-    type(map)            , intent(in)  :: emap
-    type(fem_mesh)       , intent(in)  :: gmesh
-    type(fem_mesh)       , intent(out) :: lmesh
-    type(renum), optional, intent(in)  :: nren,eren
-    type(hash_table_ip_ip)       :: ws_inmap
-    type(hash_table_ip_ip)       :: el_inmap
+    type(map_t)            , intent(in)  :: nmap,bmap
+    type(map_t)            , intent(in)  :: emap
+    type(fem_mesh_t)       , intent(in)  :: gmesh
+    type(fem_mesh_t)       , intent(out) :: lmesh
+    type(renum_t), optional, intent(in)  :: nren,eren
+    type(hash_table_ip_ip_t)       :: ws_inmap
+    type(hash_table_ip_ip_t)       :: el_inmap
     integer(ip)                  :: ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
     integer(ip)                  :: p_ielem_gmesh,p_ipoin_gmesh,p_ipoin_lmesh, istat
 
@@ -591,9 +591,9 @@ contains
   !================================================================================================
   subroutine fem_mesh_l2l(nren,eren,lmeshin,lmeshout)
     implicit none
-    type(renum)    , intent(in)  :: nren,eren
-    type(fem_mesh) , intent(in)  :: lmeshin
-    type(fem_mesh) , intent(out) :: lmeshout
+    type(renum_t)    , intent(in)  :: nren,eren
+    type(fem_mesh_t) , intent(in)  :: lmeshin
+    type(fem_mesh_t) , intent(out) :: lmeshout
 
     integer(ip)                  :: ipoin,inode,knode,ielem_lmeshout,ielem_lmeshin,iboun,gelem,velem,gnode
     integer(ip)                  :: p_ielem_lmeshin,p_ipoin_lmeshin,p_ipoin_lmeshout

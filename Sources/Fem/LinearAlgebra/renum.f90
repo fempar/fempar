@@ -32,20 +32,20 @@ use stdio_names
   implicit none
   private
 
-  type renum
+  type renum_t
      integer(ip)                :: &
         n                                    ! Size of permutation arrays
      integer(ip), allocatable ::   &
         lperm(:),                  &         ! Permutation array (lperm(old)=new)
         iperm(:)                             ! Inverse permutation array (iperm(new)=old)
-  end type renum
+  end type renum_t
 
   interface renum_apply
      module procedure renum_apply_r1, renum_apply_r2, renum_apply_i1, renum_apply_i1_igp, renum_apply_i2
   end interface
 
   ! Types
-  public :: renum
+  public :: renum_t
 
   ! Functions
   public :: renum_alloc, renum_copy, renum_free, renum_by_sets, renum_check, renum_write, &
@@ -59,7 +59,7 @@ contains
     ! This routine 
     !-----------------------------------------------------------------------
     implicit none
-    type(renum) , intent(inout) :: ren
+    type(renum_t) , intent(inout) :: ren
     integer(ip)        , intent(in)    :: nsets
     integer(ip)        , intent(in)    :: lvset(ren%n)
     ! Local variables
@@ -114,7 +114,7 @@ contains
   subroutine renum_check(ren)
     implicit none
     ! Parameters
-    type(renum), intent(in) :: ren
+    type(renum_t), intent(in) :: ren
 
     ! Local variables
     integer(ip)               :: i
@@ -173,7 +173,7 @@ contains
   subroutine renum_alloc(n,ren)
     implicit none
     integer(ip), intent(in)         :: n
-    type(renum), intent(out) :: ren
+    type(renum_t), intent(out) :: ren
 
     ren%n=n
     if(ren%n>0) then
@@ -189,8 +189,8 @@ contains
 
   subroutine renum_copy(iren,oren)
     implicit none
-    type(renum), intent(in)  :: iren
-    type(renum), intent(out) :: oren
+    type(renum_t), intent(in)  :: iren
+    type(renum_t), intent(out) :: oren
 
     oren%n = iren%n
     call memalloc (oren%n, oren%lperm, __FILE__,__LINE__)
@@ -223,7 +223,7 @@ contains
   !=============================================================================
   subroutine renum_free(ren)
     implicit none
-    type(renum), intent(inout) :: ren
+    type(renum_t), intent(inout) :: ren
     if(ren%n>0) then
        call memfree (ren%lperm,__FILE__,__LINE__)
        call memfree (ren%iperm,__FILE__,__LINE__)
@@ -234,7 +234,7 @@ contains
   subroutine renum_write(file_path,ren)
     ! Parameters
     character *(*)     , intent(in)  :: file_path
-    type(renum)        , intent(in)  :: ren
+    type(renum_t)        , intent(in)  :: ren
     !-----------------------------------------------------------------------
     ! This routine writes a renumeration object to file file_path
     !-----------------------------------------------------------------------
@@ -253,7 +253,7 @@ contains
   subroutine renum_read (file_path, ren)
     ! Parameters
     character *(*)     , intent(in)     :: file_path
-    type(renum), intent(out)    :: ren
+    type(renum_t), intent(out)    :: ren
     !-----------------------------------------------------------------------
     ! This routine reads a renumeration object from file file_path
     !-----------------------------------------------------------------------
@@ -282,7 +282,7 @@ contains
   !================================================================================================
   subroutine renum_apply_r1(ren, xlin, xlout)
     implicit none
-    type(renum), intent(in)  :: ren
+    type(renum_t), intent(in)  :: ren
     real(rp)   , intent(in)  :: xlin  (ren%n)
     real(rp)   , intent(out) :: xlout (ren%n)
     integer(ip) :: i
@@ -296,7 +296,7 @@ contains
   subroutine renum_apply_r2(ld, ren, xlin, xlout)
     implicit none
     integer(ip), intent(in)  :: ld
-    type(renum), intent(in)  :: ren
+    type(renum_t), intent(in)  :: ren
     real(rp)   , intent(in)  :: xlin  (ld,ren%n)
     real(rp)   , intent(out) :: xlout (ld,ren%n)
     integer(ip) :: i
@@ -309,7 +309,7 @@ contains
   !================================================================================================
   subroutine renum_apply_i1(ren, xlin, xlout)
     implicit none
-    type(renum), intent(in)  :: ren
+    type(renum_t), intent(in)  :: ren
     integer(ip), intent(in)  :: xlin  (ren%n)
     integer(ip), intent(out) :: xlout (ren%n)
     integer(ip)              :: i
@@ -322,7 +322,7 @@ contains
   !================================================================================================
   subroutine renum_apply_i1_igp(ren, xlin, xlout)
      implicit none
-     type(renum), intent(in)   :: ren
+     type(renum_t), intent(in)   :: ren
      integer(igp), intent(in)  :: xlin  (ren%n)
      integer(igp), intent(out) :: xlout (ren%n)
      integer(ip)               :: i
@@ -336,7 +336,7 @@ contains
   subroutine renum_apply_i2(ld, ren, xlin, xlout)
     implicit none
     integer(ip), intent(in)  :: ld
-    type(renum), intent(in)  :: ren
+    type(renum_t), intent(in)  :: ren
     integer(ip)   , intent(in)  :: xlin  (ld,ren%n)
     integer(ip)   , intent(out) :: xlout (ld,ren%n)
     integer(ip) :: i
