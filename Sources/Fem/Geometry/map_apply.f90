@@ -30,7 +30,7 @@ module map_apply_names
   use memor_names
   use map_names
   use renum_names
-  use fem_mesh_names
+  use mesh_names
   use hash_table_names
 # include "debug.i90"
   implicit none
@@ -48,15 +48,15 @@ module map_apply_names
             map_igp_apply_g2l_r1, map_igp_apply_g2l_r2, map_igp_apply_g2l_i1, map_igp_apply_g2l_i2
   end interface map_apply_g2l
 
-  interface fem_mesh_g2l
-     module procedure fem_mesh_g2l_emap_ip, fem_mesh_g2l_emap_igp, fem_mesh_g2l_nmap_igp_emap_igp
+  interface mesh_g2l
+     module procedure mesh_g2l_emap_ip, mesh_g2l_emap_igp, mesh_g2l_nmap_igp_emap_igp
   end interface
 
   ! Constants
   public :: l2g_add, l2g_copy
 
   ! Functions
-  public :: map_apply_l2g, map_apply_g2l, fem_mesh_g2l, fem_mesh_l2l
+  public :: map_apply_l2g, map_apply_g2l, mesh_g2l, mesh_l2l
 
 contains
 
@@ -335,12 +335,12 @@ contains
 
 
   !================================================================================================
-  subroutine fem_mesh_g2l_nmap_igp_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+  subroutine mesh_g2l_nmap_igp_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
     implicit none
     type(map_igp_t)        , intent(in)  :: nmap, emap
     type(map_t)            , intent(in)  :: bmap
-    type(fem_mesh_t)       , intent(in)  :: gmesh
-    type(fem_mesh_t)       , intent(out) :: lmesh
+    type(mesh_t)       , intent(in)  :: gmesh
+    type(mesh_t)       , intent(out) :: lmesh
     type(renum_t), optional, intent(in)  :: nren,eren
     type(hash_table_igp_ip_t)      :: ws_inmap
     type(hash_table_igp_ip_t)      :: el_inmap
@@ -418,16 +418,16 @@ contains
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
     call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord, nren)
 
-  end subroutine fem_mesh_g2l_nmap_igp_emap_igp
+  end subroutine mesh_g2l_nmap_igp_emap_igp
 
 
   !================================================================================================
-  subroutine fem_mesh_g2l_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+  subroutine mesh_g2l_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
     implicit none
     type(map_t)            , intent(in)  :: nmap,bmap
     type(map_igp_t)        , intent(in)  :: emap
-    type(fem_mesh_t)       , intent(in)  :: gmesh
-    type(fem_mesh_t)       , intent(out) :: lmesh
+    type(mesh_t)       , intent(in)  :: gmesh
+    type(mesh_t)       , intent(out) :: lmesh
     type(renum_t), optional, intent(in)  :: nren,eren
     type(hash_table_ip_ip_t)       :: ws_inmap
     type(hash_table_igp_ip_t)      :: el_inmap
@@ -502,15 +502,15 @@ contains
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
     call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nren)
 
-  end subroutine fem_mesh_g2l_emap_igp
+  end subroutine mesh_g2l_emap_igp
 
   !================================================================================================
-  subroutine fem_mesh_g2l_emap_ip(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+  subroutine mesh_g2l_emap_ip(nmap,emap,bmap,gmesh,lmesh,nren,eren)
     implicit none
     type(map_t)            , intent(in)  :: nmap,bmap
     type(map_t)            , intent(in)  :: emap
-    type(fem_mesh_t)       , intent(in)  :: gmesh
-    type(fem_mesh_t)       , intent(out) :: lmesh
+    type(mesh_t)       , intent(in)  :: gmesh
+    type(mesh_t)       , intent(out) :: lmesh
     type(renum_t), optional, intent(in)  :: nren,eren
     type(hash_table_ip_ip_t)       :: ws_inmap
     type(hash_table_ip_ip_t)       :: el_inmap
@@ -584,16 +584,16 @@ contains
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
     call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nren)
 
-  end subroutine fem_mesh_g2l_emap_ip
+  end subroutine mesh_g2l_emap_ip
 
 
 
   !================================================================================================
-  subroutine fem_mesh_l2l(nren,eren,lmeshin,lmeshout)
+  subroutine mesh_l2l(nren,eren,lmeshin,lmeshout)
     implicit none
     type(renum_t)    , intent(in)  :: nren,eren
-    type(fem_mesh_t) , intent(in)  :: lmeshin
-    type(fem_mesh_t) , intent(out) :: lmeshout
+    type(mesh_t) , intent(in)  :: lmeshin
+    type(mesh_t) , intent(out) :: lmeshout
 
     integer(ip)                  :: ipoin,inode,knode,ielem_lmeshout,ielem_lmeshin,iboun,gelem,velem,gnode
     integer(ip)                  :: p_ielem_lmeshin,p_ipoin_lmeshin,p_ipoin_lmeshout
@@ -623,6 +623,6 @@ contains
     call memalloc(lmeshout%ndime, lmeshout%npoin, lmeshout%coord, __FILE__,__LINE__)
     call renum_apply (lmeshin%ndime, nren, lmeshin%coord,  lmeshout%coord)
 
-  end subroutine fem_mesh_l2l
+  end subroutine mesh_l2l
 
 end module map_apply_names

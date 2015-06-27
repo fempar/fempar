@@ -29,9 +29,9 @@ module par_gen_triangulation_names
   use types_names
   use memor_names
   use fe_space_types_names
-  use fem_triangulation_names
-  use fem_mesh_gen_distribution_names
-  use fem_mesh_distribution_names
+  use triangulation_names
+  use mesh_gen_distribution_names
+  use mesh_distribution_names
   use element_import_create_names
   use hash_table_names
   use par_environment_names
@@ -60,7 +60,7 @@ contains
     type(par_conditions_t)           , intent(out) :: p_cond
     integer(ip), allocatable       , intent(out) :: material(:)
     ! Locals
-    type(fem_mesh_distribution_t) :: mdist
+    type(mesh_distribution_t) :: mdist
     type (hash_table_igp_ip_t)    :: hash
     integer(ip)                 :: num_elems, num_ghosts, aux_val
     integer(ip)                 :: istat, ielem, iobj, jobj, state
@@ -218,7 +218,7 @@ contains
        call par_triangulation_to_dual ( p_trian )
 
        ! Deallocate
-       call fem_mesh_distribution_free(mdist)
+       call mesh_distribution_free(mdist)
 
        p_trian%state = par_triangulation_filled
 

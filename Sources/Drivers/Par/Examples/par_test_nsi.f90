@@ -49,9 +49,9 @@ use lib_vtk_io_interface_names
   type(par_fe_space_t)                              :: p_fe_space  
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
-  type(nsi_cg_iss_matvec_t)                 , target :: matvec
+  type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
   type(discrete_integration_pointer)               :: approx(1)
-  type(fem_vtk_t)                                    :: fevtk
+  type(vtk_t)                                    :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist
   type(par_precond_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
@@ -138,9 +138,9 @@ use lib_vtk_io_interface_names
   ! Create problem
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
-  call matvec%create(myprob,mydisc)
+  call cg_iss_matvec%create(myprob,mydisc)
   call dhand%set_problem(1,mydisc)
-  approx(1)%p       => matvec
+  approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -309,7 +309,7 @@ use lib_vtk_io_interface_names
   call par_fe_space_free(p_fe_space) 
   call myprob%free
   call mydisc%free
-  call matvec%free
+  call cg_iss_matvec%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)

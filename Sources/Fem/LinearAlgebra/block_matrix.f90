@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_matrix_names
+module block_matrix_names
 use types_names
 use memor_names
-  use fem_graph_names
-  use fem_block_graph_names
-  use fem_matrix_names
+  use graph_names
+  use block_graph_names
+  use matrix_names
   ! Abstract types
   !use base_operand_names
   !use base_operator_names
@@ -41,45 +41,45 @@ use memor_names
   private
 
   ! Pointer to matrix
-  type p_fem_matrix_t
-    type(fem_matrix_t), pointer :: p_f_matrix
-  end type p_fem_matrix_t
+  type p_matrix_t
+    type(matrix_t), pointer :: p_f_matrix
+  end type p_matrix_t
 
   ! Block Matrix
-  !type, extends(base_operator_t):: fem_block_matrix_t
-  type :: fem_block_matrix_t
+  !type, extends(base_operator_t):: block_matrix_t
+  type :: block_matrix_t
     private
     integer(ip)                     :: nblocks = -1
-    type(p_fem_matrix_t), allocatable :: blocks(:,:)
+    type(p_matrix_t), allocatable :: blocks(:,:)
   contains
-    procedure :: alloc             => fem_block_matrix_alloc
-    procedure :: alloc_block       => fem_block_matrix_alloc_block
-    procedure :: set_block_to_zero => fem_block_matrix_set_block_to_zero
-    procedure :: free              => fem_block_matrix_free
-    procedure :: get_block         => fem_block_matrix_get_block
-    procedure :: get_nblocks       => fem_block_matrix_get_nblocks
-  end type fem_block_matrix_t
+    procedure :: alloc             => block_matrix_alloc
+    procedure :: alloc_block       => block_matrix_alloc_block
+    procedure :: set_block_to_zero => block_matrix_set_block_to_zero
+    procedure :: free              => block_matrix_free
+    procedure :: get_block         => block_matrix_get_block
+    procedure :: get_nblocks       => block_matrix_get_nblocks
+  end type block_matrix_t
 
   ! Types
-  public :: fem_block_matrix_t
+  public :: block_matrix_t
 
   ! Functions
-  public :: fem_block_matrix_alloc, fem_block_matrix_alloc_block,       & 
-            fem_block_matrix_set_block_to_zero, fem_block_matrix_print, & 
-            fem_block_matrix_free, fem_block_matrix_zero, fem_block_matrix_info
+  public :: block_matrix_alloc, block_matrix_alloc_block,       & 
+            block_matrix_set_block_to_zero, block_matrix_print, & 
+            block_matrix_free, block_matrix_zero, block_matrix_info
 
 contains
 
   !=============================================================================
-  subroutine fem_block_matrix_alloc(bmat, bgraph, sign)
+  subroutine block_matrix_alloc(bmat, bgraph, sign)
     implicit none
     ! Parameters
-    class(fem_block_matrix_t), intent(inout) :: bmat
-    type(fem_block_graph_t)  , intent(in)    :: bgraph
+    class(block_matrix_t), intent(inout) :: bmat
+    type(block_graph_t)  , intent(in)    :: bgraph
     integer(ip), optional  , intent(in)    :: sign(:)
 
     integer(ip)                             :: ib,jb
-    type(fem_graph_t), pointer                :: f_graph
+    type(graph_t), pointer                :: f_graph
 
     if ( present(sign) ) then
       assert ( size(sign) == bgraph%get_nblocks() )
@@ -94,19 +94,19 @@ contains
               allocate ( bmat%blocks(ib,jb)%p_f_matrix )
               if ( (ib == jb) .and. present(sign) ) then
                 if ( f_graph%type == csr ) then
-                   call fem_matrix_alloc ( csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign(ib) )
+                   call matrix_alloc ( csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign(ib) )
                 else if ( f_graph%type == csr_symm ) then
-                   call fem_matrix_alloc ( csr_mat, symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign(ib) )
+                   call matrix_alloc ( csr_mat, symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign(ib) )
                 end if 
               else
                 if ( ib == jb ) then
                   if ( f_graph%type == csr ) then
-                     call fem_matrix_alloc(csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
+                     call matrix_alloc(csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
                   else if ( f_graph%type == csr_symm ) then
-                     call fem_matrix_alloc(csr_mat, symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
+                     call matrix_alloc(csr_mat, symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
                   end if
                 else
-                  call fem_matrix_alloc(csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
+                  call matrix_alloc(csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
                 end if
               end if
            else
@@ -114,14 +114,14 @@ contains
            end if
       end do
     end do
-  end subroutine fem_block_matrix_alloc
+  end subroutine block_matrix_alloc
 
-  subroutine fem_block_matrix_alloc_block (bmat,ib,jb,f_graph,sign)
+  subroutine block_matrix_alloc_block (bmat,ib,jb,f_graph,sign)
     implicit none
     ! Parameters
-    class(fem_block_matrix_t), intent(inout) :: bmat
+    class(block_matrix_t), intent(inout) :: bmat
     integer(ip)           , intent(in)     :: ib,jb
-    type(fem_graph_t)       , intent(in)     :: f_graph
+    type(graph_t)       , intent(in)     :: f_graph
     integer(ip), optional , intent(in)     :: sign
 
     assert ( associated ( bmat%blocks(ib,jb)%p_f_matrix ) )
@@ -129,62 +129,62 @@ contains
        allocate ( bmat%blocks(ib,jb)%p_f_matrix )
        if ( (ib == jb) ) then
           if ( f_graph%type == csr ) then
-             call fem_matrix_alloc ( csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign )
+             call matrix_alloc ( csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign )
           else if ( f_graph%type == csr_symm ) then
-             call fem_matrix_alloc ( csr_mat, symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign )
+             call matrix_alloc ( csr_mat, symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign )
           end if
        else
-          call fem_matrix_alloc ( csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix )
+          call matrix_alloc ( csr_mat, symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix )
        end if
     end if
-  end subroutine fem_block_matrix_alloc_block
+  end subroutine block_matrix_alloc_block
 
-  subroutine fem_block_matrix_set_block_to_zero (bmat,ib,jb)
+  subroutine block_matrix_set_block_to_zero (bmat,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_matrix_t), intent(inout) :: bmat
+    class(block_matrix_t), intent(inout) :: bmat
     integer(ip)           , intent(in)    :: ib,jb
 
     if ( associated(bmat%blocks(ib,jb)%p_f_matrix) ) then
-       call fem_matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
+       call matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
        deallocate (bmat%blocks(ib,jb)%p_f_matrix)
        nullify ( bmat%blocks(ib,jb)%p_f_matrix )
     end if
   end subroutine
 
-  subroutine fem_block_matrix_zero(bmat)
+  subroutine block_matrix_zero(bmat)
     implicit none
     ! Parameters
-    class(fem_block_matrix_t), intent(inout) :: bmat
+    class(block_matrix_t), intent(inout) :: bmat
     integer(ip)                           :: ib,jb
 
     do ib=1,bmat%nblocks
        do jb=1,bmat%nblocks
           if ( associated(bmat%blocks(ib,jb)%p_f_matrix) ) then
-             call fem_matrix_zero (bmat%blocks(ib,jb)%p_f_matrix)
+             call matrix_zero (bmat%blocks(ib,jb)%p_f_matrix)
           end if
        end do
     end do
 
-  end subroutine fem_block_matrix_zero
+  end subroutine block_matrix_zero
 
-  subroutine fem_block_matrix_print (lunou, f_b_matrix)
+  subroutine block_matrix_print (lunou, f_b_matrix)
     implicit none
-    type(fem_block_matrix_t), intent(in)    :: f_b_matrix
+    type(block_matrix_t), intent(in)    :: f_b_matrix
     integer(ip)           , intent(in)    :: lunou
     integer(ip)                           :: i
     check(.false.)
-  end subroutine fem_block_matrix_print
+  end subroutine block_matrix_print
 
-  subroutine fem_block_matrix_free(bmat)
+  subroutine block_matrix_free(bmat)
     implicit none
-    class(fem_block_matrix_t), intent(inout) :: bmat
+    class(block_matrix_t), intent(inout) :: bmat
     integer(ip) :: ib,jb
 
     do ib=1, bmat%nblocks 
        do jb=1, bmat%nblocks
           if ( associated(bmat%blocks(ib,jb)%p_f_matrix) ) then
-             call fem_matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
+             call matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
              deallocate (bmat%blocks(ib,jb)%p_f_matrix) 
           end if
        end do
@@ -192,36 +192,36 @@ contains
 
     bmat%nblocks = -1 
     deallocate ( bmat%blocks ) 
-  end subroutine fem_block_matrix_free
+  end subroutine block_matrix_free
 
-  function fem_block_matrix_get_block (bmat,ib,jb)
+  function block_matrix_get_block (bmat,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_matrix_t), target, intent(in) :: bmat
+    class(block_matrix_t), target, intent(in) :: bmat
     integer(ip)                    , intent(in) :: ib,jb
-    type(fem_matrix_t)               , pointer    :: fem_block_matrix_get_block
+    type(matrix_t)               , pointer    :: block_matrix_get_block
 
-    fem_block_matrix_get_block =>  bmat%blocks(ib,jb)%p_f_matrix
-  end function fem_block_matrix_get_block
+    block_matrix_get_block =>  bmat%blocks(ib,jb)%p_f_matrix
+  end function block_matrix_get_block
 
-  function fem_block_matrix_get_nblocks (bmat)
+  function block_matrix_get_nblocks (bmat)
     implicit none
     ! Parameters
-    class(fem_block_matrix_t), target, intent(in) :: bmat
-    integer(ip)                                :: fem_block_matrix_get_nblocks
-    fem_block_matrix_get_nblocks = bmat%nblocks
-  end function fem_block_matrix_get_nblocks
+    class(block_matrix_t), target, intent(in) :: bmat
+    integer(ip)                                :: block_matrix_get_nblocks
+    block_matrix_get_nblocks = bmat%nblocks
+  end function block_matrix_get_nblocks
 
-  subroutine fem_block_matrix_info ( f_blk_mat, me, np )
+  subroutine block_matrix_info ( f_blk_mat, me, np )
     implicit none
 
     ! Parameters 
-    type(fem_block_matrix_t) , intent(in)    :: f_blk_mat
+    type(block_matrix_t) , intent(in)    :: f_blk_mat
     integer                , intent(out)   :: me
     integer                , intent(out)   :: np
     
     me = 0
     np = 1 
-  end subroutine fem_block_matrix_info
+  end subroutine block_matrix_info
 
-end module fem_block_matrix_names
+end module block_matrix_names

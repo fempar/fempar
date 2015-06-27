@@ -25,19 +25,19 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_graph_distribution_names
+module graph_distribution_names
 use types_names
 use memor_names
-  use fem_graph_names
+  use graph_names
   use dof_distribution_names
   implicit none
 # include "debug.i90"
   private
 
-  public :: fem_graph_split_2x2_partitioning, fem_graph_split_2x2_partitioning_symm
+  public :: graph_split_2x2_partitioning, graph_split_2x2_partitioning_symm
 
 contains
-  subroutine fem_graph_split_2x2_partitioning ( output_type, & 
+  subroutine graph_split_2x2_partitioning ( output_type, & 
                                               & grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
@@ -62,20 +62,20 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in) :: output_type
-    type(fem_graph_t)        , intent(in) :: grph
+    type(graph_t)        , intent(in) :: grph
     type(dof_distribution_t) , intent(in) :: dof_dist 
 
-    type(fem_graph_t)     , intent(out), optional   :: G_II
-    type(fem_graph_t)     , intent(out), optional   :: G_IG
-    type(fem_graph_t)     , intent(out), optional   :: G_GI
-    type(fem_graph_t)     , intent(out), optional   :: G_GG
+    type(graph_t)     , intent(out), optional   :: G_II
+    type(graph_t)     , intent(out), optional   :: G_IG
+    type(graph_t)     , intent(out), optional   :: G_GI
+    type(graph_t)     , intent(out), optional   :: G_GG
 
 
     assert ( grph%type   == csr_symm .or. grph%type   == csr )
     assert ( output_type == csr_symm .or. output_type == csr )
     assert ( .not. present(G_GI) .or. output_type == csr )
     
-    ! If any output fem_graph is present, we are done !
+    ! If any output graph is present, we are done !
     if ( grph%type == csr ) then 
       if ( .not. (present(G_II) .or. present(G_IG) & 
          & .or. present(G_GI) .or. present(G_GG) ) ) return
@@ -87,7 +87,7 @@ contains
 
     call split_2x2_partitioning_count_list ( output_type, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
 
-  end subroutine fem_graph_split_2x2_partitioning
+  end subroutine graph_split_2x2_partitioning
 
   ! Auxiliary routine. TO-DO: Unpack member allocatable arrays of graph
   ! into explicit size arrays and pass them to auxiliary routines for 
@@ -96,13 +96,13 @@ contains
     implicit none
     ! Parameters
     integer(ip)         , intent(in)              :: output_type
-    type(fem_graph_t)     , intent(in)              :: grph
+    type(graph_t)     , intent(in)              :: grph
     type(dof_distribution_t) , intent(in)              :: dof_dist 
 
-    type(fem_graph_t)     , intent(out), optional   :: G_II
-    type(fem_graph_t)     , intent(out), optional   :: G_IG
-    type(fem_graph_t)     , intent(out), optional   :: G_GI
-    type(fem_graph_t)     , intent(out), optional   :: G_GG
+    type(graph_t)     , intent(out), optional   :: G_II
+    type(graph_t)     , intent(out), optional   :: G_IG
+    type(graph_t)     , intent(out), optional   :: G_GI
+    type(graph_t)     , intent(out), optional   :: G_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
@@ -359,7 +359,7 @@ contains
 
   end subroutine split_2x2_partitioning_count_list
   
-  subroutine fem_graph_split_2x2_partitioning_symm ( output_type, & 
+  subroutine graph_split_2x2_partitioning_symm ( output_type, & 
                                               & grph, dof_dist, G_II, G_IG, G_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
@@ -384,19 +384,19 @@ contains
     implicit none
     ! Parameters
     integer(ip)         , intent(in)              :: output_type
-    type(fem_graph_t)     , intent(in)              :: grph
+    type(graph_t)     , intent(in)              :: grph
     type(dof_distribution_t) , intent(in)              :: dof_dist 
 
-    type(fem_graph_t)     , intent(out) :: G_II
-    type(fem_graph_t)     , intent(out) :: G_IG
-    type(fem_graph_t)     , intent(out) :: G_GG
+    type(graph_t)     , intent(out) :: G_II
+    type(graph_t)     , intent(out) :: G_IG
+    type(graph_t)     , intent(out) :: G_GG
 
     ! assert ( grph%type   == csr_symm )
     assert ( output_type == csr_symm .or. output_type == csr )
     
     call split_2x2_partitioning_count_list_symm ( output_type, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
 
-  end subroutine fem_graph_split_2x2_partitioning_symm
+  end subroutine graph_split_2x2_partitioning_symm
 
   ! Auxiliary routine. TO-DO: Unpack member allocatable arrays of graph
   ! into explicit size arrays and pass them to auxiliary routines for 
@@ -405,12 +405,12 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in) :: output_type
-    type(fem_graph_t)        , intent(in) :: grph
+    type(graph_t)        , intent(in) :: grph
     type(dof_distribution_t) , intent(in) :: dof_dist 
 
-    type(fem_graph_t)     , intent(out)   :: G_II
-    type(fem_graph_t)     , intent(out)   :: G_IG
-    type(fem_graph_t)     , intent(out)   :: G_GG
+    type(graph_t)     , intent(out)   :: G_II
+    type(graph_t)     , intent(out)   :: G_IG
+    type(graph_t)     , intent(out)   :: G_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
@@ -562,7 +562,7 @@ contains
 
     end do
 
-    ! call fem_graph_print ( 6, grph )
+    ! call graph_print ( 6, grph )
 
 
     ! List number of nonzeros on each row of G_GI/G_GG
@@ -594,4 +594,4 @@ contains
 
   end subroutine split_2x2_partitioning_count_list_symm
 
-end module fem_graph_distribution_names
+end module graph_distribution_names

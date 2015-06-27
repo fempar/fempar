@@ -30,7 +30,7 @@ module par_vector_names
 use types_names
 use memor_names
 use stdio_names
-  use fem_vector_names
+  use vector_names
 use map_apply_names
 
 #ifdef ENABLE_BLAS       
@@ -75,7 +75,7 @@ use psb_penv_mod_names
      ! of the vector mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( fem_vector_t ) :: f_vector
+     type( vector_t ) :: f_vector
 
      ! Partially or fully summed
      integer(ip)  :: state 
@@ -115,7 +115,7 @@ use psb_penv_mod_names
        &  par_vector_print,    par_vector_print_matrix_market
 
 !***********************************************************************
-! Allocatable arrays of type(fem_vector_t)
+! Allocatable arrays of type(vector_t)
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -154,7 +154,7 @@ contains
     p_vec%dof_dist => dof_dist
     p_vec%p_env    => p_env 
     if(p_env%p_context%iam<0) return
-    call fem_vector_alloc ( dof_dist%nl, p_vec%f_vector )
+    call vector_alloc ( dof_dist%nl, p_vec%f_vector )
     p_vec%state = undefined
   end subroutine par_vector_alloc
 
@@ -172,7 +172,7 @@ contains
     p_vec%state = undefined
 
     ! Free local part
-    call fem_vector_free ( p_vec%f_vector )
+    call vector_free ( p_vec%f_vector )
 
     nullify ( p_vec%dof_dist )
     nullify ( p_vec%p_env )
@@ -200,8 +200,8 @@ contains
     
     if(s_p_vec%p_env%p_context%iam<0) return
 
-    ! Call fem_vector_create_view
-    call fem_vector_create_view ( s_p_vec%f_vector, start, end, t_p_vec%f_vector ) 
+    ! Call vector_create_view
+    call vector_create_view ( s_p_vec%f_vector, start, end, t_p_vec%f_vector ) 
 
   end subroutine par_vector_create_view
 
@@ -222,7 +222,7 @@ contains
 
     if(s_p_vec%p_env%p_context%iam<0) return
 
-    call fem_vector_clone ( s_p_vec%f_vector, t_p_vec%f_vector )
+    call vector_clone ( s_p_vec%f_vector, t_p_vec%f_vector )
 
   end subroutine par_vector_clone
 
@@ -267,9 +267,9 @@ use par_sparse_global_collectives_names
     if(p_vec%p_env%p_context%iam<0) return
 
 
-    ! call fem_import_print (6, p_vec%dof_dist%dof_import)
+    ! call import_print (6, p_vec%dof_dist%dof_import)
     ! write(*,*) 'SE 1', size(p_vec%f_vector%b)
-    ! call fem_vector_print ( 6, p_vec%f_vector )
+    ! call vector_print ( 6, p_vec%f_vector )
 
     ! First stage: owners receive/reduce, non-owners send
     call single_exchange ( p_vec%p_env%p_context%icontxt, &
@@ -385,7 +385,7 @@ use par_sparse_global_collectives_names
 
     assert ( x%state /= undefined )
     ! write (*,*) 'PPP'
-    ! call fem_vector_print ( 6, x%f_vector )
+    ! call vector_print ( 6, x%f_vector )
     call par_vector_dot (x,x,t)
     t = sqrt(t)
   end subroutine par_vector_nrm2
@@ -416,7 +416,7 @@ use par_sparse_global_collectives_names
 
     if ( (x%state == part_summed .and. y%state == full_summed) .or. (x%state == full_summed .and. y%state == part_summed) ) then
        ! Perform local dot products
-       call fem_vector_dot (x%f_vector, y%f_vector, t)
+       call vector_dot (x%f_vector, y%f_vector, t)
     else if ( (x%state == full_summed .and. y%state == full_summed) ) then
        ! Perform local weighted dot products
        call weighted_dot (x, y, t)
@@ -433,7 +433,7 @@ use par_sparse_global_collectives_names
        call comm_interface ( ws_vec )
        
 
-       call fem_vector_dot ( x%f_vector, ws_vec%f_vector, t )
+       call vector_dot ( x%f_vector, ws_vec%f_vector, t )
 
        call par_vector_free ( ws_vec )
     end if
@@ -468,7 +468,7 @@ use par_sparse_global_collectives_names
     if ( ni > 0 ) then
        call par_vector_create_view ( x, 1, ni, x_I )
        call par_vector_create_view ( y, 1, ni, y_I )
-       call fem_vector_dot         ( x_I%f_vector, y_I%f_vector, t )
+       call vector_dot         ( x_I%f_vector, y_I%f_vector, t )
     else
        t = 0.0_rp
     end if
@@ -500,7 +500,7 @@ use par_sparse_global_collectives_names
 
     assert ( x%state /= undefined  )
     ! Perform local copy
-    call fem_vector_copy ( x%f_vector, y%f_vector )
+    call vector_copy ( x%f_vector, y%f_vector )
     y%state = x%state
   end subroutine par_vector_copy
 
@@ -520,7 +520,7 @@ use par_sparse_global_collectives_names
     ! write(*,*) 'XXX'
     assert ( y%state /= undefined  )
     ! Zero-out local copy
-    call fem_vector_zero ( y%f_vector )
+    call vector_zero ( y%f_vector )
     
   end subroutine par_vector_zero
 
@@ -541,7 +541,7 @@ use par_sparse_global_collectives_names
        call par_vector_zero(y)
     else 
        ! Scale local copy
-       call fem_vector_init (t, y%f_vector)
+       call vector_init (t, y%f_vector)
        ! y%state = full_summed
     end if
   end subroutine par_vector_init
@@ -567,7 +567,7 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined )
 
     ! Scale local copy
-    call fem_vector_scale (t, x%f_vector, y%f_vector )
+    call vector_scale (t, x%f_vector, y%f_vector )
     y%state = x%state
   end subroutine par_vector_scale
 
@@ -590,7 +590,7 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
 
-    call fem_vector_mxpy (x%f_vector, y%f_vector )
+    call vector_mxpy (x%f_vector, y%f_vector )
 
   end subroutine par_vector_mxpy
 
@@ -614,7 +614,7 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
 
-    call fem_vector_axpy  ( t, x%f_vector, y%f_vector )
+    call vector_axpy  ( t, x%f_vector, y%f_vector )
   end subroutine par_vector_axpy
 
   !=============================================================================
@@ -636,7 +636,7 @@ use par_sparse_global_collectives_names
     ! Check matching partition/handler
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
-    call fem_vector_aypx (t, x%f_vector, y%f_vector )
+    call vector_aypx (t, x%f_vector, y%f_vector )
   end subroutine par_vector_aypx
 
   !=============================================================================
@@ -657,7 +657,7 @@ use par_sparse_global_collectives_names
     ! Check matching partition/handler
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
-    call fem_vector_pxpy ( x%f_vector, y%f_vector )
+    call vector_pxpy ( x%f_vector, y%f_vector )
 
   end subroutine par_vector_pxpy
 
@@ -680,12 +680,12 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
     ! write (*,*) 'XA'
-    ! call fem_vector_print ( 6, x%f_vector )
+    ! call vector_print ( 6, x%f_vector )
     ! write (*,*) 'YA'
-    ! call fem_vector_print ( 6, y%f_vector )
-    call fem_vector_pxmy ( x%f_vector, y%f_vector )
+    ! call vector_print ( 6, y%f_vector )
+    call vector_pxmy ( x%f_vector, y%f_vector )
     ! write (*,*) 'YD'
-    ! call fem_vector_print ( 6, y%f_vector )
+    ! call vector_print ( 6, y%f_vector )
   end subroutine par_vector_pxmy
 
   subroutine par_vector_print ( luout, p_vec )
@@ -701,7 +701,7 @@ use par_sparse_global_collectives_names
 
     write(luout,'(a)') '*** begin par_vector data structure ***'
     call  dof_distribution_print (luout, p_vec%dof_dist)
-    call  fem_vector_print    (luout, p_vec%f_vector)
+    call  vector_print    (luout, p_vec%f_vector)
     write(luout,'(a)') '*** end par_vector data structure ***'
 
   end subroutine par_vector_print
@@ -744,9 +744,9 @@ use par_sparse_global_collectives_names
     end do
     part_id = ch(iam)
 
-    ! Read fem_partition data from path_file file
+    ! Read partition data from path_file file
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')       
-    call fem_vector_print_matrix_market ( lunou, p_vec%f_vector )
+    call vector_print_matrix_market ( lunou, p_vec%f_vector )
     call io_close (lunou)
 
   end subroutine par_vector_print_matrix_market
@@ -1078,7 +1078,7 @@ use par_sparse_global_collectives_names
    this%state = undefined
    
    ! Free local part
-   call fem_vector_free ( this%f_vector )
+   call vector_free ( this%f_vector )
    
    nullify ( this%dof_dist )
    nullify ( this%p_env )

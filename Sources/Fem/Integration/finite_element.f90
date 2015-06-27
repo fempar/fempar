@@ -37,7 +37,7 @@ module finite_element_names
   use fe_space_types_names
   !use dof_handler_names
   use migratory_element_names
-  !use fem_conditions_names
+  !use conditions_names
 
 #ifdef memcheck
   use iso_c_binding

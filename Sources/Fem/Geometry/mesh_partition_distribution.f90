@@ -25,28 +25,28 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_partition_distribution_names
+module mesh_partition_distribution_names
   use types_names
   use memor_names
-  use fem_mesh_distribution_names
+  use mesh_distribution_names
   use map_names
   use map_apply_names
-  use fem_graph_names
+  use graph_names
   use graph_renum_names
-  use fem_mesh_names
+  use mesh_names
   use mesh_graph_names
-  use fem_mesh_partition_base_names
+  use mesh_partition_base_names
   use hash_table_names
 # include "debug.i90"
   implicit none
   private
 
    ! Functions
-  public :: fem_mesh_distribution_create !, build_partition_adjacency
+  public :: mesh_distribution_create !, build_partition_adjacency
 
 contains
 
-  subroutine fem_mesh_distribution_create( prt_pars, femesh, distr, lmesh)
+  subroutine mesh_distribution_create( prt_pars, femesh, distr, lmesh)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -54,13 +54,13 @@ contains
 
     ! Parameters
     type(part_params_t)                        , intent(in)  :: prt_pars
-    type(fem_mesh_t)                           , intent(in)  :: femesh
-    type(fem_mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
-    type(fem_mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
+    type(mesh_t)                           , intent(in)  :: femesh
+    type(mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
+    type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
-    type(fem_mesh_t)               :: dual_femesh, dual_lmesh
-    type(fem_graph_t)              :: fe_graph    ! Dual graph (to be partitioned)
+    type(mesh_t)               :: dual_femesh, dual_lmesh
+    type(graph_t)              :: fe_graph    ! Dual graph (to be partitioned)
     integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
     integer(ip)   , allocatable  :: dual_parts(:)
     integer(ip)                  :: ipart
@@ -79,7 +79,7 @@ contains
 
     ! dual graph (elements around elements)
     call mesh_to_graph (dual_femesh, femesh, dual_femesh%ndime, fe_graph)
-    !out0(call fem_graph_print(6, fe_graph))
+    !out0(call graph_print(6, fe_graph))
           
     ! write (*,*) 'fe_graph%nv', fe_graph%nv, 'fe_graph%nnz', fe_graph%ia(fe_graph%nv+1) 
     call graph_pt_renumbering(prt_pars,fe_graph,ldome)
@@ -103,7 +103,7 @@ contains
     do ipart=1,prt_pars%nparts
 
        ! Generate Local mesh
-       call fem_mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, dummy_bmap, femesh, lmesh(ipart))
+       call mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, dummy_bmap, femesh, lmesh(ipart))
 
        ! Mesh to dual with global element numbers in the dual (just get numbers applying g2l map to dual_femesh)
        ! Store dual_part too.
@@ -122,22 +122,22 @@ contains
             &                distr(ipart)%lextn,    &
             &                distr(ipart)%lextp )
 
-       call fem_mesh_free(dual_lmesh)
+       call mesh_free(dual_lmesh)
        call memfree(dual_parts,__FILE__,__LINE__)
     end do
 
-    call fem_mesh_free(dual_femesh)
-    call fem_graph_free(fe_graph)
+    call mesh_free(dual_femesh)
+    call graph_free(fe_graph)
     call memfree(ldome,__FILE__,__LINE__)
-  end subroutine fem_mesh_distribution_create
+  end subroutine mesh_distribution_create
 
   !================================================================================================
    subroutine build_adjacency ( my_part, lmesh, l2ge, dual_lmesh, dual_parts, &
         &                       nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
      implicit none
      integer(ip)   , intent(in)  :: my_part
-     type(fem_mesh_t), intent(in)  :: lmesh
-     type(fem_mesh_t), intent(in)  :: dual_lmesh
+     type(mesh_t), intent(in)  :: lmesh
+     type(mesh_t), intent(in)  :: dual_lmesh
      integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
      integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
      integer(ip)   , intent(out) :: nebou
@@ -294,10 +294,10 @@ contains
   subroutine dual_mesh_g2l(nmap, dual_mesh, ldome, lmesh, dual_lmesh, dual_parts)
     implicit none
     type(map_igp_t) , intent(in)  :: nmap
-    type(fem_mesh_t), intent(in)  :: dual_mesh
+    type(mesh_t), intent(in)  :: dual_mesh
     integer(ip)   , intent(in)  :: ldome(dual_mesh%npoin)
-    type(fem_mesh_t), intent(in)  :: lmesh
-    type(fem_mesh_t), intent(inout) :: dual_lmesh
+    type(mesh_t), intent(in)  :: lmesh
+    type(mesh_t), intent(inout) :: dual_lmesh
     integer(ip)   , allocatable, intent(inout)  :: dual_parts(:)
 
     integer(ip) :: ipart,lelem,ielem, pnode,i
@@ -330,9 +330,9 @@ contains
     ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
     implicit none
     integer(ip)                , intent(in)    :: nparts
-    type(fem_mesh_t)             , intent(in)    :: femesh
+    type(mesh_t)             , intent(in)    :: femesh
     integer(ip)                , intent(in)    :: ldome(femesh%nelem)
-    type(fem_mesh_distribution_t), intent(inout) :: distr(nparts)
+    type(mesh_distribution_t), intent(inout) :: distr(nparts)
     
     integer(ip)   , allocatable  :: nedom(:) ! Number of points per part (here is not header!)
     integer(ip)   , allocatable  :: npdom(:) ! Number of elements per part (here is not header!)
@@ -387,4 +387,4 @@ contains
     call memfree ( npdom,__FILE__,__LINE__)
   end subroutine build_maps
 
-end module fem_mesh_partition_distribution_names
+end module mesh_partition_distribution_names

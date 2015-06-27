@@ -496,7 +496,7 @@ contains
   !   type(finite_element_t),     intent(inout) :: finite_element
   !   ! Locals
   !   type(block_elmat)        :: blk_elmat
-  !   type(fem_blocks)         :: vars_s
+  !   type(blocks)         :: vars_s
   !   integer(ip)              :: ldofs(2),nblks,nnode(2),nd,nv,mn
   !   integer(ip), allocatable :: nnode_oss(:),ldofs_oss(:)
 
@@ -516,7 +516,7 @@ contains
   !      nnode_oss(1) = finite_element%reference_element_vars(1)%p%nnode
   !      nnode_oss(2) = finite_element%reference_element_vars(2)%p%nnode
   !      nnode_oss(3) = finite_element%reference_element_vars(1)%p%nnode
-  !      call fem_blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
+  !      call blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
   !      call block_elmat_alloc(vars_s,nnode_oss,blk_elmat)
   !   elseif(prob%kfl_stab==3) then
   !      nblks=4
@@ -527,12 +527,12 @@ contains
   !      nnode_oss(2) = finite_element%reference_element_vars(2)%p%nnode
   !      nnode_oss(3) = finite_element%reference_element_vars(1)%p%nnode
   !      nnode_oss(4) = finite_element%reference_element_vars(1)%p%nnode
-  !      call fem_blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
+  !      call blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
   !      call block_elmat_alloc(vars_s,nnode_oss,blk_elmat)
   !   else
   !      nblks=2
   !      ldofs(1) = prob%ndime; ldofs(2)=1
-  !      call fem_blocks_alloc(scalar,nblks,ldofs,vars_s)
+  !      call blocks_alloc(scalar,nblks,ldofs,vars_s)
   !      call block_elmat_alloc(vars_s,nnode,blk_elmat)
   !   end if
 
@@ -601,7 +601,7 @@ contains
   !      call memfree(nnode_oss,__FILE__,__LINE__)
   !      call memfree(ldofs_oss,__FILE__,__LINE__)
   !   end if
-  !   call fem_blocks_free(vars_s)
+  !   call blocks_free(vars_s)
   !   call block_elmat_free(blk_elmat)
     
   ! end subroutine nsi_iss_element_mat

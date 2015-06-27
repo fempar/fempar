@@ -30,7 +30,7 @@ module fe_space_names
   use types_names
   use memor_names
   use array_names
-  use fem_triangulation_names
+  use triangulation_names
   use hash_table_names
   use problem_names
   use integration_tools_names
@@ -39,7 +39,7 @@ module fe_space_names
   use fe_space_types_names
   use dof_handler_names
   use migratory_element_names
-  use fem_conditions_names
+  use conditions_names
   use finite_element_names
 
 #ifdef memcheck
@@ -61,7 +61,7 @@ module fe_space_names
      type(finite_element_t)       , pointer     :: finite_elements(:)             ! List of FEs
      type(fe_face_t)          , allocatable :: fe_faces(:)             ! List of active faces
 
-     type(fem_triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
+     type(triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
      type(dof_handler_t)        , pointer :: dof_handler
 
      ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
@@ -112,11 +112,11 @@ contains
                                which_approx, time_steps_to_store, hierarchical_basis,  & 
                                static_condensation, num_continuity, num_ghosts )
     implicit none
-    type(fem_triangulation_t), target, intent(in)    :: g_trian   
+    type(triangulation_t), target, intent(in)    :: g_trian   
     type(dof_handler_t)      , target, intent(in)    :: dofh
     type(fe_space_t)        , target, intent(inout) :: fe_space
     integer(ip)                    , intent(in)    :: problem(:)
-    type(fem_conditions_t)           , intent(in)    :: bcond
+    type(conditions_t)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
@@ -150,7 +150,7 @@ contains
        & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fe_space_t)   ,  target, intent(inout)                :: fe_space
-    type(fem_triangulation_t)   , intent(in), target   :: g_trian   
+    type(triangulation_t)   , intent(in), target   :: g_trian   
     type(dof_handler_t) , intent(in), target           :: dofh  
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical, optional, intent(in) :: hierarchical_basis
@@ -232,7 +232,7 @@ contains
     type(fe_space_t), intent(inout), target  :: fe_space
     integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
     integer(ip)    , intent(in)       :: continuity(:,:), which_approx(:)
-    type(fem_conditions_t), intent(in)  :: bcond
+    type(conditions_t), intent(in)  :: bcond
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmatvec, pos_elinf, pos_voint, ivar, lndof, iobje
@@ -588,7 +588,7 @@ contains
   subroutine get_p_faces ( fe_space, trian )
     implicit none
     type(fe_space_t), intent(in)  :: fe_space
-    type(fem_triangulation_t), intent(inout)    :: trian
+    type(triangulation_t), intent(inout)    :: trian
 
     !   integer(ip) :: i
 

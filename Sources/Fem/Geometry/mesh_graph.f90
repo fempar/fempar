@@ -28,8 +28,8 @@
 module mesh_graph_names
 use types_names
 use memor_names
-  use fem_mesh_names
-  use fem_graph_names
+  use mesh_names
+  use graph_names
   use renum_names
   implicit none
 # include "debug.i90"
@@ -67,9 +67,9 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh_t) , intent(in)  :: primal_mesh, dual_mesh
+    type(mesh_t) , intent(in)  :: primal_mesh, dual_mesh
     integer(ip), intent(in)      :: min_freq_neig
-    type(fem_graph_t), intent(out) :: primal_graph
+    type(graph_t), intent(out) :: primal_graph
 
     ! Local variables
     integer(ip), allocatable :: iwork(:)            ! Integer ip working array
@@ -117,9 +117,9 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh_t) , intent(in)     :: primal_mesh, dual_mesh
+    type(mesh_t) , intent(in)     :: primal_mesh, dual_mesh
     integer(ip), intent(in)         :: min_freq_neig
-    type(fem_graph_t), intent(inout)  :: primal_graph
+    type(graph_t), intent(inout)  :: primal_graph
     integer(ip), intent(out)        :: ws_position  (primal_mesh%npoin)
     integer(ip), intent(out)        :: ws_freq      (primal_mesh%nnode*dual_mesh%nnode)
     integer(ip), intent(out)        :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
@@ -224,8 +224,8 @@ contains
        &                                 ws_position, ws_freq, ws_neighbors )
     implicit none
     ! Parameters
-    type(fem_mesh_t) , intent(in)    :: primal_mesh, dual_mesh
-    type(fem_graph_t), intent(inout) :: primal_graph
+    type(mesh_t) , intent(in)    :: primal_mesh, dual_mesh
+    type(graph_t), intent(inout) :: primal_graph
     integer(ip), intent(in)        :: min_freq_neig
     integer(ip), intent(out)       :: ws_position  (primal_mesh%npoin)
     integer(ip), intent(out)       :: ws_freq      (primal_mesh%nnode*dual_mesh%nnode)
@@ -317,8 +317,8 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh_t) , intent(in)   :: m   
-    type(fem_graph_t), intent(in)   :: g
+    type(mesh_t) , intent(in)   :: m   
+    type(graph_t), intent(in)   :: g
     type(list_t)     , intent(out)  :: lconn
  
     ! Locals

@@ -25,37 +25,37 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_update_names
+module update_names
   use types_names
   use memor_names
   use fe_space_names
-  use fem_vector_names
-  use fem_block_vector_names
-  use fem_conditions_names
+  use vector_names
+  use block_vector_names
+  use conditions_names
   use analytical_names
   use interpolation_tools_names
   implicit none
 # include "debug.i90"
   private
 
-  interface fem_update_solution
-     module procedure fem_update_solution_mono, fem_update_solution_block
-  end interface fem_update_solution
+  interface update_solution
+     module procedure update_solution_mono, update_solution_block
+  end interface update_solution
      
 
   ! Functions
-  public :: fem_update_strong_dirichlet_bcond, fem_update_analytical_bcond, fem_update_solution
+  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution
  
 contains
   
   !==================================================================================================
-  subroutine fem_update_strong_dirichlet_bcond( fe_space, fcond )
+  subroutine update_strong_dirichlet_bcond( fe_space, fcond )
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine updates Dirichlet boundary conditions in unkno from fem_conditions values.  !
+    !   This subroutine updates Dirichlet boundary conditions in unkno from conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(fe_space_t)     , intent(inout) :: fe_space
-    type(fem_conditions_t), intent(in)    :: fcond
+    type(conditions_t), intent(in)    :: fcond
     ! Locals
     integer(ip) :: ielem, iobje, ivar, inode, l_node, gvar, lobje, prob
 
@@ -76,10 +76,10 @@ contains
        end do
     end do
 
-  end subroutine fem_update_strong_dirichlet_bcond
+  end subroutine update_strong_dirichlet_bcond
 
   !==================================================================================================
-  subroutine fem_update_analytical_bcond(vars_of_unk,case,ctime,fe_space,caset,t)
+  subroutine update_analytical_bcond(vars_of_unk,case,ctime,fe_space,caset,t)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine updates Dirichlet boundary conditions in unkno from an analytical solution. !
     !-----------------------------------------------------------------------------------------------!
@@ -166,15 +166,15 @@ contains
 
     end if
     
-  end subroutine fem_update_analytical_bcond
+  end subroutine update_analytical_bcond
 
   !==================================================================================================
-  subroutine fem_update_solution_mono(fevec,fe_space,iblock)
+  subroutine update_solution_mono(fevec,fe_space,iblock)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a fem_vector into unkno.                           !
+    !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_vector_t)     , intent(in)    :: fevec   
+    type(vector_t)     , intent(in)    :: fevec   
     type(fe_space_t)      , intent(inout) :: fe_space
     integer(ip), optional, intent(in)    :: iblock
     ! Locals
@@ -207,15 +207,15 @@ contains
        end do
     end do
     
-  end subroutine fem_update_solution_mono
+  end subroutine update_solution_mono
 
   !==================================================================================================
-  subroutine fem_update_solution_block(blvec,fe_space)
+  subroutine update_solution_block(blvec,fe_space)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a fem_vector into unkno.                           !
+    !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_block_vector_t), intent(in)    :: blvec   
+    type(block_vector_t), intent(in)    :: blvec   
     type(fe_space_t)       , intent(inout) :: fe_space
     ! Locals
     integer(ip) :: iblock
@@ -224,10 +224,10 @@ contains
     do iblock = 1,blvec%nblocks
        
        ! Call monolithic update
-       call fem_update_solution_mono(blvec%blocks(iblock),fe_space,iblock)
+       call update_solution_mono(blvec%blocks(iblock),fe_space,iblock)
 
     end do
     
-  end subroutine fem_update_solution_block
+  end subroutine update_solution_block
 
-end module fem_update_names
+end module update_names

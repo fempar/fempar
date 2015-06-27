@@ -28,21 +28,21 @@
 module geom2topo_names
   use types_names
   use memor_names
-  use fem_mesh_names
+  use mesh_names
   use fe_space_names
   use fe_space_types_names
   use interpolation_names
-  use fem_conditions_names
+  use conditions_names
   !use element_gather_tools
   implicit none
 # include "debug.i90"
   private
 
-  interface fem_mesh_topology
+  interface mesh_topology
      module procedure geom2topo_mesh_cond!geom2topo_mesh,  
-    end interface fem_mesh_topology
+    end interface mesh_topology
   ! Functions
-  public ::  geom2topo_mesh_cond, fem_mesh_topology ! geom2topo_coord,
+  public ::  geom2topo_mesh_cond, mesh_topology ! geom2topo_coord,
 
 contains
 
@@ -71,10 +71,10 @@ contains
     !
     !------------------------------------------------------------------------------------------------
     ! Parameters
-    type(fem_mesh_t)                , intent(in)    :: gmsh
-    type(fem_mesh_t)                , intent(out)   :: omsh
-    type(fem_conditions_t), optional, intent(in)    :: gcnd
-    type(fem_conditions_t), optional, intent(out)   :: ocnd
+    type(mesh_t)                , intent(in)    :: gmsh
+    type(mesh_t)                , intent(out)   :: omsh
+    type(conditions_t), optional, intent(in)    :: gcnd
+    type(conditions_t), optional, intent(out)   :: ocnd
 
     ! Local variables
     type(reference_element_t)     :: reference_element
@@ -121,15 +121,15 @@ contains
     nobje=gmsh%nnode+nodim(2)+nodim(3) ! Total number of objects per element
    
     ! Allocation of auxiliar arrays
-    call memalloc(gmsh%npoin+1,          nelpo_aux,  'fem_mesh_topology::nelpo_aux')
-    call memalloc(  gmsh%npoin,               aux1,       'fem_mesh_topology::aux1')
-    call memalloc(gmsh%nelem*gmsh%nnode, lelpo_aux,  'fem_mesh_topology::lelpo_aux')
-    call memalloc(gmsh%nelem,  nodim(2),   edgeint,    'fem_mesh_topology::edgeint')
-    if(gmsh%ndime==3) call memalloc(gmsh%nelem, nodim(3), faceint, 'fem_mesh_topology::edgeint')
+    call memalloc(gmsh%npoin+1,          nelpo_aux,  'mesh_topology::nelpo_aux')
+    call memalloc(  gmsh%npoin,               aux1,       'mesh_topology::aux1')
+    call memalloc(gmsh%nelem*gmsh%nnode, lelpo_aux,  'mesh_topology::lelpo_aux')
+    call memalloc(gmsh%nelem,  nodim(2),   edgeint,    'mesh_topology::edgeint')
+    if(gmsh%ndime==3) call memalloc(gmsh%nelem, nodim(3), faceint, 'mesh_topology::edgeint')
 
     ! Allocate omsh vectors
-    call memalloc(       gmsh%nelem+1,  omsh%pnods, 'fem_mesh_topology::omsh%pnods')
-    call memalloc(gmsh%nelem*nobje, omsh%lnods , 'fem_mesh_topology::omsh%lnods')
+    call memalloc(       gmsh%nelem+1,  omsh%pnods, 'mesh_topology::omsh%pnods')
+    call memalloc(gmsh%nelem*nobje, omsh%lnods , 'mesh_topology::omsh%lnods')
 
     ! Initialization
     omsh%npoin = gmsh%npoin ! Number of objects (nodes + edges + faces)
@@ -238,8 +238,8 @@ contains
        ! First:: generate the common faces
        faceint = 0
        iface = 0
-       call memalloc(nndim(3), nd_jf, 'fem_mesh_topology::nelpo_nd_jf')
-       call memalloc(nndim(3), fnode,         'fem_mesh_topology::fnode')
+       call memalloc(nndim(3), nd_jf, 'mesh_topology::nelpo_nd_jf')
+       call memalloc(nndim(3), fnode,         'mesh_topology::fnode')
        do ielem=1,gmsh%nelem
           do i=1,nodim(3)
              if(faceint(ielem,i)==0) then
@@ -303,7 +303,7 @@ contains
 
     if (kfl_bc) then
        ! Initialize topological conditions
-       call fem_conditions_create(gcnd%ncode, gcnd%nvalu, omsh%npoin, ocnd)
+       call conditions_create(gcnd%ncode, gcnd%nvalu, omsh%npoin, ocnd)
        
        ! Assign Conditions on boundary vertices
        do i = 1, gmsh%npoin 
@@ -329,7 +329,7 @@ contains
                       ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =                   &
                            &          ocnd%code(icode,nd_i(1))
                    else
-                      !write(*,*) "fem_mesh_topology:: WARNING!! Arbitrary BC's on object",          &
+                      !write(*,*) "mesh_topology:: WARNING!! Arbitrary BC's on object",          &
                       !     &        omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)
                       ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =  0
                    end if
@@ -424,7 +424,7 @@ contains
                       if (s == 1) then
                          ocnd%code(icode,omsh%lnods(op+i)) =  ocnd%code(icode,nd_i(1)) 
                       else
-                         !write(*,*) 'fem_mesh_topology:: WARNING!! Arbitrary BCs on object',        &
+                         !write(*,*) 'mesh_topology:: WARNING!! Arbitrary BCs on object',        &
                          !     &        omsh%lnods(op+i)
                          ocnd%code(icode,omsh%lnods(op+i)) =  0 
                       end if

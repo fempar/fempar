@@ -29,7 +29,7 @@ module par_matrix_names
   ! Serial modules
 use types_names
 use memor_names
-  use fem_matrix_names
+  use matrix_names
   use array_names
 use stdio_names
 #ifdef memcheck
@@ -58,7 +58,7 @@ use psb_penv_mod_names
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( fem_matrix_t )       :: f_matrix
+     type( matrix_t )       :: f_matrix
 
      type(par_graph_t), pointer :: &
         p_graph => NULL()             ! Associated par_graph
@@ -122,7 +122,7 @@ contains
     type(par_matrix_t)                 ,intent(out) :: p_matrix
     integer(ip)           , optional ,intent(in)  :: def
 
-    call fem_matrix_create(type,symm,p_matrix%f_matrix,def)
+    call matrix_create(type,symm,p_matrix%f_matrix,def)
     p_matrix%dof_dist      => dof_dist 
     p_matrix%dof_dist_cols => dof_dist_cols 
     p_matrix%p_env => p_env
@@ -142,7 +142,7 @@ contains
     ! Point to input target parallel graph
     p_matrix%p_graph => p_graph
 
-    if(p_graph%p_env%p_context%iam>=0) call fem_matrix_graph ( p_graph%f_graph, p_matrix%f_matrix )
+    if(p_graph%p_env%p_context%iam>=0) call matrix_graph ( p_graph%f_graph, p_matrix%f_matrix )
 
   end subroutine par_matrix_graph
 
@@ -152,7 +152,7 @@ contains
     type(par_matrix_t), intent(inout)          :: p_matrix
 
     if(p_matrix%p_env%p_context%iam>=0) then
-       call fem_matrix_fill_val(p_matrix%f_matrix)
+       call matrix_fill_val(p_matrix%f_matrix)
     else
        return
     end if
@@ -210,7 +210,7 @@ contains
     end if
 
     ! Free local part
-    call fem_matrix_free ( p_matrix%f_matrix, mode )
+    call matrix_free ( p_matrix%f_matrix, mode )
 
   end subroutine par_matrix_free_progressively
 
@@ -266,11 +266,11 @@ contains
     end do
     part_id = ch(iam)
 
-    ! Read fem_partition data from path_file file
+    ! Read partition data from path_file file
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')
 
 
-    call fem_matrix_print_matrix_market ( lunou, p_mat%f_matrix )
+    call matrix_print_matrix_market ( lunou, p_mat%f_matrix )
 
     call io_close (lunou)
 
@@ -304,7 +304,7 @@ contains
 
     if(p_matrix%p_env%p_context%iam<0) return
 
-    call fem_matrix_zero ( p_matrix%f_matrix )
+    call matrix_zero ( p_matrix%f_matrix )
   end subroutine par_matrix_zero
 
   subroutine par_matvec(a,x,y)
@@ -332,12 +332,12 @@ contains
     
     assert (x%state == full_summed) 
     ! write (*,*) 'MVAX'
-    ! call fem_vector_print ( 6, x%f_vector )
+    ! call vector_print ( 6, x%f_vector )
     ! write (*,*) 'MVAY'
-    ! call fem_vector_print ( 6, y%f_vector )
-    call fem_matvec (a%f_matrix, x%f_vector, y%f_vector) 
+    ! call vector_print ( 6, y%f_vector )
+    call matvec (a%f_matrix, x%f_vector, y%f_vector) 
     ! write (*,*) 'MVD'
-    ! call fem_vector_print ( 6, y%f_vector )
+    ! call vector_print ( 6, y%f_vector )
     y%state = part_summed
   end subroutine par_matvec
 
@@ -361,7 +361,7 @@ contains
     assert ( associated(y%p_env%p_context) )
     
     assert (x%state == full_summed) 
-    call fem_matvec_trans (a%f_matrix, x%f_vector, y%f_vector) 
+    call matvec_trans (a%f_matrix, x%f_vector, y%f_vector) 
     y%state = part_summed
   end subroutine par_matvec_trans
 
@@ -380,7 +380,7 @@ contains
        select type(y)
        class is(par_vector_t)
           call par_matvec(op, x, y)
-          ! call fem_vector_print(6,y)
+          ! call vector_print(6,y)
        class default
           write(0,'(a)') 'par_matrix_t%apply: unsupported y class'
           check(1==0)

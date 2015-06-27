@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_gen_distribution_names
+module mesh_gen_distribution_names
   use types_names
-  use fem_conditions_names
-  use fem_triangulation_names
-  use fem_mesh_distribution_names
-  use fem_materials_names
+  use conditions_names
+  use triangulation_names
+  use mesh_distribution_names
+  use materials_names
   use fe_space_types_names
   use map_names
   implicit none
@@ -73,7 +73,7 @@ module fem_mesh_gen_distribution_names
   end type geom_data_t     
 
   type bound_data_t
-     type(fem_conditions_t)   :: &
+     type(conditions_t)   :: &
           poin,                &         ! Boundary conditions on geometry conrners
           line,                &         ! Boundary conditions on geometry edges
           surf                           ! Boundary conditions on geometry faces
@@ -254,12 +254,12 @@ contains
     !               6=(1,y,z)
     
     ! Create fem conditions
-    call fem_conditions_create(ncode,nvalu,2**ndime,bdata%poin)
-    call fem_conditions_create(ncode,nvalu,2*(ndime-1)*ndime,bdata%line)
+    call conditions_create(ncode,nvalu,2**ndime,bdata%poin)
+    call conditions_create(ncode,nvalu,2*(ndime-1)*ndime,bdata%line)
     if(ndime==2) then
-       call fem_conditions_create(ncode,nvalu,1,bdata%surf)
+       call conditions_create(ncode,nvalu,1,bdata%surf)
     else
-       call fem_conditions_create(ncode,nvalu,2*ndime,bdata%surf)
+       call conditions_create(ncode,nvalu,2*ndime,bdata%surf)
     end if
     
     ! Initialize code and value
@@ -282,9 +282,9 @@ contains
     type(bound_data_t), intent(inout) :: bdata
     
     ! Free fem conditions
-    call fem_conditions_free(bdata%poin)
-    call fem_conditions_free(bdata%line)
-    call fem_conditions_free(bdata%surf)
+    call conditions_free(bdata%poin)
+    call conditions_free(bdata%line)
+    call conditions_free(bdata%surf)
 
   end subroutine bound_data_free
 
@@ -435,10 +435,10 @@ contains
     type(geom_data_t)                      , intent(in)  :: gdata
     type(bound_data_t)                     , intent(in)  :: bdata
     type(reference_element_t)                 , intent(in)  :: geo_reference_element
-    type(fem_triangulation_t)              , intent(out) :: trian
-    type(fem_conditions_t)                 , intent(out) :: bcond
+    type(triangulation_t)              , intent(out) :: trian
+    type(conditions_t)                 , intent(out) :: bcond
     integer(ip), allocatable             , intent(out) :: mater(:)
-    type(fem_mesh_distribution_t), optional, intent(out) :: mdist
+    type(mesh_distribution_t), optional, intent(out) :: mdist
     
     ! Locals
     type(geom_size_t) :: gsize
@@ -463,9 +463,9 @@ contains
 
     ! Create triangulation
     if(present(mdist)) then
-       call fem_triangulation_create(gsize%neghost,trian)
+       call triangulation_create(gsize%neghost,trian)
     else
-       call fem_triangulation_create(gsize%nedomt,trian)
+       call triangulation_create(gsize%nedomt,trian)
     end if
     trian%num_elems = gsize%nedomt
     trian%num_dims  = gdata%ndime
@@ -481,7 +481,7 @@ contains
     end if
 
     ! Dual triangulation
-    if(.not.present(mdist)) call fem_triangulation_to_dual(trian)
+    if(.not.present(mdist)) call triangulation_to_dual(trian)
 
     ! Create mesh_distribution
     if(present(mdist)) then
@@ -513,9 +513,9 @@ contains
     type(geom_size_t)                    , intent(in)    :: gsize
     type(topo_size_t)                    , intent(in)    :: tsize
     type(reference_element_t)               , intent(in)    :: geo_reference_element
-    type(fem_triangulation_t)            , intent(inout) :: trian
-    type(fem_conditions_t)               , intent(in)    :: poin,line,surf
-    type(fem_conditions_t)               , intent(out)   :: nodes
+    type(triangulation_t)            , intent(inout) :: trian
+    type(conditions_t)               , intent(in)    :: poin,line,surf
+    type(conditions_t)               , intent(out)   :: nodes
     integer(ip), allocatable           , intent(out)   :: mater(:)
     type(map_igp_t)            , optional, intent(inout) :: nmap,emap
     integer(ip) , allocatable, optional, intent(out)   :: pextn(:),lextp(:)
@@ -556,7 +556,7 @@ contains
     call globalid_2l(ijkpart,gsize%nsckt,gsize%npsoc,ndime,lpart)
 
     ! Create bounary conditions
-    call fem_conditions_create(poin%ncode,poin%nvalu,tsize%notot,nodes)
+    call conditions_create(poin%ncode,poin%nvalu,tsize%notot,nodes)
    
     ! Interior nodes/elements
     call volu_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,npnumg,npnumt,nenum,coord,cnt)
@@ -798,10 +798,10 @@ contains
     type(topo_size_t)               , intent(in)    :: tsize
     type(geom_data_t)               , intent(in)    :: gdata
     type(reference_element_t)          , intent(in)    :: geo_reference_element
-    type(fem_conditions_t)          , intent(in)    :: surf
+    type(conditions_t)          , intent(in)    :: surf
     integer(ip)                   , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)                      , intent(inout) :: coord(:,:)
-    type(fem_conditions_t), optional, intent(inout) :: nodes
+    type(conditions_t), optional, intent(inout) :: nodes
     
     integer(ip) :: auxv(3,2),i,j,k,pdime,iface,ijkpoin(3),ijkelem(3),ijkface(3),glnum,flag,neigh(2)
     integer(ip) :: lface(2),surf_cnt
@@ -1080,10 +1080,10 @@ contains
     type(topo_size_t),      intent(in)    :: tsize
     type(geom_data_t),      intent(in)    :: gdata
     type(reference_element_t), intent(in)    :: geo_reference_element
-    type(fem_conditions_t), intent(in)    :: line,surf
+    type(conditions_t), intent(in)    :: line,surf
     integer(ip),          intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp),             intent(inout) :: coord(:,:)
-    type(fem_conditions_t), intent(inout) :: nodes
+    type(conditions_t), intent(inout) :: nodes
  
     integer(ip) :: i,j,k,pdime,iedge,jedge,ijedge(2),ijkpoin(3),ijkelem(3),ijkvert(3),ijkedge(3)
     integer(ip) :: inipo,ledge(2,2),line_cnt,neigh(2*(ndime-1))
@@ -1439,10 +1439,10 @@ contains
     type(topo_size_t)     , intent(in)    :: tsize
     type(geom_data_t)     , intent(in)    :: gdata
     type(reference_element_t), intent(in)    :: geo_reference_element
-    type(fem_conditions_t), intent(in)    :: poin,line,surf
+    type(conditions_t), intent(in)    :: poin,line,surf
     integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)            , intent(inout) :: coord(:,:)
-    type(fem_conditions_t), intent(inout) :: nodes
+    type(conditions_t), intent(inout) :: nodes
     
     integer(ip) :: ivert,jvert,kvert,ijkpoin(3),ijkvert(3),glnum,flag,neigh(2**ndime)
     integer(ip) :: i,j,k,lcorn(2,2,2),ijkelem(3)
@@ -2034,7 +2034,7 @@ contains
     type(topo_size_t)         , intent(in)    :: tsize
     type(geom_data_t)         , intent(in)    :: gdata
     integer(igp)            , intent(out)   :: l2ge(:),l2gp(:)
-    type(fem_triangulation_t) , intent(inout) :: trian
+    type(triangulation_t) , intent(inout) :: trian
     real(rp)                , intent(in)    :: coord(:,:)
     integer(ip)             , intent(inout) :: mater(:)
 
@@ -2522,4 +2522,4 @@ contains
     
   end subroutine materialid
                 
-end module fem_mesh_gen_distribution_names
+end module mesh_gen_distribution_names

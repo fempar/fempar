@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_materials_names
+module materials_names
 use types_names
 use memor_names
 use stdio_names
@@ -33,26 +33,26 @@ use stdio_names
   implicit none
   private
 
-  type fem_materials_t
+  type materials_t
      integer(ip)                :: &
           nelem=0                          ! Number of elements
      integer(ip), allocatable   :: &
           list(:)                          ! Material type for every element
-  end type fem_materials_t
+  end type materials_t
 
   ! Types
-  public :: fem_materials_t
+  public :: materials_t
 
   ! Methods
-  public :: fem_materials_create, fem_materials_free
+  public :: materials_create, materials_free
 
 contains
 
   !===============================================================================================
-  subroutine fem_materials_create(nelem,mat)
+  subroutine materials_create(nelem,mat)
     implicit none
     integer(ip)        , intent(in)  :: nelem
-    type(fem_materials_t), intent(out) :: mat
+    type(materials_t), intent(out) :: mat
 
     mat%nelem=nelem
 
@@ -61,12 +61,12 @@ contains
 
     return
 
-  end subroutine fem_materials_create
+  end subroutine materials_create
 
   !===============================================================================================
-  subroutine fem_materials_free(mat)
+  subroutine materials_free(mat)
     implicit none
-    type(fem_materials_t), intent(inout) :: mat
+    type(materials_t), intent(inout) :: mat
 
     mat%nelem= 0
 
@@ -74,6 +74,6 @@ contains
 
     return
 
-  end subroutine fem_materials_free
+  end subroutine materials_free
 
-end module fem_materials_names
+end module materials_names

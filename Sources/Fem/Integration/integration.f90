@@ -35,10 +35,10 @@ module integration_names
   use femap_interp_names
   use fe_space_names
   use assembly_names
-  use fem_block_matrix_names
-  use fem_matrix_names
-  use fem_block_vector_names
-  use fem_vector_names
+  use block_matrix_names
+  use matrix_names
+  use block_vector_names
+  use vector_names
   implicit none
   private
 

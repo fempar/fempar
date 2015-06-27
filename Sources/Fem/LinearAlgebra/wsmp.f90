@@ -34,10 +34,10 @@ module wsmp_names
   ! Serial modules
 use types_names
 use memor_names
-  use fem_matrix_names
-  use fem_vector_names 
-!  use fem_graph_names
-!  use fem_graph_partition
+  use matrix_names
+  use vector_names 
+!  use graph_names
+!  use graph_partition
 # include "debug.i90"
   
   implicit none
@@ -182,9 +182,9 @@ contains
     type(wsmp_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     ! Optional parameters
 !!$    integer , intent(inout), target, optional :: perm(A%gr%nv)
 !!$    integer , intent(inout), target, optional :: iperm(A%gr%nv)
@@ -278,9 +278,9 @@ contains
     type(wsmp_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-!    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
-!    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+!    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+!    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)            :: nrhs
     real(rp)          , intent(in)    :: b (A%gr%nv, nrhs)
     real(rp)          , intent(inout) :: x (A%gr%nv, nrhs)
@@ -316,7 +316,7 @@ contains
     type(wsmp_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     real(rp)          , intent(in)    :: b (A%gr%nv)
     real(rp)          , intent(inout) :: x (A%gr%nv)
 
@@ -359,7 +359,7 @@ contains
     implicit none
     ! Parameters
     type(wsmp_context_t), intent(inout), target :: context
-    type(fem_matrix_t)  , intent(in)            :: matrix
+    type(matrix_t)  , intent(in)            :: matrix
     integer, intent(out), target, optional    :: iparm(64)
     real   , intent(out), target, optional    :: dparm(64)
     ! Locals
@@ -554,7 +554,7 @@ contains
     implicit none
     ! Parameters 
     type(wsmp_context_t), intent(inout), target :: context
-    type(fem_matrix_t)  , intent(in), target    :: matrix
+    type(matrix_t)  , intent(in), target    :: matrix
     integer, intent(inout), target, optional  :: perm(matrix%gr%nv)
     integer, intent(inout), target, optional  :: iperm(matrix%gr%nv)
     integer, intent(inout), target, optional  :: iparm(64)
@@ -665,7 +665,7 @@ contains
     implicit none
     ! Parameters 
     type(wsmp_context_t), intent(inout),target :: context
-    type(fem_matrix_t)  , intent(in), target   :: matrix
+    type(matrix_t)  , intent(in), target   :: matrix
     integer, intent(inout), target, optional :: perm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
     integer, intent(inout), target, optional :: mrp(matrix%gr%nv)
@@ -782,10 +782,10 @@ contains
     implicit none
     ! Parameters 
     type(wsmp_context_t), intent(inout), target :: context
-    type(fem_matrix_t)  , intent(in)   , target :: matrix
-!    type(fem_vector_t)  , intent(in)   , target :: x
-    type(fem_vector_t)  , intent(in)            :: x
-    type(fem_vector_t)  , intent(inout), target :: y
+    type(matrix_t)  , intent(in)   , target :: matrix
+!    type(vector_t)  , intent(in)   , target :: x
+    type(vector_t)  , intent(in)            :: x
+    type(vector_t)  , intent(inout), target :: y
     integer, intent(inout), target, optional :: perm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iparm(64)
@@ -861,8 +861,8 @@ contains
           stop
        end if
 
-       !call fem_vector_nrm2(x,xnorm)
-       !call fem_vector_nrm2(y,ynorm)
+       !call vector_nrm2(x,xnorm)
+       !call vector_nrm2(y,ynorm)
 
        write(*,*) 'Performing solution', iparm_(10), iparm_(31)
 
@@ -919,7 +919,7 @@ contains
     implicit none
     ! Parameters 
     type(wsmp_context_t), intent(inout), target :: context
-    type(fem_matrix_t)  , intent(in)   , target :: matrix
+    type(matrix_t)  , intent(in)   , target :: matrix
     real(rp)          , intent(in)   , target :: rhs (matrix%gr%nv)
     real(rp)          , intent(inout), target :: sol (matrix%gr%nv)
     integer, intent(inout), target, optional :: perm(matrix%gr%nv)
@@ -1042,7 +1042,7 @@ contains
     implicit none
     ! Parameters 
     type(wsmp_context_t), intent(inout), target :: context
-    type(fem_matrix_t)  , intent(in)   , target :: matrix
+    type(matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs
     real(rp)          , intent(in)   , target :: rhs (matrix%gr%nv, nrhs)
     real(rp)          , intent(inout), target :: sol (matrix%gr%nv, nrhs)

@@ -48,7 +48,7 @@ use iso_c_binding
   ! then it is a MUST that the linear coefficient matrix is
   ! provided as a type(block_operator_t) instance. type(block_operator_t) provides the
   ! necessary (concrete) interface to build type(block_operator_t) instances as views, 
-  ! e.g., of the components of a type(fem_block_matrix_t) or type(par_block_matrix_t).
+  ! e.g., of the components of a type(block_matrix_t) or type(par_block_matrix_t).
 
   ! Pointer to operator
   type p_abs_operator_t

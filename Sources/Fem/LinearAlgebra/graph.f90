@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_graph_names
+module graph_names
 use types_names
 use memor_names
   implicit none
@@ -34,26 +34,26 @@ use memor_names
   private
 
   ! Graph
-  type fem_graph_t
+  type graph_t
      integer(ip)                :: &
-        type=0,                    &         ! Type of fem_graph_t (csr_symm, csr, css, part)
+        type=0,                    &         ! Type of graph_t (csr_symm, csr, css, part)
         nv=0,                      &         ! Number of vertices
-        nv2=0,                     &         ! Number of vertices2 (bipartite fem_graphs)
+        nv2=0,                     &         ! Number of vertices2 (bipartite graphs)
         
         ! The following fields are only 
-        ! used for fem_graph_ts of type css
+        ! used for graph_ts of type css
         nzs=0,                     &         ! Half size
         nzt=0                                ! Total size
      integer(ip), allocatable   :: &
         ia(:),                     &         ! Indices of adjacencies
         
         ! The following field is only 
-        ! used for fem_graph_ts of type css
+        ! used for graph_ts of type css
         is(:),                     &         ! Indices to access lower/upper adjacencies
         
         ja(:)                                ! Adjacencies
 
-  end type fem_graph_t
+  end type graph_t
 
   ! See comments on mesh_graph.f90 ...
   integer(ip), parameter :: csr_symm = 10    ! Compress storage row for SQUARE symmetric
@@ -77,17 +77,17 @@ use memor_names
                                              ! necessarily in ascending order (e.g., to 
                                              ! perform graph partitioning with METIS)
 
-  ! csr, csr_symm and css fem_graph_t types are intended to address sparse
+  ! csr, csr_symm and css graph_t types are intended to address sparse
   ! matrices, while part type is used for sequential graph 
   ! partitioning. The separation of the mesh_to_graph interface is
   ! done accordingly to this criteria       
 
   ! Types
-  public :: fem_graph_t
+  public :: graph_t
 
   ! Functions
-  public :: fem_graph_copy, fem_graph_free, fem_graph_print, fem_graph_read, &
-       &    fem_graph_ja_one_to_zero_indexing, fem_graph_ja_zero_to_one_indexing
+  public :: graph_copy, graph_free, graph_print, graph_read, &
+       &    graph_ja_one_to_zero_indexing, graph_ja_zero_to_one_indexing
   ! Constants
   public :: csr_symm, csr, part, css
 
@@ -96,10 +96,10 @@ contains
   !
   !
   !=============================================================================
-  subroutine fem_graph_copy (igraph, ograph)
+  subroutine graph_copy (igraph, ograph)
     implicit none
-    type(fem_graph_t), intent(in)    :: igraph
-    type(fem_graph_t), intent(inout) :: ograph
+    type(graph_t), intent(in)    :: igraph
+    type(graph_t), intent(inout) :: ograph
 
     ! This routine is only provided for graphs stored in CSR/CSR_SYMM
     ! format. If you need to copy a graph in a different format,
@@ -118,18 +118,18 @@ contains
     call memalloc ( igraph%ia(igraph%nv+1)-1, ograph%ja,__FILE__,__LINE__) 
     ograph%ja = igraph%ja
 
-  end subroutine fem_graph_copy
+  end subroutine graph_copy
 
   !=============================================================================
   !
   !
   !=============================================================================
-  subroutine fem_graph_free(g)
+  subroutine graph_free(g)
     !-----------------------------------------------------------------------
     ! This routine 
     !-----------------------------------------------------------------------
     implicit none
-    type(fem_graph_t), intent(inout)  :: g
+    type(graph_t), intent(inout)  :: g
 
     call memfree (g%ia,__FILE__,__LINE__)
     call memfree (g%ja,__FILE__,__LINE__)
@@ -138,18 +138,18 @@ contains
        call memfree(g%is,__FILE__,__LINE__)
     end if
 
-  end subroutine fem_graph_free
+  end subroutine graph_free
 
   !=============================================================================
-  subroutine fem_graph_print(lunou, g)
+  subroutine graph_print(lunou, g)
     implicit none
     integer(ip)    ,  intent(in) :: lunou
-    type(fem_graph_t),  intent(in) :: g
+    type(graph_t),  intent(in) :: g
 
     ! Local variables
     integer(ip) :: i,j
 
-    write (lunou, '(a)')     '*** begin fem_graph data structure ***'
+    write (lunou, '(a)')     '*** begin graph data structure ***'
     write (lunou, '(a,i10)') 'Graph type:', g%type    
     write (lunou, '(a,i10)') 'Number of vertices (rows):', g%nv
     write (lunou, '(a,i10)') 'Number of vertices (cols):', g%nv2
@@ -172,15 +172,15 @@ contains
     do i=1,g%nv
        write(lunou,'(10i10)') i, g%ja(g%ia(i):g%ia(i+1)-1)
     end do
-    write (lunou, '(a)')     '*** end fem_graph data structure ***'
+    write (lunou, '(a)')     '*** end graph data structure ***'
 
-  end subroutine fem_graph_print
+  end subroutine graph_print
 
   !=============================================================================
-  subroutine fem_graph_read(lunin, g)
+  subroutine graph_read(lunin, g)
     implicit none
     integer(ip)    ,  intent(in)    :: lunin
-    type(fem_graph_t),  intent(inout) :: g
+    type(graph_t),  intent(inout) :: g
     character(256) :: text
     ! Local variables
     integer(ip) :: i,j
@@ -224,40 +224,40 @@ contains
     end do
     read (lunin, '(a)')       text
 
-  end subroutine fem_graph_read
+  end subroutine graph_read
 
   !=============================================================================
-  subroutine fem_graph_ja_one_to_zero_indexing (g)
+  subroutine graph_ja_one_to_zero_indexing (g)
     implicit none
     ! Parameters
-    type(fem_graph_t),  intent(inout) :: g
+    type(graph_t),  intent(inout) :: g
     integer(ip)                 :: j
 
     do j=g%ia(1), g%ia(g%nv+1)-1
       g%ja(j) = g%ja(j) - 1
     end do
 
-  end subroutine fem_graph_ja_one_to_zero_indexing
+  end subroutine graph_ja_one_to_zero_indexing
 
   !=============================================================================
-  subroutine fem_graph_ja_zero_to_one_indexing (g)
+  subroutine graph_ja_zero_to_one_indexing (g)
     implicit none
     ! Local Variables
-    type(fem_graph_t),  intent(inout) :: g
+    type(graph_t),  intent(inout) :: g
     integer(ip)                 :: j
 
     do j=g%ia(1), g%ia(g%nv+1)-1
       g%ja(j) = g%ja(j) + 1
     end do
 
-  end subroutine fem_graph_ja_zero_to_one_indexing
+  end subroutine graph_ja_zero_to_one_indexing
 
 !!$  ! Inspired on http://en.wikipedia.org/wiki/Breadth-first_search
-!!$  subroutine fem_graph_compute_connected_components (g, lconn)
+!!$  subroutine graph_compute_connected_components (g, lconn)
 !!$    implicit none
 !!$
 !!$    ! Parameters
-!!$    type(fem_graph_t), intent(in)   :: g
+!!$    type(graph_t), intent(in)   :: g
 !!$    type(list_t)     , intent(out)  :: lconn
 !!$ 
 !!$    ! Locals
@@ -334,7 +334,7 @@ contains
 !!$    call memfree( q  ,__FILE__,__LINE__)
 !!$    call memfree( marked,__FILE__,__LINE__)
 !!$
-!!$  end subroutine fem_graph_compute_connected_components
+!!$  end subroutine graph_compute_connected_components
 
   !=============================================================================
   !subroutine permut_graph(np,np2,nz,ia,ja,is,lrord,lrord2)
@@ -392,4 +392,4 @@ contains
 
   !end subroutine permut_graph
 
-end module fem_graph_names
+end module graph_names

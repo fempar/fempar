@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_graph_names
+module block_graph_names
   ! Serial modules
 use types_names
-  use fem_graph_names
+  use graph_names
 
   implicit none
 # include "debug.i90"
@@ -36,40 +36,40 @@ use types_names
   private
 
   ! Pointer to graph
-  type p_fem_graph_t
-    type(fem_graph_t), pointer :: p_f_graph
-  end type p_fem_graph_t
+  type p_graph_t
+    type(graph_t), pointer :: p_f_graph
+  end type p_graph_t
 
 
   ! Block Graph 
-  type fem_block_graph_t
+  type block_graph_t
      private
      integer(ip)                    :: nblocks = -1
-     type(p_fem_graph_t), allocatable :: blocks(:,:)
+     type(p_graph_t), allocatable :: blocks(:,:)
   contains
-    procedure :: alloc             => fem_block_graph_alloc
-    procedure :: alloc_block       => fem_block_graph_alloc_block 
-    procedure :: set_block_to_zero => fem_block_graph_set_block_to_zero
-    procedure :: free              => fem_block_graph_free
-    procedure :: get_block         => fem_block_graph_get_block
-    procedure :: get_nblocks       => fem_block_graph_get_nblocks
-  end type fem_block_graph_t
+    procedure :: alloc             => block_graph_alloc
+    procedure :: alloc_block       => block_graph_alloc_block 
+    procedure :: set_block_to_zero => block_graph_set_block_to_zero
+    procedure :: free              => block_graph_free
+    procedure :: get_block         => block_graph_get_block
+    procedure :: get_nblocks       => block_graph_get_nblocks
+  end type block_graph_t
 
   ! Types
-  public :: fem_block_graph_t
+  public :: block_graph_t
 
   ! Functions
-  public :: fem_block_graph_alloc, fem_block_graph_alloc_block,       & 
-            fem_block_graph_set_block_to_zero, fem_block_graph_print, & 
-            fem_block_graph_free, fem_block_graph_get_block, fem_block_graph_get_nblocks                                 
+  public :: block_graph_alloc, block_graph_alloc_block,       & 
+            block_graph_set_block_to_zero, block_graph_print, & 
+            block_graph_free, block_graph_get_block, block_graph_get_nblocks                                 
 
 contains
 
   !=============================================================================
-  subroutine fem_block_graph_alloc ( p_f_graph, nblocks)
+  subroutine block_graph_alloc ( p_f_graph, nblocks)
     implicit none
     ! Parameters
-    class(fem_block_graph_t)              , intent(inout) :: p_f_graph
+    class(block_graph_t)              , intent(inout) :: p_f_graph
     integer(ip)                         , intent(in)    :: nblocks
 
     ! Locals
@@ -85,12 +85,12 @@ contains
            check(istat==0)
       end do
     end do
-  end subroutine fem_block_graph_alloc
+  end subroutine block_graph_alloc
 
-  subroutine fem_block_graph_alloc_block (p_f_graph,ib,jb)
+  subroutine block_graph_alloc_block (p_f_graph,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_graph_t), target, intent(inout) :: p_f_graph
+    class(block_graph_t), target, intent(inout) :: p_f_graph
     integer(ip)                  , intent(in)    :: ib,jb
     ! Locals
     integer(ip) :: istat
@@ -100,12 +100,12 @@ contains
        allocate ( p_f_graph%blocks(ib,jb)%p_f_graph, stat=istat )
        check(istat==0)
     end if
-  end subroutine fem_block_graph_alloc_block
+  end subroutine block_graph_alloc_block
 
-  subroutine fem_block_graph_set_block_to_zero (p_f_graph,ib,jb)
+  subroutine block_graph_set_block_to_zero (p_f_graph,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_graph_t), intent(inout) :: p_f_graph
+    class(block_graph_t), intent(inout) :: p_f_graph
     integer(ip)           , intent(in)   :: ib,jb
     ! Locals
     integer(ip) :: istat
@@ -114,42 +114,42 @@ contains
        deallocate (p_f_graph%blocks(ib,jb)%p_f_graph, stat=istat)
        check(istat==0)
        ! AFM: to address this scenario. The graph might be partially or fully created!!!
-       ! call fem_graph_free ( p_f_graph%blocks(ib,jb)%p_f_graph, free_clean)
+       ! call graph_free ( p_f_graph%blocks(ib,jb)%p_f_graph, free_clean)
        nullify    (p_f_graph%blocks(ib,jb)%p_f_graph)
     end if
-  end subroutine fem_block_graph_set_block_to_zero
+  end subroutine block_graph_set_block_to_zero
   
-  function fem_block_graph_get_block (p_f_graph,ib,jb)
+  function block_graph_get_block (p_f_graph,ib,jb)
     implicit none
     ! Parameters
-    class(fem_block_graph_t), target, intent(in) :: p_f_graph
+    class(block_graph_t), target, intent(in) :: p_f_graph
     integer(ip)                   , intent(in) :: ib,jb
-    type(fem_graph_t)               , pointer    :: fem_block_graph_get_block
+    type(graph_t)               , pointer    :: block_graph_get_block
 
-    fem_block_graph_get_block =>  p_f_graph%blocks(ib,jb)%p_f_graph
-  end function fem_block_graph_get_block
+    block_graph_get_block =>  p_f_graph%blocks(ib,jb)%p_f_graph
+  end function block_graph_get_block
 
-  function fem_block_graph_get_nblocks (p_f_graph)
+  function block_graph_get_nblocks (p_f_graph)
     implicit none
     ! Parameters
-    class(fem_block_graph_t), target, intent(in) :: p_f_graph
-    integer(ip)                                :: fem_block_graph_get_nblocks
-    fem_block_graph_get_nblocks = p_f_graph%nblocks
-  end function fem_block_graph_get_nblocks
+    class(block_graph_t), target, intent(in) :: p_f_graph
+    integer(ip)                                :: block_graph_get_nblocks
+    block_graph_get_nblocks = p_f_graph%nblocks
+  end function block_graph_get_nblocks
 
-  subroutine fem_block_graph_print (lunou, p_f_graph)
+  subroutine block_graph_print (lunou, p_f_graph)
     implicit none
-    class(fem_block_graph_t), intent(in)    :: p_f_graph
+    class(block_graph_t), intent(in)    :: p_f_graph
     integer(ip)           , intent(in)    :: lunou
     integer(ip)                           :: i
 
     check(.false.)
-  end subroutine fem_block_graph_print
+  end subroutine block_graph_print
 
   !=============================================================================
-  subroutine fem_block_graph_free (p_f_graph)
+  subroutine block_graph_free (p_f_graph)
     implicit none
-    class(fem_block_graph_t), intent(inout) :: p_f_graph
+    class(block_graph_t), intent(inout) :: p_f_graph
     integer(ip) :: ib,jb
     ! Locals
     integer(ip) :: istat
@@ -157,7 +157,7 @@ contains
     do ib=1, p_f_graph%nblocks
        do jb=1, p_f_graph%nblocks
           if ( associated(p_f_graph%blocks(ib,jb)%p_f_graph) ) then
-             call fem_graph_free ( p_f_graph%blocks(ib,jb)%p_f_graph )
+             call graph_free ( p_f_graph%blocks(ib,jb)%p_f_graph )
              deallocate (p_f_graph%blocks(ib,jb)%p_f_graph, stat=istat) 
              ! AFM: At this point the graph MUST BE fully created
              check(istat==0)
@@ -168,6 +168,6 @@ contains
     deallocate ( p_f_graph%blocks, stat=istat )
     check(istat==0)
     p_f_graph%nblocks=-1 
- end subroutine fem_block_graph_free
+ end subroutine block_graph_free
 
-end module fem_block_graph_names
+end module block_graph_names

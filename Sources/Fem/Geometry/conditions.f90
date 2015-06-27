@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_conditions_names
+module conditions_names
 use types_names
 use memor_names
 use stdio_names
@@ -34,7 +34,7 @@ use stdio_names
   implicit none
   private
 
-  type fem_conditions_t
+  type conditions_t
      integer(ip)                :: &
           ncode=1,                 &         ! Number of codes  (=nvars)
           nvalu=1,                 &         ! Number of values (=nvars)
@@ -43,21 +43,21 @@ use stdio_names
           code(:,:)                          ! Codes
      real(rp), allocatable      :: &
           valu(:,:)                          ! Values
-  end type fem_conditions_t
+  end type conditions_t
 
   ! Types
-  public :: fem_conditions_t
+  public :: conditions_t
 
   ! Methods
-  public :: fem_conditions_create, fem_conditions_free, fem_conditions_copy, fem_conditions_apply_renum
+  public :: conditions_create, conditions_free, conditions_copy, conditions_apply_renum
 
 contains
 
   !===============================================================================================
-  subroutine fem_conditions_create(ncode,nvalu,ncond,cnd)
+  subroutine conditions_create(ncode,nvalu,ncond,cnd)
     implicit none
     integer(ip)         , intent(in)    :: ncode,nvalu,ncond
-    type(fem_conditions_t), intent(inout) :: cnd
+    type(conditions_t), intent(inout) :: cnd
 
     cnd%ncode=ncode
     cnd%nvalu=nvalu
@@ -68,25 +68,25 @@ contains
     cnd%code=0
     cnd%valu=0.0_rp
 
-  end subroutine fem_conditions_create
+  end subroutine conditions_create
 
   !===============================================================================================
-  subroutine fem_conditions_copy(cnd_old,cnd_new)
+  subroutine conditions_copy(cnd_old,cnd_new)
     implicit none
-    type(fem_conditions_t), intent(in)    :: cnd_old
-    type(fem_conditions_t), intent(inout) :: cnd_new
+    type(conditions_t), intent(in)    :: cnd_old
+    type(conditions_t), intent(inout) :: cnd_new
 
-    call fem_conditions_create( cnd_old%ncode, cnd_old%nvalu, cnd_old%ncond, cnd_new)
+    call conditions_create( cnd_old%ncode, cnd_old%nvalu, cnd_old%ncond, cnd_new)
     cnd_new%code=cnd_old%code
     cnd_new%valu=cnd_old%code
 
-  end subroutine fem_conditions_copy
+  end subroutine conditions_copy
 
   !===============================================================================================
-  subroutine fem_conditions_apply_renum(ren, cnd)
+  subroutine conditions_apply_renum(ren, cnd)
     implicit none
     type(renum_t)         , intent(in)    :: ren
-    type(fem_conditions_t), intent(inout) :: cnd
+    type(conditions_t), intent(inout) :: cnd
 
     integer(ip), allocatable :: tmp_int(:,:)
     real(rp)   , allocatable :: tmp_real(:,:)
@@ -105,12 +105,12 @@ contains
     call memfree ( tmp_real, __FILE__, __LINE__ )
     call memfree ( tmp_int, __FILE__, __LINE__ )
 
-  end subroutine fem_conditions_apply_renum
+  end subroutine conditions_apply_renum
 
   !===============================================================================================
-  subroutine fem_conditions_free(cnd)
+  subroutine conditions_free(cnd)
     implicit none
-    type(fem_conditions_t), intent(inout) :: cnd
+    type(conditions_t), intent(inout) :: cnd
 
     cnd%ncode=-1
     cnd%nvalu=-1
@@ -119,6 +119,6 @@ contains
     call memfree (cnd%code,__FILE__,__LINE__)
     call memfree (cnd%valu,__FILE__,__LINE__)
 
-  end subroutine fem_conditions_free
+  end subroutine conditions_free
 
-end module fem_conditions_names
+end module conditions_names

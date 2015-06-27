@@ -29,13 +29,13 @@ module fe_space_faces_names
   use types_names
   use memor_names
   use hash_table_names
-  use fem_mesh_names
+  use mesh_names
   !use integration_names
   use integration_tools_names
-  !  use fem_mesh_faces
+  !  use mesh_faces
   use fe_space_names
   use fe_space_types_names
-  use fem_triangulation_names
+  use triangulation_names
   use array_names
 
 # include "debug.i90"
@@ -53,7 +53,7 @@ contains
     implicit none
     ! Parameters
     type(fe_space_t)      , intent(inout),target  :: fe_space
-    type(fem_triangulation_t)   , intent(in), target   :: trian   
+    type(triangulation_t)   , intent(in), target   :: trian   
 
     ! Local variables
     integer(ip) :: iface, iobje, max_order, ielem, nvars, ivars, ndofs, pos_elmatvec

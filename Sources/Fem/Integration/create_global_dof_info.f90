@@ -29,13 +29,13 @@ module create_global_dof_info_names
   use types_names
   use array_names
   use memor_names
-  use fem_triangulation_names
+  use triangulation_names
   use fe_space_names
   use dof_handler_names
   use fe_space_types_names
   use hash_table_names
-  use fem_graph_names
-  use fem_block_graph_names
+  use graph_names
+  use block_graph_names
   use sort_names
   implicit none
 # include "debug.i90"
@@ -72,14 +72,14 @@ contains
     implicit none
     ! Dummy arguments
     type(dof_handler_t)              , intent(in)    :: dhand
-    type(fem_triangulation_t)        , intent(in)    :: trian 
+    type(triangulation_t)        , intent(in)    :: trian 
     type(fe_space_t)                , intent(inout) :: fe_space 
-    type(fem_block_graph_t)          , intent(inout) :: f_blk_graph 
+    type(block_graph_t)          , intent(inout) :: f_blk_graph 
     integer(ip)          , optional, intent(in)    :: gtype(dhand%nblocks) 
 
     ! Locals
     integer(ip) :: iblock, jblock
-    type(fem_graph_t), pointer :: f_graph
+    type(graph_t), pointer :: f_graph
 
 
     call create_element_to_dof_and_ndofs( dhand, trian, fe_space )
@@ -116,7 +116,7 @@ contains
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
-    type(fem_triangulation_t), intent(in)       :: trian 
+    type(triangulation_t), intent(in)       :: trian 
     type(fe_space_t), intent(inout)            :: fe_space 
 
     ! Local variables
@@ -234,7 +234,7 @@ contains
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)             :: dhand
-    type(fem_triangulation_t), intent(in)       :: trian 
+    type(triangulation_t), intent(in)       :: trian 
     type(fe_space_t), intent(inout)            :: fe_space 
 
     ! Local variables
@@ -340,9 +340,9 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(in)                 :: fe_space 
-    type(fem_graph_t), intent(out)                :: dof_graph
+    type(graph_t), intent(out)                :: dof_graph
     integer(ip), optional, intent(in)           :: gtype
 
 
@@ -427,7 +427,7 @@ contains
        !write (*,*) '****** END'
     end do
 
-    ! call fem_graph_print( 6, dof_graph )
+    ! call graph_print( 6, dof_graph )
 
     call memfree (aux_ia,__FILE__,__LINE__)
 
@@ -444,9 +444,9 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(in)                 :: fe_space 
-    type(fem_graph_t), intent(inout)                :: dof_graph
+    type(graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
     type(hash_table_ip_ip_t) :: visited
@@ -538,9 +538,9 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(in)                 :: fe_space 
-    type(fem_graph_t), intent(inout)                :: dof_graph
+    type(graph_t), intent(inout)                :: dof_graph
     integer(ip), intent(inout)                :: aux_ia(:)
 
     ! Local variables
@@ -641,9 +641,9 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(in)                 :: fe_space 
-    type(fem_graph_t), intent(inout)                :: dof_graph
+    type(graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
     integer(ip) :: g_var, ielem, inode, int_i, iobje, iprob, ivars, jdof, jnode, job_g
@@ -730,9 +730,9 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(in)                 :: fe_space 
-    type(fem_graph_t), intent(inout)              :: dof_graph
+    type(graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
     ! Local variables
@@ -836,9 +836,9 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(in)                 :: fe_space 
-    type(fem_graph_t), intent(inout)              :: dof_graph
+    type(graph_t), intent(inout)              :: dof_graph
 
     ! Local variables
     integer(ip) :: count, g_var, i, ielem, iface, inode, iobje, iprob, ivars, jelem
@@ -960,9 +960,9 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(in)                 :: fe_space 
-    type(fem_graph_t), intent(inout)              :: dof_graph
+    type(graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
     ! Local variables
@@ -1111,7 +1111,7 @@ contains
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(inout)              :: fe_space 
     integer(ip), intent(inout)                  :: count
     integer(ip), intent(in)                     :: g_var, jelem, l_var, obje_l
@@ -1137,7 +1137,7 @@ contains
     implicit none
     ! Parameters
     type(dof_handler_t), intent(in)               :: dhand
-    type(fem_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(fe_space_t), intent(inout)              :: fe_space
     integer(ip), intent(in)                     :: touch(:,:,:), mater, g_var, iobje, jelem, l_var, obje_l
     integer(ip), intent(out)                    :: o2n(:)

@@ -39,7 +39,7 @@ module element_tools_names
   implicit none
   private
 
-  type, extends(memory_guard) :: fem_function_t
+  type, extends(memory_guard) :: function_t
      integer(ip)  :: ivar=1
      integer(ip)  :: nvar=1
      integer(ip)  :: idof=1 ! First dof corresponding to ivar (=sum of nnode for jvar<ivar)
@@ -47,14 +47,14 @@ module element_tools_names
      integer(ip)  :: ngaus=1
      type(volume_integrator_pointer_t), pointer :: integ(:) => NULL()
    contains
-     procedure :: free => free_fem_function
-  end type fem_function_t
+     procedure :: free => free_function
+  end type function_t
 
   ! Basis functions can be left multiplied by a field.
   ! scalar -> shape(inode,igaus)
   ! vector -> shape(idime,jdime,inode,igaus) ! 2nd and 3rd index to to the matrix as one
   ! tensor -> shape(idime,jdime,kdime,ldime,inode,igaus) ! 3rd, 4th and 5th indices go to the matrix.
-  type, extends(fem_function_t) :: basis_function_t
+  type, extends(function_t) :: basis_function_t
      !real(rp), allocatable :: a(:,:)     ! shape(nnode,ngaus)
      real(rp) :: scaling=1.0_rp
      class(field_t), allocatable :: left_factor
@@ -83,7 +83,7 @@ module element_tools_names
      ! generic    :: operator(*) => scal_right, scal_left, product_by_scalar, product_by_vector, product_by_tensor
   end type basis_function_gradient_t
 
-  type, extends(fem_function_t) :: basis_function_divergence_t
+  type, extends(function_t) :: basis_function_divergence_t
      !real(rp), allocatable :: a(:,:,:)   ! deriv(ndime,nnode,ngaus)
      !real(rp) :: scaling=0.0_rp
      !class(field_t), allocatable :: left_factor
@@ -98,7 +98,7 @@ module element_tools_names
   end type basis_function_divergence_t
 
   ! Interpolations
-  ! type, extends(fem_function_t) :: given_function_t
+  ! type, extends(function_t) :: given_function_t
   !    integer(ip)                :: icomp=1
   ! end type given_function_t
   ! type, extends(given_function_t) :: given_function_gradient_t
@@ -146,18 +146,18 @@ contains
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  subroutine free_fem_function ( this )
-    class(fem_function_t), intent(inout) :: this
-  end subroutine free_fem_function
+  subroutine free_function ( this )
+    class(function_t), intent(inout) :: this
+  end subroutine free_function
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  subroutine copy_fem_function(from,to)
+  subroutine copy_function(from,to)
     implicit none
-    class(fem_function_t), intent(in), target  :: from
-    class(fem_function_t), intent(inout)       :: to
+    class(function_t), intent(in), target  :: from
+    class(function_t), intent(inout)       :: to
     to%ivar=from%ivar
     to%nvar=from%nvar
     to%idof=from%idof
@@ -165,7 +165,7 @@ contains
     to%ngaus=from%ngaus
     to%integ=>from%integ
     call to%SetTemp()
-  end subroutine copy_fem_function
+  end subroutine copy_function
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -200,7 +200,7 @@ contains
     type(basis_function_gradient_t)    :: g
     integer(ip) :: ndime, nnode, ngaus
     call u%GuardTemp()
-    call copy_fem_function(u,g)
+    call copy_function(u,g)
     call u%CleanTemp()
   end function basis_function_gradient_constructor
 
@@ -209,7 +209,7 @@ contains
     type(basis_function_divergence_t)    :: g
     integer(ip) :: ndime, nnode, ngaus
     call u%GuardTemp()
-    call copy_fem_function(u,g)
+    call copy_function(u,g)
     call u%CleanTemp()
   end function basis_function_divergence_constructor
 
@@ -243,7 +243,7 @@ contains
  !    type(given_function_gradient_t)    :: g
  !    integer(ip) :: ndime, nnode, ngaus
  !    call u%GuardTemp()
- !    call copy_fem_function(u,g)
+ !    call copy_function(u,g)
  !    call u%CleanTemp()
  !  end function given_function_gradient_constructor
 
@@ -252,7 +252,7 @@ contains
  !    type(given_function_divergence_t)  :: g
  !    integer(ip) :: ndime, nnode, ngaus
  !    call u%GuardTemp()
- !    call copy_fem_function(u,g)
+ !    call copy_function(u,g)
  !    call u%CleanTemp()
  !  end function given_function_divergence_constructor
 
@@ -449,7 +449,7 @@ contains
     class(basis_function_t), allocatable :: res
     allocate(res,mold=u)
     call res%SetTemp()
-    call copy_fem_function(u,res)
+    call copy_function(u,res)
     if(allocated(u%left_factor)) then
        ! Here we need * and = overloading with corresponding allocation/deallocation.
        res%left_factor = field_left * u%left_factor
@@ -466,7 +466,7 @@ contains
     call ul%GuardTemp()
     allocate(x,mold=ul)
     call x%SetTemp()
-    call copy_fem_function(ul,x)
+    call copy_function(ul,x)
     x%scaling = x%scaling * alpha
     call ul%CleanTemp()
   end function scale_left_basis_function
@@ -479,7 +479,7 @@ contains
     call ur%GuardTemp()
     allocate(x,mold=ur)
     call x%SetTemp()
-    call copy_fem_function(ur,x)
+    call copy_function(ur,x)
     x%scaling = x%scaling * alpha
     call ur%CleanTemp()
   end function scale_right_basis_function
@@ -492,7 +492,7 @@ contains
   !   type(basis_function_t)             :: res
   !   call u%GuardTemp()
   !   call res%SetTemp()
-  !   call copy_fem_function(u,res)
+  !   call copy_function(u,res)
   !   if(allocated(u%left_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
   !      res%left_factor = field_left * u%left_factor
@@ -508,7 +508,7 @@ contains
   !   type(basis_function_gradient_t)             :: res
   !   call u%GuardTemp()
   !   call res%SetTemp()
-  !   call copy_fem_function(u,res)
+  !   call copy_function(u,res)
   !   if(allocated(u%left_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
   !      res%left_factor = field_left * u%left_factor
@@ -524,7 +524,7 @@ contains
   !   type(basis_function_divergence_t)             :: res
   !   call u%GuardTemp()
   !   call res%SetTemp()
-  !   call copy_fem_function(u,res)
+  !   call copy_function(u,res)
   !   if(allocated(u%left_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
   !      res%left_factor = field_left * u%left_factor
@@ -540,7 +540,7 @@ contains
   !   type(basis_function_t), intent(in) :: u
   !   type(basis_function_t)             :: res
   !   call u%GuardTemp()
-  !   call copy_fem_function(u,res)
+  !   call copy_function(u,res)
   !   if(allocated(u%right_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
   !      !res%right_factor = u%right_factor * field_right
@@ -555,7 +555,7 @@ contains
   !   type(basis_function_gradient_t), intent(in) :: u
   !   type(basis_function_gradient_t)             :: res
   !   call u%GuardTemp()
-  !   call copy_fem_function(u,res)
+  !   call copy_function(u,res)
   !   if(allocated(u%right_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
   !      !res%right_factor = u%right_factor * field_right
@@ -570,7 +570,7 @@ contains
   !   type(basis_function_divergence_t), intent(in) :: u
   !   type(basis_function_divergence_t)             :: res
   !   call u%GuardTemp()
-  !   call copy_fem_function(u,res)
+  !   call copy_function(u,res)
   !   if(allocated(u%right_factor)) then
   !      ! Here we need * and = overloading with corresponding allocation/deallocation.
   !      !res%right_factor = u%right_factor * field_right
@@ -592,7 +592,7 @@ contains
   !   type(basis_function_t), intent(in) :: ul
   !   type(basis_function_t)             :: x
   !   call ul%GuardTemp()
-  !   call copy_fem_function(ul,x)
+  !   call copy_function(ul,x)
   !   x%scaling = alpha
   !   call ul%CleanTemp()
   ! end function scale_left_basis_function
@@ -602,7 +602,7 @@ contains
   !   type(basis_function_gradient_t), intent(in) :: ul
   !   type(basis_function_gradient_t)             :: x
   !   call ul%GuardTemp()
-  !   call copy_fem_function(ul,x)
+  !   call copy_function(ul,x)
   !   x%scaling = alpha
   !   call ul%CleanTemp()
   ! end function scale_left_basis_function_gradient
@@ -612,7 +612,7 @@ contains
   !   type(basis_function_divergence_t), intent(in) :: ul
   !   type(basis_function_divergence_t)             :: x
   !   call ul%GuardTemp()
-  !   call copy_fem_function(ul,x)
+  !   call copy_function(ul,x)
   !   x%scaling = alpha
   !   call ul%CleanTemp()
   ! end function scale_left_basis_function_divergence
@@ -623,7 +623,7 @@ contains
   !   type(basis_function_t), intent(in) :: ur
   !   type(basis_function_t)             :: x
   !   call ur%GuardTemp()
-  !   call copy_fem_function(ur,x)
+  !   call copy_function(ur,x)
   !   x%scaling = alpha
   !   call ur%CleanTemp()
   ! end function scale_right_basis_function
@@ -633,7 +633,7 @@ contains
   !   type(basis_function_gradient_t), intent(in) :: ur
   !   type(basis_function_gradient_t)             :: x
   !   call ur%GuardTemp()
-  !   call copy_fem_function(ur,x)
+  !   call copy_function(ur,x)
   !   x%scaling = alpha
   !   call ur%CleanTemp()
   ! end function scale_right_basis_function_gradient
@@ -643,7 +643,7 @@ contains
   !   type(basis_function_divergence_t), intent(in) :: ur
   !   type(basis_function_divergence_t)             :: x
   !   call ur%GuardTemp()
-  !   call copy_fem_function(ur,x)
+  !   call copy_function(ur,x)
   !   x%scaling = alpha
   !   call ur%CleanTemp()
   ! end function scale_right_basis_function_divergence

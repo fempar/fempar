@@ -34,9 +34,9 @@ module hsl_ma87_names
   ! Serial modules
   use types_names
   use memor_names
-  use fem_matrix_names
-  use fem_vector_names 
-  use fem_graph_names
+  use matrix_names
+  use vector_names 
+  use graph_names
   use renum_names
 
 
@@ -135,9 +135,9 @@ contains
     type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)           , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
 
     type(hsl_ma87_control_t) , intent(in)    :: ctrl
     type(hsl_ma87_info_t)    , intent(inout) :: info
@@ -220,9 +220,9 @@ contains
     type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-!    type(fem_vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
-!    type(fem_vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+!    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+!    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)    :: nrhs, ldb, ldx
     real(rp)          , intent(in)    :: b (ldb, nrhs)
     real(rp)          , intent(inout) :: x (ldx, nrhs)
@@ -253,7 +253,7 @@ contains
     type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(fem_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     real(rp)          , intent(in)    :: b (A%gr%nv)
     real(rp)          , intent(inout) :: x (A%gr%nv)
 
@@ -291,7 +291,7 @@ contains
     implicit none
     ! Parameters
     type(hsl_ma87_context_t), intent(inout), target :: context
-    type(fem_matrix_t)      , intent(in)            :: matrix
+    type(matrix_t)      , intent(in)            :: matrix
 
 #ifdef ENABLE_HSL_MA87
 
@@ -330,18 +330,18 @@ contains
 
   !=============================================================================
   subroutine hsl_ma87_analysis ( context, matrix, ctrl, info )
-use fem_mesh_partition_base_names
+use mesh_partition_base_names
 use graph_renum_names
     implicit none
 
     ! Parameters 
     type(hsl_ma87_context_t) , intent(inout) :: context
-    type(fem_matrix_t)       , intent(in)    :: matrix
+    type(matrix_t)       , intent(in)    :: matrix
     type(hsl_ma87_control_t) , intent(in)    :: ctrl
     type(hsl_ma87_info_t)    , intent(out)   :: info
 
     ! Locals (required for the call to graph_nd_renumbering)
-    type (fem_graph_t)                  :: aux_graph
+    type (graph_t)                  :: aux_graph
     type(part_params_t)             :: prt_parts
     integer(ip)                   :: i
 
@@ -360,13 +360,13 @@ use graph_renum_names
 
     call half_to_full ( aux_graph%nv, matrix%gr%ia, matrix%gr%ja, aux_graph%ia, aux_graph%ja )
 
-    ! call fem_graph_print (6, matrix%gr)
-    ! call fem_graph_print (6, aux_graph)
+    ! call graph_print (6, matrix%gr)
+    ! call graph_print (6, aux_graph)
     
     call graph_nd_renumbering(prt_parts,aux_graph,context%ren) 
 
     ! De-allocate aux_graph
-    call fem_graph_free ( aux_graph )
+    call graph_free ( aux_graph )
 
     call ma87_analyse(matrix%gr%nv, matrix%gr%ia, matrix%gr%ja, &
                       context%ren%lperm, context%keep, ctrl%control, info%info)
@@ -440,7 +440,7 @@ use graph_renum_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t) , intent(inout) :: context
-    type(fem_matrix_t)       , target, intent(in) :: matrix
+    type(matrix_t)       , target, intent(in) :: matrix
     type(hsl_ma87_control_t) , intent(in)    :: ctrl
     type(hsl_ma87_info_t)    , intent(inout) :: info
 
@@ -478,9 +478,9 @@ use graph_renum_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t), intent(inout)        :: context
-    type(fem_matrix_t)  , intent(in)               :: matrix
-    type(fem_vector_t)  , intent(in), target       :: x
-    type(fem_vector_t)  , intent(inout), target    :: y
+    type(matrix_t)  , intent(in)               :: matrix
+    type(vector_t)  , intent(in), target       :: x
+    type(vector_t)  , intent(inout), target    :: y
     type(hsl_ma87_control_t) , intent(in)          :: ctrl
     type(hsl_ma87_info_t)    , intent(inout)       :: info
 
@@ -516,7 +516,7 @@ use graph_renum_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t), intent(inout) :: context
-    type(fem_matrix_t)  , intent(in)   :: matrix
+    type(matrix_t)  , intent(in)   :: matrix
     real(rp)          , intent(in)    :: rhs (matrix%gr%nv)
     real(rp)          , intent(inout) :: sol (matrix%gr%nv)
     type(hsl_ma87_control_t) , intent(in) :: ctrl
@@ -546,7 +546,7 @@ use graph_renum_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t), intent(inout), target :: context
-    type(fem_matrix_t)  , intent(in)   , target :: matrix
+    type(matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs, ldrhs, ldsol
     real(rp)          , intent(in)   , target :: rhs (ldrhs, nrhs)
     real(rp)          , intent(inout), target :: sol (ldsol, nrhs)

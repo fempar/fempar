@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_import_names
+module import_names
   use types_names
   use memor_names
   implicit none
@@ -34,7 +34,7 @@ module fem_import_names
   ! Import
   ! Host for data needed to perform communications for
   ! element-based data distributions (similar to epetra_import)
-  type fem_import_t
+  type import_t
      integer(ip)       ::          &
         ipart,                     &    ! Part identifier
         nparts                          ! Number of parts
@@ -58,25 +58,25 @@ module fem_import_names
      integer(ip), allocatable :: & 
         pack_idx(:)                     ! Where is located the data to be sent to 
                                         ! each neighbour on the local vectors of the part ?
-  end type fem_import_t
+  end type import_t
 
   ! Types
-  public :: fem_import_t
+  public :: import_t
 
   ! Functions
-  public :: fem_import_free, fem_import_print
+  public :: import_free, import_print
 
 contains
 
   !=============================================================================
-  subroutine fem_import_free ( import )
+  subroutine import_free ( import )
     !-----------------------------------------------------------------------
     ! This routine frees an import object
     !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    type(fem_import_t), intent(inout)  :: import
+    type(import_t), intent(inout)  :: import
 
     ! Free owner vector
     call memfree ( import%owner,__FILE__,__LINE__)
@@ -92,10 +92,10 @@ contains
  
     return
 
-  end subroutine fem_import_free
+  end subroutine import_free
 
   !=============================================================================
-  subroutine fem_import_print (lu_out, import)
+  subroutine import_print (lu_out, import)
     !-----------------------------------------------------------------------
     ! This routine prints an import object
     !-----------------------------------------------------------------------
@@ -103,7 +103,7 @@ contains
 
 
     ! Parameters
-    type(fem_import_t)   , intent(in)  :: import
+    type(import_t)   , intent(in)  :: import
     integer(ip)        , intent(in)  :: lu_out
 
     ! Local variables
@@ -111,7 +111,7 @@ contains
 
     if(lu_out>0) then
 
-       write(lu_out,'(a)') '*** begin fem_import_t data structure ***'
+       write(lu_out,'(a)') '*** begin import_t data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
             &  import%nparts
@@ -142,13 +142,13 @@ contains
 
 !!$       write(lu_out,'(a)') 'Pack:'
 !!$       write(lu_out,'(10i10)') import%pack_idx(1:import%snd_ptrs(import%num_snd+1)-1)
-!!$       write(lu_out,'(a)') '*** end fem_import_t data structure ***'
+!!$       write(lu_out,'(a)') '*** end import_t data structure ***'
 
     end if
 
     return
 
-  end subroutine fem_import_print
+  end subroutine import_print
 
 
-end module fem_import_names
+end module import_names

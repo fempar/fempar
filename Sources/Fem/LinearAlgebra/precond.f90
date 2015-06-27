@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_precond_names
+module precond_names
   ! Serial modules
   use types_names
   use memor_names
-  use fem_graph_names
-  use fem_matrix_names
-  use fem_vector_names
+  use graph_names
+  use matrix_names
+  use vector_names
   use pardiso_mkl_names
   use wsmp_names
   use hsl_mi20_names
@@ -78,7 +78,7 @@ module fem_precond_names
   integer (ip), parameter  :: precond_free_struct = 8
   integer (ip), parameter  :: precond_free_clean  = 9
 
-  type, extends(base_operator_t) :: fem_precond_t
+  type, extends(base_operator_t) :: precond_t
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 
@@ -122,17 +122,17 @@ module fem_precond_names
 
      ! AFM: I had to add a pointer to the linear system coefficient matrix within the
      !      preconditioner. The linear coefficient matrix is no longer passed to 
-     !      fem_precond%apply(r,z) in the abstract implementation of Krylov subspace methods, but
+     !      precond%apply(r,z) in the abstract implementation of Krylov subspace methods, but
      !      it is still required.
-     type(fem_matrix_t), pointer :: mat
+     type(matrix_t), pointer :: mat
 
    contains
-     procedure :: apply => fem_precond_apply_tbp
-     procedure :: apply_fun => fem_precond_apply_fun_tbp
-     procedure :: free => fem_precond_free_tbp
-  end type fem_precond_t
+     procedure :: apply => precond_apply_tbp
+     procedure :: apply_fun => precond_apply_fun_tbp
+     procedure :: free => precond_free_tbp
+  end type precond_t
 
-  type fem_precond_params_t
+  type precond_params_t
      ! The objective of this type is to define a generic 
      ! set of parameters and implement their "translation"
      ! to the specific parameter list of external libraries.
@@ -153,11 +153,11 @@ module fem_precond_names
      integer :: c_fail            = 1 
      real    :: damping           = 0.8       ! Damping factor for smoother==DJ
 
-  end type fem_precond_params_t
+  end type precond_params_t
 
-  interface fem_precond_apply
-     module procedure fem_precond_apply_vector, fem_precond_apply_r2, fem_precond_apply_r1
-  end interface fem_precond_apply
+  interface precond_apply
+     module procedure precond_apply_vector, precond_apply_r2, precond_apply_r1
+  end interface precond_apply
 
   ! Constants
   public :: no_prec, diag_prec, pardiso_mkl_prec, wsmp_prec, hsl_mi20_prec, hsl_ma87_prec, umfpack_prec
@@ -166,38 +166,38 @@ module fem_precond_names
   public :: precond_free_clean
 
   ! Types
-  public :: fem_precond_t, fem_precond_params_t
+  public :: precond_t, precond_params_t
 
   ! Functions
-  public :: fem_precond_create, fem_precond_free, fem_precond_symbolic, &
-       &    fem_precond_numeric, fem_precond_apply, fem_precond_log_info, &
-       &    fem_precond_bcast, fem_precond_fine_task,  extract_diagonal, &
+  public :: precond_create, precond_free, precond_symbolic, &
+       &    precond_numeric, precond_apply, precond_log_info, &
+       &    precond_bcast, precond_fine_task,  extract_diagonal, &
             invert_diagonal, apply_diagonal
 
 contains
 
   !=============================================================================
   ! Dummy method required to specialize Krylov subspace methods
-  subroutine fem_precond_bcast(prec,conv)
+  subroutine precond_bcast(prec,conv)
     implicit none
-    type(fem_precond_t) , intent(in)      :: prec
+    type(precond_t) , intent(in)      :: prec
     logical           , intent( inout ) :: conv
-  end subroutine fem_precond_bcast
+  end subroutine precond_bcast
 
   ! Dummy method required to specialize Krylov subspace methods
   ! Needs to be filled with the abs operator machinery.
-  function fem_precond_fine_task(prec)
+  function precond_fine_task(prec)
     implicit none
-    type(fem_precond_t) , intent(in) :: prec
-    logical                        :: fem_precond_fine_task
-    fem_precond_fine_task = .true. 
-  end function fem_precond_fine_task
+    type(precond_t) , intent(in) :: prec
+    logical                        :: precond_fine_task
+    precond_fine_task = .true. 
+  end function precond_fine_task
 
   !=============================================================================
-  subroutine  fem_precond_log_info (prec)
+  subroutine  precond_log_info (prec)
     implicit none
     ! Parameters
-    type(fem_precond_t)       , intent(in)          :: prec
+    type(precond_t)       , intent(in)          :: prec
 
     if(prec%type==pardiso_mkl_prec  .or. prec%type==wsmp_prec .or. prec%type==umfpack_prec ) then
        write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', prec%mem_peak_symb
@@ -219,17 +219,17 @@ contains
 #endif
     end if
     
-  end subroutine fem_precond_log_info
+  end subroutine precond_log_info
   !=============================================================================
-  subroutine  fem_precond_create (mat, prec, pars)
+  subroutine  precond_create (mat, prec, pars)
     implicit none
     ! Parameters
-    type(fem_matrix_t)        , target, intent(in)           :: mat
-    type(fem_precond_t)       , intent(inout)        :: prec
-    type(fem_precond_params_t), intent(in), optional :: pars
+    type(matrix_t)        , target, intent(in)           :: mat
+    type(precond_t)       , intent(inout)        :: prec
+    type(precond_params_t), intent(in), optional :: pars
 
     ! Locals
-    type (fem_vector_t) :: dum
+    type (vector_t) :: dum
 
     prec%mat => mat
 
@@ -297,19 +297,19 @@ contains
        write (0,*) 'Error: preconditioner type not supported'
        check(1==0)
     end if
-  end subroutine fem_precond_create
+  end subroutine precond_create
 
   !=============================================================================
-  subroutine fem_precond_free ( action, prec )
+  subroutine precond_free ( action, prec )
     implicit none
 
     ! Parameters
-    type(fem_precond_t), intent(inout) :: prec
+    type(precond_t), intent(inout) :: prec
     integer(ip)      , intent(in)    :: action
 
     ! Locals
-    type (fem_matrix_t) :: adum 
-    type (fem_vector_t) :: vdum 
+    type (matrix_t) :: adum 
+    type (vector_t) :: vdum 
 
     if ( action == precond_free_clean ) then
        nullify(prec%mat)
@@ -402,16 +402,16 @@ contains
        check(1==0)
     end if
 
-  end subroutine fem_precond_free
+  end subroutine precond_free
 
   !=============================================================================
-  subroutine fem_precond_symbolic(mat, prec)
+  subroutine precond_symbolic(mat, prec)
     implicit none
     ! Parameters
-    type(fem_matrix_t)      , intent(in), target    :: mat
-    type(fem_precond_t)     , intent(inout) :: prec
+    type(matrix_t)      , intent(in), target    :: mat
+    type(precond_t)     , intent(inout) :: prec
     ! Locals
-    type (fem_vector_t) :: vdum 
+    type (vector_t) :: vdum 
 
     prec%mat => mat
 
@@ -445,16 +445,16 @@ contains
        check(1==0)
     end if
 
-  end subroutine fem_precond_symbolic
+  end subroutine precond_symbolic
 
   !=============================================================================
-  subroutine fem_precond_numeric(mat, prec)
+  subroutine precond_numeric(mat, prec)
     implicit none
     ! Parameters
-    type(fem_matrix_t)      , intent(in), target    :: mat
-    type(fem_precond_t)     , intent(inout) :: prec
+    type(matrix_t)      , intent(in), target    :: mat
+    type(precond_t)     , intent(inout) :: prec
     ! Locals
-    type (fem_vector_t) :: vdum 
+    type (vector_t) :: vdum 
     integer(ip)       :: ilev, n, nnz
     integer(ip)       :: i, j
     real(rp)          :: diag
@@ -518,19 +518,19 @@ contains
        check(1==0)
     end if
     
-  end subroutine fem_precond_numeric
+  end subroutine precond_numeric
 
   !=============================================================================
-  subroutine fem_precond_apply_vector (mat, prec, x, y)
+  subroutine precond_apply_vector (mat, prec, x, y)
     implicit none
     ! Parameters
-    type(fem_matrix_t)      , intent(in)    :: mat
-    type(fem_precond_t)     , intent(inout) :: prec
-    type(fem_vector_t)      , intent(in)    :: x
-    type(fem_vector_t)      , intent(inout) :: y
+    type(matrix_t)      , intent(in)    :: mat
+    type(precond_t)     , intent(inout) :: prec
+    type(vector_t)      , intent(in)    :: x
+    type(vector_t)      , intent(inout) :: y
     ! Locals
-    type (fem_vector_t) :: vdum 
-    type (fem_vector_t) :: E_r
+    type (vector_t) :: vdum 
+    type (vector_t) :: E_r
     real (rp)         :: alpha, beta
     integer(ip)       :: j 
 
@@ -543,7 +543,7 @@ contains
        call wsmp ( wsmp_solve, prec%wsmp_ctxt, mat, x, y, &
             &      prec%wsmp_iparm, prec%wsmp_rparm )
     else if(prec%type==no_prec) then
-       call fem_vector_copy (x,y)
+       call vector_copy (x,y)
     else if ( prec%type==diag_prec ) then
        call apply_diagonal  ( mat%gr%nv, prec%d, x%b, y%b )
     else if (prec%type==hsl_mi20_prec) then
@@ -559,20 +559,20 @@ contains
        check(1==0)
     end if
     
-  end subroutine fem_precond_apply_vector
+  end subroutine precond_apply_vector
 
   !=============================================================================
-  subroutine fem_precond_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
+  subroutine precond_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
     implicit none
     ! Parameters
-    type(fem_matrix_t)      , intent(in)    :: mat
-    type(fem_precond_t)     , intent(inout) :: prec
+    type(matrix_t)      , intent(in)    :: mat
+    type(precond_t)     , intent(inout) :: prec
     integer(ip)       , intent(in)        :: nrhs, ldx, ldy
     real(rp)          , intent(in)        :: x (ldx, nrhs)
     real(rp)          , intent(inout)     :: y (ldy, nrhs)
 
     ! Locals
-    type (fem_vector_t)      :: vdum
+    type (vector_t)      :: vdum
     integer(ip)            :: i, j 
     real(rp) , allocatable :: E_r(:,:) 
     real (rp), allocatable :: alpha(:), beta(:)
@@ -609,19 +609,19 @@ contains
        check(1==0)
     end if
 
-  end subroutine fem_precond_apply_r2
+  end subroutine precond_apply_r2
 
   !=============================================================================
-  subroutine fem_precond_apply_r1 (mat, prec, x, y)
+  subroutine precond_apply_r1 (mat, prec, x, y)
     implicit none
     ! Parameters
-    type(fem_matrix_t) , intent(in)    :: mat
-    type(fem_precond_t), intent(inout) :: prec
+    type(matrix_t) , intent(in)    :: mat
+    type(precond_t), intent(inout) :: prec
     real(rp)         , intent(in)    :: x (mat%gr%nv)
     real(rp)         , intent(inout) :: y (mat%gr%nv)
 
     ! Locals
-    type (fem_vector_t)     :: vdum 
+    type (vector_t)     :: vdum 
     real(rp), allocatable :: E_r(:) 
     real (rp)             :: alpha, beta
     integer(ip)           :: j 
@@ -649,7 +649,7 @@ contains
        check(1==0)
     end if
 
-  end subroutine fem_precond_apply_r1
+  end subroutine precond_apply_r1
 
     ! Auxiliary routines
   subroutine invert_diagonal (n, d)
@@ -718,10 +718,10 @@ contains
   end subroutine extract_diagonal
 
   !=============================================================================
-  subroutine fem_precond_apply_tbp (op, x, y)
+  subroutine precond_apply_tbp (op, x, y)
     implicit none
     ! Parameters
-    class(fem_precond_t)    , intent(in)    :: op
+    class(precond_t)    , intent(in)    :: op
     class(base_operand_t)   , intent(in)    :: x
     class(base_operand_t)   , intent(inout) :: y
     
@@ -730,9 +730,9 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (fem_vector_t)
+    class is (vector_t)
        select type(y)
-       class is(fem_vector_t)
+       class is(vector_t)
           if(op%type==pardiso_mkl_prec) then
              call pardiso_mkl ( pardiso_mkl_solve, op%pardiso_mkl_ctxt,  &
                   &             op%mat, x, y, op%pardiso_mkl_iparm ) 
@@ -756,26 +756,26 @@ contains
              check(1==0)
           end if
        class default
-          write(0,'(a)') 'fem_matrix_t%apply: unsupported y class'
+          write(0,'(a)') 'matrix_t%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'fem_precond_t%apply: unsupported x class'
+       write(0,'(a)') 'precond_t%apply: unsupported x class'
        check(1==0)
     end select
 
     call x%CleanTemp()
-  end subroutine fem_precond_apply_tbp
+  end subroutine precond_apply_tbp
   
 
   !=============================================================================
-  function fem_precond_apply_fun_tbp (op, x) result(y)
+  function precond_apply_fun_tbp (op, x) result(y)
     implicit none
     ! Parameters
-    class(fem_precond_t), intent(in)   :: op
+    class(precond_t), intent(in)   :: op
     class(base_operand_t), intent(in)  :: x
     class(base_operand_t), allocatable :: y
-    type(fem_vector_t), allocatable :: local_y
+    type(vector_t), allocatable :: local_y
 
     
     assert (associated(op%mat))
@@ -783,23 +783,23 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (fem_vector_t)
+    class is (vector_t)
        allocate(local_y)
-       call fem_vector_alloc ( op%mat%gr%nv, local_y)
+       call vector_alloc ( op%mat%gr%nv, local_y)
        call op%apply(x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'fem_precond_t%apply_fun: unsupported x class'
+       write(0,'(a)') 'precond_t%apply_fun: unsupported x class'
        check(1==0)
     end select
 
     call x%CleanTemp()
-  end function fem_precond_apply_fun_tbp
+  end function precond_apply_fun_tbp
 
-  subroutine fem_precond_free_tbp(this)
+  subroutine precond_free_tbp(this)
     implicit none
-    class(fem_precond_t), intent(inout) :: this
-  end subroutine fem_precond_free_tbp
+    class(precond_t), intent(inout) :: this
+  end subroutine precond_free_tbp
 
-end module fem_precond_names
+end module precond_names

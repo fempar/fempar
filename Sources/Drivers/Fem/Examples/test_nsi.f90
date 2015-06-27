@@ -37,25 +37,25 @@ program test_nsi_iss
   type(geom_data_t)                    :: gdata
   type(bound_data_t)                   :: bdata
   type(reference_element_t)            :: geo_reference_element
-  type(fem_triangulation_t)            :: f_trian
-  type(fem_conditions_t)               :: f_cond
+  type(triangulation_t)            :: f_trian
+  type(conditions_t)               :: f_cond
   type(dof_handler_t)                  :: dhand
   type(fe_space_t)                    :: fe_space  
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
-  type(nsi_cg_iss_matvec_t)   , target :: matvec
+  type(nsi_cg_iss_matvec_t)   , target :: cg_iss_matvec
   type(discrete_integration_pointer) :: approx(1)
-  type(fem_matrix_t)          , target :: femat
-  type(fem_vector_t)          , target :: fevec,feunk
-  type(fem_precond_t)                  :: feprec
-  type(fem_precond_params_t)           :: ppars
+  type(matrix_t)          , target :: femat
+  type(vector_t)          , target :: fevec,feunk
+  type(precond_t)                  :: feprec
+  type(precond_params_t)           :: ppars
   type(solver_control_t)               :: sctrl
   type(serial_environment_t)           :: senv
-  type(fem_vtk_t)                      :: fevtk
+  type(vtk_t)                      :: fevtk
   class(base_operand_t)      , pointer :: x, b
   class(base_operator_t)     , pointer :: A, M
-  type(fem_graph_t)          , pointer :: f_graph
-  type(fem_block_graph_t)              :: f_blk_graph
+  type(graph_t)          , pointer :: f_graph
+  type(block_graph_t)              :: f_blk_graph
 
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
@@ -103,9 +103,9 @@ program test_nsi_iss
   ! Create problem
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
-  call matvec%create(myprob,mydisc)
+  call cg_iss_matvec%create(myprob,mydisc)
   call dhand%set_problem(1,mydisc)
-  approx(1)%p       => matvec
+  approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -136,15 +136,15 @@ program test_nsi_iss
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Allocate matrices and vectors
-  call fem_matrix_alloc(csr_mat,symm_false,f_graph,femat)
-  call fem_vector_alloc(f_graph%nv,fevec)
-  call fem_vector_alloc(f_graph%nv,feunk)
+  call matrix_alloc(csr_mat,symm_false,f_graph,femat)
+  call vector_alloc(f_graph%nv,fevec)
+  call vector_alloc(f_graph%nv,feunk)
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
-  call fem_update_strong_dirichlet_bcond(fe_space,f_cond)
-  call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
-  call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
+  call update_strong_dirichlet_bcond(fe_space,f_cond)
+  call update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
+  call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
   ! Integrate
   call volume_integral(approx,fe_space,femat,fevec)
@@ -152,10 +152,10 @@ program test_nsi_iss
   ! Construct preconditioner
   sctrl%method = direct
   ppars%type   = pardiso_mkl_prec
-  call fem_precond_create(femat,feprec,ppars)
-  call fem_precond_symbolic(femat,feprec)
-  call fem_precond_numeric(femat,feprec)
-  call fem_precond_log_info(feprec)
+  call precond_create(femat,feprec,ppars)
+  call precond_symbolic(femat,feprec)
+  call precond_numeric(femat,feprec)
+  call precond_log_info(feprec)
 
   ! Define operators
   A => femat
@@ -167,18 +167,18 @@ program test_nsi_iss
   !call abstract_solve(A,M,b,x,sctrl,senv)
   call solver_control_log_conv_his(sctrl)
   call solver_control_free_conv_his(sctrl)
-  !call fem_vector_print(6,feunk)
+  !call vector_print(6,feunk)
 
   ! Store solution to unkno
-  call fem_update_solution(feunk,fe_space)
+  call update_solution(feunk,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
 
   ! Free preconditioner
-  call fem_precond_free(precond_free_values,feprec)
-  call fem_precond_free(precond_free_struct,feprec)
-  call fem_precond_free(precond_free_clean,feprec)
+  call precond_free(precond_free_values,feprec)
+  call precond_free(precond_free_struct,feprec)
+  call precond_free(precond_free_clean,feprec)
 
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
@@ -188,16 +188,16 @@ program test_nsi_iss
   call memfree(which_approx,__FILE__,__LINE__)
   call fevtk%free
   call f_blk_graph%free()
-  call fem_vector_free(feunk)
-  call fem_vector_free(fevec)
-  call fem_matrix_free(femat) 
+  call vector_free(feunk)
+  call vector_free(fevec)
+  call matrix_free(femat) 
   call fe_space_free(fe_space) 
   call myprob%free
   call mydisc%free
-  call matvec%free
+  call cg_iss_matvec%free
   call dof_handler_free(dhand)
-  call fem_triangulation_free(f_trian)
-  call fem_conditions_free(f_cond)
+  call triangulation_free(f_trian)
+  call conditions_free(f_cond)
   call finite_element_fixed_info_free(geo_reference_element)
   call bound_data_free(bdata)
 

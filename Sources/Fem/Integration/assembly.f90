@@ -33,11 +33,11 @@ use types_names
   !use fe_space_names
   use integrable_names
   use dof_handler_names
-  use fem_block_matrix_names
-  use fem_matrix_names
-  use fem_block_vector_names
-  use fem_vector_names
-  use fem_graph_names
+  use block_matrix_names
+  use matrix_names
+  use block_vector_names
+  use vector_names
+  use graph_names
 
   implicit none
 # include "debug.i90"
@@ -89,13 +89,13 @@ contains
     class(integrable_t), intent(inout) :: a
 
     select type(a)
-    class is(fem_matrix_t)
+    class is(matrix_t)
        call assembly_element_matrix_mono(finite_element, dhand, start,a) 
-    class is(fem_vector_t)
+    class is(vector_t)
        call assembly_element_vector_mono(finite_element, dhand, start,a)
-       !class is(fem_block_matrix_t)
+       !class is(block_matrix_t)
        !    call assembly_element_matrix_block(finite_element, dhand, start,a)
-       ! class is(fem_block_vector_t)
+       ! class is(block_vector_t)
        !    call assembly_element_vector_block(finite_element, dhand, start,a)
     class default
        ! class not yet implemented
@@ -108,11 +108,11 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(finite_element_t), intent(in)             :: finite_element
     integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
-    type(fem_block_matrix_t), intent(inout)     :: a
+    type(block_matrix_t), intent(inout)     :: a
     
     integer(ip) :: ivar, iblock, jblock !, start(dhand%problems(finite_element%problem)%p%nvars+1)
 
-    type(fem_matrix_t), pointer :: f_matrix
+    type(matrix_t), pointer :: f_matrix
 
     !call pointer_variable(  finite_element, dhand, start )
     do iblock = 1, dhand%nblocks
@@ -131,7 +131,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(finite_element_t), intent(in)             :: finite_element
     integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
-    type(fem_matrix_t), intent(inout)           :: a
+    type(matrix_t), intent(inout)           :: a
 
     !integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     !call pointer_variable(  finite_element, dhand, start )
@@ -144,11 +144,11 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(fe_face_t)   , intent(in)             :: fe_face
     type(finite_element_t), intent(in)             :: finite_element(2)
-    type(fem_block_matrix_t), intent(inout)     :: a
+    type(block_matrix_t), intent(inout)     :: a
 
     integer(ip) :: iblock, jblock, i
     type(array_ip1_t) :: start(2)
-    type(fem_matrix_t), pointer :: f_matrix
+    type(matrix_t), pointer :: f_matrix
 
     do i=1,2
        call pointer_variable(  finite_element(i), dhand, start(i)%a )
@@ -176,7 +176,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(fe_face_t)   , intent(in)             :: fe_face
     type(finite_element_t), intent(in)             :: finite_element(2)
-    type(fem_matrix_t), intent(inout)     :: a
+    type(matrix_t), intent(inout)     :: a
 
     integer(ip) :: i
     type(array_ip1_t) :: start(2)
@@ -197,7 +197,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(finite_element_t), intent(in)             :: finite_element
     integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
-    type(fem_block_vector_t), intent(inout)     :: a
+    type(block_vector_t), intent(inout)     :: a
 
     integer(ip) :: iblock
     !integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
@@ -216,7 +216,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(finite_element_t), intent(in)             :: finite_element
     integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
-    type(fem_vector_t), intent(inout)           :: a
+    type(vector_t), intent(inout)           :: a
 
     !integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     !call pointer_variable(  finite_element, dhand, start )
@@ -230,7 +230,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(fe_face_t)   , intent(in)             :: fe_face
     type(finite_element_t), intent(in)             :: finite_element
-    type(fem_block_vector_t), intent(inout)     :: a
+    type(block_vector_t), intent(inout)     :: a
 
     integer(ip) :: iblock, start(dhand%problems(finite_element%problem)%p%nvars+1)
 
@@ -248,7 +248,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(fe_face_t)   , intent(in)             :: fe_face
     type(finite_element_t), intent(in)             :: finite_element
-    type(fem_vector_t), intent(inout)           :: a
+    type(vector_t), intent(inout)           :: a
 
     integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
 
@@ -265,7 +265,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(finite_element_t), intent(in)             :: finite_element
     integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
-    type(fem_matrix_t), intent(inout)           :: a
+    type(matrix_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock, jblock
 
     integer(ip) :: gtype, iprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
@@ -326,7 +326,7 @@ contains
     end do
     
     !write(*,*) 'system_matrix'
-    !call fem_matrix_print(6,a)
+    !call matrix_print(6,a)
 
   end subroutine element_matrix_assembly
 
@@ -337,7 +337,7 @@ contains
     type(finite_element_t), intent(in)             :: finite_element(2)
     type(fe_face_t)   , intent(in)             :: fe_face
     type(array_ip1_t), intent(in)               :: start(2)
-    type(fem_matrix_t), intent(inout)           :: a
+    type(matrix_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock, jblock
 
     integer(ip) :: gtype, iprob, jprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
@@ -395,7 +395,7 @@ contains
     type(dof_handler_t), intent(in)             :: dhand
     type(finite_element_t), intent(in)             :: finite_element
     integer(ip), intent(in)                   :: start(dhand%problems(finite_element%problem)%p%nvars+1)
-    type(fem_vector_t), intent(inout)           :: a
+    type(vector_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock
 
     integer(ip) :: iprob, nvapb_i, ivars, l_var, m_var
@@ -426,7 +426,7 @@ contains
     type(finite_element_t), intent(in)             :: finite_element
     type(fe_face_t)   , intent(in)             :: fe_face
     integer(ip),       intent(in)             :: start(:)
-    type(fem_vector_t), intent(inout)           :: a
+    type(vector_t), intent(inout)           :: a
     integer(ip), intent(in), optional         :: iblock
 
     integer(ip) :: iprob, nvapb_i, ivars, l_var, g_var

@@ -29,9 +29,9 @@ module graph_renum_names
   use types_names
   use memor_names
   use renum_names
-  use fem_graph_names
+  use graph_names
   use metis_interface_names
-  use fem_mesh_partition_base_names
+  use mesh_partition_base_names
   use rcm_renum_names
 #include "debug.i90"
   implicit none
@@ -48,7 +48,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     type(part_params_t), intent(in)        :: prt_parts
-    type(fem_graph_t), target, intent(in)  :: gp
+    type(graph_t), target, intent(in)  :: gp
     type(renum_t), target,  intent(inout)  :: ren
     
     assert(ren%n==gp%nv)
@@ -81,7 +81,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     type(part_params_t), target, intent(in)    :: prt_parts
-    type(fem_graph_t)  , target, intent(inout) :: gp
+    type(graph_t)  , target, intent(inout) :: gp
     integer(ip)      , target, intent(out)     :: ldomn(gp%nv)
 
     ! Local variables 

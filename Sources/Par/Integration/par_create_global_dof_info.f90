@@ -32,8 +32,8 @@ module par_create_global_dof_info_names
   use memor_names
   use sort_names
   use dof_handler_names
-  use fem_triangulation_names
-  use fem_graph_names
+  use triangulation_names
+  use graph_names
   use create_global_dof_info_names
   use fe_space_names
   use hash_table_names
@@ -114,7 +114,7 @@ contains
           end do
        end do
 
-       ! call fem_graph_print ( 6, p_graph%f_graph )
+       ! call graph_print ( 6, p_graph%f_graph )
     end if
   end subroutine par_create_distributed_dof_info
 

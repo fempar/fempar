@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_gen_names
+module mesh_gen_names
   use types_names
   use memor_names
-!  use fem_conditions_names
+!  use conditions_names
 # include "debug.i90"
   implicit none
   private
@@ -72,5 +72,5 @@ module fem_mesh_gen_names
   ! Types
   public :: mesh_size_t
 
-end module fem_mesh_gen_names
+end module mesh_gen_names
 

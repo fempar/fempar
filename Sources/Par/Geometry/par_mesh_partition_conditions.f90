@@ -29,16 +29,16 @@ module par_mesh_partition_conditions_names
 
   ! Serial modules
 use types_names
-  use fem_mesh_names
-use fem_mesh_gen_names
-  use fem_conditions_names
-  !use fem_partition_names
-  use fem_materials_names
+  use mesh_names
+use mesh_gen_names
+  use conditions_names
+  !use partition_names
+  use materials_names
   ! use partition_import
-use fem_mesh_gen_names
-  !use fem_mesh_io
+use mesh_gen_names
+  !use mesh_io
   !use stdio
-  ! use fem_import_names
+  ! use import_names
 
   ! Parallel modules
   !use par_partition_names
@@ -66,14 +66,14 @@ contains
 !!$    integer(ip),          intent(in)         :: isper(3),nedir(3),npdir(3),nsckt(3)
 !!$    integer(ip),          intent(in)         :: ndime,lpart
 !!$    type(mesh_size_t),      intent(in)         :: msize
-!!$    type(fem_conditions_t), intent(in)         :: poin,line,surf
+!!$    type(conditions_t), intent(in)         :: poin,line,surf
 !!$    type(par_context_t)   , target, intent(in) :: p_context
 !!$    type(par_partition) , target, intent(out):: p_part
 !!$    type(par_mesh_t),       intent(out)        :: p_mesh
-!!$    type(fem_conditions_t), intent(out)        :: nodes
+!!$    type(conditions_t), intent(out)        :: nodes
 !!$    type(par_context_t)  , target, intent(in), optional  :: g_context
 !!$    type(par_context_t)  , target, intent(in), optional  :: c_context
-!!$    type(fem_materials_t), optional, intent(inout) :: mater
+!!$    type(materials_t), optional, intent(inout) :: mater
 !!$    integer(ip),         optional, intent(in)    :: mtype
 !!$
 !!$    ! Locals
@@ -86,7 +86,7 @@ contains
 !!$    if(present(c_context)) p_part%c_context => c_context
 !!$
 !!$    if(p_context%iam>=0) then
-!!$       call fem_mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
+!!$       call mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
 !!$            &                                p_mesh%f_mesh,p_part%f_part,nodes,mater,mtype)
 !!$
 !!$       call par_context_info ( p_context, iam, num_procs )
@@ -96,7 +96,7 @@ contains
 !!$       
 !!$       call partition_to_import ( p_part%f_part, p_part%f_import )
 !!$
-!!$       ! call fem_import_print (6,p_part%f_import)
+!!$       ! call import_print (6,p_part%f_import)
 !!$    end if
 !!$
 !!$    assert ( associated(p_part%p_context) )
@@ -121,10 +121,10 @@ contains
 !!$    integer(ip),          intent(in)              :: lpart, ndime
 !!$    integer(ip),          intent(in)              :: isper(3),nedir(3),npdir(3),nsckt(3)
 !!$    type(mesh_size_t),      intent(in)              :: msize
-!!$    type(fem_conditions_t), intent(in)              :: poin,line,surf
+!!$    type(conditions_t), intent(in)              :: poin,line,surf
 !!$    type(par_mesh_t),       intent(inout)           :: p_mesh
-!!$    type(fem_conditions_t), intent(out)             :: nodes
-!!$    type(fem_materials_t) , optional, intent(inout) :: mater
+!!$    type(conditions_t), intent(out)             :: nodes
+!!$    type(materials_t) , optional, intent(inout) :: mater
 !!$    integer(ip),          optional, intent(in)    :: mtype
 !!$
 !!$
@@ -146,7 +146,7 @@ contains
 !!$    assert ( p_mesh%p_part%p_context%handler == inhouse  )
 !!$
 !!$    if(p_mesh%p_part%p_context%iam>=0) then
-!!$       call fem_mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
+!!$       call mesh_gen_partition_create( lpart,ndime,isper,nedir,npdir,nsckt,msize,poin,line,surf, &
 !!$            &                              p_mesh%f_mesh,p_mesh%p_part%f_part,nodes,mater,mtype)       
 !!$       call partition_to_import ( p_mesh%p_part%f_part, p_mesh%p_part%f_import )
 !!$    end if

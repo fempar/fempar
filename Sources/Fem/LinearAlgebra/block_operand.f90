@@ -48,7 +48,7 @@ use memor_names
   ! solution have to be provided to abstract_gmres as type(block_operand_t) instances.
   ! type(block_operand_t) provides the necessary (concrete) interface to build
   ! type(block_operand_t) instances as views, e.g., of the components of a
-  ! type(fem_block_vector_t) or type(par_block_vector_t).
+  ! type(block_vector_t) or type(par_block_vector_t).
 
   ! block_operand
   type, extends(base_operand_t) :: block_operand_t

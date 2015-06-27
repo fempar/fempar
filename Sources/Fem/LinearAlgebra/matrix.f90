@@ -26,12 +26,12 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module fem_matrix_names
+module matrix_names
   use types_names
   use memor_names
   use sort_names
-  use fem_graph_names
-  use fem_vector_names
+  use graph_names
+  use vector_names
   use matvec_dof_names
 
   ! Abstract types
@@ -46,24 +46,24 @@ use iso_c_binding
   private
 
   ! Constants:
-  ! a) fem_matrix_t types
+  ! a) matrix_t types
   integer(ip), parameter :: csr_mat=10
-  ! b) fem_matrix symmetry
+  ! b) matrix symmetry
   integer(ip), parameter :: symm_true =0
   integer(ip), parameter :: symm_false=1
-  ! c) fem_matrix sign
+  ! c) matrix sign
   integer(ip), parameter :: positive_definite     = 0
   integer(ip), parameter :: positive_semidefinite = 1
   integer(ip), parameter :: indefinite            = 2 ! Both positive and negative eigenvalues
   integer(ip), parameter :: unknown               = 3 ! No info
 
   ! Matrix
-  type, extends(base_operator_t) :: fem_matrix_t
+  type, extends(base_operator_t) :: matrix_t
      integer(ip)                :: &
 !!!          storage=undef_sto,         &      ! Storage layout (blk: block; scal: scalar)
           symm=symm_false,           &         ! Flag for symmetry
           sign=positive_definite,    &         ! Flag for positiveness
-          type=csr_mat                         ! fem_matrix_t type
+          type=csr_mat                         ! matrix_t type
 
 
      ! We need to decide how blocks will be stored (transposed or not)
@@ -77,37 +77,37 @@ use iso_c_binding
      ! Rows (nzt)                
      ! Cols (nzt)                
 
-     type(fem_graph_t),pointer :: &
-          gr => NULL()                      ! Associated fem_graph
+     type(graph_t),pointer :: &
+          gr => NULL()                      ! Associated graph
 
    contains
-     procedure  :: apply     => fem_matrix_apply
-     procedure  :: apply_fun => fem_matrix_apply_fun
-     procedure  :: free      => fem_matrix_free_tbp
-  end type fem_matrix_t
+     procedure  :: apply     => matrix_apply
+     procedure  :: apply_fun => matrix_apply_fun
+     procedure  :: free      => matrix_free_tbp
+  end type matrix_t
 
-  interface fem_matrix_free
-     module procedure fem_matrix_free_one_shot, fem_matrix_free_progressively
-  end interface fem_matrix_free
+  interface matrix_free
+     module procedure matrix_free_one_shot, matrix_free_progressively
+  end interface matrix_free
 
   ! Constants
   public :: csr_mat, symm_true, symm_false
   public :: positive_definite, positive_semidefinite, indefinite, unknown
 
   ! Types
-  public :: fem_matrix_t
+  public :: matrix_t
 
   ! Functions
-  public :: fem_matrix_create, fem_matrix_graph, fem_matrix_fill_val, &
-       &    fem_matrix_alloc, fem_matrix_copy, fem_matrix_print, fem_matrix_read,    &
-       &    fem_matrix_print_matrix_market,  & 
-       &    fem_matrix_free, fem_matrix_info, fem_matrix_zero,  &
-       &    fem_matrix_sum, fem_matrix_transpose, &
-       &    fem_matrix_compose_name_matrix_market, fem_matrix_read_matrix_market, &
-       &    fem_matvec, fem_matvec_trans, fem_matmat, fem_matmat_trans
+  public :: matrix_create, matrix_graph, matrix_fill_val, &
+       &    matrix_alloc, matrix_copy, matrix_print, matrix_read,    &
+       &    matrix_print_matrix_market,  & 
+       &    matrix_free, matrix_info, matrix_zero,  &
+       &    matrix_sum, matrix_transpose, &
+       &    matrix_compose_name_matrix_market, matrix_read_matrix_market, &
+       &    matvec, matvec_trans, matmat, matmat_trans
 
 !***********************************************************************
-! Allocatable arrays of type(fem_matrix_t)
+! Allocatable arrays of type(matrix_t)
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -117,7 +117,7 @@ use iso_c_binding
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(fem_matrix_t)
+# define var_type type(matrix_t)
 # define var_size 80
 # define bound_kind ip
 # include "mem_header.i90"
@@ -129,17 +129,17 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine fem_matrix_create(type,symm,mat,def)
+  subroutine matrix_create(type,symm,mat,def)
     implicit none
     integer(ip)     , intent(in)           :: type, symm
-    type(fem_matrix_t), intent(out)          :: mat
+    type(matrix_t), intent(out)          :: mat
     integer(ip)     , optional, intent(in) :: def
 
     assert ( type == csr_mat )
     assert ( symm == symm_true .or. symm == symm_false )
 
     mat%symm    =  symm    ! Flag for symmetry
-    mat%type    =  type    ! fem_matrix_t type (csr_mat)
+    mat%type    =  type    ! matrix_t type (csr_mat)
 
     mat%sign = unknown
     if(present(def)) then
@@ -147,18 +147,18 @@ contains
        mat%sign = def
     end if
 
-  end subroutine fem_matrix_create
+  end subroutine matrix_create
 
-  subroutine fem_matrix_graph(gr,mat)
+  subroutine matrix_graph(gr,mat)
     implicit none
-    type(fem_graph_t) , target, intent(in) :: gr
-    type(fem_matrix_t), intent(inout)      :: mat
+    type(graph_t) , target, intent(in) :: gr
+    type(matrix_t), intent(inout)      :: mat
     mat%gr => gr
-  end subroutine fem_matrix_graph
+  end subroutine matrix_graph
 
-  subroutine fem_matrix_fill_val(mat)
+  subroutine matrix_fill_val(mat)
     implicit none
-    type(fem_matrix_t), intent(inout)      :: mat
+    type(matrix_t), intent(inout)      :: mat
     integer(ip)                          :: neq, nzs, nzt
 
     neq  =  mat%gr%nv              ! Number of rows and columns (equations)
@@ -167,26 +167,26 @@ contains
     call memalloc(nzt,mat%a,__FILE__,__LINE__)
     mat%a = 0.0_rp
 
-  end subroutine fem_matrix_fill_val
+  end subroutine matrix_fill_val
 
-  subroutine fem_matrix_alloc(type,symm,gr,mat,def)
+  subroutine matrix_alloc(type,symm,gr,mat,def)
     implicit none
     integer(ip)     , intent(in)           :: type, symm
-    type(fem_graph_t) , target, intent(in)   :: gr
-    type(fem_matrix_t), intent(out)          :: mat
+    type(graph_t) , target, intent(in)   :: gr
+    type(matrix_t), intent(out)          :: mat
     integer(ip)     , optional, intent(in) :: def
 
-    call fem_matrix_create(type,symm,mat,def)
-    call fem_matrix_graph(gr,mat)
-    call fem_matrix_fill_val(mat)
+    call matrix_create(type,symm,mat,def)
+    call matrix_graph(gr,mat)
+    call matrix_fill_val(mat)
 
-  end subroutine fem_matrix_alloc
+  end subroutine matrix_alloc
 
-  subroutine fem_matrix_copy (imatrix, omatrix)
+  subroutine matrix_copy (imatrix, omatrix)
     implicit none
     ! Parameters 
-    type(fem_matrix_t), intent(in)    :: imatrix
-    type(fem_matrix_t), intent(inout) :: omatrix
+    type(matrix_t), intent(in)    :: imatrix
+    type(matrix_t), intent(inout) :: omatrix
 
     ! *** IMPORTANT NOTE: This routine assumes that omatrix 
     ! already has an associated graph in omatrix%gr
@@ -196,22 +196,22 @@ contains
     ! please extend this routine
     assert ( imatrix%type == csr_mat )
 
-    call fem_matrix_alloc ( imatrix%type, imatrix%symm, omatrix%gr, omatrix, imatrix%sign)
+    call matrix_alloc ( imatrix%type, imatrix%symm, omatrix%gr, omatrix, imatrix%sign)
     omatrix%a = imatrix%a
 
-  end subroutine fem_matrix_copy
+  end subroutine matrix_copy
 
   !=============================================================================
-  subroutine fem_matrix_print(lunou, f_matrix)
+  subroutine matrix_print(lunou, f_matrix)
     implicit none
-    type(fem_matrix_t), intent(in)    :: f_matrix
+    type(matrix_t), intent(in)    :: f_matrix
     integer(ip)     , intent(in)    :: lunou
     integer(ip)                     :: i
 
     assert ( associated(f_matrix%gr) )
-    call fem_graph_print (lunou, f_matrix%gr)
+    call graph_print (lunou, f_matrix%gr)
 
-    write (lunou, '(a)')     '*** begin fem_matrix data structure ***'
+    write (lunou, '(a)')     '*** begin matrix data structure ***'
     if ( f_matrix%type == csr_mat ) then
        ! write (lunou, '(4E20.13)')  f_matrix%a(:, :, :)
        do i=1,f_matrix%gr%nv
@@ -220,23 +220,23 @@ contains
        end do
     end if
 
-  end subroutine fem_matrix_print
+  end subroutine matrix_print
 
   !=============================================================================
-  subroutine fem_matrix_read(lunin, f_matrix)
+  subroutine matrix_read(lunin, f_matrix)
     implicit none
     ! Parameters
     integer(ip)     , intent(in)    :: lunin
-    type(fem_matrix_t), intent(inout) :: f_matrix
+    type(matrix_t), intent(inout) :: f_matrix
     
     ! Locals
     integer(ip)                     :: i,nzt
 
     ! AFM: the following sentence is now NO longer permitted.
-    !      f_matrix should be passed to fem_matrix_read in
+    !      f_matrix should be passed to matrix_read in
     !      such a way that the graph is already associated 
     ! allocate(f_matrix%gr)
-    ! call fem_graph_read (lunin, f_matrix%gr)
+    ! call graph_read (lunin, f_matrix%gr)
     assert ( associated(f_matrix%gr) )
 
     if ( f_matrix%type == csr_mat ) then
@@ -250,19 +250,19 @@ contains
             &read(lunin,'(10e15.7)') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
     end if
 
-  end subroutine fem_matrix_read
+  end subroutine matrix_read
 
   !=============================================================================
-  subroutine fem_matrix_compose_name_matrix_market ( prefix, name ) 
+  subroutine matrix_compose_name_matrix_market ( prefix, name ) 
     implicit none
     character *(*), intent(in)        :: prefix 
     character *(*), intent(out)       :: name
     name = trim(prefix) // '.mtx'
-  end subroutine fem_matrix_compose_name_matrix_market
+  end subroutine matrix_compose_name_matrix_market
 
-  subroutine fem_matrix_print_matrix_market (lunou, f_matrix, ng, l2g)
+  subroutine matrix_print_matrix_market (lunou, f_matrix, ng, l2g)
     implicit none
-    type(fem_matrix_t), intent(in)           :: f_matrix
+    type(matrix_t), intent(in)           :: f_matrix
     integer(ip)     , intent(in)           :: lunou
     integer(ip)     , intent(in), optional :: ng
     integer(ip)     , intent(in), optional :: l2g (*)
@@ -318,13 +318,13 @@ contains
        end do
     end if
 
-  end subroutine fem_matrix_print_matrix_market
+  end subroutine matrix_print_matrix_market
 
-  subroutine fem_matrix_read_matrix_market (lunou, mat, gr, symm, sign)
+  subroutine matrix_read_matrix_market (lunou, mat, gr, symm, sign)
     implicit none
     integer(ip)     , intent(in)            :: lunou
-    type(fem_matrix_t), intent(inout)         :: mat
-    type(fem_graph_t) , target, intent(inout) :: gr 
+    type(matrix_t), intent(inout)         :: mat
+    type(graph_t) , target, intent(inout) :: gr 
     integer(ip)     , intent(in), optional  :: symm
     integer(ip)     , intent(in), optional  :: sign
 
@@ -334,7 +334,7 @@ contains
     integer(ip), allocatable :: ija_work(:,:), ija_index(:)
     real(rp)   , allocatable :: a_work(:)
 
-    mat%type    =  csr_mat ! fem_matrix_t type (csr_mat)
+    mat%type    =  csr_mat ! matrix_t type (csr_mat)
 
     ! AFM: the following sentence is now NO longer permitted.
     !      Now both mat and graph are passed, and this subroutine is
@@ -425,23 +425,23 @@ contains
 10  write (0,*) 'Error reading matrix eof or err'
     stop
 
-  end subroutine fem_matrix_read_matrix_market
+  end subroutine matrix_read_matrix_market
 
   !=============================================================================
-  subroutine fem_matrix_free_one_shot (f_matrix)
+  subroutine matrix_free_one_shot (f_matrix)
     implicit none
-    type(fem_matrix_t), intent(inout) :: f_matrix
+    type(matrix_t), intent(inout) :: f_matrix
 
-    call fem_matrix_free_progressively ( f_matrix, free_only_values )
-    call fem_matrix_free_progressively ( f_matrix, free_only_struct )
-    call fem_matrix_free_progressively ( f_matrix, free_clean )
+    call matrix_free_progressively ( f_matrix, free_only_values )
+    call matrix_free_progressively ( f_matrix, free_only_struct )
+    call matrix_free_progressively ( f_matrix, free_clean )
 
-  end subroutine fem_matrix_free_one_shot
+  end subroutine matrix_free_one_shot
 
     !=============================================================================
-  subroutine fem_matrix_free_progressively (f_matrix, mode)
+  subroutine matrix_free_progressively (f_matrix, mode)
     implicit none
-    type(fem_matrix_t), intent(inout) :: f_matrix
+    type(matrix_t), intent(inout) :: f_matrix
     integer(ip)     , intent(in)    :: mode 
 
     if ( mode == free_clean ) then
@@ -466,37 +466,37 @@ contains
        call memfree( f_matrix%a,__FILE__,__LINE__)
     end if
 
-  end subroutine fem_matrix_free_progressively
+  end subroutine matrix_free_progressively
 
   !=============================================================================
-  subroutine fem_matrix_info ( f_mat, me, np )
+  subroutine matrix_info ( f_mat, me, np )
     implicit none
 
     ! Parameters 
-    type(fem_matrix_t)     , intent(in)    :: f_mat
+    type(matrix_t)     , intent(in)    :: f_mat
     integer              , intent(out)   :: me
     integer              , intent(out)   :: np
 
     me = 0
     np = 1 
-  end subroutine fem_matrix_info
+  end subroutine matrix_info
 
   !=============================================================================
-  subroutine fem_matrix_zero(mat)
+  subroutine matrix_zero(mat)
     implicit none
-    type(fem_matrix_t), intent(inout)       :: mat
+    type(matrix_t), intent(inout)       :: mat
 
     mat%a = 0.0_rp
 
-  end subroutine fem_matrix_zero
+  end subroutine matrix_zero
 
   !=============================================================================
   ! Subroutine to compute C <- A + alpha*B
-  subroutine fem_matrix_sum(A,B,C,alpha)
+  subroutine matrix_sum(A,B,C,alpha)
     implicit none
-    type(fem_matrix_t)  , intent(in)     :: A,B
+    type(matrix_t)  , intent(in)     :: A,B
     real(rp), optional, intent(in)     :: alpha
-    type(fem_matrix_t)  , intent(inout)  :: C
+    type(matrix_t)  , intent(inout)  :: C
 
     assert ( A%type == B%type .and. A%type == C%type )
     assert ( A%symm == B%symm .and. A%symm == C%symm )
@@ -507,23 +507,23 @@ contains
        C%a = A%a + B%a
     end if
 
-  end subroutine fem_matrix_sum
+  end subroutine matrix_sum
 
-  subroutine fem_matrix_transpose(A, A_t)
+  subroutine matrix_transpose(A, A_t)
 
-    type(fem_matrix_t), intent(in)     :: A         ! Input matrix
-    type(fem_matrix_t), intent(out)    :: A_t       ! Output matrix
+    type(matrix_t), intent(in)     :: A         ! Input matrix
+    type(matrix_t), intent(out)    :: A_t       ! Output matrix
 
 
     ! Locals 
-    type(fem_graph_t) :: aux_graph
+    type(graph_t) :: aux_graph
     integer :: k,i,j
 
     if ( A%gr%type == csr ) then
-       call fem_matrix_alloc ( csr_mat, symm_false,                  &
+       call matrix_alloc ( csr_mat, symm_false,                  &
             A%gr, A_t )
     else if (A%gr%type == csr_symm) then
-       call fem_matrix_alloc ( csr_mat, symm_true,                  &
+       call matrix_alloc ( csr_mat, symm_true,                  &
             A%gr, A_t )
     end if
 
@@ -542,13 +542,13 @@ contains
        end do
     end if
 
-  end subroutine fem_matrix_transpose
+  end subroutine matrix_transpose
 
-  subroutine fem_matvec (a,x,y)
+  subroutine matvec (a,x,y)
     implicit none
-    type(fem_matrix_t) , intent(in)    :: a
-    type(fem_vector_t) , intent(in)    :: x
-    type(fem_vector_t) , intent(inout) :: y
+    type(matrix_t) , intent(in)    :: a
+    type(vector_t) , intent(in)    :: x
+    type(vector_t) , intent(inout) :: y
     real(rp) :: aux
 
     if (a%symm == symm_false) then
@@ -557,13 +557,13 @@ contains
        call matvec_csr_symm(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
     end if
 
-  end subroutine fem_matvec
+  end subroutine matvec
 
-  subroutine fem_matmat (a, n, ldX, x, ldY, y)
+  subroutine matmat (a, n, ldX, x, ldY, y)
     implicit none
 
     ! Parameters
-    type(fem_matrix_t) , intent(in)    :: a
+    type(matrix_t) , intent(in)    :: a
     integer(ip)      , intent(in)    :: n
     integer(ip)      , intent(in)    :: ldX
     real(rp)         , intent(in)    :: x(ldX, n)
@@ -583,13 +583,13 @@ contains
 
 
 
-  end subroutine fem_matmat
+  end subroutine matmat
 
-  subroutine fem_matvec_trans (a,x,y)
+  subroutine matvec_trans (a,x,y)
     implicit none
-    type(fem_matrix_t) , intent(in)    :: a
-    type(fem_vector_t) , intent(in)    :: x
-    type(fem_vector_t) , intent(inout) :: y
+    type(matrix_t) , intent(in)    :: a
+    type(vector_t) , intent(in)    :: x
+    type(vector_t) , intent(inout) :: y
 
     if (a%symm == symm_false) then
        call matvec_csr_trans(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
@@ -597,13 +597,13 @@ contains
        call matvec_csr_symm_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
     end if
 
-  end subroutine fem_matvec_trans
+  end subroutine matvec_trans
 
-  subroutine fem_matmat_trans (a, n, ldX, x, ldY, y)
+  subroutine matmat_trans (a, n, ldX, x, ldY, y)
     implicit none
 
     ! Parameters
-    type(fem_matrix_t) , intent(in)    :: a
+    type(matrix_t) , intent(in)    :: a
     integer(ip)      , intent(in)    :: n
     integer(ip)      , intent(in)    :: ldX
     real(rp)         , intent(in)    :: x(ldX, n)
@@ -622,62 +622,62 @@ contains
           end if
     end do
 
-  end subroutine fem_matmat_trans
+  end subroutine matmat_trans
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine fem_matrix_apply(op,x,y) 
+  subroutine matrix_apply(op,x,y) 
     implicit none
-    class(fem_matrix_t), intent(in)    :: op
+    class(matrix_t), intent(in)    :: op
     class(base_operand_t) , intent(in)    :: x
     class(base_operand_t) , intent(inout) :: y 
 
     call x%GuardTemp()
 
     select type(x)
-    class is (fem_vector_t)
+    class is (vector_t)
        select type(y)
-       class is(fem_vector_t)
-          call fem_matvec(op, x, y)
-          ! call fem_vector_print(6,y)
+       class is(vector_t)
+          call matvec(op, x, y)
+          ! call vector_print(6,y)
        class default
-          write(0,'(a)') 'fem_matrix_t%apply: unsupported y class'
+          write(0,'(a)') 'matrix_t%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'fem_matrix_t%apply: unsupported x class'
+       write(0,'(a)') 'matrix_t%apply: unsupported x class'
        check(1==0)
     end select
 
     call x%CleanTemp()
-  end subroutine fem_matrix_apply
+  end subroutine matrix_apply
 
   ! op%apply(x)
   ! Allocates room for (temporary) y
-  function fem_matrix_apply_fun(op,x) result(y)
+  function matrix_apply_fun(op,x) result(y)
     implicit none
-    class(fem_matrix_t), intent(in)  :: op
+    class(matrix_t), intent(in)  :: op
     class(base_operand_t) , intent(in)  :: x
     class(base_operand_t) , allocatable :: y 
 
-    type(fem_vector_t), allocatable :: local_y
+    type(vector_t), allocatable :: local_y
 
     select type(x)
-    class is (fem_vector_t)
+    class is (vector_t)
        allocate(local_y)
-       call fem_vector_alloc ( op%gr%nv, local_y)
-       call fem_matvec(op, x, local_y)
+       call vector_alloc ( op%gr%nv, local_y)
+       call matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'fem_matrix_t%apply_fun: unsupported x class'
+       write(0,'(a)') 'matrix_t%apply_fun: unsupported x class'
        check(1==0)
     end select
-  end function fem_matrix_apply_fun
+  end function matrix_apply_fun
 
-  subroutine fem_matrix_free_tbp(this)
+  subroutine matrix_free_tbp(this)
     implicit none
-    class(fem_matrix_t), intent(inout) :: this
-  end subroutine fem_matrix_free_tbp
+    class(matrix_t), intent(inout) :: this
+  end subroutine matrix_free_tbp
 
-end module fem_matrix_names
+end module matrix_names

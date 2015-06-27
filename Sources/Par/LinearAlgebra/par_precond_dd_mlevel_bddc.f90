@@ -46,16 +46,16 @@ module par_precond_dd_mlevel_bddc_names
   use solver_base_names
   use abstract_solver_names
 
-  use fem_mesh_names
+  use mesh_names
   use mesh_graph_names
-  use fem_matrix_names
-  use fem_precond_names
-  use fem_graph_names
-  use fem_vector_names
-  use fem_operator_dd_names
+  use matrix_names
+  use precond_names
+  use graph_names
+  use vector_names
+  use operator_dd_names
   use postpro_names
   use stdio_names
-  use fem_matrix_fem_precond_solver_names
+  use matrix_precond_solver_names
  
   ! Parallel modules
 use par_dd_base_names
@@ -106,14 +106,14 @@ use psb_penv_mod_names
      logical                  :: enable_constraint_weights = .false. 
      real(rp), allocatable    :: C_weights(:) 
 
-     ! fem_precond_params and solver_control have their own defaults
-     type(fem_precond_params_t)  :: ppars_harm
+     ! precond_params and solver_control have their own defaults
+     type(precond_params_t)  :: ppars_harm
      type(solver_control_t)      :: spars_harm
      type(solver_control_t)      :: spars_neumann
-     type(fem_precond_params_t)  :: ppars_dirichlet 
+     type(precond_params_t)  :: ppars_dirichlet 
      type(solver_control_t)      :: spars_dirichlet 
      type(solver_control_t)      :: spars_coarse
-     type(fem_precond_params_t)  :: ppars_coarse_serial ! co_sys_sol_strat = serial
+     type(precond_params_t)  :: ppars_coarse_serial ! co_sys_sol_strat = serial
      type (par_precond_dd_mlevel_bddc_params_t ), pointer :: ppars_coarse_bddc => NULL()  ! co_sys_sol_strat = recursive
 
      real(rp), allocatable    :: weight(:)
@@ -180,9 +180,9 @@ use psb_penv_mod_names
      ! where corners are numbered first, and then the complement
      ! (edges+the rest of dofs of the subdomain). The arrays perm
      ! and iperm store the correspondence among A_i and P^T A_i P
-     type ( fem_graph_t )      :: A_rr_gr
-     type ( fem_graph_t )      :: A_rr_trans_gr
-     type ( fem_matrix_t )     :: A_rr, A_rr_trans
+     type ( graph_t )      :: A_rr_gr
+     type ( graph_t )      :: A_rr_trans_gr
+     type ( matrix_t )     :: A_rr, A_rr_trans
      real(rp) , allocatable  :: A_rc(:,:), A_cr(:,:), A_cc(:,:)
      real(rp) , allocatable  :: A_cr_trans(:,:), A_rc_trans(:,:), A_cc_trans(:,:)
      logical                 :: enable_constraint_weights
@@ -261,9 +261,9 @@ use psb_penv_mod_names
      integer (ip)              :: max_coarse_dofs
 
      ! Coarse grid system coefficient matrix
-     type ( fem_graph_t )         :: A_c_gr     ! co_sys_sol_strat = serial
-     type ( fem_matrix_t )        :: A_c 
-     type ( fem_mesh_t )          :: f_mesh_c
+     type ( graph_t )         :: A_c_gr     ! co_sys_sol_strat = serial
+     type ( matrix_t )        :: A_c 
+     type ( mesh_t )          :: f_mesh_c
 
      type ( par_environment_t )   :: p_env_c      ! Parallel environment for the coarse-grid problem
      type ( dof_distribution_t )  :: dof_dist_c   ! co_sys_sol_strat = recursive (or distributed, not implemented yet)
@@ -278,13 +278,13 @@ use psb_penv_mod_names
 
      integer (ip)             :: symm
      integer (ip)             :: sign
-     type ( fem_precond_t )     :: M_rr ,M_rr_trans
-     type ( fem_precond_t )     :: M_c                                  ! co_sys_sol_strat = serial
+     type ( precond_t )     :: M_rr ,M_rr_trans
+     type ( precond_t )     :: M_c                                  ! co_sys_sol_strat = serial
    
 
      type ( par_precond_dd_mlevel_bddc_t ), pointer :: p_M_c        ! co_sys_sol_strat = recursive
 
-     type ( fem_operator_dd_t ) :: A_II_inv ! Only required if unknowns == all_unknowns
+     type ( operator_dd_t ) :: A_II_inv ! Only required if unknowns == all_unknowns
 
      type ( par_matrix_t  )     , pointer  :: p_mat    => NULL()
 
@@ -313,13 +313,13 @@ use psb_penv_mod_names
      type(par_timer_t), pointer :: timer_coll_fillprec
      type(par_timer_t), pointer :: timer_coll_applyprec
 
-     type(fem_precond_params_t)        :: ppars_harm 
+     type(precond_params_t)        :: ppars_harm 
      type(solver_control_t), pointer   :: spars_harm
      type(solver_control_t), pointer   :: spars_neumann
-     type(fem_precond_params_t)        :: ppars_dirichlet 
+     type(precond_params_t)        :: ppars_dirichlet 
      type(solver_control_t), pointer   :: spars_dirichlet 
      type(solver_control_t), pointer   :: spars_coarse
-     type(fem_precond_params_t)        :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
+     type(precond_params_t)        :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
      type (par_precond_dd_mlevel_bddc_params_t ) :: ppars_coarse_bddc      ! co_sys_sol_strat = recursive_bddc
 
      integer(ip) :: num_neumann_solves   = 0
@@ -378,8 +378,8 @@ use mpi
     ! Locals
     integer            :: i, istat
     logical            :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
-    type (fem_vector_t)  :: dum 
-    type (fem_matrix_t)  :: mat_dum
+    type (vector_t)  :: dum 
+    type (matrix_t)  :: mat_dum
     type (par_context_t) :: dum_context
 
 
@@ -622,17 +622,17 @@ use mpi
        ! BEG. FINE-GRID PROBLEM DUTIES
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
 
-          call fem_matrix_create(p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr, p_mat%f_matrix%sign)
+          call matrix_create(p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr, p_mat%f_matrix%sign)
 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call fem_matrix_create(p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call matrix_create(p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
           end if
 
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
+             call precond_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
 
              if ( mlbddc%projection == petrov_galerkin ) then 
-                call fem_precond_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
+                call precond_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
              end if
           else
              check(.false.)
@@ -640,14 +640,14 @@ use mpi
 
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
 
-          call fem_matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr, indefinite)
+          call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr, indefinite)
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call fem_matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
+             call precond_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
              if ( mlbddc%projection==petrov_galerkin ) then 
-                call fem_precond_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
+                call precond_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
              end if
           else
              check(.false.)
@@ -657,7 +657,7 @@ use mpi
 
        if ( mlbddc%unknowns == all_unknowns ) then
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-              call fem_operator_dd_create ( p_mat%f_matrix, & 
+              call operator_dd_create ( p_mat%f_matrix, & 
                                             p_mat%dof_dist, &
                                             mlbddc%A_II_inv, & 
                                             spars=mlbddc%spars_dirichlet, &
@@ -666,7 +666,7 @@ use mpi
                                            ! sign=positive_definite )
           else
              check (.false.)
-!!$             call fem_operator_dd_create ( p_mat%f_matrix, & 
+!!$             call operator_dd_create ( p_mat%f_matrix, & 
 !!$                                           p_mat%dof_dist%f_part, &
 !!$                                           mlbddc%A_II_inv, & 
 !!$                                           dirichlet_internally=.false., &
@@ -684,8 +684,8 @@ use mpi
           ! BEG. COARSE-GRID PROBLEM DUTIES
 
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
-             call fem_matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_c)
-             call fem_precond_create( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial)
+             call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_c)
+             call precond_create( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial)
           
           !else if(mlbddc%co_sys_sol_strat == distributed) then
 
@@ -746,7 +746,7 @@ use mpi
     integer(ip)                     , intent(in)    :: mode
 
     ! Locals
-    type (fem_vector_t) :: dum 
+    type (vector_t) :: dum 
     integer           :: iam, istat
     logical           :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
 
@@ -782,15 +782,15 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_free ( precond_free_clean  , mlbddc%M_rr )
+             call precond_free ( precond_free_clean  , mlbddc%M_rr )
              if (mlbddc%projection == petrov_galerkin )  then 
-                call fem_precond_free ( precond_free_clean, mlbddc%M_rr_trans ) 
+                call precond_free ( precond_free_clean, mlbddc%M_rr_trans ) 
              end if
           else
              check(.false.)
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
-             call fem_operator_dd_free ( mlbddc%A_II_inv, free_clean )
+             call operator_dd_free ( mlbddc%A_II_inv, free_clean )
           end if
           
           if (allocated (mlbddc%C_weights)) call memfree ( mlbddc%C_weights, __FILE__, __LINE__ )
@@ -802,7 +802,7 @@ use mpi
           if(mlbddc%co_sys_sol_strat == serial_gather) then
 
              if ( i_am_coarse_task ) then
-                call fem_precond_free ( precond_free_clean  , mlbddc%M_c )
+                call precond_free ( precond_free_clean  , mlbddc%M_c )
              end if
              
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -886,21 +886,21 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_free ( precond_free_struct, mlbddc%M_rr )
+             call precond_free ( precond_free_struct, mlbddc%M_rr )
             if ( mlbddc%projection == petrov_galerkin ) then 
-             call fem_precond_free ( precond_free_struct, mlbddc%M_rr_trans )
+             call precond_free ( precond_free_struct, mlbddc%M_rr_trans )
             end if
           end if
 
           if ( mlbddc%unknowns == all_unknowns ) then
-             call fem_operator_dd_free ( mlbddc%A_II_inv, free_only_struct )
+             call operator_dd_free ( mlbddc%A_II_inv, free_only_struct )
           end if
 
-          call fem_matrix_free ( mlbddc%A_rr, free_only_struct )
-          call fem_graph_free ( mlbddc%A_rr_gr )
+          call matrix_free ( mlbddc%A_rr, free_only_struct )
+          call graph_free ( mlbddc%A_rr_gr )
  
           if ( mlbddc%projection == petrov_galerkin ) then 
-          call fem_matrix_free ( mlbddc%A_rr_trans, free_only_struct )
+          call matrix_free ( mlbddc%A_rr_trans, free_only_struct )
             end if
    
           call memfree ( mlbddc%coarse_dofs,__FILE__,__LINE__)
@@ -918,11 +918,11 @@ use mpi
 
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call fem_precond_free ( precond_free_struct, mlbddc%M_c )
+                call precond_free ( precond_free_struct, mlbddc%M_c )
              end if
-             call fem_matrix_free ( mlbddc%A_c, free_only_struct )
-             call fem_graph_free ( mlbddc%A_c_gr )
-             call fem_mesh_free ( mlbddc%f_mesh_c )
+             call matrix_free ( mlbddc%A_c, free_only_struct )
+             call graph_free ( mlbddc%A_c_gr )
+             call mesh_free ( mlbddc%f_mesh_c )
              call memfree ( mlbddc%vars, __FILE__, __LINE__)
              call memfree ( mlbddc%ptr_coarse_dofs, __FILE__, __LINE__)
           end if
@@ -962,23 +962,23 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_free ( precond_free_values  , mlbddc%M_rr )
+             call precond_free ( precond_free_values  , mlbddc%M_rr )
              if (mlbddc%projection == petrov_galerkin )  then 
-             call fem_precond_free ( precond_free_values  , mlbddc%M_rr_trans )
+             call precond_free ( precond_free_values  , mlbddc%M_rr_trans )
              end if
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
-             call fem_operator_dd_free ( mlbddc%A_II_inv, free_only_values )
+             call operator_dd_free ( mlbddc%A_II_inv, free_only_values )
           end if
 
-          call fem_matrix_free ( mlbddc%A_rr, free_only_values )
+          call matrix_free ( mlbddc%A_rr, free_only_values )
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%blk_lag_mul,__FILE__,__LINE__) 
 
              if (mlbddc%projection == petrov_galerkin )  then 
-          call fem_matrix_free ( mlbddc%A_rr_trans, free_only_values )
+          call matrix_free ( mlbddc%A_rr_trans, free_only_values )
              end if
 
           if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -1043,9 +1043,9 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call fem_precond_free ( precond_free_values, mlbddc%M_c )
+                call precond_free ( precond_free_values, mlbddc%M_c )
              end if
-             call fem_matrix_free ( mlbddc%A_c, free_only_values )
+             call matrix_free ( mlbddc%A_c, free_only_values )
           end if
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
           assert(mlbddc%p_mat%p_env%num_levels>2) 
@@ -1071,7 +1071,7 @@ use mpi
     type(par_matrix_t)                , target, intent(in)    :: p_mat
     type(par_precond_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
  
-    type (fem_mesh_t)  :: c_mesh
+    type (mesh_t)  :: c_mesh
     logical          :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
     !integer(ip)      :: iam
 
@@ -1169,22 +1169,22 @@ use mpi
           call augment_graph_with_constraints ( p_mat, mlbddc )
        end if
        
-       call fem_matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr)
+       call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr)
 
           if (mlbddc%projection == petrov_galerkin) then
-             call fem_matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr_trans)
+             call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr_trans)
           end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_symbolic( mlbddc%A_rr , mlbddc%M_rr )
+             call precond_symbolic( mlbddc%A_rr , mlbddc%M_rr )
 
           if (mlbddc%projection == petrov_galerkin) then
-             call fem_precond_symbolic( mlbddc%A_rr_trans , mlbddc%M_rr_trans )
+             call precond_symbolic( mlbddc%A_rr_trans , mlbddc%M_rr_trans )
           end if
 
        end if
        if ( mlbddc%unknowns == all_unknowns ) then
-          call fem_operator_dd_ass_struct (p_mat%f_matrix, mlbddc%A_II_inv ) 
+          call operator_dd_ass_struct (p_mat%f_matrix, mlbddc%A_II_inv ) 
        end if
        ! END FINE-GRID PROBLEM DUTIES
 
@@ -1196,9 +1196,9 @@ use mpi
 
        ! BEG. COARSE-GRID PROBLEM DUTIES
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
-          call fem_matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c)
+          call matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c)
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_symbolic( mlbddc%A_c , mlbddc%M_c )
+             call precond_symbolic( mlbddc%A_c , mlbddc%M_c )
           end if
        else if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
           ! Assign coarse matrix graph (the partition)
@@ -1259,8 +1259,8 @@ use mpi
                                                      mlbddc%A_rr_gr%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
-!!$       call fem_graph_print (6, p_mat%f_matrix%gr )
-!!$       call fem_graph_print (6, mlbddc%A_rr_gr)
+!!$       call graph_print (6, p_mat%f_matrix%gr )
+!!$       call graph_print (6, mlbddc%A_rr_gr)
 !!$    end if
   end subroutine augment_graph_with_constraints
 
@@ -1736,8 +1736,8 @@ use mpi
          mlbddc%A_rr_gr%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
-!!$       ! call fem_graph_print (6, p_mat%f_matrix%gr )
-!!$       call fem_graph_print (6, mlbddc%A_rr_gr)
+!!$       ! call graph_print (6, p_mat%f_matrix%gr )
+!!$       call graph_print (6, mlbddc%A_rr_gr)
 !!$    end if
 
   end subroutine extract_graph_A_rr
@@ -1853,7 +1853,7 @@ use mpi
 
     ! Parameters 
     type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
-    type(fem_mesh_t), intent(out) :: c_mesh
+    type(mesh_t), intent(out) :: c_mesh
     integer(ip), allocatable  :: idum (:)
     logical                   :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
     integer                   :: info, iam
@@ -2488,7 +2488,7 @@ use mpi
     call mesh_to_graph_matrix ( gtype, mlbddc%f_mesh_c, mlbddc%A_c_gr )
 
     if ( debug_verbose_level_2 ) then 
-       call fem_graph_print ( 6, mlbddc%A_c_gr )
+       call graph_print ( 6, mlbddc%A_c_gr )
     end if
 
   end subroutine generate_coarse_graph
@@ -2497,7 +2497,7 @@ use mpi
 use mpi
     implicit none
     ! Parameters 
-    type(fem_mesh_t), intent(inout) :: c_mesh
+    type(mesh_t), intent(inout) :: c_mesh
     type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
@@ -2506,7 +2506,7 @@ use mpi
     integer(ip), allocatable :: nl_coarse_neigh(:)   ! Number of local coarse dofs of my neighbours
     logical                  :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
-    type(fem_mesh_t)           :: dual_f_mesh
+    type(mesh_t)           :: dual_f_mesh
     integer(ip), allocatable :: neighbours_coarse_parts (:)
     integer(ip), allocatable :: dual_parts (:)
     integer(ip), allocatable :: l2ge(:)
@@ -2616,13 +2616,13 @@ use mpi
                                                 dual_f_mesh                   , & ! Associated dual_mesh with external elements also listed for boundary DoFs
                                                 dual_parts                    , & ! Parts associated to each element in the dual mesh
                                                 mlbddc%vars                   , & ! Physical unknown corresponding to each DoF in f_mesh
-                                                mlbddc%p_mesh_c%f_mesh        , & ! New fem_mesh object
+                                                mlbddc%p_mesh_c%f_mesh        , & ! New mesh object
                                                 mlbddc%dof_dist_c             , & ! New distributed DoF object conformal to new local mesh
                                                 mlbddc%eren_c                  )   ! Resulting Element renumbering
 
 
           ! Free dual_f_mesh with (external) adjacency data built-in
-          call fem_mesh_free ( dual_f_mesh )
+          call mesh_free ( dual_f_mesh )
 
           if ( debug_verbose_level_2 ) then 
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%pnods
@@ -2643,7 +2643,7 @@ use mpi
           call mesh_to_graph_matrix ( gtype, mlbddc%p_mesh_c%f_mesh, mlbddc%p_graph_c%f_graph)
 
           if ( debug_verbose_level_2 ) then 
-             call fem_graph_print ( 6,  mlbddc%p_graph_c%f_graph )
+             call graph_print ( 6,  mlbddc%p_graph_c%f_graph )
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
@@ -2654,7 +2654,7 @@ use mpi
           call memfree (l2ge, __FILE__,__LINE__) 
           ! call memfree (vars, __FILE__,__LINE__) 
           call memfree (dual_parts, __FILE__,__LINE__)
-          call fem_mesh_free ( c_mesh )  
+          call mesh_free ( c_mesh )  
 
        else if ( i_am_fine_task ) then
 
@@ -2905,7 +2905,7 @@ use mpi
     integer(ip), intent(in)  :: max_coarse_dofs
     integer(ip), intent(in)  :: ptr_coarse_dofs(np_g+1)
     integer(ip), intent(in)  :: lst_coarse_dofs(ptr_coarse_dofs(np_g+1))
-    type(fem_mesh_t) , intent(out) :: dual_f_mesh
+    type(mesh_t) , intent(out) :: dual_f_mesh
     integer(ip)    , allocatable, intent(out) :: dual_f_parts(:)
 
     ! Locals    
@@ -3001,7 +3001,7 @@ use mpi
    ! AFM: Here ONLY the members of dual_f_mesh that you know that are
    !      used later by build_partition_adjancency are filled up.
    !      This is DIRTY, as this data structure may not work with other
-   !      subroutines that operate on fem_mesh, or even with build_partition_adjacency
+   !      subroutines that operate on mesh, or even with build_partition_adjacency
    !      if its implementation changes in the future. This is because we are
    !      breaking here (and in many parts of the code I have to admit) the
    !      data encapsulation principle. There should be one common subroutine or interface
@@ -3102,10 +3102,10 @@ use mpi
 
     if (i_am_fine_task) then
        ! BEG. FINE-GRID PROBLEM DUTIES
-       call fem_matrix_fill_val ( mlbddc%A_rr )
+       call matrix_fill_val ( mlbddc%A_rr )
       
        if (mlbddc%projection == petrov_galerkin ) then 
-       call fem_matrix_fill_val ( mlbddc%A_rr_trans )
+       call matrix_fill_val ( mlbddc%A_rr_trans )
        end if
 
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -3157,7 +3157,7 @@ use mpi
        
           if ( mlbddc%projection == petrov_galerkin ) then 
 
-           call fem_matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )       
+           call matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )       
 
       call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
                                                  p_mat_trans%f_matrix%gr%type   , & 
@@ -3175,7 +3175,7 @@ use mpi
                                                  mlbddc%A_cr_trans, &              
                                                  mlbddc%A_cc_trans )
 
-           call fem_matrix_free(p_mat_trans%f_matrix)
+           call matrix_free(p_mat_trans%f_matrix)
           
          end if
 
@@ -3203,7 +3203,7 @@ use mpi
 
          if (mlbddc%projection == petrov_galerkin ) then 
               
-          call fem_matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )  
+          call matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )  
 
           call augment_matrix_with_constraints ( p_mat_trans%f_matrix%gr%type, & 
                                                  p_mat_trans%f_matrix%gr%nv   , & 
@@ -3225,7 +3225,7 @@ use mpi
                                                  mlbddc%p_mat%dof_dist%nb, &
                                                  mlbddc%C_weights  )
         
-            call fem_matrix_free(p_mat_trans%f_matrix)
+            call matrix_free(p_mat_trans%f_matrix)
 
          end if
 
@@ -3234,21 +3234,21 @@ use mpi
        if ( debug_verbose_level_3 ) then
           call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
           lunou = io_open ( trim('fine_matrix_mlevel_bddc_' //  trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') // trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
-          call fem_matrix_print_matrix_market ( lunou, mlbddc%A_rr )
+          call matrix_print_matrix_market ( lunou, mlbddc%A_rr )
           call io_close ( lunou )
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          call fem_precond_numeric( mlbddc%A_rr , mlbddc%M_rr )
+          call precond_numeric( mlbddc%A_rr , mlbddc%M_rr )
           
           if (mlbddc%projection == petrov_galerkin ) then 
-             call fem_precond_numeric( mlbddc%A_rr_trans, mlbddc%M_rr_trans ) 
+             call precond_numeric( mlbddc%A_rr_trans, mlbddc%M_rr_trans ) 
           end if
 
        else
           check(.false.)
-!!$          call fem_operator_mat_create (mlbddc%A_rr, mlbddc%A_rr_mat_op )
-!!$          call fem_abs_operator_convert(mlbddc%A_rr_mat_op, mlbddc%A_rr_op)
+!!$          call operator_mat_create (mlbddc%A_rr, mlbddc%A_rr_mat_op )
+!!$          call abs_operator_convert(mlbddc%A_rr_mat_op, mlbddc%A_rr_op)
        end if
     end if
 
@@ -3552,15 +3552,15 @@ use mpi
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
           if ( debug_verbose_level_3 ) then
              lunou =  io_open ( trim('A_mlevel_bddc_c.mtx'), 'write')  
-             call fem_matrix_print_matrix_market (lunou,  mlbddc%A_c)
+             call matrix_print_matrix_market (lunou,  mlbddc%A_c)
              call io_close (lunou)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call fem_precond_numeric( mlbddc%A_c , mlbddc%M_c )
+             call precond_numeric( mlbddc%A_c , mlbddc%M_c )
           else
              check(.false.)
-!!$             call fem_operator_mat_create (mlbddc%A_c, mlbddc%A_c_mat_op )
-!!$             call fem_abs_operator_convert(mlbddc%A_c_mat_op, mlbddc%A_c_op)
+!!$             call operator_mat_create (mlbddc%A_c, mlbddc%A_c_mat_op )
+!!$             call abs_operator_convert(mlbddc%A_c_mat_op, mlbddc%A_c_op)
           end if
        end if
     end if
@@ -3575,13 +3575,13 @@ use mpi
        
        if ( mlbddc%unknowns == all_unknowns ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
-          call fem_operator_dd_fill_val (p_mat%f_matrix, mlbddc%A_II_inv) 
+          call operator_dd_fill_val (p_mat%f_matrix, mlbddc%A_II_inv) 
           ! END. FINE-GRID PROBLEM DUTIES 
           
           if ( debug_verbose_level_3 ) then
              call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
              lunou = io_open ( trim('dirichlet_matrix_mlevel_bddc_' // trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') //  trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
-             call fem_matrix_print_matrix_market ( lunou, mlbddc%A_II_inv%A_II )
+             call matrix_print_matrix_market ( lunou, mlbddc%A_II_inv%A_II )
              call io_close ( lunou )
           end if
        end if
@@ -3756,19 +3756,19 @@ use mpi
 
   subroutine extract_trans_matrix(A, gr_a, A_t, gr_t)
 
-    type(fem_matrix_t), intent(in)     :: A         ! Input matrix
-    type(fem_graph_t),  target, intent(in)     :: gr_a      ! Graph of the matrix
-    type(fem_matrix_t), intent(out)  :: A_t       ! Output matrix
-    type(fem_graph_t), pointer,  intent(out)  :: gr_t      ! Graph of the transpose matrix
+    type(matrix_t), intent(in)     :: A         ! Input matrix
+    type(graph_t),  target, intent(in)     :: gr_a      ! Graph of the matrix
+    type(matrix_t), intent(out)  :: A_t       ! Output matrix
+    type(graph_t), pointer,  intent(out)  :: gr_t      ! Graph of the transpose matrix
 
     ! Locals 
-    type(fem_graph_t) :: aux_graph
+    type(graph_t) :: aux_graph
     integer :: k,i,j
 
     if ( gr_a%type == csr ) then
-       call fem_matrix_alloc ( csr_mat, symm_false, gr_a, A_t )
+       call matrix_alloc ( csr_mat, symm_false, gr_a, A_t )
     else if (gr_a%type == csr_symm) then
-       call fem_matrix_alloc ( csr_mat, symm_true, gr_a, A_t )
+       call matrix_alloc ( csr_mat, symm_true, gr_a, A_t )
     end if
 
     aux_graph = gr_a
@@ -3940,8 +3940,8 @@ use mpi
     ! Parameters 
     type(par_precond_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
 
-    type(fem_matrix_t)       , intent(inout)            :: A_rr
-    type(fem_precond_t)      , intent(inout)            :: M_rr
+    type(matrix_t)       , intent(inout)            :: A_rr
+    type(precond_t)      , intent(inout)            :: M_rr
 
     real(rp)               , intent(inout)         :: A_rc ( mlbddc%A_rr_gr%nv  , &
                                                                mlbddc%nl_corners) 
@@ -4629,8 +4629,8 @@ use mpi
     implicit none
     ! Parameters 
     type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
-    type(fem_matrix_t)          , intent(inout)   :: A_rr
-    type(fem_precond_t)         , intent(inout)   :: M_rr
+    type(matrix_t)          , intent(inout)   :: A_rr
+    type(precond_t)         , intent(inout)   :: M_rr
 
     real(rp), allocatable     , intent(inout)   :: A_rr_inv_C_r_T(:,:) , A_rr_inv_C_r_T_neumann(:,:)
     real(rp), allocatable     , intent(inout)   :: S_rr(:,:), S_rr_neumann(:,:)
@@ -5312,8 +5312,8 @@ use mpi
     real(rp)                 , intent(in)   :: A_cc( mlbddc%nl_corners  , &
                                                      mlbddc%nl_corners  )
 
-    type(fem_matrix_t)         , intent(inout)   :: A_rr
-    type(fem_precond_t)        , intent(inout)   :: M_rr
+    type(matrix_t)         , intent(inout)   :: A_rr
+    type(precond_t)        , intent(inout)   :: M_rr
 
     real (rp)                , intent(in)      :: A_rr_inv_C_r_T (:,:) 
     real(rp)                 , intent(inout)   :: rPhi (mlbddc%p_mat%dof_dist%nl,&
@@ -5496,8 +5496,8 @@ use mpi
     integer                  , intent(in), target, optional :: iparm(64)
     integer                  , intent(in), optional         :: msglvl
 
-    type(fem_matrix_t)      , intent(inout)   :: A_rr
-    type(fem_precond_t)     , intent(inout)   :: M_rr
+    type(matrix_t)      , intent(inout)   :: A_rr
+    type(precond_t)     , intent(inout)   :: M_rr
     real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist%nl, &
                                                      mlbddc%nl_edges+mlbddc%nl_corners)    
     character(len=1)      , intent(in)      :: system ! Information about the regular system or the system assoc                                                        iated to the transpose matrix
@@ -5725,7 +5725,7 @@ end if
              end if
              ! write (*,*) work ! DBG:
 #else
-             call fem_matmat ( p_mat%f_matrix, & 
+             call matmat ( p_mat%f_matrix, & 
                   (mlbddc%nl_edges+mlbddc%nl_corners), &
                   mlbddc%p_mat%dof_dist%nl, &
                   mlbddc%rPhi, &
@@ -5828,7 +5828,7 @@ end if
        end if
 
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  
-          call fem_matrix_fill_val (mlbddc%A_c)
+          call matrix_fill_val (mlbddc%A_c)
 
           call sum_coarse_stiffness_matrices ( mlbddc%A_c, &
                                                mlbddc%g_context%np, & 
@@ -5840,7 +5840,7 @@ end if
        else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
           assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
           
-          call fem_matrix_fill_val (mlbddc%p_mat_c%f_matrix)
+          call matrix_fill_val (mlbddc%p_mat_c%f_matrix)
 
           call sum_coarse_stiffness_matrices ( mlbddc%p_mat_c%f_matrix, &
                                                mlbddc%g_context%np, & 
@@ -5882,7 +5882,7 @@ end if
     implicit none
 
     ! Parameters
-    type(fem_matrix_t), intent(inout) :: A_c
+    type(matrix_t), intent(inout) :: A_c
     integer(ip)     , intent(in)    :: np, sz_a_ci_gathered
     integer(ip)     , intent(in)    :: ptr_coarse_dofs (np+1)
     integer(ip)     , intent(in)    :: lst_coarse_dofs (ptr_coarse_dofs(np+1))
@@ -5913,7 +5913,7 @@ end if
              end do
           end do
 
-          call fem_matrix_assembly ( nnode, &
+          call matrix_assembly ( nnode, &
                                      lst_coarse_dofs(ptr_coarse_dofs(i)+1:ptr_coarse_dofs(i+1)), &
                                      elm, &
                                      A_c ) 
@@ -5949,7 +5949,7 @@ end if
              end do
           end do
                     
-          call fem_matrix_assembly ( nnode, &
+          call matrix_assembly ( nnode, &
                                      lst_coarse_dofs(base_new+1:base_new+nnode), &
                                      elm, &
                                      A_c ) 
@@ -5965,7 +5965,7 @@ end if
     end if
 
     if (debug_verbose_level_2) then 
-       call fem_matrix_print ( 6, A_c ) ! DBG:
+       call matrix_print ( 6, A_c ) ! DBG:
     end if
 
 
@@ -6143,7 +6143,7 @@ use mpi
     type(par_vector_t)      :: r, dx, v1, v2, v3, aux
     type(par_vector_t)      :: r_I, r_G, x_I, x_G, r_v1, y_I, y_G, dx_I, dx_G
     type(par_vector_t)      :: p_r_c, p_z_c
-    type(fem_vector_t)      :: r_c, z_c, dum_vec
+    type(vector_t)      :: r_c, z_c, dum_vec
     logical               :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
     ! The routine requires the partition/context info
@@ -6197,7 +6197,7 @@ use mpi
           call par_vector_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
           ! Init interior vertices to zero
-          call fem_vector_zero ( r_I%f_vector )
+          call vector_zero ( r_I%f_vector )
 
           ! Phase 1: compute coarse-grid correction v1
           call par_vector_clone ( x_G, v1 )
@@ -6246,13 +6246,13 @@ use mpi
           call par_vector_comm   ( y_G )
 
           ! r_I <- A_IG * y_G
-          call fem_operator_dd_apply_A_IG ( mlbddc%A_II_inv, y_G%f_vector, r_I%f_vector )
+          call operator_dd_apply_A_IG ( mlbddc%A_II_inv, y_G%f_vector, r_I%f_vector )
 
           ! r <- x_I - r_I <- -r_I + x_I
           call par_vector_pxmy  ( x_I, r_I )
 
           call par_vector_create_view (  y, 1, mlbddc%p_mat%dof_dist%ni, y_I  )
-          call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, y_I%f_vector )
+          call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, y_I%f_vector )
 
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
@@ -6287,8 +6287,8 @@ use mpi
 
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
-          call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%f_vector, dx_I%f_vector )
-          call fem_vector_zero            ( dx_G%f_vector )
+          call operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%f_vector, dx_I%f_vector )
+          call vector_zero            ( dx_G%f_vector )
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6358,8 +6358,8 @@ use mpi
           call par_vector_pxmy  ( aux, r )
 
           ! 6) Compute 1), 2)
-          call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, dx_I%f_vector )
-          call fem_vector_zero            ( dx_G%f_vector )
+          call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, dx_I%f_vector )
+          call vector_zero            ( dx_G%f_vector )
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6380,13 +6380,13 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              ! Assemble coarse-grid residual
-             call fem_vector_alloc ( mlbddc%A_c%gr%nv, r_c )    
+             call vector_alloc ( mlbddc%A_c%gr%nv, r_c )    
              call par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r, r_c )
 
              ! Solve coarse-grid problem serially
-             call fem_vector_alloc ( mlbddc%A_c%gr%nv, z_c )    
+             call vector_alloc ( mlbddc%A_c%gr%nv, z_c )    
              mlbddc%spars_coarse%nrhs=1
-             call fem_vector_zero(z_c)
+             call vector_zero(z_c)
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call solve( mlbddc%A_c, mlbddc%M_c, r_c, z_c, mlbddc%spars_coarse)
              else
@@ -6399,8 +6399,8 @@ use mpi
              ! Scatter solution of coarse-grid problem 
              call par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, z_c, v1 )
 
-             call fem_vector_free (z_c)
-             call fem_vector_free (r_c)
+             call vector_free (z_c)
+             call vector_free (r_c)
           end if
 
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -6410,7 +6410,7 @@ use mpi
              call par_vector_alloc ( mlbddc%dof_dist_c, mlbddc%p_env_c, p_r_c)
              p_r_c%state = part_summed
              call par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r, p_r_c%f_vector )
-             ! call fem_vector_print_matrix_market (6, p_r_c%f_vector)
+             ! call vector_print_matrix_market (6, p_r_c%f_vector)
              ! Solve coarse-grid problem via recursive bddc
              ! AFM: In the future, the following call should be replaced by a call that allows
              ! the solution of the coarse-grid problem via a krylov subspace solver  
@@ -6466,12 +6466,12 @@ use mpi
        call par_vector_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
        
        ! r_I <- A_IG * y_G
-       call fem_operator_dd_apply_A_IG ( mlbddc%A_II_inv, x_G%f_vector, r_I%f_vector )
+       call operator_dd_apply_A_IG ( mlbddc%A_II_inv, x_G%f_vector, r_I%f_vector )
        
        ! r <- x_I - r_I <- -r_I + x_I
        call par_vector_pxmy ( b_I, r_I )
        
-       call fem_operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, x_I%f_vector )
+       call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, x_I%f_vector )
 
        mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
        mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
@@ -6486,7 +6486,7 @@ use mpi
    ! Parameters
    type(par_precond_dd_mlevel_bddc_t) ,intent(in) :: mlbddc
    type(par_vector_t)                 ,intent(in) :: r_G
-   type(fem_vector_t)                 ,intent(inout) :: r_c 
+   type(vector_t)                 ,intent(inout) :: r_c 
 
    ! Locals
    integer :: me, np
@@ -6604,7 +6604,7 @@ use mpi
    implicit none
    ! Parameters
    type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc
-   type(fem_vector_t)                , intent(inout) :: z_c
+   type(vector_t)                , intent(inout) :: z_c
    type(par_vector_t)                , intent(inout) :: v_G 
 
    ! Locals
@@ -7023,7 +7023,7 @@ use mpi
     implicit none
 
     ! Parameters
-    type(fem_vector_t), intent(inout)         :: r_c
+    type(vector_t), intent(inout)         :: r_c
     integer(ip)     , intent(in)            :: np, ng_coarse, sz_r_ci_gathered
     integer(ip)     , intent(in)            :: ptr_coarse_dofs (np+1)
     integer(ip)     , intent(in)            :: lst_coarse_dofs (ptr_coarse_dofs(np+1))
@@ -7040,9 +7040,9 @@ use mpi
     ! write (*,*) ng_coarse   
 
      ! AFM: r_c should have been allocated in advance by the caller subroutine.
-     !      As fem_vector_alloc already initializes r_c to zero, the following
+     !      As vector_alloc already initializes r_c to zero, the following
      !      sentence might not be needed. I leave it for safety reasons.
-     call fem_vector_zero(r_c)
+     call vector_zero(r_c)
      if ( .not. present(perm) ) then
         base_ptr = 0
         base_dof = 1
@@ -7095,7 +7095,7 @@ use mpi
     integer(ip), intent(in)      :: max_coarse_dofs
     integer(ip), intent(in)      :: ptr_coarse_dofs (np_g+1)
     integer(ip), intent(in)      :: lst_coarse_dofs (ptr_coarse_dofs (np_g+1))
-    type(fem_vector_t), intent(in) :: z_c
+    type(vector_t), intent(in) :: z_c
     integer(ip), optional, intent(in) :: perm(np_g-1)
 
     ! Locals
@@ -7702,7 +7702,7 @@ use mpi
 
     ! Locals
     real(rp), allocatable :: C_weights_i(:), C_weights_i_gathered(:)
-    type(fem_vector_t)      :: C_weights_next_level
+    type(vector_t)      :: C_weights_next_level
     type(par_vector_t)      :: constraint_weights
     integer(ip)           :: i, j, sum
     logical               :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
@@ -7746,10 +7746,10 @@ use mpi
        C_weights_i = 0.0_rp
 
        if ( mlbddc%nl_coarse > 0 ) then           
-              call fem_vector_alloc(mlbddc%p_mat%dof_dist%nb, constraint_weights%f_vector)
+              call vector_alloc(mlbddc%p_mat%dof_dist%nb, constraint_weights%f_vector)
               constraint_weights%f_vector%b = mlbddc%C_weights
               call apply_harm_trans( mlbddc, constraint_weights, C_weights_i ) 
-              call fem_vector_free ( constraint_weights%f_vector ) 
+              call vector_free ( constraint_weights%f_vector ) 
        end if
     end if
 
@@ -7769,7 +7769,7 @@ use mpi
                  call psb_barrier ( mlbddc%g_context%icontxt )
               end if
       
-         call fem_vector_alloc ( mlbddc%ng_coarse, C_weights_next_level )
+         call vector_alloc ( mlbddc%ng_coarse, C_weights_next_level )
          call sum_coarse_stiffness_vectors ( C_weights_next_level, &
                                              mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
@@ -7787,7 +7787,7 @@ use mpi
 
         call memalloc (  nb ,  mlbddc%p_M_c%C_weights , __FILE__, __LINE__) 
         mlbddc%p_M_c%C_weights = C_weights_next_level%b(ni+1:ni+nb)
-        call fem_vector_free ( C_weights_next_level ) 
+        call vector_free ( C_weights_next_level ) 
 
         call memfree ( C_weights_i_gathered,__FILE__,__LINE__)
 
@@ -7819,19 +7819,19 @@ use mpi
                                               df_mesh    , & ! Associated dual_mesh with external elements also listed for boundary DoFs
                                               dual_parts , & ! Parts associated to each element in the dual mesh
                                               vars       , & ! Physical unknown corresponding to each DoF in f_mesh
-                                              new_f_mesh , & ! New fem_mesh object
+                                              new_f_mesh , & ! New mesh object
                                               dof_dist   , & ! New dof_distribution object conformal to new local mesh
                                               eren       )   ! Resulting Element renumbering
                                                                 
                                               
     implicit none
     integer(ip)           , intent(in)    :: icontxt, me, np 
-    type(fem_mesh_t)        , intent(in)    :: f_mesh
+    type(mesh_t)        , intent(in)    :: f_mesh
     integer(ip)           , intent(in)    :: l2ge(f_mesh%nelem)
-    type(fem_mesh_t)        , intent(in)    :: df_mesh
+    type(mesh_t)        , intent(in)    :: df_mesh
     integer(ip)           , intent(in)    :: dual_parts(df_mesh%pnods(df_mesh%nelem+1)-1)
     integer(ip)           , intent(in)    :: vars(f_mesh%npoin)
-    type(fem_mesh_t)        , intent(out)   :: new_f_mesh
+    type(mesh_t)        , intent(out)   :: new_f_mesh
     type(dof_distribution_t), intent(out)   :: dof_dist
     type(renum_t)           , intent(out)   :: eren    
 
@@ -7959,7 +7959,7 @@ use mpi
       call par_timer_start  ( t5 )
     end if
 
-    call fem_mesh_l2l ( nren, eren, f_mesh, new_f_mesh )
+    call mesh_l2l ( nren, eren, f_mesh, new_f_mesh )
  
     if ( temporize_phases ) then
       call par_timer_stop ( t5 )
@@ -7995,9 +7995,9 @@ use mpi
 
     ! Parameters
     integer(ip)   , intent(in)                :: ipart
-    type(fem_mesh_t), intent(in)                :: f_mesh
+    type(mesh_t), intent(in)                :: f_mesh
     integer(ip)   , intent(in)                :: l2ge(f_mesh%nelem)
-    type(fem_mesh_t), intent(in)                :: df_mesh
+    type(mesh_t), intent(in)                :: df_mesh
     integer(ip)   , intent(in)                :: dual_parts(df_mesh%pnods(df_mesh%nelem+1)-1)
     integer(ip)   , intent(out)               :: nboun
     integer(ip)   , intent(out)               :: eboun
@@ -8091,8 +8091,8 @@ use mpi
                                                         el2ln2o    )
     implicit none
 
-    type(fem_mesh_t), intent(in) :: f_mesh
-    type(fem_mesh_t), intent(in) :: df_mesh
+    type(mesh_t), intent(in) :: f_mesh
+    type(mesh_t), intent(in) :: df_mesh
     integer(ip)   , intent(in) :: dual_parts(df_mesh%pnods(df_mesh%nelem+1)-1)
     integer(ip)   , intent(in) :: icontxt
     integer(ip)   , intent(in) :: ipart
@@ -8466,13 +8466,13 @@ use mpi
 
 
   !=============================================================================
-  subroutine fem_matrix_assembly(nn,ln,ea,mat)
+  subroutine matrix_assembly(nn,ln,ea,mat)
     implicit none
     ! Parameters
     integer(ip)      ,intent(in)    :: nn
     integer(ip)      ,intent(in)    :: ln(:)
     real(rp)         ,intent(in)    :: ea(:,:)
-    type(fem_matrix_t) ,intent(inout) :: mat
+    type(matrix_t) ,intent(inout) :: mat
     
     ! Locals
     integer(ip) :: nl, ne
@@ -8491,7 +8491,7 @@ use mpi
     call ass_csr_mat_scal(mat%symm,nn,ln,ea,mat%gr%nv, &
          &                mat%gr%ia,mat%gr%ja,mat%a)
 
-  end subroutine fem_matrix_assembly
+  end subroutine matrix_assembly
 
   subroutine ass_csr_mat_scal (ks,nn,ln,ea,nv,ia,ja,a)
     implicit none
@@ -8551,16 +8551,16 @@ use mpi
 
     ! Parameters
     integer(ip)          , intent(in)     :: gtype
-    type(fem_mesh_t)       , intent(in)     :: primal_mesh
-    type(fem_graph_t)      , intent(out)    :: primal_graph
+    type(mesh_t)       , intent(in)     :: primal_mesh
+    type(graph_t)      , intent(out)    :: primal_graph
 
 
     ! Local variables
-    type (fem_mesh_t)                        :: dual_mesh
+    type (mesh_t)                        :: dual_mesh
     integer(ip), allocatable               :: iwork(:)       ! Integer ip working array
     integer(ip)                            :: pwork(3)       ! Pointers to work space
 
-    ! Valid fem_graph_t types for addressing sparse matrices are csr_symm or csr
+    ! Valid graph_t types for addressing sparse matrices are csr_symm or csr
     assert( gtype==csr_symm .or. gtype==csr )
 
 
@@ -8593,7 +8593,7 @@ use mpi
                                        iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
     
     ! Free dual_mesh
-    call fem_mesh_free ( dual_mesh )
+    call mesh_free ( dual_mesh )
     call memfree ( iwork,__FILE__,__LINE__)
     
   end subroutine mesh_to_graph_matrix
@@ -8605,8 +8605,8 @@ use mpi
 
     ! Parameters
     integer(ip)    , intent(in)     :: gtype
-    type(fem_mesh_t) , intent(in)     :: primal_mesh, dual_mesh
-    type(fem_graph_t), intent(inout)  :: primal_graph
+    type(mesh_t) , intent(in)     :: primal_mesh, dual_mesh
+    type(graph_t), intent(inout)  :: primal_graph
     integer(ip)    , intent(out)    :: ws_position  (primal_mesh%npoin)
     integer(ip)    , intent(out)    :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
 
@@ -8680,8 +8680,8 @@ use mpi
 
        ! Parameters
        integer(ip)    , intent(in)    :: gtype
-       type(fem_mesh_t) , intent(in)    :: primal_mesh, dual_mesh
-       type(fem_graph_t), intent(inout) :: primal_graph
+       type(mesh_t) , intent(in)    :: primal_mesh, dual_mesh
+       type(graph_t), intent(inout) :: primal_graph
        integer(ip)    , intent(out)   :: ws_position  (primal_mesh%npoin)
        integer(ip)    , intent(out)   :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
 
@@ -8773,7 +8773,7 @@ use mpi
              class is(par_vector_t)
                call par_precond_dd_mlevel_bddc_apply_all_unk ( op, x, y )
              class default
-             write(0,'(a)') 'fem_matrix_t%apply: unsupported y class'
+             write(0,'(a)') 'matrix_t%apply: unsupported y class'
              check(1==0)
           end select
           class default

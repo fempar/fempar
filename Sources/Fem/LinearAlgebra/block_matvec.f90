@@ -25,51 +25,51 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_matrix_vector_names
+module block_matrix_vector_names
 use types_names
-  use fem_block_matrix_names
-  use fem_block_vector_names
-  use fem_matrix_names
-  use fem_vector_names
+  use block_matrix_names
+  use block_vector_names
+  use matrix_names
+  use vector_names
   implicit none
 # include "debug.i90"
 
   private
 
-  public :: fem_block_matvec
+  public :: block_matvec
 
 contains
 
-  subroutine fem_block_matvec (a, x, y)
+  subroutine block_matvec (a, x, y)
     implicit none
     ! Parameters
-    type(fem_block_matrix_t), intent(in)    :: a
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_matrix_t), intent(in)    :: a
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
 
     ! Locals
-    type(fem_matrix_t), pointer :: f_matrix
-    type(fem_vector_t)          :: aux
+    type(matrix_t), pointer :: f_matrix
+    type(vector_t)          :: aux
     integer(ip)               :: ib, jb
 
     assert ( a%get_nblocks() == x%nblocks )
     assert ( a%get_nblocks() == y%nblocks )
     
     do ib=1, a%get_nblocks()
-       call fem_vector_zero  ( y%blocks(ib) )
-       call fem_vector_clone ( y%blocks(ib), aux ) 
+       call vector_zero  ( y%blocks(ib) )
+       call vector_clone ( y%blocks(ib), aux ) 
        do jb=1, a%get_nblocks()
           f_matrix => a%get_block(ib,jb)
           if ( associated(f_matrix) ) then
              ! aux <- A(ib,jb) * x(jb)
-             call fem_matvec ( f_matrix, x%blocks(jb), aux )
+             call matvec ( f_matrix, x%blocks(jb), aux )
              
              ! y(ib) <- y(ib) + aux 
-             call fem_vector_pxpy ( aux, y%blocks(ib) ) 
+             call vector_pxpy ( aux, y%blocks(ib) ) 
           end if
        end do
-       call fem_vector_free ( aux )
+       call vector_free ( aux )
     end do
-  end subroutine fem_block_matvec
+  end subroutine block_matvec
 
-end module fem_block_matrix_vector_names
+end module block_matrix_vector_names
