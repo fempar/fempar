@@ -29,7 +29,7 @@ program partitioner
   !-----------------------------------------------------------------------
   ! A finite element preprocessor
   !-----------------------------------------------------------------------
-use fem_names
+use serial_names
   !use mesh_graph_partition
   implicit none
   integer(ip)                       :: power, type, use_graph, nparts, nstr

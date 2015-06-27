@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_names
+module serial_names
 
   ! Tools
   use types_names
@@ -103,4 +103,4 @@ module fem_names
   use problem_names
   use integration_names
 
-end module fem_names
+end module serial_names

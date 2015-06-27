@@ -28,7 +28,7 @@
 
 module lib_vtk_io_interface_names
 
-  use fem_names, only: fem_mesh_t, fem_triangulation_t, fem_mesh_print, triangulation_print
+  use serial_names, only: fem_mesh_t, fem_triangulation_t, fem_mesh_print, triangulation_print
   use types_names
   use memor_names
   use stdio_names
