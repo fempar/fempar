@@ -363,7 +363,7 @@ contains
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$
 !!$    do ielem = 1, fe_space%g_trian%num_elems
-!!$       do iobje = 1,fe_space%lelem(ielem)%p_geo_info%nobje
+!!$       do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nobje
 !!$          do ivar=1, fe_space%dof_handler%problems(problem(ielem))%p%nvars
 !!$             
 !!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &

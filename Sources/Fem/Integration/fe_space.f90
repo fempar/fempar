@@ -81,7 +81,7 @@ module fe_space_names
 
      ! Array of reference elements (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elem_info
-     type(fem_fixed_info_t)               :: finite_elements_info(max_elinf)
+     type(reference_element_t)               :: finite_elements_info(max_elinf)
 
      ! Acceleration arrays
      type(list_2d_t), allocatable         :: object2dof(:)       ! An auxiliary array to accelerate some parts of the code
@@ -236,7 +236,6 @@ contains
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
     integer(ip) :: ielem, istat, pos_elmatvec, pos_elinf, pos_voint, ivar, lndof, iobje
-    logical :: created
     integer(ip) :: aux_val
 
     ! nunk_tot = total amount of unknowns
@@ -275,7 +274,7 @@ contains
 
        nvars = fe_space%dof_handler%problems(problem(ielem))%p%nvars
        fe_space%finite_elements(ielem)%num_vars = nvars
-       f_type = fe_space%g_trian%elems(ielem)%topology%ftype
+       f_type = fe_space%g_trian%elems(ielem)%geo_reference_element%ftype
        !assert(size(continuity,1)==nvars_tot)
        !assert(size(material,1)==nvars_tot)
 
@@ -288,7 +287,7 @@ contains
        call memalloc(nvars, fe_space%finite_elements(ielem)%order, __FILE__, __LINE__)
 
        ! Allocate the fixed info array
-       call memalloc(nvars, fe_space%finite_elements(ielem)%f_inf, __FILE__, __LINE__)
+       call memalloc(nvars, fe_space%finite_elements(ielem)%reference_element_vars, __FILE__, __LINE__)
 
        ! Allocate nodes per object info
        allocate(fe_space%finite_elements(ielem)%nodes_object(nvars), stat=istat )
@@ -314,10 +313,9 @@ contains
           call fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
              call finite_element_fixed_info_create(fe_space%finite_elements_info(pos_elinf),f_type,              &
-                  &                             f_order,dim,created)
-             assert(created)
+                  &                             f_order,dim)
           end if
-          fe_space%finite_elements(ielem)%f_inf(ivar)%p => fe_space%finite_elements_info(pos_elinf)
+          fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => fe_space%finite_elements_info(pos_elinf)
 
           if ( fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
              fe_space%finite_elements(ielem)%nodes_object(ivar)%p => fe_space%finite_elements_info(pos_elinf)%ndxob
@@ -337,10 +335,9 @@ contains
        call fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
        if ( istat == new_index) then 
           call finite_element_fixed_info_create(fe_space%finite_elements_info(pos_elinf),f_type,              &
-               &                             1,dim,created)
-          assert(created)
+               &                             1,dim)
        end if
-       fe_space%finite_elements(ielem)%p_geo_info => fe_space%finite_elements_info(pos_elinf)
+       fe_space%finite_elements(ielem)%p_geo_reference_element => fe_space%finite_elements_info(pos_elinf)
 
        ! Compute number of DOFs in the elemental matrix associated to ielem
        lndof = 0
@@ -351,10 +348,10 @@ contains
              !     which is needed even with static_condensation...
              ! JP & SB: In fact we also need to think about it for the unknown. Only elem2dof can be reduced
              !          to the interface.
-             nnode = fe_space%finite_elements(ielem)%f_inf(ivar)%p%nnode -                                   &
-                  &  fe_space%finite_elements(ielem)%f_inf(ivar)%p%nodes_obj(dim+1) ! SB.alert : do not use nodes_obj
+             nnode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode -                                   &
+                  &  fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_obj(dim+1) ! SB.alert : do not use nodes_obj
           else
-             nnode = fe_space%finite_elements(ielem)%f_inf(ivar)%p%nnode 
+             nnode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode 
           end if
           lndof = lndof + nnode
           max_num_nodes = max(max_num_nodes,nnode)
@@ -377,10 +374,10 @@ contains
        fe_space%finite_elements(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fe_space%finite_elements(ielem)%integ,__FILE__,__LINE__)
        call memalloc(nvars,fe_space%finite_elements(ielem)%inter,__FILE__,__LINE__)
-       call memalloc(nvars,fe_space%finite_elements(ielem)%p_geo_info%nobje,fe_space%finite_elements(ielem)%bc_code,__FILE__,__LINE__, 0)
+       call memalloc(nvars,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje,fe_space%finite_elements(ielem)%bc_code,__FILE__,__LINE__, 0)
 
        ! Fill bc_code
-       do iobje = 1,fe_space%finite_elements(ielem)%p_geo_info%nobje
+       do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
           do ivar=1,nvars
              fe_space%finite_elements(ielem)%bc_code(ivar,iobje) = bcond%code( fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar),  fe_space%g_trian%elems(ielem)%objects(iobje) )
           end do
@@ -401,8 +398,8 @@ contains
           call fe_space%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
           ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
           if ( istat == new_index ) call interpolator_create(f_type,f_type,dim,1,f_order,            &
-               &                                             fe_space%finite_elements(ielem)%p_geo_info%nnode,    &
-               &                                             fe_space%finite_elements(ielem)%f_inf(ivar)%p%nnode, &
+               &                                             fe_space%finite_elements(ielem)%p_geo_reference_element%nnode,    &
+               &                                             fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode, &
                &                                             fe_space%linter(pos_voint),                &
                &                                             khie = fe_space%hierarchical_basis)
           fe_space%finite_elements(ielem)%inter(ivar)%p => fe_space%linter(pos_voint)
@@ -520,14 +517,14 @@ contains
        if (allocated(fe_space%finite_elements(i)%bc_code)) then
           call memfree(fe_space%finite_elements(i)%bc_code,__FILE__,__LINE__)
        end if
-       nullify ( fe_space%finite_elements(i)%p_geo_info )
+       nullify ( fe_space%finite_elements(i)%p_geo_reference_element )
        nullify ( fe_space%finite_elements(i)%p_mat )
        nullify ( fe_space%finite_elements(i)%p_vec )
        do j = 1, fe_space%finite_elements(i)%num_vars
           nullify ( fe_space%finite_elements(i)%nodes_object(j)%p )          
        end do
        !if(allocated(fe_space%finite_elements(i)%nodes_object)) call memfree(fe_space%finite_elements(i)%nodes_object,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%f_inf)) call memfree(fe_space%finite_elements(i)%f_inf,__FILE__,__LINE__)
+       if(allocated(fe_space%finite_elements(i)%reference_element_vars)) call memfree(fe_space%finite_elements(i)%reference_element_vars,__FILE__,__LINE__)
        if(allocated(fe_space%finite_elements(i)%integ)) call memfree(fe_space%finite_elements(i)%integ,__FILE__,__LINE__)
        if(allocated(fe_space%finite_elements(i)%inter)) call memfree(fe_space%finite_elements(i)%inter,__FILE__,__LINE__)
        !if(allocated(fe_space%finite_elements(i)%iv))    call memfree(fe_space%finite_elements(i)%iv   ,__FILE__,__LINE__)
@@ -601,7 +598,7 @@ contains
     !   call memalloc ( trian%num_elems, num_faces, __FILE__,__LINE__ )
 
     !   do i=1,mesh%nelem
-    !         mesh%p_face(i) = mesh%pnods(i) + fe_space%finite_elements(i)%f_inf(1)%p%nobje_dim(mesh%ndime) -1
+    !         mesh%p_face(i) = mesh%pnods(i) + fe_space%finite_elements(i)%reference_element_vars(1)%p%nobje_dim(mesh%ndime) -1
     !   end do
 
   end subroutine get_p_faces

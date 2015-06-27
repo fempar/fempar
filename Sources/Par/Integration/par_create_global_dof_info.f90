@@ -157,9 +157,9 @@ contains
                    l_var = dhand%prob_block(iblock,iprob)%a(ivars)
                    g_var = dhand%problems(iprob)%p%l2g_var(l_var)
                    if ( fe_space%finite_elements(ielem)%continuity(g_var) == 0 ) then
-                      do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci), &
-                           & fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(l_faci+1)-1
-                         l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%l(inode)
+                      do inode = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(l_faci), &
+                           & fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(l_faci+1)-1
+                         l_node = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%l(inode)
                          assert ( fe_space%finite_elements(ielem)%elem2dof(l_node,l_var) == 0  )
                          count = count + 1
                          fe_space%finite_elements(ielem)%elem2dof(l_node,l_var) = count

@@ -63,7 +63,7 @@ contains
        prob = fe_space%finite_elements(ielem)%problem
        do ivar=1, fe_space%dof_handler%problems(prob)%p%nvars
           gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
-          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_info%nobje
+          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
              lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
              do inode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje), &
                   &     fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
@@ -110,7 +110,7 @@ contains
 
        do ielem = 1, fe_space%g_trian%num_elems
           prob  = fe_space%finite_elements(ielem)%problem
-          gnode = fe_space%finite_elements(ielem)%p_geo_info%nnode
+          gnode = fe_space%finite_elements(ielem)%p_geo_reference_element%nnode
           cnt   = 0
 
           do ivar=vars_of_unk(1),vars_of_unk(nvars)
@@ -120,12 +120,12 @@ contains
              gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
 
              ! Interpolate coordinates
-             unode = fe_space%finite_elements(ielem)%f_inf(ivar)%p%nnode
+             unode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode
              call memalloc(ndime,unode,coord,__FILE__,__LINE__)
              call interpolate(ndime,gnode,unode,fe_space%finite_elements(ielem)%inter(ivar)%p, &
                   &           fe_space%g_trian%elems(ielem)%coordinates,coord)
 
-             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_info%nobje
+             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
                 lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
 
                 if ( fe_space%finite_elements(ielem)%bc_code(ivar,iobje) /= 0 ) then
@@ -193,7 +193,7 @@ contains
           lvar = fe_space%dof_handler%prob_block(iblock_,iprob)%a(ivar)
 
           ! Loop over elemental nodes
-          do inode = 1,fe_space%finite_elements(ielem)%f_inf(lvar)%p%nnode
+          do inode = 1,fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
              idof = fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
              
              if(idof/=0) then

@@ -301,10 +301,10 @@ contains
           k_var = dhand%problems(iprob)%p%l2g_var(m_var)
           !write (*,*) 'l_var:',l_var
           !write (*,*) 'm_var:',m_var
-          do inode = 1,finite_element%f_inf(l_var)%p%nnode
+          do inode = 1,finite_element%reference_element_vars(l_var)%p%nnode
              idof = finite_element%elem2dof(inode,l_var)
              if ( idof  > 0 ) then
-                do jnode = 1,finite_element%f_inf(m_var)%p%nnode
+                do jnode = 1,finite_element%reference_element_vars(m_var)%p%nnode
                    jdof = finite_element%elem2dof(jnode,m_var)
                    if (  gtype == csr .and. jdof > 0 ) then
                       do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
@@ -360,13 +360,13 @@ contains
           do jvars = 1, nvapb_j
              m_var = dhand%prob_block(jblock_,jprob)%a(jvars)
              k_var = dhand%problems(jprob)%p%l2g_var(m_var)
-             do inode = 1,finite_element(i)%f_inf(l_var)%p%nnode
+             do inode = 1,finite_element(i)%reference_element_vars(l_var)%p%nnode
                 idof = finite_element(i)%elem2dof(inode,l_var)
                 if ( idof  > 0 ) then
-                   ndime = finite_element(j)%p_geo_info%ndime
-                   iobje = fe_face%face_object + finite_element(j)%p_geo_info%nobje_dim(ndime) - 1
-                   do jnode = finite_element(j)%f_inf(m_var)%p%ntxob%p(iobje),finite_element(j)%f_inf(m_var)%p%ntxob%p(iobje+1)-1
-                      jdof = finite_element(j)%elem2dof(finite_element(j)%f_inf(m_var)%p%ntxob%l(jnode),m_var)
+                   ndime = finite_element(j)%p_geo_reference_element%ndime
+                   iobje = fe_face%face_object + finite_element(j)%p_geo_reference_element%nobje_dim(ndime) - 1
+                   do jnode = finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje),finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje+1)-1
+                      jdof = finite_element(j)%elem2dof(finite_element(j)%reference_element_vars(m_var)%p%ntxob%l(jnode),m_var)
                       if (  gtype == csr .and. jdof > 0 ) then
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
@@ -408,7 +408,7 @@ contains
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-       do inode = 1,finite_element%f_inf(l_var)%p%nnode
+       do inode = 1,finite_element%reference_element_vars(l_var)%p%nnode
           idof = finite_element%elem2dof(inode,l_var)
           if ( idof  > 0 ) then
              a%b(idof) =  a%b(idof) + finite_element%p_vec%a(start(l_var)+inode-1)
@@ -433,16 +433,16 @@ contains
     integer(ip) :: inode, idof, iblock_, iobje, ndime
 
     iblock_ = 1
-    ndime = finite_element%p_geo_info%ndime
+    ndime = finite_element%p_geo_reference_element%ndime
     if ( present(iblock) ) iblock_ = iblock
     iprob = finite_element%problem
     nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-       iobje = fe_face%face_object + finite_element%p_geo_info%nobje_dim(ndime) - 1
-       do inode = finite_element%f_inf(l_var)%p%ntxob%p(iobje),finite_element%f_inf(l_var)%p%ntxob%p(iobje+1)-1
-          idof = finite_element%elem2dof(finite_element%f_inf(l_var)%p%ntxob%l(inode),l_var)
+       iobje = fe_face%face_object + finite_element%p_geo_reference_element%nobje_dim(ndime) - 1
+       do inode = finite_element%reference_element_vars(l_var)%p%ntxob%p(iobje),finite_element%reference_element_vars(l_var)%p%ntxob%p(iobje+1)-1
+          idof = finite_element%elem2dof(finite_element%reference_element_vars(l_var)%p%ntxob%l(inode),l_var)
           if ( idof  > 0 ) then
              a%b(idof) = a%b(idof) + fe_face%p_vec%a(start(l_var)+inode-1)
           end if
@@ -460,7 +460,7 @@ contains
     integer(ip) :: ivar
 
     do ivar = 1,dhand%problems(finite_element%problem)%p%nvars
-       start(ivar+1) = finite_element%f_inf(ivar)%p%nnode
+       start(ivar+1) = finite_element%reference_element_vars(ivar)%p%nnode
     end do
     start(1) = 1
     do ivar = 2, dhand%problems(finite_element%problem)%p%nvars+1

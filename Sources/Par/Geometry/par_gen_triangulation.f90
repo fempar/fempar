@@ -47,7 +47,7 @@ module par_gen_triangulation_names
 contains
   
   !==================================================================================================
-  subroutine par_gen_triangulation(p_env,gdata,bdata,ginfo,p_trian,p_cond,material)
+  subroutine par_gen_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates a parallel triangulation.                                         !
     !-----------------------------------------------------------------------------------------------!
@@ -55,7 +55,7 @@ contains
     type(par_environment_t)  , target, intent(in)  :: p_env
     type(geom_data_t)                , intent(in)  :: gdata
     type(bound_data_t)               , intent(in)  :: bdata
-    type(fem_fixed_info_t)           , intent(in)  :: ginfo
+    type(reference_element_t)           , intent(in)  :: geo_reference_element
     type(par_triangulation_t), target, intent(out) :: p_trian 
     type(par_conditions_t)           , intent(out) :: p_cond
     integer(ip), allocatable       , intent(out) :: material(:)
@@ -79,7 +79,7 @@ contains
        check(state == par_triangulation_not_created)
 
        ! Create Local triangulation and mesh_distribution
-       call gen_triangulation(p_trian%p_env%p_context%iam+1,gdata,bdata,ginfo,p_trian%f_trian, &
+       call gen_triangulation(p_trian%p_env%p_context%iam+1,gdata,bdata,geo_reference_element,p_trian%f_trian, &
             &                 p_cond%f_conditions,material,mdist)
 
        ! Create element_import
@@ -149,7 +149,7 @@ contains
           ! Step 1: Put LID of vertices in the ghost elements (f_mesh_dist)
           ilele = mdist%lebou(ielem) ! local ID element
           ! aux : array of ilele (LID) vertices in GID
-          nvert  = p_trian%f_trian%elems(ilele)%topology%nobje_dim(2)-1
+          nvert  = p_trian%f_trian%elems(ilele)%geo_reference_element%nobje_dim(2)-1
           call memalloc( nvert, aux_igp, __FILE__, __LINE__  )
           do iobj = 1, nvert                        ! vertices only
              aux_igp(iobj) = p_trian%elems(ilele)%objects_GIDs(iobj) ! extract GIDs vertices
@@ -157,7 +157,7 @@ contains
           do jelem = mdist%pextn(ielem), & 
                mdist%pextn(ielem+1)-1  ! external neighbor elements
              call hash%get(key = mdist%lextn(jelem), val=jlele, stat=istat) ! LID external element
-             do jobj = 1, p_trian%f_trian%elems(jlele)%topology%nobje_dim(2)-1 ! vertices external 
+             do jobj = 1, p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(2)-1 ! vertices external 
                 if ( p_trian%f_trian%elems(jlele)%objects(jobj) == -1) then
                    do iobj = 1, nvert
                       if ( aux_igp(iobj) == p_trian%elems(jlele)%objects_GIDs(jobj) ) then
@@ -179,27 +179,27 @@ contains
              call hash%get(key = mdist%lextn(jelem), val=jlele, stat=istat) ! LID external element
              ! loop over all efs of external elements
              do idime =2,p_trian%f_trian%num_dims
-                do iobj = p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime), &
-                     p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime+1)-1 
+                do iobj = p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime), &
+                     p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime+1)-1 
                    if ( p_trian%f_trian%elems(jlele)%objects(iobj) == -1) then ! efs not assigned yet
                       count = 1
                       ! loop over vertices of every ef
-                      do jobj = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj), &
-                           p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)-1    
-                         ivere = p_trian%f_trian%elems(jlele)%topology%crxob%l(jobj)
+                      do jobj = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj), &
+                           p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj+1)-1    
+                         ivere = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%l(jobj)
                          if (p_trian%f_trian%elems(jlele)%objects(ivere) == -1) then
                             count = 0 ! not an object of the local triangulation
                             exit
                          end if
                       end do
                       if (count == 1) then
-                         nvert = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)- &
-                              p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj)
+                         nvert = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj+1)- &
+                              p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj)
                          call memalloc( nvert, aux, __FILE__, __LINE__)
                          count = 1
-                         do jobj = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj), &
-                              p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)-1 
-                            ivere = p_trian%f_trian%elems(jlele)%topology%crxob%l(jobj)
+                         do jobj = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj), &
+                              p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj+1)-1 
+                            ivere = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%l(jobj)
                             aux(count) = p_trian%f_trian%elems(jlele)%objects(ivere)
                             count = count+1
                          end do

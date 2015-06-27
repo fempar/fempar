@@ -145,7 +145,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
           g_node = gmesh%lnods(inode)
           trian%elems(ielem)%coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
        end do
-       trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
+       trian%elems(ielem)%order = get_order( trian%elems(ielem)%geo_reference_element%ftype, count, trian%num_dims )
     end do
 
 

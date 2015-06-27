@@ -40,7 +40,7 @@ module fem_triangulation_names
   type elem_topology_t
      integer(ip)               :: num_objects = -1    ! Number of objects
      integer(ip), allocatable  :: objects(:)          ! List of Local IDs of the objects (vertices, edges, faces) that make up this element
-     type(fem_fixed_info_t), pointer :: topology => NULL() ! Topological info of the geometry (SBmod)
+     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
      
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
@@ -63,7 +63,7 @@ module fem_triangulation_names
      type(elem_topology_t), allocatable    :: elems(:) ! array of elements in the mesh.
      type(object_topology_t) , allocatable :: objects(:) ! array of objects in the mesh.
      type (position_hash_table_t)          :: pos_elem_info  ! Topological info hash table (SBmod)
-     type (fem_fixed_info_t)               :: lelem_info(max_elinf) ! List of topological info's
+     type (reference_element_t)               :: reference_elements(max_elinf) ! List of topological info's
      integer(ip)                         :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable            :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
   end type fem_triangulation_t
@@ -128,7 +128,7 @@ contains
 
     ! Deallocate fixed info
     do iobj = 1,trian%pos_elem_info%last()
-       call finite_element_fixed_info_free (trian%lelem_info(iobj))
+       call finite_element_fixed_info_free (trian%reference_elements(iobj))
     end do
     call trian%pos_elem_info%free
 
@@ -200,7 +200,7 @@ contains
     end if
 
     element%num_objects = -1
-    nullify( element%topology )
+    nullify( element%geo_reference_element )
   end subroutine free_elem_topology
 
   subroutine initialize_elem_topology(element)
@@ -269,8 +269,8 @@ contains
     ! List elements and add object dimension
     do ielem=1, length_trian_
        do idime =1, trian%num_dims    ! (SBmod)
-          do iobj = trian%elems(ielem)%topology%nobje_dim(idime), &
-               trian%elems(ielem)%topology%nobje_dim(idime+1)-1 
+          do iobj = trian%elems(ielem)%geo_reference_element%nobje_dim(idime), &
+               trian%elems(ielem)%geo_reference_element%nobje_dim(idime+1)-1 
              !do iobj=1, trian%elems(ielem)%num_objects
              jobj = trian%elems(ielem)%objects(iobj)
              if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
@@ -347,10 +347,10 @@ contains
     call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
     if ( istat == new_index) then
        ! Create fixed info if not constructed
-       call finite_element_fixed_info_create(trian%lelem_info(pos_elinf),etype,  &
-            &                                     1,ndime,created)
+       call finite_element_fixed_info_create(trian%reference_elements(pos_elinf),etype,  &
+            &                                     1,ndime)
     end if
-    trian%elems(ielem)%topology => trian%lelem_info(pos_elinf)
+    trian%elems(ielem)%geo_reference_element => trian%reference_elements(pos_elinf)
 
   end subroutine put_topology_element_triangulation
 
@@ -363,12 +363,12 @@ contains
     integer(ip)              :: first, last, io, iv, jv, ivl, c
     lid = -1
 
-    do io = e%topology%nobje_dim(nd), e%topology%nobje_dim(nd+1)-1
-       first =  e%topology%crxob%p(io)
-       last = e%topology%crxob%p(io+1) -1
+    do io = e%geo_reference_element%nobje_dim(nd), e%geo_reference_element%nobje_dim(nd+1)-1
+       first =  e%geo_reference_element%crxob%p(io)
+       last = e%geo_reference_element%crxob%p(io+1) -1
        if ( last - first + 1  == no ) then 
           do iv = first,last
-             ivl = e%objects(e%topology%crxob%l(iv)) ! LID of vertices of the ef
+             ivl = e%objects(e%geo_reference_element%crxob%l(iv)) ! LID of vertices of the ef
              c = 0
              do jv = 1,no
                 if ( ivl ==  list(jv) ) then
@@ -419,7 +419,7 @@ contains
        write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'order:', trian%elems(ielem)%order
 
-       !call finite_element_fixed_info_write ( trian%elems(ielem)%topology )
+       !call finite_element_fixed_info_write ( trian%elems(ielem)%geo_reference_element )
 
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
     end do

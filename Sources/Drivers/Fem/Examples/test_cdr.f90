@@ -253,7 +253,7 @@ contains
 !!$          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
 !!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%p',fe_space%lelem(ielem)%nodes_object(ivar)%p%p
 !!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%l',fe_space%lelem(ielem)%nodes_object(ivar)%p%l
-!!$          do iobje = 1,fe_space%lelem(ielem)%p_geo_info%nobje
+!!$          do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nobje
 !!$
 !!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
 !!$                  &     fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 

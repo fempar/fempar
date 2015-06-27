@@ -277,8 +277,8 @@ contains
     ! Fill VTK cell type and offset arrays and and count nodes
     tnnod = 0
     do i=1, f_trian%num_elems
-        f_vtk%mesh(f_vtk%num_meshes)%ctype(i) = celltypes(f_trian%num_dims,f_trian%elems(i)%topology%ftype)
-        tnnod = tnnod + f_trian%elems(i)%topology%nnode
+        f_vtk%mesh(f_vtk%num_meshes)%ctype(i) = celltypes(f_trian%num_dims,f_trian%elems(i)%geo_reference_element%ftype)
+        tnnod = tnnod + f_trian%elems(i)%geo_reference_element%nnode
         f_vtk%mesh(f_vtk%num_meshes)%offset(i:) = tnnod
     enddo
     f_vtk%mesh(f_vtk%num_meshes)%nnods = tnnod
@@ -294,16 +294,16 @@ contains
 
     ! Fill VTK coordinate arrays
     do i=1, f_trian%num_elems
-        do j=1, f_trian%elems(i)%topology%nnode
+        do j=1, f_trian%elems(i)%geo_reference_element%nnode
 ! node permutation (only VTK elements 9 and 12)
-!            f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = ftype_conn( f_trian%elems(i)%topology%ftype,mod(j-1,f_trian%elems(i)%topology%nnode)+1) - 1 + tnnod
+!            f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = ftype_conn( f_trian%elems(i)%geo_reference_element%ftype,mod(j-1,f_trian%elems(i)%geo_reference_element%nnode)+1) - 1 + tnnod
             f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = j + tnnod - 1
             if (f_trian%num_dims >=1) f_vtk%mesh(f_vtk%num_meshes)%X(counter) = f_trian%elems(i)%coordinates(1,j)
             if (f_trian%num_dims >=2) f_vtk%mesh(f_vtk%num_meshes)%Y(counter) = f_trian%elems(i)%coordinates(2,j)
             if (f_trian%num_dims >=3) f_vtk%mesh(f_vtk%num_meshes)%Z(counter) = f_trian%elems(i)%coordinates(3,j)
             counter = counter + 1
         enddo
-        tnnod = tnnod + f_trian%elems(i)%topology%nnode
+        tnnod = tnnod + f_trian%elems(i)%geo_reference_element%nnode
     enddo
     f_vtk%mesh(f_vtk%num_meshes)%filled = .True.
   ! ----------------------------------------------------------------------------------
@@ -406,7 +406,7 @@ contains
     count_subelem = 0
     f_vtk%mesh(f_vtk%num_meshes)%X = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Y = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Z = 0._rp
     do ielem = 1, fe_space%g_trian%num_elems
-       order = fe_space%finite_elements(ielem)%f_inf(1)%p%order
+       order = fe_space%finite_elements(ielem)%reference_element_vars(1)%p%order
        num_subelems = Q_nnods(ndime,order-1)
        geo_nnode = interp(order)%nnode
        nnode     = interp(order)%nlocs
@@ -436,8 +436,8 @@ contains
           end do
 
           ! Store the type of element
-          assert(fe_space%finite_elements(ielem)%p_geo_info%ftype == Q_type_id)
-          f_vtk%mesh(f_vtk%num_meshes)%ctype(count_subelem) = celltypes(ndime,fe_space%finite_elements(ielem)%p_geo_info%ftype)          
+          assert(fe_space%finite_elements(ielem)%p_geo_reference_element%ftype == Q_type_id)
+          f_vtk%mesh(f_vtk%num_meshes)%ctype(count_subelem) = celltypes(ndime,fe_space%finite_elements(ielem)%p_geo_reference_element%ftype)          
 
            ! Fill offset
            f_vtk%mesh(f_vtk%num_meshes)%offset(count_subelem) = count_poinsX
@@ -561,10 +561,10 @@ contains
                         call memalloc( f_vtk%mesh(nm)%fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
             
                         do i=1, nels
-                            elnnod = f_vtk%p_fe_space%finite_elements(i)%f_inf(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                            elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
                             do j=1, elnnod
-                                nnode = f_vtk%p_fe_space%finite_elements(i)%f_inf(curr_nvar)%p%ntxob%p(j)
-                                idx = f_vtk%p_fe_space%finite_elements(i)%f_inf(curr_nvar)%p%ntxob%l(nnode)
+                                nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_nvar)%p%ntxob%p(j)
+                                idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_nvar)%p%ntxob%l(nnode)
                                 field(1:f_vtk%mesh(nm)%fields(f)%num_comp,j+tnnod) = &
                                      f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%fields(f)%num_comp, tidx)
                             enddo

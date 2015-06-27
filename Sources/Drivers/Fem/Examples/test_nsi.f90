@@ -26,17 +26,17 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program test_nsi_iss
-use fem_names
+  use fem_names
   use nsi_names
   use nsi_cg_iss_names
-use lib_vtk_io_interface_names
+  use lib_vtk_io_interface_names
   implicit none
 # include "debug.i90"
   
   ! Types
   type(geom_data_t)                    :: gdata
   type(bound_data_t)                   :: bdata
-  type(fem_fixed_info_t)               :: ginfo
+  type(reference_element_t)            :: geo_reference_element
   type(fem_triangulation_t)            :: f_trian
   type(fem_conditions_t)               :: f_cond
   type(dof_handler_t)                  :: dhand
@@ -56,9 +56,6 @@ use lib_vtk_io_interface_names
   class(base_operator_t)     , pointer :: A, M
   type(fem_graph_t)          , pointer :: f_graph
   type(fem_block_graph_t)              :: f_blk_graph
-
-  ! Logicals
-  logical :: ginfo_state
 
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
@@ -95,10 +92,10 @@ use lib_vtk_io_interface_names
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
 
   ! Generate element geometrical fixed info
-  call finite_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
+  call finite_element_fixed_info_create(geo_reference_element,Q_type_id,1,gdata%ndime)
 
   ! Generate triangulation
-  call gen_triangulation(1,gdata,bdata,ginfo,f_trian,f_cond,material)
+  call gen_triangulation(1,gdata,bdata,geo_reference_element,f_trian,f_cond,material)
 
   ! Create dof_handler
   call dhand%create(1,1,gdata%ndime+1)
@@ -201,7 +198,7 @@ use lib_vtk_io_interface_names
   call dof_handler_free(dhand)
   call fem_triangulation_free(f_trian)
   call fem_conditions_free(f_cond)
-  call finite_element_fixed_info_free(ginfo)
+  call finite_element_fixed_info_free(geo_reference_element)
   call bound_data_free(bdata)
 
   call memstatus

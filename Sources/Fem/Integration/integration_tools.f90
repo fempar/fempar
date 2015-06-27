@@ -254,10 +254,10 @@ contains
 # include "mem_body.i90"
 
   ! =================================================================================================
-  subroutine face_integrator_create(gfinf,ufinf,nd,integ,subface_ids_)
+  subroutine face_integrator_create(geo_reference_element,unk_reference_element,nd,integ,subface_ids_)
     implicit none
     ! Parameters
-    type(fem_fixed_info_pointer_t), intent(in)    :: gfinf,ufinf
+    type(reference_element_pointer_t), intent(in)    :: geo_reference_element,unk_reference_element
     integer(ip)                 , intent(in)    :: nd
     type(face_integrator_t)            , intent(inout) :: integ
     integer(ip) ,      optional , intent(in)    :: subface_ids_
@@ -270,14 +270,14 @@ contains
     logical                  :: istat
     real(rp)                 :: auxpo(max_order+1)
 
-       call set_face_type    ( gfinf%p%ftype, gfinf%p%ftype,nd,utype)
-       gnode = gfinf%p%nnode
-       unode = ufinf%p%nnode
-       nface = gfinf%p%nobje_dim(nd+1) -  gfinf%p%nobje_dim(nd)
-       call set_integ (utype,nd-1,gfinf%p%order,ufinf%p%order,ng,nlocs,lrule,llapl,           &
+       call set_face_type    ( geo_reference_element%p%ftype, geo_reference_element%p%ftype,nd,utype)
+       gnode = geo_reference_element%p%nnode
+       unode = unk_reference_element%p%nnode
+       nface = geo_reference_element%p%nobje_dim(nd+1) -  geo_reference_element%p%nobje_dim(nd)
+       call set_integ (utype,nd-1,geo_reference_element%p%order,unk_reference_element%p%order,ng,nlocs,lrule,llapl,           &
             &          gfnod,ufnod)
        ! Store identifiers of element
-       integ%ltype = gfinf%p%ftype
+       integ%ltype = geo_reference_element%p%ftype
 
        ! Maximum amount of nodes in faces and elements
        mnode = max(gfnod,ufnod)
@@ -291,7 +291,7 @@ contains
        call interpolation_local(integ%quad%pos,integ%gint_ref)
 
        ! Quadrature for the faces of element i
-       call face_quadrature_create(nd,nface,integ%quad,gfinf%p,integ%fquad)
+       call face_quadrature_create(nd,nface,integ%quad,geo_reference_element%p,integ%fquad)
        
        ! Allocate interpolation for element i
        call face_interpolation_create (unode,ufnod,nd,ng,nlocs,nface,integ%ufint_ref)
@@ -299,22 +299,22 @@ contains
        call face_interpolation_create (gnode,gfnod,nd,ng,nlocs,nface,integ%gfint_ref)
        call face_interpolation_create (gnode,gfnod,nd,ng,nlocs,       1,integ%gfint_phy)
        ! Create reference interpolations for element i
-       if     (ufinf%p%ftype == Q_type_id) then
+       if     (unk_reference_element%p%ftype == Q_type_id) then
           do j=1,nlocs
              auxpo(j) = integ%quad%pos(1,j)
           end do
-          call face_interpolation_local_Q (auxpo,integ%ufint_ref,nd,ufinf%p%order,nlocs)
-       elseif (ufinf%p%ftype == P_type_id) then
+          call face_interpolation_local_Q (auxpo,integ%ufint_ref,nd,unk_reference_element%p%order,nlocs)
+       elseif (unk_reference_element%p%ftype == P_type_id) then
           call face_interpolation_local  (integ%fquad%pos,integ%ufint_ref)
        else
           write(*,*) __FILE__,__LINE__, 'ERROR! Unknown elemetn type.'
        end if
-       if     (gfinf%p%ftype == Q_type_id) then
+       if     (geo_reference_element%p%ftype == Q_type_id) then
           do j=1,nlocs
              auxpo(j) = integ%quad%pos(1,j)
           end do
-          call face_interpolation_local_Q (auxpo,integ%gfint_ref,nd,gfinf%p%order,nlocs)
-       elseif (gfinf%p%ftype == P_type_id) then
+          call face_interpolation_local_Q (auxpo,integ%gfint_ref,nd,geo_reference_element%p%order,nlocs)
+       elseif (geo_reference_element%p%ftype == P_type_id) then
           call face_interpolation_local  (integ%fquad%pos,integ%gfint_ref)
        else
           write(*,*) __FILE__,__LINE__, 'ERROR! Unknown elemetn type.'
