@@ -30,7 +30,7 @@ use types_names
 use memor_names
   use mesh_names
   use graph_names
-  use renum_names
+  use renumbering_names
   implicit none
 # include "debug.i90"
   private

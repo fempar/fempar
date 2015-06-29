@@ -57,7 +57,7 @@ module serial_names
   use graph_names
   use mesh_graph_names
   use geom2topo_names
-  use renum_names
+  use renumbering_names
   use mesh_names
   use mesh_partition_base_names
   use mesh_partition_distribution_names

@@ -33,7 +33,7 @@ module par_preconditioner_dd_mlevel_bddc_names
   use map_names
   use map_apply_names
   use sort_names
-  use renum_names
+  use renumbering_names
 
 #ifdef ENABLE_BLAS
   use blas77_interfaces_names
@@ -267,7 +267,7 @@ use psb_penv_mod_names
 
      type ( par_environment_t )   :: p_env_c      ! Parallel environment for the coarse-grid problem
      type ( dof_distribution_t )  :: dof_dist_c   ! co_sys_sol_strat = recursive (or distributed, not implemented yet)
-     type ( renum_t )             :: eren_c       ! Element renum_tbering required to pass from c_mesh to p_mesh_c
+     type ( renumbering_t )             :: erenumbering_c       ! Element renumbering_tbering required to pass from c_mesh to p_mesh_c
                                                 ! (this is required for the assembly of the coarse-grid matrix)
      type ( par_mesh_t )          :: p_mesh_c
      type ( par_graph_t )         :: p_graph_c
@@ -936,7 +936,7 @@ use mpi
              call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_struct )
              
              if ( i_am_coarse_task ) then
-                call renum_free ( mlbddc%eren_c )
+                call renumbering_free ( mlbddc%erenumbering_c )
                 call memfree ( mlbddc%vars, __FILE__, __LINE__)
                 call memfree ( mlbddc%ptr_coarse_dofs, __FILE__, __LINE__)
              end if
@@ -2618,7 +2618,7 @@ use mpi
                                                 mlbddc%vars                   , & ! Physical unknown corresponding to each DoF in f_mesh
                                                 mlbddc%p_mesh_c%f_mesh        , & ! New mesh object
                                                 mlbddc%dof_dist_c             , & ! New distributed DoF object conformal to new local mesh
-                                                mlbddc%eren_c                  )   ! Resulting Element renumbering
+                                                mlbddc%erenumbering_c                  )   ! Resulting Element renumbering
 
 
           ! Free dual_f_mesh with (external) adjacency data built-in
@@ -2627,8 +2627,8 @@ use mpi
           if ( debug_verbose_level_2 ) then 
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%pnods
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%lnods
-             write (*,*)  'eren_c%lperm:', mlbddc%eren_c%lperm 
-             write (*,*)  'eren_c%iperm:', mlbddc%eren_c%iperm 
+             write (*,*)  'erenumbering_c%lperm:', mlbddc%erenumbering_c%lperm 
+             write (*,*)  'erenumbering_c%iperm:', mlbddc%erenumbering_c%iperm 
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%lnods
              call dof_distribution_print ( 6, mlbddc%dof_dist_c )
              call psb_barrier ( mlbddc%c_context%icontxt )
@@ -5848,7 +5848,7 @@ end if
                                                mlbddc%p_mesh_c%f_mesh%lnods, &
                                                sum, &
                                                a_ci_gathered, &
-                                               mlbddc%eren_c%iperm)
+                                               mlbddc%erenumbering_c%iperm)
        end if
        call memfree ( a_ci_gathered,__FILE__,__LINE__)
 
@@ -6566,7 +6566,7 @@ use mpi
                                              mlbddc%p_mesh_c%f_mesh%lnods, &
                                              sum, &
                                              r_ci_gathered, & 
-                                             mlbddc%eren_c%iperm)
+                                             mlbddc%erenumbering_c%iperm)
 
       end if
       call memfree (  r_ci_gathered,__FILE__,__LINE__)
@@ -6653,7 +6653,7 @@ use mpi
                        mlbddc%ptr_coarse_dofs,          &
                        mlbddc%p_mesh_c%f_mesh%lnods,    &
                        z_c,                                &
-                       mlbddc%eren_c%iperm)
+                       mlbddc%erenumbering_c%iperm)
       end if
    end if
 
@@ -7777,7 +7777,7 @@ use mpi
                                              mlbddc%p_mesh_c%f_mesh%lnods, &
                                              sum, &
                                              C_weights_i_gathered, & 
-                                             mlbddc%eren_c%iperm)
+                                             mlbddc%erenumbering_c%iperm)
 
         ! Take only the interface weights from the full constraints weights vector 
         nl_coarse_dofs = mlbddc%p_M_c%nl_corners_dofs + mlbddc%p_M_c%nl_edges_dofs
@@ -7821,7 +7821,7 @@ use mpi
                                               vars       , & ! Physical unknown corresponding to each DoF in f_mesh
                                               new_f_mesh , & ! New mesh object
                                               dof_dist   , & ! New dof_distribution object conformal to new local mesh
-                                              eren       )   ! Resulting Element renumbering
+                                              erenumbering       )   ! Resulting Element renumbering
                                                                 
                                               
     implicit none
@@ -7833,14 +7833,14 @@ use mpi
     integer(ip)           , intent(in)    :: vars(f_mesh%npoin)
     type(mesh_t)        , intent(out)   :: new_f_mesh
     type(dof_distribution_t), intent(out)   :: dof_dist
-    type(renum_t)           , intent(out)   :: eren    
+    type(renumbering_t)           , intent(out)   :: erenumbering    
 
 
     ! Locals
     integer(ip)                :: nboun, eboun, max_nelem
     integer(igp)               :: ngelem
     integer(ip) , allocatable  :: nlboun(:), elboun(:)
-    type(renum_t)                :: nren
+    type(renumbering_t)                :: nrenumbering
     type(par_timer_t)            :: t1, t2, t3, t4, t5
     logical, parameter         :: temporize_phases = .false. 
 
@@ -7866,11 +7866,11 @@ use mpi
     end if
     
 
-    nren%n = f_mesh%npoin
-    eren%n = f_mesh%nelem
+    nrenumbering%n = f_mesh%npoin
+    erenumbering%n = f_mesh%nelem
 
-    call memalloc (nren%n, nren%iperm, __FILE__,__LINE__)
-    call memalloc (eren%n, eren%iperm, __FILE__,__LINE__)
+    call memalloc (nrenumbering%n, nrenumbering%iperm, __FILE__,__LINE__)
+    call memalloc (erenumbering%n, erenumbering%iperm, __FILE__,__LINE__)
 
     if ( temporize_phases ) then
       call par_timer_create ( t2, 'create_lpadj_lobjs', ictxt=icontxt )
@@ -7894,8 +7894,8 @@ use mpi
                                                     max_nelem             , &
                                                     dof_dist%nobjs      , & 
                                                     dof_dist%lobjs      , &   
-                                                    nren%iperm            , &
-                                                    eren%iperm )
+                                                    nrenumbering%iperm            , &
+                                                    erenumbering%iperm )
 
     
     if ( temporize_phases ) then
@@ -7905,11 +7905,11 @@ use mpi
     call memfree (nlboun,__FILE__,__LINE__)
     call memfree (elboun,__FILE__,__LINE__)
 
-    call memalloc (nren%n, nren%lperm, __FILE__,__LINE__)
-    call memalloc (eren%n, eren%lperm, __FILE__,__LINE__)
+    call memalloc (nrenumbering%n, nrenumbering%lperm, __FILE__,__LINE__)
+    call memalloc (erenumbering%n, erenumbering%lperm, __FILE__,__LINE__)
 
-    call renum_inverse (nren%n, nren%iperm, nren%lperm)
-    call renum_inverse (eren%n, eren%iperm, eren%lperm)
+    call renumbering_inverse (nrenumbering%n, nrenumbering%iperm, nrenumbering%lperm)
+    call renumbering_inverse (erenumbering%n, erenumbering%iperm, erenumbering%lperm)
 
     if ( temporize_phases ) then
       call par_timer_create ( t3, 'create_int_objs', ictxt=icontxt )
@@ -7954,12 +7954,12 @@ use mpi
     end if
 
     if ( temporize_phases ) then
-      ! Apply nren/eren to input mesh into output mesh
+      ! Apply nrenumbering/erenumbering to input mesh into output mesh
       call par_timer_create ( t5, 'mesh_l2l', ictxt=icontxt )
       call par_timer_start  ( t5 )
     end if
 
-    call mesh_l2l ( nren, eren, f_mesh, new_f_mesh )
+    call mesh_l2l ( nrenumbering, erenumbering, f_mesh, new_f_mesh )
  
     if ( temporize_phases ) then
       call par_timer_stop ( t5 )
@@ -7973,7 +7973,7 @@ use mpi
       call par_timer_report (t5, .false.)
     end if
 
-    call renum_free(nren)
+    call renumbering_free(nrenumbering)
 
     ! Compute dof_import_t instance such that DoF nearest neighbour exchanges
     ! can be performed among subdomains on any intermmediate coarse-grid mesh

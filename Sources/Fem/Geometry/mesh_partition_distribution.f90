@@ -32,7 +32,7 @@ module mesh_partition_distribution_names
   use map_names
   use map_apply_names
   use graph_names
-  use graph_renum_names
+  use graph_renumbering_names
   use mesh_names
   use mesh_graph_names
   use mesh_partition_base_names

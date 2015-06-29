@@ -31,7 +31,7 @@ use stdio_names
 #ifdef ENABLE_GIDPOST
 use gidpost_names
 #endif
-  use renum_names
+  use renumbering_names
   implicit none
   private
 
@@ -146,7 +146,7 @@ contains
   end subroutine postpro_close_file
 
   !==================================================================================
-  subroutine possca(pos,bridge,wopos,istep,ttime,nren)
+  subroutine possca(pos,bridge,wopos,istep,ttime,nrenumbering)
     !-----------------------------------------------------------------------
     !
     ! Write a scalar in postprocess file
@@ -158,7 +158,7 @@ contains
     real(rp)       , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    type(renum_t),optional,intent(in) :: nren
+    type(renumbering_t),optional,intent(in) :: nrenumbering
     integer(ip)               :: npoin,ipoin
     character(8)              :: state
 
@@ -173,9 +173,9 @@ contains
 !!$          write(pos%luou,4)ipoin,bridge(ipoin)
 !!$       end do
 !!$       write(pos%luou,1) 'End Values'
-       if ( present(nren) ) then
+       if ( present(nrenumbering) ) then
           do ipoin=1,npoin
-             write(pos%luou,4) nren%lperm(ipoin),bridge(ipoin)
+             write(pos%luou,4) nrenumbering%lperm(ipoin),bridge(ipoin)
           end do
        else
           do ipoin=1,npoin
@@ -363,7 +363,7 @@ contains
   end subroutine posvec
 
   !==================================================================================
-  subroutine poisca(pos,bridge,wopos,istep,ttime,nren)
+  subroutine poisca(pos,bridge,wopos,istep,ttime,nrenumbering)
     !-----------------------------------------------------------------------
     !
     ! Write a scalar in postprocess file
@@ -375,7 +375,7 @@ contains
     integer(ip)    , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    type(renum_t)    , intent(in), optional   :: nren
+    type(renumbering_t)    , intent(in), optional   :: nrenumbering
     ! Locals
     integer(ip)  :: npoin,ipoin
     character(8) :: state
@@ -387,9 +387,9 @@ contains
        write(pos%luou,2) wopos,state,ttime,'Scalar'
        write(pos%luou,3) wopos
        write(pos%luou,1) 'Values'
-       if(present(nren))then
+       if(present(nrenumbering))then
           do ipoin=1,npoin
-             write(pos%luou,4) nren%lperm(ipoin),bridge(ipoin)
+             write(pos%luou,4) nrenumbering%lperm(ipoin),bridge(ipoin)
           end do
        else
           do ipoin=1,npoin
@@ -476,7 +476,7 @@ contains
   end subroutine postpro_gp_init
 
   !=================================================================================================
-  subroutine pgpint(pos,ndime,nnode,bridge,wopos,istep,ttime,eren)
+  subroutine pgpint(pos,ndime,nnode,bridge,wopos,istep,ttime,erenumbering)
     !-----------------------------------------------------------------------
     !
     ! Write a constant by element integer function in postprocess file.
@@ -490,8 +490,8 @@ contains
     integer(ip)    , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    integer(ip)    , intent(in), optional   :: eren(:)
-    !type(renum_t)    , intent(in), optional   :: eren
+    integer(ip)    , intent(in), optional   :: erenumbering(:)
+    !type(renumbering_t)    , intent(in), optional   :: erenumbering
 
     character(8)   :: state
     character(13)  :: elemt
@@ -504,9 +504,9 @@ contains
        write(pos%luou,2) wopos,state,ttime,'Scalar','GP'
        write(pos%luou,3) wopos
        write(pos%luou,1) 'Values'
-       if(present(eren)) then
+       if(present(erenumbering)) then
           do ielem=1,size(bridge)
-             write(pos%luou,7) eren(ielem)
+             write(pos%luou,7) erenumbering(ielem)
              write(pos%luou,6) real(bridge(ielem),rp)
           end do
        else
@@ -533,7 +533,7 @@ contains
   end subroutine pgpint
 
   !=================================================================================================
-  subroutine pgpr3p(bridge,pos,ndime,wopos,istep,ttime,eren)
+  subroutine pgpr3p(bridge,pos,ndime,wopos,istep,ttime,erenumbering)
     !-----------------------------------------------------------------------
     !
     ! Write a constant by element integer function in postprocess file.
@@ -546,7 +546,7 @@ contains
     real(rp)       , intent(in)  :: bridge(:,:,:)
     integer(ip)    , intent(in)  :: istep,ndime
     real(rp)       , intent(in)  :: ttime
-    integer(ip)    , intent(in), optional   :: eren(:)
+    integer(ip)    , intent(in), optional   :: erenumbering(:)
 
     character(8)              :: state
     integer(ip)               :: icomp,ncomp
@@ -622,7 +622,7 @@ contains
   end subroutine pgpr3p
 
   !=================================================================================================
-  subroutine pgpr1p(bridge,pos,wopos,istep,ttime,eren)
+  subroutine pgpr1p(bridge,pos,wopos,istep,ttime,erenumbering)
     !-----------------------------------------------------------------------
     !
     ! Write a constant by element integer function in postprocess file.
@@ -635,7 +635,7 @@ contains
     real(rp)       , intent(in)  :: bridge(:,:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    integer(ip)    , intent(in), optional   :: eren(:)
+    integer(ip)    , intent(in), optional   :: erenumbering(:)
 
     character(8)              :: state
     integer(ip)               :: igaus,ielem,ngaus,nelem

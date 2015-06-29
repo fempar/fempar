@@ -29,7 +29,7 @@ module map_apply_names
   use types_names
   use memor_names
   use map_names
-  use renum_names
+  use renumbering_names
   use mesh_names
   use hash_table_names
 # include "debug.i90"
@@ -61,23 +61,23 @@ module map_apply_names
 contains
 
   !=============================================================================
-  subroutine map_apply_l2g_r1(ope,mp,xl,xg,ren)
+  subroutine map_apply_l2g_r1(ope,mp,xl,xg,renumbering)
     implicit none
     integer(ip), intent(in)  :: ope
     type(map_t)  , intent(in)  :: mp
     real(rp)   , intent(in)  :: xl(mp%nl)
     real(rp)   , intent(out) :: xg(mp%ng)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        if(ope==l2g_copy) then
           do i=1,mp%nl
-             xg(ren%iperm(mp%l2g(i)))=xl(i)
+             xg(renumbering%iperm(mp%l2g(i)))=xl(i)
           end do
        else if(ope==l2g_add) then
           do i=1,mp%nl
-             xg(ren%iperm(mp%l2g(i)))=xg(ren%iperm(mp%l2g(i)))+xl(i)
+             xg(renumbering%iperm(mp%l2g(i)))=xg(renumbering%iperm(mp%l2g(i)))+xl(i)
           end do
        end if
     else
@@ -95,23 +95,23 @@ contains
   end subroutine map_apply_l2g_r1
 
   !================================================================================================
-  subroutine map_apply_l2g_i1(ope,mp,xl,xg,ren)
+  subroutine map_apply_l2g_i1(ope,mp,xl,xg,renumbering)
     implicit none
     integer(ip), intent(in)  :: ope
     type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: xl(mp%nl)
     integer(ip), intent(out) :: xg(mp%ng)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        if(ope==l2g_copy) then
           do i=1,mp%nl
-             xg(ren%iperm(mp%l2g(i)))=xl(i)
+             xg(renumbering%iperm(mp%l2g(i)))=xl(i)
           end do
        else if(ope==l2g_add) then
           do i=1,mp%nl
-             xg(ren%iperm(mp%l2g(i)))=xg(ren%iperm(mp%l2g(i)))+xl(i)
+             xg(renumbering%iperm(mp%l2g(i)))=xg(renumbering%iperm(mp%l2g(i)))+xl(i)
           end do
        end if
     else
@@ -129,24 +129,24 @@ contains
   end subroutine map_apply_l2g_i1
 
   !================================================================================================
-  subroutine map_apply_l2g_r2(ope,mp,ld,xl,xg,ren)
+  subroutine map_apply_l2g_r2(ope,mp,ld,xl,xg,renumbering)
     implicit none
     integer(ip), intent(in)  :: ope
     type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     real(rp)   , intent(in)  :: xl(ld,mp%nl)
     real(rp)   , intent(out) :: xg(ld,mp%ng)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip)                   :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        if(ope==l2g_copy) then
           do i=1,mp%nl
-             xg(:,ren%iperm(mp%l2g(i)))=xl(:,i)
+             xg(:,renumbering%iperm(mp%l2g(i)))=xl(:,i)
           end do
        else if(ope==l2g_add) then
           do i=1,mp%nl
-             xg(:,ren%iperm(mp%l2g(i)))=xg(:,ren%iperm(mp%l2g(i)))+xl(:,i)
+             xg(:,renumbering%iperm(mp%l2g(i)))=xg(:,renumbering%iperm(mp%l2g(i)))+xl(:,i)
           end do
        end if
     else
@@ -164,17 +164,17 @@ contains
   end subroutine map_apply_l2g_r2
 
   !================================================================================================
-  subroutine map_apply_g2l_r1(mp,xg,xl,ren)
+  subroutine map_apply_g2l_r1(mp,xg,xl,renumbering)
     implicit none
     type(map_t)  , intent(in)  :: mp
     real(rp)   , intent(in)  :: xg(mp%ng)
     real(rp)   , intent(out) :: xl(mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(i)=xg(ren%iperm(mp%l2g(i)))
+          xl(i)=xg(renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -185,18 +185,18 @@ contains
   end subroutine map_apply_g2l_r1
 
   !================================================================================================
-  subroutine map_apply_g2l_r2(mp,ld,xg,xl,ren)
+  subroutine map_apply_g2l_r2(mp,ld,xg,xl,renumbering)
     implicit none
     type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     real(rp)   , intent(in)  :: xg(ld,mp%ng)
     real(rp)   , intent(out) :: xl(ld,mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(:,i)=xg(:,ren%iperm(mp%l2g(i)))
+          xl(:,i)=xg(:,renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -206,17 +206,17 @@ contains
   end subroutine map_apply_g2l_r2
 
   !================================================================================================
-  subroutine map_apply_g2l_i1(mp,xg,xl,ren)
+  subroutine map_apply_g2l_i1(mp,xg,xl,renumbering)
     implicit none
     type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: xg(mp%ng)
     integer(ip), intent(out) :: xl(mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(i)=xg(ren%iperm(mp%l2g(i)))
+          xl(i)=xg(renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -227,18 +227,18 @@ contains
   end subroutine map_apply_g2l_i1
 
   !================================================================================================
-  subroutine map_apply_g2l_i2(mp,ld,xg,xl,ren)
+  subroutine map_apply_g2l_i2(mp,ld,xg,xl,renumbering)
     implicit none
     type(map_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     integer(ip), intent(in)  :: xg(ld,mp%ng)
     integer(ip), intent(out) :: xl(ld,mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(:,i)=xg(:,ren%iperm(mp%l2g(i)))
+          xl(:,i)=xg(:,renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -249,17 +249,17 @@ contains
   end subroutine map_apply_g2l_i2
 
    !================================================================================================
-  subroutine map_igp_apply_g2l_r1(mp,xg,xl,ren)
+  subroutine map_igp_apply_g2l_r1(mp,xg,xl,renumbering)
     implicit none
     type(map_igp_t)  , intent(in)  :: mp
     real(rp)   , intent(in)  :: xg(mp%ng)
     real(rp)   , intent(out) :: xl(mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(i)=xg(ren%iperm(mp%l2g(i)))
+          xl(i)=xg(renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -270,18 +270,18 @@ contains
   end subroutine map_igp_apply_g2l_r1
 
   !================================================================================================
-  subroutine map_igp_apply_g2l_r2(mp,ld,xg,xl,ren)
+  subroutine map_igp_apply_g2l_r2(mp,ld,xg,xl,renumbering)
     implicit none
     type(map_igp_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     real(rp)   , intent(in)  :: xg(ld,mp%ng)
     real(rp)   , intent(out) :: xl(ld,mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(:,i)=xg(:,ren%iperm(mp%l2g(i)))
+          xl(:,i)=xg(:,renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -291,17 +291,17 @@ contains
   end subroutine map_igp_apply_g2l_r2
 
   !================================================================================================
-  subroutine map_igp_apply_g2l_i1(mp,xg,xl,ren)
+  subroutine map_igp_apply_g2l_i1(mp,xg,xl,renumbering)
     implicit none
     type(map_igp_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: xg(mp%ng)
     integer(ip), intent(out) :: xl(mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(i)=xg(ren%iperm(mp%l2g(i)))
+          xl(i)=xg(renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -312,18 +312,18 @@ contains
   end subroutine map_igp_apply_g2l_i1
 
   !================================================================================================
-  subroutine map_igp_apply_g2l_i2(mp,ld,xg,xl,ren)
+  subroutine map_igp_apply_g2l_i2(mp,ld,xg,xl,renumbering)
     implicit none
     type(map_igp_t)  , intent(in)  :: mp
     integer(ip), intent(in)  :: ld
     integer(ip), intent(in)  :: xg(ld,mp%ng)
     integer(ip), intent(out) :: xl(ld,mp%nl)
-    type(renum_t), intent(in), optional :: ren
+    type(renumbering_t), intent(in), optional :: renumbering
     integer(ip) :: i
 
-    if(present(ren)) then
+    if(present(renumbering)) then
        do i=1,mp%nl
-          xl(:,i)=xg(:,ren%iperm(mp%l2g(i)))
+          xl(:,i)=xg(:,renumbering%iperm(mp%l2g(i)))
        end do
     else
        do i=1,mp%nl
@@ -335,13 +335,13 @@ contains
 
 
   !================================================================================================
-  subroutine mesh_g2l_nmap_igp_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+  subroutine mesh_g2l_nmap_igp_emap_igp(nmap,emap,bmap,gmesh,lmesh,nrenumbering,erenumbering)
     implicit none
     type(map_igp_t)        , intent(in)  :: nmap, emap
     type(map_t)            , intent(in)  :: bmap
     type(mesh_t)       , intent(in)  :: gmesh
     type(mesh_t)       , intent(out) :: lmesh
-    type(renum_t), optional, intent(in)  :: nren,eren
+    type(renumbering_t), optional, intent(in)  :: nrenumbering,erenumbering
     type(hash_table_igp_ip_t)      :: ws_inmap
     type(hash_table_igp_ip_t)      :: el_inmap
     integer(ip)                  :: aux, ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
@@ -351,7 +351,7 @@ contains
     assert(emap%ng == gmesh%nelem)
 
     ! both or none
-    assert( (present(nren).and.present(eren)) .or. ( (.not.present(nren)).and.(.not.present(eren)) ) )
+    assert( (present(nrenumbering).and.present(erenumbering)) .or. ( (.not.present(nrenumbering)).and.(.not.present(erenumbering)) ) )
 
 
     lmesh%ndime=gmesh%ndime
@@ -382,17 +382,17 @@ contains
        ! el_inmap(emap%l2g(ipoin))=ipoin
     end do
 
-    if(present(nren).and.present(eren)) then
+    if(present(nrenumbering).and.present(erenumbering)) then
        lmesh%pnods=0
        lmesh%pnods(1)=1
        do ielem_lmesh=1,lmesh%nelem
-          ielem_gmesh = eren%iperm(emap%l2g(ielem_lmesh))
+          ielem_gmesh = erenumbering%iperm(emap%l2g(ielem_lmesh))
           p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
           p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
           knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
           lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
           do inode=1,knode
-             ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(nren%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
+             ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(nrenumbering%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
              call ws_inmap%get(key=int(gmesh%lnods(p_ipoin_gmesh+inode),igp),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
           end do
        end do
@@ -416,19 +416,19 @@ contains
     call el_inmap%free
 
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
-    call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord, nren)
+    call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord, nrenumbering)
 
   end subroutine mesh_g2l_nmap_igp_emap_igp
 
 
   !================================================================================================
-  subroutine mesh_g2l_emap_igp(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+  subroutine mesh_g2l_emap_igp(nmap,emap,bmap,gmesh,lmesh,nrenumbering,erenumbering)
     implicit none
     type(map_t)            , intent(in)  :: nmap,bmap
     type(map_igp_t)        , intent(in)  :: emap
     type(mesh_t)       , intent(in)  :: gmesh
     type(mesh_t)       , intent(out) :: lmesh
-    type(renum_t), optional, intent(in)  :: nren,eren
+    type(renumbering_t), optional, intent(in)  :: nrenumbering,erenumbering
     type(hash_table_ip_ip_t)       :: ws_inmap
     type(hash_table_igp_ip_t)      :: el_inmap
     integer(ip)                  :: ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
@@ -438,7 +438,7 @@ contains
     assert(emap%ng == gmesh%nelem)
 
     ! both or none
-    assert( (present(nren).and.present(eren)) .or. ( (.not.present(nren)).and.(.not.present(eren)) ) )
+    assert( (present(nrenumbering).and.present(erenumbering)) .or. ( (.not.present(nrenumbering)).and.(.not.present(erenumbering)) ) )
 
     lmesh%ndime=gmesh%ndime
     lmesh%nnode=gmesh%nnode
@@ -464,17 +464,17 @@ contains
        ! el_inmap(emap%l2g(ipoin))=ipoin
     end do
 
-    if(present(nren).and.present(eren)) then
+    if(present(nrenumbering).and.present(erenumbering)) then
        lmesh%pnods=0
        lmesh%pnods(1)=1
        do ielem_lmesh=1,lmesh%nelem
-          ielem_gmesh = eren%iperm(emap%l2g(ielem_lmesh))
+          ielem_gmesh = erenumbering%iperm(emap%l2g(ielem_lmesh))
           p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
           p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
           knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
           lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
           do inode=1,knode
-             ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(nren%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
+             ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(nrenumbering%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
              call ws_inmap%get(key=gmesh%lnods(p_ipoin_gmesh+inode),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
           end do
        end do
@@ -500,18 +500,18 @@ contains
     call el_inmap%free
 
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
-    call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nren)
+    call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nrenumbering)
 
   end subroutine mesh_g2l_emap_igp
 
   !================================================================================================
-  subroutine mesh_g2l_emap_ip(nmap,emap,bmap,gmesh,lmesh,nren,eren)
+  subroutine mesh_g2l_emap_ip(nmap,emap,bmap,gmesh,lmesh,nrenumbering,erenumbering)
     implicit none
     type(map_t)            , intent(in)  :: nmap,bmap
     type(map_t)            , intent(in)  :: emap
     type(mesh_t)       , intent(in)  :: gmesh
     type(mesh_t)       , intent(out) :: lmesh
-    type(renum_t), optional, intent(in)  :: nren,eren
+    type(renumbering_t), optional, intent(in)  :: nrenumbering,erenumbering
     type(hash_table_ip_ip_t)       :: ws_inmap
     type(hash_table_ip_ip_t)       :: el_inmap
     integer(ip)                  :: ipoin,inode,knode,ielem_lmesh,ielem_gmesh,iboun,gelem,velem,gnode
@@ -521,7 +521,7 @@ contains
     assert(emap%ng == gmesh%nelem)
 
     ! both or none
-    assert( (present(nren).and.present(eren)) .or. ( (.not.present(nren)).and.(.not.present(eren)) ) )
+    assert( (present(nrenumbering).and.present(erenumbering)) .or. ( (.not.present(nrenumbering)).and.(.not.present(erenumbering)) ) )
 
 
     lmesh%ndime=gmesh%ndime
@@ -548,17 +548,17 @@ contains
        ! el_inmap(emap%l2g(ipoin))=ipoin
     end do
 
-    if(present(nren).and.present(eren)) then
+    if(present(nrenumbering).and.present(erenumbering)) then
        lmesh%pnods=0
        lmesh%pnods(1)=1
        do ielem_lmesh=1,lmesh%nelem
-          ielem_gmesh = eren%iperm(emap%l2g(ielem_lmesh))
+          ielem_gmesh = erenumbering%iperm(emap%l2g(ielem_lmesh))
           p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
           p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
           knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
           lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
           do inode=1,knode
-             ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(nren%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
+             ! lmesh%lnods(p_ipoin_lmesh+inode) =  ws_inmap(nrenumbering%lperm(gmesh%lnods(p_ipoin_gmesh+inode)))
              call ws_inmap%get(key=gmesh%lnods(p_ipoin_gmesh+inode),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
           end do
        end do
@@ -582,16 +582,16 @@ contains
     call el_inmap%free
 
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
-    call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nren)
+    call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord,nrenumbering)
 
   end subroutine mesh_g2l_emap_ip
 
 
 
   !================================================================================================
-  subroutine mesh_l2l(nren,eren,lmeshin,lmeshout)
+  subroutine mesh_l2l(nrenumbering,erenumbering,lmeshin,lmeshout)
     implicit none
-    type(renum_t)    , intent(in)  :: nren,eren
+    type(renumbering_t)    , intent(in)  :: nrenumbering,erenumbering
     type(mesh_t) , intent(in)  :: lmeshin
     type(mesh_t) , intent(out) :: lmeshout
 
@@ -609,19 +609,19 @@ contains
     lmeshout%pnods=0
     lmeshout%pnods(1)=1
     do ielem_lmeshout=1,lmeshout%nelem
-       ielem_lmeshin = eren%iperm(ielem_lmeshout)
+       ielem_lmeshin = erenumbering%iperm(ielem_lmeshout)
        p_ipoin_lmeshin = lmeshin%pnods(ielem_lmeshin)-1
        p_ipoin_lmeshout = lmeshout%pnods(ielem_lmeshout)-1
        knode = lmeshin%pnods(ielem_lmeshin+1)-lmeshin%pnods(ielem_lmeshin)
        lmeshout%pnods(ielem_lmeshout+1)=lmeshout%pnods(ielem_lmeshout)+knode
        do inode=1,knode
-          lmeshout%lnods(p_ipoin_lmeshout+inode) =  nren%lperm(lmeshin%lnods(p_ipoin_lmeshin+inode))
+          lmeshout%lnods(p_ipoin_lmeshout+inode) =  nrenumbering%lperm(lmeshin%lnods(p_ipoin_lmeshin+inode))
        end do
     end do
 
     
     call memalloc(lmeshout%ndime, lmeshout%npoin, lmeshout%coord, __FILE__,__LINE__)
-    call renum_apply (lmeshin%ndime, nren, lmeshin%coord,  lmeshout%coord)
+    call renumbering_apply (lmeshin%ndime, nrenumbering, lmeshin%coord,  lmeshout%coord)
 
   end subroutine mesh_l2l
 

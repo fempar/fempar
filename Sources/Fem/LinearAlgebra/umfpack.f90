@@ -39,7 +39,7 @@ use memor_names
   use matrix_names
   use vector_names 
   use graph_names
-  use renum_names
+  use renumbering_names
 
 # include "debug.i90"
   
@@ -308,7 +308,7 @@ contains
   !=============================================================================
   subroutine umfpack_analysis ( context, matrix )
 use mesh_partition_base_names
-use graph_renum_names
+use graph_renumbering_names
     implicit none
 
     ! Parameters 

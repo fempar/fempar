@@ -25,53 +25,54 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module renum_names
-use types_names
-use memor_names
-use stdio_names
+module renumbering_names
+  use types_names
+  use memor_names
+  use stdio_names
+# include "debug.i90"
   implicit none
   private
 
-  type renum_t
+  type renumbering_t
      integer(ip)                :: &
         n                                    ! Size of permutation arrays
      integer(ip), allocatable ::   &
         lperm(:),                  &         ! Permutation array (lperm(old)=new)
         iperm(:)                             ! Inverse permutation array (iperm(new)=old)
-  end type renum_t
+  end type renumbering_t
 
-  interface renum_apply
-     module procedure renum_apply_r1, renum_apply_r2, renum_apply_i1, renum_apply_i1_igp, renum_apply_i2
+  interface renumbering_apply
+     module procedure renumbering_apply_r1, renumbering_apply_r2, renumbering_apply_i1, renumbering_apply_i1_igp, renumbering_apply_i2
   end interface
 
   ! Types
-  public :: renum_t
+  public :: renumbering_t
 
   ! Functions
-  public :: renum_alloc, renum_copy, renum_free, renum_by_sets, renum_check, renum_write, &
-       &    renum_read, renum_compose_name, renum_apply, renum_identity, renum_inverse
+  public :: renumbering_alloc, renumbering_copy, renumbering_free, renumbering_by_sets, renumbering_check, renumbering_write, &
+       &    renumbering_read, renumbering_compose_name, renumbering_apply, renumbering_identity, renumbering_inverse
 
 contains
   !=============================================================================
   !=============================================================================
-  subroutine renum_by_sets(nsets,lvset,ren)
+  subroutine renumbering_by_sets(nsets,lvset,renumbering)
     !-----------------------------------------------------------------------
     ! This routine 
     !-----------------------------------------------------------------------
     implicit none
-    type(renum_t) , intent(inout) :: ren
+    type(renumbering_t) , intent(inout) :: renumbering
     integer(ip)        , intent(in)    :: nsets
-    integer(ip)        , intent(in)    :: lvset(ren%n)
+    integer(ip)        , intent(in)    :: lvset(renumbering%n)
     ! Local variables
     integer(ip)        , allocatable   :: iwork(:)
 
     call memalloc (nsets+1, iwork, __FILE__,__LINE__)
-    call renum_by_sets_aux(ren%n,nsets,iwork,lvset,ren%lperm,ren%iperm)
+    call renumbering_by_sets_aux(renumbering%n,nsets,iwork,lvset,renumbering%lperm,renumbering%iperm)
     call memfree (iwork,__FILE__,__LINE__)
 
-  end subroutine renum_by_sets
+  end subroutine renumbering_by_sets
   !-----------------------------------------------------------------------------
-  subroutine renum_by_sets_aux(np,nsets,lwork,lvset,lr,ir)
+  subroutine renumbering_by_sets_aux(np,nsets,lwork,lvset,lr,ir)
     !-----------------------------------------------------------------------
     ! This routine 
     !-----------------------------------------------------------------------
@@ -108,101 +109,101 @@ contains
        ir(lr(i))=i
     end do
 
-  end subroutine renum_by_sets_aux
+  end subroutine renumbering_by_sets_aux
 
   !=============================================================================
-  subroutine renum_check(ren)
+  subroutine renumbering_check(renumbering)
     implicit none
     ! Parameters
-    type(renum_t), intent(in) :: ren
+    type(renumbering_t), intent(in) :: renumbering
 
     ! Local variables
     integer(ip)               :: i
     integer(ip), allocatable  :: occurs(:)
 
-    call memalloc ( ren%n, occurs,__FILE__,__LINE__)
+    call memalloc ( renumbering%n, occurs,__FILE__,__LINE__)
 
     occurs   = 0
-    do i = 1, ren%n
-       if (ren%lperm (i) < 1 .or. ren%lperm (i) > ren%n) then
-          write(*,*) '** [Fempar Warning] ** renum_check: node id ', i,      &
-             &          ' is un-correctly mapped to node id', ren%lperm (i), &  
+    do i = 1, renumbering%n
+       if (renumbering%lperm (i) < 1 .or. renumbering%lperm (i) > renumbering%n) then
+          write(*,*) '** [Fempar Warning] ** renumbering_check: node id ', i,      &
+             &          ' is un-correctly mapped to node id', renumbering%lperm (i), &  
              &          ' in ren%lperm'  ! DBG: 
        end if
-       occurs (ren%lperm (i)) = occurs (ren%lperm (i)) + 1
-       if (occurs(ren%lperm (i)) > 1) then
-          write(*,*) '** [Fempar Warning] ** renum_check: node id ', i, &
-             &     ' is listed more than once in ren%lperm'  ! DBG: 
+       occurs (renumbering%lperm (i)) = occurs (renumbering%lperm (i)) + 1
+       if (occurs(renumbering%lperm (i)) > 1) then
+          write(*,*) '** [Fempar Warning] ** renumbering_check: node id ', i, &
+             &     ' is listed more than once in renumbering%lperm'  ! DBG: 
        end if
     end do
 
-    do i = 1, ren%n
+    do i = 1, renumbering%n
        if (occurs(i) ==0) then
-          write(*,*) '** [Fempar Warning] ** renum_check: node id ', i, &
-             &          ' is not listed ren%lperm'  ! DBG: 
+          write(*,*) '** [Fempar Warning] ** renumbering_check: node id ', i, &
+             &          ' is not listed renumbering%lperm'  ! DBG: 
        end if
     end do
 
     occurs   = 0
-    do i = 1, ren%n
-       if (ren%iperm (i) < 1 .or. ren%iperm (i) > ren%n) then
-          write(*,*) '** [Fempar Warning] ** renum_check: node id ', i,      &
-             &          ' is un-correctly mapped to node id', ren%iperm (i), &  
-             &          ' in ren%iperm'  ! DBG: 
+    do i = 1, renumbering%n
+       if (renumbering%iperm (i) < 1 .or. renumbering%iperm (i) > renumbering%n) then
+          write(*,*) '** [Fempar Warning] ** renumbering_check: node id ', i,      &
+             &          ' is un-correctly mapped to node id', renumbering%iperm (i), &  
+             &          ' in renumbering%iperm'  ! DBG: 
        else
-          occurs (ren%iperm (i)) = occurs (ren%iperm (i)) + 1
-          if (occurs(ren%iperm (i)) > 1) then
-             write(*,*) '** [Fempar Warning] ** renum_check: node id ', i, &
-                  &     ' is listed more than once in ren%iperm'  ! DBG: 
+          occurs (renumbering%iperm (i)) = occurs (renumbering%iperm (i)) + 1
+          if (occurs(renumbering%iperm (i)) > 1) then
+             write(*,*) '** [Fempar Warning] ** renumbering_check: node id ', i, &
+                  &     ' is listed more than once in renumbering%iperm'  ! DBG: 
           end if
        end if
     end do
 
-    do i = 1, ren%n
+    do i = 1, renumbering%n
        if (occurs(i) ==0) then
-          write(*,*) '** [Fempar Warning] ** renum_check: node id ', i, &
-             &          ' is not listed ren%iperm'  ! DBG: 
+          write(*,*) '** [Fempar Warning] ** renumbering_check: node id ', i, &
+             &          ' is not listed renumbering%iperm'  ! DBG: 
        end if
     end do
 
     call memfree (occurs,__FILE__,__LINE__)
 
-  end subroutine renum_check
+  end subroutine renumbering_check
 
   !=============================================================================
-  subroutine renum_alloc(n,ren)
+  subroutine renumbering_alloc(n,renumbering)
     implicit none
     integer(ip), intent(in)         :: n
-    type(renum_t), intent(out) :: ren
+    type(renumbering_t), intent(out) :: renumbering
 
-    ren%n=n
-    if(ren%n>0) then
-       call memalloc (ren%n, ren%lperm, __FILE__,__LINE__)
-       call memalloc (ren%n, ren%iperm, __FILE__,__LINE__)
-       call renum_identity(ren%n,ren%lperm)
-       call renum_inverse(ren%n,ren%lperm,ren%iperm)
+    renumbering%n=n
+    if(renumbering%n>0) then
+       call memalloc (renumbering%n, renumbering%lperm, __FILE__,__LINE__)
+       call memalloc (renumbering%n, renumbering%iperm, __FILE__,__LINE__)
+       call renumbering_identity(renumbering%n,renumbering%lperm)
+       call renumbering_inverse(renumbering%n,renumbering%lperm,renumbering%iperm)
     else
-       write(*,*) 'Cannot allocate renum of',n,'components'
-       stop
+       write(*,*) 'Cannot allocate renumbering of',n,'components'
+       check(.false.)
     end if
-  end subroutine renum_alloc
+  end subroutine renumbering_alloc
 
-  subroutine renum_copy(iren,oren)
+  subroutine renumbering_copy(irenumbering,orenumbering)
     implicit none
-    type(renum_t), intent(in)  :: iren
-    type(renum_t), intent(out) :: oren
+    type(renumbering_t), intent(in)  :: irenumbering
+    type(renumbering_t), intent(out) :: orenumbering
 
-    oren%n = iren%n
-    call memalloc (oren%n, oren%lperm, __FILE__,__LINE__)
-    call memalloc (oren%n, oren%iperm, __FILE__,__LINE__)
+    orenumbering%n = irenumbering%n
+    call memalloc (orenumbering%n, orenumbering%lperm, __FILE__,__LINE__)
+    call memalloc (orenumbering%n, orenumbering%iperm, __FILE__,__LINE__)
 
-    oren%lperm = iren%lperm
-    oren%iperm = iren%iperm
+    orenumbering%lperm = irenumbering%lperm
+    orenumbering%iperm = irenumbering%iperm
 
-  end subroutine renum_copy
+  end subroutine renumbering_copy
 
   !-----------------------------------------------------------------------------
-  subroutine renum_identity(n,l)
+  subroutine renumbering_identity(n,l)
     implicit none
     integer(ip), intent(in)  :: n
     integer(ip), intent(out) :: l(n)
@@ -210,140 +211,140 @@ contains
     do i=1,n
        l(i)=i
     end do
-  end subroutine renum_identity
+  end subroutine renumbering_identity
   !-----------------------------------------------------------------------------
-  subroutine renum_inverse(n,l1,l2)
+  subroutine renumbering_inverse(n,l1,l2)
     integer(ip), intent(in)  :: n,l1(n)
     integer(ip), intent(out) :: l2(n)
     integer(ip) :: i
     do i=1,n
        l2(l1(i))=i
     end do
-  end subroutine renum_inverse
+  end subroutine renumbering_inverse
   !=============================================================================
-  subroutine renum_free(ren)
+  subroutine renumbering_free(renumbering)
     implicit none
-    type(renum_t), intent(inout) :: ren
-    if(ren%n>0) then
-       call memfree (ren%lperm,__FILE__,__LINE__)
-       call memfree (ren%iperm,__FILE__,__LINE__)
+    type(renumbering_t), intent(inout) :: renumbering
+    if(renumbering%n>0) then
+       call memfree (renumbering%lperm,__FILE__,__LINE__)
+       call memfree (renumbering%iperm,__FILE__,__LINE__)
     end if
-  end subroutine renum_free
+  end subroutine renumbering_free
 
   !=============================================================================
-  subroutine renum_write(file_path,ren)
+  subroutine renumbering_write(file_path,renumbering)
     ! Parameters
     character *(*)     , intent(in)  :: file_path
-    type(renum_t)        , intent(in)  :: ren
+    type(renumbering_t)        , intent(in)  :: renumbering
     !-----------------------------------------------------------------------
-    ! This routine writes a renumeration object to file file_path
+    ! This routine writes a renumbering object to file file_path
     !-----------------------------------------------------------------------
     ! Locals 
     integer :: lunio
     lunio = io_open (file_path, 'write')
 
-    write ( lunio, * ) ren%n
-    write ( lunio, * ) ren%lperm
-    write ( lunio, * ) ren%iperm
+    write ( lunio, * ) renumbering%n
+    write ( lunio, * ) renumbering%lperm
+    write ( lunio, * ) renumbering%iperm
 
     call io_close (lunio)
-  end subroutine renum_write
+  end subroutine renumbering_write
 
   !=============================================================================
-  subroutine renum_read (file_path, ren)
+  subroutine renumbering_read (file_path, renumbering)
     ! Parameters
     character *(*)     , intent(in)     :: file_path
-    type(renum_t), intent(out)    :: ren
+    type(renumbering_t), intent(out)    :: renumbering
     !-----------------------------------------------------------------------
-    ! This routine reads a renumeration object from file file_path
+    ! This routine reads a renumbering object from file file_path
     !-----------------------------------------------------------------------
     ! Locals 
     integer :: lunio
     lunio = io_open (file_path, 'read', status='old')
 
-    read ( lunio, * ) ren%n
-    call memalloc (ren%n, ren%lperm, __FILE__,__LINE__)
-    call memalloc (ren%n, ren%iperm, __FILE__,__LINE__)
-    read ( lunio, * ) ren%lperm
-    read ( lunio, * ) ren%iperm 
+    read ( lunio, * ) renumbering%n
+    call memalloc (renumbering%n, renumbering%lperm, __FILE__,__LINE__)
+    call memalloc (renumbering%n, renumbering%iperm, __FILE__,__LINE__)
+    read ( lunio, * ) renumbering%lperm
+    read ( lunio, * ) renumbering%iperm 
 
     call io_close(lunio)
-  end subroutine renum_read
+  end subroutine renumbering_read
 
   !=============================================================================
-  subroutine renum_compose_name ( prefix, name ) 
+  subroutine renumbering_compose_name ( prefix, name ) 
     implicit none
     character *(*), intent(in)        :: prefix 
     character *(*), intent(out)       :: name
     name = trim(prefix) // '.ren'
-  end subroutine renum_compose_name
+  end subroutine renumbering_compose_name
 
 
   !================================================================================================
-  subroutine renum_apply_r1(ren, xlin, xlout)
+  subroutine renumbering_apply_r1(renumbering, xlin, xlout)
     implicit none
-    type(renum_t), intent(in)  :: ren
-    real(rp)   , intent(in)  :: xlin  (ren%n)
-    real(rp)   , intent(out) :: xlout (ren%n)
+    type(renumbering_t), intent(in)  :: renumbering
+    real(rp)   , intent(in)  :: xlin  (renumbering%n)
+    real(rp)   , intent(out) :: xlout (renumbering%n)
     integer(ip) :: i
 
-    do i=1,ren%n
-       xlout(i)=xlin(ren%iperm(i))
+    do i=1,renumbering%n
+       xlout(i)=xlin(renumbering%iperm(i))
     end do
-  end subroutine renum_apply_r1
+  end subroutine renumbering_apply_r1
 
   !================================================================================================
-  subroutine renum_apply_r2(ld, ren, xlin, xlout)
+  subroutine renumbering_apply_r2(ld, renumbering, xlin, xlout)
     implicit none
     integer(ip), intent(in)  :: ld
-    type(renum_t), intent(in)  :: ren
-    real(rp)   , intent(in)  :: xlin  (ld,ren%n)
-    real(rp)   , intent(out) :: xlout (ld,ren%n)
+    type(renumbering_t), intent(in)  :: renumbering
+    real(rp)   , intent(in)  :: xlin  (ld,renumbering%n)
+    real(rp)   , intent(out) :: xlout (ld,renumbering%n)
     integer(ip) :: i
 
-    do i=1,ren%n
-       xlout(:,i)=xlin(:,ren%iperm(i))
+    do i=1,renumbering%n
+       xlout(:,i)=xlin(:,renumbering%iperm(i))
     end do
-  end subroutine renum_apply_r2
+  end subroutine renumbering_apply_r2
 
   !================================================================================================
-  subroutine renum_apply_i1(ren, xlin, xlout)
+  subroutine renumbering_apply_i1(renumbering, xlin, xlout)
     implicit none
-    type(renum_t), intent(in)  :: ren
-    integer(ip), intent(in)  :: xlin  (ren%n)
-    integer(ip), intent(out) :: xlout (ren%n)
+    type(renumbering_t), intent(in)  :: renumbering
+    integer(ip), intent(in)  :: xlin  (renumbering%n)
+    integer(ip), intent(out) :: xlout (renumbering%n)
     integer(ip)              :: i
 
-    do i=1,ren%n
-       xlout(i)=xlin(ren%iperm(i))
+    do i=1,renumbering%n
+       xlout(i)=xlin(renumbering%iperm(i))
     end do
-  end subroutine renum_apply_i1
+  end subroutine renumbering_apply_i1
 
   !================================================================================================
-  subroutine renum_apply_i1_igp(ren, xlin, xlout)
+  subroutine renumbering_apply_i1_igp(renumbering, xlin, xlout)
      implicit none
-     type(renum_t), intent(in)   :: ren
-     integer(igp), intent(in)  :: xlin  (ren%n)
-     integer(igp), intent(out) :: xlout (ren%n)
+     type(renumbering_t), intent(in)   :: renumbering
+     integer(igp), intent(in)  :: xlin  (renumbering%n)
+     integer(igp), intent(out) :: xlout (renumbering%n)
      integer(ip)               :: i
 
-     do i=1,ren%n
-        xlout(i)=xlin(ren%iperm(i))
+     do i=1,renumbering%n
+        xlout(i)=xlin(renumbering%iperm(i))
      end do
-  end subroutine renum_apply_i1_igp
+  end subroutine renumbering_apply_i1_igp
 
   !================================================================================================
-  subroutine renum_apply_i2(ld, ren, xlin, xlout)
+  subroutine renumbering_apply_i2(ld, renumbering, xlin, xlout)
     implicit none
     integer(ip), intent(in)  :: ld
-    type(renum_t), intent(in)  :: ren
-    integer(ip)   , intent(in)  :: xlin  (ld,ren%n)
-    integer(ip)   , intent(out) :: xlout (ld,ren%n)
+    type(renumbering_t), intent(in)  :: renumbering
+    integer(ip)   , intent(in)  :: xlin  (ld,renumbering%n)
+    integer(ip)   , intent(out) :: xlout (ld,renumbering%n)
     integer(ip) :: i
 
-    do i=1,ren%n
-       xlout(:,i)=xlin(:,ren%iperm(i))
+    do i=1,renumbering%n
+       xlout(:,i)=xlin(:,renumbering%iperm(i))
     end do
-  end subroutine renum_apply_i2
+  end subroutine renumbering_apply_i2
     
-end module renum_names
+end module renumbering_names
