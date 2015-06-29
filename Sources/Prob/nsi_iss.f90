@@ -79,13 +79,13 @@ module nsi_cg_iss_names
      procedure :: free    => nsi_error_free
   end type nsi_cg_iss_error_t
 
- ! Unkno components parameter definition
- integer(ip), parameter :: current   = 1
- integer(ip), parameter :: prev_iter = 2
- integer(ip), parameter :: prev_step = 3
+  ! Unkno components parameter definition
+  integer(ip), parameter :: current   = 1
+  integer(ip), parameter :: prev_iter = 2
+  integer(ip), parameter :: prev_step = 3
 
- ! Types
- public :: nsi_cg_iss_matvec_t, nsi_cg_iss_discrete_t, nsi_cg_iss_error_t
+  ! Types
+  public :: nsi_cg_iss_matvec_t, nsi_cg_iss_discrete_t, nsi_cg_iss_error_t
 
  ! Functions
  ! public :: nsi_iss_create, nsi_iss_free, nsi_iss_element_matvec, nsi_iss_element_real, &
@@ -252,7 +252,7 @@ contains
     force%a=0.0_rp
     ! Impose analytical solution
     if(approx%physics%case_veloc>0.and.approx%physics%case_press>0) then 
-       call nsi_analytical_force(approx,finite_element,ctime,gpvel,force)
+       call nsi_analytical_force(approx%physics,finite_element,ctime,gpvel,force)
     end if
     
     ! Initializations
@@ -366,118 +366,6 @@ contains
     call impose_strong_dirichlet_data(finite_element) 
     
   end subroutine nsi_matvec
-
-  !==================================================================================================
-  subroutine nsi_analytical_force(approx,finite_element,ctime,gpvel,force)
-    !-----------------------------------------------------------------------------------------------!
-    !   This subroutine computes the elemental force needed to impose an analytical solution        !
-    !-----------------------------------------------------------------------------------------------!
-    implicit none
-    class(nsi_cg_iss_matvec_t), intent(in)    :: approx
-    type(finite_element_t)    , intent(in)    :: finite_element
-    real(rp)                  , intent(in)    :: ctime
-    type(vector_t)            , intent(in)    :: gpvel
-    type(vector_t)            , intent(inout) :: force
-    ! Locals
-    integer(ip) :: igaus,idime,conve
-    real(rp)    :: gpvno
-    real(rp)    :: parv(30),parp(10),part(3),part_p(3)
-
-    ! Loop over gauss points
-    do igaus=1,finite_element%integ(1)%p%quad%ngaus
-    
-       ! Compute velocity norm
-       gpvno=0.0_rp
-       do idime = 1,approx%physics%ndime
-          gpvno = gpvno + gpvel%a(idime,igaus)*gpvel%a(idime,igaus)
-       end do
-       gpvno = sqrt(gpvno)
-
-       ! Set convection flag
-       if(gpvno.lt.1e-4) then
-          conve = 0
-       else
-          conve = approx%physics%kfl_conv
-       end if
-       
-       ! Evaluate unknowns and derivatives
-       parv   = 0.0_rp
-       parp   = 0.0_rp
-       part   = 0.0_rp
-       part_p = 0.0_rp
-       call analytical_field(approx%physics%case_veloc,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,parv)
-       call analytical_field(approx%physics%case_press,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,parp)
-       call analytical_field(approx%physics%case_tempo,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,part)
-       call analytical_field(approx%physics%case_t_pre,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
-
-       ! Evaluate force
-       call nsi_force(approx%physics%ndime,approx%physics%diffu,approx%physics%react, &
-            &         conve,approx%physics%kfl_symg,approx%physics%case_tempo,        &
-            &         parv,parp,part,approx%physics%gravi,force%a(:,igaus),part_p)
-
-    end do
-
-  end subroutine nsi_analytical_force
-
-  !=================================================================================================
-  subroutine nsi_force(ndime,diffu,react,kfl_conv,kfl_symg,caset,parv,parp,part,gravi,force,part_p)
-    !-----------------------------------------------------------------------------------------------!
-    !   This subroutine evaluates the elemental force needed to impose an analytical solution       !
-    !-----------------------------------------------------------------------------------------------!
-    implicit none
-    integer(ip)       , intent(in)    :: ndime,kfl_conv,kfl_symg,caset
-    real(rp)          , intent(in)    :: diffu,react,parv(:),parp(:),part(:),gravi(3)
-    real(rp)          , intent(inout) :: force(ndime)
-    real(rp), optional, intent(in)    :: part_p(:)
-
-    real(rp)   :: u,v,w,dpdx,dpdy,dpdz,d2udx,d2udy,d2udz
-    real(rp)   :: d2vdx,d2vdy,d2vdz,d2wdx,d2wdy,d2wdz
-    real(rp)   :: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
-    real(rp)   :: d2udxy,d2udxz,d2vdxy,d2vdyz,d2wdxz,d2wdyz
-    real(rp)   :: dudt,dvdt,dwdt
-
-    !
-    if(caset>0) then
-       dudt = part(2)*parv(1); dvdt = part(2)*parv(2); dwdt = part(2)*parv(3)
-    else
-       dudt=0.0_rp; dvdt=0.0_rp; dwdt=0.0_rp
-    end if
-    !
-    u = parv(1)*part(1); v = parv(2)*part(1); w = parv(3)*part(1)
-    dudx = parv(4)*part(1); dudy = parv(5)*part(1); dudz = parv(6)*part(1)
-    dvdx = parv(7)*part(1); dvdy = parv(8)*part(1); dvdz = parv(9)*part(1)
-    dwdx = parv(10)*part(1); dwdy = parv(11)*part(1); dwdz = parv(12)*part(1)
-    !
-    d2udx = parv(13)*part(1); d2udy = parv(14)*part(1); d2udz = parv(15)*part(1)
-    d2vdx = parv(16)*part(1); d2vdy = parv(17)*part(1); d2vdz = parv(18)*part(1)
-    d2wdx = parv(19)*part(1); d2wdy = parv(20)*part(1); d2wdz = parv(21)*part(1)
-    !
-    d2udxy = parv(22)*part(1); d2udxz = parv(23)*part(1)
-    d2vdxy = parv(25)*part(1); d2vdyz = parv(27)*part(1)
-    d2wdxz = parv(29)*part(1); d2wdyz = parv(30)*part(1)
-    !
-    if(present(part_p)) then
-       dpdx = parp(2)*part_p(1); dpdy = parp(3)*part_p(1); dpdz = parp(4)*part_p(1)
-    else
-       dpdx = parp(2); dpdy = parp(3); dpdz = parp(4)
-    end if
-    !
-
-    force(1) = dudt - diffu*(d2udx+d2udy+d2udz) + dpdx + react*u + &
-         REAL(kfl_conv)*(u*dudx + v*dudy + w*dudz) - gravi(1) -    &
-         REAL(kfl_symg)*diffu*(d2udx+d2vdxy+d2wdxz)
-    force(2) = dvdt - diffu*(d2vdx+d2vdy+d2vdz) + dpdy + react*v + &
-         REAL(kfl_conv)*(u*dvdx + v*dvdy + w*dvdz) - gravi(2) -    &
-         REAL(kfl_symg)*diffu*(d2udxy+d2vdy+d2wdyz)
-    if(ndime==3) force(3) = dwdt - diffu*(d2wdx+d2wdy+d2wdz) + dpdz + react*w + &
-         REAL(kfl_conv)*(u*dwdx + v*dwdy + w*dwdz) - gravi(3) -    &
-         REAL(kfl_symg)*diffu*(d2udxz+d2vdyz+d2wdz)
-
-  end subroutine nsi_force
 
   !=================================================================================================
   subroutine nsi_error_create( approx, physics, discret )

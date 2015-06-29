@@ -26,9 +26,12 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module nsi_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use problem_names
+  use finite_element_names
+  use element_fields_names
+  use analytical_names
   implicit none
 # include "debug.i90"
   private 
@@ -57,7 +60,11 @@ use memor_names
      procedure :: free => nsi_free
   end type nsi_problem_t
 
+  ! Types
   public :: nsi_problem_t
+
+  ! Functions
+  public :: nsi_elmchl, nsi_analytical_force
 
 contains
 
@@ -124,5 +131,212 @@ contains
     call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
 
   end subroutine nsi_free
+
+  !==================================================================================================
+  subroutine nsi_elmchl(jainv,hleng,elvel,ndime,pnode,iadve,chave,chale)
+    !-----------------------------------------------------------------------------------------------!
+    !    This routine computes the characteristic element lengths. The first one is the length in   ! 
+    !    the flow direction if there are convective terms and the minimum length otherwise. The     ! 
+    !    second one is the square root in 2D or cubic root in 3D of the volume.                     !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip), intent(in)    :: ndime,pnode,iadve
+    real(rp),    intent(in)    :: jainv(ndime,ndime),hleng(ndime)
+    real(rp),    intent(in)    :: elvel(pnode,ndime)
+    real(rp),    intent(out)   :: chave(ndime,2)
+    real(rp),    intent(out)   :: chale(2)
+    integer(ip)                :: idime,ievab,inode,ivepo,kdime
+    real(rp)                   :: elno1,elno2,hnatu
+
+    ! Initialization
+    chale(1)=hleng(ndime)                          ! Minimum element length
+    !chale(2)=hleng(ndime)
+    chale(2)=hleng(1)
+    do idime=2,ndime
+       chale(2)=chale(2)*hleng(idime)
+    end do
+    chale(2)=chale(2)**(1.0_rp/real(ndime))
+
+    ! Natural element length
+    if (ndime==2) then
+       if(pnode==3.or.pnode==6.or.pnode==10) then  ! P1, P2 or P3
+          hnatu=1.0_rp
+       else if(pnode==4.or.pnode==9.or.pnode==16) then  ! Q1, Q2 or Q3
+          hnatu=2.0_rp
+       end if
+    else if(ndime==3) then
+       if(pnode==4.or.pnode==10.or.pnode==20) then  ! P1, P2 or P3
+          hnatu=1.0_rp
+       else if(pnode==8.or.pnode==27.or.pnode==64) then  ! Q1, Q2 or Q3
+          hnatu=2.0_rp
+       end if
+    end if
+
+    ! Length in the flow direction
+    if(iadve==1) then
+       chave=0.0_rp                                ! Characteristic element velocity
+       do idime=1,ndime
+          do inode=1,pnode
+             chave(idime,1)=chave(idime,1)+elvel(inode,idime)
+          end do
+          chave(idime,1)=chave(idime,1)/real(pnode)
+       end do
+       do idime=1,ndime
+          chave(idime,2)=0.0_rp
+          do kdime=1,ndime
+             chave(idime,2)=chave(idime,2)+jainv(idime,kdime)*chave(kdime,1)
+          end do
+       end do
+       elno1=0.0_rp
+       elno2=0.0_rp
+       do idime=1,ndime
+          elno1=elno1+chave(idime,1)*chave(idime,1)
+       end do
+       do idime=1,ndime
+          elno2=elno2+chave(idime,2)*chave(idime,2)
+       end do
+       elno1=sqrt(elno1)
+       elno2=sqrt(elno2)
+       if(elno2>1.0e-16_rp.and.elno1>1.0e-16_rp) &
+            chale(1)=elno1/elno2*hnatu              ! Characteristic element length
+    end if
+
+    !!! Only for CHANEL & NACA (h_min) 
+    !chale(1)=hleng(ndime)
+    !chale(2)=hleng(ndime)
+
+    !!! (h_max) 
+    !chale(1)=hleng(1)
+    !chale(2)=hleng(1)
+
+    ! Divide h by p^2
+    if(ndime==2) then
+       if(pnode>9) then                            ! Cubic elements
+          chale = chale/(3.0_rp**2)
+       else if(pnode>5) then                       ! Quadratic elements
+          chale = (0.5_rp**2)*chale
+       end if
+    else if(ndime==3) then
+       if(pnode==10.or.pnode==27) then
+          chale = (0.5_rp**2)*chale                     ! Quadratic elements
+       else if(pnode==20.or.pnode==64) then
+          chale = chale/(3.0_rp**2)                     ! Cubic elements
+       end if
+    end if
+
+  end subroutine nsi_elmchl
+
+  !==================================================================================================
+  subroutine nsi_analytical_force(physics,finite_element,ctime,gpvel,force)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the elemental force needed to impose an analytical solution        !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(nsi_problem_t)   , intent(in)    :: physics
+    type(finite_element_t), intent(in)    :: finite_element
+    real(rp)              , intent(in)    :: ctime
+    type(vector_t)        , intent(in)    :: gpvel
+    type(vector_t)        , intent(inout) :: force
+    ! Locals
+    integer(ip) :: igaus,idime,conve
+    real(rp)    :: gpvno
+    real(rp)    :: parv(30),parp(10),part(3),part_p(3)
+
+    ! Loop over gauss points
+    do igaus=1,finite_element%integ(1)%p%quad%ngaus
+    
+       ! Compute velocity norm
+       gpvno=0.0_rp
+       do idime = 1,physics%ndime
+          gpvno = gpvno + gpvel%a(idime,igaus)*gpvel%a(idime,igaus)
+       end do
+       gpvno = sqrt(gpvno)
+
+       ! Set convection flag
+       if(gpvno.lt.1e-4) then
+          conve = 0
+       else
+          conve = physics%kfl_conv
+       end if
+       
+       ! Evaluate unknowns and derivatives
+       parv   = 0.0_rp
+       parp   = 0.0_rp
+       part   = 0.0_rp
+       part_p = 0.0_rp
+       call analytical_field(physics%case_veloc,physics%ndime, &
+            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,parv)
+       call analytical_field(physics%case_press,physics%ndime, &
+            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,parp)
+       call analytical_field(physics%case_tempo,physics%ndime, &
+            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,part)
+       call analytical_field(physics%case_t_pre,physics%ndime, &
+            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
+
+       ! Evaluate force
+       call nsi_force(physics%ndime,physics%diffu,physics%react, &
+            &         conve,physics%kfl_symg,physics%case_tempo,        &
+            &         parv,parp,part,physics%gravi,force%a(:,igaus),part_p)
+
+    end do
+
+  end subroutine nsi_analytical_force
+
+  !=================================================================================================
+  subroutine nsi_force(ndime,diffu,react,kfl_conv,kfl_symg,caset,parv,parp,part,gravi,force,part_p)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine evaluates the elemental force needed to impose an analytical solution       !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip)       , intent(in)    :: ndime,kfl_conv,kfl_symg,caset
+    real(rp)          , intent(in)    :: diffu,react,parv(:),parp(:),part(:),gravi(3)
+    real(rp)          , intent(inout) :: force(ndime)
+    real(rp), optional, intent(in)    :: part_p(:)
+
+    real(rp)   :: u,v,w,dpdx,dpdy,dpdz,d2udx,d2udy,d2udz
+    real(rp)   :: d2vdx,d2vdy,d2vdz,d2wdx,d2wdy,d2wdz
+    real(rp)   :: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
+    real(rp)   :: d2udxy,d2udxz,d2vdxy,d2vdyz,d2wdxz,d2wdyz
+    real(rp)   :: dudt,dvdt,dwdt
+
+    !
+    if(caset>0) then
+       dudt = part(2)*parv(1); dvdt = part(2)*parv(2); dwdt = part(2)*parv(3)
+    else
+       dudt=0.0_rp; dvdt=0.0_rp; dwdt=0.0_rp
+    end if
+    !
+    u = parv(1)*part(1); v = parv(2)*part(1); w = parv(3)*part(1)
+    dudx = parv(4)*part(1); dudy = parv(5)*part(1); dudz = parv(6)*part(1)
+    dvdx = parv(7)*part(1); dvdy = parv(8)*part(1); dvdz = parv(9)*part(1)
+    dwdx = parv(10)*part(1); dwdy = parv(11)*part(1); dwdz = parv(12)*part(1)
+    !
+    d2udx = parv(13)*part(1); d2udy = parv(14)*part(1); d2udz = parv(15)*part(1)
+    d2vdx = parv(16)*part(1); d2vdy = parv(17)*part(1); d2vdz = parv(18)*part(1)
+    d2wdx = parv(19)*part(1); d2wdy = parv(20)*part(1); d2wdz = parv(21)*part(1)
+    !
+    d2udxy = parv(22)*part(1); d2udxz = parv(23)*part(1)
+    d2vdxy = parv(25)*part(1); d2vdyz = parv(27)*part(1)
+    d2wdxz = parv(29)*part(1); d2wdyz = parv(30)*part(1)
+    !
+    if(present(part_p)) then
+       dpdx = parp(2)*part_p(1); dpdy = parp(3)*part_p(1); dpdz = parp(4)*part_p(1)
+    else
+       dpdx = parp(2); dpdy = parp(3); dpdz = parp(4)
+    end if
+    !
+
+    force(1) = dudt - diffu*(d2udx+d2udy+d2udz) + dpdx + react*u + &
+         REAL(kfl_conv)*(u*dudx + v*dudy + w*dudz) - gravi(1) -    &
+         REAL(kfl_symg)*diffu*(d2udx+d2vdxy+d2wdxz)
+    force(2) = dvdt - diffu*(d2vdx+d2vdy+d2vdz) + dpdy + react*v + &
+         REAL(kfl_conv)*(u*dvdx + v*dvdy + w*dvdz) - gravi(2) -    &
+         REAL(kfl_symg)*diffu*(d2udxy+d2vdy+d2wdyz)
+    if(ndime==3) force(3) = dwdt - diffu*(d2wdx+d2wdy+d2wdz) + dpdz + react*w + &
+         REAL(kfl_conv)*(u*dwdx + v*dwdy + w*dwdz) - gravi(3) -    &
+         REAL(kfl_symg)*diffu*(d2udxz+d2vdyz+d2wdz)
+
+  end subroutine nsi_force
+
 
 end module nsi_names

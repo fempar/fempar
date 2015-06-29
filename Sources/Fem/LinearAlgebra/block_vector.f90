@@ -26,19 +26,37 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module block_vector_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use vector_names
+  use base_operand_names
+  use block_graph_names
+  use graph_names
   implicit none
 # include "debug.i90"
 
   private
 
   ! vector
-  type block_vector_t
-     integer(ip)                   :: nblocks = 0
+  type, extends(base_operand_t) :: block_vector_t
+     integer(ip)                 :: nblocks = 0
      type(vector_t), allocatable :: blocks(:)
+   contains
+     procedure :: dot  => block_vector_dot_tbp
+     procedure :: copy => block_vector_copy_tbp
+     procedure :: init => block_vector_init_tbp
+     procedure :: scal => block_vector_scal_tbp
+     procedure :: axpby => block_vector_axpby_tbp
+     procedure :: nrm2 => block_vector_nrm2_tbp
+     procedure :: clone => block_vector_clone_tbp
+     procedure :: comm  => block_vector_comm_tbp
+     procedure :: free  => block_vector_free_tbp
+     procedure :: alloc => block_vector_alloc_all
   end type block_vector_t
+
+  interface block_vector_alloc
+     module procedure block_vector_alloc_blocks, block_vector_alloc_all
+  end interface block_vector_alloc
 
   ! Types
   public :: block_vector_t
@@ -71,13 +89,30 @@ contains
   end subroutine block_vector_free
 
   !=============================================================================
-  subroutine block_vector_alloc(nblocks, bvec)
+  subroutine block_vector_alloc_all(bvec, bgraph)
+    implicit none
+    class(block_vector_t), intent(out) :: bvec
+    type(block_graph_t) , intent(in)  :: bgraph
+    integer(ip)  :: ib
+    type(graph_t), pointer :: f_graph
+    
+    bvec%nblocks = bgraph%get_nblocks()
+    allocate ( bvec%blocks(bvec%nblocks) )
+    do ib=1, bvec%nblocks
+       f_graph => bgraph%get_block(ib,ib)
+       call vector_alloc ( f_graph%nv, bvec%blocks(ib) )
+    end do
+
+  end subroutine block_vector_alloc_all
+
+  !=============================================================================
+  subroutine block_vector_alloc_blocks(nblocks, bvec)
     implicit none
     integer(ip)           , intent(in)  :: nblocks
     type(block_vector_t), intent(out) :: bvec
     bvec%nblocks = nblocks
     allocate ( bvec%blocks(nblocks) )
-  end subroutine block_vector_alloc
+  end subroutine block_vector_alloc_blocks
 
   !=============================================================================
   subroutine block_vector_create_view (svec, start, end, tvec)
@@ -314,5 +349,177 @@ contains
     end do
 
   end subroutine ass_blkvec_w_dof_handler
+  
+  ! alpha <- op1^T * op2
+  function block_vector_dot_tbp(op1,op2) result(alpha)
+    implicit none
+    ! Parameters
+    class(block_vector_t), intent(in)  :: op1
+    class(base_operand_t), intent(in)  :: op2
+    real(rp) :: alpha
+
+    ! Locals
+    real(rp)    :: aux
+    integer(ip) :: ib
+
+    call op1%GuardTemp()
+    call op2%GuardTemp()
+    select type(op2)
+    class is (block_vector_t)
+       assert ( op1%nblocks == op2%nblocks )
+       alpha = 0.0_rp
+       do ib=1,op1%nblocks
+          aux = op1%blocks(ib)%dot(op2%blocks(ib))
+          alpha = alpha + aux
+       end do
+    class default
+       write(0,'(a)') 'block_vector_t%dot: unsupported op2 class'
+       check(1==0)
+    end select
+    call op1%CleanTemp()
+    call op2%CleanTemp()
+  end function block_vector_dot_tbp
+
+  ! op1 <- op2 
+  subroutine block_vector_copy_tbp(op1,op2)
+    implicit none
+    ! Parameters
+    class(block_vector_t), intent(inout) :: op1
+    class(base_operand_t), intent(in)    :: op2
+
+    ! Locals
+    integer(ip) :: ib
+
+    call op2%GuardTemp()
+    select type(op2)
+    class is (block_vector_t)
+       assert ( op1%nblocks == op2%nblocks )
+       do ib=1,op1%nblocks
+          call op1%blocks(ib)%copy(op2%blocks(ib))
+       end do
+    class default
+       write(0,'(a)') 'block_vector_t%copy: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine block_vector_copy_tbp
+
+  ! op <- alpha
+  subroutine block_vector_init_tbp(op,alpha)
+    implicit none
+    class(block_vector_t), intent(inout) :: op 
+    real(rp)             , intent(in)    :: alpha  
+    ! Locals
+    integer(ip) :: ib
+
+    do ib=1, op%nblocks
+       call op%blocks(ib)%init(alpha)
+    end do    
+  end subroutine block_vector_init_tbp
+  
+  ! op1 <- alpha * op2
+  subroutine block_vector_scal_tbp(op1,alpha,op2)
+    implicit none
+    ! Parameters 
+    class(block_vector_t), intent(inout) :: op1
+    real(rp)             , intent(in)    :: alpha
+    class(base_operand_t), intent(in)    :: op2
+    ! Locals
+    integer(ip) :: ib
+
+    call op2%GuardTemp()
+    select type(op2)
+    class is (block_vector_t)
+       assert ( op1%nblocks == op2%nblocks )
+       do ib=1,op1%nblocks
+          call op1%blocks(ib)%scal(alpha,op2%blocks(ib))
+       end do
+    class default
+       write(0,'(a)') 'block_vector_t%scal: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine block_vector_scal_tbp
+
+  ! op1 <- alpha*op2 + beta*op1
+  subroutine block_vector_axpby_tbp(op1,alpha,op2,beta)
+    implicit none
+    class(block_vector_t), intent(inout) :: op1
+    real(rp)             , intent(in)    :: alpha
+    class(base_operand_t), intent(in)    :: op2
+    real(rp)             , intent(in)    :: beta
+    ! Locals
+    integer(ip)                           :: ib
+
+    call op2%GuardTemp()
+    select type(op2)
+    class is (block_vector_t)
+       assert ( op1%nblocks == op2%nblocks )
+       do ib=1,op1%nblocks
+          call op1%blocks(ib)%axpby(alpha,op2%blocks(ib),beta)
+       end do
+    class default
+       write(0,'(a)') 'block_vector_t%axpby: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine block_vector_axpby_tbp
+
+  ! alpha <- nrm2(op)
+  function block_vector_nrm2_tbp(op) result(alpha)
+    implicit none
+    class(block_vector_t), intent(in) :: op
+    real(rp) :: alpha
+
+    call op%GuardTemp()
+    alpha = op%dot(op)
+    alpha = sqrt(alpha)
+   call op%CleanTemp()
+  end function block_vector_nrm2_tbp
+
+  ! op1 <- clone(op2) 
+  subroutine block_vector_clone_tbp(op1,op2)
+    implicit none
+    ! Parameters
+    class(block_vector_t)        , intent(inout) :: op1
+    class(base_operand_t), target, intent(in)    :: op2
+ 
+    ! Locals
+    integer(ip) :: ib
+
+    call op2%GuardTemp()
+    select type(op2)
+    class is (block_vector_t)
+       op1%nblocks = op2%nblocks
+       if(allocated(op1%blocks)) deallocate ( op1%blocks )
+       allocate(op1%blocks(op1%nblocks))
+       do ib=1,op1%nblocks
+          call op1%blocks(ib)%clone(op2%blocks(ib))
+       end do
+    class default
+       write(0,'(a)') 'block_vector_t%clone: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine block_vector_clone_tbp
+
+  ! op <- comm(op)
+  subroutine block_vector_comm_tbp(op)
+    implicit none
+    class(block_vector_t), intent(inout) :: op 
+  end subroutine block_vector_comm_tbp
+
+  subroutine block_vector_free_tbp(this)
+    implicit none
+    class(block_vector_t), intent(inout) :: this
+    integer(ip)  :: ib
+   
+    do ib=1, this%nblocks
+       call this%blocks(ib)%free()
+    end do
+    this%nblocks = 0
+    deallocate( this%blocks )
+  end subroutine block_vector_free_tbp
+
 
 end module block_vector_names
