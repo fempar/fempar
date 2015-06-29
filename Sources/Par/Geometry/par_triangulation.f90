@@ -50,7 +50,7 @@ module par_triangulation_names
 
   !                On the other hand, would it be necessary/convenient/helpful to store 
   !                the number of interface objects, and the list of interface objects local IDs?
-  !                At this point, I know that this would be convenient/helpful for par_dof_handler_partition.f90.
+  !                At this point, I know that this would be convenient/helpful for par_dof_descriptor_partition.f90.
   !                (That requires fast location of interface objects). Any other point?
 
   !                I already did store these data on num_itfc_objs and lst_itfc_objs members of type(par_triangulation)

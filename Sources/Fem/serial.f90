@@ -91,7 +91,7 @@ module serial_names
   use fe_space_names
   use fe_space_types_names
   use fe_space_faces_names
-  use dof_handler_names
+  use dof_descriptor_names
   use integration_names
   use quadrature_names
   use interpolation_names

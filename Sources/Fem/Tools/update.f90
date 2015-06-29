@@ -61,8 +61,8 @@ contains
 
     do ielem = 1, fe_space%g_trian%num_elems
        prob = fe_space%finite_elements(ielem)%problem
-       do ivar=1, fe_space%dof_handler%problems(prob)%p%nvars
-          gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
+       do ivar=1, fe_space%dof_descriptor%problems(prob)%p%nvars
+          gvar=fe_space%dof_descriptor%problems(prob)%p%l2g_var(ivar)
           do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
              lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
              do inode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje), &
@@ -117,7 +117,7 @@ contains
 
              ! Global variable
              cnt = cnt+1
-             gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
+             gvar=fe_space%dof_descriptor%problems(prob)%p%l2g_var(ivar)
 
              ! Interpolate coordinates
              unode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode
@@ -186,11 +186,11 @@ contains
     ! Loop over elements
     do ielem = 1, fe_space%g_trian%num_elems
        iprob = fe_space%finite_elements(ielem)%problem
-       nvapb = fe_space%dof_handler%prob_block(iblock_,iprob)%nd1
+       nvapb = fe_space%dof_descriptor%prob_block(iblock_,iprob)%nd1
        
        ! Loop over problem and block variables
        do ivar = 1, nvapb
-          lvar = fe_space%dof_handler%prob_block(iblock_,iprob)%a(ivar)
+          lvar = fe_space%dof_descriptor%prob_block(iblock_,iprob)%a(ivar)
 
           ! Loop over elemental nodes
           do inode = 1,fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode

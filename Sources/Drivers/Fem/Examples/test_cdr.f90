@@ -36,7 +36,7 @@ program test_cdr
   type(triangulation_t)  :: f_trian
   type(matrix_t)         :: f_mat
   type(conditions_t)     :: f_cond
-  type(dof_handler_t)        :: dhand
+  type(dof_descriptor_t)        :: dof_descriptor
   type(fe_space_t)          :: fe_space
   type(graph_t), pointer :: f_graph
   type(block_graph_t)    :: f_blk_graph
@@ -94,8 +94,8 @@ program test_cdr
   !call triangulation_print( 6 , f_trian )
 
   vars_prob = 1
-  call dhand%create( 1, 1, 1 ) !, vars_block, dof_coupl )
-  !                      ( dhand, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
+  call dof_descriptor%create( 1, 1, 1 ) !, vars_block, dof_coupl )
+  !                      ( dof_descriptor, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
 
   !write (6,*) '*** physical problem  ***'
   !write (6,*) 'Number of variables of problem: ',  my_problem%nvars
@@ -107,17 +107,17 @@ program test_cdr
   num_approximations=1
   approximations(1)%p => my_approximation
 
-  call dhand%set_problem( 1, my_discrete )
-  !                     ( ndime, dhand, l2g_vars, iprob ) 
+  call dof_descriptor%set_problem( 1, my_discrete )
+  !                     ( ndime, dof_descriptor, l2g_vars, iprob ) 
   ! ... for as many problems as we have
 
-  !call dof_handler_print ( dhand, 6 )
+  !call dof_descriptor_print ( dof_descriptor, 6 )
 
 
-  call memalloc( f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
+  call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
    continuity = 0 ! (dG)
   ! continuity = 1
-  call memalloc( f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
+  call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
   order = 5
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
@@ -129,14 +129,14 @@ program test_cdr
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call fe_space_create ( f_trian, dhand, fe_space, problem, f_cond, continuity, order, material, &
+  call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, order, material, &
        & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
   call update_strong_dirichlet_bcond( fe_space, f_cond )
 
-  call create_dof_info( dhand, f_trian, fe_space, f_blk_graph, gtype )
+  call create_dof_info( dof_descriptor, f_trian, fe_space, f_blk_graph, gtype )
 
   f_graph => f_blk_graph%get_block(1,1)
   call matrix_alloc( csr_mat, symm_true, f_graph, my_matrix, positive_definite )
@@ -205,7 +205,7 @@ program test_cdr
   call my_problem%free
   call my_discrete%free
   call my_approximation%free
-  call dof_handler_free ( dhand )
+  call dof_descriptor_free ( dof_descriptor )
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
@@ -247,7 +247,7 @@ contains
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$
 !!$    do ielem = 1, fe_space%g_trian%num_elems
-!!$       do ivar=1, fe_space%dof_handler%problems(problem(ielem))%p%nvars
+!!$       do ivar=1, fe_space%dof_descriptor%problems(problem(ielem))%p%nvars
 !!$          !write (*,*) 'ielem',ielem
 !!$          !write (*,*) 'ivar',ivar
 !!$          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'

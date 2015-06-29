@@ -57,7 +57,7 @@ contains
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation
     !class(discrete_problem) , pointer :: discrete
-    integer(ip) :: start(fe_space%dof_handler%nvars_global+1)
+    integer(ip) :: start(fe_space%dof_descriptor%nvars_global+1)
 
     ! Main element loop
     do ielem=1,fe_space%g_trian%num_elems
@@ -69,15 +69,15 @@ contains
        end do
 
        ! Starting position for each dof
-       call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_handler, start(1:nvars+1) )
+       call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_descriptor, start(1:nvars+1) )
        
        current_approximation = fe_space%finite_elements(ielem)%approximation
        call approx(current_approximation)%p%compute(start,fe_space%finite_elements(ielem))
 
        ! Assembly first contribution
-       call assembly(fe_space%finite_elements(ielem),fe_space%dof_handler,start(1:nvars+1),res1) 
+       call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,start(1:nvars+1),res1) 
 
-       if(present(res2)) call assembly(fe_space%finite_elements(ielem),fe_space%dof_handler,start(1:nvars+1),res2)
+       if(present(res2)) call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,start(1:nvars+1),res2)
  
     end do
 

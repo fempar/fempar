@@ -32,7 +32,7 @@ module par_fe_space_names
   use fe_space_names
   use fe_space_types_names
   use problem_names
-  use dof_handler_names
+  use dof_descriptor_names
   use hash_table_names
   use finite_element_names
 
@@ -77,13 +77,13 @@ contains
   ! together with some optional flags. The output of this subroutine is a fe_space
   ! with the required info on ghost elements.
   !*********************************************************************************
-  subroutine par_fe_space_create ( p_trian, dhand, p_fe_space, problem, p_cond, continuity, order,     &
+  subroutine par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, p_cond, continuity, order,     &
                                     material, which_approx, time_steps_to_store, hierarchical_basis, &
                                     static_condensation, num_continuity )
     implicit none
     ! Dummy arguments
     type(par_triangulation_t), target, intent(in)    :: p_trian
-    type(dof_handler_t)              , intent(in)    :: dhand
+    type(dof_descriptor_t)              , intent(in)    :: dof_descriptor
     type(par_fe_space_t)            , intent(inout) :: p_fe_space  
     integer(ip)                    , intent(in)    :: problem(:)
     type(par_conditions_t)           , intent(in)    :: p_cond
@@ -105,7 +105,7 @@ contains
 
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
 
-       call fe_space_allocate_structures(  p_trian%f_trian, dhand, p_fe_space%fe_space,            &
+       call fe_space_allocate_structures(  p_trian%f_trian, dof_descriptor, p_fe_space%fe_space,            &
             time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
             static_condensation = static_condensation, num_continuity = num_continuity, &
             num_ghosts = p_trian%num_ghosts ) 
@@ -193,7 +193,7 @@ contains
 
     do ielem = p_fe_space%p_trian%f_trian%num_elems+1, p_fe_space%p_trian%f_trian%num_elems+p_fe_space%p_trian%num_ghosts
        !write (*,*) '************* GHOST ELEMENT *************',ielem
-       nvars = p_fe_space%fe_space%dof_handler%problems(p_fe_space%fe_space%finite_elements(ielem)%problem)%p%nvars
+       nvars = p_fe_space%fe_space%dof_descriptor%problems(p_fe_space%fe_space%finite_elements(ielem)%problem)%p%nvars
        p_fe_space%fe_space%finite_elements(ielem)%num_vars = nvars
        f_type = p_fe_space%p_trian%f_trian%elems(ielem)%geo_reference_element%ftype
        !write(*,*) 'f_type ghosts',f_type

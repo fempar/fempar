@@ -45,7 +45,7 @@ use lib_vtk_io_interface_names
   type(par_environment_t)                            :: p_env
   type(par_triangulation_t)                          :: p_trian
   type(par_conditions_t)                             :: p_cond
-  type(dof_handler_t)                                :: dhand
+  type(dof_descriptor_t)                                :: dof_descriptor
   type(par_fe_space_t)                              :: p_fe_space  
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
@@ -132,14 +132,14 @@ use lib_vtk_io_interface_names
   ! Generate par triangulation
   call par_gen_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
 
-  ! Create dof_handler
-  call dhand%create(1,1,gdata%ndime+1)
+  ! Create dof_descriptor
+  call dof_descriptor%create(1,1,gdata%ndime+1)
 
   ! Create problem
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
-  call dhand%set_problem(1,mydisc)
+  call dof_descriptor%set_problem(1,mydisc)
   approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
@@ -148,8 +148,8 @@ use lib_vtk_io_interface_names
   myprob%case_press = 1
 
   ! Allocate auxiliar elemental arrays
-  call memalloc(p_trian%f_trian%num_elems,dhand%nvars_global,continuity, __FILE__,__LINE__)
-  call memalloc(p_trian%f_trian%num_elems,dhand%nvars_global,order,__FILE__,__LINE__)
+  call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
+  call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,problem,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
@@ -159,7 +159,7 @@ use lib_vtk_io_interface_names
   which_approx           = 1 
 
   ! Create par_fe_space
-  call par_fe_space_create(p_trian,dhand,p_fe_space,problem,p_cond,continuity,order,material, &
+  call par_fe_space_create(p_trian,dof_descriptor,p_fe_space,problem,p_cond,continuity,order,material, &
        &                    which_approx,time_steps_to_store=3,                             &
        &                    hierarchical_basis=.false.,                         &
        &                    static_condensation=.false.,num_continuity=1)
@@ -169,7 +169,7 @@ use lib_vtk_io_interface_names
        &                nparts=gdata%nparts,linear_order=.true.)
 
   ! Create dof info
-  call par_create_distributed_dof_info(dhand,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
+  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
 
   !if(p_env%am_i_fine_task()) call par_graph_print(6,p_blk_graph%get_block(1,1))
 
@@ -310,7 +310,7 @@ use lib_vtk_io_interface_names
   call myprob%free
   call mydisc%free
   call cg_iss_matvec%free
-  call dof_handler_free (dhand)
+  call dof_descriptor_free (dof_descriptor)
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)
   call finite_element_fixed_info_free(geo_reference_element)

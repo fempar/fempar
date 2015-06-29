@@ -35,7 +35,7 @@ module finite_element_names
   use interpolation_tools_names
   !use face_integration_names
   use fe_space_types_names
-  !use dof_handler_names
+  !use dof_descriptor_names
   use migratory_element_names
   !use conditions_names
 

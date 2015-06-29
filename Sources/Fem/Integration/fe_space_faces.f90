@@ -77,7 +77,7 @@ contains
           do i = 1,2
              ielem = trian%objects(iobje)%elems_around(i)
              iprob = fe_space%finite_elements(ielem)%problem
-             nvars = fe_space%dof_handler%problems(iprob)%p%nvars
+             nvars = fe_space%dof_descriptor%problems(iprob)%p%nvars
              do ivars = 1, nvars
                 max_order = max(max_order,fe_space%finite_elements(ielem)%order(ivars))
              end do
@@ -101,7 +101,7 @@ contains
                   & trian%elems(ielem)%num_objects )
              fe_space%interior_faces(iface_l)%local_face(i) = l_faci - &
                   fe_space%g_trian%elems(ielem)%geo_reference_element%nobje_dim(ndime) + 1 
-             nvars = fe_space%dof_handler%problems(iprob)%p%nvars
+             nvars = fe_space%dof_descriptor%problems(iprob)%p%nvars
 
              call memalloc( nvars, fe_space%fe_faces(iface)%integ(i)%p, __FILE__, __LINE__ )
 

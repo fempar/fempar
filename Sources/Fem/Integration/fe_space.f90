@@ -37,7 +37,7 @@ module fe_space_names
   use interpolation_tools_names
   !use face_integration_names
   use fe_space_types_names
-  use dof_handler_names
+  use dof_descriptor_names
   use migratory_element_names
   use conditions_names
   use finite_element_names
@@ -62,7 +62,7 @@ module fe_space_names
      type(fe_face_t)          , allocatable :: fe_faces(:)             ! List of active faces
 
      type(triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
-     type(dof_handler_t)        , pointer :: dof_handler
+     type(dof_descriptor_t)        , pointer :: dof_descriptor
 
      ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elmatvec
@@ -108,12 +108,12 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_create( g_trian, dofh, fe_space, problem, bcond, continuity, order, material, & 
+  subroutine fe_space_create( g_trian, dof_descriptor, fe_space, problem, bcond, continuity, order, material, & 
                                which_approx, time_steps_to_store, hierarchical_basis,  & 
                                static_condensation, num_continuity, num_ghosts )
     implicit none
     type(triangulation_t), target, intent(in)    :: g_trian   
-    type(dof_handler_t)      , target, intent(in)    :: dofh
+    type(dof_descriptor_t)      , target, intent(in)    :: dof_descriptor
     type(fe_space_t)        , target, intent(inout) :: fe_space
     integer(ip)                    , intent(in)    :: problem(:)
     type(conditions_t)           , intent(in)    :: bcond
@@ -129,7 +129,7 @@ contains
 
     integer(ip) :: istat, num_ghosts_
 
-    call fe_space_allocate_structures( g_trian, dofh, fe_space, time_steps_to_store = time_steps_to_store,&
+    call fe_space_allocate_structures( g_trian, dof_descriptor, fe_space, time_steps_to_store = time_steps_to_store,&
          hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
           num_continuity = num_continuity, num_ghosts = num_ghosts )  
 
@@ -146,12 +146,12 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_allocate_structures( g_trian, dofh, fe_space, time_steps_to_store, &
+  subroutine fe_space_allocate_structures( g_trian, dof_descriptor, fe_space, time_steps_to_store, &
        & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fe_space_t)   ,  target, intent(inout)                :: fe_space
     type(triangulation_t)   , intent(in), target   :: g_trian   
-    type(dof_handler_t) , intent(in), target           :: dofh  
+    type(dof_descriptor_t) , intent(in), target           :: dof_descriptor  
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical, optional, intent(in) :: hierarchical_basis
     logical, optional, intent(in) :: static_condensation
@@ -206,8 +206,8 @@ contains
     !  Initialization of pointer to triangulation
     fe_space%g_trian => g_trian
 
-    !  Initialization of pointer to dof_handler
-    fe_space%dof_handler => dofh
+    !  Initialization of pointer to dof_descriptor
+    fe_space%dof_descriptor => dof_descriptor
 
     ! Allocation of elemental matrix and vector parameters
     call fe_space%pos_elmatvec%init(ht_length)
@@ -260,7 +260,7 @@ contains
     ! call memalloc( 0, fe_space%l_nodes_object(1)%l, __FILE__, __LINE__ )
 
     ! Loop over elements
-    nvars_tot = fe_space%dof_handler%nvars_global
+    nvars_tot = fe_space%dof_descriptor%nvars_global
     dim = fe_space%g_trian%num_dims
 
     ! Material
@@ -272,7 +272,7 @@ contains
        fe_space%finite_elements(ielem)%problem =  problem(ielem)
        fe_space%finite_elements(ielem)%approximation =  which_approx(ielem)
 
-       nvars = fe_space%dof_handler%problems(problem(ielem))%p%nvars
+       nvars = fe_space%dof_descriptor%problems(problem(ielem))%p%nvars
        fe_space%finite_elements(ielem)%num_vars = nvars
        f_type = fe_space%g_trian%elems(ielem)%geo_reference_element%ftype
        !assert(size(continuity,1)==nvars_tot)
@@ -297,13 +297,13 @@ contains
        do ivar=1,nvars
           !write(*,*) 'ielem,ivar',ielem,ivar,continuity(2,1)
           !write(*,*) 'POINT REACHED'
-          !write(*,*) 'l2g', fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar)
-          !write(*,*) 'cont',continuity(ielem,fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          !write(*,*) 'l2g', fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar)
+          !write(*,*) 'cont',continuity(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
 
           ! JP: indices of these arrays (continuity and order) should be changed to (nvars,nelem)
-          fe_space%finite_elements(ielem)%continuity(ivar) = continuity(ielem,fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          fe_space%finite_elements(ielem)%continuity(ivar) = continuity(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
           
-          fe_space%finite_elements(ielem)%order(ivar) = order(ielem,fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          fe_space%finite_elements(ielem)%order(ivar) = order(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
           if ( fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
              fe_space%static_condensation = .false. ! Static condensation + dG not possible
           end if
@@ -379,7 +379,7 @@ contains
        ! Fill bc_code
        do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
           do ivar=1,nvars
-             fe_space%finite_elements(ielem)%bc_code(ivar,iobje) = bcond%code( fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar),  fe_space%g_trian%elems(ielem)%objects(iobje) )
+             fe_space%finite_elements(ielem)%bc_code(ivar,iobje) = bcond%code( fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar),  fe_space%g_trian%elems(ielem)%objects(iobje) )
           end do
        end do
 
@@ -570,7 +570,7 @@ contains
     !call memfree( fe_space%void_list%l, __FILE__, __LINE__ )
     !fe_space%void_list%n = 0
 
-    do i = 1, fe_space%dof_handler%nblocks
+    do i = 1, fe_space%dof_descriptor%nblocks
        call memfree (fe_space%object2dof(i)%p , __FILE__, __LINE__ )
        call memfree (fe_space%object2dof(i)%l , __FILE__, __LINE__ )
     end do
@@ -624,9 +624,9 @@ contains
              jelem = fe_space%g_trian%objects(iobje)%elems_around(2)
              iprob = fe_space%finite_elements(ielem)%problem
              jprob = fe_space%finite_elements(jelem)%problem
-             do ivars = 1, fe_space%dof_handler%problems(iprob)%p%nvars
-                g_var = fe_space%dof_handler%problems(iprob)%p%l2g_var(ivars)
-                jvars = fe_space%dof_handler%g2l_vars(g_var,jprob)
+             do ivars = 1, fe_space%dof_descriptor%problems(iprob)%p%nvars
+                g_var = fe_space%dof_descriptor%problems(iprob)%p%l2g_var(ivars)
+                jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
                 if ( mat_i == 0 .or. mat_i /= mat_j ) then
@@ -660,9 +660,9 @@ contains
              jelem = fe_space%g_trian%objects(iobje)%elems_around(2)
              iprob = fe_space%finite_elements(ielem)%problem
              jprob = fe_space%finite_elements(jelem)%problem
-             do ivars = 1, fe_space%dof_handler%problems(iprob)%p%nvars
-                g_var = fe_space%dof_handler%problems(iprob)%p%l2g_var(ivars)
-                jvars = fe_space%dof_handler%g2l_vars(g_var,jprob)
+             do ivars = 1, fe_space%dof_descriptor%problems(iprob)%p%nvars
+                g_var = fe_space%dof_descriptor%problems(iprob)%p%l2g_var(ivars)
+                jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
                 if ( mat_i == 0 .or. mat_i /= mat_j ) then

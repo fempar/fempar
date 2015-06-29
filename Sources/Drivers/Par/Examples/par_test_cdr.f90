@@ -61,7 +61,7 @@ program par_test_cdr
   type(solver_control_t)     :: sctrl
 
   type(block_dof_distribution_t)    :: blk_dof_dist
-  type(dof_handler_t)               :: dhand
+  type(dof_descriptor_t)               :: dof_descriptor
   type(par_block_graph_t)           :: p_blk_graph
   integer(ip)                     :: gtype(1) = (/ csr_symm /)
   type(par_conditions_t)            :: p_cond
@@ -133,7 +133,7 @@ program par_test_cdr
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
 
   !write (*,*) '********** CREATE DOF HANDLER**************'
-  call dhand%create( 1, 1, 1 )
+  call dof_descriptor%create( 1, 1, 1 )
 
 
   call my_problem%create( p_trian%f_trian%num_dims )
@@ -142,12 +142,12 @@ program par_test_cdr
   num_approximations=1
   approximations(1)%p => my_approximation
   
-  call dhand%set_problem( 1, my_discrete )
+  call dof_descriptor%set_problem( 1, my_discrete )
   ! ... for as many problems as we have
 
-  call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, continuity, __FILE__, __LINE__)
+  call memalloc( p_trian%f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
   continuity = 0 !(dG)
-  call memalloc( p_trian%f_trian%num_elems, dhand%nvars_global, order, __FILE__, __LINE__)
+  call memalloc( p_trian%f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
   order = 1
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
@@ -159,7 +159,7 @@ program par_test_cdr
 
   ! Continuity
   ! write(*,*) 'Continuity', continuity
-  call par_fe_space_create ( p_trian, dhand, p_fe_space, problem, &
+  call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
                               p_cond, continuity, order, material, &
                               which_approx, time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
@@ -168,7 +168,7 @@ program par_test_cdr
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
-  call par_create_distributed_dof_info ( dhand, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, gtype )  
+  call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, gtype )  
 
   call par_matrix_alloc ( csr_mat, symm_true, p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
@@ -306,7 +306,7 @@ program par_test_cdr
   call my_problem%free
   call my_discrete%free
   call my_approximation%free
-  call dof_handler_free (dhand)
+  call dof_descriptor_free (dof_descriptor)
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)
   call par_mesh_free (p_mesh)
@@ -364,7 +364,7 @@ contains
 !!$
 !!$    do ielem = 1, fe_space%g_trian%num_elems
 !!$       do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nobje
-!!$          do ivar=1, fe_space%dof_handler%problems(problem(ielem))%p%nvars
+!!$          do ivar=1, fe_space%dof_descriptor%problems(problem(ielem))%p%nvars
 !!$             
 !!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
 !!$                  &     fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
