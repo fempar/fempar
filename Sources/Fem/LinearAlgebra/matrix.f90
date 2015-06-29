@@ -32,7 +32,7 @@ module matrix_names
   use sort_names
   use graph_names
   use vector_names
-  use matvec_dof_names
+  use matvec_names
 
   ! Abstract types
   use base_operand_names

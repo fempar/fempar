@@ -38,7 +38,7 @@ module operator_dd_names
   use memor_names
   use graph_names
   use matrix_names
-  use matvec_dof_names
+  use matvec_names
   use vector_names
   use precond_names
   use serial_environment_names

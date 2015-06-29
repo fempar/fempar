@@ -29,165 +29,90 @@
 ! Auxiliar modules to handle ndofs by a template like technique
 !=============================================================================
 
-module matvec_dof_names
-
-use types_names
-
-  integer(ip), parameter :: ndof1 = 1, ndof2 = 1
-
-  contains
-
-
-subroutine matvec_css(nv, ia, is, ja, da, la, ua, x, y)
+module matvec_names
+  use types_names
   implicit none
-  integer(ip), intent(in)  :: nv,ia(nv+1),is(nv+1),ja(ia(nv+1)-1)
-  real(rp)   , intent(in)  :: x(nv), da(nv)
-  real(rp)   , intent(in)  :: la(is(nv+1)-1), ua(is(nv+1)-1)
-  real(rp)   , intent(out) :: y(nv)
 
-  write (0,*) 'Error: the body of matvec_css in matvec_dof.i90 still to be written'
-  write (0,*) 'Error: volunteers are welcome !!!'
-  stop
+# include "debug.i90"
+  private
 
-end subroutine matvec_css
+  public :: matvec_csr, matvec_csr_trans, matvec_csr_symm, matvec_csr_symm_trans
+  
+contains
 
-
-! Debugged
-subroutine matvec_csr (nv,nv2,ia,ja,a,x,y)
-  implicit none
-  integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
-  real(rp)   , intent(in)  :: a(ia(nv+1)-1),x(nv2)
-  real(rp)   , intent(out) :: y(nv)
-  integer(ip)              :: iv,iz,jv
-  y = 0.0_rp
-  do iv = 1, nv
-     do iz = ia(iv), ia(iv+1)-1
-        jv   = ja(iz)
-        y(iv) = y(iv) + x(jv)*a(iz)
-     end do ! iz
-  end do ! iv
-end subroutine matvec_csr
-
-
-
-! Debugged
-subroutine matvec_csr_symm (nv,nv2,ia,ja,a,x,y)
-  implicit none
-  integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
-  real(rp)   , intent(in)  :: a(ia(nv+1)-1),x(nv2)
-  real(rp)   , intent(out) :: y(nv)
-  integer(ip)              :: iv,iz,jv,id,jd
-  integer(ip)              :: of, ivc, izc, jvc
-
-  y = 0.0_rp
-  do iv = 1, nv, ndof1
-     
-     ! Diagonal block entry
-     iz  = ia(iv)
-     do ivc = iv, iv + ndof1 - 1
-        jvc   = ivc
-        izc   = ia(ivc)
-        
-        ! Diagonal scalar entries
-        y(ivc) = y(ivc) + x(jvc)*a(izc)
-        
-        jvc = ivc+1
-        ! Off-diagonal scalar entries
-        do izc = ia(ivc)+1, ia(ivc)+ndof2-(ivc-iv)-1
-           y(ivc) = y(ivc) + x(jvc)*a(izc)
-           y(jvc) = y(jvc) + x(ivc)*a(izc)
-           ! write (*,*) 'XXX', ivc, jvc, ia(ivc), ia(ivc)+ndof2-(ivc-iv)-1   ! DBG:
-           jvc      = jvc + 1 
-        end do ! izc
-     end do ! ivc
-
-     ! Strict upper-triangular block entries
-     do iz = ia(iv)+ndof2, ia(iv+1)-1, ndof2
-        of   = iz - ia(iv)
-        jv = ja(iz)
-        do ivc = iv, iv + ndof1 - 1
-           jvc   = jv
-           do izc = ia(ivc)+of, ia(ivc)+of+ndof2-1
-              y(ivc) = y(ivc) + x(jvc)*a(izc)
-              y(jvc) = y(jvc) + x(ivc)*a(izc)
-              jvc      = jvc + 1 
-           end do ! izc
-           of = of - 1        ! Next global row has an entry less
-        end do ! ivc
-     end do ! iz
-  end do ! iv
-
-end subroutine matvec_csr_symm
-
-! Debugged
-subroutine matvec_csr_trans (nv,nv2,ia,ja,a,x,y)
-  implicit none
-  integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
-  real(rp)   , intent(in)  :: a(ia(nv+1)-1), x(nv)
-  real(rp)   , intent(out) :: y(nv2)
-  integer(ip)              :: iv,iz,jv,id,jd
-  integer(ip)              :: of, ivc, izc, jvc
-
-  y = 0.0_rp
-  do iv = 1, nv, ndof1
-     do iz = ia(iv), ia(iv+1)-1, ndof2
-        of   = iz - ia(iv)
-        ivc  = iv
-        jv = ja(iz)
-        do ivc = ivc, ivc + ndof1 - 1
-           izc   = ia(ivc) + of
-           jvc   = jv
-           do izc = izc, izc + ndof2 - 1
-              y(jvc) = y(jvc) + x(ivc)*a(izc)
-              jvc      = jvc + 1 
-           end do ! izc
-        end do ! ivc
-     end do ! iz
-  end do ! iv
-
-end subroutine matvec_csr_trans
-
-subroutine matvec_csr_symm_trans (nv,nv2,ia,ja,a,x,y)
-  implicit none
-  integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
-  real(rp)   , intent(in)  :: a(ia(nv+1)-1), x(nv)
-  real(rp)   , intent(out) :: y(nv2)
-  integer(ip)              :: iv,iz,jv,id,jd
-  integer(ip)              :: of, ivc, izc, jvc
-
-  write (0,*) 'Error: the body of matvec_csr_symm_trans in matvec_dof.i90 still to be written'
-  write (0,*) 'Error: volunteers are welcome !!!'
-  stop 
-end subroutine matvec_csr_symm_trans
-
-
-! Not tested
-subroutine matvec_csc (nv,nv2,ia,ja,a,x,y)
+  ! Debugged
+  subroutine matvec_csr (nv,nv2,ia,ja,a,x,y)
     implicit none
     integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
-    real(rp)   , intent(in)  :: a(ia(nv+1)-1), x(nv2)
+    real(rp)   , intent(in)  :: a(ia(nv+1)-1),x(nv2)
     real(rp)   , intent(out) :: y(nv)
+    integer(ip)              :: iv,iz,jv
+
+    y = 0.0_rp
+    do iv = 1, nv
+       do iz = ia(iv), ia(iv+1)-1
+          jv   = ja(iz)
+          y(iv) = y(iv) + x(jv)*a(iz)
+       end do ! iz
+    end do ! iv
+
+  end subroutine matvec_csr
+
+  ! Debugged
+  subroutine matvec_csr_symm (nv,nv2,ia,ja,a,x,y)
+    implicit none
+    integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
+    real(rp)   , intent(in)  :: a(ia(nv+1)-1),x(nv2)
+    real(rp)   , intent(out) :: y(nv)
+    integer(ip)              :: iv,iz,jv
+
+    assert(nv==nv2)
+
+    y = 0.0_rp
+    do iv = 1, nv
+       do iz = ia(iv), ia(iv+1)-1
+          jv = ja(iz)
+          y(iv) = y(iv) + x(jv)*a(iz)
+          y(jv) = y(jv) + x(iv)*a(iz)
+       end do ! iz
+    end do ! iv
+
+  end subroutine matvec_csr_symm
+
+  ! Debugged
+  subroutine matvec_csr_trans (nv,nv2,ia,ja,a,x,y)
+    implicit none
+    integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
+    real(rp)   , intent(in)  :: a(ia(nv+1)-1), x(nv)
+    real(rp)   , intent(out) :: y(nv2)
+    integer(ip)              :: iv,iz,jv
+    
+    y = 0.0_rp
+    do iv = 1, nv
+       do iz = ia(iv), ia(iv+1)-1
+          jv = ja(iz)
+          y(jv) = y(jv) + x(iv)*a(iz)
+       end do ! iz
+    end do ! iv
+    
+  end subroutine matvec_csr_trans
+
+  subroutine matvec_csr_symm_trans (nv,nv2,ia,ja,a,x,y)
+    implicit none
+    integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
+    real(rp)   , intent(in)  :: a(ia(nv+1)-1), x(nv)
+    real(rp)   , intent(out) :: y(nv2)
     integer(ip)              :: iv,iz,jv,id,jd
     integer(ip)              :: of, ivc, izc, jvc
 
-    y = 0.0_rp
-    do iv = 1, nv2, ndof2
-       do iz = ia(iv), ia(iv+1)-1, ndof1
-          of = iz - ia(iv)
-          jv = ja(iz)
-          do ivc = iv, iv + ndof2 - 1
-             jvc   = jv
-             do izc = ia(ivc)+of, ia(ivc)+of+ndof1-1
-                y(jvc) = y(jvc) + x(ivc)*a(izc)
-                jvc      = jvc + 1
-             end do ! izc
-          end do ! ivc
-       end do ! iz
-    end do ! iv
-end subroutine matvec_csc
+    write (0,*) 'Error: the body of matvec_csr_symm_trans in matvec.f90 still to be written'
+    write (0,*) 'Error: volunteers are welcome !!!'
+    stop 
+  end subroutine matvec_csr_symm_trans
 
 
-end module matvec_dof_names
+
+end module matvec_names
 
 
 
