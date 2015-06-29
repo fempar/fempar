@@ -73,14 +73,10 @@ module serial_names
   use block_graph_names
   use preconditioner_names
   use vector_names
-  use vector_krylov_basis_names
   use block_matrix_names
-  use block_preconditioner_names
   use block_vector_names
-  use block_vector_krylov_basis_names
   use block_matrix_vector_names
   use solver_base_names
-  use solver_names
   use abstract_solver_names
   use base_operand_names
   use base_operator_names

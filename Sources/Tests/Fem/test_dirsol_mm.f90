@@ -28,26 +28,31 @@
 program test_dirsol_mm
   !-----------------------------------------------------------------------
   !
-  !  Test program for direct solvers wrapped in FEMPAR
+  !  Test program for solvers wrapped in FEMPAR
   !  using a matrix read from matrix market
   !
   !-----------------------------------------------------------------------
-use serial_names
+  use serial_names
 # include "debug.i90"
 
   implicit none
   ! Files
   type conv_t
-    integer, allocatable :: list(:)
+    integer(ip), allocatable :: list(:)
   end type conv_t
 
-  type(conv_t), allocatable  :: methodstopc(:)
-  integer(ip)              :: lunio
+  type(conv_t), allocatable :: methodstopc(:)
+  integer(ip) , allocatable :: list_solvers_to_be_tested(:)
+  integer(ip)               :: lunio
 
-  type(matrix_t)         :: mmmat
+  type(matrix_t), target :: mmmat
   type(graph_t)          :: mmgraph
-  type(vector_t)         :: fevec
-  type(vector_t)         :: feunk
+  type(vector_t), target :: b
+  type(vector_t), target :: x
+  type(vector_t), target :: exact_solution 
+
+  class(base_operand_t) , pointer :: x_base, b_base, exact_solution_base
+  class(base_operator_t), pointer :: A
 
   type(preconditioner_t)        :: feprec
   type(preconditioner_params_t) :: ppars
@@ -90,12 +95,19 @@ use serial_names
 !!$  call io_close(lunio)
 
   ! Alloc vectors
-  call vector_alloc (mmmat%gr%nv,fevec)
-  call vector_alloc (mmmat%gr%nv,feunk)
+  call vector_alloc (mmmat%gr%nv,b)
+  call vector_alloc (mmmat%gr%nv,x)
+  call vector_alloc (mmmat%gr%nv,exact_solution)
+  call exact_solution%init(1.0_rp)
+
+  A      => mmmat
+  x_base => exact_solution 
+  b_base => b
+  b_base = A*x_base
+  x_base => x
+  exact_solution_base => exact_solution
 
   ! Solve using the higher level interface
-
-
   sctrl%method=driver
   sctrl%trace=1
   sctrl%itmax=200
@@ -141,25 +153,10 @@ use serial_names
      write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
      
      t1 = wtime()
-     feunk%b=1.0_rp
-     fevec%b=1.0_rp
-     call solve(mmmat,feprec,fevec,feunk,sctrl)
-     t2 = wtime() 
-     write(*,'(a,e15.7)') 'Generic Iterative solution time (secs.):', t2-t1 
-
-     ! call solver_control_log_conv_his(sctrl)
-     call solver_control_free_conv_his(sctrl)
-
-
-     t1 = wtime()
-     feunk%b=1.0_rp
-     fevec%b=1.0_rp
-     call abstract_solve(mmmat,feprec,fevec,feunk,sctrl,senv)
+     x%b=0.0_rp
+     call abstract_solve(mmmat,feprec,b,x,sctrl,senv)
      t2 = wtime() 
      write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
-
-     ! call solver_control_log_conv_his(sctrl)
-     call solver_control_free_conv_his(sctrl)
 
      call preconditioner_free ( preconditioner_free_values, feprec)
      call preconditioner_free ( preconditioner_free_struct, feprec)
@@ -203,17 +200,20 @@ use serial_names
     allocate( methodstopc( fgmres )%list(2) );  methodstopc( fgmres )%list =  (/1,2/)
     allocate( methodstopc( richard )%list(2) ); methodstopc( richard )%list = (/5,6/)
     allocate( methodstopc( direct )%list(10) ); methodstopc( direct )%list =  (/1,2,3,4,5,6,7,8,9,10/)
-    allocate( methodstopc( icg )%list(10) );    methodstopc( icg )%list =     (/1,2,3,4,5,6,7,8,9,10/)
+    allocate( methodstopc( icg )%list(2) );    methodstopc( icg )%list =     (/5,6/)
     allocate( methodstopc( lfom )%list(2) );    methodstopc( lfom )%list =    (/5,6/)
     allocate( methodstopc( minres )%list(1) );  methodstopc( minres )%list =  (/5/)
 
-    ! Loop in krylov methods
-    do i=1,9
-        sctrl%method=i !driver
+    allocate(list_solvers_to_be_tested(7))
+    list_solvers_to_be_tested = (/cg, lgmres, rgmres, fgmres, icg, lfom, minres/)
 
-        ! Loop in allowed stop conditios for each krylov methods
-        do j=1,size(methodstopc(i)%list,1)
-            sctrl%stopc=methodstopc(i)%list(j)
+    ! Loop in krylov methods
+    do i=1,size(list_solvers_to_be_tested)
+        sctrl%method=list_solvers_to_be_tested(i) 
+
+        ! Loop in allowed stop conditions for each krylov methods
+        do j=1,size(methodstopc(list_solvers_to_be_tested(i))%list,1)
+            sctrl%stopc=methodstopc(list_solvers_to_be_tested(i))%list(j)
 
             ! Loop in allowed solvers. When a solver is not allowed: cycle
             do k=0,5
@@ -277,33 +277,19 @@ use serial_names
                     call preconditioner_log_info(feprec)
         
                     write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
-             
+ 
                     t1 = wtime()
-                    feunk%b=1.0_rp
-                    fevec%b=1.0_rp
-                    call solve(mmmat,feprec,fevec,feunk,sctrl)
-                    t2 = wtime() 
-                    write(*,'(a,e15.7)') 'Generic Iterative solution time (secs.):', t2-t1 
-                    gerror = sctrl%err1
-                    ! call solver_control_log_conv_his(sctrl)
-                    call solver_control_free_conv_his(sctrl)
-        
-                    t1 = wtime()
-                    feunk%b=1.0_rp
-                    fevec%b=1.0_rp
-                    call abstract_solve(mmmat,feprec,fevec,feunk,sctrl,senv)
+                    call x%init(0.0_rp)
+                    call abstract_solve(mmmat,feprec,b,x,sctrl,senv)
                     t2 = wtime() 
                     write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
-                    aerror = sctrl%err1
-                    ! call solver_control_log_conv_his(sctrl)
-                    call solver_control_free_conv_his(sctrl)
         
                     call preconditioner_free ( preconditioner_free_values, feprec)
                     call preconditioner_free ( preconditioner_free_struct, feprec)
                     call preconditioner_free ( preconditioner_free_clean, feprec)
         
-                    if((gerror-aerror)>1.e4*epsilon(gerror)) then
-                        ! check generic-abstract
+                    x_base = x_base-exact_solution_base
+                    if (x%nrm2()/exact_solution%nrm2() > 1.e-06 ) then
                         check(.false.)
                     endif
 
@@ -313,18 +299,18 @@ use serial_names
 
         enddo
         deallocate(methodstopc(i)%list)
-
     enddo
 
     deallocate( methodstopc )
-
+    deallocate( list_solvers_to_be_tested )
   endif
 
 
   call graph_free ( mmgraph )
   call matrix_free ( mmmat ) 
-  call vector_free (fevec)
-  call vector_free (feunk)
+  call vector_free (b)
+  call vector_free (x)
+  call vector_free (exact_solution)
 
 contains
 

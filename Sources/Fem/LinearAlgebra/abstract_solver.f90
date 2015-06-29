@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !=============================================================================
 module abstract_solver_names
-use solver_base_names
+  use solver_base_names
   use base_operator_names
   use base_operand_names
   use abstract_environment_names
@@ -657,7 +657,7 @@ use blas77_interfaces_names
 
        ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
        call bkry(1)%clone(x)
-       call bkry(1)%scal(1.0_rp/res_norm, z)
+       if (res_norm /= 0.0_rp) call bkry(1)%scal(1.0_rp/res_norm, z)
 
        ! residual in the krylov basis
        g(1)            = res_norm
@@ -1029,8 +1029,11 @@ use blas77_interfaces_names
 
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
         call bkry(1)%clone(x)
-        if ( env%am_i_fine_task() ) call bkry(1)%scal(1.0_rp/res_norm, r)
-
+        if ( env%am_i_fine_task() ) then 
+          if (res_norm /= 0.0_rp) then
+            call bkry(1)%scal(1.0_rp/res_norm, r)
+          end if
+        end if
          ! residual in the krylov basis
          g(1) = res_norm
          g(2:ctrl%dkrymax+1) = 0.0_rp
@@ -1305,7 +1308,7 @@ use blas77_interfaces_names
 
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
         call bkry(1)%clone(x)
-        call bkry(1)%scal(1.0_rp/res_norm, r)
+        if (res_norm /= 0.0_rp) call bkry(1)%scal(1.0_rp/res_norm, r)
 
         ! residual in the krylov basis
         g(1) = res_norm
@@ -1611,7 +1614,11 @@ use lapack77_interfaces_names
   class(base_operand_t), allocatable :: r, z        ! Working vector_ts
   class(base_operand_t), allocatable :: bkry(:)     ! Krylov basis
 
+  write(*,*) 'XXX', ctrl%stopc, res_res, res_rhs
+ 
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs)
+
+    
 
     call A%GuardTemp()
     call M%GuardTemp()
@@ -1690,7 +1697,7 @@ use lapack77_interfaces_names
         ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
 
         call bkry(1)%clone(x)
-        call bkry(1)%scal(1.0_rp/res_norm,z)
+        if (res_norm/=0.0_rp) call bkry(1)%scal(1.0_rp/res_norm,z)
 
         ! start iterations
         kloc = 0
