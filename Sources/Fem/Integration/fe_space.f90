@@ -764,7 +764,7 @@ contains
     call array_create(dhand%problems(finite_element%problem)%p%nvars+1,start)
 
     do ivar = 1,dhand%problems(finite_element%problem)%p%nvars
-       start%a(ivar+1) = finite_element%f_inf(ivar)%p%nnode
+       start%a(ivar+1) = finite_element%reference_element_vars(ivar)%p%nnode
     end do
     start%a(1) = 1
     do ivar = 2, dhand%problems(finite_element%problem)%p%nvars+1

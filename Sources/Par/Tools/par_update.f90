@@ -159,7 +159,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call fem_update_nonlinear(p_fe_space%fe_space)
+       call update_nonlinear(p_fe_space%fe_space)
     end if
 
   end subroutine par_update_nonlinear

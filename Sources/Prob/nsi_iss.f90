@@ -324,7 +324,6 @@ contains
     call memfree(gpveln%a,__FILE__,__LINE__)
     call memfree(force%a,__FILE__,__LINE__)
 
-
     ! Assembly to elemental p_mat and p_vec
     do inode=1,nnodu
        do idime=1,ndime
@@ -416,8 +415,8 @@ contains
             &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
 
        ! Evaluate force
-       call nsi_force(approx%physics%ndime,approx%physics%diffu,approx%physics%react,            &
-            &         approx%physics%kfl_conv,approx%physics%kfl_symg,approx%physics%case_tempo, &
+       call nsi_force(approx%physics%ndime,approx%physics%diffu,approx%physics%react, &
+            &         conve,approx%physics%kfl_symg,approx%physics%case_tempo,        &
             &         parv,parp,part,approx%physics%gravi,force%a(:,igaus),part_p)
 
     end do

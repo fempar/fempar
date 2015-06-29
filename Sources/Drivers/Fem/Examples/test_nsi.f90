@@ -276,7 +276,7 @@ contains
     class(base_operand_t)             , intent(inout) :: x, b
     ! Locals
     integer(ip) :: iiter
-    real(rp)    :: resnorm
+    real(rp)    :: resnorm,ininorm
     
     iiter = 0
     do while( iiter < maxit )
@@ -297,6 +297,16 @@ contains
 
        ! Integrate system
        call volume_integral(approx,fe_space,A,b)
+
+       ! Check convergence
+       if(iiter==1) ininorm = b%nrm2()
+       x = b - A*x
+       resnorm = x%nrm2()
+       if( resnorm < nltol*ininorm) then
+          write(*,*) 'Nonlinear iterations: ', iiter
+          write(*,*) 'Nonlinear error norm: ', resnorm
+          exit
+       end if
 
        ! Compute Numeric preconditioner
        ! ***************** Abstract procedure to compute precond numeric ***************************!
@@ -340,12 +350,6 @@ contains
        
        ! Store nonlinear iteration ( k+1 --> k )
        call update_nonlinear(fe_space)
-
-       ! Check convergence
-       x = b - A*x
-       resnorm = x%nrm2()
-       write(*,*) 'Nonlinear error norm: ', resnorm
-       if( resnorm < nltol) exit
        
     end do
 
