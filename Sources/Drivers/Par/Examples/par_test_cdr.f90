@@ -50,11 +50,11 @@ program par_test_cdr
   class(base_operator_t), pointer           :: A
 
   ! Preconditioner-related data structures
-  type(par_precond_dd_diagonal_t)           :: p_prec_dd_diag
-  type(par_precond_dd_mlevel_bddc_t), target :: p_mlevel_bddc
-  ! type(par_precond_dd_mlevel_bddc_t), pointer  :: point_to_p_mlevel_bddc
-  type(par_precond_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
-  type(par_precond_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
+  type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag
+  type(par_preconditioner_dd_mlevel_bddc_t), target :: p_mlevel_bddc
+  ! type(par_preconditioner_dd_mlevel_bddc_t), pointer  :: point_to_p_mlevel_bddc
+  type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
+  type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
   integer(ip), allocatable :: kind_coarse_dofs(:)
 
 
@@ -257,36 +257,36 @@ program par_test_cdr
      call p_unk%init(0.0_rp)
 
      ! Create multilevel bddc inverse 
-     call par_precond_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
+     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
 
      ! Ass struct
-     call par_precond_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
 
      ! Fill val
-     call par_precond_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
+     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
 
      call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
 
      ! Free bddc inverse
-     call par_precond_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_values)
-     call par_precond_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_struct)
-     call par_precond_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_values)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_struct)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
 
 
   end do
 
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
-!!$  call par_precond_dd_diagonal_create ( p_mat, p_prec_dd_diag )
-!!$  call par_precond_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
-!!$  call par_precond_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_diagonal_create ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
 !!$  
 !!$
 !!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 !!$
-!!$  call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
-!!$  call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
-!!$  call par_precond_dd_diagonal_free ( p_prec_dd_diag, free_clean )
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
 
 
 

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module precond_names
+module preconditioner_names
   ! Serial modules
   use types_names
   use memor_names
@@ -74,11 +74,11 @@ module precond_names
   integer(ip), parameter :: verbose = 1
 
   ! Release level
-  integer (ip), parameter  :: precond_free_values = 7
-  integer (ip), parameter  :: precond_free_struct = 8
-  integer (ip), parameter  :: precond_free_clean  = 9
+  integer (ip), parameter  :: preconditioner_free_values = 7
+  integer (ip), parameter  :: preconditioner_free_struct = 8
+  integer (ip), parameter  :: preconditioner_free_clean  = 9
 
-  type, extends(base_operator_t) :: precond_t
+  type, extends(base_operator_t) :: preconditioner_t
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 
@@ -127,12 +127,12 @@ module precond_names
      type(matrix_t), pointer :: mat
 
    contains
-     procedure :: apply => precond_apply_tbp
-     procedure :: apply_fun => precond_apply_fun_tbp
-     procedure :: free => precond_free_tbp
-  end type precond_t
+     procedure :: apply => preconditioner_apply_tbp
+     procedure :: apply_fun => preconditioner_apply_fun_tbp
+     procedure :: free => preconditioner_free_tbp
+  end type preconditioner_t
 
-  type precond_params_t
+  type preconditioner_params_t
      ! The objective of this type is to define a generic 
      ! set of parameters and implement their "translation"
      ! to the specific parameter list of external libraries.
@@ -153,51 +153,51 @@ module precond_names
      integer :: c_fail            = 1 
      real    :: damping           = 0.8       ! Damping factor for smoother==DJ
 
-  end type precond_params_t
+  end type preconditioner_params_t
 
-  interface precond_apply
-     module procedure precond_apply_vector, precond_apply_r2, precond_apply_r1
-  end interface precond_apply
+  interface preconditioner_apply
+     module procedure preconditioner_apply_vector, preconditioner_apply_r2, preconditioner_apply_r1
+  end interface preconditioner_apply
 
   ! Constants
   public :: no_prec, diag_prec, pardiso_mkl_prec, wsmp_prec, hsl_mi20_prec, hsl_ma87_prec, umfpack_prec
-  public :: precond_free_values
-  public :: precond_free_struct
-  public :: precond_free_clean
+  public :: preconditioner_free_values
+  public :: preconditioner_free_struct
+  public :: preconditioner_free_clean
 
   ! Types
-  public :: precond_t, precond_params_t
+  public :: preconditioner_t, preconditioner_params_t
 
   ! Functions
-  public :: precond_create, precond_free, precond_symbolic, &
-       &    precond_numeric, precond_apply, precond_log_info, &
-       &    precond_bcast, precond_fine_task,  extract_diagonal, &
+  public :: preconditioner_create, preconditioner_free, preconditioner_symbolic, &
+       &    preconditioner_numeric, preconditioner_apply, preconditioner_log_info, &
+       &    preconditioner_bcast, preconditioner_fine_task,  extract_diagonal, &
             invert_diagonal, apply_diagonal
 
 contains
 
   !=============================================================================
   ! Dummy method required to specialize Krylov subspace methods
-  subroutine precond_bcast(prec,conv)
+  subroutine preconditioner_bcast(prec,conv)
     implicit none
-    type(precond_t) , intent(in)      :: prec
+    type(preconditioner_t) , intent(in)      :: prec
     logical           , intent( inout ) :: conv
-  end subroutine precond_bcast
+  end subroutine preconditioner_bcast
 
   ! Dummy method required to specialize Krylov subspace methods
   ! Needs to be filled with the abs operator machinery.
-  function precond_fine_task(prec)
+  function preconditioner_fine_task(prec)
     implicit none
-    type(precond_t) , intent(in) :: prec
-    logical                        :: precond_fine_task
-    precond_fine_task = .true. 
-  end function precond_fine_task
+    type(preconditioner_t) , intent(in) :: prec
+    logical                        :: preconditioner_fine_task
+    preconditioner_fine_task = .true. 
+  end function preconditioner_fine_task
 
   !=============================================================================
-  subroutine  precond_log_info (prec)
+  subroutine  preconditioner_log_info (prec)
     implicit none
     ! Parameters
-    type(precond_t)       , intent(in)          :: prec
+    type(preconditioner_t)       , intent(in)          :: prec
 
     if(prec%type==pardiso_mkl_prec  .or. prec%type==wsmp_prec .or. prec%type==umfpack_prec ) then
        write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', prec%mem_peak_symb
@@ -219,14 +219,14 @@ contains
 #endif
     end if
     
-  end subroutine precond_log_info
+  end subroutine preconditioner_log_info
   !=============================================================================
-  subroutine  precond_create (mat, prec, pars)
+  subroutine  preconditioner_create (mat, prec, pars)
     implicit none
     ! Parameters
     type(matrix_t)        , target, intent(in)           :: mat
-    type(precond_t)       , intent(inout)        :: prec
-    type(precond_params_t), intent(in), optional :: pars
+    type(preconditioner_t)       , intent(inout)        :: prec
+    type(preconditioner_params_t), intent(in), optional :: pars
 
     ! Locals
     type (vector_t) :: dum
@@ -297,42 +297,42 @@ contains
        write (0,*) 'Error: preconditioner type not supported'
        check(1==0)
     end if
-  end subroutine precond_create
+  end subroutine preconditioner_create
 
   !=============================================================================
-  subroutine precond_free ( action, prec )
+  subroutine preconditioner_free ( action, prec )
     implicit none
 
     ! Parameters
-    type(precond_t), intent(inout) :: prec
+    type(preconditioner_t), intent(inout) :: prec
     integer(ip)      , intent(in)    :: action
 
     ! Locals
     type (matrix_t) :: adum 
     type (vector_t) :: vdum 
 
-    if ( action == precond_free_clean ) then
+    if ( action == preconditioner_free_clean ) then
        nullify(prec%mat)
     end if
 
     if(prec%type==pardiso_mkl_prec) then
-       if ( action == precond_free_clean ) then
+       if ( action == preconditioner_free_clean ) then
           call pardiso_mkl ( pardiso_mkl_free_clean, prec%pardiso_mkl_ctxt, &
                &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
           deallocate(prec%pardiso_mkl_ctxt)
           deallocate(prec%pardiso_mkl_iparm)
           return  
        end if
-       if ( action == precond_free_struct  ) then
+       if ( action == preconditioner_free_struct  ) then
           call pardiso_mkl ( pardiso_mkl_free_struct, prec%pardiso_mkl_ctxt, &
                &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
-       else if ( action == precond_free_values ) then
+       else if ( action == preconditioner_free_values ) then
           call pardiso_mkl ( pardiso_mkl_free_values, prec%pardiso_mkl_ctxt, &
                &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
        end if
 
     else if(prec%type==wsmp_prec) then
-       if ( action == precond_free_clean ) then
+       if ( action == preconditioner_free_clean ) then
           call wsmp ( wsmp_free_clean, prec%wsmp_ctxt, adum, vdum, &
                &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
           deallocate(prec%wsmp_ctxt)
@@ -340,17 +340,17 @@ contains
           deallocate(prec%wsmp_rparm)
           return  
        end if
-       if ( action == precond_free_struct  ) then
+       if ( action == preconditioner_free_struct  ) then
           call wsmp ( wsmp_free_struct, prec%wsmp_ctxt, adum, vdum, &
                &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
 
-       else if ( action == precond_free_values ) then
+       else if ( action == preconditioner_free_values ) then
           call wsmp ( wsmp_free_values, prec%wsmp_ctxt, adum, vdum, &
                &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
        end if
 
     else if(prec%type==hsl_mi20_prec) then
-       if ( action == precond_free_clean ) then
+       if ( action == preconditioner_free_clean ) then
           call hsl_mi20 ( hsl_mi20_free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
           deallocate(prec%hsl_mi20_ctxt)
@@ -359,15 +359,15 @@ contains
           deallocate(prec%hsl_mi20_info)
           return  
        end if
-       if ( action == precond_free_struct  ) then
+       if ( action == preconditioner_free_struct  ) then
           call hsl_mi20 ( hsl_mi20_free_struct, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-       else if ( action == precond_free_values ) then
+       else if ( action == preconditioner_free_values ) then
           call hsl_mi20 ( hsl_mi20_free_values, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
        end if
     else if(prec%type==hsl_ma87_prec) then
-       if ( action == precond_free_clean ) then
+       if ( action == preconditioner_free_clean ) then
           call hsl_ma87 ( hsl_ma87_free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
                &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
           deallocate(prec%hsl_ma87_ctxt)
@@ -375,26 +375,26 @@ contains
           deallocate(prec%hsl_ma87_info)
           return  
        end if
-       if ( action == precond_free_struct  ) then
+       if ( action == preconditioner_free_struct  ) then
           call hsl_ma87 ( hsl_ma87_free_struct, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
                &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
-       else if ( action == precond_free_values ) then
+       else if ( action == preconditioner_free_values ) then
           call hsl_ma87 ( hsl_ma87_free_values, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
                &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
        end if
     else if(prec%type==umfpack_prec) then
-       if ( action == precond_free_clean ) then
+       if ( action == preconditioner_free_clean ) then
           call umfpack ( umfpack_free_clean, prec%umfpack_ctxt, adum, vdum, vdum )
           deallocate(prec%umfpack_ctxt)
           return  
        end if
-       if ( action == precond_free_struct  ) then
+       if ( action == preconditioner_free_struct  ) then
           call umfpack ( umfpack_free_struct, prec%umfpack_ctxt, adum, vdum, vdum )
-       else if ( action == precond_free_values ) then
+       else if ( action == preconditioner_free_values ) then
           call umfpack ( umfpack_free_values, prec%umfpack_ctxt, adum, vdum, vdum )
        end if
     else if ( prec%type == diag_prec ) then
-       if ( action == precond_free_values ) then
+       if ( action == preconditioner_free_values ) then
           call memfree ( prec%d,__FILE__,__LINE__)
        end if
     else if(prec%type/=no_prec) then
@@ -402,14 +402,14 @@ contains
        check(1==0)
     end if
 
-  end subroutine precond_free
+  end subroutine preconditioner_free
 
   !=============================================================================
-  subroutine precond_symbolic(mat, prec)
+  subroutine preconditioner_symbolic(mat, prec)
     implicit none
     ! Parameters
     type(matrix_t)      , intent(in), target    :: mat
-    type(precond_t)     , intent(inout) :: prec
+    type(preconditioner_t)     , intent(inout) :: prec
     ! Locals
     type (vector_t) :: vdum 
 
@@ -445,14 +445,14 @@ contains
        check(1==0)
     end if
 
-  end subroutine precond_symbolic
+  end subroutine preconditioner_symbolic
 
   !=============================================================================
-  subroutine precond_numeric(mat, prec)
+  subroutine preconditioner_numeric(mat, prec)
     implicit none
     ! Parameters
     type(matrix_t)      , intent(in), target    :: mat
-    type(precond_t)     , intent(inout) :: prec
+    type(preconditioner_t)     , intent(inout) :: prec
     ! Locals
     type (vector_t) :: vdum 
     integer(ip)       :: ilev, n, nnz
@@ -518,14 +518,14 @@ contains
        check(1==0)
     end if
     
-  end subroutine precond_numeric
+  end subroutine preconditioner_numeric
 
   !=============================================================================
-  subroutine precond_apply_vector (mat, prec, x, y)
+  subroutine preconditioner_apply_vector (mat, prec, x, y)
     implicit none
     ! Parameters
     type(matrix_t)      , intent(in)    :: mat
-    type(precond_t)     , intent(inout) :: prec
+    type(preconditioner_t)     , intent(inout) :: prec
     type(vector_t)      , intent(in)    :: x
     type(vector_t)      , intent(inout) :: y
     ! Locals
@@ -559,14 +559,14 @@ contains
        check(1==0)
     end if
     
-  end subroutine precond_apply_vector
+  end subroutine preconditioner_apply_vector
 
   !=============================================================================
-  subroutine precond_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
+  subroutine preconditioner_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
     implicit none
     ! Parameters
     type(matrix_t)      , intent(in)    :: mat
-    type(precond_t)     , intent(inout) :: prec
+    type(preconditioner_t)     , intent(inout) :: prec
     integer(ip)       , intent(in)        :: nrhs, ldx, ldy
     real(rp)          , intent(in)        :: x (ldx, nrhs)
     real(rp)          , intent(inout)     :: y (ldy, nrhs)
@@ -609,14 +609,14 @@ contains
        check(1==0)
     end if
 
-  end subroutine precond_apply_r2
+  end subroutine preconditioner_apply_r2
 
   !=============================================================================
-  subroutine precond_apply_r1 (mat, prec, x, y)
+  subroutine preconditioner_apply_r1 (mat, prec, x, y)
     implicit none
     ! Parameters
     type(matrix_t) , intent(in)    :: mat
-    type(precond_t), intent(inout) :: prec
+    type(preconditioner_t), intent(inout) :: prec
     real(rp)         , intent(in)    :: x (mat%gr%nv)
     real(rp)         , intent(inout) :: y (mat%gr%nv)
 
@@ -649,7 +649,7 @@ contains
        check(1==0)
     end if
 
-  end subroutine precond_apply_r1
+  end subroutine preconditioner_apply_r1
 
     ! Auxiliary routines
   subroutine invert_diagonal (n, d)
@@ -718,10 +718,10 @@ contains
   end subroutine extract_diagonal
 
   !=============================================================================
-  subroutine precond_apply_tbp (op, x, y)
+  subroutine preconditioner_apply_tbp (op, x, y)
     implicit none
     ! Parameters
-    class(precond_t)    , intent(in)    :: op
+    class(preconditioner_t)    , intent(in)    :: op
     class(base_operand_t)   , intent(in)    :: x
     class(base_operand_t)   , intent(inout) :: y
     
@@ -760,19 +760,19 @@ contains
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'precond_t%apply: unsupported x class'
+       write(0,'(a)') 'preconditioner_t%apply: unsupported x class'
        check(1==0)
     end select
 
     call x%CleanTemp()
-  end subroutine precond_apply_tbp
+  end subroutine preconditioner_apply_tbp
   
 
   !=============================================================================
-  function precond_apply_fun_tbp (op, x) result(y)
+  function preconditioner_apply_fun_tbp (op, x) result(y)
     implicit none
     ! Parameters
-    class(precond_t), intent(in)   :: op
+    class(preconditioner_t), intent(in)   :: op
     class(base_operand_t), intent(in)  :: x
     class(base_operand_t), allocatable :: y
     type(vector_t), allocatable :: local_y
@@ -790,16 +790,16 @@ contains
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'precond_t%apply_fun: unsupported x class'
+       write(0,'(a)') 'preconditioner_t%apply_fun: unsupported x class'
        check(1==0)
     end select
 
     call x%CleanTemp()
-  end function precond_apply_fun_tbp
+  end function preconditioner_apply_fun_tbp
 
-  subroutine precond_free_tbp(this)
+  subroutine preconditioner_free_tbp(this)
     implicit none
-    class(precond_t), intent(inout) :: this
-  end subroutine precond_free_tbp
+    class(preconditioner_t), intent(inout) :: this
+  end subroutine preconditioner_free_tbp
 
-end module precond_names
+end module preconditioner_names

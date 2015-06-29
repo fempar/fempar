@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_precond_dd_identity_names
+module par_preconditioner_dd_identity_names
   ! Serial modules
 use types_names
 use memor_names
   use vector_names
-  use precond_names, only: invert_diagonal, apply_diagonal, extract_diagonal
+  use preconditioner_names, only: invert_diagonal, apply_diagonal, extract_diagonal
 
   ! Parallel modules
   use par_vector_names
@@ -49,32 +49,32 @@ use psb_penv_mod_names
   implicit none
   private
 
-  type, extends(base_operator_t) :: par_precond_dd_identity_t
+  type, extends(base_operator_t) :: par_preconditioner_dd_identity_t
      ! Reference to parallel matrix
      type( par_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal
    contains
-     procedure :: apply     => par_precond_dd_identity_apply_tbp
-     procedure :: apply_fun => par_precond_dd_identity_apply_fun_tbp
-     procedure :: free      => par_precond_dd_identity_free_tbp
-  end type par_precond_dd_identity_t
+     procedure :: apply     => par_preconditioner_dd_identity_apply_tbp
+     procedure :: apply_fun => par_preconditioner_dd_identity_apply_fun_tbp
+     procedure :: free      => par_preconditioner_dd_identity_free_tbp
+  end type par_preconditioner_dd_identity_t
   
   ! Types
-  public :: par_precond_dd_identity_t
+  public :: par_preconditioner_dd_identity_t
 
   ! Functions
-  public :: par_precond_dd_identity_create, par_precond_dd_identity_free, &
-            par_precond_dd_identity_ass_struct, par_precond_dd_identity_fill_val, &
-            par_precond_dd_identity_apply_all_unk
+  public :: par_preconditioner_dd_identity_create, par_preconditioner_dd_identity_free, &
+            par_preconditioner_dd_identity_ass_struct, par_preconditioner_dd_identity_fill_val, &
+            par_preconditioner_dd_identity_apply_all_unk
 
   contains
 
   !=============================================================================
-  subroutine par_precond_dd_identity_create (p_matrix, p_prec_dd_identity)
+  subroutine par_preconditioner_dd_identity_create (p_matrix, p_prec_dd_identity)
     implicit none
     ! Parameters
     type(par_matrix_t)             , target, intent(in)  :: p_matrix
-    type(par_precond_dd_identity_t)        , intent(out) :: p_prec_dd_identity
+    type(par_preconditioner_dd_identity_t)        , intent(out) :: p_prec_dd_identity
 
     
     assert ( associated(p_matrix%p_env) )
@@ -83,14 +83,14 @@ use psb_penv_mod_names
 
     p_prec_dd_identity%p_mat    => p_matrix
 
-  end subroutine par_precond_dd_identity_create
+  end subroutine par_preconditioner_dd_identity_create
 
   !=============================================================================
-  subroutine par_precond_dd_identity_ass_struct (p_matrix, p_prec_dd_identity)
+  subroutine par_preconditioner_dd_identity_ass_struct (p_matrix, p_prec_dd_identity)
     implicit none
     ! Parameters
     type(par_matrix_t)             , target, intent(in)    :: p_matrix
-    type(par_precond_dd_identity_t)        , intent(inout) :: p_prec_dd_identity
+    type(par_preconditioner_dd_identity_t)        , intent(inout) :: p_prec_dd_identity
 
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
@@ -98,14 +98,14 @@ use psb_penv_mod_names
 
     p_prec_dd_identity%p_mat    => p_matrix
 
-  end subroutine par_precond_dd_identity_ass_struct
+  end subroutine par_preconditioner_dd_identity_ass_struct
 
   !=============================================================================
-  subroutine par_precond_dd_identity_fill_val (p_matrix, p_prec_dd_identity)
+  subroutine par_preconditioner_dd_identity_fill_val (p_matrix, p_prec_dd_identity)
     implicit none
     ! Parameters
     type(par_matrix_t)             , target, intent(in)    :: p_matrix
-    type(par_precond_dd_identity_t), target, intent(inout) :: p_prec_dd_identity
+    type(par_preconditioner_dd_identity_t), target, intent(inout) :: p_prec_dd_identity
 
     ! Locals
     integer(ip)       :: neq
@@ -117,13 +117,13 @@ use psb_penv_mod_names
 
     p_prec_dd_identity%p_mat  => p_matrix
 
-  end subroutine par_precond_dd_identity_fill_val
+  end subroutine par_preconditioner_dd_identity_fill_val
 
   !=============================================================================
-  subroutine par_precond_dd_identity_apply_all_unk (p_prec_dd_identity, x, y)
+  subroutine par_preconditioner_dd_identity_apply_all_unk (p_prec_dd_identity, x, y)
     implicit none
     ! Parameters
-    type(par_precond_dd_identity_t) , intent(in)    :: p_prec_dd_identity
+    type(par_preconditioner_dd_identity_t) , intent(in)    :: p_prec_dd_identity
     type(par_vector_t)              , intent(in)    :: x
     type(par_vector_t)              , intent(inout) :: y
 
@@ -141,13 +141,13 @@ use psb_penv_mod_names
        call y%comm()
     end if
 
-  end subroutine par_precond_dd_identity_apply_all_unk
+  end subroutine par_preconditioner_dd_identity_apply_all_unk
 
   !=============================================================================
-  subroutine  par_precond_dd_identity_free (p_prec_dd_identity, mode)
+  subroutine  par_preconditioner_dd_identity_free (p_prec_dd_identity, mode)
     implicit none
     ! Parameters
-    type(par_precond_dd_identity_t),  intent(inout) :: p_prec_dd_identity
+    type(par_preconditioner_dd_identity_t),  intent(inout) :: p_prec_dd_identity
     integer(ip)                  ,  intent(in)    :: mode
 
     assert ( associated(p_prec_dd_identity%p_mat) )
@@ -159,13 +159,13 @@ use psb_penv_mod_names
        nullify ( p_prec_dd_identity%p_mat )
     end if
 
-  end subroutine par_precond_dd_identity_free
+  end subroutine par_preconditioner_dd_identity_free
 
   !=============================================================================
-  subroutine par_precond_dd_identity_apply_tbp (op, x, y)
+  subroutine par_preconditioner_dd_identity_apply_tbp (op, x, y)
     implicit none
     ! Parameters
-    class(par_precond_dd_identity_t)    , intent(in)    :: op
+    class(par_preconditioner_dd_identity_t)    , intent(in)    :: op
     class(base_operand_t)   , intent(in)    :: x
     class(base_operand_t)   , intent(inout) :: y
         
@@ -175,25 +175,25 @@ use psb_penv_mod_names
     class is (par_vector_t)
        select type(y)
        class is(par_vector_t)
-          call par_precond_dd_identity_apply_all_unk ( op, x, y )
+          call par_preconditioner_dd_identity_apply_all_unk ( op, x, y )
        class default
           write(0,'(a)') 'matrix_t%apply: unsupported y class'
           check(1==0)
        end select
     class default
-       write(0,'(a)') 'par_precond_dd_identity_t%apply: unsupported x class'
+       write(0,'(a)') 'par_preconditioner_dd_identity_t%apply: unsupported x class'
        check(1==0)
     end select
     
     call x%CleanTemp()
-  end subroutine par_precond_dd_identity_apply_tbp
+  end subroutine par_preconditioner_dd_identity_apply_tbp
   
   
   !=============================================================================
-  function par_precond_dd_identity_apply_fun_tbp (op, x) result(y)
+  function par_preconditioner_dd_identity_apply_fun_tbp (op, x) result(y)
     implicit none
     ! Parameters
-    class(par_precond_dd_identity_t), intent(in)   :: op
+    class(par_preconditioner_dd_identity_t), intent(in)   :: op
     class(base_operand_t), intent(in)  :: x
     class(base_operand_t), allocatable :: y
     type(par_vector_t), allocatable :: local_y
@@ -204,20 +204,20 @@ use psb_penv_mod_names
     class is (par_vector_t)
        allocate(local_y)
        call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
-       call par_precond_dd_identity_apply_all_unk ( op, x, local_y )
+       call par_preconditioner_dd_identity_apply_all_unk ( op, x, local_y )
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
-       write(0,'(a)') 'par_precond_dd_identity_t%apply_fun: unsupported x class'
+       write(0,'(a)') 'par_preconditioner_dd_identity_t%apply_fun: unsupported x class'
        check(1==0)
     end select
     
     call x%CleanTemp()
-  end function par_precond_dd_identity_apply_fun_tbp
+  end function par_preconditioner_dd_identity_apply_fun_tbp
   
-  subroutine par_precond_dd_identity_free_tbp(this)
+  subroutine par_preconditioner_dd_identity_free_tbp(this)
     implicit none
-    class(par_precond_dd_identity_t), intent(inout) :: this
-  end subroutine par_precond_dd_identity_free_tbp
+    class(par_preconditioner_dd_identity_t), intent(inout) :: this
+  end subroutine par_preconditioner_dd_identity_free_tbp
   
-end module par_precond_dd_identity_names
+end module par_preconditioner_dd_identity_names

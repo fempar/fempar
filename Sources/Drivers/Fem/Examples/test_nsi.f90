@@ -47,8 +47,8 @@ program test_nsi_iss
   type(discrete_integration_pointer) :: approx(1)
   type(matrix_t)          , target :: femat
   type(vector_t)          , target :: fevec,feunk
-  type(precond_t)                  :: feprec
-  type(precond_params_t)           :: ppars
+  type(preconditioner_t)                  :: feprec
+  type(preconditioner_params_t)           :: ppars
   type(solver_control_t)               :: sctrl
   type(serial_environment_t)           :: senv
   type(vtk_t)                      :: fevtk
@@ -152,10 +152,10 @@ program test_nsi_iss
   ! Construct preconditioner
   sctrl%method = direct
   ppars%type   = pardiso_mkl_prec
-  call precond_create(femat,feprec,ppars)
-  call precond_symbolic(femat,feprec)
-  call precond_numeric(femat,feprec)
-  call precond_log_info(feprec)
+  call preconditioner_create(femat,feprec,ppars)
+  call preconditioner_symbolic(femat,feprec)
+  call preconditioner_numeric(femat,feprec)
+  call preconditioner_log_info(feprec)
 
   ! Define operators
   A => femat
@@ -176,9 +176,9 @@ program test_nsi_iss
   istat = fevtk%write_VTK()
 
   ! Free preconditioner
-  call precond_free(precond_free_values,feprec)
-  call precond_free(precond_free_struct,feprec)
-  call precond_free(precond_free_clean,feprec)
+  call preconditioner_free(preconditioner_free_values,feprec)
+  call preconditioner_free(preconditioner_free_struct,feprec)
+  call preconditioner_free(preconditioner_free_clean,feprec)
 
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)

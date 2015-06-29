@@ -54,10 +54,10 @@ use lib_vtk_io_interface_names
   type(vtk_t)                                    :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist
-  type(par_precond_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
-  type(par_precond_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
-  type(par_precond_dd_identity_t)                    :: p_prec_dd_diag
-  type(par_precond_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars 
+  type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
+  type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
+  type(par_preconditioner_dd_identity_t)                    :: p_prec_dd_diag
+  type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars 
   type(par_matrix_t), target                         :: p_mat
   type(par_vector_t), target                         :: p_vec
   type(par_vector_t), target                         :: p_unk
@@ -258,21 +258,21 @@ use lib_vtk_io_interface_names
 !!$  p_unk%state = full_summed
 
   ! Create Preconditioner 
-  call par_precond_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
-  call par_precond_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
-  call par_precond_dd_mlevel_bddc_fill_val(p_mat,p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
+  call par_preconditioner_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_fill_val(p_mat,p_mlevel_bddc)
 
-!!$  call par_precond_dd_identity_create ( p_mat, p_prec_dd_diag )
-!!$  call par_precond_dd_identity_ass_struct ( p_mat, p_prec_dd_diag )
-!!$  call par_precond_dd_identity_fill_val ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_identity_create ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_identity_ass_struct ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_identity_fill_val ( p_mat, p_prec_dd_diag )
 !!$
 !!$  !call par_vector_print(6,p_vec)
 !!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 !!$  call par_vector_print(6,p_unk)
 !!$
-!!$  call par_precond_dd_identity_free ( p_prec_dd_diag, free_only_values )
-!!$  call par_precond_dd_identity_free ( p_prec_dd_diag, free_only_struct )
-!!$  call par_precond_dd_identity_free ( p_prec_dd_diag, free_clean )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_only_values )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_only_struct )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_clean )
 
   ! Solve
   call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
@@ -288,9 +288,9 @@ use lib_vtk_io_interface_names
   if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
 
   ! Free preconditioner
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_struct)
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_struct)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
 
   ! Deallocate
   call memfree(id_parts , __FILE__, __LINE__)

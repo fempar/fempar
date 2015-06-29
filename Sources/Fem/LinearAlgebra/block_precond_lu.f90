@@ -26,14 +26,14 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module block_precond_lu_names
+module block_preconditioner_lu_names
 use types_names
 use memor_names
   use base_operator_names
   use base_operand_names
   use block_operand_names
-  use block_precond_l_names
-  use block_precond_u_names
+  use block_preconditioner_l_names
+  use block_preconditioner_u_names
 
 #ifdef memcheck
 use iso_c_binding
@@ -48,26 +48,26 @@ use iso_c_binding
   end type p_abs_operator_t
 
   ! Lower block triangular preconditioner 
-  type, extends(base_operator_t) :: block_precond_l_tu
+  type, extends(base_operator_t) :: block_preconditioner_l_tu
      private
-     type(block_precond_l_t) :: L
-     type(block_precond_u_t) :: U
+     type(block_preconditioner_l_t) :: L
+     type(block_preconditioner_u_t) :: U
   contains
-     procedure  :: create             => block_precond_lu_create
-     procedure  :: set_block          => block_precond_lu_set_block
-     procedure  :: set_block_to_zero  => block_precond_lu_set_block_to_zero
-     procedure  :: destroy            => block_precond_lu_destroy
+     procedure  :: create             => block_preconditioner_lu_create
+     procedure  :: set_block          => block_preconditioner_lu_set_block
+     procedure  :: set_block_to_zero  => block_preconditioner_lu_set_block_to_zero
+     procedure  :: destroy            => block_preconditioner_lu_destroy
 
-     procedure  :: apply          => block_precond_lu_apply
-     procedure  :: apply_fun      => block_precond_lu_apply_fun
-     procedure  :: free           => block_precond_lu_free_tbp
-  end type block_precond_l_tu
+     procedure  :: apply          => block_preconditioner_lu_apply
+     procedure  :: apply_fun      => block_preconditioner_lu_apply_fun
+     procedure  :: free           => block_preconditioner_lu_free_tbp
+  end type block_preconditioner_l_tu
 
   integer(ip), parameter :: lower = 0
   integer(ip), parameter :: upper = 1 
 
   ! Types
-  public :: block_precond_l_tu
+  public :: block_preconditioner_l_tu
 
   ! Functions
   ! public :: 
@@ -76,9 +76,9 @@ contains
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine block_precond_lu_apply (op,x,y)
+  subroutine block_preconditioner_lu_apply (op,x,y)
     implicit none
-    class(block_precond_l_tu)     , intent(in)   :: op
+    class(block_preconditioner_l_tu)     , intent(in)   :: op
     class(base_operand_t)      , intent(in)    :: x
     class(base_operand_t)      , intent(inout) :: y
 
@@ -91,13 +91,13 @@ contains
     call x%CleanTemp()
     call z%free()
     deallocate(z)
-  end subroutine block_precond_lu_apply
+  end subroutine block_preconditioner_lu_apply
 
   ! op%apply(x)
   ! Allocates room for (temporary) y
-  function block_precond_lu_apply_fun(op,x) result(y)
+  function block_preconditioner_lu_apply_fun(op,x) result(y)
     implicit none
-    class(block_precond_l_tu), intent(in)  :: op
+    class(block_preconditioner_l_tu), intent(in)  :: op
     class(base_operand_t) , intent(in)   :: x
     class(base_operand_t) , allocatable  :: y
 
@@ -110,28 +110,28 @@ contains
     call x%CleanTemp()
     call z%free()
     deallocate(z)
-  end function block_precond_lu_apply_fun
+  end function block_preconditioner_lu_apply_fun
 
-  subroutine block_precond_lu_free_tbp(this)
+  subroutine block_preconditioner_lu_free_tbp(this)
     implicit none
-    class(block_precond_l_tu), intent(inout) :: this
-  end subroutine block_precond_lu_free_tbp
+    class(block_preconditioner_l_tu), intent(inout) :: this
+  end subroutine block_preconditioner_lu_free_tbp
 
-  subroutine block_precond_lu_create (bop, nblocks)
+  subroutine block_preconditioner_lu_create (bop, nblocks)
     implicit none
     ! Parameters
-    class(block_precond_l_tu)   , intent(inout) :: bop
+    class(block_preconditioner_l_tu)   , intent(inout) :: bop
     integer(ip)               , intent(in)    :: nblocks
 
     call bop%destroy()
     call bop%L%create(nblocks)
     call bop%U%create(nblocks)
-  end subroutine block_precond_lu_create
+  end subroutine block_preconditioner_lu_create
 
-  subroutine block_precond_lu_set_block (bop, factor, ib, jb, op)
+  subroutine block_preconditioner_lu_set_block (bop, factor, ib, jb, op)
     implicit none
     ! Parameters
-    class(block_precond_l_tu)             , intent(inout) :: bop
+    class(block_preconditioner_l_tu)             , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: factor, ib, jb
     type(abs_operator_t)                  , intent(in)    :: op 
 
@@ -144,12 +144,12 @@ contains
       call bop%U%set_block(ib,jb,op)
     end if
     call op%CleanTemp()
-  end subroutine block_precond_lu_set_block
+  end subroutine block_preconditioner_lu_set_block
 
-  subroutine block_precond_lu_set_block_to_zero (bop, factor, ib, jb)
+  subroutine block_preconditioner_lu_set_block_to_zero (bop, factor, ib, jb)
     implicit none
     ! Parameters
-    class(block_precond_l_tu)   , intent(inout) :: bop
+    class(block_preconditioner_l_tu)   , intent(inout) :: bop
     integer(ip)               , intent(in)    :: factor,ib,jb
 
     assert(factor==lower .or. factor==upper)
@@ -158,18 +158,18 @@ contains
     else if ( factor == upper ) then
       call bop%U%set_block_to_zero(ib,jb)
     end if
-  end subroutine block_precond_lu_set_block_to_zero
+  end subroutine block_preconditioner_lu_set_block_to_zero
 
 
-  subroutine block_precond_lu_destroy (bop)
+  subroutine block_preconditioner_lu_destroy (bop)
     implicit none
-    class(block_precond_l_tu), intent(inout) :: bop
+    class(block_preconditioner_l_tu), intent(inout) :: bop
 
     ! Locals
     integer(ip) :: iblk, jblk
 
     call bop%L%destroy()
     call bop%U%destroy()
-  end subroutine block_precond_lu_destroy
+  end subroutine block_preconditioner_lu_destroy
 
-end module block_precond_lu_names
+end module block_preconditioner_lu_names

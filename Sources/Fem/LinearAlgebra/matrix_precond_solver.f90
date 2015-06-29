@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !=============================================================================
-module matrix_precond_solver_names
+module matrix_preconditioner_solver_names
   ! Serial modules
   use types_names
   use solver_base_names
@@ -35,14 +35,14 @@ module matrix_precond_solver_names
   use abstract_solver_names
   use matrix_names
   use vector_names
-  use precond_names
+  use preconditioner_names
   implicit none
   private
 
   interface solve
-     module procedure matrix_precond_vector_solve, &
-                      matrix_precond_r1_solve, & 
-                      matrix_precond_r2_solve
+     module procedure matrix_preconditioner_vector_solve, &
+                      matrix_preconditioner_r1_solve, & 
+                      matrix_preconditioner_r2_solve
   end interface solve
 
   public :: solve
@@ -50,10 +50,10 @@ module matrix_precond_solver_names
 # include "debug.i90"
 contains
 
-  subroutine matrix_precond_vector_solve (A,M,b,x,pars)
+  subroutine matrix_preconditioner_vector_solve (A,M,b,x,pars)
     implicit none
     type(matrix_t)    ,intent(in)    :: A     ! Matrix
-    type(precond_t)   ,intent(in)    :: M     ! Preconditioner
+    type(preconditioner_t)   ,intent(in)    :: M     ! Preconditioner
     type(vector_t)    ,intent(in)    :: b     ! RHS
     type(vector_t)    ,intent(inout) :: x     ! Approximate solution
     type(solver_control_t),intent(inout) :: pars  ! Solver parameters
@@ -63,12 +63,12 @@ contains
 
     call abstract_solve (A, M, b, x, pars, senv)
 
-  end subroutine matrix_precond_vector_solve
+  end subroutine matrix_preconditioner_vector_solve
 
-  subroutine matrix_precond_r1_solve (A,M,b,x,pars)
+  subroutine matrix_preconditioner_r1_solve (A,M,b,x,pars)
     implicit none
     type(matrix_t)            ,intent(in)    :: A          ! Matrix
-    type(precond_t)           ,intent(in)    :: M          ! Preconditioner
+    type(preconditioner_t)           ,intent(in)    :: M          ! Preconditioner
     real(rp)           , target ,intent(in)    :: b(A%gr%nv) ! RHS
     real(rp)           , target ,intent(inout) :: x(A%gr%nv) ! Approximate solution
     type(solver_control_t)        ,intent(inout) :: pars       ! Solver parameters
@@ -90,12 +90,12 @@ contains
 
     call abstract_solve (A, M, vector_b, vector_x, pars, senv)
 
-  end subroutine matrix_precond_r1_solve
+  end subroutine matrix_preconditioner_r1_solve
 
-  subroutine matrix_precond_r2_solve (A,M,b,ldb,x,ldx,pars)
+  subroutine matrix_preconditioner_r2_solve (A,M,b,ldb,x,ldx,pars)
     implicit none
     type(matrix_t)            ,intent(in)    :: A                 ! Matrix
-    type(precond_t)           ,intent(in)    :: M                 ! Preconditioner
+    type(preconditioner_t)           ,intent(in)    :: M                 ! Preconditioner
     type(solver_control_t)        ,intent(inout) :: pars              ! Solver parameters
     integer(ip)                 ,intent(in)    :: ldb, ldx
     real(rp)           , target ,intent(in)    :: b(ldb, pars%nrhs) ! RHS
@@ -109,7 +109,7 @@ contains
     integer(ip)              :: tot_its
 
 !!$    if (pars%method == direct) then
-!!$       call precond_apply (A, M, pars%nrhs, vector_b, ldb, vector_x, ldx)
+!!$       call preconditioner_apply (A, M, pars%nrhs, vector_b, ldb, vector_x, ldx)
 !!$    else
     tot_its = 0 
     do k=1, pars%nrhs
@@ -129,8 +129,8 @@ contains
     end do
     pars%it = tot_its
 !!$    end if
-  end subroutine matrix_precond_r2_solve
+  end subroutine matrix_preconditioner_r2_solve
 
-end module matrix_precond_solver_names
+end module matrix_preconditioner_solver_names
 
 

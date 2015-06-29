@@ -53,8 +53,8 @@ program test_cdr
   class(base_operand_t) , pointer :: x, y
   class(base_operator_t), pointer :: A
 
-  type(precond_t)        :: feprec
-  type(precond_params_t) :: ppars
+  type(preconditioner_t)        :: feprec
+  type(preconditioner_params_t) :: ppars
   type(solver_control_t)     :: sctrl
   type(serial_environment_t) :: senv
 
@@ -147,10 +147,10 @@ program test_cdr
 
   !sctrl%method=direct
   !ppars%type = pardiso_mkl_prec
-  !call precond_create  (my_matrix, feprec, ppars)
-  !call precond_symbolic(my_matrix, feprec)
-  !call precond_numeric (my_matrix, feprec)
-  !call precond_log_info(feprec)
+  !call preconditioner_create  (my_matrix, feprec, ppars)
+  !call preconditioner_symbolic(my_matrix, feprec)
+  !call preconditioner_numeric (my_matrix, feprec)
+  !call preconditioner_log_info(feprec)
 
   write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',f_graph%nv
   call vector_alloc( f_graph%nv, feunk )
@@ -181,15 +181,15 @@ program test_cdr
 
   !call vector_print( 6, feunk)
 
-  !call precond_free ( precond_free_values, feprec)
-  !call precond_free ( precond_free_struct, feprec)
-  !call precond_free ( precond_free_clean, feprec)
+  !call preconditioner_free ( preconditioner_free_values, feprec)
+  !call preconditioner_free ( preconditioner_free_struct, feprec)
+  !call preconditioner_free ( preconditioner_free_clean, feprec)
 
   !write (*,*) '********** FINISHED ASSEMBLY **********'
 
 
   ! call matrix_print( 6, my_matrix)
-  ! call precond_dd_mlevel_bddc_create ( f_mat, mlbddc, mlbddc_params )
+  ! call preconditioner_dd_mlevel_bddc_create ( f_mat, mlbddc, mlbddc_params )
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
