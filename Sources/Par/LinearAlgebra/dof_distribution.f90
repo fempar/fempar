@@ -58,7 +58,7 @@ module dof_distribution_names
      integer(ip)              :: nobjs       ! Number of local DoF communication objects
      integer(ip), allocatable :: lobjs(:,:)  ! List of local DoF communication objects
      
-     type(list_t)               :: int_objs    ! List of objects on each edge to an adjacent part / Interface_objects
+     type(list_t)               :: int_objs    ! List of objects on each edge to an adjacent part / Interface_vefs
      type(map_t)                :: omap        ! Objects local to global map_t
 
      type(dof_import_t)         :: dof_import  ! Object which contains the control data to drive DoF nearest neigbour exchanges

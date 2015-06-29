@@ -71,11 +71,11 @@ contains
 
        ! Fill the list of faces with the neighbouring elements
        do iface_l = 1,fe_space%num_interior_faces
-          iobje = fe_space%interior_faces(iface_l)%face_object
+          iobje = fe_space%interior_faces(iface_l)%face_vef
           max_order = 0
           ndofs = 0
           do i = 1,2
-             ielem = trian%objects(iobje)%elems_around(i)
+             ielem = trian%vefs(iobje)%elems_around(i)
              iprob = fe_space%finite_elements(ielem)%problem
              nvars = fe_space%dof_descriptor%problems(iprob)%p%nvars
              do ivars = 1, nvars
@@ -94,13 +94,13 @@ contains
           fe_space%fe_faces(iface)%p_vec => fe_space%lelvec(pos_elmatvec)
 
           do i = 1,2
-             ielem = trian%objects(iobje)%elems_around(i)
+             ielem = trian%vefs(iobje)%elems_around(i)
              iprob = fe_space%finite_elements(ielem)%problem
              fe_space%interior_faces(iface_l)%neighbor_element(i) = ielem 
-             l_faci = local_position(iobje, trian%elems(ielem)%objects, &
-                  & trian%elems(ielem)%num_objects )
+             l_faci = local_position(iobje, trian%elems(ielem)%vefs, &
+                  & trian%elems(ielem)%num_vefs )
              fe_space%interior_faces(iface_l)%local_face(i) = l_faci - &
-                  fe_space%g_trian%elems(ielem)%geo_reference_element%nobje_dim(ndime) + 1 
+                  fe_space%g_trian%elems(ielem)%geo_reference_element%nvef_dim(ndime) + 1 
              nvars = fe_space%dof_descriptor%problems(iprob)%p%nvars
 
              call memalloc( nvars, fe_space%fe_faces(iface)%integ(i)%p, __FILE__, __LINE__ )

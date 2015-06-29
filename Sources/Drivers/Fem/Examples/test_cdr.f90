@@ -251,13 +251,13 @@ contains
 !!$          !write (*,*) 'ielem',ielem
 !!$          !write (*,*) 'ivar',ivar
 !!$          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
-!!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%p',fe_space%lelem(ielem)%nodes_object(ivar)%p%p
-!!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%l',fe_space%lelem(ielem)%nodes_object(ivar)%p%l
-!!$          do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nobje
+!!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%p',fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%p
+!!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%l',fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%l
+!!$          do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nvef
 !!$
-!!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
-!!$                  &     fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-!!$                l_node = fe_space%lelem(ielem)%nodes_object(ivar)%p%l(inode)
+!!$             do inode = fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%p(iobje), &
+!!$                  &     fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%p(iobje+1)-1 
+!!$                l_node = fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%l(inode)
 !!$                if ( fe_space%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
 !!$                   fe_space%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
 !!$                end if

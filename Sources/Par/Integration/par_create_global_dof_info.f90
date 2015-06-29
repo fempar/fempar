@@ -60,7 +60,7 @@ contains
   ! This subroutine is intended to generate the dof generation and the dof graph 
   ! distribution. Here, the element2dof array is created as in serial, but next the
   ! dofs in ghost elements on interface faces coupled via interface discontinuous
-  ! Galerkin terms are also included. Next, object2dof and the dof_graph are generated
+  ! Galerkin terms are also included. Next, vef2dof and the dof_graph are generated
   ! using the same serial functions. Finally, the gluing info for dofs is generated,
   ! based on VEFs objects, the parallel triangulation info, and the ghost element info,
   ! relying on the fact that, with this info, we know how to put together interior and
@@ -87,7 +87,7 @@ contains
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
        call create_element_to_dof_and_ndofs( dof_descriptor, p_trian%f_trian, p_fe_space%fe_space )
        call ghost_dofs_by_integration( dof_descriptor, p_trian, p_fe_space%fe_space )
-       call create_object2dof( dof_descriptor, p_trian%f_trian, p_fe_space%fe_space )
+       call create_vef2dof( dof_descriptor, p_trian%f_trian, p_fe_space%fe_space )
     end if
 
     ! Allocate block_dof_distribution
@@ -138,19 +138,19 @@ contains
        count = fe_space%ndofs(iblock)    
 
        do iobje = 1,fe_space%num_interior_faces
-          lobje = fe_space%interior_faces(iobje)%face_object
-          !do iobje = 1, p_trian%num_itfc_objs
-          !lobje = p_trian%lst_itfc_objs(iobje)
-          if ( p_trian%objects(lobje)%interface /= -1 ) then
-             if ( p_trian%f_trian%objects(lobje)%dimension == p_trian%f_trian%num_dims -1 ) then 
-                assert ( p_trian%f_trian%objects(lobje)%num_elems_around == 2 )
+          lobje = fe_space%interior_faces(iobje)%face_vef
+          !do iobje = 1, p_trian%num_itfc_vefs
+          !lobje = p_trian%lst_itfc_vefs(iobje)
+          if ( p_trian%vefs(lobje)%interface /= -1 ) then
+             if ( p_trian%f_trian%vefs(lobje)%dimension == p_trian%f_trian%num_dims -1 ) then 
+                assert ( p_trian%f_trian%vefs(lobje)%num_elems_around == 2 )
                 do i=1,2
-                   ielem = p_trian%f_trian%objects(lobje)%elems_around(i)
+                   ielem = p_trian%f_trian%vefs(lobje)%elems_around(i)
                    if ( ielem > p_trian%f_trian%num_elems ) exit
                 end do
                 assert ( i < 3 )            
-                l_faci = local_position(lobje,p_trian%f_trian%elems(ielem)%objects, &
-                     & p_trian%f_trian%elems(ielem)%num_objects )
+                l_faci = local_position(lobje,p_trian%f_trian%elems(ielem)%vefs, &
+                     & p_trian%f_trian%elems(ielem)%num_vefs )
                 iprob = fe_space%finite_elements(ielem)%problem
                 nvapb = dof_descriptor%prob_block(iblock,iprob)%nd1 
                 do ivars = 1, nvapb

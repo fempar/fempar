@@ -364,7 +364,7 @@ contains
                 idof = finite_element(i)%elem2dof(inode,l_var)
                 if ( idof  > 0 ) then
                    ndime = finite_element(j)%p_geo_reference_element%ndime
-                   iobje = fe_face%face_object + finite_element(j)%p_geo_reference_element%nobje_dim(ndime) - 1
+                   iobje = fe_face%face_vef + finite_element(j)%p_geo_reference_element%nvef_dim(ndime) - 1
                    do jnode = finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje),finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje+1)-1
                       jdof = finite_element(j)%elem2dof(finite_element(j)%reference_element_vars(m_var)%p%ntxob%l(jnode),m_var)
                       if (  gtype == csr .and. jdof > 0 ) then
@@ -440,7 +440,7 @@ contains
     do ivars = 1, nvapb_i
        l_var = dof_descriptor%prob_block(iblock_,iprob)%a(ivars)
        g_var = dof_descriptor%problems(iprob)%p%l2g_var(l_var)
-       iobje = fe_face%face_object + finite_element%p_geo_reference_element%nobje_dim(ndime) - 1
+       iobje = fe_face%face_vef + finite_element%p_geo_reference_element%nvef_dim(ndime) - 1
        do inode = finite_element%reference_element_vars(l_var)%p%ntxob%p(iobje),finite_element%reference_element_vars(l_var)%p%ntxob%p(iobje+1)-1
           idof = finite_element%elem2dof(finite_element%reference_element_vars(l_var)%p%ntxob%l(inode),l_var)
           if ( idof  > 0 ) then

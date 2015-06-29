@@ -63,11 +63,11 @@ contains
        prob = fe_space%finite_elements(ielem)%problem
        do ivar=1, fe_space%dof_descriptor%problems(prob)%p%nvars
           gvar=fe_space%dof_descriptor%problems(prob)%p%l2g_var(ivar)
-          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
-             lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
-             do inode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje), &
-                  &     fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                l_node = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%l(inode)
+          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nvef
+             lobje = fe_space%g_trian%elems(ielem)%vefs(iobje)
+             do inode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje), &
+                  &     fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje+1)-1 
+                l_node = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%l(inode)
                 if ( fe_space%finite_elements(ielem)%bc_code(ivar,iobje) /= 0 ) then
                    fe_space%finite_elements(ielem)%unkno(l_node,ivar,1) = fcond%valu(gvar,lobje)
                 end if
@@ -125,14 +125,14 @@ contains
              call interpolate(ndime,gnode,unode,fe_space%finite_elements(ielem)%inter(ivar)%p, &
                   &           fe_space%g_trian%elems(ielem)%coordinates,coord)
 
-             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
-                lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
+             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nvef
+                lobje = fe_space%g_trian%elems(ielem)%vefs(iobje)
 
                 if ( fe_space%finite_elements(ielem)%bc_code(ivar,iobje) /= 0 ) then
 
-                   do inode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje), &
-                        &     fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                      lnode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%l(inode)
+                   do inode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje), &
+                        &     fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje+1)-1 
+                      lnode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%l(inode)
 
                       call analytical_field(case,ndime,coord(:,lnode),ctime,param)
 

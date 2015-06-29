@@ -200,7 +200,7 @@ contains
        !write(*,*) 'nvars',nvars
        assert ( f_type > 0)
        call memalloc(nvars, p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars, __FILE__, __LINE__ )
-       allocate(p_fe_space%fe_space%finite_elements(ielem)%nodes_object(nvars), stat=istat )
+       allocate(p_fe_space%fe_space%finite_elements(ielem)%nodes_per_vef(nvars), stat=istat )
        do ivar=1,nvars
           f_order = p_fe_space%fe_space%finite_elements(ielem)%order(ivar)
           !write(*,*) 'f_order',f_order
@@ -213,9 +213,9 @@ contains
           end if
           p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)
           if ( p_fe_space%fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
-             p_fe_space%fe_space%finite_elements(ielem)%nodes_object(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)%ndxob
+             p_fe_space%fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)%ndxob
           else 
-             p_fe_space%fe_space%finite_elements(ielem)%nodes_object(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)%ndxob_int
+             p_fe_space%fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)%ndxob_int
           end if
        end do
 
@@ -225,7 +225,7 @@ contains
        do ivar=1,nvars
           if ( p_fe_space%fe_space%static_condensation ) then
              nnode = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode -                                   &
-                  &  p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_obj(p_fe_space%fe_space%g_trian%num_dims+1) ! SB.alert : do not use nodes_obj
+                  &  p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_vef(p_fe_space%fe_space%g_trian%num_dims+1) ! SB.alert : do not use nodes_vef
           else
              nnode = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode 
           end if
@@ -252,11 +252,11 @@ contains
     ! interface faces (among subdomains)
 
     count_int = 0
-    do iobje = 1, p_trian%f_trian%num_objects
-       if ( p_trian%f_trian%objects(iobje)%dimension == p_trian%f_trian%num_dims-1 ) then
-          if (p_trian%objects(iobje)%interface == 1 ) then
-             assert( p_trian%f_trian%objects(iobje)%num_elems_around == 2 )
-             ielem = p_trian%f_trian%objects(iobje)%elems_around(1)
+    do iobje = 1, p_trian%f_trian%num_vefs
+       if ( p_trian%f_trian%vefs(iobje)%dimension == p_trian%f_trian%num_dims-1 ) then
+          if (p_trian%vefs(iobje)%interface == 1 ) then
+             assert( p_trian%f_trian%vefs(iobje)%num_elems_around == 2 )
+             ielem = p_trian%f_trian%vefs(iobje)%elems_around(1)
              count_int = count_int + 1
           end if
        end if
@@ -266,13 +266,13 @@ contains
     check ( istat == 0 )
 
     count_int = 0
-    do iobje = 1, p_trian%f_trian%num_objects
-       if ( p_trian%f_trian%objects(iobje)%dimension == p_trian%f_trian%num_dims-1 ) then
-          if (p_trian%objects(iobje)%interface == 1 ) then
-             assert( p_trian%f_trian%objects(iobje)%num_elems_around == 2 )
-             ielem = p_trian%f_trian%objects(iobje)%elems_around(1)
+    do iobje = 1, p_trian%f_trian%num_vefs
+       if ( p_trian%f_trian%vefs(iobje)%dimension == p_trian%f_trian%num_dims-1 ) then
+          if (p_trian%vefs(iobje)%interface == 1 ) then
+             assert( p_trian%f_trian%vefs(iobje)%num_elems_around == 2 )
+             ielem = p_trian%f_trian%vefs(iobje)%elems_around(1)
              count_int = count_int + 1
-             p_fe_space%interface_faces(count_int)%face_object = iobje
+             p_fe_space%interface_faces(count_int)%face_vef = iobje
           end if
        end if
     end do
