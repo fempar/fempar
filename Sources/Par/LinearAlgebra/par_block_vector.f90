@@ -29,8 +29,8 @@ module par_block_vector_names
   ! Serial modules
   use types_names
   use memor_names
-  use fem_block_vector_names
-  use fem_vector_names
+  use block_vector_names
+  use vector_names
     
   ! Parallel modules
   use par_vector_names
@@ -63,14 +63,14 @@ module par_block_vector_names
 
      ! **IMPORTANT NOTE**: This is an auxiliary data 
      ! structure provided in order to use SERIAL 
-     ! fem_block_vector assembly routines. The blocks of this 
+     ! block_vector assembly routines. The blocks of this 
      ! data structure are just VIEWS to the corresponding 
      ! counterparts in type(par_vector_t), allocatable :: blocks(:).
      ! This is required because currently integrate.i90 only
      ! accepts fem* data structures. If we provided support for 
      ! par* data structures in integrate.i90 we would not require 
      ! this aux. data structure
-     type(fem_block_vector_t)        :: f_blk_vector
+     type(block_vector_t)        :: f_blk_vector
      logical                       :: fill_completed
   end type par_block_vector_t
 
@@ -105,7 +105,7 @@ contains
     bvec%nblocks = 0
     deallocate( bvec%blocks )
     if ( bvec%fill_completed ) then
-      call fem_block_vector_free ( bvec%f_blk_vector )
+      call block_vector_free ( bvec%f_blk_vector )
       bvec%fill_completed = .false.
     end if
   end subroutine par_block_vector_free
@@ -132,10 +132,10 @@ contains
   
     assert ( .not. bvec%fill_completed )
   
-    call fem_block_vector_alloc ( bvec%nblocks, bvec%f_blk_vector )
+    call block_vector_alloc ( bvec%nblocks, bvec%f_blk_vector )
 
     do ib=1, bvec%nblocks
-       call fem_vector_create_view ( bvec%blocks(ib)%f_vector,        &  
+       call vector_create_view ( bvec%blocks(ib)%f_vector,        &  
                                    & 1, bvec%blocks(ib)%f_vector%neq, &
                                    & bvec%f_blk_vector%blocks(ib))
     end do

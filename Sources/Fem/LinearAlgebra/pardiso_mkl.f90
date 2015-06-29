@@ -38,8 +38,8 @@ module pardiso_mkl_names
   ! Serial modules
   use types_names
   use memor_names
-  use fem_matrix_names
-  use fem_vector_names 
+  use matrix_names
+  use vector_names 
 
   ! F90 interface to Intel MKL PARDISO
 #ifdef ENABLE_MKL
@@ -141,9 +141,9 @@ contains
     integer(ip)              , intent(in)    :: action  ! Action to be performed
                                                         ! (see public constants above)
     type(pardiso_mkl_context_t), intent(inout) :: context ! Information required between calls
-    type(fem_matrix_t), intent(in)             :: A       ! Linear system coefficient matrix
-    type(fem_vector_t), intent(in)             :: b       ! RHS (Right-hand-side)
-    type(fem_vector_t), intent(inout)          :: x       ! LHS (Left-hand-side)
+    type(matrix_t), intent(in)             :: A       ! Linear system coefficient matrix
+    type(vector_t), intent(in)             :: b       ! RHS (Right-hand-side)
+    type(vector_t), intent(inout)          :: x       ! LHS (Left-hand-side)
     integer         , intent(inout), target, optional :: iparm(64)
     integer         , optional                     :: msglvl
     integer         , intent(in), target, optional :: perm(*)
@@ -268,7 +268,7 @@ contains
     ! Mandatory Parameters
     integer(ip)              , intent(in)    :: action
     type(pardiso_mkl_context_t), intent(inout) :: context
-    type(fem_matrix_t), intent(in)             :: A 
+    type(matrix_t), intent(in)             :: A 
     integer(ip)     , intent(in)             :: nrhs, ldb, ldx
     real(rp)        , intent(in)             :: b (ldb, nrhs)
     real(rp)        , intent(inout)          :: x (ldx, nrhs)
@@ -298,7 +298,7 @@ contains
     ! Mandatory Parameters
     integer(ip)              , intent(in)    :: action
     type(pardiso_mkl_context_t), intent(inout) :: context
-    type(fem_matrix_t), intent(in)             :: A 
+    type(matrix_t), intent(in)             :: A 
     real(rp)        , intent(in)             :: b (A%gr%nv)
     real(rp)        , intent(inout)          :: x (A%gr%nv)
     integer         , intent(inout), target, optional :: iparm(64)
@@ -335,7 +335,7 @@ contains
   subroutine pardiso_mkl_init ( context, matrix, iparm)
     implicit none
     ! Parameters
-    type(fem_matrix_t)          , intent(in)   :: matrix
+    type(matrix_t)          , intent(in)   :: matrix
     type(pardiso_mkl_context_t) , intent(out)  :: context
     integer                   , intent(out), optional :: iparm(64)
     ! Locals
@@ -492,7 +492,7 @@ contains
 
     ! Parameters 
     type(pardiso_mkl_context_t), intent(inout)                 :: context
-    type(fem_matrix_t)         , intent(in)                    :: matrix
+    type(matrix_t)         , intent(in)                    :: matrix
     integer                  , intent(in), target, optional  :: perm(matrix%gr%nv)
     integer                  , intent(in), target, optional  :: iparm(64)
     integer                  , intent(in), optional          :: msglvl
@@ -565,7 +565,7 @@ contains
     implicit none
     ! Parameters
     type(pardiso_mkl_context_t), intent(inout)                :: context
-    type(fem_matrix_t)         , intent(in), target           :: matrix
+    type(matrix_t)         , intent(in), target           :: matrix
     integer                  , intent(in), target, optional :: iparm(64)
     integer                  , intent(in), optional         :: msglvl
 
@@ -632,9 +632,9 @@ contains
     implicit none
     ! Parameters 
     type(pardiso_mkl_context_t), intent(inout)                   :: context
-    type(fem_matrix_t)         , intent(in)   , target           :: matrix
-    type(fem_vector_t)         , intent(in)   , target           :: x
-    type(fem_vector_t)         , intent(inout), target           :: y
+    type(matrix_t)         , intent(in)   , target           :: matrix
+    type(vector_t)         , intent(in)   , target           :: x
+    type(vector_t)         , intent(inout), target           :: y
     integer                  , intent(in)   , target, optional :: iparm(64)
     integer                  , intent(in)   , optional         :: msglvl
 
@@ -703,7 +703,7 @@ contains
     implicit none
     ! Parameters 
     type(pardiso_mkl_context_t), intent(inout)                   :: context
-    type(fem_matrix_t)         , intent(in)   , target           :: matrix
+    type(matrix_t)         , intent(in)   , target           :: matrix
     real(rp)                 , intent(in)   , target           :: rhs (matrix%gr%nv)
     real(rp)                 , intent(inout), target           :: sol (matrix%gr%nv)
     integer                  , intent(in)   , target, optional :: iparm(64)
@@ -792,7 +792,7 @@ contains
     implicit none
     ! Parameters 
     type(pardiso_mkl_context_t), intent(inout)                   :: context
-    type(fem_matrix_t)         , intent(in)   , target           :: matrix
+    type(matrix_t)         , intent(in)   , target           :: matrix
     integer(ip)              , intent(in)                      :: nrhs, ldrhs, ldsol
     real(rp)                 , intent(in)   , target           :: rhs (ldrhs, nrhs)
     real(rp)                 , intent(inout), target           :: sol (ldsol, nrhs)

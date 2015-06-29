@@ -31,7 +31,7 @@ module par_triangulation_names
   use memor_names
   use sort_names
   use migratory_element_names
-  use fem_triangulation_names
+  use triangulation_names
   use element_import_names
   use hash_table_names
 
@@ -82,7 +82,7 @@ module par_triangulation_names
 
   type :: par_triangulation_t
      integer(ip)                             :: state = par_triangulation_not_created  
-     type(fem_triangulation_t)                 :: f_trian             ! Data common with a centralized (serial) triangulation
+     type(triangulation_t)                 :: f_trian             ! Data common with a centralized (serial) triangulation
      integer(ip)                             :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
      integer(ip)                             :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
      class(migratory_element), allocatable   :: mig_elems(:)        ! Migratory elements list_t
@@ -109,7 +109,7 @@ module par_triangulation_names
   ! Auxiliary Subroutines (should only be used by modules that have control over type(par_triangulation))
   public :: free_par_elem_topology, free_par_object_topology, par_triangulation_free_elems_data, par_triangulation_free_objs_data 
 
-  ! Constants (should only be used by modules that have control over type(fem_triangulation_t))
+  ! Constants (should only be used by modules that have control over type(triangulation_t))
   public :: par_triangulation_not_created, par_triangulation_filled
 
 contains
@@ -131,7 +131,7 @@ contains
     call par_triangulation_free_elems_data(p_trian)
     
     ! Free local portion of triangulation
-    call fem_triangulation_free(p_trian%f_trian)
+    call triangulation_free(p_trian%f_trian)
 
     p_trian%state = par_triangulation_not_created
 
@@ -204,7 +204,7 @@ contains
     ! Locals
     integer(ip)              :: ielem, iobj, jobj, istat
 
-    call fem_triangulation_to_dual ( p_trian%f_trian, p_trian%num_elems+p_trian%num_ghosts )
+    call triangulation_to_dual ( p_trian%f_trian, p_trian%num_elems+p_trian%num_ghosts )
 
     ! Allocate p_trian%objects array
     allocate(p_trian%objects(p_trian%f_trian%num_objects), stat=istat)

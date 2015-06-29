@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program par_test_nsi_iss
-  use fem_names
+  use serial_names
   use par_names
   use nsi_names
   use nsi_cg_iss_names
@@ -37,7 +37,7 @@ use lib_vtk_io_interface_names
   ! Types
   type(geom_data_t)                                  :: gdata
   type(bound_data_t)                                 :: bdata
-  type(fem_fixed_info_t)                             :: ginfo
+  type(reference_element_t)                             :: geo_reference_element
   type(par_context_t)                                :: w_context
   type(par_context_t)                                :: p_context
   type(par_context_t)                                :: q_context
@@ -49,9 +49,9 @@ use lib_vtk_io_interface_names
   type(par_fe_space_t)                              :: p_fe_space  
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
-  type(nsi_cg_iss_matvec_t)                 , target :: matvec
+  type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
   type(discrete_integration_pointer)               :: approx(1)
-  type(fem_vtk_t)                                    :: fevtk
+  type(vtk_t)                                    :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist
   type(par_precond_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
@@ -64,9 +64,6 @@ use lib_vtk_io_interface_names
   type(solver_control_t)                             :: sctrl
   class(base_operand_t) , pointer           :: x, y
   class(base_operator_t), pointer           :: A
-
-  ! Logicals
-  logical :: ginfo_state
 
   ! Integers
   integer(ip) :: num_levels
@@ -106,7 +103,7 @@ use lib_vtk_io_interface_names
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
 
   ! Generate element geometrical fixed info
-  call finite_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
+  call finite_element_fixed_info_create(geo_reference_element,Q_type_id,1,gdata%ndime)
 
   ! Set levels
   num_levels = 2
@@ -133,7 +130,7 @@ use lib_vtk_io_interface_names
   call par_environment_create(p_env,w_context,p_context,q_context,b_context,num_levels,id_parts,num_parts)
 
   ! Generate par triangulation
-  call par_gen_triangulation(p_env,gdata,bdata,ginfo,p_trian,p_cond,material)
+  call par_gen_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
 
   ! Create dof_handler
   call dhand%create(1,1,gdata%ndime+1)
@@ -141,9 +138,9 @@ use lib_vtk_io_interface_names
   ! Create problem
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
-  call matvec%create(myprob,mydisc)
+  call cg_iss_matvec%create(myprob,mydisc)
   call dhand%set_problem(1,mydisc)
-  approx(1)%p       => matvec
+  approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -312,11 +309,11 @@ use lib_vtk_io_interface_names
   call par_fe_space_free(p_fe_space) 
   call myprob%free
   call mydisc%free
-  call matvec%free
+  call cg_iss_matvec%free
   call dof_handler_free (dhand)
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)
-  call finite_element_fixed_info_free(ginfo)
+  call finite_element_fixed_info_free(geo_reference_element)
   call bound_data_free(bdata)
   call par_environment_free (p_env)
   call par_context_free ( b_context, .false. )

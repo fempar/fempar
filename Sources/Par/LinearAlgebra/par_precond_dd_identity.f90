@@ -29,8 +29,8 @@ module par_precond_dd_identity_names
   ! Serial modules
 use types_names
 use memor_names
-  use fem_vector_names
-  use fem_precond_names, only: invert_diagonal, apply_diagonal, extract_diagonal
+  use vector_names
+  use precond_names, only: invert_diagonal, apply_diagonal, extract_diagonal
 
   ! Parallel modules
   use par_vector_names
@@ -177,7 +177,7 @@ use psb_penv_mod_names
        class is(par_vector_t)
           call par_precond_dd_identity_apply_all_unk ( op, x, y )
        class default
-          write(0,'(a)') 'fem_matrix_t%apply: unsupported y class'
+          write(0,'(a)') 'matrix_t%apply: unsupported y class'
           check(1==0)
        end select
     class default

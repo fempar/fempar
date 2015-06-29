@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_triangulation_names
+module mesh_to_triangulation_names
   use types_names
   use memor_names
-  use fem_mesh_names
-  use fem_triangulation_names
+  use mesh_names
+  use triangulation_names
   use fe_space_types_names
   use geom2topo_names
-  use fem_conditions_names
+  use conditions_names
 
   implicit none
 # include "debug.i90"
@@ -55,32 +55,32 @@ contains
   subroutine mesh_to_triangulation (gmesh,trian,gcond)
     implicit none
     ! Parameters
-    type(fem_mesh_t), intent(in)                       :: gmesh ! Geometry mesh
-    type(fem_triangulation_t), intent(inout)           :: trian 
-    type(fem_conditions_t), optional, intent(inout)    :: gcond
+    type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
+    type(triangulation_t), intent(inout)           :: trian 
+    type(conditions_t), optional, intent(inout)    :: gcond
 
     call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond )
-    call fem_triangulation_to_dual ( trian )
+    call triangulation_to_dual ( trian )
 
   end subroutine mesh_to_triangulation
 
 subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond)
     implicit none
     ! Parameters
-    type(fem_mesh_t), intent(in)                       :: gmesh ! Geometry mesh
-    type(fem_triangulation_t), intent(inout)           :: trian 
+    type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
+    type(triangulation_t), intent(inout)           :: trian 
     integer(ip), optional, intent(in)                :: length_trian
-    type(fem_conditions_t), optional, intent(inout)    :: gcond
+    type(conditions_t), optional, intent(inout)    :: gcond
 
     ! Locals
-    type(fem_mesh_t)            :: tmesh ! Topological mesh
+    type(mesh_t)            :: tmesh ! Topological mesh
     integer(ip)               :: istat, ielem, iobj
     integer(ip)               :: count, g_node, inode, p, length_trian_
-    type(fem_conditions_t)      :: tcond
+    type(conditions_t)      :: tcond
 
     assert(trian%state == triangulation_not_created .or. trian%state == triangulation_filled)
 
-    if ( trian%state == triangulation_filled ) call fem_triangulation_free(trian)
+    if ( trian%state == triangulation_filled ) call triangulation_free(trian)
 
     if (present(length_trian)) then
        length_trian_ = length_trian
@@ -88,7 +88,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        length_trian_ = gmesh%nelem 
     endif
 
-    call fem_triangulation_create ( length_trian_, trian )
+    call triangulation_create ( length_trian_, trian )
     
     trian%num_elems = gmesh%nelem
     trian%num_dims  = gmesh%ndime
@@ -115,9 +115,9 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
 
     if (present(gcond)) then
        call geom2topo_mesh_cond(gmesh, tmesh, gcond, tcond)
-       call fem_conditions_free( gcond )
-       call fem_conditions_copy( tcond, gcond )
-       call fem_conditions_free( tcond )
+       call conditions_free( gcond )
+       call conditions_copy( tcond, gcond )
+       call conditions_free( tcond )
     else
        call geom2topo_mesh_cond(gmesh, tmesh)
     end if
@@ -133,7 +133,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        call put_topology_element_triangulation ( ielem, trian )
     end do
 
-    call fem_mesh_free(tmesh)
+    call mesh_free(tmesh)
 
     assert ( allocated(gmesh%coord) )
     do ielem = 1, trian%num_elems
@@ -145,14 +145,14 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
           g_node = gmesh%lnods(inode)
           trian%elems(ielem)%coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
        end do
-       trian%elems(ielem)%order = get_order( trian%elems(ielem)%topology%ftype, count, trian%num_dims )
+       trian%elems(ielem)%order = get_order( trian%elems(ielem)%geo_reference_element%ftype, count, trian%num_dims )
     end do
 
 
   end subroutine mesh_to_triangulation_fill_elements
 
 
-end module mesh_triangulation_names
+end module mesh_to_triangulation_names
 
 
 

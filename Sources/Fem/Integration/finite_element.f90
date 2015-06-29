@@ -37,7 +37,7 @@ module finite_element_names
   use fe_space_types_names
   !use dof_handler_names
   use migratory_element_names
-  !use fem_conditions_names
+  !use conditions_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -47,10 +47,9 @@ module finite_element_names
 
   ! Information of each element of the FE space
   type, extends(migratory_element) :: finite_element_t
-     
      ! Reference element info          
-     type(fem_fixed_info_pointer_t), allocatable :: f_inf(:)    ! Topology of the reference finite element
-     type(fem_fixed_info_t), pointer :: p_geo_info => NULL()    ! Topology of the reference geometry ( idem fe w/ p=1)
+     type(reference_element_pointer_t), allocatable :: reference_element_vars(:)    ! Topology of the reference finite element
+     type(reference_element_t), pointer :: p_geo_reference_element => NULL()    ! Topology of the reference geometry ( idem fe w/ p=1)
      integer(ip),      allocatable :: order(:)                ! Order per variable
      type(volume_integrator_pointer_t), allocatable :: integ(:) ! Pointer to integration parameters
      type(interpolator_pointer_t)     , allocatable :: inter(:) ! Pointer to interpolator
@@ -140,18 +139,18 @@ contains
 
     write (lunou,*) 'Fixed info of each interpolation: '
     do ivar=1, finite_element%num_vars
-       write (lunou, *) 'Type: ', finite_element%f_inf(ivar)%p%ftype
-       write (lunou, *) 'Order: ', finite_element%f_inf(ivar)%p%order
-       write (lunou, *) 'Nobje: ', finite_element%f_inf(ivar)%p%nobje
-       write (lunou, *) 'Nnode: ', finite_element%f_inf(ivar)%p%nnode
-       write (lunou, *) 'Nobje_dim: ', finite_element%f_inf(ivar)%p%nobje_dim
-       write (lunou, *) 'Nodes_obj: ', finite_element%f_inf(ivar)%p%nodes_obj
-       write (lunou, *) 'ndxob%p:  ', finite_element%f_inf(ivar)%p%ndxob%p
-       write (lunou, *) 'ndxob%l:  ', finite_element%f_inf(ivar)%p%ndxob%l
-       write (lunou, *) 'ntxob%p:  ', finite_element%f_inf(ivar)%p%ntxob%p
-       write (lunou, *) 'ntxob%l:  ', finite_element%f_inf(ivar)%p%ntxob%l
-       write (lunou, *) 'crxob%p:  ', finite_element%f_inf(ivar)%p%crxob%p
-       write (lunou, *) 'crxob%l:  ', finite_element%f_inf(ivar)%p%crxob%l
+       write (lunou, *) 'Type: ', finite_element%reference_element_vars(ivar)%p%ftype
+       write (lunou, *) 'Order: ', finite_element%reference_element_vars(ivar)%p%order
+       write (lunou, *) 'Nobje: ', finite_element%reference_element_vars(ivar)%p%nobje
+       write (lunou, *) 'Nnode: ', finite_element%reference_element_vars(ivar)%p%nnode
+       write (lunou, *) 'Nobje_dim: ', finite_element%reference_element_vars(ivar)%p%nobje_dim
+       write (lunou, *) 'Nodes_obj: ', finite_element%reference_element_vars(ivar)%p%nodes_obj
+       write (lunou, *) 'ndxob%p:  ', finite_element%reference_element_vars(ivar)%p%ndxob%p
+       write (lunou, *) 'ndxob%l:  ', finite_element%reference_element_vars(ivar)%p%ndxob%l
+       write (lunou, *) 'ntxob%p:  ', finite_element%reference_element_vars(ivar)%p%ntxob%p
+       write (lunou, *) 'ntxob%l:  ', finite_element%reference_element_vars(ivar)%p%ntxob%l
+       write (lunou, *) 'crxob%p:  ', finite_element%reference_element_vars(ivar)%p%crxob%p
+       write (lunou, *) 'crxob%l:  ', finite_element%reference_element_vars(ivar)%p%crxob%l
     end do
 
     write (lunou,*) 'Unknown values: ', finite_element%unkno
@@ -273,7 +272,7 @@ contains
 
     !write (*,*) 'start assembly bc of matrix : ', finite_element%p_mat%a
     do ivars = 1, finite_element%num_vars
-       do inode = 1,finite_element%f_inf(ivars)%p%nnode
+       do inode = 1,finite_element%reference_element_vars(ivars)%p%nnode
           count = count + 1
           idof = finite_element%elem2dof(inode,ivars)
           if ( idof  == 0 ) then

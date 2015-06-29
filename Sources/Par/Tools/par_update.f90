@@ -29,7 +29,7 @@ module par_update_names
   ! Serial modules
   use types_names
   use memor_names
-  use fem_update_names
+  use update_names
 
   ! Parallel modules
   use par_fe_space_names
@@ -66,7 +66,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call fem_update_strong_dirichlet_bcond( p_fe_space%fe_space, p_cond%f_conditions )
+       call update_strong_dirichlet_bcond( p_fe_space%fe_space, p_cond%f_conditions )
     end if
 
   end subroutine par_update_strong_dirichlet_bcond
@@ -89,7 +89,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call fem_update_analytical_bcond( vars_of_unk,case,ctime,p_fe_space%fe_space,caset,t)
+       call update_analytical_bcond( vars_of_unk,case,ctime,p_fe_space%fe_space,caset,t)
     end if
 
   end subroutine par_update_analytical_bcond
@@ -97,7 +97,7 @@ contains
   !==================================================================================================
   subroutine par_update_solution_mono(p_vec,p_fe_space,iblock)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a fem_vector into unkno.                           !
+    !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_vector_t)     , intent(in)    :: p_vec   
@@ -110,7 +110,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call fem_update_solution(p_vec%f_vector,p_fe_space%fe_space,iblock)
+       call update_solution(p_vec%f_vector,p_fe_space%fe_space,iblock)
     end if
 
   end subroutine par_update_solution_mono
@@ -118,7 +118,7 @@ contains
   !==================================================================================================
   subroutine par_update_solution_block(blk_p_vec,p_fe_space)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a fem_vector into unkno.                           !
+    !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_block_vector_t), intent(in)    :: blk_p_vec   
@@ -137,7 +137,7 @@ contains
        do iblock = 1,blk_p_vec%nblocks
 
           ! Call monolithic update
-          call fem_update_solution(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
+          call update_solution(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
 
        end do
 

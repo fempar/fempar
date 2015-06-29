@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_mesh_triangulation_names
+module par_mesh_to_triangulation_names
   ! Serial modules
   use types_names
   use memor_names
-  use fem_triangulation_names
+  use triangulation_names
   use element_import_names
   use element_import_create_names
   use hash_table_names
-  use mesh_triangulation_names
+  use mesh_to_triangulation_names
   use psi_penv_mod_names
 
   ! Parallel modules
@@ -174,7 +174,7 @@ contains
           ! Step 1: Put LID of vertices in the ghost elements (f_mesh_dist)
           ilele = p_gmesh%f_mesh_dist%lebou(ielem) ! local ID element
           ! aux : array of ilele (LID) vertices in GID
-          nvert  = p_trian%f_trian%elems(ilele)%topology%nobje_dim(2)-1
+          nvert  = p_trian%f_trian%elems(ilele)%geo_reference_element%nobje_dim(2)-1
           call memalloc( nvert, aux_igp, __FILE__, __LINE__  )
           do iobj = 1, nvert                        ! vertices only
              aux_igp(iobj) = p_trian%elems(ilele)%objects_GIDs(iobj) ! extract GIDs vertices
@@ -182,7 +182,7 @@ contains
           do jelem = p_gmesh%f_mesh_dist%pextn(ielem), & 
                p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
              call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
-             do jobj = 1, p_trian%f_trian%elems(jlele)%topology%nobje_dim(2)-1 ! vertices external 
+             do jobj = 1, p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(2)-1 ! vertices external 
                 if ( p_trian%f_trian%elems(jlele)%objects(jobj) == -1) then
                    do iobj = 1, nvert
                       if ( aux_igp(iobj) == p_trian%elems(jlele)%objects_GIDs(jobj) ) then
@@ -204,27 +204,27 @@ contains
              call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
              ! loop over all efs of external elements
              do idime =2,p_trian%f_trian%num_dims
-                do iobj = p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime), &
-                     p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime+1)-1 
+                do iobj = p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime), &
+                     p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime+1)-1 
                    if ( p_trian%f_trian%elems(jlele)%objects(iobj) == -1) then ! efs not assigned yet
                       count = 1
                       ! loop over vertices of every ef
-                      do jobj = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj), &
-                           p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)-1    
-                         ivere = p_trian%f_trian%elems(jlele)%topology%crxob%l(jobj)
+                      do jobj = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj), &
+                           p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj+1)-1    
+                         ivere = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%l(jobj)
                          if (p_trian%f_trian%elems(jlele)%objects(ivere) == -1) then
                             count = 0 ! not an object of the local triangulation
                             exit
                          end if
                       end do
                       if (count == 1) then
-                         nvert = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)- &
-                              p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj)
+                         nvert = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj+1)- &
+                              p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj)
                          call memalloc( nvert, aux, __FILE__, __LINE__)
                          count = 1
-                         do jobj = p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj), &
-                              p_trian%f_trian%elems(jlele)%topology%crxob%p(iobj+1)-1 
-                            ivere = p_trian%f_trian%elems(jlele)%topology%crxob%l(jobj)
+                         do jobj = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj), &
+                              p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%p(iobj+1)-1 
+                            ivere = p_trian%f_trian%elems(jlele)%geo_reference_element%crxob%l(jobj)
                             aux(count) = p_trian%f_trian%elems(jlele)%objects(ivere)
                             count = count+1
                          end do
@@ -275,8 +275,8 @@ contains
              do jelem = 1,p_trian%f_trian%objects(iobj)%num_elems_around
                 jlele = p_trian%f_trian%objects(iobj)%elems_around(jelem)
 
-                do jobj = p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime), &
-                     & p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime+1)-1 ! efs of neighbor els
+                do jobj = p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime), &
+                     & p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime+1)-1 ! efs of neighbor els
                    if ( p_trian%f_trian%elems(jlele)%objects(jobj) == iobj ) then
                       if ( iobjg == -1 ) then 
                          iobjg  = p_trian%elems(jlele)%objects_GIDs(jobj)
@@ -292,8 +292,8 @@ contains
 
              do jelem = 1,p_trian%f_trian%objects(iobj)%num_elems_around
                 jlele = p_trian%f_trian%objects(iobj)%elems_around(jelem)
-                do jobj = p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime), &
-                     & p_trian%f_trian%elems(jlele)%topology%nobje_dim(idime+1)-1 ! efs of neighbor els
+                do jobj = p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime), &
+                     & p_trian%f_trian%elems(jlele)%geo_reference_element%nobje_dim(idime+1)-1 ! efs of neighbor els
                    if ( p_trian%f_trian%elems(jlele)%objects(jobj) == iobj) then
                       p_trian%elems(jlele)%objects_GIDs(jobj) = iobjg
                       exit
@@ -320,4 +320,4 @@ contains
 
   end subroutine par_mesh_to_triangulation
 
-end module par_mesh_triangulation_names
+end module par_mesh_to_triangulation_names

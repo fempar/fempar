@@ -27,22 +27,22 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !=============================================================================
-module fem_matrix_fem_precond_solver_names
+module matrix_precond_solver_names
   ! Serial modules
   use types_names
   use solver_base_names
   use serial_environment_names
   use abstract_solver_names
-  use fem_matrix_names
-  use fem_vector_names
-  use fem_precond_names
+  use matrix_names
+  use vector_names
+  use precond_names
   implicit none
   private
 
   interface solve
-     module procedure fem_matrix_fem_precond_fem_vector_solve, &
-                      fem_matrix_fem_precond_r1_solve, & 
-                      fem_matrix_fem_precond_r2_solve
+     module procedure matrix_precond_vector_solve, &
+                      matrix_precond_r1_solve, & 
+                      matrix_precond_r2_solve
   end interface solve
 
   public :: solve
@@ -50,12 +50,12 @@ module fem_matrix_fem_precond_solver_names
 # include "debug.i90"
 contains
 
-  subroutine fem_matrix_fem_precond_fem_vector_solve (A,M,b,x,pars)
+  subroutine matrix_precond_vector_solve (A,M,b,x,pars)
     implicit none
-    type(fem_matrix_t)    ,intent(in)    :: A     ! Matrix
-    type(fem_precond_t)   ,intent(in)    :: M     ! Preconditioner
-    type(fem_vector_t)    ,intent(in)    :: b     ! RHS
-    type(fem_vector_t)    ,intent(inout) :: x     ! Approximate solution
+    type(matrix_t)    ,intent(in)    :: A     ! Matrix
+    type(precond_t)   ,intent(in)    :: M     ! Preconditioner
+    type(vector_t)    ,intent(in)    :: b     ! RHS
+    type(vector_t)    ,intent(inout) :: x     ! Approximate solution
     type(solver_control_t),intent(inout) :: pars  ! Solver parameters
 
     ! Locals
@@ -63,74 +63,74 @@ contains
 
     call abstract_solve (A, M, b, x, pars, senv)
 
-  end subroutine fem_matrix_fem_precond_fem_vector_solve
+  end subroutine matrix_precond_vector_solve
 
-  subroutine fem_matrix_fem_precond_r1_solve (A,M,b,x,pars)
+  subroutine matrix_precond_r1_solve (A,M,b,x,pars)
     implicit none
-    type(fem_matrix_t)            ,intent(in)    :: A          ! Matrix
-    type(fem_precond_t)           ,intent(in)    :: M          ! Preconditioner
+    type(matrix_t)            ,intent(in)    :: A          ! Matrix
+    type(precond_t)           ,intent(in)    :: M          ! Preconditioner
     real(rp)           , target ,intent(in)    :: b(A%gr%nv) ! RHS
     real(rp)           , target ,intent(inout) :: x(A%gr%nv) ! Approximate solution
     type(solver_control_t)        ,intent(inout) :: pars       ! Solver parameters
 
     ! Locals
-    type(fem_vector_t)         :: fem_b
-    type(fem_vector_t)         :: fem_x
+    type(vector_t)         :: vector_b
+    type(vector_t)         :: vector_x
     type(serial_environment_t) :: senv
 
-    ! fill b members
-    fem_b%neq     =  A%gr%nv
-    fem_b%mode    =  reference
-    fem_b%b       => b   
+    ! fill vector_b members
+    vector_b%neq     =  A%gr%nv
+    vector_b%mode    =  reference
+    vector_b%b => b   
 
-    ! fill x members
-    fem_x%neq     = A%gr%nv 
-    fem_x%mode    = reference 
-    fem_x%b       => x 
+    ! fill vector_x members
+    vector_x%neq     = A%gr%nv 
+    vector_x%mode    = reference 
+    vector_x%b       => x 
 
-    call abstract_solve (A, M, fem_b, fem_x, pars, senv)
+    call abstract_solve (A, M, vector_b, vector_x, pars, senv)
 
-  end subroutine fem_matrix_fem_precond_r1_solve
+  end subroutine matrix_precond_r1_solve
 
-  subroutine fem_matrix_fem_precond_r2_solve (A,M,b,ldb,x,ldx,pars)
+  subroutine matrix_precond_r2_solve (A,M,b,ldb,x,ldx,pars)
     implicit none
-    type(fem_matrix_t)            ,intent(in)    :: A                 ! Matrix
-    type(fem_precond_t)           ,intent(in)    :: M                 ! Preconditioner
+    type(matrix_t)            ,intent(in)    :: A                 ! Matrix
+    type(precond_t)           ,intent(in)    :: M                 ! Preconditioner
     type(solver_control_t)        ,intent(inout) :: pars              ! Solver parameters
     integer(ip)                 ,intent(in)    :: ldb, ldx
     real(rp)           , target ,intent(in)    :: b(ldb, pars%nrhs) ! RHS
     real(rp)           , target ,intent(inout) :: x(ldx, pars%nrhs) ! Approximate solution
 
     ! Locals
-    type(fem_vector_t)         :: fem_b
-    type(fem_vector_t)         :: fem_x
+    type(vector_t)         :: vector_b
+    type(vector_t)         :: vector_x
     type(serial_environment_t) :: senv
     integer(ip)              :: k
     integer(ip)              :: tot_its
 
 !!$    if (pars%method == direct) then
-!!$       call fem_precond_apply (A, M, pars%nrhs, b, ldb, x, ldx)
+!!$       call precond_apply (A, M, pars%nrhs, vector_b, ldb, vector_x, ldx)
 !!$    else
     tot_its = 0 
     do k=1, pars%nrhs
        ! fill b members
-       fem_b%neq     =  A%gr%nv
-       fem_b%mode    =  reference
-       fem_b%b       => b(:,k)
+       vector_b%neq     =  A%gr%nv
+       vector_b%mode    =  reference
+       vector_b%b       => b(:,k)
        
-       ! fill x members
-       fem_x%neq     =  A%gr%nv
-       fem_x%mode    =  reference 
-       fem_x%b       => x(:,k)
+       ! fill vector_x members
+       vector_x%neq     =  A%gr%nv
+       vector_x%mode    =  reference 
+       vector_x%b       => x(:,k)
 
-       call abstract_solve (A, M, fem_b, fem_x, pars, senv)
+       call abstract_solve (A, M, vector_b, vector_x, pars, senv)
        
        tot_its = tot_its + pars%it
     end do
     pars%it = tot_its
 !!$    end if
-  end subroutine fem_matrix_fem_precond_r2_solve
+  end subroutine matrix_precond_r2_solve
 
-end module fem_matrix_fem_precond_solver_names
+end module matrix_precond_solver_names
 
 

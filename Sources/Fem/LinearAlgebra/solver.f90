@@ -26,39 +26,39 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !=============================================================================
-module fem_matrix_precond_vector_solver_names
+module matrix_precond_vector_solver_names
   ! Serial modules
   use types_names
   use solver_base_names
 
   ! Specialize generic_mat data structure and associated methods
-  use fem_matrix_names , only : &
-       &  generic_mat => fem_matrix_t, generic_info => fem_matrix_info, &
-       &  generic_matvec => fem_matvec
+  use matrix_names , only : &
+       &  generic_mat => matrix_t, generic_info => matrix_info, &
+       &  generic_matvec => matvec
 
   ! Specialize generic_pre data structure and associated methods
-  use fem_precond_names, only :  &
-       &  generic_pre    => fem_precond_t,   generic_precond => fem_precond_apply, &
-       &  generic_bcast  => fem_precond_bcast, generic_fine_task  => fem_precond_fine_task   
+  use precond_names, only :  &
+       &  generic_pre    => precond_t,   generic_precond => precond_apply, &
+       &  generic_bcast  => precond_bcast, generic_fine_task  => precond_fine_task   
 
   ! Specialize generic_vec data structure and associated methods
-  use fem_vector_names , only :  &
-       &  generic_vec    => fem_vector_t,       generic_dot     => fem_vector_dot,    &    
-       &  generic_copy   => fem_vector_copy,  generic_zero    => fem_vector_zero,   & 
-       &  generic_scale  => fem_vector_scale, generic_mxpy    => fem_vector_mxpy,   & 
-       &  generic_axpy   => fem_vector_axpy,  generic_aypx    => fem_vector_aypx,   & 
-       &  generic_pxpy   => fem_vector_pxpy,  generic_pxmy    => fem_vector_pxmy,   &
-       &  generic_nrm2   => fem_vector_nrm2,  generic_clone   => fem_vector_clone,  &
-       &  generic_free   => fem_vector_free,  generic_comm    => fem_vector_comm
+  use vector_names , only :  &
+       &  generic_vec    => vector_t,       generic_dot     => vector_dot,    &    
+       &  generic_copy   => vector_copy,  generic_zero    => vector_zero,   & 
+       &  generic_scale  => vector_scale, generic_mxpy    => vector_mxpy,   & 
+       &  generic_axpy   => vector_axpy,  generic_aypx    => vector_aypx,   & 
+       &  generic_pxpy   => vector_pxpy,  generic_pxmy    => vector_pxmy,   &
+       &  generic_nrm2   => vector_nrm2,  generic_clone   => vector_clone,  &
+       &  generic_free   => vector_free,  generic_comm    => vector_comm
   
   ! Specialize generic_krylov_basis data structure and associated methods
-  use fem_vector_krylov_basis_names, only :  &
-       &  generic_krylov_basis              => fem_vector_krylov_basis_t            , &
-       &  generic_krylov_basis_alloc        => fem_vector_krylov_basis_alloc        , & 
-       &  generic_krylov_basis_free         => fem_vector_krylov_basis_free         , &
-       &  generic_krylov_basis_extract_view => fem_vector_krylov_basis_extract_view , &
-       &  generic_krylov_basis_multidot     => fem_vector_krylov_basis_multidot     , &
-       &  generic_krylov_basis_multiaxpy    => fem_vector_krylov_basis_multiaxpy       
+  use vector_krylov_basis_names, only :  &
+       &  generic_krylov_basis              => vector_krylov_basis_t            , &
+       &  generic_krylov_basis_alloc        => vector_krylov_basis_alloc        , & 
+       &  generic_krylov_basis_free         => vector_krylov_basis_free         , &
+       &  generic_krylov_basis_extract_view => vector_krylov_basis_extract_view , &
+       &  generic_krylov_basis_multidot     => vector_krylov_basis_multidot     , &
+       &  generic_krylov_basis_multiaxpy    => vector_krylov_basis_multiaxpy       
 
   implicit none
   private
@@ -70,43 +70,43 @@ contains
 
 # include "solver.i90"
 
-end module fem_matrix_precond_vector_solver_names
+end module matrix_precond_vector_solver_names
 
 !=============================================================================
-module fem_block_matrix_block_precond_block_vector_solver_names
+module block_matrix_block_precond_block_vector_solver_names
   ! Serial modules
   use types_names
   use solver_base_names
 
   ! Specialize generic_mat data structure and associated methods
-  use fem_block_matrix_names , only : &
-       &  generic_mat => fem_block_matrix_t, generic_info => fem_block_matrix_info
+  use block_matrix_names , only : &
+       &  generic_mat => block_matrix_t, generic_info => block_matrix_info
 
-  use fem_block_matrix_vector_names, only : generic_matvec => fem_block_matvec  
+  use block_matrix_vector_names, only : generic_matvec => block_matvec  
 
   ! Specialize generic_pre data structure and associated methods
-  use fem_block_precond_names, only :  &
-       &  generic_pre    => fem_block_precond_t,   generic_precond => fem_block_precond_apply, &
-       &  generic_bcast  => fem_block_precond_bcast, generic_fine_task  => fem_block_precond_fine_task 
+  use block_precond_names, only :  &
+       &  generic_pre    => block_precond_t,   generic_precond => block_precond_apply, &
+       &  generic_bcast  => block_precond_bcast, generic_fine_task  => block_precond_fine_task 
   
   ! Specialize generic_vec data structure and associated methods 
-  use fem_block_vector_names , only :  &
-       &  generic_vec   => fem_block_vector_t,       generic_dot   => fem_block_vector_dot,   &    
-       &  generic_copy  => fem_block_vector_copy,  generic_zero  => fem_block_vector_zero,  & 
-       &  generic_scale => fem_block_vector_scale, generic_mxpy  => fem_block_vector_mxpy,  & 
-       &  generic_axpy  => fem_block_vector_axpy,  generic_aypx  => fem_block_vector_aypx,  & 
-       &  generic_pxpy  => fem_block_vector_pxpy,  generic_pxmy  => fem_block_vector_pxmy,  &
-       &  generic_nrm2  => fem_block_vector_nrm2,  generic_clone => fem_block_vector_clone, &
-       &  generic_free  => fem_block_vector_free,  generic_comm  => fem_block_vector_comm
+  use block_vector_names , only :  &
+       &  generic_vec   => block_vector_t,       generic_dot   => block_vector_dot,   &    
+       &  generic_copy  => block_vector_copy,  generic_zero  => block_vector_zero,  & 
+       &  generic_scale => block_vector_scale, generic_mxpy  => block_vector_mxpy,  & 
+       &  generic_axpy  => block_vector_axpy,  generic_aypx  => block_vector_aypx,  & 
+       &  generic_pxpy  => block_vector_pxpy,  generic_pxmy  => block_vector_pxmy,  &
+       &  generic_nrm2  => block_vector_nrm2,  generic_clone => block_vector_clone, &
+       &  generic_free  => block_vector_free,  generic_comm  => block_vector_comm
   
   ! Specialize generic_krylov_basis data structure and associated methods
-  use fem_block_vector_krylov_basis_names, only :  &
-       &  generic_krylov_basis              => fem_block_vector_krylov_basis_t              , &
-       &  generic_krylov_basis_alloc        => fem_block_vector_krylov_basis_alloc        , & 
-       &  generic_krylov_basis_free         => fem_block_vector_krylov_basis_free         , &
-       &  generic_krylov_basis_extract_view => fem_block_vector_krylov_basis_extract_view , &
-       &  generic_krylov_basis_multidot     => fem_block_vector_krylov_basis_multidot     , &
-       &  generic_krylov_basis_multiaxpy    => fem_block_vector_krylov_basis_multiaxpy       
+  use block_vector_krylov_basis_names, only :  &
+       &  generic_krylov_basis              => block_vector_krylov_basis_t              , &
+       &  generic_krylov_basis_alloc        => block_vector_krylov_basis_alloc        , & 
+       &  generic_krylov_basis_free         => block_vector_krylov_basis_free         , &
+       &  generic_krylov_basis_extract_view => block_vector_krylov_basis_extract_view , &
+       &  generic_krylov_basis_multidot     => block_vector_krylov_basis_multidot     , &
+       &  generic_krylov_basis_multiaxpy    => block_vector_krylov_basis_multiaxpy       
 
   implicit none
   private
@@ -118,23 +118,23 @@ contains
 
 # include "solver.i90"
 
-end module fem_block_matrix_block_precond_block_vector_solver_names
+end module block_matrix_block_precond_block_vector_solver_names
 
 !=============================================================================
 module solver_names
   use solver_base_names
-  use fem_matrix_precond_vector_solver_names, only: & 
-       &  fem_matrix_fem_precond_fem_vector_solve => generic_solve
+  use matrix_precond_vector_solver_names, only: & 
+       &  matrix_precond_vector_solve => generic_solve
 
-  use fem_block_matrix_block_precond_block_vector_solver_names, only: & 
-       &  fem_block_matrix_fem_block_precond_fem_block_vector_solve => generic_solve
+  use block_matrix_block_precond_block_vector_solver_names, only: & 
+       &  block_matrix_block_precond_block_vector_solve => generic_solve
   
   implicit none
   private
   
   interface solve
-     module procedure fem_matrix_fem_precond_fem_vector_solve, &
-          & fem_block_matrix_fem_block_precond_fem_block_vector_solve
+     module procedure matrix_precond_vector_solve, &
+          & block_matrix_block_precond_block_vector_solve
   end interface solve
   
   public :: solve

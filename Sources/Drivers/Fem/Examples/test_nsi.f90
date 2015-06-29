@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program test_nsi_iss
-  use fem_names
+  use serial_names
   use nsi_names
   use nsi_cg_iss_names
   use lib_vtk_io_interface_names
@@ -36,26 +36,26 @@ program test_nsi_iss
   ! Types
   type(geom_data_t)                    :: gdata
   type(bound_data_t)                   :: bdata
-  type(fem_fixed_info_t)               :: ginfo
-  type(fem_triangulation_t)            :: f_trian
-  type(fem_conditions_t)               :: f_cond
+  type(reference_element_t)            :: geo_reference_element
+  type(triangulation_t)                :: f_trian
+  type(conditions_t)                   :: f_cond
   type(dof_handler_t)                  :: dhand
   type(fe_space_t)                     :: fe_space  
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
-  type(nsi_cg_iss_matvec_t)   , target :: matvec
+  type(nsi_cg_iss_matvec_t)   , target :: cg_iss_matvec
   type(discrete_integration_pointer)   :: approx(1)
-  type(fem_matrix_t)          , target :: femat
-  type(fem_vector_t)          , target :: fevec,feunk
-  type(fem_precond_t)         , target :: feprec
-  type(fem_precond_params_t)           :: ppars
+  type(matrix_t)              , target :: femat
+  type(vector_t)              , target :: fevec,feunk
+  type(precond_t)                      :: feprec
+  type(precond_params_t)               :: ppars
   type(solver_control_t)               :: sctrl
   type(serial_environment_t)           :: senv
-  type(fem_vtk_t)                      :: fevtk
+  type(vtk_t)                          :: fevtk
   class(base_operand_t)      , pointer :: x, b
   class(base_operator_t)     , pointer :: A, M
-  type(fem_graph_t)          , pointer :: f_graph
-  type(fem_block_graph_t)              :: f_blk_graph
+  type(graph_t)              , pointer :: f_graph
+  type(block_graph_t)                  :: f_blk_graph
   type(plain_vector_t)                 :: enorm
   type(nsi_cg_iss_error_t)    , target :: ecalc
 
@@ -97,10 +97,10 @@ program test_nsi_iss
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
 
   ! Generate element geometrical fixed info
-  call finite_element_fixed_info_create(ginfo,Q_type_id,1,gdata%ndime,ginfo_state)
+  call finite_element_fixed_info_create(geo_reference_element,Q_type_id,1,gdata%ndime)
 
   ! Generate triangulation
-  call gen_triangulation(1,gdata,bdata,ginfo,f_trian,f_cond,material)
+  call gen_triangulation(1,gdata,bdata,geo_reference_element,f_trian,f_cond,material)
 
   ! Create dof_handler
   call dhand%create(1,1,gdata%ndime+1)
@@ -108,9 +108,9 @@ program test_nsi_iss
   ! Create problem
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
-  call matvec%create(myprob,mydisc)
+  call cg_iss_matvec%create(myprob,mydisc)
   call dhand%set_problem(1,mydisc)
-  approx(1)%p       => matvec
+  approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -145,15 +145,15 @@ program test_nsi_iss
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Allocate matrices and vectors
-  call fem_matrix_alloc(csr_mat,symm_false,f_graph,femat)
-  call fem_vector_alloc(f_graph%nv,fevec)
-  call fem_vector_alloc(f_graph%nv,feunk)
+  call matrix_alloc(csr_mat,symm_false,f_graph,femat)
+  call vector_alloc(f_graph%nv,fevec)
+  call vector_alloc(f_graph%nv,feunk)
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
-  call fem_update_strong_dirichlet_bcond(fe_space,f_cond)
-  call fem_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
-  call fem_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
+  call update_strong_dirichlet_bcond(fe_space,f_cond)
+  call update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
+  call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
   ! Solver control parameters
   sctrl%method = direct
@@ -162,9 +162,9 @@ program test_nsi_iss
 
   ! Construct preconditioner
   ppars%type   = pardiso_mkl_prec
-  call fem_precond_create(femat,feprec,ppars)
-  call fem_precond_symbolic(femat,feprec)
-  call fem_precond_log_info(feprec)
+  call precond_create(femat,feprec,ppars)
+  call precond_symbolic(femat,feprec)
+  call precond_log_info(feprec)
 
 !!$  ! Define operators
 !!$  A => femat
@@ -189,8 +189,8 @@ program test_nsi_iss
 !!$  call fem_update_solution(feunk,fe_space)
 
   ! Free preconditioner
-  call fem_precond_free(precond_free_struct,feprec)
-  call fem_precond_free(precond_free_clean,feprec)
+  call precond_free(precond_free_struct,feprec)
+  call precond_free(precond_free_clean,feprec)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -211,18 +211,18 @@ program test_nsi_iss
   call memfree(which_approx,__FILE__,__LINE__)
   call fevtk%free
   call f_blk_graph%free()
-  call fem_vector_free(feunk)
-  call fem_vector_free(fevec)
-  call fem_matrix_free(femat) 
+  call vector_free(feunk)
+  call vector_free(fevec)
+  call matrix_free(femat) 
   call fe_space_free(fe_space) 
   call myprob%free
   call mydisc%free
-  call matvec%free
   call ecalc%free
+  call cg_iss_matvec%free
   call dof_handler_free(dhand)
-  call fem_triangulation_free(f_trian)
-  call fem_conditions_free(f_cond)
-  call finite_element_fixed_info_free(ginfo)
+  call triangulation_free(f_trian)
+  call conditions_free(f_cond)
+  call finite_element_fixed_info_free(geo_reference_element)
   call bound_data_free(bdata)
   call enorm%free
 
@@ -287,8 +287,8 @@ contains
        ! Initialize Matrix and vector
        ! ***************** Abstract procedure to initialize a base_operator ************************!
        select type (A)
-       type is(fem_matrix_t)
-          call fem_matrix_zero(A)
+       type is(matrix_t)
+          call matrix_zero(A)
        class default
           check(.false.)
        end select
@@ -301,10 +301,10 @@ contains
        ! Compute Numeric preconditioner
        ! ***************** Abstract procedure to compute precond numeric ***************************!
        select type (A)
-       type is(fem_matrix_t)
+       type is(matrix_t)
           select type (M)
-          type is(fem_precond_t)
-             call fem_precond_numeric(A,M)
+          type is(precond_t)
+             call precond_numeric(A,M)
           class default
              check(.false.)
           end select
@@ -321,8 +321,8 @@ contains
        ! Free Numeric preconditioner
        ! ******************** Abstract procedure to free precond numeric ***************************!
        select type (M)
-       type is(fem_precond_t)
-          call fem_precond_free(precond_free_values,M)
+       type is(precond_t)
+          call precond_free(precond_free_values,M)
           class default
           check(.false.)
        end select
@@ -331,15 +331,15 @@ contains
        ! Store solution to unkno
        ! ***************** Abstract procedure to update from a base operant ************************!
        select type (x)
-       type is(fem_vector_t)
-          call fem_update_solution(x,fe_space)
+       type is(vector_t)
+          call update_solution(x,fe_space)
        class default
           check(.false.)
        end select
        !********************************************************************************************!
        
        ! Store nonlinear iteration ( k+1 --> k )
-       call fem_update_nonlinear(fe_space)
+       call update_nonlinear(fe_space)
 
        ! Check convergence
        x = b - A*x

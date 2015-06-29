@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_conditions_io_names
+module conditions_io_names
 use types_names
 use stdio_names
 use memor_names
-  use fem_conditions_names
+  use conditions_names
   implicit none
   private
 
   ! Functions
-  public :: fem_conditions_read_file, fem_conditions_read, fem_conditions_write, &
-       &    fem_conditions_write_file, fem_conditions_compose_name, & 
-       &    fem_conditions_write_files
+  public :: conditions_read_file, conditions_read, conditions_write, &
+       &    conditions_write_file, conditions_compose_name, & 
+       &    conditions_write_files
 
 contains
 
@@ -47,7 +47,7 @@ contains
   !  * implement other formats (when needed)
   !
   !=============================================================================
-  subroutine fem_conditions_read_file(lunio,npoin,nodes)
+  subroutine conditions_read_file(lunio,npoin,nodes)
     !------------------------------------------------------------------------
     !
     ! This routine reads conditions
@@ -55,7 +55,7 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)         , intent(in)            :: lunio,npoin
-    type(fem_conditions_t), intent(out)           :: nodes
+    type(conditions_t), intent(out)           :: nodes
     integer(ip)                                 :: i,ncode,nvalu,icode,ivalu,ipoin,iboun
     character(1024)                             :: tel
 
@@ -81,7 +81,7 @@ contains
        end if
     end do
 
-    call fem_conditions_create(ncode,nvalu,npoin,nodes)
+    call conditions_create(ncode,nvalu,npoin,nodes)
 
     ! Look for starting nodes conditions
     read(lunio,'(a)') tel
@@ -96,17 +96,17 @@ contains
        read(lunio,'(a)') tel
     end do
 
-  end subroutine fem_conditions_read_file
+  end subroutine conditions_read_file
 
   !=============================================================================
-  subroutine fem_conditions_write_file(lunio, nodes, bouns)
+  subroutine conditions_write_file(lunio, nodes, bouns)
     !------------------------------------------------------------------------
     !
     !------------------------------------------------------------------------
     implicit none
     integer(ip)                   , intent(in) :: lunio
-    type(fem_conditions_t)          , intent(in) :: nodes
-    type(fem_conditions_t), optional, intent(in) :: bouns
+    type(conditions_t)          , intent(in) :: nodes
+    type(conditions_t), optional, intent(in) :: bouns
     character(80) :: fmt
     integer(ip)   :: ipoin,iboun,icode,ivalu
 
@@ -125,85 +125,85 @@ contains
 1   format(a)
 2   format(a5,i10)
 
-  end subroutine fem_conditions_write_file
+  end subroutine conditions_write_file
 
  !=============================================================================
-  subroutine fem_conditions_compose_name ( prefix, name ) 
+  subroutine conditions_compose_name ( prefix, name ) 
     implicit none
     character (len=*)             , intent(in)  :: prefix 
     character (len=:), allocatable, intent(out) :: name
     name = trim(prefix) // '.cnd'
-  end subroutine fem_conditions_compose_name
+  end subroutine conditions_compose_name
 
  !=============================================================================
-  subroutine fem_conditions_write_files ( dir_path, prefix, nparts, lnodes, lbouns )
+  subroutine conditions_write_files ( dir_path, prefix, nparts, lnodes, lbouns )
     implicit none
     ! Parameters 
     character *(*), intent(in)       :: dir_path 
     character *(*), intent(in)       :: prefix
     integer(ip)   , intent(in)       :: nparts
-    type(fem_conditions_t), intent(in) :: lnodes (nparts)
-    type(fem_conditions_t), optional, intent(in) :: lbouns (nparts)
+    type(conditions_t), intent(in) :: lnodes (nparts)
+    type(conditions_t), optional, intent(in) :: lbouns (nparts)
     character(len=:), allocatable    :: name, rename
 
     ! Locals 
     integer (ip)                     :: i, lunio
 
-    call fem_conditions_compose_name ( prefix, name )
+    call conditions_compose_name ( prefix, name )
 
     do i=1,nparts
        rename = name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open(trim(dir_path)//'/'//trim(rename),'write' )
        if(present(lbouns)) then
-          call fem_conditions_write_file(lunio,lnodes(i),lbouns(i))
+          call conditions_write_file(lunio,lnodes(i),lbouns(i))
        else
-          call fem_conditions_write_file(lunio,lnodes(i))
+          call conditions_write_file(lunio,lnodes(i))
        end if
        call io_close(lunio)
     end do
 
-  end subroutine fem_conditions_write_files
+  end subroutine conditions_write_files
 
   !=============================================================================
-  subroutine fem_conditions_read ( dir_path, prefix, npoin, f_conditions )
+  subroutine conditions_read ( dir_path, prefix, npoin, f_conditions )
     implicit none 
     ! Parameters
     character (*)       , intent(in)  :: dir_path
     character (*)       , intent(in)  :: prefix
     integer(ip)         , intent(in)  :: npoin
-    type(fem_conditions_t), intent(out) :: f_conditions
+    type(conditions_t), intent(out) :: f_conditions
     
     ! Locals
     character(len=:), allocatable  :: name
     integer(ip) :: lunio
 
     ! Read conditions
-    call fem_conditions_compose_name ( prefix, name )
+    call conditions_compose_name ( prefix, name )
     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
-    call fem_conditions_read_file(lunio, npoin, f_conditions)
+    call conditions_read_file(lunio, npoin, f_conditions)
     call io_close(lunio)
     
-  end subroutine fem_conditions_read
+  end subroutine conditions_read
 
   !=============================================================================
-  subroutine fem_conditions_write ( dir_path, prefix, f_conditions )
+  subroutine conditions_write ( dir_path, prefix, f_conditions )
     implicit none 
     ! Parameters
     character (*)       , intent(in) :: dir_path
     character (*)       , intent(in) :: prefix
-    type(fem_conditions_t), intent(in) :: f_conditions
+    type(conditions_t), intent(in) :: f_conditions
     
     ! Locals
     character(len=:), allocatable  :: name
     integer(ip) :: lunio
 
     ! Read conditions
-    call fem_conditions_compose_name ( prefix, name )
+    call conditions_compose_name ( prefix, name )
     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
-    call fem_conditions_write_file(lunio, f_conditions)
+    call conditions_write_file(lunio, f_conditions)
     call io_close(lunio)
     
-  end subroutine fem_conditions_write
+  end subroutine conditions_write
 
-end module fem_conditions_io_names
+end module conditions_io_names

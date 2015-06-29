@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_materials_io_names
+module materials_io_names
   use types_names
   use stdio_names
   use memor_names
-  use fem_materials_names
+  use materials_names
   implicit none
   private
 
   ! Functions
-  public :: fem_materials_read_file, fem_materials_read,     &
-            fem_materials_compose_name, fem_materials_write, &
-            fem_materials_write_file, fem_materials_write_files
+  public :: materials_read_file, materials_read,     &
+            materials_compose_name, materials_write, &
+            materials_write_file, materials_write_files
 
 contains
 
@@ -47,7 +47,7 @@ contains
   !  * implement other formats (when needed)
   !
   !=============================================================================
-  subroutine fem_materials_read_file(lunio,mat)
+  subroutine materials_read_file(lunio,mat)
     !------------------------------------------------------------------------
     !
     ! This routine reads materials
@@ -55,7 +55,7 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)         , intent(in)            :: lunio 
-    type(fem_materials_t) , intent(out)           :: mat
+    type(materials_t) , intent(out)           :: mat
     integer(ip)                                 :: i,nelem,ielem
     character(1024)                             :: tel
 
@@ -73,7 +73,7 @@ contains
     end do
     nelem = nelem - 1
 
-    call fem_materials_create(nelem,mat)
+    call materials_create(nelem,mat)
 
     ! Look for starting nodes materials
   !  read(lunio,'(a)') tel
@@ -90,18 +90,18 @@ contains
 
     return
 
-  end subroutine fem_materials_read_file
+  end subroutine materials_read_file
 
 
   !=============================================================================
-  subroutine fem_materials_write_file(lunio,mater)
+  subroutine materials_write_file(lunio,mater)
     !------------------------------------------------------------------------
     !
     !------------------------------------------------------------------------
     implicit none
     ! Parameters
     integer(ip)        , intent(in) :: lunio
-    type(fem_materials_t), intent(in) :: mater
+    type(materials_t), intent(in) :: mater
     
     ! Locals
     integer(ip)                     :: ielem
@@ -115,79 +115,79 @@ contains
 1   format(a)
 2   format(i10,i10)
     
-  end subroutine fem_materials_write_file
+  end subroutine materials_write_file
 
   !=============================================================================
-  subroutine fem_materials_write ( dir_path, prefix, f_material )
+  subroutine materials_write ( dir_path, prefix, f_material )
     implicit none 
     ! Parameters
     character (*)       , intent(in)    :: dir_path
     character (*)       , intent(in)    :: prefix
-    type(fem_materials_t) , intent(inout) :: f_material
+    type(materials_t) , intent(inout) :: f_material
     
     ! Locals
     character(len=:), allocatable  :: name
     integer(ip) :: lunio
 
     ! Read materials
-    call fem_materials_compose_name ( prefix, name )
+    call materials_compose_name ( prefix, name )
     lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
-    call fem_materials_write_file(lunio, f_material)
+    call materials_write_file(lunio, f_material)
     call io_close(lunio)
     
-  end subroutine fem_materials_write
+  end subroutine materials_write
 
   !=============================================================================
-  subroutine fem_materials_compose_name ( prefix, name ) 
+  subroutine materials_compose_name ( prefix, name ) 
     implicit none
     character (len=*)             , intent(in)    :: prefix 
     character (len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.mat'
-  end subroutine fem_materials_compose_name
+  end subroutine materials_compose_name
 
   !=============================================================================
-  subroutine fem_materials_write_files ( dir_path, prefix, nparts, lmater )
+  subroutine materials_write_files ( dir_path, prefix, nparts, lmater )
     implicit none
     ! Parameters 
     character(*), intent(in)        :: dir_path 
     character(*), intent(in)        :: prefix
     integer(ip)   , intent(in)      :: nparts
-    type(fem_materials_t), intent(in) :: lmater (nparts)
+    type(materials_t), intent(in) :: lmater (nparts)
     character(len=:), allocatable   :: name, rename ! Deferred-length allocatable character arrays
 
     ! Locals 
     integer (ip)                     :: i, lunio
 
-    call fem_materials_compose_name ( prefix, name )
+    call materials_compose_name ( prefix, name )
 
     do i=1,nparts
        rename = name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open(trim(dir_path)//'/'//trim(rename),'write' )
-       call fem_materials_write_file(lunio,lmater(i))
+       call materials_write_file(lunio,lmater(i))
        call io_close(lunio)
     end do
 
-  end subroutine fem_materials_write_files
+  end subroutine materials_write_files
 
   !=============================================================================
-  subroutine fem_materials_read ( dir_path, prefix, f_materials )
+  subroutine materials_read ( dir_path, prefix, f_materials )
     implicit none 
     ! Parameters
     character (*)       , intent(in)  :: dir_path
     character (*)       , intent(in)  :: prefix
-    type(fem_materials_t) , intent(out) :: f_materials
+    type(materials_t) , intent(out) :: f_materials
     
     ! Locals
     character(len=:), allocatable  :: name
     integer(ip) :: lunio
 
     ! Read materials
-    call fem_materials_compose_name ( prefix, name )
+    call materials_compose_name ( prefix, name )
     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
-    call fem_materials_read_file(lunio, f_materials)
+    call materials_read_file(lunio, f_materials)
     call io_close(lunio)
     
-  end subroutine fem_materials_read
+  end subroutine materials_read
 
-end module fem_materials_io_names
+end module materials_io_names

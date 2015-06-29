@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module fem_triangulation_names
+module triangulation_names
   use types_names
   use memor_names
   use fe_space_types_names
@@ -40,7 +40,7 @@ module fem_triangulation_names
   type elem_topology_t
      integer(ip)               :: num_objects = -1    ! Number of objects
      integer(ip), allocatable  :: objects(:)          ! List of Local IDs of the objects (vertices, edges, faces) that make up this element
-     type(fem_fixed_info_t), pointer :: topology => NULL() ! Topological info of the geometry (SBmod)
+     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
      
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
@@ -54,7 +54,7 @@ module fem_triangulation_names
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around object 
   end type object_topology_t
 
-  type fem_triangulation_t
+  type triangulation_t
      integer(ip) :: state          =  triangulation_not_created  
      integer(ip) :: num_objects    = -1  ! number of objects 
      integer(ip) :: num_elems      = -1  ! number of elements
@@ -63,31 +63,31 @@ module fem_triangulation_names
      type(elem_topology_t), allocatable    :: elems(:) ! array of elements in the mesh.
      type(object_topology_t) , allocatable :: objects(:) ! array of objects in the mesh.
      type (position_hash_table_t)          :: pos_elem_info  ! Topological info hash table (SBmod)
-     type (fem_fixed_info_t)               :: lelem_info(max_elinf) ! List of topological info's
+     type (reference_element_t)               :: reference_elements(max_elinf) ! List of topological info's
      integer(ip)                         :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable            :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
-  end type fem_triangulation_t
+  end type triangulation_t
 
   ! Types
-  public :: fem_triangulation_t
+  public :: triangulation_t
 
   ! Main Subroutines 
-  public :: fem_triangulation_create, fem_triangulation_free, fem_triangulation_to_dual, triangulation_print
+  public :: triangulation_create, triangulation_free, triangulation_to_dual, triangulation_print
 
-  ! Auxiliary Subroutines (should only be used by modules that have control over type(fem_triangulation_t))
+  ! Auxiliary Subroutines (should only be used by modules that have control over type(triangulation_t))
   public :: free_elem_topology, free_object_topology, put_topology_element_triangulation, local_id_from_vertices
 
-  ! Constants (should only be used by modules that have control over type(fem_triangulation_t))
+  ! Constants (should only be used by modules that have control over type(triangulation_t))
   public :: triangulation_not_created, triangulation_filled
-  public :: fem_triangulation_free_elems_data, fem_triangulation_free_objs_data
+  public :: triangulation_free_elems_data, triangulation_free_objs_data
 
 contains
 
   !=============================================================================
-  subroutine fem_triangulation_create(len,trian)
+  subroutine triangulation_create(len,trian)
     implicit none
     integer(ip)            , intent(in)    :: len
-    type(fem_triangulation_t), intent(inout) :: trian
+    type(triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem
 
     trian%elem_array_len = len
@@ -108,18 +108,18 @@ contains
     call trian%pos_elem_info%init(ht_length)
 
 
-  end subroutine fem_triangulation_create
+  end subroutine triangulation_create
 
   !=============================================================================
-  subroutine fem_triangulation_free(trian)
+  subroutine triangulation_free(trian)
     implicit none
-    type(fem_triangulation_t), intent(inout) :: trian
+    type(triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
 
     assert(trian%state == triangulation_filled) 
 
-    call fem_triangulation_free_elems_data(trian)
-    call fem_triangulation_free_objs_data(trian)
+    call triangulation_free_elems_data(trian)
+    call triangulation_free_objs_data(trian)
     call memfree ( trian%lst_boundary_faces, __FILE__, __LINE__ )
 
     ! Deallocate the element structure array */
@@ -128,7 +128,7 @@ contains
 
     ! Deallocate fixed info
     do iobj = 1,trian%pos_elem_info%last()
-       call finite_element_fixed_info_free (trian%lelem_info(iobj))
+       call finite_element_fixed_info_free (trian%reference_elements(iobj))
     end do
     call trian%pos_elem_info%free
 
@@ -138,11 +138,11 @@ contains
     trian%num_dims = -1 
 
     trian%state = triangulation_not_created
-  end subroutine fem_triangulation_free
+  end subroutine triangulation_free
 
-  subroutine fem_triangulation_free_objs_data(trian)
+  subroutine triangulation_free_objs_data(trian)
     implicit none
-    type(fem_triangulation_t), intent(inout) :: trian
+    type(triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
     
     if ( trian%state == triangulation_filled ) then
@@ -153,11 +153,11 @@ contains
        deallocate(trian%objects, stat=istat)
        check(istat==0)
     end if
-  end subroutine fem_triangulation_free_objs_data
+  end subroutine triangulation_free_objs_data
 
-  subroutine fem_triangulation_free_elems_data(trian)
+  subroutine triangulation_free_elems_data(trian)
     implicit none
-    type(fem_triangulation_t), intent(inout) :: trian
+    type(triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
     
     if ( trian%state == triangulation_filled ) then
@@ -166,7 +166,7 @@ contains
        end do
     end if
 
-  end subroutine fem_triangulation_free_elems_data
+  end subroutine triangulation_free_elems_data
 
   ! Auxiliary subroutines
   subroutine initialize_object_topology (object)
@@ -200,7 +200,7 @@ contains
     end if
 
     element%num_objects = -1
-    nullify( element%topology )
+    nullify( element%geo_reference_element )
   end subroutine free_elem_topology
 
   subroutine initialize_elem_topology(element)
@@ -211,10 +211,10 @@ contains
     element%num_objects = -1
   end subroutine initialize_elem_topology
 
-  subroutine fem_triangulation_to_dual(trian, length_trian)  
+  subroutine triangulation_to_dual(trian, length_trian)  
     implicit none
     ! Parameters
-    type(fem_triangulation_t), intent(inout) :: trian
+    type(triangulation_t), intent(inout) :: trian
     integer(ip), optional, intent(in)      :: length_trian
 
     ! Locals
@@ -269,8 +269,8 @@ contains
     ! List elements and add object dimension
     do ielem=1, length_trian_
        do idime =1, trian%num_dims    ! (SBmod)
-          do iobj = trian%elems(ielem)%topology%nobje_dim(idime), &
-               trian%elems(ielem)%topology%nobje_dim(idime+1)-1 
+          do iobj = trian%elems(ielem)%geo_reference_element%nobje_dim(idime), &
+               trian%elems(ielem)%geo_reference_element%nobje_dim(idime+1)-1 
              !do iobj=1, trian%elems(ielem)%num_objects
              jobj = trian%elems(ielem)%objects(iobj)
              if (jobj /= -1) then ! jobj == -1 if object belongs to neighbouring processor
@@ -311,11 +311,11 @@ contains
     trian%state = triangulation_filled
 
 
-  end subroutine fem_triangulation_to_dual
+  end subroutine triangulation_to_dual
 
   subroutine put_topology_element_triangulation( ielem, trian ) !(SBmod)
     implicit none
-    type(fem_triangulation_t), intent(inout), target :: trian
+    type(triangulation_t), intent(inout), target :: trian
     integer(ip),             intent(in)            :: ielem
     ! Locals
     integer(ip) :: nobje, v_key, ndime, etype, pos_elinf, istat
@@ -347,10 +347,10 @@ contains
     call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
     if ( istat == new_index) then
        ! Create fixed info if not constructed
-       call finite_element_fixed_info_create(trian%lelem_info(pos_elinf),etype,  &
-            &                                     1,ndime,created)
+       call finite_element_fixed_info_create(trian%reference_elements(pos_elinf),etype,  &
+            &                                     1,ndime)
     end if
-    trian%elems(ielem)%topology => trian%lelem_info(pos_elinf)
+    trian%elems(ielem)%geo_reference_element => trian%reference_elements(pos_elinf)
 
   end subroutine put_topology_element_triangulation
 
@@ -363,12 +363,12 @@ contains
     integer(ip)              :: first, last, io, iv, jv, ivl, c
     lid = -1
 
-    do io = e%topology%nobje_dim(nd), e%topology%nobje_dim(nd+1)-1
-       first =  e%topology%crxob%p(io)
-       last = e%topology%crxob%p(io+1) -1
+    do io = e%geo_reference_element%nobje_dim(nd), e%geo_reference_element%nobje_dim(nd+1)-1
+       first =  e%geo_reference_element%crxob%p(io)
+       last = e%geo_reference_element%crxob%p(io+1) -1
        if ( last - first + 1  == no ) then 
           do iv = first,last
-             ivl = e%objects(e%topology%crxob%l(iv)) ! LID of vertices of the ef
+             ivl = e%objects(e%geo_reference_element%crxob%l(iv)) ! LID of vertices of the ef
              c = 0
              do jv = 1,no
                 if ( ivl ==  list(jv) ) then
@@ -390,7 +390,7 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in) :: lunou
-    type(fem_triangulation_t), intent(in) :: trian
+    type(triangulation_t), intent(in) :: trian
     integer(ip), optional, intent(in)      :: length_trian
 
     ! Locals
@@ -419,7 +419,7 @@ contains
        write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'order:', trian%elems(ielem)%order
 
-       !call finite_element_fixed_info_write ( trian%elems(ielem)%topology )
+       !call finite_element_fixed_info_write ( trian%elems(ielem)%geo_reference_element )
 
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
     end do
@@ -439,4 +439,4 @@ contains
     write (lunou,*) '****END PRINT TOPOLOGY****'
   end subroutine triangulation_print
 
-end module fem_triangulation_names
+end module triangulation_names

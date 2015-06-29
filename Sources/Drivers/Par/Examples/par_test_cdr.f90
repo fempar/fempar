@@ -29,7 +29,7 @@ program par_test_cdr
   !----------------------------------------------------------
   ! Parallel partitioner test
   !----------------------------------------------------------
-  use fem_names
+  use serial_names
   use par_names
   use cdr_names
   use cdr_stabilized_continuous_Galerkin_names 
@@ -180,8 +180,8 @@ program par_test_cdr
 
   if ( p_env%am_i_fine_task() ) then
      call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
-     !call fem_matrix_print ( 6, p_mat%f_matrix )
-     !call fem_vector_print ( 6, p_vec%f_vector )
+     !call matrix_print ( 6, p_mat%f_matrix )
+     !call vector_print ( 6, p_vec%f_vector )
   end if
 
   call p_unk%init(1.0_rp)
@@ -363,7 +363,7 @@ contains
 !!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
 !!$
 !!$    do ielem = 1, fe_space%g_trian%num_elems
-!!$       do iobje = 1,fe_space%lelem(ielem)%p_geo_info%nobje
+!!$       do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nobje
 !!$          do ivar=1, fe_space%dof_handler%problems(problem(ielem))%p%nvars
 !!$             
 !!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &

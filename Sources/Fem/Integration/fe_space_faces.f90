@@ -29,13 +29,13 @@ module fe_space_faces_names
   use types_names
   use memor_names
   use hash_table_names
-  use fem_mesh_names
+  use mesh_names
   !use integration_names
   use integration_tools_names
-  !  use fem_mesh_faces
+  !  use mesh_faces
   use fe_space_names
   use fe_space_types_names
-  use fem_triangulation_names
+  use triangulation_names
   use array_names
 
 # include "debug.i90"
@@ -53,13 +53,13 @@ contains
     implicit none
     ! Parameters
     type(fe_space_t)      , intent(inout),target  :: fe_space
-    type(fem_triangulation_t)   , intent(in), target   :: trian   
+    type(triangulation_t)   , intent(in), target   :: trian   
 
     ! Local variables
     integer(ip) :: iface, iobje, max_order, ielem, nvars, ivars, ndofs, pos_elmatvec
     integer(ip) :: i, l_faci, pos_faint, iprob, istat
     integer(ip) :: gtype, utype, g_ord, u_ord, v_key, iface_l, max_elmat, ndime
-    type(fem_fixed_info_pointer_t) :: gfinf, ufinf
+    type(reference_element_pointer_t) :: geo_reference_element, unk_reference_element
     integer(ip) :: aux_val
 
     !allocate(fe_space%interior_faces( fe_space%num_interior_faces ), stat=istat)
@@ -81,7 +81,7 @@ contains
              do ivars = 1, nvars
                 max_order = max(max_order,fe_space%finite_elements(ielem)%order(ivars))
              end do
-             ndofs = ndofs + fe_space%finite_elements(ielem)%f_inf(ivars)%p%nnode
+             ndofs = ndofs + fe_space%finite_elements(ielem)%reference_element_vars(ivars)%p%nnode
           end do
 
           ! Create elemental matrix and vectors
@@ -100,25 +100,25 @@ contains
              l_faci = local_position(iobje, trian%elems(ielem)%objects, &
                   & trian%elems(ielem)%num_objects )
              fe_space%interior_faces(iface_l)%local_face(i) = l_faci - &
-                  fe_space%g_trian%elems(ielem)%topology%nobje_dim(ndime) + 1 
+                  fe_space%g_trian%elems(ielem)%geo_reference_element%nobje_dim(ndime) + 1 
              nvars = fe_space%dof_handler%problems(iprob)%p%nvars
 
              call memalloc( nvars, fe_space%fe_faces(iface)%integ(i)%p, __FILE__, __LINE__ )
 
              do ivars = 1, nvars
-                gtype = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_info%ftype
-                utype = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%f_inf(ivars)%p%ftype
+                gtype = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_reference_element%ftype
+                utype = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%reference_element_vars(ivars)%p%ftype
                 !assert( utype == gtype )
-                g_ord = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_info%order
-                u_ord = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%f_inf(ivars)%p%order
+                g_ord = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_reference_element%order
+                u_ord = fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%reference_element_vars(ivars)%p%order
                 ! SB.alert : The last part to include gauss points being used
                 v_key =  utype + (max_FE_types+1)*u_ord + (max_FE_types+1)*(max_order+1)*max_order
 
                 call fe_space%pos_face_integrator%get(key=v_key, val=pos_faint, stat = istat)
                 if ( istat == new_index ) then 
-                   gfinf%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_info
-                   ufinf%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%f_inf(ivars)%p
-                   call face_integrator_create(gfinf,ufinf,ndime,fe_space%lfaci(pos_faint))
+                   geo_reference_element%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%p_geo_reference_element
+                   unk_reference_element%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(i))%reference_element_vars(ivars)%p
+                   call face_integrator_create(geo_reference_element,unk_reference_element,ndime,fe_space%lfaci(pos_faint))
                 end if
                 fe_space%fe_faces(iface)%integ(i)%p(ivars)%p => fe_space%lfaci(pos_faint)
 

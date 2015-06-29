@@ -29,7 +29,7 @@ module par_environment_names
   ! Serial modules
   use types_names
   use memor_names
-  use maps_names
+  use map_names
   use abstract_environment_names
 
   ! Parallel modules

@@ -196,7 +196,7 @@ contains
     type(vector_t)          :: gpvel, gpveln, force
 
     ! Checks
-    !check(finite_element%f_inf(1)%p%order > finite_element%f_inf(approx%physics%ndime+1)%p%order)
+    !check(finite_element%reference_element_vars(1)%p%order > finite_element%reference_element_vars(approx%physics%ndime+1)%p%order)
     check(finite_element%integ(1)%p%quad%ngaus == finite_element%integ(approx%physics%ndime+1)%p%quad%ngaus)
     do idime=2,approx%physics%ndime
        check(finite_element%integ(1)%p%uint_phy%nnode == finite_element%integ(idime)%p%uint_phy%nnode)
@@ -590,7 +590,7 @@ contains
   !   type(finite_element_t),     intent(inout) :: finite_element
   !   ! Locals
   !   type(block_elmat)        :: blk_elmat
-  !   type(fem_blocks)         :: vars_s
+  !   type(blocks)         :: vars_s
   !   integer(ip)              :: ldofs(2),nblks,nnode(2),nd,nv,mn
   !   integer(ip), allocatable :: nnode_oss(:),ldofs_oss(:)
 
@@ -600,33 +600,33 @@ contains
   !   assert(finite_element%integ(1)%p%quad%ngaus==finite_element%integ(2)%p%quad%ngaus)
     
   !   ! Allocate blk_elmat & blk_elvec locals
-  !   nnode(1) = finite_element%f_inf(1)%p%nnode
-  !   nnode(2) = finite_element%f_inf(2)%p%nnode
+  !   nnode(1) = finite_element%reference_element_vars(1)%p%nnode
+  !   nnode(2) = finite_element%reference_element_vars(2)%p%nnode
   !   if(prob%kfl_stab==2) then
   !      nblks=3
   !      call memalloc(nblks,nnode_oss,__FILE__,__LINE__)
   !      call memalloc(nblks,ldofs_oss,__FILE__,__LINE__)
   !      ldofs_oss(1) = prob%ndime; ldofs_oss(2)=1; ldofs_oss(3)=prob%ndime;
-  !      nnode_oss(1) = finite_element%f_inf(1)%p%nnode
-  !      nnode_oss(2) = finite_element%f_inf(2)%p%nnode
-  !      nnode_oss(3) = finite_element%f_inf(1)%p%nnode
-  !      call fem_blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
+  !      nnode_oss(1) = finite_element%reference_element_vars(1)%p%nnode
+  !      nnode_oss(2) = finite_element%reference_element_vars(2)%p%nnode
+  !      nnode_oss(3) = finite_element%reference_element_vars(1)%p%nnode
+  !      call blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
   !      call block_elmat_alloc(vars_s,nnode_oss,blk_elmat)
   !   elseif(prob%kfl_stab==3) then
   !      nblks=4
   !      call memalloc(nblks,nnode_oss,__FILE__,__LINE__)
   !      call memalloc(nblks,ldofs_oss,__FILE__,__LINE__)
   !      ldofs_oss(1) = prob%ndime; ldofs_oss(2)=1; ldofs_oss(3)=prob%ndime; ldofs_oss(4)=prob%ndime
-  !      nnode_oss(1) = finite_element%f_inf(1)%p%nnode
-  !      nnode_oss(2) = finite_element%f_inf(2)%p%nnode
-  !      nnode_oss(3) = finite_element%f_inf(1)%p%nnode
-  !      nnode_oss(4) = finite_element%f_inf(1)%p%nnode
-  !      call fem_blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
+  !      nnode_oss(1) = finite_element%reference_element_vars(1)%p%nnode
+  !      nnode_oss(2) = finite_element%reference_element_vars(2)%p%nnode
+  !      nnode_oss(3) = finite_element%reference_element_vars(1)%p%nnode
+  !      nnode_oss(4) = finite_element%reference_element_vars(1)%p%nnode
+  !      call blocks_alloc(scalar,nblks,ldofs_oss,vars_s)
   !      call block_elmat_alloc(vars_s,nnode_oss,blk_elmat)
   !   else
   !      nblks=2
   !      ldofs(1) = prob%ndime; ldofs(2)=1
-  !      call fem_blocks_alloc(scalar,nblks,ldofs,vars_s)
+  !      call blocks_alloc(scalar,nblks,ldofs,vars_s)
   !      call block_elmat_alloc(vars_s,nnode,blk_elmat)
   !   end if
 
@@ -695,7 +695,7 @@ contains
   !      call memfree(nnode_oss,__FILE__,__LINE__)
   !      call memfree(ldofs_oss,__FILE__,__LINE__)
   !   end if
-  !   call fem_blocks_free(vars_s)
+  !   call blocks_free(vars_s)
   !   call block_elmat_free(blk_elmat)
     
   ! end subroutine nsi_iss_element_mat

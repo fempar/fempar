@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_io_names
+module mesh_io_names
 use types_names
 use stdio_names
 use memor_names
-  use fem_mesh_names
+  use mesh_names
   implicit none
   private
 
   ! Functions
-  public :: fem_mesh_read, fem_mesh_write, &
-          & fem_mesh_compose_name, fem_mesh_write_file, &
-          & fem_mesh_write_files, fem_mesh_read_file, fem_mesh_read_files
+  public :: mesh_read, mesh_write, &
+          & mesh_compose_name, mesh_write_file, &
+          & mesh_write_files, mesh_read_file, mesh_read_files
 
 contains
 
@@ -47,15 +47,15 @@ contains
   !  * implement other formats (when needed)
   !
   !=============================================================================
-  subroutine fem_mesh_read_file(lunio,msh,permute_c2z)
+  subroutine mesh_read_file(lunio,msh,permute_c2z)
     !------------------------------------------------------------------------
     !
-    ! This routine reads a fem_mesh in GiD format.
+    ! This routine reads a mesh in GiD format.
     !
     !------------------------------------------------------------------------
     implicit none
     integer(ip)      , intent(in)  :: lunio
-    type(fem_mesh_t)   , intent(out) :: msh
+    type(mesh_t)   , intent(out) :: msh
     logical, optional, intent(in)  :: permute_c2z
     integer(ip)       :: i,inode,idime,ipoin,jpoin,ielem,jelem,istat,iboun
     character(1000)     :: tel
@@ -179,18 +179,18 @@ contains
     call memfree(aux,__FILE__,__LINE__)
     call memfree(permu,__FILE__,__LINE__)
  
-  end subroutine fem_mesh_read_file
+  end subroutine mesh_read_file
 
   !=============================================================================
-  subroutine fem_mesh_write_file (lunio,msh,title)
+  subroutine mesh_write_file (lunio,msh,title)
     !------------------------------------------------------------------------
     !
-    ! This routine writes a fem_mesh in GiD format.
+    ! This routine writes a mesh in GiD format.
     !
     !------------------------------------------------------------------------
     implicit none
     integer(ip)      , intent(in)           :: lunio
-    type(fem_mesh_t)   , intent(in)           :: msh
+    type(mesh_t)   , intent(in)           :: msh
     character(*)     , intent(in), optional :: title
 
     integer(ip)                    :: ielem, idime, ipoin, inode
@@ -242,73 +242,73 @@ contains
 5   format('BOUNDARY ',a,' Nnodb ',i2)
 6   format(i6,10(1x,i6))
 
-  end subroutine fem_mesh_write_file
+  end subroutine mesh_write_file
 
-  subroutine fem_mesh_compose_name ( prefix, name ) 
+  subroutine mesh_compose_name ( prefix, name ) 
     implicit none
     character(len=*)             , intent(in)    :: prefix 
     character(len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.msh'
-  end subroutine fem_mesh_compose_name
+  end subroutine mesh_compose_name
 
-  subroutine fem_mesh_write_files ( dir_path, prefix, nparts, lmesh )
+  subroutine mesh_write_files ( dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
      character(*)   , intent(in)  :: dir_path 
      character(*)   , intent(in)  :: prefix
      integer(ip)     , intent(in)  :: nparts
-     type(fem_mesh_t)  , intent(in)  :: lmesh (nparts)
+     type(mesh_t)  , intent(in)  :: lmesh (nparts)
 
      character(len=:), allocatable :: name, rename ! Deferred-length allocatable character arrays
 
      ! Locals 
      integer (ip) :: i,lunio
 
-     call fem_mesh_compose_name ( prefix, name )
+     call mesh_compose_name ( prefix, name )
 
      do i=nparts, 1, -1  
         rename=name
         call numbered_filename_compose(i,nparts,rename)
         lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
-        call fem_mesh_write_file(lunio,lmesh(i))
+        call mesh_write_file(lunio,lmesh(i))
         call io_close(lunio)
      end do
      
      ! name, and rename should be automatically deallocated by the compiler when they
      ! go out of scope. Should we deallocate them explicitly for safety reasons?
-   end subroutine fem_mesh_write_files
+   end subroutine mesh_write_files
 
-   subroutine fem_mesh_read_files ( dir_path, prefix, nparts, lmesh )
+   subroutine mesh_read_files ( dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
      character(*), intent(in)       :: dir_path 
      character(*), intent(in)       :: prefix
      integer(ip)   , intent(in)     :: nparts
-     type(fem_mesh_t), intent(out)    :: lmesh (nparts)
+     type(mesh_t), intent(out)    :: lmesh (nparts)
      character(len=:), allocatable  :: name, rename ! Deferred-length allocatable character arrays
      
      ! Locals 
      integer (ip)                     :: i,lunio
      
-     call fem_mesh_compose_name ( prefix, name )
+     call mesh_compose_name ( prefix, name )
     
      do i=nparts, 1, -1  
         rename=name
         call numbered_filename_compose(i,nparts,rename)
         lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' )
-        call fem_mesh_read_file(lunio,lmesh(i))
+        call mesh_read_file(lunio,lmesh(i))
         call io_close(lunio)
      end do
      
-   end subroutine fem_mesh_read_files
+   end subroutine mesh_read_files
 
   !=============================================================================
-   subroutine fem_mesh_read ( dir_path, prefix, f_mesh, permute_c2z )
+   subroutine mesh_read ( dir_path, prefix, f_mesh, permute_c2z )
      implicit none 
      ! Parameters
      character (*)                , intent(in)  :: dir_path
      character (*)                , intent(in)  :: prefix
-     type(fem_mesh_t)               , intent(out) :: f_mesh
+     type(mesh_t)               , intent(out) :: f_mesh
      logical, optional, intent(in)  :: permute_c2z
 
      ! Locals
@@ -317,35 +317,35 @@ contains
      character(len=:), allocatable  :: name
 
      ! Read mesh
-     call fem_mesh_compose_name ( prefix, name )
+     call mesh_compose_name ( prefix, name )
 
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
-     call fem_mesh_read_file(lunio, f_mesh, permute_c2z)
+     call mesh_read_file(lunio, f_mesh, permute_c2z)
      call io_close(lunio)
 
-   end subroutine fem_mesh_read
+   end subroutine mesh_read
 
    !=============================================================================
-   subroutine fem_mesh_write ( dir_path, prefix, f_mesh )
+   subroutine mesh_write ( dir_path, prefix, f_mesh )
      implicit none 
      ! Parameters
      character (*)                , intent(in)  :: dir_path
      character (*)                , intent(in)  :: prefix
-     type(fem_mesh_t)               , intent(in)  :: f_mesh
+     type(mesh_t)               , intent(in)  :: f_mesh
 
      ! Locals
      integer(ip)                    :: lunio
      character(len=:), allocatable  :: name
 
      ! Read mesh
-     call fem_mesh_compose_name ( prefix, name )
+     call mesh_compose_name ( prefix, name )
      
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
-     call fem_mesh_write_file(lunio, f_mesh)
+     call mesh_write_file(lunio, f_mesh)
      call io_close(lunio)
 
-   end subroutine fem_mesh_write
+   end subroutine mesh_write
    
 
 
-end module fem_mesh_io_names
+end module mesh_io_names

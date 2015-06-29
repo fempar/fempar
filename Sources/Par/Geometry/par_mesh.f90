@@ -28,9 +28,9 @@
 module par_mesh_names
   ! Serial modules
   use types_names
-  use fem_mesh_names
-  use fem_mesh_distribution_names
-  use fem_mesh_io_names
+  use mesh_names
+  use mesh_distribution_names
+  use mesh_io_names
   use stdio_names
 
   ! Parallel modules
@@ -43,8 +43,8 @@ module par_mesh_names
 
   ! Distributed mesh
   type par_mesh_t
-     type(fem_mesh_t)                 :: f_mesh
-     type(fem_mesh_distribution_t)    :: f_mesh_dist
+     type(mesh_t)                 :: f_mesh
+     type(mesh_distribution_t)    :: f_mesh_dist
      type(par_environment_t), pointer :: p_env
   end type par_mesh_t
 
@@ -96,8 +96,8 @@ contains
     if ( mode == free_clean ) then
        nullify (p_mesh%p_env)
     else if ( mode == free_only_struct ) then
-       call fem_mesh_free ( p_mesh%f_mesh )
-       call fem_mesh_distribution_free ( p_mesh%f_mesh_dist )
+       call mesh_free ( p_mesh%f_mesh )
+       call mesh_distribution_free ( p_mesh%f_mesh_dist )
     end if
   end subroutine par_mesh_free_progressively
   
@@ -136,18 +136,18 @@ contains
 
     p_mesh%p_env => p_env
     if(p_env%p_context%iam>=0) then
-       call fem_mesh_compose_name ( prefix, name )
+       call mesh_compose_name ( prefix, name )
        call par_filename( p_mesh%p_env%p_context, name )
        ! Read mesh
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-       call fem_mesh_read_file ( lunio, p_mesh%f_mesh, permute_c2z = .false. )
+       call mesh_read_file ( lunio, p_mesh%f_mesh, permute_c2z = .false. )
        call io_close(lunio)
 
-       call fem_mesh_distribution_compose_name ( prefix, name )
+       call mesh_distribution_compose_name ( prefix, name )
        call par_filename( p_mesh%p_env%p_context, name )
        ! Read mesh distribution control data
        lunio = io_open (trim(dir_path) // '/' // trim(name))
-       call fem_mesh_distribution_read ( lunio, p_mesh%f_mesh_dist )
+       call mesh_distribution_read ( lunio, p_mesh%f_mesh_dist )
        call io_close(lunio)
     end if
 

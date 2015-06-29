@@ -27,11 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module fe_space_types_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use sort_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
 
   implicit none
@@ -55,11 +55,11 @@ use iso_c_binding
   integer(ip), parameter       :: max_FE_types = 2
 
   ! Types
-  type fem_fixed_info_pointer_t
-     type(fem_fixed_info_t)     , pointer :: p => NULL()  
-  end type fem_fixed_info_pointer_t
+  type reference_element_pointer_t
+     type(reference_element_t)     , pointer :: p => NULL()  
+  end type reference_element_pointer_t
 
-  type fem_fixed_info_t
+  type reference_element_t
 
      integer(ip)              ::    &
           ftype,                    &        ! type of fem, e.g. 'P' 'Q' 'prism'...
@@ -81,7 +81,7 @@ use iso_c_binding
      type(list_t)   :: ndxob_int   !array of interior nodes per object when all nodes belong to interior
      type(list_t)   :: obxob       !array that list_ts all the objects in an object (idem ntxob for p = 2)
 
-  end type fem_fixed_info_t
+  end type reference_element_t
 
   ! Parameters 
   public :: max_nobje, ht_length, max_eltype, max_ndime, max_nnode, max_order
@@ -90,7 +90,7 @@ use iso_c_binding
   public :: P_type_id, Q_type_id, NULL_type_id
 
   ! Types
-  public :: fem_fixed_info_t, fem_fixed_info_pointer_t
+  public :: reference_element_t, reference_element_pointer_t
 
   ! Functions
   public :: finite_element_fixed_info_create, finite_element_fixed_info_free, &
@@ -104,7 +104,7 @@ use iso_c_binding
   public :: P_set_integ, P_refcoord
 
   !***********************************************************************
-  ! Allocatable arrays of type(fem_fixed_info_pointer_t)
+  ! Allocatable arrays of type(reference_element_pointer_t)
   !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -114,7 +114,7 @@ use iso_c_binding
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(fem_fixed_info_pointer_t)
+# define var_type type(reference_element_pointer_t)
 # define var_size 8
 # define bound_kind ip
 # include "mem_header.i90"
@@ -126,93 +126,89 @@ contains
 # include "mem_body.i90"
 
   !==================================================================================================
-  subroutine finite_element_fixed_info_create ( f_info, f_type, f_order, dim_space,created)
+  subroutine finite_element_fixed_info_create ( reference_element, f_type, f_order, dim_space)
     implicit none
     ! Parameters
-    type(fem_fixed_info_t),  intent(inout) :: f_info 
+    type(reference_element_t),  intent(inout) :: reference_element 
     integer(ip)          ,  intent(in)    :: f_type, f_order, dim_space
-    logical             ,  intent(inout) :: created
 
-    created = .false.
     if (f_type == P_type_id) then
-       call P_fixed_info_fill( f_info, dim_space,f_order)
-       created = .true.
+       call P_fixed_info_fill( reference_element, dim_space,f_order)
     elseif (f_type == Q_type_id) then
-       call Q_fixed_info_fill( f_info, dim_space,f_order)
-       created = .true.
+       call Q_fixed_info_fill( reference_element, dim_space,f_order)
     end if
   end subroutine finite_element_fixed_info_create
 
   !==================================================================================================
-  subroutine finite_element_fixed_info_write ( f )
+  subroutine finite_element_fixed_info_write ( reference_element )
     implicit none
     ! Parameters
-    type(fem_fixed_info_t),  intent(inout) :: f
+    type(reference_element_t),  intent(inout) :: reference_element
 
     integer(ip) :: i
 
-    write(*,*) 'ftype', f%ftype
-    write(*,*) 'order', f%order
-    write(*,*) 'nobje', f%nobje
-    write(*,*) 'nnode', f%nnode
-    write(*,*) 'nobje_dim', f%nobje_dim
-    write(*,*) 'nodes_obj', f%nodes_obj
+    write(*,*) 'ftype', reference_element%ftype
+    write(*,*) 'order', reference_element%order
+    write(*,*) 'nobje', reference_element%nobje
+    write(*,*) 'nnode', reference_element%nnode
+    write(*,*) 'nobje_dim', reference_element%nobje_dim
+    write(*,*) 'nodes_obj', reference_element%nodes_obj
 
     write(*,*) 'ndxob'
-    do i=1,f%nobje+1
-       write(*,*) f%ndxob%l(f%ndxob%p(i):f%ndxob%p(i+1)-1)
+    do i=1,reference_element%nobje+1
+       write(*,*) reference_element%ndxob%l(reference_element%ndxob%p(i):reference_element%ndxob%p(i+1)-1)
     end do
 
     write(*,*) 'ntxob'
-    do i=1,f%nobje+1
-       write(*,*) f%ntxob%l(f%ntxob%p(i):f%ntxob%p(i+1)-1)
+    do i=1,reference_element%nobje+1
+       write(*,*) reference_element%ntxob%l(reference_element%ntxob%p(i):reference_element%ntxob%p(i+1)-1)
     end do
     
     write(*,*) 'obxob'
-    do i=1,f%nobje+1
-       write(*,*) f%obxob%l(f%obxob%p(i):f%obxob%p(i+1)-1)
+    do i=1,reference_element%nobje+1
+       write(*,*) reference_element%obxob%l(reference_element%obxob%p(i):reference_element%obxob%p(i+1)-1)
     end do
 
     write(*,*) 'crxob'
-    do i=1,f%nobje+1
-       write(*,*) f%crxob%l(f%crxob%p(i):f%crxob%p(i+1)-1)
+    do i=1,reference_element%nobje+1
+       write(*,*) reference_element%crxob%l(reference_element%crxob%p(i):reference_element%crxob%p(i+1)-1)
     end do
   end subroutine finite_element_fixed_info_write
 
   !==================================================================================================
-  subroutine finite_element_fixed_info_free ( f_info)
+  subroutine finite_element_fixed_info_free ( reference_element)
     implicit none
     ! Parameters
-    type(fem_fixed_info_t),  intent(inout) :: f_info 
+    type(reference_element_t),  intent(inout) :: reference_element 
 
     !Deallocate nobje_dim, nodes_obj
-    !call memfree(f_info%nobje_dim,__FILE__,__LINE__)
-    !call memfree(f_info%nodes_obj,__FILE__,__LINE__)
-    call memfree(        f_info%o,__FILE__,__LINE__)   
+    !call memfree(reference_element%nobje_dim,__FILE__,__LINE__)
+    !call memfree(reference_element%nodes_obj,__FILE__,__LINE__)
+    call memfree(reference_element%o,__FILE__,__LINE__)   
 
     !Deallocate arrays
-    call memfree(f_info%ndxob%p,__FILE__,__LINE__)   !Pointer to f_info%ndxob%l for each object
-    call memfree(f_info%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memfree(f_info%ndxob_int%p,__FILE__,__LINE__)   !Pointer to f_info%ndxob_int%l for each object
-    call memfree(f_info%ndxob_int%l,__FILE__,__LINE__)   !Array of nodes of each object when all interior
-    call memfree(f_info%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
-    call memfree(f_info%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memfree(f_info%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
-    call memfree(f_info%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
-    call memfree(f_info%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
-    call memfree(f_info%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
+    call memfree(reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each object
+    call memfree(reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memfree(reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob_int%l for each object
+    call memfree(reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of nodes of each object when all interior
+    call memfree(reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
+    call memfree(reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memfree(reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
+    call memfree(reference_element%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
+    call memfree(reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
+    call memfree(reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
   end subroutine finite_element_fixed_info_free
 
   !==================================================================================================
   ! This routine gives a permutation vector 'permu' that gives the relative position of nodes in
-  ! object o2 of element e2 wrt the nodes in object o1 in element e1
-  subroutine permute_nodes_object(e1,e2,permu,o1,o2,ln1,ln2,od,q,subface1,subface2)
+  ! object o2 of element reference_element2 wrt the nodes in object o1 in element reference_element1
+  subroutine permute_nodes_object(reference_element1,reference_element2,permu,o1,o2,ln1,ln2,od,q,subface1,subface2)
     implicit none
     ! Parameters
-    type(fem_fixed_info_t), intent(in)   :: e1, e2   ! Info of the elements
+    type(reference_element_t), intent(in)   :: reference_element1, reference_element2   ! Info of the elements
     integer(ip)         , intent(out)  :: permu(:) ! Permutation vector
     integer(ip)         , intent(in)   :: o1,o2    ! Local identifier of the object in each element
-    integer(ip)         , intent(in)   :: ln1(e1%nobje), ln2(e2%nobje) ! lnods of each object
+    integer(ip)         , intent(in)   :: ln1(reference_element1%nobje), ln2(reference_element2%nobje) ! lnods of each object
     integer(ip)         , intent(in)   :: od       ! Dimension of the object
     integer(ip)         , intent(in)   :: q  
     integer(ip), optional, intent(in)  :: subface1,subface2
@@ -235,32 +231,32 @@ contains
     end if
 
     permu = 1
-    !c1 = ln1(e1%crxob%l(e1%crxob%p(o1)))  ! Global identifier of the object of the first corner
-    c1 = ln1(e1%crxob%l(e1%crxob%p(o1)+r0))  ! Global identifier of the object of the first corner
+    !c1 = ln1(reference_element1%crxob%l(reference_element1%crxob%p(o1)))  ! Global identifier of the object of the first corner
+    c1 = ln1(reference_element1%crxob%l(reference_element1%crxob%p(o1)+r0))  ! Global identifier of the object of the first corner
     r = 1
-    do i = e2%crxob%p(o2),e2%crxob%p(o2+1)-1
-       if ( ln2(e2%crxob%l(i)) == c1 ) exit
+    do i = reference_element2%crxob%p(o2),reference_element2%crxob%p(o2+1)-1
+       if ( ln2(reference_element2%crxob%l(i)) == c1 ) exit
        r = r+1
     end do
-    check ( ln2(e2%crxob%l(i)) == c1 )
+    check ( ln2(reference_element2%crxob%l(i)) == c1 )
 
     if (r0>0) then
        r = r-r0
        if (r < 1) then
-          num_corners = e2%crxob%p(o2+1)- e2%crxob%p(o2)
+          num_corners = reference_element2%crxob%p(o2+1)- reference_element2%crxob%p(o2)
           r = r + num_corners 
        end if
     end if
 
     if (od == 2) then
-       o = modulo(e1%o(o1)+e1%o(o2)+1,2)
+       o = modulo(reference_element1%o(o1)+reference_element1%o(o2)+1,2)
     else
        o = 0
     end if
 
-    if (e2%ftype == P_type_id) then
+    if (reference_element2%ftype == P_type_id) then
        call P_permute_or( permu,q,o,r,od )
-    elseif (e2%ftype == Q_type_id) then
+    elseif (reference_element2%ftype == Q_type_id) then
        call Q_permute_or( permu,q,o,r,od )
     else
        write(*,*) __FILE__,__LINE__,'WARNING! elem type not identified!'
@@ -272,14 +268,14 @@ contains
   !==================================================================================================
   !==================================================================================================
   !
-  ! P_fem_fixed_info
+  ! P_reference_element
   !
   !==================================================================================================
   !==================================================================================================
-  subroutine  P_fixed_info_fill(fefi,nd,p)
+  subroutine  P_fixed_info_fill(reference_element,nd,p)
     implicit none
     ! Parameters
-    type(fem_fixed_info_t) ,  intent(inout) :: fefi
+    type(reference_element_t) ,  intent(inout) :: reference_element
     integer(ip)          ,  intent(in)    :: nd, p ! nd = dimension. p = order.
 
     ! Local variables
@@ -300,11 +296,11 @@ contains
     nn = 0
 
     ! Initialize nobje_dim, nodes_obj
-    ! call memalloc(nd+2,fefi%nobje_dim,__FILE__,__LINE__)
-    ! call memalloc(nd+1,fefi%nodes_obj,__FILE__,__LINE__)
-    fefi%nodes_obj = 0
-    fefi%nobje_dim = 0
-    fefi%nobje_dim(1) = 1
+    ! call memalloc(nd+2,reference_element%nobje_dim,__FILE__,__LINE__)
+    ! call memalloc(nd+1,reference_element%nodes_obj,__FILE__,__LINE__)
+    reference_element%nodes_obj = 0
+    reference_element%nobje_dim = 0
+    reference_element%nobje_dim(1) = 1
 
     ! Fill nobje_dim, nodes_obj and compute nt, nc, nn
     do k = 0,nd
@@ -312,46 +308,46 @@ contains
        j = P_nnods(k,p)           ! #nodes object dim k order p
        nt = nt + i*j              ! nodes in the clousure of the object
        nc = nc + i*(k+1)          ! corners delimiting objects of dimension k
-       ! Pointer to obj id by dim. Local obj of dim k are fefi%nobje_dim(k):fefi%nobje_dim(k+1)
-       fefi%nobje_dim(k+2) = fefi%nobje_dim(k+1) + i  
+       ! Pointer to obj id by dim. Local obj of dim k are reference_element%nobje_dim(k):reference_element%nobje_dim(k+1)
+       reference_element%nobje_dim(k+2) = reference_element%nobje_dim(k+1) + i  
        ! #nodes in objects of dimension k
-       fefi%nodes_obj(k+1) = inods(k,p)
-       nn = nn + i*fefi%nodes_obj(k+1)      
+       reference_element%nodes_obj(k+1) = inods(k,p)
+       nn = nn + i*reference_element%nodes_obj(k+1)      
     end do
 
     ! Set no
-    no = fefi%nobje_dim(nd+2)-1    ! #objects
+    no = reference_element%nobje_dim(nd+2)-1    ! #objects
 
-    ! Set constant values of fem_fixed_info
-    fefi%ftype = P_type_id
-    fefi%order = p
-    fefi%nobje = no-1
-    fefi%nnode = nn
+    ! Set constant values of reference_element
+    reference_element%ftype = P_type_id
+    reference_element%order = p
+    reference_element%nobje = no-1
+    reference_element%nnode = nn
 
     ! Allocate arrays
-    call memalloc(no,        fefi%o,__FILE__,__LINE__)   ! Array of orientation of each object
-    call memalloc(no+1,fefi%ndxob%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
-    call memalloc(nn,  fefi%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memalloc(no+1,fefi%ndxob_int%p,__FILE__,__LINE__)   !Pointer to fefi%ndxob%l for each object
-    call memalloc(nn,  fefi%ndxob_int%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
-    call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memalloc(no+1,fefi%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
-    call memalloc(nt,  fefi%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
-    call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
-    call memalloc(nc,  fefi%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
+    call memalloc(no,        reference_element%o,__FILE__,__LINE__)   ! Array of orientation of each object
+    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each object
+    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each object
+    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of interior nodes of each object
+    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
+    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
+    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
+    call memalloc(nt,  reference_element%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
+    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
+    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
     call memalloc(nd+2,no,idcro,__FILE__,__LINE__) !Array of dim and corners belonging to each object
 
-    fefi%ndxob%p=0   !Pointer to fefi%ndxob%l for each object
-    fefi%ndxob%l=0     !Array of interior nodes of each object
-    fefi%ndxob_int%p=0   !Pointer to fefi%ndxob_int%l for each object
-    fefi%ndxob_int%l=0     !Array of interior nodes of each object when all nodes belong to volume
-    fefi%ntxob%p=0   !Pointer to ntxob%l for each object
-    fefi%ntxob%l=0     !Array of all nodes of each object
-    fefi%obxob%p=0   !Pointer to ntxob%l for each object
-    fefi%obxob%l=0     !Array of all objects of each object
-    fefi%crxob%p=0   !Pointer to crxob%l for each object
-    fefi%crxob%l=0     !Array of corners for each object
+    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each object
+    reference_element%ndxob%l=0     !Array of interior nodes of each object
+    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob_int%l for each object
+    reference_element%ndxob_int%l=0     !Array of interior nodes of each object when all nodes belong to volume
+    reference_element%ntxob%p=0   !Pointer to ntxob%l for each object
+    reference_element%ntxob%l=0     !Array of all nodes of each object
+    reference_element%obxob%p=0   !Pointer to ntxob%l for each object
+    reference_element%obxob%l=0     !Array of all objects of each object
+    reference_element%crxob%p=0   !Pointer to crxob%l for each object
+    reference_element%crxob%l=0     !Array of corners for each object
 
     ! Create auxiliar matrix nodes with the coordinates of the corners
     nodes = 0
@@ -360,9 +356,9 @@ contains
     end do
 
     ! Initialize pointers
-    fefi%ndxob%p(1) = 1
-    fefi%ntxob%p(1) = 1
-    fefi%crxob%p(1) = 1
+    reference_element%ndxob%p(1) = 1
+    reference_element%ntxob%p(1) = 1
+    reference_element%crxob%p(1) = 1
 
     ! Loop over dimensions
     do k = 0,nd
@@ -371,15 +367,15 @@ contains
        aux2 = k+1                   ! Corners for an object of dim k
 
        !Loop over objects of dimension k
-       do i = fefi%nobje_dim(k+1),fefi%nobje_dim(k+2)-1 
-          fefi%ndxob%p(i+1) = fefi%ndxob%p(i) + aux1 !assign pointers
-          fefi%ntxob%p(i+1) = fefi%ntxob%p(i) + aux3 !assign pointers
-          fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 !assign pointers 
+       do i = reference_element%nobje_dim(k+1),reference_element%nobje_dim(k+2)-1 
+          reference_element%ndxob%p(i+1) = reference_element%ndxob%p(i) + aux1 !assign pointers
+          reference_element%ntxob%p(i+1) = reference_element%ntxob%p(i) + aux3 !assign pointers
+          reference_element%crxob%p(i+1) = reference_element%crxob%p(i) + aux2 !assign pointers 
        end do
     end do
 
-    fefi%ndxob_int%p = 1
-    fefi%ndxob_int%p(no+1) = nn+1
+    reference_element%ndxob_int%p = 1
+    reference_element%ndxob_int%p(no+1) = nn+1
 
     ! Each object of dimension k is defined by a set of k+1 corners (idcro stores this info)
     i = 1
@@ -403,8 +399,8 @@ contains
        do i=1, bnm(nd+1,k+1)
           ! Fill crxob%l for object co
           co = co+1 
-          call P_orientation_object(fefi%o(co),k,nd,i)
-          fefi%crxob%l(c3+1:c3+k+1) = idcro(2:k+2,co)
+          call P_orientation_object(reference_element%o(co),k,nd,i)
+          reference_element%crxob%l(c3+1:c3+k+1) = idcro(2:k+2,co)
           c3 = c3 + k +1
 
           ! Objec stores the coordinates of the corners defining object co
@@ -414,13 +410,13 @@ contains
           end do
 
           ! Fill ntxobj and ndxobj for object co
-          call ntxob_fill(fefi%ntxob%l,c4,0,p,1,idm,nd,k,p,objec,nt)
-          call ntxob_fill(fefi%ndxob%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
+          call ntxob_fill(reference_element%ntxob%l,c4,0,p,1,idm,nd,k,p,objec,nt)
+          call ntxob_fill(reference_element%ndxob%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
        end do
     end do
 
     do i=1,nn
-       fefi%ndxob_int%l(i) = i
+       reference_element%ndxob_int%l(i) = i
     end do
 
     ! Deallocation of variable
@@ -429,33 +425,33 @@ contains
     ! write(*,*) 'orientation objects'
     ! do k = 1,nd
     !    write(*,*) 'dime', k, '--------------------------'
-    !    write(*,*) fefi%o(fefi%nobje_dim(k):fefi%nobje_dim(k+1)-1)
+    !    write(*,*) reference_element%o(reference_element%nobje_dim(k):reference_element%nobje_dim(k+1)-1)
     ! end do
     ! write(*,*) 'no+1', no+1, 'ndxob%p'
     ! do k = 1,no+1
-    !    write(*,*) fefi%ndxob%p(k), ', &'
+    !    write(*,*) reference_element%ndxob%p(k), ', &'
     ! end do
     ! write(*,*) 'nn', nn, 'ndxob%l'
     ! do k = 1,nn
-    !    write(*,*) fefi%ndxob%l(k), ', &'
+    !    write(*,*) reference_element%ndxob%l(k), ', &'
     ! end do
 
     ! write(*,*) 'no+1', no+1, 'ntxob%p'
     ! do k = 1,no+1
-    !    write(*,*) fefi%ntxob%p(k), ', &'
+    !    write(*,*) reference_element%ntxob%p(k), ', &'
     ! end do
     ! write(*,*) 'nt', nt, 'ntxob%l'
     ! do k = 1,nt
-    !    write(*,*) fefi%ntxob%l(k), ', &'
+    !    write(*,*) reference_element%ntxob%l(k), ', &'
     ! end do
 
     ! write(*,*) 'no+1', no+1, 'crxob%p'
     ! do k = 1,no+1
-    !    write(*,*) fefi%crxob%p(k), ', &'
+    !    write(*,*) reference_element%crxob%p(k), ', &'
     ! end do
     ! write(*,*) 'nc', nc, 'crxob%l'
     ! do k = 1,nc
-    !    write(*,*) fefi%crxob%l(k), ', &'
+    !    write(*,*) reference_element%crxob%l(k), ', &'
     ! end do
   end subroutine P_fixed_info_fill
 
@@ -895,15 +891,15 @@ contains
   !==================================================================================================
   !==================================================================================================
   !
-  ! Q_fem_fixed_info
+  ! Q_reference_element
   !
   !==================================================================================================
   !==================================================================================================
   !==================================================================================================
-  subroutine  Q_fixed_info_fill(fefi,nd,p)
+  subroutine  Q_fixed_info_fill(reference_element,nd,p)
     implicit none
     ! Parameters
-    type(fem_fixed_info_t), intent(inout) :: fefi
+    type(reference_element_t), intent(inout) :: reference_element
     integer(ip)          , intent(in)    :: nd,p ! nd = dimension. p = order.
 
     ! Local variables
@@ -931,11 +927,11 @@ contains
     nod = 0
 
     ! Initialize nobje_dim, nodes_obj
-    !call memalloc(nd+2,fefi%nobje_dim,__FILE__,__LINE__)
-    !call memalloc(nd+1,fefi%nodes_obj,__FILE__,__LINE__)
-    fefi%nodes_obj = 0
-    fefi%nobje_dim = 0
-    fefi%nobje_dim(1) = 1
+    !call memalloc(nd+2,reference_element%nobje_dim,__FILE__,__LINE__)
+    !call memalloc(nd+1,reference_element%nodes_obj,__FILE__,__LINE__)
+    reference_element%nodes_obj = 0
+    reference_element%nobje_dim = 0
+    reference_element%nobje_dim(1) = 1
 
     do k = 0,nd
        i = int(2**(nd-k)*bnm(nd,k)) ! #objects of dimension k
@@ -945,51 +941,51 @@ contains
        nt2 = nt2 + int(i*((3)**k))! objects in the clousure of the object
        nc = nc + int(i*2**k)        ! corners delimiting objects of dimension k
        nod = nod + bnm(nd,k)        ! #nodes/{displacement} (2^n = sum(bnm(n,k)), k=0,..,n)
-       ! Pointer to obj id by dim. Local obj of dim k are fefi%nobje_dim(k):fefi%nobje_dim(k+1)
-       fefi%nobje_dim(k+2) = fefi%nobje_dim(k+1) + i 
+       ! Pointer to obj id by dim. Local obj of dim k are reference_element%nobje_dim(k):reference_element%nobje_dim(k+1)
+       reference_element%nobje_dim(k+2) = reference_element%nobje_dim(k+1) + i 
        ! #nodes in objects of dimension k 
-       fefi%nodes_obj(k+1) = int((p-1)**k)
+       reference_element%nodes_obj(k+1) = int((p-1)**k)
     end do
 
-    ! Set constant values of fem_fixed_info
-    fefi%ftype = Q_type_id
-    fefi%order = p
-    fefi%nobje = no-1
-    fefi%nnode = int((p+1)**nd) 
+    ! Set constant values of reference_element
+    reference_element%ftype = Q_type_id
+    reference_element%order = p
+    reference_element%nobje = no-1
+    reference_element%nnode = int((p+1)**nd) 
 
     ! Allocate arrays
-    call memalloc(no,        fefi%o,__FILE__,__LINE__)  ! Array of orientation of each object
-    call memalloc(no+1,fefi%ndxob%p,__FILE__,__LINE__)  !Pointer to fefi%ndxob%l for each object
-    call memalloc(nn,  fefi%ndxob%l,__FILE__,__LINE__)  !Array of interior nodes of each object
-    call memalloc(no+1,fefi%ndxob_int%p,__FILE__,__LINE__)  !Pointer to fefi%ndxob%l for each object
-    call memalloc(nn,  fefi%ndxob_int%l,__FILE__,__LINE__)  !Array of interior nodes of each object
-    call memalloc(no+1,fefi%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each object
-    call memalloc(nt,  fefi%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each object
-    call memalloc(no+1,fefi%obxob%p,__FILE__,__LINE__)  !Pointer to obxob%l for each object
-    call memalloc(nt2,  fefi%obxob%l,__FILE__,__LINE__)  !Array of all objects of each object
-    call memalloc(no+1,fefi%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each object
-    call memalloc(nc,  fefi%crxob%l,__FILE__,__LINE__)  !Array of corners for each object
+    call memalloc(no,        reference_element%o,__FILE__,__LINE__)  ! Array of orientation of each object
+    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each object
+    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)  !Array of interior nodes of each object
+    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each object
+    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)  !Array of interior nodes of each object
+    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each object
+    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each object
+    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)  !Pointer to obxob%l for each object
+    call memalloc(nt2,  reference_element%obxob%l,__FILE__,__LINE__)  !Array of all objects of each object
+    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each object
+    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)  !Array of corners for each object
     call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
     call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
     call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
 
-    fefi%ndxob%p=0   !Pointer to fefi%ndxob%l for each object
-    fefi%ndxob%l=0   !Array of interior nodes of each object
-    fefi%ndxob_int%p=0   !Pointer to fefi%ndxob%l for each object
-    fefi%ndxob_int%l=0   !Array of interior nodes of each object
-    fefi%ntxob%p=0   !Pointer to ntxob%l for each object
-    fefi%obxob%l=0   !Array of all nodes of each object
-    fefi%obxob%p=0   !Pointer to obxob%l for each object
-    fefi%ntxob%l=0   !Array of all nodes of each object
-    fefi%crxob%p=0   !Pointer to crxob%l for each object
-    fefi%crxob%l=0   !Array of corners for each object
+    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each object
+    reference_element%ndxob%l=0   !Array of interior nodes of each object
+    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob%l for each object
+    reference_element%ndxob_int%l=0   !Array of interior nodes of each object
+    reference_element%ntxob%p=0   !Pointer to ntxob%l for each object
+    reference_element%obxob%l=0   !Array of all nodes of each object
+    reference_element%obxob%p=0   !Pointer to obxob%l for each object
+    reference_element%ntxob%l=0   !Array of all nodes of each object
+    reference_element%crxob%p=0   !Pointer to crxob%l for each object
+    reference_element%crxob%l=0   !Array of corners for each object
 
 
     !Initialize pointers
-    fefi%ndxob%p(1) = 1
-    fefi%ntxob%p(1) = 1
-    fefi%obxob%p(1) = 1
-    fefi%crxob%p(1) = 1
+    reference_element%ndxob%p(1) = 1
+    reference_element%ntxob%p(1) = 1
+    reference_element%obxob%p(1) = 1
+    reference_element%crxob%p(1) = 1
 
     !Loop over dimensions
     do k = 0,nd
@@ -999,16 +995,16 @@ contains
        aux4 = int((3**k)) ! Corners for an object of dim k (idem p=2)
 
        ! Loop over objects of dimension k
-       do i = fefi%nobje_dim(k+1),fefi%nobje_dim(k+2)-1 
-          fefi%ndxob%p(i+1) = fefi%ndxob%p(i) + aux1 ! assign pointers
-          fefi%ntxob%p(i+1) = fefi%ntxob%p(i) + aux3 ! assign pointers
-          fefi%crxob%p(i+1) = fefi%crxob%p(i) + aux2 ! assign pointers
-          fefi%obxob%p(i+1) = fefi%obxob%p(i) + aux4 ! assign pointers 
+       do i = reference_element%nobje_dim(k+1),reference_element%nobje_dim(k+2)-1 
+          reference_element%ndxob%p(i+1) = reference_element%ndxob%p(i) + aux1 ! assign pointers
+          reference_element%ntxob%p(i+1) = reference_element%ntxob%p(i) + aux3 ! assign pointers
+          reference_element%crxob%p(i+1) = reference_element%crxob%p(i) + aux2 ! assign pointers
+          reference_element%obxob%p(i+1) = reference_element%obxob%p(i) + aux4 ! assign pointers 
        end do
     end do
 
-    fefi%ndxob_int%p = 1
-    fefi%ndxob_int%p(no+1) = nn+1
+    reference_element%ndxob_int%p = 1
+    reference_element%ndxob_int%p(no+1) = nn+1
 
     ! Initialize auxiliar values
     k = 0
@@ -1032,7 +1028,7 @@ contains
     idm = 0
     fdm = 0
     cd  = 0
-    c2  = 0 ! fefi%ndxob%p counter
+    c2  = 0 ! reference_element%ndxob%p counter
     c3  = 0 ! crxob%p counter
     c4  = 0 ! ntxob%p counter
     c5  = 0 ! obxob%p counter
@@ -1133,7 +1129,7 @@ contains
 
              ! Set orientation of the object
              co = co +1
-             call Q_orientation_object(fefi%o(co),fdm(1:nd-od),od,nd,l)
+             call Q_orientation_object(reference_element%o(co),fdm(1:nd-od),od,nd,l)
 
              !ijk_g(jdm) will contain the translations from one object to another
              !ijk_g(idm) will contain the variations inside the object
@@ -1147,7 +1143,7 @@ contains
                    ijk_g(idm(k)+1) = auxt2(k,m)
                 end do
                 c2 = c2+1
-                fefi%crxob%l(c2) = Q_gijk(ijk_g,nd,1) !store the object numbering of the corner 
+                reference_element%crxob%l(c2) = Q_gijk(ijk_g,nd,1) !store the object numbering of the corner 
              end do
           end do
 
@@ -1166,7 +1162,7 @@ contains
                    ijk_g(idm(k)+1) = auxt3(k,m)
                 end do
                 c3 = c3+1
-                fefi%ndxob%l(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in fefi%ndxob%l
+                reference_element%ndxob%l(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in reference_element%ndxob%l
              end do
           end do
 
@@ -1185,7 +1181,7 @@ contains
                    ijk_g(idm(k)+1) = auxt4(k,m)
                 end do
                 c4 = c4+1
-                fefi%ntxob%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
+                reference_element%ntxob%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
              end do
           end do
 
@@ -1206,7 +1202,7 @@ contains
                    ijk_g(idm(k)+1) = auxt6(k,m)
                 end do
                 c6 = c6+1
-                ob2node(c6) = Q_gijk(ijk_g,nd,2) ! Store the local numbering in fefi%ndxob%l
+                ob2node(c6) = Q_gijk(ijk_g,nd,2) ! Store the local numbering in reference_element%ndxob%l
              end do
           end do
 
@@ -1224,7 +1220,7 @@ contains
                    ijk_g(idm(k)+1) = auxt5(k,m)
                 end do
                 c5 = c5 +1
-                fefi%obxob%l(c5) = Q_gijk(ijk_g,nd,2)
+                reference_element%obxob%l(c5) = Q_gijk(ijk_g,nd,2)
              end do
 
              ! Define ijk_g for the node in the center of the object
@@ -1258,16 +1254,16 @@ contains
 
     ! Modify the identifiers of the nodes by the ids of the object in obxob
     do c5 = 1, nt2
-       fefi%obxob%l(c5) = node2ob(fefi%obxob%l(c5))
+       reference_element%obxob%l(c5) = node2ob(reference_element%obxob%l(c5))
     end do
 
     ! Sort the array 
     !do co = 1, no
-    !   call sort(fefi%obxob%p(co+1)-fefi%obxob%p(co),fefi%obxob%l(fefi%obxob%p(co):fefi%obxob%p(co+1)))
+    !   call sort(reference_element%obxob%p(co+1)-reference_element%obxob%p(co),reference_element%obxob%l(reference_element%obxob%p(co):reference_element%obxob%p(co+1)))
     !end do
 
     do i=1,nn
-       fefi%ndxob_int%l(i) = i
+       reference_element%ndxob_int%l(i) = i
     end do
 
     ! Deallocate OBDLA
@@ -1276,38 +1272,38 @@ contains
     call memfree(node2ob,__FILE__,__LINE__)
 
     ! ! Create the face permutation of nodes
-    ! if (nd>2) then call memalloc(2*2**2,fefi%nodes_obj(3),fefi%o2n,__FILE__,__LINE__)
+    ! if (nd>2) then call memalloc(2*2**2,reference_element%nodes_obj(3),reference_element%o2n,__FILE__,__LINE__)
 
     ! write(*,*) 'orientation objects'
     ! do od = 1,nd
     !    write(*,*) 'dime', od, '--------------------------'
-    !    write(*,*) fefi%o(fefi%nobje_dim(od):fefi%nobje_dim(od+1)-1)
+    !    write(*,*) reference_element%o(reference_element%nobje_dim(od):reference_element%nobje_dim(od+1)-1)
     ! end do
     ! write(*,*) 'no+1', no+1, 'ndxob%p'
     ! do od = 1,no+1
-    !    write(*,*) fefi%ndxob%p(od), ', &'
+    !    write(*,*) reference_element%ndxob%p(od), ', &'
     ! end do
     ! write(*,*) 'nn', nn, 'ndxob%l'
     ! do od = 1,nn
-    !    write(*,*) fefi%ndxob%l(od), ', &'
+    !    write(*,*) reference_element%ndxob%l(od), ', &'
     ! end do
 
     ! write(*,*) 'no+1', no+1, 'ntxob%p'
     ! do od = 1,no+1
-    !    write(*,*) fefi%ntxob%p(od), ', &'
+    !    write(*,*) reference_element%ntxob%p(od), ', &'
     ! end do
     ! write(*,*) 'nt', nt, 'ntxob%l'
     ! do od = 1,nt
-    !    write(*,*) fefi%ntxob%l(od), ', &'
+    !    write(*,*) reference_element%ntxob%l(od), ', &'
     ! end do
 
     ! write(*,*) 'no+1', no+1, 'crxob%p'
     ! do od = 1,no+1
-    !    write(*,*) fefi%crxob%p(od), ', &'
+    !    write(*,*) reference_element%crxob%p(od), ', &'
     ! end do
     ! write(*,*) 'nc', nc, 'crxob%l'
     ! do od = 1,nc
-    !    write(*,*) fefi%crxob%l(od), ', &'
+    !    write(*,*) reference_element%crxob%l(od), ', &'
     ! end do
   end subroutine Q_fixed_info_fill
 

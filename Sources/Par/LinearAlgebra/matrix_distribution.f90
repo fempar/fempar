@@ -25,19 +25,19 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_matrix_distribution_names
+module matrix_distribution_names
 use types_names
 use memor_names
-  use fem_matrix_names
+  use matrix_names
   use dof_distribution_names
   implicit none
 # include "debug.i90"
   private
 
-  public :: fem_matrix_split_2x2_partitioning
+  public :: matrix_split_2x2_partitioning
 
 contains
-  subroutine fem_matrix_split_2x2_partitioning (  output_symm, &
+  subroutine matrix_split_2x2_partitioning (  output_symm, &
                                                    A, dof_dist, A_II, A_IG, A_GI, A_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
@@ -63,7 +63,7 @@ contains
     !                   A_GI and A_GG is already associated. Otherwise, it 
     !                   does not work.
     !
-    ! * TO-DO: Unpack member allocatable arrays of fem_matrix
+    ! * TO-DO: Unpack member allocatable arrays of matrix
     !          into explicit size arrays and pass them to auxiliary routines 
     !          for performance reasons
     !-----------------------------------------------------------------------
@@ -71,13 +71,13 @@ contains
 
     ! Parameters
     integer(ip)           , intent(in)                :: output_symm
-    type(fem_matrix_t)      , intent(in)                :: A
+    type(matrix_t)      , intent(in)                :: A
     type(dof_distribution_t), intent(in)                :: dof_dist 
 
-    type(fem_matrix_t)     , intent(inout), optional   :: A_II
-    type(fem_matrix_t)     , intent(inout), optional   :: A_IG
-    type(fem_matrix_t)     , intent(inout), optional   :: A_GI
-    type(fem_matrix_t)     , intent(inout), optional   :: A_GG
+    type(matrix_t)     , intent(inout), optional   :: A_II
+    type(matrix_t)     , intent(inout), optional   :: A_IG
+    type(matrix_t)     , intent(inout), optional   :: A_GI
+    type(matrix_t)     , intent(inout), optional   :: A_GG
 
     integer :: ipoing, offset
 
@@ -100,7 +100,7 @@ contains
        ni_cols = dof_dist%ni  
        nb_cols = dof_dist%nb  
 
-    ! If any inout fem_matrix is present, we are done !
+    ! If any inout matrix is present, we are done !
     if ( csr_mat_unsymm ) then 
        if ( .not. (present(A_II) .or. present(A_IG) & 
             & .or. present(A_GI) .or. present(A_GG) ) ) return
@@ -199,6 +199,6 @@ contains
        end do
     end if
 
-  end subroutine fem_matrix_split_2x2_partitioning
+  end subroutine matrix_split_2x2_partitioning
 
-end module fem_matrix_distribution_names
+end module matrix_distribution_names

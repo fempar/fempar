@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module maps_names
+module map_names
   use types_names
   use memor_names
   implicit none
@@ -185,4 +185,4 @@ contains
     end if
   end subroutine map_read_igp
 
-end module maps_names
+end module map_names

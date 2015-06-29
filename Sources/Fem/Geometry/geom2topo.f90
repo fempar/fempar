@@ -28,21 +28,21 @@
 module geom2topo_names
   use types_names
   use memor_names
-  use fem_mesh_names
+  use mesh_names
   use fe_space_names
   use fe_space_types_names
   use interpolation_names
-  use fem_conditions_names
+  use conditions_names
   !use element_gather_tools
   implicit none
 # include "debug.i90"
   private
 
-  interface fem_mesh_topology
+  interface mesh_topology
      module procedure geom2topo_mesh_cond!geom2topo_mesh,  
-    end interface fem_mesh_topology
+    end interface mesh_topology
   ! Functions
-  public ::  geom2topo_mesh_cond, fem_mesh_topology ! geom2topo_coord,
+  public ::  geom2topo_mesh_cond, mesh_topology ! geom2topo_coord,
 
 contains
 
@@ -71,13 +71,13 @@ contains
     !
     !------------------------------------------------------------------------------------------------
     ! Parameters
-    type(fem_mesh_t)                , intent(in)    :: gmsh
-    type(fem_mesh_t)                , intent(out)   :: omsh
-    type(fem_conditions_t), optional, intent(in)    :: gcnd
-    type(fem_conditions_t), optional, intent(out)   :: ocnd
+    type(mesh_t)                , intent(in)    :: gmsh
+    type(mesh_t)                , intent(out)   :: omsh
+    type(conditions_t), optional, intent(in)    :: gcnd
+    type(conditions_t), optional, intent(out)   :: ocnd
 
     ! Local variables
-    type(fem_fixed_info_t)     :: f_inf
+    type(reference_element_t)     :: reference_element
     integer(ip)              :: etype,nodim(3),nndim(3)
     integer(ip)              :: i,j,k,r,s, t
     integer(ip)              :: nobje,gp,op,nd_i(2),nd_j(2)
@@ -86,7 +86,7 @@ contains
     integer(ip), allocatable :: nd_jf(:), fnode(:)
     integer(ip), allocatable :: nelpo_aux(:), lelpo_aux(:), aux1(:)
     integer(ip), allocatable :: edgeint(:,:), faceint(:,:)
-    logical              :: created,kfl_bc
+    logical              :: kfl_bc
 
     ! Create ocnd flag
     kfl_bc = (present(gcnd) .and. present(ocnd))
@@ -109,28 +109,27 @@ contains
        end if
     end if
     
-    ! Construct fem_fixed_info
-    call finite_element_fixed_info_create(f_inf,etype,1,gmsh%ndime,created)
-    assert(created)
+    ! Construct reference_element
+    call finite_element_fixed_info_create(reference_element,etype,1,gmsh%ndime)
 
     ! Construct the array of #objects(nodim) and #nodesxobject(nndim) for each dimension
     nodim = 0
     do i = 1,gmsh%ndime
-       nodim(i) = f_inf%nobje_dim(i+1)-f_inf%nobje_dim(i)  
-       nndim(i) = f_inf%ntxob%p(f_inf%nobje_dim(i)+1) - f_inf%ntxob%p(f_inf%nobje_dim(i))
+       nodim(i) = reference_element%nobje_dim(i+1)-reference_element%nobje_dim(i)  
+       nndim(i) = reference_element%ntxob%p(reference_element%nobje_dim(i)+1) - reference_element%ntxob%p(reference_element%nobje_dim(i))
     end do
     nobje=gmsh%nnode+nodim(2)+nodim(3) ! Total number of objects per element
    
     ! Allocation of auxiliar arrays
-    call memalloc(gmsh%npoin+1,          nelpo_aux,  'fem_mesh_topology::nelpo_aux')
-    call memalloc(  gmsh%npoin,               aux1,       'fem_mesh_topology::aux1')
-    call memalloc(gmsh%nelem*gmsh%nnode, lelpo_aux,  'fem_mesh_topology::lelpo_aux')
-    call memalloc(gmsh%nelem,  nodim(2),   edgeint,    'fem_mesh_topology::edgeint')
-    if(gmsh%ndime==3) call memalloc(gmsh%nelem, nodim(3), faceint, 'fem_mesh_topology::edgeint')
+    call memalloc(gmsh%npoin+1,          nelpo_aux,  'mesh_topology::nelpo_aux')
+    call memalloc(  gmsh%npoin,               aux1,       'mesh_topology::aux1')
+    call memalloc(gmsh%nelem*gmsh%nnode, lelpo_aux,  'mesh_topology::lelpo_aux')
+    call memalloc(gmsh%nelem,  nodim(2),   edgeint,    'mesh_topology::edgeint')
+    if(gmsh%ndime==3) call memalloc(gmsh%nelem, nodim(3), faceint, 'mesh_topology::edgeint')
 
     ! Allocate omsh vectors
-    call memalloc(       gmsh%nelem+1,  omsh%pnods, 'fem_mesh_topology::omsh%pnods')
-    call memalloc(gmsh%nelem*nobje, omsh%lnods , 'fem_mesh_topology::omsh%lnods')
+    call memalloc(       gmsh%nelem+1,  omsh%pnods, 'mesh_topology::omsh%pnods')
+    call memalloc(gmsh%nelem*nobje, omsh%lnods , 'mesh_topology::omsh%lnods')
 
     ! Initialization
     omsh%npoin = gmsh%npoin ! Number of objects (nodes + edges + faces)
@@ -184,8 +183,8 @@ contains
           if(edgeint(ielem,i)==0) then
              already_counted=0
              gp = gmsh%nnode*(ielem-1)
-             nd_i(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)))
-             nd_i(2) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)+1))
+             nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)))
+             nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)+1))
 
              ! Loop over the elements around corner j
              do t = nelpo_aux(nd_i(1)),nelpo_aux(nd_i(1)+1)-1
@@ -195,8 +194,8 @@ contains
                    gp = gmsh%nnode*(jelem-1)
 
                    do k=1,nodim(2)
-                      nd_j(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)))
-                      nd_j(2) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)+1))
+                      nd_j(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)))
+                      nd_j(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)+1))
 
                       counter=0
                       do r=1,nndim(2)
@@ -239,15 +238,15 @@ contains
        ! First:: generate the common faces
        faceint = 0
        iface = 0
-       call memalloc(nndim(3), nd_jf, 'fem_mesh_topology::nelpo_nd_jf')
-       call memalloc(nndim(3), fnode,         'fem_mesh_topology::fnode')
+       call memalloc(nndim(3), nd_jf, 'mesh_topology::nelpo_nd_jf')
+       call memalloc(nndim(3), fnode,         'mesh_topology::fnode')
        do ielem=1,gmsh%nelem
           do i=1,nodim(3)
              if(faceint(ielem,i)==0) then
                 already_counted=0
                 gp = gmsh%nnode*(ielem-1)
                 do j=1,nndim(3)
-                   fnode(j) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(3)+i-1)+j-1))
+                   fnode(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(3)+i-1)+j-1))
                 end do
 
                 do t = nelpo_aux(fnode(1)),nelpo_aux(fnode(1)+1)-1
@@ -258,7 +257,7 @@ contains
 
                       do k=1,nodim(3)
                          do j=1,nndim(3)
-                            nd_jf(j) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(3)+k-1)+j-1))
+                            nd_jf(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(3)+k-1)+j-1))
                          end do
 
                          counter=0
@@ -304,7 +303,7 @@ contains
 
     if (kfl_bc) then
        ! Initialize topological conditions
-       call fem_conditions_create(gcnd%ncode, gcnd%nvalu, omsh%npoin, ocnd)
+       call conditions_create(gcnd%ncode, gcnd%nvalu, omsh%npoin, ocnd)
        
        ! Assign Conditions on boundary vertices
        do i = 1, gmsh%npoin 
@@ -323,14 +322,14 @@ contains
              omsh%lnods((ielem-1)*nobje+gmsh%nnode+i) = npoin_aux + iedgb
              if (kfl_bc) then
                 gp = gmsh%nnode*(ielem-1)
-                nd_i(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)))
-                nd_i(2) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)+1))
+                nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)))
+                nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)+1))
                 do icode = 1, ocnd%ncode
                    if (ocnd%code(icode,nd_i(1)) ==  ocnd%code(icode,nd_i(2))) then
                       ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =                   &
                            &          ocnd%code(icode,nd_i(1))
                    else
-                      !write(*,*) "fem_mesh_topology:: WARNING!! Arbitrary BC's on object",          &
+                      !write(*,*) "mesh_topology:: WARNING!! Arbitrary BC's on object",          &
                       !     &        omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)
                       ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =  0
                    end if
@@ -352,8 +351,8 @@ contains
                 if(edgeint(ielem,i)==0) then
                    already_counted=1
                    gp = gmsh%nnode*(ielem-1)
-                   nd_i(1)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)))
-                   nd_i(2)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+i-1)+1))
+                   nd_i(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)))
+                   nd_i(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)+1))
 
                    ! Number of elements for j
                    do t = nelpo_aux(nd_i(1)), nelpo_aux(nd_i(1)+1)-1
@@ -363,8 +362,8 @@ contains
                          gp = gmsh%nnode*(jelem-1)
 
                          do k=1,nodim(2)
-                            nd_j(1)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)))
-                            nd_j(2)=gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(2)+k-1)+1))
+                            nd_j(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)))
+                            nd_j(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)+1))
 
                             counter=0
                             do r=1,nndim(2)
@@ -408,15 +407,15 @@ contains
                 if (kfl_bc) then
                    gp = gmsh%nnode*(ielem-1)
                    op = nobje*(ielem-1)
-                   nd_i(1) = gmsh%lnods(gp+f_inf%crxob%l(f_inf%crxob%p(f_inf%nobje_dim(3)+j-1)))
+                   nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(3)+j-1)))
                    do icode = 1, ocnd%ncode
                       ocnd%valu(icode,omsh%lnods(op+i)) =                                           &
                            &            ocnd%valu(icode,omsh%lnods(op+i))                           &
                            &          + ocnd%valu(icode,nd_i(1))
                       s = 1
                       do k = 2,nndim(3)
-                         nd_i(2) = gmsh%lnods(gp+f_inf%crxob%l                                      &
-                              &    (f_inf%crxob%p(f_inf%nobje_dim(3)+j-1)+k-1))
+                         nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l                                      &
+                              &    (reference_element%crxob%p(reference_element%nobje_dim(3)+j-1)+k-1))
                          if (ocnd%code(icode,nd_i(1)) .ne.  ocnd%code(icode,nd_i(2))) s = 0
                          ocnd%valu(icode,omsh%lnods(op+i)) =                                        &
                               &     ocnd%valu(icode,omsh%lnods(op+i))                               &
@@ -425,7 +424,7 @@ contains
                       if (s == 1) then
                          ocnd%code(icode,omsh%lnods(op+i)) =  ocnd%code(icode,nd_i(1)) 
                       else
-                         !write(*,*) 'fem_mesh_topology:: WARNING!! Arbitrary BCs on object',        &
+                         !write(*,*) 'mesh_topology:: WARNING!! Arbitrary BCs on object',        &
                          !     &        omsh%lnods(op+i)
                          ocnd%code(icode,omsh%lnods(op+i)) =  0 
                       end if
@@ -446,7 +445,7 @@ contains
     omsh%nnode = gmsh%nnode + nodim(2) + nodim(3)
 
     ! Deallocate auxiliar arrays
-    call finite_element_fixed_info_free(f_inf)
+    call finite_element_fixed_info_free(reference_element)
     call memfree(edgeint,__FILE__,__LINE__)
     if(gmsh%ndime==3) call memfree(faceint,__FILE__,__LINE__)
   end subroutine geom2topo_mesh_cond

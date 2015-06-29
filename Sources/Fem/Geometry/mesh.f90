@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_names
+module mesh_names
 use types_names
 use memor_names
-  use fem_materials_names
+  use materials_names
 use stdio_names
   use iso_fortran_env, only : output_unit
-  !use fem_conditions_names
+  !use conditions_names
 # include "debug.i90"
   implicit none
   private
 
-  type fem_mesh_t
+  type mesh_t
      integer(ip)                :: &
           nelem,                   &         ! Number of elements
           nnode                              ! Maximum number of nodes per element
@@ -51,27 +51,27 @@ use stdio_names
 
      real(rp), allocatable ::      &
           coord(:,:)                         ! Node coordinates       
-  end type fem_mesh_t
+  end type mesh_t
 
   ! Types
-  public :: fem_mesh_t
+  public :: mesh_t
 
   ! Functions
-  public :: mesh_to_dual, fem_mesh_free
-  public :: fem_mesh_print
+  public :: mesh_to_dual, mesh_free
+  public :: mesh_print
 
   ! Constants
   public :: count_elements_around_points, list_elements_around_points
 
 contains
   !=============================================================================
-  ! Methods defined for fem_mesh are:
+  ! Methods defined for mesh are:
   !
   ! - mesh_to_dual(primal_mesh,dual_mesh)
   !   IN: primal_mesh
   !   OUT: dual_mesh
   !
-  ! - fem_mesh_dealloc(mesh)
+  ! - mesh_dealloc(mesh)
   !   INOUT: mesh
   !
   !-----------------------------------------------------------------------------
@@ -92,8 +92,8 @@ contains
     ! and, as it is not used, we set it to 0.
     !-----------------------------------------------------------------------
     implicit none
-    type(fem_mesh_t), intent(in)     :: primal_mesh
-    type(fem_mesh_t), intent(out)    :: dual_mesh
+    type(mesh_t), intent(in)     :: primal_mesh
+    type(mesh_t), intent(out)    :: dual_mesh
     
     dual_mesh%ndime=primal_mesh%ndime
     dual_mesh%npoin=primal_mesh%nelem
@@ -202,12 +202,12 @@ contains
   end subroutine list_elements_around_points
 
   !=============================================================================
-  subroutine fem_mesh_free (msh)
+  subroutine mesh_free (msh)
     !-----------------------------------------------------------------------
-    ! This routine generates deallocates a fem_mesh
+    ! This routine generates deallocates a mesh
     !-----------------------------------------------------------------------
     implicit none
-    type(fem_mesh_t), intent(inout)  :: msh
+    type(mesh_t), intent(inout)  :: msh
 
     call memfree (msh%pnods,__FILE__,__LINE__)
     call memfree (msh%lnods,__FILE__,__LINE__)
@@ -224,12 +224,12 @@ contains
     msh%nelem=0
     msh%nnode=0
 
-  end subroutine fem_mesh_free
+  end subroutine mesh_free
 
   
-  subroutine fem_mesh_print(mesh, ounit)
+  subroutine mesh_print(mesh, ounit)
      implicit none
-     type(fem_mesh_t), intent(in)          :: mesh
+     type(mesh_t), intent(in)          :: mesh
      integer(ip), intent(in), optional   :: ounit
      integer(ip)                         :: idx, num_nodes, ounit_used
      character(len=100)                  :: fmt
@@ -246,6 +246,6 @@ contains
         write(ounit_used, fmt) idx, " -> ", mesh%lnods(mesh%pnods(idx) : mesh%pnods(idx+1)-1)
      end do
 
-   end subroutine fem_mesh_print
+   end subroutine mesh_print
 
-end module fem_mesh_names
+end module mesh_names

@@ -26,20 +26,20 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program test_cdr
-  use fem_names
+  use serial_names
   use cdr_names
   use cdr_stabilized_continuous_Galerkin_names
   implicit none
 #include "debug.i90"
   ! Our data
-  type(fem_mesh_t)           :: f_mesh
-  type(fem_triangulation_t)  :: f_trian
-  type(fem_matrix_t)         :: f_mat
-  type(fem_conditions_t)     :: f_cond
+  type(mesh_t)           :: f_mesh
+  type(triangulation_t)  :: f_trian
+  type(matrix_t)         :: f_mat
+  type(conditions_t)     :: f_cond
   type(dof_handler_t)        :: dhand
   type(fe_space_t)          :: fe_space
-  type(fem_graph_t), pointer :: f_graph
-  type(fem_block_graph_t)    :: f_blk_graph
+  type(graph_t), pointer :: f_graph
+  type(block_graph_t)    :: f_blk_graph
   integer(ip)              :: gtype(1) = (/ csr_symm /)
 
   type(cdr_problem_t)                   :: my_problem
@@ -48,13 +48,13 @@ program test_cdr
   integer(ip)                         :: num_approximations
   type(discrete_integration_pointer)  :: approximations(1)
 
-  type(fem_matrix_t), target             :: my_matrix
-  type(fem_vector_t), target             :: my_vector, feunk
+  type(matrix_t), target             :: my_matrix
+  type(vector_t), target             :: my_vector, feunk
   class(base_operand_t) , pointer :: x, y
   class(base_operator_t), pointer :: A
 
-  type(fem_precond_t)        :: feprec
-  type(fem_precond_params_t) :: ppars
+  type(precond_t)        :: feprec
+  type(precond_params_t) :: ppars
   type(solver_control_t)     :: sctrl
   type(serial_environment_t) :: senv
 
@@ -75,12 +75,12 @@ program test_cdr
   call  read_pars_cl_test_cdr ( dir_path, prefix, dir_path_out )
 
   ! Read mesh
-  call fem_mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
+  call mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
 
   ! Read conditions 
-  call fem_conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
+  call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
 
-  !call fem_mesh_write ( 6, f_mesh, 'square_uniform' )
+  !call mesh_write ( 6, f_mesh, 'square_uniform' )
 
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
@@ -134,26 +134,26 @@ program test_cdr
        & static_condensation = .false., num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
-  call fem_update_strong_dirichlet_bcond( fe_space, f_cond )
+  call update_strong_dirichlet_bcond( fe_space, f_cond )
 
   call create_dof_info( dhand, f_trian, fe_space, f_blk_graph, gtype )
 
   f_graph => f_blk_graph%get_block(1,1)
-  call fem_matrix_alloc( csr_mat, symm_true, f_graph, my_matrix, positive_definite )
+  call matrix_alloc( csr_mat, symm_true, f_graph, my_matrix, positive_definite )
 
-  call fem_vector_alloc( f_graph%nv, my_vector )
+  call vector_alloc( f_graph%nv, my_vector )
   
   call volume_integral( approximations, fe_space, my_matrix, my_vector)
 
   !sctrl%method=direct
   !ppars%type = pardiso_mkl_prec
-  !call fem_precond_create  (my_matrix, feprec, ppars)
-  !call fem_precond_symbolic(my_matrix, feprec)
-  !call fem_precond_numeric (my_matrix, feprec)
-  !call fem_precond_log_info(feprec)
+  !call precond_create  (my_matrix, feprec, ppars)
+  !call precond_symbolic(my_matrix, feprec)
+  !call precond_numeric (my_matrix, feprec)
+  !call precond_log_info(feprec)
 
   write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',f_graph%nv
-  call fem_vector_alloc( f_graph%nv, feunk )
+  call vector_alloc( f_graph%nv, feunk )
   call feunk%init(1.0_rp)
 
 
@@ -161,7 +161,7 @@ program test_cdr
   ! feunk = my_vector - my_matrix*feunk 
   !y = x - A*y 
 
-  !call fem_vector_print( 6, feunk)
+  !call vector_print( 6, feunk)
   write(*,*) 'XXX error vs exact norm XXX', feunk%nrm2()
   
   !call abstract_solve(my_matrix,feprec,my_vector,feunk,sctrl,senv)
@@ -171,25 +171,25 @@ program test_cdr
   A => my_matrix
   x => my_vector
   y => feunk
-  call fem_vector_print( 6, feunk)
-  call fem_matrix_print( 6, my_matrix)
+  call vector_print( 6, feunk)
+  call matrix_print( 6, my_matrix)
 
   ! feunk = my_vector - my_matrix*feunk 
   y = x - A*y 
 
   write(*,*) 'XXX error solver norm XXX', feunk%nrm2()
 
-  !call fem_vector_print( 6, feunk)
+  !call vector_print( 6, feunk)
 
-  !call fem_precond_free ( precond_free_values, feprec)
-  !call fem_precond_free ( precond_free_struct, feprec)
-  !call fem_precond_free ( precond_free_clean, feprec)
+  !call precond_free ( precond_free_values, feprec)
+  !call precond_free ( precond_free_struct, feprec)
+  !call precond_free ( precond_free_clean, feprec)
 
   !write (*,*) '********** FINISHED ASSEMBLY **********'
 
 
-  ! call fem_matrix_print( 6, my_matrix)
-  ! call fem_precond_dd_mlevel_bddc_create ( f_mat, mlbddc, mlbddc_params )
+  ! call matrix_print( 6, my_matrix)
+  ! call precond_dd_mlevel_bddc_create ( f_mat, mlbddc, mlbddc_params )
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
@@ -198,17 +198,17 @@ program test_cdr
   call memfree( which_approx, __FILE__, __LINE__)
 
   call f_blk_graph%free()
-  call fem_vector_free( feunk )
-  call fem_vector_free( my_vector )
-  call fem_matrix_free( my_matrix) 
+  call vector_free( feunk )
+  call vector_free( my_vector )
+  call matrix_free( my_matrix) 
   call fe_space_free(fe_space) 
   call my_problem%free
   call my_discrete%free
   call my_approximation%free
   call dof_handler_free ( dhand )
-  call fem_triangulation_free ( f_trian )
-  call fem_conditions_free ( f_cond )
-  call fem_mesh_free (f_mesh)
+  call triangulation_free ( f_trian )
+  call conditions_free ( f_cond )
+  call mesh_free (f_mesh)
 
   call memstatus
 
@@ -253,7 +253,7 @@ contains
 !!$          !write (*,*) 'KKKKKKKKKKKKKKKKKKKKK'
 !!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%p',fe_space%lelem(ielem)%nodes_object(ivar)%p%p
 !!$          !write (*,*) 'fe_space%lelem(ielem)%nodes_object(ivar)%p%l',fe_space%lelem(ielem)%nodes_object(ivar)%p%l
-!!$          do iobje = 1,fe_space%lelem(ielem)%p_geo_info%nobje
+!!$          do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nobje
 !!$
 !!$             do inode = fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje), &
 !!$                  &     fe_space%lelem(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 

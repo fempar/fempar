@@ -25,38 +25,37 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_update_names
+module update_names
   use types_names
   use memor_names
   use fe_space_names
-  use fem_vector_names
-  use fem_block_vector_names
-  use fem_conditions_names
+  use vector_names
+  use block_vector_names
+  use conditions_names
   use analytical_names
   use interpolation_tools_names
   implicit none
 # include "debug.i90"
   private
 
-  interface fem_update_solution
-     module procedure fem_update_solution_mono, fem_update_solution_block
-  end interface fem_update_solution
+  interface update_solution
+     module procedure update_solution_mono, update_solution_block
+  end interface update_solution
      
 
   ! Functions
-  public :: fem_update_strong_dirichlet_bcond, fem_update_analytical_bcond, fem_update_solution, &
-       &    fem_update_nonlinear
+  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, update_nonlinear
  
 contains
   
   !==================================================================================================
-  subroutine fem_update_strong_dirichlet_bcond( fe_space, fcond )
+  subroutine update_strong_dirichlet_bcond( fe_space, fcond )
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine updates Dirichlet boundary conditions in unkno from fem_conditions values.  !
+    !   This subroutine updates Dirichlet boundary conditions in unkno from conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(fe_space_t)     , intent(inout) :: fe_space
-    type(fem_conditions_t), intent(in)    :: fcond
+    type(conditions_t), intent(in)    :: fcond
     ! Locals
     integer(ip) :: ielem, iobje, ivar, inode, l_node, gvar, lobje, prob
 
@@ -64,7 +63,7 @@ contains
        prob = fe_space%finite_elements(ielem)%problem
        do ivar=1, fe_space%dof_handler%problems(prob)%p%nvars
           gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
-          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_info%nobje
+          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
              lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
              do inode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje), &
                   &     fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
@@ -77,10 +76,10 @@ contains
        end do
     end do
 
-  end subroutine fem_update_strong_dirichlet_bcond
+  end subroutine update_strong_dirichlet_bcond
 
   !==================================================================================================
-  subroutine fem_update_analytical_bcond(vars_of_unk,case,ctime,fe_space,caset,t)
+  subroutine update_analytical_bcond(vars_of_unk,case,ctime,fe_space,caset,t)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine updates Dirichlet boundary conditions in unkno from an analytical solution. !
     !-----------------------------------------------------------------------------------------------!
@@ -111,7 +110,7 @@ contains
 
        do ielem = 1, fe_space%g_trian%num_elems
           prob  = fe_space%finite_elements(ielem)%problem
-          gnode = fe_space%finite_elements(ielem)%p_geo_info%nnode
+          gnode = fe_space%finite_elements(ielem)%p_geo_reference_element%nnode
           cnt   = 0
 
           do ivar=vars_of_unk(1),vars_of_unk(nvars)
@@ -121,12 +120,12 @@ contains
              gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
 
              ! Interpolate coordinates
-             unode = fe_space%finite_elements(ielem)%f_inf(ivar)%p%nnode
+             unode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode
              call memalloc(ndime,unode,coord,__FILE__,__LINE__)
              call interpolate(ndime,gnode,unode,fe_space%finite_elements(ielem)%inter(ivar)%p, &
                   &           fe_space%g_trian%elems(ielem)%coordinates,coord)
 
-             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_info%nobje
+             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
                 lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
 
                 if ( fe_space%finite_elements(ielem)%bc_code(ivar,iobje) /= 0 ) then
@@ -167,15 +166,15 @@ contains
 
     end if
     
-  end subroutine fem_update_analytical_bcond
+  end subroutine update_analytical_bcond
 
   !==================================================================================================
-  subroutine fem_update_solution_mono(fevec,fe_space,iblock)
+  subroutine update_solution_mono(fevec,fe_space,iblock)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a fem_vector into unkno.                           !
+    !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_vector_t)     , intent(in)    :: fevec   
+    type(vector_t)     , intent(in)    :: fevec   
     type(fe_space_t)      , intent(inout) :: fe_space
     integer(ip), optional, intent(in)    :: iblock
     ! Locals
@@ -194,7 +193,7 @@ contains
           lvar = fe_space%dof_handler%prob_block(iblock_,iprob)%a(ivar)
 
           ! Loop over elemental nodes
-          do inode = 1,fe_space%finite_elements(ielem)%f_inf(lvar)%p%nnode
+          do inode = 1,fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
              idof = fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
              
              if(idof/=0) then
@@ -208,15 +207,15 @@ contains
        end do
     end do
     
-  end subroutine fem_update_solution_mono
+  end subroutine update_solution_mono
 
   !==================================================================================================
-  subroutine fem_update_solution_block(blvec,fe_space)
+  subroutine update_solution_block(blvec,fe_space)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a fem_vector into unkno.                           !
+    !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fem_block_vector_t), intent(in)    :: blvec   
+    type(block_vector_t), intent(in)    :: blvec   
     type(fe_space_t)       , intent(inout) :: fe_space
     ! Locals
     integer(ip) :: iblock
@@ -225,14 +224,14 @@ contains
     do iblock = 1,blvec%nblocks
        
        ! Call monolithic update
-       call fem_update_solution_mono(blvec%blocks(iblock),fe_space,iblock)
+       call update_solution_mono(blvec%blocks(iblock),fe_space,iblock)
 
     end do
     
-  end subroutine fem_update_solution_block 
+  end subroutine update_solution_block
 
   !==================================================================================================
-  subroutine fem_update_nonlinear(fe_space)
+  subroutine update_nonlinear(fe_space)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the previous nonlinear solution.                                     !
     !-----------------------------------------------------------------------------------------------!
@@ -247,6 +246,6 @@ contains
        fe_space%finite_elements(ielem)%unkno(:,:,2) = fe_space%finite_elements(ielem)%unkno(:,:,1)
     end do
     
-  end subroutine fem_update_nonlinear
+  end subroutine update_nonlinear
 
-end module fem_update_names
+end module update_names

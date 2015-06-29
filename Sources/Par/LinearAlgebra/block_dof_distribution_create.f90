@@ -30,7 +30,7 @@ module block_dof_distribution_create_names
   use types_names
   use memor_names
   use sort_names
-  use maps_names
+  use map_names
   use dof_import_names
   use dof_handler_names
   use fe_space_types_names
@@ -148,10 +148,10 @@ contains
                    do ivars = 1,p_fe_space%fe_space%dof_handler%prob_block(iblock,iprob)%nd1
                       l_var = p_fe_space%fe_space%dof_handler%prob_block(iblock,iprob)%a(ivars)
                       if ( p_fe_space%fe_space%finite_elements(ielem)%continuity(l_var) == 0 ) then
-                         obje_l = p_fe_space%fe_space%finite_elements(ielem)%f_inf(l_var)%p%nobje_dim(p_trian%f_trian%num_dims)
+                         obje_l = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nobje_dim(p_trian%f_trian%num_dims)
                          est_max_itf_dofs = est_max_itf_dofs + &
-                              p_fe_space%fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(obje_l+1) - &
-                              p_fe_space%fe_space%finite_elements(ielem)%f_inf(l_var)%p%ntxob%p(obje_l)
+                              p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(obje_l+1) - &
+                              p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(obje_l)
                       end if
                    end do
                 end do
@@ -329,7 +329,7 @@ contains
              nvapb = p_fe_space%fe_space%dof_handler%prob_block(iblock,iprob)%nd1
              do ivars = 1, nvapb
                 l_var = p_fe_space%fe_space%dof_handler%prob_block(iblock,iprob)%a(ivars)
-                do inode = 1,p_fe_space%fe_space%finite_elements(ielem)%f_inf(l_var)%p%nnode
+                do inode = 1,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nnode
                    if ( p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,l_var) > 0 ) then 
                       p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,l_var) = l2lo2n(p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,l_var))
                    end if
@@ -1086,8 +1086,8 @@ contains
           g_var = dhand%problems(iprob)%p%l2g_var(l_var)
           if ( fe_space%finite_elements(ielem)%continuity(g_var) == 0 ) then ! dG local element on the interface
              ! Identify and put interface DOFs
-             do obje_l = p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims), &
-                  &      p_trian%f_trian%elems(ielem)%topology%nobje_dim(p_trian%f_trian%num_dims+1)-1
+             do obje_l = p_trian%f_trian%elems(ielem)%geo_reference_element%nobje_dim(p_trian%f_trian%num_dims), &
+                  &      p_trian%f_trian%elems(ielem)%geo_reference_element%nobje_dim(p_trian%f_trian%num_dims+1)-1
                 iobje = p_trian%f_trian%elems(ielem)%objects(obje_l)
                 if ( iobje > 0) then 
                    ! iobje is a face by construction
@@ -1106,12 +1106,12 @@ contains
                          npadj = npadj + 1
                          ws_parts_visited_list_all(npadj) = aux(2)
                       end if
-                      do jobje = fe_space%finite_elements(ielem)%f_inf(l_var)%p%obxob%p(obje_l), &
-                           & fe_space%finite_elements(ielem)%f_inf(l_var)%p%obxob%p(obje_l+1)-1
-                         l_obj2 = fe_space%finite_elements(ielem)%f_inf(l_var)%p%obxob%l(jobje)
-                         do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ndxob%p(l_obj2), &
-                              & fe_space%finite_elements(ielem)%f_inf(l_var)%p%ndxob%p(l_obj2+1)-1
-                            l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ndxob%l(inode)
+                      do jobje = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%obxob%p(obje_l), &
+                           & fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%obxob%p(obje_l+1)-1
+                         l_obj2 = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%obxob%l(jobje)
+                         do inode = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ndxob%p(l_obj2), &
+                              & fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ndxob%p(l_obj2+1)-1
+                            l_node = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ndxob%l(inode)
                             if ( touch(l_obj2) == 0 ) then
                                !    !write (*,*) 'NEW INTERFACE DOF', fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
                                !    count_object_dof = count_object_dof + 1
@@ -1148,11 +1148,11 @@ contains
                    end if
                 end if
              end do
-             do l_obj2 = 1, fe_space%finite_elements(ielem)%f_inf(l_var)%p%nobje
+             do l_obj2 = 1, fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nobje
                 if ( touch(l_obj2) == 0 ) then
-                   do inode = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ndxob%p(l_obj2), &
-                        & fe_space%finite_elements(ielem)%f_inf(l_var)%p%ndxob%p(l_obj2+1)-1
-                      l_node = fe_space%finite_elements(ielem)%f_inf(l_var)%p%ndxob%l(inode)
+                   do inode = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ndxob%p(l_obj2), &
+                        & fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ndxob%p(l_obj2+1)-1
+                      l_node = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ndxob%l(inode)
                       if ( fe_space%finite_elements(ielem)%elem2dof(l_node,l_var) > 0 ) then
                          count_interior = count_interior + 1
                          dofs_object_interior(count_interior) = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)

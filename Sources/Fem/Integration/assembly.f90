@@ -33,11 +33,11 @@ use types_names
   !use fe_space_names
   use integrable_names
   use dof_handler_names
-  use fem_block_matrix_names
-  use fem_matrix_names
-  use fem_block_vector_names
-  use fem_vector_names
-  use fem_graph_names
+  use block_matrix_names
+  use matrix_names
+  use block_vector_names
+  use vector_names
+  use graph_names
   use plain_vector_names
 
   implicit none
@@ -57,15 +57,15 @@ contains
     class(integrable_t)   , intent(inout) :: a
 
     select type(a)
-    class is(fem_matrix_t)
+    class is(matrix_t)
        call assembly_element_matrix_mono(finite_element, dhand, a) 
-    class is(fem_vector_t)
+    class is(vector_t)
        call assembly_element_vector_mono(finite_element, dhand, a)
     class is(plain_vector_t)
        call assembly_element_plain_vector(finite_element, dhand, a)
-       !class is(fem_block_matrix_t)
+       !class is(block_matrix_t)
        !    call assembly_element_matrix_block(finite_element, dhand, a)
-       ! class is(fem_block_vector_t)
+       ! class is(block_vector_t)
        !    call assembly_element_vector_block(finite_element, dhand, a)
     class default
        ! class not yet implemented
@@ -75,13 +75,13 @@ contains
 
   subroutine assembly_element_matrix_block(  finite_element, dhand, a ) 
     implicit none
-    type(dof_handler_t)     , intent(in)    :: dhand
-    type(finite_element_t)  , intent(in)    :: finite_element
-    type(fem_block_matrix_t), intent(inout) :: a
+    type(dof_handler_t)   , intent(in)    :: dhand
+    type(finite_element_t), intent(in)    :: finite_element
+    type(block_matrix_t)  , intent(inout) :: a
     
     integer(ip) :: ivar, iblock, jblock
 
-    type(fem_matrix_t), pointer :: f_matrix
+    type(matrix_t), pointer :: f_matrix
 
     do iblock = 1, dhand%nblocks
        do jblock = 1, dhand%nblocks
@@ -98,7 +98,7 @@ contains
     implicit none
     type(dof_handler_t)   , intent(in)    :: dhand
     type(finite_element_t), intent(in)    :: finite_element
-    type(fem_matrix_t)    , intent(inout) :: a
+    type(matrix_t)        , intent(inout) :: a
 
     !integer(ip) :: start(dhand%problems(finite_element%problem)%p%nvars+1)
     call element_matrix_assembly( dhand, finite_element, a )
@@ -107,14 +107,14 @@ contains
 
   subroutine assembly_face_element_matrix_block(  fe_face, finite_element, dhand, a ) 
     implicit none
-    type(dof_handler_t), intent(in)         :: dhand
-    type(fe_face_t)   , intent(in)          :: fe_face
-    type(finite_element_t), intent(in)      :: finite_element(2)
-    type(fem_block_matrix_t), intent(inout) :: a
+    type(dof_handler_t)   , intent(in)    :: dhand
+    type(fe_face_t)       , intent(in)    :: fe_face
+    type(finite_element_t), intent(in)    :: finite_element(2)
+    type(block_matrix_t)  , intent(inout) :: a
 
     integer(ip) :: iblock, jblock, i
     type(array_ip1_t) :: start(2)
-    type(fem_matrix_t), pointer :: f_matrix
+    type(matrix_t), pointer :: f_matrix
 
 !!$    do i=1,2
 !!$       call pointer_variable(  finite_element(i), dhand, start(i)%a )
@@ -138,10 +138,10 @@ contains
 
   subroutine assembly_face_element_matrix_mono(  fe_face, finite_element, dhand, a ) 
     implicit none
-    type(dof_handler_t), intent(in)    :: dhand
-    type(fe_face_t)   , intent(in)     :: fe_face
-    type(finite_element_t), intent(in) :: finite_element(2)
-    type(fem_matrix_t), intent(inout)  :: a
+    type(dof_handler_t)   , intent(in)    :: dhand
+    type(fe_face_t)       , intent(in)    :: fe_face
+    type(finite_element_t), intent(in)    :: finite_element(2)
+    type(matrix_t)        , intent(inout) :: a
 
     integer(ip) :: i
     type(array_ip1_t) :: start(2)
@@ -160,9 +160,9 @@ contains
 
   subroutine assembly_element_vector_block(  finite_element, dhand, a ) 
     implicit none
-    type(dof_handler_t)     , intent(in)    :: dhand
-    type(finite_element_t)  , intent(in)    :: finite_element
-    type(fem_block_vector_t), intent(inout) :: a
+    type(dof_handler_t)   , intent(in)    :: dhand
+    type(finite_element_t), intent(in)    :: finite_element
+    type(block_vector_t)  , intent(inout) :: a
 
     integer(ip) :: iblock
 
@@ -177,7 +177,7 @@ contains
     implicit none
     type(dof_handler_t)   , intent(in)    :: dhand
     type(finite_element_t), intent(in)    :: finite_element
-    type(fem_vector_t)    , intent(inout) :: a
+    type(vector_t)        , intent(inout) :: a
 
     call element_vector_assembly( dhand, finite_element, a )
 
@@ -195,10 +195,10 @@ contains
 
   subroutine assembly_face_vector_block(  fe_face, finite_element, dhand, a ) 
     implicit none
-    type(dof_handler_t)     , intent(in)    :: dhand
-    type(fe_face_t)         , intent(in)    :: fe_face
-    type(finite_element_t)  , intent(in)    :: finite_element
-    type(fem_block_vector_t), intent(inout) :: a
+    type(dof_handler_t)   , intent(in)    :: dhand
+    type(fe_face_t)       , intent(in)    :: fe_face
+    type(finite_element_t), intent(in)    :: finite_element
+    type(block_vector_t)  , intent(inout) :: a
 
     integer(ip) :: iblock
 
@@ -215,7 +215,7 @@ contains
     type(dof_handler_t)   , intent(in)    :: dhand
     type(fe_face_t)       , intent(in)    :: fe_face
     type(finite_element_t), intent(in)    :: finite_element
-    type(fem_vector_t)    , intent(inout) :: a
+    type(vector_t)        , intent(inout) :: a
 
     ! Note: This subroutine only has sense on interface / boundary faces, only
     ! related to ONE element.
@@ -228,7 +228,7 @@ contains
     ! Parameters
     type(dof_handler_t)    , intent(in)    :: dhand
     type(finite_element_t) , intent(in)    :: finite_element
-    type(fem_matrix_t)     , intent(inout) :: a
+    type(matrix_t)         , intent(inout) :: a
     integer(ip), intent(in), optional      :: iblock, jblock
 
     integer(ip) :: gtype, iprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
@@ -264,10 +264,10 @@ contains
           k_var = dhand%problems(iprob)%p%l2g_var(m_var)
           !write (*,*) 'l_var:',l_var
           !write (*,*) 'm_var:',m_var
-          do inode = 1,finite_element%f_inf(l_var)%p%nnode
+          do inode = 1,finite_element%reference_element_vars(l_var)%p%nnode
              idof = finite_element%elem2dof(inode,l_var)
              if ( idof  > 0 ) then
-                do jnode = 1,finite_element%f_inf(m_var)%p%nnode
+                do jnode = 1,finite_element%reference_element_vars(m_var)%p%nnode
                    jdof = finite_element%elem2dof(jnode,m_var)
                    if (  gtype == csr .and. jdof > 0 ) then
                       do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
@@ -289,7 +289,7 @@ contains
     end do
     
     !write(*,*) 'system_matrix'
-    !call fem_matrix_print(6,a)
+    !call matrix_print(6,a)
 
   end subroutine element_matrix_assembly
 
@@ -299,7 +299,7 @@ contains
     type(dof_handler_t)   , intent(in)    :: dhand
     type(finite_element_t), intent(in)    :: finite_element(2)
     type(fe_face_t)       , intent(in)    :: fe_face
-    type(fem_matrix_t)    , intent(inout) :: a
+    type(matrix_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock, jblock
 
     integer(ip) :: gtype, iprob, jprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
@@ -322,13 +322,13 @@ contains
           do jvars = 1, nvapb_j
              m_var = dhand%prob_block(jblock_,jprob)%a(jvars)
              k_var = dhand%problems(jprob)%p%l2g_var(m_var)
-             do inode = 1,finite_element(i)%f_inf(l_var)%p%nnode
+             do inode = 1,finite_element(i)%reference_element_vars(l_var)%p%nnode
                 idof = finite_element(i)%elem2dof(inode,l_var)
                 if ( idof  > 0 ) then
-                   ndime = finite_element(j)%p_geo_info%ndime
-                   iobje = fe_face%face_object + finite_element(j)%p_geo_info%nobje_dim(ndime) - 1
-                   do jnode = finite_element(j)%f_inf(m_var)%p%ntxob%p(iobje),finite_element(j)%f_inf(m_var)%p%ntxob%p(iobje+1)-1
-                      jdof = finite_element(j)%elem2dof(finite_element(j)%f_inf(m_var)%p%ntxob%l(jnode),m_var)
+                   ndime = finite_element(j)%p_geo_reference_element%ndime
+                   iobje = fe_face%face_object + finite_element(j)%p_geo_reference_element%nobje_dim(ndime) - 1
+                   do jnode = finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje),finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje+1)-1
+                      jdof = finite_element(j)%elem2dof(finite_element(j)%reference_element_vars(m_var)%p%ntxob%l(jnode),m_var)
                       if (  gtype == csr .and. jdof > 0 ) then
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
@@ -356,7 +356,7 @@ contains
     ! Parameters
     type(dof_handler_t)   , intent(in)    :: dhand
     type(finite_element_t), intent(in)    :: finite_element
-    type(fem_vector_t)    , intent(inout) :: a
+    type(vector_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock
 
     integer(ip) :: iprob, nvapb_i, ivars, l_var, m_var
@@ -369,7 +369,7 @@ contains
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-       do inode = 1,finite_element%f_inf(l_var)%p%nnode
+       do inode = 1,finite_element%reference_element_vars(l_var)%p%nnode
           idof = finite_element%elem2dof(inode,l_var)
           if ( idof  > 0 ) then
              a%b(idof) =  a%b(idof) + finite_element%p_vec%a(finite_element%start%a(l_var)+inode-1)
@@ -385,23 +385,23 @@ contains
     type(dof_handler_t)   , intent(in)    :: dhand
     type(finite_element_t), intent(in)    :: finite_element
     type(fe_face_t)       , intent(in)    :: fe_face
-    type(fem_vector_t)    , intent(inout) :: a
+    type(vector_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock
 
     integer(ip) :: iprob, nvapb_i, ivars, l_var, g_var
     integer(ip) :: inode, idof, iblock_, iobje, ndime
 
     iblock_ = 1
-    ndime = finite_element%p_geo_info%ndime
+    ndime = finite_element%p_geo_reference_element%ndime
     if ( present(iblock) ) iblock_ = iblock
     iprob = finite_element%problem
     nvapb_i = dhand%prob_block(iblock_,iprob)%nd1
     do ivars = 1, nvapb_i
        l_var = dhand%prob_block(iblock_,iprob)%a(ivars)
        g_var = dhand%problems(iprob)%p%l2g_var(l_var)
-       iobje = fe_face%face_object + finite_element%p_geo_info%nobje_dim(ndime) - 1
-       do inode = finite_element%f_inf(l_var)%p%ntxob%p(iobje),finite_element%f_inf(l_var)%p%ntxob%p(iobje+1)-1
-          idof = finite_element%elem2dof(finite_element%f_inf(l_var)%p%ntxob%l(inode),l_var)
+       iobje = fe_face%face_object + finite_element%p_geo_reference_element%nobje_dim(ndime) - 1
+       do inode = finite_element%reference_element_vars(l_var)%p%ntxob%p(iobje),finite_element%reference_element_vars(l_var)%p%ntxob%p(iobje+1)-1
+          idof = finite_element%elem2dof(finite_element%reference_element_vars(l_var)%p%ntxob%l(inode),l_var)
           if ( idof  > 0 ) then
              a%b(idof) = a%b(idof) + fe_face%p_vec%a(finite_element%start%a(l_var)+inode-1)
           end if

@@ -28,7 +28,7 @@
 
 module lib_vtk_io_interface_names
 
-  use fem_names, only: fem_mesh_t, fem_triangulation_t, fem_mesh_print, triangulation_print
+  use serial_names, only: mesh_t, triangulation_t, mesh_print, triangulation_print
   use types_names
   use memor_names
   use stdio_names
@@ -83,7 +83,7 @@ use iso_c_binding
   ! Type for storing several mesh data with its field descriptors
   ! It also contains information about the number of parts (PVTK) and time steps (PVD)
   ! It stores the directory path and the prefix where to write in disk
-  type fem_vtk_t
+  type vtk_t
      type(vtk_mesh_t), allocatable   :: mesh(:)         ! VTK mesh data and field_t descriptors
      type(fe_space_t), pointer      :: p_fe_space => NULL()  ! Poins to fe_space_t
      class(abstract_environment), pointer      :: p_env => NULL()  ! Poins to fe_space_t
@@ -92,7 +92,7 @@ use iso_c_binding
      integer(ip)                   :: num_parts = 0   ! Number of parts
      integer(ip)                   :: root_proc = 0   ! Root processor
      contains
-        procedure          :: initialize              ! Initialize fem_mesh_t derived type
+        procedure          :: initialize              ! Initialize mesh_t derived type
         procedure          :: write_VTK               ! Write a VTU file
         procedure          :: write_PVTK              ! Write a PVTU file
         procedure          :: write_PVD               ! Write a PVD file
@@ -112,7 +112,7 @@ use iso_c_binding
         procedure, private :: set_num_parts
         procedure, private :: set_dir_path
         procedure, private :: set_prefix
-  end type fem_vtk_t
+  end type vtk_t
 
 !  character(len=5) :: mesh_prefix = 'mesh_'
 !  character(len=5) :: part_prefix = 'part_'
@@ -125,14 +125,14 @@ use iso_c_binding
   integer(1)  :: celltypes(max_ndime,max_FE_types)  ! VTK cell type: (dimensions,P/Q_type_id) 
 !  integer(ip) :: type_id(12)                        ! Reverse VTK cell type
 
-  public :: fem_vtk_t
+  public :: vtk_t
 
 contains
 
-  ! Subroutine to initialize fem_vtk_t derived type
+  ! Subroutine to initialize vtk_t derived type
   subroutine initialize(f_vtk, f_trian, fe_space, phys_prob, env, dir_path, prefix, root_proc, nparts, nsteps, nmesh, linear_order)
-    class(fem_vtk_t),          intent(INOUT) :: f_vtk
-    type(fem_triangulation_t), intent(IN)    :: f_trian
+    class(vtk_t),          intent(INOUT) :: f_vtk
+    type(triangulation_t), intent(IN)    :: f_trian
     type(fe_space_t), target, intent(IN)    :: fe_space
     class(physical_problem), intent(IN)    :: phys_prob
     class(abstract_environment), target, intent(IN)    :: env
@@ -199,11 +199,11 @@ contains
   end subroutine initialize
 
 
-  ! Subroutine to initialize fem_vtk_t derived type
+  ! Subroutine to initialize vtk_t derived type
   subroutine initialize_linear_order(f_vtk, f_trian, fe_space, phys_prob, dir_path, prefix, nmesh)
   ! ----------------------------------------------------------------------------------
-    class(fem_vtk_t),          intent(INOUT) :: f_vtk
-    type(fem_triangulation_t), intent(IN)    :: f_trian
+    class(vtk_t),          intent(INOUT) :: f_vtk
+    type(triangulation_t), intent(IN)    :: f_trian
     type(fe_space_t), target, intent(IN)    :: fe_space
     class(physical_problem), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
@@ -221,10 +221,10 @@ contains
   end subroutine initialize_linear_order
 
 
-  ! Subroutine to initialize fem_vtk_t derived type with high order mesh
+  ! Subroutine to initialize vtk_t derived type with high order mesh
   subroutine initialize_superlinear_order(f_vtk, fe_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
   ! ----------------------------------------------------------------------------------
-    class(fem_vtk_t),          intent(INOUT) :: f_vtk
+    class(vtk_t),          intent(INOUT) :: f_vtk
     type(fe_space_t), target, intent(IN)    :: fe_space
     class(physical_problem), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
@@ -244,12 +244,12 @@ contains
   end subroutine initialize_superlinear_order
 
 
-  ! Subroutine to store several meshes in a fem_vtk_t derived type
+  ! Subroutine to store several meshes in a vtk_t derived type
   subroutine fill_mesh_from_triangulation(f_vtk, f_trian, nmesh)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),          intent(INOUT) :: f_vtk
-    type(fem_triangulation_t), intent(IN)    :: f_trian
+    class(vtk_t),          intent(INOUT) :: f_vtk
+    type(triangulation_t), intent(IN)    :: f_trian
     integer(ip), optional,   intent(OUT)   :: nmesh
     type(vtk_mesh_t), allocatable            :: f_vtk_tmp(:)
     integer(ip) :: i, j, tnnod, counter
@@ -277,8 +277,8 @@ contains
     ! Fill VTK cell type and offset arrays and and count nodes
     tnnod = 0
     do i=1, f_trian%num_elems
-        f_vtk%mesh(f_vtk%num_meshes)%ctype(i) = celltypes(f_trian%num_dims,f_trian%elems(i)%topology%ftype)
-        tnnod = tnnod + f_trian%elems(i)%topology%nnode
+        f_vtk%mesh(f_vtk%num_meshes)%ctype(i) = celltypes(f_trian%num_dims,f_trian%elems(i)%geo_reference_element%ftype)
+        tnnod = tnnod + f_trian%elems(i)%geo_reference_element%nnode
         f_vtk%mesh(f_vtk%num_meshes)%offset(i:) = tnnod
     enddo
     f_vtk%mesh(f_vtk%num_meshes)%nnods = tnnod
@@ -294,16 +294,16 @@ contains
 
     ! Fill VTK coordinate arrays
     do i=1, f_trian%num_elems
-        do j=1, f_trian%elems(i)%topology%nnode
+        do j=1, f_trian%elems(i)%geo_reference_element%nnode
 ! node permutation (only VTK elements 9 and 12)
-!            f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = ftype_conn( f_trian%elems(i)%topology%ftype,mod(j-1,f_trian%elems(i)%topology%nnode)+1) - 1 + tnnod
+!            f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = ftype_conn( f_trian%elems(i)%geo_reference_element%ftype,mod(j-1,f_trian%elems(i)%geo_reference_element%nnode)+1) - 1 + tnnod
             f_vtk%mesh(f_vtk%num_meshes)%connec(tnnod+j) = j + tnnod - 1
             if (f_trian%num_dims >=1) f_vtk%mesh(f_vtk%num_meshes)%X(counter) = f_trian%elems(i)%coordinates(1,j)
             if (f_trian%num_dims >=2) f_vtk%mesh(f_vtk%num_meshes)%Y(counter) = f_trian%elems(i)%coordinates(2,j)
             if (f_trian%num_dims >=3) f_vtk%mesh(f_vtk%num_meshes)%Z(counter) = f_trian%elems(i)%coordinates(3,j)
             counter = counter + 1
         enddo
-        tnnod = tnnod + f_trian%elems(i)%topology%nnode
+        tnnod = tnnod + f_trian%elems(i)%geo_reference_element%nnode
     enddo
     f_vtk%mesh(f_vtk%num_meshes)%filled = .True.
   ! ----------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ contains
   subroutine fill_mesh_superlinear_order(f_vtk,fe_space, nmesh)
     implicit none
     ! Parmeter
-    class(fem_vtk_t)    , intent(inout) :: f_vtk
+    class(vtk_t)    , intent(inout) :: f_vtk
     type(fe_space_t)  , intent(in)    :: fe_space
     integer(ip),optional      , intent(out)   :: nmesh
   
@@ -406,7 +406,7 @@ contains
     count_subelem = 0
     f_vtk%mesh(f_vtk%num_meshes)%X = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Y = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Z = 0._rp
     do ielem = 1, fe_space%g_trian%num_elems
-       order = fe_space%finite_elements(ielem)%f_inf(1)%p%order
+       order = fe_space%finite_elements(ielem)%reference_element_vars(1)%p%order
        num_subelems = Q_nnods(ndime,order-1)
        geo_nnode = interp(order)%nnode
        nnode     = interp(order)%nlocs
@@ -436,8 +436,8 @@ contains
           end do
 
           ! Store the type of element
-          assert(fe_space%finite_elements(ielem)%p_geo_info%ftype == Q_type_id)
-          f_vtk%mesh(f_vtk%num_meshes)%ctype(count_subelem) = celltypes(ndime,fe_space%finite_elements(ielem)%p_geo_info%ftype)          
+          assert(fe_space%finite_elements(ielem)%p_geo_reference_element%ftype == Q_type_id)
+          f_vtk%mesh(f_vtk%num_meshes)%ctype(count_subelem) = celltypes(ndime,fe_space%finite_elements(ielem)%p_geo_reference_element%ftype)          
 
            ! Fill offset
            f_vtk%mesh(f_vtk%num_meshes)%offset(count_subelem) = count_poinsX
@@ -453,11 +453,11 @@ contains
 
   end subroutine fill_mesh_superlinear_order
 
-  ! Fill field_ts information into fem_vtk_t derivet type
+  ! Fill field_ts information into vtk_t derivet type
   subroutine fill_fields_from_physical_problem(f_vtk, phys_prob, nmesh)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),          intent(INOUT) :: f_vtk
+    class(vtk_t),          intent(INOUT) :: f_vtk
     class(physical_problem), intent(IN)    :: phys_prob
     integer(ip), optional,   intent(IN)    :: nmesh
     type(vtk_field_t), allocatable           :: vtk_f_tmp(:)
@@ -495,7 +495,7 @@ contains
   function write_VTK(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),             intent(INOUT) :: f_vtk
+    class(vtk_t),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_name
     integer(ip),      optional, intent(IN)    :: n_part
     real(rp),         optional, intent(IN)    :: t_step
@@ -561,10 +561,10 @@ contains
                         call memalloc( f_vtk%mesh(nm)%fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
             
                         do i=1, nels
-                            elnnod = f_vtk%p_fe_space%finite_elements(i)%f_inf(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                            elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
                             do j=1, elnnod
-                                nnode = f_vtk%p_fe_space%finite_elements(i)%f_inf(curr_nvar)%p%ntxob%p(j)
-                                idx = f_vtk%p_fe_space%finite_elements(i)%f_inf(curr_nvar)%p%ntxob%l(nnode)
+                                nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_nvar)%p%ntxob%p(j)
+                                idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_nvar)%p%ntxob%l(nnode)
                                 field(1:f_vtk%mesh(nm)%fields(f)%num_comp,j+tnnod) = &
                                      f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%fields(f)%num_comp, tidx)
                             enddo
@@ -595,7 +595,7 @@ contains
   function write_PVTK(f_vtk, f_name, n_mesh, t_step) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),             intent(INOUT) :: f_vtk
+    class(vtk_t),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_name
     integer(ip),      optional, intent(IN)    :: n_mesh
     real(rp),         optional, intent(IN)    :: t_step
@@ -673,7 +673,7 @@ contains
   function write_PVD(f_vtk, f_name, n_mesh) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),             intent(INOUT) :: f_vtk
+    class(vtk_t),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_name
     integer(ip),      optional, intent(IN)    :: n_mesh
     integer(ip)                               :: nm, rf
@@ -715,7 +715,7 @@ contains
 
   function create_dir_hierarchy(f_vtk, path) result(res)
   ! ----------------------------------------------------------------------------------
-    class(fem_vtk_t),   intent(INOUT) :: f_vtk
+    class(vtk_t),   intent(INOUT) :: f_vtk
     character(len=*), intent(IN)    :: path
     logical                         :: ft
     integer(kind=c_int)             :: res
@@ -742,7 +742,7 @@ contains
   function get_VTK_time_output_path(f_vtk, f_path, t_step, n_mesh) result(dp)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),             intent(INOUT) :: f_vtk
+    class(vtk_t),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_path
     real(rp),         optional, intent(IN)    :: t_step
     integer(ip),      optional, intent(IN)    :: n_mesh
@@ -770,7 +770,7 @@ contains
   function get_PVD_time_output_path(f_vtk, f_path, t_step) result(dp)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),             intent(INOUT) :: f_vtk
+    class(vtk_t),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_path
     real(RP),         optional, intent(IN)    :: t_step
     character(len=:), allocatable             :: dp
@@ -790,7 +790,7 @@ contains
   function get_VTK_filename(f_vtk, f_prefix, n_part, n_mesh) result(fn)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),             intent(INOUT) :: f_vtk
+    class(vtk_t),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_prefix
     integer(ip),      optional, intent(IN)    :: n_part
     integer(ip),      optional, intent(IN)    :: n_mesh
@@ -817,7 +817,7 @@ contains
   function get_PVTK_filename(f_vtk, f_prefix, n_mesh, t_step) result(fn)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t),             intent(INOUT) :: f_vtk
+    class(vtk_t),             intent(INOUT) :: f_vtk
     character(len=*), optional, intent(IN)    :: f_prefix
     integer(ip),      optional, intent(IN)    :: n_mesh
     real(rp),         optional, intent(IN)    :: t_step
@@ -845,7 +845,7 @@ contains
   subroutine set_root_proc(f_vtk, root)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t), intent(INOUT) :: f_vtk
+    class(vtk_t), intent(INOUT) :: f_vtk
     integer(ip),    intent(IN)    :: root
   ! ----------------------------------------------------------------------------------
 
@@ -858,7 +858,7 @@ contains
   subroutine set_num_steps(f_vtk, t_steps)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t), intent(INOUT) :: f_vtk
+    class(vtk_t), intent(INOUT) :: f_vtk
     integer(ip),    intent(IN)    :: t_steps
   ! ----------------------------------------------------------------------------------
 
@@ -870,7 +870,7 @@ contains
   ! Set the number of parts of the partitioned mesh to be writen in the PVTK
   subroutine set_num_parts(f_vtk, n_parts)
   ! ----------------------------------------------------------------------------------
-    class(fem_vtk_t), intent(INOUT) :: f_vtk
+    class(vtk_t), intent(INOUT) :: f_vtk
     integer(ip),    intent(IN)    :: n_parts
   ! ----------------------------------------------------------------------------------
 
@@ -882,7 +882,7 @@ contains
   ! Set the name of the output directory
   subroutine set_dir_path(f_vtk, dir_path, nmesh)
   ! ----------------------------------------------------------------------------------
-    class(fem_vtk_t),        intent(INOUT) :: f_vtk
+    class(vtk_t),        intent(INOUT) :: f_vtk
     character(len=*),      intent(IN)    :: dir_path
     integer(ip), optional, intent(IN)    :: nmesh
     integer(ip)                          :: nm = 1
@@ -897,7 +897,7 @@ contains
   ! Set the name of the output directory
   subroutine set_prefix(f_vtk, prefix, nmesh)
   ! ----------------------------------------------------------------------------------
-    class(fem_vtk_t),        intent(INOUT) :: f_vtk
+    class(vtk_t),        intent(INOUT) :: f_vtk
     character(len=*),      intent(IN)    :: prefix
     integer(ip), optional, intent(IN)    :: nmesh
     integer(ip)                          :: nm = 1
@@ -909,11 +909,11 @@ contains
   end subroutine set_prefix
 
 
-  ! Free the fem_vtk_t derived type
+  ! Free the vtk_t derived type
   subroutine free (f_vtk)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(fem_vtk_t), intent(inout) :: f_vtk
+    class(vtk_t), intent(inout) :: f_vtk
     integer(ip)                   :: i, j
     logical                       :: ft
   ! ----------------------------------------------------------------------------------

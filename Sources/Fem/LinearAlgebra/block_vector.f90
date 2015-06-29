@@ -25,110 +25,110 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_vector_names
+module block_vector_names
 use types_names
 use memor_names
-  use fem_vector_names
+  use vector_names
   implicit none
 # include "debug.i90"
 
   private
 
-  ! fem_vector
-  type fem_block_vector_t
+  ! vector
+  type block_vector_t
      integer(ip)                   :: nblocks = 0
-     type(fem_vector_t), allocatable :: blocks(:)
-  end type fem_block_vector_t
+     type(vector_t), allocatable :: blocks(:)
+  end type block_vector_t
 
   ! Types
-  public :: fem_block_vector_t
+  public :: block_vector_t
 
   ! Functions
-  public :: fem_block_vector_free, fem_block_vector_alloc,        & 
-            fem_block_vector_create_view, fem_block_vector_clone, & 
-            fem_block_vector_comm,                                &
-            fem_block_vector_dot,                                 & 
-            fem_block_vector_nrm2, fem_block_vector_copy,         & 
-            fem_block_vector_zero, fem_block_vector_init,         & 
-            fem_block_vector_scale, fem_block_vector_mxpy,        & 
-            fem_block_vector_axpy, fem_block_vector_aypx,         & 
-            fem_block_vector_pxpy, fem_block_vector_pxmy,         & 
-            fem_block_vector_print
+  public :: block_vector_free, block_vector_alloc,        & 
+            block_vector_create_view, block_vector_clone, & 
+            block_vector_comm,                                &
+            block_vector_dot,                                 & 
+            block_vector_nrm2, block_vector_copy,         & 
+            block_vector_zero, block_vector_init,         & 
+            block_vector_scale, block_vector_mxpy,        & 
+            block_vector_axpy, block_vector_aypx,         & 
+            block_vector_pxpy, block_vector_pxmy,         & 
+            block_vector_print
 contains
 
   !=============================================================================
-  subroutine fem_block_vector_free (bvec)
+  subroutine block_vector_free (bvec)
     implicit none
-    type(fem_block_vector_t), intent(inout) :: bvec
+    type(block_vector_t), intent(inout) :: bvec
     integer(ip)  :: ib
    
     do ib=1, bvec%nblocks
-       call fem_vector_free ( bvec%blocks(ib) )
+       call vector_free ( bvec%blocks(ib) )
     end do
     
     bvec%nblocks = 0
     deallocate( bvec%blocks )
-  end subroutine fem_block_vector_free
+  end subroutine block_vector_free
 
   !=============================================================================
-  subroutine fem_block_vector_alloc(nblocks, bvec)
+  subroutine block_vector_alloc(nblocks, bvec)
     implicit none
     integer(ip)           , intent(in)  :: nblocks
-    type(fem_block_vector_t), intent(out) :: bvec
+    type(block_vector_t), intent(out) :: bvec
     bvec%nblocks = nblocks
     allocate ( bvec%blocks(nblocks) )
-  end subroutine fem_block_vector_alloc
+  end subroutine block_vector_alloc
 
   !=============================================================================
-  subroutine fem_block_vector_create_view (svec, start, end, tvec)
+  subroutine block_vector_create_view (svec, start, end, tvec)
     implicit none
     ! Parameters
-    type(fem_block_vector_t), intent(in)  :: svec
+    type(block_vector_t), intent(in)  :: svec
     integer(ip)     , intent(in)        :: start
     integer(ip)     , intent(in)        :: end
-    type(fem_block_vector_t), intent(out) :: tvec
+    type(block_vector_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
 
-    call fem_block_vector_alloc ( svec%nblocks, tvec )
+    call block_vector_alloc ( svec%nblocks, tvec )
 
     do ib=1, svec%nblocks
-       call fem_vector_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
+       call vector_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
     end do
-  end subroutine fem_block_vector_create_view
+  end subroutine block_vector_create_view
 
   !=============================================================================
-  subroutine fem_block_vector_clone ( svec, tvec )
+  subroutine block_vector_clone ( svec, tvec )
     implicit none
     ! Parameters
-    type(fem_block_vector_t), intent( in ) :: svec
-    type(fem_block_vector_t), intent(out) :: tvec
+    type(block_vector_t), intent( in ) :: svec
+    type(block_vector_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
    
-    call fem_block_vector_alloc ( svec%nblocks, tvec )
+    call block_vector_alloc ( svec%nblocks, tvec )
    
     do ib=1, svec%nblocks
-       call fem_vector_clone (svec%blocks(ib), tvec%blocks(ib))
+       call vector_clone (svec%blocks(ib), tvec%blocks(ib))
     end do
 
-  end subroutine fem_block_vector_clone
+  end subroutine block_vector_clone
 
   !=============================================================================
   ! Dummy method required to specialize Krylov subspace methods
-  subroutine fem_block_vector_comm ( vec )
+  subroutine block_vector_comm ( vec )
     implicit none
-    type(fem_block_vector_t), intent( inout ) :: vec 
-  end subroutine fem_block_vector_comm
+    type(block_vector_t), intent( inout ) :: vec 
+  end subroutine block_vector_comm
 
   !=============================================================================
-  subroutine fem_block_vector_dot (x, y, t)
+  subroutine block_vector_dot (x, y, t)
     implicit none
     ! Parameters
-    type(fem_block_vector_t), intent(in)  :: x
-    type(fem_block_vector_t), intent(in)  :: y
+    type(block_vector_t), intent(in)  :: x
+    type(block_vector_t), intent(in)  :: y
     real(rp)              , intent(out) :: t
      
     ! Locals
@@ -139,154 +139,154 @@ contains
 
     t = 0.0_rp
     do ib=1,x%nblocks
-      call fem_vector_dot ( x%blocks(ib), y%blocks(ib), aux )
+      call vector_dot ( x%blocks(ib), y%blocks(ib), aux )
       t = t + aux
     end do 
-  end subroutine fem_block_vector_dot
+  end subroutine block_vector_dot
   !=============================================================================
-  subroutine fem_block_vector_nrm2(x,t)
+  subroutine block_vector_nrm2(x,t)
     implicit none
-    type(fem_block_vector_t), intent(in)  :: x
+    type(block_vector_t), intent(in)  :: x
     real(rp)    , intent(out)     :: t
 
-    call fem_block_vector_dot (x, x, t)
+    call block_vector_dot (x, x, t)
     t = sqrt(t)
-  end subroutine fem_block_vector_nrm2
+  end subroutine block_vector_nrm2
   !=============================================================================
-  subroutine fem_block_vector_copy(x,y)
+  subroutine block_vector_copy(x,y)
     implicit none
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
 
     ! Locals
     integer(ip) :: ib
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, x%nblocks
-      call fem_vector_copy ( x%blocks(ib), y%blocks(ib) )
+      call vector_copy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine fem_block_vector_copy
+  end subroutine block_vector_copy
 
-  subroutine fem_block_vector_zero(y)
+  subroutine block_vector_zero(y)
     implicit none
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip) :: ib
 
     do ib=1, y%nblocks
-      call fem_vector_zero ( y%blocks(ib) )
+      call vector_zero ( y%blocks(ib) )
     end do 
 
-  end subroutine fem_block_vector_zero
+  end subroutine block_vector_zero
 
-  subroutine fem_block_vector_init(alpha, y)
+  subroutine block_vector_init(alpha, y)
     implicit none
-    type(fem_block_vector_t), intent(inout) :: y 
+    type(block_vector_t), intent(inout) :: y 
     real(rp), intent(in)                  :: alpha  
     ! Locals
     integer(ip)                           :: ib
 
     do ib=1, y%nblocks
-      call fem_vector_init ( alpha, y%blocks(ib) )
+      call vector_init ( alpha, y%blocks(ib) )
     end do    
-  end subroutine fem_block_vector_init
+  end subroutine block_vector_init
   
-  subroutine fem_block_vector_scale(t, x, y)
+  subroutine block_vector_scale(t, x, y)
     implicit none
     ! Parameters 
     real(rp)              , intent(in)    :: t
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call fem_vector_scale ( t, x%blocks(ib), y%blocks(ib) )
+      call vector_scale ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
-  end subroutine fem_block_vector_scale
+  end subroutine block_vector_scale
 
-  subroutine fem_block_vector_mxpy(x,y)
+  subroutine block_vector_mxpy(x,y)
     implicit none
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call fem_vector_mxpy ( x%blocks(ib), y%blocks(ib) )
+      call vector_mxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine fem_block_vector_mxpy
-  subroutine fem_block_vector_axpy(t,x,y)
+  end subroutine block_vector_mxpy
+  subroutine block_vector_axpy(t,x,y)
     implicit none
     real(rp)   , intent(in)         :: t
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call fem_vector_axpy ( t, x%blocks(ib), y%blocks(ib) )
+      call vector_axpy ( t, x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine fem_block_vector_axpy
+  end subroutine block_vector_axpy
 
-  subroutine fem_block_vector_aypx(t,x,y)
+  subroutine block_vector_aypx(t,x,y)
     implicit none
     real(rp)        , intent(in)    :: t
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
 
     ! Locals
     integer(ip)                           :: ib
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call fem_vector_aypx ( t, x%blocks(ib), y%blocks(ib) )
+      call vector_aypx ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
-  end subroutine fem_block_vector_aypx
+  end subroutine block_vector_aypx
 
-  subroutine fem_block_vector_pxpy(x,y)
+  subroutine block_vector_pxpy(x,y)
     implicit none
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call fem_vector_pxpy ( x%blocks(ib), y%blocks(ib) )
+      call vector_pxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine fem_block_vector_pxpy
+  end subroutine block_vector_pxpy
 
-  subroutine fem_block_vector_pxmy(x,y)
+  subroutine block_vector_pxmy(x,y)
     implicit none
-    type(fem_block_vector_t), intent(in)    :: x
-    type(fem_block_vector_t), intent(inout) :: y
+    type(block_vector_t), intent(in)    :: x
+    type(block_vector_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call fem_vector_pxmy ( x%blocks(ib), y%blocks(ib) )
+      call vector_pxmy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine fem_block_vector_pxmy
+  end subroutine block_vector_pxmy
 
-  subroutine fem_block_vector_print (luout, x)
+  subroutine block_vector_print (luout, x)
     implicit none
-    type(fem_block_vector_t), intent(in) :: x
+    type(block_vector_t), intent(in) :: x
     integer(ip)           , intent(in) :: luout
     
     ! Locals
     integer(ip) :: ib
 
     do ib=1, x%nblocks
-      call fem_vector_print ( luout, x%blocks(ib) )
+      call vector_print ( luout, x%blocks(ib) )
     end do 
-  end subroutine fem_block_vector_print
+  end subroutine block_vector_print
 
   subroutine ass_blkvec_w_dof_handler(nint,nn,nd,id,ld,ib,jb,nva,iv,pn,l2g,ev,nv,mn,jbn,b)
     implicit none
@@ -315,4 +315,4 @@ contains
 
   end subroutine ass_blkvec_w_dof_handler
 
-end module fem_block_vector_names
+end module block_vector_names

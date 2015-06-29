@@ -32,7 +32,7 @@ program test_dirsol_mm
   !  using a matrix read from matrix market
   !
   !-----------------------------------------------------------------------
-use fem_names
+use serial_names
 # include "debug.i90"
 
   implicit none
@@ -44,13 +44,13 @@ use fem_names
   type(conv_t), allocatable  :: methodstopc(:)
   integer(ip)              :: lunio
 
-  type(fem_matrix_t)         :: mmmat
-  type(fem_graph_t)          :: mmgraph
-  type(fem_vector_t)         :: fevec
-  type(fem_vector_t)         :: feunk
+  type(matrix_t)         :: mmmat
+  type(graph_t)          :: mmgraph
+  type(vector_t)         :: fevec
+  type(vector_t)         :: feunk
 
-  type(fem_precond_t)        :: feprec
-  type(fem_precond_params_t) :: ppars
+  type(precond_t)        :: feprec
+  type(precond_params_t) :: ppars
   type(solver_control_t)     :: sctrl
   type(serial_environment_t) :: senv
 
@@ -75,23 +75,23 @@ use fem_names
   call read_pars_cl_test_dirsol_mm ( solver, driver, dir_path, prefix, smoother, one_pass_coarsen, st_parameter, from_file)
 
   ! Read a symmetric matrix
-  call fem_matrix_compose_name_matrix_market ( prefix, name ) 
+  call matrix_compose_name_matrix_market ( prefix, name ) 
   lunio = io_open(trim(dir_path) // '/' // trim(name),status='old')
-  ! call fem_matrix_read_matrix_market (lunio, mmmat, mmgraph, symm_true, positive_definite)
-  call fem_matrix_read_matrix_market (lunio, mmmat, mmgraph, symm_false)
+  ! call matrix_read_matrix_market (lunio, mmmat, mmgraph, symm_true, positive_definite)
+  call matrix_read_matrix_market (lunio, mmmat, mmgraph, symm_false)
 
   call io_close(lunio)
 
 !!$  prefix = trim(prefix) // '.out'
 !!$  write(*,*) prefix
-!!$  call fem_matrix_compose_name_matrix_market ( prefix , name ) 
+!!$  call matrix_compose_name_matrix_market ( prefix , name ) 
 !!$  lunio = io_open(trim(dir_path) // '/' // trim(name))
-!!$  call fem_matrix_print_matrix_market (lunio, mmmat)
+!!$  call matrix_print_matrix_market (lunio, mmmat)
 !!$  call io_close(lunio)
 
   ! Alloc vectors
-  call fem_vector_alloc (mmmat%gr%nv,fevec)
-  call fem_vector_alloc (mmmat%gr%nv,feunk)
+  call vector_alloc (mmmat%gr%nv,fevec)
+  call vector_alloc (mmmat%gr%nv,feunk)
 
   ! Solve using the higher level interface
 
@@ -130,13 +130,13 @@ use fem_names
             stop
     end select
 
-     call fem_precond_create  (mmmat, feprec, ppars)
+     call precond_create  (mmmat, feprec, ppars)
      t1 = wtime()
-     call fem_precond_symbolic(mmmat, feprec)
-     call fem_precond_numeric (mmmat, feprec)
+     call precond_symbolic(mmmat, feprec)
+     call precond_numeric (mmmat, feprec)
      t2 = wtime() 
 
-     call fem_precond_log_info(feprec)
+     call precond_log_info(feprec)
 
      write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
      
@@ -161,9 +161,9 @@ use fem_names
      ! call solver_control_log_conv_his(sctrl)
      call solver_control_free_conv_his(sctrl)
 
-     call fem_precond_free ( precond_free_values, feprec)
-     call fem_precond_free ( precond_free_struct, feprec)
-     call fem_precond_free ( precond_free_clean, feprec)
+     call precond_free ( precond_free_values, feprec)
+     call precond_free ( precond_free_struct, feprec)
+     call precond_free ( precond_free_clean, feprec)
 
   else
 
@@ -268,13 +268,13 @@ use fem_names
                 do l=1,2
                     sctrl%orto=l
 
-                    call fem_precond_create  (mmmat, feprec, ppars)
+                    call precond_create  (mmmat, feprec, ppars)
                     t1 = wtime()
-                    call fem_precond_symbolic(mmmat, feprec)
-                    call fem_precond_numeric (mmmat, feprec)
+                    call precond_symbolic(mmmat, feprec)
+                    call precond_numeric (mmmat, feprec)
                     t2 = wtime() 
         
-                    call fem_precond_log_info(feprec)
+                    call precond_log_info(feprec)
         
                     write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
              
@@ -298,9 +298,9 @@ use fem_names
                     ! call solver_control_log_conv_his(sctrl)
                     call solver_control_free_conv_his(sctrl)
         
-                    call fem_precond_free ( precond_free_values, feprec)
-                    call fem_precond_free ( precond_free_struct, feprec)
-                    call fem_precond_free ( precond_free_clean, feprec)
+                    call precond_free ( precond_free_values, feprec)
+                    call precond_free ( precond_free_struct, feprec)
+                    call precond_free ( precond_free_clean, feprec)
         
                     if((gerror-aerror)>1.e4*epsilon(gerror)) then
                         ! check generic-abstract
@@ -321,10 +321,10 @@ use fem_names
   endif
 
 
-  call fem_graph_free ( mmgraph )
-  call fem_matrix_free ( mmmat ) 
-  call fem_vector_free (fevec)
-  call fem_vector_free (feunk)
+  call graph_free ( mmgraph )
+  call matrix_free ( mmmat ) 
+  call vector_free (fevec)
+  call vector_free (feunk)
 
 contains
 

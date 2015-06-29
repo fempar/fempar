@@ -130,13 +130,13 @@ contains
        !write(*,*) 'num_elems+1', p_fe_space%g_trian%num_elems+1
        !write(*,*) 'num_ghosts', num_ghosts
        !do ielem = p_fe_space%g_trian%num_elems+1, p_fe_space%g_trian%num_elems+num_ghosts
-       !   call finite_element_fixed_info_write( p_trian%f_trian%elems(ielem)%topology )
+       !   call finite_element_fixed_info_write( p_trian%f_trian%elems(ielem)%geo_reference_element )
        !end do
 
        !write(*,*) 'num_elems+1', p_fe_space%g_trian%num_elems+1
        !write(*,*) 'num_ghosts', num_ghosts
        !do ielem = p_fe_space%g_trian%num_elems+1, p_fe_space%g_trian%num_elems+num_ghosts
-       !   call finite_element_fixed_info_write( p_fe_space%g_trian%elems(ielem)%topology )
+       !   call finite_element_fixed_info_write( p_fe_space%g_trian%elems(ielem)%geo_reference_element )
        !end do
     end if
 
@@ -157,7 +157,7 @@ contains
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
        ! Deallocate type(finite_element_ts) associated to ghost elements
        do ielem = p_fe_space%p_trian%f_trian%num_elems+1, p_fe_space%p_trian%f_trian%num_elems+p_fe_space%p_trian%num_ghosts
-          if(allocated(p_fe_space%fe_space%finite_elements(ielem)%f_inf)) call memfree(p_fe_space%fe_space%finite_elements(ielem)%f_inf,__FILE__,__LINE__)
+          if(allocated(p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars)) call memfree(p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars,__FILE__,__LINE__)
           if(allocated(p_fe_space%fe_space%finite_elements(ielem)%elem2dof)) call memfree(p_fe_space%fe_space%finite_elements(ielem)%elem2dof,__FILE__,__LINE__)
           if(allocated(p_fe_space%fe_space%finite_elements(ielem)%unkno)) call memfree(p_fe_space%fe_space%finite_elements(ielem)%unkno,__FILE__,__LINE__)
           call finite_element_free_unpacked(p_fe_space%fe_space%finite_elements(ielem))
@@ -195,11 +195,11 @@ contains
        !write (*,*) '************* GHOST ELEMENT *************',ielem
        nvars = p_fe_space%fe_space%dof_handler%problems(p_fe_space%fe_space%finite_elements(ielem)%problem)%p%nvars
        p_fe_space%fe_space%finite_elements(ielem)%num_vars = nvars
-       f_type = p_fe_space%p_trian%f_trian%elems(ielem)%topology%ftype
+       f_type = p_fe_space%p_trian%f_trian%elems(ielem)%geo_reference_element%ftype
        !write(*,*) 'f_type ghosts',f_type
        !write(*,*) 'nvars',nvars
        assert ( f_type > 0)
-       call memalloc(nvars, p_fe_space%fe_space%finite_elements(ielem)%f_inf, __FILE__, __LINE__ )
+       call memalloc(nvars, p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars, __FILE__, __LINE__ )
        allocate(p_fe_space%fe_space%finite_elements(ielem)%nodes_object(nvars), stat=istat )
        do ivar=1,nvars
           f_order = p_fe_space%fe_space%finite_elements(ielem)%order(ivar)
@@ -209,10 +209,9 @@ contains
           if ( istat == new_index) then 
              !write (*,*) ' FIXED INFO NEW'
              call finite_element_fixed_info_create(p_fe_space%fe_space%finite_elements_info(pos_elinf),f_type,              &
-                  &                             f_order,p_fe_space%p_trian%f_trian%num_dims,created)
-             assert(created)
+                  &                             f_order,p_fe_space%p_trian%f_trian%num_dims)
           end if
-          p_fe_space%fe_space%finite_elements(ielem)%f_inf(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)
+          p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)
           if ( p_fe_space%fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
              p_fe_space%fe_space%finite_elements(ielem)%nodes_object(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)%ndxob
           else 
@@ -225,10 +224,10 @@ contains
        max_num_nodes = 0
        do ivar=1,nvars
           if ( p_fe_space%fe_space%static_condensation ) then
-             nnode = p_fe_space%fe_space%finite_elements(ielem)%f_inf(ivar)%p%nnode -                                   &
-                  &  p_fe_space%fe_space%finite_elements(ielem)%f_inf(ivar)%p%nodes_obj(p_fe_space%fe_space%g_trian%num_dims+1) ! SB.alert : do not use nodes_obj
+             nnode = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode -                                   &
+                  &  p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_obj(p_fe_space%fe_space%g_trian%num_dims+1) ! SB.alert : do not use nodes_obj
           else
-             nnode = p_fe_space%fe_space%finite_elements(ielem)%f_inf(ivar)%p%nnode 
+             nnode = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode 
           end if
           lndof = lndof + nnode
           max_num_nodes = max(max_num_nodes,nnode)

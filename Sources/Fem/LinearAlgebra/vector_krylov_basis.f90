@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_vector_krylov_basis_names
+module vector_krylov_basis_names
 use types_names
 use memor_names
 #ifdef ENABLE_BLAS
 use blas77_interfaces_names
 #endif
-  use fem_vector_names
+  use vector_names
   implicit none
 # include "debug.i90"
 
@@ -47,32 +47,32 @@ use blas77_interfaces_names
 
   private
 
-  ! fem_vector_krylov_basis
-  type fem_vector_krylov_basis_t
+  ! vector_krylov_basis
+  type vector_krylov_basis_t
      integer(ip)                :: &
         neq = 0,                   &  ! Number of equations
         k   = 0                       ! Number of Krylov basis vectors
 
      real(rp), allocatable      :: &
         b(:,:) 
-  end type fem_vector_krylov_basis_t
+  end type vector_krylov_basis_t
 
   ! Types
-  public :: fem_vector_krylov_basis_t
+  public :: vector_krylov_basis_t
 
   ! Functions
-  public :: fem_vector_krylov_basis_alloc, fem_vector_krylov_basis_free,            & 
-            fem_vector_krylov_basis_extract_view, fem_vector_krylov_basis_multidot, & 
-            fem_vector_krylov_basis_multiaxpy
+  public :: vector_krylov_basis_alloc, vector_krylov_basis_free,            & 
+            vector_krylov_basis_extract_view, vector_krylov_basis_multidot, & 
+            vector_krylov_basis_multiaxpy
 
 contains
 
   !=============================================================================
-  subroutine fem_vector_krylov_basis_alloc (k, f_v, Q) 
+  subroutine vector_krylov_basis_alloc (k, f_v, Q) 
     implicit none
     integer(ip)                  , intent(in)          :: k
-    type(fem_vector_t)             , intent(in) , target :: f_v
-    type(fem_vector_krylov_basis_t), intent(out)         :: Q 
+    type(vector_t)             , intent(in) , target :: f_v
+    type(vector_krylov_basis_t), intent(out)         :: Q 
 
     Q%neq     = f_v%neq
     Q%k       = k
@@ -80,25 +80,25 @@ contains
     call memalloc( Q%neq, Q%k, Q%b, __FILE__,__LINE__)
 
     Q%b = 0.0_rp 
-  end subroutine fem_vector_krylov_basis_alloc
+  end subroutine vector_krylov_basis_alloc
 
   !=============================================================================
-  subroutine fem_vector_krylov_basis_free (Q)
+  subroutine vector_krylov_basis_free (Q)
      implicit none
-     type(fem_vector_krylov_basis_t), intent(inout) :: Q
+     type(vector_krylov_basis_t), intent(inout) :: Q
     
      Q%neq     = 0
      Q%k       = 0
      call memfree(Q%b,__FILE__,__LINE__)
 
-  end subroutine fem_vector_krylov_basis_free
+  end subroutine vector_krylov_basis_free
 
   !=============================================================================
-  subroutine fem_vector_krylov_basis_extract_view (i, Q, f_v)
+  subroutine vector_krylov_basis_extract_view (i, Q, f_v)
      implicit none
      integer(ip)     , intent(in)                      :: i
-     type(fem_vector_krylov_basis_t), intent(in), target :: Q
-     type(fem_vector_t), intent(out)                     :: f_v
+     type(vector_krylov_basis_t), intent(in), target :: Q
+     type(vector_t), intent(out)                     :: f_v
 
      assert ( i >= 1 .and. i <= Q%k )
 
@@ -106,15 +106,15 @@ contains
      f_v%neq     =  Q%neq
      f_v%mode    =  reference
      f_v%b       => Q%b(:,i)
-  end subroutine fem_vector_krylov_basis_extract_view
+  end subroutine vector_krylov_basis_extract_view
 
   !=============================================================================
   ! s <- Q_k^T * f_v, with Q_k = (Q(1), Q(2), .. Q(k))
-  subroutine fem_vector_krylov_basis_multidot (k, Q, f_v, s)
+  subroutine vector_krylov_basis_multidot (k, Q, f_v, s)
      implicit none
      integer(ip)                  , intent(in) :: k
-     type(fem_vector_krylov_basis_t), intent(in) :: Q
-     type(fem_vector_t)             , intent(in) :: f_v
+     type(vector_krylov_basis_t), intent(in) :: Q
+     type(vector_t)             , intent(in) :: f_v
      real(rp), intent(out)                     :: s(k)
 
      assert ( f_v%neq == Q%neq )
@@ -123,22 +123,22 @@ contains
      call DGEMV(  'T', Q%neq, k, 1.0_rp, Q%b, &
                &  Q%neq, f_v%b, 1, 0.0_rp, s, 1)    
 #else
-     write (0,*) 'Error: fem_vector_krylov_basis_multidot was not compiled with -DENABLE_BLAS.'
+     write (0,*) 'Error: vector_krylov_basis_multidot was not compiled with -DENABLE_BLAS.'
      write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
      stop
 #endif 
      
-  end subroutine fem_vector_krylov_basis_multidot
+  end subroutine vector_krylov_basis_multidot
 
   !=============================================================================
   ! f_v <- f_v + alpha*Q_k * s
-  subroutine fem_vector_krylov_basis_multiaxpy (k, alpha, Q, s, f_v)
+  subroutine vector_krylov_basis_multiaxpy (k, alpha, Q, s, f_v)
      implicit none
      integer(ip)                  , intent(in)    :: k
      real(rp)                     , intent(in)    :: alpha
-     type(fem_vector_krylov_basis_t), intent(in)    :: Q
+     type(vector_krylov_basis_t), intent(in)    :: Q
      real(rp)                     , intent(in)    :: s(k)
-     type(fem_vector_t)             , intent(inout) :: f_v
+     type(vector_t)             , intent(inout) :: f_v
      
      assert ( f_v%neq == Q%neq )  
  
@@ -146,12 +146,12 @@ contains
       call DGEMV(  'N', Q%neq, k, alpha, Q%b, &
               &  Q%neq, s, 1, 1.0_rp, f_v%b, 1)
 #else
-     write (0,*) 'Error: fem_vector_krylov_basis_multidot was not compiled with -DENABLE_BLAS.'
+     write (0,*) 'Error: vector_krylov_basis_multidot was not compiled with -DENABLE_BLAS.'
      write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
      stop    
 #endif
    
-  end subroutine fem_vector_krylov_basis_multiaxpy
+  end subroutine vector_krylov_basis_multiaxpy
  
 
-end module fem_vector_krylov_basis_names
+end module vector_krylov_basis_names

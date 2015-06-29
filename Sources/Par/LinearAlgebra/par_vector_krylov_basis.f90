@@ -29,7 +29,7 @@ module par_vector_krylov_basis_names
   ! Serial modules
 use types_names
 use memor_names
-  use fem_vector_krylov_basis_names
+  use vector_krylov_basis_names
 
   ! Parallel modules
   use dof_distribution_names
@@ -49,7 +49,7 @@ use memor_names
      ! corresponding to vertices owned by the processor  
      !type( epetra_multivector_t ) :: epmv
 
-     type(fem_vector_krylov_basis_t) :: f_basis
+     type(vector_krylov_basis_t) :: f_basis
      
      ! Partially or fully summed
      integer(ip)  :: state = undefined
@@ -86,7 +86,7 @@ contains
 
     if(p_v%p_env%p_context%iam<0) return
 
-    call fem_vector_krylov_basis_alloc ( k, p_v%f_vector, Q%f_basis )
+    call vector_krylov_basis_alloc ( k, p_v%f_vector, Q%f_basis )
 
     Q%state = p_v%state
   end subroutine par_vector_krylov_basis_alloc
@@ -104,7 +104,7 @@ contains
 
     Q%state = undefined
 
-    call fem_vector_krylov_basis_free ( Q%f_basis )
+    call vector_krylov_basis_free ( Q%f_basis )
 
   end subroutine par_vector_krylov_basis_free
 
@@ -126,7 +126,7 @@ contains
     if(Q%p_env%p_context%iam<0) return
 
     ! 1. fill p_v%f_vector members
-    call fem_vector_krylov_basis_extract_view (i, Q%f_basis, p_v%f_vector )
+    call vector_krylov_basis_extract_view (i, Q%f_basis, p_v%f_vector )
 
     p_v%state  =  Q%state
   end subroutine par_vector_krylov_basis_extract_view
@@ -165,7 +165,7 @@ contains
         call par_vector_comm   ( p_v_w )
      end if
      
-     call fem_vector_krylov_basis_multidot ( k, Q%f_basis, p_v_w%f_vector, s )
+     call vector_krylov_basis_multidot ( k, Q%f_basis, p_v_w%f_vector, s )
      
      call par_vector_free  ( p_v_w )
      
@@ -195,7 +195,7 @@ contains
      if(Q%p_env%p_context%iam<0) return
 
      assert ( p_v%state == Q%state )
-     call fem_vector_krylov_basis_multiaxpy (k, alpha, Q%f_basis, s, p_v%f_vector)
+     call vector_krylov_basis_multiaxpy (k, alpha, Q%f_basis, s, p_v%f_vector)
 
   end subroutine par_vector_krylov_basis_multiaxpy
  

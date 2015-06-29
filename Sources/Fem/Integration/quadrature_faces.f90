@@ -55,11 +55,11 @@ module quadrature_faces_names
 contains
 
   !==================================================================================================
-  subroutine face_quadrature_create(ndime,nface,quad,fi,face_quad,subface)
+  subroutine face_quadrature_create(ndime,nface,quad,reference_element,face_quad,subface)
     implicit none
     ! Parameters
     integer(ip)          , intent(in)  :: ndime,nface
-    type(fem_fixed_info_t) , intent(in)  :: fi
+    type(reference_element_t) , intent(in)  :: reference_element
     type(quadrature_t)     , intent(in)  :: quad
     type(face_quadrature_t), intent(out) :: face_quad
     integer(ip)          , intent(in), optional :: subface
@@ -68,12 +68,12 @@ contains
     integer(ip)                   :: iface,igaus,ngaus,i
     integer(ip)                   :: subface_pos(ndime),idime, refinement_level
     real(rp)                      :: center, length
-    real(rp)                      :: nopos(ndime,fi%nnode)
+    real(rp)                      :: nopos(ndime,reference_element%nnode)
     real(rp)                      :: v1(ndime),M(ndime,ndime-1),posgp(ndime-1,quad%ngaus)
 
     ! Assign integer parameters
     face_quad%ndime      = ndime
-    face_quad%etype      = fi%ftype
+    face_quad%etype      = reference_element%ftype
     face_quad%nface      = nface
     face_quad%ngausxface = quad%ngaus
 
@@ -84,7 +84,7 @@ contains
        if (subface > 0) then
           ! TODO: Use refinement level as a variable. For now it is assumed to be at most 1.
           refinement_level = 1
-          if (fi%ftype == Q_type_id) then
+          if (reference_element%ftype == Q_type_id) then
              call Q_ijkg(subface_pos,subface,ndime,2**refinement_level-1)
              length = 2.0_rp/real(2**refinement_level)
              do idime =1, ndime-1
@@ -100,10 +100,10 @@ contains
     end if
     call memalloc(ndime,quad%ngaus,nface,face_quad%pos,__FILE__,__LINE__)
 
-    if (fi%ftype == P_type_id) then
-       call P_refcoord (nopos, ndime, fi%order, fi%nnode)
-    elseif (fi%ftype == Q_type_id) then
-       call Q_refcoord (nopos, ndime, fi%order, fi%nnode)
+    if (reference_element%ftype == P_type_id) then
+       call P_refcoord (nopos, ndime, reference_element%order, reference_element%nnode)
+    elseif (reference_element%ftype == Q_type_id) then
+       call Q_refcoord (nopos, ndime, reference_element%order, reference_element%nnode)
     else
        write(*,*) 'quadrature_t_faces:: ERROR! Unknown element type.'
        check (1 == 0)
@@ -113,37 +113,37 @@ contains
        face_quad%pos(1,:,1) = (/-1,1/)
     else if (ndime == 2) then
        do iface = 1,nface
-          v1 = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
-          M(:,1) = 0.5*(nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+1)) -         &
-               &        nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)  )))
+          v1 = nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)))
+          M(:,1) = 0.5*(nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)+1)) -         &
+               &        nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)  )))
           do igaus = 1,ngaus
              face_quad%pos(:,igaus,iface) = v1 + M(:,1)*(posgp(1,igaus)+1)
           end do
        end do
     else if (ndime == 3) then
-       if (fi%ftype == P_type_id) then
+       if (reference_element%ftype == P_type_id) then
           do iface = 1,nface
-             v1 = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
-             M(:,1) = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+1)) -              &
-                  &   nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
-             M(:,2) = nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+2)) -              &
-                  &   nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)))
+             v1 = nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)))
+             M(:,1) = nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)+1)) -              &
+                  &   nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)))
+             M(:,2) = nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)+2)) -              &
+                  &   nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)))
              do igaus = 1,ngaus
                 face_quad%pos(:,igaus,iface) = v1 + matmul(M,posgp(:,igaus))
              end do
           end do
-       elseif (fi%ftype == Q_type_id) then
+       elseif (reference_element%ftype == Q_type_id) then
           do iface = 1,nface
              v1 = 0.0_rp
              do i=1,4
-                v1 = v1 + nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+i-1))
+                v1 = v1 + nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)+i-1))
              end do
              v1 = v1/4.0_rp
 
-             M(:,1) = 0.5*(nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+1)) -         &
-                  &        nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1))))
-             M(:,2) = 0.5*(nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1)+2)) -         &
-                  &        nopos(:,fi%crxob%l(fi%crxob%p(fi%nobje_dim(ndime)+iface-1))))
+             M(:,1) = 0.5*(nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)+1)) -         &
+                  &        nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1))))
+             M(:,2) = 0.5*(nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1)+2)) -         &
+                  &        nopos(:,reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(ndime)+iface-1))))
              do igaus = 1,ngaus
                 face_quad%pos(:,igaus,iface) = v1 + matmul(M,posgp(:,igaus))
              end do

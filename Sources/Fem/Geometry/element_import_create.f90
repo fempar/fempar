@@ -28,7 +28,7 @@
 module element_import_create_names
   use types_names
   use memor_names
-  use fem_mesh_distribution_names
+  use mesh_distribution_names
   use element_import_names
   use sort_names
   use hash_table_names
@@ -46,7 +46,7 @@ contains
     implicit none
 
     ! Parameters
-    type(fem_mesh_distribution_t), intent(in)  :: f_msh_dist
+    type(mesh_distribution_t), intent(in)  :: f_msh_dist
     type(element_import_t)   , intent(out) :: f_element_import
     
     ! Locals

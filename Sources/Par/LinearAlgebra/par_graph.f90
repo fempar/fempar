@@ -29,7 +29,7 @@ module par_graph_names
   ! Serial modules
 use types_names
 use memor_names
-  use fem_graph_names
+  use graph_names
 #ifdef memcheck       
 use iso_c_binding
 #endif
@@ -61,7 +61,7 @@ use iso_c_binding
      ! of the graph mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( fem_graph_t )       :: f_graph
+     type( graph_t )       :: f_graph
      
      ! DoF distribution control info.
      type ( dof_distribution_t ), pointer  :: dof_dist      => NULL()
@@ -162,7 +162,7 @@ contains
     if(p_graph%p_env%p_context%iam<0) return
     
     if ( mode == free_only_struct ) then
-       call fem_graph_free ( p_graph%f_graph )
+       call graph_free ( p_graph%f_graph )
     else if ( mode == free_clean ) then
        ! Nullify parallel partition
        nullify( p_graph%dof_dist ) 
@@ -185,7 +185,7 @@ contains
 
     if(p_graph%p_env%p_context%iam<0) return
 
-    call fem_graph_print (lunou, p_graph%f_graph)
+    call graph_print (lunou, p_graph%f_graph)
   end subroutine par_graph_print
 
 end module par_graph_names

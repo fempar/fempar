@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_vector_krylov_basis_names
+module block_vector_krylov_basis_names
 use types_names
 use memor_names
-  use fem_vector_names
-  use fem_block_vector_names
-  use fem_vector_krylov_basis_names
+  use vector_names
+  use block_vector_names
+  use vector_krylov_basis_names
   implicit none
 # include "debug.i90"
 
@@ -46,28 +46,28 @@ use memor_names
 
   private
 
-  type fem_block_vector_krylov_basis_t
+  type block_vector_krylov_basis_t
      integer(ip)                                :: nblocks = 0
-     type(fem_vector_krylov_basis_t), allocatable :: blocks(:)
-  end type fem_block_vector_krylov_basis_t
+     type(vector_krylov_basis_t), allocatable :: blocks(:)
+  end type block_vector_krylov_basis_t
 
   ! Types
-  public :: fem_block_vector_krylov_basis_t
+  public :: block_vector_krylov_basis_t
 
   ! Functions
-  public :: fem_block_vector_krylov_basis_alloc,        fem_block_vector_krylov_basis_free,     & 
-            fem_block_vector_krylov_basis_extract_view, fem_block_vector_krylov_basis_multidot, & 
-            fem_block_vector_krylov_basis_multiaxpy
+  public :: block_vector_krylov_basis_alloc,        block_vector_krylov_basis_free,     & 
+            block_vector_krylov_basis_extract_view, block_vector_krylov_basis_multidot, & 
+            block_vector_krylov_basis_multiaxpy
 
 contains
 
   !=============================================================================
-  subroutine fem_block_vector_krylov_basis_alloc (k, f_v, Q)
+  subroutine block_vector_krylov_basis_alloc (k, f_v, Q)
     implicit none
     ! Parameters
     integer (ip)                        , intent(in)  :: k
-    type (fem_block_vector_t)             , intent(in)  :: f_v
-    type (fem_block_vector_krylov_basis_t), intent(out) :: Q
+    type (block_vector_t)             , intent(in)  :: f_v
+    type (block_vector_krylov_basis_t), intent(out) :: Q
 
     ! Locals
     integer(ip) :: ib 
@@ -75,51 +75,51 @@ contains
     Q%nblocks = f_v%nblocks
     allocate ( Q%blocks (Q%nblocks) )
     do ib=1, f_v%nblocks
-       call fem_vector_krylov_basis_alloc ( k, f_v%blocks(ib), Q%blocks(ib) )
+       call vector_krylov_basis_alloc ( k, f_v%blocks(ib), Q%blocks(ib) )
     end do
     
-  end subroutine fem_block_vector_krylov_basis_alloc
+  end subroutine block_vector_krylov_basis_alloc
 
   !=============================================================================
-  subroutine fem_block_vector_krylov_basis_free (Q)
+  subroutine block_vector_krylov_basis_free (Q)
      implicit none
      ! Parameters
-     type(fem_block_vector_krylov_basis_t), intent(inout) :: Q
+     type(block_vector_krylov_basis_t), intent(inout) :: Q
 
      ! Locals
      integer(ip) :: ib
 
      do ib=1, Q%nblocks
-       call fem_vector_krylov_basis_free ( Q%blocks(ib) )
+       call vector_krylov_basis_free ( Q%blocks(ib) )
      end do
 
      deallocate ( Q%blocks )
-  end subroutine fem_block_vector_krylov_basis_free
+  end subroutine block_vector_krylov_basis_free
 
   !=============================================================================
-  subroutine fem_block_vector_krylov_basis_extract_view (i, Q, f_v)
+  subroutine block_vector_krylov_basis_extract_view (i, Q, f_v)
      implicit none
      integer(ip)     , intent(in)                      :: i
-     type(fem_block_vector_krylov_basis_t), intent(in), target :: Q
-     type(fem_block_vector_t), intent(out)                     :: f_v
+     type(block_vector_krylov_basis_t), intent(in), target :: Q
+     type(block_vector_t), intent(out)                     :: f_v
      ! Locals
      integer(ip) :: ib
 
-    call fem_block_vector_alloc ( Q%nblocks, f_v )
+    call block_vector_alloc ( Q%nblocks, f_v )
 
      do ib=1, f_v%nblocks
-       call fem_vector_krylov_basis_extract_view ( i, Q%blocks(ib), f_v%blocks(ib) )
+       call vector_krylov_basis_extract_view ( i, Q%blocks(ib), f_v%blocks(ib) )
      end do
-  end subroutine fem_block_vector_krylov_basis_extract_view
+  end subroutine block_vector_krylov_basis_extract_view
 
   !=============================================================================
   ! s <- Q_k^T * f_v, with Q_k = (Q(1), Q(2), .. Q(k))
-  subroutine fem_block_vector_krylov_basis_multidot (k, Q, f_v, s)
+  subroutine block_vector_krylov_basis_multidot (k, Q, f_v, s)
      implicit none
      ! Parameters
      integer(ip)                        , intent(in) :: k
-     type(fem_block_vector_krylov_basis_t), intent(in) :: Q
-     type(fem_block_vector_t)             , intent(in) :: f_v
+     type(block_vector_krylov_basis_t), intent(in) :: Q
+     type(block_vector_t)             , intent(in) :: f_v
      real(rp), intent(out)                           :: s(k)
  
      ! Locals 
@@ -128,26 +128,26 @@ contains
 
      s = 0.0_rp
      do ib=1, f_v%nblocks
-       call fem_vector_krylov_basis_multidot ( k, Q%blocks(ib), f_v%blocks(ib), p )
+       call vector_krylov_basis_multidot ( k, Q%blocks(ib), f_v%blocks(ib), p )
        s = s + p 
      end do
-  end subroutine fem_block_vector_krylov_basis_multidot
+  end subroutine block_vector_krylov_basis_multidot
 
   !=============================================================================
   ! f_v <- f_v + alpha*Q_k * s
-  subroutine fem_block_vector_krylov_basis_multiaxpy (k, alpha, Q, s, f_v)
+  subroutine block_vector_krylov_basis_multiaxpy (k, alpha, Q, s, f_v)
      implicit none
      integer(ip)                        , intent(in)    :: k
      real(rp)                           , intent(in)    :: alpha
-     type(fem_block_vector_krylov_basis_t), intent(in)    :: Q
+     type(block_vector_krylov_basis_t), intent(in)    :: Q
      real(rp)                           , intent(in)    :: s(k)
-     type(fem_block_vector_t)             , intent(inout) :: f_v
+     type(block_vector_t)             , intent(inout) :: f_v
 
      ! Locals
      integer(ip) :: ib 
      do ib=1, f_v%nblocks
-       call fem_vector_krylov_basis_multiaxpy ( k, alpha, Q%blocks(ib), s, f_v%blocks(ib) )
+       call vector_krylov_basis_multiaxpy ( k, alpha, Q%blocks(ib), s, f_v%blocks(ib) )
      end do
-  end subroutine fem_block_vector_krylov_basis_multiaxpy
+  end subroutine block_vector_krylov_basis_multiaxpy
  
-end module fem_block_vector_krylov_basis_names
+end module block_vector_krylov_basis_names

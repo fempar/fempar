@@ -29,8 +29,8 @@ module par_block_matrix_names
   ! Serial modules
 use types_names
 use memor_names
-  use fem_graph_names
-  use fem_matrix_names
+  use graph_names
+  use matrix_names
 
   ! Parallel modules
   use par_matrix_names
@@ -253,13 +253,13 @@ contains
              call par_matvec ( a%blocks(ib,jb)%p_p_matrix, x%blocks(jb), aux ) 
 
              !write (*,*) 'XXXX', ib, '   ', jb                  ! DBG:
-             !call fem_vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG:
+             !call vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG:
 
              ! y(ib) <- y(ib) + aux 
              call par_vector_pxpy ( aux, y%blocks(ib) )
 
              ! write (*,*) 'XXXX', ib, '   ', jb                 ! DBG:
-             !call fem_vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG: 
+             !call vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG: 
 
           end if
        end do

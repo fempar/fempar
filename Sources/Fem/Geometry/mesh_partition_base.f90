@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_partition_base_names
+module mesh_partition_base_names
 use types_names
 
   ! Basic parameters and type definitions for serial partitioning routines
@@ -60,4 +60,4 @@ use types_names
   end type part_params_t
 
 
-end module fem_mesh_partition_base_names
+end module mesh_partition_base_names

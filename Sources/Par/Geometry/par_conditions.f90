@@ -31,8 +31,8 @@ module par_conditions_names
   use memor_names
   use stdio_names
   use renum_names
-  use fem_conditions_names
-  use fem_conditions_io_names
+  use conditions_names
+  use conditions_io_names
 
   ! Parallel modules
   use par_environment_names
@@ -45,7 +45,7 @@ module par_conditions_names
   type par_conditions_t
      ! Data structure which stores the local part
      ! of the BC's mapped to the current processor
-     type(fem_conditions_t) :: f_conditions
+     type(conditions_t) :: f_conditions
 
      ! Parallel environment control
      type(par_environment_t), pointer :: p_env => NULL()
@@ -74,7 +74,7 @@ contains
     cnd%p_env => p_env
 
     if( p_env%p_context%iam >= 0 ) then
-       call fem_conditions_create ( ncode,nvalu,ncond,cnd%f_conditions)
+       call conditions_create ( ncode,nvalu,ncond,cnd%f_conditions)
     end if
 
   end subroutine par_conditions_create
@@ -91,7 +91,7 @@ contains
     cnd_new%p_env => cnd_old%p_env
 
     if( cnd_new%p_env%p_context%iam >= 0 ) then
-       call fem_conditions_copy ( cnd_old%f_conditions, cnd_new%f_conditions )
+       call conditions_copy ( cnd_old%f_conditions, cnd_new%f_conditions )
     end if
 
   end subroutine par_conditions_copy
@@ -106,7 +106,7 @@ contains
     assert ( cnd%p_env%created )
     
     if( cnd%p_env%p_context%iam >= 0 ) then
-       call fem_conditions_apply_renum ( ren, cnd%f_conditions )
+       call conditions_apply_renum ( ren, cnd%f_conditions )
     end if
 
   end subroutine par_conditions_apply_renum
@@ -120,7 +120,7 @@ contains
     assert ( cnd%p_env%created )
     
     if( cnd%p_env%p_context%iam >= 0 ) then
-       call fem_conditions_free ( cnd%f_conditions )
+       call conditions_free ( cnd%f_conditions )
     end if
     
   end subroutine par_conditions_free
@@ -144,12 +144,12 @@ contains
     
     p_conditions%p_env => p_env
     if(p_env%p_context%iam>=0) then
-       call fem_conditions_compose_name ( prefix, name )
+       call conditions_compose_name ( prefix, name )
        call par_filename( p_conditions%p_env%p_context, name )
        
        ! Read conditions
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-       call fem_conditions_read_file ( lunio, npoin, p_conditions%f_conditions )
+       call conditions_read_file ( lunio, npoin, p_conditions%f_conditions )
        call io_close(lunio)
     end if
     

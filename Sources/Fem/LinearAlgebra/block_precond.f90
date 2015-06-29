@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_block_precond_names
+module block_precond_names
   ! Serial modules
 use types_names
-  use fem_block_matrix_names
-  use fem_block_vector_names
+  use block_matrix_names
+  use block_vector_names
 
 # include "debug.i90"
 
   ! ** IMPORTANT NOTE **: This is
   ! just a dummy class to specialize
-  ! Krylov methods on fem_block_matrices/vectors. 
-  ! In the future, fem_block_precond_names 
+  ! Krylov methods on block_matrices/vectors. 
+  ! In the future, block_precond_names 
   ! could become a useful class as long as 
   ! the set of serial solvers/preconditioners 
   ! becomes "rich enough"
@@ -44,52 +44,52 @@ use types_names
   implicit none
   private
 
-  type fem_block_precond_t
-  end type fem_block_precond_t
+  type block_precond_t
+  end type block_precond_t
 
   ! Types
-  public :: fem_block_precond_t
+  public :: block_precond_t
 
   ! Functions
-  public :: fem_block_precond_create, fem_block_precond_apply, fem_block_precond_bcast, fem_block_precond_fine_task
+  public :: block_precond_create, block_precond_apply, block_precond_bcast, block_precond_fine_task
   contains
 
   !=============================================================================
   ! Dummy method required to specialize Krylov subspace methods
-  subroutine fem_block_precond_bcast(prec,conv)
+  subroutine block_precond_bcast(prec,conv)
     implicit none
-    type(fem_block_precond_t) , intent(in)      :: prec
+    type(block_precond_t) , intent(in)      :: prec
     logical                 , intent( inout ) :: conv
-  end subroutine fem_block_precond_bcast
+  end subroutine block_precond_bcast
 
   ! Dummy method required to specialize Krylov subspace methods
   ! Needs to be filled with the abs operator machinery.
-  function fem_block_precond_fine_task(prec)
+  function block_precond_fine_task(prec)
     implicit none
-    type(fem_block_precond_t) , intent(in) :: prec
-    logical                        :: fem_block_precond_fine_task
-    fem_block_precond_fine_task = .true. 
-  end function fem_block_precond_fine_task
+    type(block_precond_t) , intent(in) :: prec
+    logical                        :: block_precond_fine_task
+    block_precond_fine_task = .true. 
+  end function block_precond_fine_task
 
   !=============================================================================
-  subroutine  fem_block_precond_create (f_b_prec)
+  subroutine  block_precond_create (f_b_prec)
     implicit none
     ! Parameters
-    type(fem_block_precond_t),  intent(out) :: f_b_prec
+    type(block_precond_t),  intent(out) :: f_b_prec
 
     ! Compute preconditioner ... 
-  end subroutine fem_block_precond_create
+  end subroutine block_precond_create
 
   !=============================================================================
-  subroutine fem_block_precond_apply (f_b_mat, f_b_prec, x, y)
+  subroutine block_precond_apply (f_b_mat, f_b_prec, x, y)
     implicit none
     ! Parameters
-    type(fem_block_matrix_t) , intent(in)    :: f_b_mat
-    type(fem_block_precond_t), intent(in)    :: f_b_prec
-    type(fem_block_vector_t) , intent(in)    :: x
-    type(fem_block_vector_t) , intent(inout) :: y
+    type(block_matrix_t) , intent(in)    :: f_b_mat
+    type(block_precond_t), intent(in)    :: f_b_prec
+    type(block_vector_t) , intent(in)    :: x
+    type(block_vector_t) , intent(inout) :: y
 
-    call fem_block_vector_copy (x, y)
-  end subroutine fem_block_precond_apply
+    call block_vector_copy (x, y)
+  end subroutine block_precond_apply
 
-end module fem_block_precond_names
+end module block_precond_names

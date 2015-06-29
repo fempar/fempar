@@ -25,16 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fem_mesh_distribution_names
+module mesh_distribution_names
   use types_names
   use memor_names
   use stdio_names
-  use maps_names
+  use map_names
   implicit none
   private
 
   ! Data required to describe on each MPI task the distribution of the mesh
-  type fem_mesh_distribution_t
+  type mesh_distribution_t
      integer(ip) ::                &
         ipart  = 1,                &    ! Part identifier
         nparts = 1                      ! Number of parts
@@ -56,27 +56,27 @@ module fem_mesh_distribution_names
      type(map_igp_t) ::  & 
         emap,                  &  ! Local2Global for elements 
         nmap                      ! Local2Global for vertices
-  end type fem_mesh_distribution_t
+  end type mesh_distribution_t
 
   ! Types
-  public :: fem_mesh_distribution_t
+  public :: mesh_distribution_t
 
   ! Functions
-  public :: fem_mesh_distribution_free, fem_mesh_distribution_print,               & 
-         &  fem_mesh_distribution_read, fem_mesh_distribution_write,               &
-         &  fem_mesh_distribution_compose_name, fem_mesh_distribution_write_files, &
-         &  fem_mesh_distribution_read_files
+  public :: mesh_distribution_free, mesh_distribution_print,               & 
+         &  mesh_distribution_read, mesh_distribution_write,               &
+         &  mesh_distribution_compose_name, mesh_distribution_write_files, &
+         &  mesh_distribution_read_files
 contains
 
   !=============================================================================
-  subroutine fem_mesh_distribution_free (f_msh_dist)
+  subroutine mesh_distribution_free (f_msh_dist)
     !-----------------------------------------------------------------------
     ! This subroutine deallocates a mesh_distribution object
     !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    type(fem_mesh_distribution_t), intent(inout)  :: f_msh_dist
+    type(mesh_distribution_t), intent(inout)  :: f_msh_dist
 
     call memfree ( f_msh_dist%lebou,__FILE__,__LINE__)
     call memfree ( f_msh_dist%lnbou,__FILE__,__LINE__)
@@ -87,10 +87,10 @@ contains
     call map_free (f_msh_dist%nmap)
     call map_free (f_msh_dist%emap)
 
-  end subroutine fem_mesh_distribution_free
+  end subroutine mesh_distribution_free
 
   !=============================================================================
-  subroutine fem_mesh_distribution_print (lu_out, msh_dist)
+  subroutine mesh_distribution_print (lu_out, msh_dist)
     !-----------------------------------------------------------------------
     ! This subroutine prints a mesh_distribution object
     !-----------------------------------------------------------------------
@@ -98,14 +98,14 @@ contains
 
     ! Parameters
     integer(ip)                , intent(in)  :: lu_out
-    type(fem_mesh_distribution_t), intent(in)  :: msh_dist
+    type(mesh_distribution_t), intent(in)  :: msh_dist
 
     ! Local variables
     integer (ip) :: i, j
 
     if(lu_out>0) then
 
-       write(lu_out,'(a)') '*** begin fem_mesh_distribution data structure ***'
+       write(lu_out,'(a)') '*** begin mesh_distribution data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
           &  msh_dist%nparts
@@ -119,16 +119,16 @@ contains
                &                  (msh_dist%lextn(j),msh_dist%lextp(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
        end do
 
-       write(lu_out,'(a)') '*** end fem_mesh_distribution data structure ***'
+       write(lu_out,'(a)') '*** end mesh_distribution data structure ***'
 
     end if
  
-  end subroutine fem_mesh_distribution_print
+  end subroutine mesh_distribution_print
 
-  subroutine fem_mesh_distribution_write (lunio, f_msh_dist)
+  subroutine mesh_distribution_write (lunio, f_msh_dist)
     ! Parameters
     integer            , intent(in) :: lunio
-    type(fem_mesh_distribution_t), intent(in) :: f_msh_dist
+    type(mesh_distribution_t), intent(in) :: f_msh_dist
     !-----------------------------------------------------------------------
     ! This subroutine writes a mesh_distribution to lunio
     !-----------------------------------------------------------------------
@@ -145,12 +145,12 @@ contains
     call map_write (lunio, f_msh_dist%nmap)
     call map_write (lunio, f_msh_dist%emap)
 
-  end subroutine fem_mesh_distribution_write
+  end subroutine mesh_distribution_write
 
-  subroutine fem_mesh_distribution_read (lunio, f_msh_dist)
+  subroutine mesh_distribution_read (lunio, f_msh_dist)
     ! Parameters
     integer(ip)        , intent(in)            :: lunio
-    type(fem_mesh_distribution_t), intent(inout) :: f_msh_dist
+    type(mesh_distribution_t), intent(inout) :: f_msh_dist
     !-----------------------------------------------------------------------
     ! This subroutine reads a mesh_distribution object
     !-----------------------------------------------------------------------
@@ -177,68 +177,68 @@ contains
     call map_read (lunio, f_msh_dist%nmap)
     call map_read (lunio, f_msh_dist%emap)
 
-  end subroutine fem_mesh_distribution_read
+  end subroutine mesh_distribution_read
 
   !=============================================================================
-  subroutine fem_mesh_distribution_compose_name ( prefix, name ) 
+  subroutine mesh_distribution_compose_name ( prefix, name ) 
     implicit none
     character (len=*), intent(in)                 :: prefix 
     character (len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.prt'
   end subroutine 
 
-  subroutine fem_mesh_distribution_write_files ( dir_path, prefix, nparts, parts )
+  subroutine mesh_distribution_write_files ( dir_path, prefix, nparts, parts )
     implicit none
     ! Parameters
     character (len=*), intent(in)   :: dir_path
     character (len=*), intent(in)   :: prefix
     integer(ip)  , intent(in)       :: nparts
-    type(fem_mesh_distribution_t), intent(in)  :: parts(nparts)
+    type(mesh_distribution_t), intent(in)  :: parts(nparts)
     ! Locals
     integer (ip)                     :: i
     character(len=:), allocatable    :: name, rename ! Deferred-length allocatable character arrays
     
     integer :: lunio
     
-    call fem_mesh_distribution_compose_name ( prefix, name )
+    call mesh_distribution_compose_name ( prefix, name )
     
     do i=1,nparts
        rename=name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open (trim(dir_path) // '/' // trim(rename))
-       call fem_mesh_distribution_write ( lunio, parts(i) )
+       call mesh_distribution_write ( lunio, parts(i) )
        call io_close (lunio)
     end do
 
     ! name, and rename should be automatically deallocated by the compiler when they
     ! go out of scope. Should we deallocate them explicitly for safety reasons?
-  end subroutine  fem_mesh_distribution_write_files
+  end subroutine  mesh_distribution_write_files
 
-  subroutine fem_mesh_distribution_read_files ( dir_path, prefix, nparts, parts )
+  subroutine mesh_distribution_read_files ( dir_path, prefix, nparts, parts )
     implicit none
     ! Parameters 
     character (*), intent(in)    :: dir_path 
     character (*), intent(in)    :: prefix
     integer(ip)  , intent(in)    :: nparts
-    type(fem_mesh_distribution_t), intent(inout)  :: parts(nparts)
+    type(mesh_distribution_t), intent(inout)  :: parts(nparts)
 
     ! Locals 
     integer (ip)                        :: i
     character(len=:), allocatable       :: name,rename ! Deferred-length allocatable character arrays
     integer(ip)                         :: lunio
 
-    call fem_mesh_distribution_compose_name ( prefix, name )
+    call mesh_distribution_compose_name ( prefix, name )
 
     do i=1,nparts
        rename=name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open (trim(dir_path) // '/' // trim(rename))
-       call fem_mesh_distribution_read ( lunio, parts(i) )
+       call mesh_distribution_read ( lunio, parts(i) )
        call io_close (lunio)
     end do
 
     ! name, and rename should be automatically deallocated by the compiler when they
     ! go out of scope. Should we deallocate them explicitly for safety reasons?
-  end subroutine  fem_mesh_distribution_read_files
+  end subroutine  mesh_distribution_read_files
 
-end module fem_mesh_distribution_names
+end module mesh_distribution_names
