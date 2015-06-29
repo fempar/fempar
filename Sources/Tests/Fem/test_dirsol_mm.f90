@@ -49,8 +49,8 @@ use serial_names
   type(vector_t)         :: fevec
   type(vector_t)         :: feunk
 
-  type(precond_t)        :: feprec
-  type(precond_params_t) :: ppars
+  type(preconditioner_t)        :: feprec
+  type(preconditioner_params_t) :: ppars
   type(solver_control_t)     :: sctrl
   type(serial_environment_t) :: senv
 
@@ -130,13 +130,13 @@ use serial_names
             stop
     end select
 
-     call precond_create  (mmmat, feprec, ppars)
+     call preconditioner_create  (mmmat, feprec, ppars)
      t1 = wtime()
-     call precond_symbolic(mmmat, feprec)
-     call precond_numeric (mmmat, feprec)
+     call preconditioner_symbolic(mmmat, feprec)
+     call preconditioner_numeric (mmmat, feprec)
      t2 = wtime() 
 
-     call precond_log_info(feprec)
+     call preconditioner_log_info(feprec)
 
      write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
      
@@ -161,9 +161,9 @@ use serial_names
      ! call solver_control_log_conv_his(sctrl)
      call solver_control_free_conv_his(sctrl)
 
-     call precond_free ( precond_free_values, feprec)
-     call precond_free ( precond_free_struct, feprec)
-     call precond_free ( precond_free_clean, feprec)
+     call preconditioner_free ( preconditioner_free_values, feprec)
+     call preconditioner_free ( preconditioner_free_struct, feprec)
+     call preconditioner_free ( preconditioner_free_clean, feprec)
 
   else
 
@@ -268,13 +268,13 @@ use serial_names
                 do l=1,2
                     sctrl%orto=l
 
-                    call precond_create  (mmmat, feprec, ppars)
+                    call preconditioner_create  (mmmat, feprec, ppars)
                     t1 = wtime()
-                    call precond_symbolic(mmmat, feprec)
-                    call precond_numeric (mmmat, feprec)
+                    call preconditioner_symbolic(mmmat, feprec)
+                    call preconditioner_numeric (mmmat, feprec)
                     t2 = wtime() 
         
-                    call precond_log_info(feprec)
+                    call preconditioner_log_info(feprec)
         
                     write(*,*) 'Set-up preconditioner time (secs.):', t2-t1
              
@@ -298,9 +298,9 @@ use serial_names
                     ! call solver_control_log_conv_his(sctrl)
                     call solver_control_free_conv_his(sctrl)
         
-                    call precond_free ( precond_free_values, feprec)
-                    call precond_free ( precond_free_struct, feprec)
-                    call precond_free ( precond_free_clean, feprec)
+                    call preconditioner_free ( preconditioner_free_values, feprec)
+                    call preconditioner_free ( preconditioner_free_struct, feprec)
+                    call preconditioner_free ( preconditioner_free_clean, feprec)
         
                     if((gerror-aerror)>1.e4*epsilon(gerror)) then
                         ! check generic-abstract

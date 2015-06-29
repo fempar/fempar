@@ -37,7 +37,7 @@ module fe_space_names
   use interpolation_tools_names
   !use face_integration_names
   use fe_space_types_names
-  use dof_handler_names
+  use dof_descriptor_names
   use migratory_element_names
   use conditions_names
   use finite_element_names
@@ -62,7 +62,7 @@ module fe_space_names
      type(fe_face_t)         , allocatable :: fe_faces(:)             ! List of active faces
 
      type(triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
-     type(dof_handler_t)        , pointer :: dof_handler
+     type(dof_descriptor_t)        , pointer :: dof_descriptor
 
      ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elmatvec
@@ -88,9 +88,9 @@ module fe_space_names
      type(reference_element_t)               :: finite_elements_info(max_elinf)
 
      ! Acceleration arrays
-     type(list_2d_t), allocatable         :: object2dof(:)       ! An auxiliary array to accelerate some parts of the code
-     integer(ip), allocatable             :: ndofs(:)            ! number of dofs (nblocks)
-     integer(ip)                          :: time_steps_to_store ! Time steps to store in unkno
+     type(list_2d_t), allocatable       :: vef2dof(:)       ! An auxiliary array to accelerate some parts of the code
+     integer(ip), allocatable           :: ndofs(:)            ! number of dofs (nblocks)
+     integer(ip)                        :: time_steps_to_store ! Time steps to store in unkno
 
      ! List of faces where we want to integrate things
      type(fe_face_t), allocatable        :: interior_faces(:), boundary_faces(:)
@@ -117,12 +117,12 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_create( g_trian, dofh, fe_space, problem, bcond, continuity, order, material, & 
+  subroutine fe_space_create( g_trian, dof_descriptor, fe_space, problem, bcond, continuity, order, material, & 
                                which_approx, time_steps_to_store, hierarchical_basis,  & 
                                static_condensation, num_continuity, num_ghosts )
     implicit none
     type(triangulation_t), target, intent(in)    :: g_trian   
-    type(dof_handler_t)      , target, intent(in)    :: dofh
+    type(dof_descriptor_t)      , target, intent(in)    :: dof_descriptor
     type(fe_space_t)        , target, intent(inout) :: fe_space
     integer(ip)                    , intent(in)    :: problem(:)
     type(conditions_t)           , intent(in)    :: bcond
@@ -138,7 +138,7 @@ contains
 
     integer(ip) :: istat, num_ghosts_
 
-    call fe_space_allocate_structures( g_trian, dofh, fe_space, time_steps_to_store = time_steps_to_store,&
+    call fe_space_allocate_structures( g_trian, dof_descriptor, fe_space, time_steps_to_store = time_steps_to_store,&
          hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
           num_continuity = num_continuity, num_ghosts = num_ghosts )  
 
@@ -155,12 +155,12 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_allocate_structures( g_trian, dofh, fe_space, time_steps_to_store, &
+  subroutine fe_space_allocate_structures( g_trian, dof_descriptor, fe_space, time_steps_to_store, &
        & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
     type(fe_space_t)   ,  target, intent(inout)                :: fe_space
     type(triangulation_t)   , intent(in), target   :: g_trian   
-    type(dof_handler_t) , intent(in), target           :: dofh  
+    type(dof_descriptor_t) , intent(in), target           :: dof_descriptor  
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical, optional, intent(in) :: hierarchical_basis
     logical, optional, intent(in) :: static_condensation
@@ -215,8 +215,8 @@ contains
     !  Initialization of pointer to triangulation
     fe_space%g_trian => g_trian
 
-    !  Initialization of pointer to dof_handler
-    fe_space%dof_handler => dofh
+    !  Initialization of pointer to dof_descriptor
+    fe_space%dof_descriptor => dof_descriptor
 
     ! Allocation of elemental matrix and vector parameters
     call fe_space%pos_elmatvec%init(ht_length)
@@ -263,19 +263,19 @@ contains
     !    nunk_tot = prob_nunk
     ! end if
 
-    ! void nodes object
-    !fe_space%void_list%n = max_nobje
-    !call memalloc( max_nobje+1, fe_space%void_list%p, __FILE__, __LINE__)
+    ! void nodes vef
+    !fe_space%void_list%n = max_nvef
+    !call memalloc( max_nvef+1, fe_space%void_list%p, __FILE__, __LINE__)
     !fe_space%void_list%p = 1 
     !call memalloc( 0, fe_space%void_list%l, __FILE__, __LINE__ )
 
-    ! fe_space%l_nodes_object(1)%n = max_nobje
-    ! call memalloc( max_nobje+1, fe_space%l_nodes_object(1)%p, __FILE__, __LINE__ )
-    ! fe_space%l_nodes_object(1)%p = 1
-    ! call memalloc( 0, fe_space%l_nodes_object(1)%l, __FILE__, __LINE__ )
+    ! fe_space%l_nodes_per_vef(1)%n = max_nvef
+    ! call memalloc( max_nvef+1, fe_space%l_nodes_per_vef(1)%p, __FILE__, __LINE__ )
+    ! fe_space%l_nodes_per_vef(1)%p = 1
+    ! call memalloc( 0, fe_space%l_nodes_per_vef(1)%l, __FILE__, __LINE__ )
 
     ! Loop over elements
-    nvars_tot = fe_space%dof_handler%nvars_global
+    nvars_tot = fe_space%dof_descriptor%nvars_global
     dim = fe_space%g_trian%num_dims
 
     ! Material
@@ -287,7 +287,7 @@ contains
        fe_space%finite_elements(ielem)%problem =  problem(ielem)
        fe_space%finite_elements(ielem)%approximation =  which_approx(ielem)
 
-       nvars = fe_space%dof_handler%problems(problem(ielem))%p%nvars
+       nvars = fe_space%dof_descriptor%problems(problem(ielem))%p%nvars
        fe_space%finite_elements(ielem)%num_vars = nvars
        f_type = fe_space%g_trian%elems(ielem)%geo_reference_element%ftype
        !assert(size(continuity,1)==nvars_tot)
@@ -304,21 +304,21 @@ contains
        ! Allocate the fixed info array
        call memalloc(nvars, fe_space%finite_elements(ielem)%reference_element_vars, __FILE__, __LINE__)
 
-       ! Allocate nodes per object info
-       allocate(fe_space%finite_elements(ielem)%nodes_object(nvars), stat=istat )
+       ! Allocate nodes per vef info
+       allocate(fe_space%finite_elements(ielem)%nodes_per_vef(nvars), stat=istat )
        check( istat==0 )
 
-       ! Assign pointer to interpolation fixed information and nodes per object
+       ! Assign pointer to interpolation fixed information and nodes per vef
        do ivar=1,nvars
           !write(*,*) 'ielem,ivar',ielem,ivar,continuity(2,1)
           !write(*,*) 'POINT REACHED'
-          !write(*,*) 'l2g', fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar)
-          !write(*,*) 'cont',continuity(ielem,fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          !write(*,*) 'l2g', fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar)
+          !write(*,*) 'cont',continuity(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
 
           ! JP: indices of these arrays (continuity and order) should be changed to (nvars,nelem)
-          fe_space%finite_elements(ielem)%continuity(ivar) = continuity(ielem,fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          fe_space%finite_elements(ielem)%continuity(ivar) = continuity(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
           
-          fe_space%finite_elements(ielem)%order(ivar) = order(ielem,fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar))
+          fe_space%finite_elements(ielem)%order(ivar) = order(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
           if ( fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
              fe_space%static_condensation = .false. ! Static condensation + dG not possible
           end if
@@ -333,15 +333,15 @@ contains
           fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => fe_space%finite_elements_info(pos_elinf)
 
           if ( fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
-             fe_space%finite_elements(ielem)%nodes_object(ivar)%p => fe_space%finite_elements_info(pos_elinf)%ndxob
+             fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => fe_space%finite_elements_info(pos_elinf)%ndxob
           else 
              !write (*,*) 'fe_space%finite_elements_info(pos_elinf)%ndxob_int%p',fe_space%finite_elements_info(pos_elinf)%ndxob%p
              !write (*,*) 'fe_space%finite_elements_info(pos_elinf)%ndxob_int%l',fe_space%finite_elements_info(pos_elinf)%ndxob%l
              !write (*,*) 'fe_space%finite_elements_info(pos_elinf)%ndxob_int%p',fe_space%finite_elements_info(pos_elinf)%ndxob_int%p
              !write (*,*) 'fe_space%finite_elements_info(pos_elinf)%ndxob_int%l',fe_space%finite_elements_info(pos_elinf)%ndxob_int%l
 
-             fe_space%finite_elements(ielem)%nodes_object(ivar)%p => fe_space%finite_elements_info(pos_elinf)%ndxob_int
-             !fe_space%finite_elements(ielem)%nodes_object(ivar)%p => fe_space%void_list ! fe_space%l_nodes_object(1) ! SB.alert : Think about hdG
+             fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => fe_space%finite_elements_info(pos_elinf)%ndxob_int
+             !fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => fe_space%void_list ! fe_space%l_nodes_per_vef(1) ! SB.alert : Think about hdG
           end if
        end do
 
@@ -364,7 +364,7 @@ contains
              ! JP & SB: In fact we also need to think about it for the unknown. Only elem2dof can be reduced
              !          to the interface.
              nnode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode -                                   &
-                  &  fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_obj(dim+1) ! SB.alert : do not use nodes_obj
+                  &  fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_vef(dim+1) ! SB.alert : do not use nodes_vef
           else
              nnode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode 
           end if
@@ -389,12 +389,12 @@ contains
        fe_space%finite_elements(ielem)%unkno = 0.0_rp
        call memalloc(nvars,fe_space%finite_elements(ielem)%integ,__FILE__,__LINE__)
        call memalloc(nvars,fe_space%finite_elements(ielem)%inter,__FILE__,__LINE__)
-       call memalloc(nvars,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje,fe_space%finite_elements(ielem)%bc_code,__FILE__,__LINE__, 0)
+       call memalloc(nvars,fe_space%finite_elements(ielem)%p_geo_reference_element%nvef,fe_space%finite_elements(ielem)%bc_code,__FILE__,__LINE__, 0)
 
        ! Fill bc_code
-       do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
+       do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nvef
           do ivar=1,nvars
-             fe_space%finite_elements(ielem)%bc_code(ivar,iobje) = bcond%code( fe_space%dof_handler%problems(problem(ielem))%p%l2g_var(ivar),  fe_space%g_trian%elems(ielem)%objects(iobje) )
+             fe_space%finite_elements(ielem)%bc_code(ivar,iobje) = bcond%code( fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar),  fe_space%g_trian%elems(ielem)%vefs(iobje) )
           end do
        end do
 
@@ -422,7 +422,7 @@ contains
 
        ! Assign pointers to starting DOF position
        call fe_space%pos_start%get(key=nvars, val=pos_voint, stat = istat)
-       if ( istat == new_index ) call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_handler, &
+       if ( istat == new_index ) call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_descriptor, &
             &                                          fe_space%lstart(pos_voint))
        fe_space%finite_elements(ielem)%start => fe_space%lstart(pos_voint)
 
@@ -431,18 +431,18 @@ contains
   end subroutine fe_space_fe_list_create
 
   !==================================================================================================
-  subroutine dof_to_elnod( el2dof, idof, ivar, nobje, pnodob, lnode )
+  subroutine dof_to_elnod( el2dof, idof, ivar, nvef, pnodob, lnode )
     implicit none
     ! Parameters
     integer(ip), intent(in)  :: el2dof(:,:)
-    integer(ip), intent(in)  :: idof, ivar, nobje
-    integer(ip), intent(in)  :: pnodob(nobje+1)
+    integer(ip), intent(in)  :: idof, ivar, nvef
+    integer(ip), intent(in)  :: pnodob(nvef+1)
     integer(ip), intent(out) :: lnode
 
     ! Locals
     integer(ip) :: iobje, jnode
 
-    do iobje = 1,nobje
+    do iobje = 1,nvef
        do jnode = pnodob(iobje),pnodob(iobje+1)-1
           if ( el2dof(jnode,ivar) == idof ) then
              lnode = jnode - pnodob(iobje) + 1
@@ -483,8 +483,8 @@ contains
 
     write (lunou,*) 'Number boundary faces: ', fe_space%num_boundary_faces
     write (lunou,*) 'Number interior faces: ', fe_space%num_interior_faces
-    write (lunou,*) 'Boundary faces: ', fe_space%boundary_faces(:)%face_object
-    write (lunou,*) 'Interior faces: ', fe_space%interior_faces(:)%face_object
+    write (lunou,*) 'Boundary faces: ', fe_space%boundary_faces(:)%face_vef
+    write (lunou,*) 'Interior faces: ', fe_space%interior_faces(:)%face_vef
     
 
   end subroutine fe_space_print
@@ -500,8 +500,8 @@ contains
     ! lface_free
     ! if (allocated(fe_space%fe_faces)) then
     !    j = 1
-    !    do i = 1, fe_space%g_trian%num_objects
-    !       if ( trian%objects(i)%dimension == fe_space%g_trian%num_dims-1 ) then
+    !    do i = 1, fe_space%g_trian%num_vefs
+    !       if ( trian%vefs(i)%dimension == fe_space%g_trian%num_dims-1 ) then
     !          fe_space%fe_faces(i)%nei_elem  = 0
     !          fe_space%fe_faces(i)%pos_elem  = 0
     !          fe_space%fe_faces(i)%subface   = 0
@@ -509,7 +509,7 @@ contains
     !          nullify (fe_space%fe_faces(i)%p_mat)
     !          nullify (fe_space%fe_faces(i)%p_vec)
     !          if (allocated(fe_space%fe_faces(i)%integ)) call memfree(fe_space%fe_faces(i)%integ,__FILE__,__LINE__)
-    !          if ( trian%objects(i)%border /= -1) then
+    !          if ( trian%vefs(i)%border /= -1) then
     !             do j=1,fe_space%finite_elements(fe_space%fe_faces(i)%nei_elem(1))%p%nvars
     !                call array_free(fe_space%fe_faces(i)%o2n(j))
     !             end do
@@ -544,9 +544,9 @@ contains
        nullify ( fe_space%finite_elements(i)%p_plain_vector )
        nullify ( fe_space%finite_elements(i)%start )
        do j = 1, fe_space%finite_elements(i)%num_vars
-          nullify ( fe_space%finite_elements(i)%nodes_object(j)%p )       
+          nullify ( fe_space%finite_elements(i)%nodes_per_vef(j)%p )  
        end do
-       !if(allocated(fe_space%finite_elements(i)%nodes_object)) call memfree(fe_space%finite_elements(i)%nodes_object,__FILE__,__LINE__)
+       !if(allocated(fe_space%finite_elements(i)%nodes_per_vef)) call memfree(fe_space%finite_elements(i)%nodes_per_vef,__FILE__,__LINE__)
        if(allocated(fe_space%finite_elements(i)%reference_element_vars)) call memfree(fe_space%finite_elements(i)%reference_element_vars,__FILE__,__LINE__)
        if(allocated(fe_space%finite_elements(i)%integ)) call memfree(fe_space%finite_elements(i)%integ,__FILE__,__LINE__)
        if(allocated(fe_space%finite_elements(i)%inter)) call memfree(fe_space%finite_elements(i)%inter,__FILE__,__LINE__)
@@ -603,9 +603,9 @@ contains
     !call memfree( fe_space%void_list%l, __FILE__, __LINE__ )
     !fe_space%void_list%n = 0
 
-    do i = 1, fe_space%dof_handler%nblocks
-       call memfree (fe_space%object2dof(i)%p , __FILE__, __LINE__ )
-       call memfree (fe_space%object2dof(i)%l , __FILE__, __LINE__ )
+    do i = 1, fe_space%dof_descriptor%nblocks
+       call memfree (fe_space%vef2dof(i)%p , __FILE__, __LINE__ )
+       call memfree (fe_space%vef2dof(i)%l , __FILE__, __LINE__ )
     end do
 
     call memfree (fe_space%ndofs , __FILE__, __LINE__ )
@@ -631,7 +631,7 @@ contains
     !   call memalloc ( trian%num_elems, num_faces, __FILE__,__LINE__ )
 
     !   do i=1,mesh%nelem
-    !         mesh%p_face(i) = mesh%pnods(i) + fe_space%finite_elements(i)%reference_element_vars(1)%p%nobje_dim(mesh%ndime) -1
+    !         mesh%p_face(i) = mesh%pnods(i) + fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(mesh%ndime) -1
     !   end do
 
   end subroutine get_p_faces
@@ -649,17 +649,17 @@ contains
     ! where we expect to integrate things (based on continuity flags)
     count_int = 0
     count_bou = fe_space%g_trian%num_boundary_faces
-    do iobje = 1, fe_space%g_trian%num_objects
-       if ( fe_space%g_trian%objects(iobje)%dimension == fe_space%g_trian%num_dims-1 ) then
-          if ( fe_space%g_trian%objects(iobje)%border == -1 ) then
-             assert( fe_space%g_trian%objects(iobje)%num_elems_around == 2 )
-             ielem = fe_space%g_trian%objects(iobje)%elems_around(1)
-             jelem = fe_space%g_trian%objects(iobje)%elems_around(2)
+    do iobje = 1, fe_space%g_trian%num_vefs
+       if ( fe_space%g_trian%vefs(iobje)%dimension == fe_space%g_trian%num_dims-1 ) then
+          if ( fe_space%g_trian%vefs(iobje)%border == -1 ) then
+             assert( fe_space%g_trian%vefs(iobje)%num_elems_around == 2 )
+             ielem = fe_space%g_trian%vefs(iobje)%elems_around(1)
+             jelem = fe_space%g_trian%vefs(iobje)%elems_around(2)
              iprob = fe_space%finite_elements(ielem)%problem
              jprob = fe_space%finite_elements(jelem)%problem
-             do ivars = 1, fe_space%dof_handler%problems(iprob)%p%nvars
-                g_var = fe_space%dof_handler%problems(iprob)%p%l2g_var(ivars)
-                jvars = fe_space%dof_handler%g2l_vars(g_var,jprob)
+             do ivars = 1, fe_space%dof_descriptor%problems(iprob)%p%nvars
+                g_var = fe_space%dof_descriptor%problems(iprob)%p%l2g_var(ivars)
+                jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
                 if ( mat_i == 0 .or. mat_i /= mat_j ) then
@@ -669,7 +669,7 @@ contains
                 end if
              end do
           else
-             assert( fe_space%g_trian%objects(iobje)%num_elems_around == 1 )
+             assert( fe_space%g_trian%vefs(iobje)%num_elems_around == 1 )
           end if
        end if
     end do
@@ -685,29 +685,29 @@ contains
 
     count_int = 0
     count_bou = 0
-    do iobje = 1, fe_space%g_trian%num_objects
-       if ( fe_space%g_trian%objects(iobje)%dimension == fe_space%g_trian%num_dims-1 ) then
-          if ( fe_space%g_trian%objects(iobje)%border == -1 ) then
-             assert( fe_space%g_trian%objects(iobje)%num_elems_around == 2 )
-             ielem = fe_space%g_trian%objects(iobje)%elems_around(1)
-             jelem = fe_space%g_trian%objects(iobje)%elems_around(2)
+    do iobje = 1, fe_space%g_trian%num_vefs
+       if ( fe_space%g_trian%vefs(iobje)%dimension == fe_space%g_trian%num_dims-1 ) then
+          if ( fe_space%g_trian%vefs(iobje)%border == -1 ) then
+             assert( fe_space%g_trian%vefs(iobje)%num_elems_around == 2 )
+             ielem = fe_space%g_trian%vefs(iobje)%elems_around(1)
+             jelem = fe_space%g_trian%vefs(iobje)%elems_around(2)
              iprob = fe_space%finite_elements(ielem)%problem
              jprob = fe_space%finite_elements(jelem)%problem
-             do ivars = 1, fe_space%dof_handler%problems(iprob)%p%nvars
-                g_var = fe_space%dof_handler%problems(iprob)%p%l2g_var(ivars)
-                jvars = fe_space%dof_handler%g2l_vars(g_var,jprob)
+             do ivars = 1, fe_space%dof_descriptor%problems(iprob)%p%nvars
+                g_var = fe_space%dof_descriptor%problems(iprob)%p%l2g_var(ivars)
+                jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
                 if ( mat_i == 0 .or. mat_i /= mat_j ) then
                    count_int = count_int + 1
-                   fe_space%interior_faces(count_int)%face_object = iobje
+                   fe_space%interior_faces(count_int)%face_vef = iobje
                    exit
                 end if
              end do
           else
-             assert( fe_space%g_trian%objects(iobje)%num_elems_around == 1 )
+             assert( fe_space%g_trian%vefs(iobje)%num_elems_around == 1 )
              count_bou = count_bou + 1
-             fe_space%boundary_faces(count_bou)%face_object = iobje
+             fe_space%boundary_faces(count_bou)%face_vef = iobje
           end if
        end if
     end do
@@ -755,7 +755,7 @@ contains
   !==================================================================================================
   subroutine pointer_variable( finite_element, dhand, start ) 
     implicit none
-    type(dof_handler_t)   , intent(in)  :: dhand
+    type(dof_descriptor_t), intent(in)  :: dhand
     type(finite_element_t), intent(in)  :: finite_element
     type(array_ip1_t)     , intent(out) :: start
 

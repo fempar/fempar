@@ -323,7 +323,7 @@ contains
     end do 
   end subroutine block_vector_print
 
-  subroutine ass_blkvec_w_dof_handler(nint,nn,nd,id,ld,ib,jb,nva,iv,pn,l2g,ev,nv,mn,jbn,b)
+  subroutine ass_blkvec_w_dof_descriptor(nint,nn,nd,id,ld,ib,jb,nva,iv,pn,l2g,ev,nv,mn,jbn,b)
     implicit none
     integer(ip) , intent(in)      :: nint, nv, nd, nva, id, ld, mn
     integer(ip) , intent(in)      :: nn(nint),pn(nd),iv(nva)
@@ -348,7 +348,7 @@ contains
        end do
     end do
 
-  end subroutine ass_blkvec_w_dof_handler
+  end subroutine ass_blkvec_w_dof_descriptor
   
   ! alpha <- op1^T * op2
   function block_vector_dot_tbp(op1,op2) result(alpha)
@@ -520,6 +520,5 @@ contains
     this%nblocks = 0
     deallocate( this%blocks )
   end subroutine block_vector_free_tbp
-
 
 end module block_vector_names

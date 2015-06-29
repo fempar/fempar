@@ -78,8 +78,8 @@ module vector_names
   end type vector_t
 
   ! interface vector_assembly
-  !    module procedure vector_assembly_w_dof_handler
-  !    module procedure vector_assembly_nosq_w_dof_handler
+  !    module procedure vector_assembly_w_dof_descriptor
+  !    module procedure vector_assembly_nosq_w_dof_descriptor
   ! end interface vector_assembly
 
 !  interface vector_create_view

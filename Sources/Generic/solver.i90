@@ -51,7 +51,7 @@ subroutine generic_solve(A,M,b,x,ctrl)
   case ( richard )
      call generic_prichard ( A, M, b, x, ctrl )
   case( direct )
-     call generic_precond ( A, M, b, x )
+     call generic_preconditioner ( A, M, b, x )
   case ( icg )
      call generic_ipcg ( A, M, b, x, ctrl )
   case ( lfom )
@@ -69,7 +69,7 @@ end subroutine generic_solve
 !=============================================================================
 subroutine generic_pcg( A, M, b, x, ctrl )
   !-----------------------------------------------------------------------------
-  ! This routine performs pcg iterations on Ax=b with preconditioner M. 
+  ! This routine performs pcg iterations on Ax=b with preconditioneritioner M. 
   !-----------------------------------------------------------------------------
   implicit none
 
@@ -97,7 +97,7 @@ subroutine generic_pcg( A, M, b, x, ctrl )
   ! Evaluate |b|_inv(M) if required
   if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
      ! r = inv(M) b
-     call generic_precond (A, M, b, r)
+     call generic_preconditioner (A, M, b, r)
      call generic_dot (b,r,b_nrm_M)
      if ( generic_fine_task (M) ) then ! Am I a fine task ?
         b_nrm_M = sqrt(b_nrm_M)
@@ -114,7 +114,7 @@ subroutine generic_pcg( A, M, b, x, ctrl )
   call generic_pxmy( b, r )
 
   ! 2) z=inv(M)r
-  call generic_precond( A , M , r , z )
+  call generic_preconditioner( A , M , r , z )
 
   ! 3) <r,z>
   call generic_dot( r, z, r_z )
@@ -167,7 +167,7 @@ subroutine generic_pcg( A, M, b, x, ctrl )
      if(ctrl%converged.or.(ctrl%it>=ctrl%itmax)) exit loop_pcg
 
      ! z = inv(M) r
-     call generic_precond(A,M,r,z)
+     call generic_preconditioner(A,M,r,z)
 
      if (generic_fine_task (M) ) then ! Am I a fine task ?
         beta = 1.0_rp/r_z
@@ -204,7 +204,7 @@ end subroutine generic_pcg
 !=============================================================================
 subroutine generic_ipcg( A, M, b, x, ctrl )
   !-----------------------------------------------------------------------------
-  ! This routine performs pcg iterations on Ax=b with preconditioner M. 
+  ! This routine performs pcg iterations on Ax=b with preconditioneritioner M. 
   !-----------------------------------------------------------------------------
   implicit none
 
@@ -233,7 +233,7 @@ subroutine generic_ipcg( A, M, b, x, ctrl )
   ! Evaluate |b|_inv(M) if required
   if ( ctrl%stopc == res_nrmgiven_rhs_nrmgiven ) then
      ! r = inv(M) b
-     call generic_precond (A, M, b, r)
+     call generic_preconditioner (A, M, b, r)
      call generic_dot (b,r,b_nrm_M)
      if ( generic_fine_task (M) ) then ! Am I a fine task ?
         b_nrm_M = sqrt(b_nrm_M)
@@ -250,7 +250,7 @@ subroutine generic_ipcg( A, M, b, x, ctrl )
   call generic_pxmy( b, r )
 
   ! 2) z=inv(M)r
-  call generic_precond( A , M , r , z )
+  call generic_preconditioner( A , M , r , z )
 
   ! 3) <r,z>
   call generic_dot( r, z, r_z )
@@ -305,7 +305,7 @@ subroutine generic_ipcg( A, M, b, x, ctrl )
      if(ctrl%converged.or.(ctrl%it>=ctrl%itmax)) exit loop_pcg
 
      ! z = inv(M) r
-     call generic_precond(A,M,r,z)
+     call generic_preconditioner(A,M,r,z)
 
      if ( generic_fine_task (M) ) then ! Am I a fine task ?
         beta = 1.0_rp/r_z
@@ -471,7 +471,7 @@ end subroutine pcg_conv_check
 ! situations.
 subroutine generic_plgmres ( A, M, b, x, ctrl ) 
   !--------------------------------------------------------------------
-  ! This routine performs plgmres iterations on Ax=b with preconditioner M. 
+  ! This routine performs plgmres iterations on Ax=b with preconditioneritioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
   use blas77_interfaces_names
@@ -529,7 +529,7 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
   end if
 
   ! z=inv(M)r
-  call generic_precond(A,M,r,z)
+  call generic_preconditioner(A,M,r,z)
 
   ! Evaluate ||z||_2
   call generic_nrm2 (z, res_norm)
@@ -558,7 +558,7 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
   ctrl%it = 0
   outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
 
-     ! Compute preconditioned residual from scratch (only if ctrl%it/=0)
+     ! Compute preconditioneritioned residual from scratch (only if ctrl%it/=0)
      if ( ctrl%it /= 0 ) then 
         ! r = Ax
         call generic_matvec(A,x,r)
@@ -567,13 +567,13 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
         call generic_pxmy(b,r)
 
         ! z=inv(M)r
-        call generic_precond(A,M,r,z)  
+        call generic_preconditioner(A,M,r,z)  
 
         ! Evaluate ||z||_2
         call generic_nrm2 (z, res_norm)
      end if
 
-     ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
+     ! Normalize preconditioneritioned residual direction (i.e., v_1 = z/||z||_2)
      call generic_krylov_basis_extract_view ( 1, bkry, q_aux )
      call generic_scale( 1.0_rp/res_norm, z, q_aux )
      call generic_free ( q_aux )
@@ -595,7 +595,7 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
         call generic_matvec ( A, q_aux, r )
         call generic_free   ( q_aux )
         call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
-        call generic_precond( A, M, r, q_aux )
+        call generic_preconditioner( A, M, r, q_aux )
         call generic_nrm2(r,aux1)
         call generic_nrm2(q_aux, aux2)
         call generic_free ( q_aux )
@@ -636,8 +636,8 @@ subroutine generic_plgmres ( A, M, b, x, ctrl )
            cs(1,kloc) = c
            cs(2,kloc) = s
 
-           ! Update preconditioned residual vector 
-           ! (expressed in terms of the preconditioned Krylov basis)
+           ! Update preconditioneritioned residual vector 
+           ! (expressed in terms of the preconditioneritioned Krylov basis)
            alpha = -s*g(kloc)
            g(kloc) = c*g(kloc)
            g(kloc+1) = alpha
@@ -834,7 +834,7 @@ end subroutine generic_plgmres
 !        5. Breakdown detection ? (DONE: Taken from Y. Saad's SPARSKIT)
 subroutine generic_prgmres ( A, M, b, x, ctrl)
   !--------------------------------------------------------------------
-  ! This routine performs prgmres iterations on Ax=b with preconditioner M. 
+  ! This routine performs prgmres iterations on Ax=b with preconditioneritioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
   use blas77_interfaces_names
@@ -942,7 +942,7 @@ subroutine generic_prgmres ( A, M, b, x, ctrl)
 
         ! Generate new basis vector
         call generic_krylov_basis_extract_view ( kloc, bkry, q_aux )
-        call generic_precond (A, M, q_aux, z)
+        call generic_preconditioner (A, M, q_aux, z)
         call generic_free (q_aux)
         call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
         call generic_matvec  (A, z, q_aux)
@@ -1055,7 +1055,7 @@ subroutine generic_prgmres ( A, M, b, x, ctrl)
         call generic_krylov_basis_multiaxpy ( kloc, 1.0_rp, bkry, g, r )
 
         ! Solve Mz = r
-        call generic_precond(A, M, r, z)
+        call generic_preconditioner(A, M, r, z)
 
         ! x <- x + z
         call generic_pxpy(z, x)
@@ -1091,7 +1091,7 @@ end subroutine generic_prgmres
 !
 subroutine generic_pfgmres ( A, M, b, x, ctrl)
   !--------------------------------------------------------------------
-  ! This routine performs pfgmres iterations on Ax=b with (right)-preconditioner M. 
+  ! This routine performs pfgmres iterations on Ax=b with (right)-preconditioneritioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
   use blas77_interfaces_names
@@ -1201,7 +1201,7 @@ subroutine generic_pfgmres ( A, M, b, x, ctrl)
         ! Generate new basis vector
         call generic_krylov_basis_extract_view ( kloc, bkry , q_aux )
         call generic_krylov_basis_extract_view ( kloc, bkryz, z_aux )
-        call generic_precond (A, M, q_aux, z_aux)
+        call generic_preconditioner (A, M, q_aux, z_aux)
         call generic_free (q_aux)
         call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
         call generic_matvec  (A, z_aux, q_aux)
@@ -1346,13 +1346,13 @@ end subroutine generic_pfgmres
 
 !=============================================================================
 !
-! Generic preconditioned RICHARDSON
+! Generic preconditioneritioned RICHARDSON
 !
 subroutine generic_prichard (A, M, b, x, ctrl )
   !-----------------------------------------------------------------------
   !
-  ! This routine solves M^-1Ax = M^-1b where M is a given preconditioner
-  ! using preconditioned Richardson fixed-point iterations, with relaxation
+  ! This routine solves M^-1Ax = M^-1b where M is a given preconditioneritioner
+  ! using preconditioneritioned Richardson fixed-point iterations, with relaxation
   ! parameter given by relax
   !
   !-----------------------------------------------------------------------
@@ -1415,7 +1415,7 @@ subroutine generic_prichard (A, M, b, x, ctrl )
      end if
 
      ! z = inv(M) r
-     call generic_precond(A,M,r,z)
+     call generic_preconditioner(A,M,r,z)
      
      ! x <- x + relax * z	
      call generic_axpy ( ctrl%relax, z, x )
@@ -1438,7 +1438,7 @@ end subroutine generic_prichard
 !====================================================
 subroutine generic_plfom ( A, M, b, x, ctrl )
   !--------------------------------------------------------------------
-  ! This routine performs plfom iterations on Ax=b with preconditioner M. 
+  ! This routine performs plfom iterations on Ax=b with preconditioneritioner M. 
   !--------------------------------------------------------------------
 #ifdef ENABLE_LAPACK
   use lapack77_interfaces_names
@@ -1493,7 +1493,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
   call generic_nrm2 (r, res_2_norm)
       
   ! z=inv(M)r
-  call generic_precond(A,M,r,z)  
+  call generic_preconditioner(A,M,r,z)  
 
   ! Evaluate ||z||_2
   call generic_nrm2 (z, res_norm)
@@ -1518,7 +1518,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
   ctrl%it = 0
   outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
      hh = 0.0_rp
-     ! Compute preconditioned residual from scratch (only if ctrl%it/=0)
+     ! Compute preconditioneritioned residual from scratch (only if ctrl%it/=0)
      if ( ctrl%it /= 0 ) then 
         ! r = Ax
         call generic_matvec(A,x,r)
@@ -1527,13 +1527,13 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
         call generic_pxmy(b,r)
 
         ! z=inv(M)r
-        call generic_precond(A,M,r,z)  
+        call generic_preconditioner(A,M,r,z)  
 
         ! Evaluate ||z||_2
         call generic_nrm2 (z, res_norm)
      end if
 
-     ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
+     ! Normalize preconditioneritioned residual direction (i.e., v_1 = z/||z||_2)
      call generic_krylov_basis_extract_view ( 1, bkry, q_aux )
      call generic_scale( 1.0_rp/res_norm, z, q_aux )
      call generic_free ( q_aux )
@@ -1551,7 +1551,7 @@ subroutine generic_plfom ( A, M, b, x, ctrl )
         call generic_matvec ( A, q_aux, r )
         call generic_free   ( q_aux )
         call generic_krylov_basis_extract_view ( kloc+1, bkry, q_aux )
-        call generic_precond( A, M, r, q_aux )
+        call generic_preconditioner( A, M, r, q_aux )
         call generic_free ( q_aux )
 
         if ( generic_fine_task (M) ) then ! Am I a fine task ?
@@ -1727,7 +1727,7 @@ end subroutine generic_plfom
 ! inverse iteration and/or Rayleigh-quotient iteration.
 ! However, we're not yet sure on that -- it may be better to use SYMMLQ.
 !
-! A further option is that of preconditioning, which may reduce
+! A further option is that of preconditioneritioning, which may reduce
 ! the number of iterations required.  If M = C C' is a positive
 ! definite matrix that is known to approximate  (A - shift*I)
 ! in some sense, and if systems of the form  My = x  can be
@@ -1762,7 +1762,7 @@ end subroutine generic_plfom
 !                    without altering the vector x.
 !
 ! Msolve  external   An optional subroutine defining a
-!                    preconditioning matrix M, which should
+!                    preconditioneritioning matrix M, which should
 !                    approximate (A - shift*I) in some sense.
 !                    M must be positive definite.
 !
@@ -1783,7 +1783,7 @@ end subroutine generic_plfom
 !                    if precon = .true., an extra call of Msolve
 !                    will be used to check if M is symmetric.
 !
-! precon  input      If precon = .true., preconditioning will
+! precon  input      If precon = .true., preconditioneritioning will
 !                    be invoked.  Otherwise, subroutine Msolve
 !                    will not be referenced; in this case the
 !                    actual parameter corresponding to Msolve may
@@ -1821,7 +1821,7 @@ end subroutine generic_plfom
 !          -1        beta2 = 0 in the Lanczos iteration; i.e. the
 !                    second Lanczos vector is zero.  This means the
 !                    rhs is very special.
-!                    If there is no preconditioner, b is an
+!                    If there is no preconditioneritioner, b is an
 !                    eigenvector of A.
 !                    Otherwise (if precon is true), let My = b.
 !                    If shift is zero, y is a solution of the
@@ -1867,7 +1867,7 @@ end subroutine generic_plfom
 !                    products y'y and r'v differ significantly.
 !
 !           8        An inner product of the form  x' M**(-1) x
-!                    was not positive, so the preconditioning matrix
+!                    was not positive, so the preconditioneritioning matrix
 !                    M does not appear to be positive definite.
 !
 !                    If istop >= 5, the final x may not be an
@@ -1922,7 +1922,7 @@ end subroutine generic_plfom
 !-------------------------------------------------------------------
 subroutine generic_pminres(A, M, b, x, ctrl)
   !-----------------------------------------------------------------------------
-  ! This routine performs pcg iterations on Ax=b with preconditioner M. 
+  ! This routine performs pcg iterations on Ax=b with preconditioneritioner M. 
   !-----------------------------------------------------------------------------
   implicit none
 
@@ -1965,7 +1965,7 @@ subroutine generic_pminres(A, M, b, x, ctrl)
        'The iteration limit was reached                    ', & !  5
        'Aprod  does not define a symmetric matrix          ', & !  6
        'Msolve does not define a symmetric matrix          ', & !  7
-       'Msolve does not define a pos-def preconditioner    ' /) !  8
+       'Msolve does not define a pos-def preconditioneritioner    ' /) !  8
 
   character(len=*), parameter    :: fmt11='(a,2x,es16.9,1x,a,1x,i4,1x,a)'
   character(len=*), parameter    :: fmt12='(a,3(2x,es16.9))'
@@ -2011,7 +2011,7 @@ subroutine generic_pminres(A, M, b, x, ctrl)
   call generic_pxmy( b, r1 )
 
   ! 2) y=inv(M)r1
-  call generic_precond( A , M , r1 , v1 )
+  call generic_preconditioner( A , M , r1 , v1 )
 
   ! beta1 = r1 * M^{-1} * r1 = (||r1||_inv(M))^2
   call generic_dot (r1, v1, beta1)
@@ -2104,7 +2104,7 @@ subroutine generic_pminres(A, M, b, x, ctrl)
         call generic_copy( y, r2 )
 
         ! v = inv(M) r2
-        call generic_precond (A, M, r2, v1 )
+        call generic_preconditioner (A, M, r2, v1 )
 
         oldb   = beta                  ! oldb = betak
 
@@ -2258,7 +2258,7 @@ subroutine generic_pminres(A, M, b, x, ctrl)
 
      else
         ! y = inv(M) r2
-        call generic_precond (A, M, r2, y)
+        call generic_preconditioner (A, M, r2, y)
 
         call generic_bcast(M, beta_lt_zero)
 

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_dd_base_names
-  ! Module that includes the parameters used in the several par_precond_dd's
+  ! Module that includes the parameters used in the several par_preconditioner_dd's
 use types_names
 
   implicit none

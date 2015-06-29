@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_precond_dd_mlevel_bddc_names
+module par_preconditioner_dd_mlevel_bddc_names
   ! Serial modules
   use types_names
   use memor_names
@@ -33,7 +33,7 @@ module par_precond_dd_mlevel_bddc_names
   use map_names
   use map_apply_names
   use sort_names
-  use renum_names
+  use renumbering_names
 
 #ifdef ENABLE_BLAS
   use blas77_interfaces_names
@@ -49,13 +49,13 @@ module par_precond_dd_mlevel_bddc_names
   use mesh_names
   use mesh_graph_names
   use matrix_names
-  use precond_names
+  use preconditioner_names
   use graph_names
   use vector_names
   use operator_dd_names
   use postpro_names
   use stdio_names
-  use matrix_precond_solver_names
+  use matrix_preconditioner_solver_names
  
   ! Parallel modules
 use par_dd_base_names
@@ -90,7 +90,7 @@ use psb_penv_mod_names
   integer (ip), parameter :: default_schur_edge_lag_mult = reuse_from_phis
   integer (ip), parameter :: default_subd_elmat_calc     = phit_minus_c_i_t_lambda  
 
-  type par_precond_dd_mlevel_bddc_params_t
+  type par_preconditioner_dd_mlevel_bddc_params_t
      ! Preconditioner params
      integer(ip) :: unknowns           =  default_unknowns            ! Ax=b (all_unknowns) .or. Sg=y (interface_unknowns) ? 
      integer(ip) :: internal_problems  =  default_internal_problems
@@ -106,15 +106,15 @@ use psb_penv_mod_names
      logical                  :: enable_constraint_weights = .false. 
      real(rp), allocatable    :: C_weights(:) 
 
-     ! precond_params and solver_control have their own defaults
-     type(precond_params_t)  :: ppars_harm
+     ! preconditioner_params and solver_control have their own defaults
+     type(preconditioner_params_t)  :: ppars_harm
      type(solver_control_t)      :: spars_harm
      type(solver_control_t)      :: spars_neumann
-     type(precond_params_t)  :: ppars_dirichlet 
+     type(preconditioner_params_t)  :: ppars_dirichlet 
      type(solver_control_t)      :: spars_dirichlet 
      type(solver_control_t)      :: spars_coarse
-     type(precond_params_t)  :: ppars_coarse_serial ! co_sys_sol_strat = serial
-     type (par_precond_dd_mlevel_bddc_params_t ), pointer :: ppars_coarse_bddc => NULL()  ! co_sys_sol_strat = recursive
+     type(preconditioner_params_t)  :: ppars_coarse_serial ! co_sys_sol_strat = serial
+     type (par_preconditioner_dd_mlevel_bddc_params_t ), pointer :: ppars_coarse_bddc => NULL()  ! co_sys_sol_strat = recursive
 
      real(rp), allocatable    :: weight(:)
 
@@ -126,9 +126,9 @@ use psb_penv_mod_names
      !integer(ip) :: coarse_its    (2000)      ! allocated to max_it
      !integer(ip) :: harm_its_agg  = 0 
 
-  end type par_precond_dd_mlevel_bddc_params_t
+  end type par_preconditioner_dd_mlevel_bddc_params_t
 
-  type, extends(base_operator_t) :: par_precond_dd_mlevel_bddc_t
+  type, extends(base_operator_t) :: par_preconditioner_dd_mlevel_bddc_t
      real(rp), pointer :: weight(:) => NULL()
 
      ! Preconditioner params
@@ -267,7 +267,7 @@ use psb_penv_mod_names
 
      type ( par_environment_t )   :: p_env_c      ! Parallel environment for the coarse-grid problem
      type ( dof_distribution_t )  :: dof_dist_c   ! co_sys_sol_strat = recursive (or distributed, not implemented yet)
-     type ( renum_t )             :: eren_c       ! Element renum_tbering required to pass from c_mesh to p_mesh_c
+     type ( renumbering_t )             :: erenumbering_c       ! Element renumbering_tbering required to pass from c_mesh to p_mesh_c
                                                 ! (this is required for the assembly of the coarse-grid matrix)
      type ( par_mesh_t )          :: p_mesh_c
      type ( par_graph_t )         :: p_graph_c
@@ -278,11 +278,11 @@ use psb_penv_mod_names
 
      integer (ip)             :: symm
      integer (ip)             :: sign
-     type ( precond_t )     :: M_rr ,M_rr_trans
-     type ( precond_t )     :: M_c                                  ! co_sys_sol_strat = serial
+     type ( preconditioner_t )     :: M_rr ,M_rr_trans
+     type ( preconditioner_t )     :: M_c                                  ! co_sys_sol_strat = serial
    
 
-     type ( par_precond_dd_mlevel_bddc_t ), pointer :: p_M_c        ! co_sys_sol_strat = recursive
+     type ( par_preconditioner_dd_mlevel_bddc_t ), pointer :: p_M_c        ! co_sys_sol_strat = recursive
 
      type ( operator_dd_t ) :: A_II_inv ! Only required if unknowns == all_unknowns
 
@@ -313,14 +313,14 @@ use psb_penv_mod_names
      type(par_timer_t), pointer :: timer_coll_fillprec
      type(par_timer_t), pointer :: timer_coll_applyprec
 
-     type(precond_params_t)        :: ppars_harm 
+     type(preconditioner_params_t)        :: ppars_harm 
      type(solver_control_t), pointer   :: spars_harm
      type(solver_control_t), pointer   :: spars_neumann
-     type(precond_params_t)        :: ppars_dirichlet 
+     type(preconditioner_params_t)        :: ppars_dirichlet 
      type(solver_control_t), pointer   :: spars_dirichlet 
      type(solver_control_t), pointer   :: spars_coarse
-     type(precond_params_t)        :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
-     type (par_precond_dd_mlevel_bddc_params_t ) :: ppars_coarse_bddc      ! co_sys_sol_strat = recursive_bddc
+     type(preconditioner_params_t)        :: ppars_coarse_serial    ! co_sys_sol_strat = serial_gather
+     type (par_preconditioner_dd_mlevel_bddc_params_t ) :: ppars_coarse_bddc      ! co_sys_sol_strat = recursive_bddc
 
      integer(ip) :: num_neumann_solves   = 0
      integer(ip) :: num_dirichlet_solves = 0
@@ -332,25 +332,25 @@ use psb_penv_mod_names
 
      integer(ip) :: harm_its_agg         = 0 
    contains
-     procedure :: apply => par_precond_dd_mlevel_bddc_apply_tbp
-     procedure :: apply_fun => par_precond_dd_mlevel_bddc_apply_fun_tbp
-     procedure :: free => par_precond_dd_mlevel_bddc_free_tbp
-  end type par_precond_dd_mlevel_bddc_t
+     procedure :: apply => par_preconditioner_dd_mlevel_bddc_apply_tbp
+     procedure :: apply_fun => par_preconditioner_dd_mlevel_bddc_apply_fun_tbp
+     procedure :: free => par_preconditioner_dd_mlevel_bddc_free_tbp
+  end type par_preconditioner_dd_mlevel_bddc_t
 
   ! public :: default_kind_coarse_dofs, default_co_sys_sol_strat, default_ndime
 
   ! Types
-  public :: par_precond_dd_mlevel_bddc_t, par_precond_dd_mlevel_bddc_params_t
+  public :: par_preconditioner_dd_mlevel_bddc_t, par_preconditioner_dd_mlevel_bddc_params_t
 
   ! Functions
-  public :: par_precond_dd_mlevel_bddc_create, par_precond_dd_mlevel_bddc_ass_struct, &
-            par_precond_dd_mlevel_bddc_fill_val, par_precond_dd_mlevel_bddc_free, &
-            par_precond_dd_mlevel_bddc_apply_all_unk, &
-            par_precond_dd_mlevel_bddc_static_condensation, &
-            par_precond_dd_mlevel_bddc_report, &
-            par_precond_dd_mlevel_bddc_time_report, &
-            par_precond_dd_mlevel_bddc_fill_val_phase_1, &
-            par_precond_dd_mlevel_bddc_fill_val_phase_2, &
+  public :: par_preconditioner_dd_mlevel_bddc_create, par_preconditioner_dd_mlevel_bddc_ass_struct, &
+            par_preconditioner_dd_mlevel_bddc_fill_val, par_preconditioner_dd_mlevel_bddc_free, &
+            par_preconditioner_dd_mlevel_bddc_apply_all_unk, &
+            par_preconditioner_dd_mlevel_bddc_static_condensation, &
+            par_preconditioner_dd_mlevel_bddc_report, &
+            par_preconditioner_dd_mlevel_bddc_time_report, &
+            par_preconditioner_dd_mlevel_bddc_fill_val_phase_1, &
+            par_preconditioner_dd_mlevel_bddc_fill_val_phase_2, &
             assemble_A_c
 
   logical, parameter :: debug_verbose_level_1 = .false. 
@@ -361,7 +361,7 @@ use psb_penv_mod_names
 
 contains
 
-  recursive subroutine par_precond_dd_mlevel_bddc_create( p_mat, mlbddc, mlbddc_params )
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_create( p_mat, mlbddc, mlbddc_params )
 #ifdef MPI_MOD
 use mpi
 #endif
@@ -372,8 +372,8 @@ use mpi
     !implicit none
     ! Parameters
     type(par_matrix_t)                       , target ,intent(in)  :: p_mat
-    type(par_precond_dd_mlevel_bddc_t)                ,intent(out) :: mlbddc
-    type(par_precond_dd_mlevel_bddc_params_t), target ,intent(in)  :: mlbddc_params
+    type(par_preconditioner_dd_mlevel_bddc_t)                ,intent(out) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_params_t), target ,intent(in)  :: mlbddc_params
 
     ! Locals
     integer            :: i, istat
@@ -629,10 +629,10 @@ use mpi
           end if
 
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
+             call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
 
              if ( mlbddc%projection == petrov_galerkin ) then 
-                call precond_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
+                call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
              end if
           else
              check(.false.)
@@ -645,9 +645,9 @@ use mpi
              call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
+             call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
              if ( mlbddc%projection==petrov_galerkin ) then 
-                call precond_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
+                call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
              end if
           else
              check(.false.)
@@ -685,7 +685,7 @@ use mpi
 
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
              call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_c)
-             call precond_create( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial)
+             call preconditioner_create( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial)
           
           !else if(mlbddc%co_sys_sol_strat == distributed) then
 
@@ -725,7 +725,7 @@ use mpi
              check(istat==0)
 
              ! Recursively call bddc_create
-             call par_precond_dd_mlevel_bddc_create(mlbddc%p_mat_c, mlbddc%p_M_c, mlbddc%ppars_coarse_bddc )
+             call par_preconditioner_dd_mlevel_bddc_create(mlbddc%p_mat_c, mlbddc%p_M_c, mlbddc%ppars_coarse_bddc )
 
           end if
        else
@@ -735,14 +735,14 @@ use mpi
        ! END COARSE-GRID PROBLEM DUTIES    
     end if
 
-  end subroutine par_precond_dd_mlevel_bddc_create
+  end subroutine par_preconditioner_dd_mlevel_bddc_create
 
   !=================================================================================================
 
-  recursive subroutine par_precond_dd_mlevel_bddc_free ( mlbddc, mode )
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_free ( mlbddc, mode )
     implicit none
     ! Parameters
-    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
     integer(ip)                     , intent(in)    :: mode
 
     ! Locals
@@ -782,9 +782,9 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_free ( precond_free_clean  , mlbddc%M_rr )
+             call preconditioner_free ( preconditioner_free_clean  , mlbddc%M_rr )
              if (mlbddc%projection == petrov_galerkin )  then 
-                call precond_free ( precond_free_clean, mlbddc%M_rr_trans ) 
+                call preconditioner_free ( preconditioner_free_clean, mlbddc%M_rr_trans ) 
              end if
           else
              check(.false.)
@@ -802,7 +802,7 @@ use mpi
           if(mlbddc%co_sys_sol_strat == serial_gather) then
 
              if ( i_am_coarse_task ) then
-                call precond_free ( precond_free_clean  , mlbddc%M_c )
+                call preconditioner_free ( preconditioner_free_clean  , mlbddc%M_c )
              end if
              
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -811,7 +811,7 @@ use mpi
              
              if ( i_am_coarse_task .or. i_am_higher_level_task ) then
                 ! Recursively call bddc_free
-                call par_precond_dd_mlevel_bddc_free(mlbddc%p_M_c, free_clean )
+                call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_clean )
                 
                 ! These lines should be uncommented when the structures are actually filled
                 ! In fact we should add flags to indicate that in each free routine
@@ -886,9 +886,9 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_free ( precond_free_struct, mlbddc%M_rr )
+             call preconditioner_free ( preconditioner_free_struct, mlbddc%M_rr )
             if ( mlbddc%projection == petrov_galerkin ) then 
-             call precond_free ( precond_free_struct, mlbddc%M_rr_trans )
+             call preconditioner_free ( preconditioner_free_struct, mlbddc%M_rr_trans )
             end if
           end if
 
@@ -918,7 +918,7 @@ use mpi
 
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call precond_free ( precond_free_struct, mlbddc%M_c )
+                call preconditioner_free ( preconditioner_free_struct, mlbddc%M_c )
              end if
              call matrix_free ( mlbddc%A_c, free_only_struct )
              call graph_free ( mlbddc%A_c_gr )
@@ -933,10 +933,10 @@ use mpi
           
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_precond_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_struct )
+             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_struct )
              
              if ( i_am_coarse_task ) then
-                call renum_free ( mlbddc%eren_c )
+                call renumbering_free ( mlbddc%erenumbering_c )
                 call memfree ( mlbddc%vars, __FILE__, __LINE__)
                 call memfree ( mlbddc%ptr_coarse_dofs, __FILE__, __LINE__)
              end if
@@ -962,9 +962,9 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_free ( precond_free_values  , mlbddc%M_rr )
+             call preconditioner_free ( preconditioner_free_values  , mlbddc%M_rr )
              if (mlbddc%projection == petrov_galerkin )  then 
-             call precond_free ( precond_free_values  , mlbddc%M_rr_trans )
+             call preconditioner_free ( preconditioner_free_values  , mlbddc%M_rr_trans )
              end if
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
@@ -1009,27 +1009,27 @@ use mpi
 
                 if (mlbddc%schur_edge_lag_mult == compute_from_scratch ) then
                    call memfree ( mlbddc%S_rr_neumann, & 
-                        & 'par_precond_dd_bddc_free::mlbddc%S_rr_neumann' )
+                        & 'par_preconditioner_dd_bddc_free::mlbddc%S_rr_neumann' )
                    
                    call memfree ( mlbddc%A_rr_inv_C_r_T_neumann, & 
-                        & 'par_precond_dd_bddc_free::mlbddc%A_rr_inv_C_r_T_neumann' )
+                        & 'par_preconditioner_dd_bddc_free::mlbddc%A_rr_inv_C_r_T_neumann' )
                    
                    if (mlbddc%projection == petrov_galerkin )  then 
                       call memfree ( mlbddc%S_rr_trans_neumann, & 
-                           & 'par_precond_dd_bddc_free::mlbddc%S_rr_neumann' )
+                           & 'par_preconditioner_dd_bddc_free::mlbddc%S_rr_neumann' )
 
                       call memfree ( mlbddc%A_rr_trans_inv_C_r_T_neumann, & 
-                           & 'par_precond_dd_bddc_free::mlbddc%A_rr_inv_C_r_T_neumann' )   
+                           & 'par_preconditioner_dd_bddc_free::mlbddc%A_rr_inv_C_r_T_neumann' )   
                    end if
 
                    if (mlbddc%symm == symm_false .or. & 
                         (mlbddc%symm == symm_true .and. & 
                         (mlbddc%sign == indefinite .or. mlbddc%sign == unknown)) ) then
                       call memfree ( mlbddc%ipiv_neumann, & 
-                           & 'par_precond_dd_bddc_free::mlbddc%ipiv' )
+                           & 'par_preconditioner_dd_bddc_free::mlbddc%ipiv' )
                       if (mlbddc%projection == petrov_galerkin )  then 
                          call memfree ( mlbddc%ipiv_trans_neumann, & 
-                              & 'par_precond_dd_bddc_free::mlbddc%ipiv' )
+                              & 'par_preconditioner_dd_bddc_free::mlbddc%ipiv' )
                       end if
                    end if
                 end if
@@ -1043,7 +1043,7 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call precond_free ( precond_free_values, mlbddc%M_c )
+                call preconditioner_free ( preconditioner_free_values, mlbddc%M_c )
              end if
              call matrix_free ( mlbddc%A_c, free_only_values )
           end if
@@ -1051,7 +1051,7 @@ use mpi
           assert(mlbddc%p_mat%p_env%num_levels>2) 
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_precond_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_values )
+             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_values )
 
              ! Free coarse matrix
              call par_matrix_free( mlbddc%p_mat_c, free_only_values)
@@ -1060,16 +1060,16 @@ use mpi
 
     end if
 
-  end subroutine par_precond_dd_mlevel_bddc_free
+  end subroutine par_preconditioner_dd_mlevel_bddc_free
 
   !=================================================================================================
-  recursive subroutine par_precond_dd_mlevel_bddc_ass_struct ( p_mat, mlbddc ) 
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, mlbddc ) 
 use mpi
     implicit none
 
     ! Parameters 
     type(par_matrix_t)                , target, intent(in)    :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
  
     type (mesh_t)  :: c_mesh
     logical          :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
@@ -1176,10 +1176,10 @@ use mpi
           end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_symbolic( mlbddc%A_rr , mlbddc%M_rr )
+             call preconditioner_symbolic( mlbddc%A_rr , mlbddc%M_rr )
 
           if (mlbddc%projection == petrov_galerkin) then
-             call precond_symbolic( mlbddc%A_rr_trans , mlbddc%M_rr_trans )
+             call preconditioner_symbolic( mlbddc%A_rr_trans , mlbddc%M_rr_trans )
           end if
 
        end if
@@ -1198,24 +1198,24 @@ use mpi
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
           call matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c)
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_symbolic( mlbddc%A_c , mlbddc%M_c )
+             call preconditioner_symbolic( mlbddc%A_c , mlbddc%M_c )
           end if
        else if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
           ! Assign coarse matrix graph (the partition)
           call par_matrix_graph ( mlbddc%p_graph_c, mlbddc%p_mat_c)
-          call par_precond_dd_mlevel_bddc_ass_struct ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
+          call par_preconditioner_dd_mlevel_bddc_ass_struct ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
        end if
        ! END COARSE-GRID PROBLEM DUTIES
     end if
 
-  end subroutine par_precond_dd_mlevel_bddc_ass_struct
+  end subroutine par_preconditioner_dd_mlevel_bddc_ass_struct
 
   subroutine augment_graph_with_constraints (p_mat, mlbddc)
     implicit none
 
     ! Parameters 
     type(par_matrix_t)         , intent(in)     :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
 
     integer :: info
 
@@ -1429,7 +1429,7 @@ use mpi
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
     integer (ip) :: iobj, icorner, iedge
@@ -1702,7 +1702,7 @@ use mpi
 
     ! Parameters 
     type(par_matrix_t)         , intent(in)                    :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), intent(inout)                 :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)                 :: mlbddc
 
     mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
     mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
@@ -1852,7 +1852,7 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
     type(mesh_t), intent(out) :: c_mesh
     integer(ip), allocatable  :: idum (:)
     logical                   :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
@@ -2473,7 +2473,7 @@ use mpi
     ! Parameters 
     ! On input , mlbddc%f_mesh_c%pnods in C-based indexing
     ! On output, mlbddc%f_mesh_c%pnods in F-based indexing 
-    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
     integer(ip)    :: gtype
@@ -2498,7 +2498,7 @@ use mpi
     implicit none
     ! Parameters 
     type(mesh_t), intent(inout) :: c_mesh
-    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
     integer(ip)              :: i, sum_nnz, max_sum_nnz
@@ -2594,7 +2594,7 @@ use mpi
 
           ! AFM: The extraction of vars(:) could be integrated into rcv_coarse_mesh_lnods.
           ! This would be more efficient than extracting it here. However, this would require to 
-          ! have vars(:) as a member of par_precond_dd_mlevel_bddc. As far as I know, this is 
+          ! have vars(:) as a member of par_preconditioner_dd_mlevel_bddc. As far as I know, this is 
           ! temporal data only required here. Right? 
           ! call memalloc (c_mesh%npoin, vars, __FILE__,__LINE__) 
           ! DONE
@@ -2618,7 +2618,7 @@ use mpi
                                                 mlbddc%vars                   , & ! Physical unknown corresponding to each DoF in f_mesh
                                                 mlbddc%p_mesh_c%f_mesh        , & ! New mesh object
                                                 mlbddc%dof_dist_c             , & ! New distributed DoF object conformal to new local mesh
-                                                mlbddc%eren_c                  )   ! Resulting Element renumbering
+                                                mlbddc%erenumbering_c                  )   ! Resulting Element renumbering
 
 
           ! Free dual_f_mesh with (external) adjacency data built-in
@@ -2627,8 +2627,8 @@ use mpi
           if ( debug_verbose_level_2 ) then 
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%pnods
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%lnods
-             write (*,*)  'eren_c%lperm:', mlbddc%eren_c%lperm 
-             write (*,*)  'eren_c%iperm:', mlbddc%eren_c%iperm 
+             write (*,*)  'erenumbering_c%lperm:', mlbddc%erenumbering_c%lperm 
+             write (*,*)  'erenumbering_c%iperm:', mlbddc%erenumbering_c%iperm 
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%lnods
              call dof_distribution_print ( 6, mlbddc%dof_dist_c )
              call psb_barrier ( mlbddc%c_context%icontxt )
@@ -3032,12 +3032,12 @@ use mpi
  end subroutine rcv_subdomains_surrounding_coarse_dofs
 
   !=================================================================================================
-  recursive subroutine par_precond_dd_mlevel_bddc_fill_val ( p_mat, mlbddc )
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, mlbddc )
                                            
     implicit none
     ! Parameters 
     type(par_matrix_t)                , target, intent(in)    :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
 
     ! Locals
     logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
@@ -3050,26 +3050,26 @@ use mpi
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
     ! "Numerical factorization" of Neumann internal problem at the end of phase1
-    call par_precond_dd_mlevel_bddc_fill_val_phase_1 (p_mat, mlbddc)
+    call par_preconditioner_dd_mlevel_bddc_fill_val_phase_1 (p_mat, mlbddc)
 
     ! "Numerical factorization of Coarse/Dirichlet internal problems at the end of phase 2
-    call par_precond_dd_mlevel_bddc_fill_val_phase_2 (p_mat, mlbddc) 
+    call par_preconditioner_dd_mlevel_bddc_fill_val_phase_2 (p_mat, mlbddc) 
 
     if ( i_am_coarse_task .or. i_am_higher_level_task ) then
        if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
-          call par_precond_dd_mlevel_bddc_fill_val ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
+          call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
        end if
     end if
 
-  end subroutine par_precond_dd_mlevel_bddc_fill_val
+  end subroutine par_preconditioner_dd_mlevel_bddc_fill_val
 
   !=================================================================================================
-  subroutine par_precond_dd_mlevel_bddc_fill_val_phase_1 ( p_mat, mlbddc )
+  subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_1 ( p_mat, mlbddc )
                                            
     implicit none
     ! Parameters 
     type(par_matrix_t)         , intent(in)                    :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
 
     ! Locals
     integer(ip) :: me, np, lunou
@@ -3239,10 +3239,10 @@ use mpi
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          call precond_numeric( mlbddc%A_rr , mlbddc%M_rr )
+          call preconditioner_numeric( mlbddc%A_rr , mlbddc%M_rr )
           
           if (mlbddc%projection == petrov_galerkin ) then 
-             call precond_numeric( mlbddc%A_rr_trans, mlbddc%M_rr_trans ) 
+             call preconditioner_numeric( mlbddc%A_rr_trans, mlbddc%M_rr_trans ) 
           end if
 
        else
@@ -3253,15 +3253,15 @@ use mpi
     end if
 
 
-  end subroutine par_precond_dd_mlevel_bddc_fill_val_phase_1
+  end subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_1
 
   !=================================================================================================
-  subroutine par_precond_dd_mlevel_bddc_fill_val_phase_2 ( p_mat, mlbddc, realloc_harm_extensions )
+  subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_2 ( p_mat, mlbddc, realloc_harm_extensions )
                                            
     implicit none
     ! Parameters 
     type(par_matrix_t)         , intent(in)                    :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
     logical, optional, intent(in)                            :: realloc_harm_extensions
 
     ! Locals 
@@ -3556,7 +3556,7 @@ use mpi
              call io_close (lunou)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call precond_numeric( mlbddc%A_c , mlbddc%M_c )
+             call preconditioner_numeric( mlbddc%A_c , mlbddc%M_c )
           else
              check(.false.)
 !!$             call operator_mat_create (mlbddc%A_c, mlbddc%A_c_mat_op )
@@ -3592,7 +3592,7 @@ use mpi
 
     end if
 
-  end subroutine par_precond_dd_mlevel_bddc_fill_val_phase_2
+  end subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_2
 
 
   subroutine extract_values_A_rr_A_cr_A_rc_A_cc ( nl_corners_dofs, gtype,  & 
@@ -3938,10 +3938,10 @@ use mpi
   subroutine compute_edge_lagrange_multipliers_rhs (mlbddc, A_rr, M_rr,  A_rc, rhs, work)
     implicit none
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
 
     type(matrix_t)       , intent(inout)            :: A_rr
-    type(precond_t)      , intent(inout)            :: M_rr
+    type(preconditioner_t)      , intent(inout)            :: M_rr
 
     real(rp)               , intent(inout)         :: A_rc ( mlbddc%A_rr_gr%nv  , &
                                                                mlbddc%nl_corners) 
@@ -4628,9 +4628,9 @@ use mpi
 use mpi
     implicit none
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
     type(matrix_t)          , intent(inout)   :: A_rr
-    type(precond_t)         , intent(inout)   :: M_rr
+    type(preconditioner_t)         , intent(inout)   :: M_rr
 
     real(rp), allocatable     , intent(inout)   :: A_rr_inv_C_r_T(:,:) , A_rr_inv_C_r_T_neumann(:,:)
     real(rp), allocatable     , intent(inout)   :: S_rr(:,:), S_rr_neumann(:,:)
@@ -4927,7 +4927,7 @@ use mpi
        end if
     end if
 #else
-    write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_LAPACK.'
+    write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_LAPACK.'
     write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
     check(1==0)    
 #endif
@@ -5063,7 +5063,7 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc 
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(in) :: mlbddc 
 
     real(rp)                  , intent(in)   :: S_rr(:,:), S_rr_neumann(:,:)
     integer (ip)              , intent(in)   :: ipiv(:), ipiv_neumann(:) 
@@ -5285,7 +5285,7 @@ use mpi
        end if
     end if
 #else
-      write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+      write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
       write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
       check(1==0)    
 #endif 
@@ -5302,7 +5302,7 @@ use mpi
   ! A_rr rPhi_r = - ([A_rc 0] + C_r^T lamba_r) 
   subroutine compute_harmonic_extensions_corner_edges_partitioning (mlbddc, A_cr, A_rc, A_cc, A_rr, M_rr, A_rr_inv_C_r_T, rPhi, lambda_r, work, system, iparm, msglvl)
     implicit none
-    type(par_precond_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
     real(rp)                 , intent(in)   :: A_cr( mlbddc%nl_corners, &
                                                      mlbddc%A_rr_gr%nv  )
 
@@ -5313,7 +5313,7 @@ use mpi
                                                      mlbddc%nl_corners  )
 
     type(matrix_t)         , intent(inout)   :: A_rr
-    type(precond_t)        , intent(inout)   :: M_rr
+    type(preconditioner_t)        , intent(inout)   :: M_rr
 
     real (rp)                , intent(in)      :: A_rr_inv_C_r_T (:,:) 
     real(rp)                 , intent(inout)   :: rPhi (mlbddc%p_mat%dof_dist%nl,&
@@ -5377,7 +5377,7 @@ use mpi
              ! write (*,*) a_ci ! DBG:
             end if
 #else
-            write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+            write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
             write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
             check(.false.)    
 #endif
@@ -5433,7 +5433,7 @@ use mpi
                     mlbddc%blk_lag_mul, &
                     mlbddc%nl_coarse  )
 #else
-               write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+               write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
                write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
                check(.false.)    
 #endif
@@ -5492,12 +5492,12 @@ use mpi
   ! Computes the harmonic extensions, i.e., mlbddc%rPhi(:,:)
   subroutine compute_harmonic_extensions_with_constraints (mlbddc, A_rr, M_rr, rPhi, system, iparm, msglvl)
     implicit none
-    type(par_precond_dd_mlevel_bddc_t), intent(inout), target        :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target        :: mlbddc
     integer                  , intent(in), target, optional :: iparm(64)
     integer                  , intent(in), optional         :: msglvl
 
     type(matrix_t)      , intent(inout)   :: A_rr
-    type(precond_t)     , intent(inout)   :: M_rr
+    type(preconditioner_t)     , intent(inout)   :: M_rr
     real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist%nl, &
                                                      mlbddc%nl_edges+mlbddc%nl_corners)    
     character(len=1)      , intent(in)      :: system ! Information about the regular system or the system assoc                                                        iated to the transpose matrix
@@ -5590,7 +5590,7 @@ end if
     implicit none
     ! Parameters  
     type(par_matrix_t)         , intent(in)     :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
     logical, intent(in), optional :: realloc_harm_extensions
 
     ! Locals
@@ -5673,7 +5673,7 @@ end if
                   mlbddc%nl_coarse  )
 
 #else
-             write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+             write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
              write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
              check(.false.)    
 #endif
@@ -5751,7 +5751,7 @@ end if
                   mlbddc%nl_coarse)
 
 #else
-             write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+             write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
              write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
              check(.false.)    
 #endif
@@ -5848,7 +5848,7 @@ end if
                                                mlbddc%p_mesh_c%f_mesh%lnods, &
                                                sum, &
                                                a_ci_gathered, &
-                                               mlbddc%eren_c%iperm)
+                                               mlbddc%erenumbering_c%iperm)
        end if
        call memfree ( a_ci_gathered,__FILE__,__LINE__)
 
@@ -6132,10 +6132,10 @@ use mpi
   end subroutine rcv_coarse_stiffness_matrices
 
   !=================================================================================================
-  recursive subroutine par_precond_dd_mlevel_bddc_apply_all_unk (mlbddc, x, y)
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_apply_all_unk (mlbddc, x, y)
     implicit none
     ! Parameters
-    type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc 
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(in) :: mlbddc 
     type(par_vector_t)                , intent(in)        :: x
     type(par_vector_t)                , intent(inout)     :: y
 
@@ -6218,17 +6218,17 @@ use mpi
              call par_vector_weight ( r_G ) 
           end if
 
-          call par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r_G, dum_vec )
+          call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r_G, dum_vec )
 
           call par_vector_clone ( x_G, v2 )
 
-          call par_precond_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v2 )
+          call par_preconditioner_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v2 )
 
 !!$          if ( temp_fine_coarse_grid_overlap ) then 
 !!$             call par_timer_stop ( mlbddc%timer_applyprec_ov_fine  ) 
 !!$          end if
 
-          call par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, dum_vec, v1 )
+          call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, dum_vec, v1 )
 
           call par_vector_create_view ( y, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
           call par_vector_create_view ( x,                                 1, mlbddc%p_mat%dof_dist%ni, x_I )
@@ -6320,17 +6320,17 @@ use mpi
              call par_vector_weight ( r_G ) 
           end if
 
-          call par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r_G, dum_vec )
+          call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r_G, dum_vec )
 
           call par_vector_clone ( x_G, v2 )
 
-          call par_precond_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v2 )
+          call par_preconditioner_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v2 )
 
 !!$          if ( temp_fine_coarse_grid_overlap ) then 
 !!$             call par_timer_stop ( mlbddc%timer_applyprec_ov_fine  ) 
 !!$          end if
 
-          call par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, z_c, v1 )
+          call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, z_c, v1 )
 
           call par_vector_copy ( v1, dx_G )
           call par_vector_pxpy ( v2, dx_G )
@@ -6381,7 +6381,7 @@ use mpi
           if ( i_am_coarse_task ) then
              ! Assemble coarse-grid residual
              call vector_alloc ( mlbddc%A_c%gr%nv, r_c )    
-             call par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r, r_c )
+             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, r_c )
 
              ! Solve coarse-grid problem serially
              call vector_alloc ( mlbddc%A_c%gr%nv, z_c )    
@@ -6397,7 +6397,7 @@ use mpi
              !mlbddc%coarse_its (mlbddc%num_coarse_solves) = mlbddc%spars_coarse%it
 
              ! Scatter solution of coarse-grid problem 
-             call par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, z_c, v1 )
+             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, z_c, v1 )
 
              call vector_free (z_c)
              call vector_free (r_c)
@@ -6409,7 +6409,7 @@ use mpi
              ! Assemble coarse-grid residual in parallel
              call par_vector_alloc ( mlbddc%dof_dist_c, mlbddc%p_env_c, p_r_c)
              p_r_c%state = part_summed
-             call par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r, p_r_c%f_vector )
+             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, p_r_c%f_vector )
              ! call vector_print_matrix_market (6, p_r_c%f_vector)
              ! Solve coarse-grid problem via recursive bddc
              ! AFM: In the future, the following call should be replaced by a call that allows
@@ -6418,12 +6418,12 @@ use mpi
              call par_vector_alloc ( mlbddc%dof_dist_c, mlbddc%p_env_c, p_z_c)
              p_z_c%state = full_summed
 
-             ! call par_precond_dd_mlevel_bddc_apply_all_unk ( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c )
+             ! call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c )
              mlbddc%spars_coarse%nrhs=1
              call abstract_solve( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c, mlbddc%spars_coarse, mlbddc%p_env_c)
 
              ! Scatter solution of coarse-grid problem 
-             call par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, p_z_c%f_vector, v1 )
+             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, p_z_c%f_vector, v1 )
 
              call par_vector_free (p_z_c)
              call par_vector_free (p_r_c)
@@ -6436,15 +6436,15 @@ use mpi
 !!$       end if
     end if
     
-  end subroutine par_precond_dd_mlevel_bddc_apply_all_unk
+  end subroutine par_preconditioner_dd_mlevel_bddc_apply_all_unk
 
 
   !=============================================================================
-  subroutine par_precond_dd_mlevel_bddc_static_condensation (p_mat, mlbddc, b, x)
+  subroutine par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, mlbddc, b, x)
     implicit none
     ! Parameters
     type(par_matrix_t)                , intent(in)    :: p_mat
-    type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
     type(par_vector_t)                , intent(in)    :: b
     type(par_vector_t)                , intent(inout) :: x
 
@@ -6479,12 +6479,12 @@ use mpi
        call par_vector_free (r)
     end if
 
-  end subroutine par_precond_dd_mlevel_bddc_static_condensation
+  end subroutine par_preconditioner_dd_mlevel_bddc_static_condensation
 
-  subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c ( mlbddc, r_G, r_c )
+  subroutine par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r_G, r_c )
    implicit none
    ! Parameters
-   type(par_precond_dd_mlevel_bddc_t) ,intent(in) :: mlbddc
+   type(par_preconditioner_dd_mlevel_bddc_t) ,intent(in) :: mlbddc
    type(par_vector_t)                 ,intent(in) :: r_G
    type(vector_t)                 ,intent(inout) :: r_c 
 
@@ -6566,7 +6566,7 @@ use mpi
                                              mlbddc%p_mesh_c%f_mesh%lnods, &
                                              sum, &
                                              r_ci_gathered, & 
-                                             mlbddc%eren_c%iperm)
+                                             mlbddc%erenumbering_c%iperm)
 
       end if
       call memfree (  r_ci_gathered,__FILE__,__LINE__)
@@ -6597,13 +6597,13 @@ use mpi
    if ( i_am_fine_task ) then
      call memfree ( r_ci,__FILE__,__LINE__)
    end if
- end subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_ass_r_c
+ end subroutine par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c
 
 
- subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter ( mlbddc, z_c, v_G )
+ subroutine par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, z_c, v_G )
    implicit none
    ! Parameters
-   type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc
+   type(par_preconditioner_dd_mlevel_bddc_t), intent(in) :: mlbddc
    type(vector_t)                , intent(inout) :: z_c
    type(par_vector_t)                , intent(inout) :: v_G 
 
@@ -6653,7 +6653,7 @@ use mpi
                        mlbddc%ptr_coarse_dofs,          &
                        mlbddc%p_mesh_c%f_mesh%lnods,    &
                        z_c,                                &
-                       mlbddc%eren_c%iperm)
+                       mlbddc%erenumbering_c%iperm)
       end if
    end if
 
@@ -6669,13 +6669,13 @@ use mpi
       call memfree ( z_ci,__FILE__,__LINE__) 
    end if
 
- end subroutine par_precond_dd_mlevel_bddc_compute_c_g_correction_scatter
+ end subroutine par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter
 
 
-  subroutine par_precond_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v_G )
+  subroutine par_preconditioner_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v_G )
     implicit none
     ! Parameters
-    type(par_precond_dd_mlevel_bddc_t), intent(in) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(in) :: mlbddc
     type(par_vector_t)                , intent(in)    :: r       ! Local residual
     type(par_vector_t)                , intent(inout) :: v_G 
 
@@ -6775,7 +6775,7 @@ use mpi
     !mlbddc%num_neumann_solves = mlbddc%num_neumann_solves + 1
     !mlbddc%neumann_its (mlbddc%num_neumann_solves) = mlbddc%spars%it
 
-  end subroutine par_precond_dd_mlevel_bddc_compute_fine_grid_correction
+  end subroutine par_preconditioner_dd_mlevel_bddc_compute_fine_grid_correction
 
 
   !=============================================================================
@@ -6784,7 +6784,7 @@ use mpi
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc_t), intent(in)    :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(in)    :: mlbddc
     type(par_vector_t)                , intent(in)    :: r
     real(rp)                        , intent(inout) :: r_ci(mlbddc%nl_coarse  )
 
@@ -6817,7 +6817,7 @@ use mpi
                       1)
       ! end if
 #else
-     write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+     write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
      write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
      check(.false.)    
 #endif
@@ -6829,7 +6829,7 @@ use mpi
     implicit none
 
     ! Parameters
-    type(par_precond_dd_mlevel_bddc_t), intent(in)    :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(in)    :: mlbddc
     real(rp)                        , intent(in)    :: r_ci(mlbddc%nl_coarse  )
     type(par_vector_t)                , intent(inout) :: r
 
@@ -6862,7 +6862,7 @@ use mpi
                       1)
       ! end if
 #else
-     write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+     write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
      write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
      check(.false.)    
 #endif
@@ -7327,7 +7327,7 @@ use mpi
   subroutine compute_neumann_edge_lagrange_multipliers_rhs (mlbddc, r_r, rhs, work, iparm, msglvl)
     implicit none
     ! Parameters 
-    type(par_precond_dd_mlevel_bddc_t), intent(in), target :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(in), target :: mlbddc
 
     real(rp)                 , intent(inout)         :: r_r  (mlbddc%A_rr_gr%nv)
     real(rp)                 , intent(out)           :: rhs  (mlbddc%nl_edges )
@@ -7383,7 +7383,7 @@ use mpi
   ! A_rr z_r = r_r - C_r^T lamba_r 
   subroutine solve_neumann_problem (mlbddc, r_r, lambda_r, work, z_r)
     implicit none
-    type(par_precond_dd_mlevel_bddc_t), intent(in), target        :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(in), target        :: mlbddc
     real(rp)                 , intent(inout)                :: r_r (mlbddc%A_rr_gr%nv)
     real(rp)                 , intent(in)                   :: lambda_r (mlbddc%nl_edges  )
     real(rp)                 , intent(in)                   :: work (mlbddc%A_rr_gr%nv) 
@@ -7437,7 +7437,7 @@ use mpi
             ! write (*,*) a_ci ! DBG:
          end if
 #else
-          write (0,*) 'Error: par_precond_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
+          write (0,*) 'Error: par_preconditioner_dd_mlevel_bddc was not compiled with -DENABLE_BLAS.'
           write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
           check(.false.)    
 #endif
@@ -7455,7 +7455,7 @@ use mpi
     end if
   end subroutine solve_neumann_problem 
 
-    subroutine par_precond_dd_mlevel_bddc_report ( mlbddc, prefix )
+    subroutine par_preconditioner_dd_mlevel_bddc_report ( mlbddc, prefix )
 use psb_const_mod_names
 use psb_penv_mod_names
       
@@ -7470,7 +7470,7 @@ use mpi
 #endif
 
       ! Parameters
-      type(par_precond_dd_mlevel_bddc_t), intent(inout) :: mlbddc
+      type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
       character *(*)           , intent(in)    :: prefix 
 
       ! Locals
@@ -7608,12 +7608,12 @@ use mpi
          call io_close (lunio)
       end if
 
-    end subroutine par_precond_dd_mlevel_bddc_report
+    end subroutine par_preconditioner_dd_mlevel_bddc_report
 
-    recursive subroutine par_precond_dd_mlevel_bddc_time_report ( mlbddc )
+    recursive subroutine par_preconditioner_dd_mlevel_bddc_time_report ( mlbddc )
       implicit none
       ! Parameters
-      type(par_precond_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
+      type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
 
       ! Locals
       logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
@@ -7685,12 +7685,12 @@ use mpi
 
         if ( i_am_coarse_task .or. i_am_higher_level_task ) then
           if (mlbddc%co_sys_sol_strat == recursive_bddc) then
-            call par_precond_dd_mlevel_bddc_time_report(mlbddc%p_M_c) 
+            call par_preconditioner_dd_mlevel_bddc_time_report(mlbddc%p_M_c) 
           end if
         end if
       end if
 
-    end subroutine par_precond_dd_mlevel_bddc_time_report
+    end subroutine par_preconditioner_dd_mlevel_bddc_time_report
 
 ! UPDATE CONSTRAINTS WEIGHTS VECTOR  ==========================================================
 
@@ -7698,7 +7698,7 @@ use mpi
     implicit none
 
     ! Parameters  
-    type(par_precond_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
 
     ! Locals
     real(rp), allocatable :: C_weights_i(:), C_weights_i_gathered(:)
@@ -7777,7 +7777,7 @@ use mpi
                                              mlbddc%p_mesh_c%f_mesh%lnods, &
                                              sum, &
                                              C_weights_i_gathered, & 
-                                             mlbddc%eren_c%iperm)
+                                             mlbddc%erenumbering_c%iperm)
 
         ! Take only the interface weights from the full constraints weights vector 
         nl_coarse_dofs = mlbddc%p_M_c%nl_corners_dofs + mlbddc%p_M_c%nl_edges_dofs
@@ -7821,7 +7821,7 @@ use mpi
                                               vars       , & ! Physical unknown corresponding to each DoF in f_mesh
                                               new_f_mesh , & ! New mesh object
                                               dof_dist   , & ! New dof_distribution object conformal to new local mesh
-                                              eren       )   ! Resulting Element renumbering
+                                              erenumbering       )   ! Resulting Element renumbering
                                                                 
                                               
     implicit none
@@ -7833,14 +7833,14 @@ use mpi
     integer(ip)           , intent(in)    :: vars(f_mesh%npoin)
     type(mesh_t)        , intent(out)   :: new_f_mesh
     type(dof_distribution_t), intent(out)   :: dof_dist
-    type(renum_t)           , intent(out)   :: eren    
+    type(renumbering_t)           , intent(out)   :: erenumbering    
 
 
     ! Locals
     integer(ip)                :: nboun, eboun, max_nelem
     integer(igp)               :: ngelem
     integer(ip) , allocatable  :: nlboun(:), elboun(:)
-    type(renum_t)                :: nren
+    type(renumbering_t)                :: nrenumbering
     type(par_timer_t)            :: t1, t2, t3, t4, t5
     logical, parameter         :: temporize_phases = .false. 
 
@@ -7866,11 +7866,11 @@ use mpi
     end if
     
 
-    nren%n = f_mesh%npoin
-    eren%n = f_mesh%nelem
+    nrenumbering%n = f_mesh%npoin
+    erenumbering%n = f_mesh%nelem
 
-    call memalloc (nren%n, nren%iperm, __FILE__,__LINE__)
-    call memalloc (eren%n, eren%iperm, __FILE__,__LINE__)
+    call memalloc (nrenumbering%n, nrenumbering%iperm, __FILE__,__LINE__)
+    call memalloc (erenumbering%n, erenumbering%iperm, __FILE__,__LINE__)
 
     if ( temporize_phases ) then
       call par_timer_create ( t2, 'create_lpadj_lobjs', ictxt=icontxt )
@@ -7894,8 +7894,8 @@ use mpi
                                                     max_nelem             , &
                                                     dof_dist%nobjs      , & 
                                                     dof_dist%lobjs      , &   
-                                                    nren%iperm            , &
-                                                    eren%iperm )
+                                                    nrenumbering%iperm            , &
+                                                    erenumbering%iperm )
 
     
     if ( temporize_phases ) then
@@ -7905,11 +7905,11 @@ use mpi
     call memfree (nlboun,__FILE__,__LINE__)
     call memfree (elboun,__FILE__,__LINE__)
 
-    call memalloc (nren%n, nren%lperm, __FILE__,__LINE__)
-    call memalloc (eren%n, eren%lperm, __FILE__,__LINE__)
+    call memalloc (nrenumbering%n, nrenumbering%lperm, __FILE__,__LINE__)
+    call memalloc (erenumbering%n, erenumbering%lperm, __FILE__,__LINE__)
 
-    call renum_inverse (nren%n, nren%iperm, nren%lperm)
-    call renum_inverse (eren%n, eren%iperm, eren%lperm)
+    call renumbering_inverse (nrenumbering%n, nrenumbering%iperm, nrenumbering%lperm)
+    call renumbering_inverse (erenumbering%n, erenumbering%iperm, erenumbering%lperm)
 
     if ( temporize_phases ) then
       call par_timer_create ( t3, 'create_int_objs', ictxt=icontxt )
@@ -7954,12 +7954,12 @@ use mpi
     end if
 
     if ( temporize_phases ) then
-      ! Apply nren/eren to input mesh into output mesh
+      ! Apply nrenumbering/erenumbering to input mesh into output mesh
       call par_timer_create ( t5, 'mesh_l2l', ictxt=icontxt )
       call par_timer_start  ( t5 )
     end if
 
-    call mesh_l2l ( nren, eren, f_mesh, new_f_mesh )
+    call mesh_l2l ( nrenumbering, erenumbering, f_mesh, new_f_mesh )
  
     if ( temporize_phases ) then
       call par_timer_stop ( t5 )
@@ -7973,7 +7973,7 @@ use mpi
       call par_timer_report (t5, .false.)
     end if
 
-    call renum_free(nren)
+    call renumbering_free(nrenumbering)
 
     ! Compute dof_import_t instance such that DoF nearest neighbour exchanges
     ! can be performed among subdomains on any intermmediate coarse-grid mesh
@@ -8756,10 +8756,10 @@ use mpi
      end subroutine list_primal_graph_csr_scal
 
      !=============================================================================
-     subroutine par_precond_dd_mlevel_bddc_apply_tbp (op, x, y)
+     subroutine par_preconditioner_dd_mlevel_bddc_apply_tbp (op, x, y)
        implicit none
        ! Parameters
-       class(par_precond_dd_mlevel_bddc_t)    , intent(in)    :: op
+       class(par_preconditioner_dd_mlevel_bddc_t)    , intent(in)    :: op
        class(base_operand_t)   , intent(in)    :: x
        class(base_operand_t)   , intent(inout) :: y
 
@@ -8771,25 +8771,25 @@ use mpi
           class is (par_vector_t)
           select type(y)
              class is(par_vector_t)
-               call par_precond_dd_mlevel_bddc_apply_all_unk ( op, x, y )
+               call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, y )
              class default
              write(0,'(a)') 'matrix_t%apply: unsupported y class'
              check(1==0)
           end select
           class default
-          write(0,'(a)') 'par_precond_dd_mlevel_bddc_t%apply: unsupported x class'
+          write(0,'(a)') 'par_preconditioner_dd_mlevel_bddc_t%apply: unsupported x class'
           check(1==0)
        end select
 
        call x%CleanTemp()
-     end subroutine par_precond_dd_mlevel_bddc_apply_tbp
+     end subroutine par_preconditioner_dd_mlevel_bddc_apply_tbp
 
 
      !=============================================================================
-     function par_precond_dd_mlevel_bddc_apply_fun_tbp (op, x) result(y)
+     function par_preconditioner_dd_mlevel_bddc_apply_fun_tbp (op, x) result(y)
        implicit none
        ! Parameters
-       class(par_precond_dd_mlevel_bddc_t), intent(in)   :: op
+       class(par_preconditioner_dd_mlevel_bddc_t), intent(in)   :: op
        class(base_operand_t), intent(in)  :: x
        class(base_operand_t), allocatable :: y
        type(par_vector_t), allocatable :: local_y
@@ -8800,23 +8800,23 @@ use mpi
           class is (par_vector_t)
              allocate(local_y)
              call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
-             call par_precond_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
+             call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
              call move_alloc(local_y, y)
              call y%SetTemp()
           class default
-             write(0,'(a)') 'par_precond_dd_mlevel_bddc_t%apply_fun: unsupported x class'
+             write(0,'(a)') 'par_preconditioner_dd_mlevel_bddc_t%apply_fun: unsupported x class'
              check(1==0)
           end select
           
           call x%CleanTemp()
-        end function par_precond_dd_mlevel_bddc_apply_fun_tbp
+        end function par_preconditioner_dd_mlevel_bddc_apply_fun_tbp
 
-        subroutine par_precond_dd_mlevel_bddc_free_tbp(this)
+        subroutine par_preconditioner_dd_mlevel_bddc_free_tbp(this)
           implicit none
-          class(par_precond_dd_mlevel_bddc_t), intent(inout) :: this
-        end subroutine par_precond_dd_mlevel_bddc_free_tbp
+          class(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: this
+        end subroutine par_preconditioner_dd_mlevel_bddc_free_tbp
 
-end module par_precond_dd_mlevel_bddc_names
+end module par_preconditioner_dd_mlevel_bddc_names
 
 
 

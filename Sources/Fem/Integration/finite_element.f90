@@ -35,7 +35,7 @@ module finite_element_names
   use interpolation_tools_names
   !use face_integration_names
   use fe_space_types_names
-  !use dof_handler_names
+  !use dof_descriptor_names
   use migratory_element_names
   !use conditions_names
 
@@ -63,7 +63,7 @@ module finite_element_names
 
      ! Connectivity
      integer(ip)       , allocatable :: continuity(:)     ! Continuity flag per variable
-     type(list_pointer_t), allocatable :: nodes_object(:)   ! Nodes per object (including interior) (nvars)
+     type(list_pointer_t), allocatable :: nodes_per_vef(:)   ! Nodes per vefq (including interior) (nvars)
      integer(ip)                     :: material          ! Material ! SB.alert : material can be used as p   
      ! use of material still unclear
 
@@ -100,7 +100,7 @@ module finite_element_names
      type(element_face_integrator_t) :: integ(2)  ! Pointer to face integration
 
      ! Face mesh info
-     integer(ip)               :: face_object
+     integer(ip)               :: face_vef
      integer(ip)               :: neighbor_element(2) ! Neighbor elements
      integer(ip)               :: local_face(2)       ! Face pos in element
 
@@ -141,10 +141,10 @@ contains
     do ivar=1, finite_element%num_vars
        write (lunou, *) 'Type: ', finite_element%reference_element_vars(ivar)%p%ftype
        write (lunou, *) 'Order: ', finite_element%reference_element_vars(ivar)%p%order
-       write (lunou, *) 'Nobje: ', finite_element%reference_element_vars(ivar)%p%nobje
+       write (lunou, *) 'Nobje: ', finite_element%reference_element_vars(ivar)%p%nvef
        write (lunou, *) 'Nnode: ', finite_element%reference_element_vars(ivar)%p%nnode
-       write (lunou, *) 'Nobje_dim: ', finite_element%reference_element_vars(ivar)%p%nobje_dim
-       write (lunou, *) 'Nodes_obj: ', finite_element%reference_element_vars(ivar)%p%nodes_obj
+       write (lunou, *) 'Nobje_dim: ', finite_element%reference_element_vars(ivar)%p%nvef_dim
+       write (lunou, *) 'Nodes_vef: ', finite_element%reference_element_vars(ivar)%p%nodes_vef
        write (lunou, *) 'ndxob%p:  ', finite_element%reference_element_vars(ivar)%p%ndxob%p
        write (lunou, *) 'ndxob%l:  ', finite_element%reference_element_vars(ivar)%p%ndxob%l
        write (lunou, *) 'ntxob%p:  ', finite_element%reference_element_vars(ivar)%p%ntxob%p

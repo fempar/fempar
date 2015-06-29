@@ -273,7 +273,7 @@ contains
        call set_face_type    ( geo_reference_element%p%ftype, geo_reference_element%p%ftype,nd,utype)
        gnode = geo_reference_element%p%nnode
        unode = unk_reference_element%p%nnode
-       nface = geo_reference_element%p%nobje_dim(nd+1) -  geo_reference_element%p%nobje_dim(nd)
+       nface = geo_reference_element%p%nvef_dim(nd+1) -  geo_reference_element%p%nvef_dim(nd)
        call set_integ (utype,nd-1,geo_reference_element%p%order,unk_reference_element%p%order,ng,nlocs,lrule,llapl,           &
             &          gfnod,ufnod)
        ! Store identifiers of element
@@ -349,14 +349,14 @@ contains
   end subroutine face_integrator_free
 
   ! !==================================================================================================
-  ! subroutine integ_faces(elem,face,gmesh,integ,ntxob,nobje)
+  ! subroutine integ_faces(elem,face,gmesh,integ,ntxob,nvef)
   !   implicit none
   !   ! Parameters
   !   integer(ip)              , intent(in)    :: elem(2),face(2)
   !   type(fe_space_t)           , intent(in)    :: geom     ! Geometry interpolation_t space
   !   type(face_integrator_t)         , intent(inout) :: integ
   !   type(list_t)               , intent(in)    :: ntxob
-  !   integer(ip)              , intent(in)    :: nobje
+  !   integer(ip)              , intent(in)    :: nvef
 
   !   integer(ip)                      :: i,gfnod,poins(integ%gint_ref%nnode),nelem
   !   real(rp)                         :: TOL=1e-8
@@ -369,7 +369,7 @@ contains
   !   ! TODO: Assert that the first element is not the one which the subfaces are in
 
   !   nnode = 0
-  !   do inode = ntxob%p(nobje+face),ntxob%p(nobje+face+1)-1
+  !   do inode = ntxob%p(nvef+face),ntxob%p(nvef+face+1)-1
   !      nnode = nnode +1
   !      poins(nnode) = geom%lelem(ielem)%elem2dof(1,ntxob%l(inode))
   !   end do

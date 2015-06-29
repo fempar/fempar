@@ -44,10 +44,10 @@ contains
 
   !*********************************************************************************
   ! This subroutine takes as input a 'plain' mesh and creates a triangulation,
-  ! filling both element and object (dual mesh) info. The triangulation includes
+  ! filling both element and vef (dual mesh) info. The triangulation includes
   ! vertices, edges, and vertices (in 3D). The length_trian optional arguments 
   ! is used when used from par_mesh_triangulation.f90, because in a parallel 
-  ! environment ghost elements are also included in the list of objects of the
+  ! environment ghost elements are also included in the list of vefs of the
   ! triangulation, even though the triangulation is not aware of that, i.e., the
   ! number of elements in triangulation does not include ghost elements, only
   ! local elements
@@ -95,7 +95,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
 
 !!$     AFM: I think this is not really needed. trian%elems could already be
 !!$     allocated with sufficient size (see next if-end block)
-!!$     if ( trian%state == triangulation_elems_objects_filled .or. &
+!!$     if ( trian%state == triangulation_elems_vefs_filled .or. &
 !!$          trian%state == triangulation_elems_filled ) then
 !!$       ! Deallocate the element structure array */
 !!$       deallocate(trian%elems, stat=istat)
@@ -124,9 +124,9 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        
 
     do ielem=1, trian%num_elems
-       trian%elems(ielem)%num_objects = tmesh%pnods(ielem+1)-tmesh%pnods(ielem)
-       call memalloc(trian%elems(ielem)%num_objects, trian%elems(ielem)%objects, __FILE__, __LINE__)
-       trian%elems(ielem)%objects(1:trian%elems(ielem)%num_objects) = tmesh%lnods(tmesh%pnods(ielem):tmesh%pnods(ielem+1)-1)
+       trian%elems(ielem)%num_vefs = tmesh%pnods(ielem+1)-tmesh%pnods(ielem)
+       call memalloc(trian%elems(ielem)%num_vefs, trian%elems(ielem)%vefs, __FILE__, __LINE__)
+       trian%elems(ielem)%vefs(1:trian%elems(ielem)%num_vefs) = tmesh%lnods(tmesh%pnods(ielem):tmesh%pnods(ielem+1)-1)
     end do
 
     do ielem=1, trian%num_elems !(SBmod)

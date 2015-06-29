@@ -121,7 +121,7 @@ use iso_c_binding
   character(len=4) :: pvd_ext = '.pvd'
   character(len=5) :: pvtk_ext = '.pvtu'
 
-!  integer(ip) :: ftype_conn(max_FE_types,max_nobje) ! Connectivities for P and Q P1 elements
+!  integer(ip) :: ftype_conn(max_FE_types,max_nvef) ! Connectivities for P and Q P1 elements
   integer(1)  :: celltypes(max_ndime,max_FE_types)  ! VTK cell type: (dimensions,P/Q_type_id) 
 !  integer(ip) :: type_id(12)                        ! Reverse VTK cell type
 
@@ -561,7 +561,7 @@ contains
                         call memalloc( f_vtk%mesh(nm)%fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
             
                         do i=1, nels
-                            elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nobje_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                            elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
                             do j=1, elnnod
                                 nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_nvar)%p%ntxob%p(j)
                                 idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_nvar)%p%ntxob%l(nnode)

@@ -71,9 +71,9 @@ contains
        call approx(current_approximation)%p%compute(fe_space%finite_elements(ielem))
 
        ! Assembly first contribution
-       call assembly(fe_space%finite_elements(ielem),fe_space%dof_handler,res1) 
+       call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
 
-       if(present(res2)) call assembly(fe_space%finite_elements(ielem),fe_space%dof_handler,res2)
+       if(present(res2)) call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2)
  
     end do
 

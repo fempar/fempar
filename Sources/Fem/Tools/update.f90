@@ -61,13 +61,13 @@ contains
 
     do ielem = 1, fe_space%g_trian%num_elems
        prob = fe_space%finite_elements(ielem)%problem
-       do ivar=1, fe_space%dof_handler%problems(prob)%p%nvars
-          gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
-          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
-             lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
-             do inode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje), &
-                  &     fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                l_node = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%l(inode)
+       do ivar=1, fe_space%dof_descriptor%problems(prob)%p%nvars
+          gvar=fe_space%dof_descriptor%problems(prob)%p%l2g_var(ivar)
+          do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nvef
+             lobje = fe_space%g_trian%elems(ielem)%vefs(iobje)
+             do inode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje), &
+                  &     fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje+1)-1 
+                l_node = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%l(inode)
                 if ( fe_space%finite_elements(ielem)%bc_code(ivar,iobje) /= 0 ) then
                    fe_space%finite_elements(ielem)%unkno(l_node,ivar,1) = fcond%valu(gvar,lobje)
                 end if
@@ -117,7 +117,7 @@ contains
 
              ! Global variable
              cnt = cnt+1
-             gvar=fe_space%dof_handler%problems(prob)%p%l2g_var(ivar)
+             gvar=fe_space%dof_descriptor%problems(prob)%p%l2g_var(ivar)
 
              ! Interpolate coordinates
              unode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode
@@ -125,14 +125,14 @@ contains
              call interpolate(ndime,gnode,unode,fe_space%finite_elements(ielem)%inter(ivar)%p, &
                   &           fe_space%g_trian%elems(ielem)%coordinates,coord)
 
-             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nobje
-                lobje = fe_space%g_trian%elems(ielem)%objects(iobje)
+             do iobje = 1,fe_space%finite_elements(ielem)%p_geo_reference_element%nvef
+                lobje = fe_space%g_trian%elems(ielem)%vefs(iobje)
 
                 if ( fe_space%finite_elements(ielem)%bc_code(ivar,iobje) /= 0 ) then
 
-                   do inode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje), &
-                        &     fe_space%finite_elements(ielem)%nodes_object(ivar)%p%p(iobje+1)-1 
-                      lnode = fe_space%finite_elements(ielem)%nodes_object(ivar)%p%l(inode)
+                   do inode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje), &
+                        &     fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje+1)-1 
+                      lnode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%l(inode)
 
                       call analytical_field(case,ndime,coord(:,lnode),ctime,param)
 
@@ -186,11 +186,11 @@ contains
     ! Loop over elements
     do ielem = 1, fe_space%g_trian%num_elems
        iprob = fe_space%finite_elements(ielem)%problem
-       nvapb = fe_space%dof_handler%prob_block(iblock_,iprob)%nd1
+       nvapb = fe_space%dof_descriptor%prob_block(iblock_,iprob)%nd1
        
        ! Loop over problem and block variables
        do ivar = 1, nvapb
-          lvar = fe_space%dof_handler%prob_block(iblock_,iprob)%a(ivar)
+          lvar = fe_space%dof_descriptor%prob_block(iblock_,iprob)%a(ivar)
 
           ! Loop over elemental nodes
           do inode = 1,fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode

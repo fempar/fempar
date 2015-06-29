@@ -29,7 +29,7 @@ module conditions_names
 use types_names
 use memor_names
 use stdio_names
-  use renum_names
+  use renumbering_names
 # include "debug.i90"
   implicit none
   private
@@ -49,7 +49,7 @@ use stdio_names
   public :: conditions_t
 
   ! Methods
-  public :: conditions_create, conditions_free, conditions_copy, conditions_apply_renum
+  public :: conditions_create, conditions_free, conditions_copy, conditions_apply_renumbering
 
 contains
 
@@ -83,9 +83,9 @@ contains
   end subroutine conditions_copy
 
   !===============================================================================================
-  subroutine conditions_apply_renum(ren, cnd)
+  subroutine conditions_apply_renumbering(renumbering, cnd)
     implicit none
-    type(renum_t)         , intent(in)    :: ren
+    type(renumbering_t)         , intent(in)    :: renumbering
     type(conditions_t), intent(inout) :: cnd
 
     integer(ip), allocatable :: tmp_int(:,:)
@@ -94,18 +94,18 @@ contains
     ! Renum code 2D array
     call memalloc ( cnd%ncode, cnd%ncond, tmp_int, __FILE__, __LINE__ )
     tmp_int = cnd%code
-    call renum_apply(cnd%ncode, ren, tmp_int, cnd%code)
+    call renumbering_apply(cnd%ncode, renumbering, tmp_int, cnd%code)
     
     ! Renum valu 2D array
     call memalloc ( cnd%nvalu, cnd%ncond, tmp_real, __FILE__, __LINE__ )
     tmp_real = cnd%valu
-    call renum_apply(cnd%nvalu, ren, tmp_real, cnd%valu)
+    call renumbering_apply(cnd%nvalu, renumbering, tmp_real, cnd%valu)
 
     ! Free work space
     call memfree ( tmp_real, __FILE__, __LINE__ )
     call memfree ( tmp_int, __FILE__, __LINE__ )
 
-  end subroutine conditions_apply_renum
+  end subroutine conditions_apply_renumbering
 
   !===============================================================================================
   subroutine conditions_free(cnd)

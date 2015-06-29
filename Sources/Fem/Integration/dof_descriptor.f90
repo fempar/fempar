@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module dof_handler_names
+module dof_descriptor_names
 use types_names
 use memor_names
   use problem_names
@@ -37,7 +37,7 @@ use memor_names
 
 
 
-  type dof_handler_t
+  type dof_descriptor_t
 
      integer(ip) ::     &
           nblocks,                   &       ! Number of blocks
@@ -61,21 +61,21 @@ use memor_names
 
    contains
      procedure :: set_problem
-     procedure :: create => dof_handler_create
-  end type dof_handler_t
+     procedure :: create => dof_descriptor_create
+  end type dof_descriptor_t
 
   ! Types
-  public :: dof_handler_t
+  public :: dof_descriptor_t
 
   ! Functions
-  public ::  dof_handler_print, dof_handler_free
+  public ::  dof_descriptor_print, dof_descriptor_free
 
 contains
 
-  subroutine dof_handler_create( dhand, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
+  subroutine dof_descriptor_create( dof_descriptor, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
     implicit none
     ! Parameters
-    class(dof_handler_t), intent(inout)          :: dhand
+    class(dof_descriptor_t), intent(inout)          :: dof_descriptor
     integer(ip), intent(in)                   :: nblocks, nprobs, nvars_global 
     integer(ip), intent(in), optional         :: vars_block(:), dof_coupl(:,:)
 
@@ -83,123 +83,123 @@ contains
 
 
 
-    allocate( dhand%problems(nprobs), stat=istat)
+    allocate( dof_descriptor%problems(nprobs), stat=istat)
     check( istat==0 )
 
-    dhand%nblocks = nblocks
-    dhand%nprobs = nprobs
-    dhand%nvars_global = nvars_global
+    dof_descriptor%nblocks = nblocks
+    dof_descriptor%nprobs = nprobs
+    dof_descriptor%nvars_global = nvars_global
     
     if (present(dof_coupl)) then
        assert ( size(dof_coupl,1) == nvars_global .and. size(dof_coupl,2) == nvars_global ) 
-       dhand%dof_coupl = dof_coupl
+       dof_descriptor%dof_coupl = dof_coupl
     else
-       call memalloc ( dhand%nvars_global, dhand%nvars_global, dhand%dof_coupl, __FILE__, __LINE__ ) 
-       dhand%dof_coupl = 1
+       call memalloc ( dof_descriptor%nvars_global, dof_descriptor%nvars_global, dof_descriptor%dof_coupl, __FILE__, __LINE__ ) 
+       dof_descriptor%dof_coupl = 1
     end if
     
     if (present(vars_block)) then
        assert ( size(vars_block) == nvars_global )
-       dhand%vars_block = vars_block
+       dof_descriptor%vars_block = vars_block
     else
-       call memalloc ( dhand%nvars_global, dhand%vars_block, __FILE__, __LINE__ ) 
-       dhand%vars_block = 1
+       call memalloc ( dof_descriptor%nvars_global, dof_descriptor%vars_block, __FILE__, __LINE__ ) 
+       dof_descriptor%vars_block = 1
     end if
 
     ! Global to local of variables per problem
-    call memalloc( nvars_global, dhand%nprobs, dhand%g2l_vars, __FILE__, __LINE__ )
+    call memalloc( nvars_global, dof_descriptor%nprobs, dof_descriptor%g2l_vars, __FILE__, __LINE__ )
     
-    call memalloc( dhand%nblocks, dhand%nprobs, dhand%prob_block, __FILE__, __LINE__ )
+    call memalloc( dof_descriptor%nblocks, dof_descriptor%nprobs, dof_descriptor%prob_block, __FILE__, __LINE__ )
 
-  end subroutine dof_handler_create
+  end subroutine dof_descriptor_create
 
 
-  subroutine dof_handler_print(  dhand, lunou )
+  subroutine dof_descriptor_print(  dof_descriptor, lunou )
     implicit none
     integer(ip)      , intent(in)           :: lunou
-    type(dof_handler_t), intent(in)           :: dhand
+    type(dof_descriptor_t), intent(in)           :: dof_descriptor
 
     integer(ip) :: iprob, count, iblock
 
     write (lunou, '(a)')     '*** begin dof handler data structure ***'
 
-    write (lunou,*)     'Number of problems: ',   dhand%nprobs
-    write (lunou,*)     'Number of blocks: '  ,   dhand%nblocks
-    write (lunou,*)     'Number of variables: ',  dhand%nvars_global
+    write (lunou,*)     'Number of problems: ',   dof_descriptor%nprobs
+    write (lunou,*)     'Number of blocks: '  ,   dof_descriptor%nblocks
+    write (lunou,*)     'Number of variables: ',  dof_descriptor%nvars_global
 
-    do iprob = 1, dhand%nprobs
+    do iprob = 1, dof_descriptor%nprobs
 
        write (lunou,*)     '*** physical problem ',iprob, ' ***'
-       write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%p%nvars
-       write (lunou,*)     'Local to global (of variables) for problem ',iprob, ' :' ,  dhand%problems(iprob)%p%l2g_var
-       !write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dhand%problems(iprob)%problem_code
+       write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dof_descriptor%problems(iprob)%p%nvars
+       write (lunou,*)     'Local to global (of variables) for problem ',iprob, ' :' ,  dof_descriptor%problems(iprob)%p%l2g_var
+       !write (lunou,*)     'Number of variables of problem ',iprob, ' :' ,  dof_descriptor%problems(iprob)%problem_code
 
     end do
 
 
-    do iblock = 1, dhand%nblocks  
-       do iprob = 1, dhand%nprobs 
-          write (lunou,*) 'prob_block array iblock ',iblock,' problem ',iprob,' :', dhand%prob_block(iblock,iprob)%nd1
-          write (lunou,*) 'prob_block array iblock ',iblock,' problem ',iprob,' :', dhand%prob_block(iblock,iprob)%a
+    do iblock = 1, dof_descriptor%nblocks  
+       do iprob = 1, dof_descriptor%nprobs 
+          write (lunou,*) 'prob_block array iblock ',iblock,' problem ',iprob,' :', dof_descriptor%prob_block(iblock,iprob)%nd1
+          write (lunou,*) 'prob_block array iblock ',iblock,' problem ',iprob,' :', dof_descriptor%prob_block(iblock,iprob)%a
          
        end do
     end do
 
-    write (lunou,*)     'Block of every variable: ',    dhand%vars_block
-    write (lunou,*)     'Coupling flag between dofs: ', dhand%dof_coupl
+    write (lunou,*)     'Block of every variable: ',    dof_descriptor%vars_block
+    write (lunou,*)     'Coupling flag between dofs: ', dof_descriptor%dof_coupl
 
-  end subroutine dof_handler_print
+  end subroutine dof_descriptor_print
 
-  subroutine dof_handler_free(  dhand )
+  subroutine dof_descriptor_free(  dof_descriptor )
     implicit none
-    type(dof_handler_t), intent(inout)           :: dhand
+    type(dof_descriptor_t), intent(inout)           :: dof_descriptor
 
     integer(ip) :: i,j
 
-    call memfree( dhand%dof_coupl, __FILE__, __LINE__ )
-    call memfree( dhand%vars_block, __FILE__, __LINE__ )
+    call memfree( dof_descriptor%dof_coupl, __FILE__, __LINE__ )
+    call memfree( dof_descriptor%vars_block, __FILE__, __LINE__ )
 
-    call memfree( dhand%g2l_vars, __FILE__, __LINE__ )
+    call memfree( dof_descriptor%g2l_vars, __FILE__, __LINE__ )
 
-    do i = 1, size( dhand%prob_block,1 )
-       do j = 1, size( dhand%prob_block,2 )
-          call memfree ( dhand%prob_block(i,j)%a, __FILE__, __LINE__ )
+    do i = 1, size( dof_descriptor%prob_block,1 )
+       do j = 1, size( dof_descriptor%prob_block,2 )
+          call memfree ( dof_descriptor%prob_block(i,j)%a, __FILE__, __LINE__ )
        end do
     end do
-    call memfree ( dhand%prob_block, __FILE__, __LINE__ )
+    call memfree ( dof_descriptor%prob_block, __FILE__, __LINE__ )
 
-  end subroutine dof_handler_free
+  end subroutine dof_descriptor_free
     
 
-  subroutine set_problem ( dhand, iprob, prob )
+  subroutine set_problem ( dof_descriptor, iprob, prob )
     implicit none
-    class(dof_handler_t), intent(inout)          :: dhand
+    class(dof_descriptor_t), intent(inout)          :: dof_descriptor
     integer(ip), intent(in) :: iprob
     class(discrete_problem), target, intent(in) :: prob
     
     integer(ip) :: l_var, iblock, count
 
-    dhand%problems(iprob)%p => prob
+    dof_descriptor%problems(iprob)%p => prob
    
-    do l_var = 1, dhand%problems(iprob)%p%nvars
-       dhand%g2l_vars( dhand%problems(iprob)%p%l2g_var(l_var), iprob) = l_var
+    do l_var = 1, dof_descriptor%problems(iprob)%p%nvars
+       dof_descriptor%g2l_vars( dof_descriptor%problems(iprob)%p%l2g_var(l_var), iprob) = l_var
     end do
 
 
-    do iblock = 1, dhand%nblocks  
+    do iblock = 1, dof_descriptor%nblocks  
        ! variables of a given problem for current block (prob_block)
        count = 0
-       do l_var = 1, dhand%problems(iprob)%p%nvars
-          if ( dhand%vars_block(dhand%problems(iprob)%p%l2g_var(l_var)) == iblock ) then
+       do l_var = 1, dof_descriptor%problems(iprob)%p%nvars
+          if ( dof_descriptor%vars_block(dof_descriptor%problems(iprob)%p%l2g_var(l_var)) == iblock ) then
              count = count + 1 
           end if
        end do
-       call array_create( count, dhand%prob_block(iblock,iprob))
+       call array_create( count, dof_descriptor%prob_block(iblock,iprob))
        count = 0 
-       do l_var = 1, dhand%problems(iprob)%p%nvars
-          if ( dhand%vars_block(dhand%problems(iprob)%p%l2g_var(l_var)) == iblock ) then
+       do l_var = 1, dof_descriptor%problems(iprob)%p%nvars
+          if ( dof_descriptor%vars_block(dof_descriptor%problems(iprob)%p%l2g_var(l_var)) == iblock ) then
              count = count + 1 
-             dhand%prob_block(iblock,iprob)%a(count) = l_var !dhand%problems(iprob)%p%l2g_var(l_var)
+             dof_descriptor%prob_block(iblock,iprob)%a(count) = l_var !dof_descriptor%problems(iprob)%p%l2g_var(l_var)
           end if
        end do
 
@@ -213,4 +213,4 @@ contains
 !  integer(ip), parameter :: imh_code=5, dcy_code=6, mss_code=7, lap_code=8 
  
 
-end module dof_handler_names
+end module dof_descriptor_names

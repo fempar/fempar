@@ -37,7 +37,7 @@ module hsl_ma87_names
   use matrix_names
   use vector_names 
   use graph_names
-  use renum_names
+  use renumbering_names
 
 
 #ifdef ENABLE_HSL_MA87
@@ -59,7 +59,7 @@ use hsl_ma87_double
   type hsl_ma87_context_t
      ! Our components
      integer(ip)              :: state = not_created
-     type(renum_t)              :: ren
+     type(renumbering_t)              :: renumbering
 #ifdef ENABLE_HSL_MA87
      ! HSL_MA87 components
      type(MA87_keep) :: keep
@@ -319,7 +319,7 @@ contains
        !    it may have more sense to call
        !    ma87_finalize on the free_clean
        !    section instead of here. TO THINK.
-       call renum_free( context%ren )
+       call renumbering_free( context%renumbering )
        call ma87_finalise( context%keep, ctrl%control )
     end if
 #else
@@ -331,7 +331,7 @@ contains
   !=============================================================================
   subroutine hsl_ma87_analysis ( context, matrix, ctrl, info )
 use mesh_partition_base_names
-use graph_renum_names
+use graph_renumbering_names
     implicit none
 
     ! Parameters 
@@ -348,7 +348,7 @@ use graph_renum_names
     assert ( matrix%gr%type == csr_symm )
 
 #ifdef ENABLE_HSL_MA87
-    call renum_alloc( matrix%gr%nv, context%ren )
+    call renumbering_alloc( matrix%gr%nv, context%renumbering )
 
     ! Call to graph_nd_renumbering
     ! Set-up graph
@@ -363,13 +363,13 @@ use graph_renum_names
     ! call graph_print (6, matrix%gr)
     ! call graph_print (6, aux_graph)
     
-    call graph_nd_renumbering(prt_parts,aux_graph,context%ren) 
+    call graph_nd_renumbering(prt_parts,aux_graph,context%renumbering) 
 
     ! De-allocate aux_graph
     call graph_free ( aux_graph )
 
     call ma87_analyse(matrix%gr%nv, matrix%gr%ia, matrix%gr%ja, &
-                      context%ren%lperm, context%keep, ctrl%control, info%info)
+                      context%renumbering%lperm, context%keep, ctrl%control, info%info)
 
     if ( info%info%flag < 0 ) then
        write (0,*) 'Error, HSL_MA87: the following ERROR was triggered: ', & 
@@ -455,7 +455,7 @@ use graph_renum_names
    
     ! Factor
     call ma87_factor(matrix%gr%nv, matrix%gr%ia, matrix%gr%ja, &
-                     a_, context%ren%lperm, context%keep, ctrl%control, info%info)
+                     a_, context%renumbering%lperm, context%keep, ctrl%control, info%info)
 
 
     if ( info%info%flag < 0 ) then
@@ -495,7 +495,7 @@ use graph_renum_names
     y_ = x_ 
     
     ! Solve
-    call ma87_solve(y_, context%ren%lperm, context%keep, ctrl%control, info%info)
+    call ma87_solve(y_, context%renumbering%lperm, context%keep, ctrl%control, info%info)
 
     if ( info%info%flag < 0 ) then
        write (0,*) 'Error, HSL_MA87: the following ERROR was triggered: ', & 
@@ -525,7 +525,7 @@ use graph_renum_names
 #ifdef ENABLE_HSL_MA87
     sol = rhs
     ! Solve
-    call ma87_solve(sol, context%ren%lperm, context%keep, ctrl%control, info%info)
+    call ma87_solve(sol, context%renumbering%lperm, context%keep, ctrl%control, info%info)
 
     if ( info%info%flag < 0 ) then
        write (0,*) 'Error, HSL_MA87: the following ERROR was triggered: ', & 
@@ -563,7 +563,7 @@ use graph_renum_names
     end do
 
     ! Solve
-    call ma87_solve(nrhs, ldsol, sol, context%ren%lperm, context%keep, ctrl%control, info%info)
+    call ma87_solve(nrhs, ldsol, sol, context%renumbering%lperm, context%keep, ctrl%control, info%info)
 
     if ( info%info%flag < 0 ) then
        write (0,*) 'Error, HSL_MA87: the following ERROR was triggered: ', & 

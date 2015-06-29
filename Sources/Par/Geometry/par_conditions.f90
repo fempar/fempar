@@ -30,7 +30,7 @@ module par_conditions_names
   use types_names
   use memor_names
   use stdio_names
-  use renum_names
+  use renumbering_names
   use conditions_names
   use conditions_io_names
 
@@ -56,7 +56,7 @@ module par_conditions_names
 
   ! Methods
   public :: par_conditions_create, par_conditions_free     , & 
-            par_conditions_copy, par_conditions_apply_renum, &
+            par_conditions_copy, par_conditions_apply_renumbering, &
             par_conditions_read
 
 contains
@@ -97,19 +97,19 @@ contains
   end subroutine par_conditions_copy
 
   !===============================================================================================
-  subroutine par_conditions_apply_renum(ren, cnd)
+  subroutine par_conditions_apply_renumbering(renumbering, cnd)
     implicit none
-    type(renum_t)         ,    intent(in)  :: ren
+    type(renumbering_t)         ,    intent(in)  :: renumbering
     type(par_conditions_t), intent(inout)  :: cnd
     
     ! Parallel environment MUST BE already created
     assert ( cnd%p_env%created )
     
     if( cnd%p_env%p_context%iam >= 0 ) then
-       call conditions_apply_renum ( ren, cnd%f_conditions )
+       call conditions_apply_renumbering ( renumbering, cnd%f_conditions )
     end if
 
-  end subroutine par_conditions_apply_renum
+  end subroutine par_conditions_apply_renumbering
 
   !===============================================================================================
   subroutine par_conditions_free(cnd)

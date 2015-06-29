@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !=============================================================================
-module matrix_precond_vector_solver_names
+module matrix_preconditioner_vector_solver_names
   ! Serial modules
   use types_names
   use solver_base_names
@@ -37,9 +37,9 @@ module matrix_precond_vector_solver_names
        &  generic_matvec => matvec
 
   ! Specialize generic_pre data structure and associated methods
-  use precond_names, only :  &
-       &  generic_pre    => precond_t,   generic_precond => precond_apply, &
-       &  generic_bcast  => precond_bcast, generic_fine_task  => precond_fine_task   
+  use preconditioner_names, only :  &
+       &  generic_pre    => preconditioner_t,   generic_preconditioner => preconditioner_apply, &
+       &  generic_bcast  => preconditioner_bcast, generic_fine_task  => preconditioner_fine_task   
 
   ! Specialize generic_vec data structure and associated methods
   use vector_names , only :  &
@@ -70,10 +70,10 @@ contains
 
 # include "solver.i90"
 
-end module matrix_precond_vector_solver_names
+end module matrix_preconditioner_vector_solver_names
 
 !=============================================================================
-module block_matrix_block_precond_block_vector_solver_names
+module block_matrix_block_preconditioner_block_vector_solver_names
   ! Serial modules
   use types_names
   use solver_base_names
@@ -85,9 +85,9 @@ module block_matrix_block_precond_block_vector_solver_names
   use block_matrix_vector_names, only : generic_matvec => block_matvec  
 
   ! Specialize generic_pre data structure and associated methods
-  use block_precond_names, only :  &
-       &  generic_pre    => block_precond_t,   generic_precond => block_precond_apply, &
-       &  generic_bcast  => block_precond_bcast, generic_fine_task  => block_precond_fine_task 
+  use block_preconditioner_names, only :  &
+       &  generic_pre    => block_preconditioner_t,   generic_preconditioner => block_preconditioner_apply, &
+       &  generic_bcast  => block_preconditioner_bcast, generic_fine_task  => block_preconditioner_fine_task 
   
   ! Specialize generic_vec data structure and associated methods 
   use block_vector_names , only :  &
@@ -118,23 +118,23 @@ contains
 
 # include "solver.i90"
 
-end module block_matrix_block_precond_block_vector_solver_names
+end module block_matrix_block_preconditioner_block_vector_solver_names
 
 !=============================================================================
 module solver_names
   use solver_base_names
-  use matrix_precond_vector_solver_names, only: & 
-       &  matrix_precond_vector_solve => generic_solve
+  use matrix_preconditioner_vector_solver_names, only: & 
+       &  matrix_preconditioner_vector_solve => generic_solve
 
-  use block_matrix_block_precond_block_vector_solver_names, only: & 
-       &  block_matrix_block_precond_block_vector_solve => generic_solve
+  use block_matrix_block_preconditioner_block_vector_solver_names, only: & 
+       &  block_matrix_block_preconditioner_block_vector_solve => generic_solve
   
   implicit none
   private
   
   interface solve
-     module procedure matrix_precond_vector_solve, &
-          & block_matrix_block_precond_block_vector_solve
+     module procedure matrix_preconditioner_vector_solve, &
+          & block_matrix_block_preconditioner_block_vector_solve
   end interface solve
   
   public :: solve

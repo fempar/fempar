@@ -45,7 +45,7 @@ use lib_vtk_io_interface_names
   type(par_environment_t)                            :: p_env
   type(par_triangulation_t)                          :: p_trian
   type(par_conditions_t)                             :: p_cond
-  type(dof_handler_t)                                :: dhand
+  type(dof_descriptor_t)                                :: dof_descriptor
   type(par_fe_space_t)                              :: p_fe_space  
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
@@ -54,10 +54,10 @@ use lib_vtk_io_interface_names
   type(vtk_t)                                    :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist
-  type(par_precond_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
-  type(par_precond_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
-  type(par_precond_dd_identity_t)                    :: p_prec_dd_diag
-  type(par_precond_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars 
+  type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
+  type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
+  type(par_preconditioner_dd_identity_t)                    :: p_prec_dd_diag
+  type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars 
   type(par_matrix_t), target                         :: p_mat
   type(par_vector_t), target                         :: p_vec
   type(par_vector_t), target                         :: p_unk
@@ -132,14 +132,14 @@ use lib_vtk_io_interface_names
   ! Generate par triangulation
   call par_gen_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
 
-  ! Create dof_handler
-  call dhand%create(1,1,gdata%ndime+1)
+  ! Create dof_descriptor
+  call dof_descriptor%create(1,1,gdata%ndime+1)
 
   ! Create problem
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
-  call dhand%set_problem(1,mydisc)
+  call dof_descriptor%set_problem(1,mydisc)
   approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
@@ -148,8 +148,8 @@ use lib_vtk_io_interface_names
   myprob%case_press = 1
 
   ! Allocate auxiliar elemental arrays
-  call memalloc(p_trian%f_trian%num_elems,dhand%nvars_global,continuity, __FILE__,__LINE__)
-  call memalloc(p_trian%f_trian%num_elems,dhand%nvars_global,order,__FILE__,__LINE__)
+  call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
+  call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,problem,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
@@ -159,7 +159,7 @@ use lib_vtk_io_interface_names
   which_approx           = 1 
 
   ! Create par_fe_space
-  call par_fe_space_create(p_trian,dhand,p_fe_space,problem,p_cond,continuity,order,material, &
+  call par_fe_space_create(p_trian,dof_descriptor,p_fe_space,problem,p_cond,continuity,order,material, &
        &                    which_approx,time_steps_to_store=3,                             &
        &                    hierarchical_basis=.false.,                         &
        &                    static_condensation=.false.,num_continuity=1)
@@ -169,7 +169,7 @@ use lib_vtk_io_interface_names
        &                nparts=gdata%nparts,linear_order=.true.)
 
   ! Create dof info
-  call par_create_distributed_dof_info(dhand,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
+  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
 
   !if(p_env%am_i_fine_task()) call par_graph_print(6,p_blk_graph%get_block(1,1))
 
@@ -258,21 +258,21 @@ use lib_vtk_io_interface_names
 !!$  p_unk%state = full_summed
 
   ! Create Preconditioner 
-  call par_precond_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
-  call par_precond_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
-  call par_precond_dd_mlevel_bddc_fill_val(p_mat,p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
+  call par_preconditioner_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_fill_val(p_mat,p_mlevel_bddc)
 
-!!$  call par_precond_dd_identity_create ( p_mat, p_prec_dd_diag )
-!!$  call par_precond_dd_identity_ass_struct ( p_mat, p_prec_dd_diag )
-!!$  call par_precond_dd_identity_fill_val ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_identity_create ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_identity_ass_struct ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_identity_fill_val ( p_mat, p_prec_dd_diag )
 !!$
 !!$  !call par_vector_print(6,p_vec)
 !!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 !!$  call par_vector_print(6,p_unk)
 !!$
-!!$  call par_precond_dd_identity_free ( p_prec_dd_diag, free_only_values )
-!!$  call par_precond_dd_identity_free ( p_prec_dd_diag, free_only_struct )
-!!$  call par_precond_dd_identity_free ( p_prec_dd_diag, free_clean )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_only_values )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_only_struct )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_clean )
 
   ! Solve
   call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
@@ -288,9 +288,9 @@ use lib_vtk_io_interface_names
   if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
 
   ! Free preconditioner
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_struct)
-  call par_precond_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_struct)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
 
   ! Deallocate
   call memfree(id_parts , __FILE__, __LINE__)
@@ -310,7 +310,7 @@ use lib_vtk_io_interface_names
   call myprob%free
   call mydisc%free
   call cg_iss_matvec%free
-  call dof_handler_free (dhand)
+  call dof_descriptor_free (dof_descriptor)
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)
   call finite_element_fixed_info_free(geo_reference_element)

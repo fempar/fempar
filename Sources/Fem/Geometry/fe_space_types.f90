@@ -38,7 +38,7 @@ module fe_space_types_names
   private
 
   integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element (512=2**9)
-  integer(ip), parameter       :: max_nobje  = 28   ! Maximum amount of objects in an element
+  integer(ip), parameter       :: max_nvef  = 28   ! Maximum amount of vefs in an element
   integer(ip), parameter       :: ht_length  = 10   ! hash tables length
   integer(ip), parameter       :: max_eltype = 12   ! Total number of types
   integer(ip), parameter       :: max_ndime  = 3    ! Maximum amount of space dimension
@@ -65,26 +65,26 @@ module fe_space_types_names
           ftype,                    &        ! type of fem, e.g. 'P' 'Q' 'prism'...
           ndime,                    &        ! ndime
           order,                    &        ! FE order
-          nobje,                    &        ! Number of objects
+          nvef,                    &        ! Number of vefs
           nnode                              ! Number of nodes
 
      integer(ip) ::                 &
-	  nobje_dim(5),             &        ! Pointer to object for each dimension
-	  nodes_obj(4)                       ! Stores the number of nodes in each object
-     ! SB: nodes_obj SHOULD NOT BE used because it cannot accomodate PRISMS, PYRAMIDS, etc.
+	  nvef_dim(5),             &        ! Pointer to vef for each dimension
+	  nodes_vef(4)                       ! Stores the number of nodes in each vef
+     ! SB: nodes_vef SHOULD NOT BE used because it cannot accomodate PRISMS, PYRAMIDS, etc.
 
-     integer(ip), allocatable  :: o(:)       ! Orientation of the objects
+     integer(ip), allocatable  :: orientation(:)       ! Orientation of the vefs
 
-     type(list_t)   :: ndxob       !array of interior nodes per object
-     type(list_t)   :: ntxob       !array of all nodes per object
-     type(list_t)   :: crxob       !array of corners per object
-     type(list_t)   :: ndxob_int   !array of interior nodes per object when all nodes belong to interior
-     type(list_t)   :: obxob       !array that list_ts all the objects in an object (idem ntxob for p = 2)
+     type(list_t)   :: ndxob       !array of interior nodes per vef
+     type(list_t)   :: ntxob       !array of all nodes per vef
+     type(list_t)   :: crxob       !array of corners per vef
+     type(list_t)   :: ndxob_int   !array of interior nodes per vef when all nodes belong to interior
+     type(list_t)   :: obxob       !array that list_ts all the vefs in an vef (idem ntxob for p = 2)
 
   end type reference_element_t
 
   ! Parameters 
-  public :: max_nobje, ht_length, max_eltype, max_ndime, max_nnode, max_order
+  public :: max_nvef, ht_length, max_eltype, max_ndime, max_nnode, max_order
   public :: max_FE_types, max_elinf
   public :: scond_off, scond_on ! Static condensation flags (not active yet)
   public :: P_type_id, Q_type_id, NULL_type_id
@@ -94,7 +94,7 @@ module fe_space_types_names
 
   ! Functions
   public :: finite_element_fixed_info_create, finite_element_fixed_info_free, &
-       finite_element_fixed_info_write, permute_nodes_object, get_order
+       finite_element_fixed_info_write, permute_nodes_per_vef, get_order
 
   ! Functions
   public :: Q_ijkg, Q_gijk, Q_nnods, Q_set_integ
@@ -149,28 +149,28 @@ contains
 
     write(*,*) 'ftype', reference_element%ftype
     write(*,*) 'order', reference_element%order
-    write(*,*) 'nobje', reference_element%nobje
+    write(*,*) 'nvef', reference_element%nvef
     write(*,*) 'nnode', reference_element%nnode
-    write(*,*) 'nobje_dim', reference_element%nobje_dim
-    write(*,*) 'nodes_obj', reference_element%nodes_obj
+    write(*,*) 'nvef_dim', reference_element%nvef_dim
+    write(*,*) 'nodes_vef', reference_element%nodes_vef
 
     write(*,*) 'ndxob'
-    do i=1,reference_element%nobje+1
+    do i=1,reference_element%nvef+1
        write(*,*) reference_element%ndxob%l(reference_element%ndxob%p(i):reference_element%ndxob%p(i+1)-1)
     end do
 
     write(*,*) 'ntxob'
-    do i=1,reference_element%nobje+1
+    do i=1,reference_element%nvef+1
        write(*,*) reference_element%ntxob%l(reference_element%ntxob%p(i):reference_element%ntxob%p(i+1)-1)
     end do
     
     write(*,*) 'obxob'
-    do i=1,reference_element%nobje+1
+    do i=1,reference_element%nvef+1
        write(*,*) reference_element%obxob%l(reference_element%obxob%p(i):reference_element%obxob%p(i+1)-1)
     end do
 
     write(*,*) 'crxob'
-    do i=1,reference_element%nobje+1
+    do i=1,reference_element%nvef+1
        write(*,*) reference_element%crxob%l(reference_element%crxob%p(i):reference_element%crxob%p(i+1)-1)
     end do
   end subroutine finite_element_fixed_info_write
@@ -181,35 +181,35 @@ contains
     ! Parameters
     type(reference_element_t),  intent(inout) :: reference_element 
 
-    !Deallocate nobje_dim, nodes_obj
-    !call memfree(reference_element%nobje_dim,__FILE__,__LINE__)
-    !call memfree(reference_element%nodes_obj,__FILE__,__LINE__)
-    call memfree(reference_element%o,__FILE__,__LINE__)   
+    !Deallocate nvef_dim, nodes_vef
+    !call memfree(reference_element%nvef_dim,__FILE__,__LINE__)
+    !call memfree(reference_element%nodes_vef,__FILE__,__LINE__)
+    call memfree(reference_element%orientation,__FILE__,__LINE__)   
 
     !Deallocate arrays
-    call memfree(reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each object
-    call memfree(reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memfree(reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob_int%l for each object
-    call memfree(reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of nodes of each object when all interior
-    call memfree(reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
-    call memfree(reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memfree(reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
-    call memfree(reference_element%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
-    call memfree(reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
-    call memfree(reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
+    call memfree(reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each vef
+    call memfree(reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each vef
+    call memfree(reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob_int%l for each vef
+    call memfree(reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of nodes of each vef when all interior
+    call memfree(reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each vef
+    call memfree(reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each vef
+    call memfree(reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each vef
+    call memfree(reference_element%obxob%l,__FILE__,__LINE__)   !Array of all vefs of each vef
+    call memfree(reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each vef
+    call memfree(reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each vef
   end subroutine finite_element_fixed_info_free
 
   !==================================================================================================
   ! This routine gives a permutation vector 'permu' that gives the relative position of nodes in
-  ! object o2 of element reference_element2 wrt the nodes in object o1 in element reference_element1
-  subroutine permute_nodes_object(reference_element1,reference_element2,permu,o1,o2,ln1,ln2,od,q,subface1,subface2)
+  ! vef o2 of element reference_element2 wrt the nodes in vef o1 in element reference_element1
+  subroutine permute_nodes_per_vef(reference_element1,reference_element2,permu,o1,o2,ln1,ln2,od,q,subface1,subface2)
     implicit none
     ! Parameters
     type(reference_element_t), intent(in)   :: reference_element1, reference_element2   ! Info of the elements
     integer(ip)         , intent(out)  :: permu(:) ! Permutation vector
-    integer(ip)         , intent(in)   :: o1,o2    ! Local identifier of the object in each element
-    integer(ip)         , intent(in)   :: ln1(reference_element1%nobje), ln2(reference_element2%nobje) ! lnods of each object
-    integer(ip)         , intent(in)   :: od       ! Dimension of the object
+    integer(ip)         , intent(in)   :: o1,o2    ! Local identifier of the vef in each element
+    integer(ip)         , intent(in)   :: ln1(reference_element1%nvef), ln2(reference_element2%nvef) ! lnods of each vef
+    integer(ip)         , intent(in)   :: od       ! Dimension of the vef
     integer(ip)         , intent(in)   :: q  
     integer(ip), optional, intent(in)  :: subface1,subface2
 
@@ -231,8 +231,8 @@ contains
     end if
 
     permu = 1
-    !c1 = ln1(reference_element1%crxob%l(reference_element1%crxob%p(o1)))  ! Global identifier of the object of the first corner
-    c1 = ln1(reference_element1%crxob%l(reference_element1%crxob%p(o1)+r0))  ! Global identifier of the object of the first corner
+    !c1 = ln1(reference_element1%crxob%l(reference_element1%crxob%p(o1)))  ! Global identifier of the vef of the first corner
+    c1 = ln1(reference_element1%crxob%l(reference_element1%crxob%p(o1)+r0))  ! Global identifier of the vef of the first corner
     r = 1
     do i = reference_element2%crxob%p(o2),reference_element2%crxob%p(o2+1)-1
        if ( ln2(reference_element2%crxob%l(i)) == c1 ) exit
@@ -249,7 +249,7 @@ contains
     end if
 
     if (od == 2) then
-       o = modulo(reference_element1%o(o1)+reference_element1%o(o2)+1,2)
+       o = modulo(reference_element1%orientation(o1)+reference_element1%orientation(o2)+1,2)
     else
        o = 0
     end if
@@ -263,7 +263,7 @@ contains
     end if
 
 
-  end subroutine permute_nodes_object
+  end subroutine permute_nodes_per_vef
 
   !==================================================================================================
   !==================================================================================================
@@ -284,70 +284,70 @@ contains
     integer(ip)               :: aux1,aux2,aux3
     integer(ip)               :: idm(nd+1)         ! Stores the corners f each element
     integer(ip)               :: nodes(nd,nd+1)    ! Coordinates of the corners of the element
-    integer(ip)               :: objec(nd,nd+1)    ! Coordinates that define an object
-    integer(ip)               :: no                ! #objects in the element
+    integer(ip)               :: objec(nd,nd+1)    ! Coordinates that define an vef
+    integer(ip)               :: no                ! #vefs in the element
     integer(ip)               :: nn                ! #nodes 
     integer(ip)               :: nt                ! Length of ntxob
-    integer(ip)               :: nc                ! #corners x #{objects delimited by each corner}
-    integer(ip), allocatable  :: idcro(:,:)        ! Array of corners belonging to the nth object
+    integer(ip)               :: nc                ! #corners x #{vefs delimited by each corner}
+    integer(ip), allocatable  :: idcro(:,:)        ! Array of corners belonging to the nth vef
 
     nt = 0
     nc = 0
     nn = 0
 
-    ! Initialize nobje_dim, nodes_obj
-    ! call memalloc(nd+2,reference_element%nobje_dim,__FILE__,__LINE__)
-    ! call memalloc(nd+1,reference_element%nodes_obj,__FILE__,__LINE__)
-    reference_element%nodes_obj = 0
-    reference_element%nobje_dim = 0
-    reference_element%nobje_dim(1) = 1
+    ! Initialize nvef_dim, nodes_vef
+    ! call memalloc(nd+2,reference_element%nvef_dim,__FILE__,__LINE__)
+    ! call memalloc(nd+1,reference_element%nodes_vef,__FILE__,__LINE__)
+    reference_element%nodes_vef = 0
+    reference_element%nvef_dim = 0
+    reference_element%nvef_dim(1) = 1
 
-    ! Fill nobje_dim, nodes_obj and compute nt, nc, nn
+    ! Fill nvef_dim, nodes_vef and compute nt, nc, nn
     do k = 0,nd
-       i = bnm(nd+1,k+1)          ! #objects of dimension k
-       j = P_nnods(k,p)           ! #nodes object dim k order p
-       nt = nt + i*j              ! nodes in the clousure of the object
-       nc = nc + i*(k+1)          ! corners delimiting objects of dimension k
-       ! Pointer to obj id by dim. Local obj of dim k are reference_element%nobje_dim(k):reference_element%nobje_dim(k+1)
-       reference_element%nobje_dim(k+2) = reference_element%nobje_dim(k+1) + i  
-       ! #nodes in objects of dimension k
-       reference_element%nodes_obj(k+1) = inods(k,p)
-       nn = nn + i*reference_element%nodes_obj(k+1)      
+       i = bnm(nd+1,k+1)          ! #vefs of dimension k
+       j = P_nnods(k,p)           ! #nodes vef dim k order p
+       nt = nt + i*j              ! nodes in the clousure of the vef
+       nc = nc + i*(k+1)          ! corners delimiting vefs of dimension k
+       ! Pointer to obj id by dim. Local obj of dim k are reference_element%nvef_dim(k):reference_element%nvef_dim(k+1)
+       reference_element%nvef_dim(k+2) = reference_element%nvef_dim(k+1) + i  
+       ! #nodes in vefs of dimension k
+       reference_element%nodes_vef(k+1) = inods(k,p)
+       nn = nn + i*reference_element%nodes_vef(k+1)      
     end do
 
     ! Set no
-    no = reference_element%nobje_dim(nd+2)-1    ! #objects
+    no = reference_element%nvef_dim(nd+2)-1    ! #vefs
 
     ! Set constant values of reference_element
     reference_element%ftype = P_type_id
     reference_element%order = p
-    reference_element%nobje = no-1
+    reference_element%nvef = no-1
     reference_element%nnode = nn
 
     ! Allocate arrays
-    call memalloc(no,        reference_element%o,__FILE__,__LINE__)   ! Array of orientation of each object
-    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each object
-    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each object
-    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of interior nodes of each object
-    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each object
-    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each object
-    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each object
-    call memalloc(nt,  reference_element%obxob%l,__FILE__,__LINE__)   !Array of all objects of each object
-    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each object
-    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each object
-    call memalloc(nd+2,no,idcro,__FILE__,__LINE__) !Array of dim and corners belonging to each object
+    call memalloc(no,        reference_element%orientation,__FILE__,__LINE__)   ! Array of orientation of each vef
+    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each vef
+    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each vef
+    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each vef
+    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of interior nodes of each vef
+    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each vef
+    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each vef
+    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each vef
+    call memalloc(nt,  reference_element%obxob%l,__FILE__,__LINE__)   !Array of all vefs of each vef
+    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each vef
+    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each vef
+    call memalloc(nd+2,no,idcro,__FILE__,__LINE__) !Array of dim and corners belonging to each vef
 
-    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each object
-    reference_element%ndxob%l=0     !Array of interior nodes of each object
-    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob_int%l for each object
-    reference_element%ndxob_int%l=0     !Array of interior nodes of each object when all nodes belong to volume
-    reference_element%ntxob%p=0   !Pointer to ntxob%l for each object
-    reference_element%ntxob%l=0     !Array of all nodes of each object
-    reference_element%obxob%p=0   !Pointer to ntxob%l for each object
-    reference_element%obxob%l=0     !Array of all objects of each object
-    reference_element%crxob%p=0   !Pointer to crxob%l for each object
-    reference_element%crxob%l=0     !Array of corners for each object
+    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each vef
+    reference_element%ndxob%l=0     !Array of interior nodes of each vef
+    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob_int%l for each vef
+    reference_element%ndxob_int%l=0     !Array of interior nodes of each vef when all nodes belong to volume
+    reference_element%ntxob%p=0   !Pointer to ntxob%l for each vef
+    reference_element%ntxob%l=0     !Array of all nodes of each vef
+    reference_element%obxob%p=0   !Pointer to ntxob%l for each vef
+    reference_element%obxob%l=0     !Array of all vefs of each vef
+    reference_element%crxob%p=0   !Pointer to crxob%l for each vef
+    reference_element%crxob%l=0     !Array of corners for each vef
 
     ! Create auxiliar matrix nodes with the coordinates of the corners
     nodes = 0
@@ -362,12 +362,12 @@ contains
 
     ! Loop over dimensions
     do k = 0,nd
-       aux1 = inods(k,p)            ! interior nodes for an object of dim k
-       aux3 = P_nnods(k,p)            ! Total nodes for an object of dim k
-       aux2 = k+1                   ! Corners for an object of dim k
+       aux1 = inods(k,p)            ! interior nodes for an vef of dim k
+       aux3 = P_nnods(k,p)            ! Total nodes for an vef of dim k
+       aux2 = k+1                   ! Corners for an vef of dim k
 
-       !Loop over objects of dimension k
-       do i = reference_element%nobje_dim(k+1),reference_element%nobje_dim(k+2)-1 
+       !Loop over vefs of dimension k
+       do i = reference_element%nvef_dim(k+1),reference_element%nvef_dim(k+2)-1 
           reference_element%ndxob%p(i+1) = reference_element%ndxob%p(i) + aux1 !assign pointers
           reference_element%ntxob%p(i+1) = reference_element%ntxob%p(i) + aux3 !assign pointers
           reference_element%crxob%p(i+1) = reference_element%crxob%p(i) + aux2 !assign pointers 
@@ -377,7 +377,7 @@ contains
     reference_element%ndxob_int%p = 1
     reference_element%ndxob_int%p(no+1) = nn+1
 
-    ! Each object of dimension k is defined by a set of k+1 corners (idcro stores this info)
+    ! Each vef of dimension k is defined by a set of k+1 corners (idcro stores this info)
     i = 1
     j = 1
     k = 1 
@@ -387,29 +387,29 @@ contains
     end do
 
     ! Initialize counters
-    co = 0 ! Counter of object
+    co = 0 ! Counter of vef
     c2 = 1 ! ndxob%p counter
     c3 = 0 ! crxob%p counter
     c4 = 1 ! ntxob%p counter
 
-    ! Loop over objects dimensions
+    ! Loop over vefs dimensions
     do k = 0,nd
 
-       ! Loop over the number of objects of dimension k
+       ! Loop over the number of vefs of dimension k
        do i=1, bnm(nd+1,k+1)
-          ! Fill crxob%l for object co
+          ! Fill crxob%l for vef co
           co = co+1 
-          call P_orientation_object(reference_element%o(co),k,nd,i)
+          call P_orientation_vef(reference_element%orientation(co),k,nd,i)
           reference_element%crxob%l(c3+1:c3+k+1) = idcro(2:k+2,co)
           c3 = c3 + k +1
 
-          ! Objec stores the coordinates of the corners defining object co
+          ! Objec stores the coordinates of the corners defining vef co
           objec(:,1) = nodes(:,idcro(2,co))
           do j=1,k
              objec(:,j+1) = nodes(:,idcro(j+2,co)) - nodes(:,idcro(2,co))
           end do
 
-          ! Fill ntxobj and ndxobj for object co
+          ! Fill ntxobj and ndxobj for vef co
           call ntxob_fill(reference_element%ntxob%l,c4,0,p,1,idm,nd,k,p,objec,nt)
           call ntxob_fill(reference_element%ndxob%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
        end do
@@ -422,10 +422,10 @@ contains
     ! Deallocation of variable
     call memfree(idcro,__FILE__,__LINE__)
 
-    ! write(*,*) 'orientation objects'
+    ! write(*,*) 'orientation vefs'
     ! do k = 1,nd
     !    write(*,*) 'dime', k, '--------------------------'
-    !    write(*,*) reference_element%o(reference_element%nobje_dim(k):reference_element%nobje_dim(k+1)-1)
+    !    write(*,*) reference_element%orientation(reference_element%nvef_dim(k):reference_element%nvef_dim(k+1)-1)
     ! end do
     ! write(*,*) 'no+1', no+1, 'ndxob%p'
     ! do k = 1,no+1
@@ -456,11 +456,11 @@ contains
   end subroutine P_fixed_info_fill
 
   !==================================================================================================
-  subroutine P_orientation_object(o,od,nd,io)
+  subroutine P_orientation_vef(o,od,nd,io)
     implicit none
     ! Parameters
     integer(ip), intent(out) :: o
-    integer(ip), intent(in)  :: od,nd,io  ! io=numbering of the object in the od dimension
+    integer(ip), intent(in)  :: od,nd,io  ! io=numbering of the vef in the od dimension
 
     if (nd == 3 .and. od == 2) then
        o = modulo(io+1,2)
@@ -469,7 +469,7 @@ contains
     else
        o = 0
     end if
-  end subroutine P_orientation_object
+  end subroutine P_orientation_vef
 
   !==================================================================================================
   subroutine P_o2n_2d_create(o2n,p)
@@ -493,8 +493,8 @@ contains
   end subroutine P_o2n_2d_create
 
   !=================================================================================================
-  ! This subroutine gives the reodering (o2n) of the nodes of an object given an orientation 'o'
-  ! and a delay 'r' wrt to a refence element sharing the same object.
+  ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
+  ! and a delay 'r' wrt to a refence element sharing the same vef.
   subroutine  P_permute_or( o2n,p,o,r,nd )
     implicit none
     integer(ip), intent(in)    :: p,o,r,nd
@@ -660,13 +660,13 @@ contains
   !==================================================================================================
   ! CRXOB constructs idcro and idm
   ! idcro(:,cc) = (k,idm(1:k+1))
-  ! k   :: object dimension
+  ! k   :: vef dimension
   ! i   :: position of idm we are modifying
   ! idm :: array of dimension k+1 that will give the corners in the element
   ! n   :: global dimension
   ! in  :: value of the corner we can count from (knowing that idm(i)<idm(i+1))
-  ! no  :: total amount of objects
-  ! cc  :: counter of the objects
+  ! no  :: total amount of vefs
+  ! cc  :: counter of the vefs
   recursive subroutine crxob(idcro,k,i,idm,n,in,no,cc)
     implicit none
     ! Parameters
@@ -909,11 +909,11 @@ contains
     integer(ip)               :: od,cd,kk,c
     integer(ip)               :: ijk(nd),ijk_g(nd)
     integer(ip)               :: c2,c3,c4,c5,c6,co
-    integer(ip)               :: no  ! #objects in nd-quad
+    integer(ip)               :: no  ! #vefs in nd-quad
     integer(ip)               :: nn  ! #nodes in the nd-quad of order p
-    integer(ip)               :: nt  ! sum of the #nodes (all, not only interior) of the objects
-    integer(ip)               :: nt2 ! sum of the #objects (all, not only interior) of the objects
-    integer(ip)               :: nc  ! #corners x #{objects delimited by each corner}
+    integer(ip)               :: nt  ! sum of the #nodes (all, not only interior) of the vefs
+    integer(ip)               :: nt2 ! sum of the #vefs (all, not only interior) of the vefs
+    integer(ip)               :: nc  ! #corners x #{vefs delimited by each corner}
     integer(ip)               :: nod ! #corners in the quad. nod = 2^(nd)
     integer(ip), allocatable  :: auxt1(:,:),auxt2(:,:),auxt3(:,:),auxt4(:,:),auxt5(:,:), auxt6(:,:)
     integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
@@ -926,59 +926,59 @@ contains
     nt2 = 0
     nod = 0
 
-    ! Initialize nobje_dim, nodes_obj
-    !call memalloc(nd+2,reference_element%nobje_dim,__FILE__,__LINE__)
-    !call memalloc(nd+1,reference_element%nodes_obj,__FILE__,__LINE__)
-    reference_element%nodes_obj = 0
-    reference_element%nobje_dim = 0
-    reference_element%nobje_dim(1) = 1
+    ! Initialize nvef_dim, nodes_vef
+    !call memalloc(nd+2,reference_element%nvef_dim,__FILE__,__LINE__)
+    !call memalloc(nd+1,reference_element%nodes_vef,__FILE__,__LINE__)
+    reference_element%nodes_vef = 0
+    reference_element%nvef_dim = 0
+    reference_element%nvef_dim(1) = 1
 
     do k = 0,nd
-       i = int(2**(nd-k)*bnm(nd,k)) ! #objects of dimension k
-       no = no + i                  ! compute #objects
-       nn = nn + int(i*((p-1)**k))  ! #nodes inside objects of dimension k
-       nt = nt + int(i*((p+1)**k))  ! nodes in the clousure of the object
-       nt2 = nt2 + int(i*((3)**k))! objects in the clousure of the object
-       nc = nc + int(i*2**k)        ! corners delimiting objects of dimension k
+       i = int(2**(nd-k)*bnm(nd,k)) ! #vefs of dimension k
+       no = no + i                  ! compute #vefs
+       nn = nn + int(i*((p-1)**k))  ! #nodes inside vefs of dimension k
+       nt = nt + int(i*((p+1)**k))  ! nodes in the clousure of the vef
+       nt2 = nt2 + int(i*((3)**k))! vefs in the clousure of the vef
+       nc = nc + int(i*2**k)        ! corners delimiting vefs of dimension k
        nod = nod + bnm(nd,k)        ! #nodes/{displacement} (2^n = sum(bnm(n,k)), k=0,..,n)
-       ! Pointer to obj id by dim. Local obj of dim k are reference_element%nobje_dim(k):reference_element%nobje_dim(k+1)
-       reference_element%nobje_dim(k+2) = reference_element%nobje_dim(k+1) + i 
-       ! #nodes in objects of dimension k 
-       reference_element%nodes_obj(k+1) = int((p-1)**k)
+       ! Pointer to obj id by dim. Local obj of dim k are reference_element%nvef_dim(k):reference_element%nvef_dim(k+1)
+       reference_element%nvef_dim(k+2) = reference_element%nvef_dim(k+1) + i 
+       ! #nodes in vefs of dimension k 
+       reference_element%nodes_vef(k+1) = int((p-1)**k)
     end do
 
     ! Set constant values of reference_element
     reference_element%ftype = Q_type_id
     reference_element%order = p
-    reference_element%nobje = no-1
+    reference_element%nvef = no-1
     reference_element%nnode = int((p+1)**nd) 
 
     ! Allocate arrays
-    call memalloc(no,        reference_element%o,__FILE__,__LINE__)  ! Array of orientation of each object
-    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each object
-    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)  !Array of interior nodes of each object
-    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each object
-    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)  !Array of interior nodes of each object
-    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each object
-    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each object
-    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)  !Pointer to obxob%l for each object
-    call memalloc(nt2,  reference_element%obxob%l,__FILE__,__LINE__)  !Array of all objects of each object
-    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each object
-    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)  !Array of corners for each object
+    call memalloc(no,        reference_element%orientation,__FILE__,__LINE__)  ! Array of orientation of each vef
+    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each vef
+    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
+    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each vef
+    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
+    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each vef
+    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each vef
+    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)  !Pointer to obxob%l for each vef
+    call memalloc(nt2,  reference_element%obxob%l,__FILE__,__LINE__)  !Array of all vefs of each vef
+    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each vef
+    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)  !Array of corners for each vef
     call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
     call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
     call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
 
-    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each object
-    reference_element%ndxob%l=0   !Array of interior nodes of each object
-    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob%l for each object
-    reference_element%ndxob_int%l=0   !Array of interior nodes of each object
-    reference_element%ntxob%p=0   !Pointer to ntxob%l for each object
-    reference_element%obxob%l=0   !Array of all nodes of each object
-    reference_element%obxob%p=0   !Pointer to obxob%l for each object
-    reference_element%ntxob%l=0   !Array of all nodes of each object
-    reference_element%crxob%p=0   !Pointer to crxob%l for each object
-    reference_element%crxob%l=0   !Array of corners for each object
+    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each vef
+    reference_element%ndxob%l=0   !Array of interior nodes of each vef
+    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob%l for each vef
+    reference_element%ndxob_int%l=0   !Array of interior nodes of each vef
+    reference_element%ntxob%p=0   !Pointer to ntxob%l for each vef
+    reference_element%obxob%l=0   !Array of all nodes of each vef
+    reference_element%obxob%p=0   !Pointer to obxob%l for each vef
+    reference_element%ntxob%l=0   !Array of all nodes of each vef
+    reference_element%crxob%p=0   !Pointer to crxob%l for each vef
+    reference_element%crxob%l=0   !Array of corners for each vef
 
 
     !Initialize pointers
@@ -989,13 +989,13 @@ contains
 
     !Loop over dimensions
     do k = 0,nd
-       aux1 = int(((p-1)**k)) ! interior nodes for an object of dim k
-       aux3 = int(((p+1)**k)) ! Total nodes for an object of dim k
-       aux2 = int(2**k)       ! Corners for an object of dim k
-       aux4 = int((3**k)) ! Corners for an object of dim k (idem p=2)
+       aux1 = int(((p-1)**k)) ! interior nodes for an vef of dim k
+       aux3 = int(((p+1)**k)) ! Total nodes for an vef of dim k
+       aux2 = int(2**k)       ! Corners for an vef of dim k
+       aux4 = int((3**k)) ! Corners for an vef of dim k (idem p=2)
 
-       ! Loop over objects of dimension k
-       do i = reference_element%nobje_dim(k+1),reference_element%nobje_dim(k+2)-1 
+       ! Loop over vefs of dimension k
+       do i = reference_element%nvef_dim(k+1),reference_element%nvef_dim(k+2)-1 
           reference_element%ndxob%p(i+1) = reference_element%ndxob%p(i) + aux1 ! assign pointers
           reference_element%ntxob%p(i+1) = reference_element%ntxob%p(i) + aux3 ! assign pointers
           reference_element%crxob%p(i+1) = reference_element%crxob%p(i) + aux2 ! assign pointers
@@ -1013,9 +1013,9 @@ contains
     j = 2
 
     ! Construction of obdla matrix
-    ! For each object, up to a displacement, we have an identifier id={1..nod}
-    ! obdla(id,1) = dimension of the object
-    ! obdla(id,2:obdla(id,1)+1) = gives the directions that define the object
+    ! For each vef, up to a displacement, we have an identifier id={1..nod}
+    ! obdla(id,1) = dimension of the vef
+    ! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
     obdla = -1
     obdla(1,1) = 0
     do od = 0,nd
@@ -1033,14 +1033,14 @@ contains
     c4  = 0 ! ntxob%p counter
     c5  = 0 ! obxob%p counter
     c6  = 0 ! ob2node   counter
-    co  = 0 ! counter of objects
+    co  = 0 ! counter of vefs
 
-    ! Loop over objects dimensions
+    ! Loop over vefs dimensions
     do od = 0,nd
 
        ! Create ijk tables (od)
-       ! Compute auxt1 the local numbering of the corners of an object of dimension nd-od
-       ! It allows to know how many translations for each paralel set of objects
+       ! Compute auxt1 the local numbering of the corners of an vef of dimension nd-od
+       ! It allows to know how many translations for each paralel set of vefs
        if (od < nd) then
           call memalloc(nd-od,2**(nd-od),auxt1,__FILE__,__LINE__)
           auxt1 = 0
@@ -1049,7 +1049,7 @@ contains
           ijk   = 0
           call Q_r_ijk(kk,aux1,ijk,nd-od,auxt1,0,1)
        end if
-       ! Compute auxt2 the local numbering of the corners in an object of dim od
+       ! Compute auxt2 the local numbering of the corners in an vef of dim od
        if (od >0) then
           call memalloc(od,2**(od),auxt2,__FILE__,__LINE__)
           auxt2 = 0
@@ -1059,7 +1059,7 @@ contains
           call Q_r_ijk(kk,aux1,ijk,od,auxt2,0,1)
 
           if (p > 1) then
-             ! Compute auxt3 the local numbering of the interior nodes in an object of dim od
+             ! Compute auxt3 the local numbering of the interior nodes in an vef of dim od
              call memalloc(od,(p-1)**(od),auxt3,__FILE__,__LINE__)
              auxt3 = 0
              kk    = 0
@@ -1068,7 +1068,7 @@ contains
              call Q_r_ijk(kk,aux1,ijk,od,auxt3,1,p-1)
           end if
 
-          ! Compute auxt4 the local numbering of all nodes in an object of dim od
+          ! Compute auxt4 the local numbering of all nodes in an vef of dim od
           call memalloc(od,(p+1)**(od),auxt4,__FILE__,__LINE__)
           auxt4 = 0
           kk    = 0
@@ -1076,7 +1076,7 @@ contains
           ijk   = 0
           call Q_r_ijk(kk,aux1,ijk,od,auxt4,0,p)
 
-          ! Compute auxt5 the local numbering of all nodes in an object of dim od
+          ! Compute auxt5 the local numbering of all nodes in an vef of dim od
           call memalloc(od,(2+1)**(od),auxt5,__FILE__,__LINE__)
           auxt5 = 0
           kk    = 0
@@ -1084,7 +1084,7 @@ contains
           ijk   = 0
           call Q_r_ijk(kk,aux1,ijk,od,auxt5,0,2)
 
-          ! Compute auxt6 the local numbering of the interior objects in an object of dim od
+          ! Compute auxt6 the local numbering of the interior vefs in an vef of dim od
           call memalloc(od,(2-1)**(od),auxt6,__FILE__,__LINE__)
           auxt6 = 0
           kk    = 0
@@ -1095,14 +1095,14 @@ contains
        end if
 
 
-       ! For each dimension, there are bnm(nd,od) objects up to translation
+       ! For each dimension, there are bnm(nd,od) vefs up to translation
        do j = 1,bnm(nd,od)
           idm = -1 ! positions in which the nodes variates
-          fdm = -1 ! Positions corresponding to the translation between paralel objects
+          fdm = -1 ! Positions corresponding to the translation between paralel vefs
           aux = -1 ! auxiliar vector to construct fdm from idm
           cd = cd+1
 
-          ! Take the position that will vary inside the object
+          ! Take the position that will vary inside the vef
           do k = 1,od
              idm(k) = obdla(cd,k+1) 
           end do
@@ -1114,7 +1114,7 @@ contains
           end do
 
           !Construct the array of orthogonal space wrt idm. 
-          !It gives the translations for each paralel object
+          !It gives the translations for each paralel vef
           c = 1
           do k=1,nd
              if (aux(k) == 0) then
@@ -1127,36 +1127,36 @@ contains
           ! Loop over the translations
           do l = 1,2**(nd-od) 
 
-             ! Set orientation of the object
+             ! Set orientation of the vef
              co = co +1
-             call Q_orientation_object(reference_element%o(co),fdm(1:nd-od),od,nd,l)
+             call Q_orientation_vef(reference_element%orientation(co),fdm(1:nd-od),od,nd,l)
 
-             !ijk_g(jdm) will contain the translations from one object to another
-             !ijk_g(idm) will contain the variations inside the object
+             !ijk_g(jdm) will contain the translations from one vef to another
+             !ijk_g(idm) will contain the variations inside the vef
              do k = 1,nd-od
                 ijk_g(fdm(k)+1) = auxt1(k,l)
              end do
 
-             ! Loop over the corners inside the object
+             ! Loop over the corners inside the vef
              do m = 1,2**od
                 do k = 1,od
                    ijk_g(idm(k)+1) = auxt2(k,m)
                 end do
                 c2 = c2+1
-                reference_element%crxob%l(c2) = Q_gijk(ijk_g,nd,1) !store the object numbering of the corner 
+                reference_element%crxob%l(c2) = Q_gijk(ijk_g,nd,1) !store the vef numbering of the corner 
              end do
           end do
 
           ! Interior node numbering
           ! Loop over the translations
           do l = 1,2**(nd-od)
-             !ijk_g(jdm) will contain the translations from 1 object to another; must be scaled by p
-             !ijk_g(idm) will contain the variations inside the object
+             !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
+             !ijk_g(idm) will contain the variations inside the vef
              do k = 1,nd-od
                 ijk_g(fdm(k)+1) = auxt1(k,l)*p
              end do
 
-             ! Loop over the interior nodes of the object
+             ! Loop over the interior nodes of the vef
              do m = 1,(p-1)**(od)
                 do k = 1,od
                    ijk_g(idm(k)+1) = auxt3(k,m)
@@ -1169,13 +1169,13 @@ contains
           ! All node numbering
           !Loop over the translations
           do l = 1,2**(nd-od)
-             !ijk_g(jdm) will contain the translations from 1 object to another; must be scaled by p
-             !ijk_g(idm) will contain the variations inside the object
+             !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
+             !ijk_g(idm) will contain the variations inside the vef
              do k = 1,nd-od
                 ijk_g(fdm(k)+1) = auxt1(k,l)*p
              end do
 
-             ! Loop over the interior nodes of the object
+             ! Loop over the interior nodes of the vef
              do m = 1,(p+1)**(od)
                 do k = 1,od
                    ijk_g(idm(k)+1) = auxt4(k,m)
@@ -1190,13 +1190,13 @@ contains
           ! Interior node numbering
           ! Loop over the translations
           do l = 1,2**(nd-od)
-             !ijk_g(jdm) will contain the translations from 1 object to another; must be scaled by p
-             !ijk_g(idm) will contain the variations inside the object
+             !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
+             !ijk_g(idm) will contain the variations inside the vef
              do k = 1,nd-od
                 ijk_g(fdm(k)+1) = auxt1(k,l)*2
              end do
 
-             ! Loop over the interior nodes of the object
+             ! Loop over the interior nodes of the vef
              do m = 1,(2-1)**(od)
                 do k = 1,od
                    ijk_g(idm(k)+1) = auxt6(k,m)
@@ -1209,7 +1209,7 @@ contains
 
           do l = 1,2**(nd-od)
 
-             ! Fixed values for the object
+             ! Fixed values for the vef
              do k = 1,nd-od
                 ijk_g(fdm(k)+1) = auxt1(k,l)*2
              end do
@@ -1223,7 +1223,7 @@ contains
                 reference_element%obxob%l(c5) = Q_gijk(ijk_g,nd,2)
              end do
 
-             ! Define ijk_g for the node in the center of the object
+             ! Define ijk_g for the node in the center of the vef
              do k = 1,od
                 ijk_g(idm(k)+1) = 1
              end do
@@ -1252,7 +1252,7 @@ contains
        node2ob(ob2node(i)) = i
     end do
 
-    ! Modify the identifiers of the nodes by the ids of the object in obxob
+    ! Modify the identifiers of the nodes by the ids of the vef in obxob
     do c5 = 1, nt2
        reference_element%obxob%l(c5) = node2ob(reference_element%obxob%l(c5))
     end do
@@ -1272,12 +1272,12 @@ contains
     call memfree(node2ob,__FILE__,__LINE__)
 
     ! ! Create the face permutation of nodes
-    ! if (nd>2) then call memalloc(2*2**2,reference_element%nodes_obj(3),reference_element%o2n,__FILE__,__LINE__)
+    ! if (nd>2) then call memalloc(2*2**2,reference_element%nodes_vef(3),reference_element%o2n,__FILE__,__LINE__)
 
-    ! write(*,*) 'orientation objects'
+    ! write(*,*) 'orientation vefs'
     ! do od = 1,nd
     !    write(*,*) 'dime', od, '--------------------------'
-    !    write(*,*) reference_element%o(reference_element%nobje_dim(od):reference_element%nobje_dim(od+1)-1)
+    !    write(*,*) reference_element%orientation(reference_element%nvef_dim(od):reference_element%nvef_dim(od+1)-1)
     ! end do
     ! write(*,*) 'no+1', no+1, 'ndxob%p'
     ! do od = 1,no+1
@@ -1308,11 +1308,11 @@ contains
   end subroutine Q_fixed_info_fill
 
   !==================================================================================================
-  subroutine Q_orientation_object(o,fdm,od,nd,l)
+  subroutine Q_orientation_vef(o,fdm,od,nd,l)
     implicit none
     ! Parameters
     integer(ip), intent(out) :: o
-    integer(ip), intent(in)  :: fdm(:)  ! fdm gives the orthogonal directions to the object
+    integer(ip), intent(in)  :: fdm(:)  ! fdm gives the orthogonal directions to the vef
     integer(ip), intent(in)  :: od,nd,l ! l=translation ordering
 
     if (nd == 2 .and. od == 1) then
@@ -1324,7 +1324,7 @@ contains
     else
        o = 0
     end if
-  end subroutine Q_orientation_object
+  end subroutine Q_orientation_vef
 
   !==================================================================================================
   ! Given an orientation 'o' and a rotation 'r' with respect to a reference element,
@@ -1352,8 +1352,8 @@ contains
   end subroutine Q_o2n_2d_create
 
   !=================================================================================================
-  ! This subroutine gives the reodering (o2n) of the nodes of an object given an orientation 'o'
-  ! and a delay 'r' wrt to a refence element sharing the same object.
+  ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
+  ! and a delay 'r' wrt to a refence element sharing the same vef.
   subroutine  Q_permute_or( o2n,p,o,r,nd )
     implicit none
     integer(ip), intent(in)    :: p,o,r,nd
@@ -1451,9 +1451,9 @@ contains
 
   !==================================================================================================
   ! R_DIM construct OBDLA matrix
-  ! For each object, up to a displacement, we have an identifier id={1..nod}
-  ! obdla(id,1) = dimension of the object
-  ! obdla(id,2:obdla(id,1)+1) = gives the directions that define the object
+  ! For each vef, up to a displacement, we have an identifier id={1..nod}
+  ! obdla(id,1) = dimension of the vef
+  ! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
   recursive subroutine r_dim(co,idm,ko,i,nd,od,obdla,nod)
     implicit none
     integer(ip), intent(in)    :: ko !space position we begin to count from (ij=>i<j)
@@ -1461,10 +1461,10 @@ contains
     integer(ip), intent(in)    :: nd,od,nod
     integer(ip), intent(inout) :: obdla(nod,nd+1)
     integer(ip), intent(inout) :: idm(od) 
-    integer(ip), intent(inout) :: co      ! Pointer to the position of the object
+    integer(ip), intent(inout) :: co      ! Pointer to the position of the vef
     integer(ip)                :: aux,ijk_c(nd),j,cd,kn,s
 
-    !Given dimension od of the object
+    !Given dimension od of the vef
     do kn = ko,nd-od+i
        idm(i+1) = kn 
        if (i+1 < od) then

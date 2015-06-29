@@ -53,9 +53,9 @@ use par_mesh_to_triangulation_names
   use par_block_graph_names
   use block_dof_distribution_names
 use par_dd_base_names
-  use par_precond_dd_diagonal_names
-  use par_precond_dd_mlevel_bddc_names
-  use par_precond_dd_identity_names
+  use par_preconditioner_dd_diagonal_names
+  use par_preconditioner_dd_mlevel_bddc_names
+  use par_preconditioner_dd_identity_names
 
   ! Integration
   use par_fe_space_names

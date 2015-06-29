@@ -43,8 +43,6 @@ module serial_names
   use triangulation_names
   use mesh_to_triangulation_names
 
-  !use import_names
-  !use partition_import
   use triangulation_names
   use mesh_to_triangulation_names
   use mesh_distribution_names
@@ -59,7 +57,7 @@ module serial_names
   use graph_names
   use mesh_graph_names
   use geom2topo_names
-  use renum_names
+  use renumbering_names
   use mesh_names
   use mesh_partition_base_names
   use mesh_partition_distribution_names
@@ -73,11 +71,11 @@ module serial_names
   ! Linear Algebra
   use matrix_names
   use block_graph_names
-  use precond_names
+  use preconditioner_names
   use vector_names
   use vector_krylov_basis_names
   use block_matrix_names
-  use block_precond_names
+  use block_preconditioner_names
   use block_vector_names
   use block_vector_krylov_basis_names
   use block_matrix_vector_names
@@ -91,7 +89,7 @@ module serial_names
   use fe_space_names
   use fe_space_types_names
   use fe_space_faces_names
-  use dof_handler_names
+  use dof_descriptor_names
   use integration_names
   use quadrature_names
   use interpolation_names

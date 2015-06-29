@@ -2039,7 +2039,7 @@ contains
     integer(ip)             , intent(inout) :: mater(:)
 
     integer(ip)               :: i,j,k,m,n,l,ijk(3),ijklnods(3),num,count,auxva((pdegr+1)**ndime)
-    integer(ip)               :: ne_aux(3),np_aux(3),mcase,auxnum,nedir_l2g(ndime),nobje,aux_glb
+    integer(ip)               :: ne_aux(3),np_aux(3),mcase,auxnum,nedir_l2g(ndime),nvef,aux_glb
     integer(ip)               :: subgl_aux(3),subgl_ijk(3),nelbl(3),ncorn
     integer(ip)               :: cnt,ipoin,jpoin,ielem,pdime,iedge,jedge,iface,nddomk
     integer(ip)               :: auxvc(2**ndime),auxvf(2*ndime),auxvd(2*(ndime-1)*ndime),aux_cnt
@@ -2074,7 +2074,7 @@ contains
        subgl_aux(3) = 0
        auxvc = (/1,3,2,4/)
        auxvd = (/7,8,5,6/)
-       nobje = 8
+       nvef = 8
        ncorn = 4
     else if(ndime==3) then
        call memalloc(3,2,auxv,__FILE__,__LINE__)
@@ -2096,7 +2096,7 @@ contains
        auxvc = (/1,5,3,7,2,6,4,8/)
        auxvd = (/17,19,18,20,13,15,14,16,9,11,10,12/)
        auxvf = (/21,22,23,24,25,26/)
-       nobje = 26
+       nvef = 26
        ncorn = 8
     end if
     mcase = gdata%mater
@@ -2127,8 +2127,8 @@ contains
              end if
 
              ! Allocate triangulation elemental objects
-             trian%elems(nenum(num))%num_objects = nobje
-             call memalloc(trian%elems(nenum(num))%num_objects,trian%elems(nenum(num))%objects, &
+             trian%elems(nenum(num))%num_vefs = nvef
+             call memalloc(trian%elems(nenum(num))%num_vefs,trian%elems(nenum(num))%vefs, &
                   &        __FILE__,__LINE__)
              call memalloc(trian%num_dims,ncorn,trian%elems(nenum(num))%coordinates, __FILE__, __LINE__ )
              call put_topology_element_triangulation(nenum(num),trian)
@@ -2145,7 +2145,7 @@ contains
                       call globalid(ijklnods,gsize%npdom,ndime,auxnum)
 
                       ! Generate lnods
-                      trian%elems(nenum(num))%objects(auxvc(count)) = npnumt(auxnum)
+                      trian%elems(nenum(num))%vefs(auxvc(count)) = npnumt(auxnum)
 
                       ! Generate coords
                       trian%elems(nenum(num))%coordinates(:,auxva(count)) = coord(:,npnumg(auxnum))
@@ -2172,7 +2172,7 @@ contains
                       call globalid(ijklnods,tsize%nddom(:,pdime),ndime,auxnum)
 
                       ! Generate lnods
-                      trian%elems(nenum(num))%objects(auxvd(count)) = npnumt(aux_cnt + auxnum)
+                      trian%elems(nenum(num))%vefs(auxvd(count)) = npnumt(aux_cnt + auxnum)
 
                       ! Update counter
                       count = count +1
@@ -2196,7 +2196,7 @@ contains
                       call globalid(ijklnods,tsize%nfdom(:,pdime),ndime,auxnum)
 
                       ! Generate lnods
-                      trian%elems(nenum(num))%objects(auxvf(count)) = npnumt(aux_cnt + auxnum)
+                      trian%elems(nenum(num))%vefs(auxvf(count)) = npnumt(aux_cnt + auxnum)
 
                       ! Update counter
                       count = count + 1

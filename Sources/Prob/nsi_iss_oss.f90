@@ -47,6 +47,7 @@ module nsi_cg_iss_oss_names
      integer(ip) ::   & 
           kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
           kfl_lump,   & ! Flag for lumped mass submatrix
+          kfl_proj,   & ! Flag for Projections weighted with tau's (On=1, Off=0)
           tdimv,      & ! Number of temporal steps stored for velocity
           tdimp         ! Number of temporal steps stored for pressure   
      real(rp) ::         &
@@ -63,23 +64,23 @@ module nsi_cg_iss_oss_names
 
   ! Matvec
   type, extends(discrete_integration) :: nsi_cg_iss_oss_matvec_t
-     type(nsi_cg_iss_discrete_t), pointer :: discret
-     type(nsi_problem_t)        , pointer :: physics
+     type(nsi_cg_iss_oss_discrete_t), pointer :: discret
+     type(nsi_problem_t)            , pointer :: physics
    contains
      procedure :: create  => nsi_matvec_create
      procedure :: compute => nsi_matvec 
      procedure :: free    => nsi_matvec_free
   end type nsi_cg_iss_oss_matvec_t
 
-  ! Error norm
-  type, extends(discrete_integration) :: nsi_cg_iss_oss_error_t
-     type(nsi_cg_iss_discrete_t), pointer :: discret
-     type(nsi_problem_t)        , pointer :: physics
-   contains
-     procedure :: create  => nsi_error_create
-     procedure :: compute => nsi_error 
-     procedure :: free    => nsi_error_free
-  end type nsi_cg_iss_oss_error_t
+!!$  ! Error norm
+!!$  type, extends(discrete_integration) :: nsi_cg_iss_oss_error_t
+!!$     type(nsi_cg_iss_discrete_t), pointer :: discret
+!!$     type(nsi_problem_t)        , pointer :: physics
+!!$   contains
+!!$     procedure :: create  => nsi_error_create
+!!$     procedure :: compute => nsi_error 
+!!$     procedure :: free    => nsi_error_free
+!!$  end type nsi_cg_iss_oss_error_t
 
   ! Unkno components parameter definition
   integer(ip), parameter :: current   = 1
@@ -87,7 +88,7 @@ module nsi_cg_iss_oss_names
   integer(ip), parameter :: prev_step = 3
 
   ! Types
-  public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t, nsi_cg_iss_oss_error_t
+  public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t!, nsi_cg_iss_oss_error_t
   
 contains
 
@@ -107,6 +108,7 @@ contains
     ! Flags
     discret%kfl_lump = 0 ! Flag for lumped mass submatrix (Off=0, On=1)
     discret%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=1)
+    discret%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
 
     ! Problem variables
     discret%k1tau = 12.0_rp ! C1 constant on stabilization parameter tau_m
@@ -258,7 +260,7 @@ contains
     force%a=0.0_rp
     ! Impose analytical solution
     if(approx%physics%case_veloc>0.and.approx%physics%case_press>0) then 
-       call nsi_analytical_force(approx,finite_element,ctime,gpvel,force)
+       call nsi_analytical_force(approx%physics,finite_element,ctime,gpvel,force)
     end if
 
     ! Stabilization parameters
@@ -312,16 +314,16 @@ contains
                &                elmat_vu_diag,work)
        end if
        ! tau*(a·grad u, a·grad v)
-       call elmbuv_oss(dvolu,testf,agran,nnodu,elmat_vu_diag,work)
+       call elmbuv_oss(dvolu,testf%a,agran,nnodu,elmat_vu_diag,work)
        ! tauc*(div v, div u)
-       if(approx%physics%ktauc>0.0_rp) then
+       if(approx%discret%ktauc>0.0_rp) then
           call elmdiv_stab(tau(2,igaus),dvolu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
                &           elmat_vu,work)
        end if
 
        ! Block X-V
        ! -tau*(proj(a·grad u), a·grad v)
-       if(prob%kfl_proj==1) then
+       if(approx%discret%kfl_proj==1) then
           work(2) = -tau(1,igaus)*dvolu
        else
           work(2) = -dvolu
@@ -342,7 +344,7 @@ contains
 
        ! Block X-W
        ! tau*(proj(a·grad u),v)
-       if(prob%kfl_proj==1) then
+       if(approx%discret%kfl_proj==1) then
           call elmmss_gal(dvolu,tau(1,igaus),finite_element%integ(1)%p%uint_phy%shape(:,igaus),nnodu, &
                &          elmat_wx,work)
        else
@@ -464,29 +466,32 @@ contains
             &          finite_element%unkno(1:nnodu,1:ndime,1),ndime,nnodu,approx%physics%kfl_conv,chave,chale)
        
        ! Auxiliar computations
-       alpha  = approx%k1tau*diffu/(chale(2)*chale(2)) + approx%k2tau*gpvno/chale(1) + 1.0_rp*approx%react  ! Old
+       alpha  = approx%discret%k1tau*diffu/(chale(2)*chale(2)) + approx%discret%k2tau*gpvno/chale(1) + &
+            &   1.0_rp*approx%physics%react  ! Old
        !alpha  = k1tau*diffu/(chale(2)*chale(2)) + k2tau*facto*gpvno/chale(1) + 1.0_rp*approx%react   ! Codina-Guasch
 
        ! NS parameters
        if(alpha.gt.1e-8) tau(1,igaus) = 1.0_rp/(alpha)
-       if(approx%k1tau.gt.1e-8) tau(2,igaus) = approx%ktauc*(diffu+approx%k2tau/approx%k1tau*gpvno*chale(2))
+       if(approx%discret%k1tau.gt.1e-8) then
+          tau(2,igaus) = approx%discret%ktauc*(diffu+approx%discret%k2tau/approx%discret%k1tau*gpvno*chale(2))
+       end if
     end do
 
-  end subroutine nsi_iss_elmvsg
+  end subroutine nsi_elmvsg
 
   !==================================================================================================
-  subroutine nsi_vars_dof(discrete,physics,vars_block)
+  subroutine nsi_vars_block(discret,physics,vars_block)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generate the vars per block array needed for dof_handler creation.          !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(nsi_cg_iss_oss_discrete_t), intent(in)  :: discrete
-    type(nsi_problem_t)            , intent(in)  :: physics
-    integer(ip), allocatable       , intent(out) :: vars_block(:)
+    class(nsi_cg_iss_oss_discrete_t), intent(in)  :: discret
+    type(nsi_problem_t)             , intent(in)  :: physics
+    integer(ip), allocatable        , intent(out) :: vars_block(:)
     ! Locals
     integer(ip) :: idime
 
-    call memalloc(discrete%nvars,vars_block,__FILE__,__LINE__)
+    call memalloc(discret%nvars,vars_block,__FILE__,__LINE__)
 
     ! Block U
     do idime=1,physics%ndime
@@ -499,21 +504,21 @@ contains
        vars_block(physics%ndime+1+idime) = 3
     end do
 
-  end subroutine nsi_vars_dof
+  end subroutine nsi_vars_block
 
   !==================================================================================================
-  subroutine nsi_dof_coupling(discrete,physics,dof_coupling)
+  subroutine nsi_dof_coupling(discret,physics,dof_coupling)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generate the dof coupling array needed for dof_handler creation.            !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(nsi_cg_iss_oss_discrete_t), intent(in)  :: discrete
-    type(nsi_problem_t)            , intent(in)  :: physics
-    integer(ip), allocatable       , intent(out) :: dof_coupling(:,:)
+    class(nsi_cg_iss_oss_discrete_t), intent(in)  :: discret
+    type(nsi_problem_t)             , intent(in)  :: physics
+    integer(ip), allocatable        , intent(out) :: dof_coupling(:,:)
     ! Locals
     integer(ip) :: idime,jdime
 
-    call memalloc(discrete%nvars,discrete%nvars,dof_coupling,__FILE__,__LINE__)
+    call memalloc(discret%nvars,discret%nvars,dof_coupling,__FILE__,__LINE__)
     dof_coupling = 0
 
     do idime=1,physics%ndime

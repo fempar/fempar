@@ -80,7 +80,7 @@ contains
     type(reference_element_t)     :: reference_element
     integer(ip)              :: etype,nodim(3),nndim(3)
     integer(ip)              :: i,j,k,r,s, t
-    integer(ip)              :: nobje,gp,op,nd_i(2),nd_j(2)
+    integer(ip)              :: nvef,gp,op,nd_i(2),nd_j(2)
     integer(ip)              :: iedge,iedgb, iface, ifacb,ielem, jelem
     integer(ip)              :: counter, already_counted, npoin_aux, icode
     integer(ip), allocatable :: nd_jf(:), fnode(:)
@@ -115,10 +115,10 @@ contains
     ! Construct the array of #objects(nodim) and #nodesxobject(nndim) for each dimension
     nodim = 0
     do i = 1,gmsh%ndime
-       nodim(i) = reference_element%nobje_dim(i+1)-reference_element%nobje_dim(i)  
-       nndim(i) = reference_element%ntxob%p(reference_element%nobje_dim(i)+1) - reference_element%ntxob%p(reference_element%nobje_dim(i))
+       nodim(i) = reference_element%nvef_dim(i+1)-reference_element%nvef_dim(i)  
+       nndim(i) = reference_element%ntxob%p(reference_element%nvef_dim(i)+1) - reference_element%ntxob%p(reference_element%nvef_dim(i))
     end do
-    nobje=gmsh%nnode+nodim(2)+nodim(3) ! Total number of objects per element
+    nvef=gmsh%nnode+nodim(2)+nodim(3) ! Total number of objects per element
    
     ! Allocation of auxiliar arrays
     call memalloc(gmsh%npoin+1,          nelpo_aux,  'mesh_topology::nelpo_aux')
@@ -129,7 +129,7 @@ contains
 
     ! Allocate omsh vectors
     call memalloc(       gmsh%nelem+1,  omsh%pnods, 'mesh_topology::omsh%pnods')
-    call memalloc(gmsh%nelem*nobje, omsh%lnods , 'mesh_topology::omsh%lnods')
+    call memalloc(gmsh%nelem*nvef, omsh%lnods , 'mesh_topology::omsh%lnods')
 
     ! Initialization
     omsh%npoin = gmsh%npoin ! Number of objects (nodes + edges + faces)
@@ -143,7 +143,7 @@ contains
     ! Compute nelpo and omsh%pnods
     do ielem = 1,gmsh%nelem
        gp = gmsh%nnode*(ielem-1)
-       op = nobje*(ielem-1)
+       op = nvef*(ielem-1)
        omsh%pnods(ielem) = op+1
 
        ! nelpo(i) computes how many elements surround i
@@ -156,7 +156,7 @@ contains
           omsh%lnods(op+i) = gmsh%lnods(gp+i)
        end do
     end do
-    omsh%pnods(gmsh%nelem+1) = nobje*gmsh%nelem +1
+    omsh%pnods(gmsh%nelem+1) = nvef*gmsh%nelem +1
     nelpo_aux(gmsh%npoin+1)  = gmsh%nelem*gmsh%nnode+1
 
     ! nelpo_aux will be the pointer to lelpo_aux, the array of elems around corners
@@ -183,8 +183,8 @@ contains
           if(edgeint(ielem,i)==0) then
              already_counted=0
              gp = gmsh%nnode*(ielem-1)
-             nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)))
-             nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)+1))
+             nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)))
+             nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)+1))
 
              ! Loop over the elements around corner j
              do t = nelpo_aux(nd_i(1)),nelpo_aux(nd_i(1)+1)-1
@@ -194,8 +194,8 @@ contains
                    gp = gmsh%nnode*(jelem-1)
 
                    do k=1,nodim(2)
-                      nd_j(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)))
-                      nd_j(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)+1))
+                      nd_j(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)))
+                      nd_j(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)+1))
 
                       counter=0
                       do r=1,nndim(2)
@@ -209,9 +209,9 @@ contains
                       if (counter == nndim(2)) then
                          if(already_counted==0) iedge = iedge + 1
                          edgeint(ielem,i) = iedge
-                         omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)=omsh%npoin+iedge
+                         omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)=omsh%npoin+iedge
                          edgeint(jelem,k) = iedge
-                         omsh%lnods(nobje*(jelem-1)+gmsh%nnode+k)=omsh%npoin+iedge
+                         omsh%lnods(nvef*(jelem-1)+gmsh%nnode+k)=omsh%npoin+iedge
                          already_counted=1
                       end if
                    end do
@@ -226,7 +226,7 @@ contains
     iedgb = 0
     do i=1,gmsh%nelem
        do j=gmsh%nnode+1,gmsh%nnode+nodim(2)
-          if(omsh%lnods((i-1)*nobje+j)==0) then
+          if(omsh%lnods((i-1)*nvef+j)==0) then
              iedgb = iedgb + 1
           end if
        end do
@@ -246,7 +246,7 @@ contains
                 already_counted=0
                 gp = gmsh%nnode*(ielem-1)
                 do j=1,nndim(3)
-                   fnode(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(3)+i-1)+j-1))
+                   fnode(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(3)+i-1)+j-1))
                 end do
 
                 do t = nelpo_aux(fnode(1)),nelpo_aux(fnode(1)+1)-1
@@ -257,7 +257,7 @@ contains
 
                       do k=1,nodim(3)
                          do j=1,nndim(3)
-                            nd_jf(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(3)+k-1)+j-1))
+                            nd_jf(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(3)+k-1)+j-1))
                          end do
 
                          counter=0
@@ -272,9 +272,9 @@ contains
                          if (counter == nndim(3)) then
                             if(already_counted==0) iface = iface + 1
                             faceint(ielem,i) = iface
-                            omsh%lnods(nobje*(ielem-1)+gmsh%nnode+nodim(2)+i)=omsh%npoin+iface
+                            omsh%lnods(nvef*(ielem-1)+gmsh%nnode+nodim(2)+i)=omsh%npoin+iface
                             faceint(jelem,k) = iface
-                            omsh%lnods(nobje*(jelem-1)+gmsh%nnode+nodim(2)+k)=omsh%npoin+iface
+                            omsh%lnods(nvef*(jelem-1)+gmsh%nnode+nodim(2)+k)=omsh%npoin+iface
                          end if
                       end do
                    end if
@@ -290,7 +290,7 @@ contains
        ifacb = 0
        do i=1,gmsh%nelem
           do j=gmsh%nnode+nodim(2)+1,gmsh%nnode+nodim(2)+nodim(3)
-             if(omsh%lnods((i-1)*nobje+j)==0) then
+             if(omsh%lnods((i-1)*nvef+j)==0) then
                 ifacb = ifacb + 1
              end if
           end do
@@ -317,24 +317,24 @@ contains
     iedgb = 0
     do ielem=1,gmsh%nelem
        do i=1,nodim(2)
-          if(omsh%lnods((ielem-1)*nobje+gmsh%nnode+i)==0) then
+          if(omsh%lnods((ielem-1)*nvef+gmsh%nnode+i)==0) then
              iedgb = iedgb + 1
-             omsh%lnods((ielem-1)*nobje+gmsh%nnode+i) = npoin_aux + iedgb
+             omsh%lnods((ielem-1)*nvef+gmsh%nnode+i) = npoin_aux + iedgb
              if (kfl_bc) then
                 gp = gmsh%nnode*(ielem-1)
-                nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)))
-                nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)+1))
+                nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)))
+                nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)+1))
                 do icode = 1, ocnd%ncode
                    if (ocnd%code(icode,nd_i(1)) ==  ocnd%code(icode,nd_i(2))) then
-                      ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =                   &
+                      ocnd%code(icode,omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)) =                   &
                            &          ocnd%code(icode,nd_i(1))
                    else
                       !write(*,*) "mesh_topology:: WARNING!! Arbitrary BC's on object",          &
-                      !     &        omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)
-                      ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =  0
+                      !     &        omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)
+                      ocnd%code(icode,omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)) =  0
                    end if
                 end do
-                ocnd%valu(:,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =                             &
+                ocnd%valu(:,omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)) =                             &
                      &                (ocnd%valu(:,nd_i(1)) + ocnd%valu(:,nd_i(2)))/2.0_rp
              end if
           end if
@@ -351,8 +351,8 @@ contains
                 if(edgeint(ielem,i)==0) then
                    already_counted=1
                    gp = gmsh%nnode*(ielem-1)
-                   nd_i(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)))
-                   nd_i(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+i-1)+1))
+                   nd_i(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)))
+                   nd_i(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)+1))
 
                    ! Number of elements for j
                    do t = nelpo_aux(nd_i(1)), nelpo_aux(nd_i(1)+1)-1
@@ -362,8 +362,8 @@ contains
                          gp = gmsh%nnode*(jelem-1)
 
                          do k=1,nodim(2)
-                            nd_j(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)))
-                            nd_j(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(2)+k-1)+1))
+                            nd_j(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)))
+                            nd_j(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)+1))
 
                             counter=0
                             do r=1,nndim(2)
@@ -384,10 +384,10 @@ contains
                    end do
                    do icode = 1, ocnd%ncode
                       if (ocnd%code(icode,nd_i(1)) == 1 .and.  ocnd%code(icode,nd_i(2))==1) then
-                         ocnd%code(icode,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) =  1
+                         ocnd%code(icode,omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)) =  1
                       end if
                    end do
-                   ocnd%valu(:,omsh%lnods(nobje*(ielem-1)+gmsh%nnode+i)) = &
+                   ocnd%valu(:,omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)) = &
                         & (ocnd%valu(:,nd_i(1)) + ocnd%valu(:,nd_i(2)))/2.0_rp
                 end if
              end do
@@ -401,13 +401,13 @@ contains
           j = 0
           do i=gmsh%nnode+nodim(2)+1,gmsh%nnode+nodim(2)+nodim(3)
              j = j + 1
-             if(omsh%lnods((ielem-1)*nobje+i)==0) then
+             if(omsh%lnods((ielem-1)*nvef+i)==0) then
                 ifacb = ifacb + 1
-                omsh%lnods((ielem-1)*nobje+i) =  npoin_aux+ifacb
+                omsh%lnods((ielem-1)*nvef+i) =  npoin_aux+ifacb
                 if (kfl_bc) then
                    gp = gmsh%nnode*(ielem-1)
-                   op = nobje*(ielem-1)
-                   nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nobje_dim(3)+j-1)))
+                   op = nvef*(ielem-1)
+                   nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(3)+j-1)))
                    do icode = 1, ocnd%ncode
                       ocnd%valu(icode,omsh%lnods(op+i)) =                                           &
                            &            ocnd%valu(icode,omsh%lnods(op+i))                           &
@@ -415,7 +415,7 @@ contains
                       s = 1
                       do k = 2,nndim(3)
                          nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l                                      &
-                              &    (reference_element%crxob%p(reference_element%nobje_dim(3)+j-1)+k-1))
+                              &    (reference_element%crxob%p(reference_element%nvef_dim(3)+j-1)+k-1))
                          if (ocnd%code(icode,nd_i(1)) .ne.  ocnd%code(icode,nd_i(2))) s = 0
                          ocnd%valu(icode,omsh%lnods(op+i)) =                                        &
                               &     ocnd%valu(icode,omsh%lnods(op+i))                               &

@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module graph_renum_names
+module graph_renumbering_names
   use types_names
   use memor_names
-  use renum_names
+  use renumbering_names
   use graph_names
   use metis_interface_names
   use mesh_partition_base_names
-  use rcm_renum_names
+  use rcm_renumbering_names
 #include "debug.i90"
   implicit none
   private
@@ -43,19 +43,19 @@ module graph_renum_names
 contains
 
   !=================================================================================================
-  subroutine graph_nd_renumbering(prt_parts, gp, ren)
+  subroutine graph_nd_renumbering(prt_parts, gp, renumbering)
     !-----------------------------------------------------------------------
     !-----------------------------------------------------------------------
     implicit none
     type(part_params_t), intent(in)        :: prt_parts
     type(graph_t), target, intent(in)  :: gp
-    type(renum_t), target,  intent(inout)  :: ren
+    type(renumbering_t), target,  intent(inout)  :: renumbering
     
-    assert(ren%n==gp%nv)
+    assert(renumbering%n==gp%nv)
     
     if ( gp%nv == 1 ) then
-       ren%lperm(1) = 1
-       ren%iperm(1) = 1
+       renumbering%lperm(1) = 1
+       renumbering%iperm(1) = 1
     else
 #ifdef ENABLE_METIS
        ierr = metis_setdefaultoptions(c_loc(options))
@@ -65,7 +65,7 @@ contains
        options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
        
        ierr = metis_nodend ( c_loc(gp%nv),c_loc(gp%ia),c_loc(gp%ja),C_NULL_PTR,c_loc(options), &
-            &                c_loc(ren%iperm),c_loc(ren%lperm))
+            &                c_loc(renumbering%iperm),c_loc(renumbering%lperm))
        
        assert(ierr == METIS_OK)
 #else
@@ -174,4 +174,4 @@ contains
 
   end subroutine graph_pt_renumbering
 
-end module graph_renum_names
+end module graph_renumbering_names

@@ -39,7 +39,7 @@ program test_nsi_iss
   type(reference_element_t)            :: geo_reference_element
   type(triangulation_t)                :: f_trian
   type(conditions_t)                   :: f_cond
-  type(dof_handler_t)                  :: dhand
+  type(dof_descriptor_t)               :: dof_descriptor
   type(fe_space_t)                     :: fe_space  
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
@@ -47,8 +47,8 @@ program test_nsi_iss
   type(discrete_integration_pointer)   :: approx(1)
   type(matrix_t)              , target :: femat
   type(vector_t)              , target :: fevec,feunk
-  type(precond_t)                      :: feprec
-  type(precond_params_t)               :: ppars
+  type(preconditioner_t)               :: feprec
+  type(preconditioner_params_t)        :: ppars
   type(solver_control_t)               :: sctrl
   type(serial_environment_t)           :: senv
   type(vtk_t)                          :: fevtk
@@ -102,14 +102,14 @@ program test_nsi_iss
   ! Generate triangulation
   call gen_triangulation(1,gdata,bdata,geo_reference_element,f_trian,f_cond,material)
 
-  ! Create dof_handler
-  call dhand%create(1,1,gdata%ndime+1)
+  ! Create dof_descriptor
+  call dof_descriptor%create(1,1,gdata%ndime+1)
 
   ! Create problem
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
-  call dhand%set_problem(1,mydisc)
+  call dof_descriptor%set_problem(1,mydisc)
   approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
@@ -118,8 +118,8 @@ program test_nsi_iss
   myprob%case_press = 1
 
   ! Allocate auxiliar elemental arrays
-  call memalloc(f_trian%num_elems,dhand%nvars_global,continuity, __FILE__,__LINE__)
-  call memalloc(f_trian%num_elems,dhand%nvars_global,order,__FILE__,__LINE__)
+  call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
+  call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,problem,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
@@ -129,7 +129,7 @@ program test_nsi_iss
   which_approx           = 1 
   
   ! Create fe_space
-  call fe_space_create(f_trian,dhand,fe_space,problem,f_cond,continuity,order,material,which_approx, &
+  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material,which_approx, &
        &                time_steps_to_store=3, hierarchical_basis=.false.,             &
        &                static_condensation=.false.,num_continuity=1)
 
@@ -141,7 +141,7 @@ program test_nsi_iss
   call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
 
   ! Create dof info
-  call create_dof_info(dhand,f_trian,fe_space,f_blk_graph,gtype)
+  call create_dof_info(dof_descriptor,f_trian,fe_space,f_blk_graph,gtype)
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Allocate matrices and vectors
@@ -162,9 +162,9 @@ program test_nsi_iss
 
   ! Construct preconditioner
   ppars%type   = pardiso_mkl_prec
-  call precond_create(femat,feprec,ppars)
-  call precond_symbolic(femat,feprec)
-  call precond_log_info(feprec)
+  call preconditioner_create(femat,feprec,ppars)
+  call preconditioner_symbolic(femat,feprec)
+  call preconditioner_log_info(feprec)
 
 !!$  ! Define operators
 !!$  A => femat
@@ -189,8 +189,8 @@ program test_nsi_iss
 !!$  call fem_update_solution(feunk,fe_space)
 
   ! Free preconditioner
-  call precond_free(precond_free_struct,feprec)
-  call precond_free(precond_free_clean,feprec)
+  call preconditioner_free(preconditioner_free_struct,feprec)
+  call preconditioner_free(preconditioner_free_clean,feprec)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -219,7 +219,7 @@ program test_nsi_iss
   call mydisc%free
   call ecalc%free
   call cg_iss_matvec%free
-  call dof_handler_free(dhand)
+  call dof_descriptor_free(dof_descriptor)
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   call finite_element_fixed_info_free(geo_reference_element)
@@ -313,8 +313,8 @@ contains
        select type (A)
        type is(matrix_t)
           select type (M)
-          type is(precond_t)
-             call precond_numeric(A,M)
+          type is(preconditioner_t)
+             call preconditioner_numeric(A,M)
           class default
              check(.false.)
           end select
@@ -331,8 +331,8 @@ contains
        ! Free Numeric preconditioner
        ! ******************** Abstract procedure to free precond numeric ***************************!
        select type (M)
-       type is(precond_t)
-          call precond_free(precond_free_values,M)
+       type is(preconditioner_t)
+          call preconditioner_free(preconditioner_free_values,M)
           class default
           check(.false.)
        end select

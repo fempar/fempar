@@ -38,9 +38,9 @@ module operator_dd_names
   use memor_names
   use graph_names
   use matrix_names
-  use matvec_dof_names
+  use matvec_names
   use vector_names
-  use precond_names
+  use preconditioner_names
   use serial_environment_names
   
   ! Parallel modules
@@ -96,11 +96,11 @@ module operator_dd_names
      type ( matrix_t )  :: A_GG
 
      integer (ip)             :: symm
-     type ( precond_t )     :: M_II
+     type ( preconditioner_t )     :: M_II
 
      type(solver_control_t)    , pointer :: spars
      logical                           :: spars_allocated
-     type(precond_params_t), pointer :: ppars
+     type(preconditioner_params_t), pointer :: ppars
      logical                           :: ppars_allocated
 
      type(dof_distribution_t) , pointer  :: dof_dist => NULL()
@@ -128,7 +128,7 @@ contains
     type(dof_distribution_t)  , intent(in), target           :: dof_dist
     type(operator_dd_t)   , intent(out)                  :: f_operator
     type(solver_control_t)    , intent(in), target, optional :: spars
-    type(precond_params_t), intent(in), target, optional :: ppars
+    type(preconditioner_params_t), intent(in), target, optional :: ppars
     ! With this two optional parameters one may select the
     ! structure and sign of the Schur complement operator
     ! independently of f_matrix
@@ -177,7 +177,7 @@ contains
     mat_dum%type    = f_matrix%type
     mat_dum%symm    = symm_
     mat_dum%sign    = sign_
-    call precond_create( mat_dum , f_operator%M_II, f_operator%ppars)
+    call preconditioner_create( mat_dum , f_operator%M_II, f_operator%ppars)
 
   end subroutine operator_dd_create 
 
@@ -192,11 +192,11 @@ contains
     type (vector_t) :: dum 
 
     if ( mode == free_clean ) then
-       call precond_free ( precond_free_clean  , f_operator%M_II )
+       call preconditioner_free ( preconditioner_free_clean  , f_operator%M_II )
     else if ( mode == free_only_struct  ) then
-       call precond_free ( precond_free_struct , f_operator%M_II )
+       call preconditioner_free ( preconditioner_free_struct , f_operator%M_II )
     else if ( mode == free_only_values ) then
-       call precond_free ( precond_free_values , f_operator%M_II )
+       call preconditioner_free ( preconditioner_free_values , f_operator%M_II )
     end if
 
     ! Free memory associated to the blocks of the operator
@@ -277,7 +277,7 @@ contains
         call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
      end if
 
-     call precond_symbolic(f_operator%A_II, f_operator%M_II)
+     call preconditioner_symbolic(f_operator%A_II, f_operator%M_II)
 
      ! call graph_print ( 6, f_operator%A_II%gr ) ! DBG:
      ! call graph_print ( 6, f_operator%A_IG%gr ) ! DBG:
@@ -319,7 +319,7 @@ use stdio_names
      ! call matrix_print_matrix_market ( lunou, f_operator%A_II )
      ! call io_close (lunou)
 
-     call precond_numeric(f_operator%A_II, f_operator%M_II)
+     call preconditioner_numeric(f_operator%A_II, f_operator%M_II)
 
      ! call matrix_print ( 6, f_matrix )  ! DBG:
      ! call matrix_print ( 6, f_operator%A_II )    ! DBG:

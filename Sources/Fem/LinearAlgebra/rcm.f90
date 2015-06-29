@@ -1,4 +1,4 @@
-module rcm_renum_names
+module rcm_renumbering_names
 use types_names
 use memor_names
   implicit none
@@ -939,4 +939,4 @@ contains
     return
   end subroutine root_find
   
-end module rcm_renum_names
+end module rcm_renumbering_names
