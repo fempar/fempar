@@ -30,7 +30,6 @@ program partitioner
   ! A finite element preprocessor
   !-----------------------------------------------------------------------
 use serial_names
-  !use mesh_graph_partition
   implicit none
   integer(ip)                       :: power, type, use_graph, nparts, nstr
   type(mesh_size_t)                   :: msize
