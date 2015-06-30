@@ -47,7 +47,7 @@ module par_preconditioner_dd_mlevel_bddc_names
   use abstract_solver_names
 
   use mesh_names
-  use mesh_graph_names
+  use create_graph_from_mesh_names
   use matrix_names
   use preconditioner_names
   use graph_names
@@ -1891,7 +1891,7 @@ use mpi
        ! if( mlbddc%pad_collectives == pad ) then
        ! AFM: IMPORTANT NOTE !!!! You need to call all_reduce_coarse_mesh_nnode
        ! EVEN with nopad mode, as c_mesh%nnode is later required for the generation 
-       ! of the primal graph in mesh_to_graph_matrix (mesh_graph.f90)
+       ! of the primal graph in create_graph_from_mesh_matrix (mesh_graph.f90)
        call allreduce_coarse_mesh_nnode(  mlbddc%g_context%icontxt, & 
                                           mlbddc%g_context%np, &
                                           mlbddc%nl_coarse, &
@@ -1939,7 +1939,7 @@ use mpi
 
        ! AFM: IMPORTANT NOTE !!!! You need to call all_reduce_coarse_mesh_nnode
        ! EVEN with nopad mode, as c_mesh%nnode is later required for the generation 
-       ! of the primal graph in mesh_to_graph_matrix (mesh_graph.f90)
+       ! of the primal graph in create_graph_from_mesh_matrix (mesh_graph.f90)
        ! if( mlbddc%pad_collectives == pad )  then
        call allreduce_coarse_mesh_nnode(  mlbddc%g_context%icontxt, & 
                                           mlbddc%g_context%np, &
