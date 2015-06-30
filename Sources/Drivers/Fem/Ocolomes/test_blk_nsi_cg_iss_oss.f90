@@ -58,6 +58,11 @@ program test_blk_nsi_cg_iss_oss
   type(block_graph_t)                     :: blk_graph
   type(plain_vector_t)                    :: enorm
   type(nsi_cg_iss_oss_error_t)   , target :: ecalc
+  type(nsi_cg_iss_oss_massp_t)   , target :: mass_p_integration
+  type(block_matrix_t)                    :: blmass_p
+  type(block_operator_t)                  :: block_operator
+  type(block_operand_t)                   :: block_operand
+  type(block_preconditioner_l_t)          :: block_precond
 
   ! Logicals
   logical :: ginfo_state
@@ -82,7 +87,10 @@ program test_blk_nsi_cg_iss_oss
 
   call meminit
 
-    ! Generate geometry data
+  ! Read parameters from command-line
+  call read_pars_cl_test_blk_nsi_cg_iss_oss(prefix,dir_path_out,nex,ney,nez)
+
+  ! Generate geometry data
   call geom_data_create(gdata,nex,ney,nez)
 
   ! Generate boundary data
@@ -111,7 +119,6 @@ program test_blk_nsi_cg_iss_oss
   call mydisc%vars_block(myprob,vars_block)
   call mydisc%dof_coupling(myprob,dof_coupling)
   call matvec%create(myprob,mydisc)
-  approx(1)%p       => matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -154,6 +161,14 @@ program test_blk_nsi_cg_iss_oss
   call blunk%alloc(blk_graph)
   call blvec%init(0.0_rp)
 
+  ! Auxiliar matrices
+  call blmass_p%alloc(blk_graph)
+  call blmass_p%set_block_to_zero(2,2)
+
+  ! Compute auxiliar matrix
+  call mass_p_compute%create(myprob,mydisc)
+  call volume_integral(approx,fe_space,blmass_p)
+
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
   call update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
@@ -163,5 +178,379 @@ program test_blk_nsi_cg_iss_oss
   sctrl%method = direct
   sctrl%trace  = 100
   sctrl%track_conv_his = .true.
+
+  ! Build block structures
+  call build_block_structures(blmat,blvec,blmass_p%get_block(2,2),blk_operator,blk_operand,blk_precond)
+
+  ! Point discrete integration
+  approx(1)%p => matvec
+
+  !!!!!!!!!!!!!!!!!1
+
+contains
+
+  !==================================================================================================
+  subroutine read_pars_cl_test_blk_nsi_cg_iss_oss(prefix,dir_path_out,nex,ney,nez)
+    implicit none
+    character*(*), intent(out) :: prefix, dir_path_out
+    integer(ip)  , intent(out) :: nex,ney,nez
+    character(len=256)         :: program_name
+    character(len=256)         :: argument 
+    integer                    :: numargs,iargc
+
+    numargs = iargc()
+    call getarg(0, program_name)
+    if (.not. (numargs==5) ) then
+       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez'
+       stop
+    end if
+
+    call getarg(1, argument)
+    prefix = trim(argument)
+
+    call getarg(2,argument)
+    dir_path_out = trim(argument)
+
+    call getarg(3, argument)
+    read (argument,*) nex
+
+    call getarg(4, argument)
+    read (argument,*) ney
+
+    call getarg(5, argument)
+    read (argument,*) nez
+
+  end subroutine read_pars_cl_test_blk_nsi_cg_iss_oss
+
+  !==================================================================================================
+  subroutine build_block_structures(block_matrix,block_vector,mass_p_matrix,block_operator, &
+       &                            block_operand,block_preconditioner)
+    implicit none
+    type(block_matrix_t)          , intent(in)  :: block_matrix
+    type(block_vector_t)          , intent(in)  :: block_vector
+    type(matrix_t)                , intent(in)  :: mass_p_matrix
+    type(block_operator_t)        , intent(out) :: block_operator
+    type(block_operand_t)         , intent(out) :: block_operand
+    type(block_preconditioner_l_t), intent(out) :: block_preconditioner
+    ! Locals
+    type(preconditioner_t)        :: u_preconditioner
+    type(preconditioner_t)        :: p_preconditioner
+    type(preconditioner_t)        :: x_preconditioner
+    type(preconditioner_params_t) :: u_ppars
+    type(preconditioner_params_t) :: p_ppars
+    type(preconditioner_params_t) :: x_ppars
+    type(block_operator_t)        :: block_up_operator
+    type(block_operator_t)        :: block_up_x_operator
+    type(block_operator_t)        :: block_x_up_operator
+    type(block_operand_t)         :: block_up_operand
+    type(block_preconditioner_t)  :: block_up_preconditioner
+    
+    ! Construct U-preconditioner (K^-1)
+    u_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(block_matrix%get_block(1,1),u_preconditioner,u_ppars)
+    call preconditioner_symbolic(block_matrix%get_block(1,1),u_preconditioner)
+    call preconditioner_log_info(u_preconditioner)
+
+    ! Construct P-preconditioner (M^-1)
+    p_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(mass_p_matrix,p_preconditioner,p_ppars)
+    call preconditioner_symbolic(mass_p_matrix,p_preconditioner)
+    call preconditioner_log_info(p_preconditioner)
+
+    ! Construct X-preconditioner (Mx^-1)
+    x_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(block_matrix%get_block(3,3),x_preconditioner,x_ppars)
+    call preconditioner_symbolic(mass_p_matrix,x_preconditioner)
+    call preconditioner_log_info(x_preconditioner)
+    
+    ! Create U-P Block operator
+    call block_up_operator%create(2,2)
+    call block_up_operator%set_block(1,1,block_matrix%get_block(1,1))
+    call block_up_operator%set_block(1,2,block_matrix%get_block(1,2))
+    call block_up_operator%set_block(2,1,block_matrix%get_block(2,1))
+    call block_up_operator%set_block(2,2,block_matrix%get_block(2,2))
+
+    ! Create U-P Block operand
+    call block_up_operand%create(2)
+    call block_up_operand%set_block(1,block_vector%blocks(1))
+    call block_up_operand%set_block(2,block_vector%blocks(2))
+
+    ! Create U-P Block preconditioner
+    call block_up_preconditioner%create(2)
+    call block_up_preconditioner%set_block(1,1,u_preconditioner)
+    call block_up_preconditioner%set_block(2,1,block_matrix%get_block(2,1))
+    call block_up_preconditioner%set_block(2,2,p_preconditioner)
+
+    ! Create UP-X Block operator
+    call block_up_x_operator%create(2,1)
+    call block_up_x_operator%set_block(1,1,block_matrix%get_block(1,3)
+    call block_up_x_operator%set_block_to_zero(2,1) 
+
+    ! Create X-UP Block operator
+    call block_x_up_operator%create(1,2)
+    call block_x_up_operator%set_block(1,1,block_matrix%get_block(3,1)
+    call block_x_up_operator%set_block_to_zero(1,2)
+
+    ! Create Global Block operator
+    call block_operator%create(2,2)
+    call block_operator%set_block(1,1,block_up_operator)
+    call block_operator%set_block(1,2,block_up_x_operator)
+    call block_operator%set_block(2,1,block_x_up_operator)
+    call block_operator%set_block(2,2,block_matrix%get_bloc(3,3))
+
+    ! Create Global Block operand
+    call block_operand%create(2)
+    call block_operand%set_block(1,block_up_operand)
+    call block_operand%set_block(2,block_vector%blocks(3))
+
+    ! Create Global Block preconditioner
+    call block_preconditioner%create(2,2)
+    call block_preconditioner%set_block(1,1,block_up_preconditioner)
+    call block_preconditioner%set_block(2,1,block_x_up_operator)
+    call block_preconditioner%set_block(2,2,x_preconditioner)
+    
+  end subroutine build_block_structures
+
+  !==================================================================================================
+  subroutine compute_preconditioner(A,M)
+    implicit none
+    class(base_operator_t), intent(in)    :: A
+    class(base_operator_t), intent(inout) :: M
+
+    ! precond numeric (K^-1)
+    select type (A)
+    type is(block_operator_t)
+       select type(A%get_block(1,1))
+       type is(block_operator_t)
+          select type(A%get_block(1,1)%get_block(1,1))
+          type is(matrix_t)
+             select type (M)
+             type is(block_preconditioner_t)
+                select type(M%get_block(1,1))
+                type is(block_preconditioner_t)
+                   select type(M%get_block(1,1)%get_block(1,1))
+                   type is(preconditioner_t)
+                      call preconditioner_numeric(A%get_block(1,1)%get_block(1,1), &
+                           &                      M%get_block(1,1)%get_block(1,1))
+                   class default
+                      check(.false.)
+                   end select
+                class default
+                   check(.false.)
+                end select
+             class default
+                check(.false.)
+             end select
+          class default
+             check(.false.)
+          end select
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+
+    ! precond numeric (Mp^-1)
+    select type (A)
+    type is(block_operator_t)
+       select type(A%get_block(1,1))
+       type is(block_operator_t)
+          select type(A%get_block(1,1)%get_block(2,2))
+          type is(matrix_t)
+             select type (M)
+             type is(block_preconditioner_t)
+                select type(M%get_block(1,1))
+                type is(block_preconditioner_t)
+                   select type(M%get_block(1,1)%get_block(2,2))
+                   type is(preconditioner_t)
+                      call preconditioner_numeric(A%get_block(1,1)%get_block(2,2), &
+                           &                      M%get_block(1,1)%get_block(2,2))
+                   class default
+                      check(.false.)
+                   end select
+                class default
+                   check(.false.)
+                end select
+             class default
+                check(.false.)
+             end select
+          class default
+             check(.false.)
+          end select
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+
+    ! precond numeric (Mx^-1)
+    select type (A)
+    type is(block_operator_t)
+       select type(A%get_block(2,2))
+       type is(matrix_t)
+          select type (M)
+          type is(block_preconditioner_t)
+             select type(M%get_block(2,2))
+             type is(preconditioner_t)
+                call preconditioner_numeric(A%get_block(2,2),M%get_block(2,2))
+             class default
+                check(.false.)
+             end select
+          class default
+             check(.false.)
+          end select
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+          
+  end subroutine compute_preconditioner
+  
+  !==================================================================================================
+  subroutine free_preconditioner(M)
+    implicit none
+    class(base_operator_t), intent(inout) :: M
+
+    ! precond free (K^-1)
+    select type (M)
+    type is(block_preconditioner_t)
+       select type(M%get_block(1,1))
+       type is(block_preconditioner_t)
+          select type(M%get_block(1,1)%get_block(1,1))
+          type is(preconditioner_t)
+             call preconditioner_free(preconditioner_free_values,M%get_block(1,1)%get_block(1,1))
+          class default
+             check(.false.)
+          end select
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+
+    ! precond free (Mp^-1)
+    select type (M)
+    type is(block_preconditioner_t)
+       select type(M%get_block(1,1))
+       type is(block_preconditioner_t)
+          select type(M%get_block(1,1)%get_block(2,2))
+          type is(preconditioner_t)
+             call preconditioner_free(preconditioner_free_values,M%get_block(1,1)%get_block(2,2))
+          class default
+             check(.false.)
+          end select
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+
+    ! precond free (Mx^-1)
+    select type (M)
+    type is(block_preconditioner_t)
+       select type(M%get_block(2,2))
+       type is(preconditioner_t)
+          call preconditioner_free(preconditioner_free_values,M%get_block(2,2))
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+          
+  end subroutine free_preconditioner
+
+  !==================================================================================================
+  subroutine free_block_structures(block_operator,block_operand,block_preconditioner)
+    implicit none
+    type(block_operator_t)        , intent(inout) :: block_operator
+    type(block_operand_t)         , intent(inout) :: block_operand
+    type(block_preconditioner_l_t), intent(inout) :: block_preconditioner
+    
+    ! precond free (K^-1)
+    select type(block_preconditioner%get_block(1,1))
+    type is(block_preconditioner_t)
+       select type(block_preconditioner%get_block(1,1)%get_block(1,1))
+       type is(preconditioner_t)
+          call preconditioner_free(preconditioner_free_struct, &
+               &                   block_preconditioner%get_block(1,1)%get_block(1,1))
+          call preconditioner_free(preconditioner_free_clean, &
+               &                   block_preconditioner%get_block(1,1)%get_block(1,1))
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+
+    ! precond free (Mp^-1)
+    select type(block_preconditioner%get_block(1,1))
+    type is(block_preconditioner_t)
+       select type(block_preconditioner%get_block(1,1)%get_block(2,2))
+       type is(preconditioner_t)
+          call preconditioner_free(preconditioner_free_struct, &
+               &                   block_preconditioner%get_block(1,1)%get_block(2,2))
+          call preconditioner_free(preconditioner_free_clean, &
+               &                   block_preconditioner%get_block(1,1)%get_block(2,2))
+       class default
+          check(.false.)
+       end select
+    class default
+       check(.false.)
+    end select
+
+    ! precond free (Mx^-1)
+    select type(block_preconditioner%get_block(2,2))
+    type is(preconditioner_t)
+       call preconditioner_free(preconditioner_free_struct,block_preconditioner%get_block(2,2))
+       call preconditioner_free(preconditioner_free_clean,block_preconditioner%get_block(2,2))
+    class default
+       check(.false.)
+    end select
+
+    ! Free U-P Block operator
+    select type(block_operator%get_block(1,1))
+    type is(block_operator_t)
+       call block_operator%get_block(1,1)%destroy()
+    class default
+       check(.false.)
+    end select
+
+    ! Free U-P Block operand
+    call block_operand%blocks(1)%destroy()    
+
+    ! Free UP-X Block operator
+    select type(block_operator%get_block(1,2))
+    type is(block_operator_t)
+       call block_operator%get_block(1,2)%destroy()
+    class default
+       check(.false.)
+    end select
+
+    ! Free X-UP Block operator
+    select type(block_operator%get_block(2,1))
+    type is(block_operator_t)
+       call block_operator%get_block(2,1)%destroy()
+    class default
+       check(.false.)
+    end select
+
+    ! Free Global operator
+    call block_operator%destroy()
+
+    ! Free Global operand
+    call block_operand%destroy()
+    
+    ! Free Global preconditioner
+    call block_preconditioner%destroy()
+    
+  end subroutine free_block_structures
+  
   
 end program test_blk_nsi_cg_iss_oss

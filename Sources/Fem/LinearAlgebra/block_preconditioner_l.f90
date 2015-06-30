@@ -56,6 +56,7 @@ use iso_c_binding
      procedure  :: set_block          => block_preconditioner_l_set_block
      procedure  :: set_block_to_zero  => block_preconditioner_l_set_block_to_zero
      procedure  :: destroy            => block_preconditioner_l_destroy
+     procedure  :: get_block          => block_preconditioner_l_get_block
 
      procedure  :: apply          => block_preconditioner_l_apply
      procedure  :: apply_fun      => block_preconditioner_l_apply_fun
@@ -243,5 +244,15 @@ contains
     bop%nblocks = 0
     deallocate ( bop%blocks )
   end subroutine block_preconditioner_l_destroy
+
+  function block_preconditioner_l_get_block (bop,ib,jb)
+    implicit none
+    ! Parameters
+    class(block_preconditioner_l_t), target, intent(in) :: bop
+    integer(ip)                            , intent(in) :: ib,jb
+    class(base_operator_t)                 , pointer    :: block_preconditioner_l_get_block
+
+    block_preconditioner_l_get_block =>  bop%blocks(ib,jb)%p_op
+  end function block_preconditioner_l_get_block
 
 end module block_preconditioner_l_names

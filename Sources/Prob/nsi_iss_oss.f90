@@ -72,6 +72,16 @@ module nsi_cg_iss_oss_names
      procedure :: free    => nsi_matvec_free
   end type nsi_cg_iss_oss_matvec_t
 
+  ! Mass_pressure
+  type, extends(discrete_integration) :: nsi_cg_iss_oss_massp_t
+     type(nsi_cg_iss_oss_discrete_t), pointer :: discret
+     type(nsi_problem_t)            , pointer :: physics
+   contains
+     procedure :: create  => nsi_massp_create
+     procedure :: compute => nsi_massp 
+     procedure :: free    => nsi_massp_free
+  end type nsi_cg_iss_oss_massp_t
+
 !!$  ! Error norm
 !!$  type, extends(discrete_integration) :: nsi_cg_iss_oss_error_t
 !!$     type(nsi_cg_iss_discrete_t), pointer :: discret
@@ -171,6 +181,44 @@ contains
     approx%discret => null()
 
   end subroutine nsi_matvec_free
+
+  !=================================================================================================
+  subroutine nsi_massp_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_massp_t) , intent(inout) :: approx
+    class(physical_problem), target, intent(in)   :: physics
+    class(discrete_problem), target, intent(in)   :: discret
+
+    select type (physics)
+    type is(nsi_problem_t)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_oss_discrete_t)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
+
+  end subroutine nsi_massp_create
+
+  !=================================================================================================
+  subroutine nsi_massp_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_massp_t), intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+  end subroutine nsi_massp_free
 
   !=================================================================================================
   subroutine nsi_matvec(approx,finite_element)
@@ -425,6 +473,19 @@ contains
     call impose_strong_dirichlet_data(finite_element) 
     
   end subroutine nsi_matvec
+
+  !=================================================================================================
+  subroutine nsi_massp(approx,finite_element)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine performs the elemental mass matrix integration for pressure dofs.          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_massp_t), intent(inout) :: approx
+    type(finite_element_t)       , intent(inout) :: finite_element
+
+    !!!!!!!!!!!!!!!!!
+    
+  end subroutine nsi_massp
 
   !==================================================================================================
   subroutine nsi_elmvsg(approx,finite_element,gpvel,tau)
