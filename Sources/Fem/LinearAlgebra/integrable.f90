@@ -33,7 +33,7 @@ use types_names
   private
   ! Any linear algebra data structure that could be obtained
   ! by integration
-  type, abstract, extends(memory_guard) :: integrable_t
+  type, abstract, extends(memory_guard_t) :: integrable_t
    contains
      procedure(free_interface), deferred :: free
   end type integrable_t

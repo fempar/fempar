@@ -66,7 +66,7 @@ module par_triangulation_names
                                      ! Local ID is the position in the array of vefs
   end type par_vef_topology_t
 
-  type, extends(migratory_element) :: par_elem_topology_t
+  type, extends(migratory_element_t) :: par_elem_topology_t
      integer(ip)  :: interface  = -1              ! The boundary number ieboun (if this element is a interface element)
      integer(ip)  :: mypart     = -1              ! To which part this element is mapped to ?
      integer(igp) :: globalID   = -1              ! Global ID of this element
@@ -85,7 +85,7 @@ module par_triangulation_names
      type(triangulation_t)                 :: f_trian             ! Data common with a centralized (serial) triangulation
      integer(ip)                             :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
      integer(ip)                             :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
-     class(migratory_element), allocatable   :: mig_elems(:)        ! Migratory elements list_t
+     class(migratory_element_t), allocatable   :: mig_elems(:)        ! Migratory elements list_t
      type(par_elem_topology_t),   pointer      :: elems(:) => NULL()  ! Array of elements in the mesh
      type(par_vef_topology_t), allocatable  :: vefs(:)          ! array of vefs in the mesh
      integer(ip)                             :: num_itfc_vefs = -1  ! Number of vefs in the interface among subdomains

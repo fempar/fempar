@@ -44,7 +44,7 @@ program test_nsi_iss
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
   type(nsi_cg_iss_matvec_t)   , target :: cg_iss_matvec
-  type(discrete_integration_pointer) :: approx(1)
+  type(discrete_integration_t_pointer) :: approx(1)
   type(matrix_t)          , target :: femat
   type(vector_t)          , target :: fevec,feunk
   type(preconditioner_t)                  :: feprec

@@ -57,7 +57,7 @@ module fe_space_names
      integer(ip)                           :: num_continuity       ! Number of materials (maximum value)
      logical                           :: static_condensation  ! Flag for static condensation 
      logical                           :: hierarchical_basis   ! Flag for hierarchical basis
-     class(migratory_element), allocatable :: mig_elems(:)         ! Migratory elements list_t
+     class(migratory_element_t), allocatable :: mig_elems(:)         ! Migratory elements list_t
      type(finite_element_t)       , pointer     :: finite_elements(:)             ! List of FEs
      type(fe_face_t)          , allocatable :: fe_faces(:)             ! List of active faces
 

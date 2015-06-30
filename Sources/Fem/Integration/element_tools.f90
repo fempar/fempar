@@ -39,7 +39,7 @@ module element_tools_names
   implicit none
   private
 
-  type, extends(memory_guard) :: function_t
+  type, extends(memory_guard_t) :: function_t
      integer(ip)  :: ivar=1
      integer(ip)  :: nvar=1
      integer(ip)  :: idof=1 ! First dof corresponding to ivar (=sum of nnode for jvar<ivar)
@@ -174,7 +174,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   function basis_function_constructor(prob,iunk,start,integ) result(res)
     implicit none
-    class(physical_problem), intent(in) :: prob
+    class(physical_problem_t), intent(in) :: prob
     integer(ip)            , intent(in) :: iunk
     integer(ip)            , intent(in) :: start(prob%nvars+1)
     type(volume_integrator_pointer_t), target, intent(in) :: integ(:)
@@ -221,7 +221,7 @@ contains
 
  !  function given_function_constructor(prob,iunk,icomp,integ) result(var)
  !    implicit none
- !    class(physical_problem) , intent(in) :: prob
+ !    class(physical_problem_t) , intent(in) :: prob
  !    integer(ip)             , intent(in) :: iunk
  !    integer(ip)             , intent(in) :: icomp
  !    type(volume_integrator_pointer_t),target, intent(in) :: integ(:)
@@ -264,7 +264,7 @@ contains
 
   subroutine create_scalar (prob, ivar, integ, res)
     implicit none
-    class(physical_problem)         , intent(in)  :: prob
+    class(physical_problem_t)         , intent(in)  :: prob
     integer(ip)                    , intent(in)  :: ivar
     type(volume_integrator_pointer_t), intent(in)  :: integ(:)
     type(scalar_t)                   , intent(out) :: res
@@ -293,7 +293,7 @@ contains
 
   subroutine create_vector (prob, ivar, integ, res)
     implicit none
-    class(physical_problem)        , intent(in)  :: prob
+    class(physical_problem_t)        , intent(in)  :: prob
     integer(ip)                    , intent(in)  :: ivar
     type(volume_integrator_pointer_t), intent(in)  :: integ(:)
     type(vector_t)                   , intent(out) :: res

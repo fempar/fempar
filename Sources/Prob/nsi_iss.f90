@@ -43,7 +43,7 @@ use memor_names
  
  ! INF-SUP STABLE (iss) NAVIER-STOKES types 
  ! Problem data
- type, extends(discrete_problem) :: nsi_cg_iss_discrete_t
+ type, extends(discrete_problem_t) :: nsi_cg_iss_discrete_t
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -60,7 +60,7 @@ use memor_names
  end type nsi_cg_iss_discrete_t
     
 !!$ ! Aproximation
-!!$ type, extends(discrete_problem) :: nsi_cg_iss_approximation_t
+!!$ type, extends(discrete_problem_t) :: nsi_cg_iss_approximation_t
 !!$    type(nsi_cg_iss_data), pointer :: data
 !!$     contains
 !!$      procedure :: create  => nsi_create
@@ -68,7 +68,7 @@ use memor_names
 !!$ end type nsi_cg_iss_approximation_t
 
  ! Matvec
- type, extends(discrete_integration) :: nsi_cg_iss_matvec_t
+ type, extends(discrete_integration_t) :: nsi_cg_iss_matvec_t
       type(nsi_cg_iss_discrete_t), pointer :: discret
       type(nsi_problem_t)        , pointer :: physics
      contains
@@ -101,7 +101,7 @@ contains
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_discrete_t), intent(out) :: discret
-    class(physical_problem)   , intent(in)  :: physics
+    class(physical_problem_t)   , intent(in)  :: physics
     integer(ip), optional     , intent(in)  :: l2g(:)
     ! Locals
     integer(ip) :: i
@@ -147,8 +147,8 @@ contains
     ! approx%physics => physics
     ! approx%discret => discret
 
-    class(physical_problem), target , intent(in)   :: physics
-    class(discrete_problem), target , intent(in)   :: discret
+    class(physical_problem_t), target , intent(in)   :: physics
+    class(discrete_problem_t), target , intent(in)   :: discret
 
     select type (physics)
     type is(nsi_problem_t)

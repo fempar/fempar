@@ -51,8 +51,8 @@ use memor_names
           dof_coupl(:,:),            &        ! Dof_coupling(nvar,nvar) for avoiding allocation & assembly of zero blocks
           vars_block(:)                       ! Parameter per unknown (size nvars)
 
-     !type(p_physical_problem), allocatable :: problems(:)
-     type(discrete_problem_pointer), allocatable :: problems(:)
+     !type(p_physical_problem_t), allocatable :: problems(:)
+     type(discrete_problem_t_pointer), allocatable :: problems(:)
 
 
      ! Auxiliary arrays
@@ -175,7 +175,7 @@ contains
     implicit none
     class(dof_descriptor_t), intent(inout)          :: dof_descriptor
     integer(ip), intent(in) :: iprob
-    class(discrete_problem), target, intent(in) :: prob
+    class(discrete_problem_t), target, intent(in) :: prob
     
     integer(ip) :: l_var, iblock, count
 

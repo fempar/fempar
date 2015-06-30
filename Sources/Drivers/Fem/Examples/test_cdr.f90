@@ -46,7 +46,7 @@ program test_cdr
   type(cdr_discrete_t)                  :: my_discrete
   type(cdr_approximation_t), target     :: my_approximation
   integer(ip)                         :: num_approximations
-  type(discrete_integration_pointer)  :: approximations(1)
+  type(discrete_integration_t_pointer)  :: approximations(1)
 
   type(matrix_t), target             :: my_matrix
   type(vector_t), target             :: my_vector, feunk

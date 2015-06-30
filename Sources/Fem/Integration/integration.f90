@@ -52,11 +52,11 @@ contains
     type(fe_space_t)            , intent(inout) :: fe_space
     class(integrable_t)          , intent(inout) :: res1
     class(integrable_t), optional, intent(inout) :: res2
-    type(discrete_integration_pointer)         :: approx(:)
+    type(discrete_integration_t_pointer)         :: approx(:)
 
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation
-    !class(discrete_problem) , pointer :: discrete
+    !class(discrete_problem_t) , pointer :: discrete
     integer(ip) :: start(fe_space%dof_descriptor%nvars_global+1)
 
     ! Main element loop

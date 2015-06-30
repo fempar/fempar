@@ -47,7 +47,6 @@ module par_preconditioner_dd_mlevel_bddc_names
   use abstract_solver_names
 
   use mesh_names
-  use create_graph_from_mesh_names
   use matrix_names
   use preconditioner_names
   use graph_names

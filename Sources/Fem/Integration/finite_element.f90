@@ -46,7 +46,7 @@ module finite_element_names
   private
 
   ! Information of each element of the FE space
-  type, extends(migratory_element) :: finite_element_t
+  type, extends(migratory_element_t) :: finite_element_t
      ! Reference element info          
      type(reference_element_pointer_t), allocatable :: reference_element_vars(:)    ! Topology of the reference finite element
      type(reference_element_t), pointer :: p_geo_reference_element => NULL()    ! Topology of the reference geometry ( idem fe w/ p=1)

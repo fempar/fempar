@@ -48,7 +48,7 @@ contains
     integer(ip)              :: icontxt
     type(element_import_t) :: f_el_import
     ! Data is an array of polymorphic entries     
-    class(migratory_element) :: data(f_el_import%nelem + f_el_import%nghost)
+    class(migratory_element_t) :: data(f_el_import%nelem + f_el_import%nghost)
    
     call plain_ghost_element_exchange ( icontxt, f_el_import%npadj, f_el_import%lpadj, &
                                         f_el_import%rcv_ptrs, f_el_import%snd_ptrs, f_el_import%snd_leids, &
@@ -87,7 +87,7 @@ use mpi
      integer(ip), intent(in)    :: snd_leids(snd_ptrs(npadj+1)-1)
 
      integer(ip), intent(in)    :: nelem, nghost
-     class(migratory_element), intent(inout) :: data(nelem+nghost) 
+     class(migratory_element_t), intent(inout) :: data(nelem+nghost) 
      
      ! Communication related locals 
      integer :: my_pid, num_procs, i, proc_to_comm, sizmsg

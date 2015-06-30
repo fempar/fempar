@@ -52,7 +52,7 @@ contains
     class(base_operand_t) , intent(in)        :: b        ! RHS
     class(base_operand_t) , intent(inout)     :: x        ! Approximate solution
     type(solver_control_t), intent(inout)     :: ctrl     ! Solver parameters
-    class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+    class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
     
     call A%GuardTemp()
     call M%GuardTemp()
@@ -104,7 +104,7 @@ contains
     class(base_operand_t)  , intent(in)       :: b     ! RHS
     class(base_operand_t)  , intent(inout)    :: x     ! Approximate solution
     type(solver_control_t) , intent(inout)    :: ctrl  ! Control data
-    class(abstract_environment), intent(in) :: env   ! Serial/parallel environment 
+    class(abstract_environment_t), intent(in) :: env   ! Serial/parallel environment 
 
 
     ! Locals
@@ -363,7 +363,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl, env )
   class(base_operand_t) , intent(in)    :: b        ! RHS
   class(base_operand_t) , intent(inout) :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl     ! Control data
-  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
   ! Locals
   real(rp)           :: r_nrm_M      ! |r|_inv(M) 
@@ -554,7 +554,7 @@ use blas77_interfaces_names
     class(base_operand_t)   , intent(inout) :: x ! Solution
     class(base_operand_t)   , intent(in)    :: b ! RHS
     type(solver_control_t), intent(inout) :: ctrl
-    class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+    class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
     integer(ip)                    :: ierrc
@@ -938,7 +938,7 @@ use blas77_interfaces_names
   class(base_operand_t)    , intent(inout) :: x              ! Solution
   class(base_operand_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)   , intent(inout) :: ctrl
-  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
       
 
   integer(ip)                :: ierrc
@@ -1220,7 +1220,7 @@ use blas77_interfaces_names
   class(base_operand_t)    , intent(inout) :: x              ! Solution
   class(base_operand_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
-  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   integer(ip)                :: ierrc
@@ -1497,7 +1497,7 @@ subroutine abstract_prichard (A, M, b, x, ctrl, env )
   class(base_operand_t)    , intent(inout) :: x              ! Solution
   class(base_operand_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
-  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   integer                          :: me, np
@@ -1599,7 +1599,7 @@ use lapack77_interfaces_names
   class(base_operand_t),  intent(inout)  :: x      ! Solution
   class(base_operand_t),  intent(in)     :: b      ! RHS
   type(solver_control_t), intent(inout) :: ctrl
-  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   integer(ip)                    :: ierrc
@@ -2101,7 +2101,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
   class(base_operand_t),  intent(in)    :: b        ! RHS
   class(base_operand_t), intent(inout)  :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl
-  class(abstract_environment), intent(in) :: env      ! Serial/parallel environment 
+  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   !     Local arrays and variables

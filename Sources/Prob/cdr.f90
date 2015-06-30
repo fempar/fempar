@@ -33,7 +33,7 @@ use memor_names
   implicit none
   private 
 
-  type, extends(physical_problem) :: cdr_problem_t
+  type, extends(physical_problem_t) :: cdr_problem_t
      integer(ip) ::   & 
           kfl_conv,   & ! Flag for enabling advection
           kfl_tder,   & ! Flag for time derivative computation

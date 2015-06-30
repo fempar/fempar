@@ -33,7 +33,7 @@ use memor_names
 # include "debug.i90"
   private 
 
-  type, extends(physical_problem) :: nsi_problem_t
+  type, extends(physical_problem_t) :: nsi_problem_t
      integer(ip) ::   & 
           ksnsi,      & ! Symmetry flag (+-1) (1: no simetrica definida, -1: simetrica no definida)
           kfl_conv,   & ! Flag for enabling advection (Stokes=0; NavSto=1)
@@ -77,7 +77,7 @@ contains
     prob%nunks = 2                           ! Velocity and pressure
     prob%nvars = prob%ndime+1                ! Number of degrees of freedom
 
-    call memalloc(prob%nunks,prob%physical_problem%vars_of_unk,__FILE__,__LINE__)
+    call memalloc(prob%nunks,prob%physical_problem_t%vars_of_unk,__FILE__,__LINE__)
     prob%vars_of_unk(1) = ndime
     prob%vars_of_unk(2) = 1
 

@@ -50,7 +50,7 @@ use lib_vtk_io_interface_names
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
   type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
-  type(discrete_integration_pointer)               :: approx(1)
+  type(discrete_integration_t_pointer)               :: approx(1)
   type(vtk_t)                                    :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist

@@ -30,40 +30,40 @@ use types_names
   implicit none
   private
 
-  type, abstract :: migratory_element
+  type, abstract :: migratory_element_t
    contains
      procedure (size_interface)  , deferred :: size
      procedure (pack_interface)  , deferred :: pack
      procedure (unpack_interface), deferred :: unpack
-  end type migratory_element
+  end type migratory_element_t
 
   ! Abstract interfaces
   abstract interface
      subroutine size_interface(my,n)
-       import :: migratory_element, ip
+       import :: migratory_element_t, ip
        implicit none
-       class(migratory_element), intent(in)  :: my
+       class(migratory_element_t), intent(in)  :: my
        integer(ip)           , intent(out) :: n
      end subroutine size_interface
 
      subroutine pack_interface(my,n,buffer)
-       import :: migratory_element, ip, ieep
+       import :: migratory_element_t, ip, ieep
        implicit none
-       class(migratory_element), intent(in)  :: my
+       class(migratory_element_t), intent(in)  :: my
        integer(ip)             , intent(in)  :: n
        integer(ieep)           , intent(out) :: buffer(n)
      end subroutine pack_interface
 
      subroutine unpack_interface(my,n,buffer)
-       import :: migratory_element, ip, ieep
+       import :: migratory_element_t, ip, ieep
        implicit none
-       class(migratory_element), intent(inout) :: my
+       class(migratory_element_t), intent(inout) :: my
        integer(ip)             , intent(in)    :: n
        integer(ieep)           , intent(in)    :: buffer(n)
      end subroutine unpack_interface
 
   end interface
 
-  public :: migratory_element
+  public :: migratory_element_t
   
 end module migratory_element_names
