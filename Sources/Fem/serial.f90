@@ -47,7 +47,7 @@ module serial_names
   use mesh_to_triangulation_names
   use mesh_distribution_names
   use create_mesh_distribution_names
-  use mesh_gen_distribution_names
+  use generate_uniform_triangulation_names
 
   use element_import_names
   use element_import_create_names
