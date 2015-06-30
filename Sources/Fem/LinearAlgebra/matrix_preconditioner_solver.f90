@@ -30,7 +30,6 @@
 module matrix_preconditioner_solver_names
   ! Serial modules
   use types_names
-  use solver_base_names
   use serial_environment_names
   use abstract_solver_names
   use matrix_names

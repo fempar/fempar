@@ -43,7 +43,6 @@ module par_preconditioner_dd_mlevel_bddc_names
   use lapack77_interfaces_names
 #endif
 
-  use solver_base_names
   use abstract_solver_names
 
   use mesh_names

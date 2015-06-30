@@ -30,7 +30,6 @@
 module operator_dd_names
 
   ! Abstract modules
-  use solver_base_names
   use abstract_solver_names
 
   ! Serial modules
