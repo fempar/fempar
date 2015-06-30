@@ -31,8 +31,7 @@ program partitioner
   !-----------------------------------------------------------------------
 use serial_names
   implicit none
-  integer(ip)                       :: power, type, use_graph, nparts, nstr
-  type(mesh_size_t)                   :: msize
+  integer(ip)                     :: power, type, use_graph, nparts, nstr
   type(conditions_t)              :: poin,line,surf
   type(conditions_t)              :: gnodes, gbouns
   type(mesh_t)                    :: gmesh

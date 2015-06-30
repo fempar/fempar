@@ -63,7 +63,6 @@ module serial_names
   use create_mesh_distribution_names
 
   use mesh_io_names
-  use mesh_gen_names
   !use mesh_faces
   !use mesh_lelpo
   use migratory_element_names
