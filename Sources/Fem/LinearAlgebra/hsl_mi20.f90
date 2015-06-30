@@ -429,7 +429,7 @@ contains
     y_ => y%b(:)
     
     ! Solve with AMG preconditioner
-    call mi20_preconditioner( context%zd11_mat, & 
+    call mi20_precondition( context%zd11_mat, & 
                             data%coarse_data, & 
                             x_, &   
                             y_, &
@@ -465,7 +465,7 @@ contains
 
 #ifdef ENABLE_HSL_MI20
     ! Solve with AMG preconditioner
-    call mi20_preconditioner( context%zd11_mat, & 
+    call mi20_precondition( context%zd11_mat, & 
                             data%coarse_data, & 
                             rhs, &   
                             sol, &
