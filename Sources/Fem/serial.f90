@@ -56,15 +56,13 @@ module serial_names
   use materials_names
   use materials_io_names
   use graph_names
-  use geom2topo_names
+  use generate_vefs_mesh_conditions_names
   use renumbering_names
   use mesh_names
   use partitioning_params_names
   use create_mesh_distribution_names
 
   use mesh_io_names
-  !use mesh_faces
-  !use mesh_lelpo
   use migratory_element_names
 
   ! Linear Algebra
