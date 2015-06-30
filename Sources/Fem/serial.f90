@@ -61,7 +61,7 @@ module serial_names
   use renumbering_names
   use mesh_names
   use mesh_partition_base_names
-  use mesh_partition_distribution_names
+  use create_mesh_distribution_names
 
   use mesh_io_names
   use mesh_gen_names

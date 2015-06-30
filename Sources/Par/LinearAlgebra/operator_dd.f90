@@ -45,8 +45,6 @@ module operator_dd_names
   
   ! Parallel modules
   use dof_distribution_names
-  use split_graph_I_G_names
-  use split_matrix_I_G_names
 
 # include "debug.i90"
   
