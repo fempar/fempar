@@ -90,7 +90,7 @@ use serial_names
   prt_pars%metis_option_minconn  = 1
   prt_pars%metis_option_debug    = 2
 
-  call mesh_distribution_create (prt_pars, gmesh, distr, lmesh)
+  call create_mesh_distribution (prt_pars, gmesh, distr, lmesh)
 
   ! Output domain partition to GiD file
   call memalloc (gmesh%nelem, ldome, __FILE__,__LINE__)

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_partition_distribution_names
+module create_mesh_distribution_names
   use types_names
   use memor_names
   use mesh_distribution_names
@@ -42,11 +42,11 @@ module mesh_partition_distribution_names
   private
 
    ! Functions
-  public :: mesh_distribution_create !, build_partition_adjacency
+  public :: create_mesh_distribution !, build_partition_adjacency
 
 contains
 
-  subroutine mesh_distribution_create( prt_pars, femesh, distr, lmesh)
+  subroutine create_mesh_distribution( prt_pars, femesh, distr, lmesh)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -129,7 +129,7 @@ contains
     call mesh_free(dual_femesh)
     call graph_free(fe_graph)
     call memfree(ldome,__FILE__,__LINE__)
-  end subroutine mesh_distribution_create
+  end subroutine create_mesh_distribution
 
   !================================================================================================
    subroutine build_adjacency ( my_part, lmesh, l2ge, dual_lmesh, dual_parts, &
@@ -387,4 +387,4 @@ contains
     call memfree ( npdom,__FILE__,__LINE__)
   end subroutine build_maps
 
-end module mesh_partition_distribution_names
+end module create_mesh_distribution_names
