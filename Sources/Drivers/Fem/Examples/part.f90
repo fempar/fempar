@@ -52,7 +52,7 @@ use serial_names
   integer(ip), allocatable          :: ldome(:)
   integer(ip)                       :: i, j
 
-  type(part_params_t) :: prt_pars
+  type(partitioning_params_t) :: prt_pars
 
   call meminit
 

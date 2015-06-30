@@ -34,7 +34,7 @@ module create_mesh_distribution_names
   use graph_names
   use graph_renumbering_names
   use mesh_names
-  use mesh_partition_base_names
+  use partitioning_params_names
   use hash_table_names
 # include "debug.i90"
   implicit none
@@ -52,7 +52,7 @@ contains
     implicit none
 
     ! Parameters
-    type(part_params_t)                        , intent(in)  :: prt_pars
+    type(partitioning_params_t)                        , intent(in)  :: prt_pars
     type(mesh_t)                           , intent(in)  :: femesh
     type(mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances

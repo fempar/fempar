@@ -330,7 +330,7 @@ contains
 
   !=============================================================================
   subroutine hsl_ma87_analysis ( context, matrix, ctrl, info )
-use mesh_partition_base_names
+use partitioning_params_names
 use graph_renumbering_names
     implicit none
 
@@ -342,7 +342,7 @@ use graph_renumbering_names
 
     ! Locals (required for the call to graph_nd_renumbering)
     type (graph_t)                  :: aux_graph
-    type(part_params_t)             :: prt_parts
+    type(partitioning_params_t)             :: prt_parts
     integer(ip)                   :: i
 
     assert ( matrix%gr%type == csr_symm )

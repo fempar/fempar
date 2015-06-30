@@ -25,8 +25,8 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_partition_base_names
-use types_names
+module partitioning_params_names
+  use types_names
 
   ! Basic parameters and type definitions for serial partitioning routines
   ! All PUBLIC 
@@ -39,7 +39,7 @@ use types_names
   integer(ip), parameter :: dual=0
   integer(ip), parameter :: primal=1
 
-  type part_params_t
+  type partitioning_params_t
      integer(ip) :: nparts      = 2             ! nparts
      integer(ip) :: debug       = 1             ! Print info partition
 
@@ -57,7 +57,7 @@ use types_names
      
      ! Applicable to both metis 4.0 and metis 5.0
      integer(ip) :: metis_option_debug  =  0 
-  end type part_params_t
+  end type partitioning_params_t
 
 
-end module mesh_partition_base_names
+end module partitioning_params_names
