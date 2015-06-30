@@ -53,7 +53,6 @@ module par_preconditioner_dd_mlevel_bddc_names
   use operator_dd_names
   use postpro_names
   use stdio_names
-  use matrix_preconditioner_solver_names
  
   ! Parallel modules
   use par_dd_base_names
