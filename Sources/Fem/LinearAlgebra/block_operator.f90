@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module block_operator_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use base_operator_names
   use base_operand_names
 
@@ -209,7 +209,7 @@ contains
     ! Parameters
     class(block_operator_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
-    type(abs_operator_t)                  , intent(in)    :: op 
+    class(base_operator_t)                  , intent(in)    :: op 
 
     call op%GuardTemp()
     if ( .not. associated(bop%blocks(ib,jb)%p_op) ) then

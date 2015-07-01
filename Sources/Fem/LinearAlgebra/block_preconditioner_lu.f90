@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module block_preconditioner_lu_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use base_operator_names
   use base_operand_names
   use block_operand_names
@@ -81,7 +81,6 @@ contains
     class(block_preconditioner_lu_t)     , intent(in)   :: op
     class(base_operand_t)      , intent(in)    :: x
     class(base_operand_t)      , intent(inout) :: y
-
     class(base_operand_t), allocatable :: z
     allocate(z, mold=y)
     call z%clone(y)
@@ -100,7 +99,6 @@ contains
     class(block_preconditioner_lu_t), intent(in)  :: op
     class(base_operand_t) , intent(in)   :: x
     class(base_operand_t) , allocatable  :: y
-
     class(base_operand_t), allocatable :: z
 
     allocate(z, mold=x)
@@ -131,9 +129,9 @@ contains
   subroutine block_preconditioner_lu_set_block (bop, factor, ib, jb, op)
     implicit none
     ! Parameters
-    class(block_preconditioner_lu_t)             , intent(inout) :: bop
+    class(block_preconditioner_lu_t)    , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: factor, ib, jb
-    type(abs_operator_t)                  , intent(in)    :: op 
+    class(base_operator_t)              , intent(in)    :: op 
 
     assert(factor==lower .or. factor==upper)
 

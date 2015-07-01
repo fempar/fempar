@@ -27,11 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module block_preconditioner_l_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use base_operator_names
   use base_operand_names
-
   use block_operand_names
 
 #ifdef memcheck
@@ -196,7 +195,7 @@ contains
     ! Parameters
     class(block_preconditioner_l_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
-    type(abs_operator_t)                  , intent(in)    :: op 
+    class(base_operator_t)                  , intent(in)    :: op 
 
     assert ( ib >= jb )
 

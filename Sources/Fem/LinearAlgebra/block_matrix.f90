@@ -285,7 +285,7 @@ contains
     select type(x)
     class is (block_vector_t)
        allocate(local_y)
-       call block_vector_alloc(op%nblocks,local_y)
+       call local_y%block_vector_alloc_blocks(op%nblocks)
        do ib=1,op%nblocks
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks

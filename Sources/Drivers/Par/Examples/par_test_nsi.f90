@@ -189,8 +189,7 @@ use lib_vtk_io_interface_names
   ! Apply boundary conditions to unkno
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu = 1.0_rp
   call par_update_strong_dirichlet_bcond(p_fe_space,p_cond)
-  call par_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,p_fe_space)
-  call par_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,p_fe_space)
+  call par_update_analytical_bcond((/1:gdata%ndime+1/),0.0_rp,p_fe_space)
 
   ! Integrate
   if(p_env%am_i_fine_task()) then

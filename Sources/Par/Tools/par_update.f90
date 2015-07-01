@@ -72,16 +72,14 @@ contains
   end subroutine par_update_strong_dirichlet_bcond
 
   !==================================================================================================
-  subroutine par_update_analytical_bcond(vars_of_unk,case,ctime,p_fe_space,caset,t)
+  subroutine par_update_analytical_bcond(vars_of_unk,ctime,p_fe_space)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine updates Dirichlet boundary conditions in unkno from an analytical solution. !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    integer(ip)          , intent(in)    :: vars_of_unk(:)
-    integer(ip)          , intent(in)    :: case
-    real(rp)             , intent(in)    :: ctime
-    type(par_fe_space_t)  , intent(inout) :: p_fe_space
-    integer(ip), optional, intent(in)    :: caset,t
+    integer(ip)         , intent(in)    :: vars_of_unk(:)
+    real(rp)            , intent(in)    :: ctime
+    type(par_fe_space_t), intent(inout) :: p_fe_space
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_fe_space%p_trian) )
@@ -89,7 +87,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_analytical_bcond( vars_of_unk,case,ctime,p_fe_space%fe_space,caset,t)
+       call update_analytical_bcond( vars_of_unk,ctime,p_fe_space%fe_space)
     end if
 
   end subroutine par_update_analytical_bcond

@@ -85,7 +85,7 @@ module fe_space_names
 
      ! Array of reference elements (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elem_info
-     type(reference_element_t)               :: finite_elements_info(max_elinf)
+     type(reference_element_t)            :: finite_elements_info(max_elinf)
 
      ! Acceleration arrays
      type(list_2d_t), allocatable       :: vef2dof(:)       ! An auxiliary array to accelerate some parts of the code
@@ -100,8 +100,15 @@ module fe_space_names
      type(position_hash_table_t)          :: pos_plain_vector
      type(array_rp1_t), allocatable       :: l_plain_vector(:)
 
+     ! Analytical function auxiliar array
+     type(position_hash_table_t)          :: pos_analytical_code
+     type(array_ip2_t)                    :: l_analytical_code(max_global_interpolations)
+
      ! Much better here rather than as a module variable
      !type(list_t) :: void_list_t
+
+   contains
+     procedure :: set_analytical_code => fe_space_set_analytical_code
   end type fe_space_t
 
   ! Types
@@ -233,6 +240,9 @@ contains
 
     ! Initialization of starting DOF position array
     call fe_space%pos_start%init(ht_length)
+
+    ! Initialization of starting DOF position array
+    call fe_space%pos_analytical_code%init(ht_length)
 
     ! Initialization of plain_vector array
     call fe_space%pos_plain_vector%init(ht_length)
@@ -426,6 +436,12 @@ contains
             &                                          fe_space%lstart(pos_voint))
        fe_space%finite_elements(ielem)%start => fe_space%lstart(pos_voint)
 
+       ! Assign pointers to analytical code
+       call fe_space%pos_analytical_code%get(key=nvars, val=pos_voint, stat = istat)
+       if ( istat == new_index ) call array_create(nvars,2,fe_space%l_analytical_code(pos_voint))
+       fe_space%finite_elements(ielem)%p_analytical_code => fe_space%l_analytical_code(pos_voint)
+       fe_space%l_analytical_code(pos_voint)%a = 0
+
     end do
 
   end subroutine fe_space_fe_list_create
@@ -597,6 +613,11 @@ contains
     end do
     call fe_space%pos_start%free
 
+    do i = 1,fe_space%pos_analytical_code%last()
+       call array_free( fe_space%l_analytical_code(i) )
+    end do
+    call fe_space%pos_analytical_code%free
+
     nullify ( fe_space%g_trian )
 
     !call memfree( fe_space%void_list%p, __FILE__, __LINE__ )
@@ -753,24 +774,50 @@ contains
   end subroutine fe_space_plain_vector_point
 
   !==================================================================================================
-  subroutine pointer_variable( finite_element, dhand, start ) 
+  subroutine pointer_variable( finite_element, dof_descriptor, start ) 
     implicit none
-    type(dof_descriptor_t), intent(in)  :: dhand
+    type(dof_descriptor_t), intent(in)  :: dof_descriptor
     type(finite_element_t), intent(in)  :: finite_element
     type(array_ip1_t)     , intent(out) :: start
 
     integer(ip) :: ivar
 
-    call array_create(dhand%problems(finite_element%problem)%p%nvars+1,start)
+    call array_create(dof_descriptor%problems(finite_element%problem)%p%nvars+1,start)
 
-    do ivar = 1,dhand%problems(finite_element%problem)%p%nvars
+    do ivar = 1,dof_descriptor%problems(finite_element%problem)%p%nvars
        start%a(ivar+1) = finite_element%reference_element_vars(ivar)%p%nnode
     end do
     start%a(1) = 1
-    do ivar = 2, dhand%problems(finite_element%problem)%p%nvars+1
+    do ivar = 2, dof_descriptor%problems(finite_element%problem)%p%nvars+1
        start%a(ivar) = start%a(ivar) + start%a(ivar-1)
     end do
   end subroutine pointer_variable
+
+  !==================================================================================================
+  subroutine fe_space_set_analytical_code(fe_space,spatial_code,temporal_code)
+    implicit none
+    class(fe_space_t), intent(inout) :: fe_space
+    integer(ip)      , intent(in)    :: spatial_code(:)
+    integer(ip)      , intent(in)    :: temporal_code(:)
+    ! Locals
+    integer(ip) :: nvars,position,istat
+    
+    nvars = size(spatial_code,1)
+
+    ! Checks
+    check(nvars==size(temporal_code,1))
+
+    ! Copy codes
+    call fe_space%pos_analytical_code%get(key=nvars, val=position, stat = istat)
+    if ( istat == old_index ) then
+       fe_space%l_analytical_code(position)%a(:,1) = spatial_code
+       fe_space%l_analytical_code(position)%a(:,2) = temporal_code
+    else
+       write(*,*) 'fe_space%set_analytical_code: unsupported size of spatial codes array'
+       check(.false.)
+    end if
+
+  end subroutine fe_space_set_analytical_code
 
 end module fe_space_names
 

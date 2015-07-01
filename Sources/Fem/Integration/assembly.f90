@@ -26,9 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module assembly_names
-
-use types_names
-  use array_ip1_names
+  use types_names
+  use array_names
   use finite_element_names
   !use fe_space_names
   use integrable_names
@@ -37,6 +36,7 @@ use types_names
   use matrix_names
   use block_vector_names
   use vector_names
+  use scalar_names
   use graph_names
   use plain_vector_names
 
@@ -61,6 +61,8 @@ contains
        call assembly_element_matrix_mono(finite_element, dof_descriptor, a) 
     class is(vector_t)
        call assembly_element_vector_mono(finite_element, dof_descriptor, a)
+    class is(scalar_t)
+       call assembly_element_scalar(finite_element, dof_descriptor, a)
     class is(plain_vector_t)
        call assembly_element_plain_vector(finite_element, dof_descriptor, a)
        !class is(block_matrix_t)
@@ -100,7 +102,6 @@ contains
     type(finite_element_t), intent(in)    :: finite_element
     type(matrix_t)        , intent(inout) :: a
 
-    !integer(ip) :: start(dof_descriptor%problems(finite_element%problem)%p%nvars+1)
     call element_matrix_assembly( dof_descriptor, finite_element, a )
 
   end subroutine assembly_element_matrix_mono
@@ -113,13 +114,13 @@ contains
     type(block_matrix_t)  , intent(inout) :: a
 
     integer(ip) :: iblock, jblock, i
-    type(array_ip1_t) :: start(2)
+    type(array_ip1_t) :: start_aux
     type(matrix_t), pointer :: f_matrix
 
-!!$    do i=1,2
-!!$       call pointer_variable(  finite_element(i), dof_descriptor, start(i)%a )
-!!$    end do
-!!$    start(2)%a = start(2)%a + start(1)%a(dof_descriptor%problems(finite_element(1)%problem)%p%nvars+1) - 1
+    ! Auxiliar local start array to store start(2)
+    call array_create(dof_descriptor%problems(finite_element(2)%problem)%p%nvars+1,start_aux)
+    start_aux%a = finite_element(2)%start%a
+
     finite_element(2)%start%a = finite_element(2)%start%a + finite_element(1)%start%a(dof_descriptor%problems(finite_element(1)%problem)%p%nvars+1) - 1
 
     do iblock = 1, dof_descriptor%nblocks
@@ -134,6 +135,9 @@ contains
        end do
     end do
 
+    ! Restore start(2)
+    finite_element(2)%start%a = start_aux%a
+
   end subroutine assembly_face_element_matrix_block
 
   subroutine assembly_face_element_matrix_mono(  fe_face, finite_element, dof_descriptor, a ) 
@@ -144,17 +148,20 @@ contains
     type(matrix_t)        , intent(inout) :: a
 
     integer(ip) :: i
-    type(array_ip1_t) :: start(2)
+    type(array_ip1_t) :: start_aux
 
-!!$    do i=1,2
-!!$       call pointer_variable(  finite_element(i), dof_descriptor, start(i)%a )
-!!$    end do
-!!$    start(2)%a = start(2)%a + start(1)%a(dof_descriptor%problems(finite_element(1)%problem)%p%nvars+1) - 1
+    ! Auxiliar local start array to store start(2)
+    call array_create(dof_descriptor%problems(finite_element(2)%problem)%p%nvars+1,start_aux)
+    start_aux%a = finite_element(2)%start%a
+
     finite_element(2)%start%a = finite_element(2)%start%a + finite_element(1)%start%a(dof_descriptor%problems(finite_element(1)%problem)%p%nvars+1) - 1
     do i = 1,2
        call element_matrix_assembly( dof_descriptor, finite_element(i), a )
     end do
     call face_element_matrix_assembly( dof_descriptor, finite_element, fe_face, a )
+
+    ! Restore start(2)
+    finite_element(2)%start%a = start_aux%a
 
   end subroutine assembly_face_element_matrix_mono
 
@@ -182,6 +189,16 @@ contains
     call element_vector_assembly( dof_descriptor, finite_element, a )
 
   end subroutine assembly_element_vector_mono
+
+  subroutine assembly_element_scalar ( finite_element, dof_descriptor, a ) 
+    implicit none
+    type(dof_descriptor_t), intent(in)    :: dof_descriptor
+    type(finite_element_t), intent(in)    :: finite_element
+    type(scalar_t)        , intent(inout) :: a
+    
+    call a%sum(finite_element%scalar)
+
+  end subroutine assembly_element_scalar
 
   subroutine assembly_element_plain_vector (  finite_element, dof_descriptor, a ) 
     implicit none

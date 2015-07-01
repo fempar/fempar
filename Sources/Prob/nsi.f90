@@ -31,7 +31,7 @@ module nsi_names
   use problem_names
   use finite_element_names
   use element_fields_names
-  use analytical_names
+  use analytical_function_names
   implicit none
 # include "debug.i90"
   private 
@@ -240,7 +240,7 @@ contains
     ! Locals
     integer(ip) :: igaus,idime,conve
     real(rp)    :: gpvno
-    real(rp)    :: parv(30),parp(10),part(3),part_p(3)
+    real(rp)    :: params(11,physics%nvars)
 
     ! Loop over gauss points
     do igaus=1,finite_element%integ(1)%p%quad%ngaus
@@ -260,70 +260,69 @@ contains
        end if
        
        ! Evaluate unknowns and derivatives
-       parv   = 0.0_rp
-       parp   = 0.0_rp
-       part   = 0.0_rp
-       part_p = 0.0_rp
-       call analytical_field(physics%case_veloc,physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,parv)
-       call analytical_field(physics%case_press,physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,parp)
-       call analytical_field(physics%case_tempo,physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,part)
-       call analytical_field(physics%case_t_pre,physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),ctime,part_p)
+       params = 0.0_rp
+       do idime=1,physics%nvars
+          call evaluate_analytical(finite_element%p_analytical_code%a(idime,1),                  &
+               &                   finite_element%p_analytical_code%a(idime,2),                  &
+               &                   physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
+               &                   ctime,params(:,idime))
+       end do
 
        ! Evaluate force
-       call nsi_force(physics%ndime,physics%diffu,physics%react, &
-            &         conve,physics%kfl_symg,physics%case_tempo,        &
-            &         parv,parp,part,physics%gravi,force%a(:,igaus),part_p)
+       call nsi_force(physics%ndime,physics%diffu,physics%react,conve,physics%kfl_symg,params, &
+            &         physics%gravi,force%a(:,igaus))
 
     end do
 
   end subroutine nsi_analytical_force
 
   !=================================================================================================
-  subroutine nsi_force(ndime,diffu,react,kfl_conv,kfl_symg,caset,parv,parp,part,gravi,force,part_p)
+  subroutine nsi_force(ndime,diffu,react,kfl_conv,kfl_symg,params,gravi,force)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine evaluates the elemental force needed to impose an analytical solution       !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    integer(ip)       , intent(in)    :: ndime,kfl_conv,kfl_symg,caset
-    real(rp)          , intent(in)    :: diffu,react,parv(:),parp(:),part(:),gravi(3)
+    integer(ip)       , intent(in)    :: ndime,kfl_conv,kfl_symg
+    real(rp)          , intent(in)    :: diffu,react,params(11,ndime+1),gravi(3)
     real(rp)          , intent(inout) :: force(ndime)
-    real(rp), optional, intent(in)    :: part_p(:)
 
     real(rp)   :: u,v,w,dpdx,dpdy,dpdz,d2udx,d2udy,d2udz
     real(rp)   :: d2vdx,d2vdy,d2vdz,d2wdx,d2wdy,d2wdz
     real(rp)   :: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
-    real(rp)   :: d2udxy,d2udxz,d2vdxy,d2vdyz,d2wdxz,d2wdyz
+    real(rp)   :: d2udxy,d2udxz,d2udyz,d2vdxy,d2vdxz,d2vdyz,d2wdxy,d2wdxz,d2wdyz
     real(rp)   :: dudt,dvdt,dwdt
 
     !
-    if(caset>0) then
-       dudt = part(2)*parv(1); dvdt = part(2)*parv(2); dwdt = part(2)*parv(3)
+    dudt = params(11,1); dvdt = params(11,2); dwdt = params(11,3)
+    !
+    u = params(1,1); v = params(1,2)
+    !
+    dudx = params(2,1); dvdx = params(2,2)
+    dudy = params(3,1); dvdy = params(3,2)
+    dudz = params(4,1); dvdz = params(4,2)
+    !
+    d2udx = params(5,1); d2vdx = params(5,2)
+    d2udy = params(6,1); d2vdy = params(6,2)
+    d2udz = params(7,1); d2vdz = params(7,2)
+    !
+    d2udxy = params(8,1);  d2vdxy = params(8,2)  
+    d2udxz = params(9,1);  d2vdxz = params(9,2)  
+    d2udyz = params(10,1); d2vdyz = params(10,2)
+    !
+    if(ndime==3) then
+       w = params(1,3)
+       dwdx = params(2,3); d2wdx = params(5,3); d2wdxy = params(8,3)    
+       dwdy = params(3,3); d2wdy = params(6,3); d2wdxz = params(9,3) 
+       dwdz = params(4,3); d2wdz = params(7,3); d2wdyz = params(10,3)
     else
-       dudt=0.0_rp; dvdt=0.0_rp; dwdt=0.0_rp
+       w = 0.0_rp
+       dwdx = 0.0_rp; d2wdx = 0.0_rp; d2wdxy = 0.0_rp   
+       dwdy = 0.0_rp; d2wdy = 0.0_rp; d2wdxz = 0.0_rp
+       dwdz = 0.0_rp; d2wdz = 0.0_rp; d2wdyz = 0.0_rp
+       
     end if
     !
-    u = parv(1)*part(1); v = parv(2)*part(1); w = parv(3)*part(1)
-    dudx = parv(4)*part(1); dudy = parv(5)*part(1); dudz = parv(6)*part(1)
-    dvdx = parv(7)*part(1); dvdy = parv(8)*part(1); dvdz = parv(9)*part(1)
-    dwdx = parv(10)*part(1); dwdy = parv(11)*part(1); dwdz = parv(12)*part(1)
-    !
-    d2udx = parv(13)*part(1); d2udy = parv(14)*part(1); d2udz = parv(15)*part(1)
-    d2vdx = parv(16)*part(1); d2vdy = parv(17)*part(1); d2vdz = parv(18)*part(1)
-    d2wdx = parv(19)*part(1); d2wdy = parv(20)*part(1); d2wdz = parv(21)*part(1)
-    !
-    d2udxy = parv(22)*part(1); d2udxz = parv(23)*part(1)
-    d2vdxy = parv(25)*part(1); d2vdyz = parv(27)*part(1)
-    d2wdxz = parv(29)*part(1); d2wdyz = parv(30)*part(1)
-    !
-    if(present(part_p)) then
-       dpdx = parp(2)*part_p(1); dpdy = parp(3)*part_p(1); dpdz = parp(4)*part_p(1)
-    else
-       dpdx = parp(2); dpdy = parp(3); dpdz = parp(4)
-    end if
+    dpdx = params(2,ndime+1); dpdy = params(3,ndime+1); dpdz = params(4,ndime+1)
     !
 
     force(1) = dudt - diffu*(d2udx+d2udy+d2udz) + dpdx + react*u + &
@@ -337,6 +336,5 @@ contains
          REAL(kfl_symg)*diffu*(d2udxz+d2vdyz+d2wdz)
 
   end subroutine nsi_force
-
 
 end module nsi_names

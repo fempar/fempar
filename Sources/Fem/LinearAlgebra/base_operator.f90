@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module base_operator_names
-use types_names
+  use types_names
   use memory_guard_names
   use integrable_names
   use base_operand_names
@@ -266,8 +266,8 @@ contains
 
   recursive subroutine abs_operator_constructor(op1,op2)
     implicit none
-    class(base_operator_t), intent(in), target  :: op2
     class(abs_operator_t) , intent(inout) :: op1
+    class(base_operator_t), intent(in), target  :: op2
 
     call op1%free()
     ! global_id=global_id+1

@@ -29,35 +29,36 @@ program test_nsi_iss
   use serial_names
   use nsi_names
   use nsi_cg_iss_names
+  use norm_names
   use lib_vtk_io_interface_names
   implicit none
 # include "debug.i90"
   
   ! Types
-  type(uniform_mesh_descriptor_t)                    :: gdata
-  type(uniform_conditions_descriptor_t)                   :: bdata
-  type(reference_element_t)            :: geo_reference_element
-  type(triangulation_t)                :: f_trian
-  type(conditions_t)                   :: f_cond
-  type(dof_descriptor_t)               :: dof_descriptor
-  type(fe_space_t)                     :: fe_space  
-  type(nsi_problem_t)                  :: myprob
-  type(nsi_cg_iss_discrete_t) , target :: mydisc
-  type(nsi_cg_iss_matvec_t)   , target :: cg_iss_matvec
-  type(discrete_integration_pointer_t) :: approx(1)
-  type(matrix_t)              , target :: femat
-  type(vector_t)              , target :: fevec,feunk
-  type(preconditioner_t)               :: feprec
-  type(preconditioner_params_t)        :: ppars
-  type(solver_control_t)               :: sctrl
-  type(serial_environment_t)           :: senv
-  type(vtk_t)                          :: fevtk
-  class(base_operand_t)      , pointer :: x, b
-  class(base_operator_t)     , pointer :: A, M
-  type(graph_t)              , pointer :: f_graph
-  type(block_graph_t)                  :: f_blk_graph
-  type(plain_vector_t)                 :: enorm
-  type(nsi_cg_iss_error_t)    , target :: ecalc
+  type(uniform_mesh_descriptor_t)       :: gdata
+  type(uniform_conditions_descriptor_t) :: bdata
+  type(reference_element_t)             :: geo_reference_element
+  type(triangulation_t)                 :: f_trian
+  type(conditions_t)                    :: f_cond
+  type(dof_descriptor_t)                :: dof_descriptor
+  type(fe_space_t)                      :: fe_space  
+  type(nsi_problem_t)                   :: myprob
+  type(nsi_cg_iss_discrete_t)  , target :: mydisc
+  type(nsi_cg_iss_matvec_t)    , target :: cg_iss_matvec
+  type(discrete_integration_pointer_t)  :: approx(1)
+  type(matrix_t)               , target :: femat
+  type(vector_t)               , target :: fevec,feunk
+  type(preconditioner_t)                :: feprec
+  type(preconditioner_params_t)         :: ppars
+  type(solver_control_t)                :: sctrl
+  type(serial_environment_t)            :: senv
+  type(vtk_t)                           :: fevtk
+  class(base_operand_t)       , pointer :: x, b
+  class(base_operator_t)      , pointer :: A, M
+  type(graph_t)               , pointer :: f_graph
+  type(block_graph_t)                   :: f_blk_graph
+  type(scalar_t)                        :: enorm_u, enorm_p
+  type(error_norm_t)           , target :: error_compute
 
   ! Logicals
   logical :: ginfo_state
@@ -66,6 +67,9 @@ program test_nsi_iss
   integer(ip) :: gtype(1) = (/ csr /)
   integer(ip) :: ibloc,jbloc,istat
   integer(ip) :: num_approximations = 1
+
+  ! Parameters
+  integer(ip), parameter :: velocity=1, pressure=2
 
   ! Allocatable
   integer(ip), allocatable :: continuity(:,:)
@@ -114,8 +118,6 @@ program test_nsi_iss
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
-  myprob%case_veloc = 1
-  myprob%case_press = 1
 
   ! Allocate auxiliar elemental arrays
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
@@ -144,6 +146,9 @@ program test_nsi_iss
   call create_dof_info(dof_descriptor,f_trian,fe_space,f_blk_graph,gtype)
   f_graph => f_blk_graph%get_block(1,1)
 
+  ! Assign analytical solution
+  call fe_space%set_analytical_code((/4,5,3/),(/0,0,0/))
+
   ! Allocate matrices and vectors
   call matrix_alloc(csr_mat,symm_false,f_graph,femat)
   call vector_alloc(f_graph%nv,fevec)
@@ -152,8 +157,7 @@ program test_nsi_iss
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
-  call update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
-  call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
+  call update_analytical_bcond((/1:gdata%ndime+1/),0.0_rp,fe_space)
 
   ! Solver control parameters
   sctrl%method = direct
@@ -166,27 +170,8 @@ program test_nsi_iss
   call preconditioner_symbolic(femat,feprec)
   call preconditioner_log_info(feprec)
 
-!!$  ! Define operators
-!!$  A => femat
-!!$  M => feprec
-!!$  b => fevec
-!!$  x => feunk
-
   ! Do nonlinear iterations
   call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,femat,feprec,fevec,feunk)
-  
-!!$  ! Integrate
-!!$  call volume_integral(approx,fe_space,femat,fevec)
-!!$
-!!$  ! Solve
-!!$  !call fem_vector_print(6,fevec)
-!!$  call abstract_solve(femat,feprec,fevec,feunk,sctrl,senv)
-!!$  !call abstract_solve(A,M,b,x,sctrl,senv)
-!!$  call solver_control_log_conv_his(sctrl)
-!!$  call solver_control_free_conv_his(sctrl)
-!!$
-!!$  ! Store solution to unkno
-!!$  call fem_update_solution(feunk,fe_space)
 
   ! Free preconditioner
   call preconditioner_free(preconditioner_free_struct,feprec)
@@ -196,12 +181,16 @@ program test_nsi_iss
   istat = fevtk%write_VTK()
 
   ! Compute error norm
-  call enorm%create(2)
-  call ecalc%create(myprob,mydisc)
-  approx(1)%p => ecalc
-  call volume_integral(approx,fe_space,enorm)
-  write(*,*) 'Velocity error norm: ', sqrt(enorm%b(1))
-  write(*,*) 'Pressure error norm: ', sqrt(enorm%b(2)) 
+  call error_compute%create(myprob,mydisc)
+  approx(1)%p => error_compute
+  error_compute%unknown_id = velocity
+  call enorm_u%init()
+  call volume_integral(approx,fe_space,enorm_u)
+  error_compute%unknown_id = pressure
+  call enorm_p%init()
+  call volume_integral(approx,fe_space,enorm_p)
+  write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
+  write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
 
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
@@ -217,13 +206,12 @@ program test_nsi_iss
   call fe_space_free(fe_space) 
   call myprob%free
   call mydisc%free
-  call ecalc%free
+  call error_compute%free
   call cg_iss_matvec%free
   call dof_descriptor_free(dof_descriptor)
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   call finite_element_fixed_info_free(geo_reference_element)
-  call enorm%free
   call uniform_conditions_descriptor_free(bdata)
 
   call memstatus

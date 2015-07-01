@@ -80,12 +80,16 @@ module finite_element_names
      ! Boundary conditions
      integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
      
-     ! Auxiliary working arrays (element matrix and vector)
+     ! Auxiliary working arrays (element matrix, vector and scalar)
      type(array_rp2_t), pointer :: p_mat ! Pointer to the elemental matrix
      type(array_rp1_t), pointer :: p_vec ! Pointer to the elemental vector_t
+     real(rp)                   :: scalar ! Elemental scalar
 
      ! Auxiliary working plain_vector
      type(array_rp1_t), pointer :: p_plain_vector
+
+     ! Analytical function code pointer
+     type(array_ip2_t), pointer :: p_analytical_code => NULL()
 
    contains
      procedure :: size   => finite_element_size

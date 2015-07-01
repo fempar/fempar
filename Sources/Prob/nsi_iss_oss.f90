@@ -35,7 +35,6 @@ module nsi_cg_iss_oss_names
   use eltrm_gen_names
   use element_fields_names
   use element_tools_names
-  use analytical_names
   implicit none
 # include "debug.i90"
   
@@ -82,23 +81,13 @@ module nsi_cg_iss_oss_names
      procedure :: free    => nsi_massp_free
   end type nsi_cg_iss_oss_massp_t
 
-!!$  ! Error norm
-!!$  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_error_t
-!!$     type(nsi_cg_iss_discrete_t), pointer :: discret
-!!$     type(nsi_problem_t)        , pointer :: physics
-!!$   contains
-!!$     procedure :: create  => nsi_error_create
-!!$     procedure :: compute => nsi_error 
-!!$     procedure :: free    => nsi_error_free
-!!$  end type nsi_cg_iss_oss_error_t
-
   ! Unkno components parameter definition
   integer(ip), parameter :: current   = 1
   integer(ip), parameter :: prev_iter = 2
   integer(ip), parameter :: prev_step = 3
 
   ! Types
-  public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t!, nsi_cg_iss_oss_error_t
+  public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t
   
 contains
 

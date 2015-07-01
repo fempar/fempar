@@ -92,5 +92,6 @@ module serial_names
   use problem_names
   use integration_names
   use plain_vector_names
+  use scalar_names
 
 end module serial_names

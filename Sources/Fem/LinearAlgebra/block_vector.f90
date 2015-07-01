@@ -51,18 +51,20 @@ module block_vector_names
      procedure :: clone => block_vector_clone_tbp
      procedure :: comm  => block_vector_comm_tbp
      procedure :: free  => block_vector_free_tbp
-     procedure :: alloc => block_vector_alloc_all
+     procedure :: block_vector_alloc_blocks
+     procedure :: block_vector_alloc_all
+     generic :: alloc => block_vector_alloc_blocks, block_vector_alloc_all
   end type block_vector_t
 
-  interface block_vector_alloc
-     module procedure block_vector_alloc_blocks, block_vector_alloc_all
-  end interface block_vector_alloc
+!!$  interface block_vector_alloc
+!!$     module procedure block_vector_alloc_blocks, block_vector_alloc_all
+!!$  end interface block_vector_alloc
 
   ! Types
   public :: block_vector_t
 
   ! Functions
-  public :: block_vector_free, block_vector_alloc,        & 
+  public :: block_vector_free,        & 
             block_vector_create_view, block_vector_clone, & 
             block_vector_comm,                                &
             block_vector_dot,                                 & 
@@ -106,10 +108,10 @@ contains
   end subroutine block_vector_alloc_all
 
   !=============================================================================
-  subroutine block_vector_alloc_blocks(nblocks, bvec)
+  subroutine block_vector_alloc_blocks(bvec,nblocks)
     implicit none
-    integer(ip)           , intent(in)  :: nblocks
-    type(block_vector_t), intent(out) :: bvec
+    class(block_vector_t), intent(out) :: bvec
+    integer(ip)         , intent(in)  :: nblocks
     bvec%nblocks = nblocks
     allocate ( bvec%blocks(nblocks) )
   end subroutine block_vector_alloc_blocks
@@ -126,7 +128,7 @@ contains
     ! Locals
     integer(ip) :: ib
 
-    call block_vector_alloc ( svec%nblocks, tvec )
+    call tvec%block_vector_alloc_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
        call vector_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
@@ -143,7 +145,7 @@ contains
     ! Locals
     integer(ip) :: ib
    
-    call block_vector_alloc ( svec%nblocks, tvec )
+    call tvec%block_vector_alloc_blocks(svec%nblocks)
    
     do ib=1, svec%nblocks
        call vector_clone (svec%blocks(ib), tvec%blocks(ib))

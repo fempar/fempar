@@ -35,7 +35,6 @@ module nsi_cg_iss_names
   use eltrm_gen_names
   use element_fields_names
   use element_tools_names
-  use analytical_names
   implicit none
 # include "debug.i90"
 
@@ -69,29 +68,13 @@ module nsi_cg_iss_names
      procedure :: free    => nsi_matvec_free
   end type nsi_cg_iss_matvec_t
 
-  ! Error norm
-  type, extends(discrete_integration_t) :: nsi_cg_iss_error_t
-     type(nsi_cg_iss_discrete_t), pointer :: discret
-     type(nsi_problem_t)        , pointer :: physics
-   contains
-     procedure :: create  => nsi_error_create
-     procedure :: compute => nsi_error 
-     procedure :: free    => nsi_error_free
-  end type nsi_cg_iss_error_t
-
   ! Unkno components parameter definition
   integer(ip), parameter :: current   = 1
   integer(ip), parameter :: prev_iter = 2
   integer(ip), parameter :: prev_step = 3
 
   ! Types
-  public :: nsi_cg_iss_matvec_t, nsi_cg_iss_discrete_t, nsi_cg_iss_error_t
-
- ! Functions
- ! public :: nsi_iss_create, nsi_iss_free, nsi_iss_element_matvec, nsi_iss_element_real, &
- !      &    nsi_iss_result_write, nsi_iss_element_mat, nsi_iss_element_1vec,            &
- !      &    nsi_iss_create_vor, nsi_iss_free_vor, nsi_iss_update_vorti,                 &
- !      &    nsi_iss_create_tder, nsi_iss_free_tder, nsi_iss_create_oss, nsi_iss_face_mat
+  public :: nsi_cg_iss_matvec_t, nsi_cg_iss_discrete_t
  
 contains
 
@@ -251,7 +234,7 @@ contains
     call create_vector(approx%physics,1,finite_element%integ,force)
     force%a=0.0_rp
     ! Impose analytical solution
-    if(approx%physics%case_veloc>0.and.approx%physics%case_press>0) then 
+    if(finite_element%p_analytical_code%a(1,1)>0.and.finite_element%p_analytical_code%a(ndime+1,1)>0) then 
        call nsi_analytical_force(approx%physics,finite_element,ctime,gpvel,force)
     end if
     
@@ -366,105 +349,6 @@ contains
     call impose_strong_dirichlet_data(finite_element) 
     
   end subroutine nsi_matvec
-
-  !=================================================================================================
-  subroutine nsi_error_create( approx, physics, discret )
-    !----------------------------------------------------------------------------------------------!
-    !   This subroutine creates the pointers needed for the discrete integration type              !
-    !----------------------------------------------------------------------------------------------!
-    implicit none
-    class(nsi_cg_iss_error_t)         , intent(inout) :: approx
-    class(physical_problem_t), target , intent(in)    :: physics
-    class(discrete_problem_t), target , intent(in)    :: discret
-
-    select type (physics)
-    type is(nsi_problem_t)
-       approx%physics => physics
-    class default
-       check(.false.)
-    end select
-    select type (discret)
-    type is(nsi_cg_iss_discrete_t)
-       approx%discret => discret
-    class default
-       check(.false.)
-    end select
-
-  end subroutine nsi_error_create
-
-  !=================================================================================================
-  subroutine nsi_error_free(approx)
-    !----------------------------------------------------------------------------------------------!
-    !   This subroutine deallocates the pointers needed for the discrete integration type          !
-    !----------------------------------------------------------------------------------------------!
-    implicit none
-    class(nsi_cg_iss_error_t), intent(inout) :: approx
-
-    approx%physics => null()
-    approx%discret => null()
-
-  end subroutine nsi_error_free
-
-  !==================================================================================================
-  subroutine nsi_error(approx,finite_element)
-    !-----------------------------------------------------------------------------------------------!
-    !   This subroutine computes the L2-norm of the error compared against an analytical solution.  !
-    !-----------------------------------------------------------------------------------------------!
-    implicit none 
-    class(nsi_cg_iss_error_t), intent(inout) :: approx
-    type(finite_element_t)   , intent(inout) :: finite_element
-    ! Locals
-    integer(ip)    :: igaus,idime
-    real(rp)       :: dvolu
-    real(rp)       :: parv(30),parp(10),part(3),part_p(3)
-    type(vector_t) :: gpvel
-    type(scalar_t) :: gppre
-
-    ! Interpolation operations for velocity
-    call create_vector (approx%physics, 1, finite_element%integ, gpvel)
-    call create_scalar (approx%physics, 2, finite_element%integ, gppre)
-    call interpolation (finite_element%unkno, 1, current, finite_element%integ, gpvel)
-    call interpolation (finite_element%unkno, approx%physics%ndime+1, current, finite_element%integ, gppre)
-
-    ! Initialize vector
-    finite_element%p_plain_vector%a = 0.0_rp
-    
-    ! Loop over Gauss points
-    do igaus=1,finite_element%integ(1)%p%quad%ngaus
-       dvolu=finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
-       
-       ! Evaluate unknowns and derivatives
-       parv   = 0.0_rp
-       parp   = 0.0_rp
-       part   = 0.0_rp
-       part_p = 0.0_rp
-       call analytical_field(approx%physics%case_veloc,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,parv)
-       call analytical_field(approx%physics%case_press,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,parp)
-       call analytical_field(approx%physics%case_tempo,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,part)
-       call analytical_field(approx%physics%case_t_pre,approx%physics%ndime, &
-            &                finite_element%integ(1)%p%femap%clocs(:,igaus),approx%discret%ctime,part_p)
-
-       ! Error computation
-       ! ||u||_L2
-       do idime=1,approx%physics%ndime
-          finite_element%p_plain_vector%a(1) = finite_element%p_plain_vector%a(1) + &
-               &                               (gpvel%a(idime,igaus)-parv(idime)*part(1))* &
-               &                               (gpvel%a(idime,igaus)-parv(idime)*part(1))*dvolu 
-       end do
-       ! ||p||_L2
-       finite_element%p_plain_vector%a(2) = finite_element%p_plain_vector%a(2) + &
-            &                               (gppre%a(igaus)-parp(1)*part_p(1))* &
-            &                               (gppre%a(igaus)-parp(1)*part_p(1))*dvolu
-
-    end do
-
-    call memfree(gpvel%a,__FILE__,__LINE__)
-    call memfree(gppre%a,__FILE__,__LINE__)
-
-  end subroutine nsi_error
 
   ! !=================================================================================================
   ! subroutine nsi_iss_element_mat(prob,ielem,finite_element)
