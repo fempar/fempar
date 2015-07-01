@@ -108,7 +108,7 @@ module problem_names
   end interface
 
   public :: physical_problem_t, p_physical_problem_t, discrete_problem_t, &
-            discrete_problem_pointer_t, discrete_problem_t_free,          &
+            discrete_problem_pointer_t, discrete_problem_free,            &
             discrete_integration_t, discrete_integration_pointer_t
 
 contains 

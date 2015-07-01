@@ -135,10 +135,6 @@ program test_nsi_iss
        &                time_steps_to_store=3, hierarchical_basis=.false.,             &
        &                static_condensation=.false.,num_continuity=1)
 
-  ! Create plain vectors
-  call fe_space_plain_vector_create((/2/),fe_space)
-  call fe_space_plain_vector_point(2,fe_space)
-
   ! Initialize VTK output
   call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
 
@@ -147,7 +143,11 @@ program test_nsi_iss
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Assign analytical solution
-  call fe_space%set_analytical_code((/4,5,3/),(/0,0,0/))
+  if(gdata%ndime==2) then
+     call fe_space%set_analytical_code((/4,5,3/),(/0,0,0/))
+  else
+     write(*,*) 'analytical function not ready for 3D'
+  end if
 
   ! Allocate matrices and vectors
   call matrix_alloc(csr_mat,symm_false,f_graph,femat)

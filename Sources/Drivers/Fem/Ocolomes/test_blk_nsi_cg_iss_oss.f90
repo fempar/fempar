@@ -54,10 +54,9 @@ program test_blk_nsi_cg_iss_oss
   type(vtk_t)                             :: fevtk
   class(base_operand_t)         , pointer :: x, b
   class(base_operator_t)        , pointer :: A, M
-  type(graph_t)                 , pointer :: graph
   type(block_graph_t)                     :: blk_graph
-  type(plain_vector_t)                    :: enorm
-  type(nsi_cg_iss_oss_error_t)   , target :: ecalc
+  type(scalar_t)                          :: enorm_u, enorm_p
+  type(error_norm_t)             , target :: error_compute
   type(nsi_cg_iss_oss_massp_t)   , target :: mass_p_integration
   type(block_matrix_t)                    :: blmass_p
   type(block_operator_t)                  :: block_operator
@@ -145,15 +144,18 @@ program test_blk_nsi_cg_iss_oss
        &               time_steps_to_store=3, hierarchical_basis=.false.,                            &
        &               static_condensation=.false.,num_continuity=1)
 
-  ! Create plain vectors
-  call fe_space_plain_vector_create((/2/),fe_space)
-  call fe_space_plain_vector_point(2,fe_space)
-
   ! Initialize VTK output
   call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
 
   ! Create dof info
   call create_dof_info(dhand,f_trian,fe_space,blk_graph,gtype)
+
+  ! Assign analytical solution
+  if(gdata%ndime==2) then
+     call fe_space%set_analytical_code((/4,5,3/),(/0,0,0/))
+  else
+     write(*,*) 'analytical function not ready for 3D'
+  end if
 
   ! Allocate matrices and vectors
   call blmat%alloc(blk_graph)
@@ -171,11 +173,10 @@ program test_blk_nsi_cg_iss_oss
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
-  call update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
-  call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
+  call update_analytical_bcond((/1:gdata%ndime+1/),0.0_rp,fe_space)
 
   ! Solver control parameters
-  sctrl%method = direct
+  sctrl%method = rgmres
   sctrl%trace  = 100
   sctrl%track_conv_his = .true.
 
@@ -185,7 +186,51 @@ program test_blk_nsi_cg_iss_oss
   ! Point discrete integration
   approx(1)%p => matvec
 
-  !!!!!!!!!!!!!!!!!1
+  ! Do nonlinear iterations
+  call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,blk_operator,blk_precond, &
+       &                   blk_operand,blunk)
+
+  ! Free preconditioner
+  call free_preconditioner(blk_precond)
+
+  ! Print solution to VTK file
+  istat = fevtk%write_VTK()
+
+  ! Compute error norm
+  call error_compute%create(myprob,mydisc)
+  approx(1)%p => error_compute
+  error_compute%unknown_id = velocity
+  call enorm_u%init()
+  call volume_integral(approx,fe_space,enorm_u)
+  error_compute%unknown_id = pressure
+  call enorm_p%init()
+  call volume_integral(approx,fe_space,enorm_p)
+  write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
+  write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
+
+  ! Deallocate
+  call memfree(continuity,__FILE__,__LINE__)
+  call memfree(order,__FILE__,__LINE__)
+  call memfree(material,__FILE__,__LINE__)
+  call memfree(problem,__FILE__,__LINE__)
+  call memfree(which_approx,__FILE__,__LINE__)
+  call fevtk%free
+  call blk_graph%free()
+  call blunk%free()
+  call blvec%free()
+  call blmat%free() 
+  call fe_space_free(fe_space) 
+  call myprob%free
+  call mydisc%free
+  call error_compute%free
+  call cg_iss_matvec%free
+  call dof_descriptor_free(dof_descriptor)
+  call triangulation_free(f_trian)
+  call conditions_free(f_cond)
+  call finite_element_fixed_info_free(geo_reference_element)
+  call uniform_conditions_descriptor_free(bdata)
+
+  call memstatus
 
 contains
 
@@ -551,6 +596,98 @@ contains
     call block_preconditioner%destroy()
     
   end subroutine free_block_structures
+
+  !==================================================================================================
+  subroutine nonlinear_iteration( sctrl, nltol, maxit, env, approx, fe_space, A, M, b, x )
+    implicit none
+    type(solver_control_t)              , intent(inout) :: sctrl
+    real(rp)                            , intent(in)    :: nltol
+    integer(ip)                         , intent(in)    :: maxit    
+    class(abstract_environment_t)       , intent(in)    :: env
+    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    type(fe_space_t)                    , intent(inout) :: fe_space
+    class(base_operator_t)              , intent(inout) :: A, M
+    class(base_operand_t)               , intent(inout) :: x, b
+    ! Locals
+    integer(ip) :: iiter
+    real(rp)    :: resnorm,ininorm
+    
+!!$    iiter = 0
+!!$    do while( iiter < maxit )
+!!$
+!!$       ! Update counter
+!!$       iiter = iiter+1
+!!$
+!!$       ! Initialize Matrix and vector
+!!$       ! ***************** Abstract procedure to initialize a base_operator ************************!
+!!$       select type (A)
+!!$       type is(block_matrix_t)
+!!$          call block_matrix_zero(A)
+!!$       class default
+!!$          check(.false.)
+!!$       end select
+!!$       !********************************************************************************************!
+!!$       call b%init(0.0_rp)
+!!$
+!!$       ! Integrate system
+!!$       call volume_integral(approx,fe_space,A,b)
+!!$
+!!$       ! Check convergence
+!!$       if(iiter==1) ininorm = b%nrm2()
+!!$       x = b - A*x
+!!$       resnorm = x%nrm2()
+!!$       if( resnorm < nltol*ininorm) then
+!!$          write(*,*) 'Nonlinear iterations: ', iiter
+!!$          write(*,*) 'Nonlinear error norm: ', resnorm
+!!$          exit
+!!$       end if
+!!$
+!!$       ! Compute Numeric preconditioner
+!!$       ! ***************** Abstract procedure to compute precond numeric ***************************!
+!!$       select type (A)
+!!$       type is(matrix_t)
+!!$          select type (M)
+!!$          type is(preconditioner_t)
+!!$             call preconditioner_numeric(A,M)
+!!$          class default
+!!$             check(.false.)
+!!$          end select
+!!$       class default
+!!$          check(.false.)
+!!$       end select
+!!$       !********************************************************************************************!
+!!$
+!!$       ! Solve system
+!!$       call abstract_solve(A,M,b,x,sctrl,env)
+!!$       call solver_control_log_conv_his(sctrl)
+!!$       call solver_control_free_conv_his(sctrl)
+!!$
+!!$       ! Free Numeric preconditioner
+!!$       ! ******************** Abstract procedure to free precond numeric ***************************!
+!!$       select type (M)
+!!$       type is(preconditioner_t)
+!!$          call preconditioner_free(preconditioner_free_values,M)
+!!$          class default
+!!$          check(.false.)
+!!$       end select
+!!$       !********************************************************************************************!
+!!$       
+!!$       ! Store solution to unkno
+!!$       ! ***************** Abstract procedure to update from a base operant ************************!
+!!$       select type (x)
+!!$       type is(vector_t)
+!!$          call update_solution(x,fe_space)
+!!$       class default
+!!$          check(.false.)
+!!$       end select
+!!$       !********************************************************************************************!
+!!$       
+!!$       ! Store nonlinear iteration ( k+1 --> k )
+!!$       call update_nonlinear(fe_space)
+!!$       
+!!$    end do
+
+  end subroutine nonlinear_iteration
   
   
 end program test_blk_nsi_cg_iss_oss
