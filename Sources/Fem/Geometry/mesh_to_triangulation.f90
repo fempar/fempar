@@ -31,7 +31,7 @@ module mesh_to_triangulation_names
   use mesh_names
   use triangulation_names
   use fe_space_types_names
-  use geom2topo_names
+  use generate_vefs_mesh_conditions_names
   use conditions_names
 
   implicit none
@@ -114,12 +114,12 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     end if
 
     if (present(gcond)) then
-       call geom2topo_mesh_cond(gmesh, tmesh, gcond, tcond)
+       call generate_vefs_mesh_conditions(gmesh, tmesh, gcond, tcond)
        call conditions_free( gcond )
        call conditions_copy( tcond, gcond )
        call conditions_free( tcond )
     else
-       call geom2topo_mesh_cond(gmesh, tmesh)
+       call generate_vefs_mesh_conditions(gmesh, tmesh)
     end if
        
 

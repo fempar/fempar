@@ -35,9 +35,9 @@ use lib_vtk_io_interface_names
 # include "debug.i90"
 
   ! Types
-  type(geom_data_t)                                  :: gdata
-  type(bound_data_t)                                 :: bdata
-  type(reference_element_t)                             :: geo_reference_element
+  type(uniform_mesh_descriptor_t)                    :: gdata
+  type(uniform_conditions_descriptor_t)              :: bdata
+  type(reference_element_t)                          :: geo_reference_element
   type(par_context_t)                                :: w_context
   type(par_context_t)                                :: p_context
   type(par_context_t)                                :: q_context
@@ -45,13 +45,13 @@ use lib_vtk_io_interface_names
   type(par_environment_t)                            :: p_env
   type(par_triangulation_t)                          :: p_trian
   type(par_conditions_t)                             :: p_cond
-  type(dof_descriptor_t)                                :: dof_descriptor
-  type(par_fe_space_t)                              :: p_fe_space  
+  type(dof_descriptor_t)                             :: dof_descriptor
+  type(par_fe_space_t)                               :: p_fe_space  
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
   type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
-  type(discrete_integration_pointer)               :: approx(1)
-  type(vtk_t)                                    :: fevtk
+  type(discrete_integration_pointer_t)               :: approx(1)
+  type(vtk_t)                                        :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist
   type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
@@ -90,10 +90,10 @@ use lib_vtk_io_interface_names
   call read_pars_cl_par_test_nsi(prefix,dir_path_out,nex,ney,nez,npx,npy,npz)
 
   ! Generate geometry data
-  call geom_data_create(gdata,nex,ney,nez,npx,npy,npz)
+  call uniform_mesh_descriptor_create(gdata,nex,ney,nez,npx,npy,npz)
 
   ! Generate boundary data
-  call bound_data_create(gdata%ndime+1,gdata%ndime+1,gdata%ndime,bdata)
+  call uniform_conditions_descriptor_create(gdata%ndime+1,gdata%ndime+1,gdata%ndime,bdata)
   bdata%poin%code(gdata%ndime+1,1:2**gdata%ndime-1) = 0
   bdata%line%code(gdata%ndime+1,:) = 0
   bdata%surf%code(gdata%ndime+1,:) = 0
@@ -130,7 +130,7 @@ use lib_vtk_io_interface_names
   call par_environment_create(p_env,w_context,p_context,q_context,b_context,num_levels,id_parts,num_parts)
 
   ! Generate par triangulation
-  call par_gen_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
+  call par_generate_uniform_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
 
   ! Create dof_descriptor
   call dof_descriptor%create(1,1,gdata%ndime+1)
@@ -314,7 +314,7 @@ use lib_vtk_io_interface_names
   call par_triangulation_free(p_trian)
   call par_conditions_free (p_cond)
   call finite_element_fixed_info_free(geo_reference_element)
-  call bound_data_free(bdata)
+  call uniform_conditions_descriptor_free(bdata)
   call par_environment_free (p_env)
   call par_context_free ( b_context, .false. )
   call par_context_free ( p_context, .false. )

@@ -31,45 +31,45 @@ use types_names
 
   private
   ! Abstract environment
-  type, abstract :: abstract_environment
+  type, abstract :: abstract_environment_t
    contains
      procedure (info_interface)                , deferred  :: info
      procedure (am_i_fine_task_interface)      , deferred  :: am_i_fine_task
      procedure (bcast_interface)               , deferred  :: bcast
      procedure (first_level_barrier_interface) , deferred  :: first_level_barrier
-  end type abstract_environment
+  end type abstract_environment_t
 
   ! Abstract interfaces
   abstract interface
      subroutine info_interface(env,me,np) 
-       import :: abstract_environment, ip
+       import :: abstract_environment_t, ip
        implicit none
-       class(abstract_environment),intent(in)  :: env
+       class(abstract_environment_t),intent(in)  :: env
        integer(ip)                ,intent(out) :: me
        integer(ip)                ,intent(out) :: np
      end subroutine info_interface
 
      function am_i_fine_task_interface(env) 
-       import :: abstract_environment, ip
+       import :: abstract_environment_t, ip
        implicit none
-       class(abstract_environment) ,intent(in)  :: env
+       class(abstract_environment_t) ,intent(in)  :: env
        logical                                  :: am_i_fine_task_interface 
      end function am_i_fine_task_interface
 
      subroutine bcast_interface (env, condition)
-       import :: abstract_environment
+       import :: abstract_environment_t
        implicit none
-       class(abstract_environment) ,intent(in)    :: env
+       class(abstract_environment_t) ,intent(in)    :: env
        logical                     ,intent(inout) :: condition
      end subroutine bcast_interface
 
      subroutine first_level_barrier_interface (env)
-       import :: abstract_environment
+       import :: abstract_environment_t
        implicit none
-       class(abstract_environment) ,intent(in)    :: env
+       class(abstract_environment_t) ,intent(in)    :: env
      end subroutine first_level_barrier_interface
   end interface
 
-  public :: abstract_environment
+  public :: abstract_environment_t
 
 end module abstract_environment_names

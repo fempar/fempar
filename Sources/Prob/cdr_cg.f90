@@ -38,7 +38,7 @@ use memor_names
  implicit none
  private 
 
- type, extends(discrete_problem) :: cdr_discrete_t
+ type, extends(discrete_problem_t) :: cdr_discrete_t
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -54,7 +54,7 @@ use memor_names
       procedure :: create => cdr_create_discrete
    end type cdr_discrete_t
 
-   type, extends(discrete_integration) :: cdr_approximation_t
+   type, extends(discrete_integration_t) :: cdr_approximation_t
       type(cdr_discrete_t), pointer :: discret
       type(cdr_problem_t) , pointer :: physics
     contains
@@ -75,7 +75,7 @@ contains
     !---------------------------------------------------------------------------!
     implicit none
     class(cdr_discrete_t)    , intent(out) :: discret
-    class(physical_problem), intent(in)  :: physics
+    class(physical_problem_t), intent(in)  :: physics
     integer(ip), optional  , intent(in)  :: l2g(:)
     ! Locals
     integer(ip) :: i
@@ -111,8 +111,8 @@ contains
   subroutine cdr_matvec_create( approx, physics, discret )
     implicit none
     class(cdr_approximation_t)       , intent(inout) :: approx
-    class(physical_problem), target, intent(in)    :: physics
-    class(discrete_problem), target, intent(in)    :: discret
+    class(physical_problem_t), target, intent(in)    :: physics
+    class(discrete_problem_t), target, intent(in)    :: discret
 
     select type (physics)
     type is(cdr_problem_t)

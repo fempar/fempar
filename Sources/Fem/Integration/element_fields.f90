@@ -35,7 +35,7 @@ module element_fields_names
   implicit none
   private
 
-  type, abstract, extends(memory_guard) :: field_t
+  type, abstract, extends(memory_guard_t) :: field_t
      contains
        procedure(real_product_interface), deferred :: real_product
        procedure(field_binary_interface), deferred :: field_product

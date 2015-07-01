@@ -46,7 +46,8 @@ module serial_names
   use triangulation_names
   use mesh_to_triangulation_names
   use mesh_distribution_names
-  use mesh_gen_distribution_names
+  use create_mesh_distribution_names
+  use generate_uniform_triangulation_names
 
   use element_import_names
   use element_import_create_names
@@ -55,17 +56,13 @@ module serial_names
   use materials_names
   use materials_io_names
   use graph_names
-  use mesh_graph_names
-  use geom2topo_names
+  use generate_vefs_mesh_conditions_names
   use renumbering_names
   use mesh_names
-  use mesh_partition_base_names
-  use mesh_partition_distribution_names
+  use partitioning_params_names
+  use create_mesh_distribution_names
 
   use mesh_io_names
-  use mesh_gen_names
-  !use mesh_faces
-  !use mesh_lelpo
   use migratory_element_names
 
   ! Linear Algebra
@@ -76,7 +73,6 @@ module serial_names
   use block_matrix_names
   use block_vector_names
   use block_matrix_vector_names
-  use solver_base_names
   use abstract_solver_names
   use base_operand_names
   use base_operator_names

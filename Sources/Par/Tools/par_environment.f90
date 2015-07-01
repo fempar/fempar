@@ -40,7 +40,7 @@ module par_environment_names
   implicit none
   private
 
-  type, extends(abstract_environment) ::  par_environment_t
+  type, extends(abstract_environment_t) ::  par_environment_t
      logical                      :: created             ! Has the parallel environment been created?
      type (par_context_t), pointer  :: p_context => NULL() ! Fine process
      type (par_context_t), pointer  :: q_context => NULL() ! Available (unused) processes 

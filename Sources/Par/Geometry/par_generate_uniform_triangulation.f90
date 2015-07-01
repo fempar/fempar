@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_gen_triangulation_names
+module par_generate_uniform_triangulation_names
   use types_names
   use memor_names
   use fe_space_types_names
   use triangulation_names
-  use mesh_gen_distribution_names
+  use generate_uniform_triangulation_names
   use mesh_distribution_names
   use element_import_create_names
   use hash_table_names
@@ -42,19 +42,19 @@ module par_gen_triangulation_names
   implicit none
   private
 
-  public :: par_gen_triangulation
+  public :: par_generate_uniform_triangulation
  
 contains
   
   !==================================================================================================
-  subroutine par_gen_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
+  subroutine par_generate_uniform_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates a parallel triangulation.                                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_environment_t)  , target, intent(in)  :: p_env
-    type(geom_data_t)                , intent(in)  :: gdata
-    type(bound_data_t)               , intent(in)  :: bdata
+    type(uniform_mesh_descriptor_t)                , intent(in)  :: gdata
+    type(uniform_conditions_descriptor_t)               , intent(in)  :: bdata
     type(reference_element_t)           , intent(in)  :: geo_reference_element
     type(par_triangulation_t), target, intent(out) :: p_trian 
     type(par_conditions_t)           , intent(out) :: p_cond
@@ -79,7 +79,7 @@ contains
        check(state == par_triangulation_not_created)
 
        ! Create Local triangulation and mesh_distribution
-       call gen_triangulation(p_trian%p_env%p_context%iam+1,gdata,bdata,geo_reference_element,p_trian%f_trian, &
+       call generate_uniform_triangulation(p_trian%p_env%p_context%iam+1,gdata,bdata,geo_reference_element,p_trian%f_trian, &
             &                 p_cond%f_conditions,material,mdist)
 
        ! Create element_import
@@ -227,6 +227,6 @@ contains
        ! AFM: TODO: Partially broadcast p_trian%f_trian from 1st level tasks to 2nd level tasks (e.g., num_dims)
     end if
     
-  end subroutine par_gen_triangulation
+  end subroutine par_generate_uniform_triangulation
 
-end module par_gen_triangulation_names
+end module par_generate_uniform_triangulation_names

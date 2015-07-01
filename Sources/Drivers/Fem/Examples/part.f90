@@ -30,10 +30,8 @@ program partitioner
   ! A finite element preprocessor
   !-----------------------------------------------------------------------
 use serial_names
-  !use mesh_graph_partition
   implicit none
-  integer(ip)                       :: power, type, use_graph, nparts, nstr
-  type(mesh_size_t)                   :: msize
+  integer(ip)                     :: power, type, use_graph, nparts, nstr
   type(conditions_t)              :: poin,line,surf
   type(conditions_t)              :: gnodes, gbouns
   type(mesh_t)                    :: gmesh
@@ -53,7 +51,7 @@ use serial_names
   integer(ip), allocatable          :: ldome(:)
   integer(ip)                       :: i, j
 
-  type(part_params_t) :: prt_pars
+  type(partitioning_params_t) :: prt_pars
 
   call meminit
 
@@ -90,7 +88,7 @@ use serial_names
   prt_pars%metis_option_minconn  = 1
   prt_pars%metis_option_debug    = 2
 
-  call mesh_distribution_create (prt_pars, gmesh, distr, lmesh)
+  call create_mesh_distribution (prt_pars, gmesh, distr, lmesh)
 
   ! Output domain partition to GiD file
   call memalloc (gmesh%nelem, ldome, __FILE__,__LINE__)

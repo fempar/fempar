@@ -34,6 +34,7 @@ module par_preconditioner_dd_mlevel_bddc_names
   use map_apply_names
   use sort_names
   use renumbering_names
+  use serial_environment_names
 
 #ifdef ENABLE_BLAS
   use blas77_interfaces_names
@@ -43,11 +44,8 @@ module par_preconditioner_dd_mlevel_bddc_names
   use lapack77_interfaces_names
 #endif
 
-  use solver_base_names
   use abstract_solver_names
-
   use mesh_names
-  use mesh_graph_names
   use matrix_names
   use preconditioner_names
   use graph_names
@@ -55,11 +53,10 @@ module par_preconditioner_dd_mlevel_bddc_names
   use operator_dd_names
   use postpro_names
   use stdio_names
-  use matrix_preconditioner_solver_names
  
   ! Parallel modules
-use par_dd_base_names
-use psb_penv_mod_names
+  use par_dd_base_names
+  use psb_penv_mod_names
   use par_environment_names
   use dof_distribution_names
   use block_dof_distribution_create_names
@@ -89,6 +86,13 @@ use psb_penv_mod_names
   integer (ip), parameter :: default_pad_collectives     = pad
   integer (ip), parameter :: default_schur_edge_lag_mult = reuse_from_phis
   integer (ip), parameter :: default_subd_elmat_calc     = phit_minus_c_i_t_lambda  
+
+  interface solve
+     module procedure matrix_preconditioner_vector_solve, &
+                      matrix_preconditioner_r1_solve, & 
+                      matrix_preconditioner_r2_solve
+  end interface solve
+
 
   type par_preconditioner_dd_mlevel_bddc_params_t
      ! Preconditioner params
@@ -1891,7 +1895,7 @@ use mpi
        ! if( mlbddc%pad_collectives == pad ) then
        ! AFM: IMPORTANT NOTE !!!! You need to call all_reduce_coarse_mesh_nnode
        ! EVEN with nopad mode, as c_mesh%nnode is later required for the generation 
-       ! of the primal graph in mesh_to_graph_matrix (mesh_graph.f90)
+       ! of the primal graph in create_graph_from_mesh_matrix (mesh_graph.f90)
        call allreduce_coarse_mesh_nnode(  mlbddc%g_context%icontxt, & 
                                           mlbddc%g_context%np, &
                                           mlbddc%nl_coarse, &
@@ -1939,7 +1943,7 @@ use mpi
 
        ! AFM: IMPORTANT NOTE !!!! You need to call all_reduce_coarse_mesh_nnode
        ! EVEN with nopad mode, as c_mesh%nnode is later required for the generation 
-       ! of the primal graph in mesh_to_graph_matrix (mesh_graph.f90)
+       ! of the primal graph in create_graph_from_mesh_matrix (mesh_graph.f90)
        ! if( mlbddc%pad_collectives == pad )  then
        call allreduce_coarse_mesh_nnode(  mlbddc%g_context%icontxt, & 
                                           mlbddc%g_context%np, &
@@ -8815,6 +8819,87 @@ use mpi
           implicit none
           class(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: this
         end subroutine par_preconditioner_dd_mlevel_bddc_free_tbp
+
+  subroutine matrix_preconditioner_vector_solve (A,M,b,x,pars)
+    implicit none
+    type(matrix_t)    ,intent(in)    :: A     ! Matrix
+    type(preconditioner_t)   ,intent(in)    :: M     ! Preconditioner
+    type(vector_t)    ,intent(in)    :: b     ! RHS
+    type(vector_t)    ,intent(inout) :: x     ! Approximate solution
+    type(solver_control_t),intent(inout) :: pars  ! Solver parameters
+
+    ! Locals
+    type(serial_environment_t) :: senv
+
+    call abstract_solve (A, M, b, x, pars, senv)
+
+  end subroutine matrix_preconditioner_vector_solve
+
+  subroutine matrix_preconditioner_r1_solve (A,M,b,x,pars)
+    implicit none
+    type(matrix_t)            ,intent(in)    :: A          ! Matrix
+    type(preconditioner_t)           ,intent(in)    :: M          ! Preconditioner
+    real(rp)           , target ,intent(in)    :: b(A%gr%nv) ! RHS
+    real(rp)           , target ,intent(inout) :: x(A%gr%nv) ! Approximate solution
+    type(solver_control_t)        ,intent(inout) :: pars       ! Solver parameters
+
+    ! Locals
+    type(vector_t)         :: vector_b
+    type(vector_t)         :: vector_x
+    type(serial_environment_t) :: senv
+
+    ! fill vector_b members
+    vector_b%neq     =  A%gr%nv
+    vector_b%mode    =  reference
+    vector_b%b => b   
+
+    ! fill vector_x members
+    vector_x%neq     = A%gr%nv 
+    vector_x%mode    = reference 
+    vector_x%b       => x 
+
+    call abstract_solve (A, M, vector_b, vector_x, pars, senv)
+
+  end subroutine matrix_preconditioner_r1_solve
+
+  subroutine matrix_preconditioner_r2_solve (A,M,b,ldb,x,ldx,pars)
+    implicit none
+    type(matrix_t)            ,intent(in)    :: A                 ! Matrix
+    type(preconditioner_t)           ,intent(in)    :: M                 ! Preconditioner
+    type(solver_control_t)        ,intent(inout) :: pars              ! Solver parameters
+    integer(ip)                 ,intent(in)    :: ldb, ldx
+    real(rp)           , target ,intent(in)    :: b(ldb, pars%nrhs) ! RHS
+    real(rp)           , target ,intent(inout) :: x(ldx, pars%nrhs) ! Approximate solution
+
+    ! Locals
+    type(vector_t)         :: vector_b
+    type(vector_t)         :: vector_x
+    type(serial_environment_t) :: senv
+    integer(ip)              :: k
+    integer(ip)              :: tot_its
+
+!!$    if (pars%method == direct) then
+!!$       call preconditioner_apply (A, M, pars%nrhs, vector_b, ldb, vector_x, ldx)
+!!$    else
+    tot_its = 0 
+    do k=1, pars%nrhs
+       ! fill b members
+       vector_b%neq     =  A%gr%nv
+       vector_b%mode    =  reference
+       vector_b%b       => b(:,k)
+       
+       ! fill vector_x members
+       vector_x%neq     =  A%gr%nv
+       vector_x%mode    =  reference 
+       vector_x%b       => x(:,k)
+
+       call abstract_solve (A, M, vector_b, vector_x, pars, senv)
+       
+       tot_its = tot_its + pars%it
+    end do
+    pars%it = tot_its
+!!$    end if
+  end subroutine matrix_preconditioner_r2_solve
 
 end module par_preconditioner_dd_mlevel_bddc_names
 

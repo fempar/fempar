@@ -43,7 +43,7 @@ module nsi_cg_iss_oss_names
   
   ! INF-SUP STABLE (iss) with Orthogonal SubScales (oss) NAVIER-STOKES types 
   ! Problem data
-  type, extends(discrete_problem) :: nsi_cg_iss_oss_discrete_t
+  type, extends(discrete_problem_t) :: nsi_cg_iss_oss_discrete_t
      integer(ip) ::   & 
           kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
           kfl_lump,   & ! Flag for lumped mass submatrix
@@ -63,7 +63,7 @@ module nsi_cg_iss_oss_names
   end type nsi_cg_iss_oss_discrete_t
 
   ! Matvec
-  type, extends(discrete_integration) :: nsi_cg_iss_oss_matvec_t
+  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_matvec_t
      type(nsi_cg_iss_oss_discrete_t), pointer :: discret
      type(nsi_problem_t)            , pointer :: physics
    contains
@@ -73,7 +73,7 @@ module nsi_cg_iss_oss_names
   end type nsi_cg_iss_oss_matvec_t
 
   ! Mass_pressure
-  type, extends(discrete_integration) :: nsi_cg_iss_oss_massp_t
+  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_massp_t
      type(nsi_cg_iss_oss_discrete_t), pointer :: discret
      type(nsi_problem_t)            , pointer :: physics
    contains
@@ -83,7 +83,7 @@ module nsi_cg_iss_oss_names
   end type nsi_cg_iss_oss_massp_t
 
 !!$  ! Error norm
-!!$  type, extends(discrete_integration) :: nsi_cg_iss_oss_error_t
+!!$  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_error_t
 !!$     type(nsi_cg_iss_discrete_t), pointer :: discret
 !!$     type(nsi_problem_t)        , pointer :: physics
 !!$   contains
@@ -110,7 +110,7 @@ contains
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_oss_discrete_t), intent(out) :: discret
-    class(physical_problem)         , intent(in)  :: physics
+    class(physical_problem_t)       , intent(in)  :: physics
     integer(ip), optional           , intent(in)  :: l2g(:)
     ! Locals
     integer(ip) :: i
@@ -150,9 +150,9 @@ contains
     !   This subroutine creates the pointers needed for the discrete integration type              !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_oss_matvec_t) , intent(inout) :: approx
-    class(physical_problem), target, intent(in)    :: physics
-    class(discrete_problem), target, intent(in)    :: discret
+    class(nsi_cg_iss_oss_matvec_t)   , intent(inout) :: approx
+    class(physical_problem_t), target, intent(in)    :: physics
+    class(discrete_problem_t), target, intent(in)    :: discret
 
     select type (physics)
     type is(nsi_problem_t)
@@ -188,9 +188,9 @@ contains
     !   This subroutine creates the pointers needed for the discrete integration type              !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_oss_massp_t) , intent(inout) :: approx
-    class(physical_problem), target, intent(in)   :: physics
-    class(discrete_problem), target, intent(in)   :: discret
+    class(nsi_cg_iss_oss_massp_t)    , intent(inout) :: approx
+    class(physical_problem_t), target, intent(in)    :: physics
+    class(discrete_problem_t), target, intent(in)    :: discret
 
     select type (physics)
     type is(nsi_problem_t)

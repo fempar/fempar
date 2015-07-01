@@ -307,7 +307,7 @@ contains
 
   !=============================================================================
   subroutine umfpack_analysis ( context, matrix )
-use mesh_partition_base_names
+use partitioning_params_names
 use graph_renumbering_names
     implicit none
 

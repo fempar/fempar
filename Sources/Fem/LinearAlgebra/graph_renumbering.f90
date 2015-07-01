@@ -31,7 +31,7 @@ module graph_renumbering_names
   use renumbering_names
   use graph_names
   use metis_interface_names
-  use mesh_partition_base_names
+  use partitioning_params_names
   use rcm_renumbering_names
 #include "debug.i90"
   implicit none
@@ -47,7 +47,7 @@ contains
     !-----------------------------------------------------------------------
     !-----------------------------------------------------------------------
     implicit none
-    type(part_params_t), intent(in)        :: prt_parts
+    type(partitioning_params_t), intent(in)        :: prt_parts
     type(graph_t), target, intent(in)  :: gp
     type(renumbering_t), target,  intent(inout)  :: renumbering
     
@@ -80,7 +80,7 @@ contains
     ! This routine computes a nparts-way-partitioning of the input graph gp
     !-----------------------------------------------------------------------
     implicit none
-    type(part_params_t), target, intent(in)    :: prt_parts
+    type(partitioning_params_t), target, intent(in)    :: prt_parts
     type(graph_t)  , target, intent(inout) :: gp
     integer(ip)      , target, intent(out)     :: ldomn(gp%nv)
 

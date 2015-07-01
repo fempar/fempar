@@ -30,7 +30,6 @@
 module operator_dd_names
 
   ! Abstract modules
-  use solver_base_names
   use abstract_solver_names
 
   ! Serial modules
@@ -45,8 +44,6 @@ module operator_dd_names
   
   ! Parallel modules
   use dof_distribution_names
-  use graph_distribution_names
-  use matrix_distribution_names
 
 # include "debug.i90"
   
@@ -255,23 +252,23 @@ contains
 
       ! Split graph of local process into 2x2 block partitioning
     if ( f_operator%symm == symm_false ) then
-        call graph_split_2x2_partitioning ( csr, &
-                                                f_matrix%gr, & 
-                                                f_operator%dof_dist, & 
-                                                G_II=f_operator%A_II_gr, G_IG=f_operator%A_IG_gr, &
-                                                G_GI=f_operator%A_GI_gr, G_GG=f_operator%A_GG_gr  )
+        call split_graph_I_G ( csr, &
+                               f_matrix%gr, & 
+                               f_operator%dof_dist, & 
+                               G_II=f_operator%A_II_gr, G_IG=f_operator%A_IG_gr, &
+                               G_GI=f_operator%A_GI_gr, G_GG=f_operator%A_GG_gr  )
         call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
         call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
         call matrix_graph(f_operator%A_GI_gr, f_operator%A_GI)
         call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
         ! call graph_print ( 6, f_operator%A_GI%gr )
      else if ( f_operator%symm == symm_true ) then
-        call graph_split_2x2_partitioning_symm ( csr_symm, & 
-                                                     f_matrix%gr, & 
-                                                     f_operator%dof_dist, & 
-                                                     G_II=f_operator%A_II_gr, & 
-                                                     G_IG=f_operator%A_IG_gr, &
-                                                     G_GG=f_operator%A_GG_gr )
+        call split_graph_I_G_symm ( csr_symm, & 
+                                    f_matrix%gr, & 
+                                    f_operator%dof_dist, & 
+                                    G_II=f_operator%A_II_gr, & 
+                                    G_IG=f_operator%A_IG_gr, &
+                                    G_GG=f_operator%A_GG_gr )
         call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
         call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
         call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
@@ -301,18 +298,18 @@ use stdio_names
 
     ! Split matrix of local process into 2x2 block partitioning
     if ( f_operator%symm == symm_false ) then
-        call matrix_split_2x2_partitioning ( f_operator%symm,                   &
-                                                 f_matrix,                          &
-                                                 f_operator%dof_dist,               & 
-                                                 f_operator%A_II, f_operator%A_IG,  &
-                                                 f_operator%A_GI, f_operator%A_GG )
+        call split_matrix_I_G ( f_operator%symm,                   &
+                                f_matrix,                          &
+                                f_operator%dof_dist,               & 
+                                f_operator%A_II, f_operator%A_IG,  &
+                                f_operator%A_GI, f_operator%A_GG )
 
      else if ( f_operator%symm == symm_true ) then
-        call matrix_split_2x2_partitioning ( f_operator%symm,                            &
-                                                 f_matrix,                                   & 
-                                                 f_operator%dof_dist,                        & 
-                                                 A_II=f_operator%A_II, A_IG=f_operator%A_IG, &  
-                                                 A_GG=f_operator%A_GG )
+        call split_matrix_I_G( f_operator%symm,                            &
+                               f_matrix,                                   & 
+                               f_operator%dof_dist,                        & 
+                               A_II=f_operator%A_II, A_IG=f_operator%A_IG, &  
+                               A_GG=f_operator%A_GG )
      end if
 
      ! lunou = io_open ( trim('matrix' // trim(ch(me)) // trim('.') // 'mtx' ), 'write')
@@ -1048,5 +1045,728 @@ use blas77_interfaces_names
 #endif
 
   end subroutine operator_dd_apply_A_IG_several_rhs
+
+  subroutine split_matrix_I_G (  output_symm, &
+                                 A, dof_dist, A_II, A_IG, A_GI, A_GG  )
+    !-----------------------------------------------------------------------
+    ! Given a 2x2 interior/interface block partitioning described by the
+    ! "dof_dist" input parameter: 
+    !      
+    !  A = [A_II A_IG]
+    !      [A_GI A_GG]
+    !
+    ! this routine computes A_II, A_IG, A_GI and A_GG given the global 
+    ! matrix A (see parameter "grph"). Note that A_II, A_IG, A_GI and 
+    ! A_GG are all optional. Depending on whether A is of type csr_mat 
+    ! + symm==false or csr_mat + symm==true the following output is 
+    ! produced:
+    !
+    !      - csr_mat + symm=false: A_II, A_IG, A_GI and A_GG are stored 
+    !                              in csr_mat + symm=false format 
+    !
+    !      - csr_mat + symm=true:  A_II, A_IG stored in csr_mat + symm=true 
+    !                              and A_IG in csr_mat + symm=false. Asking for 
+    !                              A_GI is an error in this case. 
+    !
+    ! * IMPORTANT NOTE: this routine assumes that gr pointer of A_II, A_IG, 
+    !                   A_GI and A_GG is already associated. Otherwise, it 
+    !                   does not work.
+    !
+    ! * TO-DO: Unpack member allocatable arrays of matrix
+    !          into explicit size arrays and pass them to auxiliary routines 
+    !          for performance reasons
+    !-----------------------------------------------------------------------
+    implicit none
+
+    ! Parameters
+    integer(ip)           , intent(in)                :: output_symm
+    type(matrix_t)      , intent(in)                :: A
+    type(dof_distribution_t), intent(in)                :: dof_dist 
+
+    type(matrix_t)     , intent(inout), optional   :: A_II
+    type(matrix_t)     , intent(inout), optional   :: A_IG
+    type(matrix_t)     , intent(inout), optional   :: A_GI
+    type(matrix_t)     , intent(inout), optional   :: A_GG
+
+    integer :: ipoing, offset
+
+    ! Locals
+    logical     :: csr_mat_symm, csr_mat_unsymm
+
+    logical     :: present_a_ii, present_a_ig, & 
+         & present_a_gi, present_a_gg
+
+    integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
+
+    csr_mat_symm   = (A%type == csr_mat .and. output_symm == symm_true )
+    csr_mat_unsymm = (A%type == csr_mat .and. output_symm == symm_false)
+
+    assert ( csr_mat_symm .or. csr_mat_unsymm )
+    assert ( .not. present(A_GI) .or. csr_mat_unsymm )
+
+       ni_rows = dof_dist%ni  
+       nb_rows = dof_dist%nb  
+       ni_cols = dof_dist%ni  
+       nb_cols = dof_dist%nb  
+
+    ! If any inout matrix is present, we are done !
+    if ( csr_mat_unsymm ) then 
+       if ( .not. (present(A_II) .or. present(A_IG) & 
+            & .or. present(A_GI) .or. present(A_GG) ) ) return
+    else 
+       if ( csr_mat_symm ) then
+          if ( .not. (present(A_II) .or. present(A_IG) .or. present(A_GG) ) ) return
+       end if
+    end if
+
+    present_a_ii = present( A_II )
+    present_a_ig = present( A_IG )
+    present_a_gi = present( A_GI )
+    present_a_gg = present( A_GG )
+
+    if ( present_a_ii ) then
+       assert ( associated(A_II%gr) ) 
+
+       A_II%type     = A%type
+       A_II%symm     = output_symm
+
+
+       call memalloc ( A_II%gr%ia(A_II%gr%nv+1)-A_II%gr%ia(1), A_II%a,          __FILE__,__LINE__)       
+
+    end if
+
+    if ( present_a_ig ) then
+       assert ( associated(A_IG%gr) ) 
+       A_IG%type    = A%type
+       A_IG%symm    = symm_false
+
+       call memalloc ( A_IG%gr%ia(A_IG%gr%nv+1)-A_IG%gr%ia(1), A_IG%a,__FILE__,__LINE__ )
+
+
+    end if
+
+    if ( present_a_gi ) then
+       assert ( associated(A_GI%gr) ) 
+       A_GI%type    = A%type
+       A_GI%symm    = symm_false
+
+          call memalloc ( A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1), A_GI%a,                       __FILE__,__LINE__ )
+       ! write (*,*)  A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1) ! DBG:
+    end if
+
+    if ( present_a_gg ) then
+
+       assert ( associated(A_GG%gr) ) 
+       A_GG%type    = A%type
+       A_GG%symm    = output_symm
+
+          call memalloc ( A_GG%gr%ia(A_GG%gr%nv+1)-A_GG%gr%ia(1), A_GG%a,                       __FILE__,__LINE__ )
+
+    end if
+
+    ! List values on each row of G_II/G_IG
+    if ( present_a_ii .or. present_a_ig ) then
+
+          do  ipoing=1, ni_rows 
+             if ( output_symm == A%symm ) then
+                if (present_a_ii) then 
+                   A_II%a(  A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
+                        A%a(  A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
+                end if
+             else if ( output_symm == symm_true .and. A%symm == symm_false ) then
+                if (present_a_ii) then
+                   offset = (A%gr%ia(ipoing+1)- A%gr%ia(ipoing))-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing))-(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))
+                   A_II%a( A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
+                        A%a( A%gr%ia(ipoing)+offset:A%gr%ia(ipoing)+offset+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
+                end if
+             else if ( output_symm == symm_false .and. A%symm == symm_true ) then
+                ! Not implemented yet. Trigger an assertion.
+                assert ( 1 == 0 )
+             end if
+
+             if (present_a_ig) then
+                A_IG%a( A_IG%gr%ia(ipoing):A_IG%gr%ia(ipoing+1)-1 ) = &
+                     A%a( A%gr%ia(ipoing+1)-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing)):A%gr%ia(ipoing+1)-1)
+             end if
+          end do
+    end if
+
+
+    ! List values on each row of G_GI/G_GG
+    if ( present_a_gi .or. present_a_gg ) then
+       do ipoing=ni_rows+1, ni_rows + nb_rows
+          if ( present_a_gi ) then
+             ! write (*,*) A_GI%gr%ia( ipoing-ni_rows ),  A_GI%gr%ia( ipoing+1-ni_rows )-1                               ! DBG:
+             ! write (*,*) A%gr%ia(ipoing), A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1  ! DBG:
+             A_GI%a(  A_GI%gr%ia( ipoing-ni_rows ) : A_GI%gr%ia( ipoing+1-ni_rows )-1 ) = &  
+                  A%a ( A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_GI%gr%ia(ipoing+1-ni_rows)-A_GI%gr%ia(ipoing-ni_rows))-1 )
+          end if
+          if ( present_a_gg ) then
+             A_GG%a( A_GG%gr%ia( ipoing-ni_rows ) : A_GG%gr%ia(ipoing+1-ni_rows)-1 )   = &  
+                  A%a ( A%gr%ia(ipoing+1)-(A_GG%gr%ia(ipoing+1-ni_rows)-A_GG%gr%ia(ipoing-ni_rows)):A%gr%ia(ipoing+1)-1 )        
+          end if
+       end do
+    end if
+
+  end subroutine split_matrix_I_G
+
+  
+  subroutine split_graph_I_G ( output_type, & 
+                                              & grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
+    !-----------------------------------------------------------------------
+    ! Given a 2x2 interior/interface block partitioning described by the
+    ! "dof_dist" input parameter: 
+    !      
+    !  A = [A_II A_IG]
+    !      [A_GI A_GG]
+    !
+    ! this routine computes the graphs associated with A_II, A_IG,
+    ! A_GI and A_GG given the graph of the global matrix A (see parameter "grph"). 
+    ! Note that G_II, G_IG, G_GI and A_GG are all optional. Depending on whether
+    ! "output_type" is of type csr or csr_symm the following output is produced:
+    !
+    !      - csr:       G_II, G_IG, G_GI and G_GG are stored in csr format 
+    !
+    !      - csr_symm:  G_II, G_GG stored in csr_symm and G_IG in csr. Asking
+    !                   for G_GI is an error in this case. 
+    !
+    ! * IMPORTANT NOTE: this routine assumes that "grph" has column indices
+    !                   listed in increasing order. Otherwise, it does not work.
+    !-----------------------------------------------------------------------
+    implicit none
+    ! Parameters
+    integer(ip)            , intent(in) :: output_type
+    type(graph_t)        , intent(in) :: grph
+    type(dof_distribution_t) , intent(in) :: dof_dist 
+
+    type(graph_t)     , intent(out), optional   :: G_II
+    type(graph_t)     , intent(out), optional   :: G_IG
+    type(graph_t)     , intent(out), optional   :: G_GI
+    type(graph_t)     , intent(out), optional   :: G_GG
+
+
+    assert ( grph%type   == csr_symm .or. grph%type   == csr )
+    assert ( output_type == csr_symm .or. output_type == csr )
+    assert ( .not. present(G_GI) .or. output_type == csr )
+    
+    ! If any output graph is present, we are done !
+    if ( grph%type == csr ) then 
+      if ( .not. (present(G_II) .or. present(G_IG) & 
+         & .or. present(G_GI) .or. present(G_GG) ) ) return
+    else 
+        if ( grph%type == csr_symm ) then
+          if ( .not. (present(G_II) .or. present(G_IG) .or. present(G_GG) ) ) return
+        end if
+    end if
+
+    call split_graph_I_G_count_list ( output_type, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
+
+  end subroutine split_graph_I_G
+
+  ! Auxiliary routine. TO-DO: Unpack member allocatable arrays of graph
+  ! into explicit size arrays and pass them to auxiliary routines for 
+  ! performance reasons
+  subroutine split_graph_I_G_count_list ( output_type, grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
+    implicit none
+    ! Parameters
+    integer(ip)         , intent(in)              :: output_type
+    type(graph_t)     , intent(in)              :: grph
+    type(dof_distribution_t) , intent(in)              :: dof_dist 
+
+    type(graph_t)     , intent(out), optional   :: G_II
+    type(graph_t)     , intent(out), optional   :: G_IG
+    type(graph_t)     , intent(out), optional   :: G_GI
+    type(graph_t)     , intent(out), optional   :: G_GG
+
+    integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
+    integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
+
+    integer(ip) :: ipoing, ipoing_neig, pos_neig
+
+    logical     :: present_g_ii, present_g_ig, & 
+         & present_g_gi, present_g_gg
+
+
+    ni_rows = dof_dist%ni 
+    nb_rows = dof_dist%nb 
+    ni_cols = dof_dist%ni  
+    nb_cols = dof_dist%nb  
+
+    present_g_ii = present( G_II )
+    present_g_ig = present( G_IG )
+    present_g_gi = present( G_GI )
+    present_g_gg = present( G_GG )
+
+    if ( present_g_ii ) then
+       G_II%nv   = ni_rows
+       G_II%nv2  = ni_cols
+       G_II%type = output_type
+       call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
+       G_II%ia(1) = 1
+    end if
+
+    if ( present_g_ig ) then
+       G_IG%nv   = ni_rows
+       G_IG%nv2  = nb_cols
+       G_IG%type = csr
+       call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
+       G_IG%ia(1) = 1
+    end if
+
+    if ( present_g_gi ) then
+       G_GI%nv   = nb_rows
+       G_GI%nv2  = ni_cols
+       G_GI%type = csr 
+       call memalloc ( G_GI%nv+1, G_GI%ia,__FILE__,__LINE__ )
+       G_GI%ia(1) = 1
+    end if
+
+    if ( present_g_gg ) then
+       G_GG%nv   = nb_rows
+       G_GG%nv2  = nb_cols
+       G_GG%type = output_type 
+       call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
+       G_GG%ia(1) = 1
+    end if
+
+    nz_ii = 1
+    nz_ig = 1
+    nz_gi = 1
+    nz_gg = 1
+
+    ! List number of nonzeros on each row of G_II/G_IG
+    if ( present_g_ii .or. present_g_ig ) then
+       do ipoing=1, ni_rows
+
+          if ( grph%type == output_type ) then
+
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ipoing_neig = grph%ja(pos_neig)
+
+                if ( ipoing_neig <= ni_cols ) then
+                   nz_ii = nz_ii + 1
+                else 
+                   nz_ig = nz_ig + 1 
+                end if
+             end do
+
+          else if ( grph%type == csr      .and. output_type == csr_symm ) then
+
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ipoing_neig = grph%ja(pos_neig)
+
+                if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
+                   nz_ii = nz_ii + 1
+                else if ( ipoing_neig > ni_cols ) then
+                   nz_ig = nz_ig + 1 
+                end if
+             end do
+
+          else if ( grph%type == csr_symm .and. output_type == csr ) then
+             ! Not implemented yet. Trigger an assertion.
+             assert ( 1 == 0 )
+          end if
+
+          if ( present_g_ii ) then
+             G_II%ia(ipoing+1) = nz_ii
+          end if
+
+          if ( present_g_ig ) then
+             G_IG%ia(ipoing+1) = nz_ig
+          end if
+
+       end do
+    end if
+
+    !write (*,*), 'XXX', grph%nv, size(grph%ia), &
+    !              dof_dist%ni + dof_dist%nb,  dof_dist%nl ! DBG
+
+    if ( present_g_gi .or. present_g_gg ) then  
+       ! List number of nonzeros on each row of G_GI/G_GG)
+       do ipoing=ni_rows+1, ni_rows + nb_rows
+          if ( grph%type == output_type ) then
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ipoing_neig = grph%ja(pos_neig)
+                if ( ipoing_neig <= ni_cols ) then
+                   nz_gi = nz_gi + 1
+                else
+                   nz_gg = nz_gg + 1
+                end if
+             end do
+          else if ( grph%type == csr      .and. output_type == csr_symm ) then
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ipoing_neig = grph%ja(pos_neig)
+                if ( ipoing_neig <= ni_cols ) then
+                   nz_gi = nz_gi + 1
+                else if ( ipoing_neig >= ipoing ) then
+                   nz_gg = nz_gg + 1
+                end if
+             end do
+
+          else if ( grph%type == csr_symm .and. output_type == csr ) then
+             ! Not implemented yet. Trigger an assertion.
+             assert ( 1 == 0 )
+          end if
+
+          if ( present_g_gi ) then
+             G_GI%ia(ipoing+1-ni_rows) = nz_gi
+          end if
+
+          if ( present_g_gg ) then
+             G_GG%ia(ipoing+1-ni_rows) = nz_gg
+          end if
+
+       end do
+
+    end if
+
+    ! write (*,*) nz_ii, nz_ig, nz_gi ! DBG:
+    if ( present_g_ii ) then
+       ! write (*,'(10i10)') G_II%ia(1:G_II%nv+1)
+       call memalloc (nz_ii-1, G_II%ja, __FILE__,__LINE__)
+    end if
+
+    if ( present_g_ig ) then
+       ! write (*,'(10i10)') G_IG%ia(1:G_IG%nv+1)
+       call memalloc (nz_ig-1, G_IG%ja, __FILE__,__LINE__)
+    end if
+
+    if ( present_g_gi ) then
+       ! write (*,'(10i10)') G_GI%ia(1:G_GI%nv+1)
+       call memalloc (nz_gi-1, G_GI%ja, __FILE__,__LINE__)
+    end if
+
+    if ( present_g_gg ) then
+       ! write (*,'(10i10)') G_GG%ia(1:G_GG%nv+1)
+       call memalloc (nz_gg-1, G_GG%ja, __FILE__,__LINE__)
+    end if
+
+    nz_ii = 1
+    nz_ig = 1
+    nz_gi = 1
+    nz_gg = 1
+
+    ! List nonzeros on each row of G_II/G_IG
+    if ( present_g_ii .or. present_g_ig ) then
+       do ipoing=1, ni_rows
+          if ( grph%type == output_type ) then
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ipoing_neig = grph%ja(pos_neig)
+                if ( ipoing_neig <= ni_cols ) then
+                   if ( present_g_ii ) then
+                      G_II%ja(nz_ii) = ipoing_neig
+                      nz_ii = nz_ii + 1 
+                   end if
+                else 
+                   if ( present_g_ig ) then
+                      G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
+                      nz_ig = nz_ig + 1 
+                   end if
+                end if
+             end do
+          else if ( grph%type == csr      .and. output_type == csr_symm ) then
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ipoing_neig = grph%ja(pos_neig)
+                if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
+                   if ( present_g_ii ) then
+                      G_II%ja(nz_ii) = ipoing_neig
+                      nz_ii = nz_ii + 1 
+                   end if
+                else if ( ipoing_neig > ni_cols ) then
+                   if ( present_g_ig ) then
+                      G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
+                      nz_ig = nz_ig + 1 
+                   end if
+                end if
+             end do
+          else if ( grph%type == csr_symm .and. output_type == csr ) then
+             ! Not implemented yet. Trigger an assertion.
+             assert ( 1 == 0 )
+          end if
+       end do
+    end if
+
+
+    ! List number of nonzeros on each row of G_GI/G_GG
+    if ( present_g_gi .or. present_g_gg ) then 
+       ! write (*,*) 'XXX', ni_rows, nb_rows, grph%type == output_type
+       do ipoing=ni_rows+1, ni_rows + nb_rows
+          if ( grph%type == output_type ) then
+             ! write (*,*) 'YYY', size(grph%ia), size(grph%ja), ni_cols
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ! write (*,*) 'ZZZ', pos_neig
+                ipoing_neig = grph%ja(pos_neig)
+                if ( ipoing_neig <= ni_cols .and. present_g_gi ) then
+                   ! if ( present_g_gi ) then 
+                   G_GI%ja( nz_gi ) = ipoing_neig 
+                   nz_gi = nz_gi + 1
+                   ! end if
+                else
+                   ! assert ( nz_gg <= size(G_GG%ja) )
+                   if ( present_g_gg ) then
+                      G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
+                      nz_gg = nz_gg + 1
+                   end if
+                end if
+             end do
+          else if ( grph%type == csr      .and. output_type == csr_symm ) then
+             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+                ipoing_neig = grph%ja(pos_neig)
+                if ( ipoing_neig <= ni_cols ) then
+                   if ( present_g_gi ) then
+                      G_GI%ja( nz_gi ) = ipoing_neig 
+                      nz_gi = nz_gi + 1
+                   end if
+                else if ( ipoing_neig >= ipoing ) then
+                   if ( present_g_gg ) then
+                      G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
+                      nz_gg = nz_gg + 1
+                   end if
+                end if
+             end do
+          else if ( grph%type == csr_symm .and. output_type == csr ) then
+             ! Not implemented yet. Trigger an assertion.
+             assert ( 1 == 0 )
+          end if
+       end do
+    end if
+
+  end subroutine split_graph_I_G_count_list
+  
+  subroutine split_graph_I_G_symm ( output_type, & 
+                                              & grph, dof_dist, G_II, G_IG, G_GG  )
+    !-----------------------------------------------------------------------
+    ! Given a 2x2 interior/interface block partitioning described by the
+    ! "dof_dist" input parameter: 
+    !      
+    !  A = [A_II A_IG]
+    !      [A_GI A_GG]
+    !
+    ! this routine computes the graphs associated with A_II, A_IG,
+    ! A_GI and A_GG given the graph of the global matrix A (see parameter "grph"). 
+    ! Note that G_II, G_IG, G_GI and A_GG are all optional. Depending on whether
+    ! "output_type" is of type csr or csr_symm the following output is produced:
+    !
+    !      - csr:       G_II, G_IG, G_GI and G_GG are stored in csr format 
+    !
+    !      - csr_symm:  G_II, G_GG stored in csr_symm and G_IG in csr. Asking
+    !                   for G_GI is an error in this case. 
+    !
+    ! * IMPORTANT NOTE: this routine assumes that "grph" has column indices
+    !                   listed in increasing order. Otherwise, it does not work.
+    !-----------------------------------------------------------------------
+    implicit none
+    ! Parameters
+    integer(ip)         , intent(in)              :: output_type
+    type(graph_t)     , intent(in)              :: grph
+    type(dof_distribution_t) , intent(in)              :: dof_dist 
+
+    type(graph_t)     , intent(out) :: G_II
+    type(graph_t)     , intent(out) :: G_IG
+    type(graph_t)     , intent(out) :: G_GG
+
+    ! assert ( grph%type   == csr_symm )
+    assert ( output_type == csr_symm .or. output_type == csr )
+    
+    call split_graph_I_G_count_list_symm ( output_type, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
+
+  end subroutine split_graph_I_G_symm
+
+  ! Auxiliary routine. TO-DO: Unpack member allocatable arrays of graph
+  ! into explicit size arrays and pass them to auxiliary routines for 
+  ! performance reasons
+  subroutine split_graph_I_G_count_list_symm ( output_type, grph, dof_dist, G_II, G_IG, G_GG  )
+    implicit none
+    ! Parameters
+    integer(ip)            , intent(in) :: output_type
+    type(graph_t)        , intent(in) :: grph
+    type(dof_distribution_t) , intent(in) :: dof_dist 
+
+    type(graph_t)     , intent(out)   :: G_II
+    type(graph_t)     , intent(out)   :: G_IG
+    type(graph_t)     , intent(out)   :: G_GG
+
+    integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
+    integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
+
+    integer(ip) :: ipoing, ipoing_neig, pos_neig
+
+    logical :: tmp
+
+    ni_rows = dof_dist%ni 
+    nb_rows = dof_dist%nb 
+    ni_cols = dof_dist%ni 
+    nb_cols = dof_dist%nb 
+
+    G_II%nv   = ni_rows
+    G_II%nv2  = ni_cols
+    G_II%type = output_type
+    call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
+    G_II%ia(1) = 1
+
+    G_IG%nv   = ni_rows
+    G_IG%nv2  = nb_cols
+    G_IG%type = csr
+    call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
+    G_IG%ia(1) = 1
+
+    G_GG%nv   = nb_rows
+    G_GG%nv2  = nb_cols
+    G_GG%type = output_type 
+    call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
+    G_GG%ia(1) = 1
+
+    nz_ii = 1
+    nz_ig = 1
+    nz_gi = 1
+    nz_gg = 1
+
+    ! List number of nonzeros on each row of G_II/G_IG
+    do ipoing=1, ni_rows
+       if ( grph%type == output_type ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+
+             if ( ipoing_neig <= ni_cols ) then
+                nz_ii = nz_ii + 1
+             else 
+                nz_ig = nz_ig + 1 
+             end if
+          end do
+
+       else if ( grph%type == csr .and. output_type == csr_symm ) then
+
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+
+             if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
+                nz_ii = nz_ii + 1
+             else if ( ipoing_neig > ni_cols ) then
+                nz_ig = nz_ig + 1 
+             end if
+          end do
+
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
+
+       G_II%ia(ipoing+1) = nz_ii
+       G_IG%ia(ipoing+1) = nz_ig
+
+    end do
+
+    !write (*,*), 'XXX', grph%nv, size(grph%ia), &
+    !              dof_dist%ni + dof_dist%nb,  dof_dist%nl ! DBG
+
+    ! List number of nonzeros on each row of G_GI/G_GG)
+    do ipoing=ni_rows+1, ni_rows + nb_rows
+       if ( grph%type == output_type ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig <= ni_cols ) then
+                nz_gi = nz_gi + 1
+             else
+                nz_gg = nz_gg + 1
+             end if
+          end do
+       else if ( grph%type == csr      .and. output_type == csr_symm ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig <= ni_cols ) then
+                nz_gi = nz_gi + 1
+             else if ( ipoing_neig >= ipoing ) then
+                nz_gg = nz_gg + 1
+             end if
+          end do
+
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
+
+       G_GG%ia(ipoing+1-ni_rows) = nz_gg
+
+    end do
+
+
+    ! write (*,*) nz_ii, nz_ig, nz_gi ! DBG:
+    ! write (*,'(10i10)') G_II%ia(1:G_II%nv+1)
+    call memalloc (nz_ii-1, G_II%ja, __FILE__,__LINE__)
+
+    ! write (*,'(10i10)') G_IG%ia(1:G_IG%nv+1)
+    call memalloc (nz_ig-1, G_IG%ja, __FILE__,__LINE__)
+
+    ! write (*,'(10i10)') G_GG%ia(1:G_GG%nv+1)
+    call memalloc (nz_gg-1, G_GG%ja, __FILE__,__LINE__)
+
+    nz_ii = 1
+    nz_ig = 1
+    nz_gi = 1
+    nz_gg = 1
+
+    ! List nonzeros on each row of G_II/G_IG
+    do ipoing=1, ni_rows
+       if ( grph%type == output_type ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig <= ni_cols ) then
+                G_II%ja(nz_ii) = ipoing_neig
+                nz_ii = nz_ii + 1 
+             else 
+                G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
+                nz_ig = nz_ig + 1 
+             end if
+          end do
+       else if ( grph%type == csr      .and. output_type == csr_symm ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
+                G_II%ja(nz_ii) = ipoing_neig
+                nz_ii = nz_ii + 1 
+             else if ( ipoing_neig > ni_cols ) then
+                G_IG%ja(nz_ig) = ipoing_neig - ni_cols 
+                nz_ig = nz_ig + 1 
+             end if
+          end do
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
+
+    end do
+
+    ! call graph_print ( 6, grph )
+
+
+    ! List number of nonzeros on each row of G_GI/G_GG
+    ! write (*,*) 'XXX', ni_rows, nb_rows, grph%type == output_type
+    do ipoing=ni_rows+1, ni_rows + nb_rows
+       if ( grph%type == output_type ) then
+          ! write (*,*) 'YYY', size(grph%ia), size(grph%ja), ni_cols
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ! write (*,*) 'ZZZ', pos_neig
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig > ni_cols ) then
+                G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
+                nz_gg = nz_gg + 1
+             end if
+          end do
+       else if ( grph%type == csr      .and. output_type == csr_symm ) then
+          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
+             ipoing_neig = grph%ja(pos_neig)
+             if ( ipoing_neig >= ipoing ) then
+                G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
+                nz_gg = nz_gg + 1
+             end if
+          end do
+       else if ( grph%type == csr_symm .and. output_type == csr ) then
+          ! Not implemented yet. Trigger an assertion.
+          assert ( 1 == 0 )
+       end if
+    end do
+
+  end subroutine split_graph_I_G_count_list_symm
+
 
 end module operator_dd_names

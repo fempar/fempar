@@ -86,7 +86,7 @@ use iso_c_binding
   type vtk_t
      type(vtk_mesh_t), allocatable   :: mesh(:)         ! VTK mesh data and field_t descriptors
      type(fe_space_t), pointer      :: p_fe_space => NULL()  ! Poins to fe_space_t
-     class(abstract_environment), pointer      :: p_env => NULL()  ! Poins to fe_space_t
+     class(abstract_environment_t), pointer      :: p_env => NULL()  ! Poins to fe_space_t
      integer(ip)                   :: num_meshes = 0  ! Number of VTK meshes stored
      integer(ip)                   :: num_steps = 0   ! Number of time steps
      integer(ip)                   :: num_parts = 0   ! Number of parts
@@ -134,8 +134,8 @@ contains
     class(vtk_t),          intent(INOUT) :: f_vtk
     type(triangulation_t), intent(IN)    :: f_trian
     type(fe_space_t), target, intent(IN)    :: fe_space
-    class(physical_problem), intent(IN)    :: phys_prob
-    class(abstract_environment), target, intent(IN)    :: env
+    class(physical_problem_t), intent(IN)    :: phys_prob
+    class(abstract_environment_t), target, intent(IN)    :: env
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
     integer(ip), optional,   intent(IN)    :: root_proc
@@ -205,7 +205,7 @@ contains
     class(vtk_t),          intent(INOUT) :: f_vtk
     type(triangulation_t), intent(IN)    :: f_trian
     type(fe_space_t), target, intent(IN)    :: fe_space
-    class(physical_problem), intent(IN)    :: phys_prob
+    class(physical_problem_t), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
     integer(ip), optional,   intent(OUT)   :: nmesh
@@ -226,7 +226,7 @@ contains
   ! ----------------------------------------------------------------------------------
     class(vtk_t),          intent(INOUT) :: f_vtk
     type(fe_space_t), target, intent(IN)    :: fe_space
-    class(physical_problem), intent(IN)    :: phys_prob
+    class(physical_problem_t), intent(IN)    :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
     integer(ip), optional,   intent(IN)    :: nparts
@@ -458,7 +458,7 @@ contains
   ! ----------------------------------------------------------------------------------
     implicit none
     class(vtk_t),          intent(INOUT) :: f_vtk
-    class(physical_problem), intent(IN)    :: phys_prob
+    class(physical_problem_t), intent(IN)    :: phys_prob
     integer(ip), optional,   intent(IN)    :: nmesh
     type(vtk_field_t), allocatable           :: vtk_f_tmp(:)
     integer(ip)                            :: nm

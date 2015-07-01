@@ -34,7 +34,7 @@ module problem_names
   implicit none
   private
 
-  type :: physical_problem
+  type :: physical_problem_t
      integer(ip)        ::             &
           nvars,                       &       ! Number of variables
           nunks,                       &       ! Number of unknowns (groups of variables)
@@ -48,75 +48,75 @@ module problem_names
    !    procedure(create_interface), deferred :: create
    !    procedure(matvec_interface), deferred :: matvec
    !    procedure(free_interface), deferred :: free
-  end type physical_problem
+  end type physical_problem_t
 
-  type :: p_physical_problem
-     type(physical_problem), pointer :: p 
-  end type p_physical_problem
+  type :: p_physical_problem_t
+     type(physical_problem_t), pointer :: p 
+  end type p_physical_problem_t
 
-  type, abstract :: discrete_problem
+  type, abstract :: discrete_problem_t
      integer(ip)        ::             &
           nvars                                ! Number of discrete variables
      integer(ip), allocatable ::       &
           l2g_var(:)                           ! Order chosen for variables (size nvars)
    contains
      procedure(create_problem_interface), deferred :: create
-     procedure :: free => discrete_problem_free
-  end type discrete_problem
+     procedure :: free => discrete_problem_t_free
+  end type discrete_problem_t
 
-   type :: discrete_problem_pointer
-      class(discrete_problem), pointer :: p
-   end type discrete_problem_pointer
+   type :: discrete_problem_pointer_t
+      class(discrete_problem_t), pointer :: p
+   end type discrete_problem_pointer_t
 
-  type, abstract :: discrete_integration
+  type, abstract :: discrete_integration_t
     contains
       procedure(create_integration_interface) , deferred :: create 
       procedure(compute_integration_interface), deferred :: compute
       procedure(free_integration_interface)   , deferred :: free 
-   end type discrete_integration
+   end type discrete_integration_t
 
-   type :: discrete_integration_pointer
-      class(discrete_integration), pointer :: p
-   end type discrete_integration_pointer
+   type :: discrete_integration_pointer_t
+      class(discrete_integration_t), pointer :: p
+   end type discrete_integration_pointer_t
 
   abstract interface
      subroutine create_problem_interface(discret,physics,l2g)
-       import :: physical_problem, discrete_problem, ip
+       import :: physical_problem_t, discrete_problem_t, ip
        implicit none
-       class(discrete_problem), intent(out) :: discret
-       class(physical_problem), intent(in)  :: physics
+       class(discrete_problem_t), intent(out) :: discret
+       class(physical_problem_t), intent(in)  :: physics
        integer(ip), optional  , intent(in)  :: l2g(:)
      end subroutine create_problem_interface
      subroutine create_integration_interface( approx, physics, discret )
-       import :: discrete_integration, discrete_problem, physical_problem
+       import :: discrete_integration_t, discrete_problem_t, physical_problem_t
        implicit none
-       class(discrete_integration)   , intent(inout) :: approx
-       class(physical_problem), target, intent(in)    :: physics
-       class(discrete_problem), target, intent(in)    :: discret
+       class(discrete_integration_t)   , intent(inout) :: approx
+       class(physical_problem_t), target, intent(in)    :: physics
+       class(discrete_problem_t), target, intent(in)    :: discret
      end subroutine create_integration_interface
      subroutine compute_integration_interface(approx,finite_element)
-       import :: discrete_integration, finite_element_t
+       import :: discrete_integration_t, finite_element_t
        implicit none
-       class(discrete_integration), intent(inout) :: approx
-       type(finite_element_t)     , intent(inout) :: finite_element
+       class(discrete_integration_t), intent(inout) :: approx
+       type(finite_element_t)       , intent(inout) :: finite_element
      end subroutine compute_integration_interface
      subroutine free_integration_interface(approx)
-       import :: discrete_integration
+       import :: discrete_integration_t
        implicit none
-       class(discrete_integration), intent(inout) :: approx
+       class(discrete_integration_t), intent(inout) :: approx
      end subroutine free_integration_interface
   end interface
 
-  public :: physical_problem, p_physical_problem, discrete_problem, &
-            discrete_problem_pointer, discrete_problem_free,        &
-            discrete_integration, discrete_integration_pointer
+  public :: physical_problem_t, p_physical_problem_t, discrete_problem_t, &
+            discrete_problem_pointer_t, discrete_problem_t_free,        &
+            discrete_integration_t, discrete_integration_pointer_t
 
 contains 
 
-  subroutine discrete_problem_free( prob  )
+  subroutine discrete_problem_t_free( prob  )
     implicit none
-    class(discrete_problem), intent(inout) :: prob
+    class(discrete_problem_t), intent(inout) :: prob
     if(allocated(prob%l2g_var)) call memfree( prob%l2g_var, __FILE__, __LINE__ )
-  end subroutine discrete_problem_free
+  end subroutine discrete_problem_t_free
 
 end module problem_names

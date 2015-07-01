@@ -32,7 +32,7 @@ use types_names
   
   private
   ! Abstract environment
-  type, extends(abstract_environment) :: serial_environment_t
+  type, extends(abstract_environment_t) :: serial_environment_t
    contains
      procedure :: info                => serial_environment_info
      procedure :: am_i_fine_task      => serial_environment_am_i_fine_task

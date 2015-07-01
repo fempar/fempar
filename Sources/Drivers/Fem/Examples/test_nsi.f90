@@ -34,8 +34,8 @@ program test_nsi_iss
 # include "debug.i90"
   
   ! Types
-  type(geom_data_t)                    :: gdata
-  type(bound_data_t)                   :: bdata
+  type(uniform_mesh_descriptor_t)                    :: gdata
+  type(uniform_conditions_descriptor_t)                   :: bdata
   type(reference_element_t)            :: geo_reference_element
   type(triangulation_t)                :: f_trian
   type(conditions_t)                   :: f_cond
@@ -44,7 +44,7 @@ program test_nsi_iss
   type(nsi_problem_t)                  :: myprob
   type(nsi_cg_iss_discrete_t) , target :: mydisc
   type(nsi_cg_iss_matvec_t)   , target :: cg_iss_matvec
-  type(discrete_integration_pointer)   :: approx(1)
+  type(discrete_integration_pointer_t) :: approx(1)
   type(matrix_t)              , target :: femat
   type(vector_t)              , target :: fevec,feunk
   type(preconditioner_t)               :: feprec
@@ -84,10 +84,10 @@ program test_nsi_iss
   call read_pars_cl_test_nsi(prefix,dir_path_out,nex,ney,nez)
 
   ! Generate geometry data
-  call geom_data_create(gdata,nex,ney,nez)
+  call uniform_mesh_descriptor_create(gdata,nex,ney,nez)
 
   ! Generate boundary data
-  call bound_data_create(gdata%ndime+1,gdata%ndime+1,gdata%ndime,bdata)
+  call uniform_conditions_descriptor_create(gdata%ndime+1,gdata%ndime+1,gdata%ndime,bdata)
   bdata%poin%code(gdata%ndime+1,1:2**gdata%ndime-1) = 0
   bdata%line%code(gdata%ndime+1,:) = 0
   bdata%surf%code(gdata%ndime+1,:) = 0
@@ -100,7 +100,7 @@ program test_nsi_iss
   call finite_element_fixed_info_create(geo_reference_element,Q_type_id,1,gdata%ndime)
 
   ! Generate triangulation
-  call gen_triangulation(1,gdata,bdata,geo_reference_element,f_trian,f_cond,material)
+  call generate_uniform_triangulation(1,gdata,bdata,geo_reference_element,f_trian,f_cond,material)
 
   ! Create dof_descriptor
   call dof_descriptor%create(1,1,gdata%ndime+1)
@@ -223,8 +223,8 @@ program test_nsi_iss
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   call finite_element_fixed_info_free(geo_reference_element)
-  call bound_data_free(bdata)
   call enorm%free
+  call uniform_conditions_descriptor_free(bdata)
 
   call memstatus
 
@@ -266,14 +266,14 @@ contains
   !==================================================================================================
   subroutine nonlinear_iteration( sctrl, nltol, maxit, env, approx, fe_space, A, M, b, x )
     implicit none
-    type(solver_control_t)            , intent(inout) :: sctrl
-    real(rp)                          , intent(in)    :: nltol
-    integer(ip)                       , intent(in)    :: maxit    
-    class(abstract_environment)       , intent(in)    :: env
-    type(discrete_integration_pointer), intent(inout) :: approx(:)
-    type(fe_space_t)                  , intent(inout) :: fe_space
-    class(base_operator_t)            , intent(inout) :: A, M
-    class(base_operand_t)             , intent(inout) :: x, b
+    type(solver_control_t)              , intent(inout) :: sctrl
+    real(rp)                            , intent(in)    :: nltol
+    integer(ip)                         , intent(in)    :: maxit    
+    class(abstract_environment_t)       , intent(in)    :: env
+    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    type(fe_space_t)                    , intent(inout) :: fe_space
+    class(base_operator_t)              , intent(inout) :: A, M
+    class(base_operand_t)               , intent(inout) :: x, b
     ! Locals
     integer(ip) :: iiter
     real(rp)    :: resnorm,ininorm

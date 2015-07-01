@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module geom2topo_names
+module generate_vefs_mesh_conditions_names
   use types_names
   use memor_names
   use mesh_names
@@ -38,11 +38,8 @@ module geom2topo_names
 # include "debug.i90"
   private
 
-  interface mesh_topology
-     module procedure geom2topo_mesh_cond!geom2topo_mesh,  
-    end interface mesh_topology
   ! Functions
-  public ::  geom2topo_mesh_cond, mesh_topology ! geom2topo_coord,
+  public ::  generate_vefs_mesh_conditions
 
 contains
 
@@ -63,7 +60,7 @@ contains
   end subroutine refcoord2
 
   !==================================================================================================
-  subroutine geom2topo_mesh_cond(gmsh,omsh,gcnd,ocnd)
+  subroutine generate_vefs_mesh_conditions(gmsh,omsh,gcnd,ocnd)
     implicit none
     !------------------------------------------------------------------------------------------------
     !
@@ -448,6 +445,6 @@ contains
     call finite_element_fixed_info_free(reference_element)
     call memfree(edgeint,__FILE__,__LINE__)
     if(gmsh%ndime==3) call memfree(faceint,__FILE__,__LINE__)
-  end subroutine geom2topo_mesh_cond
+  end subroutine generate_vefs_mesh_conditions
 
-end module geom2topo_names
+end module generate_vefs_mesh_conditions_names
