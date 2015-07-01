@@ -75,9 +75,9 @@ module problem_names
       procedure(free_integration_interface)   , deferred :: free 
    end type discrete_integration_t
 
-   type :: discrete_integration_t_pointer
+   type :: discrete_integration_pointer_t
       class(discrete_integration_t), pointer :: p
-   end type discrete_integration_t_pointer
+   end type discrete_integration_pointer_t
 
   abstract interface
      subroutine create_problem_interface(discret,physics,l2g)
@@ -110,7 +110,7 @@ module problem_names
 
   public :: physical_problem_t, p_physical_problem_t, discrete_problem_t, &
             discrete_problem_t_pointer, discrete_problem_t_free,        &
-            discrete_integration_t, discrete_integration_t_pointer
+            discrete_integration_t, discrete_integration_pointer_t
 
 contains 
 

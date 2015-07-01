@@ -70,7 +70,7 @@ program par_test_cdr
   type(cdr_discrete_t)              :: my_discrete
   type(cdr_approximation_t), target :: my_approximation
   integer(ip)                     :: num_approximations
-  type(discrete_integration_t_pointer)  :: approximations(1)
+  type(discrete_integration_pointer_t)  :: approximations(1)
 
   integer(ip)              :: num_levels, nparts, ndime
   integer(ip), allocatable :: id_parts(:), num_parts(:)
