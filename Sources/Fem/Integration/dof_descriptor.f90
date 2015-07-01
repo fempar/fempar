@@ -52,7 +52,7 @@ use memor_names
           vars_block(:)                       ! Parameter per unknown (size nvars)
 
      !type(p_physical_problem_t), allocatable :: problems(:)
-     type(discrete_problem_t_pointer), allocatable :: problems(:)
+     type(discrete_problem_pointer_t), allocatable :: problems(:)
 
 
      ! Auxiliary arrays

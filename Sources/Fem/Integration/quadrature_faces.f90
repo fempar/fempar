@@ -105,7 +105,7 @@ contains
     elseif (reference_element%ftype == Q_type_id) then
        call Q_refcoord (nopos, ndime, reference_element%order, reference_element%nnode)
     else
-       write(*,*) 'quadrature_t_faces:: ERROR! Unknown element type.'
+       write(*,*) 'quadrature_faces_t:: ERROR! Unknown element type.'
        check (1 == 0)
     end if
 

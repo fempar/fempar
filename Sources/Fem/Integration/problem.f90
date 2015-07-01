@@ -61,12 +61,12 @@ module problem_names
           l2g_var(:)                           ! Order chosen for variables (size nvars)
    contains
      procedure(create_problem_interface), deferred :: create
-     procedure :: free => discrete_problem_t_free
+     procedure :: free => discrete_problem_free
   end type discrete_problem_t
 
-   type :: discrete_problem_t_pointer
+   type :: discrete_problem_pointer_t
       class(discrete_problem_t), pointer :: p
-   end type discrete_problem_t_pointer
+   end type discrete_problem_pointer_t
 
   type, abstract :: discrete_integration_t
     contains
@@ -109,15 +109,15 @@ module problem_names
   end interface
 
   public :: physical_problem_t, p_physical_problem_t, discrete_problem_t, &
-            discrete_problem_t_pointer, discrete_problem_t_free,        &
+            discrete_problem_pointer_t, discrete_problem_free,        &
             discrete_integration_t, discrete_integration_pointer_t
 
 contains 
 
-  subroutine discrete_problem_t_free( prob  )
+  subroutine discrete_problem_free( prob  )
     implicit none
     class(discrete_problem_t), intent(inout) :: prob
     if(allocated(prob%l2g_var)) call memfree( prob%l2g_var, __FILE__, __LINE__ )
-  end subroutine discrete_problem_t_free
+  end subroutine discrete_problem_free
 
 end module problem_names
