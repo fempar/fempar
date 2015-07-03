@@ -41,7 +41,7 @@ module create_mesh_distribution_names
   private
 
    ! Functions
-  public :: create_mesh_distribution !, build_partition_adjacency
+  public :: create_mesh_distribution, create_graph_from_mesh
 
 contains
 
@@ -559,6 +559,7 @@ contains
     ! Allocate space for ia on the primal graph
     primal_graph%type = part
     primal_graph%nv   = primal_mesh%npoin
+    primal_graph%nv2  = primal_mesh%npoin
     call memalloc (primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__)
 
     ! Allocate working space for count_primal_graph and list_primal_graph routines

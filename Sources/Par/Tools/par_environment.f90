@@ -41,7 +41,7 @@ module par_environment_names
   private
 
   type, extends(abstract_environment_t) ::  par_environment_t
-     logical                      :: created             ! Has the parallel environment been created?
+     logical                        :: created             ! Has the parallel environment been created?
      type (par_context_t), pointer  :: p_context => NULL() ! Fine process
      type (par_context_t), pointer  :: q_context => NULL() ! Available (unused) processes 
      type (par_context_t), pointer  :: b_context => NULL() ! Intercommunicator betwen p_context and q_context (bcast and recursive call)
