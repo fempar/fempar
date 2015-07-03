@@ -89,12 +89,13 @@ contains
     dof_descriptor%nblocks = nblocks
     dof_descriptor%nprobs = nprobs
     dof_descriptor%nvars_global = nvars_global
+    call memalloc ( dof_descriptor%nvars_global, dof_descriptor%nvars_global, dof_descriptor%dof_coupl, __FILE__, __LINE__ ) 
+    call memalloc ( dof_descriptor%nvars_global, dof_descriptor%vars_block, __FILE__, __LINE__ ) 
     
     if (present(dof_coupl)) then
        assert ( size(dof_coupl,1) == nvars_global .and. size(dof_coupl,2) == nvars_global ) 
        dof_descriptor%dof_coupl = dof_coupl
     else
-       call memalloc ( dof_descriptor%nvars_global, dof_descriptor%nvars_global, dof_descriptor%dof_coupl, __FILE__, __LINE__ ) 
        dof_descriptor%dof_coupl = 1
     end if
     
@@ -102,7 +103,6 @@ contains
        assert ( size(vars_block) == nvars_global )
        dof_descriptor%vars_block = vars_block
     else
-       call memalloc ( dof_descriptor%nvars_global, dof_descriptor%vars_block, __FILE__, __LINE__ ) 
        dof_descriptor%vars_block = 1
     end if
 

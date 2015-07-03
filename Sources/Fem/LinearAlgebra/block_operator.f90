@@ -252,7 +252,7 @@ contains
     end do
     bop%nblocks = 0
     bop%mblocks = 0
-    deallocate ( bop%blocks )
+    if(allocated(bop%blocks)) deallocate ( bop%blocks )
   end subroutine block_operator_destroy
 
   function block_operator_get_block (bop,ib,jb)

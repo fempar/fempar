@@ -380,8 +380,8 @@ contains
     dof_graph%ia = 0
 
     ! COUNT PART
-    call count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph )  
-    call count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph )  
+    call count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph )
+    call count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph ) 
     call count_nnz_all_dofs_vs_all_dofs_by_face_integration( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph )  
 
     !
@@ -465,7 +465,6 @@ contains
                 do jobje = 1, trian%elems(jelem)%num_vefs
                    job_g = trian%elems(jelem)%vefs(jobje)
                    call visited%put(key=job_g, val=touch, stat=istat)
-                   !write (*,*) 'istat',istat
                    if ( istat == now_stored ) then   ! interface-interface
                       do idof = fe_space%vef2dof(iblock)%p(iobje), fe_space%vef2dof(iblock)%p(iobje+1)-1
                          l_dof = fe_space%vef2dof(iblock)%l(idof,1)
@@ -493,13 +492,13 @@ contains
                 !end do
                 if (.not.fe_space%static_condensation) then  ! interface-interior
                    iprob = fe_space%finite_elements(jelem)%problem
-                   nvapb = dof_descriptor%prob_block(iblock,iprob)%nd1
+                   nvapb = dof_descriptor%prob_block(jblock,iprob)%nd1
                    do idof = fe_space%vef2dof(iblock)%p(iobje), fe_space%vef2dof(iblock)%p(iobje+1)-1
                       l_dof = fe_space%vef2dof(iblock)%l(idof,1)
                       l_var = fe_space%vef2dof(iblock)%l(idof,2)
                       l_mat = fe_space%vef2dof(iblock)%l(idof,3)
                       do ivars = 1, nvapb
-                         k_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars)
+                         k_var = dof_descriptor%prob_block(jblock,iprob)%a(ivars)
                          m_var = dof_descriptor%problems(iprob)%p%l2g_var(k_var)
                          m_mat = fe_space%finite_elements(jelem)%continuity(m_var)
                          if ( dof_descriptor%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
@@ -589,13 +588,13 @@ contains
                 !end do
                 if (.not.fe_space%static_condensation) then  ! interface-interior
                    iprob = fe_space%finite_elements(jelem)%problem
-                   nvapb = dof_descriptor%prob_block(iblock,iprob)%nd1
+                   nvapb = dof_descriptor%prob_block(jblock,iprob)%nd1
                    do idof = fe_space%vef2dof(iblock)%p(iobje), fe_space%vef2dof(iblock)%p(iobje+1)-1
                       l_dof = fe_space%vef2dof(iblock)%l(idof,1)
                       l_var = fe_space%vef2dof(iblock)%l(idof,2)
                       l_mat = fe_space%vef2dof(iblock)%l(idof,3)
                       do ivars = 1, nvapb
-                         k_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars)
+                         k_var = dof_descriptor%prob_block(jblock,iprob)%a(ivars)
                          m_var = dof_descriptor%problems(iprob)%p%l2g_var(k_var)
                          m_mat = fe_space%finite_elements(jelem)%continuity(m_var)
                          if ( dof_descriptor%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
@@ -648,7 +647,7 @@ contains
     ! Local variables
     integer(ip) :: g_var, ielem, inode, int_i, iobje, iprob, ivars, jdof, jnode, job_g
     integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, ltype, m_dof, m_mat
-    integer(ip) :: m_node, m_var, nvapb
+    integer(ip) :: m_node, m_var, nvapbi, nvapbj
 
     ltype = dof_graph%type
 
@@ -658,13 +657,14 @@ contains
        do ielem  = 1, trian%num_elems
           iobje = trian%elems(ielem)%num_vefs+1
           iprob = fe_space%finite_elements(ielem)%problem
-          nvapb = dof_descriptor%prob_block(iblock,iprob)%nd1 
-          do ivars = 1, nvapb
+          nvapbi = dof_descriptor%prob_block(iblock,iprob)%nd1 
+          do ivars = 1, nvapbi
              l_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars)
              g_var = dof_descriptor%problems(iprob)%p%l2g_var(l_var)
              ! Interior - interior 
-             do jvars = 1, nvapb
-                k_var = dof_descriptor%prob_block(iblock,iprob)%a(jvars)
+             nvapbj = dof_descriptor%prob_block(jblock,iprob)%nd1 
+             do jvars = 1, nvapbj
+                k_var = dof_descriptor%prob_block(jblock,iprob)%a(jvars)
                 m_var = dof_descriptor%problems(iprob)%p%l2g_var(k_var)
                 if ( dof_descriptor%dof_coupl(g_var,m_var) == 1 ) then
                    do inode = fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%p(iobje), &
@@ -738,7 +738,7 @@ contains
     ! Local variables
     integer(ip) :: g_var, ielem, inode, iobje, iprob, ivars, jdof, jnode, job_g
     integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, ltype, m_dof, m_mat
-    integer(ip) :: m_node, m_var, nvapb, i, ic
+    integer(ip) :: m_node, m_var, nvapbi, nvapbj, i, ic
 
     ltype = dof_graph%type
 
@@ -746,14 +746,15 @@ contains
        do ielem  = 1, trian%num_elems
           iobje = trian%elems(ielem)%num_vefs+1
           iprob = fe_space%finite_elements(ielem)%problem
-          nvapb = dof_descriptor%prob_block(iblock,iprob)%nd1  
-          do ivars = 1, nvapb
+          nvapbi = dof_descriptor%prob_block(iblock,iprob)%nd1  
+          do ivars = 1, nvapbi
              !l_var = g2l(ivars,iprob)
              l_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars)
              g_var = dof_descriptor%problems(iprob)%p%l2g_var(l_var)
              ! Interior - interior (inside element)
-             do jvars = 1, nvapb
-                k_var = dof_descriptor%prob_block(iblock,iprob)%a(jvars)
+             nvapbj = dof_descriptor%prob_block(jblock,iprob)%nd1  
+             do jvars = 1, nvapbj
+                k_var = dof_descriptor%prob_block(jblock,iprob)%a(jvars)
                 m_var = dof_descriptor%problems(iprob)%p%l2g_var(k_var)
                 if ( dof_descriptor%dof_coupl(g_var,m_var) == 1 ) then
                    do inode = fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%p(iobje), &

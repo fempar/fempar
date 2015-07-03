@@ -61,14 +61,14 @@ contains
        call assembly_element_matrix_mono(finite_element, dof_descriptor, a) 
     class is(vector_t)
        call assembly_element_vector_mono(finite_element, dof_descriptor, a)
+    class is(block_matrix_t)
+       call assembly_element_matrix_block(finite_element, dof_descriptor, a)
+    class is(block_vector_t)
+       call assembly_element_vector_block(finite_element, dof_descriptor, a)
     class is(scalar_t)
        call assembly_element_scalar(finite_element, dof_descriptor, a)
     class is(plain_vector_t)
        call assembly_element_plain_vector(finite_element, dof_descriptor, a)
-       !class is(block_matrix_t)
-       !    call assembly_element_matrix_block(finite_element, dof_descriptor, a)
-       ! class is(block_vector_t)
-       !    call assembly_element_vector_block(finite_element, dof_descriptor, a)
     class default
        ! class not yet implemented
        check(.false.)
@@ -271,7 +271,7 @@ contains
     !write(*,*) 'local matrix',finite_element%p_mat%nd1, finite_element%p_mat%nd2
     !write(*,*) 'local matrix',finite_element%p_mat%a
     
-    
+
 
     do ivars = 1, nvapb_i
        l_var = dof_descriptor%prob_block(iblock_,iprob)%a(ivars)
@@ -281,27 +281,29 @@ contains
           k_var = dof_descriptor%problems(iprob)%p%l2g_var(m_var)
           !write (*,*) 'l_var:',l_var
           !write (*,*) 'm_var:',m_var
-          do inode = 1,finite_element%reference_element_vars(l_var)%p%nnode
-             idof = finite_element%elem2dof(inode,l_var)
-             if ( idof  > 0 ) then
-                do jnode = 1,finite_element%reference_element_vars(m_var)%p%nnode
-                   jdof = finite_element%elem2dof(jnode,m_var)
-                   if (  gtype == csr .and. jdof > 0 ) then
-                      do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
-                         if ( a%gr%ja(k) == jdof ) exit
-                      end do
-                      assert ( k < a%gr%ia(idof+1) )
-                      a%a(k) = a%a(k) + finite_element%p_mat%a(finite_element%start%a(l_var)+inode-1,finite_element%start%a(m_var)+jnode-1)
-                   else if ( jdof >= idof ) then! gtype == csr_symm 
-                      do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
-                         if ( a%gr%ja(k) == jdof ) exit
-                      end do
-                      assert ( k < a%gr%ia(idof+1) )
-                      a%a(k) = a%a(k) + finite_element%p_mat%a(finite_element%start%a(l_var)+inode-1,finite_element%start%a(m_var)+jnode-1)
-                   end if
-                end do
-             end if
-          end do
+          if( dof_descriptor%dof_coupl(g_var,k_var) == 1) then
+             do inode = 1,finite_element%reference_element_vars(l_var)%p%nnode
+                idof = finite_element%elem2dof(inode,l_var)
+                if ( idof  > 0 ) then
+                   do jnode = 1,finite_element%reference_element_vars(m_var)%p%nnode
+                      jdof = finite_element%elem2dof(jnode,m_var)
+                      if (  gtype == csr .and. jdof > 0 ) then
+                         do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
+                            if ( a%gr%ja(k) == jdof ) exit
+                         end do
+                         assert ( k < a%gr%ia(idof+1) )
+                         a%a(k) = a%a(k) + finite_element%p_mat%a(finite_element%start%a(l_var)+inode-1,finite_element%start%a(m_var)+jnode-1)
+                      else if ( jdof >= idof ) then! gtype == csr_symm 
+                         do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
+                            if ( a%gr%ja(k) == jdof ) exit
+                         end do
+                         assert ( k < a%gr%ia(idof+1) )
+                         a%a(k) = a%a(k) + finite_element%p_mat%a(finite_element%start%a(l_var)+inode-1,finite_element%start%a(m_var)+jnode-1)
+                      end if
+                   end do
+                end if
+             end do
+          end if
        end do
     end do
     

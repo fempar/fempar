@@ -602,11 +602,11 @@ contains
     end do
     call fe_space%pos_interpolator%free
 
-    do i = 1,fe_space%pos_plain_vector%last()
-       call array_free( fe_space%l_plain_vector(i) )
-    end do
-    call memfree( fe_space%l_plain_vector,__FILE__,__LINE__)
-    call fe_space%pos_plain_vector%free
+!!$    do i = 1,fe_space%pos_plain_vector%last()
+!!$       call array_free( fe_space%l_plain_vector(i) )
+!!$    end do
+!!$    call memfree( fe_space%l_plain_vector,__FILE__,__LINE__)
+!!$    call fe_space%pos_plain_vector%free
 
     do i = 1,fe_space%pos_start%last()
        call array_free( fe_space%lstart(i) )

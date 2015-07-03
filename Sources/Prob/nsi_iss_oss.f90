@@ -87,7 +87,7 @@ module nsi_cg_iss_oss_names
   integer(ip), parameter :: prev_step = 3
 
   ! Types
-  public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t
+  public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t, nsi_cg_iss_oss_massp_t
   
 contains
 
@@ -224,15 +224,16 @@ contains
     real(rp), allocatable :: elmat_qu(:,:,:,:)
     real(rp), allocatable :: elmat_vx(:,:,:,:)
     real(rp), allocatable :: elmat_wu(:,:,:,:)
-    real(rp), allocatable :: elmat_wx(:,:,:,:)
+    real(rp), allocatable :: elmat_wx_diag(:,:)
     real(rp), allocatable :: elvec_u(:,:) 
     integer(ip)           :: igaus,idime,inode,jdime,jnode,idof,jdof
     integer(ip)           :: ngaus,ndime,nnodu,nnodp
     real(rp)              :: ctime,dtinv,dvolu,diffu,react
     real(rp)              :: work(4)
     real(rp)              :: agran(finite_element%integ(1)%p%uint_phy%nnode)
+    real(rp)              :: testf(finite_element%integ(1)%p%uint_phy%nnode,finite_element%integ(1)%p%quad%ngaus)
     real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
-    type(vector_t)        :: gpvel, gpveln, force, testf
+    type(vector_t)        :: gpvel, gpveln, force
 
     ! Checks
     !check(finite_element%reference_element_vars(1)%p%order > finite_element%reference_element_vars(approx%physics%ndime+1)%p%order)
@@ -261,7 +262,7 @@ contains
     call memalloc(1,ndime,nnodp,nnodu,elmat_qu,__FILE__,__LINE__)
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_vx,__FILE__,__LINE__)
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_wu,__FILE__,__LINE__)
-    call memalloc(ndime,ndime,nnodu,nnodu,elmat_wx,__FILE__,__LINE__)
+    call memalloc(nnodu,nnodu,elmat_wx_diag,__FILE__,__LINE__)
     call memalloc(ndime,nnodu,elvec_u,__FILE__,__LINE__)
 
     ! Initialize to zero
@@ -271,7 +272,7 @@ contains
     elmat_qu      = 0.0_rp
     elmat_vx      = 0.0_rp
     elmat_wu      = 0.0_rp
-    elmat_wx      = 0.0_rp
+    elmat_wx_diag = 0.0_rp
     elvec_u       = 0.0_rp
 
     ! Interpolation operations for velocity
@@ -296,18 +297,17 @@ contains
     call create_vector(approx%physics,1,finite_element%integ,force)
     force%a=0.0_rp
     ! Impose analytical solution
-    if(approx%physics%case_veloc>0.and.approx%physics%case_press>0) then 
+    if(finite_element%p_analytical_code%a(1,1)>0.and.finite_element%p_analytical_code%a(ndime+1,1)>0) then 
        call nsi_analytical_force(approx%physics,finite_element,ctime,gpvel,force)
     end if
 
     ! Stabilization parameters
-    call create_vector(approx%physics,1,finite_element%integ,testf)
-    testf%a = 0.0_rp
     call nsi_elmvsg(approx,finite_element,gpvel%a,tau)
     
     ! Initializations
-    work     = 0.0_rp
-    agran    = 0.0_rp 
+    work  = 0.0_rp
+    agran = 0.0_rp 
+    testf = 0.0_rp
 
     ! Loop on Gauss points
     do igaus = 1,ngaus
@@ -321,7 +321,7 @@ contains
                 agran(inode) = agran(inode) + &
                      &         gpvel%a(idime,igaus)*finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus)
              end do
-             testf%a(inode,igaus) = tau(1,igaus)*agran(inode)
+             testf(inode,igaus) = tau(1,igaus)*agran(inode)
           end do
        end if
 
@@ -351,7 +351,7 @@ contains
                &                elmat_vu_diag,work)
        end if
        ! tau*(a·grad u, a·grad v)
-       call elmbuv_oss(dvolu,testf%a,agran,nnodu,elmat_vu_diag,work)
+       call elmbuv_oss(dvolu,testf,agran,nnodu,elmat_vu_diag,work)
        ! tauc*(div v, div u)
        if(approx%discret%ktauc>0.0_rp) then
           call elmdiv_stab(tau(2,igaus),dvolu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
@@ -383,9 +383,9 @@ contains
        ! tau*(proj(a·grad u),v)
        if(approx%discret%kfl_proj==1) then
           call elmmss_gal(dvolu,tau(1,igaus),finite_element%integ(1)%p%uint_phy%shape(:,igaus),nnodu, &
-               &          elmat_wx,work)
+               &          elmat_wx_diag,work)
        else
-          call elmmss_gal(dvolu,1.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),nnodu,elmat_wx, &
+          call elmmss_gal(dvolu,1.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),nnodu,elmat_wx_diag, &
                &          work)
        end if
        
@@ -405,7 +405,6 @@ contains
     call memfree(gpvel%a,__FILE__,__LINE__)
     call memfree(gpveln%a,__FILE__,__LINE__)
     call memfree(force%a,__FILE__,__LINE__)
-    call memfree(testf%a,__FILE__,__LINE__)
 
     ! Assembly to elemental p_mat and p_vec
     do inode=1,nnodu
@@ -415,22 +414,23 @@ contains
                 ! Block V-U
                 idof = finite_element%start%a(idime)+inode-1
                 jdof = finite_element%start%a(jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + elmat_vu(idime,jdime,inode,jnode)
+                finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vu(idime,jdime,inode,jnode)
                 ! Block V-X
                 jdof = finite_element%start%a(ndime+1+jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + elmat_vx(idime,jdime,inode,jnode)
+                finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vx(idime,jdime,inode,jnode)
                 ! Block W-U
                 idof = finite_element%start%a(ndime+1+idime)+inode-1
                 jdof = finite_element%start%a(jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + elmat_wu(idime,jdime,inode,jnode)
-                ! Block W-X
-                jdof = finite_element%start%a(ndime+1+jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + elmat_wx(idime,jdime,inode,jnode)
+                finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_wu(idime,jdime,inode,jnode)
              end do    
              ! Block V-U (diag)
              idof = finite_element%start%a(idime)+inode-1
              jdof = finite_element%start%a(idime)+jnode-1
              finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) +  elmat_vu_diag(inode,jnode)
+             ! Block W-X
+             idof = finite_element%start%a(ndime+1+idime)+inode-1
+             jdof = finite_element%start%a(ndime+1+idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_wx_diag(inode,jnode)
           end do
           do jnode=1,nnodp
              ! Block V-P
@@ -455,7 +455,7 @@ contains
     call memfree(elmat_qu,__FILE__,__LINE__)
     call memfree(elmat_vx,__FILE__,__LINE__)
     call memfree(elmat_wu,__FILE__,__LINE__)
-    call memfree(elmat_wx,__FILE__,__LINE__)
+    call memfree(elmat_wx_diag,__FILE__,__LINE__)
     call memfree(elvec_u,__FILE__,__LINE__)
 
     ! Apply boundary conditions
@@ -471,8 +471,46 @@ contains
     implicit none
     class(nsi_cg_iss_oss_massp_t), intent(inout) :: approx
     type(finite_element_t)       , intent(inout) :: finite_element
+    ! Locals
+    integer(ip) :: igaus,inode,jnode,idof,jdof,ndime,nnodp,ngaus
+    real(rp)    :: dvolu
+    
+    ! Unpack variables
+    ndime = approx%physics%ndime
+    nnodp = finite_element%integ(ndime+1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%quad%ngaus
 
-    !!!!!!!!!!!!!!!!!
+    ! Initialize to zero
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
+    
+    ! Loop on Gauss points
+    do igaus = 1,ngaus
+       dvolu = finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
+       if (approx%discret%kfl_lump==0) then
+          do inode=1,nnodp
+             do jnode=1,nnodp
+                ! Block Q-P
+                idof = finite_element%start%a(ndime+1)+inode-1
+                jdof = finite_element%start%a(ndime+1)+jnode-1
+                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + dvolu * &
+                     &  finite_element%integ(ndime+1)%p%uint_phy%shape(inode,igaus) * &
+                     &  finite_element%integ(ndime+1)%p%uint_phy%shape(jnode,igaus)
+             end do
+          end do
+       else
+          do inode=1,nnodp
+             do jnode=1,nnodp
+                ! Block Q-P
+                idof = finite_element%start%a(ndime+1)+inode-1
+                jdof = finite_element%start%a(ndime+1)+inode-1
+                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + dvolu * &
+                     &  finite_element%integ(ndime+1)%p%uint_phy%shape(inode,igaus) * &
+                     &  finite_element%integ(ndime+1)%p%uint_phy%shape(jnode,igaus)
+             end do
+          end do
+       end if
+    end do
     
   end subroutine nsi_massp
 
@@ -492,6 +530,7 @@ contains
     integer(ip) :: igaus,idime
     real(rp)    :: alpha,gpvno,diffu
     real(rp)    :: chave(approx%physics%ndime,2),chale(2)
+    real(rp)    :: veloc(finite_element%integ(1)%p%uint_phy%nnode,approx%physics%ndime)
 
     ! Unpack variables
     ndime = approx%physics%ndime
@@ -512,8 +551,9 @@ contains
        gpvno = sqrt(gpvno)
 
        ! Compute the characteristic length chale
+       veloc = finite_element%unkno(1:nnodu,1:ndime,1)
        call nsi_elmchl(finite_element%integ(1)%p%femap%jainv,finite_element%integ(1)%p%femap%hleng(:,igaus), &
-            &          finite_element%unkno(1:nnodu,1:ndime,1),ndime,nnodu,approx%physics%kfl_conv,chave,chale)
+            &          veloc,ndime,nnodu,approx%physics%kfl_conv,chave,chale)
        
        ! Auxiliar computations
        alpha  = approx%discret%k1tau*diffu/(chale(2)*chale(2)) + approx%discret%k2tau*gpvno/chale(1) + &
@@ -587,6 +627,8 @@ contains
        ! Block Q-U
        dof_coupling(physics%ndime+1,idime) = 1
     end do  
+    ! Block Q-P
+    dof_coupling(physics%ndime+1,physics%ndime+1) = 1  ! Needed to integrate Mass_p matrix (preconditioner)
     
   end subroutine nsi_dof_coupling    
   

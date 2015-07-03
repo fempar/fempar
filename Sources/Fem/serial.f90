@@ -76,6 +76,11 @@ module serial_names
   use abstract_solver_names
   use base_operand_names
   use base_operator_names
+  use block_preconditioner_l_names
+  use block_preconditioner_u_names
+  use block_preconditioner_lu_names
+  use block_operator_names
+  use block_operand_names
   
   ! Integration 
   use fe_space_names

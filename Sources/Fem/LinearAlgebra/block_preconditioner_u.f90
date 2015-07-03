@@ -239,7 +239,7 @@ contains
        end do
     end do
     bop%nblocks = 0
-    deallocate ( bop%blocks )
+    if(allocated(bop%blocks)) deallocate ( bop%blocks )
   end subroutine block_preconditioner_u_destroy
 
   function block_preconditioner_u_get_block (bop,ib,jb)

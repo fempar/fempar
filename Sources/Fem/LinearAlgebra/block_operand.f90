@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module block_operand_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use base_operand_names
 
   implicit none
@@ -132,6 +132,7 @@ contains
        this%blocks(iblk)%allocated = .false. 
     end do
     this%nblocks = 0 
+    if(allocated( this%blocks )) deallocate( this%blocks )
   end subroutine block_operand_free_tbp
 
  ! alpha <- op1^T * op2
