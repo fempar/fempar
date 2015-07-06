@@ -70,7 +70,8 @@ contains
 
     y = 0.0_rp
     do iv = 1, nv
-       do iz = ia(iv), ia(iv+1)-1
+       y(iv) = y(iv) + x(ja(ia(iv)))*a(ia(iv))
+       do iz = ia(iv)+1, ia(iv+1)-1
           jv = ja(iz)
           y(iv) = y(iv) + x(jv)*a(iz)
           y(jv) = y(jv) + x(iv)*a(iz)

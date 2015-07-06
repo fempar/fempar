@@ -195,7 +195,7 @@ program par_test_cdr_unstructured
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
 
-  if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
+  ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
   call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, gtype )  
@@ -311,6 +311,8 @@ program par_test_cdr_unstructured
   call par_preconditioner_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
   call par_preconditioner_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
   
+  call p_unk%init(0.0_rp)
+
   call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 
   call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
