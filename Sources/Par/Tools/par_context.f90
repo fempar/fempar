@@ -150,7 +150,7 @@ use mpi
     if(p_context%created) then
        write(0,*) 'Error in par_context create,'
        write(0,*) 'it has been already created'
-       stop 
+       check(.false.)
     end if
     p_context%created = .true.
     q_context%created = .true.
@@ -172,7 +172,6 @@ use mpi
        p_context%icontxt = mpi_comm_null
     else
        my_color_ = my_color
-       !write(*,*) 'COLOR:',my_color, b_context_%icontxt
        call mpi_comm_split(b_context_%icontxt, my_color_, key , p_context%icontxt, info)
        q_context%icontxt = mpi_comm_null
     end if
@@ -250,7 +249,7 @@ use mpi
 
   subroutine par_context_free ( p_context, close  )
 #ifdef MPI_MOD
-use mpi
+    use mpi
 #endif
     implicit none 
 #ifdef MPI_H

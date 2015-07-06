@@ -60,10 +60,10 @@ contains
                                             rcv_ptrs, snd_ptrs, snd_leids, &
                                             nelem, nghost, data)
                                              
-use psb_const_mod_names
-use psb_penv_mod_names
+    use psb_const_mod_names
+    use psb_penv_mod_names
 #ifdef MPI_MOD
-use mpi
+    use mpi
 #endif
      implicit none
 #ifdef MPI_H
