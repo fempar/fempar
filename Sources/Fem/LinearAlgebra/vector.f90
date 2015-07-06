@@ -224,7 +224,7 @@ contains
     type(vector_t), intent( in ) :: svec
     type(vector_t), intent(out) :: tvec
     tvec%neq     =  svec%neq       ! Number of equations
-      call memallocp(tvec%neq,tvec%b,__FILE__,__LINE__)
+    call memallocp(tvec%neq,tvec%b,__FILE__,__LINE__)
     tvec%b = 0.0_rp
     tvec%mode = allocated 
   end subroutine vector_clone

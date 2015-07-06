@@ -284,7 +284,7 @@ program test_blk_nsi_cg_iss_oss
 
   ! Integers
   integer(ip) :: gtype(3) = (/ csr, csr, csr /)
-  integer(ip) :: ibloc,jbloc,istat
+  integer(ip) :: ibloc,jbloc,istat,i
   integer(ip) :: num_approximations = 1
 
   ! Parameters
@@ -388,7 +388,7 @@ program test_blk_nsi_cg_iss_oss
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
-  call update_analytical_bcond((/1:gdata%ndime+1/),0.0_rp,fe_space)
+  call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),0.0_rp,fe_space)
 
   ! Solver control parameters
   sctrl%method = rgmres
@@ -526,6 +526,7 @@ contains
     real(rp)    :: resnorm,ininorm
     class(base_operator_t), pointer :: A, M
     class(base_operand_t) , pointer :: x, b, aux1, aux2
+    type(block_operand_t) :: y
 
     ! Assign operators
     A => la%block_operator
@@ -559,8 +560,8 @@ contains
 
        ! Check convergence
        if(iiter==1) ininorm = b%nrm2()   
-       x = b - A*x
-       resnorm = x%nrm2()
+       y = b - A*x
+       resnorm = y%nrm2()
        if( resnorm < nltol*ininorm) then
           write(*,*) 'Nonlinear iterations: ', iiter
           write(*,*) 'Nonlinear error norm: ', resnorm
@@ -584,27 +585,6 @@ contains
        
        ! Store solution to unkno
        ! ***************** Abstract procedure to update from a base operant ************************!
-       select type(x)
-       class is(block_operand_t)
-          select type(aux1=>x%blocks(1)%p_op)
-          class is(block_operand_t)
-             select type(aux2=>aux1%blocks(1)%p_op)
-             type is(vector_t)
-                la%block_unknown%blocks(1)%b = aux2%b
-             end select
-             select type(aux2=>aux1%blocks(2)%p_op)
-             type is(vector_t)
-                la%block_unknown%blocks(2)%b = aux2%b
-             end select
-          end select
-          select type(aux1=>x%blocks(2)%p_op)
-          class is(block_operand_t)
-             select type(aux2=>aux1%blocks(1)%p_op)
-             type is(vector_t)
-                la%block_unknown%blocks(3)%b = aux2%b
-             end select
-          end select
-       end select
        call update_solution(la%block_unknown,fe_space)
        !********************************************************************************************!
        
@@ -612,6 +592,9 @@ contains
        call update_nonlinear(fe_space)
        
     end do
+
+    ! Deallocate
+    call y%free()
 
   end subroutine nonlinear_iteration
   

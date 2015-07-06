@@ -318,8 +318,7 @@ contains
        w = 0.0_rp
        dwdx = 0.0_rp; d2wdx = 0.0_rp; d2wdxy = 0.0_rp   
        dwdy = 0.0_rp; d2wdy = 0.0_rp; d2wdxz = 0.0_rp
-       dwdz = 0.0_rp; d2wdz = 0.0_rp; d2wdyz = 0.0_rp
-       
+       dwdz = 0.0_rp; d2wdz = 0.0_rp; d2wdyz = 0.0_rp       
     end if
     !
     dpdx = params(2,ndime+1); dpdy = params(3,ndime+1); dpdz = params(4,ndime+1)
