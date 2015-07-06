@@ -42,7 +42,7 @@ program par_test_cdr
   type(par_environment_t)   :: p_env
   type(par_mesh_t)          :: p_mesh
   type(par_triangulation_t) :: p_trian
-  type(par_fe_space_t)     :: p_fe_space
+  type(par_fe_space_t)      :: p_fe_space
 
   type(par_matrix_t), target                :: p_mat
   type(par_vector_t), target                :: p_vec, p_unk
@@ -128,7 +128,7 @@ program par_test_cdr
 
   ! Read boundary conditions
   call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
-  if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
+  ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
 
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
 
@@ -146,7 +146,7 @@ program par_test_cdr
   ! ... for as many problems as we have
 
   call memalloc( p_trian%f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
-  continuity = 0 !(dG)
+  continuity = 1 !(dG)
   call memalloc( p_trian%f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
   order = 1
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
@@ -165,7 +165,7 @@ program par_test_cdr
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
 
-  if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
+  ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
   call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, gtype )  
@@ -180,8 +180,8 @@ program par_test_cdr
 
   if ( p_env%am_i_fine_task() ) then
      call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
-     !call matrix_print ( 6, p_mat%f_matrix )
-     !call vector_print ( 6, p_vec%f_vector )
+     ! call matrix_print ( 6, p_mat%f_matrix )
+     ! call vector_print ( 6, p_vec%f_vector )
   end if
 
   call p_unk%init(1.0_rp)

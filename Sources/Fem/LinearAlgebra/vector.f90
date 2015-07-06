@@ -398,7 +398,7 @@ contains
 
     write (luout, '(a)')     '*** begin vector data structure ***'
     write(luout,'(a,i10)') 'size', x%neq
-       write (luout,'(e25.16)') x%b
+    write (luout,'(e25.16)') x%b
 !!$    do i=1,x%neq
 !!$!       write (luout,'(e14.7)') x%b(1,i)
 !!$       write (luout,'(e25.16,1x)') x%b(1,i)
