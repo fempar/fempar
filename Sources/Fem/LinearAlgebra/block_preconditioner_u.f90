@@ -89,7 +89,8 @@ contains
     class is (block_operand_t)
        select type(y)
        class is(block_operand_t)
-          allocate(aux1, aux2, mold=x%blocks(1)%p_op)
+          allocate(aux1, mold=x%blocks(1)%p_op); call aux1%default_initialization()
+          allocate(aux2, mold=x%blocks(1)%p_op); call aux2%default_initialization()
           do iblk=op%nblocks, 1, -1
              call aux1%clone(x%blocks(iblk)%p_op)
              call aux1%copy(x%blocks(iblk)%p_op)
@@ -133,7 +134,8 @@ contains
     class is (block_operand_t)
        allocate(local_y)
        call local_y%create(op%nblocks)
-       allocate(aux1, aux2, mold=x%blocks(1)%p_op)
+       allocate(aux1, mold=x%blocks(1)%p_op); call aux1%default_initialization()
+       allocate(aux2, mold=x%blocks(1)%p_op); call aux2%default_initialization()
        do iblk=op%nblocks, 1, -1
           call aux1%clone(x%blocks(iblk)%p_op)
           call aux1%copy(x%blocks(iblk)%p_op)
@@ -144,7 +146,7 @@ contains
                 call aux1%axpby(-1.0,aux2,1.0)
              end if
           end do
-          allocate(local_y%blocks(iblk)%p_op, mold=aux1)
+          allocate(local_y%blocks(iblk)%p_op, mold=aux1); call local_y%blocks(iblk)%p_op%default_initialization()
           local_y%blocks(iblk)%allocated = .true.
           local_y%blocks(iblk)%p_op = op%blocks(iblk,iblk)%p_op*aux1
           call aux1%free()

@@ -99,7 +99,7 @@ contains
     class is (block_operand_t)
        select type(y)
        class is(block_operand_t)
-          allocate(aux, mold=y%blocks(1)%p_op)
+          allocate(aux, mold=y%blocks(1)%p_op); call aux%default_initialization()
           do iblk=1, op%mblocks
              call y%blocks(iblk)%p_op%init(0.0_rp)
              call aux%clone(y%blocks(iblk)%p_op)
@@ -143,14 +143,14 @@ contains
     class is (block_operand_t)
        allocate(local_y)
        call local_y%create(op%mblocks)
-       allocate(aux, mold=x%blocks(1)%p_op)
+       allocate(aux, mold=x%blocks(1)%p_op); call aux%default_initialization()
        do iblk=1, op%mblocks
           first_block_in_row = 1
           do jblk=1, op%nblocks
              if (associated(op%blocks(iblk,jblk)%p_op)) then
                 if ( first_block_in_row == 1 ) then
                    aux = op%blocks(iblk,jblk)%p_op * x%blocks(jblk)%p_op
-                   allocate(local_y%blocks(iblk)%p_op, mold=aux)
+                   allocate(local_y%blocks(iblk)%p_op, mold=aux); call local_y%blocks(iblk)%p_op%default_initialization()
                    local_y%blocks(iblk)%allocated = .true.
                    call local_y%blocks(iblk)%p_op%clone(aux)
                    call local_y%blocks(iblk)%p_op%copy(aux)

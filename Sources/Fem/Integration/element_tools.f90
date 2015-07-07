@@ -447,7 +447,7 @@ contains
     class(field_t)         , intent(in)  :: field_left
     class(basis_function_t), intent(in)  :: u
     class(basis_function_t), allocatable :: res
-    allocate(res,mold=u)
+    allocate(res,mold=u); call res%default_initialization()
     call res%SetTemp()
     call copy_function(u,res)
     if(allocated(u%left_factor)) then
@@ -464,7 +464,7 @@ contains
     class(basis_function_t), intent(in)  :: ul
     class(basis_function_t), allocatable :: x
     call ul%GuardTemp()
-    allocate(x,mold=ul)
+    allocate(x,mold=ul); call x%default_initialization()
     call x%SetTemp()
     call copy_function(ul,x)
     x%scaling = x%scaling * alpha
@@ -477,7 +477,7 @@ contains
     class(basis_function_t), intent(in)  :: ur
     class(basis_function_t), allocatable :: x
     call ur%GuardTemp()
-    allocate(x,mold=ur)
+    allocate(x,mold=ur); call x%default_initialization()
     call x%SetTemp()
     call copy_function(ur,x)
     x%scaling = x%scaling * alpha

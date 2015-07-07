@@ -223,10 +223,10 @@ contains
     call M%GuardTemp()
     call b%GuardTemp()
 
-    allocate ( r, mold = x )
-    allocate ( Ap, mold = x )
-    allocate ( z, mold = x )
-    allocate ( p, mold = x )
+    allocate ( r, mold=x ); call r%default_initialization()
+    allocate ( Ap, mold=x ); call Ap%default_initialization()
+    allocate ( z, mold=x ); call z%default_initialization()
+    allocate ( p, mold=x ); call p%default_initialization()
 
     call r%clone ( x  )
     call Ap%clone ( x )
@@ -481,11 +481,11 @@ subroutine abstract_ipcg( A, M, b, x, ctrl, env )
     call M%GuardTemp()
     call b%GuardTemp()
 
-    allocate(r, mold=x)
-    allocate(r2, mold=x)
-    allocate(Ap, mold=x)
-    allocate(z, mold=x)
-    allocate(p, mold=x)
+    allocate(r, mold=x); call r%default_initialization()
+    allocate(r2, mold=x); call r2%default_initialization()
+    allocate(Ap, mold=x); call Ap%default_initialization()
+    allocate(z, mold=x); call z%default_initialization()
+    allocate(p, mold=x); call p%default_initialization()
     call r%clone(x)
     call r2%clone(x)
     call Ap%clone(x)
@@ -663,7 +663,7 @@ use blas77_interfaces_names
 
 
     integer(ip)                    :: ierrc
-    integer(ip)                    :: kloc, kloc_aux, i, j, k_hh, id
+    integer(ip)                    :: kloc, kloc_aux, max_kloc, i, j, k_hh, id
     real(rp)                       :: res_norm, res_2_norm, rhs_norm
     real(rp)                       :: alpha, c, s 
     real(rp)   , allocatable       :: hh(:,:), g(:), g_aux(:), cs(:,:)
@@ -680,8 +680,8 @@ use blas77_interfaces_names
     call b%GuardTemp()
 
     ! Clone x in order to allocate working vectors
-    allocate(r, mold=b)
-    allocate(z, mold=x)
+    allocate(r, mold=b); call r%default_initialization()
+    allocate(z, mold=x); call z%default_initialization()
     call r%clone(b)
     call z%clone(x)
 
@@ -741,7 +741,7 @@ use blas77_interfaces_names
        if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
     end if
 
-
+    max_kloc = 0
     ctrl%it = 0
     outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
 
@@ -761,6 +761,7 @@ use blas77_interfaces_names
        end if
 
        ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
+       call bkry(1)%default_initialization()
        call bkry(1)%clone(x)
        if (res_norm /= 0.0_rp) call bkry(1)%scal(1.0_rp/res_norm, z)
 
@@ -770,6 +771,7 @@ use blas77_interfaces_names
 
        ! start iterations
        kloc = 0
+       kloc = 0
        inner: do while ( (.not.exit_loop) .and. &
             &            (ctrl%it < ctrl%itmax) .and. &
             &            (kloc < ctrl%dkrymax))
@@ -778,6 +780,7 @@ use blas77_interfaces_names
 
           ! Generate new basis vector
           call A%apply( bkry(kloc), r )
+          call bkry(kloc+1)%default_initialization()
           call bkry(kloc+1)%clone(x)
           call M%apply(r, bkry(kloc+1) )
 
@@ -896,6 +899,7 @@ use blas77_interfaces_names
           end if
        end do inner
 
+       max_kloc = max(kloc,max_kloc)
 
        if ( env%am_i_fine_task() ) then ! Am I a fine task ?
           if ( ierrc == -2 ) then
@@ -973,7 +977,8 @@ use blas77_interfaces_names
     deallocate(z)
 
     ! Deallocate Krylov basis
-    do i=1, ctrl%dkrymax+1
+!    do i=1, ctrl%dkrymax+1
+    do i=1, max_kloc
        call bkry(i)%free()
     end do
     deallocate ( bkry )
@@ -1065,8 +1070,8 @@ use blas77_interfaces_names
     call b%GuardTemp()
 
     ! Clone x in order to allocate working vectors
-    allocate(r, mold=b)
-    allocate(z, mold=x)
+    allocate(r, mold=b); call r%default_initialization()
+    allocate(z, mold=x); call z%default_initialization()
     call r%clone(b)
     call z%clone(x)
 
@@ -1133,6 +1138,7 @@ use blas77_interfaces_names
         end if
 
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
+        call bkry(1)%default_initialization()
         call bkry(1)%clone(x)
         if ( env%am_i_fine_task() ) then 
           if (res_norm /= 0.0_rp) then
@@ -1153,6 +1159,7 @@ use blas77_interfaces_names
 
             ! Generate new basis vector
             call M%apply( bkry(kloc), z )
+            call bkry(kloc+1)%default_initialization()
             call bkry(kloc+1)%clone(x)
             call A%apply(z, bkry(kloc+1))
 
@@ -1329,7 +1336,7 @@ use blas77_interfaces_names
 
 
   integer(ip)                :: ierrc
-  integer(ip)                :: kloc, i, j, k_hh, id
+  integer(ip)                :: kloc, max_kloc, i, j, k_hh, id
   real(rp)                   :: res_norm, rhs_norm
   real(rp)                   :: alpha, c, s
   real(rp)   , allocatable   :: hh(:,:), g(:), cs(:,:)
@@ -1347,8 +1354,8 @@ use blas77_interfaces_names
     call b%GuardTemp()
 
     ! Clone x in order to allocate working vectors
-    allocate(r, mold=b)
-    allocate(z, mold=x)
+    allocate(r, mold=b); call r%default_initialization()
+    allocate(z, mold=x); call z%default_initialization()
     call r%clone(b)
     call z%clone(x)
 
@@ -1393,6 +1400,7 @@ use blas77_interfaces_names
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
 
+    max_kloc = 0
     ctrl%it = 0
     outer: do while ( (.not.exit_loop ) .and. &
         &            (ctrl%it < ctrl%itmax))
@@ -1412,6 +1420,7 @@ use blas77_interfaces_names
         end if
 
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
+        call bkry(1)%default_initialization()
         call bkry(1)%clone(x)
         if (res_norm /= 0.0_rp) call bkry(1)%scal(1.0_rp/res_norm, r)
 
@@ -1428,8 +1437,10 @@ use blas77_interfaces_names
             ctrl%it = ctrl%it + 1
 
             ! Generate new basis vector
+            call bkryz(kloc)%default_initialization()
             call bkryz(kloc)%clone(x)
             call M%apply(bkry(kloc),bkryz(kloc))
+            call bkry(kloc+1)%default_initialization()
             call bkry(kloc+1)%clone(x)
             call A%apply(bkryz(kloc),bkry(kloc+1))
 
@@ -1491,6 +1502,8 @@ use blas77_interfaces_names
                 if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
             end if
         end do inner
+
+        max_kloc = max(kloc, max_kloc)
 
         if ( kloc > 0 ) then
             if ( env%am_i_fine_task() ) then
@@ -1565,7 +1578,8 @@ use blas77_interfaces_names
     call z%free()
 
     ! Deallocate Krylov basis
-    do i=1, ctrl%dkrymax
+!    do i=1, ctrl%dkrymax
+    do i=1, max_kloc
        call bkry(i)%free()
        call bkryz(i)%free()
     end do
@@ -1615,8 +1629,8 @@ subroutine abstract_prichard (A, M, b, x, ctrl, env )
     call M%GuardTemp()
     call b%GuardTemp()
 
-    allocate(r, mold=x)
-    allocate(z, mold=x)
+    allocate(r, mold=x); call r%default_initialization()
+    allocate(z, mold=x); call z%default_initialization()
 
     call env%info(me, np)
     call r%clone(x)
@@ -1730,8 +1744,8 @@ use lapack77_interfaces_names
     call b%GuardTemp()
 
     ! Clone x in order to allocate working vectors
-    allocate(r, mold=b)
-    allocate(z, mold=x)
+    allocate(r, mold=b); call r%default_initialization()
+    allocate(z, mold=x); call z%default_initialization()
     call r%clone(b)
     call z%clone(x)
 
@@ -1800,7 +1814,7 @@ use lapack77_interfaces_names
         end if
 
         ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
-
+        call bkry(1)%default_initialization()
         call bkry(1)%clone(x)
         if (res_norm/=0.0_rp) call bkry(1)%scal(1.0_rp/res_norm,z)
 
@@ -1814,6 +1828,7 @@ use lapack77_interfaces_names
 
             ! Generate new basis vector
             call A%apply(bkry(kloc), r)
+            call bkry(kloc+1)%default_initialization()
             call bkry(kloc+1)%clone(x)
             call M%apply(r,bkry(kloc+1))
 
@@ -2255,19 +2270,19 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
     call env%info(me, np)
 
     ! RHS space working vectors
-    allocate(r1, mold=b)
-    allocate(r2, mold=b)
-    allocate(y, mold=b)
+    allocate(r1, mold=b); call r1%default_initialization()
+    allocate(r2, mold=b); call r2%default_initialization()
+    allocate(y, mold=b); call y%default_initialization()
     call r1%clone(b)
     call r2%clone(b)
     call y%clone(b)
 
     ! LHS space working vectors
-    allocate(v1, mold=x)
-    allocate(v2, mold=x)
-    allocate(w , mold=x)
-    allocate(w1, mold=x)
-    allocate(w2, mold=x)
+    allocate(v1, mold=x); call v1%default_initialization()
+    allocate(v2, mold=x); call v2%default_initialization()
+    allocate(w , mold=x); call w%default_initialization()
+    allocate(w1, mold=x); call w1%default_initialization()
+    allocate(w2, mold=x); call w2%default_initialization()
     call v1%clone(x)
     call v2%clone(x)
     call w%clone( x)

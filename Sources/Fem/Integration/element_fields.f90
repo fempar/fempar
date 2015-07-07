@@ -116,7 +116,7 @@ contains
     real(rp)    , intent(in)  :: xreal
     class(field_t), intent(in)  :: yfield
     class(field_t), allocatable :: zfield
-    allocate(zfield,mold=yfield)
+    allocate(zfield,mold=yfield); call zfield%default_initialization()
     call yfield%real_product(xreal,zfield)
   end function product_real_field
   function product_field_real(xfield,yreal) result(zfield)
@@ -124,7 +124,7 @@ contains
     real(rp)    , intent(in)  :: yreal
     class(field_t), intent(in)  :: xfield
     class(field_t), allocatable :: zfield
-    allocate(zfield,mold=xfield)
+    allocate(zfield,mold=xfield); call zfield%default_initialization()
     call xfield%real_product(yreal,zfield)
   end function product_field_real
 
@@ -157,7 +157,7 @@ contains
     integer(ip)  :: ng
     call xfield%GuardTemp()
     call yfield%GuardTemp()
-    allocate(zfield,mold=xfield)
+    allocate(zfield,mold=xfield); call zfield%default_initialization()
     select type(zfield)
     class is(scalar_t)
        ng = size(xfield%a,1)
@@ -282,7 +282,7 @@ contains
     integer(ip)   :: n1,ng
     call xfield%GuardTemp()
     call yfield%GuardTemp()
-    allocate(zfield,mold=xfield)
+    allocate(zfield,mold=xfield); call zfield%default_initialization()
     select type(zfield)
     class is(vector_t)
        n1 = size(xfield%a,1)
@@ -419,7 +419,7 @@ contains
     integer(ip)   :: n1,n2,ng
     call xfield%GuardTemp()
     call yfield%GuardTemp()
-    allocate(zfield,mold=xfield)
+    allocate(zfield,mold=xfield); call zfield%default_initialization()
     select type(zfield)
     class is(tensor_t)
        n1 = size(xfield%a,1)

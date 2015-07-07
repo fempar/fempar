@@ -43,6 +43,8 @@ use types_names
      procedure (nrm2_interface), deferred  :: nrm2
      procedure (clone_interface), deferred :: clone
      procedure (comm_interface), deferred  :: comm
+
+     procedure :: default_initialization
      
      procedure :: sum_operand
      procedure :: sub_operand
@@ -122,6 +124,11 @@ use types_names
   public :: base_operand_t
 
 contains  
+  subroutine default_initialization(this)
+    implicit none
+    class(base_operand_t), intent(inout) :: this
+    ! empty by default. Must be overwritten when necessary
+  end subroutine default_initialization
   ! res <- op1 + op2
   function sum_operand(op1,op2) result (res)
     implicit none
@@ -131,7 +138,7 @@ contains
     call op1%GuardTemp()
     call op2%GuardTemp()
 
-    allocate(res, mold=op1)
+    allocate(res, mold=op1); call res%default_initialization()
     call res%clone(op1)
     call res%copy(op1)
     ! res <- 1.0*op2 + 1.0*res
@@ -151,7 +158,7 @@ contains
     call op1%GuardTemp()
     call op2%GuardTemp()
 
-    allocate(res, mold=op1)
+    allocate(res, mold=op1); call res%default_initialization()
     call res%clone(op1)
     call res%copy(op1)
     ! res <- -1.0*op2 + 1.0*res
@@ -170,7 +177,7 @@ contains
 
     call op%GuardTemp()
     
-    allocate(res, mold=op)
+    allocate(res, mold=op); call res%default_initialization()
     call res%clone(op)
     call res%scal(-1.0, op)
 
@@ -187,7 +194,7 @@ contains
 
     call left%GuardTemp()
     
-    allocate(res, mold=left)
+    allocate(res, mold=left); call res%default_initialization()
     call res%clone(left)
     call res%scal(alpha, left)
 
@@ -204,7 +211,7 @@ contains
 
     call right%GuardTemp()
     
-    allocate(res, mold=right)
+    allocate(res, mold=right); call res%default_initialization()
     call res%clone(right)
     call res%scal(alpha, right)
     
