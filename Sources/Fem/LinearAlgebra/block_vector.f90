@@ -336,15 +336,15 @@ contains
     real(rp)    , intent(inout)   :: b(1,nv)
 
     ! local variables
-    integer(ip)                   :: in, ip, il, ig, ie
+    integer(ip)                   :: in, ipp, il, ig, ie
 
     il = 0
-    do ip = ib(1),ib(2)-1
-       do in = 1,nn(iv(jb(ip)))
+    do ipp = ib(1),ib(2)-1
+       do in = 1,nn(iv(jb(ipp)))
           il = il + 1
           ig = l2g(il)
           if (ig /= 0) then
-             ie = pn(in)-1 + jbn(in,jb(ip))
+             ie = pn(in)-1 + jbn(in,jb(ipp))
              b(1,ig) = b(1,ig) + ev(1,ie)
           end if
        end do

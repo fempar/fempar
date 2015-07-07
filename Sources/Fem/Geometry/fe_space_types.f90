@@ -1434,11 +1434,11 @@ contains
     integer(ip), intent(inout) :: auxt1(nd,(p1+1-p0)**nd) ! ode ijk position matrix
 
     ! Local variables
-    integer(ip)                :: dp,i,ip
+    integer(ip)                :: dp,i,ipp
 
-    do ip = p0,p1
+    do ipp = p0,p1
        if (d>nd) exit
-       ijk(nd-d+1) = ip 
+       ijk(nd-d+1) = ipp 
        if (d < nd) call Q_r_ijk(co,d+1,ijk,nd,auxt1,p0,p1)
        if (d == nd) then
           co = co + 1

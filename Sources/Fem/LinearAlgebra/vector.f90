@@ -75,6 +75,9 @@ module vector_names
      procedure :: clone => vector_clone_tbp
      procedure :: comm  => vector_comm_tbp
      procedure :: free  => vector_free_tbp
+
+     procedure :: default_initialization => vector_default_init
+
   end type vector_t
 
   ! interface vector_assembly
@@ -161,6 +164,16 @@ contains
     if (vec%mode == allocated) call memfreep(vec%b,__FILE__,__LINE__)
     vec%mode = not_created
   end subroutine vector_free
+
+  !=============================================================================
+  subroutine vector_default_init (this)
+    implicit none
+    class(vector_t), intent(inout) :: this
+    this%neq     = 0          ! Number of equations
+    this%mode = not_created
+    nullify(this%b)
+    call this%NullifyTemporary()
+  end subroutine vector_default_init
 
   !=============================================================================
   subroutine vector_alloc(neq,vec)

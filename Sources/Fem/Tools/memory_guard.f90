@@ -11,12 +11,14 @@ use types_names
      private
      integer(ip), pointer :: temporary =>null() ! Null marks non-temporary data
    contains
+     procedure  :: default_initialization ! Nullify temporary
      procedure  :: SetTemp   ! Mark object as temporary
      procedure  :: GuardTemp ! Increment the depth count
      procedure  :: CleanTemp ! Decrement depth count/Free memory if 1
      procedure  :: IsTemp
      procedure  :: GetTemp
      procedure  :: PrintTemp ! Print value
+     procedure  :: NullifyTemporary
      procedure(free_interface), deferred :: free
   end type memory_guard_t
   
@@ -30,6 +32,18 @@ use types_names
   public :: memory_guard_t
 
 contains
+
+  subroutine default_initialization ( this )
+    implicit none
+    class(memory_guard_t), intent(inout) :: this
+    call this%NullifyTemporary()
+  end subroutine default_initialization
+
+  subroutine NullifyTemporary ( this )
+    implicit none
+    class(memory_guard_t), intent(inout) :: this
+    nullify(this%temporary)
+  end subroutine NullifyTemporary
 
   subroutine SetTemp ( this )
     implicit none

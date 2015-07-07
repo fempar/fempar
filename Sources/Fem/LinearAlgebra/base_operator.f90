@@ -65,6 +65,7 @@ module base_operator_names
   type, abstract, extends(expression_operator_t) :: binary_operator_t
      class(base_operator_t), pointer :: op1 => null(), op2 => null()
    contains
+     procedure :: default_initialization => binary_operator_default_init
      procedure :: free    => binary_operator_destructor
      procedure :: assign  => binary_operator_copy
   end type binary_operator_t
@@ -75,6 +76,7 @@ module base_operator_names
      class(base_operator_t), pointer :: op_stored => null()
      class(base_operator_t), pointer :: op        => null()
    contains
+     procedure  :: default_initialization => abs_operator_default_init
      procedure  :: apply     => abs_operator_apply
      procedure  :: apply_fun => abs_operator_apply_fun
      procedure  :: free  => abs_operator_destructor
@@ -111,6 +113,7 @@ module base_operator_names
      class(base_operator_t), pointer :: op => null()
      real(rp)                     :: alpha
    contains
+     procedure  :: default_initialization => scal_operator_default_init
      procedure  :: apply => scal_operator_apply
      procedure  :: apply_fun => scal_operator_apply_fun
      procedure  :: free => scal_operator_destructor
@@ -122,6 +125,7 @@ module base_operator_names
   type, extends(base_operator_t) :: minus_operator_t
      class(base_operator_t), pointer :: op => null()
    contains
+     procedure  :: default_initialization => minus_operator_default_init
      procedure  :: apply => minus_operator_apply
      procedure  :: apply_fun => minus_operator_apply_fun 
      procedure  :: free => minus_operator_destructor
@@ -162,6 +166,15 @@ module base_operator_names
   public :: abs_operator_t, base_operator_t
 
 contains
+
+  subroutine binary_operator_default_init(this)
+    implicit none
+    class(binary_operator_t), intent(inout) :: this
+    nullify(this%op1)
+    nullify(this%op2)
+    call this%NullifyTemporary()
+  end subroutine binary_operator_default_init
+
   subroutine binary_operator_destructor(this)
     implicit none
     class(binary_operator_t), intent(inout) :: this
@@ -221,7 +234,7 @@ contains
     ! Allocate op1
     select type(op1)
     class is(expression_operator_t)
-       allocate(res%op1,mold=op1)
+       allocate(res%op1,mold=op1); call res%op1%default_initialization()
     class default
        allocate(abs_operator_t::res%op1)
     end select
@@ -243,7 +256,7 @@ contains
     ! Allocate op2
     select type(op2)
     class is(expression_operator_t)
-       allocate(res%op2,mold=op2)
+       allocate(res%op2,mold=op2); call res%op2%default_initialization()
     class default
        allocate(abs_operator_t::res%op2)
     end select
@@ -264,6 +277,14 @@ contains
     call op2%CleanTemp()
   end subroutine binary_operator_constructor
 
+  subroutine abs_operator_default_init(this)
+    implicit none
+    class(abs_operator_t), intent(inout) :: this
+    nullify(this%op)
+    nullify(this%op_stored)
+    call this%NullifyTemporary()
+  end subroutine abs_operator_default_init
+
   recursive subroutine abs_operator_constructor(op1,op2)
     implicit none
     class(abs_operator_t) , intent(inout) :: op1
@@ -278,7 +299,7 @@ contains
     class is(abs_operator_t) ! Can be temporary (or not)
        if(associated(op2%op_stored)) then
           assert(.not.associated(op2%op))
-          allocate(op1%op_stored, mold = op2%op_stored)
+          allocate(op1%op_stored, mold = op2%op_stored); call op1%op_stored%default_initialization()
           select type(this => op1%op_stored)
           class is(expression_operator_t)
              ! out_verbosity10_4( 'Creating abs ', op1%id, ' from abs (copy content, which is expression)', op2%id)
@@ -300,7 +321,7 @@ contains
        end if
     class is(expression_operator_t) ! Temporary
        ! out_verbosity10_2( 'Creating abs from expression (copy expression)', op1%id)
-       allocate(op1%op_stored,mold=op2)
+       allocate(op1%op_stored,mold=op2); call op1%op_stored%default_initialization()
        select type(this => op1%op_stored)
        class is(expression_operator_t)
           this = op2              ! Here = overloaded
@@ -336,6 +357,13 @@ contains
     ! end if
   end subroutine abs_operator_destructor
 
+  subroutine scal_operator_default_init(this)
+    implicit none
+    class(scal_operator_t), intent(inout) :: this
+    nullify(this%op)
+    call this%NullifyTemporary()
+  end subroutine scal_operator_default_init
+
   subroutine scal_operator_constructor(alpha,op,res)
     implicit none
     class(base_operator_t), intent(in)    :: op
@@ -347,7 +375,7 @@ contains
     ! Allocate op
     select type(op)
     class is(expression_operator_t)
-       allocate(res%op,mold=op)
+       allocate(res%op,mold=op); call res%op%default_initialization()
     class default
        allocate(abs_operator_t::res%op)
     end select
@@ -399,6 +427,13 @@ contains
     end select
   end subroutine scal_operator_copy
 
+  subroutine minus_operator_default_init(this)
+    implicit none
+    class(minus_operator_t), intent(inout) :: this
+    nullify(this%op)
+    call this%NullifyTemporary()
+  end subroutine minus_operator_default_init
+
   function minus_operator_constructor(op) result (res)
     implicit none
     class(base_operator_t)    , intent(in)  :: op
@@ -420,7 +455,7 @@ contains
     ! Allocate op
     select type(op)
     class is(expression_operator_t)
-       allocate(res%op,mold=op)
+       allocate(res%op,mold=op); call res%op%default_initialization()
     class default
        allocate(abs_operator_t::res%op)
     end select
@@ -548,7 +583,7 @@ contains
     class(base_operand_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
-    allocate(y, mold=x)
+    allocate(y, mold=x); call y%default_initialization()
     y = op%op2 * x
     call y%axpby( 1.0, op%op1*x, 1.0 )
     call x%CleanTemp()
@@ -579,7 +614,7 @@ contains
     class(base_operand_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
-    allocate(y, mold=x)
+    allocate(y, mold=x); call y%default_initialization()
     y = op%op2 * x
     call y%axpby( 1.0, op%op1*x, -1.0 )
     call x%CleanTemp()
@@ -609,7 +644,7 @@ contains
     class(base_operand_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
-    allocate(y, mold=x)
+    allocate(y, mold=x); call y%default_initialization()
     y = op%op1 * ( op%op2 * x )
     call x%CleanTemp()
     call op%CleanTemp()
@@ -635,7 +670,7 @@ contains
     class(base_operand_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
-    allocate(y, mold=x)
+    allocate(y, mold=x); call y%default_initialization()
     y =  op%op * x
     call y%scal ( op%alpha, y)
     call x%CleanTemp()
@@ -663,7 +698,7 @@ contains
     class(base_operand_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
-    allocate(y, mold=x)
+    allocate(y, mold=x); call y%default_initialization()
     y = op%op*x
     call y%scal( -1.0, y )
     call x%CleanTemp()
@@ -691,7 +726,7 @@ contains
     class(base_operand_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
-    allocate(y, mold=x)
+    allocate(y, mold=x); call y%default_initialization()
 
     if(associated(op%op_stored)) then
        assert(.not.associated(op%op))

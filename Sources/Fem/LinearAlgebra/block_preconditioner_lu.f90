@@ -82,7 +82,7 @@ contains
     class(base_operand_t)      , intent(in)    :: x
     class(base_operand_t)      , intent(inout) :: y
     class(base_operand_t), allocatable :: z
-    allocate(z, mold=y)
+    allocate(z, mold=y); call z%default_initialization()
     call z%clone(y)
     call x%GuardTemp()
     call op%L%apply(x,z)
@@ -101,7 +101,7 @@ contains
     class(base_operand_t) , allocatable  :: y
     class(base_operand_t), allocatable :: z
 
-    allocate(z, mold=x)
+    allocate(z, mold=x); call z%default_initialization()
     call x%GuardTemp()
     z = op%L * x
     call op%U%apply(z,y)

@@ -275,7 +275,7 @@ contains
      call op1%create(op2%nblocks) 
      do iblk=1, op2%nblocks
         assert(associated(op2%blocks(iblk)%p_op))
-       allocate(op1%blocks(iblk)%p_op, mold=op2%blocks(iblk)%p_op)
+       allocate(op1%blocks(iblk)%p_op, mold=op2%blocks(iblk)%p_op); call op1%blocks(iblk)%p_op%default_initialization()
        op1%blocks(iblk)%allocated = .true. 
        call op1%blocks(iblk)%p_op%clone(op2%blocks(iblk)%p_op) 
      end do
