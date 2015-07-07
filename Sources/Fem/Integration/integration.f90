@@ -39,20 +39,34 @@ module integration_names
   use matrix_names
   use block_vector_names
   use vector_names
+  use finite_element_names
+  use dof_descriptor_names
   implicit none
   private
+
+  ! Abstract assembly interface
+  abstract interface
+     subroutine assembly_interface(finite_element, dof_descriptor, a)
+       import :: finite_element_t, dof_descriptor_t, integrable_t
+       implicit none
+       type(finite_element_t), intent(in)    :: finite_element
+       type(dof_descriptor_t), intent(in)    :: dof_descriptor
+       class(integrable_t)   , intent(inout) :: a
+     end subroutine assembly_interface
+  end interface
 
   public :: volume_integral
 
 contains
 
-  subroutine volume_integral(approx,fe_space,res1,res2)
+  subroutine volume_integral(approx,fe_space,res1,res2,alternative_assembly)
     implicit none
     ! Parameters
     type(fe_space_t)                    , intent(inout) :: fe_space
     class(integrable_t)                 , intent(inout) :: res1
     class(integrable_t), optional       , intent(inout) :: res2
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    procedure(assembly_interface)       , optional      :: alternative_assembly
 
     ! Locals
     integer(ip) :: ielem,ivar,nvars, current_approximation
@@ -71,9 +85,19 @@ contains
        call approx(current_approximation)%p%compute(fe_space%finite_elements(ielem))
 
        ! Assembly first contribution
-       call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
+       if(present(alternative_assembly)) then
+          call alternative_assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
+       else
+          call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
+       end if
 
-       if(present(res2)) call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2)
+       if(present(res2)) then
+          if(present(alternative_assembly)) then
+             call alternative_assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2) 
+          else
+             call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2)
+          end if
+       end if
  
     end do
 

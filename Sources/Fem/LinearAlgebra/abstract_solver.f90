@@ -663,7 +663,7 @@ use blas77_interfaces_names
 
 
     integer(ip)                    :: ierrc
-    integer(ip)                    :: kloc, kloc_aux, i, j, k_hh, id
+    integer(ip)                    :: kloc, max_kloc, kloc_aux, i, j, k_hh, id
     real(rp)                       :: res_norm, res_2_norm, rhs_norm
     real(rp)                       :: alpha, c, s 
     real(rp)   , allocatable       :: hh(:,:), g(:), g_aux(:), cs(:,:)
@@ -741,7 +741,7 @@ use blas77_interfaces_names
        if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
     end if
 
-
+    max_kloc = 0
     ctrl%it = 0
     outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
 
@@ -896,6 +896,7 @@ use blas77_interfaces_names
           end if
        end do inner
 
+       max_kloc = max(kloc+1,max_kloc)
 
        if ( env%am_i_fine_task() ) then ! Am I a fine task ?
           if ( ierrc == -2 ) then
@@ -973,7 +974,7 @@ use blas77_interfaces_names
     deallocate(z)
 
     ! Deallocate Krylov basis
-    do i=1, ctrl%dkrymax+1
+    do i=1, max_kloc
        call bkry(i)%free()
     end do
     deallocate ( bkry )
@@ -1153,6 +1154,7 @@ use blas77_interfaces_names
 
             ! Generate new basis vector
             call M%apply( bkry(kloc), z )
+
             call bkry(kloc+1)%clone(x)
             call A%apply(z, bkry(kloc+1))
 

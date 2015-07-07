@@ -65,7 +65,7 @@ use iso_c_binding
   public :: par_fe_space_t
 
   ! Methods
-  public :: par_fe_space_create,  par_fe_space_print, par_fe_space_free
+  public :: par_fe_space_create,  par_fe_space_print, par_fe_space_free, par_fe_space_set_analytical_code
 
 contains
 
@@ -174,6 +174,19 @@ contains
 
     
   end subroutine par_fe_space_print
+
+  !==================================================================================================
+  subroutine par_fe_space_set_analytical_code(p_fe_space,spatial_code,temporal_code)
+    implicit none
+    type(par_fe_space_t), intent(inout) :: p_fe_space
+    integer(ip)         , intent(in)    :: spatial_code(:)
+    integer(ip)         , intent(in)    :: temporal_code(:)
+
+    if(p_fe_space%p_trian%p_env%am_i_fine_task()) then
+       call p_fe_space%fe_space%set_analytical_code(spatial_code,temporal_code)
+    end if
+
+  end subroutine par_fe_space_set_analytical_code
 
 
   !*********************************************************************************

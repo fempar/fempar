@@ -59,8 +59,8 @@ module block_matrix_names
     procedure :: free              => block_matrix_free_tbp
     procedure :: get_block         => block_matrix_get_block
     procedure :: get_nblocks       => block_matrix_get_nblocks
-    procedure  :: apply            => block_matrix_apply
-    procedure  :: apply_fun        => block_matrix_apply_fun
+    procedure :: apply             => block_matrix_apply
+    procedure :: apply_fun         => block_matrix_apply_fun
   end type block_matrix_t
 
   ! Types

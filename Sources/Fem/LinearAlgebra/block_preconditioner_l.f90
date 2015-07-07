@@ -96,7 +96,7 @@ contains
              call aux2%clone(x%blocks(iblk)%p_op)
              do jblk=1, iblk-1
                 if (associated(op%blocks(iblk,jblk)%p_op)) then
-                   call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%p_op,aux2)
+                   call op%blocks(iblk,jblk)%p_op%apply(y%blocks(jblk)%p_op,aux2)
                    call aux1%axpby(-1.0,aux2,1.0)
                 end if
              end do

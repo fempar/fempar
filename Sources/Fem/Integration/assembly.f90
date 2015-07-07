@@ -45,7 +45,7 @@ module assembly_names
   private
 
   ! Functions
-  public :: assembly
+  public :: assembly, element_matrix_assembly, element_vector_assembly
 
 contains
 
@@ -185,7 +185,7 @@ contains
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
     type(vector_t)        , intent(inout) :: a
-
+    
     call element_vector_assembly( dof_descriptor, finite_element, a )
 
   end subroutine assembly_element_vector_mono

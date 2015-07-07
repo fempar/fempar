@@ -27,25 +27,25 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_vector_names
   ! Serial modules
-use types_names
-use memor_names
-use stdio_names
+  use types_names
+  use memor_names
+  use stdio_names
   use vector_names
-use map_apply_names
+  use map_apply_names
 
 #ifdef ENABLE_BLAS       
-use blas77_interfaces_names
+  use blas77_interfaces_names
 #endif
 
 #ifdef memcheck       
-use iso_c_binding
+  use iso_c_binding
 #endif
 
   ! Parallel modules
   use par_context_names
   use par_environment_names
   use dof_distribution_names
-use psb_penv_mod_names
+  use psb_penv_mod_names
 
   ! Abstract types
   use base_operand_names

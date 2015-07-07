@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_matrix_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use matrix_names
   use array_names
-use stdio_names
+  use stdio_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
 
   ! Parallel modules
@@ -41,7 +41,7 @@ use iso_c_binding
   use par_context_names
   use par_graph_names
   use par_vector_names
-use psb_penv_mod_names
+  use psb_penv_mod_names
   use dof_distribution_names
 
   ! Abstract types
@@ -406,7 +406,7 @@ contains
     select type(x)
     class is (par_vector_t)
        allocate(local_y)
-       call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
+       call par_vector_alloc ( op%dof_dist, x%p_env, local_y)
        call par_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

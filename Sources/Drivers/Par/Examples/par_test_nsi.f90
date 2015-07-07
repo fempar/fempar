@@ -30,7 +30,7 @@ program par_test_nsi_iss
   use par_names
   use nsi_names
   use nsi_cg_iss_names
-use lib_vtk_io_interface_names
+  use lib_vtk_io_interface_names
   implicit none
 # include "debug.i90"
 

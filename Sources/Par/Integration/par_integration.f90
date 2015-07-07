@@ -25,41 +25,33 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_names
-  ! Tools
-  use par_context_names
-  use psb_penv_mod_names
-  use par_sparse_global_collectives_names
-  use par_element_exchange_names
-  use par_timer_names
-  use par_io_names
-  use par_environment_names
-  use par_update_names
-
-  ! Geometry
-  use par_mesh_names
-  use par_triangulation_names
-  use par_mesh_to_triangulation_names
-  use par_conditions_names
-  use par_generate_uniform_triangulation_names
-
-  ! Linear algebra
-  use par_vector_names
-  use par_matrix_names
-  use par_graph_names
-  use par_block_matrix_names
-  use par_block_vector_names
-  use par_block_graph_names
-  use block_dof_distribution_names
-  use par_dd_base_names
-  use par_preconditioner_dd_diagonal_names
-  use par_preconditioner_dd_mlevel_bddc_names
-  use par_preconditioner_dd_identity_names
-
-  ! Integration
+module par_integration_names
+  use integration_names
+  use problem_names
+  use integrable_names
   use par_fe_space_names
-  use par_create_global_dof_info_names
-  use par_integration_names
-  use par_scalar_names
+  use par_assembly_names
+  implicit none
+# include "debug.i90"
+  private
+
+  public :: par_volume_integral
+
+contains
+
+  subroutine par_volume_integral(approx,p_fe_space,res1,res2)
+    implicit none
+    ! Parameters
+    type(par_fe_space_t)                , intent(inout) :: p_fe_space
+    class(integrable_t)                 , intent(inout) :: res1
+    class(integrable_t), optional       , intent(inout) :: res2
+    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+
+    if(p_fe_space%p_trian%p_env%am_i_fine_task()) then
+       call volume_integral(approx,p_fe_space%fe_space,res1,res2,par_assembly)
+    end if
     
-end module par_names
+  end subroutine par_volume_integral
+
+end module par_integration_names
+

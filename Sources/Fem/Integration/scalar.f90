@@ -28,6 +28,8 @@
 module scalar_names
   use types_names
   use integrable_names
+  implicit none
+  private
 
   type, extends(integrable_t) :: scalar_t
      private
@@ -38,6 +40,9 @@ module scalar_names
     procedure :: sum  => scalar_sum
     procedure :: get  => scalar_get
   end type scalar_t
+  
+  ! Types
+  public :: scalar_t
 
 contains
 
@@ -51,14 +56,19 @@ contains
   end subroutine scalar_free
 
   !==================================================================================================
-  subroutine scalar_init (this)
+  subroutine scalar_init (this,b)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine initialize the scalar.                                                      !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(scalar_t), intent(inout) :: this
+    class(scalar_t)   , intent(inout) :: this
+    real(rp), optional, intent(in)    :: b
+    ! Locals
+    real(rp) :: b_
     
-    this%a = 0.0_rp
+    b_ = 0.0_rp
+    if(present(b)) b_ = b
+    this%a = b_
 
   end subroutine scalar_init
 

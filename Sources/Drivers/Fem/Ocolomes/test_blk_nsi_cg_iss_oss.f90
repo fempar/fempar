@@ -551,12 +551,6 @@ contains
        ! ************ Abstract integration of a base_operator and/or base_operand*******************!
        call volume_integral(approx,fe_space,la%block_matrix,la%block_vector)
        !********************************************************************************************!
-       call matrix_print_matrix_market(11,linear_algebra%block_matrix%get_block(1,1))
-       call matrix_print_matrix_market(12,linear_algebra%block_matrix%get_block(1,2))
-       call matrix_print_matrix_market(13,linear_algebra%block_matrix%get_block(1,3))
-       call matrix_print_matrix_market(21,linear_algebra%block_matrix%get_block(2,1))
-       call matrix_print_matrix_market(31,linear_algebra%block_matrix%get_block(3,1))
-       call matrix_print_matrix_market(33,linear_algebra%block_matrix%get_block(3,3))
 
        ! Check convergence
        if(iiter==1) ininorm = b%nrm2()   

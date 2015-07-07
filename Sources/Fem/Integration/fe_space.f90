@@ -76,7 +76,6 @@ module fe_space_names
      type(face_integrator_t)              :: lfaci(max_global_interpolations)
 
      ! Interpolator
-     type(position_hash_table_t)          :: pos_interpolator
      type(array_rp2_t)                    :: linter(max_global_interpolations)
 
      ! Starting DOF position
@@ -101,7 +100,6 @@ module fe_space_names
      type(array_rp1_t), allocatable       :: l_plain_vector(:)
 
      ! Analytical function auxiliar array
-     type(position_hash_table_t)          :: pos_analytical_code
      type(array_ip2_t)                    :: l_analytical_code(max_global_interpolations)
 
      ! Much better here rather than as a module variable
@@ -235,14 +233,8 @@ contains
     ! Initialization of element fixed info parameters
     call fe_space%pos_elem_info%init(ht_length)
 
-    ! Initialization of interpolation array
-    call fe_space%pos_interpolator%init(ht_length)
-
     ! Initialization of starting DOF position array
     call fe_space%pos_start%init(ht_length)
-
-    ! Initialization of starting DOF position array
-    call fe_space%pos_analytical_code%init(ht_length)
 
     ! Initialization of plain_vector array
     call fe_space%pos_plain_vector%init(ht_length)
@@ -408,7 +400,7 @@ contains
           end do
        end do
 
-       ! Assign pointers to volume integration
+       ! Assign pointers to volume integration & interpolator
        ltype(2) = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        do ivar = 1,nvars
           f_order  = fe_space%finite_elements(ielem)%order(ivar)
@@ -416,29 +408,25 @@ contains
           v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
           call fe_space%pos_volume_integrator%get(key=v_key, val=pos_voint, stat = istat)
           ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
-          if ( istat == new_index ) call volume_integrator_create(f_type,f_type,dim,1,f_order,fe_space%lvoli(pos_voint),     &
-               &                                                  khie = fe_space%hierarchical_basis, mnode=max_num_nodes)
+          if ( istat == new_index ) then
+             call volume_integrator_create(f_type,f_type,dim,1,f_order,fe_space%lvoli(pos_voint),     &
+                  &                        khie = fe_space%hierarchical_basis, mnode=max_num_nodes)
+             call interpolator_create(f_type,f_type,dim,1,f_order,                                          &
+                  &                   fe_space%finite_elements(ielem)%p_geo_reference_element%nnode,        &
+                  &                   fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode, &
+                  &                   fe_space%linter(pos_voint),khie = fe_space%hierarchical_basis)
+          end if
           fe_space%finite_elements(ielem)%integ(ivar)%p => fe_space%lvoli(pos_voint)
-          ! Create interpolators
-          call fe_space%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
-          ! SB.alert : g_ord = 1 !!!! But only for linear geometry representation
-          if ( istat == new_index ) call interpolator_create(f_type,f_type,dim,1,f_order,            &
-               &                                             fe_space%finite_elements(ielem)%p_geo_reference_element%nnode,    &
-               &                                             fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode, &
-               &                                             fe_space%linter(pos_voint),                &
-               &                                             khie = fe_space%hierarchical_basis)
           fe_space%finite_elements(ielem)%inter(ivar)%p => fe_space%linter(pos_voint)
        end do
 
-       ! Assign pointers to starting DOF position
+       ! Assign pointers to starting DOF position & analytical code
        call fe_space%pos_start%get(key=nvars, val=pos_voint, stat = istat)
-       if ( istat == new_index ) call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_descriptor, &
-            &                                          fe_space%lstart(pos_voint))
-       fe_space%finite_elements(ielem)%start => fe_space%lstart(pos_voint)
-
-       ! Assign pointers to analytical code
-       call fe_space%pos_analytical_code%get(key=nvars, val=pos_voint, stat = istat)
-       if ( istat == new_index ) call array_create(nvars,2,fe_space%l_analytical_code(pos_voint))
+       if ( istat == new_index ) then
+          call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_descriptor,fe_space%lstart(pos_voint))
+          call array_create(nvars,2,fe_space%l_analytical_code(pos_voint))
+       end if
+       fe_space%finite_elements(ielem)%start             => fe_space%lstart(pos_voint)
        fe_space%finite_elements(ielem)%p_analytical_code => fe_space%l_analytical_code(pos_voint)
        fe_space%l_analytical_code(pos_voint)%a = 0
 
@@ -588,6 +576,7 @@ contains
 
     do i = 1,fe_space%pos_volume_integrator%last()
        call volume_integrator_free( fe_space%lvoli(i) )
+       call interpolator_free( fe_space%linter(i) )
     end do
     !deallocate ( fe_space%lvoli )
     call fe_space%pos_volume_integrator%free
@@ -597,11 +586,6 @@ contains
     end do
     call fe_space%pos_elem_info%free
 
-    do i = 1,fe_space%pos_interpolator%last()
-       call interpolator_free( fe_space%linter(i) )
-    end do
-    call fe_space%pos_interpolator%free
-
 !!$    do i = 1,fe_space%pos_plain_vector%last()
 !!$       call array_free( fe_space%l_plain_vector(i) )
 !!$    end do
@@ -610,13 +594,9 @@ contains
 
     do i = 1,fe_space%pos_start%last()
        call array_free( fe_space%lstart(i) )
-    end do
-    call fe_space%pos_start%free
-
-    do i = 1,fe_space%pos_analytical_code%last()
        call array_free( fe_space%l_analytical_code(i) )
     end do
-    call fe_space%pos_analytical_code%free
+    call fe_space%pos_start%free
 
     nullify ( fe_space%g_trian )
 
@@ -808,7 +788,7 @@ contains
     check(nvars==size(temporal_code,1))
 
     ! Copy codes
-    call fe_space%pos_analytical_code%get(key=nvars, val=position, stat = istat)
+    call fe_space%pos_start%get(key=nvars, val=position, stat = istat)
     if ( istat == old_index ) then
        fe_space%l_analytical_code(position)%a(:,1) = spatial_code
        fe_space%l_analytical_code(position)%a(:,2) = temporal_code
