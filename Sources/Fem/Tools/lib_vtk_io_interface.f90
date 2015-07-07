@@ -47,7 +47,7 @@ module lib_vtk_io_interface_names
 
   interface
     function mkdir_recursive(path) bind(c,name="mkdir_recursive")
-use iso_c_binding
+      use iso_c_binding
       integer(kind=c_int) :: mkdir_recursive
       character(kind=c_char,len=1), intent(IN) :: path(*)
     end function mkdir_recursive
@@ -72,12 +72,12 @@ use iso_c_binding
      integer(1) , allocatable      :: ctype(:)       ! VTK element type
      integer(ip)                   :: nnods          ! Number of nodes
      integer(ip)                   :: ndim           ! Dimensions of the mesh
-     type(vtk_field_t), allocatable  :: fields(:)      ! Array storing field_ts info
+     type(vtk_field_t), allocatable:: fields(:)      ! Array storing field_ts info
      logical                       :: linear_order = .False.
      logical                       :: filled = .False.
-!     integer(ip), allocatable      :: elem2subelem_i(:),elem2subelem_j(:)
+!     integer(ip), allocatable     :: elem2subelem_i(:),elem2subelem_j(:)
      integer(ip)                   :: num_sub_elems
-     type(array_ip2_t)               :: nodes_subelem(max_order)
+     type(array_ip2_t)             :: nodes_subelem(max_order)
   end type vtk_mesh_t
 
   ! Type for storing several mesh data with its field descriptors
@@ -131,10 +131,10 @@ contains
 
   ! Subroutine to initialize vtk_t derived type
   subroutine initialize(f_vtk, f_trian, fe_space, phys_prob, env, dir_path, prefix, root_proc, nparts, nsteps, nmesh, linear_order)
-    class(vtk_t),          intent(INOUT) :: f_vtk
-    type(triangulation_t), intent(IN)    :: f_trian
-    type(fe_space_t), target, intent(IN)    :: fe_space
-    class(physical_problem_t), intent(IN)    :: phys_prob
+    class(vtk_t),          intent(INOUT)   :: f_vtk
+    type(triangulation_t), intent(IN)      :: f_trian
+    type(fe_space_t), target, intent(IN)   :: fe_space
+    class(physical_problem_t), intent(IN)  :: phys_prob
     class(abstract_environment_t), target, intent(IN)    :: env
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
@@ -202,10 +202,10 @@ contains
   ! Subroutine to initialize vtk_t derived type
   subroutine initialize_linear_order(f_vtk, f_trian, fe_space, phys_prob, dir_path, prefix, nmesh)
   ! ----------------------------------------------------------------------------------
-    class(vtk_t),          intent(INOUT) :: f_vtk
-    type(triangulation_t), intent(IN)    :: f_trian
-    type(fe_space_t), target, intent(IN)    :: fe_space
-    class(physical_problem_t), intent(IN)    :: phys_prob
+    class(vtk_t),          intent(INOUT)   :: f_vtk
+    type(triangulation_t), intent(IN)      :: f_trian
+    type(fe_space_t), target, intent(IN)   :: fe_space
+    class(physical_problem_t), intent(IN)  :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
     integer(ip), optional,   intent(OUT)   :: nmesh
@@ -222,15 +222,13 @@ contains
 
 
   ! Subroutine to initialize vtk_t derived type with high order mesh
-  subroutine initialize_superlinear_order(f_vtk, fe_space, phys_prob, dir_path, prefix, nparts, nsteps, nmesh)
+  subroutine initialize_superlinear_order(f_vtk, fe_space, phys_prob, dir_path, prefix, nmesh)
   ! ----------------------------------------------------------------------------------
-    class(vtk_t),          intent(INOUT) :: f_vtk
-    type(fe_space_t), target, intent(IN)    :: fe_space
-    class(physical_problem_t), intent(IN)    :: phys_prob
+    class(vtk_t),          intent(INOUT)   :: f_vtk
+    type(fe_space_t), target, intent(IN)   :: fe_space
+    class(physical_problem_t), intent(IN)  :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
-    integer(ip), optional,   intent(IN)    :: nparts
-    integer(ip), optional,   intent(IN)    :: nsteps
     integer(ip), optional,   intent(OUT)   :: nmesh
     integer(ip)                            :: nm
   ! ----------------------------------------------------------------------------------
@@ -502,7 +500,7 @@ contains
     integer(ip),      optional, intent(IN)    :: n_mesh
     character(len=*), optional, intent(IN)    :: o_fmt
     character(len=:), allocatable             :: fn,dp
-    integer(ip)                               :: nm, np, tidx
+    integer(ip)                               :: nm, np, me, tidx
     real(rp)                                  :: ts
     character(len=:), allocatable             :: of
     integer(ip)                               :: fid, nnods, nels, E_IO
@@ -518,12 +516,12 @@ contains
     E_IO = 0
     
     if(ft) then
+        me = 0; np = 1
+        call f_vtk%p_env%info(me,np) 
+        if(present(n_part)) np = n_part
 
         nm = f_vtk%num_meshes
         if(present(n_mesh)) nm = n_mesh
-    
-        np = f_vtk%num_parts-1
-        if(present(n_part)) np = n_part
     
         tidx = 1
     
