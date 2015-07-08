@@ -25,6 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 program par_test_cdr
   !----------------------------------------------------------
   ! Parallel partitioner test
@@ -33,8 +34,6 @@ program par_test_cdr
   use par_names
   use cdr_names
   use cdr_stabilized_continuous_Galerkin_names 
-  use mpi
-  
   implicit none
 #include "debug.i90" 
   ! Our data
@@ -80,7 +79,7 @@ program par_test_cdr
   character(len=256)            :: dir_path, dir_path_out
   character(len=256)            :: prefix
   character(len=:), allocatable :: name
-  integer(ip)              :: i, j, ierror, iblock
+  integer(ip)                   :: i, j, ierror, iblock, num_times_to_refine
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
   integer(ip), allocatable :: continuity(:,:)
@@ -131,10 +130,10 @@ program par_test_cdr
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
 
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
+  call par_uniform_refinement(p_mesh,p_trian,p_cond)
 
-  !write (*,*) '********** CREATE DOF HANDLER**************'
+  write (*,*) '********** CREATE DOF HANDLER**************'
   call dof_descriptor%create( 1, 1, 1 )
-
 
   call my_problem%create( p_trian%f_trian%num_dims )
   call my_discrete%create( my_problem )
@@ -159,12 +158,14 @@ program par_test_cdr
 
   ! Continuity
   ! write(*,*) 'Continuity', continuity
+  write (*,*) '********** CREATE PAR_FE SPACE**************'
   call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
                               p_cond, continuity, order, material, &
                               which_approx, time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
 
+  write (*,*) '********** UPDATE BCONDS**************'
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
@@ -245,35 +246,35 @@ program par_test_cdr
   sctrl%orto=icgs
   sctrl%rtol=1.0e-06
 
-  do j=1,ndime
-
-     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-     do i=1, num_levels-1
-        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
-        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
-     end do
-
-
-     call p_unk%init(0.0_rp)
-
-     ! Create multilevel bddc inverse 
-     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
-
-     ! Ass struct
-     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
-
-     ! Fill val
-     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
-
-     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
-
-     ! Free bddc inverse
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_values)
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_struct)
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
-
-
-  end do
+!!$  do j=1,ndime
+!!$
+!!$     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+!!$     do i=1, num_levels-1
+!!$        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
+!!$        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+!!$     end do
+!!$
+!!$
+!!$     call p_unk%init(0.0_rp)
+!!$
+!!$     ! Create multilevel bddc inverse 
+!!$     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
+!!$
+!!$     ! Ass struct
+!!$     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+!!$
+!!$     ! Fill val
+!!$     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
+!!$
+!!$     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
+!!$
+!!$     ! Free bddc inverse
+!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_values)
+!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_struct)
+!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
+!!$
+!!$
+!!$  end do
 
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
@@ -287,8 +288,6 @@ program par_test_cdr
 !!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
 !!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
 !!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
-
-
 
   call par_matrix_free (p_mat)
   call par_vector_free (p_vec)
@@ -355,27 +354,5 @@ contains
     read(argument,*) ndime
 
   end subroutine read_pars_cl
-
-!!$  subroutine update_strong_dirichlet_boundary_conditions( fe_space )
-!!$    implicit none
-!!$    type(fe_space_t), intent(inout)    :: fe_space
-!!$    
-!!$    integer(ip) :: ielem, iobje, ivar, inode, l_node
-!!$
-!!$    do ielem = 1, fe_space%g_trian%num_elems
-!!$       do iobje = 1,fe_space%lelem(ielem)%p_geo_reference_element%nvef
-!!$          do ivar=1, fe_space%dof_descriptor%problems(problem(ielem))%p%nvars
-!!$             
-!!$             do inode = fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%p(iobje), &
-!!$                  &     fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%p(iobje+1)-1 
-!!$                l_node = fe_space%lelem(ielem)%nodes_per_vef(ivar)%p%l(inode)
-!!$                if ( fe_space%lelem(ielem)%bc_code(ivar,iobje) /= 0 ) then
-!!$                   fe_space%lelem(ielem)%unkno(l_node,ivar,1) = 1.0_rp
-!!$                end if
-!!$             end do
-!!$          end do
-!!$       end do
-!!$    end do
-!!$  end subroutine update_strong_dirichlet_boundary_conditions
 
 end program par_test_cdr

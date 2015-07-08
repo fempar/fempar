@@ -117,7 +117,7 @@ contains
      call psb_get_mpicomm (icontxt, mpi_comm)
 
      ! Get element size
-     call data(1)%size(elemsize)
+     call data(snd_leids(1))%size(elemsize)
 
      ! Prepare room for sndbuf
      call memalloc ((snd_ptrs(npadj+1)-snd_ptrs(1))*elemsize, sndbuf, __FILE__,__LINE__)

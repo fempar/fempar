@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module my_part_names
+module mypart_names
   use serial_names
   implicit none
   
@@ -85,7 +85,7 @@ contains
     my%mypart  = transfer(buffer(start:end), my%mypart)
   end subroutine mypart_unpack 
 
-end module my_part_names
+end module mypart_names
 
 
 program par_test_cdr_unstructured
@@ -96,7 +96,7 @@ program par_test_cdr_unstructured
   use par_names
   use cdr_names
   use cdr_stabilized_continuous_Galerkin_names 
-  use my_part_names
+  use mypart_names
   
   implicit none
 #include "debug.i90" 
@@ -156,8 +156,6 @@ program par_test_cdr_unstructured
   call mesh_conditions_read_redistribute_on_first_level_tasks ( num_levels, num_parts, id_parts, &
                                                                 w_context, p_context, q_context, b_context, p_env, &
                                                                 p_mesh, p_cond )
-
-
 
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
 
@@ -247,7 +245,7 @@ program par_test_cdr_unstructured
 !!$           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-08
 !!$           point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
 !!$           point_to_p_mlevel_bddc_pars%correction_mode  = additive
-!!$        end if
+ !!$        end if
 !!$        allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = ierror)
 !!$        check(ierror==0)
 !!$        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
@@ -1264,5 +1262,5 @@ contains
       call memfree(aux_rp,__FILE__,__LINE__)
 
     end subroutine conditions_unpack
-  
+
 end program par_test_cdr_unstructured

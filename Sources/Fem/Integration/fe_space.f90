@@ -312,7 +312,7 @@ contains
           v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
           call fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
-             call finite_element_fixed_info_create(fe_space%finite_elements_info(pos_elinf),f_type,              &
+             call reference_element_create(fe_space%finite_elements_info(pos_elinf),f_type,              &
                   &                             f_order,dim)
           end if
           fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => fe_space%finite_elements_info(pos_elinf)
@@ -334,7 +334,7 @@ contains
        v_key = dim + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
        call fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
        if ( istat == new_index) then 
-          call finite_element_fixed_info_create(fe_space%finite_elements_info(pos_elinf),f_type,              &
+          call reference_element_create(fe_space%finite_elements_info(pos_elinf),f_type,              &
                &                             1,dim)
        end if
        fe_space%finite_elements(ielem)%p_geo_reference_element => fe_space%finite_elements_info(pos_elinf)
@@ -554,7 +554,7 @@ contains
     call fe_space%pos_volume_integrator%free
 
     do i = 1,fe_space%pos_elem_info%last()
-       call finite_element_fixed_info_free (fe_space%finite_elements_info(i))
+       call reference_element_free (fe_space%finite_elements_info(i))
     end do
     call fe_space%pos_elem_info%free
 

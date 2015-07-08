@@ -122,14 +122,10 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        call generate_vefs_mesh_conditions(gmesh, tmesh)
     end if
        
-
     do ielem=1, trian%num_elems
        trian%elems(ielem)%num_vefs = tmesh%pnods(ielem+1)-tmesh%pnods(ielem)
        call memalloc(trian%elems(ielem)%num_vefs, trian%elems(ielem)%vefs, __FILE__, __LINE__)
        trian%elems(ielem)%vefs(1:trian%elems(ielem)%num_vefs) = tmesh%lnods(tmesh%pnods(ielem):tmesh%pnods(ielem+1)-1)
-    end do
-
-    do ielem=1, trian%num_elems !(SBmod)
        call put_topology_element_triangulation ( ielem, trian )
     end do
 

@@ -128,7 +128,7 @@ contains
 
     ! Deallocate fixed info
     do iobj = 1,trian%pos_elem_info%last()
-       call finite_element_fixed_info_free (trian%reference_elements(iobj))
+       call reference_element_free (trian%reference_elements(iobj))
     end do
     call trian%pos_elem_info%free
 
@@ -313,10 +313,10 @@ contains
 
   end subroutine triangulation_to_dual
 
-  subroutine put_topology_element_triangulation( ielem, trian ) !(SBmod)
+  subroutine put_topology_element_triangulation( ielem, trian )
     implicit none
-    type(triangulation_t), intent(inout), target :: trian
     integer(ip),             intent(in)            :: ielem
+    type(triangulation_t), intent(inout), target :: trian
     ! Locals
     integer(ip) :: nvef, v_key, ndime, etype, pos_elinf, istat
     logical :: created
@@ -327,7 +327,7 @@ contains
 
     ! Variable values depending of the element ndime
     etype = 0
-    if(ndime == 2) then        ! 2D
+    if(ndime == 2) then       ! 2D
        if(nvef == 6) then     ! Linear triangles (P1)
           etype = P_type_id
        elseif(nvef == 8) then ! Linear quads (Q1)
@@ -347,7 +347,7 @@ contains
     call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
     if ( istat == new_index) then
        ! Create fixed info if not constructed
-       call finite_element_fixed_info_create(trian%reference_elements(pos_elinf),etype,  &
+       call reference_element_create(trian%reference_elements(pos_elinf),etype,  &
             &                                     1,ndime)
     end if
     trian%elems(ielem)%geo_reference_element => trian%reference_elements(pos_elinf)
@@ -419,7 +419,7 @@ contains
        write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'order:', trian%elems(ielem)%order
 
-       !call finite_element_fixed_info_write ( trian%elems(ielem)%geo_reference_element )
+       !call reference_element_write ( trian%elems(ielem)%geo_reference_element )
 
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
     end do
