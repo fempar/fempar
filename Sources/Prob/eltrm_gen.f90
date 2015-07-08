@@ -621,6 +621,43 @@ contains
 
   end subroutine oss_convu_arg_chk
   ! ---------------------------------------------------
+  !         OSS_CONVU_SKEW
+  ! ---------------------------------------------------
+  subroutine oss_convu_arg_chk_skew(dvolu,vegau,grave,agran,shape,deriv,ndime,nnode,elrhs,work)
+    !-----------------------------------------------------------------------
+    !
+    ! This routine computes the rhs term for projection OSS 
+    !     1/2 * (u · grad u, v) - 1/2 * (u , u · grad v )
+    !
+    !-----------------------------------------------------------------------
+    implicit none
+    ! Parameters
+    integer(ip), intent(in)    :: nnode,ndime
+    real(rp),    intent(in)    :: shape(nnode),dvolu
+    real(rp),    intent(in)    :: deriv(ndime,nnode),agran(nnode)
+    real(rp),    intent(in)    :: vegau(ndime),grave(ndime,ndime)
+    real(rp),    intent(inout) :: elrhs(ndime,nnode),work(:)
+    ! Locals
+    integer(ip)                :: inode,idime,jdime
+    real(rp)                   :: aux(nnode)
+
+    work=0.0_rp
+    do idime = 1,ndime
+       do jdime = 1,ndime
+          work(idime) = work(idime) + vegau(jdime)*grave(jdime,idime) 
+       end do
+    end do
+
+    do inode=1,nnode
+       work(4) = shape(inode)*dvolu*0.5_rp
+       aux(inode) = agran(inode)*0.5_rp
+       do idime=1,ndime
+          elrhs(idime,inode) = work(4)*work(idime) - aux(inode)*vegau(idime) + elrhs(idime,inode)
+       end do
+    end do
+
+  end subroutine oss_convu_arg_chk_skew
+  ! ---------------------------------------------------
   !         OSS_GRADP
   ! ---------------------------------------------------
   subroutine oss_gradp_arg_chk(dvolu,grapr,shape,ndime,nnode,elrhs,work)
@@ -911,9 +948,9 @@ contains
   !         ELMRHU_DIVV_P
   ! ---------------------------------------------------
   subroutine elmrhu_pdivv(dvolu,gppre,deriv,ndime,nnode,elvec,work)
-  !-----------------------------------------------------------------------
-  !
-  ! This routine computes the lhs term p-div(v) block V 
+    !-----------------------------------------------------------------------
+    !
+    ! This routine computes the lhs term p-div(v) block V 
     !     - (div v, p)
     !
     !-----------------------------------------------------------------------
@@ -935,5 +972,32 @@ contains
     end do
 
   end subroutine elmrhu_pdivv
+  ! ---------------------------------------------------
+  !         ELMRHU_DIVV_DIVU
+  ! ---------------------------------------------------
+  subroutine elmrhu_divudivv(dvolu,grvel,deriv,ndime,nnode,elvec,work)
+    !-----------------------------------------------------------------------
+    !
+    ! This routine computes the lhs term p-div(v) block V 
+    !     - (div v, p)
+    !
+    !-----------------------------------------------------------------------
+    implicit none
+    ! Parameters
+    integer(ip), intent(in)    :: nnode,ndime
+    real(rp),    intent(in)    :: grvel(ndime,ndime)
+    real(rp),    intent(in)    :: dvolu,deriv(ndime,nnode)
+    real(rp),    intent(inout) :: elvec(ndime,nnode),work(:)
+    ! Locals
+    integer(ip)                :: inode,idime
+
+    do inode=1,nnode
+       do idime=1,ndime
+          elvec(idime,inode) = deriv(idime,inode)*grvel(idime,idime)*dvolu + &
+               elvec(idime,inode)
+       end do
+    end do
+
+  end subroutine elmrhu_divudivv
 
 end module eltrm_gen_names

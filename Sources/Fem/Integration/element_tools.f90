@@ -124,8 +124,8 @@ module element_tools_names
   interface interpolation
      module procedure scalar_interpolation
      module procedure vector_interpolation
-     ! module procedure scalar_gradient_interpolation
-     ! module procedure vector_gradient_interpolation
+     module procedure scalar_gradient_interpolation
+     module procedure vector_gradient_interpolation
      ! module procedure divergence_interpolation
   end interface interpolation
 
@@ -138,7 +138,7 @@ module element_tools_names
   !public :: given_function_t, given_function_gradient_t, given_function_divergence_t
   public :: grad, div, integral, interpolation
 
-  public :: create_scalar, create_vector
+  public :: create_scalar, create_vector, create_tensor
 
 contains
 
@@ -324,6 +324,63 @@ contains
        end do
     end do
   end subroutine vector_interpolation
+
+  subroutine scalar_gradient_interpolation (unkno, ivar, ndime, icomp, integ, vec)
+    real(rp)     , intent(in)    :: unkno(:,:,:)
+    integer(ip)  , intent(in)    :: ivar, icomp, ndime
+    type(volume_integrator_pointer_t), intent(in)  :: integ(:)
+    type(vector_t)                 , intent(inout) :: vec
+    integer(ip) :: nnode, ngaus
+    integer(ip) :: idime, inode, igaus
+    assert(ndime == integ(ivar)%p%uint_phy%ndime)
+    nnode = integ(ivar)%p%uint_phy%nnode
+    ngaus = integ(ivar)%p%uint_phy%nlocs
+    call memalloc(ndime,ngaus,vec%a,__FILE__,__LINE__)
+    do igaus=1,ngaus
+       do inode =1,nnode
+          do idime=1,ndime
+             vec%a(idime,igaus) = vec%a(idime,igaus)+ integ(ivar)%p%uint_phy%deriv(idime,inode,igaus) * &
+                  &               unkno(inode, ivar, icomp)
+          end do
+       end do
+    end do
+  end subroutine scalar_gradient_interpolation
+
+  subroutine create_tensor (prob, ivar, ncomp, integ, res)
+    implicit none
+    class(physical_problem_t)        , intent(in)  :: prob
+    integer(ip)                      , intent(in)  :: ivar,ncomp
+    type(volume_integrator_pointer_t), intent(in)  :: integ(:)
+    type(tensor_t)                   , intent(out) :: res
+    integer(ip)  :: nvar, ngaus
+    nvar = prob%vars_of_unk(ivar)
+    ngaus = integ(ivar)%p%uint_phy%nlocs
+    call memalloc(ncomp,nvar,ngaus,res%a,__FILE__,__LINE__)
+  end subroutine create_tensor
+
+  subroutine vector_gradient_interpolation(unkno, ivar, icomp, integ, tens)
+    real(rp)                         , intent(in)    :: unkno(:,:,:)
+    integer(ip)                      , intent(in)    :: ivar, icomp
+    type(volume_integrator_pointer_t), intent(in)    :: integ(:)
+    type(tensor_t)                   , intent(inout) :: tens
+    integer(ip) :: nvar, ndime, nnode, ngaus
+    integer(ip) :: idof, idime, inode, igaus
+    nvar  = size(tens%a,2)
+    ndime = integ(ivar)%p%uint_phy%ndime
+    nnode = integ(ivar)%p%uint_phy%nnode
+    ngaus = integ(ivar)%p%uint_phy%nlocs
+    call memalloc(ndime,nvar,ngaus,tens%a,__FILE__,__LINE__)
+    do igaus=1,ngaus
+       do idof=1,nvar
+          do inode =1,nnode
+             do idime=1,ndime
+                tens%a(idime,idof,igaus) = tens%a(idime,idof,igaus) + &
+                     integ(ivar)%p%uint_phy%deriv(idime,inode,igaus) * unkno(inode, ivar-1+idof, icomp)
+             end do
+          end do
+       end do
+    end do
+  end subroutine vector_gradient_interpolation
 
   ! subroutine scalar_interpolation (u, res)
   !   type(given_function_t)  , intent(in)    :: u
