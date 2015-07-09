@@ -30,6 +30,7 @@ module par_update_names
   use types_names
   use memor_names
   use update_names
+  use base_operand_names
 
   ! Parallel modules
   use par_fe_space_names
@@ -40,10 +41,6 @@ module par_update_names
   implicit none
 # include "debug.i90"
   private
-
-  interface par_update_solution
-     module procedure par_update_solution_mono, par_update_solution_block
-  end interface par_update_solution
 
   ! Functions
   public :: par_update_strong_dirichlet_bcond, par_update_analytical_bcond, par_update_solution, &
@@ -91,11 +88,32 @@ contains
     end if
 
   end subroutine par_update_analytical_bcond
+
+  !==================================================================================================
+  subroutine par_update_solution(vec,p_fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a base_operand into unkno.                         !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    class(base_operand_t), intent(in)    :: vec   
+    type(par_fe_space_t) , intent(inout) :: p_fe_space
+
+    select type(vec)
+    class is(par_vector_t)
+       call par_update_solution_mono(vec,p_fe_space)
+    class is(par_block_vector_t)
+       call par_update_solution_block(vec,p_fe_space)
+    class default
+       write(*,*) 'par_update_solution:: vec type not supported'
+       check(.false.)
+    end select
+       
+  end subroutine par_update_solution
   
   !==================================================================================================
   subroutine par_update_solution_mono(p_vec,p_fe_space,iblock)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a vector into unkno.                           !
+    !   This subroutine stores the solution from a par_vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_vector_t)     , intent(in)    :: p_vec   
@@ -116,7 +134,7 @@ contains
   !==================================================================================================
   subroutine par_update_solution_block(blk_p_vec,p_fe_space)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a vector into unkno.                           !
+    !   This subroutine stores the solution from a par_block_vector into unkno.                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(par_block_vector_t), intent(in)    :: blk_p_vec   

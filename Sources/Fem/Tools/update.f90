@@ -37,12 +37,7 @@ module update_names
   use base_operand_names
   implicit none
 # include "debug.i90"
-  private
-
-!!$  interface update_solution
-!!$     module procedure update_solution_mono, update_solution_block
-!!$  end interface update_solution
-     
+  private     
 
   ! Functions
   public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, update_nonlinear, &
