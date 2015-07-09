@@ -34,17 +34,19 @@ module update_names
   use conditions_names
   use analytical_function_names
   use interpolation_tools_names
+  use base_operand_names
   implicit none
 # include "debug.i90"
   private
 
-  interface update_solution
-     module procedure update_solution_mono, update_solution_block
-  end interface update_solution
+!!$  interface update_solution
+!!$     module procedure update_solution_mono, update_solution_block
+!!$  end interface update_solution
      
 
   ! Functions
-  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, update_nonlinear
+  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, update_nonlinear, &
+       &    update_solution_mono
  
 contains
   
@@ -148,6 +150,27 @@ contains
   end subroutine update_analytical_bcond
 
   !==================================================================================================
+  subroutine update_solution(vec,fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a base_operand into unkno.                         !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    class(base_operand_t), intent(in)    :: vec   
+    type(fe_space_t)     , intent(inout) :: fe_space
+
+    select type(vec)
+    class is(vector_t)
+       call update_solution_mono(vec,fe_space)
+    class is(block_vector_t)
+       call update_solution_block(vec,fe_space)
+    class default
+       write(*,*) 'update_solution:: vec type not supported'
+       check(.false.)
+    end select
+       
+  end subroutine update_solution
+
+  !==================================================================================================
   subroutine update_solution_mono(fevec,fe_space,iblock)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the solution from a vector into unkno.                           !
@@ -191,7 +214,7 @@ contains
   !==================================================================================================
   subroutine update_solution_block(blvec,fe_space)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a vector into unkno.                           !
+    !   This subroutine stores the solution from a vector into unkno.                               !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(block_vector_t), intent(in)    :: blvec   

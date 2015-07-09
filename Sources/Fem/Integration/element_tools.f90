@@ -273,6 +273,7 @@ contains
     assert( nvar == 1)
     ngaus = integ(ivar)%p%uint_phy%nlocs
     call memalloc(ngaus,res%a,__FILE__,__LINE__)
+    res%a=0.0_rp
   end subroutine create_scalar
 
   subroutine scalar_interpolation (unkno, ivar, icomp, integ, res)
@@ -302,6 +303,7 @@ contains
     nvar = prob%vars_of_unk(ivar)
     ngaus = integ(ivar)%p%uint_phy%nlocs
     call memalloc(nvar,ngaus,res%a,__FILE__,__LINE__)
+    res%a=0.0_rp
   end subroutine create_vector
 
   subroutine vector_interpolation (unkno, ivar, icomp, integ, res)
@@ -356,6 +358,7 @@ contains
     nvar = prob%vars_of_unk(ivar)
     ngaus = integ(ivar)%p%uint_phy%nlocs
     call memalloc(ncomp,nvar,ngaus,res%a,__FILE__,__LINE__)
+    res%a=0.0_rp
   end subroutine create_tensor
 
   subroutine vector_gradient_interpolation(unkno, ivar, icomp, integ, tens)

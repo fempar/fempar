@@ -99,5 +99,6 @@ module serial_names
   use integration_names
   use plain_vector_names
   use scalar_names
+  use nonlinear_operator_names
 
 end module serial_names

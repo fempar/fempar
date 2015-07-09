@@ -31,7 +31,7 @@ module my_linear_algebra_names
 # include "debug.i90"
   private
   
-  type my_linear_algebra_t 
+  type, extends(nonlinear_operator_t) :: my_linear_algebra_t 
      type(block_matrix_t)           :: block_matrix
      type(block_vector_t)           :: block_vector
      type(block_vector_t)           :: block_unknown
@@ -69,8 +69,8 @@ contains
   !==================================================================================================
   subroutine build_linear_algebra(la,blk_graph)
     implicit none
-    class(my_linear_algebra_t), intent(inout) :: la
-    type(block_graph_t)       , intent(in)    :: blk_graph
+    class(my_linear_algebra_t), target, intent(inout) :: la
+    type(block_graph_t)               , intent(in)    :: blk_graph
 
     ! Allocate matrices and vectors
     call la%block_matrix%alloc(blk_graph)
@@ -175,6 +175,15 @@ contains
     call la%block_preconditioner%set_block(1,1,la%block_up_preconditioner)
     call la%block_preconditioner%set_block(2,1,la%block_x_up_operator)
     call la%block_preconditioner%set_block(2,2,la%block_x_preconditioner)
+
+    ! Assign operators
+    la%A => la%block_operator
+    la%M => la%block_preconditioner
+    la%b => la%block_operand_vec
+    la%x => la%block_operand_unk
+    la%A_int => la%block_matrix
+    la%b_int => la%block_vector
+    la%x_sol => la%block_unknown
     
   end subroutine build_linear_algebra
 
@@ -182,6 +191,15 @@ contains
   subroutine free_linear_algebra(la)
     implicit none
     class(my_linear_algebra_t), intent(inout) :: la
+
+    ! Unassign operators
+    la%A => null()
+    la%M => null()
+    la%b => null()
+    la%x => null()
+    la%A_int => null()
+    la%b_int => null()
+    la%x_sol => null()
 
     ! Destroy Global Block preconditioner
     call la%block_preconditioner%destroy()
@@ -380,6 +398,8 @@ program test_blk_nsi_cg_iss_oss
 
   ! Create linear algebra structures
   call linear_algebra%build(blk_graph)
+  linear_algebra%max_iter = 10
+  linear_algebra%nltol    = 1.0e-12_rp
 
   ! Compute auxiliar matrix
   call mass_p_integration%create(myprob,mydisc)
@@ -400,7 +420,7 @@ program test_blk_nsi_cg_iss_oss
   approx(1)%p => cg_iss_oss_matvec
 
   ! Do nonlinear iterations
-  call nonlinear_iteration(sctrl,sctrl%rtol*1.0e2_rp,10,senv,approx,fe_space,linear_algebra)
+  call nonlinear_iteration(sctrl,senv,approx,fe_space,linear_algebra)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -511,52 +531,50 @@ contains
   end subroutine free_preconditioner
 
   !==================================================================================================
-  subroutine nonlinear_iteration( sctrl, nltol, maxit, env, approx, fe_space, la )
+  subroutine nonlinear_iteration( sctrl, env, approx, fe_space, nlop )
     implicit none
     type(solver_control_t)              , intent(inout) :: sctrl
-    real(rp)                            , intent(in)    :: nltol
-    integer(ip)                         , intent(in)    :: maxit    
     class(abstract_environment_t)       , intent(in)    :: env
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
     type(fe_space_t)                    , intent(inout) :: fe_space
-    type(my_linear_algebra_t), target   , intent(inout) :: la
+    !class(nonlinear_operator_t), target , intent(inout) :: nlop
+    type(my_linear_algebra_t), target , intent(inout) :: nlop
     ! Locals
     ! Locals
-    integer(ip) :: iiter
-    real(rp)    :: resnorm,ininorm
-    class(base_operator_t), pointer :: A, M
-    class(base_operand_t) , pointer :: x, b, aux1, aux2
+    integer(ip)           :: iiter
+    real(rp)              :: resnorm,ininorm
     type(block_operand_t) :: y
 
-    ! Assign operators
-    A => la%block_operator
-    M => la%block_preconditioner
-    b => la%block_operand_vec
-    x => la%block_operand_unk
-    
+    ! Checks
+    check(associated(nlop%A))
+    check(associated(nlop%M))
+    check(associated(nlop%b))
+    check(associated(nlop%x))
+    check(associated(nlop%A_int))
+    check(associated(nlop%b_int))
+    check(associated(nlop%x_sol))
+        
     iiter = 0
-    do while( iiter < maxit )
+    do while( iiter < nlop%max_iter )
 
        ! Update counter
        iiter = iiter+1
 
        ! Initialize Matrix and vector
        ! ***************** Abstract procedure to initialize a base_operator ************************!
-       call block_matrix_zero(la%block_matrix)
+       ! call nlop%A_int%init()
+       call block_matrix_zero(nlop%block_matrix)
        !********************************************************************************************!
-       call b%init(0.0_rp)
+       call nlop%b_int%init(0.0_rp)
 
        ! Integrate system
-       !call volume_integral(approx,fe_space,A,b)
-       ! ************ Abstract integration of a base_operator and/or base_operand*******************!
-       call volume_integral(approx,fe_space,la%block_matrix,la%block_vector)
-       !********************************************************************************************!
+       call volume_integral(approx,fe_space,nlop%A_int,nlop%b_int)
 
        ! Check convergence
-       if(iiter==1) ininorm = b%nrm2()   
-       y = b - A*x
+       if(iiter==1) ininorm = nlop%b%nrm2()   
+       y = nlop%b - nlop%A*nlop%x
        resnorm = y%nrm2()
-       if( resnorm < nltol*ininorm) then
+       if( resnorm < nlop%nltol*ininorm) then
           write(*,*) 'Nonlinear iterations: ', iiter
           write(*,*) 'Nonlinear error norm: ', resnorm
           exit
@@ -564,23 +582,23 @@ contains
 
        ! Compute Numeric preconditioner
        ! ***************** Abstract procedure to compute precond numeric ***************************!
-       call compute_preconditioner(la)
+       ! call nlop%M%compute()
+       call compute_preconditioner(nlop)
        !********************************************************************************************!
 
        ! Solve system
-       call abstract_solve(A,M,b,x,sctrl,env)
+       call abstract_solve(nlop%A,nlop%M,nlop%b,nlop%x,sctrl,env)
        call solver_control_log_conv_his(sctrl)
        call solver_control_free_conv_his(sctrl)
 
        ! Free Numeric preconditioner
        ! ******************** Abstract procedure to free precond numeric ***************************!
-       call free_preconditioner(la)
+       ! call nlop%M%free_values()
+       call free_preconditioner(nlop)
        !********************************************************************************************!
        
        ! Store solution to unkno
-       ! ***************** Abstract procedure to update from a base operant ************************!
-       call update_solution(la%block_unknown,fe_space)
-       !********************************************************************************************!
+       call update_solution(nlop%x_sol,fe_space)
        
        ! Store nonlinear iteration ( k+1 --> k )
        call update_nonlinear(fe_space)

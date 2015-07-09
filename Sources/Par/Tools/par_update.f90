@@ -108,7 +108,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_solution(p_vec%f_vector,p_fe_space%fe_space,iblock)
+       call update_solution_mono(p_vec%f_vector,p_fe_space%fe_space,iblock)
     end if
 
   end subroutine par_update_solution_mono
@@ -135,7 +135,7 @@ contains
        do iblock = 1,blk_p_vec%nblocks
 
           ! Call monolithic update
-          call update_solution(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
+          call update_solution_mono(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
 
        end do
 

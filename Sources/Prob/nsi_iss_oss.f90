@@ -72,6 +72,16 @@ module nsi_cg_iss_oss_names
      procedure :: free    => nsi_matvec_free
   end type nsi_cg_iss_oss_matvec_t
 
+  ! Mass_velocity
+  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_massu_t
+     type(nsi_cg_iss_oss_discrete_t), pointer :: discret
+     type(nsi_problem_t)            , pointer :: physics
+   contains
+     procedure :: create  => nsi_massu_create
+     procedure :: compute => nsi_massu 
+     procedure :: free    => nsi_massu_free
+  end type nsi_cg_iss_oss_massu_t
+
   ! Mass_pressure
   type, extends(discrete_integration_t) :: nsi_cg_iss_oss_massp_t
      type(nsi_cg_iss_oss_discrete_t), pointer :: discret
@@ -107,11 +117,33 @@ module nsi_cg_iss_oss_names
   type, extends(discrete_integration_t) :: nsi_cg_iss_oss_rk_pressure_t
      type(nsi_cg_iss_oss_discrete_t), pointer :: discret
      type(nsi_problem_t)            , pointer :: physics
+     real(rp)                                 :: ctime = 0.0_rp
    contains
      procedure :: create  => nsi_rk_pressure_create
      procedure :: compute => nsi_rk_pressure
      procedure :: free    => nsi_rk_pressure_free
   end type nsi_cg_iss_oss_rk_pressure_t
+
+  ! Runge-Kutta momentum equation update (U_n+1)
+  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_rk_momentum_update_t
+     type(nsi_cg_iss_oss_discrete_t), pointer :: discret
+     type(nsi_problem_t)            , pointer :: physics
+     type(rungekutta_integrator_t)  , pointer :: rkinteg
+   contains
+     procedure :: create  => nsi_rk_momentum_update_create
+     procedure :: compute => nsi_rk_momentum_update
+     procedure :: free    => nsi_rk_momentum_update_free
+  end type nsi_cg_iss_oss_rk_momentum_update_t
+
+  ! Runge-Kutta momentum equation update (U_n+1)
+  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_rk_projection_update_t
+     type(nsi_cg_iss_oss_discrete_t), pointer :: discret
+     type(nsi_problem_t)            , pointer :: physics
+   contains
+     procedure :: create  => nsi_rk_projection_update_create
+     procedure :: compute => nsi_rk_projection_update
+     procedure :: free    => nsi_rk_projection_update_free
+  end type nsi_cg_iss_oss_rk_projection_update_t
 
   ! Unkno components parameter definition
   integer(ip), parameter :: current   = 1
@@ -121,7 +153,9 @@ module nsi_cg_iss_oss_names
 
   ! Types
   public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t, nsi_cg_iss_oss_massp_t, &
-       &    nsi_cg_iss_oss_lapla_p_t, nsi_cg_iss_oss_rk_momentum_t, nsi_cg_iss_oss_rk_pressure_t
+       &    nsi_cg_iss_oss_lapla_p_t, nsi_cg_iss_oss_rk_momentum_t, nsi_cg_iss_oss_rk_pressure_t, &
+       &    nsi_cg_iss_oss_rk_momentum_update_t, nsi_cg_iss_oss_rk_projection_update_t, &
+       &    nsi_cg_iss_oss_massu_t
   
 contains
 
@@ -204,6 +238,44 @@ contains
     approx%discret => null()
 
   end subroutine nsi_matvec_free
+
+  !=================================================================================================
+  subroutine nsi_massu_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_massu_t)    , intent(inout) :: approx
+    class(physical_problem_t), target, intent(in)    :: physics
+    class(discrete_problem_t), target, intent(in)    :: discret
+
+    select type (physics)
+    type is(nsi_problem_t)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_oss_discrete_t)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
+
+  end subroutine nsi_massu_create
+
+  !=================================================================================================
+  subroutine nsi_massu_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_massu_t), intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+  end subroutine nsi_massu_free
 
   !=================================================================================================
   subroutine nsi_massp_create( approx, physics, discret )
@@ -356,6 +428,82 @@ contains
     approx%discret => null()
 
   end subroutine nsi_rk_pressure_free
+
+  !=================================================================================================
+  subroutine nsi_rk_momentum_update_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_rk_momentum_update_t), intent(inout) :: approx
+    class(physical_problem_t)  , target, intent(in)    :: physics
+    class(discrete_problem_t)  , target, intent(in)    :: discret
+
+    select type (physics)
+    type is(nsi_problem_t)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_oss_discrete_t)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
+
+  end subroutine nsi_rk_momentum_update_create
+
+  !=================================================================================================
+  subroutine nsi_rk_momentum_update_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_rk_momentum_update_t), intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+  end subroutine nsi_rk_momentum_update_free
+
+  !=================================================================================================
+  subroutine nsi_rk_projection_update_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_rk_projection_update_t), intent(inout) :: approx
+    class(physical_problem_t)  , target, intent(in)    :: physics
+    class(discrete_problem_t)  , target, intent(in)    :: discret
+
+    select type (physics)
+    type is(nsi_problem_t)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_oss_discrete_t)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
+
+  end subroutine nsi_rk_projection_update_create
+
+  !=================================================================================================
+  subroutine nsi_rk_projection_update_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_rk_projection_update_t), intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+  end subroutine nsi_rk_projection_update_free
 
   !=================================================================================================
   subroutine nsi_matvec(approx,finite_element)
@@ -611,6 +759,80 @@ contains
   end subroutine nsi_matvec
 
   !=================================================================================================
+  subroutine nsi_massu(approx,finite_element)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine performs the elemental mass matrix integration for pressure dofs.          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_massu_t), intent(inout) :: approx
+    type(finite_element_t)       , intent(inout) :: finite_element
+    ! Locals
+    integer(ip) :: igaus,inode,jnode,idof,jdof,ndime,nnodu,ngaus,idime
+    real(rp)    :: dvolu
+    real(rp), allocatable :: elmat_vu_diag(:,:)
+    
+    ! Unpack variables
+    ndime = approx%physics%ndime
+    nnodu = finite_element%integ(1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%quad%ngaus
+
+    ! Initialize to zero
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
+    
+    ! Allocate auxiliar matrices and vectors
+    call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
+
+    ! Initialize to zero
+    elmat_vu_diag = 0.0_rp
+
+    ! Loop on Gauss points
+    do igaus = 1,ngaus
+       dvolu = finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
+
+       do inode=1,nnodu
+          do jnode=1,nnodu
+             elmat_vu_diag(inode,jnode) = elmat_vu_diag(inode,jnode) + dvolu * &
+                  &    finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
+                  &    finite_element%integ(1)%p%uint_phy%shape(jnode,igaus)
+          end do
+       end do
+
+    end do
+
+    ! Assembly to elemental p_mat
+    if (approx%discret%kfl_lump==0) then
+       do inode=1,nnodu
+          do jnode=1,nnodu
+             do idime=1,ndime
+                ! Block V-U (diag)
+                idof = finite_element%start%a(idime)+inode-1
+                jdof = finite_element%start%a(idime)+jnode-1
+                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + &
+                     &                               elmat_vu_diag(inode,jnode)
+             end do
+          end do
+       end do
+    else
+       do inode=1,nnodu
+          do jnode=1,nnodu
+             do idime=1,ndime
+                ! Block V-U (diag)
+                idof = finite_element%start%a(idime)+inode-1
+                jdof = finite_element%start%a(idime)+inode-1
+                finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + &
+                     &                               elmat_vu_diag(inode,jnode)
+             end do
+          end do
+       end do
+    end if
+
+    ! Deallocate auxiliar matrices and vectors
+    call memfree(elmat_vu_diag,__FILE__,__LINE__)
+    
+  end subroutine nsi_massu
+
+  !=================================================================================================
   subroutine nsi_massp(approx,finite_element)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine performs the elemental mass matrix integration for pressure dofs.          !
@@ -719,13 +941,13 @@ contains
     class(nsi_cg_iss_oss_rk_momentum_t), intent(inout) :: approx
     type(finite_element_t)             , intent(inout) :: finite_element
     ! Locals
-    integer(ip)                 :: ndime,nnodu,nnodp,ngaus,nstge
+    integer(ip)                 :: ndime,nnodu,nnodp,ngaus
     integer(ip)                 :: igaus,inode,jnode,idof,jdof,istge,jstge,idime,jdime
     real(rp)                    :: dvolu,dtinv,diffu,alpha,ctime,prevtime
     real(rp)                    :: work(5)
     real(rp)                    :: agran(finite_element%integ(1)%p%uint_phy%nnode)
-    real(rp)      , allocatable :: testf(:,:,:)!(finite_element%integ(1)%p%uint_phy%nnode,finite_element%integ(1)%p%quad%ngaus)
-    real(rp)      , allocatable :: tau(:,:,:)!(2,finite_element%integ(1)%p%quad%ngaus)
+    real(rp)      , allocatable :: testf(:,:,:)
+    real(rp)      , allocatable :: tau(:,:,:)
     real(rp)      , allocatable :: elmat_vu(:,:,:,:)
     real(rp)      , allocatable :: elmat_vu_diag(:,:)
     real(rp)      , allocatable :: elmat_vx(:,:,:,:)
@@ -745,7 +967,6 @@ contains
     dtinv = approx%discret%dtinv
     rkinteg => approx%rkinteg
     istge = rkinteg%istge
-    nstge = rkinteg%rktable(1)%p%stage
     prevtime = approx%discret%ctime - 1.0_rp/dtinv
 
     ! Asserts
@@ -757,7 +978,7 @@ contains
 
     ! Interpolation operations
     allocate(gpvel(istge+1))
-    allocate(gposs(istge))
+    allocate(gposs(istge-1))
     allocate(grvel(istge-1))
     allocate(grpre(istge-1))
     do jstge=1,istge-1
@@ -768,7 +989,6 @@ contains
     end do
     call create_vector (approx%physics,1,finite_element%integ,gpvel(istge))
     call create_vector (approx%physics,1,finite_element%integ,gpvel(istge+1))
-    call create_vector (approx%physics,1,finite_element%integ,gposs(istge))
     call interpolation(finite_element%unkno,1,prev_step,finite_element%integ,gpvel(1))                    ! U_n
     do jstge=2,istge
        call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,gpvel(jstge))               ! U_j
@@ -777,7 +997,6 @@ contains
        call interpolation(finite_element%unkno,ndime+1,ndime,jstge+2,finite_element%integ,grpre(jstge-1)) ! GradP_j
     end do
     call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel(istge+1))              ! U^k,i
-    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gposs(istge))                ! X^k,i
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_vu,__FILE__,__LINE__)
@@ -1013,8 +1232,7 @@ contains
        call memfree(force(jstge)%a,__FILE__,__LINE__)
     end do
     call memfree(gpvel(istge+1)%a,__FILE__,__LINE__)
-    call memfree(gpvel(istge+1)%a,__FILE__,__LINE__)
-    call memfree(gposs(istge)%a,__FILE__,__LINE__)
+    call memfree(gpvel(istge)%a,__FILE__,__LINE__)
     call memfree(force(istge)%a,__FILE__,__LINE__)
     deallocate(gpvel)
     deallocate(gposs)
@@ -1076,29 +1294,537 @@ contains
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_oss_rk_pressure_t), intent(inout) :: approx
-    type(finite_element_t)         , intent(inout) :: finite_element
+    type(finite_element_t)             , intent(inout) :: finite_element
     ! Locals
-    integer(ip)           :: igaus,inode,jnode,idof,jdof,ndime,nnodp,ngaus
-    real(rp)              :: dvolu
+    integer(ip)           :: ndime,nnodu,nnodp,ngaus
+    integer(ip)           :: igaus,inode,jnode,idof,jdof,idime
+    real(rp)              :: dvolu,diffu,dtinv,ctime 
+    real(rp)              :: work(5)
+    real(rp)              :: agran(finite_element%integ(1)%p%uint_phy%nnode)
+    real(rp)              :: testf(finite_element%integ(1)%p%uint_phy%nnode,finite_element%integ(1)%p%quad%ngaus)
+    real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
+    real(rp), allocatable :: elmat_vu_diag(:,:)
+    real(rp), allocatable :: elmat_vp(:,:,:,:)
+    real(rp), allocatable :: elmat_qu(:,:,:,:)
+    real(rp), allocatable :: elvec_u(:,:) 
+    type(vector_t)        :: gpvel,gposs,force
+    type(tensor_t)        :: grvel
     
     ! Unpack variables
     ndime = approx%physics%ndime
+    nnodu = finite_element%integ(1)%p%uint_phy%nnode
     nnodp = finite_element%integ(ndime+1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%quad%ngaus
+    diffu = approx%physics%diffu
+    dtinv = approx%discret%dtinv
+    ctime = approx%ctime
+
+    ! Initialize to zero
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
+
+    ! Interpolation operations
+    call create_vector(approx%physics,1,finite_element%integ,gpvel)
+    call create_vector(approx%physics,1,finite_element%integ,gposs)
+    call create_tensor(approx%physics,1,ndime,finite_element%integ,grvel)
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel)       ! U_j
+    call interpolation(finite_element%unkno,ndime+2,prev_iter,finite_element%integ,gposs) ! X_j
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,grvel)       ! GradU_j
+
+    ! Allocate auxiliar matrices and vectors
+    call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
+    call memalloc(ndime,1,nnodu,nnodp,elmat_vp,__FILE__,__LINE__)
+    call memalloc(1,ndime,nnodp,nnodu,elmat_qu,__FILE__,__LINE__)
+    call memalloc(ndime,nnodu,elvec_u,__FILE__,__LINE__)
+
+    ! Stabilization parameters
+    call nsi_elmvsg(approx%physics,approx%discret,finite_element,gpvel%a,tau)
+
+    ! Set force term
+    call create_vector(approx%physics,1,finite_element%integ,force)
+    force%a=0.0_rp
+    ! Impose analytical solution
+    if(finite_element%p_analytical_code%a(1,1)>0.and.finite_element%p_analytical_code%a(ndime+1,1)>0) then 
+       call nsi_analytical_force(approx%physics,finite_element,ctime,gpvel,force)
+    end if
+    ! Add external force term
+    do igaus=1,ngaus
+       force%a(:,igaus) = force%a(:,igaus) + approx%physics%gravi(:)
+    end do  
+
+    ! Initialize to zero
+    elmat_vu_diag = 0.0_rp
+    elmat_vp      = 0.0_rp
+    elmat_qu      = 0.0_rp
+    elvec_u       = 0.0_rp
+    work          = 0.0_rp
+    agran         = 0.0_rp
+    testf         = 0.0_rp
+
+    ! Loop on Gauss points
+    do igaus = 1,ngaus
+       dvolu = finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
+
+       ! Auxiliar variables
+       if(approx%physics%kfl_conv.ne.0) then
+          do inode = 1,nnodu
+             agran(inode) = 0.0_rp
+             do idime = 1,ndime
+                agran(inode) = agran(inode) + gpvel%a(idime,igaus) * &
+                     &         finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus)
+             end do
+             testf(inode,igaus) = tau(1,igaus)*agran(inode)
+          end do
+       end if
+
+       ! Construct LHS
+       ! =============
+       ! Mass matrix (M)
+       call elmmss_gal(dvolu,1.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),nnodu, &
+            &          elmat_vu_diag,work)
+
+       ! Pressure Gradient
+       ! - ( div v, p )
+       call elmbpv_gal_div_iss(dvolu,finite_element%integ(ndime+1)%p%uint_phy%shape(:,igaus),         &
+            &                  finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
+            &                  elmat_vp,work)
+
+       ! Divergence
+       ! ( div u, q )
+       call elmbuq_gal_div_iss(dvolu,finite_element%integ(ndime+1)%p%uint_phy%shape(:,igaus),               &
+            &                  finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,nnodp, &
+            &                  elmat_qu,work)
+       
+       ! Construct RHS
+       ! =============
+       ! Diffusion
+       work(5) = -dvolu
+       ! nu( grad u, grad v )
+       call elmrhu_gradgrad(work(5),diffu,grvel%a(:,:,igaus), &
+            &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+       ! Add cross terms for symmetric grad
+       if(approx%physics%kfl_symg==1) then
+          call elmrhu_gradgrad_sym(work(5),diffu,grvel%a(:,:,igaus), &
+               &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+       end if
+
+       ! Convection
+       work(5) = -dvolu
+       ! (u · grad u, v) 
+       if(approx%physics%kfl_skew==0) then
+          call oss_convu_arg_chk(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus), &
+               &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
+       elseif(approx%physics%kfl_skew==1) then
+          call oss_convu_arg_chk_skew(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus),agran, &
+               &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+               &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+       end if
+
+       ! OSS_vu
+       work(5) = -dvolu*tau(1,igaus)
+       ! tau * ( u · grad u, u· grad v)
+       call oss_convu_arg_chk(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus),agran,ndime,nnodu,elvec_u, &
+            &                 work)
+       ! tauc*(div v, div u)
+       if(approx%discret%ktauc>0.0_rp) then
+          work(5) = -dvolu*tau(2,igaus)
+          call elmrhu_divudivv(work(5),grvel%a(:,:,igaus), &
+               &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+               &               elvec_u,work)
+       end if
+
+       ! OSS_vx
+       work(5) = dvolu*tau(1,igaus)
+       ! - tau * ( proj(u·grad u), u· grad v)
+       call elmrhs_fce(work(5),testf(:,igaus),gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
+
+       ! Force
+       work(5) = dvolu
+       call elmrhs_fce(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus),force%a(:,igaus), &
+            &          nnodu,ndime,elvec_u,work)
+
+    end do
+
+    ! Deallocate
+    call memfree(gpvel%a,__FILE__,__LINE__)
+    call memfree(gposs%a,__FILE__,__LINE__)
+    call memfree(grvel%a,__FILE__,__LINE__)
+    call memfree(force%a,__FILE__,__LINE__)
+
+    ! Assembly to elemental p_mat and p_vec
+    do inode=1,nnodu
+       do idime=1,ndime
+          do jnode=1,nnodu
+             ! Block V-U (diag)
+             idof = finite_element%start%a(idime)+inode-1
+             jdof = finite_element%start%a(idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) +  elmat_vu_diag(inode,jnode)
+          end do
+          do jnode=1,nnodp
+             ! Block V-P
+             idof = finite_element%start%a(idime)+inode-1
+             jdof = finite_element%start%a(ndime+1)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vp(idime,1,inode,jnode)
+             ! Block Q-U
+             idof = finite_element%start%a(ndime+1)+jnode-1
+             jdof = finite_element%start%a(idime)+inode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) +  elmat_qu(1,idime,jnode,inode)
+          end do
+          ! Block U
+          idof = finite_element%start%a(idime)+inode-1
+          finite_element%p_vec%a(idof) = finite_element%p_vec%a(idof) + elvec_u(idime,inode)
+       end do
+    end do
+
+    ! Deallocate auxiliar matrices and vectors
+    call memfree(elmat_vu_diag,__FILE__,__LINE__)
+    call memfree(elmat_vp,__FILE__,__LINE__)
+    call memfree(elmat_qu,__FILE__,__LINE__)
+    call memfree(elvec_u,__FILE__,__LINE__)
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(finite_element) 
+    
+  end subroutine nsi_rk_pressure
+
+  !=================================================================================================
+  subroutine nsi_rk_momentum_update(approx,finite_element)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine performs the elemental laplacian matrix integration for pressure dofs.     !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_rk_momentum_update_t), intent(inout) :: approx
+    type(finite_element_t)                    , intent(inout) :: finite_element
+    ! Locals
+    integer(ip)                 :: ndime,nnodu,nnodp,ngaus
+    integer(ip)                 :: igaus,inode,jnode,idof,jdof,nstge,jstge,idime,jdime
+    real(rp)                    :: dvolu,dtinv,diffu,alpha,ctime,prevtime
+    real(rp)                    :: work(5)
+    real(rp)                    :: agran(finite_element%integ(1)%p%uint_phy%nnode)
+    real(rp)      , allocatable :: testf(:,:,:)
+    real(rp)      , allocatable :: tau(:,:,:)
+    real(rp)      , allocatable :: elmat_vu_diag(:,:)
+    real(rp)      , allocatable :: elvec_u(:,:) 
+    type(vector_t), allocatable :: gpvel(:),gposs(:),force(:),grpre(:)
+    type(tensor_t), allocatable :: grvel(:)
+    type(rungekutta_integrator_t), pointer :: rkinteg
+
+    ! Unpack variables
+    ndime = approx%physics%ndime
+    nnodu = finite_element%integ(1)%p%uint_phy%nnode
+    nnodp = finite_element%integ(ndime+1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%quad%ngaus
+    diffu = approx%physics%diffu
+    dtinv = approx%discret%dtinv
+    rkinteg => approx%rkinteg
+    nstge = rkinteg%rktable(1)%p%stage
+    ctime = approx%discret%ctime
+    prevtime = approx%discret%ctime - 1.0_rp/dtinv
+
+    ! Initialize to zero
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
+
+    ! Interpolation operations
+    allocate(gpvel(nstge+1))
+    allocate(gposs(nstge))
+    allocate(grvel(nstge))
+    allocate(grpre(nstge))
+    do jstge=1,nstge
+       call create_vector(approx%physics,1,finite_element%integ,gpvel(jstge))
+       call create_vector(approx%physics,1,finite_element%integ,gposs(jstge))
+       call create_tensor(approx%physics,1,ndime,finite_element%integ,grvel(jstge))
+       call create_vector(approx%physics,1,finite_element%integ,grpre(jstge))
+    end do
+    call create_vector (approx%physics,1,finite_element%integ,gpvel(nstge+1))
+    call interpolation(finite_element%unkno,1,prev_step,finite_element%integ,gpvel(1))                    ! U_n
+    do jstge=2,nstge
+       call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,gpvel(jstge))               ! U_j
+       call interpolation(finite_element%unkno,ndime+2,jstge+2,finite_element%integ,gposs(jstge-1))       ! X_j
+       call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,grvel(jstge-1))             ! GradU_j
+       call interpolation(finite_element%unkno,ndime+1,ndime,jstge+2,finite_element%integ,grpre(jstge-1)) ! GradP_j
+    end do
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel(nstge+1))              ! U^k,i
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gposs(nstge))                ! X^k,i
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,grvel(nstge))                ! GradU_j
+    call interpolation(finite_element%unkno,ndime+1,ndime,prev_iter,finite_element%integ,grpre(nstge))    ! GradP_j
+
+    ! Allocate auxiliar matrices and vectors
+    call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
+    call memalloc(ndime,nnodu,elvec_u,__FILE__,__LINE__)
+
+    ! Allocate & compute Stabilization parameters
+    call memalloc(nnodu,ngaus,nstge,testf,__FILE__,__LINE__)
+    call memalloc(2,ngaus,nstge,tau,__FILE__,__LINE__)
+    do jstge=2,nstge+1
+       call nsi_elmvsg(approx%physics,approx%discret,finite_element,gpvel(jstge)%a,tau(:,:,jstge-1))
+    end do
+
+    ! Allocate & compute force term
+    allocate(force(nstge))
+    do jstge=1,nstge
+       ctime = prevtime + 1.0_rp/dtinv*rkinteg%rktable(1)%p%c(jstge)
+       call create_vector(approx%physics,1,finite_element%integ,force(jstge))
+       force(jstge)%a=0.0_rp
+       ! Impose analytical solution
+       if(finite_element%p_analytical_code%a(1,1)>0.and.finite_element%p_analytical_code%a(ndime+1,1)>0) then 
+          call nsi_analytical_force(approx%physics,finite_element,ctime,gpvel(jstge+1),force(jstge))
+       end if
+       ! Add external force term
+       do igaus=1,ngaus
+          force(jstge)%a(:,igaus) = force(jstge)%a(:,igaus) + approx%physics%gravi(:)
+       end do
+    end do
+
+    ! Initialize to zero
+    elmat_vu_diag = 0.0_rp
+    elvec_u       = 0.0_rp
+    work          = 0.0_rp
+    agran         = 0.0_rp
+    testf         = 0.0_rp
+
+    ! Loop on Gauss points
+    gauss: do igaus = 1,ngaus
+       dvolu = finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
+
+       ! Construct LHS
+       ! =============
+       ! Mass matrix (M/dt)
+       call elmmss_gal(dvolu,dtinv,finite_element%integ(1)%p%uint_phy%shape(:,igaus),nnodu, &
+            &          elmat_vu_diag,work)
+
+       ! Construct RHS
+       ! =============
+       ! Mass
+       ! ( v, u_n/dt )
+       work(5) = dvolu*dtinv
+       call elmrhs_fce(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+            &          gpvel(1)%a(:,igaus),nnodu,ndime,elvec_u,work)
+
+       ! Loop over previous stages
+       stages: do jstge=1,nstge
+
+          ! Auxiliar variables
+          if(approx%physics%kfl_conv.ne.0) then
+             do inode = 1,nnodu
+                agran(inode) = 0.0_rp
+                do idime = 1,ndime
+                   agran(inode) = agran(inode) + gpvel(jstge+1)%a(idime,igaus) * &
+                        &         finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus)
+                end do
+                testf(inode,igaus,jstge) = tau(1,igaus,jstge)*agran(inode)
+             end do
+          end if
+
+          ! Diffusion
+          alpha = rkinteg%rktable(1)%p%b(jstge)
+          work(5) = -dvolu*alpha
+          ! nu( grad u, grad v )
+          call elmrhu_gradgrad(work(5),diffu,grvel(jstge)%a(:,:,igaus), &
+               &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+          ! Add cross terms for symmetric grad
+          if(approx%physics%kfl_symg==1) then
+             call elmrhu_gradgrad_sym(work(5),diffu,grvel(jstge)%a(:,:,igaus), &
+                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+          end if
+
+          ! Convection
+          alpha = rkinteg%rktable(2)%p%b(jstge)
+          work(5) = -dvolu*alpha
+          ! (u · grad u, v) 
+          if(approx%physics%kfl_skew==0) then
+             call oss_convu_arg_chk(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus), &
+                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
+          elseif(approx%physics%kfl_skew==1) then
+             call oss_convu_arg_chk_skew(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                  &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+          end if
+
+          ! Pressure gradient
+          alpha = rkinteg%rktable(3)%p%b(jstge)
+          work(5) = -dvolu*alpha
+          ! (grad p, v)
+          call oss_gradp_arg_chk(work(5),grpre(jstge)%a(:,igaus), &
+               &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
+
+          ! OSS_vu
+          alpha = rkinteg%rktable(4)%p%b(jstge)
+          work(5) = -dvolu*alpha*tau(1,igaus,jstge)
+          ! tau * ( u · grad u, u· grad v)
+          call oss_convu_arg_chk(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+               &                 ndime,nnodu,elvec_u,work)
+          ! tauc*(div v, div u)
+          if(approx%discret%ktauc>0.0_rp) then
+             work(5) = -dvolu*alpha*tau(2,igaus,jstge)
+             call elmrhu_divudivv(work(5),grvel(jstge)%a(:,:,igaus), &
+                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+                  &               elvec_u,work)
+          end if
+
+          ! OSS_vx
+          alpha = rkinteg%rktable(5)%p%b(jstge)
+          work(5) = dvolu*alpha*tau(1,igaus,jstge)
+          ! - tau * ( proj(u·grad u), u· grad v)
+          call elmrhs_fce(work(5),testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+               &          work)
+
+          ! Force
+          alpha = rkinteg%rktable(6)%p%b(jstge)
+          work(5) = dvolu*alpha
+          call elmrhs_fce(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+               &          force(jstge)%a(:,igaus),nnodu,ndime,elvec_u,work)
+
+       end do stages
+
+    end do gauss
+
+    ! Deallocate
+    do jstge=1,nstge
+       call memfree(gpvel(jstge)%a,__FILE__,__LINE__)
+       call memfree(gposs(jstge)%a,__FILE__,__LINE__)
+       call memfree(grvel(jstge)%a,__FILE__,__LINE__)
+       call memfree(grpre(jstge)%a,__FILE__,__LINE__)
+       call memfree(force(jstge)%a,__FILE__,__LINE__)
+    end do
+    call memfree(gpvel(nstge+1)%a,__FILE__,__LINE__)
+    deallocate(gpvel)
+    deallocate(gposs)
+    deallocate(grvel)
+    deallocate(grpre)
+    deallocate(force)
+
+    ! Assembly to elemental p_mat and p_vec
+    do inode=1,nnodu
+       do idime=1,ndime
+          do jnode=1,nnodu
+             ! Block V-U (diag)
+             idof = finite_element%start%a(idime)+inode-1
+             jdof = finite_element%start%a(idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) +  elmat_vu_diag(inode,jnode)
+          end do
+          ! Block U
+          idof = finite_element%start%a(idime)+inode-1
+          finite_element%p_vec%a(idof) = finite_element%p_vec%a(idof) + elvec_u(idime,inode)
+       end do
+    end do
+
+    ! Deallocate auxiliar matrices and vectors
+    call memfree(elmat_vu_diag,__FILE__,__LINE__)
+    call memfree(elvec_u,__FILE__,__LINE__)
+    call memfree(testf,__FILE__,__LINE__)
+    call memfree(tau,__FILE__,__LINE__)
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(finite_element) 
+
+  end subroutine nsi_rk_momentum_update
+
+  !=================================================================================================
+  subroutine nsi_rk_projection_update(approx,finite_element)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine performs the elemental laplacian matrix integration for pressure dofs.     !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_rk_projection_update_t), intent(inout) :: approx
+    type(finite_element_t)                      , intent(inout) :: finite_element
+    ! Locals
+    integer(ip)           :: ndime,nnodu,ngaus
+    integer(ip)           :: igaus,inode,jnode,idof,jdof,idime,jdime
+    real(rp)              :: dvolu
+    real(rp)              :: work(5)
+    real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
+    real(rp), allocatable :: elmat_wx_diag(:,:)
+    real(rp), allocatable :: elvec_x(:,:) 
+    type(vector_t)        :: gpvel
+    type(tensor_t)        :: grvel
+    type(rungekutta_integrator_t), pointer :: rkinteg
+
+    ! Unpack variables
+    ndime = approx%physics%ndime
+    nnodu = finite_element%integ(1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%quad%ngaus
 
     ! Initialize to zero
     finite_element%p_mat%a = 0.0_rp
     finite_element%p_vec%a = 0.0_rp
-    
+
+    ! Interpolation operations
+    call create_vector (approx%physics,1,finite_element%integ,gpvel)
+    call create_tensor(approx%physics,1,ndime,finite_element%integ,grvel)
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel) 
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,grvel)
+
+    ! Allocate auxiliar matrices and vectors
+    call memalloc(nnodu,nnodu,elmat_wx_diag,__FILE__,__LINE__)
+    call memalloc(ndime,nnodu,elvec_x,__FILE__,__LINE__)
+
+    ! Allocate & compute Stabilization parameters
+    call nsi_elmvsg(approx%physics,approx%discret,finite_element,gpvel%a,tau)
+
+    ! Initialize to zero
+    elmat_wx_diag = 0.0_rp
+    elvec_x       = 0.0_rp
+    work          = 0.0_rp
+
     ! Loop on Gauss points
-    do igaus = 1,ngaus
+    gauss: do igaus = 1,ngaus
        dvolu = finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
 
-       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! Construct LHS
+       ! =============
+       ! OSS_wx
+       ! tau*(proj(a·grad u), w)
+       if(approx%discret%kfl_proj==1) then
+          call elmmss_gal(dvolu,tau(1,igaus),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+               &          nnodu,elmat_wx_diag,work)
+       else
+          call elmmss_gal(dvolu,1.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+               &          nnodu,elmat_wx_diag,work)
+       end if
 
+
+       ! Construct RHS
+       ! =============
+       ! OSS_wu
+       ! -tau*(a·grad u, w)
+       if(approx%discret%kfl_proj==1) then
+          work(5) = tau(1,igaus)*dvolu
+       else
+          work(5) = dvolu
+       end if
+       call oss_convu_arg_chk(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus), &
+            &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_x,work)
+
+    end do gauss
+
+    ! Deallocate
+    call memfree(gpvel%a,__FILE__,__LINE__)
+    call memfree(grvel%a,__FILE__,__LINE__)
+
+    ! Assembly to elemental p_mat and p_vec
+    do inode=1,nnodu
+       do idime=1,ndime
+          do jnode=1,nnodu
+             ! Block W-X
+             idof = finite_element%start%a(ndime+1+idime)+inode-1
+             jdof = finite_element%start%a(ndime+1+idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_wx_diag(inode,jnode)
+          end do
+          ! Block X
+          idof = finite_element%start%a(ndime+1+idime)+inode-1
+          finite_element%p_vec%a(idof) = finite_element%p_vec%a(idof) + elvec_x(idime,inode)
+       end do
     end do
-    
-  end subroutine nsi_rk_pressure
+
+    ! Deallocate auxiliar matrices and vectors
+    call memfree(elmat_wx_diag,__FILE__,__LINE__)
+    call memfree(elvec_x,__FILE__,__LINE__)
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(finite_element) 
+
+  end subroutine nsi_rk_projection_update
 
   !==================================================================================================
   subroutine nsi_elmvsg(physics,discret,finite_element,gpvel,tau)
