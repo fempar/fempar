@@ -60,25 +60,26 @@ module par_uniform_refinement_names
   public :: par_uniform_refinement
 
 contains
-  ! This subroutine takes a triangulation, and its associated
-  ! geometric mesh (p_mesh) and boundary conditions (p_cond), and 
-  ! performs one step of uniform mesh refinement in place on them.
+  ! This subroutine takes an input triangulation, and generates
+  ! a new (output) geometric mesh (p_mesh) obtained after one step
+  ! of uniform refinement. The boundary conditions for the refined
+  ! mesh are generated on the same (inout) data structure in place.
   ! In other words, it set-ups the data structures required to perform
   ! a simulation on the uniformly refined meshes. 
   ! Some current restrictions:
   !  (1) Does NOT work with mixed elements (e.g., quadrilaterals and triangles).
   !  (2) Only works with meshes of triangles (2D) and tetrahedra (3D) 
-  subroutine par_uniform_refinement ( p_mesh, p_trian, p_cond )
+  subroutine par_uniform_refinement ( p_trian, p_mesh, p_cond )
 #ifdef MPI_MOD
     use mpi
 #endif
-     implicit none
+    implicit none
 #ifdef MPI_H
-     include 'mpif.h'
+    include 'mpif.h'
 #endif
     ! Dummy arguments
-    type(par_mesh_t)                 , intent(inout) :: p_mesh 
     type(par_triangulation_t), target, intent(inout) :: p_trian
+    type(par_mesh_t)                 , intent(out)   :: p_mesh 
     type(par_conditions_t)           , intent(inout) :: p_cond
 
     ! Local variables
@@ -104,6 +105,8 @@ contains
     type(hash_table_igp_ip_t)    :: subelems_visited
 
     integer(ip) :: ierr, istat, lunio
+    
+    p_mesh%p_env => p_trian%p_env
 
     if ( p_trian%p_env%am_i_fine_task() ) then
        ! The triangulation must have only a single element type in triangulation
@@ -113,18 +116,6 @@ contains
        assert ( p_trian%f_trian%reference_elements(1)%ftype == P_type_id )
 
        reference_element => p_trian%f_trian%reference_elements(1)
-
-       ! Free as much as we can from the original data structures
-       call memfree ( p_mesh%f_mesh%pnods, __FILE__, __LINE__ )
-       call memfree ( p_mesh%f_mesh%lnods, __FILE__, __LINE__ )
-       call memfree ( p_mesh%f_mesh%coord, __FILE__, __LINE__ )
-       call memfree ( p_mesh%f_mesh_dist%pextn, __FILE__, __LINE__)
-       call memfree ( p_mesh%f_mesh_dist%lextp, __FILE__, __LINE__)
-       call memfree ( p_mesh%f_mesh_dist%lextn, __FILE__, __LINE__)
-       call memfree ( p_mesh%f_mesh_dist%lebou, __FILE__, __LINE__)
-       call memfree ( p_mesh%f_mesh_dist%lnbou, __FILE__, __LINE__)
-       call map_free( p_mesh%f_mesh_dist%emap )
-       call map_free( p_mesh%f_mesh_dist%nmap )
 
        call generate_data_subelems ( reference_element, &
                                      num_vertices_per_subelem, &
@@ -149,7 +140,7 @@ contains
                       max_mypart = p_trian%elems(elem_lid)%mypart
                    end if
                 end do
-                if ( max_mypart == p_mesh%f_mesh_dist%ipart) then
+                if ( max_mypart == p_trian%p_env%p_context%iam+1) then
                    num_vertices_i_am_owner = num_vertices_i_am_owner + 1
                 end if
              else ! Interior vef
@@ -166,9 +157,14 @@ contains
        ! Allocate vertices map
        call map_alloc( num_vertices, num_global_vertices, p_mesh%f_mesh_dist%nmap )
 
-       p_mesh%f_mesh%nelem = p_mesh%f_mesh%nelem * num_subelems
+       p_mesh%f_mesh%nelem = p_trian%f_trian%num_elems * num_subelems
        p_mesh%f_mesh%nnode = num_vertices_per_subelem
        p_mesh%f_mesh%npoin = num_vertices 
+       p_mesh%f_mesh%ndime = p_trian%f_trian%num_dims 
+
+       p_mesh%f_mesh_dist%ipart  = p_trian%p_env%p_context%iam + 1 
+       p_mesh%f_mesh_dist%nparts = p_trian%p_env%p_context%np
+
        p_cond%f_conditions%ncond = p_mesh%f_mesh%npoin
 
        ! Generate new pnods
@@ -449,8 +445,6 @@ contains
        call memfree (subelems_around_vertices%l, __FILE__, __LINE__)
        call memfree (subelem_vertices, __FILE__, __LINE__)
     end if
-    call par_triangulation_free(p_trian)
-    call par_mesh_to_triangulation(p_mesh,p_trian,p_cond)
 
   end subroutine par_uniform_refinement
   

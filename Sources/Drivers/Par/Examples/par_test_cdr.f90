@@ -51,7 +51,6 @@ program par_test_cdr
   ! Preconditioner-related data structures
   type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag
   type(par_preconditioner_dd_mlevel_bddc_t), target :: p_mlevel_bddc
-  ! type(par_preconditioner_dd_mlevel_bddc_t), pointer  :: point_to_p_mlevel_bddc
   type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
   integer(ip), allocatable :: kind_coarse_dofs(:)
@@ -79,7 +78,8 @@ program par_test_cdr
   character(len=256)            :: dir_path, dir_path_out
   character(len=256)            :: prefix
   character(len=:), allocatable :: name
-  integer(ip)                   :: i, j, ierror, iblock, num_times_to_refine
+  integer(ip)                   :: i, j, ierror, iblock, num_uniform_refinement_steps=0
+  type(par_timer_t)             :: par_uniform_refinement_timer, par_mesh_to_triangulation_timer, par_fe_space_create_timer
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
   integer(ip), allocatable :: continuity(:,:)
@@ -122,6 +122,10 @@ program par_test_cdr
                                id_parts, & 
                                num_parts )
 
+  call par_timer_create ( par_mesh_to_triangulation_timer, 'PAR_MESH_TO_TRIANGULATION', w_context%icontxt )
+  call par_timer_create ( par_fe_space_create_timer, 'PAR_FE_SPACE_CREATE', w_context%icontxt )
+  call par_timer_create ( par_uniform_refinement_timer, 'PAR_UNIFORM_REFINEMENT', w_context%icontxt )
+
   ! Read mesh
   call par_mesh_read ( dir_path, prefix, p_env, p_mesh )
 
@@ -129,10 +133,31 @@ program par_test_cdr
   call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
 
-  call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
-  call par_uniform_refinement(p_mesh,p_trian,p_cond)
+  num_uniform_refinement_steps = 2
+  do i=1, num_uniform_refinement_steps
+     call par_timer_init (par_mesh_to_triangulation_timer)
+     call par_timer_start (par_mesh_to_triangulation_timer)   
+     call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
+     call par_timer_stop (par_mesh_to_triangulation_timer)   
+     call par_timer_report (par_mesh_to_triangulation_timer)   
 
-  write (*,*) '********** CREATE DOF HANDLER**************'
+     call par_mesh_free(p_mesh)
+
+     call par_timer_init (par_uniform_refinement_timer)
+     call par_timer_start (par_uniform_refinement_timer) 
+     call par_uniform_refinement ( p_trian, p_mesh, p_cond )
+     call par_timer_stop (par_uniform_refinement_timer)  
+     call par_timer_report (par_uniform_refinement_timer)
+
+     call par_triangulation_free(p_trian)
+  end do
+  call par_timer_init (par_mesh_to_triangulation_timer)
+  call par_timer_start (par_mesh_to_triangulation_timer)   
+  call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
+  call par_timer_stop (par_mesh_to_triangulation_timer)   
+  call par_timer_report (par_mesh_to_triangulation_timer)   
+
+
   call dof_descriptor%create( 1, 1, 1 )
 
   call my_problem%create( p_trian%f_trian%num_dims )
@@ -156,16 +181,19 @@ program par_test_cdr
   which_approx = 1
 
 
+  call par_timer_start (par_fe_space_create_timer)
+
   ! Continuity
   ! write(*,*) 'Continuity', continuity
-  write (*,*) '********** CREATE PAR_FE SPACE**************'
   call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
                               p_cond, continuity, order, material, &
                               which_approx, time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
 
-  write (*,*) '********** UPDATE BCONDS**************'
+  call par_timer_stop (par_fe_space_create_timer)
+  call par_timer_report(par_fe_space_create_timer)
+
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
@@ -319,7 +347,7 @@ program par_test_cdr
   call par_context_free ( q_context, .false. )
   call par_context_free ( w_context )
 
-  call memstatus
+  ! call memstatus
 
 contains
   subroutine read_pars_cl (dir_path, prefix, dir_path_out, nparts, ndime)
