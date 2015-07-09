@@ -141,7 +141,8 @@ program par_test_cdr_unstructured
   character(len=256)            :: dir_path, dir_path_out
   character(len=256)            :: prefix
   character(len=:), allocatable :: name
-  integer(ip)                   :: i, j, ierror, iblock
+  integer(ip)                   :: i, j, ierror, iblock, num_uniform_refinement_steps
+  type(par_timer_t)             :: par_uniform_refinement_timer, par_mesh_to_triangulation_timer, par_fe_space_create_timer
 
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
@@ -157,7 +158,34 @@ program par_test_cdr_unstructured
                                                                 w_context, p_context, q_context, b_context, p_env, &
                                                                 p_mesh, p_cond )
 
+  call par_timer_create ( par_mesh_to_triangulation_timer, 'PAR_MESH_TO_TRIANGULATION', w_context%icontxt )
+  call par_timer_create ( par_fe_space_create_timer, 'PAR_FE_SPACE_CREATE', w_context%icontxt )
+  call par_timer_create ( par_uniform_refinement_timer, 'PAR_UNIFORM_REFINEMENT', w_context%icontxt )
+
+  num_uniform_refinement_steps = 0
+  do i=1, num_uniform_refinement_steps
+     call par_timer_init (par_mesh_to_triangulation_timer)
+     call par_timer_start (par_mesh_to_triangulation_timer)   
+     call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
+     call par_timer_stop (par_mesh_to_triangulation_timer)   
+     call par_timer_report (par_mesh_to_triangulation_timer)   
+
+     call par_mesh_free(p_mesh)
+
+     call par_timer_init (par_uniform_refinement_timer)
+     call par_timer_start (par_uniform_refinement_timer) 
+     call par_uniform_refinement ( p_trian, p_mesh, p_cond )
+     call par_timer_stop (par_uniform_refinement_timer)  
+     call par_timer_report (par_uniform_refinement_timer)
+
+     call par_triangulation_free(p_trian)
+  end do
+  call par_timer_init (par_mesh_to_triangulation_timer)
+  call par_timer_start (par_mesh_to_triangulation_timer)   
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
+  call par_timer_stop (par_mesh_to_triangulation_timer)   
+  call par_timer_report (par_mesh_to_triangulation_timer) 
+  
 
 
   !write (*,*) '********** CREATE DOF HANDLER**************'
@@ -347,7 +375,7 @@ program par_test_cdr_unstructured
   call par_context_free ( q_context, .false. )
   call par_context_free ( w_context )
 
-  call memstatus
+  ! call memstatus
 
 contains
   subroutine read_pars_cl (dir_path, prefix, dir_path_out, num_levels, num_parts)

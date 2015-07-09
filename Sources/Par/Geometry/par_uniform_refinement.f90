@@ -35,6 +35,9 @@ module par_uniform_refinement_names
   use fe_space_types_names
   use map_names
 
+  use stdio_names
+  use mesh_io_names
+
   ! Parallel modules
   use par_context_names
   use par_environment_names
@@ -116,6 +119,8 @@ contains
        assert ( p_trian%f_trian%reference_elements(1)%ftype == P_type_id )
 
        reference_element => p_trian%f_trian%reference_elements(1)
+       
+       ! call reference_element_write(reference_element)
 
        call generate_data_subelems ( reference_element, &
                                      num_vertices_per_subelem, &
@@ -479,7 +484,9 @@ contains
        num_vertices_per_subelem = 4
        num_subelems = 8
        call memalloc (num_vertices_per_subelem, num_subelems, subelem_vertices, __FILE__, __LINE__)
-       subelem_vertices = reshape((/1,5,7,8,5,2,6,9,7,6,3,10,8,9,10,4,5,8,9,7,5,9,6,7,10,7,6,9,10,8,7,9/),&
+       !subelem_vertices = reshape((/1,5,7,8,5,2,6,9,7,6,3,10,8,9,10,4,5,8,9,7,5,9,6,7,10,7,6,9,10,8,7,9/),&
+       !subelem_vertices = reshape((/1,5,6,8,5,2,7,9,6,7,3,10,8,9,10,4,5,8,9,6,5,9,7,6,10,6,7,9,10,8,6,9/),&
+       subelem_vertices = reshape((/1,5,6,7,5,2,8,9,6,8,3,10,7,9,10,4,5,7,9,8,5,9,6,8,10,6,8,9,10,7,6,9/),&
             (/num_vertices_per_subelem,num_subelems/))
     end if
 
