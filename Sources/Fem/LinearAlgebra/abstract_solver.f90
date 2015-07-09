@@ -899,7 +899,7 @@ use blas77_interfaces_names
           end if
        end do inner
 
-       max_kloc = max(kloc,max_kloc)
+       max_kloc = max(kloc+1,max_kloc)
 
        if ( env%am_i_fine_task() ) then ! Am I a fine task ?
           if ( ierrc == -2 ) then
@@ -1503,7 +1503,7 @@ use blas77_interfaces_names
             end if
         end do inner
 
-        max_kloc = max(kloc, max_kloc)
+        max_kloc = max(kloc+1, max_kloc)
 
         if ( kloc > 0 ) then
             if ( env%am_i_fine_task() ) then
