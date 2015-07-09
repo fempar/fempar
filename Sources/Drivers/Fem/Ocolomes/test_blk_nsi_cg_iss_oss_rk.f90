@@ -329,7 +329,7 @@ program test_blk_nsi_cg_iss_oss_rk
   bdata%surf%code(gdata%ndime+2:2*gdata%ndime+1,:) = 0
 
   ! Generate element geometrical fixed info
-  call finite_element_fixed_info_create(geo_reference_element,Q_type_id,1,gdata%ndime)
+  call reference_element_create(geo_reference_element,Q_type_id,1,gdata%ndime)
 
   ! Generate triangulation
   call generate_uniform_triangulation(1,gdata,bdata,geo_reference_element,f_trian,f_cond,material)
@@ -448,7 +448,7 @@ program test_blk_nsi_cg_iss_oss_rk
   call dof_descriptor_free(dof_descriptor)
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
-  call finite_element_fixed_info_free(geo_reference_element)
+  call reference_element_free(geo_reference_element)
   call uniform_conditions_descriptor_free(bdata)
 
   call memstatus
