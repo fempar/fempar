@@ -107,7 +107,7 @@ contains
     end if
     
     ! Construct reference_element
-    call finite_element_fixed_info_create(reference_element,etype,1,gmsh%ndime)
+    call reference_element_create(reference_element,etype,1,gmsh%ndime)
 
     ! Construct the array of #objects(nodim) and #nodesxobject(nndim) for each dimension
     nodim = 0
@@ -442,7 +442,7 @@ contains
     omsh%nnode = gmsh%nnode + nodim(2) + nodim(3)
 
     ! Deallocate auxiliar arrays
-    call finite_element_fixed_info_free(reference_element)
+    call reference_element_free(reference_element)
     call memfree(edgeint,__FILE__,__LINE__)
     if(gmsh%ndime==3) call memfree(faceint,__FILE__,__LINE__)
   end subroutine generate_vefs_mesh_conditions

@@ -217,6 +217,7 @@ subroutine init_hash_table(tbl,tbl_len,tbl_min,tbl_max)
   else
      tbl%vec_len = tbl_size
   end if
+  tbl%counter = 0
 
   ! Allocate table
   if (allocated(tbl%vec)) deallocate(tbl%vec)
@@ -234,8 +235,8 @@ end subroutine init_hash_table
 #ifdef position
 
 function last_hash_table(tbl) result(size)
-  class(hash_table)  , intent(inout) :: tbl
-  integer(ip)                        :: size
+  class(hash_table)  , intent(in) :: tbl
+  integer(ip)                     :: size
   size = tbl%counter
 end function last_hash_table
 

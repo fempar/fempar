@@ -130,13 +130,13 @@ contains
        !write(*,*) 'num_elems+1', p_fe_space%g_trian%num_elems+1
        !write(*,*) 'num_ghosts', num_ghosts
        !do ielem = p_fe_space%g_trian%num_elems+1, p_fe_space%g_trian%num_elems+num_ghosts
-       !   call finite_element_fixed_info_write( p_trian%f_trian%elems(ielem)%geo_reference_element )
+       !   call reference_element_write( p_trian%f_trian%elems(ielem)%geo_reference_element )
        !end do
 
        !write(*,*) 'num_elems+1', p_fe_space%g_trian%num_elems+1
        !write(*,*) 'num_ghosts', num_ghosts
        !do ielem = p_fe_space%g_trian%num_elems+1, p_fe_space%g_trian%num_elems+num_ghosts
-       !   call finite_element_fixed_info_write( p_fe_space%g_trian%elems(ielem)%geo_reference_element )
+       !   call reference_element_write( p_fe_space%g_trian%elems(ielem)%geo_reference_element )
        !end do
     end if
 
@@ -221,7 +221,7 @@ contains
           call p_fe_space%fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
              !write (*,*) ' FIXED INFO NEW'
-             call finite_element_fixed_info_create(p_fe_space%fe_space%finite_elements_info(pos_elinf),f_type,              &
+             call reference_element_create(p_fe_space%fe_space%finite_elements_info(pos_elinf),f_type,              &
                   &                             f_order,p_fe_space%p_trian%f_trian%num_dims)
           end if
           p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)

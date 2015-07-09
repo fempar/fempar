@@ -93,12 +93,12 @@ module fe_space_types_names
   public :: reference_element_t, reference_element_pointer_t
 
   ! Functions
-  public :: finite_element_fixed_info_create, finite_element_fixed_info_free, &
-       finite_element_fixed_info_write, permute_nodes_per_vef, get_order
+  public :: reference_element_create, reference_element_free, &
+            reference_element_write, permute_nodes_per_vef, get_order
 
   ! Functions
   public :: Q_ijkg, Q_gijk, Q_nnods, Q_set_integ
-  public :: Q_coord_1d, Q_refcoord, Q_face_outno, Q_fixed_info_fill
+  public :: Q_coord_1d, Q_refcoord, Q_face_outno, Q_reference_element_fill
 
   ! Functions
   public :: P_set_integ, P_refcoord
@@ -126,21 +126,21 @@ contains
 # include "mem_body.i90"
 
   !==================================================================================================
-  subroutine finite_element_fixed_info_create ( reference_element, f_type, f_order, dim_space)
+  subroutine reference_element_create ( reference_element, f_type, f_order, dim_space)
     implicit none
     ! Parameters
     type(reference_element_t),  intent(inout) :: reference_element 
     integer(ip)          ,  intent(in)    :: f_type, f_order, dim_space
 
     if (f_type == P_type_id) then
-       call P_fixed_info_fill( reference_element, dim_space,f_order)
+       call P_reference_element_fill( reference_element, dim_space,f_order)
     elseif (f_type == Q_type_id) then
-       call Q_fixed_info_fill( reference_element, dim_space,f_order)
+       call Q_reference_element_fill( reference_element, dim_space,f_order)
     end if
-  end subroutine finite_element_fixed_info_create
+  end subroutine reference_element_create
 
   !==================================================================================================
-  subroutine finite_element_fixed_info_write ( reference_element )
+  subroutine reference_element_write ( reference_element )
     implicit none
     ! Parameters
     type(reference_element_t),  intent(inout) :: reference_element
@@ -173,10 +173,10 @@ contains
     do i=1,reference_element%nvef+1
        write(*,*) reference_element%crxob%l(reference_element%crxob%p(i):reference_element%crxob%p(i+1)-1)
     end do
-  end subroutine finite_element_fixed_info_write
+  end subroutine reference_element_write
 
   !==================================================================================================
-  subroutine finite_element_fixed_info_free ( reference_element)
+  subroutine reference_element_free ( reference_element)
     implicit none
     ! Parameters
     type(reference_element_t),  intent(inout) :: reference_element 
@@ -197,7 +197,7 @@ contains
     call memfree(reference_element%obxob%l,__FILE__,__LINE__)   !Array of all vefs of each vef
     call memfree(reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each vef
     call memfree(reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each vef
-  end subroutine finite_element_fixed_info_free
+  end subroutine reference_element_free
 
   !==================================================================================================
   ! This routine gives a permutation vector 'permu' that gives the relative position of nodes in
@@ -272,7 +272,7 @@ contains
   !
   !==================================================================================================
   !==================================================================================================
-  subroutine  P_fixed_info_fill(reference_element,nd,p)
+  subroutine  P_reference_element_fill(reference_element,nd,p)
     implicit none
     ! Parameters
     type(reference_element_t) ,  intent(inout) :: reference_element
@@ -298,6 +298,7 @@ contains
     ! Initialize nvef_dim, nodes_vef
     ! call memalloc(nd+2,reference_element%nvef_dim,__FILE__,__LINE__)
     ! call memalloc(nd+1,reference_element%nodes_vef,__FILE__,__LINE__)
+    reference_element%ndime = nd
     reference_element%nodes_vef = 0
     reference_element%nvef_dim = 0
     reference_element%nvef_dim(1) = 1
@@ -453,7 +454,7 @@ contains
     ! do k = 1,nc
     !    write(*,*) reference_element%crxob%l(k), ', &'
     ! end do
-  end subroutine P_fixed_info_fill
+  end subroutine P_reference_element_fill
 
   !==================================================================================================
   subroutine P_orientation_vef(o,od,nd,io)
@@ -896,7 +897,7 @@ contains
   !==================================================================================================
   !==================================================================================================
   !==================================================================================================
-  subroutine  Q_fixed_info_fill(reference_element,nd,p)
+  subroutine  Q_reference_element_fill(reference_element,nd,p)
     implicit none
     ! Parameters
     type(reference_element_t), intent(inout) :: reference_element
@@ -929,6 +930,7 @@ contains
     ! Initialize nvef_dim, nodes_vef
     !call memalloc(nd+2,reference_element%nvef_dim,__FILE__,__LINE__)
     !call memalloc(nd+1,reference_element%nodes_vef,__FILE__,__LINE__)
+    reference_element%ndime = nd
     reference_element%nodes_vef = 0
     reference_element%nvef_dim = 0
     reference_element%nvef_dim(1) = 1
@@ -1305,7 +1307,7 @@ contains
     ! do od = 1,nc
     !    write(*,*) reference_element%crxob%l(od), ', &'
     ! end do
-  end subroutine Q_fixed_info_fill
+  end subroutine Q_reference_element_fill
 
   !==================================================================================================
   subroutine Q_orientation_vef(o,fdm,od,nd,l)

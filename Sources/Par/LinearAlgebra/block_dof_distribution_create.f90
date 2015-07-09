@@ -222,10 +222,10 @@ contains
                &                               sort_parts_per_itfc_obj_l1,  &
                &                               sort_parts_per_itfc_obj_l2)
 
-          do k = 1,count_object_dof 
-             write (*,*) 'lst_parts',lst_parts_per_dof_obj(:,k)
-          end do
-          write (*,*) 'dofs_object',dofs_object
+          !do k = 1,count_object_dof 
+          !   write (*,*) 'lst_parts',lst_parts_per_dof_obj(:,k)
+          !end do
+          !write (*,*) 'dofs_object',dofs_object
           ! Identify interface communication objects 
           call memalloc ( max_nparts+4, count_object_dof, ws_lobjs_temp, __FILE__,__LINE__ )
           ws_lobjs_temp = 0
@@ -294,7 +294,7 @@ contains
           call memalloc ( p_fe_space%fe_space%ndofs(iblock), l2lo2n, __FILE__,__LINE__)
           call memalloc ( p_fe_space%fe_space%ndofs(iblock), l2ln2o, __FILE__,__LINE__)
 
-          write (*,*) 'dofs_object',dofs_object
+          !write (*,*) 'dofs_object',dofs_object
           !l2ln2o = 0
           l2lo2n = 0
           do i = 1, count_interior
@@ -309,8 +309,8 @@ contains
                 next = next + 1
              end if
           end do
-          write (*,*) 'l2ln2o',l2ln2o 
-          write (*,*) 'l2lo2n',l2lo2n              
+          !write (*,*) 'l2ln2o',l2ln2o 
+          !write (*,*) 'l2lo2n',l2lo2n              
           !do i=1, p_fe_space%fe_space%ndofs(iblock)
           !   l2lo2n(l2ln2o(i)) = i
           !end do
@@ -499,11 +499,11 @@ contains
     call memfree ( ws_sort_l2,__FILE__,__LINE__)
     call memfree ( ws_elems_list,__FILE__,__LINE__)
 
-    write(*,'(a)') 'List of interface objects:'
-    do i=1,npadj
-       write(*,'(10i10)') i, &
-            & (l(j),j=p(i),p(i+1)-1)
-    end do
+    !write(*,'(a)') 'List of interface objects:'
+    !do i=1,npadj
+    !   write(*,'(10i10)') i, &
+    !        & (l(j),j=p(i),p(i+1)-1)
+    !end do
 
     ! ========================================
     ! END Compute int_objs from npadj/lpadj
