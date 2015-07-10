@@ -297,8 +297,8 @@ program par_test_cdr
 !!$     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
 !!$
 !!$     ! Free bddc inverse
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_values)
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_struct)
+!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
+!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
 !!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
 !!$
 !!$
@@ -313,8 +313,8 @@ program par_test_cdr
 !!$
 !!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 !!$
-!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
-!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_values )
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_struct )
 !!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
 
   call par_matrix_free (p_mat)

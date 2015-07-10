@@ -162,7 +162,7 @@ program par_test_cdr_unstructured
   call par_timer_create ( par_fe_space_create_timer, 'PAR_FE_SPACE_CREATE', w_context%icontxt )
   call par_timer_create ( par_uniform_refinement_timer, 'PAR_UNIFORM_REFINEMENT', w_context%icontxt )
 
-  num_uniform_refinement_steps = 3
+  num_uniform_refinement_steps = 5
   do i=1, num_uniform_refinement_steps
      call par_timer_init (par_mesh_to_triangulation_timer)
      call par_timer_start (par_mesh_to_triangulation_timer)   
@@ -326,8 +326,8 @@ program par_test_cdr_unstructured
      call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
 
      ! Free bddc inverse
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_values)
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_struct)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
      call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
 
 
@@ -343,8 +343,8 @@ program par_test_cdr_unstructured
 
   !call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 
-  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
-  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
+  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_values )
+  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_struct )
   !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
 
 

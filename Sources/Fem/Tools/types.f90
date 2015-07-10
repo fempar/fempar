@@ -153,8 +153,8 @@ module types_names
   integer(ip), parameter :: five=5,six=6,seven=7,eight=8,nine=9
 
   ! Actions related to free routines
-  integer (ip), parameter  :: free_only_values = 7
-  integer (ip), parameter  :: free_only_struct = 8
+  integer (ip), parameter  :: free_values = 7
+  integer (ip), parameter  :: free_struct = 8
   integer (ip), parameter  :: free_clean       = 9
 
   interface

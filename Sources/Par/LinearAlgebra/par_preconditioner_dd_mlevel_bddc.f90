@@ -887,7 +887,7 @@ use mpi
     end if
 
     ! TODO: code below needs to be modified after structures are filled...
-    if ( mode == free_only_struct  ) then
+    if ( mode == free_struct  ) then
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -898,14 +898,14 @@ use mpi
           end if
 
           if ( mlbddc%unknowns == all_unknowns ) then
-             call operator_dd_free ( mlbddc%A_II_inv, free_only_struct )
+             call operator_dd_free ( mlbddc%A_II_inv, free_struct )
           end if
 
-          call matrix_free ( mlbddc%A_rr, free_only_struct )
+          call matrix_free ( mlbddc%A_rr, free_struct )
           call graph_free ( mlbddc%A_rr_gr )
  
           if ( mlbddc%projection == petrov_galerkin ) then 
-          call matrix_free ( mlbddc%A_rr_trans, free_only_struct )
+          call matrix_free ( mlbddc%A_rr_trans, free_struct )
             end if
    
           call memfree ( mlbddc%coarse_dofs,__FILE__,__LINE__)
@@ -925,7 +925,7 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_struct, mlbddc%M_c )
              end if
-             call matrix_free ( mlbddc%A_c, free_only_struct )
+             call matrix_free ( mlbddc%A_c, free_struct )
              call graph_free ( mlbddc%A_c_gr )
              call mesh_free ( mlbddc%f_mesh_c )
              call memfree ( mlbddc%vars, __FILE__, __LINE__)
@@ -938,7 +938,7 @@ use mpi
           
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_struct )
+             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_struct )
              
              if ( i_am_coarse_task ) then
                 call renumbering_free ( mlbddc%erenumbering_c )
@@ -952,19 +952,19 @@ use mpi
              end if
              
              ! Free coarse mesh
-             call par_mesh_free ( mlbddc%p_mesh_c, free_only_struct )
+             call par_mesh_free ( mlbddc%p_mesh_c, free_struct )
              
              ! Free coarse graph
-             call par_graph_free ( mlbddc%p_graph_c, free_only_struct )
+             call par_graph_free ( mlbddc%p_graph_c, free_struct )
              
              ! Free coarse matrix
-             call par_matrix_free( mlbddc%p_mat_c, free_only_struct)
+             call par_matrix_free( mlbddc%p_mat_c, free_struct)
           end if
           
        end if
        ! END COARSE-GRID PROBLEM DUTIES
 
-    else if ( mode == free_only_values ) then
+    else if ( mode == free_values ) then
 
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
@@ -975,17 +975,17 @@ use mpi
              end if
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
-             call operator_dd_free ( mlbddc%A_II_inv, free_only_values )
+             call operator_dd_free ( mlbddc%A_II_inv, free_values )
           end if
 
-          call matrix_free ( mlbddc%A_rr, free_only_values )
+          call matrix_free ( mlbddc%A_rr, free_values )
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%blk_lag_mul,__FILE__,__LINE__) 
 
              if (mlbddc%projection == petrov_galerkin )  then 
-          call matrix_free ( mlbddc%A_rr_trans, free_only_values )
+          call matrix_free ( mlbddc%A_rr_trans, free_values )
              end if
 
           if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -1052,16 +1052,16 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_values, mlbddc%M_c )
              end if
-             call matrix_free ( mlbddc%A_c, free_only_values )
+             call matrix_free ( mlbddc%A_c, free_values )
           end if
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
           assert(mlbddc%p_mat%p_env%num_levels>2) 
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_values )
+             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_values )
 
              ! Free coarse matrix
-             call par_matrix_free( mlbddc%p_mat_c, free_only_values)
+             call par_matrix_free( mlbddc%p_mat_c, free_values)
           end if
        end if
 

@@ -177,8 +177,8 @@ contains
     implicit none
 
     type(par_matrix_t), intent(inout) :: p_matrix
-    call par_matrix_free_progressively(p_matrix, free_only_values)
-    call par_matrix_free_progressively(p_matrix, free_only_struct)
+    call par_matrix_free_progressively(p_matrix, free_values)
+    call par_matrix_free_progressively(p_matrix, free_struct)
     call par_matrix_free_progressively(p_matrix, free_clean)
   end subroutine par_matrix_free_one_shot
 
@@ -192,7 +192,7 @@ contains
     assert ( associated(p_matrix%dof_dist) )
     assert ( associated(p_matrix%p_env%p_context) )
     assert ( p_matrix%p_env%p_context%created .eqv. .true.)
-    assert ( mode == free_clean .or. mode == free_only_struct .or. mode == free_only_values )
+    assert ( mode == free_clean .or. mode == free_struct .or. mode == free_values )
 
     if(p_matrix%p_env%p_context%iam<0) return
 
@@ -200,9 +200,9 @@ contains
        nullify ( p_matrix%dof_dist )
        nullify ( p_matrix%dof_dist_cols )
        nullify ( p_matrix%p_env )
-    else if ( mode == free_only_struct ) then
+    else if ( mode == free_struct ) then
        ! AFM: This nullification cannot be here as this means that it will not be longer possible
-       !      to access p_matrix%dof_dist after "free_only_struct"ing a par_matrix
+       !      to access p_matrix%dof_dist after "free_struct"ing a par_matrix
        !      (and it is done in many parts of the code). I will move it to free_clean.
        ! AFM: The comment above NO longer applies as par_matrix now directly points to
        !      the dof_distribution instance 

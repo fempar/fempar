@@ -139,7 +139,7 @@ contains
     implicit none
     type(par_graph_t), intent(inout)  :: p_graph
     
-    call par_graph_free_progressively (p_graph, free_only_struct)
+    call par_graph_free_progressively (p_graph, free_struct)
     call par_graph_free_progressively (p_graph, free_clean )
   end subroutine par_graph_free_one_shot
 
@@ -157,11 +157,11 @@ contains
     ! p_graph%p_env%p_context is required within this subroutine
     assert ( associated(p_graph%p_env%p_context) )
     
-    assert ( mode == free_only_struct .or. mode == free_clean  ) 
+    assert ( mode == free_struct .or. mode == free_clean  ) 
     
     if(p_graph%p_env%p_context%iam<0) return
     
-    if ( mode == free_only_struct ) then
+    if ( mode == free_struct ) then
        call graph_free ( p_graph%f_graph )
     else if ( mode == free_clean ) then
        ! Nullify parallel partition
