@@ -365,15 +365,15 @@ contains
     call la%block_up_operator%destroy()
 
     ! Destroy X-preconditioner
-    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_x,free_only_struct)
+    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_x,free_struct)
     call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_x,free_clean)
 
     ! Destroy P-preconditioner
-    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_p,free_only_struct)
+    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_p,free_struct)
     call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_p,free_clean)
 
     ! Destroy U-preconditioner
-    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_u,free_only_struct)
+    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_u,free_struct)
     call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_u,free_clean)
 
     ! Deallocate auxiliar matrices
@@ -704,13 +704,13 @@ contains
     type(my_par_linear_algebra_t), intent(inout) :: la
 
     ! precond free (K^-1)
-    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_u,free_only_values)
+    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_u,free_values)
 
     ! precond free (Mp^-1)
-    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_p,free_only_values)
+    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_p,free_values)
 
     ! precond free (Mx^-1)
-    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_x,free_only_values)
+    call par_preconditioner_dd_mlevel_bddc_free(la%p_mlevel_bddc_x,free_values)
           
   end subroutine free_preconditioner
 
