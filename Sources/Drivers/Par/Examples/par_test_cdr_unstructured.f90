@@ -162,7 +162,7 @@ program par_test_cdr_unstructured
   call par_timer_create ( par_fe_space_create_timer, 'PAR_FE_SPACE_CREATE', w_context%icontxt )
   call par_timer_create ( par_uniform_refinement_timer, 'PAR_UNIFORM_REFINEMENT', w_context%icontxt )
 
-  num_uniform_refinement_steps = 0
+  num_uniform_refinement_steps = 5
   do i=1, num_uniform_refinement_steps
      call par_timer_init (par_mesh_to_triangulation_timer)
      call par_timer_start (par_mesh_to_triangulation_timer)   
@@ -250,100 +250,102 @@ program par_test_cdr_unstructured
   ! AFM: I had to re-assign the state of punk as the expression
   ! y = x - A*y changed its state to part_summed!!! 
   p_unk%state = full_summed
-!!$
-!!$  ! Define (recursive) parameters
-!!$  point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-!!$  do i=1, num_levels-1
-!!$     point_to_p_mlevel_bddc_pars%ndime            = ndime
-!!$     point_to_p_mlevel_bddc_pars%unknowns         = all_unknowns
-!!$     point_to_p_mlevel_bddc_pars%pad_collectives  = pad
-!!$     point_to_p_mlevel_bddc_pars%projection       = galerkin                           !default
-!!$     point_to_p_mlevel_bddc_pars%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
-!!$     point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric                 !default 
-!!$     point_to_p_mlevel_bddc_pars%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
-!!$
-!!$     if ( i < num_levels-1 ) then
-!!$        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = recursive_bddc
-!!$        point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec !umfpack_prec 
-!!$        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec !umfpack_prec 
-!!$        
-!!$        if ( i == 1 ) then
-!!$           point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
-!!$           point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
-!!$           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-08
-!!$           point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
-!!$           point_to_p_mlevel_bddc_pars%correction_mode  = additive
- !!$        end if
-!!$        allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = ierror)
-!!$        check(ierror==0)
-!!$        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
-!!$     else
-!!$        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = serial_gather
-!!$        point_to_p_mlevel_bddc_pars%ppars_harm%type          =pardiso_mkl_prec !umfpack_prec  
-!!$        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type     =pardiso_mkl_prec !umfpack_prec  
-!!$        point_to_p_mlevel_bddc_pars%ppars_coarse_serial%type =pardiso_mkl_prec !umfpack_prec  
-!!$        nullify ( point_to_p_mlevel_bddc_pars%ppars_coarse_bddc )
-!!$     end if
-!!$  end do
-!!$
-!!$  call memalloc ( ndime, kind_coarse_dofs, __FILE__, __LINE__ )
-!!$  kind_coarse_dofs(1) = corners
-!!$  kind_coarse_dofs(2) = corners_and_edges
-!!$  if ( ndime == 3 ) then
-!!$     kind_coarse_dofs(3) = corners_edges_and_faces
-!!$  end if
-!!$
+
+  ! Define (recursive) parameters
+  point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+  do i=1, num_levels-1
+     point_to_p_mlevel_bddc_pars%ndime            = ndime
+     point_to_p_mlevel_bddc_pars%unknowns         = all_unknowns
+     point_to_p_mlevel_bddc_pars%pad_collectives  = pad
+     point_to_p_mlevel_bddc_pars%projection       = galerkin                           !default
+     point_to_p_mlevel_bddc_pars%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
+     point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric                 !default 
+     point_to_p_mlevel_bddc_pars%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
+
+     if ( i < num_levels-1 ) then
+        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = recursive_bddc
+        point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec !umfpack_prec 
+        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec !umfpack_prec 
+        
+        if ( i == 1 ) then
+           point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
+           point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
+           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-08
+           point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
+           point_to_p_mlevel_bddc_pars%correction_mode  = additive
+         end if
+        allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = ierror)
+        check(ierror==0)
+        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+     else
+        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = serial_gather
+        point_to_p_mlevel_bddc_pars%ppars_harm%type          =pardiso_mkl_prec !umfpack_prec  
+        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type     =pardiso_mkl_prec !umfpack_prec  
+        point_to_p_mlevel_bddc_pars%ppars_coarse_serial%type =pardiso_mkl_prec !umfpack_prec  
+        nullify ( point_to_p_mlevel_bddc_pars%ppars_coarse_bddc )
+     end if
+  end do
+
+  call memalloc ( ndime, kind_coarse_dofs, __FILE__, __LINE__ )
+  kind_coarse_dofs(1) = corners
+  kind_coarse_dofs(2) = corners_and_edges
+  if ( ndime == 3 ) then
+     kind_coarse_dofs(3) = corners_edges_and_faces
+  end if
+
   sctrl%method=cg
   sctrl%trace=1
-  sctrl%itmax=800
-  sctrl%dkrymax=800
+  sctrl%itmax=50
+  sctrl%dkrymax=50
   sctrl%stopc=res_res
   sctrl%orto=icgs
   sctrl%rtol=1.0e-06
-!!$
-!!$  do j=1,ndime
-!!$
-!!$     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-!!$     do i=1, num_levels-1
-!!$        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
-!!$        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
-!!$     end do
-!!$
-!!$
-!!$     call p_unk%init(0.0_rp)
-!!$
-!!$     ! Create multilevel bddc inverse 
-!!$     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
-!!$
-!!$     ! Ass struct
-!!$     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
-!!$
-!!$     ! Fill val
-!!$     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
-!!$
-!!$     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
-!!$
-!!$     ! Free bddc inverse
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_values)
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_only_struct)
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
-!!$
-!!$
-!!$  end do
-!!$
-!!$  call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
-!!$
-  call par_preconditioner_dd_diagonal_create ( p_mat, p_prec_dd_diag )
-  call par_preconditioner_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
-  call par_preconditioner_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
+
+  do j=2,ndime
+
+     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+     do i=1, num_levels-1
+        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
+        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+     end do
+
+
+     call p_unk%init(0.0_rp)
+
+     ! Create multilevel bddc inverse 
+     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
+
+     ! Ass struct
+     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+
+     ! Fill val
+     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
+
+     call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
+
+     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
+
+     ! Free bddc inverse
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
+
+
+  end do
+  call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
+
+
+  !call par_preconditioner_dd_diagonal_create ( p_mat, p_prec_dd_diag )
+  !call par_preconditioner_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
+  !call par_preconditioner_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
   
-  call p_unk%init(0.0_rp)
+  !call p_unk%init(0.0_rp)
 
-  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
+  !call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 
-  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_values )
-  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_only_struct )
-  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
+  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_values )
+  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_struct )
+  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
 
 
   call par_matrix_free (p_mat)
@@ -374,8 +376,6 @@ program par_test_cdr_unstructured
   call par_context_free ( p_context, .false. )
   call par_context_free ( q_context, .false. )
   call par_context_free ( w_context )
-
-  ! call memstatus
 
 contains
   subroutine read_pars_cl (dir_path, prefix, dir_path_out, num_levels, num_parts)
@@ -578,7 +578,7 @@ contains
 
 
     ! Set 1st_to_2nd_level_mapping on 1st level MPI tasks
-    id_parts(2) = proc_map_local + p_context%np
+    id_parts(2) = proc_map_local !+ p_context%np
 
     if ( p_p_context%iam >= 0 ) then
        ! Generate dual mesh (i.e., list of elements around points)

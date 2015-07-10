@@ -418,14 +418,15 @@ contains
        posf = dof_graph%ia(idof+1)-1
        call sort(posf-posi+1,dof_graph%ja(posi:posf))
     end do
-    do idof = 1, fe_space%ndofs(iblock)
-       !write (*,*) 'DOFS COUPLED TO IDOF:',idof
-       !write (*,*) '****** START:'
-       do l_dof = dof_graph%ia(idof),dof_graph%ia(idof+1)-1
-          !write(*,'(I5,$)') dof_graph%ja(l_dof)
-       end do
-       !write (*,*) '****** END'
-    end do
+
+!!$    do idof = 1, fe_space%ndofs(iblock)
+!!$       !write (*,*) 'DOFS COUPLED TO IDOF:',idof
+!!$       !write (*,*) '****** START:'
+!!$       do l_dof = dof_graph%ia(idof),dof_graph%ia(idof+1)-1
+!!$          !write(*,'(I5,$)') dof_graph%ja(l_dof)
+!!$       end do
+!!$       !write (*,*) '****** END'
+!!$    end do
 
     ! call graph_print( 6, dof_graph )
 

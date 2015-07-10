@@ -26,10 +26,10 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module mesh_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use materials_names
-use stdio_names
+  use stdio_names
   use iso_fortran_env, only : output_unit
   !use conditions_names
 # include "debug.i90"
@@ -214,9 +214,10 @@ contains
 
     ! This data structure can hold (depending on the context):
     ! (1) Permanent geometrical mesh (e.g., mesh read from GiD)
-    ! (2) Temporary Topological mesh (e.g., in mesh_triagulation)
-    ! (3) Temporary Dual mesh (e.g., in mesh_partition_distribution)
-    ! In the case of (2) and (3), coord is not allocated
+    ! (2) Temporary topological mesh (resulting from generate_vefs_mesh_conditions)
+    ! (2) Temporary Dual mesh
+    ! (3) Coarse-grid mesh in MLBDDC
+    ! In the case of (2), (3), and (4) coord is not allocated!!!
     if (allocated(msh%coord)) call memfree (msh%coord,__FILE__,__LINE__)
 
     msh%ndime=0

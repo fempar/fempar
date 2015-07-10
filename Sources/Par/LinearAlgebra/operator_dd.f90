@@ -190,23 +190,23 @@ contains
 
     if ( mode == free_clean ) then
        call preconditioner_free ( preconditioner_free_clean  , f_operator%M_II )
-    else if ( mode == free_only_struct  ) then
+    else if ( mode == free_struct  ) then
        call preconditioner_free ( preconditioner_free_struct , f_operator%M_II )
-    else if ( mode == free_only_values ) then
+    else if ( mode == free_values ) then
        call preconditioner_free ( preconditioner_free_values , f_operator%M_II )
     end if
 
     ! Free memory associated to the blocks of the operator
-    if ( mode == free_only_values ) then
-       call matrix_free ( f_operator%A_II, free_only_values )
-       call matrix_free ( f_operator%A_IG, free_only_values )
-       call matrix_free ( f_operator%A_GG, free_only_values )
+    if ( mode == free_values ) then
+       call matrix_free ( f_operator%A_II, free_values )
+       call matrix_free ( f_operator%A_IG, free_values )
+       call matrix_free ( f_operator%A_GG, free_values )
     end if
 
-    if ( mode == free_only_struct ) then
-       call matrix_free ( f_operator%A_II, free_only_struct )
-       call matrix_free ( f_operator%A_IG, free_only_struct )
-       call matrix_free ( f_operator%A_GG, free_only_struct )
+    if ( mode == free_struct ) then
+       call matrix_free ( f_operator%A_II, free_struct )
+       call matrix_free ( f_operator%A_IG, free_struct )
+       call matrix_free ( f_operator%A_GG, free_struct )
 
        call graph_free ( f_operator%A_II_gr )
        call graph_free ( f_operator%A_IG_gr )
@@ -214,12 +214,12 @@ contains
     end if
 
     if ( f_operator%symm == symm_false ) then
-       if ( mode == free_only_values ) then
-          call matrix_free( f_operator%A_GI, free_only_values  )
+       if ( mode == free_values ) then
+          call matrix_free( f_operator%A_GI, free_values  )
        end if
 
-       if ( mode == free_only_struct ) then
-          call matrix_free( f_operator%A_GI, free_only_struct  )
+       if ( mode == free_struct ) then
+          call matrix_free( f_operator%A_GI, free_struct  )
           call graph_free ( f_operator%A_GI_gr ) 
        end if
     end if

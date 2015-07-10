@@ -192,7 +192,7 @@ use psb_penv_mod_names
 
     if (p_prec_dd_diagonal%p_mat%p_env%p_context%iam<0) return
     
-    if (mode == free_only_values) then
+    if (mode == free_values) then
        call memfree ( p_prec_dd_diagonal%d,__FILE__,__LINE__)
     end if
 

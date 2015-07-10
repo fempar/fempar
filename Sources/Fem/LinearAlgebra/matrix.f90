@@ -432,8 +432,8 @@ contains
     implicit none
     type(matrix_t), intent(inout) :: f_matrix
 
-    call matrix_free_progressively ( f_matrix, free_only_values )
-    call matrix_free_progressively ( f_matrix, free_only_struct )
+    call matrix_free_progressively ( f_matrix, free_values )
+    call matrix_free_progressively ( f_matrix, free_struct )
     call matrix_free_progressively ( f_matrix, free_clean )
 
   end subroutine matrix_free_one_shot
@@ -446,7 +446,7 @@ contains
 
     if ( mode == free_clean ) then
 
-    else if ( mode == free_only_struct ) then
+    else if ( mode == free_struct ) then
        ! AFM: In my opinion, the following sentence is 
        ! not convenient at all, at least as a 
        ! general/by-default rule. One might
@@ -462,7 +462,7 @@ contains
        ! will always point to an existing graph, cannot be used to 
        ! allocate a new graph !!! 
        nullify( f_matrix%gr )
-    else if ( mode == free_only_values ) then
+    else if ( mode == free_values ) then
        call memfree( f_matrix%a,__FILE__,__LINE__)
     end if
 

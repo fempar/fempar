@@ -35,6 +35,7 @@ module par_preconditioner_dd_mlevel_bddc_names
   use sort_names
   use renumbering_names
   use serial_environment_names
+  use mesh_distribution_names
 
 #ifdef ENABLE_BLAS
   use blas77_interfaces_names
@@ -887,7 +888,7 @@ use mpi
     end if
 
     ! TODO: code below needs to be modified after structures are filled...
-    if ( mode == free_only_struct  ) then
+    if ( mode == free_struct  ) then
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -898,14 +899,14 @@ use mpi
           end if
 
           if ( mlbddc%unknowns == all_unknowns ) then
-             call operator_dd_free ( mlbddc%A_II_inv, free_only_struct )
+             call operator_dd_free ( mlbddc%A_II_inv, free_struct )
           end if
 
-          call matrix_free ( mlbddc%A_rr, free_only_struct )
+          call matrix_free ( mlbddc%A_rr, free_struct )
           call graph_free ( mlbddc%A_rr_gr )
  
           if ( mlbddc%projection == petrov_galerkin ) then 
-          call matrix_free ( mlbddc%A_rr_trans, free_only_struct )
+          call matrix_free ( mlbddc%A_rr_trans, free_struct )
             end if
    
           call memfree ( mlbddc%coarse_dofs,__FILE__,__LINE__)
@@ -925,7 +926,7 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_struct, mlbddc%M_c )
              end if
-             call matrix_free ( mlbddc%A_c, free_only_struct )
+             call matrix_free ( mlbddc%A_c, free_struct )
              call graph_free ( mlbddc%A_c_gr )
              call mesh_free ( mlbddc%f_mesh_c )
              call memfree ( mlbddc%vars, __FILE__, __LINE__)
@@ -938,7 +939,7 @@ use mpi
           
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_struct )
+             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_struct )
              
              if ( i_am_coarse_task ) then
                 call renumbering_free ( mlbddc%erenumbering_c )
@@ -946,23 +947,25 @@ use mpi
                 call memfree ( mlbddc%ptr_coarse_dofs, __FILE__, __LINE__)
              end if
              
-             ! Free coarse partition
-             call dof_distribution_free ( mlbddc%dof_dist_c )
+             if ( i_am_coarse_task ) then
+                ! Free coarse partition
+                call dof_distribution_free ( mlbddc%dof_dist_c )
+             end if
              
              ! Free coarse mesh
-             call par_mesh_free ( mlbddc%p_mesh_c, free_only_struct )
+             call par_mesh_free ( mlbddc%p_mesh_c, free_struct )
              
              ! Free coarse graph
-             call par_graph_free ( mlbddc%p_graph_c, free_only_struct )
+             call par_graph_free ( mlbddc%p_graph_c, free_struct )
              
              ! Free coarse matrix
-             call par_matrix_free( mlbddc%p_mat_c, free_only_struct)
+             call par_matrix_free( mlbddc%p_mat_c, free_struct)
           end if
           
        end if
        ! END COARSE-GRID PROBLEM DUTIES
 
-    else if ( mode == free_only_values ) then
+    else if ( mode == free_values ) then
 
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
@@ -973,17 +976,17 @@ use mpi
              end if
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
-             call operator_dd_free ( mlbddc%A_II_inv, free_only_values )
+             call operator_dd_free ( mlbddc%A_II_inv, free_values )
           end if
 
-          call matrix_free ( mlbddc%A_rr, free_only_values )
+          call matrix_free ( mlbddc%A_rr, free_values )
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%blk_lag_mul,__FILE__,__LINE__) 
 
              if (mlbddc%projection == petrov_galerkin )  then 
-          call matrix_free ( mlbddc%A_rr_trans, free_only_values )
+          call matrix_free ( mlbddc%A_rr_trans, free_values )
              end if
 
           if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -1050,16 +1053,16 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_values, mlbddc%M_c )
              end if
-             call matrix_free ( mlbddc%A_c, free_only_values )
+             call matrix_free ( mlbddc%A_c, free_values )
           end if
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
           assert(mlbddc%p_mat%p_env%num_levels>2) 
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_only_values )
+             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_values )
 
              ! Free coarse matrix
-             call par_matrix_free( mlbddc%p_mat_c, free_only_values)
+             call par_matrix_free( mlbddc%p_mat_c, free_values)
           end if
        end if
 
@@ -2623,11 +2626,13 @@ use mpi
                                                 mlbddc%vars                   , & ! Physical unknown corresponding to each DoF in f_mesh
                                                 mlbddc%p_mesh_c%f_mesh        , & ! New mesh object
                                                 mlbddc%dof_dist_c             , & ! New distributed DoF object conformal to new local mesh
-                                                mlbddc%erenumbering_c                  )   ! Resulting Element renumbering
-
+                                                mlbddc%erenumbering_c         )   ! Resulting Element renumbering
 
           ! Free dual_f_mesh with (external) adjacency data built-in
           call mesh_free ( dual_f_mesh )
+
+          ! Allocate void mesh_distribution_t for mlbddc%p_mesh_c (not actually required in the whole module)
+          call mesh_distribution_allocate_void ( mlbddc%p_mesh_c%f_mesh_dist )
 
           if ( debug_verbose_level_2 ) then 
              write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%pnods
@@ -7873,7 +7878,6 @@ use mpi
     if ( temporize_phases ) then
        call par_timer_stop ( t1 )
     end if
-    
 
     nrenumbering%n = f_mesh%npoin
     erenumbering%n = f_mesh%nelem
@@ -7897,14 +7901,19 @@ use mpi
                                                     elboun, &
                                                     vars, &
                                                     nlboun, &
-                                                    dof_dist%npadj      , &
-                                                    dof_dist%lpadj      , & 
-                                                    dof_dist%max_nparts , &
-                                                    max_nelem             , &
-                                                    dof_dist%nobjs      , & 
-                                                    dof_dist%lobjs      , &   
-                                                    nrenumbering%iperm            , &
+                                                    dof_dist%nl, &
+                                                    dof_dist%ni, &
+                                                    dof_dist%nb, &
+                                                    dof_dist%npadj, &
+                                                    dof_dist%lpadj, & 
+                                                    dof_dist%max_nparts, &
+                                                    max_nelem, &
+                                                    dof_dist%nobjs, & 
+                                                    dof_dist%lobjs, &   
+                                                    nrenumbering%iperm, &
                                                     erenumbering%iperm )
+
+
 
     
     if ( temporize_phases ) then
@@ -7958,6 +7967,8 @@ use mpi
                        dof_dist%omap%nb,     &
                        dof_dist%omap%ne,     &
                        dof_dist%omap%l2g )
+
+
     if ( temporize_phases ) then
       call par_timer_stop ( t4 )
     end if
@@ -7987,6 +7998,11 @@ use mpi
     ! Compute dof_import_t instance such that DoF nearest neighbour exchanges
     ! can be performed among subdomains on any intermmediate coarse-grid mesh
     call dof_distribution_compute_import(dof_dist)
+
+    if ( debug_verbose_level_2 ) then
+       call dof_distribution_print(6,dof_dist)
+       call psb_barrier ( icontxt )
+    end if
 
   end subroutine dof_distribution_coarse_create
 
@@ -8090,6 +8106,9 @@ use mpi
                                                         elboun     , &
                                                         vars       , &
                                                         nlboun     , &
+                                                        nl         , &
+                                                        ni         , &
+                                                        nb         , &
                                                         npadj      , &
                                                         lpadj      , & 
                                                         max_nparts , &
@@ -8112,7 +8131,9 @@ use mpi
 
     integer(ip) , intent(in)    :: vars(f_mesh%npoin)
     integer(ip) , intent(inout) :: nlboun(nboun)
-
+    integer(ip) , intent(out)   :: nl
+    integer(ip) , intent(out)   :: ni 
+    integer(ip) , intent(out)   :: nb
     integer(ip), intent(out)    :: npadj 
     integer(ip), intent(out), allocatable :: lpadj(:)
     integer(ip), intent(out)    :: max_nparts
@@ -8125,7 +8146,7 @@ use mpi
 
     ! Locals
     integer(ip)               :: est_max_nparts, i, j, k, jpart, count, pos, count_nelem, pos_jelem
-    integer(ip)               :: start, end, ni, ielpo, jelem
+    integer(ip)               :: start, end, ielpo, jelem
     integer(igp), allocatable :: ws_parts_list_sep (:,:)
     type(hash_table_ip_ip_t)    :: ws_parts_visited, ws_parts_visited_all
     type(hash_table_igp_ip_t)   :: ws_elems_visited
@@ -8189,6 +8210,8 @@ use mpi
           est_max_nparts=count
        end if
     end do
+
+    call psb_max ( icontxt, est_max_nparts )
 
     ! write(*,*) 'is_boun', is_boun
     ! write(*,*) 'est_max', est_max_nparts 
@@ -8328,6 +8351,9 @@ use mpi
 
     ! write (*,*) 'XXX', npadj, lpadj
 
+
+    call psb_max ( icontxt, max_nparts ) 
+
     call memfree ( ws_parts_visited_list_all,__FILE__,__LINE__)
 
     call memalloc ( 2*est_max_nparts+2, ws_sort_l1,                     __FILE__,__LINE__ )
@@ -8399,6 +8425,8 @@ use mpi
        &          ws_parts_list_sep(3:2+ws_parts_list_sep(2,1),1)
 
     ni = f_mesh%npoin-nboun
+    nb = nboun
+    nl = ni + nb
     k  = ni + 1
 
     ! Loop over vertices of the current separator (i.e., inode)
@@ -8917,6 +8945,37 @@ use mpi
     pars%it = tot_its
 !!$    end if
   end subroutine matrix_preconditioner_r2_solve
+
+  subroutine mesh_distribution_allocate_void ( mesh_distribution)
+    implicit none
+    type(mesh_distribution_t), intent(out) :: mesh_distribution
+    
+    mesh_distribution%ipart = -1
+    mesh_distribution%nparts = -1
+    mesh_distribution%nebou = -1
+    mesh_distribution%nnbou = -1
+
+    call memalloc ( 0, mesh_distribution%lebou,__FILE__,__LINE__)
+    call memalloc ( 0, mesh_distribution%lnbou,__FILE__,__LINE__)
+    call memalloc ( 0, mesh_distribution%pextn ,__FILE__,__LINE__)
+    call memalloc ( 0, mesh_distribution%lextn ,__FILE__,__LINE__)
+    call memalloc ( 0, mesh_distribution%lextp ,__FILE__,__LINE__)
+
+    call map_igp_allocate_void(mesh_distribution%nmap)
+    call map_igp_allocate_void(mesh_distribution%emap)
+
+  end subroutine mesh_distribution_allocate_void
+
+  subroutine map_igp_allocate_void ( map )
+    implicit none
+    type(map_igp_t), intent(inout) :: map
+    map%nl = -1
+    map%ng = -1
+    map%ni = -1
+    map%nb = -1
+    map%ne = -1
+    call memalloc ( 0, map%l2g, __FILE__,__LINE__)
+  end subroutine map_igp_allocate_void
 
 end module par_preconditioner_dd_mlevel_bddc_names
 

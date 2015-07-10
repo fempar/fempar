@@ -269,8 +269,8 @@ program par_test_nsi_iss
 !!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
 !!$  call par_vector_print(6,p_unk)
 !!$
-!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_only_values )
-!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_only_struct )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_values )
+!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_struct )
 !!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_clean )
 
   ! Solve
@@ -287,8 +287,8 @@ program par_test_nsi_iss
   if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
 
   ! Free preconditioner
-  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_values)
-  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_only_struct)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_values)
+  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_struct)
   call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
 
   ! Deallocate

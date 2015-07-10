@@ -43,7 +43,7 @@ module block_dof_distribution_create_names
   use dof_distribution_names  
   use par_triangulation_names
   use par_fe_space_names
-use psb_penv_mod_names
+  use psb_penv_mod_names
 
   implicit none
 # include "debug.i90"
@@ -126,6 +126,7 @@ contains
           iobj = p_trian%lst_itfc_vefs(i)
           est_max_nparts = max(p_trian%f_trian%vefs(iobj)%num_elems_around, est_max_nparts)       
        end do
+       call psb_max ( p_trian%p_env%p_context%icontxt, est_max_nparts ) 
 
        do iblock = 1, p_fe_space%fe_space%dof_descriptor%nblocks  
           est_max_itf_dofs = 0
@@ -202,6 +203,8 @@ contains
           call memfree( dofs_object_ext, __FILE__, __LINE__ )
 
           call ws_parts_visited_all%free()
+  
+          call psb_max ( p_trian%p_env%p_context%icontxt, max_nparts )
 
           ! Initialize max_nparts for blk_dof_dist%blocks(iblock)%npadj
           blk_dof_dist%blocks(iblock)%max_nparts = max_nparts
