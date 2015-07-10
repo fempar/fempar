@@ -129,6 +129,7 @@ module preconditioner_names
    contains
      procedure :: apply => preconditioner_apply_tbp
      procedure :: apply_fun => preconditioner_apply_fun_tbp
+     procedure :: fill_values => preconditioner_fill_values_tbp
      procedure :: free => preconditioner_free_tbp
   end type preconditioner_t
 
@@ -448,18 +449,19 @@ contains
   end subroutine preconditioner_symbolic
 
   !=============================================================================
-  subroutine preconditioner_numeric(mat, prec)
+  subroutine preconditioner_numeric( prec)
     implicit none
     ! Parameters
-    type(matrix_t)      , intent(in), target    :: mat
-    type(preconditioner_t)     , intent(inout) :: prec
+    type(preconditioner_t), target, intent(inout) :: prec
     ! Locals
+    type(matrix_t), pointer :: mat
     type (vector_t) :: vdum 
     integer(ip)       :: ilev, n, nnz
     integer(ip)       :: i, j
     real(rp)          :: diag
     
-    prec%mat => mat
+    !prec%mat => mat
+    mat => prec%mat
 
     if(prec%type==pardiso_mkl_prec) then
        call pardiso_mkl ( pardiso_mkl_compute_num, prec%pardiso_mkl_ctxt, &
@@ -766,7 +768,6 @@ contains
 
     call x%CleanTemp()
   end subroutine preconditioner_apply_tbp
-  
 
   !=============================================================================
   function preconditioner_apply_fun_tbp (op, x) result(y)
@@ -796,6 +797,18 @@ contains
 
     call x%CleanTemp()
   end function preconditioner_apply_fun_tbp
+
+  !=============================================================================
+  subroutine preconditioner_fill_values_tbp (op)
+    implicit none
+    ! Parameters
+    class(preconditioner_t), intent(inout) :: op
+    
+    assert (associated(op%mat))
+
+    if(op%do_fill_values) call preconditioner_numeric(op)
+
+  end subroutine preconditioner_fill_values_tbp
 
   subroutine preconditioner_free_tbp(this)
     implicit none

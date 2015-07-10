@@ -415,7 +415,8 @@ program par_test_blk_nsi_cg_iss_oss
   type(dof_descriptor_t)                  :: dof_descriptor
   type(par_fe_space_t)                    :: p_fe_space  
   type(nsi_problem_t)                     :: myprob
-  type(nsi_cg_iss_oss_discrete_t), target :: mydisc
+  type(nsi_cg_iss_oss_discrete_t)         :: mydisc
+  type(time_integration_t)       , target :: tinteg
   type(nsi_cg_iss_oss_matvec_t)  , target :: cg_iss_oss_matvec
   type(discrete_integration_pointer_t)    :: approx(1)
   type(vtk_t)                             :: fevtk
@@ -509,7 +510,8 @@ program par_test_blk_nsi_cg_iss_oss
   call mydisc%vars_block(myprob,vars_block)
   call mydisc%dof_coupling(myprob,dof_coupling)
   call cg_iss_oss_matvec%create(myprob,mydisc)
-  mydisc%dtinv      = 0.0_rp
+  cg_iss_oss_matvec%tinteg => tinteg
+  tinteg%dtinv      = 0.0_rp
   mydisc%kfl_proj   = 1
   mydisc%kfl_lump   = 1
   myprob%kfl_conv   = 0
@@ -683,13 +685,16 @@ contains
     type(my_par_linear_algebra_t), intent(inout) :: la
 
     ! precond numeric (K^-1)
-    call par_preconditioner_dd_mlevel_bddc_fill_val(la%p_blk_matrix%get_block(1,1),la%p_mlevel_bddc_u)
+    !call par_preconditioner_dd_mlevel_bddc_fill_val(la%p_blk_matrix%get_block(1,1),la%p_mlevel_bddc_u)
+    call par_preconditioner_dd_mlevel_bddc_fill_val(la%p_mlevel_bddc_u)
 
     ! precond numeric (Mp^-1)
-    call par_preconditioner_dd_mlevel_bddc_fill_val(la%mass_p_matrix%get_block(2,2),la%p_mlevel_bddc_p)
+    !call par_preconditioner_dd_mlevel_bddc_fill_val(la%mass_p_matrix%get_block(2,2),la%p_mlevel_bddc_p)
+    call par_preconditioner_dd_mlevel_bddc_fill_val(la%p_mlevel_bddc_p)
 
     ! precond numeric (Mx^-1)
-    call par_preconditioner_dd_mlevel_bddc_fill_val(la%p_blk_matrix%get_block(3,3),la%p_mlevel_bddc_x)
+    !call par_preconditioner_dd_mlevel_bddc_fill_val(la%p_blk_matrix%get_block(3,3),la%p_mlevel_bddc_x)
+    call par_preconditioner_dd_mlevel_bddc_fill_val(la%p_mlevel_bddc_x)
           
   end subroutine compute_preconditioner
   
@@ -769,7 +774,8 @@ contains
 
        ! Compute Numeric preconditioner
        ! ***************** Abstract procedure to compute precond numeric ***************************!
-       call compute_preconditioner(la)
+       !call compute_preconditioner(la)
+       call M%fill_values()
        !********************************************************************************************!
 
        ! Solve system

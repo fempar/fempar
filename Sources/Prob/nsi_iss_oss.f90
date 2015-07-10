@@ -36,6 +36,7 @@ module nsi_cg_iss_oss_names
   use element_fields_names
   use element_tools_names
   use rungekutta_names
+  use time_integration_names
   implicit none
 # include "debug.i90"
   
@@ -51,8 +52,6 @@ module nsi_cg_iss_oss_names
           tdimv,      & ! Number of temporal steps stored for velocity
           tdimp         ! Number of temporal steps stored for pressure   
      real(rp) ::         &
-          dtinv,         & ! Inverse of time step
-          ctime,         & ! Current time
           ktauc,         & ! Constant multiplying stabilization parameter tau_c 
           k1tau,         & ! C1 constant on stabilization parameter tau_m
           k2tau            ! C2 constant on stabilization parameter tau_m
@@ -66,6 +65,7 @@ module nsi_cg_iss_oss_names
   type, extends(discrete_integration_t) :: nsi_cg_iss_oss_matvec_t
      type(nsi_cg_iss_oss_discrete_t), pointer :: discret
      type(nsi_problem_t)            , pointer :: physics
+     type(time_integration_t)       , pointer :: tinteg
    contains
      procedure :: create  => nsi_matvec_create
      procedure :: compute => nsi_matvec 
@@ -117,7 +117,7 @@ module nsi_cg_iss_oss_names
   type, extends(discrete_integration_t) :: nsi_cg_iss_oss_rk_pressure_t
      type(nsi_cg_iss_oss_discrete_t), pointer :: discret
      type(nsi_problem_t)            , pointer :: physics
-     real(rp)                                 :: ctime = 0.0_rp
+     type(time_integration_t)       , pointer :: tinteg
    contains
      procedure :: create  => nsi_rk_pressure_create
      procedure :: compute => nsi_rk_pressure
@@ -183,8 +183,6 @@ contains
     discret%ktauc = 4.0_rp  ! Constant multiplying stabilization parameter tau_c
 
     ! Time integration variables
-    discret%dtinv = 1.0_rp ! Inverse of time step
-    discret%ctime = 0.0_rp ! Current time
     discret%tdimv = 2     ! Number of temporal steps stored for velocity
     discret%tdimp = 2     ! Number of temporal steps stored for pressure
 
@@ -549,7 +547,7 @@ contains
     ngaus = finite_element%integ(1)%p%quad%ngaus
     diffu = approx%physics%diffu
     react = approx%physics%react
-    dtinv = approx%discret%dtinv
+    dtinv = approx%tinteg%dtinv
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_vu,__FILE__,__LINE__)
@@ -583,9 +581,9 @@ contains
 
     ! Set real time
     if(approx%discret%kfl_thet==0) then        ! BE
-       ctime = approx%discret%ctime
+       ctime = approx%tinteg%ctime
     elseif(approx%discret%kfl_thet==1) then    ! CN
-       ctime = approx%discret%ctime - 1.0_rp/dtinv
+       ctime = approx%tinteg%ctime - 1.0_rp/dtinv
     end if
 
     ! Set force term
@@ -964,10 +962,10 @@ contains
     nnodp = finite_element%integ(ndime+1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%quad%ngaus
     diffu = approx%physics%diffu
-    dtinv = approx%discret%dtinv
     rkinteg => approx%rkinteg
+    dtinv = rkinteg%dtinv
     istge = rkinteg%istge
-    prevtime = approx%discret%ctime - 1.0_rp/dtinv
+    prevtime = rkinteg%ctime - 1.0_rp/dtinv
 
     ! Asserts
     check(istge>1) ! First stage skiped (a_11=0)
@@ -1316,8 +1314,8 @@ contains
     nnodp = finite_element%integ(ndime+1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%quad%ngaus
     diffu = approx%physics%diffu
-    dtinv = approx%discret%dtinv
-    ctime = approx%ctime
+    dtinv = approx%tinteg%dtinv
+    ctime = approx%tinteg%ctime
 
     ! Initialize to zero
     finite_element%p_mat%a = 0.0_rp
@@ -1515,11 +1513,11 @@ contains
     nnodp = finite_element%integ(ndime+1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%quad%ngaus
     diffu = approx%physics%diffu
-    dtinv = approx%discret%dtinv
     rkinteg => approx%rkinteg
     nstge = rkinteg%rktable(1)%p%stage
-    ctime = approx%discret%ctime
-    prevtime = approx%discret%ctime - 1.0_rp/dtinv
+    dtinv = rkinteg%dtinv
+    ctime = rkinteg%ctime
+    prevtime = rkinteg%ctime - 1.0_rp/dtinv
 
     ! Initialize to zero
     finite_element%p_mat%a = 0.0_rp

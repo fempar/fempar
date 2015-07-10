@@ -61,6 +61,7 @@ use iso_c_binding
 
      procedure  :: apply          => block_preconditioner_u_apply
      procedure  :: apply_fun      => block_preconditioner_u_apply_fun
+     procedure  :: fill_values    => block_preconditioner_u_fill_values
      procedure  :: free           => block_preconditioner_u_free_tbp
   end type block_preconditioner_u_t
 
@@ -162,6 +163,23 @@ contains
     end select
     call x%CleanTemp()
   end function block_preconditioner_u_apply_fun
+
+  ! op1%fill_values(op2)
+  ! Fill preconditioner values
+  subroutine block_preconditioner_u_fill_values (op)
+    implicit none
+    class(block_preconditioner_u_t), intent(inout) :: op
+
+    ! Locals
+    integer(ip) :: iblk
+
+    if(op%do_fill_values) then
+       do iblk=1, op%nblocks
+          call op%blocks(iblk,iblk)%p_op%fill_values()
+       end do
+    end if
+
+  end subroutine block_preconditioner_u_fill_values
 
   subroutine block_preconditioner_u_free_tbp(this)
     implicit none

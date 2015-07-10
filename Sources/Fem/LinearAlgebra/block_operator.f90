@@ -31,7 +31,7 @@ module block_operator_names
   use memor_names
   use base_operator_names
   use base_operand_names
-
+  use base_integrable_operator_names
   use block_operand_names
 
 #ifdef memcheck
@@ -57,7 +57,7 @@ use iso_c_binding
 
 
   ! Block operator
-  type, extends(base_operator_t) :: block_operator_t
+  type, extends(base_integrable_operator_t) :: block_operator_t
      private
      integer(ip)                       :: nblocks, mblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)

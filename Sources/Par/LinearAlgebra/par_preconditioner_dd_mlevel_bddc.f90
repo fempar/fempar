@@ -338,6 +338,7 @@ module par_preconditioner_dd_mlevel_bddc_names
    contains
      procedure :: apply => par_preconditioner_dd_mlevel_bddc_apply_tbp
      procedure :: apply_fun => par_preconditioner_dd_mlevel_bddc_apply_fun_tbp
+     procedure :: fill_values => par_preconditioner_dd_mlevel_bddc_fill_values_tbp
      procedure :: free => par_preconditioner_dd_mlevel_bddc_free_tbp
   end type par_preconditioner_dd_mlevel_bddc_t
 
@@ -3036,17 +3037,17 @@ use mpi
  end subroutine rcv_subdomains_surrounding_coarse_dofs
 
   !=================================================================================================
-  recursive subroutine par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, mlbddc )
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc )
                                            
     implicit none
     ! Parameters 
-    type(par_matrix_t)                , target, intent(in)    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
 
     ! Locals
+    type(par_matrix_t), pointer :: p_mat
     logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
-    mlbddc%p_mat => p_mat
+    p_mat => mlbddc%p_mat
 
     ! Which duties do I have?
     i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
@@ -3061,7 +3062,8 @@ use mpi
 
     if ( i_am_coarse_task .or. i_am_higher_level_task ) then
        if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
-          call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
+          !call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
+          call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_M_c ) 
        end if
     end if
 
@@ -3243,10 +3245,12 @@ use mpi
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          call preconditioner_numeric( mlbddc%A_rr , mlbddc%M_rr )
+          ! call preconditioner_numeric( mlbddc%A_rr , mlbddc%M_rr )
+          call preconditioner_numeric( mlbddc%M_rr )
           
           if (mlbddc%projection == petrov_galerkin ) then 
-             call preconditioner_numeric( mlbddc%A_rr_trans, mlbddc%M_rr_trans ) 
+             !call preconditioner_numeric( mlbddc%A_rr_trans, mlbddc%M_rr_trans ) 
+             call preconditioner_numeric( mlbddc%M_rr_trans ) 
           end if
 
        else
@@ -3560,7 +3564,8 @@ use mpi
              call io_close (lunou)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_numeric( mlbddc%A_c , mlbddc%M_c )
+             ! call preconditioner_numeric( mlbddc%A_c , mlbddc%M_c )
+             call preconditioner_numeric( mlbddc%M_c )
           else
              check(.false.)
 !!$             call operator_mat_create (mlbddc%A_c, mlbddc%A_c_mat_op )
@@ -8775,7 +8780,7 @@ use mpi
           class is (par_vector_t)
           select type(y)
              class is(par_vector_t)
-               call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, y )
+             call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, y )
              class default
              write(0,'(a)') 'matrix_t%apply: unsupported y class'
              check(1==0)
@@ -8802,18 +8807,30 @@ use mpi
 
        select type(x)
           class is (par_vector_t)
-             allocate(local_y)
-             call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
-             call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
-             call move_alloc(local_y, y)
-             call y%SetTemp()
+          allocate(local_y)
+          call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
+          call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
+          call move_alloc(local_y, y)
+          call y%SetTemp()
           class default
-             write(0,'(a)') 'par_preconditioner_dd_mlevel_bddc_t%apply_fun: unsupported x class'
-             check(1==0)
-          end select
-          
-          call x%CleanTemp()
-        end function par_preconditioner_dd_mlevel_bddc_apply_fun_tbp
+          write(0,'(a)') 'par_preconditioner_dd_mlevel_bddc_t%apply_fun: unsupported x class'
+          check(1==0)
+       end select
+
+       call x%CleanTemp()
+     end function par_preconditioner_dd_mlevel_bddc_apply_fun_tbp
+
+     !=============================================================================
+     subroutine par_preconditioner_dd_mlevel_bddc_fill_values_tbp (op)
+       implicit none
+       ! Parameters
+       class(par_preconditioner_dd_mlevel_bddc_t)    , intent(inout) :: op
+
+       assert (associated(op%p_mat))
+
+       if(op%do_fill_values) call par_preconditioner_dd_mlevel_bddc_fill_val ( op )
+
+     end subroutine par_preconditioner_dd_mlevel_bddc_fill_values_tbp
 
         subroutine par_preconditioner_dd_mlevel_bddc_free_tbp(this)
           implicit none

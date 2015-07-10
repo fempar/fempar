@@ -36,7 +36,7 @@ module matrix_names
 
   ! Abstract types
   use base_operand_names
-  use base_operator_names
+  use base_integrable_operator_names
 
 #ifdef memcheck
 use iso_c_binding
@@ -58,7 +58,7 @@ use iso_c_binding
   integer(ip), parameter :: unknown               = 3 ! No info
 
   ! Matrix
-  type, extends(base_operator_t) :: matrix_t
+  type, extends(base_integrable_operator_t) :: matrix_t
      integer(ip)                :: &
 !!!          storage=undef_sto,         &      ! Storage layout (blk: block; scal: scalar)
           symm=symm_false,           &         ! Flag for symmetry

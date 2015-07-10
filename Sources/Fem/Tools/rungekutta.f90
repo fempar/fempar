@@ -28,6 +28,7 @@
 module rungekutta_names
   use types_names
   use memor_names
+  use time_integration_names
   implicit none
 # include "debug.i90"
   private
@@ -62,7 +63,7 @@ module rungekutta_names
      procedure :: create => rk_terms_create
   end type rungekutta_terms_t
 
-  type rungekutta_integrator_t
+  type, extends(time_integration_t) :: rungekutta_integrator_t
      type(rungekutta_table_pointer_t), allocatable :: rktable(:) ! Butcher tableau
      type(rungekutta_terms_t)        , allocatable :: rkterms(:) ! Terms info
      type(rungekutta_table_t)                      :: rktable_explicit

@@ -259,7 +259,9 @@ program test_blk_nsi_cg_iss_oss_rk
   type(dof_descriptor_t)                              :: dof_descriptor
   type(fe_space_t)                                    :: fe_space  
   type(nsi_problem_t)                                 :: myprob
-  type(nsi_cg_iss_oss_discrete_t)            , target :: mydisc
+  type(nsi_cg_iss_oss_discrete_t)                     :: mydisc
+  type(rungekutta_integrator_t)              , target :: rkinteg
+  type(time_integration_t)                   , target :: tinteg
   type(nsi_cg_iss_oss_rk_momentum_t)         , target :: cg_iss_oss_rk_momentum
   type(nsi_cg_iss_oss_rk_pressure_t)         , target :: cg_iss_oss_rk_pressure
   type(nsi_cg_iss_oss_rk_momentum_update_t)  , target :: cg_iss_oss_rk_momentum_update
@@ -277,7 +279,6 @@ program test_blk_nsi_cg_iss_oss_rk
   type(nsi_cg_iss_oss_lapla_p_t)             , target :: lapla_p_integration
   type(nsi_cg_iss_oss_massu_t)               , target :: mass_u_integration
   type(my_linear_algebra_t)                           :: linear_algebra
-  type(rungekutta_integrator_t)              , target :: rkinteg
 
   ! Logicals
   logical :: ginfo_state
@@ -351,8 +352,12 @@ program test_blk_nsi_cg_iss_oss_rk
   call mydisc%dof_coupling(myprob,dof_coupling)
   call cg_iss_oss_rk_momentum%create(myprob,mydisc)
   call cg_iss_oss_rk_pressure%create(myprob,mydisc)
+  call cg_iss_oss_rk_momentum_update%create(myprob,mydisc)
+  call cg_iss_oss_rk_projection_update%create(myprob,mydisc)
   cg_iss_oss_rk_momentum%rkinteg => rkinteg
-  mydisc%dtinv    = 0.0_rp
+  cg_iss_oss_rk_pressure%tinteg  => tinteg
+  cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
+  rkinteg%dtinv   = 0.0_rp
   mydisc%kfl_proj = 1
   mydisc%kfl_lump = 1
   myprob%kfl_conv = 1
@@ -499,7 +504,7 @@ contains
 
   !==================================================================================================
   subroutine time_steps_rk(sctrl,nltol,maxit,sttol,maxst,env,fe_space,la,momentum,pressure, &
-       &                   momentum_update,projection_update)
+       &                   momentum_update,projection_update,rkinteg)
     implicit none
     type(solver_control_t)               , intent(inout) :: sctrl
     real(rp)                             , intent(in)    :: nltol,sttol
@@ -511,19 +516,11 @@ contains
     class(discrete_integration_t), target, intent(inout) :: pressure
     class(discrete_integration_t), target, intent(inout) :: momentum_update 
     class(discrete_integration_t), target, intent(inout) :: projection_update
+    type(rungekutta_integrator_t)        , intent(inout) :: rkinteg
     ! Locals
     type(discrete_integration_pointer_t)   :: approx(1)
-    type(rungekutta_integrator_t), pointer :: rkinteg
     integer(ip) :: istage,nstage,istep
     real(rp)    :: rtime,ctime,prevtime
-
-    select type(momentum)
-    class is(nsi_cg_iss_oss_rk_momentum_t)
-       rkinteg => momentum%rkinteg
-    class default
-       write(0,'(a)') 'time_steps_rk: unsupported momentum class'
-       check(1==0)
-    end select
 
     ! Initialize time steps
     rtime = 1.0_rp

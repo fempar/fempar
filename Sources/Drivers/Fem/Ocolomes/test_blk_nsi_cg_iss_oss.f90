@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module my_linear_algebra_names
+module my_nonlinear_operator_names
   use serial_names
   implicit none
 # include "debug.i90"
   private
   
-  type, extends(nonlinear_operator_t) :: my_linear_algebra_t 
+  type, extends(nonlinear_operator_t) :: my_nonlinear_operator_t 
      type(block_matrix_t)           :: block_matrix
      type(block_vector_t)           :: block_vector
      type(block_vector_t)           :: block_unknown
@@ -57,215 +57,215 @@ module my_linear_algebra_names
      type(block_preconditioner_l_t) :: block_up_preconditioner
      type(block_preconditioner_l_t) :: block_x_preconditioner
    contains
-     procedure :: build => build_linear_algebra
-     procedure :: free  => free_linear_algebra
-  end type my_linear_algebra_t
+     procedure :: build => build_nonlinear_operator
+     procedure :: free  => free_nonlinear_operator
+  end type my_nonlinear_operator_t
 
   ! Types
-  public :: my_linear_algebra_t
+  public :: my_nonlinear_operator_t
   
 contains
 
   !==================================================================================================
-  subroutine build_linear_algebra(la,blk_graph)
+  subroutine build_nonlinear_operator(nlop,blk_graph)
     implicit none
-    class(my_linear_algebra_t), target, intent(inout) :: la
-    type(block_graph_t)               , intent(in)    :: blk_graph
+    class(my_nonlinear_operator_t), target, intent(inout) :: nlop
+    type(block_graph_t)                   , intent(in)    :: blk_graph
 
     ! Allocate matrices and vectors
-    call la%block_matrix%alloc(blk_graph)
-    call la%block_matrix%set_block_to_zero(2,2)
-    call la%block_matrix%set_block_to_zero(2,3)
-    call la%block_matrix%set_block_to_zero(3,2)
-    call la%block_vector%alloc(blk_graph)
-    call la%block_unknown%alloc(blk_graph)
-    call la%block_vector%init(0.0_rp)
+    call nlop%block_matrix%alloc(blk_graph)
+    call nlop%block_matrix%set_block_to_zero(2,2)
+    call nlop%block_matrix%set_block_to_zero(2,3)
+    call nlop%block_matrix%set_block_to_zero(3,2)
+    call nlop%block_vector%alloc(blk_graph)
+    call nlop%block_unknown%alloc(blk_graph)
+    call nlop%block_vector%init(0.0_rp)
 
     ! Auxiliar matrices
-    call la%mass_p_matrix%alloc(blk_graph)
-    call la%mass_p_matrix%set_block_to_zero(1,1)
-    call la%mass_p_matrix%set_block_to_zero(1,2)
-    call la%mass_p_matrix%set_block_to_zero(1,3)
-    call la%mass_p_matrix%set_block_to_zero(2,1)
-    call la%mass_p_matrix%set_block_to_zero(2,3)
-    call la%mass_p_matrix%set_block_to_zero(3,1)
-    call la%mass_p_matrix%set_block_to_zero(3,2)
-    call la%mass_p_matrix%set_block_to_zero(3,3)
+    call nlop%mass_p_matrix%alloc(blk_graph)
+    call nlop%mass_p_matrix%set_block_to_zero(1,1)
+    call nlop%mass_p_matrix%set_block_to_zero(1,2)
+    call nlop%mass_p_matrix%set_block_to_zero(1,3)
+    call nlop%mass_p_matrix%set_block_to_zero(2,1)
+    call nlop%mass_p_matrix%set_block_to_zero(2,3)
+    call nlop%mass_p_matrix%set_block_to_zero(3,1)
+    call nlop%mass_p_matrix%set_block_to_zero(3,2)
+    call nlop%mass_p_matrix%set_block_to_zero(3,3)
     
     ! Construct U-preconditioner (K^-1)
-    la%u_ppars%type = pardiso_mkl_prec
-    call preconditioner_create(la%block_matrix%get_block(1,1),la%u_preconditioner,la%u_ppars)
-    call preconditioner_symbolic(la%block_matrix%get_block(1,1),la%u_preconditioner)
-    call preconditioner_log_info(la%u_preconditioner)
+    nlop%u_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%block_matrix%get_block(1,1),nlop%u_preconditioner,nlop%u_ppars)
+    call preconditioner_symbolic(nlop%block_matrix%get_block(1,1),nlop%u_preconditioner)
+    call preconditioner_log_info(nlop%u_preconditioner)
 
     ! Construct P-preconditioner (M^-1)
-    la%p_ppars%type = pardiso_mkl_prec
-    call preconditioner_create(la%mass_p_matrix%get_block(2,2),la%p_preconditioner,la%p_ppars)
-    call preconditioner_symbolic(la%mass_p_matrix%get_block(2,2),la%p_preconditioner)
-    call preconditioner_log_info(la%p_preconditioner)
+    nlop%p_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%mass_p_matrix%get_block(2,2),nlop%p_preconditioner,nlop%p_ppars)
+    call preconditioner_symbolic(nlop%mass_p_matrix%get_block(2,2),nlop%p_preconditioner)
+    call preconditioner_log_info(nlop%p_preconditioner)
 
     ! Construct X-preconditioner (Mx^-1)
-    la%x_ppars%type = pardiso_mkl_prec
-    call preconditioner_create(la%block_matrix%get_block(3,3),la%x_preconditioner,la%x_ppars)
-    call preconditioner_symbolic(la%block_matrix%get_block(3,3),la%x_preconditioner)
-    call preconditioner_log_info(la%x_preconditioner)
+    nlop%x_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%block_matrix%get_block(3,3),nlop%x_preconditioner,nlop%x_ppars)
+    call preconditioner_symbolic(nlop%block_matrix%get_block(3,3),nlop%x_preconditioner)
+    call preconditioner_log_info(nlop%x_preconditioner)
     
     ! Create U-P Block operator
-    call la%block_up_operator%create(2,2)
-    call la%block_up_operator%set_block(1,1,la%block_matrix%get_block(1,1))
-    call la%block_up_operator%set_block(1,2,la%block_matrix%get_block(1,2))
-    call la%block_up_operator%set_block(2,1,la%block_matrix%get_block(2,1))
-    call la%block_up_operator%set_block_to_zero(2,2)
+    call nlop%block_up_operator%create(2,2)
+    call nlop%block_up_operator%set_block(1,1,nlop%block_matrix%get_block(1,1))
+    call nlop%block_up_operator%set_block(1,2,nlop%block_matrix%get_block(1,2))
+    call nlop%block_up_operator%set_block(2,1,nlop%block_matrix%get_block(2,1))
+    call nlop%block_up_operator%set_block_to_zero(2,2)
 
     ! Create U-P Block operand
-    call la%block_up_operand_vec%create(2)
-    call la%block_up_operand_vec%set_block(1,la%block_vector%blocks(1))
-    call la%block_up_operand_vec%set_block(2,la%block_vector%blocks(2))
-    call la%block_up_operand_unk%create(2)
-    call la%block_up_operand_unk%set_block(1,la%block_unknown%blocks(1))
-    call la%block_up_operand_unk%set_block(2,la%block_unknown%blocks(2))
+    call nlop%block_up_operand_vec%create(2)
+    call nlop%block_up_operand_vec%set_block(1,nlop%block_vector%blocks(1))
+    call nlop%block_up_operand_vec%set_block(2,nlop%block_vector%blocks(2))
+    call nlop%block_up_operand_unk%create(2)
+    call nlop%block_up_operand_unk%set_block(1,nlop%block_unknown%blocks(1))
+    call nlop%block_up_operand_unk%set_block(2,nlop%block_unknown%blocks(2))
 
     ! Create U-P Block preconditioner
-    call la%block_up_preconditioner%create(2)
-    call la%block_up_preconditioner%set_block(1,1,la%u_preconditioner)
-    call la%block_up_preconditioner%set_block(2,1,la%block_matrix%get_block(2,1))
-    call la%block_up_preconditioner%set_block(2,2,la%p_preconditioner)
+    call nlop%block_up_preconditioner%create(2)
+    call nlop%block_up_preconditioner%set_block(1,1,nlop%u_preconditioner)
+    call nlop%block_up_preconditioner%set_block(2,1,nlop%block_matrix%get_block(2,1))
+    call nlop%block_up_preconditioner%set_block(2,2,nlop%p_preconditioner)
 
     ! Create UP-X Block operator
-    call la%block_up_x_operator%create(2,1)
-    call la%block_up_x_operator%set_block(1,1,la%block_matrix%get_block(1,3))
-    call la%block_up_x_operator%set_block_to_zero(2,1) 
+    call nlop%block_up_x_operator%create(2,1)
+    call nlop%block_up_x_operator%set_block(1,1,nlop%block_matrix%get_block(1,3))
+    call nlop%block_up_x_operator%set_block_to_zero(2,1) 
 
     ! Create X-UP Block operator
-    call la%block_x_up_operator%create(1,2)
-    call la%block_x_up_operator%set_block(1,1,la%block_matrix%get_block(3,1))
-    call la%block_x_up_operator%set_block_to_zero(1,2)
+    call nlop%block_x_up_operator%create(1,2)
+    call nlop%block_x_up_operator%set_block(1,1,nlop%block_matrix%get_block(3,1))
+    call nlop%block_x_up_operator%set_block_to_zero(1,2)
 
     ! Create X Block operator
-    call la%block_x_operator%create(1,1)
-    call la%block_x_operator%set_block(1,1,la%block_matrix%get_block(3,3))
+    call nlop%block_x_operator%create(1,1)
+    call nlop%block_x_operator%set_block(1,1,nlop%block_matrix%get_block(3,3))
 
     ! Create X Block operand
-    call la%block_x_operand_vec%create(1)
-    call la%block_x_operand_vec%set_block(1,la%block_vector%blocks(3))
-    call la%block_x_operand_unk%create(1)
-    call la%block_x_operand_unk%set_block(1,la%block_unknown%blocks(3))
+    call nlop%block_x_operand_vec%create(1)
+    call nlop%block_x_operand_vec%set_block(1,nlop%block_vector%blocks(3))
+    call nlop%block_x_operand_unk%create(1)
+    call nlop%block_x_operand_unk%set_block(1,nlop%block_unknown%blocks(3))
 
     ! Create X Block preconditioner
-    call la%block_x_preconditioner%create(1)
-    call la%block_x_preconditioner%set_block(1,1,la%x_preconditioner)
+    call nlop%block_x_preconditioner%create(1)
+    call nlop%block_x_preconditioner%set_block(1,1,nlop%x_preconditioner)
 
     ! Create Global Block operator
-    call la%block_operator%create(2,2)
-    call la%block_operator%set_block(1,1,la%block_up_operator)
-    call la%block_operator%set_block(1,2,la%block_up_x_operator)
-    call la%block_operator%set_block(2,1,la%block_x_up_operator)
-    call la%block_operator%set_block(2,2,la%block_x_operator)
+    call nlop%block_operator%create(2,2)
+    call nlop%block_operator%set_block(1,1,nlop%block_up_operator)
+    call nlop%block_operator%set_block(1,2,nlop%block_up_x_operator)
+    call nlop%block_operator%set_block(2,1,nlop%block_x_up_operator)
+    call nlop%block_operator%set_block(2,2,nlop%block_x_operator)
 
     ! Create Global Block operand
-    call la%block_operand_vec%create(2)
-    call la%block_operand_vec%set_block(1,la%block_up_operand_vec)
-    call la%block_operand_vec%set_block(2,la%block_x_operand_vec)
-    call la%block_operand_unk%create(2)
-    call la%block_operand_unk%set_block(1,la%block_up_operand_unk)
-    call la%block_operand_unk%set_block(2,la%block_x_operand_unk)
+    call nlop%block_operand_vec%create(2)
+    call nlop%block_operand_vec%set_block(1,nlop%block_up_operand_vec)
+    call nlop%block_operand_vec%set_block(2,nlop%block_x_operand_vec)
+    call nlop%block_operand_unk%create(2)
+    call nlop%block_operand_unk%set_block(1,nlop%block_up_operand_unk)
+    call nlop%block_operand_unk%set_block(2,nlop%block_x_operand_unk)
 
     ! Create Global Block preconditioner
-    call la%block_preconditioner%create(2)
-    call la%block_preconditioner%set_block(1,1,la%block_up_preconditioner)
-    call la%block_preconditioner%set_block(2,1,la%block_x_up_operator)
-    call la%block_preconditioner%set_block(2,2,la%block_x_preconditioner)
+    call nlop%block_preconditioner%create(2)
+    call nlop%block_preconditioner%set_block(1,1,nlop%block_up_preconditioner)
+    call nlop%block_preconditioner%set_block(2,1,nlop%block_x_up_operator)
+    call nlop%block_preconditioner%set_block(2,2,nlop%block_x_preconditioner)
 
     ! Assign operators
-    la%A => la%block_operator
-    la%M => la%block_preconditioner
-    la%b => la%block_operand_vec
-    la%x => la%block_operand_unk
-    la%A_int => la%block_matrix
-    la%b_int => la%block_vector
-    la%x_sol => la%block_unknown
+    nlop%A => nlop%block_operator
+    nlop%M => nlop%block_preconditioner
+    nlop%b => nlop%block_operand_vec
+    nlop%x => nlop%block_operand_unk
+    nlop%A_int => nlop%block_matrix
+    nlop%b_int => nlop%block_vector
+    nlop%x_sol => nlop%block_unknown
     
-  end subroutine build_linear_algebra
+  end subroutine build_nonlinear_operator
 
   !==================================================================================================
-  subroutine free_linear_algebra(la)
+  subroutine free_nonlinear_operator(nlop)
     implicit none
-    class(my_linear_algebra_t), intent(inout) :: la
+    class(my_nonlinear_operator_t), intent(inout) :: nlop
 
     ! Unassign operators
-    la%A => null()
-    la%M => null()
-    la%b => null()
-    la%x => null()
-    la%A_int => null()
-    la%b_int => null()
-    la%x_sol => null()
+    nlop%A => null()
+    nlop%M => null()
+    nlop%b => null()
+    nlop%x => null()
+    nlop%A_int => null()
+    nlop%b_int => null()
+    nlop%x_sol => null()
 
     ! Destroy Global Block preconditioner
-    call la%block_preconditioner%destroy()
+    call nlop%block_preconditioner%destroy()
 
     ! Destroy Global Block operand
-    call la%block_operand_vec%destroy()
-    call la%block_operand_unk%destroy()
+    call nlop%block_operand_vec%destroy()
+    call nlop%block_operand_unk%destroy()
     
     ! Destroy Global Block operator
-    call la%block_operator%destroy()
+    call nlop%block_operator%destroy()
 
     ! Destroy X Block preconditioner
-    call la%block_x_preconditioner%destroy()
+    call nlop%block_x_preconditioner%destroy()
 
     ! Destroy X Block operand
-    call la%block_x_operand_vec%destroy()
-    call la%block_x_operand_unk%destroy()
+    call nlop%block_x_operand_vec%destroy()
+    call nlop%block_x_operand_unk%destroy()
 
     ! Destroy X Block operator
-    call la%block_x_operator%destroy()
+    call nlop%block_x_operator%destroy()
 
     ! Destroy X-UP Block operator
-    call la%block_x_up_operator%destroy()
+    call nlop%block_x_up_operator%destroy()
 
     ! Destroy UP-X Block operator
-    call la%block_up_x_operator%destroy()
+    call nlop%block_up_x_operator%destroy()
 
     ! Destroy U-P Block preconditioner
-    call la%block_up_preconditioner%destroy()
+    call nlop%block_up_preconditioner%destroy()
 
     ! Destroy U-P Block operand
-    call la%block_up_operand_vec%destroy()
-    call la%block_up_operand_unk%destroy()
+    call nlop%block_up_operand_vec%destroy()
+    call nlop%block_up_operand_unk%destroy()
 
     ! Destroy U-P Block operator
-    call la%block_up_operator%destroy()
+    call nlop%block_up_operator%destroy()
 
     ! Destroy X-preconditioner
-    call preconditioner_free(preconditioner_free_struct,la%x_preconditioner)
-    call preconditioner_free(preconditioner_free_clean,la%x_preconditioner)
+    call preconditioner_free(preconditioner_free_struct,nlop%x_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%x_preconditioner)
 
     ! Destroy P-preconditioner
-    call preconditioner_free(preconditioner_free_struct,la%p_preconditioner)
-    call preconditioner_free(preconditioner_free_clean,la%p_preconditioner)
+    call preconditioner_free(preconditioner_free_struct,nlop%p_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%p_preconditioner)
 
     ! Destroy U-preconditioner
-    call preconditioner_free(preconditioner_free_struct,la%u_preconditioner)
-    call preconditioner_free(preconditioner_free_clean,la%u_preconditioner)
+    call preconditioner_free(preconditioner_free_struct,nlop%u_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%u_preconditioner)
 
     ! Deallocate auxiliar matrices
-    call la%mass_p_matrix%free()
+    call nlop%mass_p_matrix%free()
           
     ! Deallocate problem matrix
-    call la%block_matrix%free()
+    call nlop%block_matrix%free()
 
     ! Deallocate problem vectors
-    call la%block_vector%free()
-    call la%block_unknown%free()
+    call nlop%block_vector%free()
+    call nlop%block_unknown%free()
     
-  end subroutine free_linear_algebra
+  end subroutine free_nonlinear_operator
 
-end module my_linear_algebra_names
+end module my_nonlinear_operator_names
 
 program test_blk_nsi_cg_iss_oss
   use serial_names
-  use my_linear_algebra_names
+  use my_nonlinear_operator_names
   use nsi_names
   use nsi_cg_iss_oss_names
   use norm_names
@@ -282,7 +282,8 @@ program test_blk_nsi_cg_iss_oss
   type(dof_descriptor_t)                  :: dof_descriptor
   type(fe_space_t)                        :: fe_space  
   type(nsi_problem_t)                     :: myprob
-  type(nsi_cg_iss_oss_discrete_t), target :: mydisc
+  type(nsi_cg_iss_oss_discrete_t)         :: mydisc
+  type(time_integration_t)       , target :: mytime
   type(nsi_cg_iss_oss_matvec_t)  , target :: cg_iss_oss_matvec
   type(discrete_integration_pointer_t)    :: approx(1)
   type(preconditioner_params_t)           :: ppars
@@ -295,7 +296,7 @@ program test_blk_nsi_cg_iss_oss
   type(scalar_t)                          :: enorm_u, enorm_p
   type(error_norm_t)             , target :: error_compute
   type(nsi_cg_iss_oss_massp_t)   , target :: mass_p_integration
-  type(my_linear_algebra_t)               :: linear_algebra
+  type(my_nonlinear_operator_t)           :: nonlinear_operator
 
   ! Logicals
   logical :: ginfo_state
@@ -355,7 +356,8 @@ program test_blk_nsi_cg_iss_oss
   call mydisc%vars_block(myprob,vars_block)
   call mydisc%dof_coupling(myprob,dof_coupling)
   call cg_iss_oss_matvec%create(myprob,mydisc)
-  mydisc%dtinv      = 0.0_rp
+  cg_iss_oss_matvec%tinteg => mytime
+  mytime%dtinv      = 0.0_rp
   mydisc%kfl_proj   = 1
   mydisc%kfl_lump   = 1
   myprob%kfl_conv   = 0
@@ -397,14 +399,14 @@ program test_blk_nsi_cg_iss_oss
   end if
 
   ! Create linear algebra structures
-  call linear_algebra%build(blk_graph)
-  linear_algebra%max_iter = 10
-  linear_algebra%nltol    = 1.0e-12_rp
+  call nonlinear_operator%build(blk_graph)
+  nonlinear_operator%max_iter = 10
+  nonlinear_operator%nltol    = 1.0e-12_rp
 
   ! Compute auxiliar matrix
   call mass_p_integration%create(myprob,mydisc)
   approx(1)%p => mass_p_integration
-  call volume_integral(approx,fe_space,linear_algebra%mass_p_matrix)
+  call volume_integral(approx,fe_space,nonlinear_operator%mass_p_matrix)
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
@@ -420,7 +422,7 @@ program test_blk_nsi_cg_iss_oss
   approx(1)%p => cg_iss_oss_matvec
 
   ! Do nonlinear iterations
-  call nonlinear_iteration(sctrl,senv,approx,fe_space,linear_algebra)
+  call nonlinear_iteration(sctrl,senv,approx,fe_space,nonlinear_operator)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -438,7 +440,7 @@ program test_blk_nsi_cg_iss_oss
   write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
 
   ! Free linear algebra structures
-  call linear_algebra%free()
+  call nonlinear_operator%free()
 
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
@@ -497,36 +499,20 @@ contains
     read (argument,*) nez
 
   end subroutine read_pars_cl_test_blk_nsi_cg_iss_oss
-
-  !==================================================================================================
-  subroutine compute_preconditioner(la)
-    implicit none
-    type(my_linear_algebra_t), intent(inout) :: la
-
-    ! precond numeric (K^-1)
-    call preconditioner_numeric(la%block_matrix%get_block(1,1),la%u_preconditioner)
-
-    ! precond numeric (Mp^-1)
-    call preconditioner_numeric(la%mass_p_matrix%get_block(2,2),la%p_preconditioner)
-
-    ! precond numeric (Mx^-1)
-    call preconditioner_numeric(la%block_matrix%get_block(3,3),la%x_preconditioner)
-          
-  end subroutine compute_preconditioner
   
   !==================================================================================================
-  subroutine free_preconditioner(la)
+  subroutine free_preconditioner(nlop)
     implicit none
-    type(my_linear_algebra_t), intent(inout) :: la
+    type(my_nonlinear_operator_t), intent(inout) :: nlop
 
     ! precond free (K^-1)
-    call preconditioner_free(preconditioner_free_values,la%u_preconditioner)
+    call preconditioner_free(preconditioner_free_values,nlop%u_preconditioner)
 
     ! precond free (Mp^-1)
-    call preconditioner_free(preconditioner_free_values,la%p_preconditioner)
+    call preconditioner_free(preconditioner_free_values,nlop%p_preconditioner)
 
     ! precond free (Mx^-1)
-    call preconditioner_free(preconditioner_free_values,la%x_preconditioner)
+    call preconditioner_free(preconditioner_free_values,nlop%x_preconditioner)
           
   end subroutine free_preconditioner
 
@@ -538,7 +524,7 @@ contains
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
     type(fe_space_t)                    , intent(inout) :: fe_space
     !class(nonlinear_operator_t), target , intent(inout) :: nlop
-    type(my_linear_algebra_t), target , intent(inout) :: nlop
+    type(my_nonlinear_operator_t), target , intent(inout) :: nlop
     ! Locals
     ! Locals
     integer(ip)           :: iiter
@@ -581,10 +567,7 @@ contains
        end if
 
        ! Compute Numeric preconditioner
-       ! ***************** Abstract procedure to compute precond numeric ***************************!
-       ! call nlop%M%compute()
-       call compute_preconditioner(nlop)
-       !********************************************************************************************!
+       call nlop%M%fill_values()
 
        ! Solve system
        call abstract_solve(nlop%A,nlop%M,nlop%b,nlop%x,sctrl,env)

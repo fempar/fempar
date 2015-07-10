@@ -145,7 +145,8 @@ program test_dirsol_mm
      call preconditioner_create  (mmmat, feprec, ppars)
      t1 = wtime()
      call preconditioner_symbolic(mmmat, feprec)
-     call preconditioner_numeric (mmmat, feprec)
+     !call preconditioner_numeric (mmmat, feprec)
+     call preconditioner_numeric (feprec)
      t2 = wtime() 
 
      call preconditioner_log_info(feprec)
@@ -271,7 +272,8 @@ program test_dirsol_mm
                     call preconditioner_create  (mmmat, feprec, ppars)
                     t1 = wtime()
                     call preconditioner_symbolic(mmmat, feprec)
-                    call preconditioner_numeric (mmmat, feprec)
+                    !call preconditioner_numeric (mmmat, feprec)
+                    call preconditioner_numeric (feprec)
                     t2 = wtime() 
         
                     call preconditioner_log_info(feprec)

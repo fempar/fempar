@@ -46,14 +46,14 @@ module par_matrix_names
 
   ! Abstract types
   use base_operand_names
-  use base_operator_names
+  use base_integrable_operator_names
 
   implicit none
 # include "debug.i90"
 
   private
 
-  type, extends(base_operator_t) :: par_matrix_t
+  type, extends(base_integrable_operator_t) :: par_matrix_t
      ! Data structure which stores the local part 
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 

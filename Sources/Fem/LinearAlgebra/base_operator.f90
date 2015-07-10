@@ -37,9 +37,11 @@ module base_operator_names
 
   ! Abstract operator (and its pure virtual function apply)
   type, abstract, extends(integrable_t) :: base_operator_t
+     logical :: do_fill_values = .true.
    contains
      procedure (apply_interface)         , deferred :: apply
      procedure (apply_fun_interface)     , deferred :: apply_fun
+     procedure (fill_values_interface)   , deferred :: fill_values
      procedure  :: sum       => sum_operator_constructor
      procedure  :: sub       => sub_operator_constructor
      procedure  :: mult      => mult_operator_constructor
@@ -66,6 +68,7 @@ module base_operator_names
      class(base_operator_t), pointer :: op1 => null(), op2 => null()
    contains
      procedure :: default_initialization => binary_operator_default_init
+     procedure :: fill_values => binary_operator_fill_values
      procedure :: free    => binary_operator_destructor
      procedure :: assign  => binary_operator_copy
   end type binary_operator_t
@@ -79,6 +82,7 @@ module base_operator_names
      procedure  :: default_initialization => abs_operator_default_init
      procedure  :: apply     => abs_operator_apply
      procedure  :: apply_fun => abs_operator_apply_fun
+     procedure  :: fill_values => abs_operator_fill_values
      procedure  :: free  => abs_operator_destructor
      procedure  :: assign => abs_operator_constructor
      generic    :: assignment(=) => assign
@@ -116,6 +120,7 @@ module base_operator_names
      procedure  :: default_initialization => scal_operator_default_init
      procedure  :: apply => scal_operator_apply
      procedure  :: apply_fun => scal_operator_apply_fun
+     procedure  :: fill_values => scal_operator_fill_values
      procedure  :: free => scal_operator_destructor
      procedure  :: assign => scal_operator_copy
   end type scal_operator_t
@@ -128,6 +133,7 @@ module base_operator_names
      procedure  :: default_initialization => minus_operator_default_init
      procedure  :: apply => minus_operator_apply
      procedure  :: apply_fun => minus_operator_apply_fun 
+     procedure  :: fill_values => minus_operator_fill_values
      procedure  :: free => minus_operator_destructor
      procedure  :: assign => minus_operator_copy
   end type minus_operator_t
@@ -153,6 +159,14 @@ module base_operator_names
        class(base_operand_t) , intent(in)  :: x
        class(base_operand_t) , allocatable :: y 
      end function apply_fun_interface
+
+     ! op1%fill_values()
+     ! Fill preconditioner values
+     subroutine fill_values_interface(op)
+       import :: base_operator_t
+       implicit none
+       class(base_operator_t), intent(inout) :: op
+     end subroutine fill_values_interface
 
      subroutine expression_operator_assign_interface(op1,op2)
        import :: base_operator_t, expression_operator_t
@@ -764,5 +778,54 @@ contains
     call x%CleanTemp()
     call op%CleanTemp()
   end subroutine abs_operator_apply
+
+  !-----------------------------!
+  ! fill_values implementations !
+  !-----------------------------!
+
+  subroutine binary_operator_fill_values(op)
+    implicit none
+    class(binary_operator_t), intent(inout) :: op
+    
+    if(op%do_fill_values) then
+       call op%op1%fill_values()
+       call op%op2%fill_values()
+    end if
+
+  end subroutine binary_operator_fill_values
+
+  subroutine abs_operator_fill_values(op)
+    implicit none
+    class(abs_operator_t), intent(inout) :: op
+
+    if(op%do_fill_values) then
+       if(associated(op%op_stored)) then
+          assert(.not.associated(op%op))
+          call op%op_stored%fill_values()
+       else if(associated(op%op)) then
+          assert(.not.associated(op%op_stored))
+          call op%op%fill_values()
+       else
+          check(1==0)
+       end if
+    end if
+
+  end subroutine abs_operator_fill_values
+
+  subroutine minus_operator_fill_values(op)
+    implicit none
+    class(minus_operator_t), intent(inout) :: op
+
+    if(op%do_fill_values) call op%op%fill_values()
+
+  end subroutine minus_operator_fill_values
+
+  subroutine scal_operator_fill_values(op)
+    implicit none
+    class(scal_operator_t), intent(inout) :: op
+
+    if(op%do_fill_values) call op%op%fill_values()
+
+  end subroutine scal_operator_fill_values
 
 end module base_operator_names

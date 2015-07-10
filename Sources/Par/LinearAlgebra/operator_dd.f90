@@ -285,7 +285,7 @@ contains
 
   !=============================================================================
   subroutine operator_dd_fill_val ( f_matrix, f_operator ) !, me )
-use stdio_names
+    use stdio_names
     implicit none
     
     ! Parameters
@@ -316,7 +316,8 @@ use stdio_names
      ! call matrix_print_matrix_market ( lunou, f_operator%A_II )
      ! call io_close (lunou)
 
-     call preconditioner_numeric(f_operator%A_II, f_operator%M_II)
+     ! call preconditioner_numeric(f_operator%A_II, f_operator%M_II)
+     call preconditioner_numeric(f_operator%M_II)
 
      ! call matrix_print ( 6, f_matrix )  ! DBG:
      ! call matrix_print ( 6, f_operator%A_II )    ! DBG:
