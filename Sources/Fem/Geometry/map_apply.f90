@@ -619,10 +619,10 @@ contains
        end do
     end do
 
-    
-    call memalloc(lmeshout%ndime, lmeshout%npoin, lmeshout%coord, __FILE__,__LINE__)
-    call renumbering_apply (lmeshin%ndime, nrenumbering, lmeshin%coord,  lmeshout%coord)
-
+    if ( allocated(lmeshin%coord) ) then 
+      call memalloc(lmeshout%ndime, lmeshout%npoin, lmeshout%coord, __FILE__,__LINE__)
+      call renumbering_apply (lmeshin%ndime, nrenumbering, lmeshin%coord,  lmeshout%coord)
+    end if
   end subroutine mesh_l2l
 
 end module map_apply_names
