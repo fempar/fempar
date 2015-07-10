@@ -78,7 +78,7 @@ program par_test_cdr
   character(len=256)            :: dir_path, dir_path_out
   character(len=256)            :: prefix
   character(len=:), allocatable :: name
-  integer(ip)                   :: i, j, ierror, iblock, num_uniform_refinement_steps=0
+  integer(ip)                   :: i, j, ierror, iblock, num_uniform_refinement_steps
   type(par_timer_t)             :: par_uniform_refinement_timer, par_mesh_to_triangulation_timer, par_fe_space_create_timer
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
@@ -133,7 +133,7 @@ program par_test_cdr
   call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
 
-  num_uniform_refinement_steps = 2
+  num_uniform_refinement_steps = 7
   do i=1, num_uniform_refinement_steps
      call par_timer_init (par_mesh_to_triangulation_timer)
      call par_timer_start (par_mesh_to_triangulation_timer)   
