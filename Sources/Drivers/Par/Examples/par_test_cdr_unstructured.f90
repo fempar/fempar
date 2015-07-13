@@ -539,6 +539,9 @@ contains
     integer(ip), allocatable                :: sizes_per_subdomain(:,:)
     integer(ip), allocatable                :: local_sizes(:)
     integer(ip), allocatable                :: sendcounts(:), displs(:)
+    integer(ip)                             :: dummy_displs(1)
+    integer(ip)                             :: dummy_sendcounts(1)
+    integer(ieep)                           :: dummy_buffer_to_be_scattered(1)
     integer(ieep), allocatable              :: buffer_to_be_scattered(:)
     integer(ieep), allocatable              :: local_buffer(:)
     integer(ip)                             :: istat
@@ -680,7 +683,7 @@ contains
        
        ! Scatter large buffer
        call memalloc ( local_sizes(1)+local_sizes(2)+local_sizes(3), local_buffer, __FILE__, __LINE__)
-       call mpi_scatterv(-1, -1, -1,&
+       call mpi_scatterv(dummy_buffer_to_be_scattered, dummy_sendcounts, dummy_displs,&
                          MPI_INTEGER1, local_buffer, size(local_buffer), MPI_INTEGER1,&
                          0, g_context%icontxt, ierr)
        check(ierr==0)
