@@ -57,6 +57,7 @@ use psb_penv_mod_names
      procedure :: apply     => par_preconditioner_dd_diagonal_apply_tbp
      procedure :: apply_fun => par_preconditioner_dd_diagonal_apply_fun_tbp
      procedure :: fill_values => par_preconditioner_dd_diagonal_fill_values_tbp
+     procedure :: free_values => par_preconditioner_dd_diagonal_free_values_tbp
      procedure :: free      => par_preconditioner_dd_diagonal_free_tbp
   end type par_preconditioner_dd_diagonal_t
   
@@ -265,6 +266,18 @@ use psb_penv_mod_names
     if(op%do_fill_values) call par_preconditioner_dd_diagonal_fill_val ( op )
 
   end subroutine par_preconditioner_dd_diagonal_fill_values_tbp
+
+  !=============================================================================
+  subroutine par_preconditioner_dd_diagonal_free_values_tbp (op)
+    implicit none
+    ! Parameters
+    class(par_preconditioner_dd_diagonal_t), intent(inout) :: op
+    
+    assert (associated(op%p_mat))
+    
+    if(op%do_free_values) call par_preconditioner_dd_diagonal_free ( op, free_values )
+
+  end subroutine par_preconditioner_dd_diagonal_free_values_tbp
   
   subroutine par_preconditioner_dd_diagonal_free_tbp(this)
     implicit none

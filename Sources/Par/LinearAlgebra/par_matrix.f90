@@ -75,6 +75,7 @@ module par_matrix_names
      procedure  :: apply     => par_matrix_apply
      procedure  :: apply_fun => par_matrix_apply_fun
      procedure  :: free      => par_matrix_free_tbp
+     procedure  :: init      => par_matrix_init
   end type par_matrix_t
 
   interface par_matrix_free
@@ -415,6 +416,16 @@ contains
        check(1==0)
     end select
   end function par_matrix_apply_fun
+
+  ! op%init()
+  ! Initialize to zero
+  subroutine par_matrix_init(op)
+    implicit none
+    class(par_matrix_t), intent(inout) :: op
+
+    call par_matrix_zero (op)
+    
+  end subroutine par_matrix_init
 
   subroutine par_matrix_free_tbp(this)
     implicit none

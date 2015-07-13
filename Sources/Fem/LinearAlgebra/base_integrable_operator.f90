@@ -36,7 +36,19 @@ module base_integrable_operator_names
   type, abstract, extends(base_operator_t) :: base_integrable_operator_t
    contains
      procedure :: fill_values => integrable_operator_fill_values
+     procedure :: free_values => integrable_operator_free_values
+     procedure (init_interface), deferred :: init
   end type base_integrable_operator_t
+
+  ! Abstract interfaces
+  abstract interface
+     ! Initialize integrable operator
+     subroutine init_interface(op)
+       import :: base_integrable_operator_t
+       implicit none
+       class(base_integrable_operator_t), intent(inout) :: op
+     end subroutine init_interface
+  end interface
 
   ! Types
   public :: base_integrable_operator_t
@@ -51,5 +63,14 @@ contains
     implicit none
     class(base_integrable_operator_t), intent(inout) :: op
   end subroutine integrable_operator_fill_values
+  
+  !==================================================================================================
+  subroutine integrable_operator_free_values(op)
+    !-----------------------------------------------------------------------------------------------!
+    !    Dummy subroutine to implement a deferred method for base_integrable_operator_t.            !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    class(base_integrable_operator_t), intent(inout) :: op
+  end subroutine integrable_operator_free_values
 
 end module base_integrable_operator_names

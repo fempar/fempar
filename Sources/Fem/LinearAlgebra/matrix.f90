@@ -84,6 +84,7 @@ use iso_c_binding
      procedure  :: apply     => matrix_apply
      procedure  :: apply_fun => matrix_apply_fun
      procedure  :: free      => matrix_free_tbp
+     procedure  :: init      => matrix_init
   end type matrix_t
 
   interface matrix_free
@@ -674,6 +675,16 @@ contains
        check(1==0)
     end select
   end function matrix_apply_fun
+
+  ! op%init()
+  ! Initialize to zero
+  subroutine matrix_init(op)
+    implicit none
+    class(matrix_t), intent(inout) :: op
+
+    call matrix_zero (op)
+    
+  end subroutine matrix_init
 
   subroutine matrix_free_tbp(this)
     implicit none

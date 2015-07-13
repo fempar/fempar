@@ -130,6 +130,7 @@ module preconditioner_names
      procedure :: apply => preconditioner_apply_tbp
      procedure :: apply_fun => preconditioner_apply_fun_tbp
      procedure :: fill_values => preconditioner_fill_values_tbp
+     procedure :: free_values => preconditioner_free_values_tbp
      procedure :: free => preconditioner_free_tbp
   end type preconditioner_t
 
@@ -809,6 +810,18 @@ contains
     if(op%do_fill_values) call preconditioner_numeric(op)
 
   end subroutine preconditioner_fill_values_tbp
+
+  !=============================================================================
+  subroutine preconditioner_free_values_tbp (op)
+    implicit none
+    ! Parameters
+    class(preconditioner_t), intent(inout) :: op
+    
+    assert (associated(op%mat))
+
+    if(op%do_free_values) call preconditioner_free(free_values,op)
+
+  end subroutine preconditioner_free_values_tbp
 
   subroutine preconditioner_free_tbp(this)
     implicit none

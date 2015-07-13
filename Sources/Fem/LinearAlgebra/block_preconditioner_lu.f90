@@ -61,6 +61,7 @@ use iso_c_binding
      procedure  :: apply          => block_preconditioner_lu_apply
      procedure  :: apply_fun      => block_preconditioner_lu_apply_fun
      procedure  :: fill_values    => block_preconditioner_lu_fill_values
+     procedure  :: free_values    => block_preconditioner_lu_free_values
      procedure  :: free           => block_preconditioner_lu_free_tbp
   end type block_preconditioner_lu_t
 
@@ -123,6 +124,20 @@ contains
     end if
 
   end subroutine block_preconditioner_lu_fill_values
+
+  ! op1%free_values(op2)
+  ! Free preconditioner values
+  subroutine block_preconditioner_lu_free_values (op)
+    implicit none
+    class(block_preconditioner_lu_t), intent(inout) :: op
+
+    if(op%do_free_values) then
+       call op%L%free_values()
+       call op%U%free_values()
+    end if
+
+  end subroutine block_preconditioner_lu_free_values
+
 
   subroutine block_preconditioner_lu_free_tbp(this)
     implicit none

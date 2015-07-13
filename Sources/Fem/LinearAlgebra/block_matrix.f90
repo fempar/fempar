@@ -61,6 +61,7 @@ module block_matrix_names
     procedure :: get_nblocks       => block_matrix_get_nblocks
     procedure :: apply             => block_matrix_apply
     procedure :: apply_fun         => block_matrix_apply_fun
+    procedure  :: init             => block_matrix_zero
   end type block_matrix_t
 
   ! Types
@@ -155,16 +156,16 @@ contains
     end if
   end subroutine
 
-  subroutine block_matrix_zero(bmat)
+  subroutine block_matrix_zero(op)
     implicit none
     ! Parameters
-    class(block_matrix_t), intent(inout) :: bmat
+    class(block_matrix_t), intent(inout) :: op
     integer(ip)                           :: ib,jb
 
-    do ib=1,bmat%nblocks
-       do jb=1,bmat%nblocks
-          if ( associated(bmat%blocks(ib,jb)%p_f_matrix) ) then
-             call matrix_zero (bmat%blocks(ib,jb)%p_f_matrix)
+    do ib=1,op%nblocks
+       do jb=1,op%nblocks
+          if ( associated(op%blocks(ib,jb)%p_f_matrix) ) then
+             call matrix_zero (op%blocks(ib,jb)%p_f_matrix)
           end if
        end do
     end do

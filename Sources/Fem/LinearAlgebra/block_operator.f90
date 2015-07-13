@@ -71,6 +71,7 @@ use iso_c_binding
      procedure  :: apply          => block_operator_apply
      procedure  :: apply_fun      => block_operator_apply_fun
      procedure  :: free           => block_operator_free_tbp
+     procedure  :: init           => block_operator_init
   end type block_operator_t
 
 
@@ -175,6 +176,28 @@ contains
     call x%CleanTemp()
 
   end function block_operator_apply_fun
+
+  ! op%init() 
+  ! Initialize block_operator to zero
+  subroutine block_operator_init (op)
+    implicit none
+    class(block_operator_t), intent(inout) :: op
+
+    ! Locals
+    integer(ip) :: iblk, jblk
+
+    write(*,*) 'block_operator%init: undefined subroutine'
+    check(.false.)
+
+!!$    do iblk=1, op%mblocks
+!!$       do jblk=1, op%nblocks
+!!$          if (associated(op%blocks(iblk,jblk)%p_op)) then
+!!$             call op%blocks(iblk,jblk)%p_op%init()
+!!$          end if
+!!$       end do
+!!$    end do
+
+  end subroutine block_operator_init
 
   subroutine block_operator_free_tbp(this)
     implicit none

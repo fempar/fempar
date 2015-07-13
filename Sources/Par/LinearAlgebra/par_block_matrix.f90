@@ -66,6 +66,7 @@ module par_block_matrix_names
     procedure :: get_nblocks       => par_block_matrix_get_nblocks
     procedure :: apply             => par_block_matrix_apply
     procedure :: apply_fun         => par_block_matrix_apply_fun
+    procedure :: init              => par_block_matrix_zero
   end type par_block_matrix_t
 
   ! Types
@@ -216,17 +217,17 @@ contains
   end subroutine par_block_matrix_free
 
   !=============================================================================
-  subroutine par_block_matrix_zero(bmat)
+  subroutine par_block_matrix_zero(op)
     implicit none
     ! Parameters
-    class(par_block_matrix_t), intent(inout) :: bmat
+    class(par_block_matrix_t), intent(inout) :: op
 
     ! Locals
     integer(ip) :: ib, jb
-    do ib=1, bmat%nblocks
-      do jb=1, bmat%nblocks
-         if ( associated(bmat%blocks(ib,jb)%p_p_matrix) ) then
-            call par_matrix_zero (bmat%blocks(ib,jb)%p_p_matrix)
+    do ib=1, op%nblocks
+      do jb=1, op%nblocks
+         if ( associated(op%blocks(ib,jb)%p_p_matrix) ) then
+            call par_matrix_zero (op%blocks(ib,jb)%p_p_matrix)
          end if
       end do
    end do

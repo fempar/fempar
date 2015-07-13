@@ -59,12 +59,23 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_nonlinear_operator
      procedure :: free  => free_nonlinear_operator
+     procedure :: set_preconditioner_flags
   end type my_nonlinear_operator_t
 
   ! Types
   public :: my_nonlinear_operator_t
   
 contains
+  
+  !==================================================================================================
+  subroutine set_preconditioner_flags(nlop,istep,istge,iiter)
+    implicit none
+    class(my_nonlinear_operator_t), intent(inout) :: nlop
+    integer(ip)                   , intent(in)    :: istep,istge,iiter
+
+    ! Allways compute preconditioner --> default mode
+
+  end subroutine set_preconditioner_flags
 
   !==================================================================================================
   subroutine build_nonlinear_operator(nlop,blk_graph)
@@ -422,7 +433,7 @@ program test_blk_nsi_cg_iss_oss
   approx(1)%p => cg_iss_oss_matvec
 
   ! Do nonlinear iterations
-  call nonlinear_iteration(sctrl,senv,approx,fe_space,nonlinear_operator)
+  call nonlinear_operator%do_nonlinear_iteration(1,1,sctrl,senv,approx,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -439,9 +450,6 @@ program test_blk_nsi_cg_iss_oss
   write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
   write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
 
-  ! Free linear algebra structures
-  call nonlinear_operator%free()
-
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
   call memfree(order,__FILE__,__LINE__)
@@ -450,6 +458,7 @@ program test_blk_nsi_cg_iss_oss
   call memfree(which_approx,__FILE__,__LINE__)
   call memfree(vars_block,__FILE__,__LINE__)
   call memfree(dof_coupling,__FILE__,__LINE__)
+  call nonlinear_operator%free()
   call fevtk%free
   call blk_graph%free()
   call fe_space_free(fe_space) 
@@ -499,99 +508,6 @@ contains
     read (argument,*) nez
 
   end subroutine read_pars_cl_test_blk_nsi_cg_iss_oss
-  
-  !==================================================================================================
-  subroutine free_preconditioner(nlop)
-    implicit none
-    type(my_nonlinear_operator_t), intent(inout) :: nlop
-
-    ! precond free (K^-1)
-    call preconditioner_free(preconditioner_free_values,nlop%u_preconditioner)
-
-    ! precond free (Mp^-1)
-    call preconditioner_free(preconditioner_free_values,nlop%p_preconditioner)
-
-    ! precond free (Mx^-1)
-    call preconditioner_free(preconditioner_free_values,nlop%x_preconditioner)
-          
-  end subroutine free_preconditioner
-
-  !==================================================================================================
-  subroutine nonlinear_iteration( sctrl, env, approx, fe_space, nlop )
-    implicit none
-    type(solver_control_t)              , intent(inout) :: sctrl
-    class(abstract_environment_t)       , intent(in)    :: env
-    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
-    type(fe_space_t)                    , intent(inout) :: fe_space
-    !class(nonlinear_operator_t), target , intent(inout) :: nlop
-    type(my_nonlinear_operator_t), target , intent(inout) :: nlop
-    ! Locals
-    ! Locals
-    integer(ip)           :: iiter
-    real(rp)              :: resnorm,ininorm
-    type(block_operand_t) :: y
-
-    ! Checks
-    check(associated(nlop%A))
-    check(associated(nlop%M))
-    check(associated(nlop%b))
-    check(associated(nlop%x))
-    check(associated(nlop%A_int))
-    check(associated(nlop%b_int))
-    check(associated(nlop%x_sol))
-        
-    iiter = 0
-    do while( iiter < nlop%max_iter )
-
-       ! Update counter
-       iiter = iiter+1
-
-       ! Initialize Matrix and vector
-       ! ***************** Abstract procedure to initialize a base_operator ************************!
-       ! call nlop%A_int%init()
-       call block_matrix_zero(nlop%block_matrix)
-       !********************************************************************************************!
-       call nlop%b_int%init(0.0_rp)
-
-       ! Integrate system
-       call volume_integral(approx,fe_space,nlop%A_int,nlop%b_int)
-
-       ! Check convergence
-       if(iiter==1) ininorm = nlop%b%nrm2()   
-       y = nlop%b - nlop%A*nlop%x
-       resnorm = y%nrm2()
-       if( resnorm < nlop%nltol*ininorm) then
-          write(*,*) 'Nonlinear iterations: ', iiter
-          write(*,*) 'Nonlinear error norm: ', resnorm
-          exit
-       end if
-
-       ! Compute Numeric preconditioner
-       call nlop%M%fill_values()
-
-       ! Solve system
-       call abstract_solve(nlop%A,nlop%M,nlop%b,nlop%x,sctrl,env)
-       call solver_control_log_conv_his(sctrl)
-       call solver_control_free_conv_his(sctrl)
-
-       ! Free Numeric preconditioner
-       ! ******************** Abstract procedure to free precond numeric ***************************!
-       ! call nlop%M%free_values()
-       call free_preconditioner(nlop)
-       !********************************************************************************************!
-       
-       ! Store solution to unkno
-       call update_solution(nlop%x_sol,fe_space)
-       
-       ! Store nonlinear iteration ( k+1 --> k )
-       call update_nonlinear(fe_space)
-       
-    end do
-
-    ! Deallocate
-    call y%free()
-
-  end subroutine nonlinear_iteration
   
 end program test_blk_nsi_cg_iss_oss
 
