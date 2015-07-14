@@ -74,7 +74,7 @@ program par_test_cdr
   integer(ip), allocatable :: id_parts(:), num_parts(:)
 
   ! Arguments
-  integer(ip)                   :: lunio
+  integer(ip)                   :: lunio, lunou
   character(len=256)            :: dir_path, dir_path_out
   character(len=256)            :: prefix
   character(len=:), allocatable :: name
@@ -133,7 +133,7 @@ program par_test_cdr
   call par_conditions_read(dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%code = 0 !(dG)
 
-  num_uniform_refinement_steps = 7
+  num_uniform_refinement_steps = 1
   do i=1, num_uniform_refinement_steps
      call par_timer_init (par_mesh_to_triangulation_timer)
      call par_timer_start (par_mesh_to_triangulation_timer)   
@@ -211,7 +211,13 @@ program par_test_cdr
      call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
      ! call matrix_print ( 6, p_mat%f_matrix )
      ! call vector_print ( 6, p_vec%f_vector )
+     lunou = io_open ( trim('local_matrix_' //  trim(ch(p_env%p_context%iam+1)) // trim('.') // 'mtx' ), 'write')
+     call matrix_print_matrix_market ( lunou, p_mat%f_matrix )
+     call io_close ( lunou )
   end if
+
+
+
 
   call p_unk%init(1.0_rp)
 
@@ -274,35 +280,25 @@ program par_test_cdr
   sctrl%orto=icgs
   sctrl%rtol=1.0e-06
 
-!!$  do j=1,ndime
-!!$
-!!$     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-!!$     do i=1, num_levels-1
-!!$        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
-!!$        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
-!!$     end do
-!!$
-!!$
-!!$     call p_unk%init(0.0_rp)
-!!$
-!!$     ! Create multilevel bddc inverse 
-!!$     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
-!!$
-!!$     ! Ass struct
-!!$     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
-!!$
-!!$     ! Fill val
-!!$     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
-!!$
-!!$     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
-!!$
-!!$     ! Free bddc inverse
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
-!!$     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
-!!$
-!!$
-!!$  end do
+!  do j=1,ndime
+!     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+!     do i=1, num_levels-1
+!        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
+!        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+!     end do
+!     call p_unk%init(0.0_rp)
+     ! Create multilevel bddc inverse 
+!     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
+     ! Ass struct
+!     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+     ! Fill val
+!    call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
+!     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
+     ! Free bddc inverse
+!     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
+!     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
+!     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
+!  end do
 
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 

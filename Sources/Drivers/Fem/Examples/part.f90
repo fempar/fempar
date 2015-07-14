@@ -29,7 +29,7 @@ program partitioner
   !-----------------------------------------------------------------------
   ! A finite element preprocessor
   !-----------------------------------------------------------------------
-use serial_names
+  use serial_names
   implicit none
   integer(ip)                     :: power, type, use_graph, nparts, nstr
   type(conditions_t)              :: poin,line,surf
@@ -85,7 +85,8 @@ use serial_names
   prt_pars%strat                 = part_kway
   prt_pars%metis_option_ufactor  = 1
   prt_pars%debug                 = 0
-  prt_pars%metis_option_minconn  = 1
+  prt_pars%metis_option_minconn  = 0 
+  prt_pars%metis_option_contig   = 1 
   prt_pars%metis_option_debug    = 2
 
   call create_mesh_distribution (prt_pars, gmesh, distr, lmesh)

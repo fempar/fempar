@@ -37,6 +37,7 @@ module par_uniform_refinement_names
 
   use stdio_names
   use mesh_io_names
+  use conditions_io_names
 
   ! Parallel modules
   use par_context_names
@@ -202,8 +203,13 @@ contains
                 vef_lid = p_trian%f_trian%elems(ielem)%vefs(subelem_vertices(ivertex,isubelem))
                 vef_dimension = p_trian%f_trian%vefs(vef_lid)%dimension
                 p_mesh%f_mesh%lnods(offset) = old2new_vefs(vef_lid)
-                code(:,old2new_vefs(vef_lid)) = p_cond%f_conditions%code(:,vef_lid)
-                valu(:,old2new_vefs(vef_lid)) = p_cond%f_conditions%valu(:,vef_lid)
+                if ( p_trian%f_trian%vefs(vef_lid)%border /= 0 ) then
+                   code(:,old2new_vefs(vef_lid)) = p_cond%f_conditions%code(:,vef_lid)
+                   valu(:,old2new_vefs(vef_lid)) = p_cond%f_conditions%valu(:,vef_lid)
+                else
+                   code(:,old2new_vefs(vef_lid)) = 0 
+                   valu(:,old2new_vefs(vef_lid)) = 0.0_rp 
+                end if
                 p_mesh%f_mesh_dist%nmap%l2g(old2new_vefs(vef_lid)) = p_trian%elems(ielem)%vefs_GIDs(subelem_vertices(ivertex,isubelem))
                 if ( vef_dimension == 0 ) then ! Vef is a vertex
                    p_mesh%f_mesh%coord(:,old2new_vefs(vef_lid)) = & 
@@ -419,13 +425,17 @@ contains
        end do
        p_mesh%f_mesh_dist%pextn(1) = 1
 
-       ! lunio = io_open ( 'refined.' // trim(ch(p_mesh%f_mesh_dist%ipart)) // '.msh', 'write' )
-       ! call mesh_write_file ( lunio, p_mesh%f_mesh )
-       ! call io_close(lunio)
+       lunio = io_open ( 'refined.' // trim(ch(p_mesh%f_mesh_dist%ipart)) // '.msh', 'write' )
+       call mesh_write_file ( lunio, p_mesh%f_mesh )
+       call io_close(lunio)
 
        ! lunio = io_open ( 'refined.' // trim(ch(p_mesh%f_mesh_dist%ipart)) // '.prt', 'write' )
        ! call mesh_distribution_write ( lunio, p_mesh%f_mesh_dist )
        ! call io_close(lunio)
+       
+       lunio = io_open ( 'refined.' // trim(ch(p_mesh%f_mesh_dist%ipart)) // '.cnd', 'write' )
+       call conditions_write_file ( lunio, p_cond%f_conditions )
+       call io_close(lunio)
 
        do ielem = 1, p_trian%num_itfc_elems
           elem_lid = p_trian%lst_itfc_elems(ielem)

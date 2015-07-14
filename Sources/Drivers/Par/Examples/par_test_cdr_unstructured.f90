@@ -162,7 +162,7 @@ program par_test_cdr_unstructured
   call par_timer_create ( par_fe_space_create_timer, 'PAR_FE_SPACE_CREATE', w_context%icontxt )
   call par_timer_create ( par_uniform_refinement_timer, 'PAR_UNIFORM_REFINEMENT', w_context%icontxt )
 
-  num_uniform_refinement_steps = 5
+  num_uniform_refinement_steps = 2 
   do i=1, num_uniform_refinement_steps
      call par_timer_init (par_mesh_to_triangulation_timer)
      call par_timer_start (par_mesh_to_triangulation_timer)   
@@ -295,13 +295,13 @@ program par_test_cdr_unstructured
 
   sctrl%method=cg
   sctrl%trace=1
-  sctrl%itmax=50
-  sctrl%dkrymax=50
+  sctrl%itmax=800
+  sctrl%dkrymax=800
   sctrl%stopc=res_res
   sctrl%orto=icgs
   sctrl%rtol=1.0e-06
 
-  do j=2,ndime
+  do j=1,1 !ndime
 
      point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
      do i=1, num_levels-1
@@ -335,17 +335,17 @@ program par_test_cdr_unstructured
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
 
-  !call par_preconditioner_dd_diagonal_create ( p_mat, p_prec_dd_diag )
-  !call par_preconditioner_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
-  !call par_preconditioner_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
-  
-  !call p_unk%init(0.0_rp)
-
-  !call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
-
-  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_values )
-  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_struct )
-  !call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
+!!$  call par_preconditioner_dd_diagonal_create ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
+!!$  call par_preconditioner_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
+!!$  
+!!$  call p_unk%init(0.0_rp)
+!!$
+!!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
+!!$
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_values )
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_struct )
+!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
 
 
   call par_matrix_free (p_mat)
@@ -539,6 +539,9 @@ contains
     integer(ip), allocatable                :: sizes_per_subdomain(:,:)
     integer(ip), allocatable                :: local_sizes(:)
     integer(ip), allocatable                :: sendcounts(:), displs(:)
+    integer(ip)                             :: dummy_displs(1)
+    integer(ip)                             :: dummy_sendcounts(1)
+    integer(ieep)                           :: dummy_buffer_to_be_scattered(1)
     integer(ieep), allocatable              :: buffer_to_be_scattered(:)
     integer(ieep), allocatable              :: local_buffer(:)
     integer(ip)                             :: istat
@@ -680,7 +683,7 @@ contains
        
        ! Scatter large buffer
        call memalloc ( local_sizes(1)+local_sizes(2)+local_sizes(3), local_buffer, __FILE__, __LINE__)
-       call mpi_scatterv(-1, -1, -1,&
+       call mpi_scatterv(dummy_buffer_to_be_scattered, dummy_sendcounts, dummy_displs,&
                          MPI_INTEGER1, local_buffer, size(local_buffer), MPI_INTEGER1,&
                          0, g_context%icontxt, ierr)
        check(ierr==0)
