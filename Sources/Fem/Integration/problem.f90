@@ -69,6 +69,7 @@ module problem_names
    end type discrete_problem_pointer_t
 
   type, abstract :: discrete_integration_t
+     integer(ip) :: integration_stage = update_nonlinear
     contains
       procedure(create_integration_interface) , deferred :: create 
       procedure(compute_integration_interface), deferred :: compute

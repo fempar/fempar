@@ -37,7 +37,7 @@ module base_operator_names
 
   ! Abstract operator (and its pure virtual function apply)
   type, abstract, extends(integrable_t) :: base_operator_t
-     logical :: do_fill_values = .true.
+     integer(ip) :: fill_values_stage = update_nonlinear
      logical :: do_free_values = .true.
    contains
      procedure (apply_interface)         , deferred :: apply
@@ -168,10 +168,11 @@ module base_operator_names
 
      ! op1%fill_values()
      ! Fill preconditioner values
-     subroutine fill_values_interface(op)
-       import :: base_operator_t
+     subroutine fill_values_interface(op,stage)
+       import :: base_operator_t,ip
        implicit none
        class(base_operator_t), intent(inout) :: op
+       integer(ip), optional , intent(in)    :: stage
      end subroutine fill_values_interface
 
      ! op1%free_values()
@@ -797,28 +798,40 @@ contains
   ! fill_values implementations !
   !-----------------------------!
 
-  subroutine binary_operator_fill_values(op)
+  subroutine binary_operator_fill_values(op,stage)
     implicit none
     class(binary_operator_t), intent(inout) :: op
+    integer(ip), optional   , intent(in)    :: stage
+    ! Locals
+    integer(ip) :: stage_
     
-    if(op%do_fill_values) then
-       call op%op1%fill_values()
-       call op%op2%fill_values()
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
+    
+    if(op%fill_values_stage == stage_) then
+       call op%op1%fill_values(stage_)
+       call op%op2%fill_values(stage_)
     end if
 
   end subroutine binary_operator_fill_values
 
-  subroutine abs_operator_fill_values(op)
+  subroutine abs_operator_fill_values(op,stage)
     implicit none
     class(abs_operator_t), intent(inout) :: op
+    integer(ip), optional, intent(in)    :: stage
+    ! Locals
+    integer(ip) :: stage_
+    
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
 
-    if(op%do_fill_values) then
+    if(op%fill_values_stage==stage_) then
        if(associated(op%op_stored)) then
           assert(.not.associated(op%op))
-          call op%op_stored%fill_values()
+          call op%op_stored%fill_values(stage_)
        else if(associated(op%op)) then
           assert(.not.associated(op%op_stored))
-          call op%op%fill_values()
+          call op%op%fill_values(stage_)
        else
           check(1==0)
        end if
@@ -826,19 +839,31 @@ contains
 
   end subroutine abs_operator_fill_values
 
-  subroutine minus_operator_fill_values(op)
+  subroutine minus_operator_fill_values(op,stage)
     implicit none
     class(minus_operator_t), intent(inout) :: op
+    integer(ip), optional  , intent(in)    :: stage
+    ! Locals
+    integer(ip) :: stage_
+    
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
 
-    if(op%do_fill_values) call op%op%fill_values()
+    if(op%fill_values_stage==stage_) call op%op%fill_values(stage_)
 
   end subroutine minus_operator_fill_values
 
-  subroutine scal_operator_fill_values(op)
+  subroutine scal_operator_fill_values(op,stage)
     implicit none
     class(scal_operator_t), intent(inout) :: op
+    integer(ip), optional , intent(in)    :: stage
+    ! Locals
+    integer(ip) :: stage_
+    
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
 
-    if(op%do_fill_values) call op%op%fill_values()
+    if(op%fill_values_stage==stage_) call op%op%fill_values(stage_)
 
   end subroutine scal_operator_fill_values
 

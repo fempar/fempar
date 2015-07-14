@@ -256,14 +256,22 @@ use psb_penv_mod_names
   end function par_preconditioner_dd_diagonal_apply_fun_tbp
 
   !=============================================================================
-  subroutine par_preconditioner_dd_diagonal_fill_values_tbp (op)
+  subroutine par_preconditioner_dd_diagonal_fill_values_tbp (op,stage)
     implicit none
     ! Parameters
     class(par_preconditioner_dd_diagonal_t), intent(inout) :: op
+    integer(ip), optional                  , intent(in)    :: stage
+    ! Locals
+    integer(ip) :: stage_
+
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
     
     assert (associated(op%p_mat))
     
-    if(op%do_fill_values) call par_preconditioner_dd_diagonal_fill_val ( op )
+    if(op%fill_values_stage==stage_) then
+       call par_preconditioner_dd_diagonal_fill_val ( op )
+    end if
 
   end subroutine par_preconditioner_dd_diagonal_fill_values_tbp
 

@@ -49,7 +49,8 @@ module fe_space_names
 # include "debug.i90"
   private
 
-  integer(ip), parameter       :: max_global_interpolations  = 50   ! Maximum number of interpolations
+  integer(ip), parameter       :: max_global_interpolations  = 50, &  ! Maximum number of interpolations
+                                & max_number_problems  = 2               ! Maximum number of problems
 
   ! Global information of the fe_space
   type fe_space_t  
@@ -80,7 +81,7 @@ module fe_space_names
 
      ! Starting DOF position
      type(position_hash_table_t)          :: pos_start
-     type(array_ip1_t)                    :: lstart(max_global_interpolations)
+     type(array_ip1_t)                    :: lstart(max_number_problems)
 
      ! Array of reference elements (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elem_info
@@ -100,7 +101,7 @@ module fe_space_names
      type(array_rp1_t), allocatable       :: l_plain_vector(:)
 
      ! Analytical function auxiliar array
-     type(array_ip2_t)                    :: l_analytical_code(max_global_interpolations)
+     type(array_ip2_t)                    :: l_analytical_code(max_number_problems)
 
      ! Much better here rather than as a module variable
      !type(list_t) :: void_list_t

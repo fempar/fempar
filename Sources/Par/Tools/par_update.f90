@@ -44,7 +44,7 @@ module par_update_names
 
   ! Functions
   public :: par_update_strong_dirichlet_bcond, par_update_analytical_bcond, par_update_solution, &
-       &    par_update_nonlinear
+       &    par_update_nonlinear_solution
   
 contains
 
@@ -162,7 +162,7 @@ contains
   end subroutine par_update_solution_block 
 
   !==================================================================================================
-  subroutine par_update_nonlinear(p_fe_space)
+  subroutine par_update_nonlinear_solution(p_fe_space)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the previous nonlinear solution.                                     !
     !-----------------------------------------------------------------------------------------------!
@@ -175,10 +175,10 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_nonlinear(p_fe_space%fe_space)
+       call update_nonlinear_solution(p_fe_space%fe_space)
     end if
 
-  end subroutine par_update_nonlinear
+  end subroutine par_update_nonlinear_solution
 
 end module par_update_names
     

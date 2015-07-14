@@ -238,7 +238,7 @@ contains
     type(vector_t)        , intent(in)    :: gpvel
     type(vector_t)        , intent(inout) :: force
     ! Locals
-    integer(ip) :: igaus,idime,conve
+    integer(ip) :: igaus,ivars,idime,conve
     real(rp)    :: gpvno
     real(rp)    :: params(11,physics%nvars)
 
@@ -261,11 +261,11 @@ contains
        
        ! Evaluate unknowns and derivatives
        params = 0.0_rp
-       do idime=1,physics%nvars
-          call evaluate_analytical(finite_element%p_analytical_code%a(idime,1),                  &
-               &                   finite_element%p_analytical_code%a(idime,2),                  &
+       do ivars=1,physics%nvars
+          call evaluate_analytical(finite_element%p_analytical_code%a(ivars,1),                  &
+               &                   finite_element%p_analytical_code%a(ivars,2),                  &
                &                   physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
-               &                   ctime,params(:,idime))
+               &                   ctime,params(:,ivars))
        end do
 
        ! Evaluate force

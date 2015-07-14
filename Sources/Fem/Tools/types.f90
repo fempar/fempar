@@ -155,7 +155,12 @@ module types_names
   ! Actions related to free routines
   integer (ip), parameter  :: free_values = 7
   integer (ip), parameter  :: free_struct = 8
-  integer (ip), parameter  :: free_clean       = 9
+  integer (ip), parameter  :: free_clean  = 9
+
+  ! Action related to integration routines
+  integer(ip), parameter :: update_nonlinear = 0
+  integer(ip), parameter :: update_transient = 1
+  integer(ip), parameter :: update_constant  = 2
 
   interface
      subroutine runend

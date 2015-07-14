@@ -25,224 +25,614 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module my_linear_algebra_names
+module my_nonlinear_operator_names
   use serial_names
   implicit none
 # include "debug.i90"
   private
   
-  type my_linear_algebra_t 
+  type, extends(picard_nonlinear_operator_t) :: momentum_operator_t 
+     type(block_matrix_t)              :: block_matrix_l
+     type(block_matrix_t)              :: block_matrix_nl
+     type(block_matrix_t)              :: block_matrix_m
+     type(block_matrix_t)              :: block_u_matrix
+     type(block_matrix_t)              :: mass_x_matrix
+     type(block_vector_t)              :: block_vector_l
+     type(block_vector_t)              :: block_vector_nl
+     type(block_vector_t)              :: block_vector_m
+     type(block_vector_t)              :: block_vector
+     type(block_vector_t)              :: block_unknown
+     type(block_operator_t)            :: A_momentum, Am, Al, Anl
+     type(block_operand_t)             :: b_momentum, bm, bl, bnl, brhs
+     type(block_operand_t)             :: x_momentum
+     type(block_preconditioner_l_t)    :: M_momentum
+     type(preconditioner_t)            :: u_preconditioner
+     type(preconditioner_t)            :: x_preconditioner
+     type(preconditioner_params_t)     :: u_ppars
+     type(preconditioner_params_t)     :: x_ppars
+     real(rp)                          :: dt, aii
+   contains
+     procedure :: build => build_momentum_operator
+     procedure :: free  => free_momentum_operator
+  end type momentum_operator_t
+  
+  type, extends(picard_nonlinear_operator_t) :: pressure_operator_t 
      type(block_matrix_t)           :: mass_u_matrix
      type(block_matrix_t)           :: lapla_p_matrix
-     type(block_matrix_t)           :: block_matrix_u
-     type(block_matrix_t)           :: block_matrix_p
-     type(block_vector_t)           :: block_vector_u
-     type(block_vector_t)           :: block_vector_p
-     type(block_vector_t)           :: block_unknown_u
-     type(block_vector_t)           :: block_unknown_p
-     type(block_operator_t)         :: block_operator_u
-     type(block_operator_t)         :: block_operator_p
-     type(block_operand_t)          :: block_operand_vec_u
-     type(block_operand_t)          :: block_operand_vec_p
-     type(block_operand_t)          :: block_operand_unk_u
-     type(block_operand_t)          :: block_operand_unk_p
-     type(block_preconditioner_l_t) :: block_preconditioner_u
-     type(block_preconditioner_l_t) :: block_preconditioner_p
-     type(preconditioner_t)         :: u_preconditioner
-     type(preconditioner_t)         :: x_preconditioner
+     type(block_matrix_t)           :: block_matrix
+     type(block_vector_t)           :: block_vector
+     type(block_vector_t)           :: block_unknown
+     type(block_operator_t)         :: A_pressure
+     type(block_operand_t)          :: b_pressure
+     type(block_operand_t)          :: x_pressure
+     type(block_preconditioner_l_t) :: M_pressure
      type(preconditioner_t)         :: w_preconditioner
      type(preconditioner_t)         :: p_preconditioner
-     type(preconditioner_params_t)  :: u_ppars
-     type(preconditioner_params_t)  :: x_ppars
      type(preconditioner_params_t)  :: w_ppars
      type(preconditioner_params_t)  :: p_ppars     
    contains
-     procedure :: build => build_linear_algebra
-     procedure :: free  => free_linear_algebra
-  end type my_linear_algebra_t
+     procedure :: build => build_pressure_operator
+     procedure :: free  => free_pressure_operator
+  end type pressure_operator_t
+  
+  type, extends(picard_nonlinear_operator_t) :: momentum_update_operator_t 
+     type(block_matrix_t)           :: mass_u_matrix
+     type(block_matrix_t)           :: block_matrix
+     type(block_vector_t)           :: block_vector
+     type(block_vector_t)           :: block_unknown
+     type(block_operator_t)         :: A_update_u
+     type(block_operand_t)          :: b_update_u
+     type(block_operand_t)          :: x_update_u
+     type(block_preconditioner_l_t) :: M_update_u
+     type(preconditioner_t)         :: u_preconditioner
+     type(preconditioner_params_t)  :: u_ppars
+   contains
+     procedure :: build => build_momentum_update_operator
+     procedure :: free  => free_momentum_update_operator
+  end type momentum_update_operator_t
+  
+  type, extends(picard_nonlinear_operator_t) :: projection_update_operator_t 
+     type(block_matrix_t)           :: mass_x_matrix
+     type(block_matrix_t)           :: block_matrix
+     type(block_vector_t)           :: block_vector
+     type(block_vector_t)           :: block_unknown
+     type(block_operator_t)         :: A_update_x
+     type(block_operand_t)          :: b_update_x
+     type(block_operand_t)          :: x_update_x
+     type(block_preconditioner_l_t) :: M_update_x
+     type(preconditioner_t)         :: x_preconditioner
+     type(preconditioner_params_t)  :: x_ppars
+   contains
+     procedure :: build => build_projection_update_operator
+     procedure :: free  => free_projection_update_operator
+  end type projection_update_operator_t
 
  ! Types
-  public :: my_linear_algebra_t
+  public :: momentum_operator_t, pressure_operator_t, momentum_update_operator_t, &
+       &    projection_update_operator_t
   
 contains
 
   !==================================================================================================
-  subroutine build_linear_algebra(la,blk_graph)
+  subroutine build_momentum_operator(nlop,blk_graph)
     implicit none
-    class(my_linear_algebra_t), intent(inout) :: la
+    class(momentum_operator_t), intent(inout) :: nlop
+    type(block_graph_t)       , intent(in)    :: blk_graph
+
+    ! Modify default nonlinear parameters
+    nlop%max_iter = 20
+
+    ! Initialize parameters
+    nlop%dt  = 0.0_rp
+    nlop%aii = 0.0_rp
+
+    ! Allocate matrices and vectors
+    ! Mass matrix
+    call nlop%block_matrix_m%alloc(blk_graph)
+    call nlop%block_matrix_m%set_block_to_zero(1,2)
+    call nlop%block_matrix_m%set_block_to_zero(1,3)
+    call nlop%block_matrix_m%set_block_to_zero(2,1)
+    call nlop%block_matrix_m%set_block_to_zero(2,2)
+    call nlop%block_matrix_m%set_block_to_zero(2,3)
+    call nlop%block_matrix_m%set_block_to_zero(3,1)
+    call nlop%block_matrix_m%set_block_to_zero(3,2)
+    call nlop%block_matrix_m%set_block_to_zero(3,3)
+    nlop%block_matrix_m%fill_values_stage = update_transient
+    ! Linear matrix
+    call nlop%block_matrix_l%alloc(blk_graph)
+    call nlop%block_matrix_l%set_block_to_zero(1,2)
+    call nlop%block_matrix_l%set_block_to_zero(1,3)
+    call nlop%block_matrix_l%set_block_to_zero(2,1)
+    call nlop%block_matrix_l%set_block_to_zero(2,2)
+    call nlop%block_matrix_l%set_block_to_zero(2,3)
+    call nlop%block_matrix_l%set_block_to_zero(3,1)
+    call nlop%block_matrix_l%set_block_to_zero(3,2)
+    call nlop%block_matrix_l%set_block_to_zero(3,3)
+    nlop%block_matrix_l%fill_values_stage = update_transient
+    ! Nonlinear matrix
+    call nlop%block_matrix_nl%alloc(blk_graph)
+    call nlop%block_matrix_nl%set_block_to_zero(1,2)
+    call nlop%block_matrix_nl%set_block_to_zero(2,1)
+    call nlop%block_matrix_nl%set_block_to_zero(2,2)
+    call nlop%block_matrix_nl%set_block_to_zero(2,3)
+    call nlop%block_matrix_nl%set_block_to_zero(3,2)
+    nlop%block_matrix_nl%fill_values_stage = update_nonlinear
+    ! Auxiliar matrix (Block-U preconditioner)
+    call nlop%block_u_matrix%alloc(blk_graph)
+    call nlop%block_u_matrix%set_block_to_zero(1,2)
+    call nlop%block_u_matrix%set_block_to_zero(1,3)
+    call nlop%block_u_matrix%set_block_to_zero(2,1)
+    call nlop%block_u_matrix%set_block_to_zero(2,2)
+    call nlop%block_u_matrix%set_block_to_zero(2,3)
+    call nlop%block_u_matrix%set_block_to_zero(3,1)
+    call nlop%block_u_matrix%set_block_to_zero(3,2)
+    call nlop%block_u_matrix%set_block_to_zero(3,3)
+    nlop%block_u_matrix%fill_values_stage = update_nonlinear
+    ! Auxiliar matrix (Block-X preconditioner)
+    call nlop%mass_x_matrix%alloc(blk_graph)
+    call nlop%mass_x_matrix%set_block_to_zero(1,1)
+    call nlop%mass_x_matrix%set_block_to_zero(1,2)
+    call nlop%mass_x_matrix%set_block_to_zero(1,3)
+    call nlop%mass_x_matrix%set_block_to_zero(2,1)
+    call nlop%mass_x_matrix%set_block_to_zero(2,2)
+    call nlop%mass_x_matrix%set_block_to_zero(2,3)
+    call nlop%mass_x_matrix%set_block_to_zero(3,1)
+    call nlop%mass_x_matrix%set_block_to_zero(3,2)
+    nlop%block_matrix_m%fill_values_stage = update_transient
+    ! Mass BCs vector
+    call nlop%block_vector_m%alloc(blk_graph)
+    ! Linear BCs vector
+    call nlop%block_vector_l%alloc(blk_graph)
+    ! Nonlinear BCs vector
+    call nlop%block_vector_nl%alloc(blk_graph)
+    ! RHS vector
+    call nlop%block_vector%alloc(blk_graph)
+    call nlop%block_vector%init(0.0_rp)
+    ! Unknown vector
+    call nlop%block_unknown%alloc(blk_graph)
+    
+    ! Construct U-preconditioner (K^-1)
+    nlop%u_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%block_u_matrix%get_block(1,1),nlop%u_preconditioner,nlop%u_ppars)
+    call preconditioner_symbolic(nlop%block_u_matrix%get_block(1,1),nlop%u_preconditioner)
+    call preconditioner_log_info(nlop%u_preconditioner)
+
+    ! Construct X-preconditioner (Mx^-1)
+    nlop%x_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%mass_x_matrix%get_block(3,3),nlop%x_preconditioner,nlop%x_ppars)
+    call preconditioner_symbolic(nlop%mass_x_matrix%get_block(3,3),nlop%x_preconditioner)
+    call preconditioner_log_info(nlop%x_preconditioner)
+
+    ! Create Mass operator
+    call nlop%Am%create(2,2)
+    call nlop%Am%set_block(1,1,nlop%block_matrix_m%get_block(1,1))
+    call nlop%Am%set_block_to_zero(1,2)
+    call nlop%Am%set_block_to_zero(2,1)
+    call nlop%Am%set_block_to_zero(2,2)
+
+    ! Create Linear operator
+    call nlop%Al%create(2,2)
+    call nlop%Al%set_block(1,1,nlop%block_matrix_l%get_block(1,1))
+    call nlop%Al%set_block_to_zero(1,2)
+    call nlop%Al%set_block_to_zero(2,1)
+    call nlop%Al%set_block_to_zero(2,2)
+
+    ! Create Nonlinear operator
+    call nlop%Anl%create(2,2)
+    call nlop%Anl%set_block(1,1,nlop%block_matrix_nl%get_block(1,1))
+    call nlop%Anl%set_block(1,2,nlop%block_matrix_nl%get_block(1,3))
+    call nlop%Anl%set_block(2,1,nlop%block_matrix_nl%get_block(3,1))
+    call nlop%Anl%set_block(2,2,nlop%block_matrix_nl%get_block(3,3))
+
+    ! Construct global operator
+    call nlop%A_momentum%create(2,2)
+    call nlop%A_momentum%set_block(1,1,nlop%block_matrix_nl%get_block(1,1))
+    call nlop%A_momentum%set_block(1,2,nlop%block_matrix_nl%get_block(1,3))
+    call nlop%A_momentum%set_block(2,1,nlop%block_matrix_nl%get_block(3,1))
+    call nlop%A_momentum%set_block(2,2,nlop%block_matrix_nl%get_block(3,3))
+    !nlop%A_momentum = nlop%Am!( nlop%dt * nlop%Am )  + ( nlop%aii * nlop%Al ) + ( nlop%aii * nlop%Anl )
+
+    ! Create Mass BCs operand
+    call nlop%bm%create(2)
+    call nlop%bm%set_block(1,nlop%block_vector_m%blocks(1))
+    call nlop%bm%set_block(2,nlop%block_vector_m%blocks(3))
+
+    ! Create Linear BCs operand
+    call nlop%bl%create(2)
+    call nlop%bl%set_block(1,nlop%block_vector_l%blocks(1))
+    call nlop%bl%set_block(2,nlop%block_vector_l%blocks(3))
+
+    ! Create Nonlinear BCs operand
+    call nlop%bnl%create(2)
+    call nlop%bnl%set_block(1,nlop%block_vector_nl%blocks(1))
+    call nlop%bnl%set_block(2,nlop%block_vector_nl%blocks(3))
+
+    ! Create RHS operand
+    call nlop%brhs%create(2)
+    call nlop%brhs%set_block(1,nlop%block_vector%blocks(1))
+    call nlop%brhs%set_block(2,nlop%block_vector%blocks(3))
+    
+    ! Construct global operand
+    nlop%b_momentum = nlop%dt * nlop%bm + nlop%aii * nlop%bl + nlop%aii * nlop%bnl + nlop%brhs   
+
+    ! Construct solution operand
+    call nlop%x_momentum%create(2)
+    call nlop%x_momentum%set_block(1,nlop%block_unknown%blocks(1))
+    call nlop%x_momentum%set_block(2,nlop%block_unknown%blocks(3))
+
+    ! Construct global block preconditioner
+    call nlop%M_momentum%create(2)
+    call nlop%M_momentum%set_block(1,1,nlop%u_preconditioner)
+    call nlop%M_momentum%set_block(2,1,nlop%A_momentum%get_block(2,1))
+    call nlop%M_momentum%set_block(2,2,nlop%x_preconditioner)
+
+    ! Fill picard nonlinear operator pointers
+    call nlop%create(nlop%A_momentum, nlop%M_momentum, nlop%b_momentum, nlop%x_momentum, &
+         &           nlop%block_unknown,                                                 &
+         &           A_int_c = nlop%block_matrix_l, b_int_c = nlop%block_vector_l,     &
+         &           A_int_t = nlop%block_matrix_m, b_int_t = nlop%block_vector_m,     &
+         &           A_int_n = nlop%block_matrix_nl,b_int_n = nlop%block_vector_nl)
+    
+  end subroutine build_momentum_operator
+
+  !==================================================================================================
+  subroutine build_pressure_operator(nlop,blk_graph)
+    implicit none
+    class(pressure_operator_t), intent(inout) :: nlop
     type(block_graph_t)       , intent(in)    :: blk_graph
 
     ! Allocate matrices and vectors
-    call la%block_matrix_u%alloc(blk_graph)
-    call la%block_matrix_u%set_block_to_zero(1,2)
-    call la%block_matrix_u%set_block_to_zero(2,1)
-    call la%block_matrix_u%set_block_to_zero(2,2)
-    call la%block_matrix_u%set_block_to_zero(2,3)
-    call la%block_matrix_u%set_block_to_zero(3,2)
-    call la%block_vector_u%alloc(blk_graph)
-    call la%block_unknown_u%alloc(blk_graph)
-    call la%block_vector_u%init(0.0_rp)
-    call la%block_matrix_p%alloc(blk_graph)
-    call la%block_matrix_p%set_block_to_zero(1,3)
-    call la%block_matrix_p%set_block_to_zero(2,2)
-    call la%block_matrix_p%set_block_to_zero(2,3)
-    call la%block_matrix_p%set_block_to_zero(3,1)
-    call la%block_matrix_p%set_block_to_zero(3,2)
-    call la%block_matrix_p%set_block_to_zero(3,3)
-    call la%block_vector_p%alloc(blk_graph)
-    call la%block_unknown_p%alloc(blk_graph)
-    call la%block_vector_p%init(0.0_rp)
+    call nlop%block_matrix%alloc(blk_graph)
+    call nlop%block_matrix%set_block_to_zero(1,3)
+    call nlop%block_matrix%set_block_to_zero(2,2)
+    call nlop%block_matrix%set_block_to_zero(2,3)
+    call nlop%block_matrix%set_block_to_zero(3,1)
+    call nlop%block_matrix%set_block_to_zero(3,2)
+    call nlop%block_matrix%set_block_to_zero(3,3)
+    nlop%block_matrix%fill_values_stage = update_transient
+    call nlop%block_vector%alloc(blk_graph)
+    call nlop%block_unknown%alloc(blk_graph)
+    call nlop%block_vector%init(0.0_rp)
 
     ! Auxiliar matrices
-    call la%mass_u_matrix%alloc(blk_graph)
-    call la%mass_u_matrix%set_block_to_zero(1,2)
-    call la%mass_u_matrix%set_block_to_zero(1,3)
-    call la%mass_u_matrix%set_block_to_zero(2,1)
-    call la%mass_u_matrix%set_block_to_zero(2,2)
-    call la%mass_u_matrix%set_block_to_zero(2,3)
-    call la%mass_u_matrix%set_block_to_zero(3,1)
-    call la%mass_u_matrix%set_block_to_zero(3,2)
-    call la%mass_u_matrix%set_block_to_zero(3,3)
-    call la%lapla_p_matrix%alloc(blk_graph)
-    call la%lapla_p_matrix%set_block_to_zero(1,1)
-    call la%lapla_p_matrix%set_block_to_zero(1,2)
-    call la%lapla_p_matrix%set_block_to_zero(1,3)
-    call la%lapla_p_matrix%set_block_to_zero(2,1)
-    call la%lapla_p_matrix%set_block_to_zero(2,3)
-    call la%lapla_p_matrix%set_block_to_zero(3,1)
-    call la%lapla_p_matrix%set_block_to_zero(3,2)
-    call la%lapla_p_matrix%set_block_to_zero(3,3)
-    
-    ! Construct U-preconditioner (K^-1)
-    la%u_ppars%type = pardiso_mkl_prec
-    call preconditioner_create(la%block_matrix_u%get_block(1,1),la%u_preconditioner,la%u_ppars)
-    call preconditioner_symbolic(la%block_matrix_u%get_block(1,1),la%u_preconditioner)
-    call preconditioner_log_info(la%u_preconditioner)
-
-    ! Construct X-preconditioner (Mx^-1)
-    la%x_ppars%type = pardiso_mkl_prec
-    call preconditioner_create(la%block_matrix_u%get_block(3,3),la%x_preconditioner,la%x_ppars)
-    call preconditioner_symbolic(la%block_matrix_u%get_block(3,3),la%x_preconditioner)
-    call preconditioner_log_info(la%x_preconditioner)
+    call nlop%mass_u_matrix%alloc(blk_graph)
+    call nlop%mass_u_matrix%set_block_to_zero(1,2)
+    call nlop%mass_u_matrix%set_block_to_zero(1,3)
+    call nlop%mass_u_matrix%set_block_to_zero(2,1)
+    call nlop%mass_u_matrix%set_block_to_zero(2,2)
+    call nlop%mass_u_matrix%set_block_to_zero(2,3)
+    call nlop%mass_u_matrix%set_block_to_zero(3,1)
+    call nlop%mass_u_matrix%set_block_to_zero(3,2)
+    call nlop%mass_u_matrix%set_block_to_zero(3,3)
+    call nlop%lapla_p_matrix%alloc(blk_graph)
+    call nlop%lapla_p_matrix%set_block_to_zero(1,1)
+    call nlop%lapla_p_matrix%set_block_to_zero(1,2)
+    call nlop%lapla_p_matrix%set_block_to_zero(1,3)
+    call nlop%lapla_p_matrix%set_block_to_zero(2,1)
+    call nlop%lapla_p_matrix%set_block_to_zero(2,3)
+    call nlop%lapla_p_matrix%set_block_to_zero(3,1)
+    call nlop%lapla_p_matrix%set_block_to_zero(3,2)
+    call nlop%lapla_p_matrix%set_block_to_zero(3,3)
 
     ! Construct W-preconditioner (Mu^-1)
-    la%w_ppars%type = pardiso_mkl_prec
-    call preconditioner_create(la%mass_u_matrix%get_block(1,1),la%w_preconditioner,la%w_ppars)
-    call preconditioner_symbolic(la%mass_u_matrix%get_block(1,1),la%w_preconditioner)
-    call preconditioner_log_info(la%w_preconditioner)
+    nlop%w_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%mass_u_matrix%get_block(1,1),nlop%w_preconditioner,nlop%w_ppars)
+    call preconditioner_symbolic(nlop%mass_u_matrix%get_block(1,1),nlop%w_preconditioner)
+    call preconditioner_log_info(nlop%w_preconditioner)
+    nlop%w_preconditioner%fill_values_stage = update_transient
 
     ! Construct P-preconditioner (Lp^-1)
-    la%p_ppars%type = pardiso_mkl_prec
-    call preconditioner_create(la%lapla_p_matrix%get_block(2,2),la%p_preconditioner,la%p_ppars)
-    call preconditioner_symbolic(la%lapla_p_matrix%get_block(2,2),la%p_preconditioner)
-    call preconditioner_log_info(la%p_preconditioner)
-    
-    ! Create U-X Block operator
-    call la%block_operator_u%create(2,2)
-    call la%block_operator_u%set_block(1,1,la%block_matrix_u%get_block(1,1))
-    call la%block_operator_u%set_block(1,2,la%block_matrix_u%get_block(1,3))
-    call la%block_operator_u%set_block(2,1,la%block_matrix_u%get_block(3,1))
-    call la%block_operator_u%set_block(2,2,la%block_matrix_u%get_block(3,3))
-
-    ! Create U-X Block operand
-    call la%block_operand_vec_u%create(2)
-    call la%block_operand_vec_u%set_block(1,la%block_vector_u%blocks(1))
-    call la%block_operand_vec_u%set_block(2,la%block_vector_u%blocks(3))
-    call la%block_operand_unk_u%create(2)
-    call la%block_operand_unk_u%set_block(1,la%block_unknown_u%blocks(1))
-    call la%block_operand_unk_u%set_block(2,la%block_unknown_u%blocks(3))
-
-    ! Create U-X Block preconditioner
-    call la%block_preconditioner_u%create(2)
-    call la%block_preconditioner_u%set_block(1,1,la%u_preconditioner)
-    call la%block_preconditioner_u%set_block(2,1,la%block_matrix_u%get_block(3,1))
-    call la%block_preconditioner_u%set_block(2,2,la%x_preconditioner)
+    nlop%p_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%lapla_p_matrix%get_block(2,2),nlop%p_preconditioner,nlop%p_ppars)
+    call preconditioner_symbolic(nlop%lapla_p_matrix%get_block(2,2),nlop%p_preconditioner)
+    call preconditioner_log_info(nlop%p_preconditioner)
+    nlop%p_preconditioner%fill_values_stage = update_transient
     
     ! Create W-P Block operator
-    call la%block_operator_p%create(2,2)
-    call la%block_operator_p%set_block(1,1,la%block_matrix_p%get_block(1,1))
-    call la%block_operator_p%set_block(1,2,la%block_matrix_p%get_block(1,2))
-    call la%block_operator_p%set_block(2,1,la%block_matrix_p%get_block(2,1))
-    call la%block_operator_p%set_block(2,2,la%block_matrix_p%get_block(2,2))
+    call nlop%A_pressure%create(2,2)
+    call nlop%A_pressure%set_block(1,1,nlop%block_matrix%get_block(1,1))
+    call nlop%A_pressure%set_block(1,2,nlop%block_matrix%get_block(1,2))
+    call nlop%A_pressure%set_block(2,1,nlop%block_matrix%get_block(2,1))
+    call nlop%A_pressure%set_block_to_zero(2,2)
 
     ! Create W-P Block operand
-    call la%block_operand_vec_p%create(2)
-    call la%block_operand_vec_p%set_block(1,la%block_vector_p%blocks(1))
-    call la%block_operand_vec_p%set_block(2,la%block_vector_p%blocks(2))
-    call la%block_operand_unk_p%create(2)
-    call la%block_operand_unk_p%set_block(1,la%block_unknown_p%blocks(1))
-    call la%block_operand_unk_p%set_block(2,la%block_unknown_p%blocks(2))
+    call nlop%b_pressure%create(2)
+    call nlop%b_pressure%set_block(1,nlop%block_vector%blocks(1))
+    call nlop%b_pressure%set_block(2,nlop%block_vector%blocks(2))
+    call nlop%x_pressure%create(2)
+    call nlop%x_pressure%set_block(1,nlop%block_unknown%blocks(1))
+    call nlop%x_pressure%set_block(2,nlop%block_unknown%blocks(2))
 
     ! Create W-P Block preconditioner
-    call la%block_preconditioner_p%create(2)
-    call la%block_preconditioner_p%set_block(1,1,la%w_preconditioner)
-    call la%block_preconditioner_p%set_block(2,1,la%block_matrix_p%get_block(2,1))
-    call la%block_preconditioner_p%set_block(2,2,la%p_preconditioner)
+    call nlop%M_pressure%create(2)
+    call nlop%M_pressure%set_block(1,1,nlop%w_preconditioner)
+    call nlop%M_pressure%set_block(2,1,nlop%block_matrix%get_block(2,1))
+    call nlop%M_pressure%set_block(2,2,nlop%p_preconditioner)
+    nlop%M_pressure%fill_values_stage = update_transient
+
+    ! Fill picard nonlinear operator pointers
+    call nlop%create(nlop%A_pressure, nlop%M_pressure, nlop%b_pressure, nlop%x_pressure, &
+         &           nlop%block_unknown, A_int_t=nlop%block_matrix, b_int_t=nlop%block_vector)
     
-  end subroutine build_linear_algebra
+  end subroutine build_pressure_operator
 
   !==================================================================================================
-  subroutine free_linear_algebra(la)
+  subroutine build_momentum_update_operator(nlop,blk_graph)
     implicit none
-    class(my_linear_algebra_t), intent(inout) :: la
+    class(momentum_update_operator_t), intent(inout) :: nlop
+    type(block_graph_t)              , intent(in)    :: blk_graph
 
-    ! Destroy W-P Block preconditioner
-    call la%block_preconditioner_p%destroy()
+    ! Allocate integration matrices and vectors
+    call nlop%block_matrix%alloc(blk_graph)
+    call nlop%block_matrix%set_block_to_zero(1,2)
+    call nlop%block_matrix%set_block_to_zero(1,3)
+    call nlop%block_matrix%set_block_to_zero(2,1)
+    call nlop%block_matrix%set_block_to_zero(2,2)
+    call nlop%block_matrix%set_block_to_zero(2,3)
+    call nlop%block_matrix%set_block_to_zero(3,1)
+    call nlop%block_matrix%set_block_to_zero(3,2)
+    call nlop%block_matrix%set_block_to_zero(3,3)
+    nlop%block_matrix%fill_values_stage = update_transient
+    call nlop%block_vector%alloc(blk_graph)
+    call nlop%block_unknown%alloc(blk_graph)
 
-    ! Destroy W-P Block operand
-    call la%block_operand_vec_p%destroy()
-    call la%block_operand_unk_p%destroy()
+    ! Auxiliar matrices
+    call nlop%mass_u_matrix%alloc(blk_graph)
+    call nlop%mass_u_matrix%set_block_to_zero(1,2)
+    call nlop%mass_u_matrix%set_block_to_zero(1,3)
+    call nlop%mass_u_matrix%set_block_to_zero(2,1)
+    call nlop%mass_u_matrix%set_block_to_zero(2,2)
+    call nlop%mass_u_matrix%set_block_to_zero(2,3)
+    call nlop%mass_u_matrix%set_block_to_zero(3,1)
+    call nlop%mass_u_matrix%set_block_to_zero(3,2)
+    call nlop%mass_u_matrix%set_block_to_zero(3,3)
+    
+    ! Construct U-preconditioner (Mu^-1)
+    nlop%u_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%mass_u_matrix%get_block(1,1),nlop%u_preconditioner,nlop%u_ppars)
+    call preconditioner_symbolic(nlop%mass_u_matrix%get_block(1,1),nlop%u_preconditioner)
+    call preconditioner_log_info(nlop%u_preconditioner)
+    nlop%u_preconditioner%fill_values_stage = update_transient
+    
+    ! Create U Block operator
+    call nlop%A_update_u%create(1,1)
+    call nlop%A_update_u%set_block(1,1,nlop%block_matrix%get_block(1,1))
 
-    ! Destroy W-P Block operand
-    call la%block_operator_p%destroy()
+    ! Create U Block operand
+    call nlop%b_update_u%create(1)
+    call nlop%b_update_u%set_block(1,nlop%block_vector%blocks(1))
+    call nlop%x_update_u%create(1)
+    call nlop%x_update_u%set_block(1,nlop%block_unknown%blocks(1))
 
-    ! Destroy U-X Block preconditioner
-    call la%block_preconditioner_u%destroy()
+    ! Create U Block preconditioner
+    call nlop%M_update_u%create(1)
+    call nlop%M_update_u%set_block(1,1,nlop%u_preconditioner)
+    nlop%M_update_u%fill_values_stage = update_transient
 
-    ! Destroy U-X Block operand
-    call la%block_operand_vec_u%destroy()
-    call la%block_operand_unk_u%destroy()
+    ! Fill picard nonlinear operator pointers
+    call nlop%create(nlop%A_update_u, nlop%M_update_u, nlop%b_update_u, nlop%x_update_u, &
+         &           nlop%block_unknown, A_int_t=nlop%block_matrix, b_int_t=nlop%block_vector)
+    
+  end subroutine build_momentum_update_operator
 
-    ! Destroy U-X Block operand
-    call la%block_operator_u%destroy()
+ !==================================================================================================
+  subroutine build_projection_update_operator(nlop,blk_graph)
+    implicit none
+    class(projection_update_operator_t), intent(inout) :: nlop
+    type(block_graph_t)                , intent(in)    :: blk_graph
 
-    ! Destroy P-preconditioner
-    call preconditioner_free(preconditioner_free_struct,la%p_preconditioner)
-    call preconditioner_free(preconditioner_free_clean,la%p_preconditioner)
+    ! Allocate matrices and vectors
+    call nlop%block_matrix%alloc(blk_graph)
+    call nlop%block_matrix%set_block_to_zero(1,1)
+    call nlop%block_matrix%set_block_to_zero(1,2)
+    call nlop%block_matrix%set_block_to_zero(1,3)
+    call nlop%block_matrix%set_block_to_zero(2,1)
+    call nlop%block_matrix%set_block_to_zero(2,2)
+    call nlop%block_matrix%set_block_to_zero(2,3)
+    call nlop%block_matrix%set_block_to_zero(3,1)
+    call nlop%block_matrix%set_block_to_zero(3,2)
+    nlop%block_matrix%fill_values_stage = update_transient
+    call nlop%block_vector%alloc(blk_graph)
+    call nlop%block_unknown%alloc(blk_graph)
 
-    ! Destroy W-preconditioner
-    call preconditioner_free(preconditioner_free_struct,la%w_preconditioner)
-    call preconditioner_free(preconditioner_free_clean,la%w_preconditioner)
+    ! Auxiliar matrices
+    call nlop%mass_x_matrix%alloc(blk_graph)
+    call nlop%mass_x_matrix%set_block_to_zero(1,1)
+    call nlop%mass_x_matrix%set_block_to_zero(1,2)
+    call nlop%mass_x_matrix%set_block_to_zero(1,3)
+    call nlop%mass_x_matrix%set_block_to_zero(2,1)
+    call nlop%mass_x_matrix%set_block_to_zero(2,2)
+    call nlop%mass_x_matrix%set_block_to_zero(2,3)
+    call nlop%mass_x_matrix%set_block_to_zero(3,1)
+    call nlop%mass_x_matrix%set_block_to_zero(3,2)
+
+    ! Construct X-preconditioner (Mx^-1)
+    nlop%x_ppars%type = pardiso_mkl_prec
+    call preconditioner_create(nlop%mass_x_matrix%get_block(3,3),nlop%x_preconditioner,nlop%x_ppars)
+    call preconditioner_symbolic(nlop%mass_x_matrix%get_block(3,3),nlop%x_preconditioner)
+    call preconditioner_log_info(nlop%x_preconditioner)
+    nlop%x_preconditioner%fill_values_stage = update_transient
+    
+    ! Create U Block operator
+    call nlop%A_update_x%create(1,1)
+    call nlop%A_update_x%set_block(1,1,nlop%block_matrix%get_block(3,3))
+
+    ! Create U Block operand
+    call nlop%b_update_x%create(1)
+    call nlop%b_update_x%set_block(1,nlop%block_vector%blocks(3))
+    call nlop%x_update_x%create(1)
+    call nlop%x_update_x%set_block(1,nlop%block_unknown%blocks(3))
+
+    ! Create U Block preconditioner
+    call nlop%M_update_x%create(1)
+    call nlop%M_update_x%set_block(1,1,nlop%x_preconditioner)
+    nlop%M_update_x%fill_values_stage = update_transient
+
+    ! Fill picard nonlinear operator pointers
+    call nlop%create(nlop%A_update_x, nlop%M_update_x, nlop%b_update_x, nlop%x_update_x, &
+         &           nlop%block_unknown, A_int_t=nlop%block_matrix, b_int_t=nlop%block_vector)
+    
+  end subroutine build_projection_update_operator
+
+  !==================================================================================================
+  subroutine free_momentum_operator(nlop)
+    implicit none
+    class(momentum_operator_t), intent(inout) :: nlop
+
+    ! Unassign picard nonlinear operator
+    call nlop%unassign()
+
+    ! Destroy global Block preconditioner
+    call nlop%M_momentum%destroy()
+
+    ! Destroy global Block operand
+    call nlop%b_momentum%destroy()
+    call nlop%x_momentum%destroy()
+
+    ! Destroy intermediate operands
+    call nlop%bm%destroy()
+    call nlop%bl%destroy()
+    call nlop%bnl%destroy()
+    call nlop%brhs%destroy()
+
+    ! Destroy global Block operator
+    call nlop%A_momentum%destroy()
+
+    ! Destroy intermediate operators
+    call nlop%Am%destroy()
+    call nlop%Al%destroy()
+    call nlop%Anl%destroy()
 
     ! Destroy X-preconditioner
-    call preconditioner_free(preconditioner_free_struct,la%x_preconditioner)
-    call preconditioner_free(preconditioner_free_clean,la%x_preconditioner)
+    call preconditioner_free(preconditioner_free_struct,nlop%x_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%x_preconditioner)
 
     ! Destroy U-preconditioner
-    call preconditioner_free(preconditioner_free_struct,la%u_preconditioner)
-    call preconditioner_free(preconditioner_free_clean,la%u_preconditioner)
+    call preconditioner_free(preconditioner_free_struct,nlop%u_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%u_preconditioner)
 
-    ! Deallocate auxiliar matrices
-    call la%mass_u_matrix%free()
-    call la%lapla_p_matrix%free()
-          
-    ! Deallocate problem matrix
-    call la%block_matrix_u%free()
-    call la%block_matrix_p%free()
+    ! Deallocate vectors
+    call nlop%block_unknown%free()
+    call nlop%block_vector%free()
+    call nlop%block_vector_m%free()
+    call nlop%block_vector_l%free()
+    call nlop%block_vector_nl%free()
+    
+    ! Deallocate matrices
+    call nlop%mass_x_matrix%free()
+    call nlop%block_u_matrix%free()
+    call nlop%block_matrix_m%free()
+    call nlop%block_matrix_l%free()
+    call nlop%block_matrix_nl%free()
 
-    ! Deallocate problem vectors
-    call la%block_vector_u%free()
-    call la%block_vector_p%free()
-    call la%block_unknown_u%free()
-    call la%block_unknown_p%free()
+  end subroutine free_momentum_operator
 
-  end subroutine free_linear_algebra
+  !==================================================================================================
+  subroutine free_pressure_operator(nlop)
+    implicit none
+    class(pressure_operator_t), intent(inout) :: nlop
 
-end module my_linear_algebra_names
+    ! Unassign picard nonlinear operator
+    call nlop%unassign()
+
+    ! Destroy global Block preconditioner
+    call nlop%M_pressure%destroy()
+
+    ! Destroy global Block operand
+    call nlop%b_pressure%destroy()
+    call nlop%x_pressure%destroy()
+
+    ! Destroy global Block operator
+    call nlop%A_pressure%destroy()
+
+    ! Destroy P-preconditioner
+    call preconditioner_free(preconditioner_free_struct,nlop%p_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%p_preconditioner)
+
+    ! Destroy W-preconditioner
+    call preconditioner_free(preconditioner_free_struct,nlop%w_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%w_preconditioner)
+
+    ! Deallocate vectors
+    call nlop%block_unknown%free()
+    call nlop%block_vector%free()
+    
+    ! Deallocate matrices
+    call nlop%mass_u_matrix%free()
+    call nlop%lapla_p_matrix%free()
+    call nlop%block_matrix%free()
+
+  end subroutine free_pressure_operator
+
+  !==================================================================================================
+  subroutine free_momentum_update_operator(nlop)
+    implicit none
+    class(momentum_update_operator_t), intent(inout) :: nlop
+
+    ! Unassign picard nonlinear operator
+    call nlop%unassign()
+
+    ! Destroy global Block preconditioner
+    call nlop%M_update_u%destroy()
+
+    ! Destroy global Block operand
+    call nlop%b_update_u%destroy()
+    call nlop%x_update_u%destroy()
+
+    ! Destroy global Block operator
+    call nlop%A_update_u%destroy()
+
+    ! Destroy U-preconditioner
+    call preconditioner_free(preconditioner_free_struct,nlop%u_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%u_preconditioner)
+
+    ! Deallocate vectors
+    call nlop%block_unknown%free()
+    call nlop%block_vector%free()
+    
+    ! Deallocate matrices
+    call nlop%mass_u_matrix%free()
+    call nlop%block_matrix%free()
+
+  end subroutine free_momentum_update_operator
+
+  !==================================================================================================
+  subroutine free_projection_update_operator(nlop)
+    implicit none
+    class(projection_update_operator_t), intent(inout) :: nlop
+
+    ! Unassign picard nonlinear operator
+    call nlop%unassign()
+
+    ! Destroy global Block preconditioner
+    call nlop%M_update_x%destroy()
+
+    ! Destroy global Block operand
+    call nlop%b_update_x%destroy()
+    call nlop%x_update_x%destroy()
+
+    ! Destroy global Block operator
+    call nlop%A_update_x%destroy()
+
+    ! Destroy X-preconditioner
+    call preconditioner_free(preconditioner_free_struct,nlop%x_preconditioner)
+    call preconditioner_free(preconditioner_free_clean,nlop%x_preconditioner)
+
+    ! Deallocate vectors
+    call nlop%block_unknown%free()
+    call nlop%block_vector%free()
+    
+    ! Deallocate matrices
+    call nlop%mass_x_matrix%free()
+    call nlop%block_matrix%free()
+
+  end subroutine free_projection_update_operator
+
+end module my_nonlinear_operator_names
 
 program test_blk_nsi_cg_iss_oss_rk
   use serial_names
-  use my_linear_algebra_names
+  use my_nonlinear_operator_names
   use nsi_names
   use nsi_cg_iss_oss_names
   use norm_names
@@ -250,35 +640,44 @@ program test_blk_nsi_cg_iss_oss_rk
   implicit none
 # include "debug.i90"
 
-  ! Types
-  type(uniform_mesh_descriptor_t)                     :: gdata
-  type(uniform_conditions_descriptor_t)               :: bdata
-  type(reference_element_t)                           :: geo_reference_element
-  type(triangulation_t)                               :: f_trian
-  type(conditions_t)                                  :: f_cond
-  type(dof_descriptor_t)                              :: dof_descriptor
-  type(fe_space_t)                                    :: fe_space  
+  ! Geometry & Integration Types
+  type(uniform_mesh_descriptor_t)       :: gdata
+  type(uniform_conditions_descriptor_t) :: bdata
+  type(reference_element_t)             :: geo_reference_element
+  type(triangulation_t)                 :: f_trian
+  type(conditions_t)                    :: f_cond
+  type(dof_descriptor_t)                :: dof_descriptor
+  type(fe_space_t)                      :: fe_space  
+  type(block_graph_t)                   :: blk_graph
+  type(scalar_t)                        :: enorm_u, enorm_p
+
+  ! Problem types
   type(nsi_problem_t)                                 :: myprob
   type(nsi_cg_iss_oss_discrete_t)                     :: mydisc
-  type(rungekutta_integrator_t)              , target :: rkinteg
-  type(time_integration_t)                   , target :: tinteg
   type(nsi_cg_iss_oss_rk_momentum_t)         , target :: cg_iss_oss_rk_momentum
+  type(nsi_cg_iss_oss_rk_momentum_rhs_t)     , target :: cg_iss_oss_rk_momentum_rhs
   type(nsi_cg_iss_oss_rk_pressure_t)         , target :: cg_iss_oss_rk_pressure
   type(nsi_cg_iss_oss_rk_momentum_update_t)  , target :: cg_iss_oss_rk_momentum_update
   type(nsi_cg_iss_oss_rk_projection_update_t), target :: cg_iss_oss_rk_projection_update
-  type(discrete_integration_pointer_t)                :: approx(1)
-  type(preconditioner_params_t)                       :: ppars
-  type(solver_control_t)                              :: sctrl
-  type(serial_environment_t)                          :: senv
-  type(vtk_t)                                         :: fevtk
-  class(base_operand_t)                     , pointer :: x, b
-  class(base_operator_t)                    , pointer :: A, M
-  type(block_graph_t)                                 :: blk_graph
-  type(scalar_t)                                      :: enorm_u, enorm_p
-  type(error_norm_t)                         , target :: error_compute
   type(nsi_cg_iss_oss_lapla_p_t)             , target :: lapla_p_integration
   type(nsi_cg_iss_oss_massu_t)               , target :: mass_u_integration
-  type(my_linear_algebra_t)                           :: linear_algebra
+  type(nsi_cg_iss_oss_massx_t)               , target :: mass_x_integration
+  type(error_norm_t)                         , target :: error_compute
+  type(rungekutta_integrator_t)              , target :: rkinteg
+  type(time_integration_t)                   , target :: tinteg
+  type(discrete_integration_pointer_t)                :: approx(1)
+  type(momentum_operator_t)                           :: momentum_operator
+  type(pressure_operator_t)                           :: pressure_operator
+  type(momentum_update_operator_t)                    :: momentum_update_operator
+  type(projection_update_operator_t)                  :: projection_update_operator
+
+  ! Solver types
+  type(preconditioner_params_t) :: ppars
+  type(solver_control_t)        :: sctrl
+  type(serial_environment_t)    :: senv
+
+  ! Postproces types
+  type(vtk_t) :: fevtk
 
   ! Logicals
   logical :: ginfo_state
@@ -291,7 +690,7 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Parameters
   integer(ip), parameter :: velocity=1, pressure=2
-  integer(ip), parameter :: linear=0, nonlinear=1
+  integer(ip), parameter :: nonlinear=0, linear=1
   integer(ip), parameter :: explicit=0, implicit=1
 
   ! Allocatable
@@ -337,15 +736,15 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Define Runge-Kutta method
   settable      = (/nstage,rk_order,rk_flag/)
-  setterms(1,:) = (/linear,implicit/)     ! Diffusion
-  setterms(2,:) = (/nonlinear,implicit/)  ! Convection
-  setterms(3,:) = (/linear,explicit/)     ! Pressure Gradient
-  setterms(4,:) = (/nonlinear,implicit/)  ! OSS_vu
-  setterms(5,:) = (/nonlinear,implicit/)  ! OSS_vx
-  setterms(6,:) = (/linear,explicit/)     ! Force
+  setterms(1,:) = (/update_transient,implicit/)  ! Diffusion
+  setterms(2,:) = (/update_nonlinear,implicit/)  ! Convection
+  setterms(3,:) = (/update_transient,explicit/)  ! Pressure Gradient
+  setterms(4,:) = (/update_nonlinear,implicit/)  ! OSS_vu
+  setterms(5,:) = (/update_nonlinear,implicit/)  ! OSS_vx
+  setterms(6,:) = (/update_transient,explicit/)  ! Force
   call rkinteg%create(setterms,settable)
 
-  ! Create problem
+  ! Create problems
   call myprob%create(gdata%ndime)
   call mydisc%create(myprob)
   call mydisc%vars_block(myprob,vars_block)
@@ -354,10 +753,13 @@ program test_blk_nsi_cg_iss_oss_rk
   call cg_iss_oss_rk_pressure%create(myprob,mydisc)
   call cg_iss_oss_rk_momentum_update%create(myprob,mydisc)
   call cg_iss_oss_rk_projection_update%create(myprob,mydisc)
+  call lapla_p_integration%create(myprob,mydisc)
+  call mass_u_integration%create(myprob,mydisc)
+  call mass_x_integration%create(myprob,mydisc)
   cg_iss_oss_rk_momentum%rkinteg => rkinteg
   cg_iss_oss_rk_pressure%tinteg  => tinteg
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
-  rkinteg%dtinv   = 0.0_rp
+  rkinteg%dtinv   = 1.0_rp
   mydisc%kfl_proj = 1
   mydisc%kfl_lump = 1
   myprob%kfl_conv = 1
@@ -391,26 +793,23 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Assign analytical solution
   if(gdata%ndime==2) then
-     call fe_space%set_analytical_code((/4,5,3,0,0/),(/0,0,0,0,0/))
+     call fe_space%set_analytical_code((/4,5,3,0,0/),(/1,1,0,0,0/))
   else
      write(*,*) 'analytical function not ready for 3D'
   end if
 
-  ! Create linear algebra structures
-  call linear_algebra%build(blk_graph)
-
-  ! Compute auxiliar matrices
-  call lapla_p_integration%create(myprob,mydisc)
-  approx(1)%p => lapla_p_integration
-  call volume_integral(approx,fe_space,linear_algebra%lapla_p_matrix)
-  call mass_u_integration%create(myprob,mydisc)
-  approx(1)%p => mass_u_integration
-  call volume_integral(approx,fe_space,linear_algebra%mass_u_matrix)
+  ! Create picard nonlinear operators
+  call momentum_operator%build(blk_graph)
+  call pressure_operator%build(blk_graph)
+  call momentum_update_operator%build(blk_graph)
+  call projection_update_operator%build(blk_graph)
 
   ! Do time steps
-!!$  call time_steps_rk(sctrl,sctrl%rtol*1.0e2_rp,10,senv,fe_space,linear_algebra,                  &
-!!$       &            cg_iss_oss_rk_momentum,cg_iss_oss_rk_pressure,cg_iss_oss_rk_momentum_update, &
-!!$       &            cg_iss_oss_rk_projection_update)
+  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,senv,fe_space,momentum_operator,     &
+       &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
+       &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,          &
+       &                    projection_update_operator,cg_iss_oss_rk_projection_update,      &
+       &                    cg_iss_oss_rk_momentum_rhs,tinteg)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
@@ -427,9 +826,6 @@ program test_blk_nsi_cg_iss_oss_rk
   write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
   write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
 
-  ! Free linear algebra structures
-  call linear_algebra%free()
-
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
   call memfree(order,__FILE__,__LINE__)
@@ -438,6 +834,10 @@ program test_blk_nsi_cg_iss_oss_rk
   call memfree(which_approx,__FILE__,__LINE__)
   call memfree(vars_block,__FILE__,__LINE__)
   call memfree(dof_coupling,__FILE__,__LINE__)
+  call momentum_operator%free()
+  call pressure_operator%free()
+  call momentum_update_operator%free()
+  call projection_update_operator%free()
   call fevtk%free
   call blk_graph%free()
   call fe_space_free(fe_space) 
@@ -449,6 +849,7 @@ program test_blk_nsi_cg_iss_oss_rk
   call cg_iss_oss_rk_pressure%free
   call lapla_p_integration%free
   call mass_u_integration%free
+  call mass_x_integration%free
   call rkinteg%free
   call dof_descriptor_free(dof_descriptor)
   call triangulation_free(f_trian)
@@ -471,7 +872,7 @@ contains
 
     numargs = iargc()
     call getarg(0, program_name)
-    if (.not. (numargs==5) ) then
+    if (.not. (numargs==8) ) then
        write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez nstage order flag'
        stop
     end if
@@ -503,70 +904,163 @@ contains
   end subroutine read_pars_cl_test_blk_nsi_cg_iss_oss_rk
 
   !==================================================================================================
-  subroutine time_steps_rk(sctrl,nltol,maxit,sttol,maxst,env,fe_space,la,momentum,pressure, &
-       &                   momentum_update,projection_update,rkinteg)
+  subroutine do_time_steps_rk_nsi(rkinteg,sctrl,sttol,maxst,env,fe_space,momentum_operator,    &
+       &                          momentum_integration,pressure_operator,pressure_integration, &
+       &                          momentum_update_operator,momentum_update_integration,        &
+       &                          projection_update_operator,projection_update_integration,    &
+       &                          momentum_rhs_integration,tinteg)
     implicit none
+    type(rungekutta_integrator_t)        , intent(inout) :: rkinteg
     type(solver_control_t)               , intent(inout) :: sctrl
-    real(rp)                             , intent(in)    :: nltol,sttol
-    integer(ip)                          , intent(in)    :: maxit,maxst
+    real(rp)                             , intent(in)    :: sttol
+    integer(ip)                          , intent(in)    :: maxst
     class(abstract_environment_t)        , intent(in)    :: env
     type(fe_space_t)                     , intent(inout) :: fe_space
-    type(my_linear_algebra_t)    , target, intent(inout) :: la
-    class(discrete_integration_t), target, intent(inout) :: momentum
-    class(discrete_integration_t), target, intent(inout) :: pressure
-    class(discrete_integration_t), target, intent(inout) :: momentum_update 
-    class(discrete_integration_t), target, intent(inout) :: projection_update
-    type(rungekutta_integrator_t)        , intent(inout) :: rkinteg
+    class(momentum_operator_t)           , intent(inout) :: momentum_operator
+    class(pressure_operator_t)           , intent(inout) :: pressure_operator
+    class(momentum_update_operator_t)    , intent(inout) :: momentum_update_operator
+    class(projection_update_operator_t)  , intent(inout) :: projection_update_operator
+    class(discrete_integration_t), target, intent(inout) :: momentum_integration
+    class(discrete_integration_t), target, intent(inout) :: pressure_integration
+    class(discrete_integration_t), target, intent(inout) :: momentum_update_integration
+    class(discrete_integration_t), target, intent(inout) :: projection_update_integration
+    class(discrete_integration_t), target, intent(inout) :: momentum_rhs_integration
+    class(time_integration_t)            , intent(inout) :: tinteg
     ! Locals
-    type(discrete_integration_pointer_t)   :: approx(1)
+    type(discrete_integration_pointer_t) :: approx(1)
     integer(ip) :: istage,nstage,istep
     real(rp)    :: rtime,ctime,prevtime
 
     ! Initialize time steps
     rtime = 1.0_rp
-    istep = 0
+    istep = 1
 
-!!$    ! Time steps loop
-!!$    step: do while (momentum%discret%ctime<ftime.and.rtime>sttol.and.istep<=maxst)
-!!$
-!!$       ! Current time
-!!$       prevtime = momentum%discret%ctime
-!!$       momentum%discret%ctime = momentum%discret%ctime + 1.0_rp/momentum%discret%dtinv
-!!$       write(*,*) '============================================================'
-!!$       write(*,*) 'Time step: ',istep+1,',  Current time: ',momentum%discret%ctime
-!!$
-!!$       ! Loop over stages
-!!$       stage: do istage=1,rkinteg%rktable(1)%p%stage
-!!$
-!!$          ! Set current time
-!!$          ctime = prevtime + 1.0_rp/dtinv*rkinteg%rktable(1)%p%c(istage)
-!!$          rkinteg%istge = istage
-!!$          
-!!$          ! Update boundary conditions
-!!$          call update_strong_dirichlet_bcond(fe_space,f_cond)
-!!$          call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
-!!$          
-!!$          ! Momentum equation solution
-!!$          !call nonlinear_iteration(sctrl,sctrl%rtol*1.0e2_rp,10,senv,approx,fe_space,linear_algebra)
-!!$
-!!$          ! Update boundary conditions (velocity derivative)
-!!$
-!!$          ! Pressure equation solution
-!!$
-!!$       end do stage
-!!$
-!!$       ! Update boundary conditions
-!!$
-!!$       ! Momentum update equation solution
-!!$
-!!$       ! Projection update equation solution
-!!$       
-!!$       ! Pressure equation solution
-!!$
-!!$       ! Check steady state
-!!$
-!!$    end do step
+    ! Update steady boundary conditions
+    call update_strong_dirichlet_bcond(fe_space,f_cond)
+          
+    ! Update analytical/time dependent boundary conditions
+    call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),rkinteg%ctime,fe_space)
 
-  end subroutine time_steps_rk
+    ! Compute constant operators
+    ! Momentum
+    approx(1)%p => momentum_integration
+    momentum_integration%integration_stage = update_constant
+    call momentum_operator%fill_constant(approx,fe_space) 
+    ! Momentum update
+    approx(1)%p => momentum_update_integration
+    momentum_update_integration%integration_stage = update_constant
+    call momentum_update_operator%fill_constant(approx,fe_space)
+    !**************************** NSI specific tasks *****************************************!
+    ! Pressure
+    approx(1)%p => pressure_integration
+    pressure_integration%integration_stage = update_constant
+    call pressure_operator%fill_constant(approx,fe_space)
+    ! Projection update
+    approx(1)%p => projection_update_integration
+    projection_update_integration%integration_stage = update_constant
+    call projection_update_operator%fill_constant(approx,fe_space)
+    ! Preconditioner matrices
+    approx(1)%p => lapla_p_integration
+    call volume_integral(approx,fe_space,pressure_operator%lapla_p_matrix)
+    approx(1)%p => mass_u_integration
+    call volume_integral(approx,fe_space,pressure_operator%mass_u_matrix)
+    call volume_integral(approx,fe_space,momentum_update_operator%mass_u_matrix)
+    approx(1)%p => mass_x_integration
+    call volume_integral(approx,fe_space,projection_update_operator%mass_x_matrix)
+    ! scal --> L*dt, M/dt
+    !*****************************************************************************************!
+
+    ! Time steps loop
+    step: do while (rkinteg%ctime<rkinteg%ftime.and.rtime>sttol.and.istep<=maxst)
+
+       ! Current time
+       prevtime = rkinteg%ctime
+       rkinteg%ctime = rkinteg%ctime + 1.0_rp/rkinteg%dtinv
+       write(*,*) '============================================================'
+       write(*,*) 'Time step: ',istep,',  Current time: ',rkinteg%ctime
+
+       ! Loop over stages
+       stage: do istage=1,rkinteg%rk_table(1)%p%stage
+
+          ! Set current time
+          ctime = prevtime + 1.0_rp/rkinteg%dtinv*rkinteg%rk_table(1)%p%c(istage)
+          rkinteg%istage = istage
+
+          ! Set momentum operator scalars
+          momentum_operator%dt  = rkinteg%dtinv
+          momentum_operator%aii = rkinteg%rk_table_implicit%A(istage,istage)
+          
+          ! Update analytical/time dependent boundary conditions
+          call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
+
+          ! Compute momentum transient operators
+          approx(1)%p => momentum_integration
+          momentum_integration%integration_stage = update_transient
+          call momentum_operator%fill_transient(approx,fe_space) 
+          
+          ! Compute momentum operand (RHS)
+          approx(1)%p => momentum_rhs_integration
+          call volume_integral(approx,fe_space,momentum_operator%block_vector)
+          
+          ! Momentum equation solution
+          approx(1)%p => momentum_integration
+          call momentum_operator%apply(sctrl,senv,approx,fe_space)
+
+          !**************************** NSI specific tasks *****************************************!
+          ! Update boundary conditions (velocity derivative)
+          !!!!!!!!!!!!! TO DO !!!!!!!!!!!!!!
+
+          ! Compute pressure transient operators
+          approx(1)%p => pressure_integration
+          pressure_integration%integration_stage = update_transient
+          call pressure_operator%fill_transient(approx,fe_space) 
+
+          ! Pressure equation solution
+          approx(1)%p => pressure_integration
+          tinteg%ctime = ctime
+          call pressure_operator%apply(sctrl,senv,approx,fe_space)
+          !*****************************************************************************************!        
+
+       end do stage
+
+       ! Update analytical/time dependent boundary conditions
+       ctime = rkinteg%ctime
+       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
+
+       ! Compute momentum update transient operators
+       approx(1)%p => momentum_update_integration
+       momentum_update_integration%integration_stage = update_transient
+       call momentum_update_operator%fill_transient(approx,fe_space) 
+       
+       ! Momentum update equation solution
+       approx(1)%p => momentum_update_integration
+       call momentum_update_operator%apply(sctrl,senv,approx,fe_space)
+
+       !**************************** NSI specific tasks *****************************************!
+       ! Compute projection transient operators
+       approx(1)%p => projection_update_integration
+       projection_update_integration%integration_stage = update_transient
+       call projection_update_operator%fill_transient(approx,fe_space) 
+
+       ! Projection update equation solution
+       approx(1)%p => projection_update_integration
+       call projection_update_operator%apply(sctrl,senv,approx,fe_space)
+
+       ! Compute pressure transient operators
+       approx(1)%p => pressure_integration
+       pressure_integration%integration_stage = update_transient
+       call pressure_operator%fill_transient(approx,fe_space) 
+       
+       ! Pressure equation solution
+       approx(1)%p => pressure_integration
+       tinteg%ctime = ctime
+       call pressure_operator%apply(sctrl,senv,approx,fe_space)
+       !*****************************************************************************************! 
+
+       ! Check steady state
+
+    end do step
+
+  end subroutine do_time_steps_rk_nsi
   
 end program test_blk_nsi_cg_iss_oss_rk

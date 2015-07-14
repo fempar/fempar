@@ -114,13 +114,19 @@ contains
 
   ! op1%fill_values(op2)
   ! Fill preconditioner values
-  subroutine block_preconditioner_lu_fill_values (op)
+  subroutine block_preconditioner_lu_fill_values (op, stage)
     implicit none
     class(block_preconditioner_lu_t), intent(inout) :: op
+    integer(ip), optional           , intent(in)    :: stage
+    ! Locals
+    integer(ip) :: stage_
+    
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
 
-    if(op%do_fill_values) then
-       call op%L%fill_values()
-       call op%U%fill_values()
+    if(op%fill_values_stage==stage_) then
+       call op%L%fill_values(stage_)
+       call op%U%fill_values(stage_)
     end if
 
   end subroutine block_preconditioner_lu_fill_values

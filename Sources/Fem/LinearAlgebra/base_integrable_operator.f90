@@ -56,12 +56,13 @@ module base_integrable_operator_names
 contains
   
   !==================================================================================================
-  subroutine integrable_operator_fill_values(op)
+  subroutine integrable_operator_fill_values(op,stage)
     !-----------------------------------------------------------------------------------------------!
     !    Dummy subroutine to implement a deferred method for base_integrable_operator_t.            !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(base_integrable_operator_t), intent(inout) :: op
+    integer(ip), optional            , intent(in)    :: stage
   end subroutine integrable_operator_fill_values
   
   !==================================================================================================

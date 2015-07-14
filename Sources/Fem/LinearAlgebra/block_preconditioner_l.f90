@@ -169,16 +169,20 @@ contains
 
   ! op1%fill_values(op2)
   ! Fill preconditioner values
-  subroutine block_preconditioner_l_fill_values (op)
+  subroutine block_preconditioner_l_fill_values (op,stage)
     implicit none
     class(block_preconditioner_l_t), intent(inout) :: op
+    integer(ip), optional          , intent(in)    :: stage
 
     ! Locals
-    integer(ip) :: iblk
+    integer(ip) :: iblk,stage_
+    
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
 
-    if(op%do_fill_values) then
+    if(op%fill_values_stage==stage_) then
        do iblk=1, op%nblocks
-          call op%blocks(iblk,iblk)%p_op%fill_values()
+          call op%blocks(iblk,iblk)%p_op%fill_values(stage_)
        end do
     end if
 

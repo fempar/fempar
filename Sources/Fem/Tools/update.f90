@@ -40,8 +40,8 @@ module update_names
   private     
 
   ! Functions
-  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, update_nonlinear, &
-       &    update_solution_mono
+  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, &
+       &    update_solution_mono, update_nonlinear_solution 
  
 contains
   
@@ -228,7 +228,7 @@ contains
   end subroutine update_solution_block
 
   !==================================================================================================
-  subroutine update_nonlinear(fe_space)
+  subroutine update_nonlinear_solution(fe_space)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the previous nonlinear solution.                                     !
     !-----------------------------------------------------------------------------------------------!
@@ -243,6 +243,6 @@ contains
        fe_space%finite_elements(ielem)%unkno(:,:,2) = fe_space%finite_elements(ielem)%unkno(:,:,1)
     end do
     
-  end subroutine update_nonlinear
+  end subroutine update_nonlinear_solution
 
 end module update_names

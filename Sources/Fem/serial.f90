@@ -100,6 +100,7 @@ module serial_names
   use plain_vector_names
   use scalar_names
   use nonlinear_operator_names
+  use picard_nonlinear_operator_names
   use time_integration_names
 
 end module serial_names

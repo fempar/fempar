@@ -794,7 +794,7 @@ contains
        !********************************************************************************************!
        
        ! Store nonlinear iteration ( k+1 --> k )
-       call par_update_nonlinear(p_fe_space)
+       call par_update_nonlinear_solution(p_fe_space)
        
     end do
 

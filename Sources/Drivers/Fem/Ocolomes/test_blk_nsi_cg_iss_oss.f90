@@ -31,7 +31,7 @@ module my_nonlinear_operator_names
 # include "debug.i90"
   private
   
-  type, extends(nonlinear_operator_t) :: my_nonlinear_operator_t 
+  type, extends(picard_nonlinear_operator_t) :: my_nonlinear_operator_t 
      type(block_matrix_t)           :: block_matrix
      type(block_vector_t)           :: block_vector
      type(block_vector_t)           :: block_unknown
@@ -188,13 +188,9 @@ contains
     call nlop%block_preconditioner%set_block(2,2,nlop%block_x_preconditioner)
 
     ! Assign operators
-    nlop%A => nlop%block_operator
-    nlop%M => nlop%block_preconditioner
-    nlop%b => nlop%block_operand_vec
-    nlop%x => nlop%block_operand_unk
-    nlop%A_int => nlop%block_matrix
-    nlop%b_int => nlop%block_vector
-    nlop%x_sol => nlop%block_unknown
+    call nlop%create(nlop%block_operator,nlop%block_preconditioner,nlop%block_operand_vec, &
+         &           nlop%block_operand_unk,nlop%block_unknown,A_int_n=nlop%block_matrix,  &
+         &           b_int_n=nlop%block_vector)
     
   end subroutine build_nonlinear_operator
 
@@ -204,13 +200,7 @@ contains
     class(my_nonlinear_operator_t), intent(inout) :: nlop
 
     ! Unassign operators
-    nlop%A => null()
-    nlop%M => null()
-    nlop%b => null()
-    nlop%x => null()
-    nlop%A_int => null()
-    nlop%b_int => null()
-    nlop%x_sol => null()
+    call nlop%unassign()
 
     ! Destroy Global Block preconditioner
     call nlop%block_preconditioner%destroy()
@@ -433,7 +423,7 @@ program test_blk_nsi_cg_iss_oss
   approx(1)%p => cg_iss_oss_matvec
 
   ! Do nonlinear iterations
-  call nonlinear_operator%do_nonlinear_iteration(1,1,sctrl,senv,approx,fe_space)
+  call nonlinear_operator%apply(sctrl,senv,approx,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
