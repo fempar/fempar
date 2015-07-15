@@ -95,6 +95,8 @@ use psb_penv_mod_names
      procedure :: clone => par_vector_clone_tbp
      procedure :: comm  => par_vector_comm_tbp
      procedure :: free  => par_vector_free_tbp
+
+     procedure :: default_initialization  => par_vector_default_init
   end type par_vector_t
 
 
@@ -135,6 +137,18 @@ use psb_penv_mod_names
 contains
 
 # include "mem_body.i90"
+
+  !=============================================================================
+  subroutine par_vector_default_init (this)
+    implicit none
+    class(par_vector_t), intent(inout) :: this
+
+    call this%f_vector%default_initialization()
+    nullify(this%dof_dist)
+    nullify(this%p_env)
+    call this%NullifyTemporary()
+
+  end subroutine par_vector_default_init
 
   !=============================================================================
   subroutine par_vector_alloc (dof_dist, p_env, p_vec)

@@ -28,7 +28,8 @@
 
 module lib_vtk_io_interface_names
 
-  use serial_names, only: mesh_t, triangulation_t
+  use mesh_names
+  use triangulation_names
   use types_names
   use memor_names
   use stdio_names

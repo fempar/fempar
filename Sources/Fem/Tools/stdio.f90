@@ -72,7 +72,7 @@ module stdio_names
        CHAR_LOWERCASE   = 'abcdefghijklmnopqrstuvwxyz',  &
        CHAR_UPPERCASE   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',  &
        CHAR_NUMERIC     = '0123456789-+.',               &
-       CHAR_NEXTLINE    = '\'
+       CHAR_NEXTLINE    = '\\'
        
        character(*), parameter :: VALID_CHARS =  &
        CHAR_LOWERCASE//CHAR_UPPERCASE//CHAR_NUMERIC//COMMENT_SYMBOL//CHAR_NEXTLINE

@@ -44,7 +44,6 @@ use types_names
      procedure (clone_interface), deferred :: clone
      procedure (comm_interface), deferred  :: comm
 
-     procedure :: default_initialization
      
      procedure :: sum_operand
      procedure :: sub_operand
@@ -124,11 +123,6 @@ use types_names
   public :: base_operand_t
 
 contains  
-  subroutine default_initialization(this)
-    implicit none
-    class(base_operand_t), intent(inout) :: this
-    ! empty by default. Must be overwritten when necessary
-  end subroutine default_initialization
   ! res <- op1 + op2
   function sum_operand(op1,op2) result (res)
     implicit none

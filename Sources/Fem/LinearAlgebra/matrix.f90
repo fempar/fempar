@@ -84,6 +84,8 @@ use iso_c_binding
      procedure  :: apply     => matrix_apply
      procedure  :: apply_fun => matrix_apply_fun
      procedure  :: free      => matrix_free_tbp
+
+     procedure :: default_initialization => matrix_default_init
   end type matrix_t
 
   interface matrix_free
@@ -148,6 +150,17 @@ contains
     end if
 
   end subroutine matrix_create
+
+  !=============================================================================
+  subroutine matrix_default_init (this)
+    implicit none
+    class(matrix_t), intent(inout) :: this
+    this%symm = symm_false
+    this%type = csr_mat
+    this%sign = positive_definite
+    nullify(this%gr)
+    call this%NullifyTemporary()
+  end subroutine matrix_default_init
 
   subroutine matrix_graph(gr,mat)
     implicit none
