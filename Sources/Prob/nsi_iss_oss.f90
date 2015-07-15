@@ -1035,6 +1035,9 @@ contains
 
     end do
 
+    ! Deallocate
+    call memfree(gpvel%a,__FILE__,__LINE__)
+
     ! Assembly to elemental p_mat
     if (approx%discret%kfl_lump==0) then
        do inode=1,nnodu
@@ -1343,14 +1346,14 @@ contains
     prevtime = rkinteg%ctime - 1.0_rp/dtinv
 
     ! Asserts
-    check(istage>1) ! First stage skiped (a_11=0)
+    !check(istage>1) ! First stage skiped (a_11=0)
 
     ! Initialize to zero
     finite_element%p_mat%a = 0.0_rp
     finite_element%p_vec%a = 0.0_rp
 
     ! Interpolation operations
-    allocate(gpvel(istage))
+    allocate(gpvel(istage+1))
     allocate(gposs(istage-1))
     allocate(grvel(istage-1))
     allocate(grpre(istage-1))
@@ -1361,6 +1364,7 @@ contains
        call create_vector(approx%physics,1,finite_element%integ,grpre(jstge))
     end do
     call create_vector (approx%physics,1,finite_element%integ,gpvel(istage))
+    call create_vector (approx%physics,1,finite_element%integ,gpvel(istage+1))
     call interpolation(finite_element%unkno,1,prev_step,finite_element%integ,gpvel(1))                    ! U_n
     do jstge=2,istage
        call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,gpvel(jstge))               ! U_j
@@ -1368,6 +1372,7 @@ contains
        call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,grvel(jstge-1))             ! GradU_j
        call interpolation(finite_element%unkno,ndime+1,ndime,jstge+2,finite_element%integ,grpre(jstge-1)) ! GradP_j
     end do
+    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel(istage+1))             ! U^k_i
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(ndime,nnodu,elvec_u,__FILE__,__LINE__)
@@ -1512,6 +1517,7 @@ contains
        call memfree(force(jstge)%a,__FILE__,__LINE__)
     end do
     call memfree(gpvel(istage)%a,__FILE__,__LINE__)
+    call memfree(gpvel(istage+1)%a,__FILE__,__LINE__)
     call memfree(force(istage)%a,__FILE__,__LINE__)
     deallocate(gpvel)
     deallocate(gposs)

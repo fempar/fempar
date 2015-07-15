@@ -197,7 +197,7 @@ contains
     integer(ip)           :: iiter
     integer(ip)           :: napprox,iapprox
     real(rp)              :: resnorm,ininorm
-    class(base_operand_t), allocatable :: y
+    class(base_operand_t), allocatable :: y,y2
 
     ! Checks
     check(associated(this%A))
@@ -214,6 +214,7 @@ contains
 
     ! Allocate y
     allocate(y, mold=this%b); call y%default_initialization()
+    allocate(y2, mold=this%b); call y2%default_initialization()
         
     iiter = 0
     do while( iiter < this%max_iter )
@@ -221,45 +222,55 @@ contains
        ! Update counter
        iiter = iiter+1
 
-       ! Initialize Matrix and vector
-       if(associated(this%A_int_n)) call this%A_int_n%init()
-       if(associated(this%b_int_n)) call this%b_int_n%init(0.0_rp)
+!!$       ! Initialize Matrix and vector
+!!$       if(associated(this%A_int_n)) call this%A_int_n%init()
+!!$       if(associated(this%b_int_n)) call this%b_int_n%init(0.0_rp)
+!!$
+!!$       ! Integrate system
+!!$       if(associated(this%A_int_n).and.associated(this%b_int_n)) then
+!!$          call volume_integral(approx,fe_space,this%A_int_n,this%b_int_n)
+!!$       elseif(associated(this%A_int_n).and.(.not.associated(this%b_int_n))) then
+!!$          call volume_integral(approx,fe_space,this%A_int_n)
+!!$       elseif((.not.associated(this%A_int_n)).and.associated(this%b_int_n)) then
+!!$          call volume_integral(approx,fe_space,this%b_int_n)
+!!$       end if
 
-       ! Integrate system
-       if(associated(this%A_int_n).and.associated(this%b_int_n)) then
-          call volume_integral(approx,fe_space,this%A_int_n,this%b_int_n)
-       elseif(associated(this%A_int_n).and.(.not.associated(this%b_int_n))) then
-          call volume_integral(approx,fe_space,this%A_int_n)
-       elseif((.not.associated(this%A_int_n)).and.associated(this%b_int_n)) then
-          call volume_integral(approx,fe_space,this%b_int_n)
-       end if
-
+       write(*,*) iiter
        ! Check convergence
-       if(iiter==1) ininorm = this%b%nrm2()   
-       y = this%b - this%A*this%x
-       resnorm = y%nrm2()
-       if( resnorm < this%nltol*ininorm) then
-          write(*,*) 'Nonlinear iterations: ', iiter
-          write(*,*) 'Nonlinear error norm: ', resnorm
-          exit
-       end if
-
-       ! Compute Numeric preconditioner
-       call this%M%fill_values(update_nonlinear)
-
-       ! Solve system
-       call abstract_solve(this%A,this%M,this%b,this%x,sctrl,env)
-       call solver_control_log_conv_his(sctrl)
-       call solver_control_free_conv_his(sctrl)
-
-       ! Free Numeric preconditioner
-       call this%M%free_values()
-       
-       ! Store solution to unkno
-       call update_solution(this%x_sol,fe_space)
-       
-       ! Store nonlinear iteration ( k+1 --> k )
-       call update_nonlinear_solution(fe_space)
+       !if(iiter==1) ininorm = this%b%nrm2()   
+       y = this%A*this%x
+       write(*,*) 'xxxx'
+       y2 = this%A*this%x
+       !y = this%b - this%A*this%x
+!!$       resnorm = y%nrm2()
+!!$       if( resnorm < this%nltol*ininorm) then
+!!$          write(*,*) 'Nonlinear iterations: ', iiter
+!!$          write(*,*) 'Nonlinear error norm: ', resnorm
+!!$          exit
+!!$       end if
+!!$       if(iiter==this%max_iter) then
+!!$          write(*,*) 'Maximum number of nonlinear iterations reached'
+!!$          write(*,*) 'Nonlinear iterations: ',iiter
+!!$          write(*,*) 'Nonlinear error norm: ', resnorm
+!!$       end if
+!!$
+!!$       ! Compute Numeric preconditioner
+!!$       call this%M%fill_values(update_nonlinear)
+!!$
+!!$       ! Solve system
+!!$       call abstract_solve(this%A,this%M,this%b,this%x,sctrl,env)
+!!$       call solver_control_log_conv_his(sctrl)
+!!$       call solver_control_free_conv_his(sctrl)
+!!$
+!!$       ! Free Numeric preconditioner
+!!$       call this%M%free_values()
+!!$       
+!!$       ! Store solution to unkno
+!!$       call update_solution(this%x_sol,fe_space)
+!!$       
+!!$       ! Store nonlinear iteration ( k+1 --> k )
+!!$       call update_nonlinear_solution(fe_space)
+    call y%free()
        
     end do
 

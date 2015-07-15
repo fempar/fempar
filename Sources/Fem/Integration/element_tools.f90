@@ -337,7 +337,6 @@ contains
     assert(ndime == integ(ivar)%p%uint_phy%ndime)
     nnode = integ(ivar)%p%uint_phy%nnode
     ngaus = integ(ivar)%p%uint_phy%nlocs
-    call memalloc(ndime,ngaus,vec%a,__FILE__,__LINE__)
     do igaus=1,ngaus
        do inode =1,nnode
           do idime=1,ndime
@@ -372,7 +371,6 @@ contains
     ndime = integ(ivar)%p%uint_phy%ndime
     nnode = integ(ivar)%p%uint_phy%nnode
     ngaus = integ(ivar)%p%uint_phy%nlocs
-    call memalloc(ndime,nvar,ngaus,tens%a,__FILE__,__LINE__)
     do igaus=1,ngaus
        do idof=1,nvar
           do inode =1,nnode

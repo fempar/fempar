@@ -102,5 +102,6 @@ module serial_names
   use nonlinear_operator_names
   use picard_nonlinear_operator_names
   use time_integration_names
+  use inverse_operator_names
 
 end module serial_names

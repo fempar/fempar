@@ -42,7 +42,9 @@ module my_nonlinear_operator_names
      type(block_vector_t)              :: block_vector_m
      type(block_vector_t)              :: block_vector
      type(block_vector_t)              :: block_unknown
-     type(block_operator_t)            :: A_momentum, Am, Al, Anl
+     type(block_operator_t)            :: Am, Al, Anl
+     type(abs_operator_t)              :: A_uu
+     type(block_operator_t)            :: A_momentum
      type(block_operand_t)             :: b_momentum, bm, bl, bnl, brhs
      type(block_operand_t)             :: x_momentum
      type(block_preconditioner_l_t)    :: M_momentum
@@ -50,6 +52,8 @@ module my_nonlinear_operator_names
      type(preconditioner_t)            :: x_preconditioner
      type(preconditioner_params_t)     :: u_ppars
      type(preconditioner_params_t)     :: x_ppars
+     type(inverse_operator_t)          :: inv_A_uu
+     type(solver_control_t)            :: sctrl_A_uu
      real(rp)                          :: dt, aii
    contains
      procedure :: build => build_momentum_operator
@@ -114,14 +118,18 @@ module my_nonlinear_operator_names
 contains
 
   !==================================================================================================
-  subroutine build_momentum_operator(nlop,blk_graph)
+  subroutine build_momentum_operator(nlop,blk_graph,env)
     implicit none
-    class(momentum_operator_t), intent(inout) :: nlop
-    type(block_graph_t)       , intent(in)    :: blk_graph
+    class(momentum_operator_t) , intent(inout) :: nlop
+    type(block_graph_t)        , intent(in)    :: blk_graph
+    class(serial_environment_t), intent(in)    :: env
 
     ! Modify default nonlinear parameters
     nlop%max_iter = 20
 
+    ! Modify default inverse_operator solver parameters
+    nlop%sctrl_A_uu%rtol = 1.0e-14_rp
+    
     ! Initialize parameters
     nlop%dt  = 0.0_rp
     nlop%aii = 0.0_rp
@@ -224,14 +232,24 @@ contains
     call nlop%Anl%set_block(2,1,nlop%block_matrix_nl%get_block(3,1))
     call nlop%Anl%set_block(2,2,nlop%block_matrix_nl%get_block(3,3))
 
+    ! Construct abstract operator for UU block
+    nlop%A_uu =  nlop%dt * nlop%Am%get_block(1,1)  +  nlop%aii * nlop%Al%get_block(1,1) + &
+         &       nlop%aii * nlop%Anl%get_block(1,1)
+!!$    nlop%A_uu = nlop%dt * nlop%Am%get_block(1,1)
+
+    ! Create inverse operator for Block UU
+    call nlop%inv_A_uu%create(nlop%A_uu,nlop%u_preconditioner,nlop%sctrl_A_uu,env)
+    
     ! Construct global operator
     call nlop%A_momentum%create(2,2)
-    call nlop%A_momentum%set_block(1,1,nlop%block_matrix_nl%get_block(1,1))
-    call nlop%A_momentum%set_block(1,2,nlop%block_matrix_nl%get_block(1,3))
-    call nlop%A_momentum%set_block(2,1,nlop%block_matrix_nl%get_block(3,1))
-    call nlop%A_momentum%set_block(2,2,nlop%block_matrix_nl%get_block(3,3))
-    !nlop%A_momentum = nlop%Am!( nlop%dt * nlop%Am )  + ( nlop%aii * nlop%Al ) + ( nlop%aii * nlop%Anl )
-
+    call nlop%A_momentum%set_block(1,1,nlop%A_uu)
+    call nlop%A_momentum%set_block(1,2,nlop%aii*nlop%block_matrix_nl%get_block(1,3))
+    call nlop%A_momentum%set_block(2,1,nlop%aii*nlop%block_matrix_nl%get_block(3,1))
+    call nlop%A_momentum%set_block(2,2,nlop%aii*nlop%block_matrix_nl%get_block(3,3))  
+!!$    call nlop%A_momentum%set_block(1,2,nlop%block_matrix_nl%get_block(1,3))
+!!$    call nlop%A_momentum%set_block(2,1,nlop%block_matrix_nl%get_block(3,1))
+!!$    call nlop%A_momentum%set_block(2,2,nlop%block_matrix_nl%get_block(3,3))  
+    
     ! Create Mass BCs operand
     call nlop%bm%create(2)
     call nlop%bm%set_block(1,nlop%block_vector_m%blocks(1))
@@ -262,8 +280,8 @@ contains
 
     ! Construct global block preconditioner
     call nlop%M_momentum%create(2)
-    call nlop%M_momentum%set_block(1,1,nlop%u_preconditioner)
-    call nlop%M_momentum%set_block(2,1,nlop%A_momentum%get_block(2,1))
+    call nlop%M_momentum%set_block(1,1,nlop%inv_A_uu)
+    call nlop%M_momentum%set_block(2,1,nlop%aii*nlop%Anl%get_block(2,1))
     call nlop%M_momentum%set_block(2,2,nlop%x_preconditioner)
 
     ! Fill picard nonlinear operator pointers
@@ -496,7 +514,7 @@ contains
     call nlop%brhs%destroy()
 
     ! Destroy global Block operator
-    call nlop%A_momentum%destroy()
+    call nlop%A_momentum%free()
 
     ! Destroy intermediate operators
     call nlop%Am%destroy()
@@ -750,6 +768,7 @@ program test_blk_nsi_cg_iss_oss_rk
   call mydisc%vars_block(myprob,vars_block)
   call mydisc%dof_coupling(myprob,dof_coupling)
   call cg_iss_oss_rk_momentum%create(myprob,mydisc)
+  call cg_iss_oss_rk_momentum_rhs%create(myprob,mydisc)
   call cg_iss_oss_rk_pressure%create(myprob,mydisc)
   call cg_iss_oss_rk_momentum_update%create(myprob,mydisc)
   call cg_iss_oss_rk_projection_update%create(myprob,mydisc)
@@ -757,9 +776,11 @@ program test_blk_nsi_cg_iss_oss_rk
   call mass_u_integration%create(myprob,mydisc)
   call mass_x_integration%create(myprob,mydisc)
   cg_iss_oss_rk_momentum%rkinteg => rkinteg
+  cg_iss_oss_rk_momentum_rhs%rkinteg => rkinteg
   cg_iss_oss_rk_pressure%tinteg  => tinteg
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
   rkinteg%dtinv   = 1.0_rp
+  rkinteg%ftime   = 1.0_rp
   mydisc%kfl_proj = 1
   mydisc%kfl_lump = 1
   myprob%kfl_conv = 1
@@ -799,7 +820,7 @@ program test_blk_nsi_cg_iss_oss_rk
   end if
 
   ! Create picard nonlinear operators
-  call momentum_operator%build(blk_graph)
+  call momentum_operator%build(blk_graph,senv)
   call pressure_operator%build(blk_graph)
   call momentum_update_operator%build(blk_graph)
   call projection_update_operator%build(blk_graph)

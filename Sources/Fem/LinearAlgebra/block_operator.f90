@@ -232,7 +232,7 @@ contains
     ! Parameters
     class(block_operator_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
-    class(base_operator_t)                  , intent(in)    :: op 
+    class(base_operator_t)              , intent(in)    :: op 
 
     call op%GuardTemp()
     if ( .not. associated(bop%blocks(ib,jb)%p_op) ) then
