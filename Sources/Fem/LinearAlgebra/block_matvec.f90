@@ -59,7 +59,7 @@ contains
        call vector_zero  ( y%blocks(ib) )
        call vector_clone ( y%blocks(ib), aux ) 
        do jb=1, a%get_nblocks()
-          f_matrix => a%get_block(ib,jb)
+          f_matrix => a%blocks(ib,jb)%p_f_matrix
           if ( associated(f_matrix) ) then
              ! aux <- A(ib,jb) * x(jb)
              call matvec ( f_matrix, x%blocks(jb), aux )

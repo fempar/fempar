@@ -48,6 +48,7 @@ module element_tools_names
      type(volume_integrator_pointer_t), pointer :: integ(:) => NULL()
    contains
      procedure :: free => free_function
+     procedure :: default_initialization => function_default_init
   end type function_t
 
   ! Basis functions can be left multiplied by a field.
@@ -64,6 +65,7 @@ module element_tools_names
      procedure, pass(u)  :: product_left  => product_field_basis_function
      !procedure, pass(u)  :: product_right => product_basis_function_field
      generic :: operator(*) => scale_right, scale_left, product_left !, product_right
+     procedure :: default_initialization => basis_function_default_init
   end type basis_function_t
 
   ! scalar -> deriv(idime,inode,igaus)
@@ -141,6 +143,19 @@ module element_tools_names
   public :: create_scalar, create_vector, create_tensor
 
 contains
+
+
+  !=============================================================================
+  subroutine function_default_init (this)
+    implicit none
+    class(function_t), intent(inout) :: this
+    this%ivar=1
+    this%nvar=1
+    this%idof=1 ! First dof corresponding to ivar (=sum of nnode for jvar<ivar)
+    this%ndof=1
+    this%ngaus=1
+    call this%NullifyTemporary()
+  end subroutine function_default_init
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -503,6 +518,20 @@ contains
   ! basis_function, basis_function_gradient and basis_function_divergence
   ! if the last two are defined as derived from basis_functions.
   ! This, however, requires polymorphic allocatable.
+
+  !=============================================================================
+  subroutine basis_function_default_init (this)
+    implicit none
+    class(basis_function_t), intent(inout) :: this
+    this%ivar=1
+    this%nvar=1
+    this%idof=1 ! First dof corresponding to ivar (=sum of nnode for jvar<ivar)
+    this%ndof=1
+    this%ngaus=1
+    this%scaling=1.0_rp
+    call this%NullifyTemporary()
+  end subroutine basis_function_default_init
+
   function product_field_basis_function(field_left,u) result(res)
     implicit none
     class(field_t)         , intent(in)  :: field_left

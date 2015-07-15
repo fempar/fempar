@@ -43,7 +43,7 @@ use types_names
 
   ! Block Graph 
   type block_graph_t
-     private
+!     private ! IBM XLF 14.1 bug
      integer(ip)                    :: nblocks = -1
      type(p_graph_t), allocatable :: blocks(:,:)
   contains

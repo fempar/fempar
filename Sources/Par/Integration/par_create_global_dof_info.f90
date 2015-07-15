@@ -103,7 +103,7 @@ contains
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
        do iblock = 1, dof_descriptor%nblocks
           do jblock = 1, dof_descriptor%nblocks
-             p_graph => p_blk_graph%get_block(iblock,jblock)
+             p_graph => p_blk_graph%blocks(iblock,jblock)%p_p_graph
              if ( iblock == jblock .and. present(gtype) ) then
                 call create_dof_graph_block ( iblock, jblock, dof_descriptor, p_trian%f_trian, & 
                      p_fe_space%fe_space, p_graph%f_graph, gtype(iblock) )

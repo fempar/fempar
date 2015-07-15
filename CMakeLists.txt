@@ -1,7 +1,7 @@
 #################################################################
 # HEADER
 #################################################################
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.11)
 SET(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE)
 
 PROJECT(FEMPAR Fortran C)

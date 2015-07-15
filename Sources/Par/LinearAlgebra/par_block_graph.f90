@@ -49,7 +49,7 @@ use memor_names
 
   ! Block Graph 
   type par_block_graph_t
-    private
+!    private ! IBM XLF 14.1 bug
     integer(ip)                    :: nblocks = -1
     type(p_par_graph_t), allocatable :: blocks(:,:)
   contains
@@ -89,8 +89,8 @@ contains
       do jb=1, p_b_graph%nblocks
            allocate ( p_b_graph%blocks(ib,jb)%p_p_graph, stat=istat )
            check(istat==0)
-           call par_graph_create ( blk_dof_dist%get_block(ib), & 
-                                   blk_dof_dist%get_block(jb), & 
+           call par_graph_create ( blk_dof_dist%blocks(ib), & 
+                                   blk_dof_dist%blocks(jb), & 
                                    blk_dof_dist%p_env, & 
                                    p_b_graph%blocks(ib,jb)%p_p_graph )
       end do

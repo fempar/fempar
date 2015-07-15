@@ -92,7 +92,7 @@ contains
     ! To be called after the reordering of dofs
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
-          f_graph => f_blk_graph%get_block(iblock,jblock)
+          f_graph => f_blk_graph%blocks(iblock,jblock)%p_f_graph
           if ( iblock == jblock .and. present(gtype) ) then
              call create_dof_graph_block ( iblock, jblock, dof_descriptor, trian, fe_space, f_graph, gtype(iblock) )
           else

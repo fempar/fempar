@@ -54,7 +54,7 @@ module par_block_matrix_names
 
   ! Block Matrix
   type, extends(base_integrable_operator_t) :: par_block_matrix_t
-    private
+!    private ! IBM XLF 14.1 bug
     integer(ip)                     :: nblocks
     type(p_par_matrix_t), allocatable :: blocks(:,:)
   contains
@@ -102,11 +102,11 @@ contains
     allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks) )
 
     do ib=1, bmat%nblocks
-       do jb=1, bmat%nblocks
-          p_graph => bgraph%get_block(ib,jb)
-          if (associated(p_graph)) then
-             allocate ( bmat%blocks(ib,jb)%p_p_matrix )
-             if ( (ib == jb) .and. present(sign) ) then
+      do jb=1, bmat%nblocks
+           p_graph => bgraph%blocks(ib,jb)%p_p_graph
+           if (associated(p_graph)) then
+              allocate ( bmat%blocks(ib,jb)%p_p_matrix )
+              if ( (ib == jb) .and. present(sign) ) then
                 if ( p_graph%f_graph%type == csr ) then
                    call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
                 else 

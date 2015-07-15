@@ -87,7 +87,7 @@ contains
 
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
-          f_matrix => a%get_block(iblock,jblock)
+          f_matrix => a%blocks(iblock,jblock)%p_f_matrix
           if ( associated(f_matrix) ) then
              call element_matrix_assembly( dof_descriptor, finite_element, f_matrix, iblock, jblock )
           end if 
@@ -125,7 +125,7 @@ contains
 
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
-          f_matrix => a%get_block(iblock,jblock)
+          f_matrix => a%blocks(iblock,jblock)%p_f_matrix
           if ( associated(f_matrix) ) then
             do i = 1,2
                call element_matrix_assembly( dof_descriptor, finite_element(i), f_matrix, iblock, jblock )
