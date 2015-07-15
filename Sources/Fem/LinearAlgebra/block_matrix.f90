@@ -48,7 +48,7 @@ use memor_names
   ! Block Matrix
   !type, extends(base_operator_t):: block_matrix_t
   type :: block_matrix_t
-    private
+!    private ! IBM XLF 14.1 bug
     integer(ip)                     :: nblocks = -1
     type(p_matrix_t), allocatable :: blocks(:,:)
   contains
@@ -89,7 +89,7 @@ contains
     allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks) )
     do ib=1, bmat%nblocks 
       do jb=1, bmat%nblocks
-           f_graph => bgraph%get_block(ib,jb)
+           f_graph => bgraph%blocks(ib,jb)%p_f_graph
            if (associated(f_graph)) then
               allocate ( bmat%blocks(ib,jb)%p_f_matrix )
               if ( (ib == jb) .and. present(sign) ) then

@@ -58,7 +58,7 @@ use iso_c_binding
 
   ! Block operator
   type, extends(base_operator_t) :: block_operator_t
-     private
+!     private ! IBM XLF 14.1 bug
      integer(ip)                       :: nblocks, mblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)
    contains

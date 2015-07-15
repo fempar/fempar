@@ -48,7 +48,7 @@ use iso_c_binding
 
   ! Lower block triangular preconditioner 
   type, extends(base_operator_t) :: block_preconditioner_l_t
-     private
+!     private ! IBM XLF 14.1 bug
      integer(ip)                       :: nblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)
    contains
