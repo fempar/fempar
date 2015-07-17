@@ -58,6 +58,7 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_momentum_operator
      procedure :: free  => free_momentum_operator
+     procedure :: compute_vector => compute_vector_momentum_operator
   end type momentum_operator_t
   
   type, extends(picard_nonlinear_operator_t) :: pressure_operator_t 
@@ -77,6 +78,7 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_pressure_operator
      procedure :: free  => free_pressure_operator
+     procedure :: compute_vector => compute_vector_pressure_operator
   end type pressure_operator_t
   
   type, extends(picard_nonlinear_operator_t) :: momentum_update_operator_t 
@@ -93,6 +95,7 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_momentum_update_operator
      procedure :: free  => free_momentum_update_operator
+     procedure :: compute_vector => compute_vector_momentum_update_operator
   end type momentum_update_operator_t
   
   type, extends(picard_nonlinear_operator_t) :: projection_update_operator_t 
@@ -109,6 +112,7 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_projection_update_operator
      procedure :: free  => free_projection_update_operator
+     procedure :: compute_vector => compute_vector_projection_update_operator
   end type projection_update_operator_t
 
  ! Types
@@ -235,7 +239,6 @@ contains
     ! Construct abstract operator for UU block
     nlop%A_uu =  nlop%dt * nlop%Am%get_block(1,1)  +  nlop%aii * nlop%Al%get_block(1,1) + &
          &       nlop%aii * nlop%Anl%get_block(1,1)
-!!$    nlop%A_uu = nlop%dt * nlop%Am%get_block(1,1)
 
     ! Create inverse operator for Block UU
     call nlop%inv_A_uu%create(nlop%A_uu,nlop%u_preconditioner,nlop%sctrl_A_uu,env)
@@ -246,9 +249,6 @@ contains
     call nlop%A_momentum%set_block(1,2,nlop%aii*nlop%block_matrix_nl%get_block(1,3))
     call nlop%A_momentum%set_block(2,1,nlop%aii*nlop%block_matrix_nl%get_block(3,1))
     call nlop%A_momentum%set_block(2,2,nlop%aii*nlop%block_matrix_nl%get_block(3,3))  
-!!$    call nlop%A_momentum%set_block(1,2,nlop%block_matrix_nl%get_block(1,3))
-!!$    call nlop%A_momentum%set_block(2,1,nlop%block_matrix_nl%get_block(3,1))
-!!$    call nlop%A_momentum%set_block(2,2,nlop%block_matrix_nl%get_block(3,3))  
     
     ! Create Mass BCs operand
     call nlop%bm%create(2)
@@ -269,9 +269,6 @@ contains
     call nlop%brhs%create(2)
     call nlop%brhs%set_block(1,nlop%block_vector%blocks(1))
     call nlop%brhs%set_block(2,nlop%block_vector%blocks(3))
-    
-    ! Construct global operand
-    nlop%b_momentum = nlop%dt * nlop%bm + nlop%aii * nlop%bl + nlop%aii * nlop%bnl + nlop%brhs   
 
     ! Construct solution operand
     call nlop%x_momentum%create(2)
@@ -292,6 +289,16 @@ contains
          &           A_int_n = nlop%block_matrix_nl,b_int_n = nlop%block_vector_nl)
     
   end subroutine build_momentum_operator
+
+  !==================================================================================================
+  subroutine compute_vector_momentum_operator(nlop)
+    implicit none
+    class(momentum_operator_t), intent(inout) :: nlop
+    
+    ! Construct global operand
+    nlop%b_momentum = nlop%dt * nlop%bm + nlop%aii * nlop%bl + nlop%aii * nlop%bnl + nlop%brhs
+    
+  end subroutine compute_vector_momentum_operator
 
   !==================================================================================================
   subroutine build_pressure_operator(nlop,blk_graph)
@@ -375,6 +382,15 @@ contains
   end subroutine build_pressure_operator
 
   !==================================================================================================
+  subroutine compute_vector_pressure_operator(nlop)
+    implicit none
+    class(pressure_operator_t), intent(inout) :: nlop
+    
+    ! Dummy
+    
+  end subroutine compute_vector_pressure_operator
+
+  !==================================================================================================
   subroutine build_momentum_update_operator(nlop,blk_graph)
     implicit none
     class(momentum_update_operator_t), intent(inout) :: nlop
@@ -432,6 +448,15 @@ contains
          &           nlop%block_unknown, A_int_t=nlop%block_matrix, b_int_t=nlop%block_vector)
     
   end subroutine build_momentum_update_operator
+
+  !==================================================================================================
+  subroutine compute_vector_momentum_update_operator(nlop)
+    implicit none
+    class(momentum_update_operator_t), intent(inout) :: nlop
+    
+    ! Dummy
+    
+  end subroutine compute_vector_momentum_update_operator
 
  !==================================================================================================
   subroutine build_projection_update_operator(nlop,blk_graph)
@@ -491,6 +516,15 @@ contains
          &           nlop%block_unknown, A_int_t=nlop%block_matrix, b_int_t=nlop%block_vector)
     
   end subroutine build_projection_update_operator
+
+  !==================================================================================================
+  subroutine compute_vector_projection_update_operator(nlop)
+    implicit none
+    class(projection_update_operator_t), intent(inout) :: nlop
+    
+    ! Dummy
+    
+  end subroutine compute_vector_projection_update_operator
 
   !==================================================================================================
   subroutine free_momentum_operator(nlop)
@@ -781,9 +815,9 @@ program test_blk_nsi_cg_iss_oss_rk
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
   rkinteg%dtinv   = 1.0_rp
   rkinteg%ftime   = 1.0_rp
-  mydisc%kfl_proj = 1
-  mydisc%kfl_lump = 1
-  myprob%kfl_conv = 1
+  mydisc%kfl_proj = 0
+  mydisc%kfl_lump = 0
+  myprob%kfl_conv = 0
   myprob%diffu    = 1.0_rp
 
   ! Create dof_descriptor
@@ -803,8 +837,8 @@ program test_blk_nsi_cg_iss_oss_rk
   
   ! Create fe_space
   call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material, &
-       &               which_approx,time_steps_to_store=3, hierarchical_basis=.false.,           &
-       &               static_condensation=.false.,num_continuity=1)
+       &               which_approx,time_steps_to_store=3+rkinteg%rk_table_implicit%stage,       &
+       &               hierarchical_basis=.false.,static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
   call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
@@ -814,7 +848,7 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Assign analytical solution
   if(gdata%ndime==2) then
-     call fe_space%set_analytical_code((/4,5,3,0,0/),(/1,1,0,0,0/))
+     call fe_space%set_analytical_code((/1,2,3,0,0/),(/1,1,0,0,0/))
   else
      write(*,*) 'analytical function not ready for 3D'
   end if
@@ -866,8 +900,10 @@ program test_blk_nsi_cg_iss_oss_rk
   call mydisc%free
   call error_compute%free
   call cg_iss_oss_rk_momentum%free
+  call cg_iss_oss_rk_momentum_rhs%free
   call cg_iss_oss_rk_pressure%free
-  call cg_iss_oss_rk_pressure%free
+  call cg_iss_oss_rk_momentum_update%free
+  call cg_iss_oss_rk_projection_update%free
   call lapla_p_integration%free
   call mass_u_integration%free
   call mass_x_integration%free
@@ -997,39 +1033,53 @@ contains
        ! Current time
        prevtime = rkinteg%ctime
        rkinteg%ctime = rkinteg%ctime + 1.0_rp/rkinteg%dtinv
-       write(*,*) '============================================================'
-       write(*,*) 'Time step: ',istep,',  Current time: ',rkinteg%ctime
+       write(*,'(a)') '============================================================'
+       write(*,'(a15,i8,a,a20,e15.8)') 'Time step:     ',istep,', ','Current time: ',rkinteg%ctime
 
        ! Loop over stages
-       stage: do istage=1,rkinteg%rk_table(1)%p%stage
+       stage: do istage=1,1!rkinteg%rk_table(1)%p%stage
 
           ! Set current time
           ctime = prevtime + 1.0_rp/rkinteg%dtinv*rkinteg%rk_table(1)%p%c(istage)
           rkinteg%istage = istage
+          write(*,'(a)') '------------------------------------------------------------'
+          write(*,'(a20,i3,a,a21,e15.8)') 'Runge-Kutta stage:  ',istage,',','Current time: ',ctime
 
           ! Set momentum operator scalars
           momentum_operator%dt  = rkinteg%dtinv
           momentum_operator%aii = rkinteg%rk_table_implicit%A(istage,istage)
+         
+          ! Skip 1st stage
+          if(istage==1.and.momentum_operator%aii==0) then
+             write(*,*) 'First stage skipped for momentum equation.'
+             ! (U_n --> U_1)
+             call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,3,3+1)
+          else
           
-          ! Update analytical/time dependent boundary conditions
-          call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
+             ! Update analytical/time dependent boundary conditions
+             call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
 
-          ! Compute momentum transient operators
-          approx(1)%p => momentum_integration
-          momentum_integration%integration_stage = update_transient
-          call momentum_operator%fill_transient(approx,fe_space) 
-          
-          ! Compute momentum operand (RHS)
-          approx(1)%p => momentum_rhs_integration
-          call volume_integral(approx,fe_space,momentum_operator%block_vector)
-          
-          ! Momentum equation solution
-          approx(1)%p => momentum_integration
-          call momentum_operator%apply(sctrl,senv,approx,fe_space)
+             ! Compute momentum transient operators
+             approx(1)%p => momentum_integration
+             momentum_integration%integration_stage = update_transient
+             call momentum_operator%fill_transient(approx,fe_space) 
+
+             ! Compute momentum operand (RHS)
+             approx(1)%p => momentum_rhs_integration
+             call volume_integral(approx,fe_space,momentum_operator%block_vector)
+
+             ! Momentum equation solution
+             approx(1)%p => momentum_integration
+             call momentum_operator%apply(sctrl,senv,approx,fe_space)
+
+             ! Store unkno to istage position (U --> U_i)
+             call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)             
+
+          end if
 
           !**************************** NSI specific tasks *****************************************!
           ! Update boundary conditions (velocity derivative)
-          !!!!!!!!!!!!! TO DO !!!!!!!!!!!!!!
+          call update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,fe_space,2)
 
           ! Compute pressure transient operators
           approx(1)%p => pressure_integration
@@ -1040,43 +1090,50 @@ contains
           approx(1)%p => pressure_integration
           tinteg%ctime = ctime
           call pressure_operator%apply(sctrl,senv,approx,fe_space)
+
+          ! Store unkno to istage position (P --> P_i)
+          call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)        
           !*****************************************************************************************!        
 
        end do stage
 
-       ! Update analytical/time dependent boundary conditions
-       ctime = rkinteg%ctime
-       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
-
-       ! Compute momentum update transient operators
-       approx(1)%p => momentum_update_integration
-       momentum_update_integration%integration_stage = update_transient
-       call momentum_update_operator%fill_transient(approx,fe_space) 
-       
-       ! Momentum update equation solution
-       approx(1)%p => momentum_update_integration
-       call momentum_update_operator%apply(sctrl,senv,approx,fe_space)
-
-       !**************************** NSI specific tasks *****************************************!
-       ! Compute projection transient operators
-       approx(1)%p => projection_update_integration
-       projection_update_integration%integration_stage = update_transient
-       call projection_update_operator%fill_transient(approx,fe_space) 
-
-       ! Projection update equation solution
-       approx(1)%p => projection_update_integration
-       call projection_update_operator%apply(sctrl,senv,approx,fe_space)
-
-       ! Compute pressure transient operators
-       approx(1)%p => pressure_integration
-       pressure_integration%integration_stage = update_transient
-       call pressure_operator%fill_transient(approx,fe_space) 
-       
-       ! Pressure equation solution
-       approx(1)%p => pressure_integration
-       tinteg%ctime = ctime
-       call pressure_operator%apply(sctrl,senv,approx,fe_space)
-       !*****************************************************************************************! 
+!!$       ! Set current time
+!!$       ctime = rkinteg%ctime
+!!$       write(*,'(a)') '------------------------------------------------------------'
+!!$       write(*,'(a24,a21,e15.8)') 'Runge-Kutta update      ','Current time: ',ctime
+!!$
+!!$       ! Update analytical/time dependent boundary conditions
+!!$       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
+!!$
+!!$       ! Compute momentum update transient operators
+!!$       approx(1)%p => momentum_update_integration
+!!$       momentum_update_integration%integration_stage = update_transient
+!!$       call momentum_update_operator%fill_transient(approx,fe_space) 
+!!$       
+!!$       ! Momentum update equation solution
+!!$       approx(1)%p => momentum_update_integration
+!!$       call momentum_update_operator%apply(sctrl,senv,approx,fe_space)
+!!$
+!!$       !**************************** NSI specific tasks *****************************************!
+!!$       ! Compute projection transient operators
+!!$       approx(1)%p => projection_update_integration
+!!$       projection_update_integration%integration_stage = update_transient
+!!$       call projection_update_operator%fill_transient(approx,fe_space) 
+!!$
+!!$       ! Projection update equation solution
+!!$       approx(1)%p => projection_update_integration
+!!$       call projection_update_operator%apply(sctrl,senv,approx,fe_space)
+!!$
+!!$       ! Compute pressure transient operators
+!!$       approx(1)%p => pressure_integration
+!!$       pressure_integration%integration_stage = update_transient
+!!$       call pressure_operator%fill_transient(approx,fe_space) 
+!!$       
+!!$       ! Pressure equation solution
+!!$       approx(1)%p => pressure_integration
+!!$       tinteg%ctime = ctime
+!!$       call pressure_operator%apply(sctrl,senv,approx,fe_space)
+!!$       !*****************************************************************************************!  
 
        ! Check steady state
 

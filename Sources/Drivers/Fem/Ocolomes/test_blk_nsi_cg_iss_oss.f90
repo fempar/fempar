@@ -60,6 +60,7 @@ module my_nonlinear_operator_names
      procedure :: build => build_nonlinear_operator
      procedure :: free  => free_nonlinear_operator
      procedure :: set_preconditioner_flags
+     procedure :: compute_vector => compute_vector_nonlinear_operator     
   end type my_nonlinear_operator_t
 
   ! Types
@@ -193,6 +194,15 @@ contains
          &           b_int_n=nlop%block_vector)
     
   end subroutine build_nonlinear_operator
+
+  !==================================================================================================
+  subroutine compute_vector_nonlinear_operator(nlop)
+    implicit none
+    class(my_nonlinear_operator_t), intent(inout) :: nlop
+    
+    ! Dummy
+    
+  end subroutine compute_vector_nonlinear_operator
 
   !==================================================================================================
   subroutine free_nonlinear_operator(nlop)

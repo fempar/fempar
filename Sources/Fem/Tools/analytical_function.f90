@@ -37,22 +37,28 @@ module analytical_function_names
 contains
 
   !==================================================================================================
-  subroutine evaluate_analytical(case_spatial,case_temporal,ndime,coord,time,values,alpha,beta,gamma)
+  subroutine evaluate_analytical(case_spatial,case_temporal,ndime,coord,time,values,alpha,beta,gamma, &
+       &                         tvar)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine evaluates the scalar components for an analytical solution.                !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    integer(ip)       , intent(in)    :: case_spatial,case_temporal,ndime
-    real(rp)          , intent(inout) :: values(11)
-    real(rp)          , intent(in)    :: coord(ndime),time
-    real(rp), optional, intent(in)    :: alpha,beta,gamma
+    integer(ip)          , intent(in)    :: case_spatial,case_temporal,ndime
+    real(rp)             , intent(inout) :: values(11)
+    real(rp)             , intent(in)    :: coord(ndime),time
+    real(rp), optional   , intent(in)    :: alpha,beta,gamma
+    integer(ip), optional, intent(in)    :: tvar
     ! Locals
     real(rp) :: spatial_values(10)
     real(rp) :: temporal_values(3)
     
     call evaluate_analytical_spatial(case_spatial,ndime,coord,time,spatial_values,alpha,beta)
     call evaluate_analytical_temporal(case_temporal,time,temporal_values,gamma)
-    values(1:10) = spatial_values(:)*temporal_values(1)
+    if(present(tvar)) then       
+       values(1:10) = spatial_values(:)*temporal_values(tvar)
+    else
+       values(1:10) = spatial_values(:)*temporal_values(1)
+    end if
     values(11) = spatial_values(1)*temporal_values(2)  ! temporal derivative
 
   end subroutine evaluate_analytical

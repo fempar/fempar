@@ -732,74 +732,74 @@ contains
     type(block_operand_t)           :: y
     logical                         :: exit_loop
 
-    ! Assign operators
-    A => la%block_operator
-    M => la%block_preconditioner
-    b => la%block_operand_vec
-    x => la%block_operand_unk
-
-    call p_env%info(me,np)
-    
-    iiter = 0
-    do while( iiter < maxit )
-
-       ! Update counter
-       iiter = iiter+1
-
-       ! Initialize Matrix and vector
-       ! ***************** Abstract procedure to initialize a base_operator ************************!
-       call par_block_matrix_zero(la%p_blk_matrix)
-       !********************************************************************************************!
-       call b%init(0.0_rp)
-
-       ! Integrate system
-       !call volume_integral(approx,fe_space,A,b)
-       ! ************ Abstract integration of a base_operator and/or base_operand*******************!
-       call par_volume_integral(approx,p_fe_space,la%p_blk_matrix,la%p_blk_vector)
-       !********************************************************************************************!
-
-       ! Check convergence
-       if(iiter==1) ininorm = b%nrm2()  
-       y = b - A*x 
-       resnorm = y%nrm2()
-       exit_loop = ( resnorm < nltol*ininorm)
-       call p_env%bcast(exit_loop)
-       if( exit_loop ) then
-          if(me==0) then
-             write(*,*) 'Nonlinear iterations: ', iiter
-             write(*,*) 'Nonlinear error norm: ', resnorm
-          end if
-          exit
-       end if
-
-       ! Compute Numeric preconditioner
-       ! ***************** Abstract procedure to compute precond numeric ***************************!
-       !call compute_preconditioner(la)
-       call M%fill_values()
-       !********************************************************************************************!
-
-       ! Solve system
-       call abstract_solve(A,M,b,x,sctrl,env)
-       call solver_control_log_conv_his(sctrl)
-       call solver_control_free_conv_his(sctrl)
-
-       ! Free Numeric preconditioner
-       ! ******************** Abstract procedure to free precond numeric ***************************!
-       call free_preconditioner(la)
-       !********************************************************************************************!
-       
-       ! Store solution to unkno
-       ! ***************** Abstract procedure to update from a base operant ************************!
-       call par_update_solution(la%p_blk_unknown,p_fe_space)
-       !********************************************************************************************!
-       
-       ! Store nonlinear iteration ( k+1 --> k )
-       call par_update_nonlinear_solution(p_fe_space)
-       
-    end do
-
-    ! Deallocate
-    call y%free()
+!!$    ! Assign operators
+!!$    A => la%block_operator
+!!$    M => la%block_preconditioner
+!!$    b => la%block_operand_vec
+!!$    x => la%block_operand_unk
+!!$
+!!$    call p_env%info(me,np)
+!!$    
+!!$    iiter = 0
+!!$    do while( iiter < maxit )
+!!$
+!!$       ! Update counter
+!!$       iiter = iiter+1
+!!$
+!!$       ! Initialize Matrix and vector
+!!$       ! ***************** Abstract procedure to initialize a base_operator ************************!
+!!$       call par_block_matrix_zero(la%p_blk_matrix)
+!!$       !********************************************************************************************!
+!!$       call b%init(0.0_rp)
+!!$
+!!$       ! Integrate system
+!!$       !call volume_integral(approx,fe_space,A,b)
+!!$       ! ************ Abstract integration of a base_operator and/or base_operand*******************!
+!!$       call par_volume_integral(approx,p_fe_space,la%p_blk_matrix,la%p_blk_vector)
+!!$       !********************************************************************************************!
+!!$
+!!$       ! Check convergence
+!!$       if(iiter==1) ininorm = b%nrm2()  
+!!$       y = b - A*x 
+!!$       resnorm = y%nrm2()
+!!$       exit_loop = ( resnorm < nltol*ininorm)
+!!$       call p_env%bcast(exit_loop)
+!!$       if( exit_loop ) then
+!!$          if(me==0) then
+!!$             write(*,*) 'Nonlinear iterations: ', iiter
+!!$             write(*,*) 'Nonlinear error norm: ', resnorm
+!!$          end if
+!!$          exit
+!!$       end if
+!!$
+!!$       ! Compute Numeric preconditioner
+!!$       ! ***************** Abstract procedure to compute precond numeric ***************************!
+!!$       !call compute_preconditioner(la)
+!!$       call M%fill_values()
+!!$       !********************************************************************************************!
+!!$
+!!$       ! Solve system
+!!$       call abstract_solve(A,M,b,x,sctrl,env)
+!!$       call solver_control_log_conv_his(sctrl)
+!!$       call solver_control_free_conv_his(sctrl)
+!!$
+!!$       ! Free Numeric preconditioner
+!!$       ! ******************** Abstract procedure to free precond numeric ***************************!
+!!$       call free_preconditioner(la)
+!!$       !********************************************************************************************!
+!!$       
+!!$       ! Store solution to unkno
+!!$       ! ***************** Abstract procedure to update from a base operant ************************!
+!!$       call par_update_solution(la%p_blk_unknown,p_fe_space)
+!!$       !********************************************************************************************!
+!!$       
+!!$       ! Store nonlinear iteration ( k+1 --> k )
+!!$       call par_update_nonlinear_solution(p_fe_space)
+!!$       
+!!$    end do
+!!$
+!!$    ! Deallocate
+!!$    call y%free()
 
   end subroutine nonlinear_iteration
 

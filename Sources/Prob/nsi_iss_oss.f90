@@ -229,6 +229,8 @@ contains
     class(nsi_cg_iss_oss_matvec_t)   , intent(inout) :: approx
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -242,6 +244,12 @@ contains
        class default
        check(.false.)
     end select
+
+    ! Allocate working variables
+    call memalloc(discret%nvars,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,discret%nvars
+       approx%working_vars(ivar) = ivar
+    end do
 
   end subroutine nsi_matvec_create
 
@@ -256,6 +264,9 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine nsi_matvec_free
 
   !=================================================================================================
@@ -267,6 +278,8 @@ contains
     class(nsi_cg_iss_oss_massu_t)    , intent(inout) :: approx
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -280,6 +293,12 @@ contains
        class default
        check(.false.)
     end select
+
+    ! Allocate working variables
+    call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,physics%ndime
+       approx%working_vars(ivar) = ivar
+    end do
 
   end subroutine nsi_massu_create
 
@@ -294,6 +313,9 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine nsi_massu_free
 
   !=================================================================================================
@@ -305,6 +327,8 @@ contains
     class(nsi_cg_iss_oss_massp_t)    , intent(inout) :: approx
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -318,6 +342,10 @@ contains
        class default
        check(.false.)
     end select
+
+    ! Allocate working variables
+    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
+    approx%working_vars(1) = physics%ndime+1
 
   end subroutine nsi_massp_create
 
@@ -332,6 +360,9 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine nsi_massp_free
 
   !=================================================================================================
@@ -343,6 +374,8 @@ contains
     class(nsi_cg_iss_oss_massx_t)    , intent(inout) :: approx
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -357,6 +390,12 @@ contains
        check(.false.)
     end select
 
+    ! Allocate working variables
+    call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,physics%ndime
+       approx%working_vars(ivar) = physics%ndime + 1 + ivar
+    end do
+
   end subroutine nsi_massx_create
 
   !=================================================================================================
@@ -369,6 +408,9 @@ contains
 
     approx%physics => null()
     approx%discret => null()
+
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
 
   end subroutine nsi_massx_free
 
@@ -395,6 +437,10 @@ contains
        check(.false.)
     end select
 
+    ! Allocate working variables
+    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
+    approx%working_vars(1) = physics%ndime+1
+
   end subroutine nsi_lapla_p_create
 
   !=================================================================================================
@@ -408,6 +454,9 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine nsi_lapla_p_free
 
   !=================================================================================================
@@ -419,6 +468,8 @@ contains
     class(nsi_cg_iss_oss_rk_momentum_t), intent(inout) :: approx
     class(physical_problem_t)  , target, intent(in)    :: physics
     class(discrete_problem_t)  , target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -431,7 +482,16 @@ contains
        approx%discret => discret
        class default
        check(.false.)
-    end select
+    end select 
+
+   ! Allocate working variables
+    call memalloc(2*physics%ndime,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,physics%ndime
+       approx%working_vars(ivar) = ivar
+    end do
+    do ivar=1,physics%ndime
+       approx%working_vars( physics%ndime + ivar) = physics%ndime + 1 + ivar
+    end do
 
   end subroutine nsi_rk_momentum_create
 
@@ -446,6 +506,9 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine nsi_rk_momentum_free
 
   !=================================================================================================
@@ -457,6 +520,8 @@ contains
     class(nsi_cg_iss_oss_rk_momentum_rhs_t), intent(inout) :: approx
     class(physical_problem_t)      , target, intent(in)    :: physics
     class(discrete_problem_t)      , target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -471,6 +536,15 @@ contains
        check(.false.)
     end select
 
+   ! Allocate working variables
+    call memalloc(2*physics%ndime,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,physics%ndime
+       approx%working_vars(ivar) = ivar
+    end do
+    do ivar=1,physics%ndime
+       approx%working_vars( physics%ndime + ivar) = physics%ndime + 1 + ivar
+    end do
+
   end subroutine nsi_rk_momentum_rhs_create
 
   !=================================================================================================
@@ -483,6 +557,9 @@ contains
 
     approx%physics => null()
     approx%discret => null()
+
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
 
   end subroutine nsi_rk_momentum_rhs_free
 
@@ -509,6 +586,10 @@ contains
        check(.false.)
     end select
 
+    ! Allocate working variables
+    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
+    approx%working_vars(1) = physics%ndime+1
+
   end subroutine nsi_rk_pressure_create
 
   !=================================================================================================
@@ -522,6 +603,9 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine nsi_rk_pressure_free
 
   !=================================================================================================
@@ -533,6 +617,8 @@ contains
     class(nsi_cg_iss_oss_rk_momentum_update_t), intent(inout) :: approx
     class(physical_problem_t)  , target, intent(in)    :: physics
     class(discrete_problem_t)  , target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -546,6 +632,12 @@ contains
        class default
        check(.false.)
     end select
+
+   ! Allocate working variables
+    call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,physics%ndime
+       approx%working_vars(ivar) = ivar
+    end do
 
   end subroutine nsi_rk_momentum_update_create
 
@@ -560,6 +652,9 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine nsi_rk_momentum_update_free
 
   !=================================================================================================
@@ -571,6 +666,8 @@ contains
     class(nsi_cg_iss_oss_rk_projection_update_t), intent(inout) :: approx
     class(physical_problem_t)  , target, intent(in)    :: physics
     class(discrete_problem_t)  , target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
 
     select type (physics)
     type is(nsi_problem_t)
@@ -585,6 +682,12 @@ contains
        check(.false.)
     end select
 
+    ! Allocate working variables
+    call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,physics%ndime
+       approx%working_vars(ivar) = physics%ndime + 1 + ivar
+    end do
+
   end subroutine nsi_rk_projection_update_create
 
   !=================================================================================================
@@ -597,6 +700,9 @@ contains
 
     approx%physics => null()
     approx%discret => null()
+
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
 
   end subroutine nsi_rk_projection_update_free
 

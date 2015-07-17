@@ -76,7 +76,7 @@ contains
   end subroutine update_strong_dirichlet_bcond
 
   !==================================================================================================
-  subroutine update_analytical_bcond(vars_of_unk,ctime,fe_space)
+  subroutine update_analytical_bcond(vars_of_unk,ctime,fe_space,tvar)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine updates Dirichlet boundary conditions in unkno from an analytical solution. !
     !-----------------------------------------------------------------------------------------------!
@@ -84,6 +84,7 @@ contains
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     real(rp)             , intent(in)    :: ctime
     type(fe_space_t)     , intent(inout) :: fe_space
+    integer(ip), optional, intent(in)    :: tvar
     ! Locals
     integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
     integer(ip) :: nvars,ivar,gvar,gnode,unode,cnt
@@ -126,7 +127,7 @@ contains
                       ! Evaluate analytical unknown
                       call evaluate_analytical(fe_space%finite_elements(ielem)%p_analytical_code%a(ivar,1), &
                            &                   fe_space%finite_elements(ielem)%p_analytical_code%a(ivar,2), &
-                           &                   ndime,coord(:,lnode),ctime,param)
+                           &                   ndime,coord(:,lnode),ctime,param,tvar=tvar)
 
                       fe_space%finite_elements(ielem)%unkno(lnode,ivar,1) = param(1)
 
@@ -228,19 +229,37 @@ contains
   end subroutine update_solution_block
 
   !==================================================================================================
-  subroutine update_nonlinear_solution(fe_space)
+  subroutine update_nonlinear_solution(fe_space,working_vars,origin,current)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the previous nonlinear solution.                                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fe_space_t), intent(inout) :: fe_space
+    type(fe_space_t)     , intent(inout) :: fe_space
+    integer(ip)          , intent(in)    :: working_vars(:)
+    integer(ip), optional, intent(in)    :: origin,current
     ! Locals
-    integer(ip) :: ielem
+    integer(ip) :: ielem,ivar,origin_,current_,nvars
+
+    nvars = size(working_vars,1)
+
+    ! Set stored steps
+    if(present(origin)) then
+       origin_ = origin
+    else
+       origin_ = 1
+    end if
+    if(present(current)) then
+       current_ = current
+    else
+       current_ = 2
+    end if
     
-    ! Loop over elements
+    ! Update unkno
     do ielem = 1, fe_space%g_trian%num_elems
-       ! Update unkno
-       fe_space%finite_elements(ielem)%unkno(:,:,2) = fe_space%finite_elements(ielem)%unkno(:,:,1)
+       do ivar = 1,nvars
+          fe_space%finite_elements(ielem)%unkno(:,working_vars(ivar),current_) = &
+               &    fe_space%finite_elements(ielem)%unkno(:,working_vars(ivar),origin_)
+       end do
     end do
     
   end subroutine update_nonlinear_solution

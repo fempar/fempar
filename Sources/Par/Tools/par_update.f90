@@ -162,12 +162,14 @@ contains
   end subroutine par_update_solution_block 
 
   !==================================================================================================
-  subroutine par_update_nonlinear_solution(p_fe_space)
+  subroutine par_update_nonlinear_solution(p_fe_space,working_vars,origin,current)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the previous nonlinear solution.                                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_fe_space_t), intent(inout) :: p_fe_space
+    type(par_fe_space_t) , intent(inout) :: p_fe_space
+    integer(ip)          , intent(in)    :: working_vars(:)
+    integer(ip), optional, intent(in)    :: origin,current
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_fe_space%p_trian) )
@@ -175,7 +177,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_nonlinear_solution(p_fe_space%fe_space)
+       call update_nonlinear_solution(p_fe_space%fe_space,working_vars,origin,current)
     end if
 
   end subroutine par_update_nonlinear_solution

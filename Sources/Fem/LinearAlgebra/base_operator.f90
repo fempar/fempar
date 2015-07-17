@@ -808,10 +808,8 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
     
-    if(op%fill_values_stage == stage_) then
-       call op%op1%fill_values(stage_)
-       call op%op2%fill_values(stage_)
-    end if
+    call op%op1%fill_values(stage_)
+    call op%op2%fill_values(stage_)
 
   end subroutine binary_operator_fill_values
 
@@ -825,16 +823,14 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
 
-    if(op%fill_values_stage==stage_) then
-       if(associated(op%op_stored)) then
-          assert(.not.associated(op%op))
-          call op%op_stored%fill_values(stage_)
-       else if(associated(op%op)) then
-          assert(.not.associated(op%op_stored))
-          call op%op%fill_values(stage_)
-       else
-          check(1==0)
-       end if
+    if(associated(op%op_stored)) then
+       assert(.not.associated(op%op))
+       call op%op_stored%fill_values(stage_)
+    else if(associated(op%op)) then
+       assert(.not.associated(op%op_stored))
+       call op%op%fill_values(stage_)
+    else
+       check(1==0)
     end if
 
   end subroutine abs_operator_fill_values
@@ -849,7 +845,7 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
 
-    if(op%fill_values_stage==stage_) call op%op%fill_values(stage_)
+    call op%op%fill_values(stage_)
 
   end subroutine minus_operator_fill_values
 
@@ -863,7 +859,7 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
 
-    if(op%fill_values_stage==stage_) call op%op%fill_values(stage_)
+    call op%op%fill_values(stage_)
 
   end subroutine scal_operator_fill_values
 
@@ -875,10 +871,8 @@ contains
     implicit none
     class(binary_operator_t), intent(inout) :: op
     
-    if(op%do_free_values) then
-       call op%op1%free_values()
-       call op%op2%free_values()
-    end if
+    call op%op1%free_values()
+    call op%op2%free_values()
 
   end subroutine binary_operator_free_values
 
@@ -886,16 +880,14 @@ contains
     implicit none
     class(abs_operator_t), intent(inout) :: op
 
-    if(op%do_free_values) then
-       if(associated(op%op_stored)) then
-          assert(.not.associated(op%op))
-          call op%op_stored%free_values()
-       else if(associated(op%op)) then
-          assert(.not.associated(op%op_stored))
-          call op%op%free_values()
-       else
-          check(1==0)
-       end if
+    if(associated(op%op_stored)) then
+       assert(.not.associated(op%op))
+       call op%op_stored%free_values()
+    else if(associated(op%op)) then
+       assert(.not.associated(op%op_stored))
+       call op%op%free_values()
+    else
+       check(1==0)
     end if
 
   end subroutine abs_operator_free_values
@@ -904,7 +896,7 @@ contains
     implicit none
     class(minus_operator_t), intent(inout) :: op
 
-    if(op%do_free_values) call op%op%free_values()
+    call op%op%free_values()
 
   end subroutine minus_operator_free_values
 
@@ -912,7 +904,7 @@ contains
     implicit none
     class(scal_operator_t), intent(inout) :: op
 
-    if(op%do_free_values) call op%op%free_values()
+    call op%op%free_values()
 
   end subroutine scal_operator_free_values
 

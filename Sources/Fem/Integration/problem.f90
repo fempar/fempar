@@ -70,6 +70,7 @@ module problem_names
 
   type, abstract :: discrete_integration_t
      integer(ip) :: integration_stage = update_nonlinear
+     integer(ip), allocatable :: working_vars(:)
     contains
       procedure(create_integration_interface) , deferred :: create 
       procedure(compute_integration_interface), deferred :: compute
