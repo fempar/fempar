@@ -1097,7 +1097,7 @@ contains
     real(rp)              :: dvolu,work
     real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
     type(vector_t)        :: gpvel
-    real(rp), allocatable :: elmat_vu_diag(:,:)
+    real(rp), allocatable :: elmat_wx_diag(:,:)
     
     ! Unpack variables
     ndime = approx%physics%ndime
@@ -1109,7 +1109,7 @@ contains
     finite_element%p_vec%a = 0.0_rp
     
     ! Allocate auxiliar matrices and vectors
-    call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
+    call memalloc(nnodu,nnodu,elmat_wx_diag,__FILE__,__LINE__)
 
     ! Interpolation operations for velocity
     call create_vector (approx%physics, 1, finite_element%integ, gpvel)
@@ -1119,7 +1119,7 @@ contains
     call nsi_elmvsg(approx%physics,approx%discret,finite_element,gpvel%a,tau)
 
     ! Initialize to zero
-    elmat_vu_diag = 0.0_rp
+    elmat_wx_diag = 0.0_rp
 
     ! Loop on Gauss points
     do igaus = 1,ngaus
@@ -1133,7 +1133,7 @@ contains
 
        do inode=1,nnodu
           do jnode=1,nnodu
-             elmat_vu_diag(inode,jnode) = elmat_vu_diag(inode,jnode) + work  * &
+             elmat_wx_diag(inode,jnode) = elmat_wx_diag(inode,jnode) + work  * &
                   &    finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
                   &    finite_element%integ(1)%p%uint_phy%shape(jnode,igaus)
           end do
@@ -1148,31 +1148,31 @@ contains
     if (approx%discret%kfl_lump==0) then
        do inode=1,nnodu
           do jnode=1,nnodu
-             do idime=1,ndime
-                ! Block V-U (diag)
+             do idime=ndime+1,2*ndime
+                ! Block W-X (diag)
                 idof = finite_element%start%a(idime)+inode-1
                 jdof = finite_element%start%a(idime)+jnode-1
                 finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + &
-                     &                               elmat_vu_diag(inode,jnode)
+                     &                               elmat_wx_diag(inode,jnode)
              end do
           end do
        end do
     else
        do inode=1,nnodu
           do jnode=1,nnodu
-             do idime=1,ndime
-                ! Block V-U (diag)
+             do idime=ndime+1,2*ndime
+                ! Block W-X (diag)
                 idof = finite_element%start%a(idime)+inode-1
                 jdof = finite_element%start%a(idime)+inode-1
                 finite_element%p_mat%a(idof,jdof) =  finite_element%p_mat%a(idof,jdof) + &
-                     &                               elmat_vu_diag(inode,jnode)
+                     &                               elmat_wx_diag(inode,jnode)
              end do
           end do
        end do
     end if
 
     ! Deallocate auxiliar matrices and vectors
-    call memfree(elmat_vu_diag,__FILE__,__LINE__)
+    call memfree(elmat_wx_diag,__FILE__,__LINE__)
     
   end subroutine nsi_massx
 

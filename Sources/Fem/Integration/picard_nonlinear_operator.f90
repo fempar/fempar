@@ -250,9 +250,8 @@ contains
 
        ! Check convergence
        if(iiter==1) ininorm = this%b%nrm2()   
-       y = this%b! - this%A*this%x
+       y = this%b - this%A*this%x
        resnorm = y%nrm2()
-       write(*,*) resnorm
        if( resnorm < this%nltol*ininorm) then
           write(*,*) 'Nonlinear iterations: ', iiter
           write(*,*) 'Nonlinear error norm: ', resnorm

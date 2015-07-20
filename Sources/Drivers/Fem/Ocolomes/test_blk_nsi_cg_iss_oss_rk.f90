@@ -190,7 +190,7 @@ contains
     call nlop%mass_x_matrix%set_block_to_zero(2,3)
     call nlop%mass_x_matrix%set_block_to_zero(3,1)
     call nlop%mass_x_matrix%set_block_to_zero(3,2)
-    nlop%block_matrix_m%fill_values_stage = update_transient
+    nlop%mass_x_matrix%fill_values_stage = update_nonlinear
     ! Mass BCs vector
     call nlop%block_vector_m%alloc(blk_graph)
     ! Linear BCs vector
@@ -768,11 +768,11 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Generate boundary data
   call uniform_conditions_descriptor_create(2*gdata%ndime+1,2*gdata%ndime+1,gdata%ndime,bdata)
-  bdata%poin%code(gdata%ndime+1,1:2**gdata%ndime-1) = 0
+  bdata%poin%code(gdata%ndime+1,:) = 0
   bdata%line%code(gdata%ndime+1,:) = 0
   bdata%surf%code(gdata%ndime+1,:) = 0
-  bdata%poin%code(gdata%ndime+1,2**gdata%ndime) = 1
-  bdata%poin%valu(gdata%ndime+1,2**gdata%ndime) = 0.0_rp
+  bdata%poin%code(gdata%ndime+1,1) = 1
+  bdata%poin%valu(gdata%ndime+1,1) = 0.0_rp
   bdata%poin%valu(1:gdata%ndime,:) = 1.0_rp
   bdata%line%valu(1:gdata%ndime,:) = 1.0_rp
   bdata%surf%valu(1:gdata%ndime,:) = 1.0_rp
@@ -788,7 +788,7 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Define Runge-Kutta method
   settable      = (/nstage,rk_order,rk_flag/)
-  setterms(1,:) = (/update_transient,implicit/)  ! Diffusion
+  setterms(1,:) = (/update_constant,implicit/)  ! Diffusion
   setterms(2,:) = (/update_nonlinear,implicit/)  ! Convection
   setterms(3,:) = (/update_transient,explicit/)  ! Pressure Gradient
   setterms(4,:) = (/update_nonlinear,implicit/)  ! OSS_vu
@@ -814,6 +814,7 @@ program test_blk_nsi_cg_iss_oss_rk
   cg_iss_oss_rk_pressure%tinteg  => tinteg
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
   rkinteg%dtinv   = 1.0_rp
+  tinteg%dtinv    = 1.0_rp
   rkinteg%ftime   = 1.0_rp
   mydisc%kfl_proj = 0
   mydisc%kfl_lump = 0
@@ -858,6 +859,12 @@ program test_blk_nsi_cg_iss_oss_rk
   call pressure_operator%build(blk_graph)
   call momentum_update_operator%build(blk_graph)
   call projection_update_operator%build(blk_graph)
+
+  ! Solver control parameters
+  sctrl%method = rgmres
+  sctrl%trace  = 100
+  sctrl%rtol   = 1.0e-14_rp
+  sctrl%track_conv_his = .false.
 
   ! Do time steps
   call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,senv,fe_space,momentum_operator,     &
@@ -1023,7 +1030,9 @@ contains
     call volume_integral(approx,fe_space,pressure_operator%mass_u_matrix)
     call volume_integral(approx,fe_space,momentum_update_operator%mass_u_matrix)
     approx(1)%p => mass_x_integration
-    call volume_integral(approx,fe_space,projection_update_operator%mass_x_matrix)
+    call volume_integral(approx,fe_space,momentum_operator%mass_x_matrix)
+    projection_update_operator%mass_x_matrix%blocks(3,3)%p_f_matrix%a = &
+         & momentum_operator%mass_x_matrix%blocks(3,3)%p_f_matrix%a
     ! scal --> L*dt, M/dt
     !*****************************************************************************************!
 
@@ -1037,7 +1046,7 @@ contains
        write(*,'(a15,i8,a,a20,e15.8)') 'Time step:     ',istep,', ','Current time: ',rkinteg%ctime
 
        ! Loop over stages
-       stage: do istage=1,1!rkinteg%rk_table(1)%p%stage
+       stage: do istage=1,rkinteg%rk_table(1)%p%stage
 
           ! Set current time
           ctime = prevtime + 1.0_rp/rkinteg%dtinv*rkinteg%rk_table(1)%p%c(istage)
@@ -1054,6 +1063,7 @@ contains
              write(*,*) 'First stage skipped for momentum equation.'
              ! (U_n --> U_1)
              call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,3,3+1)
+             call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,3,2)
           else
           
              ! Update analytical/time dependent boundary conditions
@@ -1061,12 +1071,22 @@ contains
 
              ! Compute momentum transient operators
              approx(1)%p => momentum_integration
+             !********************************** This is DIRTY *************************************!
+             momentum_integration%integration_stage = update_constant
+             call momentum_operator%fill_constant(approx,fe_space) 
+             !**************************************************************************************! 
              momentum_integration%integration_stage = update_transient
              call momentum_operator%fill_transient(approx,fe_space) 
 
              ! Compute momentum operand (RHS)
              approx(1)%p => momentum_rhs_integration
              call volume_integral(approx,fe_space,momentum_operator%block_vector)
+
+             !********************************** This is DIRTY *************************************!
+             momentum_operator%block_u_matrix%blocks(1,1)%p_f_matrix%a = &
+                  & momentum_operator%dt*momentum_operator%block_matrix_m%blocks(1,1)%p_f_matrix%a + &
+                  & momentum_operator%aii*momentum_operator%block_matrix_l%blocks(1,1)%p_f_matrix%a
+             !**************************************************************************************! 
 
              ! Momentum equation solution
              approx(1)%p => momentum_integration
@@ -1097,11 +1117,11 @@ contains
 
        end do stage
 
-!!$       ! Set current time
-!!$       ctime = rkinteg%ctime
-!!$       write(*,'(a)') '------------------------------------------------------------'
-!!$       write(*,'(a24,a21,e15.8)') 'Runge-Kutta update      ','Current time: ',ctime
-!!$
+       ! Set current time
+       ctime = rkinteg%ctime
+       write(*,'(a)') '------------------------------------------------------------'
+       write(*,'(a24,a21,e15.8)') 'Runge-Kutta update      ','Current time: ',ctime
+
 !!$       ! Update analytical/time dependent boundary conditions
 !!$       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
 !!$
