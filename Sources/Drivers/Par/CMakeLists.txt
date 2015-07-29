@@ -3,7 +3,7 @@
 #################################################################
 #SET(EXAMPLE_DRIVERS_PATH ${SRC_PATH}/Drivers/examples)
 #ADD_EXECUTABLE(part_new ${EXAMPLE_DRIVERS_PATH}/part_new.f90)
-#TARGET_LINK_LIBRARIES(part_new ${FEM_LIB})
+#TARGET_LINK_LIBRARIES(part_new ${SERIAL_LIB})
 
 
 
@@ -26,7 +26,7 @@ IF(MPI_Fortran_COMPILER)
             GET_FILENAME_COMPONENT(EXE_NAME ${DRIVER_SRC} NAME_WE)
             ADD_EXECUTABLE(${EXE_NAME} ${DRIVER_SRC})
             TARGET_LINK_LIBRARIES(${EXE_NAME} ${PAR_LIB})
-            TARGET_LINK_LIBRARIES(${EXE_NAME} ${FEM_LIB})
+            TARGET_LINK_LIBRARIES(${EXE_NAME} ${SERIAL_LIB})
             TARGET_LINK_LIBRARIES(${EXE_NAME} ${PROB_LIB})
 #           TARGET_LINK_LIBRARIES(${EXE_NAME} ${MPI_Fortran_LIBRARIES})
             FOREACH (EXT_LIB ${EXT_LIBS})

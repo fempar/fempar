@@ -9,7 +9,7 @@ set(PROB_SRC ${PROB_SRC} PARENT_SCOPE)
 # Prob library target
 #################################################################
 ADD_LIBRARY(${PROB_LIB} ${PROB_SRC})
-TARGET_LINK_LIBRARIES(${PROB_LIB} ${FEM_LIB})
+TARGET_LINK_LIBRARIES(${PROB_LIB} ${SERIAL_LIB})
 
 FOREACH(EXT_LIB ${EXT_LIBS})
     IF (${EXT_LIB}_FOUND)
