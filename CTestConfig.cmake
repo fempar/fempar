@@ -13,3 +13,4 @@ set(CTEST_DROP_METHOD "http")
 set(CTEST_DROP_SITE "servercomfus:8080")
 set(CTEST_DROP_LOCATION "/submit.php?project=fempar")
 set(CTEST_DROP_SITE_CDASH TRUE)
+

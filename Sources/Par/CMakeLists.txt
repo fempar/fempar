@@ -23,7 +23,7 @@ IF(MPI_Fortran_COMPILER)
 #################################################################
 
     ADD_LIBRARY(${PAR_LIB} ${PAR_SRC})
-    TARGET_LINK_LIBRARIES(${PAR_LIB} ${FEM_LIB})
+    TARGET_LINK_LIBRARIES(${PAR_LIB} ${SERIAL_LIB})
     TARGET_LINK_LIBRARIES(${PAR_LIB} ${MPI_Fortran_LIBRARIES})
     FOREACH(EXT_LIB ${EXT_LIBS})
         IF(${EXT_LIB}_FOUND)
