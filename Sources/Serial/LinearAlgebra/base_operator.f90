@@ -340,10 +340,12 @@ contains
              ! out_verbosity10_1( 'How this is possible????')
              check(1==0)
           end select
+          call op1%op_stored%GuardTemp()
        else if(associated(op2%op)) then
           assert(.not.associated(op2%op_stored))
           ! out_verbosity10_4( 'Creating abs ', op1%id, ' from abs (reassign pointer)', op2%id)
           op1%op => op2%op
+          call op1%op%GuardTemp()
        else
           ! out_verbosity10_1( 'How this is possible????')
           check(1==0)
@@ -355,10 +357,12 @@ contains
        class is(expression_operator_t)
           this = op2              ! Here = overloaded
        end select
+       call op1%op_stored%GuardTemp()
    class default                 ! Cannot be temporary (I don't know how to copy it!)
        !assert(.not.op2%IsTemp())
        !out_verbosity10_2( 'Creating abs from base_operator (point to a permanent base_operator)', op1%id)
        op1%op => op2
+       call op1%op%GuardTemp()
     end select
     ! out_verbosity10_2( 'Creating abs rhs argument has temporary counter', op2%GetTemp())
     call op2%CleanTemp()
