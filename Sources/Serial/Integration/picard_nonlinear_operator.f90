@@ -207,7 +207,7 @@ contains
     integer(ip)           :: iiter
     integer(ip)           :: napprox,iapprox
     real(rp)              :: resnorm,ininorm
-    class(base_operand_t), allocatable :: y,y2
+    class(base_operand_t), allocatable :: y
 
     ! Checks
     check(associated(this%A))
@@ -224,7 +224,6 @@ contains
 
     ! Allocate y
     allocate(y, mold=this%b); call y%default_initialization()
-    allocate(y2, mold=this%b); call y2%default_initialization()
         
     iiter = 0
     do while( iiter < this%max_iter )

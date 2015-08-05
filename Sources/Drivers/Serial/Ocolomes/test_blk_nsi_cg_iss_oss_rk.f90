@@ -43,7 +43,7 @@ module my_nonlinear_operator_names
      type(block_vector_t)              :: block_vector
      type(block_vector_t)              :: block_unknown
      type(block_operator_t)            :: Am, Al, Anl
-     type(abs_operator_t)              :: A_uu
+     type(abs_operator_t)              :: A_uu, scal_Am, scal_Al, scal_Anl
      type(block_operator_t)            :: A_momentum
      type(block_operand_t)             :: b_momentum, bm, bl, bnl, brhs
      type(block_operand_t)             :: x_momentum
@@ -160,7 +160,7 @@ contains
     call nlop%block_matrix_l%set_block_to_zero(3,1)
     call nlop%block_matrix_l%set_block_to_zero(3,2)
     call nlop%block_matrix_l%set_block_to_zero(3,3)
-    nlop%block_matrix_l%fill_values_stage = update_transient
+    nlop%block_matrix_l%fill_values_stage = update_constant
     ! Nonlinear matrix
     call nlop%block_matrix_nl%alloc(blk_graph)
     call nlop%block_matrix_nl%set_block_to_zero(1,2)
@@ -236,9 +236,13 @@ contains
     call nlop%Anl%set_block(2,1,nlop%block_matrix_nl%get_block(3,1))
     call nlop%Anl%set_block(2,2,nlop%block_matrix_nl%get_block(3,3))
 
+    ! Construct scalar products
+    nlop%scal_Am = nlop%dt * nlop%Am%get_block(1,1)
+    nlop%scal_Al = nlop%aii * nlop%Al%get_block(1,1)
+    nlop%scal_Anl = nlop%aii * nlop%Anl%get_block(1,1)
+
     ! Construct abstract operator for UU block
-    nlop%A_uu =  nlop%dt * nlop%Am%get_block(1,1)  +  nlop%aii * nlop%Al%get_block(1,1) + &
-         &       nlop%aii * nlop%Anl%get_block(1,1)
+    nlop%A_uu = nlop%scal_Am + nlop%scal_Al + nlop%scal_Anl
 
     ! Create inverse operator for Block UU
     call nlop%inv_A_uu%create(nlop%A_uu,nlop%u_preconditioner,nlop%sctrl_A_uu,env)
@@ -278,7 +282,7 @@ contains
     ! Construct global block preconditioner
     call nlop%M_momentum%create(2)
     call nlop%M_momentum%set_block(1,1,nlop%inv_A_uu)
-    call nlop%M_momentum%set_block(2,1,nlop%aii*nlop%Anl%get_block(2,1))
+    call nlop%M_momentum%set_block(2,1,nlop%aii*nlop%block_matrix_nl%get_block(3,1))
     call nlop%M_momentum%set_block(2,2,nlop%x_preconditioner)
 
     ! Fill picard nonlinear operator pointers
@@ -879,6 +883,7 @@ program test_blk_nsi_cg_iss_oss_rk
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
   approx(1)%p => error_compute
+  error_compute%ctime = rkinteg%ctime
   error_compute%unknown_id = velocity
   call enorm_u%init()
   call volume_integral(approx,fe_space,enorm_u)
@@ -1057,6 +1062,21 @@ contains
           ! Set momentum operator scalars
           momentum_operator%dt  = rkinteg%dtinv
           momentum_operator%aii = rkinteg%rk_table_implicit%A(istage,istage)
+
+          ! Update operators with scalars
+          momentum_operator%scal_Am = momentum_operator%dt * momentum_operator%Am%get_block(1,1)
+          momentum_operator%scal_Al = momentum_operator%aii * momentum_operator%Al%get_block(1,1)
+          momentum_operator%scal_Anl = momentum_operator%aii * momentum_operator%Anl%get_block(1,1)
+          momentum_operator%A_uu = momentum_operator%scal_Am + momentum_operator%scal_Al + momentum_operator%scal_Anl
+          call momentum_operator%A_momentum%set_block(1,1,momentum_operator%A_uu)
+          call momentum_operator%A_momentum%set_block(1,2, &
+               & momentum_operator%aii*momentum_operator%block_matrix_nl%get_block(1,3))
+          call momentum_operator%A_momentum%set_block(2,1, &
+               & momentum_operator%aii*momentum_operator%block_matrix_nl%get_block(3,1))
+          call momentum_operator%A_momentum%set_block(2,2, &
+               & momentum_operator%aii*momentum_operator%block_matrix_nl%get_block(3,3))  
+          call momentum_operator%M_momentum%set_block(2,1, &
+               & momentum_operator%aii*momentum_operator%block_matrix_nl%get_block(3,1))
          
           ! Skip 1st stage
           if(istage==1.and.momentum_operator%aii==0) then
@@ -1070,12 +1090,13 @@ contains
              call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
 
              ! Compute momentum transient operators
-             approx(1)%p => momentum_integration
              !********************************** This is DIRTY *************************************!
-             momentum_integration%integration_stage = update_constant
+             approx(1)%p => momentum_integration
+             momentum_integration%integration_stage = update_constant  ! Liniar operator
              call momentum_operator%fill_constant(approx,fe_space) 
              !**************************************************************************************! 
-             momentum_integration%integration_stage = update_transient
+             approx(1)%p => mass_u_integration
+             momentum_integration%integration_stage = update_transient ! Mass matrix
              call momentum_operator%fill_transient(approx,fe_space) 
 
              ! Compute momentum operand (RHS)
@@ -1088,15 +1109,20 @@ contains
                   & momentum_operator%aii*momentum_operator%block_matrix_l%blocks(1,1)%p_f_matrix%a
              !**************************************************************************************! 
 
+             call matrix_print_matrix_market(100,momentum_operator%block_matrix_m%blocks(1,1)%p_f_matrix)
+             call matrix_print_matrix_market(101,momentum_operator%block_matrix_l%blocks(1,1)%p_f_matrix)
+
              ! Momentum equation solution
              approx(1)%p => momentum_integration
              call momentum_operator%apply(sctrl,senv,approx,fe_space)
+
+             call matrix_print_matrix_market(102,momentum_operator%block_matrix_nl%blocks(3,3)%p_f_matrix)
 
              ! Store unkno to istage position (U --> U_i)
              call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)             
 
           end if
-
+             
           !**************************** NSI specific tasks *****************************************!
           ! Update boundary conditions (velocity derivative)
           call update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,fe_space,2)
@@ -1112,8 +1138,12 @@ contains
           call pressure_operator%apply(sctrl,senv,approx,fe_space)
 
           ! Store unkno to istage position (P --> P_i)
-          call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)        
-          !*****************************************************************************************!        
+          call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)   
+
+          ! Restore velocity (U_i --> U)
+          call update_nonlinear_solution(fe_space,momentum_integration%working_vars,3+istage,1) 
+          
+          !*****************************************************************************************! 
 
        end do stage
 
