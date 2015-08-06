@@ -59,7 +59,7 @@ program test_nsi_iss
 
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
-  integer(ip) :: ibloc,jbloc,istat
+  integer(ip) :: ibloc,jbloc,istat,i
   integer(ip) :: num_approximations = 1
 
   ! Allocatable
@@ -143,7 +143,8 @@ program test_nsi_iss
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
-  call update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
+  !call update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,fe_space)
+  call update_analytical_bcond((/(i, i=1,gdata%ndime)/) ,myprob%case_veloc,0.0_rp,fe_space)
   call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
   ! Integrate
