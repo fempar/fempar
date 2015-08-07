@@ -157,7 +157,8 @@ program test_nsi_iss
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
-  call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),0.0_rp,fe_space)
+  call update_analytical_bcond((/(i,i=1,gdata%ndime)/) ,myprob%case_veloc,0.0_rp,fe_space)
+  call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
   ! Solver control parameters
   sctrl%method = direct

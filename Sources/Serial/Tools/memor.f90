@@ -58,6 +58,16 @@ use types_names
 #endif
   implicit none
   private
+#ifdef memcheck
+  interface
+     subroutine cptr2igp(cptr,longip) bind(c,name='cptr2igp')
+       use iso_c_binding
+       implicit none
+       type(c_ptr), value, intent(in)  :: cptr 
+       integer(c_long)   , intent(out) :: longip
+     end subroutine cptr2igp
+  end interface
+#endif
 
   integer(ip) , save ::    &
        lumem = 0,          &  ! Logical unit to write memory evolution
@@ -262,7 +272,8 @@ contains
     integer(igp)   :: key
     type(mem_data_t) :: val, old_val
     integer(ip)    :: istat
-    key = transfer(varptr, 0_igp)
+    !key = transfer(varptr, 0_igp)
+    call cptr2igp(varptr,key)
 
     if(present(file)) val%file = file
     if(present(line)) val%line = line
@@ -293,7 +304,9 @@ contains
     integer(ip)  , intent(in), optional :: line              ! Calling line
     integer(igp)   :: key
     integer(ip)    :: istat
-    key = transfer(varptr, 0_igp)
+    !key = transfer(varptr, 0_igp)
+    call cptr2igp(varptr,key)
+
     call mem_db%del(key, istat)
     if(istat/=deleted) then
        write(*,*) 'An error ocurred deleting allocation from mem_db: ',stat(istat)

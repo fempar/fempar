@@ -487,8 +487,12 @@ contains
        num_vertices_per_subelem = 3
        num_subelems = 4
        call memalloc (num_vertices_per_subelem, num_subelems, subelem_vertices, __FILE__, __LINE__)
-       subelem_vertices = reshape((/1,4,5,4,2,6,4,6,5,5,6,3/),&
-            (/num_vertices_per_subelem,num_subelems/))
+       !subelem_vertices = reshape((/1,4,5,4,2,6,4,6,5,5,6,3/),&
+       !     (/num_vertices_per_subelem,num_subelems/))
+       subelem_vertices(:,1) = (/1,4,5/)
+       subelem_vertices(:,2) = (/4,2,6/)
+       subelem_vertices(:,3) = (/4,6,5/)
+       subelem_vertices(:,4) = (/5,6,3/)
     else if(reference_elem%ndime==3) then
        num_vertices_per_elem = 10
        num_vertices_per_subelem = 4
@@ -496,10 +500,19 @@ contains
        call memalloc (num_vertices_per_subelem, num_subelems, subelem_vertices, __FILE__, __LINE__)
        !subelem_vertices = reshape((/1,5,7,8,5,2,6,9,7,6,3,10,8,9,10,4,5,8,9,7,5,9,6,7,10,7,6,9,10,8,7,9/),&
        !subelem_vertices = reshape((/1,5,6,8,5,2,7,9,6,7,3,10,8,9,10,4,5,8,9,6,5,9,7,6,10,6,7,9,10,8,6,9/),&
-       subelem_vertices = reshape((/1,5,6,7,  5,2,8,9,  6,8,3,10,  7,9,10,4,  5,7,9,8,  5,6,9,8,  10,6,8,9,  10,7,6,9/),&
+       !subelem_vertices = reshape((/1,5,6,7,  5,2,8,9,  6,8,3,10,  7,9,10,4,  5,7,9,8,  5,6,9,8,  10,6,8,9,  10,7,6,9/),&
+
        ! The following are inverted:                                                        x
        !subelem_vertices = reshape((/1,5,6,7,  5,2,8,9,  6,8,3,10,  7,9,10,4,  5,7,9,8,  5,9,6,8,  10,6,8,9,  10,7,6,9/),& ! This is the original
-            (/num_vertices_per_subelem,num_subelems/))
+       !     (/num_vertices_per_subelem,num_subelems/))
+       subelem_vertices(:,1) = (/1,5,6,7/)
+       subelem_vertices(:,2) = (/5,2,8,9/)
+       subelem_vertices(:,3) = (/6,8,3,10/)
+       subelem_vertices(:,4) = (/7,9,10,4/)
+       subelem_vertices(:,5) = (/5,7,9,8/)
+       subelem_vertices(:,6) = (/5,6,9,8/)
+       subelem_vertices(:,7) = (/10,6,8,9/)
+       subelem_vertices(:,8) = (/10,7,6,9/)
     end if
 
     subelems_around_vertices%n = num_vertices_per_elem
