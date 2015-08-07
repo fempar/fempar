@@ -219,7 +219,7 @@ contains
     ! Set approx flags
     napprox = size(approx,1)
     do iapprox = 1,napprox
-       approx(iapprox)%p%integration_stage = update_transient
+       approx(iapprox)%p%integration_stage = update_nonlinear
     end do
 
     ! Allocate y

@@ -719,8 +719,8 @@ contains
     real(rp), allocatable :: elmat_vu_diag(:,:)
     real(rp), allocatable :: elmat_vp(:,:,:,:)
     real(rp), allocatable :: elmat_qu(:,:,:,:)
-    real(rp), allocatable :: elmat_vx(:,:,:,:)
-    real(rp), allocatable :: elmat_wu(:,:,:,:)
+    real(rp), allocatable :: elmat_vx_diag(:,:)
+    real(rp), allocatable :: elmat_wu_diag(:,:)
     real(rp), allocatable :: elmat_wx_diag(:,:)
     real(rp), allocatable :: elvec_u(:,:) 
     integer(ip)           :: igaus,idime,inode,jdime,jnode,idof,jdof
@@ -757,8 +757,8 @@ contains
     call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
     call memalloc(ndime,1,nnodu,nnodp,elmat_vp,__FILE__,__LINE__)
     call memalloc(1,ndime,nnodp,nnodu,elmat_qu,__FILE__,__LINE__)
-    call memalloc(ndime,ndime,nnodu,nnodu,elmat_vx,__FILE__,__LINE__)
-    call memalloc(ndime,ndime,nnodu,nnodu,elmat_wu,__FILE__,__LINE__)
+    call memalloc(nnodu,nnodu,elmat_vx_diag,__FILE__,__LINE__)
+    call memalloc(nnodu,nnodu,elmat_wu_diag,__FILE__,__LINE__)
     call memalloc(nnodu,nnodu,elmat_wx_diag,__FILE__,__LINE__)
     call memalloc(ndime,nnodu,elvec_u,__FILE__,__LINE__)
 
@@ -767,8 +767,8 @@ contains
     elmat_vu_diag = 0.0_rp
     elmat_vp      = 0.0_rp
     elmat_qu      = 0.0_rp
-    elmat_vx      = 0.0_rp
-    elmat_wu      = 0.0_rp
+    elmat_vx_diag = 0.0_rp
+    elmat_wu_diag = 0.0_rp
     elmat_wx_diag = 0.0_rp
     elvec_u       = 0.0_rp
 
@@ -847,7 +847,7 @@ contains
                &                elmat_vu_diag,work)
        end if
        ! tau*(a·grad u, a·grad v)
-       call elmbuv_oss(dvolu,testf,agran,nnodu,elmat_vu_diag,work)
+       call elmbuv_oss(dvolu,testf(:,igaus),agran,nnodu,elmat_vu_diag,work)
        ! tauc*(div v, div u)
        if(approx%discret%ktauc>0.0_rp) then
           call elmdiv_stab(tau(2,igaus),dvolu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
@@ -861,7 +861,7 @@ contains
        else
           work(2) = -dvolu
        end if
-       call elmbvu_gal(work(2),finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu,elmat_vx, &
+       call elmbvu_gal(work(2),finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu,elmat_vx_diag, &
             &          work)
 
        ! Block P-V
@@ -873,7 +873,7 @@ contains
        ! Block U-W
        ! -tau*(proj(a·grad u), a·grad u)
        call elmbuv_gal(-dvolu*tau(1,igaus),0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
-            &          nnodu,elmat_wu,work)
+            &          nnodu,elmat_wu_diag,work)
 
        ! Block X-W
        ! tau*(proj(a·grad u),v)
@@ -911,18 +911,19 @@ contains
                 idof = finite_element%start%a(idime)+inode-1
                 jdof = finite_element%start%a(jdime)+jnode-1
                 finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vu(idime,jdime,inode,jnode)
-                ! Block V-X
-                jdof = finite_element%start%a(ndime+1+jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vx(idime,jdime,inode,jnode)
-                ! Block W-U
-                idof = finite_element%start%a(ndime+1+idime)+inode-1
-                jdof = finite_element%start%a(jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_wu(idime,jdime,inode,jnode)
              end do    
              ! Block V-U (diag)
              idof = finite_element%start%a(idime)+inode-1
              jdof = finite_element%start%a(idime)+jnode-1
              finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) +  elmat_vu_diag(inode,jnode)
+             ! Block V-X
+             idof = finite_element%start%a(idime)+inode-1
+             jdof = finite_element%start%a(ndime+1+idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vx_diag(inode,jnode)
+             ! Block W-U
+             idof = finite_element%start%a(ndime+1+idime)+inode-1
+             jdof = finite_element%start%a(idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_wu_diag(inode,jnode)
              ! Block W-X
              idof = finite_element%start%a(ndime+1+idime)+inode-1
              jdof = finite_element%start%a(ndime+1+idime)+jnode-1
@@ -949,8 +950,8 @@ contains
     call memfree(elmat_vu_diag,__FILE__,__LINE__)
     call memfree(elmat_vp,__FILE__,__LINE__)
     call memfree(elmat_qu,__FILE__,__LINE__)
-    call memfree(elmat_vx,__FILE__,__LINE__)
-    call memfree(elmat_wu,__FILE__,__LINE__)
+    call memfree(elmat_vx_diag,__FILE__,__LINE__)
+    call memfree(elmat_wu_diag,__FILE__,__LINE__)
     call memfree(elmat_wx_diag,__FILE__,__LINE__)
     call memfree(elvec_u,__FILE__,__LINE__)
 
@@ -1246,8 +1247,8 @@ contains
     real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
     real(rp), allocatable :: elmat_vu(:,:,:,:)
     real(rp), allocatable :: elmat_vu_diag(:,:)
-    real(rp), allocatable :: elmat_vx(:,:,:,:)
-    real(rp), allocatable :: elmat_wu(:,:,:,:)
+    real(rp), allocatable :: elmat_vx_diag(:,:)
+    real(rp), allocatable :: elmat_wu_diag(:,:)
     real(rp), allocatable :: elmat_wx_diag(:,:)
     type(vector_t)        :: gpvel
     type(rungekutta_integrator_t), pointer :: rkinteg
@@ -1277,8 +1278,8 @@ contains
     ! Allocate auxiliar matrices and vectors
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_vu,__FILE__,__LINE__)
     call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
-    call memalloc(ndime,ndime,nnodu,nnodu,elmat_vx,__FILE__,__LINE__)
-    call memalloc(ndime,ndime,nnodu,nnodu,elmat_wu,__FILE__,__LINE__)
+    call memalloc(nnodu,nnodu,elmat_vx_diag,__FILE__,__LINE__)
+    call memalloc(nnodu,nnodu,elmat_wu_diag,__FILE__,__LINE__)
     call memalloc(nnodu,nnodu,elmat_wx_diag,__FILE__,__LINE__)
 
     ! Allocate & compute Stabilization parameters
@@ -1287,8 +1288,8 @@ contains
     ! Initialize to zero
     elmat_vu      = 0.0_rp
     elmat_vu_diag = 0.0_rp
-    elmat_vx      = 0.0_rp
-    elmat_wu      = 0.0_rp
+    elmat_vx_diag = 0.0_rp
+    elmat_wu_diag = 0.0_rp
     elmat_wx_diag = 0.0_rp
     work          = 0.0_rp
     agran         = 0.0_rp
@@ -1339,24 +1340,24 @@ contains
           end if
        end if
 
-!!$       ! OSS_vu
-!!$       if(rkinteg%rk_terms(4)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(4)%ltype)) then
-!!$          ! tau*(a·grad u, a·grad v)
-!!$          call elmbuv_oss(dvolu,testf,agran,nnodu,elmat_vu_diag,work)
-!!$          ! tauc*(div v, div u)
-!!$          if(approx%discret%ktauc>0.0_rp) then
-!!$             call elmdiv_stab(tau(2,igaus),dvolu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus), &
-!!$                  &           ndime,nnodu,elmat_vu,work)
-!!$          end if
-!!$       end if
-!!$
-!!$       ! OSS_vx
-!!$       if(rkinteg%rk_terms(5)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(5)%ltype)) then
-!!$          ! -tau*(proj(a·grad u), a·grad v)
-!!$          beta = -tau(1,igaus)*dvolu
-!!$          call elmbvu_gal(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
-!!$               &          elmat_vx,work)
-!!$       end if
+       ! OSS_vu
+       if(rkinteg%rk_terms(4)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(4)%ltype)) then
+          ! tau*(a·grad u, a·grad v)
+          call elmbuv_oss(dvolu,testf(:,igaus),agran,nnodu,elmat_vu_diag,work)
+          ! tauc*(div v, div u)
+          if(approx%discret%ktauc>0.0_rp) then
+             call elmdiv_stab(tau(2,igaus),dvolu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus), &
+                  &           ndime,nnodu,elmat_vu,work)
+          end if
+       end if
+
+       ! OSS_vx
+       if(rkinteg%rk_terms(5)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(5)%ltype)) then
+          ! -tau*(proj(a·grad u), a·grad v)
+          beta = -tau(1,igaus)*dvolu
+          call elmbvu_gal(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
+               &          elmat_vx_diag,work)
+       end if
 
        ! OSS_wu
        ! -tau*(a·grad u, w)
@@ -1366,7 +1367,7 @@ contains
           beta = -dvolu
        end if
        call elmbuv_gal(beta,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
-            &          nnodu,elmat_wu,work)
+            &          nnodu,elmat_wu_diag,work)
 
        ! OSS_wx
        ! tau*(proj(a·grad u), w)
@@ -1392,18 +1393,19 @@ contains
                 idof = finite_element%start%a(idime)+inode-1
                 jdof = finite_element%start%a(jdime)+jnode-1
                 finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vu(idime,jdime,inode,jnode)
-                ! Block V-X
-                jdof = finite_element%start%a(ndime+1+jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vx(idime,jdime,inode,jnode)
-                ! Block W-U
-                idof = finite_element%start%a(ndime+1+idime)+inode-1
-                jdof = finite_element%start%a(jdime)+jnode-1
-                finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_wu(idime,jdime,inode,jnode)
              end do    
              ! Block V-U (diag)
              idof = finite_element%start%a(idime)+inode-1
              jdof = finite_element%start%a(idime)+jnode-1
-             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) +  elmat_vu_diag(inode,jnode)
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vu_diag(inode,jnode)
+             ! Block V-X
+             idof = finite_element%start%a(idime)+inode-1
+             jdof = finite_element%start%a(ndime+1+idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_vx_diag(inode,jnode)
+             ! Block W-U
+             idof = finite_element%start%a(ndime+1+idime)+inode-1
+             jdof = finite_element%start%a(idime)+jnode-1
+             finite_element%p_mat%a(idof,jdof) = finite_element%p_mat%a(idof,jdof) + elmat_wu_diag(inode,jnode)
              ! Block W-X
              idof = finite_element%start%a(ndime+1+idime)+inode-1
              jdof = finite_element%start%a(ndime+1+idime)+jnode-1
@@ -1415,8 +1417,8 @@ contains
     ! Deallocate auxiliar matrices and vectors
     call memfree(elmat_vu,__FILE__,__LINE__)
     call memfree(elmat_vu_diag,__FILE__,__LINE__)
-    call memfree(elmat_vx,__FILE__,__LINE__)
-    call memfree(elmat_wu,__FILE__,__LINE__)
+    call memfree(elmat_vx_diag,__FILE__,__LINE__)
+    call memfree(elmat_wu_diag,__FILE__,__LINE__)
     call memfree(elmat_wx_diag,__FILE__,__LINE__)
 
     ! Apply boundary conditions
@@ -1590,26 +1592,26 @@ contains
           call oss_gradp_arg_chk(beta,grpre(jstge)%a(:,igaus), &
                &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
 
-!!$          ! OSS_vu
-!!$          alpha = rkinteg%rk_table(4)%p%A(istage,jstge)
-!!$          beta = -dvolu*alpha*tau(1,igaus,jstge)
-!!$          ! tau * ( u · grad u, u· grad v)
-!!$          call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
-!!$               &                 ndime,nnodu,elvec_u,work)
-!!$          ! tauc*(div v, div u)
-!!$          if(approx%discret%ktauc>0.0_rp) then
-!!$             beta = -dvolu*alpha*tau(2,igaus,jstge)
-!!$             call elmrhu_divudivv(beta,grvel(jstge)%a(:,:,igaus), &
-!!$                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-!!$                  &               elvec_u,work)
-!!$          end if
-!!$
-!!$          ! OSS_vx
-!!$          alpha = rkinteg%rk_table(5)%p%A(istage,jstge)
-!!$          beta = dvolu*alpha!*tau(1,igaus,jstge)
-!!$          ! - tau * ( proj(u·grad u), u· grad v)
-!!$          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
-!!$               &          work)
+          ! OSS_vu
+          alpha = rkinteg%rk_table(4)%p%A(istage,jstge)
+          beta = -dvolu*alpha*tau(1,igaus,jstge)
+          ! tau * ( u · grad u, u· grad v)
+          call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+               &                 ndime,nnodu,elvec_u,work)
+          ! tauc*(div v, div u)
+          if(approx%discret%ktauc>0.0_rp) then
+             beta = -dvolu*alpha*tau(2,igaus,jstge)
+             call elmrhu_divudivv(beta,grvel(jstge)%a(:,:,igaus), &
+                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+                  &               elvec_u,work)
+          end if
+
+          ! OSS_vx
+          alpha = rkinteg%rk_table(5)%p%A(istage,jstge)
+          beta = dvolu*alpha!*tau(1,igaus,jstge)
+          ! - tau * ( proj(u·grad u), u· grad v)
+          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+               &          work)
 
           ! Force
           alpha = rkinteg%rk_table(6)%p%A(istage,jstge)
@@ -1791,24 +1793,24 @@ contains
                   &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
           end if
        end if
+       
+       ! OSS_vu
+       beta = -dvolu*tau(1,igaus)
+       ! tau * ( u · grad u, u· grad v)
+       call oss_convu_arg_chk(beta,gpvel%a(:,igaus),grvel%a(:,:,igaus),agran,ndime,nnodu,elvec_u, &
+            &                 work)
+       ! tauc*(div v, div u)
+       if(approx%discret%ktauc>0.0_rp) then
+          beta = -dvolu*tau(2,igaus)
+          call elmrhu_divudivv(beta,grvel%a(:,:,igaus), &
+               &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+               &               elvec_u,work)
+       end if
 
-!!$       ! OSS_vu
-!!$       beta = -dvolu*tau(1,igaus)
-!!$       ! tau * ( u · grad u, u· grad v)
-!!$       call oss_convu_arg_chk(beta,gpvel%a(:,igaus),grvel%a(:,:,igaus),agran,ndime,nnodu,elvec_u, &
-!!$            &                 work)
-!!$       ! tauc*(div v, div u)
-!!$       if(approx%discret%ktauc>0.0_rp) then
-!!$          beta = -dvolu*tau(2,igaus)
-!!$          call elmrhu_divudivv(beta,grvel%a(:,:,igaus), &
-!!$               &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-!!$               &               elvec_u,work)
-!!$       end if
-!!$
-!!$       ! OSS_vx
-!!$       beta = dvolu!*tau(1,igaus)
-!!$       ! - tau * ( proj(u·grad u), u· grad v)
-!!$       call elmrhs_fce(beta,testf(:,igaus),gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
+       ! OSS_vx
+       beta = dvolu!*tau(1,igaus)
+       ! - tau * ( proj(u·grad u), u· grad v)
+       call elmrhs_fce(beta,testf(:,igaus),gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
 
        ! Force
        beta = dvolu
@@ -1871,7 +1873,7 @@ contains
     integer(ip)                 :: ndime,nnodu,nnodp,ngaus
     integer(ip)                 :: igaus,inode,jnode,idof,jdof,nstge,jstge,idime,jdime
     real(rp)                    :: dvolu,dtinv,diffu,alpha,ctime,prevtime,beta
-    real(rp)                    :: work(4)
+    real(rp)                    :: work(4),aux
     real(rp)                    :: agran(finite_element%integ(1)%p%uint_phy%nnode)
     real(rp)      , allocatable :: testf(:,:,:)
     real(rp)      , allocatable :: tau(:,:,:)
@@ -1910,16 +1912,16 @@ contains
     end do
     call create_vector (approx%physics,1,finite_element%integ,gpvel(nstge+1))
     call interpolation(finite_element%unkno,1,prev_step,finite_element%integ,gpvel(1))                    ! U_n
-    do jstge=2,nstge
+    do jstge=2,nstge+1
        call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,gpvel(jstge))               ! U_j
        call interpolation(finite_element%unkno,ndime+2,jstge+2,finite_element%integ,gposs(jstge-1))       ! X_j
        call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,grvel(jstge-1))             ! GradU_j
        call interpolation(finite_element%unkno,ndime+1,ndime,jstge+2,finite_element%integ,grpre(jstge-1)) ! GradP_j
     end do
-    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel(nstge+1))              ! U^k,i
-    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gposs(nstge))                ! X^k,i
-    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,grvel(nstge))                ! GradU_j
-    call interpolation(finite_element%unkno,ndime+1,ndime,prev_iter,finite_element%integ,grpre(nstge))    ! GradP_j
+!!$    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel(nstge+1))              ! U^k,i
+!!$    call interpolation(finite_element%unkno,ndime+2,prev_iter,finite_element%integ,gposs(nstge))          ! X^k,i
+!!$    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,grvel(nstge))                ! GradU_j
+!!$    call interpolation(finite_element%unkno,ndime+1,ndime,prev_iter,finite_element%integ,grpre(nstge))    ! GradP_j
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
@@ -2022,26 +2024,26 @@ contains
           call oss_gradp_arg_chk(beta,grpre(jstge)%a(:,igaus), &
                &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
 
-!!$          ! OSS_vu
-!!$          alpha = rkinteg%rk_table(4)%p%b(jstge)
-!!$          beta = -dvolu*alpha*tau(1,igaus,jstge)
-!!$          ! tau * ( u · grad u, u· grad v)
-!!$          call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
-!!$               &                 ndime,nnodu,elvec_u,work)
-!!$          ! tauc*(div v, div u)
-!!$          if(approx%discret%ktauc>0.0_rp) then
-!!$             beta = -dvolu*alpha*tau(2,igaus,jstge)
-!!$             call elmrhu_divudivv(beta,grvel(jstge)%a(:,:,igaus), &
-!!$                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-!!$                  &               elvec_u,work)
-!!$          end if
-!!$
-!!$          ! OSS_vx
-!!$          alpha = rkinteg%rk_table(5)%p%b(jstge)
-!!$          beta = dvolu*alpha!*tau(1,igaus,jstge)
-!!$          ! - tau * ( proj(u·grad u), u· grad v)
-!!$          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
-!!$               &          work)
+          ! OSS_vu
+          alpha = rkinteg%rk_table(4)%p%b(jstge)
+          beta = -dvolu*alpha*tau(1,igaus,jstge)
+          ! tau * ( u · grad u, u· grad v)
+          call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+               &                 ndime,nnodu,elvec_u,work)
+          ! tauc*(div v, div u)
+          if(approx%discret%ktauc>0.0_rp) then
+             beta = -dvolu*alpha*tau(2,igaus,jstge)
+             call elmrhu_divudivv(beta,grvel(jstge)%a(:,:,igaus), &
+                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+                  &               elvec_u,work)
+          end if
+
+          ! OSS_vx
+          alpha = rkinteg%rk_table(5)%p%b(jstge)
+          beta = dvolu*alpha!*tau(1,igaus,jstge)
+          ! - tau * ( proj(u·grad u), u· grad v)
+          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+               &          work)
 
           ! Force
           alpha = rkinteg%rk_table(6)%p%b(jstge)

@@ -41,7 +41,7 @@ module update_names
 
   ! Functions
   public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, &
-       &    update_solution_mono, update_nonlinear_solution 
+       &    update_solution_mono, update_nonlinear_solution, update_analytical_initial
  
 contains
   
@@ -144,6 +144,72 @@ contains
     end do
     
   end subroutine update_analytical_bcond
+
+  !==================================================================================================
+  subroutine update_analytical_initial(vars_of_unk,ctime,fe_space,tvar)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine updates Dirichlet boundary conditions in unkno from an analytical solution. !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip)          , intent(in)    :: vars_of_unk(:)
+    real(rp)             , intent(in)    :: ctime
+    type(fe_space_t)     , intent(inout) :: fe_space
+    integer(ip), optional, intent(in)    :: tvar
+    ! Locals
+    integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
+    integer(ip) :: nvars,ivar,gvar,gnode,unode,cnt
+    real(rp)    :: param(11)
+    real(rp), allocatable :: coord(:,:)
+
+    nvars = size(vars_of_unk,1)
+    ndime = fe_space%g_trian%num_dims
+
+    do ielem = 1, fe_space%g_trian%num_elems
+       prob  = fe_space%finite_elements(ielem)%problem
+       gnode = fe_space%finite_elements(ielem)%p_geo_reference_element%nnode
+       cnt   = 0
+
+       do ivar=vars_of_unk(1),vars_of_unk(nvars)
+
+          if(fe_space%finite_elements(ielem)%p_analytical_code%a(ivar,1)>0) then
+
+             param = 0.0_rp
+
+             ! Global variable
+             cnt = cnt+1
+             gvar=fe_space%dof_descriptor%problems(prob)%p%l2g_var(ivar)
+
+             ! Interpolate coordinates
+             unode = fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode
+             call memalloc(ndime,unode,coord,__FILE__,__LINE__)
+             call interpolate(ndime,gnode,unode,fe_space%finite_elements(ielem)%inter(ivar)%p, &
+                  &           fe_space%g_trian%elems(ielem)%coordinates,coord)
+
+             do iobje = 1,fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nvef+1
+
+                do inode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje), &
+                     &     fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%p(iobje+1)-1 
+                   lnode = fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p%l(inode)
+
+                   ! Evaluate analytical unknown
+                   call evaluate_analytical(fe_space%finite_elements(ielem)%p_analytical_code%a(ivar,1), &
+                        &                   fe_space%finite_elements(ielem)%p_analytical_code%a(ivar,2), &
+                        &                   ndime,coord(:,lnode),ctime,param,tvar=tvar)
+
+                   fe_space%finite_elements(ielem)%unkno(lnode,ivar,1) = param(1)
+
+                end do
+             end do
+
+             ! Deallocate auxiliar coordinates
+             call memfree(coord,__FILE__,__LINE__)
+
+          end if
+
+       end do
+    end do
+    
+  end subroutine update_analytical_initial
 
   !==================================================================================================
   subroutine update_solution(vec,fe_space)

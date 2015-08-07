@@ -244,20 +244,6 @@ contains
 
     ! Loop over gauss points
     do igaus=1,finite_element%integ(1)%p%quad%ngaus
-    
-       ! Compute velocity norm
-       gpvno=0.0_rp
-       do idime = 1,physics%ndime
-          gpvno = gpvno + gpvel%a(idime,igaus)*gpvel%a(idime,igaus)
-       end do
-       gpvno = sqrt(gpvno)
-
-       ! Set convection flag
-       if(gpvno.lt.1e-4) then
-          conve = 0
-       else
-          conve = physics%kfl_conv
-       end if
        
        ! Evaluate unknowns and derivatives
        params = 0.0_rp
@@ -269,7 +255,7 @@ contains
        end do
 
        ! Evaluate force
-       call nsi_force(physics%ndime,physics%diffu,physics%react,conve,physics%kfl_symg,params, &
+       call nsi_force(physics%ndime,physics%diffu,physics%react,physics%kfl_conv,physics%kfl_symg,params, &
             &         physics%gravi,force%a(:,igaus))
 
     end do
