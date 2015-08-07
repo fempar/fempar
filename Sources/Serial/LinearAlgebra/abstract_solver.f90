@@ -731,7 +731,7 @@ use blas77_interfaces_names
        ctrl%tol1 = ctrl%rtol * rhs_norm + ctrl%atol
        ctrl%err1 = res_2_norm
     end if
-    exit_loop = (ctrl%err1 < ctrl%tol1)
+    exit_loop = (ctrl%err1 <= ctrl%tol1)
 
     ! Send converged to coarse-grid tasks
     call env%bcast(exit_loop )
@@ -890,7 +890,7 @@ use blas77_interfaces_names
           end if
 
           if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
-          exit_loop = (ctrl%err1 < ctrl%tol1)
+          exit_loop = (ctrl%err1 <= ctrl%tol1)
           ! Send converged to coarse-grid tasks
           call env%bcast(exit_loop)
 
@@ -962,12 +962,12 @@ use blas77_interfaces_names
           end if
        end if
 
-       exit_loop = (ctrl%err1 < ctrl%tol1)
+       exit_loop = (ctrl%err1 <= ctrl%tol1)
        ! Send converged to coarse-grid tasks
        call env%bcast(exit_loop)
     end do outer
 
-    ctrl%converged = (ctrl%err1 < ctrl%tol1)
+    ctrl%converged = (ctrl%err1 <= ctrl%tol1)
     ! Send converged to coarse-grid tasks
     call env%bcast( ctrl%converged )
 
@@ -1107,7 +1107,7 @@ use blas77_interfaces_names
         ctrl%tol1  = ctrl%rtol * res_norm + ctrl%atol
         ctrl%err1 = res_norm
     end if
-    exit_loop = (ctrl%err1 < ctrl%tol1)
+    exit_loop = (ctrl%err1 <= ctrl%tol1)
     ! Send converged to coarse-grid tasks
     call env%bcast(exit_loop)
 
@@ -1211,7 +1211,7 @@ use blas77_interfaces_names
                 ctrl%err1  = res_norm
                 if ( ctrl%track_conv_his ) ctrl%err1h(ctrl%it) = ctrl%err1
             end if
-            exit_loop = (ctrl%err1 < ctrl%tol1) 
+            exit_loop = (ctrl%err1 <= ctrl%tol1) 
             ! Send converged to coarse-grid tasks
             call env%bcast(exit_loop)
         
@@ -1278,13 +1278,13 @@ use blas77_interfaces_names
             ! x <- x + z
             call x%axpby(1.0_rp,z,1.0_rp)
 
-            exit_loop = (ctrl%err1 < ctrl%tol1)
+            exit_loop = (ctrl%err1 <= ctrl%tol1)
             ! Send converged to coarse-grid tasks
             call env%bcast(exit_loop)
         end if
     end do outer
 
-    ctrl%converged = (ctrl%err1 < ctrl%tol1)
+    ctrl%converged = (ctrl%err1 <= ctrl%tol1)
     ! Send converged to coarse-grid tasks
     call env%bcast(ctrl%converged)
 
@@ -1392,7 +1392,7 @@ use blas77_interfaces_names
         ctrl%tol1  = ctrl%rtol * res_norm + ctrl%atol
         ctrl%err1 = res_norm
     end if
-    exit_loop = (ctrl%err1 < ctrl%tol1)
+    exit_loop = (ctrl%err1 <= ctrl%tol1)
     ! Send converged to coarse-grid tasks
     call env%bcast(exit_loop)
     if ( env%am_i_fine_task() ) then
@@ -1493,7 +1493,7 @@ use blas77_interfaces_names
                 ctrl%err1  = res_norm
                 if (ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
             end if
-            exit_loop = (ctrl%err1 < ctrl%tol1)
+            exit_loop = (ctrl%err1 <= ctrl%tol1)
             ! Send converged to coarse-grid tasks
             call env%bcast(exit_loop)
 
@@ -1556,7 +1556,7 @@ use blas77_interfaces_names
             ! x <- x + z
             call x%axpby(1.0_rp,z,1.0_rp)
         
-            exit_loop = (ctrl%err1 < ctrl%tol1)
+            exit_loop = (ctrl%err1 <= ctrl%tol1)
 
             ! Send converged to coarse-grid tasks
             call env%bcast(exit_loop)
@@ -1564,7 +1564,7 @@ use blas77_interfaces_names
         end if
     end do outer
 
-    ctrl%converged = (ctrl%err1 < ctrl%tol1)
+    ctrl%converged = (ctrl%err1 <= ctrl%tol1)
     ! Send converged to coarse-grid tasks
     call env%bcast(ctrl%converged)
 
@@ -1666,7 +1666,7 @@ subroutine abstract_prichard (A, M, b, x, ctrl, env )
         end if
         ctrl%err1 = res_norm
         if (ctrl%it > 0 .and. ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
-        ctrl%converged = (ctrl%err1 < ctrl%tol1)
+        ctrl%converged = (ctrl%err1 <= ctrl%tol1)
 
         ! Send converged to coarse-grid tasks
         call env%bcast(ctrl%converged)
@@ -1785,7 +1785,7 @@ use lapack77_interfaces_names
         ctrl%err1 = res_2_norm
     end if
 
-    exit_loop = (ctrl%err1 < ctrl%tol1)
+    exit_loop = (ctrl%err1 <= ctrl%tol1)
     ! Send converged to coarse-grid tasks
     call env%bcast(exit_loop)
 
@@ -1903,7 +1903,7 @@ use lapack77_interfaces_names
             end if
 
             if (ctrl%track_conv_his) ctrl%err1h(ctrl%it) = ctrl%err1
-            exit_loop = (ctrl%err1 < ctrl%tol1)
+            exit_loop = (ctrl%err1 <= ctrl%tol1)
             ! Send converged to coarse-grid tasks
             call env%bcast(exit_loop)
     
@@ -1927,13 +1927,13 @@ use lapack77_interfaces_names
         ! x <- z
         call x%copy(z)
 
-        exit_loop = (ctrl%err1 < ctrl%tol1)
+        exit_loop = (ctrl%err1 <= ctrl%tol1)
         ! Send converged to coarse-grid tasks
         call env%bcast(exit_loop)
 
     end do outer
 
-    ctrl%converged = (ctrl%err1 < ctrl%tol1)
+    ctrl%converged = (ctrl%err1 <= ctrl%tol1)
     ! Send converged to coarse-grid tasks
     call env%bcast(ctrl%converged)
 
@@ -2829,6 +2829,7 @@ end subroutine abstract_pminres
        call memfree(ctrl%err1h,__FILE__,__LINE__)
        call memfree(ctrl%err2h,__FILE__,__LINE__)
     end if
+    ctrl%converged = .false.
   end subroutine solver_control_free_conv_his
 
   subroutine solver_control_log_header( ctrl )

@@ -254,6 +254,10 @@ contains
        if( resnorm < this%nltol*ininorm) then
           write(*,*) 'Nonlinear iterations: ', iiter
           write(*,*) 'Nonlinear error norm: ', resnorm
+          if(iiter==1) then
+             ! Store solution to unkno
+             call update_solution(this%x_sol,fe_space)
+          end if
           exit
        end if
        if(iiter==this%max_iter.and.iiter>1) then

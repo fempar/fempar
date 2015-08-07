@@ -400,6 +400,9 @@ contains
     class(momentum_update_operator_t), intent(inout) :: nlop
     type(block_graph_t)              , intent(in)    :: blk_graph
 
+    ! Modify default nonlinear parameters
+    nlop%max_iter = 20
+
     ! Allocate integration matrices and vectors
     call nlop%block_matrix%alloc(blk_graph)
     call nlop%block_matrix%set_block_to_zero(1,2)
@@ -820,9 +823,11 @@ program test_blk_nsi_cg_iss_oss_rk
   rkinteg%dtinv   = 1.0_rp
   tinteg%dtinv    = 1.0_rp
   rkinteg%ftime   = 1.0_rp
-  mydisc%kfl_proj = 0
+  mydisc%kfl_proj = 1
   mydisc%kfl_lump = 0
-  myprob%kfl_conv = 0
+  mydisc%ktauc    = 0.0_rp
+  myprob%kfl_conv = 1
+  myprob%kfl_skew = 0
   myprob%diffu    = 1.0_rp
 
   ! Create dof_descriptor
@@ -1101,6 +1106,7 @@ contains
 
              ! Compute momentum operand (RHS)
              approx(1)%p => momentum_rhs_integration
+             call momentum_operator%block_vector%init(0.0_rp)
              call volume_integral(approx,fe_space,momentum_operator%block_vector)
 
              !********************************** This is DIRTY *************************************!
@@ -1111,6 +1117,12 @@ contains
 
              call matrix_print_matrix_market(100,momentum_operator%block_matrix_m%blocks(1,1)%p_f_matrix)
              call matrix_print_matrix_market(101,momentum_operator%block_matrix_l%blocks(1,1)%p_f_matrix)
+             call matrix_print_matrix_market(103,momentum_operator%mass_x_matrix%blocks(3,3)%p_f_matrix)
+             call vector_print_matrix_market(104,momentum_operator%block_vector%blocks(1))
+             call vector_print_matrix_market(105,momentum_operator%block_vector_m%blocks(1))
+             if(istage==rkinteg%rk_table(1)%p%stage) then
+                call vector_print_matrix_market(111,momentum_operator%block_vector%blocks(1))
+             end if
 
              ! Momentum equation solution
              approx(1)%p => momentum_integration
@@ -1119,7 +1131,10 @@ contains
              call matrix_print_matrix_market(102,momentum_operator%block_matrix_nl%blocks(3,3)%p_f_matrix)
 
              ! Store unkno to istage position (U --> U_i)
-             call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)             
+             call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)        
+
+             ! Restore velocity (P_i-1 --> P)
+             call update_nonlinear_solution(fe_space,pressure_integration%working_vars,3+istage-1,1)      
 
           end if
              
@@ -1130,19 +1145,24 @@ contains
           ! Compute pressure transient operators
           approx(1)%p => pressure_integration
           pressure_integration%integration_stage = update_transient
+          tinteg%ctime = ctime
           call pressure_operator%fill_transient(approx,fe_space) 
+
+          call matrix_print_matrix_market(107,pressure_operator%block_matrix%blocks(1,1)%p_f_matrix)
+          call vector_print_matrix_market(106,pressure_operator%block_vector%blocks(1))
+          call vector_print_matrix_market(108,pressure_operator%block_unknown%blocks(1))
+          call vector_print_matrix_market(109,pressure_operator%block_unknown%blocks(2))
 
           ! Pressure equation solution
           approx(1)%p => pressure_integration
-          tinteg%ctime = ctime
           call pressure_operator%apply(sctrl,senv,approx,fe_space)
 
-          ! Store unkno to istage position (P --> P_i)
-          call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)   
+          ! Restore velocity (P_i-1 --> P)
+          call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage) 
 
           ! Restore velocity (U_i --> U)
           call update_nonlinear_solution(fe_space,momentum_integration%working_vars,3+istage,1) 
-          
+
           !*****************************************************************************************! 
 
        end do stage
@@ -1152,38 +1172,53 @@ contains
        write(*,'(a)') '------------------------------------------------------------'
        write(*,'(a24,a21,e15.8)') 'Runge-Kutta update      ','Current time: ',ctime
 
-!!$       ! Update analytical/time dependent boundary conditions
-!!$       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
-!!$
-!!$       ! Compute momentum update transient operators
-!!$       approx(1)%p => momentum_update_integration
-!!$       momentum_update_integration%integration_stage = update_transient
-!!$       call momentum_update_operator%fill_transient(approx,fe_space) 
-!!$       
-!!$       ! Momentum update equation solution
-!!$       approx(1)%p => momentum_update_integration
-!!$       call momentum_update_operator%apply(sctrl,senv,approx,fe_space)
-!!$
-!!$       !**************************** NSI specific tasks *****************************************!
-!!$       ! Compute projection transient operators
-!!$       approx(1)%p => projection_update_integration
-!!$       projection_update_integration%integration_stage = update_transient
-!!$       call projection_update_operator%fill_transient(approx,fe_space) 
-!!$
-!!$       ! Projection update equation solution
-!!$       approx(1)%p => projection_update_integration
-!!$       call projection_update_operator%apply(sctrl,senv,approx,fe_space)
-!!$
-!!$       ! Compute pressure transient operators
-!!$       approx(1)%p => pressure_integration
-!!$       pressure_integration%integration_stage = update_transient
-!!$       call pressure_operator%fill_transient(approx,fe_space) 
-!!$       
-!!$       ! Pressure equation solution
-!!$       approx(1)%p => pressure_integration
-!!$       tinteg%ctime = ctime
-!!$       call pressure_operator%apply(sctrl,senv,approx,fe_space)
-!!$       !*****************************************************************************************!  
+       ! Update analytical/time dependent boundary conditions
+       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
+
+       ! Compute momentum update transient operators
+       approx(1)%p => momentum_update_integration
+       momentum_update_integration%integration_stage = update_transient
+       call momentum_update_operator%fill_transient(approx,fe_space) 
+       
+       ! Momentum update equation solution
+       approx(1)%p => momentum_update_integration
+       call momentum_update_operator%apply(sctrl,senv,approx,fe_space)
+
+       ! Store unkno to previous step position (Un+1 --> U_n)
+       call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3)     
+
+       !**************************** NSI specific tasks *****************************************!
+       ! Compute projection transient operators
+       approx(1)%p => projection_update_integration
+       projection_update_integration%integration_stage = update_transient
+       call projection_update_operator%fill_transient(approx,fe_space) 
+
+       call matrix_print_matrix_market(110,projection_update_operator%block_matrix%blocks(3,3)%p_f_matrix)
+       call vector_print_matrix_market(113,projection_update_operator%block_vector%blocks(3))
+
+       ! Projection update equation solution
+       approx(1)%p => projection_update_integration
+       call projection_update_operator%apply(sctrl,senv,approx,fe_space)
+
+       ! Update boundary conditions (velocity derivative)
+       call update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,fe_space,2)
+
+       ! Compute pressure transient operators
+       approx(1)%p => pressure_integration
+       pressure_integration%integration_stage = update_transient
+       tinteg%ctime = ctime
+       call pressure_operator%fill_transient(approx,fe_space) 
+       
+       ! Pressure equation solution
+       approx(1)%p => pressure_integration
+       call pressure_operator%apply(sctrl,senv,approx,fe_space)
+       
+       ! Restore velocity (U_n+1 --> U)
+       call update_nonlinear_solution(fe_space,momentum_integration%working_vars,3,1) 
+
+       ! Update analytical/time dependent boundary conditions
+       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)
+       !*****************************************************************************************!  
 
        ! Check steady state
 

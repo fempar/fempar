@@ -1030,6 +1030,9 @@ contains
 
     ! Deallocate auxiliar matrices and vectors
     call memfree(elmat_vu_diag,__FILE__,__LINE__)
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(finite_element) 
     
   end subroutine nsi_massu
 
@@ -1148,7 +1151,7 @@ contains
     if (approx%discret%kfl_lump==0) then
        do inode=1,nnodu
           do jnode=1,nnodu
-             do idime=ndime+1,2*ndime
+             do idime=ndime+2,2*ndime+1
                 ! Block W-X (diag)
                 idof = finite_element%start%a(idime)+inode-1
                 jdof = finite_element%start%a(idime)+jnode-1
@@ -1160,7 +1163,7 @@ contains
     else
        do inode=1,nnodu
           do jnode=1,nnodu
-             do idime=ndime+1,2*ndime
+             do idime=ndime+2,2*ndime+1
                 ! Block W-X (diag)
                 idof = finite_element%start%a(idime)+inode-1
                 jdof = finite_element%start%a(idime)+inode-1
@@ -1237,7 +1240,7 @@ contains
     integer(ip)           :: ndime,nnodu,nnodp,ngaus
     integer(ip)           :: igaus,inode,jnode,idof,jdof,istage,jstge,idime,jdime
     real(rp)              :: dvolu,dtinv,diffu,ctime,prevtime
-    real(rp)              :: work(5)
+    real(rp)              :: work(4),beta
     real(rp)              :: agran(finite_element%integ(1)%p%uint_phy%nnode)
     real(rp)              :: testf(finite_element%integ(1)%p%uint_phy%nnode,finite_element%integ(1)%p%quad%ngaus)
     real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
@@ -1322,45 +1325,47 @@ contains
        end if
 
        ! Convection
-       if(rkinteg%rk_terms(2)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(2)%ltype)) then
-          if(approx%physics%kfl_skew==0) then
-             ! (v, a·grad u)
-             call elmbuv_gal(dvolu,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
-                  &          agran,nnodu,elmat_vu_diag,work)
-          elseif(approx%physics%kfl_skew==1) then
-             ! 1/2(v, a·grad u) - 1/2(u,a·grad v)
-             call elmbuv_gal_skew1(dvolu,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
-                  &                agran,nnodu,elmat_vu_diag,work)
+       if(approx%physics%kfl_conv.ne.0) then
+          if(rkinteg%rk_terms(2)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(2)%ltype)) then
+             if(approx%physics%kfl_skew==0) then
+                ! (v, a·grad u)
+                call elmbuv_gal(dvolu,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                     &          agran,nnodu,elmat_vu_diag,work)
+             elseif(approx%physics%kfl_skew==1) then
+                ! 1/2(v, a·grad u) - 1/2(u,a·grad v)
+                call elmbuv_gal_skew1(dvolu,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                     &                agran,nnodu,elmat_vu_diag,work)
+             end if
           end if
        end if
 
-       ! OSS_vu
-       if(rkinteg%rk_terms(4)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(4)%ltype)) then
-          ! tau*(a·grad u, a·grad v)
-          call elmbuv_oss(dvolu,testf,agran,nnodu,elmat_vu_diag,work)
-          ! tauc*(div v, div u)
-          if(approx%discret%ktauc>0.0_rp) then
-             call elmdiv_stab(tau(2,igaus),dvolu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus), &
-                  &           ndime,nnodu,elmat_vu,work)
-          end if
-       end if
-
-       ! OSS_vx
-       if(rkinteg%rk_terms(5)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(5)%ltype)) then
-          ! -tau*(proj(a·grad u), a·grad v)
-          work(5) = -tau(1,igaus)*dvolu
-          call elmbvu_gal(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
-               &          elmat_vx,work)
-       end if
+!!$       ! OSS_vu
+!!$       if(rkinteg%rk_terms(4)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(4)%ltype)) then
+!!$          ! tau*(a·grad u, a·grad v)
+!!$          call elmbuv_oss(dvolu,testf,agran,nnodu,elmat_vu_diag,work)
+!!$          ! tauc*(div v, div u)
+!!$          if(approx%discret%ktauc>0.0_rp) then
+!!$             call elmdiv_stab(tau(2,igaus),dvolu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus), &
+!!$                  &           ndime,nnodu,elmat_vu,work)
+!!$          end if
+!!$       end if
+!!$
+!!$       ! OSS_vx
+!!$       if(rkinteg%rk_terms(5)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(5)%ltype)) then
+!!$          ! -tau*(proj(a·grad u), a·grad v)
+!!$          beta = -tau(1,igaus)*dvolu
+!!$          call elmbvu_gal(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
+!!$               &          elmat_vx,work)
+!!$       end if
 
        ! OSS_wu
        ! -tau*(a·grad u, w)
        if(approx%discret%kfl_proj==1) then
-          work(5) = -tau(1,igaus)*dvolu
+          beta = -tau(1,igaus)*dvolu
        else
-          work(5) = -dvolu
+          beta = -dvolu
        end if
-       call elmbuv_gal(work(5),0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
+       call elmbuv_gal(beta,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
             &          nnodu,elmat_wu,work)
 
        ! OSS_wx
@@ -1431,7 +1436,7 @@ contains
     integer(ip)                 :: ndime,nnodu,nnodp,ngaus
     integer(ip)                 :: igaus,inode,jnode,idof,jdof,istage,jstge,idime,jdime
     real(rp)                    :: dvolu,dtinv,diffu,alpha,ctime,prevtime
-    real(rp)                    :: work(5)
+    real(rp)                    :: work(4),beta
     real(rp)                    :: agran(finite_element%integ(1)%p%uint_phy%nnode)
     real(rp)      , allocatable :: testf(:,:,:)
     real(rp)      , allocatable :: tau(:,:,:)
@@ -1553,61 +1558,63 @@ contains
 
           ! Diffusion
           alpha = rkinteg%rk_table(1)%p%A(istage,jstge)
-          work(5) = -dvolu*alpha
+          beta = -dvolu*alpha
           ! nu( grad u, grad v )
-          call elmrhu_gradgrad(work(5),diffu,grvel(jstge)%a(:,:,igaus), &
+          call elmrhu_gradgrad(beta,diffu,grvel(jstge)%a(:,:,igaus), &
                &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
           ! Add cross terms for symmetric grad
           if(approx%physics%kfl_symg==1) then
-             call elmrhu_gradgrad_sym(work(5),diffu,grvel(jstge)%a(:,:,igaus), &
+             call elmrhu_gradgrad_sym(beta,diffu,grvel(jstge)%a(:,:,igaus), &
                   &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
           end if
 
           ! Convection
-          alpha = rkinteg%rk_table(2)%p%A(istage,jstge)
-          work(5) = -dvolu*alpha
-          ! (u · grad u, v) 
-          if(approx%physics%kfl_skew==0) then
-             call oss_convu_arg_chk(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus), &
-                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
-          elseif(approx%physics%kfl_skew==1) then
-             call oss_convu_arg_chk_skew(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
-                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
-                  &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+          if(approx%physics%kfl_conv.ne.0) then
+             alpha = rkinteg%rk_table(2)%p%A(istage,jstge)
+             beta = -dvolu*alpha
+             ! (u · grad u, v) 
+             if(approx%physics%kfl_skew==0) then
+                call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus), &
+                     &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
+             elseif(approx%physics%kfl_skew==1) then
+                call oss_convu_arg_chk_skew(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+                     &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                     &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+             end if
           end if
 
           ! Pressure gradient
           alpha = rkinteg%rk_table(3)%p%A(istage,jstge)
-          work(5) = -dvolu*alpha
+          beta = -dvolu*alpha
           ! (grad p, v)
-          call oss_gradp_arg_chk(work(5),grpre(jstge)%a(:,igaus), &
+          call oss_gradp_arg_chk(beta,grpre(jstge)%a(:,igaus), &
                &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
 
-          ! OSS_vu
-          alpha = rkinteg%rk_table(4)%p%A(istage,jstge)
-          work(5) = -dvolu*alpha*tau(1,igaus,jstge)
-          ! tau * ( u · grad u, u· grad v)
-          call oss_convu_arg_chk(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
-               &                 ndime,nnodu,elvec_u,work)
-          ! tauc*(div v, div u)
-          if(approx%discret%ktauc>0.0_rp) then
-             work(5) = -dvolu*alpha*tau(2,igaus,jstge)
-             call elmrhu_divudivv(work(5),grvel(jstge)%a(:,:,igaus), &
-                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-                  &               elvec_u,work)
-          end if
-
-          ! OSS_vx
-          alpha = rkinteg%rk_table(5)%p%A(istage,jstge)
-          work(5) = dvolu*alpha*tau(1,igaus,jstge)
-          ! - tau * ( proj(u·grad u), u· grad v)
-          call elmrhs_fce(work(5),testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
-               &          work)
+!!$          ! OSS_vu
+!!$          alpha = rkinteg%rk_table(4)%p%A(istage,jstge)
+!!$          beta = -dvolu*alpha*tau(1,igaus,jstge)
+!!$          ! tau * ( u · grad u, u· grad v)
+!!$          call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+!!$               &                 ndime,nnodu,elvec_u,work)
+!!$          ! tauc*(div v, div u)
+!!$          if(approx%discret%ktauc>0.0_rp) then
+!!$             beta = -dvolu*alpha*tau(2,igaus,jstge)
+!!$             call elmrhu_divudivv(beta,grvel(jstge)%a(:,:,igaus), &
+!!$                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+!!$                  &               elvec_u,work)
+!!$          end if
+!!$
+!!$          ! OSS_vx
+!!$          alpha = rkinteg%rk_table(5)%p%A(istage,jstge)
+!!$          beta = dvolu*alpha!*tau(1,igaus,jstge)
+!!$          ! - tau * ( proj(u·grad u), u· grad v)
+!!$          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+!!$               &          work)
 
           ! Force
           alpha = rkinteg%rk_table(6)%p%A(istage,jstge)
-          work(5) = dvolu*alpha
-          call elmrhs_fce(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+          beta = dvolu*alpha
+          call elmrhs_fce(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
                &          force(jstge)%a(:,igaus),nnodu,ndime,elvec_u,work)
 
        end do stages
@@ -1662,7 +1669,7 @@ contains
     integer(ip)           :: ndime,nnodu,nnodp,ngaus
     integer(ip)           :: igaus,inode,jnode,idof,jdof,idime
     real(rp)              :: dvolu,diffu,dtinv,ctime 
-    real(rp)              :: work(5)
+    real(rp)              :: work(4),beta
     real(rp)              :: agran(finite_element%integ(1)%p%uint_phy%nnode)
     real(rp)              :: testf(finite_element%integ(1)%p%uint_phy%nnode,finite_element%integ(1)%p%quad%ngaus)
     real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
@@ -1761,49 +1768,51 @@ contains
        ! Construct RHS
        ! =============
        ! Diffusion
-       work(5) = -dvolu
+       beta = -dvolu
        ! nu( grad u, grad v )
-       call elmrhu_gradgrad(work(5),diffu,grvel%a(:,:,igaus), &
+       call elmrhu_gradgrad(beta,diffu,grvel%a(:,:,igaus), &
             &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
        ! Add cross terms for symmetric grad
        if(approx%physics%kfl_symg==1) then
-          call elmrhu_gradgrad_sym(work(5),diffu,grvel%a(:,:,igaus), &
+          call elmrhu_gradgrad_sym(beta,diffu,grvel%a(:,:,igaus), &
                &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
        end if
 
        ! Convection
-       work(5) = -dvolu
+       beta = -dvolu
        ! (u · grad u, v) 
-       if(approx%physics%kfl_skew==0) then
-          call oss_convu_arg_chk(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus), &
-               &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
-       elseif(approx%physics%kfl_skew==1) then
-          call oss_convu_arg_chk_skew(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus),agran, &
-               &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
-               &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+       if(approx%physics%kfl_conv.ne.0) then
+          if(approx%physics%kfl_skew==0) then
+             call oss_convu_arg_chk(beta,gpvel%a(:,igaus),grvel%a(:,:,igaus), &
+                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
+          elseif(approx%physics%kfl_skew==1) then
+             call oss_convu_arg_chk_skew(beta,gpvel%a(:,igaus),grvel%a(:,:,igaus),agran, &
+                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                  &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+          end if
        end if
 
-       ! OSS_vu
-       work(5) = -dvolu*tau(1,igaus)
-       ! tau * ( u · grad u, u· grad v)
-       call oss_convu_arg_chk(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus),agran,ndime,nnodu,elvec_u, &
-            &                 work)
-       ! tauc*(div v, div u)
-       if(approx%discret%ktauc>0.0_rp) then
-          work(5) = -dvolu*tau(2,igaus)
-          call elmrhu_divudivv(work(5),grvel%a(:,:,igaus), &
-               &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-               &               elvec_u,work)
-       end if
-
-       ! OSS_vx
-       work(5) = dvolu*tau(1,igaus)
-       ! - tau * ( proj(u·grad u), u· grad v)
-       call elmrhs_fce(work(5),testf(:,igaus),gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
+!!$       ! OSS_vu
+!!$       beta = -dvolu*tau(1,igaus)
+!!$       ! tau * ( u · grad u, u· grad v)
+!!$       call oss_convu_arg_chk(beta,gpvel%a(:,igaus),grvel%a(:,:,igaus),agran,ndime,nnodu,elvec_u, &
+!!$            &                 work)
+!!$       ! tauc*(div v, div u)
+!!$       if(approx%discret%ktauc>0.0_rp) then
+!!$          beta = -dvolu*tau(2,igaus)
+!!$          call elmrhu_divudivv(beta,grvel%a(:,:,igaus), &
+!!$               &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+!!$               &               elvec_u,work)
+!!$       end if
+!!$
+!!$       ! OSS_vx
+!!$       beta = dvolu!*tau(1,igaus)
+!!$       ! - tau * ( proj(u·grad u), u· grad v)
+!!$       call elmrhs_fce(beta,testf(:,igaus),gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
 
        ! Force
-       work(5) = dvolu
-       call elmrhs_fce(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus),force%a(:,igaus), &
+       beta = dvolu
+       call elmrhs_fce(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus),force%a(:,igaus), &
             &          nnodu,ndime,elvec_u,work)
 
     end do
@@ -1861,8 +1870,8 @@ contains
     ! Locals
     integer(ip)                 :: ndime,nnodu,nnodp,ngaus
     integer(ip)                 :: igaus,inode,jnode,idof,jdof,nstge,jstge,idime,jdime
-    real(rp)                    :: dvolu,dtinv,diffu,alpha,ctime,prevtime
-    real(rp)                    :: work(5)
+    real(rp)                    :: dvolu,dtinv,diffu,alpha,ctime,prevtime,beta
+    real(rp)                    :: work(4)
     real(rp)                    :: agran(finite_element%integ(1)%p%uint_phy%nnode)
     real(rp)      , allocatable :: testf(:,:,:)
     real(rp)      , allocatable :: tau(:,:,:)
@@ -1960,8 +1969,8 @@ contains
        ! =============
        ! Mass
        ! ( v, u_n/dt )
-       work(5) = dvolu*dtinv
-       call elmrhs_fce(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+       beta = dvolu*dtinv
+       call elmrhs_fce(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
             &          gpvel(1)%a(:,igaus),nnodu,ndime,elvec_u,work)
 
        ! Loop over previous stages
@@ -1981,61 +1990,63 @@ contains
 
           ! Diffusion
           alpha = rkinteg%rk_table(1)%p%b(jstge)
-          work(5) = -dvolu*alpha
+          beta = -dvolu*alpha
           ! nu( grad u, grad v )
-          call elmrhu_gradgrad(work(5),diffu,grvel(jstge)%a(:,:,igaus), &
+          call elmrhu_gradgrad(beta,diffu,grvel(jstge)%a(:,:,igaus), &
                &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
           ! Add cross terms for symmetric grad
           if(approx%physics%kfl_symg==1) then
-             call elmrhu_gradgrad_sym(work(5),diffu,grvel(jstge)%a(:,:,igaus), &
+             call elmrhu_gradgrad_sym(beta,diffu,grvel(jstge)%a(:,:,igaus), &
                   &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
           end if
 
           ! Convection
-          alpha = rkinteg%rk_table(2)%p%b(jstge)
-          work(5) = -dvolu*alpha
-          ! (u · grad u, v) 
-          if(approx%physics%kfl_skew==0) then
-             call oss_convu_arg_chk(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus), &
-                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
-          elseif(approx%physics%kfl_skew==1) then
-             call oss_convu_arg_chk_skew(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
-                  &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
-                  &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+          if(approx%physics%kfl_conv.ne.0) then
+             alpha = rkinteg%rk_table(2)%p%b(jstge)
+             beta = -dvolu*alpha
+             ! (u · grad u, v) 
+             if(approx%physics%kfl_skew==0) then
+                call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus), &
+                     &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
+             elseif(approx%physics%kfl_skew==1) then
+                call oss_convu_arg_chk_skew(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+                     &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                     &                 finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu,elvec_u,work)
+             end if
           end if
 
           ! Pressure gradient
           alpha = rkinteg%rk_table(3)%p%b(jstge)
-          work(5) = -dvolu*alpha
+          beta = -dvolu*alpha
           ! (grad p, v)
-          call oss_gradp_arg_chk(work(5),grpre(jstge)%a(:,igaus), &
+          call oss_gradp_arg_chk(beta,grpre(jstge)%a(:,igaus), &
                &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_u,work)
 
-          ! OSS_vu
-          alpha = rkinteg%rk_table(4)%p%b(jstge)
-          work(5) = -dvolu*alpha*tau(1,igaus,jstge)
-          ! tau * ( u · grad u, u· grad v)
-          call oss_convu_arg_chk(work(5),gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
-               &                 ndime,nnodu,elvec_u,work)
-          ! tauc*(div v, div u)
-          if(approx%discret%ktauc>0.0_rp) then
-             work(5) = -dvolu*alpha*tau(2,igaus,jstge)
-             call elmrhu_divudivv(work(5),grvel(jstge)%a(:,:,igaus), &
-                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
-                  &               elvec_u,work)
-          end if
-
-          ! OSS_vx
-          alpha = rkinteg%rk_table(5)%p%b(jstge)
-          work(5) = dvolu*alpha*tau(1,igaus,jstge)
-          ! - tau * ( proj(u·grad u), u· grad v)
-          call elmrhs_fce(work(5),testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
-               &          work)
+!!$          ! OSS_vu
+!!$          alpha = rkinteg%rk_table(4)%p%b(jstge)
+!!$          beta = -dvolu*alpha*tau(1,igaus,jstge)
+!!$          ! tau * ( u · grad u, u· grad v)
+!!$          call oss_convu_arg_chk(beta,gpvel(jstge+1)%a(:,igaus),grvel(jstge)%a(:,:,igaus),agran, &
+!!$               &                 ndime,nnodu,elvec_u,work)
+!!$          ! tauc*(div v, div u)
+!!$          if(approx%discret%ktauc>0.0_rp) then
+!!$             beta = -dvolu*alpha*tau(2,igaus,jstge)
+!!$             call elmrhu_divudivv(beta,grvel(jstge)%a(:,:,igaus), &
+!!$                  &               finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
+!!$                  &               elvec_u,work)
+!!$          end if
+!!$
+!!$          ! OSS_vx
+!!$          alpha = rkinteg%rk_table(5)%p%b(jstge)
+!!$          beta = dvolu*alpha!*tau(1,igaus,jstge)
+!!$          ! - tau * ( proj(u·grad u), u· grad v)
+!!$          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+!!$               &          work)
 
           ! Force
           alpha = rkinteg%rk_table(6)%p%b(jstge)
-          work(5) = dvolu*alpha
-          call elmrhs_fce(work(5),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+          beta = dvolu*alpha
+          call elmrhs_fce(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
                &          force(jstge)%a(:,igaus),nnodu,ndime,elvec_u,work)
 
        end do stages
@@ -2094,8 +2105,8 @@ contains
     ! Locals
     integer(ip)           :: ndime,nnodu,ngaus
     integer(ip)           :: igaus,inode,jnode,idof,jdof,idime,jdime
-    real(rp)              :: dvolu
-    real(rp)              :: work(5)
+    real(rp)              :: dvolu,beta
+    real(rp)              :: work(4)
     real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus)
     real(rp), allocatable :: elmat_wx_diag(:,:)
     real(rp), allocatable :: elvec_x(:,:) 
@@ -2152,11 +2163,11 @@ contains
        ! OSS_wu
        ! -tau*(a·grad u, w)
        if(approx%discret%kfl_proj==1) then
-          work(5) = tau(1,igaus)*dvolu
+          beta = tau(1,igaus)*dvolu
        else
-          work(5) = dvolu
+          beta = dvolu
        end if
-       call oss_convu_arg_chk(work(5),gpvel%a(:,igaus),grvel%a(:,:,igaus), &
+       call oss_convu_arg_chk(beta,gpvel%a(:,igaus),grvel%a(:,:,igaus), &
             &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_x,work)
 
     end do gauss
