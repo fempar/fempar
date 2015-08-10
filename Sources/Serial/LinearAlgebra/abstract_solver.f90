@@ -164,6 +164,7 @@ contains
     call b%GuardTemp()
     
     call solver_control_allocate_conv_his ( ctrl )
+    ctrl%converged = .false.
 
     ! Invoke Krylov Subspace Solver
     select case( ctrl%method )
