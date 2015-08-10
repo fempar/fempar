@@ -2830,7 +2830,6 @@ end subroutine abstract_pminres
        call memfree(ctrl%err1h,__FILE__,__LINE__)
        call memfree(ctrl%err2h,__FILE__,__LINE__)
     end if
-    ctrl%converged = .false.
   end subroutine solver_control_free_conv_his
 
   subroutine solver_control_log_header( ctrl )

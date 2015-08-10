@@ -764,11 +764,12 @@ program test_blk_nsi_cg_iss_oss_rk
   ! Arguments
   character(len=256) :: dir_path_out,prefix
   integer(ip)        :: nex,ney,nez,nstage,rk_order,rk_flag
+  real(rp)           :: dt
 
   call meminit
 
   ! Read parameters from command-line
-  call read_pars_cl_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,nstage,rk_order,rk_flag)
+  call read_pars_cl_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,nstage,rk_order,rk_flag,dt)
 
   ! Generate geometry data
   call uniform_mesh_descriptor_create(gdata,nex,ney,nez)
@@ -795,7 +796,7 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Define Runge-Kutta method
   settable      = (/nstage,rk_order,rk_flag/)
-  setterms(1,:) = (/update_constant,implicit/)  ! Diffusion
+  setterms(1,:) = (/update_constant,implicit/)   ! Diffusion
   setterms(2,:) = (/update_nonlinear,implicit/)  ! Convection
   setterms(3,:) = (/update_transient,explicit/)  ! Pressure Gradient
   setterms(4,:) = (/update_nonlinear,implicit/)  ! OSS_vu
@@ -820,15 +821,15 @@ program test_blk_nsi_cg_iss_oss_rk
   cg_iss_oss_rk_momentum_rhs%rkinteg => rkinteg
   cg_iss_oss_rk_pressure%tinteg  => tinteg
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
-  rkinteg%dtinv   = 2.0_rp
-  tinteg%dtinv    = 2.0_rp
-  rkinteg%ftime   = 2.0_rp
+  rkinteg%dtinv   = 1.0_rp/dt
+  tinteg%dtinv    = 1.0_rp/dt
+  rkinteg%ftime   = 1.0_rp
   mydisc%kfl_proj = 0
   mydisc%kfl_lump = 0
   mydisc%ktauc    = 0.0_rp
   myprob%kfl_conv = 1
   myprob%kfl_skew = 0
-  myprob%diffu    = 1.0_rp
+  myprob%diffu    = 1.0_rp/100.0_rp
 
   ! Create dof_descriptor
   call dof_descriptor%create(3,1,mydisc%nvars,vars_block,dof_coupling)
@@ -858,7 +859,7 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Assign analytical solution
   if(gdata%ndime==2) then
-     call fe_space%set_analytical_code((/1,2,3,0,0/),(/1,1,0,0,0/))
+     call fe_space%set_analytical_code((/1,2,3,0,0/),(/3,3,0,0,0/))
   else
      write(*,*) 'analytical function not ready for 3D'
   end if
@@ -871,7 +872,7 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Solver control parameters
   sctrl%method = rgmres
-  sctrl%trace  = 100
+  sctrl%trace  = 0
   sctrl%rtol   = 1.0e-14_rp
   sctrl%track_conv_his = .false.
 
@@ -883,7 +884,7 @@ program test_blk_nsi_cg_iss_oss_rk
        &                    cg_iss_oss_rk_momentum_rhs,tinteg)
 
   ! Print solution to VTK file
-  istat = fevtk%write_VTK()
+!!$  istat = fevtk%write_VTK()
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
@@ -936,18 +937,20 @@ program test_blk_nsi_cg_iss_oss_rk
 contains
 
   !==================================================================================================
-  subroutine read_pars_cl_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,nstage,order,flag)
+  subroutine read_pars_cl_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,nstage,order, &
+       &                                             flag,dt)
     implicit none
     character*(*), intent(out) :: prefix, dir_path_out
     integer(ip)  , intent(out) :: nex,ney,nez,nstage,order,flag
+    real(rp)     , intent(out) :: dt
     character(len=256)         :: program_name
     character(len=256)         :: argument 
     integer                    :: numargs,iargc
 
     numargs = iargc()
     call getarg(0, program_name)
-    if (.not. (numargs==8) ) then
-       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez nstage order flag'
+    if (.not. (numargs==9) ) then
+       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez nstage order flag dt'
        stop
     end if
 
@@ -974,6 +977,9 @@ contains
 
     call getarg(8, argument)
     read (argument,*) flag
+
+    call getarg(9, argument)
+    read (argument,*) dt
 
   end subroutine read_pars_cl_test_blk_nsi_cg_iss_oss_rk
 
@@ -1120,30 +1126,12 @@ contains
                   & momentum_operator%aii*momentum_operator%block_matrix_l%blocks(1,1)%p_f_matrix%a
              !**************************************************************************************! 
 
-!!$             call matrix_print_matrix_market(100,momentum_operator%block_matrix_m%blocks(1,1)%p_f_matrix)
-!!$             call matrix_print_matrix_market(101,momentum_operator%block_matrix_l%blocks(1,1)%p_f_matrix)
-!!$             call matrix_print_matrix_market(103,momentum_operator%mass_x_matrix%blocks(3,3)%p_f_matrix)
-!!$             call vector_print_matrix_market(104,momentum_operator%block_vector%blocks(1))
-!!$             call vector_print_matrix_market(105,momentum_operator%block_vector_m%blocks(1))
-!!$             if(istage==rkinteg%rk_table(1)%p%stage) then
-!!$                call vector_print_matrix_market(111,momentum_operator%block_vector%blocks(1))
-!!$             end if
-
              ! Momentum equation solution
              approx(1)%p => momentum_integration
              call momentum_operator%apply(sctrl,senv,approx,fe_space)
 
-!!$             write(*,*) fe_space%finite_elements(1)%unkno(:,2,1)
-!!$             write(*,*)'-----------'
-!!$             write(*,*) fe_space%finite_elements(1)%unkno(:,5,1)
-
-             call matrix_print_matrix_market(102,momentum_operator%block_matrix_nl%blocks(1,1)%p_f_matrix)
-
              ! Store unkno to istage position (U --> U_i)
              call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3+istage)       
-
-!!$             ! Restore pressure (P_i-1 --> P)
-!!$             call update_nonlinear_solution(fe_space,pressure_integration%working_vars,3+istage-1,1) 
 
           end if
              
@@ -1156,11 +1144,6 @@ contains
           pressure_integration%integration_stage = update_transient
           tinteg%ctime = ctime
           call pressure_operator%fill_transient(approx,fe_space) 
-
-!!$          call matrix_print_matrix_market(107,pressure_operator%block_matrix%blocks(1,1)%p_f_matrix)
-!!$          call vector_print_matrix_market(106,pressure_operator%block_vector%blocks(1))
-!!$          call vector_print_matrix_market(108,pressure_operator%block_unknown%blocks(1))
-!!$          call vector_print_matrix_market(109,pressure_operator%block_unknown%blocks(2))
 
           ! Pressure equation solution
           approx(1)%p => pressure_integration
@@ -1181,10 +1164,7 @@ contains
        write(*,'(a24,a21,e15.8)') 'Runge-Kutta update      ','Current time: ',ctime
 
        ! Update analytical/time dependent boundary conditions
-       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)        
-       !call update_analytical_initial((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)      
-       !call update_nonlinear_solution(fe_space,momentum_integration%working_vars,1,2)     
-!!$       call update_nonlinear_solution(fe_space,pressure_integration%working_vars,1,2)         
+       call update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,fe_space)           
 
        ! Compute momentum update transient operators
        approx(1)%p => momentum_update_integration
@@ -1197,18 +1177,12 @@ contains
 
        ! Store unkno to previous step position (Un+1 --> U_n)
        call update_nonlinear_solution(fe_space,approx(1)%p%working_vars,1,3)    
-
-!!$       ! Restore pressure (P_i --> P)
-!!$       call update_nonlinear_solution(fe_space,pressure_integration%working_vars,3+istage-1,1)   
        
-       !**************************** NSI specific tasks *****************************************!
+       !**************************** NSI specific tasks *****************************************!   
        ! Compute projection transient operators
        approx(1)%p => projection_update_integration
        projection_update_integration%integration_stage = update_transient
        call projection_update_operator%fill_transient(approx,fe_space) 
-
-       call matrix_print_matrix_market(110,projection_update_operator%block_matrix%blocks(3,3)%p_f_matrix)
-       call vector_print_matrix_market(113,projection_update_operator%block_vector%blocks(3))
 
        ! Projection update equation solution
        approx(1)%p => projection_update_integration
