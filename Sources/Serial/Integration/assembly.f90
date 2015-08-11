@@ -38,7 +38,6 @@ module assembly_names
   use vector_names
   use scalar_names
   use graph_names
-  use plain_vector_names
 
   implicit none
 # include "debug.i90"
@@ -67,8 +66,6 @@ contains
        call assembly_element_vector_block(finite_element, dof_descriptor, a)
     class is(scalar_t)
        call assembly_element_scalar(finite_element, dof_descriptor, a)
-    class is(plain_vector_t)
-       call assembly_element_plain_vector(finite_element, dof_descriptor, a)
     class default
        ! class not yet implemented
        check(.false.)
@@ -199,16 +196,6 @@ contains
     call a%sum(finite_element%scalar)
 
   end subroutine assembly_element_scalar
-
-  subroutine assembly_element_plain_vector (  finite_element, dof_descriptor, a ) 
-    implicit none
-    type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element
-    type(plain_vector_t)  , intent(inout) :: a
-    
-    a%b = a%b + finite_element%p_plain_vector%a
-
-  end subroutine assembly_element_plain_vector
 
   subroutine assembly_face_vector_block(  fe_face, finite_element, dof_descriptor, a ) 
     implicit none

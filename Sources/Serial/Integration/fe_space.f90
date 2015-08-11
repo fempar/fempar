@@ -96,10 +96,6 @@ module fe_space_names
      type(fe_face_t), allocatable        :: interior_faces(:), boundary_faces(:)
      integer(ip)                         :: num_interior_faces, num_boundary_faces
 
-     ! Plain vector
-     type(position_hash_table_t)          :: pos_plain_vector
-     type(array_rp1_t), allocatable       :: l_plain_vector(:)
-
      ! Analytical function auxiliar array
      type(array_ip2_t)                    :: l_analytical_code(max_number_problems)
 
@@ -116,8 +112,7 @@ module fe_space_names
   ! Methods
   public :: fe_space_create, fe_space_print, fe_space_free, &
        &    integration_faces_list, fe_space_allocate_structures, &
-       &    fe_space_fe_list_create, fe_space_plain_vector_create, &
-       &    fe_space_plain_vector_point
+       &    fe_space_fe_list_create
 
 contains
 
@@ -236,9 +231,6 @@ contains
 
     ! Initialization of starting DOF position array
     call fe_space%pos_start%init(ht_length)
-
-    ! Initialization of plain_vector array
-    call fe_space%pos_plain_vector%init(ht_length)
 
   end subroutine fe_space_allocate_structures
 
@@ -546,7 +538,6 @@ contains
        nullify ( fe_space%finite_elements(i)%p_geo_reference_element )
        nullify ( fe_space%finite_elements(i)%p_mat )
        nullify ( fe_space%finite_elements(i)%p_vec )
-       nullify ( fe_space%finite_elements(i)%p_plain_vector )
        nullify ( fe_space%finite_elements(i)%start )
        do j = 1, fe_space%finite_elements(i)%num_vars
           nullify ( fe_space%finite_elements(i)%nodes_per_vef(j)%p )  
@@ -586,12 +577,6 @@ contains
        call reference_element_free (fe_space%finite_elements_info(i))
     end do
     call fe_space%pos_elem_info%free
-
-!!$    do i = 1,fe_space%pos_plain_vector%last()
-!!$       call array_free( fe_space%l_plain_vector(i) )
-!!$    end do
-!!$    call memfree( fe_space%l_plain_vector,__FILE__,__LINE__)
-!!$    call fe_space%pos_plain_vector%free
 
     do i = 1,fe_space%pos_start%last()
        call array_free( fe_space%lstart(i) )
@@ -716,43 +701,6 @@ contains
 
 
   end subroutine integration_faces_list
-
-  !==================================================================================================
-  subroutine fe_space_plain_vector_create(vecs_size,fe_space)
-    implicit none
-    integer(ip)      , intent(in)    :: vecs_size(:)
-    type(fe_space_t), intent(inout) :: fe_space
-    ! Locals
-    integer(ip) :: ivec,vsize,nvecs,position,istat
-    
-    ! Allocate auxiliar arrays
-    nvecs = size(vecs_size,1)
-    call memalloc(nvecs,fe_space%l_plain_vector,__FILE__,__LINE__)
-    
-    do ivec = 1,nvecs
-       vsize = vecs_size(ivec)
-       call fe_space%pos_plain_vector%get(key=vsize, val=position, stat = istat)
-       if ( istat == new_index ) call array_create ( vsize, fe_space%l_plain_vector(position) )
-    end do
-  
-  end subroutine fe_space_plain_vector_create
-  
-  !==================================================================================================
-  subroutine fe_space_plain_vector_point(vsize,fe_space)
-    implicit none
-    integer(ip)              , intent(in)    :: vsize
-    type(fe_space_t), target, intent(inout) :: fe_space
-    ! Locals
-    integer(ip) :: ielem,position,istat
-    
-    call fe_space%pos_plain_vector%get(key=vsize, val=position, stat = istat)
-    check( istat == old_index )
-
-    do ielem=1,fe_space%g_trian%num_elems
-       fe_space%finite_elements(ielem)%p_plain_vector => fe_space%l_plain_vector(position)
-    end do
-    
-  end subroutine fe_space_plain_vector_point
 
   !==================================================================================================
   subroutine pointer_variable( finite_element, dof_descriptor, start ) 

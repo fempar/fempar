@@ -97,7 +97,6 @@ module serial_names
   !use element_gather_tools
   use problem_names
   use integration_names
-  use plain_vector_names
   use scalar_names
   use nonlinear_operator_names
   use picard_nonlinear_operator_names

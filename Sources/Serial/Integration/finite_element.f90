@@ -85,9 +85,6 @@ module finite_element_names
      type(array_rp1_t), pointer :: p_vec ! Pointer to the elemental vector_t
      real(rp)                   :: scalar ! Elemental scalar
 
-     ! Auxiliary working plain_vector
-     type(array_rp1_t), pointer :: p_plain_vector
-
      ! Analytical function code pointer
      type(array_ip2_t), pointer :: p_analytical_code => NULL()
 

@@ -859,7 +859,7 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Assign analytical solution
   if(gdata%ndime==2) then
-     call fe_space%set_analytical_code((/1,2,3,0,0/),(/3,3,0,0,0/))
+     call fe_space%set_analytical_code((/1,2,3,0,0/),(/1,1,0,0,0/))
   else
      write(*,*) 'analytical function not ready for 3D'
   end if
