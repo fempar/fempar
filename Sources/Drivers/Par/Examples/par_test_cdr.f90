@@ -67,7 +67,6 @@ program par_test_cdr
   type(cdr_problem_t)               :: my_problem
   type(cdr_discrete_t)              :: my_discrete
   type(cdr_approximation_t), target :: my_approximation
-  integer(ip)                     :: num_approximations
   type(discrete_integration_pointer_t)  :: approximations(1)
 
   integer(ip)              :: num_levels, nparts, ndime
@@ -81,7 +80,7 @@ program par_test_cdr
   integer(ip)                   :: i, j, ierror, iblock, num_uniform_refinement_steps
   type(par_timer_t)             :: par_uniform_refinement_timer, par_mesh_to_triangulation_timer, par_fe_space_create_timer
 
-  integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
+  integer(ip), allocatable :: order(:,:), material(:), problem(:)
   integer(ip), allocatable :: continuity(:,:)
 
   call meminit
@@ -167,7 +166,6 @@ program par_test_cdr
   call my_problem%create( p_trian%f_trian%num_dims )
   call my_discrete%create( my_problem )
   call my_approximation%create(my_problem,my_discrete)
-  num_approximations=1
   approximations(1)%p => my_approximation
   
   call dof_descriptor%set_problem( 1, my_discrete )
@@ -181,9 +179,6 @@ program par_test_cdr
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
-  call memalloc( p_trian%f_trian%num_elems, which_approx, __FILE__, __LINE__)
-  which_approx = 1
-
 
   call par_timer_start (par_fe_space_create_timer)
 
@@ -191,7 +186,7 @@ program par_test_cdr
   ! write(*,*) 'Continuity', continuity
   call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
                               p_cond, continuity, order, material, &
-                              which_approx, time_steps_to_store = 1, &
+                              time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
 
@@ -296,7 +291,7 @@ program par_test_cdr
     ! Ass struct
     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
     ! Fill val
-    call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
+    call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
     ! Free bddc inverse
     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
@@ -325,7 +320,6 @@ program par_test_cdr
   call memfree( order, __FILE__, __LINE__)
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
-  call memfree( which_approx, __FILE__, __LINE__)
 
   call p_blk_graph%free
   call blk_dof_dist%free

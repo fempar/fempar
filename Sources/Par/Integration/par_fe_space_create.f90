@@ -78,7 +78,7 @@ contains
   ! with the required info on ghost elements.
   !*********************************************************************************
   subroutine par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, p_cond, continuity, order,     &
-                                    material, which_approx, time_steps_to_store, hierarchical_basis, &
+                                    material, time_steps_to_store, hierarchical_basis, &
                                     static_condensation, num_continuity )
     implicit none
     ! Dummy arguments
@@ -90,7 +90,6 @@ contains
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
-    integer(ip)                    , intent(in)    :: which_approx(:)
     integer(ip)          , optional, intent(in)    :: time_steps_to_store
     logical          , optional, intent(in)    :: hierarchical_basis
     logical          , optional, intent(in)    :: static_condensation
@@ -110,12 +109,7 @@ contains
             static_condensation = static_condensation, num_continuity = num_continuity, &
             num_ghosts = p_trian%num_ghosts ) 
 
-!!$    AFM This allocate statement fails at runtime, i.e., istat/=0. Why ????
-!!$    allocate ( fe_space%approximations(num_approximations), stat=istat)
-!!$    write (*,*) 'XXX', num_approximations, istat
-!!$    check (istat == 0)    
-
-       call fe_space_fe_list_create ( p_fe_space%fe_space, problem, which_approx, continuity, order, material, p_cond%f_conditions )
+       call fe_space_fe_list_create ( p_fe_space%fe_space, problem, continuity, order, material, p_cond%f_conditions )
 
        ! Communicate problem, continuity, order, and material
        !write(*,*) '***** EXCHANGE GHOST INFO *****'

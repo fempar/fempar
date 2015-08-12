@@ -59,7 +59,6 @@ module finite_element_names
      ! Problem and approximation
      integer(ip)                   :: problem           ! Problem to be solved
      integer(ip)                   :: num_vars          ! Number of variables of the problem
-     integer(ip)                   :: approximation     ! Discretization to be used
 
      ! Connectivity
      integer(ip)       , allocatable :: continuity(:)     ! Continuity flag per variable
@@ -94,9 +93,12 @@ module finite_element_names
      procedure :: unpack => finite_element_unpack
   end type finite_element_t
 
+  type finite_element_pointer_t
+     type(finite_element_t), pointer :: p => NULL()
+  end type finite_element_pointer_t
+
   ! Information relative to the faces
   type fe_face_t
-     
      ! Reference face info
      type(element_face_integrator_t) :: integ(2)  ! Pointer to face integration
 
@@ -114,7 +116,7 @@ module finite_element_names
   end type fe_face_t
 
   ! Types
-  public :: finite_element_t, fe_face_t
+  public :: finite_element_t, finite_element_pointer_t, fe_face_t
 
   ! Methods
   public :: finite_element_print, finite_element_free_unpacked, impose_strong_dirichlet_data

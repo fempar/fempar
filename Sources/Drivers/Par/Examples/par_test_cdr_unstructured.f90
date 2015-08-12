@@ -145,7 +145,7 @@ program par_test_cdr_unstructured
   type(par_timer_t)             :: par_uniform_refinement_timer, par_mesh_to_triangulation_timer, par_fe_space_create_timer
 
 
-  integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
+  integer(ip), allocatable :: order(:,:), material(:), problem(:)
   integer(ip), allocatable :: continuity(:,:)
 
   call meminit
@@ -209,15 +209,12 @@ program par_test_cdr_unstructured
   material = 1
   call memalloc( p_trian%f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
-  call memalloc( p_trian%f_trian%num_elems, which_approx, __FILE__, __LINE__)
-  which_approx = 1
-
 
   ! Continuity
   ! write(*,*) 'Continuity', continuity
   call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
                               p_cond, continuity, order, material, &
-                              which_approx, time_steps_to_store = 1, &
+                              time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
 
@@ -319,7 +316,7 @@ program par_test_cdr_unstructured
      call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
 
      ! Fill val
-     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
+     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
 
      call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
 
@@ -356,7 +353,6 @@ program par_test_cdr_unstructured
   call memfree( order, __FILE__, __LINE__)
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
-  call memfree( which_approx, __FILE__, __LINE__)
 
   call p_blk_graph%free
   call blk_dof_dist%free

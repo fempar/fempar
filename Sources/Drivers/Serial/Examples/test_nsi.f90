@@ -66,7 +66,6 @@ program test_nsi_iss
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
   integer(ip) :: ibloc,jbloc,istat,i
-  integer(ip) :: num_approximations = 1
 
   ! Parameters
   integer(ip), parameter :: velocity=1, pressure=2
@@ -76,7 +75,6 @@ program test_nsi_iss
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
-  integer(ip), allocatable :: which_approx(:)
 
   ! Arguments
   character(len=256) :: dir_path_out,prefix
@@ -123,15 +121,13 @@ program test_nsi_iss
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,problem,__FILE__,__LINE__)
-  call memalloc(f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
   order(:,1:gdata%ndime) = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
-  which_approx           = 1 
   
   ! Create fe_space
-  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material,which_approx, &
+  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material, &
        &                time_steps_to_store=3, hierarchical_basis=.false.,             &
        &                static_condensation=.false.,num_continuity=1)
 
@@ -157,8 +153,9 @@ program test_nsi_iss
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
-  call update_analytical_bcond((/(i,i=1,gdata%ndime)/) ,myprob%case_veloc,0.0_rp,fe_space)
-  call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
+  ! CORRECT
+  !call update_analytical_bcond((/(i,i=1,gdata%ndime)/) ,myprob%case_veloc,0.0_rp,fe_space)
+  !call update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,fe_space)
 
   ! Solver control parameters
   sctrl%method = direct
@@ -198,7 +195,6 @@ program test_nsi_iss
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
-  call memfree(which_approx,__FILE__,__LINE__)
   call fevtk%free
   call f_blk_graph%free()
   call vector_free(feunk)
@@ -303,7 +299,7 @@ contains
        type is(matrix_t)
           select type (M)
           type is(preconditioner_t)
-             call preconditioner_numeric(A,M)
+             call preconditioner_numeric(M)
           class default
              check(.false.)
           end select
@@ -337,8 +333,9 @@ contains
        end select
        !********************************************************************************************!
        
+       ! CORRECT
        ! Store nonlinear iteration ( k+1 --> k )
-       call update_nonlinear(fe_space)
+       !call update_nonlinear(fe_space)
        
     end do
 

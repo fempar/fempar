@@ -315,7 +315,6 @@ program test_blk_nsi_cg_iss_oss
   ! Integers
   integer(ip) :: gtype(3) = (/ csr, csr, csr /)
   integer(ip) :: ibloc,jbloc,istat,i
-  integer(ip) :: num_approximations = 1
 
   ! Parameters
   integer(ip), parameter :: velocity=1, pressure=2
@@ -325,7 +324,6 @@ program test_blk_nsi_cg_iss_oss
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
-  integer(ip), allocatable :: which_approx(:)
   integer(ip), allocatable :: vars_block(:)
   integer(ip), allocatable :: dof_coupling(:,:)
 
@@ -382,15 +380,13 @@ program test_blk_nsi_cg_iss_oss
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,problem,__FILE__,__LINE__)
-  call memalloc(f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
   order                  = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
-  which_approx           = 1 
   
   ! Create fe_space
-  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material,which_approx, &
+  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material, &
        &               time_steps_to_store=3, hierarchical_basis=.false.,                            &
        &               static_condensation=.false.,num_continuity=1)
 
@@ -455,7 +451,6 @@ program test_blk_nsi_cg_iss_oss
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
-  call memfree(which_approx,__FILE__,__LINE__)
   call memfree(vars_block,__FILE__,__LINE__)
   call memfree(dof_coupling,__FILE__,__LINE__)
   call nonlinear_operator%free()

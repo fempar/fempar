@@ -63,7 +63,7 @@ program test_cdr
   character(len=256)       :: prefix, filename
   integer(ip)              :: i, j, vars_prob(1) = 1, ierror, iblock
 
-  integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
+  integer(ip), allocatable :: order(:,:), material(:), problem(:)
 
   integer(ip), allocatable :: continuity(:,:)
 
@@ -123,14 +123,12 @@ program test_cdr
   material = 1
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
-  call memalloc( f_trian%num_elems, which_approx, __FILE__, __LINE__)
-  which_approx = 1 
 
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
   call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, order, material, &
-       & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = .false., & 
+       & time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
@@ -195,7 +193,6 @@ program test_cdr
   call memfree( order, __FILE__, __LINE__)
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
-  call memfree( which_approx, __FILE__, __LINE__)
 
   call f_blk_graph%free()
   call vector_free( feunk )
