@@ -25,44 +25,38 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_names
-  ! Tools
-  use par_context_names
-  use psb_penv_mod_names
-  use par_sparse_global_collectives_names
-  use par_element_exchange_names
-  use par_timer_names
-  use par_io_names
-  use par_environment_names
-  use par_update_names
-
-  ! Geometry
-  use par_mesh_names
-  use par_triangulation_names
-  use par_mesh_to_triangulation_names
-  use par_conditions_names
-  use par_generate_uniform_triangulation_names
-  use par_uniform_refinement_names
-
-  ! Linear algebra
-  use par_vector_names
-  use par_matrix_names
-  use par_graph_names
-  use par_block_matrix_names
-  use par_block_vector_names
-  use par_block_graph_names
-  use block_dof_distribution_names
-  use par_dd_base_names
-  use par_preconditioner_dd_diagonal_names
-  use par_preconditioner_dd_mlevel_bddc_names
-  use par_preconditioner_dd_identity_names
-
-  ! Integration
+module par_nonlinear_operator_names
+  use base_operand_names
+  use abstract_solver_names
+  use abstract_environment_names
+  use problem_names
   use par_fe_space_names
-  use par_create_global_dof_info_names
-  use par_integration_names
-  use par_scalar_names
-  use par_nonlinear_operator_names
-  use par_picard_nonlinear_operator_names
-    
-end module par_names
+  implicit none
+# include "debug.i90"
+  private
+
+  type, abstract :: par_nonlinear_operator_t
+     class(base_operand_t), pointer :: b => NULL()  ! Source operand
+     class(base_operand_t), pointer :: x => NULL()  ! Result operand
+   contains
+     procedure (apply_interface), deferred :: apply
+  end type par_nonlinear_operator_t
+
+  ! Abstract interfaces
+  abstract interface
+     subroutine apply_interface(this,sctrl,env,approx,p_fe_space)
+       import :: par_nonlinear_operator_t,solver_control_t,abstract_environment_t, &
+            &    discrete_integration_pointer_t,par_fe_space_t
+       implicit none
+       class(par_nonlinear_operator_t), target , intent(inout) :: this
+       type(solver_control_t)                  , intent(inout) :: sctrl
+       class(abstract_environment_t)           , intent(in)    :: env
+       type(discrete_integration_pointer_t)    , intent(inout) :: approx(:)
+       type(par_fe_space_t)                    , intent(inout) :: p_fe_space
+     end subroutine apply_interface
+  end interface
+
+  ! Types
+  public :: par_nonlinear_operator_t
+
+end module par_nonlinear_operator_names
