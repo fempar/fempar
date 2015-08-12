@@ -118,9 +118,9 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_create( g_trian, dof_descriptor, fe_space, problem, bcond, continuity, order, material, & 
-                               which_approx, time_steps_to_store, hierarchical_basis,  & 
-                               static_condensation, num_continuity, num_ghosts )
+  subroutine fe_space_create( g_trian, dof_descriptor, fe_space, problem, bcond, continuity, order, & 
+                              material, time_steps_to_store, hierarchical_basis,  & 
+                              static_condensation, num_continuity, num_ghosts )
     implicit none
     type(triangulation_t), target, intent(in)    :: g_trian   
     type(dof_descriptor_t)      , target, intent(in)    :: dof_descriptor
@@ -130,7 +130,6 @@ contains
     integer(ip)                    , intent(in)    :: continuity(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
-    integer(ip)                    , intent(in)    :: which_approx(:)
     integer(ip)          , optional, intent(in)    :: time_steps_to_store
     logical          , optional, intent(in)    :: hierarchical_basis
     logical          , optional, intent(in)    :: static_condensation
@@ -143,12 +142,7 @@ contains
          hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
           num_continuity = num_continuity, num_ghosts = num_ghosts )  
 
-!!$   AFM This allocate statement fails at runtime, i.e., istat/=0. Why ????
-!!$   allocate ( fe_space%approximations(num_approximations), stat=istat)
-!!$   write (*,*) 'XXX', num_approximations, istat
-!!$   check (istat == 0)    
-
-    call fe_space_fe_list_create ( fe_space, problem, which_approx, continuity, order, material, bcond )
+    call fe_space_fe_list_create ( fe_space, problem, continuity, order, material, bcond )
 
     call integration_faces_list( fe_space )
 
@@ -237,11 +231,11 @@ contains
   !==================================================================================================
   ! Fill the fe_space_t assuming that all elements are of type f_type but each variable has different
   ! interpolation order
-  subroutine fe_space_fe_list_create( fe_space, problem, which_approx, continuity, order, material, bcond )
+  subroutine fe_space_fe_list_create( fe_space, problem, continuity, order, material, bcond )
     implicit none
     type(fe_space_t), intent(inout), target  :: fe_space
     integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
-    integer(ip)    , intent(in)       :: continuity(:,:), which_approx(:)
+    integer(ip)    , intent(in)       :: continuity(:,:)
     type(conditions_t), intent(in)  :: bcond
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
@@ -280,7 +274,6 @@ contains
     do ielem = 1, fe_space%g_trian%num_elems
        ! Assign type of problem and approximation to ielem
        fe_space%finite_elements(ielem)%problem =  problem(ielem)
-       fe_space%finite_elements(ielem)%approximation =  which_approx(ielem)
 
        nvars = fe_space%dof_descriptor%problems(problem(ielem))%p%nvars
        fe_space%finite_elements(ielem)%num_vars = nvars

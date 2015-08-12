@@ -296,7 +296,6 @@ program test_blk_nsi_cg_iss_oss
   type(nsi_cg_iss_oss_discrete_t)         :: mydisc
   type(time_integration_t)       , target :: mytime
   type(nsi_cg_iss_oss_matvec_t)  , target :: cg_iss_oss_matvec
-  type(discrete_integration_pointer_t)    :: approx(1)
   type(preconditioner_params_t)           :: ppars
   type(solver_control_t)                  :: sctrl
   type(serial_environment_t)              :: senv
@@ -315,7 +314,6 @@ program test_blk_nsi_cg_iss_oss
   ! Integers
   integer(ip) :: gtype(3) = (/ csr, csr, csr /)
   integer(ip) :: ibloc,jbloc,istat,i
-  integer(ip) :: num_approximations = 1
 
   ! Parameters
   integer(ip), parameter :: velocity=1, pressure=2
@@ -325,7 +323,6 @@ program test_blk_nsi_cg_iss_oss
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
-  integer(ip), allocatable :: which_approx(:)
   integer(ip), allocatable :: vars_block(:)
   integer(ip), allocatable :: dof_coupling(:,:)
 
@@ -382,15 +379,13 @@ program test_blk_nsi_cg_iss_oss
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,problem,__FILE__,__LINE__)
-  call memalloc(f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
   order                  = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
-  which_approx           = 1 
   
   ! Create fe_space
-  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material,which_approx, &
+  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material, &
        &               time_steps_to_store=3, hierarchical_basis=.false.,                            &
        &               static_condensation=.false.,num_continuity=1)
 
@@ -416,8 +411,7 @@ program test_blk_nsi_cg_iss_oss
 
   ! Compute auxiliar matrix
   call mass_p_integration%create(myprob,mydisc)
-  approx(1)%p => mass_p_integration
-  call volume_integral(approx,fe_space,nonlinear_operator%mass_p_matrix)
+  call volume_integral(mass_p_integration,fe_space,nonlinear_operator%mass_p_matrix)
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
@@ -429,24 +423,20 @@ program test_blk_nsi_cg_iss_oss
   sctrl%rtol   = 1.0e-14_rp
   sctrl%track_conv_his = .false.
 
-  ! Point discrete integration
-  approx(1)%p => cg_iss_oss_matvec
-
   ! Do nonlinear iterations
-  call nonlinear_operator%apply(sctrl,senv,approx,fe_space)
+  call nonlinear_operator%apply(sctrl,senv,cg_iss_oss_matvec,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
-  approx(1)%p => error_compute
   error_compute%unknown_id = velocity
   call enorm_u%init()
-  call volume_integral(approx,fe_space,enorm_u)
+  call volume_integral(error_compute,fe_space,enorm_u)
   error_compute%unknown_id = pressure
   call enorm_p%init()
-  call volume_integral(approx,fe_space,enorm_p)
+  call volume_integral(error_compute,fe_space,enorm_p)
   write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
   write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
 
@@ -455,7 +445,6 @@ program test_blk_nsi_cg_iss_oss
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
-  call memfree(which_approx,__FILE__,__LINE__)
   call memfree(vars_block,__FILE__,__LINE__)
   call memfree(dof_coupling,__FILE__,__LINE__)
   call nonlinear_operator%free()

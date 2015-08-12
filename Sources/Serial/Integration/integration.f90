@@ -33,6 +33,7 @@ module integration_names
   use problem_names
   use integration_tools_names
   use femap_interp_names
+  use finite_element_names
   use fe_space_names
   use assembly_names
   use block_matrix_names
@@ -53,53 +54,105 @@ module integration_names
        type(dof_descriptor_t), intent(in)    :: dof_descriptor
        class(integrable_t)   , intent(inout) :: a
      end subroutine assembly_interface
+     subroutine assembly_face_interface(fe_face, finite_element, dof_descriptor, a)
+       import :: fe_face_t, finite_element_pointer_t, dof_descriptor_t, integrable_t
+       implicit none
+       type(fe_face_t)               , intent(in)    :: fe_face
+       type(finite_element_pointer_t), intent(in)    :: finite_element(2)
+       type(dof_descriptor_t), intent(in)    :: dof_descriptor
+       class(integrable_t)   , intent(inout) :: a
+     end subroutine assembly_face_interface
   end interface
 
   public :: volume_integral
 
 contains
 
-  subroutine volume_integral(approx,fe_space,res1,res2,alternative_assembly)
+  subroutine volume_integral(approx,fe_space,res1,res2,alternative_assembly,alternative_assembly_face)
     implicit none
     ! Parameters
-    type(fe_space_t)                    , intent(inout) :: fe_space
-    class(integrable_t)                 , intent(inout) :: res1
-    class(integrable_t), optional       , intent(inout) :: res2
-    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
-    procedure(assembly_interface)       , optional      :: alternative_assembly
+    class(discrete_integration_t) , intent(inout) :: approx
+    type(fe_space_t)              , intent(inout) :: fe_space
+    class(integrable_t)           , intent(inout) :: res1
+    class(integrable_t), optional , intent(inout) :: res2
+    procedure(assembly_interface)      , optional :: alternative_assembly
+    procedure(assembly_face_interface) , optional :: alternative_assembly_face
 
     ! Locals
-    integer(ip) :: ielem,ivar,nvars, current_approximation
+    integer(ip) :: ielem,iface,ivar,nvars, current_approximation
     !class(discrete_problem) , pointer :: discrete
+    type(finite_element_pointer_t) :: finite_elements(2)
 
-    ! Main element loop
-    do ielem=1,fe_space%g_trian%num_elems
+    if(approx%domain_dimension==3) then
 
-       nvars = fe_space%finite_elements(ielem)%num_vars
-       ! Compute integration tools on ielem for each ivar (they all share the quadrature inside integ)
-       do ivar=1,nvars
-          call volume_integrator_update(fe_space%finite_elements(ielem)%integ(ivar)%p,fe_space%g_trian%elems(ielem)%coordinates)
-       end do
-       
-       current_approximation = fe_space%finite_elements(ielem)%approximation
-       call approx(current_approximation)%p%compute(fe_space%finite_elements(ielem))
-
-       ! Assembly first contribution
-       if(present(alternative_assembly)) then
-          call alternative_assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
-       else
-          call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
-       end if
-
-       if(present(res2)) then
-          if(present(alternative_assembly)) then
-             call alternative_assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2) 
-          else
-             call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2)
+       do ielem=1,fe_space%g_trian%num_elems
+          if(associated(approx%domain)) then
+             if(approx%domain(ielem)==0) cycle
           end if
-       end if
- 
-    end do
+
+          nvars = fe_space%finite_elements(ielem)%num_vars
+          ! Compute integration tools on ielem for each ivar (they all share the quadrature inside integ)
+          do ivar=1,nvars
+             call volume_integrator_update(fe_space%finite_elements(ielem)%integ(ivar)%p,fe_space%g_trian%elems(ielem)%coordinates)
+          end do
+       
+          call approx%compute(fe_space%finite_elements(ielem))
+
+          ! Assembly first contribution
+          if(present(alternative_assembly)) then
+             call alternative_assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
+          else
+             call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res1) 
+          end if
+
+          if(present(res2)) then
+             if(present(alternative_assembly)) then
+                call alternative_assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2) 
+             else
+                call assembly(fe_space%finite_elements(ielem),fe_space%dof_descriptor,res2)
+             end if
+          end if
+
+       end do
+
+    else if(approx%domain_dimension==2) then
+
+       check(associated(approx%domain))
+       do iface=1,size(approx%domain)
+
+          ! TO DO: develop face_integrator_update in the same line of volume_integrator_update
+          ! adapting the old code commented in integration_tools.f90 line 352 (old subroutine
+          ! integ_faces).
+          !
+          ! nvars = fe_space%fe_faces(iface)%num_vars
+          ! ! Compute integration tools on iface for each ivar (they all share the quadrature inside integ)
+          ! do ivar=1,nvars
+          !    call volume_integrator_update(fe_space%fe_faces(iface)%integ(ivar)%p,fe_space%g_trian%elems(ielem)%coordinates)
+          ! end do
+       
+          call approx%compute_face(fe_space%fe_faces(iface))
+
+          finite_elements(1)%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(1))
+          finite_elements(2)%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(2))
+
+          ! Assembly first contribution
+          if(present(alternative_assembly)) then
+             call alternative_assembly_face(fe_space%fe_faces(iface), finite_elements, fe_space%dof_descriptor,res1) 
+          else
+             call assembly_face(fe_space%fe_faces(iface), finite_elements, fe_space%dof_descriptor,res1) 
+          end if
+
+          if(present(res2)) then
+             if(present(alternative_assembly)) then
+                call alternative_assembly_face(fe_space%fe_faces(iface), finite_elements, fe_space%dof_descriptor,res2) 
+             else
+                call assembly_face(fe_space%fe_faces(iface), finite_elements, fe_space%dof_descriptor,res2)
+             end if
+          end if
+
+       end do
+
+    end if
 
   end subroutine volume_integral
 

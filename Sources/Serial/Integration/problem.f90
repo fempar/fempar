@@ -25,6 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# include "debug.i90"
 module problem_names
   use types_names
   use memor_names
@@ -71,10 +72,13 @@ module problem_names
   type, abstract :: discrete_integration_t
      integer(ip) :: integration_stage = update_nonlinear
      integer(ip), allocatable :: working_vars(:)
+     integer(ip)              :: domain_dimension      ! either 2 or 3
+     integer(ip), pointer     :: domain(:) => NULL()   ! List of entities over which integration is performed
     contains
       procedure(create_integration_interface) , deferred :: create 
       procedure(compute_integration_interface), deferred :: compute
       procedure(free_integration_interface)   , deferred :: free 
+      procedure :: compute_face
    end type discrete_integration_t
 
    type :: discrete_integration_pointer_t
@@ -120,5 +124,13 @@ contains
     class(discrete_problem_t), intent(inout) :: prob
     if(allocated(prob%l2g_var)) call memfree( prob%l2g_var, __FILE__, __LINE__ )
   end subroutine discrete_problem_free
+
+  subroutine compute_face(approx,fe_face)
+    implicit none
+    class(discrete_integration_t), intent(inout) :: approx
+    type(fe_face_t)              , intent(inout) :: fe_face
+    write(*,*) 'Error: face integration not defined!!'
+    check(.false.)
+  end subroutine compute_face
 
 end module problem_names

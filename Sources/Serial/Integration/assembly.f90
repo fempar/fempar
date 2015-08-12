@@ -44,7 +44,7 @@ module assembly_names
   private
 
   ! Functions
-  public :: assembly, element_matrix_assembly, element_vector_assembly
+  public :: assembly, assembly_face, element_matrix_assembly, element_vector_assembly
 
 contains
 
@@ -71,6 +71,29 @@ contains
        check(.false.)
     end select
   end subroutine assembly
+
+  subroutine assembly_face(fe_face, finite_elements, dof_descriptor, a ) 
+    implicit none
+    ! Parameters
+    type(dof_descriptor_t), intent(in)    :: dof_descriptor
+    type(fe_face_t)       , intent(in)    :: fe_face
+    type(finite_element_pointer_t), intent(in)    :: finite_elements(2)
+    class(integrable_t)   , intent(inout) :: a
+
+    select type(a)
+    class is(matrix_t)
+       call assembly_face_element_matrix_mono(fe_face, finite_elements, dof_descriptor, a) 
+    !class is(vector_t)
+    !   call assembly_face_element_vector_mono(fe_face, dof_descriptor, a)
+    class is(block_matrix_t)
+       call assembly_face_element_matrix_block(fe_face, finite_elements, dof_descriptor, a)
+    !class is(block_vector_t)
+    !   call assembly_face_element_vector_block(fe_face, dof_descriptor, a)
+    class default
+       ! class not yet implemented
+       check(.false.)
+    end select
+  end subroutine assembly_face
 
   subroutine assembly_element_matrix_block(  finite_element, dof_descriptor, a ) 
     implicit none
@@ -107,7 +130,7 @@ contains
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(fe_face_t)       , intent(in)    :: fe_face
-    type(finite_element_t), intent(in)    :: finite_element(2)
+    type(finite_element_pointer_t), intent(in)    :: finite_element(2)
     type(block_matrix_t)  , intent(inout) :: a
 
     integer(ip) :: iblock, jblock, i
@@ -115,17 +138,17 @@ contains
     type(matrix_t), pointer :: f_matrix
 
     ! Auxiliar local start array to store start(2)
-    call array_create(dof_descriptor%problems(finite_element(2)%problem)%p%nvars+1,start_aux)
-    start_aux%a = finite_element(2)%start%a
+    call array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
+    start_aux%a = finite_element(2)%p%start%a
 
-    finite_element(2)%start%a = finite_element(2)%start%a + finite_element(1)%start%a(dof_descriptor%problems(finite_element(1)%problem)%p%nvars+1) - 1
+    finite_element(2)%p%start%a = finite_element(2)%p%start%a + finite_element(1)%p%start%a(dof_descriptor%problems(finite_element(1)%p%problem)%p%nvars+1) - 1
 
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
           f_matrix => a%blocks(iblock,jblock)%p_f_matrix
           if ( associated(f_matrix) ) then
             do i = 1,2
-               call element_matrix_assembly( dof_descriptor, finite_element(i), f_matrix, iblock, jblock )
+               call element_matrix_assembly( dof_descriptor, finite_element(i)%p, f_matrix, iblock, jblock )
             end do
             call face_element_matrix_assembly( dof_descriptor, finite_element, fe_face, f_matrix, iblock, jblock )
           end if
@@ -133,7 +156,7 @@ contains
     end do
 
     ! Restore start(2)
-    finite_element(2)%start%a = start_aux%a
+    finite_element(2)%p%start%a = start_aux%a
 
   end subroutine assembly_face_element_matrix_block
 
@@ -141,24 +164,24 @@ contains
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(fe_face_t)       , intent(in)    :: fe_face
-    type(finite_element_t), intent(in)    :: finite_element(2)
+    type(finite_element_pointer_t), intent(in)    :: finite_element(2)
     type(matrix_t)        , intent(inout) :: a
 
     integer(ip) :: i
     type(array_ip1_t) :: start_aux
 
     ! Auxiliar local start array to store start(2)
-    call array_create(dof_descriptor%problems(finite_element(2)%problem)%p%nvars+1,start_aux)
-    start_aux%a = finite_element(2)%start%a
+    call array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
+    start_aux%a = finite_element(2)%p%start%a
 
-    finite_element(2)%start%a = finite_element(2)%start%a + finite_element(1)%start%a(dof_descriptor%problems(finite_element(1)%problem)%p%nvars+1) - 1
+    finite_element(2)%p%start%a = finite_element(2)%p%start%a + finite_element(1)%p%start%a(dof_descriptor%problems(finite_element(1)%p%problem)%p%nvars+1) - 1
     do i = 1,2
-       call element_matrix_assembly( dof_descriptor, finite_element(i), a )
+       call element_matrix_assembly( dof_descriptor, finite_element(i)%p, a )
     end do
     call face_element_matrix_assembly( dof_descriptor, finite_element, fe_face, a )
 
     ! Restore start(2)
-    finite_element(2)%start%a = start_aux%a
+    finite_element(2)%p%start%a = start_aux%a
 
   end subroutine assembly_face_element_matrix_mono
 
@@ -303,7 +326,7 @@ contains
     implicit none
     ! Parameters
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element(2)
+    type(finite_element_pointer_t), intent(in)    :: finite_element(2)
     type(fe_face_t)       , intent(in)    :: fe_face
     type(matrix_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock, jblock
@@ -318,8 +341,8 @@ contains
     gtype = a%gr%type
     do i = 1, 2
        j = 3 - i
-       iprob = finite_element(i)%problem
-       jprob = finite_element(j)%problem
+       iprob = finite_element(i)%p%problem
+       jprob = finite_element(j)%p%problem
        nvapb_i = dof_descriptor%prob_block(iblock_,iprob)%nd1
        nvapb_j = dof_descriptor%prob_block(jblock_,jprob)%nd1
        do ivars = 1, nvapb_i
@@ -328,25 +351,25 @@ contains
           do jvars = 1, nvapb_j
              m_var = dof_descriptor%prob_block(jblock_,jprob)%a(jvars)
              k_var = dof_descriptor%problems(jprob)%p%l2g_var(m_var)
-             do inode = 1,finite_element(i)%reference_element_vars(l_var)%p%nnode
-                idof = finite_element(i)%elem2dof(inode,l_var)
+             do inode = 1,finite_element(i)%p%reference_element_vars(l_var)%p%nnode
+                idof = finite_element(i)%p%elem2dof(inode,l_var)
                 if ( idof  > 0 ) then
-                   ndime = finite_element(j)%p_geo_reference_element%ndime
-                   iobje = fe_face%face_vef + finite_element(j)%p_geo_reference_element%nvef_dim(ndime) - 1
-                   do jnode = finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje),finite_element(j)%reference_element_vars(m_var)%p%ntxob%p(iobje+1)-1
-                      jdof = finite_element(j)%elem2dof(finite_element(j)%reference_element_vars(m_var)%p%ntxob%l(jnode),m_var)
+                   ndime = finite_element(j)%p%p_geo_reference_element%ndime
+                   iobje = fe_face%face_vef + finite_element(j)%p%p_geo_reference_element%nvef_dim(ndime) - 1
+                   do jnode = finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%p(iobje),finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%p(iobje+1)-1
+                      jdof = finite_element(j)%p%elem2dof(finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%l(jnode),m_var)
                       if (  gtype == csr .and. jdof > 0 ) then
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
-                         a%a(k) = a%a(k) + fe_face%p_mat%a(finite_element(i)%start%a(l_var)+inode,finite_element(j)%start%a(m_var)+jnode-1)
+                         a%a(k) = a%a(k) + fe_face%p_mat%a(finite_element(i)%p%start%a(l_var)+inode,finite_element(j)%p%start%a(m_var)+jnode-1)
                       else if ( jdof >= idof ) then! gtype == csr_symm 
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
-                         a%a(k) = a%a(k) + fe_face%p_mat%a(finite_element(i)%start%a(l_var)+inode,finite_element(j)%start%a(m_var)+jnode-1)
+                         a%a(k) = a%a(k) + fe_face%p_mat%a(finite_element(i)%p%start%a(l_var)+inode,finite_element(j)%p%start%a(m_var)+jnode-1)
                       end if
                    end do
                 end if

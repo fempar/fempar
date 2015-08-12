@@ -133,16 +133,11 @@ contains
   subroutine compute_picard_constant_operator(nlop,approx,fe_space)
     implicit none
     class(picard_nonlinear_operator_t)  , intent(inout) :: nlop
-    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    class(discrete_integration_t)        , intent(inout) :: approx
     type(fe_space_t)                    , intent(inout) :: fe_space
-    ! Locals
-    integer(ip) :: napprox,iapprox
 
     ! Set approx flags
-    napprox = size(approx,1)
-    do iapprox = 1,napprox
-       approx(iapprox)%p%integration_stage = update_constant
-    end do
+    approx%integration_stage = update_constant
 
     ! Initialize
     if(associated(nlop%A_int_c)) call nlop%A_int_c%init()
@@ -166,16 +161,11 @@ contains
   subroutine compute_picard_transient_operator(nlop,approx,fe_space)
     implicit none
     class(picard_nonlinear_operator_t)  , intent(inout) :: nlop
-    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    class(discrete_integration_t), intent(inout) :: approx
     type(fe_space_t)                    , intent(inout) :: fe_space
-    ! Locals
-    integer(ip) :: napprox,iapprox
 
     ! Set approx flags
-    napprox = size(approx,1)
-    do iapprox = 1,napprox
-       approx(iapprox)%p%integration_stage = update_transient
-    end do
+    approx%integration_stage = update_transient
 
     ! Initialize
     if(associated(nlop%A_int_t)) call nlop%A_int_t%init()
@@ -201,11 +191,10 @@ contains
     class(picard_nonlinear_operator_t), target , intent(inout) :: this
     type(solver_control_t)              , intent(inout) :: sctrl
     class(abstract_environment_t)       , intent(in)    :: env
-    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    class(discrete_integration_t), intent(inout) :: approx
     type(fe_space_t)                    , intent(inout) :: fe_space
     ! Locals
     integer(ip)           :: iiter
-    integer(ip)           :: napprox,iapprox
     real(rp)              :: resnorm,ininorm
     class(base_operand_t), allocatable :: y
 
@@ -217,10 +206,7 @@ contains
     check(associated(this%x_sol))
 
     ! Set approx flags
-    napprox = size(approx,1)
-    do iapprox = 1,napprox
-       approx(iapprox)%p%integration_stage = update_nonlinear
-    end do
+    approx%integration_stage = update_nonlinear
 
     ! Allocate y
     allocate(y, mold=this%b); call y%default_initialization()
@@ -281,9 +267,10 @@ contains
        call update_solution(this%x_sol,fe_space)
        
        ! Store nonlinear iteration ( k+1 --> k )
-       do iapprox = 1,napprox
-          call update_nonlinear_solution(fe_space,approx(iapprox)%p%working_vars)
-       end do
+       !do iapprox = 1,napprox
+       !   call update_nonlinear_solution(fe_space,approx(iapprox)%p%working_vars)
+       !end do
+       call update_nonlinear_solution(fe_space,approx%working_vars)
        
     end do
 

@@ -46,12 +46,12 @@ module nonlinear_operator_names
   abstract interface
      subroutine apply_interface(this,sctrl,env,approx,fe_space)
        import :: nonlinear_operator_t,solver_control_t,abstract_environment_t, &
-            &    discrete_integration_pointer_t,fe_space_t
+            &    discrete_integration_t,fe_space_t
        implicit none
        class(nonlinear_operator_t), target , intent(inout) :: this
        type(solver_control_t)              , intent(inout) :: sctrl
        class(abstract_environment_t)       , intent(in)    :: env
-       type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+       class(discrete_integration_t)        , intent(inout) :: approx
        type(fe_space_t)                    , intent(inout) :: fe_space
      end subroutine apply_interface
   end interface

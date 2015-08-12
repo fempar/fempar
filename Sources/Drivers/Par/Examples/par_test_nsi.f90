@@ -50,7 +50,6 @@ program par_test_nsi_iss
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
   type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
-  type(discrete_integration_pointer_t)               :: approx(1)
   type(vtk_t)                                        :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist
@@ -69,7 +68,6 @@ program par_test_nsi_iss
   integer(ip) :: num_levels
   integer(ip) :: gtype(1) = (/ csr /)
   integer(ip) :: ibloc,jbloc,istat,i,j
-  integer(ip) :: num_approximations = 1
 
   ! Allocatables
   integer(ip), allocatable :: id_parts(:)
@@ -78,7 +76,6 @@ program par_test_nsi_iss
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
-  integer(ip), allocatable :: which_approx(:)
 
   ! Arguments
   character(len=256) :: dir_path_out,prefix
@@ -140,7 +137,6 @@ program par_test_nsi_iss
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
   call dof_descriptor%set_problem(1,mydisc)
-  approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -151,18 +147,16 @@ program par_test_nsi_iss
   call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,problem,__FILE__,__LINE__)
-  call memalloc(p_trian%f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
   order(:,1:gdata%ndime) = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
-  which_approx           = 1 
 
   ! Create par_fe_space
   call par_fe_space_create(p_trian,dof_descriptor,p_fe_space,problem,p_cond,continuity,order,material, &
-       &                    which_approx,time_steps_to_store=3,                             &
-       &                    hierarchical_basis=.false.,                         &
-       &                    static_condensation=.false.,num_continuity=1)
+       &                   time_steps_to_store=3,                             &
+       &                   hierarchical_basis=.false.,                         &
+       &                   static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
   call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
@@ -189,12 +183,13 @@ program par_test_nsi_iss
   ! Apply boundary conditions to unkno
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu = 1.0_rp
   call par_update_strong_dirichlet_bcond(p_fe_space,p_cond)
-  call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),myprob%case_veloc,0.0_rp,p_fe_space)
-  call par_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,p_fe_space)
+  ! CORRECT
+  !call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),myprob%case_veloc,0.0_rp,p_fe_space)
+  !call par_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,p_fe_space)
 
   ! Integrate
   if(p_env%am_i_fine_task()) then
-     call volume_integral(approx,p_fe_space%fe_space,p_mat%f_matrix,p_vec%f_vector)
+     call volume_integral(cg_iss_matvec,p_fe_space%fe_space,p_mat%f_matrix,p_vec%f_vector)
   end if
 
   ! Define (recursive) parameters
@@ -260,7 +255,7 @@ program par_test_nsi_iss
   ! Create Preconditioner 
   call par_preconditioner_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
   call par_preconditioner_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
-  call par_preconditioner_dd_mlevel_bddc_fill_val(p_mat,p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_fill_val(p_mlevel_bddc)
 
 !!$  call par_preconditioner_dd_identity_create ( p_mat, p_prec_dd_diag )
 !!$  call par_preconditioner_dd_identity_ass_struct ( p_mat, p_prec_dd_diag )
@@ -299,7 +294,6 @@ program par_test_nsi_iss
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
-  call memfree(which_approx,__FILE__,__LINE__)
   call fevtk%free
   call par_matrix_free (p_mat)
   call par_vector_free (p_vec)
