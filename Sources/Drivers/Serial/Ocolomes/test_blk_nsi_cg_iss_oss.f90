@@ -296,6 +296,7 @@ program test_blk_nsi_cg_iss_oss
   type(nsi_cg_iss_oss_discrete_t)         :: mydisc
   type(time_integration_t)       , target :: mytime
   type(nsi_cg_iss_oss_matvec_t)  , target :: cg_iss_oss_matvec
+  type(discrete_integration_pointer_t)    :: approx(1)
   type(preconditioner_params_t)           :: ppars
   type(solver_control_t)                  :: sctrl
   type(serial_environment_t)              :: senv
@@ -411,7 +412,8 @@ program test_blk_nsi_cg_iss_oss
 
   ! Compute auxiliar matrix
   call mass_p_integration%create(myprob,mydisc)
-  call volume_integral(mass_p_integration,fe_space,nonlinear_operator%mass_p_matrix)
+  approx(1)%p => mass_p_integration
+  call volume_integral(approx,fe_space,nonlinear_operator%mass_p_matrix)
 
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
@@ -423,20 +425,24 @@ program test_blk_nsi_cg_iss_oss
   sctrl%rtol   = 1.0e-14_rp
   sctrl%track_conv_his = .false.
 
+  ! Point discrete integration
+  approx(1)%p => cg_iss_oss_matvec
+
   ! Do nonlinear iterations
-  call nonlinear_operator%apply(sctrl,senv,cg_iss_oss_matvec,fe_space)
+  call nonlinear_operator%apply(sctrl,senv,approx,fe_space)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK()
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
+  approx(1)%p => error_compute
   error_compute%unknown_id = velocity
   call enorm_u%init()
-  call volume_integral(error_compute,fe_space,enorm_u)
+  call volume_integral(approx,fe_space,enorm_u)
   error_compute%unknown_id = pressure
   call enorm_p%init()
-  call volume_integral(error_compute,fe_space,enorm_p)
+  call volume_integral(approx,fe_space,enorm_p)
   write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
   write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
 

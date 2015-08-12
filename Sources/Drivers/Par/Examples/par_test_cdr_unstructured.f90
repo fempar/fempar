@@ -130,6 +130,8 @@ program par_test_cdr_unstructured
   type(cdr_problem_t)                   :: my_problem
   type(cdr_discrete_t)                  :: my_discrete
   type(cdr_approximation_t), target     :: my_approximation
+  integer(ip)                           :: num_approximations
+  type(discrete_integration_pointer_t)  :: approximations(1)
 
   integer(ip)              :: num_levels, nparts, ndime
   integer(ip), allocatable :: id_parts(:), num_parts(:)
@@ -193,6 +195,8 @@ program par_test_cdr_unstructured
   call my_problem%create( p_trian%f_trian%num_dims )
   call my_discrete%create( my_problem )
   call my_approximation%create(my_problem,my_discrete)
+  num_approximations=1
+  approximations(1)%p => my_approximation
   
   call dof_descriptor%set_problem( 1, my_discrete )
   ! ... for as many problems as we have
@@ -228,7 +232,7 @@ program par_test_cdr_unstructured
   p_unk%state = full_summed
 
   if ( p_env%am_i_fine_task() ) then
-     call volume_integral( my_approximation, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
+     call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
      !call matrix_print ( 6, p_mat%f_matrix )
      ! call vector_print ( 6, p_vec%f_vector )
   end if

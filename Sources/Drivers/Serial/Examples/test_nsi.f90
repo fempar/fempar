@@ -45,6 +45,7 @@ program test_nsi_iss
   type(nsi_problem_t)                   :: myprob
   type(nsi_cg_iss_discrete_t)  , target :: mydisc
   type(nsi_cg_iss_matvec_t)    , target :: cg_iss_matvec
+  type(discrete_integration_pointer_t)  :: approx(1)
   type(matrix_t)               , target :: femat
   type(vector_t)               , target :: fevec,feunk
   type(preconditioner_t)                :: feprec
@@ -111,6 +112,7 @@ program test_nsi_iss
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
   call dof_descriptor%set_problem(1,mydisc)
+  approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -167,7 +169,7 @@ program test_nsi_iss
   call preconditioner_log_info(feprec)
 
   ! Do nonlinear iterations
-  call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,cg_iss_matvec,fe_space,femat,feprec,fevec,feunk)
+  call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,femat,feprec,fevec,feunk)
 
   ! Free preconditioner
   call preconditioner_free(preconditioner_free_struct,feprec)
@@ -178,12 +180,13 @@ program test_nsi_iss
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
+  approx(1)%p => error_compute
   error_compute%unknown_id = velocity
   call enorm_u%init()
-  call volume_integral(error_compute,fe_space,enorm_u)
+  call volume_integral(approx,fe_space,enorm_u)
   error_compute%unknown_id = pressure
   call enorm_p%init()
-  call volume_integral(error_compute,fe_space,enorm_p)
+  call volume_integral(approx,fe_space,enorm_p)
   write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
   write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
 
@@ -252,7 +255,7 @@ contains
     real(rp)                            , intent(in)    :: nltol
     integer(ip)                         , intent(in)    :: maxit    
     class(abstract_environment_t)       , intent(in)    :: env
-    class(discrete_integration_t)        , intent(inout) :: approx
+    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
     type(fe_space_t)                    , intent(inout) :: fe_space
     class(base_operator_t)              , intent(inout) :: A, M
     class(base_operand_t)               , intent(inout) :: x, b

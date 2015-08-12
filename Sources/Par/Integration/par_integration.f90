@@ -42,10 +42,10 @@ contains
   subroutine par_volume_integral(approx,p_fe_space,res1,res2)
     implicit none
     ! Parameters
-    type(par_fe_space_t)         , intent(inout) :: p_fe_space
-    class(integrable_t)          , intent(inout) :: res1
-    class(integrable_t), optional, intent(inout) :: res2
-    class(discrete_integration_t) , intent(inout) :: approx
+    type(par_fe_space_t)                , intent(inout) :: p_fe_space
+    class(integrable_t)                 , intent(inout) :: res1
+    class(integrable_t), optional       , intent(inout) :: res2
+    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
 
     if(p_fe_space%p_trian%p_env%am_i_fine_task()) then
        call volume_integral(approx,p_fe_space%fe_space,res1,res2,par_assembly)

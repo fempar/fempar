@@ -50,6 +50,7 @@ program par_test_nsi_iss
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
   type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
+  type(discrete_integration_pointer_t)               :: approx(1)
   type(vtk_t)                                        :: fevtk
   type(par_block_graph_t)                            :: p_blk_graph
   type(block_dof_distribution_t)                     :: blk_dof_dist
@@ -137,6 +138,7 @@ program par_test_nsi_iss
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
   call dof_descriptor%set_problem(1,mydisc)
+  approx(1)%p       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -189,7 +191,7 @@ program par_test_nsi_iss
 
   ! Integrate
   if(p_env%am_i_fine_task()) then
-     call volume_integral(cg_iss_matvec,p_fe_space%fe_space,p_mat%f_matrix,p_vec%f_vector)
+     call volume_integral(approx,p_fe_space%fe_space,p_mat%f_matrix,p_vec%f_vector)
   end if
 
   ! Define (recursive) parameters
