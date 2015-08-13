@@ -130,7 +130,7 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
 
-    if(op%fill_values_stage==stage_) call op%M%fill_values(stage_)
+    call op%M%fill_values(stage_)
 
   end subroutine inverse_operator_fill_values
 
@@ -145,7 +145,7 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
     
-    if(op%free_values_stage==stage_) call op%M%free_values(stage_)
+    call op%M%free_values(stage_)
 
   end subroutine inverse_operator_free_values
 

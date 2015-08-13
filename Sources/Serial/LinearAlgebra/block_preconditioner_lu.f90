@@ -124,11 +124,9 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
 
-    if(op%fill_values_stage==stage_) then
-       call op%L%fill_values(stage_)
-       call op%U%fill_values(stage_)
-    end if
-
+    call op%L%fill_values(stage_)
+    call op%U%fill_values(stage_)
+    
   end subroutine block_preconditioner_lu_fill_values
 
   ! op1%free_values(op2)
@@ -143,11 +141,9 @@ contains
     stage_ = update_nonlinear
     if(present(stage)) stage_ = stage
 
-    if(op%free_values_stage==stage_) then
-       call op%L%free_values(stage_)
-       call op%U%free_values(stage_)
-    end if
-
+    call op%L%free_values(stage_)
+    call op%U%free_values(stage_)
+    
   end subroutine block_preconditioner_lu_free_values
 
 

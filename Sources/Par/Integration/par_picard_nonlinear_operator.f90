@@ -191,7 +191,7 @@ contains
     end if
 
     ! Fill Preconditioner
-    call nlop%M%fill_values(update_transient)
+    !call nlop%M%fill_values(update_transient)
 
   end subroutine compute_par_picardtransient_operator
 
@@ -285,7 +285,7 @@ contains
        call solver_control_free_conv_his(sctrl)
 
        ! Free Numeric preconditioner
-       call this%M%free_values()
+       call this%M%free_values(update_nonlinear)
        
        ! Store solution to unkno
        call par_update_solution(this%x_sol,p_fe_space)

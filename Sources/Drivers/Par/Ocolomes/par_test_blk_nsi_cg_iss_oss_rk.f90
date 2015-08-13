@@ -232,7 +232,7 @@ contains
        nlop%point_to_p_mlevel_bddc_pars_u%ndime            = ndime
        nlop%point_to_p_mlevel_bddc_pars_u%unknowns         = all_unknowns
        nlop%point_to_p_mlevel_bddc_pars_u%pad_collectives  = pad
-       nlop%point_to_p_mlevel_bddc_pars_u%projection       = petrov_galerkin                     
+       nlop%point_to_p_mlevel_bddc_pars_u%projection       = galerkin                     
        nlop%point_to_p_mlevel_bddc_pars_u%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
        nlop%point_to_p_mlevel_bddc_pars_u%correction_mode  = additive_symmetric                 !default 
        nlop%point_to_p_mlevel_bddc_pars_u%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
@@ -272,12 +272,14 @@ contains
     call par_preconditioner_dd_mlevel_bddc_create(nlop%p_block_u_matrix%get_block(1,1),nlop%p_mlevel_bddc_u, &
          &                                        nlop%p_mlevel_bddc_pars_u)
     call par_preconditioner_dd_mlevel_bddc_ass_struct(nlop%p_block_u_matrix%get_block(1,1),nlop%p_mlevel_bddc_u)
-    nlop%p_mlevel_bddc_u%fill_values_stage = update_nonlinear!transient
+    nlop%p_mlevel_bddc_u%fill_values_stage = update_transient
+    nlop%p_mlevel_bddc_u%free_values_stage = update_transient
 
     ! Construct X-preconditioner (Mx^-1)
     call par_preconditioner_dd_diagonal_create(nlop%p_mass_x_matrix%get_block(3,3),nlop%p_diagonal_x)
     call par_preconditioner_dd_diagonal_ass_struct(nlop%p_mass_x_matrix%get_block(3,3),nlop%p_diagonal_x)
-    nlop%p_diagonal_x%fill_values_stage = update_nonlinear
+    nlop%p_diagonal_x%fill_values_stage = update_transient!nonlinear
+    nlop%p_diagonal_x%free_values_stage = update_transient!nonlinear
 
     ! Create Mass operator
     call nlop%Am%create(2,2)
@@ -348,7 +350,7 @@ contains
     call nlop%M_momentum%set_block(1,1,nlop%inv_A_uu)
     call nlop%M_momentum%set_block(2,1,nlop%aii*nlop%p_block_matrix_nl%get_block(3,1))
     call nlop%M_momentum%set_block(2,2,nlop%p_diagonal_x)
-
+    
     ! Fill picard nonlinear operator pointers
     call nlop%create(nlop%A_momentum, nlop%M_momentum, nlop%b_momentum, nlop%x_momentum, &
          &           nlop%p_block_unknown,                                               &
@@ -470,13 +472,15 @@ contains
     ! Construct W-preconditioner (Mu^-1)
     call par_preconditioner_dd_diagonal_create(nlop%p_mass_u_matrix%get_block(1,1),nlop%p_diagonal_w)
     call par_preconditioner_dd_diagonal_ass_struct(nlop%p_mass_u_matrix%get_block(1,1),nlop%p_diagonal_w)
-    nlop%p_diagonal_w%fill_values_stage = update_nonlinear!transient
+    nlop%p_diagonal_w%fill_values_stage = update_constant
+    nlop%p_diagonal_w%free_values_stage = update_constant
 
     ! Construct P-preconditioner (Lp^-1)
     call par_preconditioner_dd_mlevel_bddc_create(nlop%p_lapla_p_matrix%get_block(2,2),nlop%p_mlevel_bddc_p, &
          &                                        nlop%p_mlevel_bddc_pars_p)
     call par_preconditioner_dd_mlevel_bddc_ass_struct(nlop%p_lapla_p_matrix%get_block(2,2),nlop%p_mlevel_bddc_p)
-    nlop%p_mlevel_bddc_p%fill_values_stage = update_nonlinear!transient
+    nlop%p_mlevel_bddc_p%fill_values_stage = update_constant
+    nlop%p_mlevel_bddc_p%free_values_stage = update_constant
     
     ! Create W-P Block operator
     call nlop%A_pressure%create(2,2)
@@ -498,7 +502,6 @@ contains
     call nlop%M_pressure%set_block(1,1,nlop%p_diagonal_w)
     call nlop%M_pressure%set_block(2,1,nlop%p_block_matrix%get_block(2,1))
     call nlop%M_pressure%set_block(2,2,nlop%p_mlevel_bddc_p)
-    nlop%M_pressure%fill_values_stage = update_nonlinear!transient
 
     ! Fill picard nonlinear operator pointers
     call nlop%create(nlop%A_pressure, nlop%M_pressure, nlop%b_pressure, nlop%x_pressure, &
@@ -558,7 +561,8 @@ contains
     ! Construct U-preconditioner (Mu^-1)
     call par_preconditioner_dd_diagonal_create(nlop%p_mass_u_matrix%get_block(1,1),nlop%p_diagonal_u)
     call par_preconditioner_dd_diagonal_ass_struct(nlop%p_mass_u_matrix%get_block(1,1),nlop%p_diagonal_u)
-    nlop%p_diagonal_u%fill_values_stage = update_nonlinear!transient
+    nlop%p_diagonal_u%fill_values_stage = update_transient
+    nlop%p_diagonal_u%free_values_stage = update_transient
     
     ! Create U Block operator
     call nlop%A_update_u%create(1,1)
@@ -573,7 +577,6 @@ contains
     ! Create U Block preconditioner
     call nlop%M_update_u%create(1)
     call nlop%M_update_u%set_block(1,1,nlop%p_diagonal_u)
-    nlop%M_update_u%fill_values_stage = update_nonlinear!transient
 
     ! Fill picard nonlinear operator pointers
     call nlop%create(nlop%A_update_u, nlop%M_update_u, nlop%b_update_u, nlop%x_update_u, &
@@ -633,7 +636,8 @@ contains
     ! Construct X-preconditioner (Mx^-1)
     call par_preconditioner_dd_diagonal_create(nlop%p_mass_x_matrix%get_block(3,3),nlop%p_diagonal_x)
     call par_preconditioner_dd_diagonal_ass_struct(nlop%p_mass_x_matrix%get_block(3,3),nlop%p_diagonal_x)
-    nlop%p_diagonal_x%fill_values_stage = update_nonlinear!transient
+    nlop%p_diagonal_x%fill_values_stage = update_transient
+    nlop%p_diagonal_x%free_values_stage = update_transient
     
     ! Create U Block operator
     call nlop%A_update_x%create(1,1)
@@ -871,6 +875,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   type(par_context_t)           :: q_context
   type(par_context_t)           :: b_context
   type(par_environment_t)       :: p_env
+  type(par_timer_t)             :: p_timer
 
   ! Postproces types
   type(vtk_t) :: fevtk
@@ -984,7 +989,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
   rkinteg%dtinv   = 1.0_rp/dt
   tinteg%dtinv    = 1.0_rp/dt
-  rkinteg%ftime   = 1.0_rp
+  rkinteg%ftime   = 0.5_rp
   mydisc%kfl_proj = 1
   mydisc%kfl_lump = 0
   mydisc%ktauc    = 0.0_rp
@@ -1041,11 +1046,16 @@ program par_test_blk_nsi_cg_iss_oss_rk
   sctrl%track_conv_his = .false.
 
   ! Do time steps
+  call par_timer_create(p_timer,'TEMPORAL_LOOP', w_context%icontxt)
+  call par_timer_init(p_timer)
+  call par_timer_start(p_timer)   
   call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,p_fe_space,momentum_operator,  &
        &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
        &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,          &
        &                    projection_update_operator,cg_iss_oss_rk_projection_update,      &
        &                    cg_iss_oss_rk_momentum_rhs,tinteg)
+  call par_timer_stop(p_timer)   
+  call par_timer_report(p_timer) 
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK(n_part=p_env%p_context%iam)
@@ -1211,6 +1221,21 @@ contains
     ! Update analytical/time dependent boundary conditions
     call par_update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),rkinteg%ctime,p_fe_space)
 
+    !**************************** NSI specific tasks *****************************************!
+    ! Preconditioner matrices
+    approx(1)%p => lapla_p_integration
+    call par_volume_integral(approx,p_fe_space,pressure_operator%p_lapla_p_matrix)
+    approx(1)%p => mass_u_integration
+    call par_volume_integral(approx,p_fe_space,pressure_operator%p_mass_u_matrix)
+    call par_volume_integral(approx,p_fe_space,momentum_update_operator%p_mass_u_matrix)
+    approx(1)%p => mass_x_integration
+    call par_volume_integral(approx,p_fe_space,momentum_operator%p_mass_x_matrix)
+    if(p_env%am_i_fine_task()) then
+       projection_update_operator%p_mass_x_matrix%blocks(3,3)%p_p_matrix%f_matrix%a = &
+            & momentum_operator%p_mass_x_matrix%blocks(3,3)%p_p_matrix%f_matrix%a
+    end if
+    !*****************************************************************************************!
+
     ! Compute constant operators
     ! Momentum
     approx(1)%p => momentum_integration
@@ -1229,19 +1254,6 @@ contains
     approx(1)%p => projection_update_integration
     projection_update_integration%integration_stage = update_constant
     call projection_update_operator%fill_constant(approx,p_fe_space)
-    ! Preconditioner matrices
-    approx(1)%p => lapla_p_integration
-    call par_volume_integral(approx,p_fe_space,pressure_operator%p_lapla_p_matrix)
-    approx(1)%p => mass_u_integration
-    call par_volume_integral(approx,p_fe_space,pressure_operator%p_mass_u_matrix)
-    call par_volume_integral(approx,p_fe_space,momentum_update_operator%p_mass_u_matrix)
-    approx(1)%p => mass_x_integration
-    call par_volume_integral(approx,p_fe_space,momentum_operator%p_mass_x_matrix)
-    if(p_env%am_i_fine_task()) then
-       projection_update_operator%p_mass_x_matrix%blocks(3,3)%p_p_matrix%f_matrix%a = &
-            & momentum_operator%p_mass_x_matrix%blocks(3,3)%p_p_matrix%f_matrix%a
-    end if
-    ! scal --> L*dt, M/dt
     !*****************************************************************************************!
 
     ! Time steps loop
@@ -1324,11 +1336,15 @@ contains
                      & momentum_operator%dt*momentum_operator%p_block_matrix_m%blocks(1,1)%p_p_matrix%f_matrix%a + &
                      & momentum_operator%aii*momentum_operator%p_block_matrix_l%blocks(1,1)%p_p_matrix%f_matrix%a
              end if
+             call momentum_operator%M%fill_values(update_transient) ! Recompute M with updated matrix values 
              !**************************************************************************************! 
 
              ! Momentum equation solution
              approx(1)%p => momentum_integration
              call momentum_operator%apply(sctrl,p_env,approx,p_fe_space)
+
+             ! Free Transient
+             call momentum_operator%M%free_values(update_transient)
 
              ! Store unkno to istage position (U --> U_i)
              call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3+istage)       
@@ -1372,10 +1388,14 @@ contains
        approx(1)%p => momentum_update_integration
        momentum_update_integration%integration_stage = update_transient
        call momentum_update_operator%fill_transient(approx,p_fe_space) 
+       call momentum_update_operator%M%fill_values(update_transient) ! Recompute M with updated matrix values 
        
        ! Momentum update equation solution
        approx(1)%p => momentum_update_integration
        call momentum_update_operator%apply(sctrl,p_env,approx,p_fe_space)
+
+       ! Free preconditioner 
+       call momentum_update_operator%M%free_values(update_transient)
 
        ! Store unkno to previous step position (Un+1 --> U_n)
        call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3)    
@@ -1385,10 +1405,14 @@ contains
        approx(1)%p => projection_update_integration
        projection_update_integration%integration_stage = update_transient
        call projection_update_operator%fill_transient(approx,p_fe_space) 
+       call projection_update_operator%M%fill_values(update_transient) ! Recompute M with updated matrix values 
 
        ! Projection update equation solution
        approx(1)%p => projection_update_integration
        call projection_update_operator%apply(sctrl,p_env,approx,p_fe_space)
+
+       ! Free preconditioner 
+       call projection_update_operator%M%free_values(update_transient)
 
        ! Update boundary conditions (velocity derivative)
        call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,p_fe_space,2)
@@ -1416,6 +1440,9 @@ contains
        istep = istep + 1
 
     end do step
+
+    ! Free constant
+    call pressure_operator%M%free_values(update_constant)
 
   end subroutine do_time_steps_rk_nsi
   
