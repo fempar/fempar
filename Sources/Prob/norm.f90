@@ -71,6 +71,9 @@ contains
     approx%alpha = 0.0_rp
     approx%beta  = 0.0_rp
     approx%gamma = 0.0_rp
+
+    ! Domain dimension
+    approx%domain_dimension = 3
     
   end subroutine error_norm_create
 
@@ -176,7 +179,7 @@ contains
              ! Error computation
              finite_element%scalar = finite_element%scalar + &
                   &                  ((gpscalar%a(igaus)-exact_values(1))**2)*dvolu
-
+             
           end do
           
           ! Deallocate gpvector

@@ -444,7 +444,6 @@ program par_test_blk_nsi_cg_iss_oss
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
-  integer(ip), allocatable :: which_approx(:)
   integer(ip), allocatable :: vars_block(:)
   integer(ip), allocatable :: dof_coupling(:,:)
 
@@ -525,16 +524,14 @@ program par_test_blk_nsi_cg_iss_oss
   call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,problem,__FILE__,__LINE__)
-  call memalloc(p_trian%f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
   order                  = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
-  which_approx           = 1 
 
   ! Create par_fe_space
   call par_fe_space_create(p_trian,dof_descriptor,p_fe_space,problem,p_cond,continuity,order,material, &
-       &                   which_approx,time_steps_to_store=3,hierarchical_basis=.false.,              &
+       &                   time_steps_to_store=3,hierarchical_basis=.false.,                           &
        &                   static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
@@ -609,7 +606,6 @@ program par_test_blk_nsi_cg_iss_oss
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
-  call memfree(which_approx,__FILE__,__LINE__)
   call memfree(vars_block,__FILE__,__LINE__)
   call memfree(dof_coupling,__FILE__,__LINE__)
   call memfree(id_parts , __FILE__, __LINE__)

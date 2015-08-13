@@ -461,6 +461,7 @@ program test_blk_nsi_cg_iss_oss
   call mydisc%free
   call error_compute%free
   call cg_iss_oss_matvec%free
+  call mass_p_integration%free
   call dof_descriptor_free(dof_descriptor)
   call triangulation_free(f_trian)
   call conditions_free(f_cond)

@@ -757,7 +757,6 @@ program test_blk_nsi_cg_iss_oss_rk
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
-  integer(ip), allocatable :: which_approx(:)
   integer(ip), allocatable :: vars_block(:)
   integer(ip), allocatable :: dof_coupling(:,:)
 
@@ -839,16 +838,14 @@ program test_blk_nsi_cg_iss_oss_rk
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,problem,__FILE__,__LINE__)
-  call memalloc(f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
   order                  = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
-  which_approx           = 1 
   
   ! Create fe_space
   call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material, &
-       &               which_approx,time_steps_to_store=3+rkinteg%rk_table_implicit%stage,       &
+       &               time_steps_to_store=3+rkinteg%rk_table_implicit%stage,                    &
        &               hierarchical_basis=.false.,static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
@@ -904,7 +901,6 @@ program test_blk_nsi_cg_iss_oss_rk
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
-  call memfree(which_approx,__FILE__,__LINE__)
   call memfree(vars_block,__FILE__,__LINE__)
   call memfree(dof_coupling,__FILE__,__LINE__)
   call momentum_operator%free()

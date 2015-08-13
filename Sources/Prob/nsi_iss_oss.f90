@@ -245,6 +245,9 @@ contains
        check(.false.)
     end select
 
+    ! Domain dimension
+    approx%domain_dimension = 3
+
     ! Allocate working variables
     call memalloc(discret%nvars,approx%working_vars,__FILE__,__LINE__)
     do ivar=1,discret%nvars
@@ -293,6 +296,9 @@ contains
        class default
        check(.false.)
     end select
+
+    ! Domain dimension
+    approx%domain_dimension = 3
 
     ! Allocate working variables
     call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
@@ -343,6 +349,9 @@ contains
        check(.false.)
     end select
 
+    ! Domain dimension
+    approx%domain_dimension = 3
+
     ! Allocate working variables
     call memalloc(1,approx%working_vars,__FILE__,__LINE__)
     approx%working_vars(1) = physics%ndime+1
@@ -389,6 +398,9 @@ contains
        class default
        check(.false.)
     end select
+
+    ! Domain dimension
+    approx%domain_dimension = 3
 
     ! Allocate working variables
     call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
@@ -437,6 +449,9 @@ contains
        check(.false.)
     end select
 
+    ! Domain dimension
+    approx%domain_dimension = 3
+
     ! Allocate working variables
     call memalloc(1,approx%working_vars,__FILE__,__LINE__)
     approx%working_vars(1) = physics%ndime+1
@@ -483,6 +498,9 @@ contains
        class default
        check(.false.)
     end select 
+
+    ! Domain dimension
+    approx%domain_dimension = 3
 
    ! Allocate working variables
     call memalloc(2*physics%ndime,approx%working_vars,__FILE__,__LINE__)
@@ -536,6 +554,9 @@ contains
        check(.false.)
     end select
 
+    ! Domain dimension
+    approx%domain_dimension = 3
+
    ! Allocate working variables
     call memalloc(2*physics%ndime,approx%working_vars,__FILE__,__LINE__)
     do ivar=1,physics%ndime
@@ -586,6 +607,9 @@ contains
        check(.false.)
     end select
 
+    ! Domain dimension
+    approx%domain_dimension = 3
+
     ! Allocate working variables
     call memalloc(1,approx%working_vars,__FILE__,__LINE__)
     approx%working_vars(1) = physics%ndime+1
@@ -632,6 +656,9 @@ contains
        class default
        check(.false.)
     end select
+
+    ! Domain dimension
+    approx%domain_dimension = 3
 
    ! Allocate working variables
     call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
@@ -681,6 +708,9 @@ contains
        class default
        check(.false.)
     end select
+
+    ! Domain dimension
+    approx%domain_dimension = 3
 
     ! Allocate working variables
     call memalloc(physics%ndime,approx%working_vars,__FILE__,__LINE__)
