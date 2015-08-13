@@ -135,11 +135,17 @@ contains
   end subroutine inverse_operator_fill_values
 
   !==================================================================================================
-  subroutine inverse_operator_free_values(op)
+  subroutine inverse_operator_free_values(op,stage)
     implicit none
     class(inverse_operator_t), intent(inout) :: op
+    integer(ip), optional , intent(in)       :: stage
+    ! Locals
+    integer(ip) :: stage_
     
-    if(op%do_free_values) call op%M%free_values()
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
+    
+    if(op%free_values_stage==stage_) call op%M%free_values(stage_)
 
   end subroutine inverse_operator_free_values
 

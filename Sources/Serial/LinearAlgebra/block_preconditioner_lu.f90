@@ -133,13 +133,19 @@ contains
 
   ! op1%free_values(op2)
   ! Free preconditioner values
-  subroutine block_preconditioner_lu_free_values (op)
+  subroutine block_preconditioner_lu_free_values (op,stage)
     implicit none
     class(block_preconditioner_lu_t), intent(inout) :: op
+    integer(ip), optional , intent(in)              :: stage
+    ! Locals
+    integer(ip) :: stage_
+    
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
 
-    if(op%do_free_values) then
-       call op%L%free_values()
-       call op%U%free_values()
+    if(op%free_values_stage==stage_) then
+       call op%L%free_values(stage_)
+       call op%U%free_values(stage_)
     end if
 
   end subroutine block_preconditioner_lu_free_values

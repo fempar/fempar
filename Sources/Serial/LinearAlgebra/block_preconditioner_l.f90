@@ -190,16 +190,20 @@ contains
 
   ! op1%free_values(op2)
   ! Free preconditioner values
-  subroutine block_preconditioner_l_free_values (op)
+  subroutine block_preconditioner_l_free_values (op,stage)
     implicit none
     class(block_preconditioner_l_t), intent(inout) :: op
-
+    integer(ip), optional , intent(in)             :: stage
     ! Locals
     integer(ip) :: iblk
+    integer(ip) :: stage_
+    
+    stage_ = update_nonlinear
+    if(present(stage)) stage_ = stage
 
-    if(op%do_free_values) then
+    if(op%free_values_stage==stage_) then
        do iblk=1, op%nblocks
-          call op%blocks(iblk,iblk)%p_op%free_values()
+          call op%blocks(iblk,iblk)%p_op%free_values(stage_)
        end do
     end if
 

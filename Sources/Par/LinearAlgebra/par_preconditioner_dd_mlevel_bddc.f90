@@ -8870,15 +8870,21 @@ use mpi
      end subroutine par_preconditioner_dd_mlevel_bddc_fill_values_tbp
 
      !=============================================================================
-     subroutine par_preconditioner_dd_mlevel_bddc_free_values_tbp (op)
+     subroutine par_preconditioner_dd_mlevel_bddc_free_values_tbp (op,stage)
        implicit none
        ! Parameters
        class(par_preconditioner_dd_mlevel_bddc_t)    , intent(inout) :: op
-
+       integer(ip), optional , intent(in)       :: stage
+       ! Locals
+       integer(ip) :: stage_
+       
+       stage_ = update_nonlinear
+       if(present(stage)) stage_ = stage
+       
        assert (associated(op%p_mat))
-
-       if(op%do_free_values) call par_preconditioner_dd_mlevel_bddc_free ( op, free_values )
-
+       
+       if(op%free_values_stage==stage_) call par_preconditioner_dd_mlevel_bddc_free ( op, free_values )
+       
      end subroutine par_preconditioner_dd_mlevel_bddc_free_values_tbp
 
         subroutine par_preconditioner_dd_mlevel_bddc_free_tbp(this)
