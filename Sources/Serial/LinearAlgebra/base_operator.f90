@@ -44,6 +44,7 @@ module base_operator_names
      procedure (apply_fun_interface)     , deferred :: apply_fun
      procedure (fill_values_interface)   , deferred :: fill_values
      procedure (free_values_interface)   , deferred :: free_values
+     !procedure  :: axpy      => operator_axpy
      procedure  :: sum       => sum_operator_constructor
      procedure  :: sub       => sub_operator_constructor
      procedure  :: mult      => mult_operator_constructor
@@ -130,7 +131,6 @@ module base_operator_names
      procedure  :: assign => scal_operator_copy
   end type scal_operator_t
 
-
   ! Son class minus
   type, extends(base_operator_t) :: minus_operator_t
      class(base_operator_t), pointer :: op => null()
@@ -192,9 +192,18 @@ module base_operator_names
 
   end interface
 
-  public :: abs_operator_t, base_operator_t
+  public :: abs_operator_t, base_operator_t, sum_operator_t, scal_operator_t
 
 contains
+
+  ! subroutine operator_axpy(this,alpha,op)
+  !   implicit none
+  !   class(binary_operator_t), intent(inout) :: this
+  !   real(rp)                , intent(in)    :: alpha
+  !   class(binary_operator_t), intent(in)    :: op
+  !   write(0,'(a)') 'operator axpy not implemented'
+  !   check(1==0)
+  ! end subroutine operator_axpy
 
   subroutine binary_operator_default_init(this)
     implicit none
