@@ -105,7 +105,7 @@ program par_test_cdr_unstructured
   type(par_environment_t)   :: p_env
   type(par_mesh_t)          :: p_mesh
   type(par_triangulation_t) :: p_trian
-  type(par_fe_space_t)     :: p_fe_space
+  type(par_fe_space_t)      :: p_fe_space
 
   type(par_matrix_t), target                :: p_mat
   type(par_vector_t), target                :: p_vec, p_unk
@@ -141,17 +141,26 @@ program par_test_cdr_unstructured
   character(len=256)            :: dir_path, dir_path_out
   character(len=256)            :: prefix
   character(len=:), allocatable :: name
-  integer(ip)                   :: i, j, ierror, iblock, num_uniform_refinement_steps
+  integer(ip)                   :: i, j, k, ierror, iblock, num_uniform_refinement_steps
   type(par_timer_t)             :: par_uniform_refinement_timer, par_mesh_to_triangulation_timer, par_fe_space_create_timer
+  type(par_timer_t)             :: total_time
 
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
   integer(ip), allocatable :: continuity(:,:)
 
+
+  interface
+     subroutine malloc_stats() bind(c,name='malloc_stats')
+       use iso_c_binding
+       implicit none
+     end subroutine malloc_stats
+  end interface
+
   call meminit
 
   ! Read parameters from command-line
-  call read_pars_cl ( dir_path, prefix, dir_path_out, num_levels, num_parts )
+  call read_pars_cl ( dir_path, prefix, dir_path_out, num_levels, num_parts, ndime, num_uniform_refinement_steps )
 
   call memalloc(num_levels, id_parts, __FILE__, __LINE__)
   call mesh_conditions_read_redistribute_on_first_level_tasks ( num_levels, num_parts, id_parts, &
@@ -162,14 +171,12 @@ program par_test_cdr_unstructured
   call par_timer_create ( par_fe_space_create_timer, 'PAR_FE_SPACE_CREATE', w_context%icontxt )
   call par_timer_create ( par_uniform_refinement_timer, 'PAR_UNIFORM_REFINEMENT', w_context%icontxt )
 
-  num_uniform_refinement_steps = 2 
   do i=1, num_uniform_refinement_steps
      call par_timer_init (par_mesh_to_triangulation_timer)
      call par_timer_start (par_mesh_to_triangulation_timer)   
      call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
      call par_timer_stop (par_mesh_to_triangulation_timer)   
      call par_timer_report (par_mesh_to_triangulation_timer)   
-
      call par_mesh_free(p_mesh)
 
      call par_timer_init (par_uniform_refinement_timer)
@@ -177,8 +184,11 @@ program par_test_cdr_unstructured
      call par_uniform_refinement ( p_trian, p_mesh, p_cond )
      call par_timer_stop (par_uniform_refinement_timer)  
      call par_timer_report (par_uniform_refinement_timer)
-
      call par_triangulation_free(p_trian)
+
+     if ( p_env%p_context%iam == 0 ) then
+        call malloc_stats()
+     end if
   end do
   call par_timer_init (par_mesh_to_triangulation_timer)
   call par_timer_start (par_mesh_to_triangulation_timer)   
@@ -186,7 +196,9 @@ program par_test_cdr_unstructured
   call par_timer_stop (par_mesh_to_triangulation_timer)   
   call par_timer_report (par_mesh_to_triangulation_timer) 
   
-
+  if ( p_env%p_context%iam == 0 ) then
+     call malloc_stats()
+  end if
 
   !write (*,*) '********** CREATE DOF HANDLER**************'
   call dof_descriptor%create( 1, 1, 1 )
@@ -230,7 +242,7 @@ program par_test_cdr_unstructured
 
   call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
   p_vec%state = part_summed
-
+  
   call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_unk )
   p_unk%state = full_summed
 
@@ -246,7 +258,7 @@ program par_test_cdr_unstructured
   x => p_vec
   y => p_unk
   y = x - A*y
-  write(*,*) 'XXX error norm XXX', y%nrm2()
+  ! write(*,*) 'XXX error norm XXX', y%nrm2()
   ! AFM: I had to re-assign the state of punk as the expression
   ! y = x - A*y changed its state to part_summed!!! 
   p_unk%state = full_summed
@@ -301,37 +313,48 @@ program par_test_cdr_unstructured
   sctrl%orto=icgs
   sctrl%rtol=1.0e-06
 
-  do j=1,1 !ndime
+  call par_timer_create ( total_time, 'Total time', w_context%icontxt )
 
-     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-     do i=1, num_levels-1
-        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
-        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+  do j=2,ndime
+     do k=1,4
+        point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+        do i=1, num_levels-1
+           point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
+           point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+        end do
+
+        call p_unk%init(0.0_rp)
+
+        ! Create multilevel bddc inverse 
+        call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
+
+        call par_timer_start (total_time) 
+
+        ! Ass struct
+        call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+
+        ! Fill val
+        call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
+
+        call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
+
+        call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
+
+        call par_timer_stop (total_time)   
+        call par_timer_report (total_time) 
+
+        if ( p_env%p_context%iam == 0 .or. p_mlevel_bddc%c_context%iam == 0 .or. p_mlevel_bddc%d_context%iam == 0  ) then
+           call malloc_stats()
+        end if
+
+        ! Free bddc inverse
+        call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
+        call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
+        call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
+
      end do
-
-
-     call p_unk%init(0.0_rp)
-
-     ! Create multilevel bddc inverse 
-     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
-
-     ! Ass struct
-     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
-
-     ! Fill val
-     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mat, p_mlevel_bddc )
-
-     call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
-
-     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
-
-     ! Free bddc inverse
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
-
-
   end do
+
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
 
@@ -378,11 +401,15 @@ program par_test_cdr_unstructured
   call par_context_free ( w_context )
 
 contains
-  subroutine read_pars_cl (dir_path, prefix, dir_path_out, num_levels, num_parts)
+  subroutine read_pars_cl (dir_path, prefix, dir_path_out, num_levels, num_parts, ndime, num_uniform_refinement_steps)
     implicit none
     character(*)              , intent(out) :: dir_path, prefix, dir_path_out
     integer(ip)               , intent(out) :: num_levels
     integer(ip)  , allocatable, intent(out) :: num_parts(:) 
+    integer(ip)               , intent(out) :: ndime
+    integer(ip)               , intent(out) :: num_uniform_refinement_steps
+
+
 
     character(len=256)           :: program_name
     character(len=256)           :: argument 
@@ -390,8 +417,8 @@ contains
 
     numargs = iargc()
     call getarg(0, program_name)
-    if (.not. (numargs==7) ) then
-       write (6,*) 'Usage: ', trim(program_name), ' dir_path prefix dir_path_out num_levels p1 p2 ndime'
+    if (.not. (numargs==8) ) then
+       write (6,*) 'Usage: ', trim(program_name), ' dir_path prefix dir_path_out num_levels p1 p2 ndime num_uniform_refinement_steps'
        stop
     end if
 
@@ -419,6 +446,9 @@ contains
 
     call getarg(7,argument)
     read(argument,*) ndime
+
+    call getarg(8,argument)
+    read(argument,*) num_uniform_refinement_steps
 
   end subroutine read_pars_cl
 
@@ -698,7 +728,6 @@ contains
 
     ! call mesh_distribution_print ( 6, p_mesh%f_mesh_dist )
 
-
     call memfree ( local_sizes, __FILE__, __LINE__)
     call memfree ( local_buffer, __FILE__, __LINE__)
     call par_context_free ( g_context, .false. )
@@ -729,13 +758,13 @@ contains
     type(conditions_t)       , allocatable, intent(out) :: lconditions(:)
 
     ! Local variables
-    integer(ip)                  :: istat, ielem, i, j, k
+    integer(ip)                  :: istat, ielem, i, j, k, l
     type(element_import_t)       :: elem_import
     type(mypart_t), allocatable  :: data(:) 
     type(hash_table_ip_ip_t)     :: is_boundary_elem
     type(hash_table_igp_ip_t)    :: ghost_g2l
-    integer(ieep), allocatable   :: buffer(:)
     type(mesh_distribution_t)    :: dum_mesh_distribution 
+
 
     allocate(lmesh(mesh%nelem), stat=istat)
     check(istat==0)
@@ -747,6 +776,8 @@ contains
     check(istat==0)
 
     call element_import_create ( mesh_dist, elem_import )
+
+    ! call element_import_print ( 6, elem_import ) 
 
     allocate ( data(elem_import%nelem + elem_import%nghost), stat=istat )
     check(istat==0)
@@ -846,9 +877,10 @@ contains
 
           do j=mesh_dist%pextn(i), mesh_dist%pextn(i+1)-1
              ldist(ielem)%lextn(k) = mesh_dist%lextn(j)
-             call ghost_g2l%get(key=mesh_dist%lextn(j), val=i, stat=istat)
+             call ghost_g2l%get(key=mesh_dist%lextn(j), val=l, stat=istat)
              assert (istat==key_found)
-             ldist(ielem)%lextp(k) = data(i)%mypart
+             assert ( mesh_dist%lextn(j) == elem_import%rcv_geids(l-mesh%nelem) )
+             ldist(ielem)%lextp(k) = data(l)%mypart
              k=k+1
           end do
        else ! Interior element

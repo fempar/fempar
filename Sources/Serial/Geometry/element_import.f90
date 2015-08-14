@@ -109,6 +109,12 @@ contains
 
        write(lu_out,'(a,i10)') 'Number of neighbours:', &
             &  element_import%npadj
+       
+       write(lu_out,'(a,i10)') 'Number of local elements:', &
+            &  element_import%nelem
+
+       write(lu_out,'(a,i10)') 'Number of ghost elements:', &
+            &  element_import%nghost
 
        write(lu_out,'(a)') 'List of neighbours:'
        write(lu_out,'(10i10)') element_import%lpadj(1:element_import%npadj)

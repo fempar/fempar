@@ -372,28 +372,30 @@ contains
        do i = 1, 64
           iparm(i) = 0
        end do
+       if ( mtype == pardiso_mkl_uns ) then
 !!$       !!!!!!!!!! PROVISIONAL for uns mtype !!!!!!!!!!
-       iparm(1) = 1 ! no solver default
-       iparm(2) = 2 ! fill-in reordering from METIS
-       iparm(3) = 1 ! numbers of processors
-       iparm(4) = 0 ! no iterative-direct algorithm
-       iparm(5) = 0 ! no user fill-in reducing permutation
-       iparm(6) = 0 ! =0 solution on the first n compoments of x
-       iparm(7) = 0 ! not in use
-       iparm(8) = 9 ! numbers of iterative refinement steps
-       iparm(9) = 0 ! not in use
-       iparm(10) = 13 ! perturbe the pivot elements with 1E-13
-       iparm(11) = 0 ! not use nonsymmetric permutation and scaling MPS
-       iparm(12) = 0 ! not in use
-       iparm(13) = 0 ! maximum weighted matching algorithm is switched-on (default for non-symmetric)
-       iparm(14) = 0 ! Output: number of perturbed pivots
-       iparm(15) = 0 ! not in use
-       iparm(16) = 0 ! not in use
-       iparm(17) = 0 ! not in use
-       iparm(18) = -1 ! Output: number of nonzeros in the factor LU
-       iparm(19) = -1 ! Output: Mflops for LU factorization
-       iparm(20) = 0 ! Output: Numbers of CG Iterations
+          iparm(1) = 1 ! no solver default
+          iparm(2) = 2 ! fill-in reordering from METIS
+          iparm(3) = 1 ! numbers of processors
+          iparm(4) = 0 ! no iterative-direct algorithm
+          iparm(5) = 0 ! no user fill-in reducing permutation
+          iparm(6) = 0 ! =0 solution on the first n compoments of x
+          iparm(7) = 0 ! not in use
+          iparm(8) = 9 ! numbers of iterative refinement steps
+          iparm(9) = 0 ! not in use
+          iparm(10) = 13 ! perturbe the pivot elements with 1E-13
+          iparm(11) = 0 ! not use nonsymmetric permutation and scaling MPS
+          iparm(12) = 0 ! not in use
+          iparm(13) = 0 ! maximum weighted matching algorithm is switched-on (default for non-symmetric)
+          iparm(14) = 0 ! Output: number of perturbed pivots
+          iparm(15) = 0 ! not in use
+          iparm(16) = 0 ! not in use
+          iparm(17) = 0 ! not in use
+          iparm(18) = -1 ! Output: number of nonzeros in the factor LU
+          iparm(19) = -1 ! Output: Mflops for LU factorization
+          iparm(20) = 0 ! Output: Numbers of CG Iterations
 !!$       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       end if
     end if
 #else
     call enable_mkl_error_message

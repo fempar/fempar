@@ -114,8 +114,8 @@ contains
 
       if ( p_timer%stop - p_timer%start >= 0.0) then
          ! p_timer%accum = p_timer%accum + (p_timer%stop - p_timer%start)
-         if ( p_timer%accum >  (p_timer%stop - p_timer%start) ) p_timer%accum = (p_timer%stop - p_timer%start)
-         ! p_timer%accum = (p_timer%stop - p_timer%start)
+         ! if ( p_timer%accum >  (p_timer%stop - p_timer%start) ) p_timer%accum = (p_timer%stop - p_timer%start)
+         p_timer%accum = (p_timer%stop - p_timer%start)
       end if 
       p_timer%start  = 0.0 
       p_timer%stop   = 0.0
