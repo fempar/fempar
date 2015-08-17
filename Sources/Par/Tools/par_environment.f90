@@ -35,7 +35,12 @@ module par_environment_names
   ! Parallel modules
   use psb_penv_mod_names
   use par_context_names
-
+#ifdef MPI_MOD
+  use mpi
+#endif
+#ifdef MPI_H
+  include 'mpif.h'
+#endif
 # include "debug.i90"
   implicit none
   private

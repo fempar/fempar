@@ -113,7 +113,7 @@ contains
        write(lu_out,'(a,i10)') 'Number of elements on the boundary:', &
           &  msh_dist%nebou
 
-       write(lu_out,'(a,i)') 'Number of neighbours:', &
+       write(lu_out,'(a,i10)') 'Number of neighbours:', &
           &  msh_dist%pextn(msh_dist%nebou+1)-msh_dist%pextn(1)
 
        write(lu_out,'(a)') 'GEIDs of boundary elements:'
