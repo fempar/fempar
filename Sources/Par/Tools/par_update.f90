@@ -44,7 +44,7 @@ module par_update_names
 
   ! Functions
   public :: par_update_strong_dirichlet_bcond, par_update_analytical_bcond, par_update_solution, &
-       &    par_update_nonlinear_solution
+       &    par_update_nonlinear_solution, par_update_analytical_initial
   
 contains
 
@@ -89,6 +89,28 @@ contains
     end if
 
   end subroutine par_update_analytical_bcond
+
+  !==================================================================================================
+  subroutine par_update_analytical_initial(vars_of_unk,ctime,p_fe_space,tvar)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine updates Dirichlet boundary conditions in unkno from an analytical solution. !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip)         , intent(in)    :: vars_of_unk(:)
+    real(rp)            , intent(in)    :: ctime
+    type(par_fe_space_t), intent(inout) :: p_fe_space
+    integer(ip), optional, intent(in)   :: tvar
+
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
+
+    ! If fine task call serial subroutine
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+       call update_analytical_initial( vars_of_unk,ctime,p_fe_space%fe_space,tvar)
+    end if
+
+  end subroutine par_update_analytical_initial
 
   !==================================================================================================
   subroutine par_update_solution(vec,p_fe_space)

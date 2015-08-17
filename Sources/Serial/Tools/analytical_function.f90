@@ -75,7 +75,7 @@ contains
     real(rp)         , intent(in)    :: coord(ndime)
     real(rp),optional, intent(in)    :: alpha,beta
     ! Local variables
-    real(rp)    :: pi
+    real(rp)    :: pi,a
     real(rp)    :: x,y,z,u,dudx,dudy,dudz
     real(rp)    :: d2udx,d2udy,d2udz,d2udxy,d2udxz,d2udyz
 
@@ -116,6 +116,49 @@ contains
        dudy = -2.0_rp*x*y
        d2udy = -2.0_rp*x
        d2udxy = -2.0_rp*y  
+    case(7)                ! Taylor-Green Vortex, Vx
+       a = 1.0_rp!2.0_rp*pi
+       if(ndime==2) then
+          u=sin(a*x)*cos(a*y)
+          dudx = a*cos(a*x)*cos(a*y)
+          dudy = -a*sin(a*x)*sin(a*y)
+          d2udx = -a*a*u
+          d2udy = -a*a*u 
+          d2udxy = -a*a*cos(a*x)*sin(a*y)  
+       elseif(ndime==3) then
+          u=a*cos(x)*sin(y)*sin(z)
+          dudx = -a*sin(x)*sin(y)*sin(z)
+          dudy = a*cos(x)*cos(y)*sin(z)
+          dudz = a*cos(x)*sin(y)*cos(z)
+          d2udx = -u
+          d2udy = -u
+          d2udz = -u
+          d2udxy = -cos(a*x)*sin(a*y)
+          d2udxz = -a*sin(x)*sin(y)*cos(z)
+          d2udyz = a*cos(x)*cos(y)*cos(z)    
+       end if
+    case(8)                ! Taylor-Green Vortex, Vy
+       a = 1.0_rp!2.0_rp*pi
+       if(ndime==2) then
+          u=-cos(a*x)*sin(a*y)
+          dudx = -a*cos(a*x)*cos(a*y)
+          dudy = a*sin(a*x)*sin(a*y)
+          d2udx = -a*a*u
+          d2udy = -a*a*u
+          d2udxy = a*a*sin(a*x)*cos(a*y)      
+       elseif(ndime==3) then
+          u=-a*sin(x)*cos(y)*sin(z)
+          dudx = -a*cos(x)*cos(y)*sin(z) 
+          dudy = a*sin(x)*sin(y)*sin(z)
+          dudz = -a*sin(x)*cos(y)*cos(z)
+          d2udx = -u; d2udy = -u; d2udz = -u
+          d2udx = -u
+          d2udy = -u
+          d2udz = -u
+          d2udxy = a*cos(x)*sin(y)*sin(z)
+          d2udxz = -a*cos(x)*cos(y)*cos(z)
+          d2udyz = a*sin(x)*sin(y)*cos(z)
+       end if       
     end select
     
     ! Component assignment

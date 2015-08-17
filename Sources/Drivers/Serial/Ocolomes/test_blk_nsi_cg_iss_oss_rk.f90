@@ -763,12 +763,16 @@ program test_blk_nsi_cg_iss_oss_rk
   ! Arguments
   character(len=256) :: dir_path_out,prefix
   integer(ip)        :: nex,ney,nez,nstage,rk_order,rk_flag
+  integer(ip)        :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
   real(rp)           :: dt
+  logical            :: initial_condition
 
   call meminit
 
   ! Read parameters from command-line
-  call read_pars_cl_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,nstage,rk_order,rk_flag,dt)
+  call read_pars_cl_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,nstage,rk_order,      &
+       &                                       rk_flag,dt,analytical_vx,analytical_vy,analytical_vz, &
+       &                                       analytical_p,analytical_t,initial_condition)
 
   ! Generate geometry data
   call uniform_mesh_descriptor_create(gdata,nex,ney,nez)
@@ -856,7 +860,8 @@ program test_blk_nsi_cg_iss_oss_rk
 
   ! Assign analytical solution
   if(gdata%ndime==2) then
-     call fe_space%set_analytical_code((/1,2,3,0,0/),(/1,1,0,0,0/))
+     call fe_space%set_analytical_code((/analytical_vx,analytical_vy,analytical_p,0,0/), &
+          &                            (/analytical_t,analytical_t,0,0,0/))
   else
      write(*,*) 'analytical function not ready for 3D'
   end if
@@ -873,6 +878,11 @@ program test_blk_nsi_cg_iss_oss_rk
   sctrl%rtol   = 1.0e-14_rp
   sctrl%track_conv_his = .false.
 
+  ! Assign initial condition
+  if(initial_condition) then
+     call update_analytical_initial((/(i,i=1,gdata%ndime+1)/),rkinteg%itime,fe_space)
+  end if
+     
   ! Do time steps
   call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,senv,fe_space,momentum_operator,     &
        &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
@@ -881,7 +891,7 @@ program test_blk_nsi_cg_iss_oss_rk
        &                    cg_iss_oss_rk_momentum_rhs,tinteg)
 
   ! Print solution to VTK file
-!!$  istat = fevtk%write_VTK()
+  istat = fevtk%write_VTK()
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
@@ -934,19 +944,23 @@ contains
 
   !==================================================================================================
   subroutine read_pars_cl_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,nstage,order, &
-       &                                             flag,dt)
+       &                                             flag,dt,analytical_vx,analytical_vy,analytical_vz, &
+       &                                             analytical_p,analytical_t,initial_condition)
     implicit none
     character*(*), intent(out) :: prefix, dir_path_out
     integer(ip)  , intent(out) :: nex,ney,nez,nstage,order,flag
+    integer(ip)  , intent(out) :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
     real(rp)     , intent(out) :: dt
+    logical      , intent(out) :: initial_condition
     character(len=256)         :: program_name
     character(len=256)         :: argument 
     integer                    :: numargs,iargc
+    integer(ip)                :: initial_c
 
     numargs = iargc()
     call getarg(0, program_name)
-    if (.not. (numargs==9) ) then
-       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez nstage order flag dt'
+    if (.not. (numargs==15) ) then
+       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez nstage order flag dt analytical_vx analytical_vy analytical_vz analytical_p analytical_t initial_condition:[0,1]'
        stop
     end if
 
@@ -976,6 +990,26 @@ contains
 
     call getarg(9, argument)
     read (argument,*) dt
+
+    call getarg(10, argument)
+    read (argument,*) analytical_vx
+
+    call getarg(11,argument)
+    read (argument,*) analytical_vy
+
+    call getarg(12, argument)
+    read (argument,*) analytical_vz
+
+    call getarg(13, argument)
+    read (argument,*) analytical_p
+
+    call getarg(14, argument)
+    read (argument,*) analytical_t
+    
+    call getarg(15, argument)
+    read (argument,*) initial_c
+    initial_condition = .false.
+    if(initial_c==1) initial_condition = .true.
 
   end subroutine read_pars_cl_test_blk_nsi_cg_iss_oss_rk
 

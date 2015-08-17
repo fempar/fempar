@@ -905,16 +905,25 @@ program par_test_blk_nsi_cg_iss_oss_rk
   ! Arguments
   character(len=256) :: dir_path_out,prefix
   integer(ip)        :: nex,ney,nez,npx,npy,npz,nstage,rk_order,rk_flag
-  real(rp)           :: dt
+  integer(ip)        :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
+  integer(ip)        :: perix,periy,periz
+  real(rp)           :: dt,lx,ly,lz
+  logical            :: initial_condition
 
   call meminit
 
   ! Read parameters from command-line
   call read_pars_cl_par_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,npx,npy,npz,nstage, &
-       &                                           rk_order,rk_flag,dt)
+       &                                           rk_order,rk_flag,dt,analytical_vx,analytical_vy,    &
+       &                                           analytical_vz,analytical_p,analytical_t,            &
+       &                                           initial_condition,perix,periy,periz)
 
   ! Generate geometry data
-  call uniform_mesh_descriptor_create(gdata,nex,ney,nez,npx,npy,npz)
+  lx = 2.0_rp*pi
+  ly = 2.0_rp*pi
+  lz = 2.0_rp*pi
+  call uniform_mesh_descriptor_create(gdata,nex,ney,nez,npx=npx,npy=npy,npz=npz,perix=perix, &
+       &                              periy=periy,periz=periz,lx=lx,ly=ly,lz=lz)
 
   ! Generate boundary data
   call uniform_conditions_descriptor_create(2*gdata%ndime+1,2*gdata%ndime+1,gdata%ndime,bdata)
@@ -959,6 +968,11 @@ program par_test_blk_nsi_cg_iss_oss_rk
 
   ! Generate par triangulation
   call par_generate_uniform_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
+  if(gdata%ndime==2.and.perix==1.and.periy==1) then
+     if(me==0) p_cond%f_conditions%code(gdata%ndime+1,1) = 1
+  elseif(gdata%ndime==3.and.perix==1.and.periy==1.and.periz==1) then
+     if(me==0) p_cond%f_conditions%code(gdata%ndime+1,1) = 1
+  end if
 
   ! Define Runge-Kutta method
   settable      = (/nstage,rk_order,rk_flag/)
@@ -1024,9 +1038,11 @@ program par_test_blk_nsi_cg_iss_oss_rk
 
   ! Assign analytical solution
   if(gdata%ndime==2) then
-     call par_fe_space_set_analytical_code(p_fe_space,(/1,2,3,0,0/),(/1,1,0,0,0/))
+     call par_fe_space_set_analytical_code(p_fe_space,(/analytical_vx,analytical_vy,analytical_p,0,0/), &
+          &                            (/analytical_t,analytical_t,0,0,0/))
   else
-     write(*,*) 'analytical function not ready for 3D'
+     call par_fe_space_set_analytical_code(p_fe_space,(/analytical_vx,analytical_vy,analytical_vz,analytical_p,0,0,0/), &
+          &                            (/analytical_t,analytical_t,analytical_t,0,0,0,0/))
   end if
 
   ! Create picard nonlinear operators
@@ -1045,15 +1061,20 @@ program par_test_blk_nsi_cg_iss_oss_rk
   sctrl%rtol    = 1.0e-14_rp
   sctrl%track_conv_his = .false.
 
+  ! Assign initial condition
+  if(initial_condition) then
+     call par_update_analytical_initial((/(i,i=1,gdata%ndime+1)/),rkinteg%itime,p_fe_space)
+  end if
+
   ! Do time steps
   call par_timer_create(p_timer,'TEMPORAL_LOOP', w_context%icontxt)
   call par_timer_init(p_timer)
   call par_timer_start(p_timer)   
-  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,p_fe_space,momentum_operator,  &
-       &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
-       &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,          &
-       &                    projection_update_operator,cg_iss_oss_rk_projection_update,      &
-       &                    cg_iss_oss_rk_momentum_rhs,tinteg)
+!!$  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,p_fe_space,momentum_operator,  &
+!!$       &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
+!!$       &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,          &
+!!$       &                    projection_update_operator,cg_iss_oss_rk_projection_update,      &
+!!$       &                    cg_iss_oss_rk_momentum_rhs,tinteg)
   call par_timer_stop(p_timer)   
   call par_timer_report(p_timer) 
 
@@ -1126,19 +1147,26 @@ contains
 
   !==================================================================================================
   subroutine read_pars_cl_par_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,npx,npy,npz, &
-       &                                                 nstage,order,flag,dt)
+       &                                                 nstage,order,flag,dt,analytical_vx,          &
+       &                                                 analytical_vy,analytical_vz,analytical_p,    &
+       &                                                 analytical_t,initial_condition,perix,periy,  &
+       &                                                 periz)
     implicit none
     character*(*), intent(out) :: prefix, dir_path_out
     integer(ip)  , intent(out) :: nex,ney,nez,npx,npy,npz,nstage,order,flag
+    integer(ip)  , intent(out) :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
+    integer(ip)  , intent(out) :: perix,periy,periz
     real(rp)     , intent(out) :: dt
+    logical      , intent(out) :: initial_condition
     character(len=256)         :: program_name
     character(len=256)         :: argument 
     integer                    :: numargs,iargc
+    integer(ip)                :: initial_c
 
     numargs = iargc()
     call getarg(0, program_name)
-    if (.not. (numargs==12) ) then
-       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez npx npy npz nstage order flag dt'
+    if (.not. (numargs==21) ) then
+       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez npx npy npz nstage order flag dt analytical_vx analytical_vy analytical_vz analytical_p analytical_t initial_condition:[0,1] periodic_x periodic_y periodic_z'
        stop
     end if
 
@@ -1177,6 +1205,35 @@ contains
 
     call getarg(12, argument)
     read (argument,*) dt
+
+    call getarg(13, argument)
+    read (argument,*) analytical_vx
+
+    call getarg(14,argument)
+    read (argument,*) analytical_vy
+
+    call getarg(15, argument)
+    read (argument,*) analytical_vz
+
+    call getarg(16, argument)
+    read (argument,*) analytical_p
+
+    call getarg(17, argument)
+    read (argument,*) analytical_t
+    
+    call getarg(18, argument)
+    read (argument,*) initial_c
+    initial_condition = .false.
+    if(initial_c==1) initial_condition = .true.
+    
+    call getarg(19, argument)
+    read (argument,*) perix
+    
+    call getarg(20, argument)
+    read (argument,*) periy
+    
+    call getarg(21, argument)
+    read (argument,*) periz
 
   end subroutine read_pars_cl_par_test_blk_nsi_cg_iss_oss_rk
 
