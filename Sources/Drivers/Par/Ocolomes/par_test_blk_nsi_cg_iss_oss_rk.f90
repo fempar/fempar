@@ -1070,11 +1070,11 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call par_timer_create(p_timer,'TEMPORAL_LOOP', w_context%icontxt)
   call par_timer_init(p_timer)
   call par_timer_start(p_timer)   
-!!$  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,p_fe_space,momentum_operator,  &
-!!$       &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
-!!$       &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,          &
-!!$       &                    projection_update_operator,cg_iss_oss_rk_projection_update,      &
-!!$       &                    cg_iss_oss_rk_momentum_rhs,tinteg)
+  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,p_fe_space,momentum_operator,  &
+       &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
+       &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,          &
+       &                    projection_update_operator,cg_iss_oss_rk_projection_update,      &
+       &                    cg_iss_oss_rk_momentum_rhs,tinteg)
   call par_timer_stop(p_timer)   
   call par_timer_report(p_timer) 
 
