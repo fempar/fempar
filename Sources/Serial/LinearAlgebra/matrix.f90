@@ -36,6 +36,7 @@ module matrix_names
 
   ! Abstract types
   use base_operand_names
+  use base_operator_names
   use base_integrable_operator_names
 
 #ifdef memcheck
@@ -85,7 +86,7 @@ use iso_c_binding
      procedure  :: apply_fun => matrix_apply_fun
      procedure  :: free      => matrix_free_tbp
      procedure  :: init      => matrix_init
-     procedure :: default_initialization => matrix_default_init
+     procedure  :: default_initialization => matrix_default_init
   end type matrix_t
 
   interface matrix_free
@@ -129,6 +130,56 @@ use iso_c_binding
 contains
 
 # include "mem_body.i90"
+
+  !=============================================================================
+
+  recursive subroutine explicit(op,res,alpha)
+    implicit none
+    class(base_operator_t)  , intent(in)    :: op
+    ! This is specific type allocated and initialized where the explicit result is accumulated.
+    type(matrix_t)  , intent(inout) :: res
+    ! This is an optional scaling factor
+    real(rp), optional, intent(in)    :: alpha
+
+    select type(this => op)
+    class is(sum_operator_t)
+       call explicit(this%op1,res,alpha)
+       call explicit(this%op2,res,alpha)
+    class is(abs_operator_t)
+       if(associated(this%op)) then
+          assert(.not.associated(this%op_stored))
+          ! In an abs_operator_t op always points to something that is not expression nor abs_operator
+          ! because in the constructor if an expression is given it is copied into op_stored and if an 
+          ! abs_operator is given its op component is pointed (or the expression is copied).
+          ! Therefore we have something explicit here. This code works as soon as res and this%op are
+          ! of the same type
+          !
+          !call res%axpy(alpha,that%a)
+          select type(that => this%op)
+          type is(matrix_t)
+             if(present(alpha)) then
+                !res%a = res%a + alpha*that%a
+             else
+                res%a = res%a + that%a
+             end if
+          class default
+          end select
+       else if(associated(this%op_stored)) then
+          assert(.not.associated(this%op))
+          call explicit(this%op_stored,res)
+       end if
+    class is(scal_operator_t)
+       if(present(alpha)) then
+          call explicit(this%op,res,alpha*this%alpha)
+       else
+          call explicit(this%op,res,this%alpha)
+       end if
+    class default
+       write(0,'(a)') 'explicit: unsupported op class'
+       check(1==0)
+    end select
+    
+  end subroutine explicit
 
   !=============================================================================
   subroutine matrix_create(type,symm,mat,def)
