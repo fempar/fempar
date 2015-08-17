@@ -362,9 +362,9 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   logical, parameter :: debug_verbose_level_1 = .false. 
   logical, parameter :: debug_verbose_level_2 = .false.
-  logical, parameter :: debug_verbose_level_3 = .false.  ! Prints harmonic extensions 
-                                                              ! to gid files, and coarse grid system 
-                                                              ! coefficient matrix to matrix market 
+  logical, parameter :: debug_verbose_level_3 = .false. ! Prints harmonic extensions 
+                                                        ! to gid files, and coarse grid system 
+                                                        ! coefficient matrix to matrix market 
 
 contains
 
@@ -665,10 +665,10 @@ use mpi
        if ( mlbddc%unknowns == all_unknowns ) then
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
               call operator_dd_create ( p_mat%f_matrix, & 
-                                            p_mat%dof_dist, &
-                                            mlbddc%A_II_inv, & 
-                                            spars=mlbddc%spars_dirichlet, &
-                                            ppars=mlbddc%ppars_dirichlet)
+                                        p_mat%dof_dist, &
+                                        mlbddc%A_II_inv, & 
+                                        spars=mlbddc%spars_dirichlet, &
+                                        ppars=mlbddc%ppars_dirichlet)
                                            ! symm=symm_true, &
                                            ! sign=positive_definite )
           else
@@ -973,7 +973,7 @@ use mpi
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_free ( preconditioner_free_values  , mlbddc%M_rr )
              if (mlbddc%projection == petrov_galerkin )  then 
-             call preconditioner_free ( preconditioner_free_values  , mlbddc%M_rr_trans )
+                call preconditioner_free ( preconditioner_free_values  , mlbddc%M_rr_trans )
              end if
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
@@ -1923,7 +1923,7 @@ use mpi
                                     !      we are using for assembling coarse-grid graph
                                     ! mlbddc%ng_coarse )
 
- 
+  
     else if( i_am_coarse_task ) then
        ! Both omap%ng and max_nparts are required next in the coarse-grid
        ! tasks. TRANSFER these data!
@@ -2128,11 +2128,10 @@ use mpi
 
     ! Parameters
     integer    , intent(in)  :: icontxt_g, np_g
-    integer(ip), intent(out) :: vec_int(*)
+    integer(ip), intent(out) :: vec_int(np_g)
 
     ! Locals
     integer     :: mpi_comm_g, root_g, int_zero, iret
-
     integer(ip) :: i
 
     ! Get MPI communicator associated to icontxt (in
@@ -2187,8 +2186,8 @@ use mpi
   end subroutine rcv_coarse_int_igp
 
   subroutine allreduce_coarse_mesh_nnode( icontxt_g, np_g, nl_coarse, max_coarse_dofs)
-use psb_const_mod_names
-use psb_penv_mod_names
+    use psb_const_mod_names
+    use psb_penv_mod_names
 #ifdef MPI_MOD
 use mpi
 #endif
@@ -2552,6 +2551,9 @@ use mpi
                                                         dual_f_mesh, &
                                                         dual_parts )
 
+          
+
+
           if ( debug_verbose_level_2 ) then
              write (*,*)  'dual_f_mesh%pnods:', dual_f_mesh%pnods
              write (*,*)  'dual_f_mesh%lnods:', dual_f_mesh%lnods
@@ -2559,13 +2561,23 @@ use mpi
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
-
-          !call memalloc (mlbddc%g_context%np-1, l2ge, __FILE__,__LINE__) 
-          call memalloc (c_mesh%nelem, l2ge, __FILE__,__LINE__) 
+          ! ** IMPORTANT NOTE: l2ge should actually be of size mlbddc%g_context%np-1 (=c_mesh%nelem).
+          !                    However, it is allocated of size mlbddc%g_context%np (=c_mesh%nelem+1)
+          !                    as it is required by the communication collective underlying 
+          !                    rcv_coarse_int_ip. As a consequence, the last position of l2ge has undefined value.
+          !                    This is not a problem as only the first nelem positions of l2ge are used by the forthcoming
+          !                    code. 
+          call memalloc (mlbddc%g_context%np, l2ge, __FILE__,__LINE__) 
+          !call memalloc (c_mesh%nelem, l2ge, __FILE__,__LINE__) 
           
           call rcv_coarse_int_ip(mlbddc%g_context%icontxt, &
                                  mlbddc%g_context%np,      &
                                  l2ge)
+
+          !if ( debug_verbose_level_2 ) then 
+          !   call psb_barrier ( mlbddc%c_context%icontxt )
+          !   check ( .false. )
+          !end if
 
           if ( debug_verbose_level_2 ) then
              write (*,*)  'l2ge:', l2ge
@@ -2578,28 +2590,6 @@ use mpi
              call par_timer_start ( mlbddc%timer_assprec_ov_coarse )
              call par_timer_start ( mlbddc%timer_assprec_ov_coarse_header )
           end if
-
-!!$          call build_partition_adjacency (mlbddc%c_context%iam+1, &
-!!$               &                          c_mesh,& 
-!!$               &                          l2ge, &
-!!$               &                          dual_f_mesh, & 
-!!$               &                          dual_parts, &
-!!$               &                          nebou, &
-!!$               &                          lebou, &
-!!$               &                          pextn, &
-!!$               &                          lextn, &
-!!$               &                          lextp, &
-!!$               &                          lexte)
-!!$          if ( debug_verbose_level_2 ) then 
-!!$             write (*,*)  'nebou:', nebou
-!!$             write (*,*)  'pextn:', pextn
-!!$             write (*,*)  'lextn:', lextn
-!!$             write (*,*)  'lextp:', lextp
-!!$             write (*,*)  'lexte:', lexte
-!!$             call psb_barrier ( mlbddc%c_context%icontxt )
-!!$          end if
-
-
 
           ! AFM: The extraction of vars(:) could be integrated into rcv_coarse_mesh_lnods.
           ! This would be more efficient than extracting it here. However, this would require to 
@@ -2615,6 +2605,8 @@ use mpi
              write (*,*)  'vars:', mlbddc%vars
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
+
+
 
 
           call dof_distribution_coarse_create ( mlbddc%c_context%icontxt, & ! Communication context
@@ -2636,11 +2628,10 @@ use mpi
           call mesh_distribution_allocate_void ( mlbddc%p_mesh_c%f_mesh_dist )
 
           if ( debug_verbose_level_2 ) then 
-             write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%pnods
-             write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%lnods
+             write (*,*)  'mlbddc%p_mesh_c%f_mesh%pnods:', mlbddc%p_mesh_c%f_mesh%pnods
+             write (*,*)  'mlbddc%p_mesh_c%f_mesh%lnods:', mlbddc%p_mesh_c%f_mesh%lnods
              write (*,*)  'erenumbering_c%lperm:', mlbddc%erenumbering_c%lperm 
              write (*,*)  'erenumbering_c%iperm:', mlbddc%erenumbering_c%iperm 
-             write (*,*)  'mlbddc%p_mesh_c%f_mesh:', mlbddc%p_mesh_c%f_mesh%lnods
              call dof_distribution_print ( 6, mlbddc%dof_dist_c )
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
@@ -7862,6 +7853,11 @@ use mpi
     dof_dist%nparts = np
     dof_dist%ipart  = me+1
     
+    ! if ( debug_verbose_level_2 ) then 
+    !   call psb_barrier ( icontxt )
+    !   check ( .false. )
+    ! end if
+
     if ( temporize_phases ) then
       call par_timer_create ( t1, 'count_nboun_list_nlboun', ictxt=icontxt )
       call par_timer_start  ( t1 )
@@ -8164,8 +8160,6 @@ use mpi
     type(par_timer_t)    :: t1, t2, t3, t4, t5
     logical, parameter :: temporize_phases = .false. 
     integer(ip) :: aux_val 
-
-
     
     ! A. Martin: This is dirty and deprecated. We should declare an interface 
     ! to icomp somewhere !!! I guess that the same has to
@@ -8212,7 +8206,7 @@ use mpi
        end if
     end do
 
-    call psb_max ( icontxt, est_max_nparts )
+    ! call psb_max ( icontxt, est_max_nparts )
 
     ! write(*,*) 'is_boun', is_boun
     ! write(*,*) 'est_max', est_max_nparts 
@@ -8351,9 +8345,6 @@ use mpi
     lpadj = ws_parts_visited_list_all(1:npadj)
 
     ! write (*,*) 'XXX', npadj, lpadj
-
-
-    call psb_max ( icontxt, max_nparts ) 
 
     call memfree ( ws_parts_visited_list_all,__FILE__,__LINE__)
 

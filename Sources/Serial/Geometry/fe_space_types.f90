@@ -796,7 +796,7 @@ contains
        elseif (ndime == 2) then
           nlocs = int(-0.5_rp+0.5*sqrt(1.0_rp+8*real(mnode)))
        else          
-          write(*,*) __FILE__,__LINE__, 'WARNING! nlocs not computed'
+          ! write(*,*) __FILE__,__LINE__, 'WARNING! nlocs not computed'
        end if
        if(ndime==2) then
           if(mnode == 10) then ! P3

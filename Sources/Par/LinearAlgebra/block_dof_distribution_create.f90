@@ -382,7 +382,6 @@ contains
           call dof_distribution_compute_import(blk_dof_dist%blocks(iblock))
 
           ! call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
-
        end do
     end if
 
@@ -950,7 +949,7 @@ contains
     ! Local variables
     integer(ip) :: i, iobje, j, idof, g_var
     integer(ip) :: mater, k, ielem, iprob, ivars, l_var, k_var  
-    integer(ip) :: touching, obje_l, istat, g_dof, g_mat, ipart, l_pos, nparts_around, count, key
+    integer(ip) :: touching, obje_l, istat, g_dof, g_mat, ipart, jpart, l_pos, nparts_around, count, key
     type(hash_table_ip_ip_t)         :: ws_parts_visited
     integer(ip), parameter    :: tbl_length = 100
 
@@ -986,13 +985,13 @@ contains
                    touch(2,mater,g_var) = ielem 
                    touch(3,mater,g_var) = obje_l
                 end if
-                if ( p_trian%elems(ielem)%mypart /= ipart ) then
-                   call ws_parts_visited_all%put(key=p_trian%elems(ielem)%mypart,val=1,stat=istat)
-                   if ( istat == now_stored ) then
-                      npadj = npadj + 1
-                      ws_parts_visited_list_all(npadj) = p_trian%elems(ielem)%mypart
-                   end if
-                end if
+                ! if ( p_trian%elems(ielem)%mypart /= ipart ) then
+                !   call ws_parts_visited_all%put(key=p_trian%elems(ielem)%mypart,val=1,stat=istat)
+                !   if ( istat == now_stored ) then
+                !      npadj = npadj + 1
+                !      ws_parts_visited_list_all(npadj) = p_trian%elems(ielem)%mypart
+                !   end if
+                ! end if
              end if
           end do
        end do
@@ -1006,7 +1005,6 @@ contains
        end do
 
        call ws_parts_visited%free()
-
 
        ! Put object DOFs in the interior or interface dofs 
        do idof = fe_space%vef2dof(iblock)%p(iobje), fe_space%vef2dof(iblock)%p(iobje+1)-1
@@ -1035,6 +1033,17 @@ contains
              ! write(*,'(a,10i10)') 'YYY', count, g_var, lst_parts_per_dof_obj (2:(nparts_around+2),count), p_trian%vefs(iobje)%globalID, l_pos
              count_object_dof = count_object_dof + 1
              dofs_object_interface(count_object_dof) = fe_space%vef2dof(iblock)%l(idof,1)                  
+
+             do k=1, nparts_around
+               jpart = touch(4+k-1,g_mat,g_var)
+               if ( jpart /= ipart ) then
+                  call ws_parts_visited_all%put(key=jpart,val=1,stat=istat)
+                  if ( istat == now_stored ) then
+                     npadj = npadj+ 1
+                     ws_parts_visited_list_all(npadj) = jpart 
+                  end if
+               end if
+             end do
           else
              ! dofs_object interface vefs to interior dofs
              count_interior = count_interior + 1

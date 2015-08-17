@@ -113,10 +113,22 @@ contains
        write(lu_out,'(a,i10)') 'Number of elements on the boundary:', &
           &  msh_dist%nebou
 
-       write(lu_out,'(a)') 'GEIDs of boundary elements, neighbors and their parts:'
+       write(lu_out,'(a,i10)') 'Number of neighbours:', &
+          &  msh_dist%pextn(msh_dist%nebou+1)-msh_dist%pextn(1)
+
+       write(lu_out,'(a)') 'GEIDs of boundary elements:'
        do i=1,msh_dist%nebou
-          write(lu_out,'(10i10)') msh_dist%emap%l2g(msh_dist%lebou(i)), &
-               &                  (msh_dist%lextn(j),msh_dist%lextp(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
+          write(lu_out,'(10i10)') msh_dist%emap%l2g(msh_dist%lebou(i))
+       end do
+
+       write(lu_out,'(a)') 'GEIDs of neighbors:'
+       do i=1,msh_dist%nebou
+          write(lu_out,'(10i10)') (msh_dist%lextn(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
+       end do
+
+       write(lu_out,'(a)') 'Parts of neighbours:'
+       do i=1,msh_dist%nebou
+          write(lu_out,'(10i10)') (msh_dist%lextp(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
        end do
 
        write(lu_out,'(a)') '*** end mesh_distribution data structure ***'

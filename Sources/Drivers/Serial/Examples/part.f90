@@ -83,7 +83,7 @@ program partitioner
   ! Create partition
   prt_pars%nparts                = nparts
   prt_pars%strat                 = part_kway
-  prt_pars%metis_option_ufactor  = 1
+  prt_pars%metis_option_ufactor  = 30
   prt_pars%debug                 = 0
   prt_pars%metis_option_minconn  = 0 
   prt_pars%metis_option_contig   = 1 
