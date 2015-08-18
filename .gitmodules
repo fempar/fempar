@@ -1,3 +1,6 @@
 [submodule "Sources/Serial/Tools/Lib_VTK_IO"]
 	path = Sources/Serial/Tools/Lib_VTK_IO
 	url = https://github.com/victorsndvg/Lib_VTK_IO.git
+[submodule "Sources/Serial/Tools/FLAP"]
+	path = Sources/Serial/Tools/FLAP
+	url = https://github.com/szaghi/FLAP.git
