@@ -1625,6 +1625,12 @@ contains
     ! Update analytical/time dependent boundary conditions
     call par_update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),rkinteg%ctime,p_fe_space)
 
+    ! Initialize vector
+    call par_update_initialize(momentum_operator%x_sol,p_fe_space)
+    call par_update_initialize(pressure_operator%x_sol,p_fe_space)
+    call par_update_initialize(momentum_update_operator%x_sol,p_fe_space)
+    call par_update_initialize(projection_update_operator%x_sol,p_fe_space)
+
     !**************************** NSI specific tasks *****************************************!
     ! Preconditioner matrices
     approx(1)%p => lapla_p_integration

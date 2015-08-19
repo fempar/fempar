@@ -41,7 +41,8 @@ module update_names
 
   ! Functions
   public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, &
-       &    update_solution_mono, update_nonlinear_solution, update_analytical_initial
+       &    update_solution_mono, update_nonlinear_solution, update_analytical_initial, &
+       &    update_initialize, update_initialize_mono
  
 contains
   
@@ -329,5 +330,88 @@ contains
     end do
     
   end subroutine update_nonlinear_solution
+
+  !==================================================================================================
+  subroutine update_initialize(vec,fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a base_operand into unkno.                         !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    class(base_operand_t), intent(inout) :: vec   
+    type(fe_space_t)     , intent(in)    :: fe_space
+
+    select type(vec)
+    class is(vector_t)
+       call update_initialize_mono(vec,fe_space)
+    class is(block_vector_t)
+       call update_initialize_block(vec,fe_space)
+    class default
+       write(*,*) 'update_solution:: vec type not supported'
+       check(.false.)
+    end select
+       
+  end subroutine update_initialize
+
+  !==================================================================================================
+  subroutine update_initialize_mono(fevec,fe_space,iblock)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a vector into unkno.                           !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(vector_t)       , intent(inout) :: fevec   
+    type(fe_space_t)     , intent(in)    :: fe_space
+    integer(ip), optional, intent(in)    :: iblock
+    ! Locals
+    integer(ip) :: ielem,iblock_,iprob,nvapb,ivar,lvar,inode,idof
+
+    iblock_ = 1
+    if ( present(iblock) ) iblock_ = iblock
+    
+    ! Loop over elements
+    do ielem = 1, fe_space%g_trian%num_elems
+       iprob = fe_space%finite_elements(ielem)%problem
+       nvapb = fe_space%dof_descriptor%prob_block(iblock_,iprob)%nd1
+       
+       ! Loop over problem and block variables
+       do ivar = 1, nvapb
+          lvar = fe_space%dof_descriptor%prob_block(iblock_,iprob)%a(ivar)
+
+          ! Loop over elemental nodes
+          do inode = 1,fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
+             idof = fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
+             
+             if(idof/=0) then
+
+                ! Update unkno
+                fevec%b(idof) = fe_space%finite_elements(ielem)%unkno(inode,lvar,1)
+
+             end if
+
+          end do
+       end do
+    end do
+    
+  end subroutine update_initialize_mono
+
+  !==================================================================================================
+  subroutine update_initialize_block(blvec,fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a vector into unkno.                               !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(block_vector_t), intent(inout) :: blvec   
+    type(fe_space_t)    , intent(in)    :: fe_space
+    ! Locals
+    integer(ip) :: iblock
+
+    ! Loop over blocks
+    do iblock = 1,blvec%nblocks
+       
+       ! Call monolithic update
+       call update_initialize_mono(blvec%blocks(iblock),fe_space,iblock)
+
+    end do
+    
+  end subroutine update_initialize_block
 
 end module update_names

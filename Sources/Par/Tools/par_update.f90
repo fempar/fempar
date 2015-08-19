@@ -44,7 +44,7 @@ module par_update_names
 
   ! Functions
   public :: par_update_strong_dirichlet_bcond, par_update_analytical_bcond, par_update_solution, &
-       &    par_update_nonlinear_solution, par_update_analytical_initial
+       &    par_update_nonlinear_solution, par_update_analytical_initial, par_update_initialize
   
 contains
 
@@ -204,6 +204,78 @@ contains
     end if
 
   end subroutine par_update_nonlinear_solution
+
+  !==================================================================================================
+  subroutine par_update_initialize(vec,p_fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a base_operand into unkno.                         !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    class(base_operand_t), intent(inout) :: vec   
+    type(par_fe_space_t) , intent(in)    :: p_fe_space
+
+    select type(vec)
+    class is(par_vector_t)
+       call par_update_initialize_mono(vec,p_fe_space)
+    class is(par_block_vector_t)
+       call par_update_initialize_block(vec,p_fe_space)
+    class default
+       write(*,*) 'par_update_solution:: vec type not supported'
+       check(.false.)
+    end select
+       
+  end subroutine par_update_initialize
+  
+  !==================================================================================================
+  subroutine par_update_initialize_mono(p_vec,p_fe_space,iblock)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a par_vector into unkno.                           !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(par_vector_t)   , intent(inout) :: p_vec   
+    type(par_fe_space_t) , intent(in)    :: p_fe_space
+    integer(ip), optional, intent(in)    :: iblock
+
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
+
+    ! If fine task call serial subroutine
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+       call update_initialize_mono(p_vec%f_vector,p_fe_space%fe_space,iblock)
+    end if
+
+  end subroutine par_update_initialize_mono
+
+  !==================================================================================================
+  subroutine par_update_initialize_block(blk_p_vec,p_fe_space)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the solution from a par_block_vector into unkno.                     !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(par_block_vector_t), intent(inout) :: blk_p_vec   
+    type(par_fe_space_t)    , intent(in)    :: p_fe_space
+    ! Locals
+    integer(ip) :: iblock
+
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
+
+    ! If fine task call serial subroutine
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then 
+
+       ! Loop over blocks
+       do iblock = 1,blk_p_vec%nblocks
+
+          ! Call monolithic update
+          call update_initialize_mono(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
+
+       end do
+
+    end if
+
+  end subroutine par_update_initialize_block
 
 end module par_update_names
     
