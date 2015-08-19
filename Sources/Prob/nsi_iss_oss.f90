@@ -166,6 +166,18 @@ module nsi_cg_iss_oss_names
      procedure :: free    => nsi_rk_projection_update_free
   end type nsi_cg_iss_oss_rk_projection_update_t
 
+  ! Dissipations
+  type, extends(discrete_integration_t) :: nsi_cg_iss_oss_dissipation_t
+     type(nsi_cg_iss_oss_discrete_t), pointer :: discret
+     type(nsi_problem_t)            , pointer :: physics
+     type(time_integration_t)       , pointer :: tinteg
+     real(rp)                                 :: values(10)
+   contains
+     procedure :: create  => nsi_dissipation_create
+     procedure :: compute => nsi_dissipation
+     procedure :: free    => nsi_dissipation_free
+  end type nsi_cg_iss_oss_dissipation_t
+
   ! Unkno components parameter definition
   integer(ip), parameter :: current   = 1
   integer(ip), parameter :: prev_iter = 2
@@ -176,7 +188,8 @@ module nsi_cg_iss_oss_names
   public :: nsi_cg_iss_oss_matvec_t, nsi_cg_iss_oss_discrete_t, nsi_cg_iss_oss_massp_t, &
        &    nsi_cg_iss_oss_lapla_p_t, nsi_cg_iss_oss_rk_momentum_t, nsi_cg_iss_oss_rk_pressure_t, &
        &    nsi_cg_iss_oss_rk_momentum_update_t, nsi_cg_iss_oss_rk_projection_update_t, &
-       &    nsi_cg_iss_oss_massu_t, nsi_cg_iss_oss_massx_t, nsi_cg_iss_oss_rk_momentum_rhs_t
+       &    nsi_cg_iss_oss_massu_t, nsi_cg_iss_oss_massx_t, nsi_cg_iss_oss_rk_momentum_rhs_t, &
+       &    nsi_cg_iss_oss_dissipation_t
   
 contains
 
@@ -737,6 +750,58 @@ contains
   end subroutine nsi_rk_projection_update_free
 
   !=================================================================================================
+  subroutine nsi_dissipation_create( approx, physics, discret )
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine creates the pointers needed for the discrete integration type              !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_dissipation_t), intent(inout) :: approx
+    class(physical_problem_t)  , target, intent(in)    :: physics
+    class(discrete_problem_t)  , target, intent(in)    :: discret
+    ! Locals
+    integer(ip) :: ivar
+
+    select type (physics)
+    type is(nsi_problem_t)
+       approx%physics => physics
+       class default
+       check(.false.)
+    end select
+    select type (discret)
+    type is(nsi_cg_iss_oss_discrete_t)
+       approx%discret => discret
+       class default
+       check(.false.)
+    end select
+
+    ! Domain dimension
+    approx%domain_dimension = 3
+
+    ! Allocate working variables
+    call memalloc(discret%nvars,approx%working_vars,__FILE__,__LINE__)
+    do ivar=1,discret%nvars
+       approx%working_vars(ivar) = ivar
+    end do
+
+  end subroutine nsi_dissipation_create
+
+  !=================================================================================================
+  subroutine nsi_dissipation_free(approx)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine deallocates the pointers needed for the discrete integration type          !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_dissipation_t), intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
+  end subroutine nsi_dissipation_free
+
+  !=================================================================================================
   subroutine nsi_matvec(approx,finite_element)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine performs the elemental matrix-vector integration selection.                !
@@ -1262,7 +1327,7 @@ contains
   !=================================================================================================
   subroutine nsi_rk_momentum(approx,finite_element)
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine performs the elemental laplacian matrix integration for pressure dofs.     !
+    !   This subroutine performs the elemental momentum matrix integration for velocity dofs.      !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_oss_rk_momentum_t), intent(inout) :: approx
@@ -1389,24 +1454,26 @@ contains
                &          elmat_vx_diag,work)
        end if
 
-       ! OSS_wu
-       ! -tau*(a·grad u, w)
-       if(approx%discret%kfl_proj==1) then
-          beta = -tau(1,igaus)*dvolu
-       else
-          beta = -dvolu
-       end if
-       call elmbuv_gal(beta,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
-            &          nnodu,elmat_wu_diag,work)
+       if(approx%integration_stage==update_nonlinear) then
+          ! OSS_wu
+          ! -tau*(a·grad u, w)
+          if(approx%discret%kfl_proj==1) then
+             beta = -tau(1,igaus)*dvolu
+          else
+             beta = -dvolu
+          end if
+          call elmbuv_gal(beta,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
+               &          nnodu,elmat_wu_diag,work)
 
-       ! OSS_wx
-       ! tau*(proj(a·grad u), w)
-       if(approx%discret%kfl_proj==1) then
-          call elmmss_gal(dvolu,tau(1,igaus),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
-               &          nnodu,elmat_wx_diag,work)
-       else
-          call elmmss_gal(dvolu,1.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
-               &          nnodu,elmat_wx_diag,work)
+          ! OSS_wx
+          ! tau*(proj(a·grad u), w)
+          if(approx%discret%kfl_proj==1) then
+             call elmmss_gal(dvolu,tau(1,igaus),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                  &          nnodu,elmat_wx_diag,work)
+          else
+             call elmmss_gal(dvolu,1.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
+                  &          nnodu,elmat_wx_diag,work)
+          end if
        end if
 
     end do gauss
@@ -1459,7 +1526,7 @@ contains
   !=================================================================================================
   subroutine nsi_rk_momentum_rhs(approx,finite_element)
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine performs the elemental laplacian matrix integration for pressure dofs.     !
+    !   This subroutine performs the elemental momentum RHS integration for velocity dofs.         !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_oss_rk_momentum_rhs_t), intent(inout) :: approx
@@ -1692,7 +1759,7 @@ contains
   !=================================================================================================
   subroutine nsi_rk_pressure(approx,finite_element)
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine performs the elemental laplacian matrix integration for pressure dofs.     !
+    !   This subroutine performs the elemental darcy matrix integration for pressure dofs.         !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_oss_rk_pressure_t), intent(inout) :: approx
@@ -1894,7 +1961,7 @@ contains
   !=================================================================================================
   subroutine nsi_rk_momentum_update(approx,finite_element)
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine performs the elemental laplacian matrix integration for pressure dofs.     !
+    !   This subroutine performs the elemental momentum matrix integration for velocity dofs.      !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_oss_rk_momentum_update_t), intent(inout) :: approx
@@ -1948,10 +2015,6 @@ contains
        call interpolation(finite_element%unkno,1,jstge+2,finite_element%integ,grvel(jstge-1))             ! GradU_j
        call interpolation(finite_element%unkno,ndime+1,ndime,jstge+2,finite_element%integ,grpre(jstge-1)) ! GradP_j
     end do
-!!$    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpvel(nstge+1))              ! U^k,i
-!!$    call interpolation(finite_element%unkno,ndime+2,prev_iter,finite_element%integ,gposs(nstge))          ! X^k,i
-!!$    call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,grvel(nstge))                ! GradU_j
-!!$    call interpolation(finite_element%unkno,ndime+1,ndime,prev_iter,finite_element%integ,grpre(nstge))    ! GradP_j
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(nnodu,nnodu,elmat_vu_diag,__FILE__,__LINE__)
@@ -2129,7 +2192,7 @@ contains
   !=================================================================================================
   subroutine nsi_rk_projection_update(approx,finite_element)
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine performs the elemental laplacian matrix integration for pressure dofs.     !
+    !   This subroutine performs the elemental projection matrix integration for projection dofs.  !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(nsi_cg_iss_oss_rk_projection_update_t), intent(inout) :: approx
@@ -2231,6 +2294,199 @@ contains
     call impose_strong_dirichlet_data(finite_element) 
 
   end subroutine nsi_rk_projection_update
+
+  !=================================================================================================
+  subroutine nsi_dissipation(approx,finite_element)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine performs the elemental dissipation parameters integration.                 !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    class(nsi_cg_iss_oss_dissipation_t), intent(inout) :: approx
+    type(finite_element_t)             , intent(inout) :: finite_element
+    ! Locals
+    integer(ip)           :: ndime,nnodu,ngaus
+    integer(ip)           :: igaus,inode,jnode,idime,jdime
+    real(rp)              :: dvolu,dtinv,diffu,gpvno
+    real(rp)              :: tau(2,finite_element%integ(1)%p%quad%ngaus),auxva(3,2)
+    real(rp)              :: divis,dicon,dinum,ditim,difex,energ,enstr,uxdx3,uxdx2,diver
+    real(rp)              :: testu( approx%physics%ndime),ladjo( approx%physics%ndime)
+    real(rp)              :: divel,strat,cnvec,extfo,dtime,rot_u
+    type(vector_t)        :: gpvel,gpveln,grpre,gposs,force
+    type(tensor_t)        :: grvel
+
+    ! Unpack variables
+    ndime = approx%physics%ndime
+    nnodu = finite_element%integ(1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%quad%ngaus
+    dtinv = approx%tinteg%dtinv
+    diffu = approx%physics%diffu
+
+    ! Initialize to zero
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
+
+    ! Interpolation operations
+    call create_vector(approx%physics,1,finite_element%integ,gpvel)
+    call create_vector(approx%physics,1,finite_element%integ,gpveln)
+    call create_vector(approx%physics,1,finite_element%integ,grpre)
+    call create_vector(approx%physics,1,finite_element%integ,gposs)
+    call create_tensor(approx%physics,1,ndime,finite_element%integ,grvel)
+    call interpolation(finite_element%unkno,1,current,finite_element%integ,gpvel) 
+    call interpolation(finite_element%unkno,1,current,finite_element%integ,grvel)
+    call interpolation(finite_element%unkno,ndime+1,ndime,current,finite_element%integ,grpre)
+    call interpolation(finite_element%unkno,ndime+2,current,finite_element%integ,gposs)
+    if(dtinv == 0.0_rp) then
+       call interpolation (finite_element%unkno, 1, prev_step, finite_element%integ, gpveln)
+    else
+       gpveln%a = 0.0_rp
+    end if
+
+    ! Allocate & compute Stabilization parameters
+    call nsi_elmvsg(approx%physics,approx%discret,finite_element,gpvel%a,tau)
+
+    ! Set force term
+    call create_vector(approx%physics,1,finite_element%integ,force)
+    force%a=0.0_rp
+    ! Impose analytical solution
+    if(finite_element%p_analytical_code%a(1,1)>0.and.finite_element%p_analytical_code%a(ndime+1,1)>0) then 
+       call nsi_analytical_force(approx%physics,finite_element,approx%tinteg%ctime,gpvel,force)
+    end if
+    ! Add external force term
+    do igaus=1,ngaus
+       force%a(:,igaus) = force%a(:,igaus) + approx%physics%gravi(:)
+    end do   
+
+    ! Auxiliar vector for vorticity
+    if(ndime==3) then
+       auxva(1,:) = (/2,3/)
+       auxva(2,:) = (/1,3/)
+       auxva(3,:) = (/1,2/)
+    end if
+
+    ! Initialize to zero
+    divis = 0.0_rp       ! Viscous term 
+    dicon = 0.0_rp       ! Convective term
+    dinum = 0.0_rp       ! Numerical dissipation
+    ditim = 0.0_rp       ! Time derivative term (u_h) 
+    difex = 0.0_rp       ! External force term
+    energ = 0.0_rp       ! Global energy
+    enstr = 0.0_rp       ! Enstrophy
+    uxdx3 = 0.0_rp       
+    uxdx2 = 0.0_rp
+    diver = 0.0_rp       ! Divergence norm
+
+    ! Loop on Gauss points
+    gauss: do igaus = 1,ngaus
+       dvolu = finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
+
+       ! Velocity norm at gauss point
+       gpvno=0.0_rp
+       if(approx%physics%kfl_conv.ne.0) then
+          do idime=1,ndime
+             gpvno = gpvno + gpvel%a(idime,igaus)*gpvel%a(idime,igaus)
+          end do
+          gpvno = sqrt(gpvno)
+       end if
+
+       ! Initializtion
+       testu = 0.0_rp
+       divel = 0.0_rp
+       ladjo = 0.0_rp
+       strat = 0.0_rp
+       cnvec = 0.0_rp
+       extfo = 0.0_rp
+       dtime = 0.0_rp
+       rot_u = 0.0_rp
+
+       ! Test operator and its adjoint acting on u
+       ! =========================================
+       ! Convective term (a·grad u)
+       do idime = 1,ndime 
+          do jdime = 1,ndime
+             testu(idime) = testu(idime) + gpvel%a(jdime,igaus)*grvel%a(jdime,idime,igaus)
+             ladjo(idime) = ladjo(idime) - gpvel%a(jdime,igaus)*grvel%a(jdime,idime,igaus) 
+          end do
+          divel = divel + grvel%a(idime,idime,igaus)
+       end do
+
+       ! Compute Auxiliars
+       ! =================
+       do idime = 1,ndime 
+          do jdime = 1,ndime
+             ! (grad u, grad u)
+             strat = strat + grvel%a(idime,jdime,igaus)*(grvel%a(idime,jdime,igaus))
+             if(approx%physics%kfl_symg==1) then
+                strat = strat + grvel%a(idime,jdime,igaus)*grvel%a(jdime,idime,igaus)
+             end if
+             ! (a · grad u, u)
+             cnvec = cnvec + gpvel%a(idime,igaus)*grvel%a(idime,jdime,igaus)*gpvel%a(jdime,igaus)
+          end do
+          ! - (f,u)
+          extfo = extfo - gpvel%a(idime,igaus)*force%a(idime,igaus)
+          ! (du/dt,u) ~ 1/(0.5*dt)*(u^2 - un^2)
+          dtime = dtime + 0.5_rp*dtinv*((gpvel%a(idime,igaus))**2-(gpveln%a(idime,igaus))**2)
+          ! Vorticity (|rot(u)|^2)
+          if(ndime==3) then
+             rot_u = rot_u + (grvel%a(auxva(idime,1),auxva(idime,2),igaus) - &
+                  &           grvel%a(auxva(idime,2),auxva(idime,1),igaus))**2
+          end if
+          ! Numerical dissipation ((a·grad u)-Proj(a·grad u), a·grad u)
+          if(approx%discret%kfl_proj==1) then
+             dinum = dinum + tau(1,igaus)*(testu(idime)-gposs%a(idime,igaus))*testu(idime)*dvolu
+          else
+             dinum = dinum + (tau(1,igaus)*testu(idime)-gposs%a(idime,igaus))*testu(idime)*dvolu
+          end if
+       end do
+       ! Vorticity (|rot(u)|^2)
+       if(ndime==2) then
+          rot_u = rot_u + (grvel%a(1,2,igaus)-grvel%a(2,1,igaus))**2
+       end if
+       ! Add tauc*(div u, div u)
+       if(approx%discret%ktauc>0.0_rp) then
+          dinum = dinum + tau(2,igaus)*divel*divel*dvolu
+       end if
+
+       ! Compute dissipations
+       ! ====================
+       divis = divis + diffu*strat*dvolu   
+       dicon = dicon + cnvec*dvolu
+       ditim = ditim + dtime*dvolu
+       difex = difex + extfo*dvolu
+       enstr = enstr + 0.5_rp*rot_u*dvolu
+       do idime=1,ndime
+          energ = energ + 0.5_rp*gpvel%a(idime,igaus)*gpvel%a(idime,igaus)*dvolu
+       end do
+       uxdx3 = uxdx3 + (grvel%a(1,1,igaus)**3)*dvolu
+       uxdx2 = uxdx2 + (grvel%a(1,1,igaus)**2)*dvolu
+       diver = diver + divel**2*dvolu
+
+    end do gauss
+
+    ! Deallocate
+    call memfree(gpvel%a,__FILE__,__LINE__)
+    call memfree(gpveln%a,__FILE__,__LINE__)
+    call memfree(gposs%a,__FILE__,__LINE__)
+    call memfree(grvel%a,__FILE__,__LINE__)
+    call memfree(grpre%a,__FILE__,__LINE__)
+    call memfree(force%a,__FILE__,__LINE__)
+
+    ! Add contributions
+    ! =================
+    ! Energy balance quantities
+    approx%values(1) = approx%values(1) + dinum      ! tau * (a · grad u) * ( (a · grad u) - Proj(a · grad u) )
+    approx%values(2) = approx%values(2) + divis      ! nu * ||grad u||^2
+    approx%values(3) = approx%values(3) + dicon      ! b (a , u, u)
+    approx%values(4) = approx%values(4) + ditim      ! 1/2 * d/dt(||u||^2)
+    approx%values(5) = approx%values(5) + difex      ! - (f,u)
+    approx%values(6) = approx%values(6) + energ      ! 1/2 * (u,u)
+    ! Turbulent quantities
+    approx%values(7) = approx%values(7) + enstr      ! 1/2 * (w,w)
+    approx%values(8) = approx%values(8) + uxdx3      ! < (du/dx)^3 >
+    approx%values(9) = approx%values(9) + uxdx2      ! < (du/dx)^2 >
+    ! Other quantities
+    approx%values(10) = approx%values(10) + diver    ! (div u, div u)
+
+  end subroutine nsi_dissipation
 
   !==================================================================================================
   subroutine nsi_elmvsg(physics,discret,finite_element,gpvel,tau)

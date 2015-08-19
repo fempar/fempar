@@ -121,12 +121,13 @@ module my_nonlinear_operator_names
 contains
 
   !==================================================================================================
-  subroutine build_momentum_operator(nlop,p_blk_graph,p_env,ndime)
+  subroutine build_momentum_operator(nlop,p_blk_graph,p_env,ndime,max_iter,nltol)
     implicit none
     class(momentum_operator_t), target, intent(inout) :: nlop
     type(par_block_graph_t)           , intent(in)    :: p_blk_graph
     class(par_environment_t)          , intent(in)    :: p_env
-    integer(ip)                       , intent(in)    :: ndime
+    integer(ip)                       , intent(in)    :: ndime,max_iter
+    real(rp)                          , intent(in)    :: nltol
     ! Locals
     integer(ip) :: i,num_levels,istat
     type(par_graph_t), pointer :: p_p_graph
@@ -136,8 +137,8 @@ contains
     num_levels = p_p_graph%p_env%num_levels
 
     ! Modify default nonlinear parameters
-    nlop%max_iter = 20
-    nlop%nltol = 1.0e-10_rp
+    nlop%max_iter = max_iter
+    nlop%nltol = nltol
 
     ! Modify default inverse_operator solver parameters
     nlop%sctrl_A_uu%method = direct
@@ -317,6 +318,8 @@ contains
     call nlop%A_momentum%create(2,2)
     call nlop%A_momentum%set_block(1,1,nlop%A_uu)
     call nlop%A_momentum%set_block(1,2,nlop%aii*nlop%p_block_matrix_nl%get_block(1,3))
+!!$    call nlop%A_momentum%set_block(2,1,nlop%p_block_matrix_nl%get_block(3,1))
+!!$    call nlop%A_momentum%set_block(2,2,nlop%p_block_matrix_nl%get_block(3,3))
     call nlop%A_momentum%set_block(2,1,nlop%aii*nlop%p_block_matrix_nl%get_block(3,1))
     call nlop%A_momentum%set_block(2,2,nlop%aii*nlop%p_block_matrix_nl%get_block(3,3))  
     
@@ -349,6 +352,7 @@ contains
     call nlop%M_momentum%create(2)
     call nlop%M_momentum%set_block(1,1,nlop%inv_A_uu)
     call nlop%M_momentum%set_block(2,1,nlop%aii*nlop%p_block_matrix_nl%get_block(3,1))
+!!$    call nlop%M_momentum%set_block(2,1,nlop%p_block_matrix_nl%get_block(3,1))
     call nlop%M_momentum%set_block(2,2,nlop%p_diagonal_x)
     
     ! Fill picard nonlinear operator pointers
@@ -855,7 +859,8 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_timestep  
      character(len=:), allocatable :: default_rkstage   
      character(len=:), allocatable :: default_rkorder   
-     character(len=:), allocatable :: default_rkflag    
+     character(len=:), allocatable :: default_rkflag   
+     character(len=:), allocatable :: default_rkimex
      ! Solution
      character(len=:), allocatable :: default_analytical_v
      character(len=:), allocatable :: default_analytical_p
@@ -877,6 +882,9 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_max_iter 
      ! Outputs
      character(len=:), allocatable :: default_write_unkno
+     character(len=:), allocatable :: default_trace_unkno
+     character(len=:), allocatable :: default_write_dissipation
+     character(len=:), allocatable :: default_trace_dissipation
   end type par_test_blk_nsi_cg_iss_oss_rk_params_t
 
   ! Types
@@ -891,53 +899,57 @@ contains
   subroutine set_default_params(params)
     implicit none
     type(par_test_blk_nsi_cg_iss_oss_rk_params_t), intent(inout) :: params
-    
-     ! Names
-     params%default_authors   = '.false.'
-     params%default_pwd       = './'
-     params%default_prefix    = 'par_test_blk_nsi_cg_iss_oss_rk'
-     ! Geometry
-     params%default_nelems    = '4 4'
-     params%default_nparts    = '2 2'
-     params%default_nsockets  = '1 1'
-     params%default_ndiscret  = '0 0'
-     params%default_length    = '1.0 1.0'
-     params%default_periodic  = '0 0'
-     params%default_origin    = '0.0 0.0'
-     params%default_stretch   = '2.75 2.75'
-     params%default_nelbound  = '0 0'
-     params%default_sizebound = '0.0 0.0'
-     params%default_matercase = '0'
-     ! Time integration
-     params%default_initime   = '0.0'
-     params%default_finaltime = '1.0'
-     params%default_timestep  = '1.0'
-     params%default_rkstage   = '2'
-     params%default_rkorder   = '1'
-     params%default_rkflag    = '0'
-     ! Solution
-     params%default_analytical_v = '0 0'
-     params%default_analytical_p = '0'
-     params%default_analytical_t = '0'
-     params%default_initial_cond = '.false.'
-     ! Problem
-     params%default_kfl_conv = '1'
-     params%default_kfl_skew = '0'
-     params%default_diffu    = '1.0'
-     ! Discretization
-     params%default_kfl_proj  = '1'
-     params%default_ktauc     = '4.0'
-     params%default_vel_order = '2'
-     params%default_pre_order = '1'
-     ! Solver
-     params%default_rtol    = '1.0e-14'
-     ! Nonlinearity
-     params%default_nltol    = '1.0e-10'
-     params%default_max_iter = '20'    
-     ! Outputs
-     params%default_write_unkno = '.true.'
 
-  end subroutine set_default_params    
+    ! Names
+    params%default_authors   = '.false.'
+    params%default_pwd       = './'
+    params%default_prefix    = 'par_test_blk_nsi_cg_iss_oss_rk'
+    ! Geometry
+    params%default_nelems    = '4 4'
+    params%default_nparts    = '2 2'
+    params%default_nsockets  = '1 1'
+    params%default_ndiscret  = '0 0'
+    params%default_length    = '1.0 1.0'
+    params%default_periodic  = '0 0'
+    params%default_origin    = '0.0 0.0'
+    params%default_stretch   = '2.75 2.75'
+    params%default_nelbound  = '0 0'
+    params%default_sizebound = '0.0 0.0'
+    params%default_matercase = '0'
+    ! Time integration
+    params%default_initime   = '0.0'
+    params%default_finaltime = '1.0'
+    params%default_timestep  = '1.0'
+    params%default_rkstage   = '2'
+    params%default_rkorder   = '1'
+    params%default_rkflag    = '0'
+    params%default_rkimex    = '1'
+    ! Solution
+    params%default_analytical_v = '0 0'
+    params%default_analytical_p = '0'
+    params%default_analytical_t = '0'
+    params%default_initial_cond = '.false.'
+    ! Problem
+    params%default_kfl_conv = '1'
+    params%default_kfl_skew = '0'
+    params%default_diffu    = '1.0'
+    ! Discretization
+    params%default_kfl_proj  = '1'
+    params%default_ktauc     = '4.0'
+    params%default_vel_order = '2'
+    params%default_pre_order = '1'
+    ! Solver
+    params%default_rtol    = '1.0e-14'
+    ! Nonlinearity
+    params%default_nltol    = '1.0e-10'
+    params%default_max_iter = '20'    
+    ! Outputs
+    params%default_write_unkno = '.true.'
+    params%default_trace_unkno = '0.0'
+    params%default_write_dissipation = '.true.'
+    params%default_trace_dissipation = '0.0'
+
+  end subroutine set_default_params
 
   !==================================================================================================
   subroutine set_default_params_analytical(params)
@@ -952,6 +964,8 @@ contains
     params%default_analytical_t = '1'
     ! Discretization
     params%default_ktauc = '0.0' 
+    ! Outputs
+     params%default_write_dissipation = '.false.'
 
   end subroutine set_default_params_analytical
 
@@ -984,6 +998,11 @@ contains
     params%default_rtol     = '1.0e-07'
     ! Nonlinearity
     params%default_nltol    = '1.0e-05'
+    ! Outputs
+    params%default_write_unkno = '.true.'
+    params%default_trace_unkno = '0.01'
+    params%default_write_dissipation = '.true.'
+    params%default_trace_dissipation = '0.01'
 
   end subroutine set_default_params_taylor_green
 
@@ -1062,6 +1081,9 @@ contains
     call cli%add(group=trim(group),switch='--SRK_flag',switch_ab='-rkf',help='Flag for Runge-Kutta scheme', &
          &       required=.false.,act='store',def=trim(params%default_rkflag),error=error)
     if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--SRK_imex',switch_ab='-rkimex',help='0: explicit convection, 1: implicit convection', &
+         &       required=.false.,act='store',choices='0,1',def=trim(params%default_rkimex),error=error)
+    if(error/=0) then; check(.false.); end if
 
     ! Solution
     call cli%add(group=trim(group),switch='--analytical_v',switch_ab='-av',help='Analytical solution for velocity components', &
@@ -1119,6 +1141,15 @@ contains
     call cli%add(group=trim(group),switch='--write_unkno_VTK',switch_ab='-wunk',help='Write solution in VTK format', &
          &       required=.false.,act='store',def=trim(params%default_write_unkno),error=error)
     if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--trace_unkno_VTK',switch_ab='-tunk',help='Intervals between two consecutive solution writes', &
+         &       required=.false.,act='store',def=trim(params%default_trace_unkno),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--write_dissipation',switch_ab='-wdis',help='Write dissipation outputs', &
+         &       required=.false.,act='store',def=trim(params%default_write_dissipation),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--trace_dissipation',switch_ab='-tdis',help='Intervals between two consecutive dissipation writes', &
+         &       required=.false.,act='store',def=trim(params%default_trace_dissipation),error=error)
+    if(error/=0) then; check(.false.); end if
 
   end subroutine cli_add_params
   
@@ -1148,7 +1179,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   type(par_fe_space_t)                  :: p_fe_space  
   type(par_block_graph_t)               :: p_blk_graph
   type(block_dof_distribution_t)        :: blk_dof_dist
-  type(par_scalar_t)                    :: enorm_u, enorm_p
+  type(par_scalar_t)                    :: enorm_u, enorm_p, dummy
 
   ! Problem types
   type(nsi_problem_t)                                 :: myprob
@@ -1161,6 +1192,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   type(nsi_cg_iss_oss_lapla_p_t)             , target :: lapla_p_integration
   type(nsi_cg_iss_oss_massu_t)               , target :: mass_u_integration
   type(nsi_cg_iss_oss_massx_t)               , target :: mass_x_integration
+  type(nsi_cg_iss_oss_dissipation_t)         , target :: dissipation_integration
   type(error_norm_t)                         , target :: error_compute
   type(rungekutta_integrator_t)              , target :: rkinteg
   type(time_integration_t)                   , target :: tinteg
@@ -1189,14 +1221,19 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip) :: num_approximations = 1
   integer(ip) :: setterms(6,2),settable(3)
   integer(ip) :: order_v,order_p
-  integer(ip) :: nstage,rk_order,rk_flag
+  integer(ip) :: nstage,rk_order,rk_flag,rk_imex
   integer(ip) :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
+  integer(ip) :: lunio_dis
+  integer(ip) :: max_iter
 
   ! Reals
   real(rp) :: initime,finaltime,dt
+  real(rp) :: dissipations(10)
+  real(rp) :: trace_unkno,trace_dissipation
+  real(rp) :: nltol
 
   ! Logicals
-  logical  :: initial_condition,write_unkno_VTK
+  logical  :: initial_condition,write_unkno_VTK,write_dissipation
 
   ! Parameters
   integer(ip), parameter :: velocity=1, pressure=2
@@ -1290,13 +1327,23 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call cli%get(group=trim(group),switch='-rks',val=nstage,error=istat); if(istat/=0) then; check(.false.); end if
   call cli%get(group=trim(group),switch='-rko',val=rk_order,error=istat); if(istat/=0) then; check(.false.); end if
   call cli%get(group=trim(group),switch='-rkf',val=rk_flag,error=istat); if(istat/=0) then; check(.false.); end if
+  call cli%get(group=trim(group),switch='-rkimex',val=rk_imex,error=istat); if(istat/=0) then; check(.false.); end if
   settable      = (/nstage,rk_order,rk_flag/)
-  setterms(1,:) = (/update_constant,implicit/)   ! Diffusion
-  setterms(2,:) = (/update_nonlinear,implicit/)  ! Convection
-  setterms(3,:) = (/update_transient,explicit/)  ! Pressure Gradient
-  setterms(4,:) = (/update_nonlinear,implicit/)  ! OSS_vu
-  setterms(5,:) = (/update_nonlinear,implicit/)  ! OSS_vx
-  setterms(6,:) = (/update_transient,implicit/)  ! Force
+  if(rk_imex==0) then ! Explicit convection
+     setterms(1,:) = (/update_constant,implicit/)   ! Diffusion
+     setterms(2,:) = (/update_transient,explicit/)  ! Convection
+     setterms(3,:) = (/update_transient,explicit/)  ! Pressure Gradient
+     setterms(4,:) = (/update_transient,explicit/)  ! OSS_vu
+     setterms(5,:) = (/update_transient,explicit/)  ! OSS_vx
+     setterms(6,:) = (/update_transient,explicit/)  ! Force
+  elseif(rk_imex==1) then ! Implicit convection
+     setterms(1,:) = (/update_constant,implicit/)   ! Diffusion
+     setterms(2,:) = (/update_nonlinear,implicit/)  ! Convection
+     setterms(3,:) = (/update_transient,explicit/)  ! Pressure Gradient
+     setterms(4,:) = (/update_nonlinear,implicit/)  ! OSS_vu
+     setterms(5,:) = (/update_nonlinear,implicit/)  ! OSS_vx
+     setterms(6,:) = (/update_transient,implicit/)  ! Force
+  end if
   call rkinteg%create(setterms,settable)
 
   ! Create problem
@@ -1312,10 +1359,13 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call lapla_p_integration%create(myprob,mydisc)
   call mass_u_integration%create(myprob,mydisc)
   call mass_x_integration%create(myprob,mydisc)
+  call dissipation_integration%create(myprob,mydisc)
   cg_iss_oss_rk_momentum%rkinteg => rkinteg
   cg_iss_oss_rk_momentum_rhs%rkinteg => rkinteg
   cg_iss_oss_rk_pressure%tinteg  => tinteg
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
+  dissipation_integration%tinteg  => tinteg
+  ! Temporal Command Line variables
   call cli%get(group=trim(group),switch='-dt',val=dt,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-it',val=initime,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-ft',val=finaltime,error=istat); if(istat/=0) then; check(.false.); end if  
@@ -1353,9 +1403,18 @@ program par_test_blk_nsi_cg_iss_oss_rk
 
   ! Initialize VTK output
   call cli%get(group=trim(group),switch='-wunk',val=write_unkno_VTK,error=istat); if(istat/=0) then; check(.false.); end if
+  call cli%get(group=trim(group),switch='-tunk',val=trace_unkno,error=istat); if(istat/=0) then; check(.false.); end if
   if(write_unkno_VTK) then
      call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
           &                nparts=gdata%nparts,linear_order=.true.)
+  end if
+
+  ! Initialize dissipation output
+  call cli%get(group=trim(group),switch='-wdis',val=write_dissipation,error=istat); if(istat/=0) then; check(.false.); end if
+  call cli%get(group=trim(group),switch='-tdis',val=trace_dissipation,error=istat); if(istat/=0) then; check(.false.); end if
+  call dummy%create(p_env)
+  if(me==0.and.write_dissipation) then
+     lunio_dis = io_open(trim(dir_path_out)//trim(prefix)//'.dis',position='append')
   end if
 
   ! Create dof info
@@ -1377,7 +1436,9 @@ program par_test_blk_nsi_cg_iss_oss_rk
   end if
 
   ! Create picard nonlinear operators
-  call momentum_operator%build(p_blk_graph,p_env,gdata%ndime)
+  call cli%get(group=trim(group),switch='-nltol',val=nltol,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-nlit',val=max_iter,error=istat); if(istat/=0) then; check(.false.); end if    
+  call momentum_operator%build(p_blk_graph,p_env,gdata%ndime,max_iter,nltol)
   call pressure_operator%build(p_blk_graph,p_env,gdata%ndime)
   call momentum_update_operator%build(p_blk_graph)
   call projection_update_operator%build(p_blk_graph)
@@ -1402,19 +1463,15 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call par_timer_create(p_timer,'TEMPORAL_LOOP', w_context%icontxt)
   call par_timer_init(p_timer)
   call par_timer_start(p_timer)   
-  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,p_fe_space,momentum_operator,  &
-       &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure, &
-       &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,          &
-       &                    projection_update_operator,cg_iss_oss_rk_projection_update,      &
-       &                    cg_iss_oss_rk_momentum_rhs,tinteg)
+  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,gdata,p_fe_space,momentum_operator, &
+       &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure,      &
+       &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,               &
+       &                    projection_update_operator,cg_iss_oss_rk_projection_update,           &
+       &                    cg_iss_oss_rk_momentum_rhs,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
+       &                    write_dissipation,dissipation_integration,trace_dissipation,dummy,    &
+       &                    lunio_dis)
   call par_timer_stop(p_timer)   
   call par_timer_report(p_timer) 
-
-  ! Print solution to VTK file
-  if(write_unkno_VTK) then
-     istat = fevtk%write_VTK(n_part=p_env%p_context%iam)
-     if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
-  end if
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
@@ -1450,6 +1507,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call momentum_update_operator%free()
   call projection_update_operator%free()
   if(write_unkno_VTK) call fevtk%free
+  if(write_dissipation.and.me==0) call io_close(lunio_dis)
   call p_blk_graph%free
   call blk_dof_dist%free
   call par_fe_space_free(p_fe_space) 
@@ -1464,6 +1522,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call lapla_p_integration%free
   call mass_u_integration%free
   call mass_x_integration%free
+  call dissipation_integration%free
   call rkinteg%free
   call dof_descriptor_free(dof_descriptor)
   call par_triangulation_free(p_trian)
@@ -1516,17 +1575,20 @@ contains
   end subroutine read_flap_cli_par_test_blk_nsi_cg_iss_oss_rk
   
   !==================================================================================================
-  subroutine do_time_steps_rk_nsi(rkinteg,sctrl,sttol,maxst,p_env,p_fe_space,momentum_operator, &
-       &                          momentum_integration,pressure_operator,pressure_integration,  &
-       &                          momentum_update_operator,momentum_update_integration,         &
-       &                          projection_update_operator,projection_update_integration,     &
-       &                          momentum_rhs_integration,tinteg)
+  subroutine do_time_steps_rk_nsi(rkinteg,sctrl,sttol,maxst,p_env,gdata,p_fe_space,momentum_operator, &
+       &                          momentum_integration,pressure_operator,pressure_integration,        &
+       &                          momentum_update_operator,momentum_update_integration,               &
+       &                          projection_update_operator,projection_update_integration,           &
+       &                          momentum_rhs_integration,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
+       &                          write_dissipation,dissipation_integration,trace_dissipation,dummy,  &
+       &                          lunio_dis)
     implicit none
     type(rungekutta_integrator_t)        , intent(inout) :: rkinteg
     type(solver_control_t)               , intent(inout) :: sctrl
     real(rp)                             , intent(in)    :: sttol
     integer(ip)                          , intent(in)    :: maxst
     class(abstract_environment_t)        , intent(in)    :: p_env
+    type(uniform_mesh_descriptor_t)      , intent(in)    :: gdata
     type(par_fe_space_t)                 , intent(inout) :: p_fe_space
     class(momentum_operator_t)           , intent(inout) :: momentum_operator
     class(pressure_operator_t)           , intent(inout) :: pressure_operator
@@ -1538,10 +1600,17 @@ contains
     class(discrete_integration_t), target, intent(inout) :: projection_update_integration
     class(discrete_integration_t), target, intent(inout) :: momentum_rhs_integration
     class(time_integration_t)            , intent(inout) :: tinteg
+    type(vtk_t)                          , intent(inout) :: fevtk
+    logical                              , intent(in)    :: write_unkno_VTK,write_dissipation
+    real(rp)                             , intent(in)    :: trace_unkno,trace_dissipation
+    class(discrete_integration_t), target, intent(inout) :: dissipation_integration
+    type(par_scalar_t)                   , intent(inout) :: dummy
+    integer(ip)                          , intent(in)    :: lunio_dis
     ! Locals
     type(discrete_integration_pointer_t) :: approx(1)
     integer(ip) :: istage,nstage,istep,ielem,me,np
     real(rp)    :: rtime,ctime,prevtime
+    logical     :: status
 
     ! Initialize time steps
     rtime = 1.0_rp
@@ -1638,14 +1707,10 @@ contains
                 write(*,*) 'First stage skipped for momentum equation.'
              end if
              ! (U_n --> U_1)
+             approx(1)%p => momentum_integration
              call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,3,3+1)
              call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,3,2)
           else
-
-             !!! Why it is necessary????
-             do ielem = 1,p_fe_space%p_trian%num_elems
-                p_fe_space%fe_space%finite_elements(ielem)%unkno(:,:,2)=0.0_rp
-             end do
           
              ! Update analytical/time dependent boundary conditions
              call par_update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,p_fe_space)
@@ -1682,10 +1747,10 @@ contains
              call momentum_operator%M%free_values(update_transient)
 
              ! Store unkno to istage position (U --> U_i)
-             call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3+istage)       
+             call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3+istage)   
 
           end if
-             
+
           !**************************** NSI specific tasks *****************************************!
           ! Update boundary conditions (velocity derivative)
           call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,p_fe_space,2)
@@ -1749,6 +1814,9 @@ contains
        ! Free preconditioner 
        call projection_update_operator%M%free_values(update_transient)
 
+       ! Store projection to previous step position (Un+1 --> U_n)
+       call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3)   
+
        ! Update boundary conditions (velocity derivative)
        call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,p_fe_space,2)
 
@@ -1773,6 +1841,51 @@ contains
 
        ! Update counter
        istep = istep + 1
+
+       ! Postprocess
+       ! ===========
+       ! Compute dissipations
+       status = ((ctime-prevtime).ge.trace_dissipation)
+       if(write_dissipation.and.status) then
+          approx(1)%p => dissipation_integration
+          call par_volume_integral(approx,p_fe_space,dummy)
+          select type(dissipation_integration)
+          class is(nsi_cg_iss_oss_dissipation_t) 
+             dissipations = dissipation_integration%values
+          end select
+          if(p_env%am_i_fine_task()) then
+             select type(p_env)
+             class is(par_environment_t) 
+                call psb_sum(p_env%p_context%icontxt,dissipations)
+             end select
+          end if
+          if(me==0) then
+             ! Volume average
+             dissipations(:) = dissipations(:)/(gdata%xleng*gdata%yleng*gdata%zleng)
+             ! Write on a file
+             write(lunio_dis,*) 'TIME__:',ctime
+             write(lunio_dis,*) 'DISNUM:',dissipations(1)                                                
+             write(lunio_dis,*) 'DISVIS:',dissipations(2)                                                
+             write(lunio_dis,*) 'DISCON:',dissipations(3)                                                
+             write(lunio_dis,*) 'DISTIM:',dissipations(4)                                                
+             write(lunio_dis,*) 'DISFEX:',dissipations(5)                                         
+             write(lunio_dis,*) 'DISTOT:',sum(dissipations(2:5))
+             write(lunio_dis,*) 'ENERGY:',dissipations(6)                                                
+             write(lunio_dis,*) 'ENSTRO:',dissipations(7)
+             write(lunio_dis,*) 'SKEWNE:',dissipations(8)/sqrt(dissipations(9)**3)                       
+             write(lunio_dis,*) 'DISTUH:',dissipations(2)+dissipations(3)+dissipations(4)+dissipations(5)
+          end if
+       end if
+
+       ! Print solution to VTK file
+       status = ((ctime-prevtime).ge.trace_unkno)
+       if(write_unkno_VTK.and.status) then 
+          select type(p_env)
+          class is(par_environment_t) 
+             istat = fevtk%write_VTK(n_part=p_env%p_context%iam)
+          end select
+          if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
+       end if
 
     end do step
 
