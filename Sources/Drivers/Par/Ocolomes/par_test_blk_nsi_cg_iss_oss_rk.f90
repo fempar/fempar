@@ -825,6 +825,305 @@ contains
 
 end module my_nonlinear_operator_names
 
+module command_line_parameters_names
+  use types_names
+  use Data_Type_Command_Line_Interface
+  implicit none
+  private
+  
+  ! Types
+  type par_test_blk_nsi_cg_iss_oss_rk_params_t
+     ! Names
+     character(len=:), allocatable :: default_authors   
+     character(len=:), allocatable :: default_pwd       
+     character(len=:), allocatable :: default_prefix    
+     ! Geometry
+     character(len=:), allocatable :: default_nelems    
+     character(len=:), allocatable :: default_nparts    
+     character(len=:), allocatable :: default_nsockets  
+     character(len=:), allocatable :: default_ndiscret  
+     character(len=:), allocatable :: default_length    
+     character(len=:), allocatable :: default_periodic  
+     character(len=:), allocatable :: default_origin    
+     character(len=:), allocatable :: default_stretch
+     character(len=:), allocatable :: default_nelbound  
+     character(len=:), allocatable :: default_sizebound 
+     character(len=:), allocatable :: default_matercase 
+     ! Time integration
+     character(len=:), allocatable :: default_initime   
+     character(len=:), allocatable :: default_finaltime 
+     character(len=:), allocatable :: default_timestep  
+     character(len=:), allocatable :: default_rkstage   
+     character(len=:), allocatable :: default_rkorder   
+     character(len=:), allocatable :: default_rkflag    
+     ! Solution
+     character(len=:), allocatable :: default_analytical_v
+     character(len=:), allocatable :: default_analytical_p
+     character(len=:), allocatable :: default_analytical_t
+     character(len=:), allocatable :: default_initial_cond
+     ! Problem
+     character(len=:), allocatable :: default_kfl_conv 
+     character(len=:), allocatable :: default_kfl_skew 
+     character(len=:), allocatable :: default_diffu    
+     ! Discretization
+     character(len=:), allocatable :: default_kfl_proj 
+     character(len=:), allocatable :: default_ktauc    
+     character(len=:), allocatable :: default_vel_order
+     character(len=:), allocatable :: default_pre_order
+     ! Solver
+     character(len=:), allocatable :: default_rtol
+     ! Nonlinearity
+     character(len=:), allocatable :: default_nltol    
+     character(len=:), allocatable :: default_max_iter 
+     ! Outputs
+     character(len=:), allocatable :: default_write_unkno
+  end type par_test_blk_nsi_cg_iss_oss_rk_params_t
+
+  ! Types
+  public :: par_test_blk_nsi_cg_iss_oss_rk_params_t
+  
+  ! Functions
+  public :: cli_add_params,set_default_params,set_default_params_analytical,set_default_params_taylor_green
+
+contains
+
+  !==================================================================================================
+  subroutine set_default_params(params)
+    implicit none
+    type(par_test_blk_nsi_cg_iss_oss_rk_params_t), intent(inout) :: params
+    
+     ! Names
+     params%default_authors   = '.false.'
+     params%default_pwd       = './'
+     params%default_prefix    = 'par_test_blk_nsi_cg_iss_oss_rk'
+     ! Geometry
+     params%default_nelems    = '4 4'
+     params%default_nparts    = '2 2'
+     params%default_nsockets  = '1 1'
+     params%default_ndiscret  = '0 0'
+     params%default_length    = '1.0 1.0'
+     params%default_periodic  = '0 0'
+     params%default_origin    = '0.0 0.0'
+     params%default_stretch   = '2.75 2.75'
+     params%default_nelbound  = '0 0'
+     params%default_sizebound = '0.0 0.0'
+     params%default_matercase = '0'
+     ! Time integration
+     params%default_initime   = '0.0'
+     params%default_finaltime = '1.0'
+     params%default_timestep  = '1.0'
+     params%default_rkstage   = '2'
+     params%default_rkorder   = '1'
+     params%default_rkflag    = '0'
+     ! Solution
+     params%default_analytical_v = '0 0'
+     params%default_analytical_p = '0'
+     params%default_analytical_t = '0'
+     params%default_initial_cond = '.false.'
+     ! Problem
+     params%default_kfl_conv = '1'
+     params%default_kfl_skew = '0'
+     params%default_diffu    = '1.0'
+     ! Discretization
+     params%default_kfl_proj  = '1'
+     params%default_ktauc     = '4.0'
+     params%default_vel_order = '2'
+     params%default_pre_order = '1'
+     ! Solver
+     params%default_rtol    = '1.0e-14'
+     ! Nonlinearity
+     params%default_nltol    = '1.0e-10'
+     params%default_max_iter = '20'    
+     ! Outputs
+     params%default_write_unkno = '.true.'
+
+  end subroutine set_default_params    
+
+  !==================================================================================================
+  subroutine set_default_params_analytical(params)
+    implicit none
+    type(par_test_blk_nsi_cg_iss_oss_rk_params_t), intent(inout) :: params
+
+    ! Names
+    params%default_prefix = 'analytical_test'
+    ! Solution
+    params%default_analytical_v = '1 2'
+    params%default_analytical_p = '3'
+    params%default_analytical_t = '1'
+    ! Discretization
+    params%default_ktauc = '0.0' 
+
+  end subroutine set_default_params_analytical
+
+  !==================================================================================================
+  subroutine set_default_params_taylor_green(params)
+    implicit none
+    type(par_test_blk_nsi_cg_iss_oss_rk_params_t), intent(inout) :: params
+
+    ! Names
+    params%default_prefix    = 'tgv'
+    ! Geometry
+    params%default_nelems    = '9 9 9'
+    params%default_nparts    = '3 3 3'
+    params%default_nsockets  = '1 1 1'
+    params%default_ndiscret  = '0 0 0'
+    params%default_length    = '6.283185307179586476925286766559005768394 6.283185307179586476925286766559005768394 6.283185307179586476925286766559005768394'
+    params%default_periodic  = '1 1 1'
+    params%default_origin    = '0.0 0.0 0.0'
+    params%default_stretch   = '2.75 2.75 2.75'
+    params%default_nelbound  = '0 0 0'
+    params%default_sizebound = '0.0 0.0 0.0'
+    ! Solution
+    params% default_analytical_v = '7 8 0'
+    params%default_initial_cond  = '.true.'
+    ! Problem
+    params%default_kfl_conv = '1'
+    params%default_kfl_skew = '0'
+    params%default_diffu    = '1.0/1600.0'
+    ! Solver
+    params%default_rtol     = '1.0e-07'
+    ! Nonlinearity
+    params%default_nltol    = '1.0e-05'
+
+  end subroutine set_default_params_taylor_green
+
+  !==================================================================================================
+  subroutine cli_add_params(cli,params,group)
+    implicit none
+    type(Type_Command_Line_Interface)            , intent(inout) :: cli
+    type(par_test_blk_nsi_cg_iss_oss_rk_params_t), intent(in)    :: params
+    character(*)                                 , intent(in)    :: group
+    ! Locals
+    integer(ip) :: error
+    
+    ! Set Command Line Arguments
+    ! Names
+    call cli%add(group=trim(group),switch='--authors',switch_ab='-a',help='Print authors names',required=.false., &
+         &       act='store_true',def=trim(params%default_authors),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--path_working_directory',switch_ab='-pwd',help='Working directory path', &
+         &       required=.false.,act='store',def=trim(params%default_pwd),error=error)
+     if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--prefix',switch_ab='-prf',help='Test prefix', &
+         &       required=.false.,act='store',def=trim(params%default_prefix),error=error)
+     if(error/=0) then; check(.false.); end if
+
+    ! Geometry
+    call cli%add(group=trim(group),switch='--num_elements',switch_ab='-ne',help='Number of elements per direction', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_nelems),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--num_parts',switch_ab='-np',help='Number of parts per direction', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_nparts),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--num_sockets',switch_ab='-ns',help='Number of sockets per direction', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_nsockets),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--discretization_type',help='Discretization type per direction (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_ndiscret),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--domain_length',switch_ab='-dl',help='Domain length per direction', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_length),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--periodicity',switch_ab='-peri',help='Periodicity per direction (0: No, 1: Yes)', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_periodic),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--origin',switch_ab='-O',help='Origin coordinates', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_origin),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--stretching',switch_ab='-st',help='Stretching parameter', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_stretch),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--num_elements_bound_layer',switch_ab='-nb',help='Number of elements in the boundary layer per direction', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_nelbound),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--size_bound_layer',switch_ab='-sb',help='Size of the boundary layer per direction', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_sizebound),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--material_case',switch_ab='-mc',help='Material case', &
+         &       required=.false.,act='store',def=trim(params%default_matercase),error=error)
+    if(error/=0) then; check(.false.); end if
+
+    ! Time integration
+    call cli%add(group=trim(group),switch='--initial_time',switch_ab='-it',help='Initial time', &
+         &       required=.false.,act='store',def=trim(params%default_initime),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--final_time',switch_ab='-ft',help='Initial time', &
+         &       required=.false.,act='store',def=trim(params%default_finaltime),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--time_step',switch_ab='-dt',help='Time step size', &
+         &       required=.false.,act='store',def=trim(params%default_timestep),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--SRK_num_stages',switch_ab='-rks',help='Number of Runge-Kutta stages', &
+         &       required=.false.,act='store',def=trim(params%default_rkstage),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--SRK_temporal_order',switch_ab='-rko',help='Order of Runge-Kutta scheme', &
+         &       required=.false.,act='store',def=trim(params%default_rkorder),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--SRK_flag',switch_ab='-rkf',help='Flag for Runge-Kutta scheme', &
+         &       required=.false.,act='store',def=trim(params%default_rkflag),error=error)
+    if(error/=0) then; check(.false.); end if
+
+    ! Solution
+    call cli%add(group=trim(group),switch='--analytical_v',switch_ab='-av',help='Analytical solution for velocity components', &
+         &       required=.false.,act='store',nargs='*',def=trim(params%default_analytical_v),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--analytical_p',switch_ab='-ap',help='Analytical solution for pressure', &
+         &       required=.false.,act='store',def=trim(params%default_analytical_p),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--analytical_t',switch_ab='-at',help='Analytical temporal component', &
+         &       required=.false.,act='store',def=trim(params%default_analytical_t),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--initial_condition',switch_ab='-insol',help='Give initial solution', &
+         &       required=.false.,act='store',def=trim(params%default_initial_cond),error=error)
+    if(error/=0) then; check(.false.); end if
+
+    ! Problem
+    call cli%add(group=trim(group),switch='--kfl_conv',switch_ab='-cnv',help='Convection flag', &
+         &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_conv),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--kfl_skew',switch_ab='-skw',help='Skewness flag', &
+         &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_skew),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--diffusion',switch_ab='-nu',help='Diffusion value', &
+         &       required=.false.,act='store',def=trim(params%default_diffu),error=error)
+    if(error/=0) then; check(.false.); end if
+
+    ! Discretization
+    call cli%add(group=trim(group),switch='--kfl_proj',switch_ab='-prj',help='Projection matrix flag (0: L2, 1: tau)', &
+         &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_proj),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--k_tau_c',switch_ab='-ktc',help='Constant of tau_c', &
+         &       required=.false.,act='store',def=trim(params%default_ktauc),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--velocity_order',switch_ab='-vo',help='Velocity interpolation order', &
+         &       required=.false.,act='store',def=trim(params%default_vel_order),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--pressure_order',switch_ab='-po',help='Pressure interpolation order', &
+         &       required=.false.,act='store',def=trim(params%default_pre_order),error=error)
+    if(error/=0) then; check(.false.); end if
+
+    ! Solver
+    call cli%add(group=trim(group),switch='--solver_tolerance',switch_ab='-rtol',help='Solver tolerance', &
+         &       required=.false.,act='store',def=trim(params%default_rtol),error=error)
+    if(error/=0) then; check(.false.); end if
+
+    ! Nonlinearity
+    call cli%add(group=trim(group),switch='--nonlinear_tolerance',switch_ab='-nltol',help='Nonlinear tolerance', &
+         &       required=.false.,act='store',def=trim(params%default_nltol),error=error)    
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--max_nonlinear_iter',switch_ab='-nlit',help='Maximum nonlinear iterations', &
+         &       required=.false.,act='store',def=trim(params%default_max_iter),error=error)
+    if(error/=0) then; check(.false.); end if
+
+    ! Outputs
+    call cli%add(group=trim(group),switch='--write_unkno_VTK',switch_ab='-wunk',help='Write solution in VTK format', &
+         &       required=.false.,act='store',def=trim(params%default_write_unkno),error=error)
+    if(error/=0) then; check(.false.); end if
+
+  end subroutine cli_add_params
+  
+end module command_line_parameters_names
+
 program par_test_blk_nsi_cg_iss_oss_rk
   use serial_names
   use par_names
@@ -833,6 +1132,9 @@ program par_test_blk_nsi_cg_iss_oss_rk
   use norm_names
   use lib_vtk_io_interface_names
   use my_nonlinear_operator_names
+  use Data_Type_Command_Line_Interface
+  use command_line_parameters_names
+  use ir_precision
   implicit none
 # include "debug.i90"
 
@@ -886,6 +1188,15 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip) :: ibloc,jbloc,istat,i
   integer(ip) :: num_approximations = 1
   integer(ip) :: setterms(6,2),settable(3)
+  integer(ip) :: order_v,order_p
+  integer(ip) :: nstage,rk_order,rk_flag
+  integer(ip) :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
+
+  ! Reals
+  real(rp) :: initime,finaltime,dt
+
+  ! Logicals
+  logical  :: initial_condition,write_unkno_VTK
 
   ! Parameters
   integer(ip), parameter :: velocity=1, pressure=2
@@ -901,29 +1212,30 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip), allocatable :: problem(:)
   integer(ip), allocatable :: vars_block(:)
   integer(ip), allocatable :: dof_coupling(:,:)
+  integer(ip), allocatable :: analytical_v(:)
 
   ! Arguments
-  character(len=256) :: dir_path_out,prefix
-  integer(ip)        :: nex,ney,nez,npx,npy,npz,nstage,rk_order,rk_flag
-  integer(ip)        :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
-  integer(ip)        :: perix,periy,periz
-  real(rp)           :: dt,lx,ly,lz
-  logical            :: initial_condition
+  type(Type_Command_Line_Interface):: cli 
+  character(len=:), allocatable :: group
+  character(len=256)            :: dir_path_out,prefix
 
   call meminit
 
   ! Read parameters from command-line
-  call read_pars_cl_par_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,npx,npy,npz,nstage, &
-       &                                           rk_order,rk_flag,dt,analytical_vx,analytical_vy,    &
-       &                                           analytical_vz,analytical_p,analytical_t,            &
-       &                                           initial_condition,perix,periy,periz)
+  call read_flap_cli_par_test_blk_nsi_cg_iss_oss_rk(cli)
+  call cli%parse(error=istat)
+  if(cli%run_command('analytical')) then
+     group = 'analytical'
+  elseif(cli%run_command('Taylor_Green')) then
+     group = 'Taylor_Green'
+  end if
 
-  ! Generate geometry data
-  lx = 2.0_rp*pi
-  ly = 2.0_rp*pi
-  lz = 2.0_rp*pi
-  call uniform_mesh_descriptor_create(gdata,nex,ney,nez,npx=npx,npy=npy,npz=npz,perix=perix, &
-       &                              periy=periy,periz=periz,lx=lx,ly=ly,lz=lz)
+  ! Get names
+  call cli%get(group=trim(group),switch='-pwd',val=dir_path_out,error=istat); if(istat/=0) then; check(.false.); end if
+  call cli%get(group=trim(group),switch='-prf',val=prefix,error=istat); if(istat/=0) then; check(.false.); end if
+
+  ! Generate geometry data 
+  call uniform_mesh_descriptor_create(gdata,cli,group)
 
   ! Generate boundary data
   call uniform_conditions_descriptor_create(2*gdata%ndime+1,2*gdata%ndime+1,gdata%ndime,bdata)
@@ -968,13 +1280,16 @@ program par_test_blk_nsi_cg_iss_oss_rk
 
   ! Generate par triangulation
   call par_generate_uniform_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
-  if(gdata%ndime==2.and.perix==1.and.periy==1) then
+  if(gdata%ndime==2.and.gdata%isper(1)==1.and.gdata%isper(2)==1) then
      if(me==0) p_cond%f_conditions%code(gdata%ndime+1,1) = 1
-  elseif(gdata%ndime==3.and.perix==1.and.periy==1.and.periz==1) then
+  elseif(gdata%ndime==3.and.gdata%isper(1)==1.and.gdata%isper(2)==1.and.gdata%isper(3)==1) then
      if(me==0) p_cond%f_conditions%code(gdata%ndime+1,1) = 1
   end if
 
   ! Define Runge-Kutta method
+  call cli%get(group=trim(group),switch='-rks',val=nstage,error=istat); if(istat/=0) then; check(.false.); end if
+  call cli%get(group=trim(group),switch='-rko',val=rk_order,error=istat); if(istat/=0) then; check(.false.); end if
+  call cli%get(group=trim(group),switch='-rkf',val=rk_flag,error=istat); if(istat/=0) then; check(.false.); end if
   settable      = (/nstage,rk_order,rk_flag/)
   setterms(1,:) = (/update_constant,implicit/)   ! Diffusion
   setterms(2,:) = (/update_nonlinear,implicit/)  ! Convection
@@ -1001,15 +1316,22 @@ program par_test_blk_nsi_cg_iss_oss_rk
   cg_iss_oss_rk_momentum_rhs%rkinteg => rkinteg
   cg_iss_oss_rk_pressure%tinteg  => tinteg
   cg_iss_oss_rk_momentum_update%rkinteg => rkinteg
+  call cli%get(group=trim(group),switch='-dt',val=dt,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-it',val=initime,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-ft',val=finaltime,error=istat); if(istat/=0) then; check(.false.); end if  
   rkinteg%dtinv   = 1.0_rp/dt
   tinteg%dtinv    = 1.0_rp/dt
-  rkinteg%ftime   = 0.5_rp
-  mydisc%kfl_proj = 1
-  mydisc%kfl_lump = 0
-  mydisc%ktauc    = 0.0_rp
-  myprob%kfl_conv = 1
-  myprob%kfl_skew = 0
-  myprob%diffu    = 1.0_rp!/100.0_rp
+  rkinteg%ftime   = finaltime
+  rkinteg%itime   = initime
+  ! Problem Command Line variables
+  call cli%get(group=trim(group),switch='-cnv',val=myprob%kfl_conv,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-skw',val=myprob%kfl_skew,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-nu',val=myprob%diffu,error=istat); if(istat/=0) then; check(.false.); end if
+  ! Discretization Command Line variables
+  call cli%get(group=trim(group),switch='-prj',val=mydisc%kfl_proj,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-ktc',val=mydisc%ktauc,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-vo',val=order_v,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-po',val=order_p,error=istat); if(istat/=0) then; check(.false.); end if  
 
   ! Create dof_descriptor
   call dof_descriptor%create(3,1,mydisc%nvars,vars_block,dof_coupling)
@@ -1020,8 +1342,8 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,problem,__FILE__,__LINE__)
   continuity             = 1
-  order                  = 2
-  order(:,gdata%ndime+1) = 1
+  order                  = order_v
+  order(:,gdata%ndime+1) = order_p
   problem                = 1
 
   ! Create par_fe_space
@@ -1030,17 +1352,26 @@ program par_test_blk_nsi_cg_iss_oss_rk
        &                   hierarchical_basis=.false.,static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
-  call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
-       &                nparts=gdata%nparts,linear_order=.true.)
+  call cli%get(group=trim(group),switch='-wunk',val=write_unkno_VTK,error=istat); if(istat/=0) then; check(.false.); end if
+  if(write_unkno_VTK) then
+     call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
+          &                nparts=gdata%nparts,linear_order=.true.)
+  end if
 
   ! Create dof info
   call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
 
   ! Assign analytical solution
+  call cli%get_varying(group=trim(group),switch='-av',val=analytical_v,error=istat); if(istat/=0) then; check(.false.); end if   
+  call cli%get(group=trim(group),switch='-ap',val=analytical_p,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-at',val=analytical_t,error=istat); if(istat/=0) then; check(.false.); end if   
+  analytical_vx=analytical_v(1)
+  analytical_vy=analytical_v(2)
   if(gdata%ndime==2) then
      call par_fe_space_set_analytical_code(p_fe_space,(/analytical_vx,analytical_vy,analytical_p,0,0/), &
           &                            (/analytical_t,analytical_t,0,0,0/))
   else
+     analytical_vz=analytical_v(3)
      call par_fe_space_set_analytical_code(p_fe_space,(/analytical_vx,analytical_vy,analytical_vz,analytical_p,0,0,0/), &
           &                            (/analytical_t,analytical_t,analytical_t,0,0,0,0/))
   end if
@@ -1058,10 +1389,11 @@ program par_test_blk_nsi_cg_iss_oss_rk
   sctrl%dkrymax = 800
   sctrl%stopc   = res_nrmgiven_res_nrmgiven
   sctrl%orto    = icgs
-  sctrl%rtol    = 1.0e-14_rp
+  call cli%get(group=trim(group),switch='-rtol',val=sctrl%rtol,error=istat); if(istat/=0) then; check(.false.); end if  
   sctrl%track_conv_his = .false.
 
   ! Assign initial condition
+  call cli%get(group=trim(group),switch='-insol',val=initial_condition,error=istat); if(istat/=0) then; check(.false.); end if  
   if(initial_condition) then
      call par_update_analytical_initial((/(i,i=1,gdata%ndime+1)/),rkinteg%itime,p_fe_space)
   end if
@@ -1079,8 +1411,10 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call par_timer_report(p_timer) 
 
   ! Print solution to VTK file
-  istat = fevtk%write_VTK(n_part=p_env%p_context%iam)
-  if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
+  if(write_unkno_VTK) then
+     istat = fevtk%write_VTK(n_part=p_env%p_context%iam)
+     if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
+  end if
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
@@ -1102,6 +1436,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   end if
 
   ! Deallocate
+  deallocate(analytical_v)
   call memfree(continuity,__FILE__,__LINE__)
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
@@ -1114,7 +1449,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call pressure_operator%free()
   call momentum_update_operator%free()
   call projection_update_operator%free()
-  call fevtk%free
+  if(write_unkno_VTK) call fevtk%free
   call p_blk_graph%free
   call blk_dof_dist%free
   call par_fe_space_free(p_fe_space) 
@@ -1146,98 +1481,41 @@ program par_test_blk_nsi_cg_iss_oss_rk
 contains
 
   !==================================================================================================
-  subroutine read_pars_cl_par_test_blk_nsi_cg_iss_oss_rk(prefix,dir_path_out,nex,ney,nez,npx,npy,npz, &
-       &                                                 nstage,order,flag,dt,analytical_vx,          &
-       &                                                 analytical_vy,analytical_vz,analytical_p,    &
-       &                                                 analytical_t,initial_condition,perix,periy,  &
-       &                                                 periz)
+  subroutine read_flap_cli_par_test_blk_nsi_cg_iss_oss_rk(cli)
     implicit none
-    character*(*), intent(out) :: prefix, dir_path_out
-    integer(ip)  , intent(out) :: nex,ney,nez,npx,npy,npz,nstage,order,flag
-    integer(ip)  , intent(out) :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
-    integer(ip)  , intent(out) :: perix,periy,periz
-    real(rp)     , intent(out) :: dt
-    logical      , intent(out) :: initial_condition
-    character(len=256)         :: program_name
-    character(len=256)         :: argument 
-    integer                    :: numargs,iargc
-    integer(ip)                :: initial_c
-
-    numargs = iargc()
-    call getarg(0, program_name)
-    if (.not. (numargs==21) ) then
-       write (6,*) 'Usage: ', trim(program_name), ' prefix dir_path_out nex ney nez npx npy npz nstage order flag dt analytical_vx analytical_vy analytical_vz analytical_p analytical_t initial_condition:[0,1] periodic_x periodic_y periodic_z'
-       stop
-    end if
-
-    call getarg(1, argument)
-    prefix = trim(argument)
-
-    call getarg(2,argument)
-    dir_path_out = trim(argument)
-
-    call getarg(3, argument)
-    read (argument,*) nex
-
-    call getarg(4, argument)
-    read (argument,*) ney
-
-    call getarg(5, argument)
-    read (argument,*) nez
-
-    call getarg(6, argument)
-    read (argument,*) npx
-
-    call getarg(7, argument)
-    read (argument,*) npy
-
-    call getarg(8, argument)
-    read (argument,*) npz
-
-    call getarg(9, argument)
-    read (argument,*) nstage
-
-    call getarg(10, argument)
-    read (argument,*) order
-
-    call getarg(11, argument)
-    read (argument,*) flag
-
-    call getarg(12, argument)
-    read (argument,*) dt
-
-    call getarg(13, argument)
-    read (argument,*) analytical_vx
-
-    call getarg(14,argument)
-    read (argument,*) analytical_vy
-
-    call getarg(15, argument)
-    read (argument,*) analytical_vz
-
-    call getarg(16, argument)
-    read (argument,*) analytical_p
-
-    call getarg(17, argument)
-    read (argument,*) analytical_t
+    type(Type_Command_Line_Interface), intent(out) :: cli
+    ! Locals
+    type(par_test_blk_nsi_cg_iss_oss_rk_params_t) :: analytical_params,taylor_green_params
+    logical     :: authors_print
+    integer(ip) :: error
     
-    call getarg(18, argument)
-    read (argument,*) initial_c
-    initial_condition = .false.
-    if(initial_c==1) initial_condition = .true.
+    authors_print = .false.
     
-    call getarg(19, argument)
-    read (argument,*) perix
+    ! Initialize Command Line Interface
+    call cli%init(progname    = 'par_test_blk_nsi_cg_iss_oss_rk', &
+         &        version     = '',                               &
+         &        authors     = '',                               &
+         &        license     = '',                               &
+         &        description = 'Parallel FEMPAR driver to solve transient Navier-Stokes problems using Continuous-Galerkin Inf-Sup stable elements with Orthogonal Subscales stabilization for the spatial discretization and Segregated Runge-Kutta schemes for the temporal discretization.', &
+         &        examples    = ['par_test_blk_nsi_cg_iss_oss_rk -h         ', &
+         &                       'par_test_blk_nsi_cg_iss_oss_rk analytical ', &
+         &                       'par_test_blk_nsi_cg_iss_oss_rk Taylor_Green'])
     
-    call getarg(20, argument)
-    read (argument,*) periy
+    ! Set Command Line Arguments Groups, i.e. commands
+    call cli%add_group(group='analytical',description='solve a problem with an analytical solution')
+    call cli%add_group(group='Taylor_Green',description='solve the Taylor-Green Vortex flow problem')
     
-    call getarg(21, argument)
-    read (argument,*) periz
-
-  end subroutine read_pars_cl_par_test_blk_nsi_cg_iss_oss_rk
-
- !==================================================================================================
+    ! Set Command Line Arguments for each group
+    call set_default_params(analytical_params)
+    call set_default_params_analytical(analytical_params)
+    call cli_add_params(cli,analytical_params,'analytical')
+    call set_default_params(taylor_green_params)
+    call set_default_params_taylor_green(taylor_green_params)
+    call cli_add_params(cli,taylor_green_params,'Taylor_Green')
+    
+  end subroutine read_flap_cli_par_test_blk_nsi_cg_iss_oss_rk
+  
+  !==================================================================================================
   subroutine do_time_steps_rk_nsi(rkinteg,sctrl,sttol,maxst,p_env,p_fe_space,momentum_operator, &
        &                          momentum_integration,pressure_operator,pressure_integration,  &
        &                          momentum_update_operator,momentum_update_integration,         &

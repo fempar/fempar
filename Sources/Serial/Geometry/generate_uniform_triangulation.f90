@@ -33,6 +33,7 @@ module generate_uniform_triangulation_names
   use materials_names
   use fe_space_types_names
   use map_names
+  use Data_Type_Command_Line_Interface
   implicit none
 # include "debug.i90"
   private
@@ -129,6 +130,10 @@ module generate_uniform_triangulation_names
      module procedure globalid_ip, globalid_igp
   end interface
 
+  interface uniform_mesh_descriptor_create
+     module procedure uniform_mesh_descriptor_create_from_cli,uniform_mesh_descriptor_create_without_cli
+  end interface uniform_mesh_descriptor_create
+
   ! Types
   public :: uniform_mesh_descriptor_t, uniform_conditions_descriptor_t
 
@@ -139,9 +144,9 @@ module generate_uniform_triangulation_names
 contains
 
   !==================================================================================================
-  subroutine uniform_mesh_descriptor_create(gdata,nex,ney,nez,npx,npy,npz,nsx,nsy,nsz,ntdix,ntdiy,ntdiz,mater,  &
-       &                      neblx,nebly,neblz,perix,periy,periz,lx,ly,lz,x0,y0,z0,zx1,zx2,zy1, &
-       &                      zy2,xstret,ystret,zstret,xlengbl,ylengbl,zlengbl)
+  subroutine uniform_mesh_descriptor_create_without_cli(gdata,nex,ney,nez,npx,npy,npz,nsx,nsy,nsz,  &
+       &                      ntdix,ntdiy,ntdiz,mater,neblx,nebly,neblz,perix,periy,periz,lx,ly,lz, &
+       &                      x0,y0,z0,zx1,zx2,zy1,zy2,xstret,ystret,zstret,xlengbl,ylengbl,zlengbl)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates geometry data to construct a structured mesh                      !
     !-----------------------------------------------------------------------------------------------!
@@ -228,7 +233,104 @@ contains
     if(present(periy)) gdata%isper(2) = periy
     if(present(periz)) gdata%isper(3) = periz    
     
-  end subroutine uniform_mesh_descriptor_create
+  end subroutine uniform_mesh_descriptor_create_without_cli 
+
+  !==================================================================================================
+  subroutine uniform_mesh_descriptor_create_from_cli(gdata,cli,group)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine generates geometry data to construct a structured mesh                      !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(uniform_mesh_descriptor_t)  , intent(out)   :: gdata
+    type(Type_Command_Line_Interface), intent(inout) :: cli
+    character(*)                     , intent(in)    :: group
+    ! Locals
+    integer(ip)              :: error,mc
+    integer(ip), allocatable :: ne(:),np(:),ns(:),disc(:),peri(:),nb(:)
+    real(rp)   , allocatable :: dl(:),o(:),st(:),sb(:)
+
+    ! Fill uniform_mesh_descriptor
+    call cli%get_varying(group=trim(group),switch='-ne',val=ne,error=error)                    ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-np',val=np,error=error)                    ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-ns',val=ns,error=error)                    ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='--discretization_type',val=disc,error=error); if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-dl',val=dl,error=error)                    ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-peri',val=peri,error=error)                ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-O',val=o,error=error)                      ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-st',val=st,error=error)                    ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-nb',val=nb,error=error)                    ; if(error/=0) then; check(.false.); end if
+    call cli%get_varying(group=trim(group),switch='-sb',val=sb,error=error)                    ; if(error/=0) then; check(.false.); end if
+    call cli%get(group=trim(group),switch='-mc',val=mc,error=error)                            ; if(error/=0) then; check(.false.); end if
+
+    gdata%ntdix   = disc(1) ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+    gdata%ntdiy   = disc(2) ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+    gdata%mater   = mc      ! Material case
+    gdata%neblx   = nb(1)   ! Number of elements in the x boundary layer
+    gdata%nebly   = nb(2)   ! Number of elements in the y boundary layer
+    gdata%xleng   = dl(1)   ! Size of the domain in x
+    gdata%yleng   = dl(2)   ! Size of the domain in y
+    gdata%x0      = o(1)    ! Origin x-coordinate
+    gdata%y0      = o(2)    ! Origin y-coordinate
+    gdata%xstret  = st(1)   ! Stretching parameter
+    gdata%ystret  = st(2)   ! Stretching parameter
+    gdata%xlengbl = sb(1)   ! Size of the boundary layer in x
+    gdata%ylengbl = sb(2)   ! Size of the boundary layer in y
+    if(size(disc,1)==3) gdata%ntdiz   = disc(3) ! Type of discretization in z (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+    if(size(nb,1)==3)   gdata%neblz   = nb(3)   ! Number of elements in the z boundary layer
+    if(size(o,1)==3)    gdata%z0      = o(3)    ! Origin z-coordinate
+    if(size(dl,1)==3)   gdata%zleng   = dl(3)   ! Size of the domain in z
+    if(size(st,1)==3)   gdata%zstret  = st(3)   ! Stretching parameter
+    if(size(sb,1)==3)   gdata%zlengbl = sb(3)   ! Size of the boundary layer in z
+  
+    ! Dimension
+    if(size(ne,1)==2) then
+       gdata%ndime=2     
+    else
+       if(ne(3)==0) then
+          gdata%ndime=2
+       else
+          gdata%ndime=3
+       end if
+    end if 
+
+    ! Partition info
+    gdata%nedir(1) = ne(1)
+    gdata%nedir(2) = ne(2)
+    if(size(ne,1)==3) gdata%nedir(3) = ne(3)
+    gdata%npdir(1) = np(1)
+    gdata%npdir(2) = np(2)
+    if(size(np,1)==3) gdata%npdir(3) = np(3)
+    check(ns(1)>0)
+    gdata%nsckt(1) = gdata%npdir(1)/ns(1)
+    check(ns(2)>0)
+    gdata%nsckt(2) = gdata%npdir(2)/ns(2)
+    gdata%nparts = gdata%npdir(1)*gdata%npdir(2)
+    if(gdata%ndime==3) then
+       check(size(ns,1)==3)
+       check(ns(3)>0)
+       gdata%nsckt(3) = gdata%npdir(3)/ns(3)
+       gdata%nparts = gdata%nparts*gdata%npdir(3)
+    else
+       gdata%nsckt(3) = 1
+       gdata%npdir(3) = 1
+    end if
+    gdata%isper(1) = peri(1)
+    gdata%isper(2) = peri(2)
+    if(size(peri,1)==3) gdata%isper(3) = peri(3)   
+
+    ! Deallocate
+    deallocate(ne)
+    deallocate(np)
+    deallocate(ns)
+    deallocate(disc)
+    deallocate(peri)
+    deallocate(nb)
+    deallocate(dl)
+    deallocate(o)
+    deallocate(st)
+    deallocate(sb)
+    
+  end subroutine uniform_mesh_descriptor_create_from_cli
 
   !==================================================================================================
   subroutine uniform_conditions_descriptor_create(ncode,nvalu,ndime,bdata)
