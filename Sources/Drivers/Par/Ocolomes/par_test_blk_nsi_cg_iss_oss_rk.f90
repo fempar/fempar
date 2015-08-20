@@ -1166,6 +1166,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   use ir_precision
+  use dof_distribution_names
   implicit none
 # include "debug.i90"
 
@@ -1443,7 +1444,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call momentum_update_operator%build(p_blk_graph)
   call projection_update_operator%build(p_blk_graph)
 
-  ! Solver control parameters
+  ! Solver control parameters 
   sctrl%method  = lgmres
   sctrl%trace   = 100
   sctrl%itmax   = 800
@@ -1472,6 +1473,9 @@ program par_test_blk_nsi_cg_iss_oss_rk
        &                    lunio_dis)
   call par_timer_stop(p_timer)   
   call par_timer_report(p_timer) 
+
+  ! Print PVD file
+  if(write_unkno_VTK) istat = fevtk%write_PVD() 
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
@@ -1609,12 +1613,14 @@ contains
     ! Locals
     type(discrete_integration_pointer_t) :: approx(1)
     integer(ip) :: istage,nstage,istep,ielem,me,np
-    real(rp)    :: rtime,ctime,prevtime
+    real(rp)    :: rtime,ctime,prevtime,prevtime_vtk,prevtime_dis
     logical     :: status
 
     ! Initialize time steps
     rtime = 1.0_rp
     istep = 1
+    prevtime_vtk = 0.0_rp
+    prevtime_dis = 0.0_rp
 
     ! Get process info
     call p_env%info(me,np)
@@ -1715,9 +1721,10 @@ contains
              ! (U_n --> U_1)
              approx(1)%p => momentum_integration
              call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,3,3+1)
-             call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,3,2)
+             ! (U_0 --> U_k)
+             call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,2)
           else
-          
+
              ! Update analytical/time dependent boundary conditions
              call par_update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,p_fe_space)
 
@@ -1851,8 +1858,9 @@ contains
        ! Postprocess
        ! ===========
        ! Compute dissipations
-       status = ((ctime-prevtime).ge.trace_dissipation)
+       status = ((ctime-prevtime_dis).ge.trace_dissipation)
        if(write_dissipation.and.status) then
+          prevtime_dis = ctime
           approx(1)%p => dissipation_integration
           call par_volume_integral(approx,p_fe_space,dummy)
           select type(dissipation_integration)
@@ -1884,13 +1892,14 @@ contains
        end if
 
        ! Print solution to VTK file
-       status = ((ctime-prevtime).ge.trace_unkno)
+       status = ((ctime-prevtime_vtk).ge.trace_unkno)
        if(write_unkno_VTK.and.status) then 
+          prevtime_vtk = ctime
           select type(p_env)
           class is(par_environment_t) 
-             istat = fevtk%write_VTK(n_part=p_env%p_context%iam)
+             istat = fevtk%write_VTK(n_part=p_env%p_context%iam,t_step=ctime)
           end select
-          if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
+          istat = fevtk%write_PVTK(t_step=ctime)
        end if
 
     end do step

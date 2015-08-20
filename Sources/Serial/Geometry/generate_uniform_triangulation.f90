@@ -2143,7 +2143,7 @@ contains
     integer(ip)               :: i,j,k,m,n,l,ijk(3),ijklnods(3),num,count,auxva((pdegr+1)**ndime)
     integer(ip)               :: ne_aux(3),np_aux(3),mcase,auxnum,nedir_l2g(ndime),nvef,aux_glb
     integer(ip)               :: subgl_aux(3),subgl_ijk(3),nelbl(3),ncorn
-    integer(ip)               :: cnt,ipoin,jpoin,ielem,pdime,iedge,jedge,iface,nddomk
+    integer(ip)               :: cnt,ipoin,jpoin,ielem,pdime,iedge,jedge,iface,nddomk,idime
     integer(ip)               :: auxvc(2**ndime),auxvf(2*ndime),auxvd(2*(ndime-1)*ndime),aux_cnt
     integer(ip) , allocatable :: auxv(:,:)
     integer(igp), allocatable :: po_l2g(:),el_l2g(:)
@@ -2334,6 +2334,10 @@ contains
              ! Local to global vector
              nedir_l2g = gsize%nedir(1:ndime)*pdegr + 1
              subgl_ijk = subgl_aux*pdegr+ijk
+             do idime=1,ndime
+                ! Modify global ID in periodic boundary
+                if(subgl_ijk(idime)==(gsize%nedir(idime)+1).and.(gdata%isper(idime)==1)) subgl_ijk(idime) = 1
+             end do
              call globalid(subgl_ijk,nedir_l2g,ndime,po_l2g(num))
     
           end do
@@ -2362,6 +2366,11 @@ contains
 
                 ! Local to global vector
                 subgl_ijk = subgl_aux + ijk
+                do idime=1,ndime-1
+                   ! Modify global ID in periodic boundary
+                   if(subgl_ijk(auxv(pdime,idime))==(gsize%nedir(auxv(pdime,idime))+1).and. &
+                        & (gdata%isper(auxv(pdime,idime))==1)) subgl_ijk(auxv(pdime,idime)) = 1
+                end do
                 call globalid(subgl_ijk,tsize%ndglb(:,pdime),ndime,po_l2g(num+aux_cnt))
                 po_l2g(num+aux_cnt) = po_l2g(num+aux_cnt) + aux_glb
 
@@ -2387,6 +2396,9 @@ contains
 
                    ! Local to global vector
                    subgl_ijk = subgl_aux + ijk
+                   ! Modify global ID in periodic boundary
+                   if(subgl_ijk(pdime)==(gsize%nedir(pdime)+1).and. &
+                        & (gdata%isper(pdime)==1)) subgl_ijk(pdime) = 1
                    call globalid(subgl_ijk,tsize%nfglb(:,pdime),ndime,po_l2g(num+aux_cnt))
                    po_l2g(num+aux_cnt) = po_l2g(num+aux_cnt) + aux_glb
 
