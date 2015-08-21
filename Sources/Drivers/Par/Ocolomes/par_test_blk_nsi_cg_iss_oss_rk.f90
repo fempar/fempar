@@ -993,7 +993,7 @@ contains
     ! Problem
     params%default_kfl_conv = '1'
     params%default_kfl_skew = '0'
-    params%default_diffu    = '1.0/1600.0'
+    params%default_diffu    = '0.000625' ! 1.0/1600.0
     ! Solver
     params%default_rtol     = '1.0e-07'
     ! Nonlinearity
@@ -1407,7 +1407,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call cli%get(group=trim(group),switch='-tunk',val=trace_unkno,error=istat); if(istat/=0) then; check(.false.); end if
   if(write_unkno_VTK) then
      call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
-          &                nparts=gdata%nparts,linear_order=.true.)
+          &                nparts=gdata%nparts,root_proc=0,linear_order=.true.)
   end if
 
   ! Initialize dissipation output
@@ -1479,21 +1479,23 @@ program par_test_blk_nsi_cg_iss_oss_rk
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
-  approx(1)%p => error_compute
-  error_compute%ctime = rkinteg%ctime
-  error_compute%unknown_id = velocity
-  call enorm_u%create(p_env)
-  call enorm_u%init()
-  call par_volume_integral(approx,p_fe_space,enorm_u)
-  call enorm_u%reduce()
-  error_compute%unknown_id = pressure
-  call enorm_p%create(p_env)
-  call enorm_p%init()
-  call par_volume_integral(approx,p_fe_space,enorm_p)
-  call enorm_p%reduce()
-  if(me==0) then
-     write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
-     write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
+  if(analytical_vx>0.and.analytical_p>0) then
+     approx(1)%p => error_compute
+     error_compute%ctime = rkinteg%ctime
+     error_compute%unknown_id = velocity
+     call enorm_u%create(p_env)
+     call enorm_u%init()
+     call par_volume_integral(approx,p_fe_space,enorm_u)
+     call enorm_u%reduce()
+     error_compute%unknown_id = pressure
+     call enorm_p%create(p_env)
+     call enorm_p%init()
+     call par_volume_integral(approx,p_fe_space,enorm_p)
+     call enorm_p%reduce()
+     if(me==0) then
+        write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
+        write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
+     end if
   end if
 
   ! Deallocate
@@ -1630,6 +1632,9 @@ contains
           
     ! Update analytical/time dependent boundary conditions
     call par_update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),rkinteg%ctime,p_fe_space)
+            
+    ! (U_0 --> U_n)
+    call par_update_nonlinear_solution(p_fe_space,momentum_integration%working_vars,1,3)
 
     ! Initialize vector
     call par_update_initialize(momentum_operator%x_sol,p_fe_space)
@@ -1861,12 +1866,15 @@ contains
        status = ((ctime-prevtime_dis).ge.trace_dissipation)
        if(write_dissipation.and.status) then
           prevtime_dis = ctime
-          approx(1)%p => dissipation_integration
-          call par_volume_integral(approx,p_fe_space,dummy)
+          !********** This is dirty ********************!
           select type(dissipation_integration)
           class is(nsi_cg_iss_oss_dissipation_t) 
+             approx(1)%p => dissipation_integration
+             dissipation_integration%values = 0.0_rp
+             call par_volume_integral(approx,p_fe_space,dummy)
              dissipations = dissipation_integration%values
           end select
+          !*********************************************!
           if(p_env%am_i_fine_task()) then
              select type(p_env)
              class is(par_environment_t) 
@@ -1897,9 +1905,9 @@ contains
           prevtime_vtk = ctime
           select type(p_env)
           class is(par_environment_t) 
-             istat = fevtk%write_VTK(n_part=p_env%p_context%iam,t_step=ctime)
+             istat = fevtk%write_VTK(t_step=ctime)
+             istat = fevtk%write_PVTK(t_step=ctime)
           end select
-          istat = fevtk%write_PVTK(t_step=ctime)
        end if
 
     end do step

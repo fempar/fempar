@@ -735,21 +735,23 @@ contains
     ts = 0._rp
     if(present(t_step)) ts = t_step 
 
-    dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
-    fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
-    fn = dp//fn
-print*, fn
-    if(present(f_name)) fn = f_name
+    ft =  f_vtk%p_env%am_i_fine_task() 
 
-    of = 'raw'
-    if(present(o_fmt)) of = trim(adjustl(o_fmt))
+    E_IO = 0
+    
+    if(ft) then
+       dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+       fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
+       fn = dp//fn
+       if(present(f_name)) fn = f_name
 
-print*, 1
-    E_IO = f_vtk%write_VTK_start(fn, np, ts, nm, of, fid) 
-print*, 2
-    E_IO = f_vtk%write_VTK_unknowns(nm, fid)
-print*, 3
-    E_IO = f_vtk%write_VTK_end(nm, fid)
+       of = 'raw'
+       if(present(o_fmt)) of = trim(adjustl(o_fmt))
+
+       E_IO = f_vtk%write_VTK_start(fn, np, ts, nm, of, fid) 
+       E_IO = f_vtk%write_VTK_unknowns(nm, fid)
+       E_IO = f_vtk%write_VTK_end(nm, fid)
+    end if
 
   
   ! ----------------------------------------------------------------------------------
@@ -798,7 +800,11 @@ print*, 3
         nnods = f_vtk%mesh(nm)%nnods
         nels = size(f_vtk%mesh(nm)%ctype, dim=1)
 
+#ifdef __GFORTRAN__
         inquire( file=trim(dp)//'/.', exist=isDir )
+#else
+        inquire( directory=trim(dp), exist=isDir )
+#endif
         if(isDir) then
             ! pvtu
             E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64', cf=rf)
@@ -859,7 +865,7 @@ print*, 3
     me = 0; np = 1
     check(associated(f_vtk%p_env))
     call f_vtk%p_env%info(me,np) 
-    check(f_vtk%root_proc <= np-1)
+!!$    check(f_vtk%root_proc <= np-1)
 
     E_IO = 0
 
@@ -871,7 +877,11 @@ print*, 3
         pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//'_'//trim(adjustl(ch(nm)))//pvd_ext
         if(present(f_name)) pvdfn = f_name
 
+#ifdef __GFORTRAN__
         inquire( file=trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/.', exist=isDir )
+#else
+        inquire( directory=trim(adjustl(f_vtk%mesh(nm)%dir_path)), exist=isDir )
+#endif        
 
         if(isDir) then
             if(allocated(f_vtk%steps)) then
