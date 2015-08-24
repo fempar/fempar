@@ -649,8 +649,8 @@ contains
     end do
 
     do inode=1,nnode
-       work(4) = shape(inode)*dvolu*0.5_rp
-       aux(inode) = agran(inode)*0.5_rp
+       work(4) = shape(inode)*0.5_rp*dvolu
+       aux(inode) = agran(inode)*0.5_rp*dvolu
        do idime=1,ndime
           elrhs(idime,inode) = work(4)*work(idime) - aux(inode)*vegau(idime) + elrhs(idime,inode)
        end do
@@ -990,10 +990,17 @@ contains
     real(rp),    intent(inout) :: elvec(ndime,nnode),work(:)
     ! Locals
     integer(ip)                :: inode,idime
+    real(rp)                   :: divel
+    
+    divel = 0.0_rp
+    do idime=1,ndime
+       divel = divel + grvel(idime,idime)
+    end do
 
     do inode=1,nnode
+       work(1) = dvolu*divel
        do idime=1,ndime
-          elvec(idime,inode) = deriv(idime,inode)*grvel(idime,idime)*dvolu + &
+          elvec(idime,inode) = deriv(idime,inode)*work(1) + &
                elvec(idime,inode)
        end do
     end do

@@ -213,7 +213,7 @@ contains
 
     ! Problem variables
     discret%k1tau = 12.0_rp ! C1 constant on stabilization parameter tau_m
-    discret%k2tau = 8.0_rp  ! C2 constant on stabilization parameter tau_m
+    discret%k2tau = 2.0_rp  ! C2 constant on stabilization parameter tau_m
     discret%ktauc = 4.0_rp  ! Constant multiplying stabilization parameter tau_c
 
     ! Time integration variables
@@ -966,7 +966,7 @@ contains
             &                  elmat_vp,work)
 
        ! Block U-W
-       ! -tau*(proj(a·grad u), a·grad u)
+       ! -tau*(a·grad u, v)
        call elmbuv_gal(-dvolu*tau(1,igaus),0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
             &          nnodu,elmat_wu_diag,work)
 
@@ -1449,7 +1449,11 @@ contains
        ! OSS_vx
        if(rkinteg%rk_terms(5)%hsite == implicit.and.(approx%integration_stage==rkinteg%rk_terms(5)%ltype)) then
           ! -tau*(proj(a·grad u), a·grad v)
-          beta = -tau(1,igaus)*dvolu
+          if(approx%discret%kfl_proj==1) then
+             beta = -tau(1,igaus)*dvolu
+          else
+             beta = -dvolu
+          end if
           call elmbvu_gal(beta,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
                &          elmat_vx_diag,work)
        end if
@@ -1457,16 +1461,12 @@ contains
        if(approx%integration_stage==update_nonlinear) then
           ! OSS_wu
           ! -tau*(a·grad u, w)
-          if(approx%discret%kfl_proj==1) then
-             beta = -tau(1,igaus)*dvolu
-          else
-             beta = -dvolu
-          end if
+          beta = -tau(1,igaus)*dvolu
           call elmbuv_gal(beta,0.0_rp,0.0_rp,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran, &
                &          nnodu,elmat_wu_diag,work)
 
           ! OSS_wx
-          ! tau*(proj(a·grad u), w)
+          ! tau*(proj(a·grad u), w) / (proj(tau*a·grad u), w)
           if(approx%discret%kfl_proj==1) then
              call elmmss_gal(dvolu,tau(1,igaus),finite_element%integ(1)%p%uint_phy%shape(:,igaus), &
                   &          nnodu,elmat_wx_diag,work)
@@ -1705,10 +1705,15 @@ contains
 
           ! OSS_vx
           alpha = rkinteg%rk_table(5)%p%A(istage,jstge)
-          beta = dvolu*alpha!*tau(1,igaus,jstge)
+          beta = dvolu*alpha
           ! - tau * ( proj(u·grad u), u· grad v)
-          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
-               &          work)
+          if(approx%discret%kfl_proj==1) then
+             call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+                  &          work)
+          else
+             call elmrhs_fce(beta,agran,gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+                  &          work)
+          end if
 
           ! Force
           alpha = rkinteg%rk_table(6)%p%A(istage,jstge)
@@ -1905,9 +1910,13 @@ contains
        end if
 
        ! OSS_vx
-       beta = dvolu!*tau(1,igaus)
+       beta = dvolu
        ! - tau * ( proj(u·grad u), u· grad v)
-       call elmrhs_fce(beta,testf(:,igaus),gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
+       if(approx%discret%kfl_proj==1) then
+          call elmrhs_fce(beta,testf(:,igaus),gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
+       else
+          call elmrhs_fce(beta,agran,gposs%a(:,igaus),nnodu,ndime,elvec_u,work)
+       end if
 
        ! Force
        beta = dvolu
@@ -2133,10 +2142,14 @@ contains
 
           ! OSS_vx
           alpha = rkinteg%rk_table(5)%p%b(jstge)
-          beta = dvolu*alpha!*tau(1,igaus,jstge)
+          beta = dvolu*alpha
           ! - tau * ( proj(u·grad u), u· grad v)
-          call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
-               &          work)
+          if(approx%discret%kfl_proj==1) then
+             call elmrhs_fce(beta,testf(:,igaus,jstge),gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u, &
+                  &          work)
+          else
+             call elmrhs_fce(beta,agran,gposs(jstge)%a(:,igaus),nnodu,ndime,elvec_u,work)
+          end if
 
           ! Force
           alpha = rkinteg%rk_table(6)%p%b(jstge)
@@ -2257,11 +2270,7 @@ contains
        ! =============
        ! OSS_wu
        ! -tau*(a·grad u, w)
-       if(approx%discret%kfl_proj==1) then
-          beta = tau(1,igaus)*dvolu
-       else
-          beta = dvolu
-       end if
+       beta = tau(1,igaus)*dvolu
        call oss_convu_arg_chk(beta,gpvel%a(:,igaus),grvel%a(:,:,igaus), &
             &                 finite_element%integ(1)%p%uint_phy%shape(:,igaus),ndime,nnodu,elvec_x,work)
 
@@ -2336,9 +2345,9 @@ contains
     call interpolation(finite_element%unkno,ndime+1,ndime,current,finite_element%integ,grpre)
     call interpolation(finite_element%unkno,ndime+2,current,finite_element%integ,gposs)
     if(dtinv == 0.0_rp) then
-       call interpolation (finite_element%unkno, 1, prev_step, finite_element%integ, gpveln)
-    else
        gpveln%a = 0.0_rp
+    else
+       call interpolation (finite_element%unkno, 1, prev_step, finite_element%integ, gpveln)
     end if
 
     ! Allocate & compute Stabilization parameters
@@ -2419,7 +2428,9 @@ contains
                 strat = strat + grvel%a(idime,jdime,igaus)*grvel%a(jdime,idime,igaus)
              end if
              ! (a · grad u, u)
-             cnvec = cnvec + gpvel%a(idime,igaus)*grvel%a(idime,jdime,igaus)*gpvel%a(jdime,igaus)
+             if(approx%physics%kfl_skew==0) then
+                cnvec = cnvec + gpvel%a(idime,igaus)*grvel%a(idime,jdime,igaus)*gpvel%a(jdime,igaus)
+             end if
           end do
           ! - (f,u)
           extfo = extfo - gpvel%a(idime,igaus)*force%a(idime,igaus)

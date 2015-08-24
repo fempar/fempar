@@ -318,8 +318,6 @@ contains
     call nlop%A_momentum%create(2,2)
     call nlop%A_momentum%set_block(1,1,nlop%A_uu)
     call nlop%A_momentum%set_block(1,2,nlop%aii*nlop%p_block_matrix_nl%get_block(1,3))
-!!$    call nlop%A_momentum%set_block(2,1,nlop%p_block_matrix_nl%get_block(3,1))
-!!$    call nlop%A_momentum%set_block(2,2,nlop%p_block_matrix_nl%get_block(3,3))
     call nlop%A_momentum%set_block(2,1,nlop%aii*nlop%p_block_matrix_nl%get_block(3,1))
     call nlop%A_momentum%set_block(2,2,nlop%aii*nlop%p_block_matrix_nl%get_block(3,3))  
     
@@ -352,7 +350,6 @@ contains
     call nlop%M_momentum%create(2)
     call nlop%M_momentum%set_block(1,1,nlop%inv_A_uu)
     call nlop%M_momentum%set_block(2,1,nlop%aii*nlop%p_block_matrix_nl%get_block(3,1))
-!!$    call nlop%M_momentum%set_block(2,1,nlop%p_block_matrix_nl%get_block(3,1))
     call nlop%M_momentum%set_block(2,2,nlop%p_diagonal_x)
     
     ! Fill picard nonlinear operator pointers
@@ -861,6 +858,8 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_rkorder   
      character(len=:), allocatable :: default_rkflag   
      character(len=:), allocatable :: default_rkimex
+     character(len=:), allocatable :: default_max_steps 
+     character(len=:), allocatable :: default_sttol
      ! Solution
      character(len=:), allocatable :: default_analytical_v
      character(len=:), allocatable :: default_analytical_p
@@ -869,6 +868,7 @@ module command_line_parameters_names
      ! Problem
      character(len=:), allocatable :: default_kfl_conv 
      character(len=:), allocatable :: default_kfl_skew 
+     character(len=:), allocatable :: default_kfl_symg
      character(len=:), allocatable :: default_diffu    
      ! Discretization
      character(len=:), allocatable :: default_kfl_proj 
@@ -924,6 +924,8 @@ contains
     params%default_rkorder   = '1'
     params%default_rkflag    = '0'
     params%default_rkimex    = '1'
+    params%default_max_steps = '100000'
+    params%default_sttol     = '1.0e-7'
     ! Solution
     params%default_analytical_v = '0 0'
     params%default_analytical_p = '0'
@@ -932,6 +934,7 @@ contains
     ! Problem
     params%default_kfl_conv = '1'
     params%default_kfl_skew = '0'
+    params%default_kfl_symg = '0'
     params%default_diffu    = '1.0'
     ! Discretization
     params%default_kfl_proj  = '1'
@@ -992,7 +995,7 @@ contains
     params%default_initial_cond  = '.true.'
     ! Problem
     params%default_kfl_conv = '1'
-    params%default_kfl_skew = '0'
+    params%default_kfl_skew = '1'
     params%default_diffu    = '0.000625' ! 1.0/1600.0
     ! Solver
     params%default_rtol     = '1.0e-07'
@@ -1084,6 +1087,12 @@ contains
     call cli%add(group=trim(group),switch='--SRK_imex',switch_ab='-rkimex',help='0: explicit convection, 1: implicit convection', &
          &       required=.false.,act='store',choices='0,1',def=trim(params%default_rkimex),error=error)
     if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--steady_tolerance',switch_ab='-sttol',help='Steady state tolerance', &
+         &       required=.false.,act='store',def=trim(params%default_sttol),error=error)    
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--max_steps',switch_ab='-mstep',help='Maximum time steps', &
+         &       required=.false.,act='store',def=trim(params%default_max_steps),error=error)
+    if(error/=0) then; check(.false.); end if
 
     ! Solution
     call cli%add(group=trim(group),switch='--analytical_v',switch_ab='-av',help='Analytical solution for velocity components', &
@@ -1105,6 +1114,8 @@ contains
     if(error/=0) then; check(.false.); end if
     call cli%add(group=trim(group),switch='--kfl_skew',switch_ab='-skw',help='Skewness flag', &
          &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_skew),error=error)
+    call cli%add(group=trim(group),switch='--kfl_symg',switch_ab='-syg',help='Symmetric gradient flag', &
+         &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_symg),error=error)
     if(error/=0) then; check(.false.); end if
     call cli%add(group=trim(group),switch='--diffusion',switch_ab='-nu',help='Diffusion value', &
          &       required=.false.,act='store',def=trim(params%default_diffu),error=error)
@@ -1225,13 +1236,13 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip) :: nstage,rk_order,rk_flag,rk_imex
   integer(ip) :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
   integer(ip) :: lunio_dis
-  integer(ip) :: max_iter
+  integer(ip) :: max_iter,max_steps
 
   ! Reals
   real(rp) :: initime,finaltime,dt
   real(rp) :: dissipations(10)
   real(rp) :: trace_unkno,trace_dissipation
-  real(rp) :: nltol
+  real(rp) :: nltol,sttol
 
   ! Logicals
   logical  :: initial_condition,write_unkno_VTK,write_dissipation
@@ -1377,6 +1388,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   ! Problem Command Line variables
   call cli%get(group=trim(group),switch='-cnv',val=myprob%kfl_conv,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-skw',val=myprob%kfl_skew,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-syg',val=myprob%kfl_symg,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-nu',val=myprob%diffu,error=istat); if(istat/=0) then; check(.false.); end if
   ! Discretization Command Line variables
   call cli%get(group=trim(group),switch='-prj',val=mydisc%kfl_proj,error=istat); if(istat/=0) then; check(.false.); end if  
@@ -1461,10 +1473,12 @@ program par_test_blk_nsi_cg_iss_oss_rk
   end if
 
   ! Do time steps
+  call cli%get(group=trim(group),switch='-sttol',val=sttol,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-mstep',val=max_steps,error=istat); if(istat/=0) then; check(.false.); end if
   call par_timer_create(p_timer,'TEMPORAL_LOOP', w_context%icontxt)
   call par_timer_init(p_timer)
   call par_timer_start(p_timer)   
-  call do_time_steps_rk_nsi(rkinteg,sctrl,1.0e-7_rp,100,p_env,gdata,p_fe_space,momentum_operator, &
+  call do_time_steps_rk_nsi(rkinteg,sctrl,sttol,max_steps,p_env,gdata,p_fe_space,momentum_operator, &
        &                    cg_iss_oss_rk_momentum,pressure_operator,cg_iss_oss_rk_pressure,      &
        &                    momentum_update_operator,cg_iss_oss_rk_momentum_update,               &
        &                    projection_update_operator,cg_iss_oss_rk_projection_update,           &
@@ -1815,8 +1829,8 @@ contains
        ! Free preconditioner 
        call momentum_update_operator%M%free_values(update_transient)
 
-       ! Store unkno to previous step position (Un+1 --> U_n)
-       call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3)    
+       ! Store unkno to provisional position (Un+1 --> U_aux)
+       call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3+1)    
        
        !**************************** NSI specific tasks *****************************************!   
        ! Compute projection transient operators
@@ -1833,7 +1847,7 @@ contains
        call projection_update_operator%M%free_values(update_transient)
 
        ! Store projection to previous step position (Un+1 --> U_n)
-       call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3)   
+       call par_update_nonlinear_solution(p_fe_space,approx(1)%p%working_vars,1,3+1)   
 
        ! Update boundary conditions (velocity derivative)
        call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,p_fe_space,2)
@@ -1849,7 +1863,7 @@ contains
        call pressure_operator%apply(sctrl,p_env,approx,p_fe_space)
        
        ! Restore velocity (U_n+1 --> U)
-       call par_update_nonlinear_solution(p_fe_space,momentum_integration%working_vars,3,1) 
+       call par_update_nonlinear_solution(p_fe_space,momentum_integration%working_vars,3+1,1) 
 
        ! Update analytical/time dependent boundary conditions
        call par_update_analytical_bcond((/(i,i=1,gdata%ndime+1)/),ctime,p_fe_space)
@@ -1909,6 +1923,9 @@ contains
              istat = fevtk%write_PVTK(t_step=ctime)
           end select
        end if
+
+       ! Store unkno to previous step position (Un+1 --> U_n)
+       call par_update_nonlinear_solution(p_fe_space,momentum_integration%working_vars,1,3)  
 
     end do step
 
