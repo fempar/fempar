@@ -114,7 +114,7 @@ module lib_vtk_io_interface_names
         procedure, private :: fill_mesh_from_triangulation
         procedure, private :: fill_mesh_superlinear_order
         procedure, private :: fill_fields_from_physical_problem
-        procedure, private :: create_dir_hierarchy
+        procedure, private :: create_dir_hierarchy_on_root_process
         procedure, private :: get_VTK_time_output_path
         procedure, private :: get_PVD_time_output_path
         procedure, private :: get_vtk_filename
@@ -557,7 +557,7 @@ contains
             fn = dp//fn
             if(present(f_name)) fn = f_name
 
-            if( f_vtk%create_dir_hierarchy(dp) == 0) then    
+            if( f_vtk%create_dir_hierarchy_on_root_process(dp,issue_final_barrier=.True.) == 0) then    
                 of = 'raw'
                 if(present(o_fmt)) of = trim(adjustl(o_fmt))
         
@@ -735,23 +735,22 @@ contains
     ts = 0._rp
     if(present(t_step)) ts = t_step 
 
-    dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
-    fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
-    fn = dp//fn
-print*, fn
-    if(present(f_name)) fn = f_name
+    ft =  f_vtk%p_env%am_i_fine_task()
 
-    of = 'raw'
-    if(present(o_fmt)) of = trim(adjustl(o_fmt))
+    if(ft) then
+        dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+        fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
+        fn = dp//fn
+        if(present(f_name)) fn = f_name
 
-print*, 1
-    E_IO = f_vtk%write_VTK_start(fn, np, ts, nm, of, fid) 
-print*, 2
-    E_IO = f_vtk%write_VTK_unknowns(nm, fid)
-print*, 3
-    E_IO = f_vtk%write_VTK_end(nm, fid)
+        of = 'raw'
+        if(present(o_fmt)) of = trim(adjustl(o_fmt))
 
-  
+        E_IO = f_vtk%write_VTK_start(fn, np, ts, nm, of, fid) 
+        E_IO = f_vtk%write_VTK_unknowns(nm, fid)
+        E_IO = f_vtk%write_VTK_end(nm, fid)
+    endif
+
   ! ----------------------------------------------------------------------------------
   end function write_VTK
 
@@ -798,8 +797,8 @@ print*, 3
         nnods = f_vtk%mesh(nm)%nnods
         nels = size(f_vtk%mesh(nm)%ctype, dim=1)
 
-        inquire( file=trim(dp)//'/.', exist=isDir )
-        if(isDir) then
+!        inquire( file=trim(dp)//'/.', exist=isDir ) 
+        if(f_vtk%create_dir_hierarchy_on_root_process(trim(dp), issue_final_barrier=.False.) == 0) then
             ! pvtu
             E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64', cf=rf)
             do i=0, f_vtk%num_parts-1
@@ -859,7 +858,6 @@ print*, 3
     me = 0; np = 1
     check(associated(f_vtk%p_env))
     call f_vtk%p_env%info(me,np) 
-    check(f_vtk%root_proc <= np-1)
 
     E_IO = 0
 
@@ -871,9 +869,8 @@ print*, 3
         pvdfn = trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/'//trim(adjustl(f_vtk%mesh(nm)%prefix))//'_'//trim(adjustl(ch(nm)))//pvd_ext
         if(present(f_name)) pvdfn = f_name
 
-        inquire( file=trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/.', exist=isDir )
-
-        if(isDir) then
+!        inquire( file=trim(adjustl(f_vtk%mesh(nm)%dir_path))//'/.', exist=isDir )
+        if(f_vtk%create_dir_hierarchy_on_root_process(trim(trim(adjustl(f_vtk%mesh(nm)%dir_path))), issue_final_barrier=.False.) == 0) then
             if(allocated(f_vtk%steps)) then
                 if(size(f_vtk%steps,1) >= min(f_vtk%num_steps,f_vtk%steps_counter)) then
                     E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
@@ -894,15 +891,17 @@ print*, 3
   end function write_PVD
 
 
-  function create_dir_hierarchy(f_vtk, path) result(res)
+  function create_dir_hierarchy_on_root_process(f_vtk, path, issue_final_barrier) result(res)
   ! ----------------------------------------------------------------------------------
-    class(vtk_t),   intent(INOUT) :: f_vtk
-    character(len=*), intent(IN)    :: path
-    logical                         :: ft
+    class(vtk_t),   intent(INOUT)   :: f_vtk
+    character(len=*),  intent(IN)    :: path
+    logical, optional, intent(IN)   :: issue_final_barrier
+    logical                         :: ft, ifb
     integer(kind=c_int)             :: res
     integer(ip)                     :: me, np
   ! ----------------------------------------------------------------------------------
-    me = 0; np = 1; ft = .False.
+    me = 0; np = 1; ft = .False.; ifb = .False.
+    if(present(issue_final_barrier)) ifb = issue_final_barrier
     check(associated(f_vtk%p_env))
     call f_vtk%p_env%info(me,np) 
     check(f_vtk%root_proc <= np-1)
@@ -913,10 +912,10 @@ print*, 3
        check ( res == 0 ) 
     end if
 
-    call f_vtk%p_env%first_level_barrier()
+    if(ifb) call f_vtk%p_env%first_level_barrier()
 
   ! ----------------------------------------------------------------------------------
-  end function create_dir_hierarchy
+  end function create_dir_hierarchy_on_root_process
 
 
   ! Build time output dir path for the vtk files in each timestep
