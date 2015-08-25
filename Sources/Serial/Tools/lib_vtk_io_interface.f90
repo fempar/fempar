@@ -42,6 +42,7 @@ module lib_vtk_io_interface_names
   use abstract_environment_names
   use Lib_VTK_IO
   use ISO_C_BINDING
+  use postpro_fields_names
 
   implicit none
 # include "debug.i90"
@@ -106,6 +107,7 @@ module lib_vtk_io_interface_names
         procedure          :: initialize              ! Initialize mesh_t derived type
         procedure          :: write_VTK_start         ! Start VTU file writing
         procedure          :: write_VTK_unknowns      ! Write the unknowns into the VTU file
+        procedure          :: write_VTK_field         ! Write the field into the VTU file
         procedure          :: write_VTK_end           ! Ends VTU file writing
         procedure          :: write_VTK               ! Write a VTU file
         procedure          :: write_PVTK              ! Write a PVTU file
@@ -613,9 +615,9 @@ contains
     
         tidx = 1
             
-        if(allocated(f_vtk%mesh(nm)%fields) .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status < poindata_closed)) then
+        if(allocated(f_vtk%mesh(nm)%fields) .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status < pointdata_closed)) then
 
-            if(f_vtk%mesh(nm)%status < pointdata_opened)
+            if (f_vtk%mesh(nm)%status < pointdata_opened) then
                 if(present(f_id)) then
                     E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
                 else
@@ -664,6 +666,86 @@ contains
   end function write_VTK_unknowns
 
   ! Write a single VTK file to disk (if I am fine tast)
+  function write_VTK_field(f_vtk,postproc_field, n_mesh, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
+    class(postprocess_field_t), intent(in)    :: postproc_field !< Postprocess field structure to be written
+    integer(ip),      optional, intent(IN)    :: n_mesh         !< Number of MESH
+    integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
+    integer(ip)                               :: nm             !< Real Number of Mesh
+    integer(ip)                               :: tidx           !< Actual Time InDeX
+    integer(ip)                               :: nnods          !< Number of NODes
+    integer(ip)                               :: nels           !< Number of ELementS
+    integer(ip)                               :: tnnod          !< Total Number of NODes
+    integer(ip)                               :: curr_ncomp     !< CURRent Number of COMPonent
+    integer(ip)                               :: tncomp         !< Total Number of COMPonents
+    integer(ip)                               :: inode          !< NODE Number
+    integer(ip)                               :: elnnod         !< Number of NODes per ELement
+    integer(ip)                               :: i, j, f, idx   !< Indices
+    integer(ip)                               :: E_IO           !< IO Error
+    logical                                   :: ft             !< Fine Task
+  ! ----------------------------------------------------------------------------------
+
+    check(associated(f_vtk%p_env))
+    ft =  f_vtk%p_env%am_i_fine_task() 
+
+    E_IO = 0
+    
+    if(ft) then
+
+        nm = f_vtk%num_meshes
+        if(present(n_mesh)) nm = n_mesh
+    
+        tidx = 1
+            
+        if (f_vtk%mesh(nm)%status >= started .and. f_vtk%mesh(nm)%status < pointdata_closed) then
+           
+           if (f_vtk%mesh(nm)%status < pointdata_opened) then
+              if(present(f_id)) then
+                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
+              else
+                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open')
+              endif
+              f_vtk%mesh(nm)%status = pointdata_opened
+           end if
+           
+           tnnod = 0
+           nnods = f_vtk%mesh(nm)%nnods
+           nels = size(f_vtk%mesh(nm)%ctype, dim=1)
+        
+            if(postproc_field%filled) then
+               call memalloc( postproc_field%nvars, nnods, field, __FILE__,__LINE__)
+               curr_ncomp = sum(f_vtk%mesh(nm)%fields(1:postproc_field%iunk)%num_comp)
+               do i=1, nels
+                !  elnnod = postproc_field%fe_postprocess_field(i)%nnode
+                  elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                  do j=1, elnnod
+                     inode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
+                     idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(inode)
+
+                     field(1:postproc_field%nvars,j+tnnod) = &
+                          postproc_field%fe_postprocess_field(i)%nodal_properties(idx, 1:postproc_field%nvars)
+                  enddo
+                  tnnod = tnnod + elnnod 
+               enddo
+                
+               if(present(f_id)) then 
+                  E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=postproc_field%nvars, varname=postproc_field%name,var=field, cf=f_id)
+               else
+                  E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=postproc_field%nvars, varname=postproc_field%name,var=field)
+               endif
+               if(allocated(field)) call memfree(field)
+            endif
+        endif
+    
+    endif
+
+  ! ----------------------------------------------------------------------------------
+  end function write_VTK_field
+
+  ! Write a single VTK file to disk (if I am fine tast)
   function write_VTK_end(f_vtk, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -683,9 +765,9 @@ contains
     nm = f_vtk%num_meshes
     if(present(n_mesh)) nm = n_mesh
     
-    if(ft .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status /= ended)) then
+    if (ft .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status /= ended)) then
 
-        if(f_vtk%mesh(nm)%status == pointdata_opened)
+        if (f_vtk%mesh(nm)%status == pointdata_opened) then
             if(present(f_id)) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
             else
