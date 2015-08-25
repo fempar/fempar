@@ -57,7 +57,9 @@ module lib_vtk_io_interface_names
   ! Write process status parameters
   integer(ip), parameter :: unknown = 0
   integer(ip), parameter :: started = 1
-  integer(ip), parameter :: ended  = 2
+  integer(ip), parameter :: pointdata_opened = 2
+  integer(ip), parameter :: pointdata_closed = 3
+  integer(ip), parameter :: ended  = 4
 
   ! Type for storing field descriptors
   type vtk_field_t
@@ -612,12 +614,16 @@ contains
     
         tidx = 1
             
-        if(allocated(f_vtk%mesh(nm)%fields) .and. f_vtk%mesh(nm)%status == started) then
+        if(allocated(f_vtk%mesh(nm)%fields) .and. (f_vtk%mesh(nm)%status >= started) .and. &
+          (f_vtk%mesh(nm)%status < pointdata_closed)) then
 
-            if(present(f_id)) then
-                E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
-            else
-                E_IO = VTK_DAT_XML(var_location='node',var_block_action='open')
+            if(f_vtk%mesh(nm)%status < pointdata_opened) then
+                if(present(f_id)) then
+                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
+                else
+                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='open')
+                endif
+                f_vtk%mesh(nm)%status = pointdata_opened
             endif
 
             nnods = f_vtk%mesh(nm)%nnods
@@ -651,11 +657,7 @@ contains
                     if(allocated(field)) call memfree(field)
                 endif
             enddo
-            if(present(f_id)) then
-                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
-            else
-                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close')
-            endif
+
         endif
     
     endif
@@ -667,7 +669,7 @@ contains
   function write_VTK_end(f_vtk, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(vtk_t),             intent(INOUT)   :: f_vtk   !< VTK_t derived type
+    class(vtk_t),               intent(INOUT) :: f_vtk   !< VTK_t derived type
     integer(ip),      optional, intent(IN)    :: n_mesh  !< Number of MESH
     integer(ip),      optional, intent(INOUT) :: f_id    !< File ID
     integer(ip)                               :: nm      !< Real Number of Mesh
@@ -683,7 +685,16 @@ contains
     nm = f_vtk%num_meshes
     if(present(n_mesh)) nm = n_mesh
     
-    if(ft .and. f_vtk%mesh(nm)%status == started) then
+    if(ft .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status /= ended)) then
+
+        if(f_vtk%mesh(nm)%status == pointdata_opened) then
+            if(present(f_id)) then
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
+            else
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close')
+            endif
+            f_vtk%mesh(nm)%status = pointdata_closed
+        endif
 
         if(present(f_id)) then       
             E_IO = VTK_GEO_XML(cf=f_id)
@@ -707,7 +718,7 @@ contains
   function write_VTK(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
-    class(vtk_t),             intent(INOUT)   :: f_vtk   !< VTK_t derived type
+    class(vtk_t),               intent(INOUT) :: f_vtk   !< VTK_t derived type
     character(len=*), optional, intent(IN)    :: f_name  !< VTK File NAME
     integer(ip),      optional, intent(IN)    :: n_part  !< Number of the PART
     real(rp),         optional, intent(IN)    :: t_step  !< Time STEP value
