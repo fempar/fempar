@@ -43,6 +43,7 @@ module nsi_names
           kfl_symg,   & ! Flag for symmetric grad-grad term
           kfl_tder,   & ! Flag for time derivative computation
           kfl_skew,   & ! Flag for enabling skewsymmetric conv_tective terms (Off=0; type1=1, type2=2)
+          kfl_chale,  & ! Flag for the characteristic element length (standard=0; minimum=1, maximum=2)
           kfl_vort,   & ! Flag for vorticity computation
           case_veloc, & ! Exact velocity
           case_press, & ! Exact pressure
@@ -98,11 +99,12 @@ contains
 
     ! Flags
     prob%ksnsi = 1    ! Symmetry flag
-    prob%kfl_conv = 1 ! Enabling advection
-    prob%kfl_vort = 0 ! Vorticity not computed
-    prob%kfl_symg = 0 ! Symmetric grad-grad term (On=1, Off=0)
-    prob%kfl_tder = 0 ! Time derivative not computed 
-    prob%kfl_skew = 0 ! Enabling skewsymmetric convective terms: Off
+    prob%kfl_conv  = 1 ! Enabling advection
+    prob%kfl_vort  = 0 ! Vorticity not computed
+    prob%kfl_symg  = 0 ! Symmetric grad-grad term (On=1, Off=0)
+    prob%kfl_tder  = 0 ! Time derivative not computed 
+    prob%kfl_skew  = 0 ! Enabling skewsymmetric convective terms: Off
+    prob%kfl_chale = 0 ! Characteristic element length: standard
 
     ! Problem variables
     prob%react  = 0.0_rp  ! Reaction
@@ -133,14 +135,14 @@ contains
   end subroutine nsi_free
 
   !==================================================================================================
-  subroutine nsi_elmchl(jainv,hleng,elvel,ndime,pnode,iadve,chave,chale)
+  subroutine nsi_elmchl(kfl_chale,jainv,hleng,elvel,ndime,pnode,iadve,chave,chale)
     !-----------------------------------------------------------------------------------------------!
     !    This routine computes the characteristic element lengths. The first one is the length in   ! 
     !    the flow direction if there are convective terms and the minimum length otherwise. The     ! 
     !    second one is the square root in 2D or cubic root in 3D of the volume.                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    integer(ip), intent(in)    :: ndime,pnode,iadve
+    integer(ip), intent(in)    :: kfl_chale,ndime,pnode,iadve
     real(rp),    intent(in)    :: jainv(ndime,ndime),hleng(ndime)
     real(rp),    intent(in)    :: elvel(pnode,ndime)
     real(rp),    intent(out)   :: chave(ndime,2)
@@ -201,14 +203,14 @@ contains
             chale(1)=elno1/elno2*hnatu              ! Characteristic element length
     end if
 
-    !!! Only for CHANEL & NACA (h_min) 
-    !chale(1)=hleng(ndime)
-    !chale(2)=hleng(ndime)
-
-    !!! (h_max) 
-    !chale(1)=hleng(1)
-    !chale(2)=hleng(1)
-
+    if(kfl_chale==1) then  ! chale = h_min (CHANNEL & NACA)
+       chale(1)=hleng(ndime)
+       chale(2)=hleng(ndime)
+    elseif(kfl_chale==2) then ! chale = h_max
+       chale(1)=hleng(1)
+       chale(2)=hleng(1)
+    end if
+       
     ! Divide h by p^2
     if(ndime==2) then
        if(pnode>9) then                            ! Cubic elements

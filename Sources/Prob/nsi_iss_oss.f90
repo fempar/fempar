@@ -2538,8 +2538,9 @@ contains
 
        ! Compute the characteristic length chale
        veloc = finite_element%unkno(1:nnodu,1:ndime,1)
-       call nsi_elmchl(finite_element%integ(1)%p%femap%jainv,finite_element%integ(1)%p%femap%hleng(:,igaus), &
-            &          veloc,ndime,nnodu,physics%kfl_conv,chave,chale)
+       call nsi_elmchl(physics%kfl_chale,finite_element%integ(1)%p%femap%jainv,          &
+            &          finite_element%integ(1)%p%femap%hleng(:,igaus),veloc,ndime,nnodu, &
+            &          physics%kfl_conv,chave,chale)
        
        ! Auxiliar computations
        alpha  = discret%k1tau*diffu/(chale(2)*chale(2)) + discret%k2tau*gpvno/chale(1) + &

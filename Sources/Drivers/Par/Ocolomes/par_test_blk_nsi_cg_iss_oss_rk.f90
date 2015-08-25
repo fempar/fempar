@@ -869,9 +869,13 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_kfl_conv 
      character(len=:), allocatable :: default_kfl_skew 
      character(len=:), allocatable :: default_kfl_symg
+     character(len=:), allocatable :: default_kfl_chale
      character(len=:), allocatable :: default_diffu    
+     character(len=:), allocatable :: default_gravi
      ! Discretization
      character(len=:), allocatable :: default_kfl_proj 
+     character(len=:), allocatable :: default_k1tau    
+     character(len=:), allocatable :: default_k2tau    
      character(len=:), allocatable :: default_ktauc    
      character(len=:), allocatable :: default_vel_order
      character(len=:), allocatable :: default_pre_order
@@ -885,13 +889,15 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_trace_unkno
      character(len=:), allocatable :: default_write_dissipation
      character(len=:), allocatable :: default_trace_dissipation
+     character(len=:), allocatable :: default_write_stats
   end type par_test_blk_nsi_cg_iss_oss_rk_params_t
 
   ! Types
   public :: par_test_blk_nsi_cg_iss_oss_rk_params_t
   
   ! Functions
-  public :: cli_add_params,set_default_params,set_default_params_analytical,set_default_params_taylor_green
+  public :: cli_add_params,set_default_params,set_default_params_analytical,set_default_params_taylor_green, &
+       &    set_default_params_channel_395
 
 contains
 
@@ -932,12 +938,16 @@ contains
     params%default_analytical_t = '0'
     params%default_initial_cond = '.false.'
     ! Problem
-    params%default_kfl_conv = '1'
-    params%default_kfl_skew = '0'
-    params%default_kfl_symg = '0'
-    params%default_diffu    = '1.0'
+    params%default_kfl_conv  = '1'
+    params%default_kfl_skew  = '0'
+    params%default_kfl_symg  = '0'
+    params%default_kfl_chale = '0'
+    params%default_diffu     = '1.0'
+    params%default_gravi     = '0.0 0.0 0.0'
     ! Discretization
     params%default_kfl_proj  = '1'
+    params%default_k1tau     = '12.0'
+    params%default_k2tau     = '2.0'
     params%default_ktauc     = '4.0'
     params%default_vel_order = '2'
     params%default_pre_order = '1'
@@ -949,8 +959,9 @@ contains
     ! Outputs
     params%default_write_unkno = '.true.'
     params%default_trace_unkno = '0.0'
-    params%default_write_dissipation = '.true.'
+    params%default_write_dissipation = '.false.'
     params%default_trace_dissipation = '0.0'
+    params%default_write_stats = '.false.'
 
   end subroutine set_default_params
 
@@ -990,13 +1001,18 @@ contains
     params%default_stretch   = '2.75 2.75 2.75'
     params%default_nelbound  = '0 0 0'
     params%default_sizebound = '0.0 0.0 0.0'
+    ! Time integration
+    params%default_rkimex    = '0'
     ! Solution
     params% default_analytical_v = '7 8 0'
     params%default_initial_cond  = '.true.'
     ! Problem
     params%default_kfl_conv = '1'
     params%default_kfl_skew = '1'
+    params%default_kfl_symg = '1'
     params%default_diffu    = '0.000625' ! 1.0/1600.0
+    ! Discretization
+    params%default_kfl_proj  = '0'
     ! Solver
     params%default_rtol     = '1.0e-07'
     ! Nonlinearity
@@ -1008,6 +1024,54 @@ contains
     params%default_trace_dissipation = '0.01'
 
   end subroutine set_default_params_taylor_green
+
+  !==================================================================================================
+  subroutine set_default_params_channel_395(params)
+    implicit none
+    type(par_test_blk_nsi_cg_iss_oss_rk_params_t), intent(inout) :: params
+
+    ! Names
+    params%default_prefix    = 'channel395'
+    ! Geometry
+    ! Geometry
+    params%default_nelems    = '9 9 9'
+    params%default_nparts    = '3 3 3'
+    params%default_nsockets  = '1 1 1'
+    params%default_ndiscret  = '0 2 0'
+    params%default_length    = '6.283185307179586476925286766559005768394 1.0 2.094395102393195262635572362341918051243'
+    params%default_periodic  = '1 0 1'
+    params%default_origin    = '0.0 0.0 0.0'
+    params%default_stretch   = '2.75 2.75 2.75'
+    params%default_nelbound  = '0 0 0'
+    params%default_sizebound = '0.0 0.0 0.0'
+    ! Time integration
+    params%default_rkimex    = '0'
+    ! Solution
+    params%default_analytical_v = '0 0 0'
+    ! Problem
+    params%default_kfl_conv  = '1'
+    params%default_kfl_skew  = '1'
+    params%default_kfl_symg  = '1'
+    params%default_kfl_chale = '1'
+    params%default_diffu     = '1.454545454545454565876971830817865338759e-4' ! 2.0*ly/13750
+    params%default_gravi     = '3.301024793388430099427832686842521070503e-3 0.0 0.0' ! (Re_t^2*nu^2)/ly^3, 0, 0
+    ! Discretization
+    params%default_kfl_proj  = '0'
+    params%default_k1tau     = '12.0'
+    params%default_k2tau     = '8.0'
+    params%default_ktauc     = '4.0'
+    ! Solver
+    params%default_rtol    = '1.0e-07'
+    ! Nonlinearity
+    params%default_nltol    = '1.0e-05'
+    ! Outputs
+    params%default_write_unkno = '.true.'
+    params%default_trace_unkno = '0.0'
+    params%default_write_dissipation = '.true.'
+    params%default_trace_dissipation = '0.0'
+    params%default_write_stats = '.true.'
+
+  end subroutine set_default_params_channel_395
 
   !==================================================================================================
   subroutine cli_add_params(cli,params,group)
@@ -1114,16 +1178,29 @@ contains
     if(error/=0) then; check(.false.); end if
     call cli%add(group=trim(group),switch='--kfl_skew',switch_ab='-skw',help='Skewness flag', &
          &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_skew),error=error)
+    if(error/=0) then; check(.false.); end if
     call cli%add(group=trim(group),switch='--kfl_symg',switch_ab='-syg',help='Symmetric gradient flag', &
          &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_symg),error=error)
     if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--kfl_chale',switch_ab='-chl',help='Characteristic element length flag (standard=0; minimum=1, maximum=2)', &
+         &       required=.false.,act='store',choices='0,1,2',def=trim(params%default_kfl_chale),error=error)
+    if(error/=0) then; check(.false.); end if
     call cli%add(group=trim(group),switch='--diffusion',switch_ab='-nu',help='Diffusion value', &
          &       required=.false.,act='store',def=trim(params%default_diffu),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--gravity',switch_ab='-grav',help='External force field', &
+         &       required=.false.,act='store',nargs='3',def=trim(params%default_gravi),error=error)
     if(error/=0) then; check(.false.); end if
 
     ! Discretization
     call cli%add(group=trim(group),switch='--kfl_proj',switch_ab='-prj',help='Projection matrix flag (0: L2, 1: tau)', &
          &       required=.false.,act='store',choices='0,1',def=trim(params%default_kfl_proj),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--k1_tau_m',switch_ab='-k1t',help='Constant 1 of tau_m', &
+         &       required=.false.,act='store',def=trim(params%default_k1tau),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--k2_tau_m',switch_ab='-k2t',help='Constant 2 of tau_m', &
+         &       required=.false.,act='store',def=trim(params%default_k2tau),error=error)
     if(error/=0) then; check(.false.); end if
     call cli%add(group=trim(group),switch='--k_tau_c',switch_ab='-ktc',help='Constant of tau_c', &
          &       required=.false.,act='store',def=trim(params%default_ktauc),error=error)
@@ -1160,6 +1237,9 @@ contains
     if(error/=0) then; check(.false.); end if
     call cli%add(group=trim(group),switch='--trace_dissipation',switch_ab='-tdis',help='Intervals between two consecutive dissipation writes', &
          &       required=.false.,act='store',def=trim(params%default_trace_dissipation),error=error)
+    if(error/=0) then; check(.false.); end if
+    call cli%add(group=trim(group),switch='--write_statistics',switch_ab='-wsta',help='Write statistics outputs', &
+         &       required=.false.,act='store',def=trim(params%default_write_stats),error=error)
     if(error/=0) then; check(.false.); end if
 
   end subroutine cli_add_params
@@ -1235,7 +1315,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip) :: order_v,order_p
   integer(ip) :: nstage,rk_order,rk_flag,rk_imex
   integer(ip) :: analytical_vx,analytical_vy,analytical_vz,analytical_p,analytical_t
-  integer(ip) :: lunio_dis
+  integer(ip) :: lunio_dis,lunio_stats
   integer(ip) :: max_iter,max_steps
 
   ! Reals
@@ -1245,7 +1325,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   real(rp) :: nltol,sttol
 
   ! Logicals
-  logical  :: initial_condition,write_unkno_VTK,write_dissipation
+  logical  :: initial_condition,write_unkno_VTK,write_dissipation,write_statistics
 
   ! Parameters
   integer(ip), parameter :: velocity=1, pressure=2
@@ -1262,6 +1342,8 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip), allocatable :: vars_block(:)
   integer(ip), allocatable :: dof_coupling(:,:)
   integer(ip), allocatable :: analytical_v(:)
+  integer(ip), allocatable :: nparts_per_dof(:)
+  real(rp)   , allocatable :: stats(:,:)
 
   ! Arguments
   type(Type_Command_Line_Interface):: cli 
@@ -1277,6 +1359,8 @@ program par_test_blk_nsi_cg_iss_oss_rk
      group = 'analytical'
   elseif(cli%run_command('Taylor_Green')) then
      group = 'Taylor_Green'
+  elseif(cli%run_command('channel_395')) then
+     group = 'channel_395'
   end if
 
   ! Get names
@@ -1389,9 +1473,13 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call cli%get(group=trim(group),switch='-cnv',val=myprob%kfl_conv,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-skw',val=myprob%kfl_skew,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-syg',val=myprob%kfl_symg,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-chl',val=myprob%kfl_chale,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-nu',val=myprob%diffu,error=istat); if(istat/=0) then; check(.false.); end if
+  call cli%get(group=trim(group),switch='-grav',val=myprob%gravi,error=istat); if(istat/=0) then; check(.false.); end if
   ! Discretization Command Line variables
   call cli%get(group=trim(group),switch='-prj',val=mydisc%kfl_proj,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-k1t',val=mydisc%k1tau,error=istat); if(istat/=0) then; check(.false.); end if  
+  call cli%get(group=trim(group),switch='-k2t',val=mydisc%k2tau,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-ktc',val=mydisc%ktauc,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-vo',val=order_v,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-po',val=order_p,error=istat); if(istat/=0) then; check(.false.); end if  
@@ -1414,6 +1502,9 @@ program par_test_blk_nsi_cg_iss_oss_rk
        &                   time_steps_to_store=3+rkinteg%rk_table_implicit%stage,                      &
        &                   hierarchical_basis=.false.,static_condensation=.false.,num_continuity=1)
 
+  ! Create dof info
+  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
+
   ! Initialize VTK output
   call cli%get(group=trim(group),switch='-wunk',val=write_unkno_VTK,error=istat); if(istat/=0) then; check(.false.); end if
   call cli%get(group=trim(group),switch='-tunk',val=trace_unkno,error=istat); if(istat/=0) then; check(.false.); end if
@@ -1428,10 +1519,16 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call dummy%create(p_env)
   if(me==0.and.write_dissipation) then
      lunio_dis = io_open(trim(dir_path_out)//trim(prefix)//'.dis',position='append')
-  end if
+  end if 
 
-  ! Create dof info
-  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
+  ! Initialize statistics output
+  call cli%get(group=trim(group),switch='-wsta',val=write_statistics,error=istat); if(istat/=0) then; check(.false.); end if
+  if(write_statistics.and.p_env%am_i_fine_task()) then
+     call initialize_velocity_statistics(gdata,p_fe_space,blk_dof_dist,nparts_per_dof,stats)
+     if(me==0) then
+        lunio_stats = io_open(trim(dir_path_out)//trim(prefix)//'.stats',position='append')
+     end if
+  end if
 
   ! Assign analytical solution
   call cli%get_varying(group=trim(group),switch='-av',val=analytical_v,error=istat); if(istat/=0) then; check(.false.); end if   
@@ -1484,9 +1581,14 @@ program par_test_blk_nsi_cg_iss_oss_rk
        &                    projection_update_operator,cg_iss_oss_rk_projection_update,           &
        &                    cg_iss_oss_rk_momentum_rhs,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
        &                    write_dissipation,dissipation_integration,trace_dissipation,dummy,    &
-       &                    lunio_dis)
+       &                    lunio_dis,write_statistics,nparts_per_dof,stats)
   call par_timer_stop(p_timer)   
   call par_timer_report(p_timer) 
+
+  ! Print statistics
+  if(write_statistics.and.p_env%am_i_fine_task()) then
+     call print_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats,p_env,lunio_stats)
+  end if
 
   ! Print PVD file
   if(write_unkno_VTK) istat = fevtk%write_PVD() 
@@ -1528,6 +1630,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   call projection_update_operator%free()
   if(write_unkno_VTK) call fevtk%free
   if(write_dissipation.and.me==0) call io_close(lunio_dis)
+  if(write_statistics.and.me==0)  call io_close(lunio_stats)
   call p_blk_graph%free
   call blk_dof_dist%free
   call par_fe_space_free(p_fe_space) 
@@ -1564,7 +1667,7 @@ contains
     implicit none
     type(Type_Command_Line_Interface), intent(out) :: cli
     ! Locals
-    type(par_test_blk_nsi_cg_iss_oss_rk_params_t) :: analytical_params,taylor_green_params
+    type(par_test_blk_nsi_cg_iss_oss_rk_params_t) :: analytical_params,taylor_green_params,channel_395_params
     logical     :: authors_print
     integer(ip) :: error
     
@@ -1576,13 +1679,15 @@ contains
          &        authors     = '',                               &
          &        license     = '',                               &
          &        description = 'Parallel FEMPAR driver to solve transient Navier-Stokes problems using Continuous-Galerkin Inf-Sup stable elements with Orthogonal Subscales stabilization for the spatial discretization and Segregated Runge-Kutta schemes for the temporal discretization.', &
-         &        examples    = ['par_test_blk_nsi_cg_iss_oss_rk -h         ', &
-         &                       'par_test_blk_nsi_cg_iss_oss_rk analytical ', &
-         &                       'par_test_blk_nsi_cg_iss_oss_rk Taylor_Green'])
+         &        examples    = ['par_test_blk_nsi_cg_iss_oss_rk -h         '    , &
+         &                       'par_test_blk_nsi_cg_iss_oss_rk analytical -h ' , &
+         &                       'par_test_blk_nsi_cg_iss_oss_rk Taylor_Green -h', &
+         &                       'par_test_blk_nsi_cg_iss_oss_rk channel_395 -h'])
     
     ! Set Command Line Arguments Groups, i.e. commands
     call cli%add_group(group='analytical',description='solve a problem with an analytical solution')
     call cli%add_group(group='Taylor_Green',description='solve the Taylor-Green Vortex flow problem')
+    call cli%add_group(group='channel_395',description='solve the turbulent channel flow problem with Re_tau=395')
     
     ! Set Command Line Arguments for each group
     call set_default_params(analytical_params)
@@ -1591,6 +1696,9 @@ contains
     call set_default_params(taylor_green_params)
     call set_default_params_taylor_green(taylor_green_params)
     call cli_add_params(cli,taylor_green_params,'Taylor_Green')
+    call set_default_params(channel_395_params)
+    call set_default_params_channel_395(channel_395_params)
+    call cli_add_params(cli,channel_395_params,'channel_395')
     
   end subroutine read_flap_cli_par_test_blk_nsi_cg_iss_oss_rk
   
@@ -1601,7 +1709,7 @@ contains
        &                          projection_update_operator,projection_update_integration,           &
        &                          momentum_rhs_integration,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
        &                          write_dissipation,dissipation_integration,trace_dissipation,dummy,  &
-       &                          lunio_dis)
+       &                          lunio_dis,write_statistics,nparts_per_dof,stats)
     implicit none
     type(rungekutta_integrator_t)        , intent(inout) :: rkinteg
     type(solver_control_t)               , intent(inout) :: sctrl
@@ -1621,11 +1729,13 @@ contains
     class(discrete_integration_t), target, intent(inout) :: momentum_rhs_integration
     class(time_integration_t)            , intent(inout) :: tinteg
     type(vtk_t)                          , intent(inout) :: fevtk
-    logical                              , intent(in)    :: write_unkno_VTK,write_dissipation
+    logical                              , intent(in)    :: write_unkno_VTK,write_dissipation,write_statistics
     real(rp)                             , intent(in)    :: trace_unkno,trace_dissipation
     class(discrete_integration_t), target, intent(inout) :: dissipation_integration
     type(par_scalar_t)                   , intent(inout) :: dummy
     integer(ip)                          , intent(in)    :: lunio_dis
+    integer(ip)                          , intent(in)    :: nparts_per_dof(:)
+    real(rp)                             , intent(inout) :: stats(:,:)
     ! Locals
     type(discrete_integration_pointer_t) :: approx(1)
     integer(ip) :: istage,nstage,istep,ielem,me,np
@@ -1913,6 +2023,11 @@ contains
           end if
        end if
 
+       ! Compute statistics
+       if(write_statistics.and.p_env%am_i_fine_task()) then
+          call compute_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats)
+       end if
+
        ! Print solution to VTK file
        status = ((ctime-prevtime_vtk).ge.trace_unkno)
        if(write_unkno_VTK.and.status) then 
@@ -1933,5 +2048,269 @@ contains
     call pressure_operator%M%free_values(update_constant)
 
   end subroutine do_time_steps_rk_nsi
-  
+
+  !==================================================================================================
+  subroutine compute_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats)
+    implicit none
+    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
+    type(par_fe_space_t)           , intent(in)    :: p_fe_space
+    integer(ip)                    , intent(in)    :: nparts_per_dof(:)
+    real(rp)                       , intent(inout) :: stats(:,:)
+    ! Locals
+    integer(ip) :: ielem,jelem,iprob,nvapb,ivar,lvar,inode,idime,i,j,k,jnode,idof
+    integer(ip) :: ndime,pdegr,npoinx,npoiny,npoinz
+    integer(ip) :: ijkelem(3),ijknode(3),ijkaux(3),ijkpoin(3),permu(3**gdata%ndime)
+    real(rp), allocatable :: veloc(:,:,:,:)
+    
+    ! Auxiliar variables
+    ndime  = gdata%ndime
+    pdegr  = p_fe_space%fe_space%finite_elements(1)%order(2)
+    npoinx = gdata%nedir(1)*pdegr+1
+    npoiny = gdata%nedir(2)*pdegr+1
+    npoinz = gdata%nedir(3)*pdegr+1
+    if(ndime==2) then
+       permu = (/1,4,7,2,5,8,3,6,9/)
+    elseif(ndime==3) then
+       permu = (/1,10,19,4,13,22,7,16,25,2,11,20,5,14,23,8,17,26,3,12,21,6,15,24,9,18,27/)
+    end if
+
+    ! Checks
+    check(size(stats,1)==gdata%ndime*2+1)
+    check(size(stats,2)==gdata%nedir(2)*pdegr+1)
+    
+    ! Construct auxiliar array
+    ijkaux = 1
+    do idime=1,ndime
+       ijkaux(idime) = 3
+    end do
+
+    ! Allocate ijk velocity array
+    call memalloc(npoinx,npoiny,npoinz,ndime,veloc,__FILE__,__LINE__)
+    veloc = 0.0_rp
+
+    ! Loop over elements
+    do ielem = 1, p_fe_space%fe_space%g_trian%num_elems
+       jelem = p_fe_space%p_trian%elems(ielem)%globalID
+       iprob = p_fe_space%fe_space%finite_elements(ielem)%problem
+       nvapb = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%nd1
+
+       ! Global ID to ijk
+       call globalid_to_ijk(ndime,gdata%nedir,jelem,ijkelem)
+       
+       ! Loop over problem and block variables
+       do ivar = 1, nvapb
+          lvar = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%a(ivar)
+
+          ! Loop over elemental nodes
+          do inode = 1,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
+             idof  =  p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
+             jnode = permu(inode)
+
+             ! Local ID to ijk
+             call globalid_to_ijk(ndime,ijkaux,jnode,ijknode)
+
+             ! Global point ID
+             ijkpoin = (ijkelem - 1)*pdegr + ijknode
+
+             ! Fill veloc
+             if(idof>0) then
+                veloc(ijkpoin(1),ijkpoin(2),ijkpoin(3),lvar) = &
+                     & p_fe_space%fe_space%finite_elements(ielem)%unkno(inode,lvar,1)/nparts_per_dof(idof)
+             else
+                veloc(ijkpoin(1),ijkpoin(2),ijkpoin(3),lvar) = &
+                     & p_fe_space%fe_space%finite_elements(ielem)%unkno(inode,lvar,1)
+             end if
+
+          end do
+       end do
+    end do
+
+    ! Calculate umean and u2mean
+    do j=1,npoinx
+       do i=1,npoiny
+          do k=1,npoinz 
+             do idime=1,ndime
+                stats(idime,j) = stats(idime,j) + veloc(i,j,k,idime)                 ! Ui_mean
+                stats(ndime+idime,j) = stats(ndime+idime,j) + veloc(i,j,k,idime)**2  ! Ui^2_mean
+             end do
+             stats(2*ndime+1,j) = stats(2*ndime+1,j) + veloc(i,j,k,1)*veloc(i,j,k,2) ! U*V_mean
+          end do
+       end do
+    end do
+    stats = stats/(npoinx*npoinz)
+
+    ! Free array
+    call memfree(veloc,__FILE__,__LINE__)
+    
+  end subroutine compute_velocity_statistics
+
+  !==================================================================================================
+  subroutine print_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats,p_env,lunio)
+    implicit none   
+    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
+    type(par_fe_space_t)           , intent(in)    :: p_fe_space
+    integer(ip),allocatable        , intent(inout) :: nparts_per_dof(:)
+    real(rp), allocatable          , intent(inout) :: stats(:,:)
+    type(par_environment_t)        , intent(in)    :: p_env
+    integer(ip)                    , intent(in)    :: lunio
+    ! Locals
+    integer(ip) :: ielem,jelem,iprob,nvapb,ivar,lvar,inode,idime,i,j,k,jnode
+    integer(ip) :: ndime,npoinx,npoiny,npoinz,pdegr
+    integer(ip) :: ijkelem(3),ijknode(3),ijkaux(3),ijkpoin(3),permu(3**gdata%ndime)
+    real(rp), allocatable :: ycoord_ijk(:,:,:),elcoord(:,:),ycoord(:)
+    
+    ! Auxiliar variables
+    ndime  = gdata%ndime
+    pdegr  = p_fe_space%fe_space%finite_elements(1)%order(2)
+    npoinx = gdata%nedir(1)*pdegr+1
+    npoiny = gdata%nedir(2)*pdegr+1
+    npoinz = gdata%nedir(3)*pdegr+1
+    if(ndime==2) then
+       permu = (/1,4,7,2,5,8,3,6,9/)
+    elseif(ndime==3) then
+       permu = (/1,10,19,4,13,22,7,16,25,2,11,20,5,14,23,8,17,26,3,12,21,6,15,24,9,18,27/)
+    end if
+
+    ! Checks
+    check(size(stats,1)==gdata%ndime*2+1)
+    check(size(stats,2)==gdata%nedir(2)*pdegr+1)
+    
+    ! Construct auxiliar array
+    ijkaux = 1
+    do idime=1,ndime
+       ijkaux(idime) = 3
+    end do
+
+    ! Allocate ijk velocity array
+    call memalloc(npoinx,npoiny,npoinz,ycoord_ijk,__FILE__,__LINE__)
+    call memalloc(npoiny,ycoord,__FILE__,__LINE__)
+    ycoord_ijk = 0.0_rp
+
+    ! Loop over elements
+    do ielem = 1, p_fe_space%fe_space%g_trian%num_elems
+       jelem = p_fe_space%p_trian%elems(ielem)%globalID
+       iprob = p_fe_space%fe_space%finite_elements(ielem)%problem
+       nvapb = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%nd1
+
+       ! Global ID to ijk
+       call globalid_to_ijk(ndime,gdata%nedir,jelem,ijkelem)
+       
+       ! Y-variable
+       ivar = 2
+       lvar = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%a(ivar)
+
+       ! Get coordinates
+       call memalloc(gdata%ndime,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode, &
+            &        elcoord,__FILE__,__LINE__)
+       call interpolate(gdata%ndime, p_fe_space%fe_space%finite_elements(ielem)%p_geo_reference_element%nnode, &
+            &           p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode,       &
+            &           p_fe_space%fe_space%finite_elements(ielem)%inter(lvar)%p,                              &
+            &           p_fe_space%p_trian%f_trian%elems(ielem)%coordinates,elcoord)
+
+       ! Loop over elemental nodes
+       do inode = 1,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
+          jnode = permu(inode)
+
+          ! Local ID to ijk
+          call globalid_to_ijk(ndime,ijkaux,jnode,ijknode)
+
+          ! Global point ID
+          ijkpoin = (ijkelem - 1)*pdegr + ijknode
+
+          ! Fill veloc
+          ycoord_ijk(ijkpoin(1),ijkpoin(2),ijkpoin(3)) = elcoord(2,inode)
+
+       end do
+
+       ! Deallocate elcoord
+       call memfree(elcoord,__FILE__,__LINE__)
+    end do
+
+    ! Reduce stats to root
+    ycoord = ycoord_ijk(1,:,1)
+    call psb_sum(p_env%p_context%icontxt,stats)
+    call psb_amx(p_env%p_context%icontxt,ycoord)
+
+    ! Get process info
+    call p_env%info(me,np)
+
+    ! Write file
+    if(me==0) then
+       if(ndime==2) then
+          do j=1,npoinx
+             write(lunio,1) j,ycoord(j),stats(:,j)
+          end do
+       elseif(ndime==3) then
+          do j=1,npoinx
+             write(lunio,2) j,ycoord(j),stats(:,j)
+          end do
+       end if
+    end if  
+
+    ! Deallocate
+    call memfree(ycoord,__FILE__,__LINE__)
+    call memfree(ycoord_ijk,__FILE__,__LINE__)
+    call memfree(nparts_per_dof,__FILE__,__LINE__)
+    call memfree(stats,__FILE__,__LINE__)
+    
+1 format(i10,5(1x,e16.8e3))
+2 format(i10,7(1x,e16.8e3))
+
+  end subroutine print_velocity_statistics
+
+  !==================================================================================================
+  subroutine globalid_to_ijk(ndime,nd,gl,ijk)
+    implicit none
+    integer(ip), intent(in)  :: gl,nd(3),ndime
+    integer(ip), intent(out) :: ijk(3)
+    ! Locals
+    integer(ip) :: aux
+
+    if(ndime==1) then
+       ijk(3) = 1
+       ijk(2) = 1
+       ijk(1) = gl
+    elseif(ndime==2) then
+       ijk(1) = floor(real(gl-1)/nd(2)) + 1
+       ijk(2) = gl - (ijk(1)-1)*nd(2)
+       ijk(3) = 1
+    else if(ndime==3) then
+       ijk(1) = floor(real(gl-1)/(nd(2)*nd(3)))+1
+       aux = gl - (ijk(1)-1)*(nd(2)*nd(3))
+       ijk(2) = floor(real(aux-1)/nd(3))+1
+       ijk(3) = aux - (ijk(2)-1)* nd(3)
+    end if
+
+  end subroutine globalid_to_ijk
+
+  !==================================================================================================
+  subroutine initialize_velocity_statistics(gdata,p_fe_space,blk_dof_dist,nparts_per_dof,stats)
+    implicit none
+    type(uniform_mesh_descriptor_t), intent(in)  :: gdata
+    type(par_fe_space_t)           , intent(in)  :: p_fe_space
+    type(block_dof_distribution_t) , intent(in)  :: blk_dof_dist
+    integer(ip), allocatable       , intent(out) :: nparts_per_dof(:)
+    real(rp), allocatable          , intent(out) :: stats(:,:)
+    ! Locals
+    integer(ip) :: iobje
+    integer(ip) :: ndime,npoiny,pdegr
+
+    ! Auxiliar variables
+    ndime  = gdata%ndime
+    pdegr  = p_fe_space%fe_space%finite_elements(1)%order(2)
+    npoiny = gdata%nedir(2)*pdegr+1
+
+    ! Construct npats_per_dof
+    call memalloc(blk_dof_dist%blocks(1)%nl,nparts_per_dof,__FILE__,__LINE__)
+    nparts_per_dof = 0
+    do iobje=1,blk_dof_dist%blocks(1)%nobjs
+       nparts_per_dof(blk_dof_dist%blocks(1)%lobjs(2,iobje):blk_dof_dist%blocks(1)%lobjs(3,iobje)) = blk_dof_dist%blocks(1)%lobjs(4,iobje)
+    end do
+
+    ! Allocate stats
+    call memalloc(2*ndime+1,npoiny,stats,__FILE__,__LINE__)
+    stats = 0.0_rp
+
+  end subroutine initialize_velocity_statistics 
+
 end program par_test_blk_nsi_cg_iss_oss_rk

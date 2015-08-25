@@ -38,7 +38,7 @@ module lib_vtk_io_interface_names
   use fe_space_types_names
   use fe_space_names
   use problem_names
-  use element_gather_tools_names
+  use interpolation_tools_names
   use abstract_environment_names
   use Lib_VTK_IO
   use ISO_C_BINDING
@@ -433,7 +433,8 @@ contains
 
        ! Interpolate to the coordinate of all the nodes
        if (order>1) then
-          call interpolate(ndime,geo_nnode,nnode,interp(order)%shape,coords(1)%a, coords(order)%a)
+          !call interpolate(ndime,geo_nnode,nnode,interp(order)%shape,coords(1)%a, coords(order)%a)
+          call interpolate(ndime,geo_nnode,nnode,fe_space%finite_elements(ielem)%inter(1)%p,coords(1)%a,coords(order)%a)
        end if
        ! Store the coordinates of each subelem
        do subelem = 1, num_subelems
