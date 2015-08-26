@@ -615,9 +615,10 @@ contains
     
         tidx = 1
             
-        if(allocated(f_vtk%mesh(nm)%fields) .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status < pointdata_closed)) then
+        if(allocated(f_vtk%mesh(nm)%fields) .and. (f_vtk%mesh(nm)%status >= started) .and. &
+          (f_vtk%mesh(nm)%status < pointdata_closed)) then
 
-            if (f_vtk%mesh(nm)%status < pointdata_opened) then
+            if(f_vtk%mesh(nm)%status < pointdata_opened) then
                 if(present(f_id)) then
                     E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
                 else
@@ -767,7 +768,7 @@ contains
     
     if (ft .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status /= ended)) then
 
-        if (f_vtk%mesh(nm)%status == pointdata_opened) then
+        if(f_vtk%mesh(nm)%status == pointdata_opened) then
             if(present(f_id)) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
             else
