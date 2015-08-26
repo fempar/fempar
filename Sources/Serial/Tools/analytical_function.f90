@@ -75,7 +75,7 @@ contains
     real(rp)         , intent(in)    :: coord(ndime)
     real(rp),optional, intent(in)    :: alpha,beta
     ! Local variables
-    real(rp)    :: pi,a
+    real(rp)    :: pi,a,b,c,d,e
     real(rp)    :: x,y,z,u,dudx,dudy,dudz
     real(rp)    :: d2udx,d2udy,d2udz,d2udxy,d2udxz,d2udyz
 
@@ -158,7 +158,57 @@ contains
           d2udxy = a*cos(x)*sin(y)*sin(z)
           d2udxz = -a*cos(x)*cos(y)*cos(z)
           d2udyz = a*sin(x)*sin(y)*cos(z)
-       end if       
+       end if 
+    case(9)                ! Channel flow (Re_tau=395), Vx
+       check(ndime==3)
+       a = 7.764_rp*(395.0_rp**(1/7))    ! C = 7.764*(Re_tau^(1/7))
+       b = 0.1_rp*a                      ! eps = 0.1*C
+       c = b*2.0_rp*pi/2.0_rp            ! eps*Lx/2
+       d = 4.0_rp*pi/(2.0_rp*pi)         ! 4*pi/Lx
+       e = 2.0_rp*pi/(2.0_rp*pi/3.0_rp)  ! 2*pi/Lz
+       u = a*(1-y**8)+c*sin(pi*y)*cos(d*x)*sin(e*z)
+       dudx = -d*c*sin(pi*y)*sin(d*x)*sin(e*z)
+       dudy = -8.0_rp*a*y**7+c*pi*cos(pi*y)*cos(d*x)*sin(e*z)
+       dudz = e*c*sin(pi*y)*cos(d*x)*cos(e*z)
+       d2udx  = -d*d*c*sin(pi*y)*cos(d*x)*sin(e*z)
+       d2udxy = -d*c*pi*cos(pi*y)*sin(d*x)*sin(e*z)
+       d2udxz = -e*d*c*sin(pi*y)*sin(d*x)*cos(e*z)
+       d2udy  = -56.0_rp*a*y**6-c*pi*pi*sin(pi*y)*cos(d*x)*sin(e*z)
+       d2udyz = e*c*pi*cos(pi*y)*cos(d*x)*cos(e*z)
+       d2udz  = -e*e*c*sin(pi*y)*cos(d*x)*sin(e*z)
+    case(10)               ! Channel flow (Re_tau=395), Vy
+       check(ndime==3)
+       a = 7.764_rp*(395.0_rp**(1/7))    ! C = 7.764*(Re_tau^(1/7))
+       b = 0.1_rp*a                      ! eps = 0.1*C
+       d = 4.0_rp*pi/(2.0_rp*pi)         ! 4*pi/Lx
+       e = 2.0_rp*pi/(2.0_rp*pi/3.0_rp)  ! 2*pi/Lz
+       u = -b*(1+cos(pi*y))*sin(d*x)*sin(e*z)
+       dudx = -d*b*(1+cos(pi*y))*cos(d*x)*sin(e*z)
+       dudy = b*pi*sin(pi*y)*sin(d*x)*sin(e*z)
+       dudz = -e*b*(1+cos(pi*y))*sin(d*x)*cos(e*z)
+       d2udx  = d*d*b*(1+cos(pi*y))*sin(d*x)*sin(e*z)
+       d2udxy = d*b*pi*sin(pi*y)*cos(d*x)*sin(e*z)
+       d2udxz = -e*d*b*(1+cos(pi*y))*cos(d*x)*cos(e*z)
+       d2udy  = b*pi*pi*cos(pi*y)*sin(d*x)*sin(e*z)
+       d2udyz = e*b*pi*sin(pi*y)*sin(d*x)*cos(e*z)
+       d2udz  = e*e*b*(1+cos(pi*y))*sin(d*x)*sin(e*z)
+    case(11)                ! Channel flow (Re_tau=395), Vz
+       check(ndime==3)
+       a = 7.764_rp*(395.0_rp**(1/7))    ! C = 7.764*(Re_tau^(1/7))
+       b = 0.1_rp*a                      ! eps = 0.1*C
+       c = b*(2.0_rp*pi/3.0_rp)/2.0_rp   ! eps*Lz/2
+       d = 4.0_rp*pi/(2.0_rp*pi)         ! 4*pi/Lx
+       e = 2.0_rp*pi/(2.0_rp*pi/3.0_rp)  ! 2*pi/Lz
+       u = -c*sin(pi*y)*sin(d*x)*cos(e*z)
+       dudx = -d*c*sin(pi*y)*cos(d*x)*cos(e*z)
+       dudy = -c*pi*cos(pi*y)*sin(d*x)*cos(e*z)
+       dudz = e*c*sin(pi*y)*sin(d*x)*sin(e*z)
+       d2udx  = d*d*c*sin(pi*y)*sin(d*x)*cos(e*z)
+       d2udxy = -d*c*pi*cos(pi*y)*cos(d*x)*cos(e*z)
+       d2udxz = e*d*c*sin(pi*y)*cos(d*x)*sin(e*z)
+       d2udy  = c*pi*pi*sin(pi*y)*sin(d*x)*cos(e*z)
+       d2udyz = e*c*pi*cos(pi*y)*sin(d*x)*sin(e*z)
+       d2udz  = e*e*c*sin(pi*y)*sin(d*x)*cos(e*z)
     end select
     
     ! Component assignment

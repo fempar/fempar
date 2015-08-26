@@ -37,6 +37,7 @@ module serial_names
   use serial_environment_names
   use update_names
   use rungekutta_names
+  use statistics_names
 
   ! Geometry
   use map_names

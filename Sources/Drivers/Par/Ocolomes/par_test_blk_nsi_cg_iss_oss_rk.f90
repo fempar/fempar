@@ -1045,9 +1045,13 @@ contains
     params%default_nelbound  = '0 0 0'
     params%default_sizebound = '0.0 0.0 0.0'
     ! Time integration
+    params%default_initime   = '0.0'
+    params%default_finaltime = '150.0'
+    params%default_timestep  = '0.03'
     params%default_rkimex    = '0'
     ! Solution
-    params%default_analytical_v = '0 0 0'
+    params%default_analytical_v = '9 10 11'
+    params%default_initial_cond = '.true.'
     ! Problem
     params%default_kfl_conv  = '1'
     params%default_kfl_skew  = '1'
@@ -1304,7 +1308,8 @@ program par_test_blk_nsi_cg_iss_oss_rk
   type(par_timer_t)             :: p_timer
 
   ! Postproces types
-  type(vtk_t) :: fevtk
+  type(vtk_t)            :: fevtk
+  type(par_line_statistics_t) :: p_stats
 
   ! Integers
   integer(ip) :: num_levels,me,np
@@ -1343,7 +1348,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip), allocatable :: dof_coupling(:,:)
   integer(ip), allocatable :: analytical_v(:)
   integer(ip), allocatable :: nparts_per_dof(:)
-  real(rp)   , allocatable :: stats(:,:)
+!!$  real(rp)   , allocatable :: stats(:,:)
 
   ! Arguments
   type(Type_Command_Line_Interface):: cli 
@@ -1523,12 +1528,19 @@ program par_test_blk_nsi_cg_iss_oss_rk
 
   ! Initialize statistics output
   call cli%get(group=trim(group),switch='-wsta',val=write_statistics,error=istat); if(istat/=0) then; check(.false.); end if
-  if(write_statistics.and.p_env%am_i_fine_task()) then
-     call initialize_velocity_statistics(gdata,p_fe_space,blk_dof_dist,nparts_per_dof,stats)
+  if(write_statistics) then
      if(me==0) then
         lunio_stats = io_open(trim(dir_path_out)//trim(prefix)//'.stats',position='append')
      end if
+     call p_stats%initialize(gdata,p_fe_space,p_env,blk_dof_dist,2,order_v,lunio_stats)
   end if
+!!$  end if
+!!$  if(write_statistics.and.p_env%am_i_fine_task()) then
+!!$     call initialize_velocity_statistics(gdata,p_fe_space,blk_dof_dist,nparts_per_dof,stats)
+!!$     if(me==0) then
+!!$        lunio_stats = io_open(trim(dir_path_out)//trim(prefix)//'.stats',position='append')
+!!$     end if
+!!$  end if
 
   ! Assign analytical solution
   call cli%get_varying(group=trim(group),switch='-av',val=analytical_v,error=istat); if(istat/=0) then; check(.false.); end if   
@@ -1581,13 +1593,14 @@ program par_test_blk_nsi_cg_iss_oss_rk
        &                    projection_update_operator,cg_iss_oss_rk_projection_update,           &
        &                    cg_iss_oss_rk_momentum_rhs,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
        &                    write_dissipation,dissipation_integration,trace_dissipation,dummy,    &
-       &                    lunio_dis,write_statistics,nparts_per_dof,stats)
+       &                    lunio_dis,write_statistics,p_stats)!nparts_per_dof,stats)
   call par_timer_stop(p_timer)   
   call par_timer_report(p_timer) 
 
   ! Print statistics
-  if(write_statistics.and.p_env%am_i_fine_task()) then
-     call print_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats,p_env,lunio_stats)
+  if(write_statistics) then
+     call p_stats%finalize()
+!!$     call print_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats,p_env,lunio_stats)
   end if
 
   ! Print PVD file
@@ -1709,7 +1722,7 @@ contains
        &                          projection_update_operator,projection_update_integration,           &
        &                          momentum_rhs_integration,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
        &                          write_dissipation,dissipation_integration,trace_dissipation,dummy,  &
-       &                          lunio_dis,write_statistics,nparts_per_dof,stats)
+       &                          lunio_dis,write_statistics,p_stats)!nparts_per_dof,stats)
     implicit none
     type(rungekutta_integrator_t)        , intent(inout) :: rkinteg
     type(solver_control_t)               , intent(inout) :: sctrl
@@ -1734,8 +1747,9 @@ contains
     class(discrete_integration_t), target, intent(inout) :: dissipation_integration
     type(par_scalar_t)                   , intent(inout) :: dummy
     integer(ip)                          , intent(in)    :: lunio_dis
-    integer(ip)                          , intent(in)    :: nparts_per_dof(:)
-    real(rp)                             , intent(inout) :: stats(:,:)
+    type(par_line_statistics_t)          , intent(inout) :: p_stats
+!!$    integer(ip)                          , intent(in)    :: nparts_per_dof(:)
+!!$    real(rp)                             , intent(inout) :: stats(:,:)
     ! Locals
     type(discrete_integration_pointer_t) :: approx(1)
     integer(ip) :: istage,nstage,istep,ielem,me,np
@@ -2024,8 +2038,9 @@ contains
        end if
 
        ! Compute statistics
-       if(write_statistics.and.p_env%am_i_fine_task()) then
-          call compute_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats)
+       if(write_statistics) then
+          call p_stats%compute()
+!!$          call compute_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats)
        end if
 
        ! Print solution to VTK file
@@ -2258,30 +2273,30 @@ contains
 
   end subroutine print_velocity_statistics
 
-  !==================================================================================================
-  subroutine globalid_to_ijk(ndime,nd,gl,ijk)
-    implicit none
-    integer(ip), intent(in)  :: gl,nd(3),ndime
-    integer(ip), intent(out) :: ijk(3)
-    ! Locals
-    integer(ip) :: aux
-
-    if(ndime==1) then
-       ijk(3) = 1
-       ijk(2) = 1
-       ijk(1) = gl
-    elseif(ndime==2) then
-       ijk(1) = floor(real(gl-1)/nd(2)) + 1
-       ijk(2) = gl - (ijk(1)-1)*nd(2)
-       ijk(3) = 1
-    else if(ndime==3) then
-       ijk(1) = floor(real(gl-1)/(nd(2)*nd(3)))+1
-       aux = gl - (ijk(1)-1)*(nd(2)*nd(3))
-       ijk(2) = floor(real(aux-1)/nd(3))+1
-       ijk(3) = aux - (ijk(2)-1)* nd(3)
-    end if
-
-  end subroutine globalid_to_ijk
+!!$  !==================================================================================================
+!!$  subroutine globalid_to_ijk(ndime,nd,gl,ijk)
+!!$    implicit none
+!!$    integer(ip), intent(in)  :: gl,nd(3),ndime
+!!$    integer(ip), intent(out) :: ijk(3)
+!!$    ! Locals
+!!$    integer(ip) :: aux
+!!$
+!!$    if(ndime==1) then
+!!$       ijk(3) = 1
+!!$       ijk(2) = 1
+!!$       ijk(1) = gl
+!!$    elseif(ndime==2) then
+!!$       ijk(1) = floor(real(gl-1)/nd(2)) + 1
+!!$       ijk(2) = gl - (ijk(1)-1)*nd(2)
+!!$       ijk(3) = 1
+!!$    else if(ndime==3) then
+!!$       ijk(1) = floor(real(gl-1)/(nd(2)*nd(3)))+1
+!!$       aux = gl - (ijk(1)-1)*(nd(2)*nd(3))
+!!$       ijk(2) = floor(real(aux-1)/nd(3))+1
+!!$       ijk(3) = aux - (ijk(2)-1)* nd(3)
+!!$    end if
+!!$
+!!$  end subroutine globalid_to_ijk
 
   !==================================================================================================
   subroutine initialize_velocity_statistics(gdata,p_fe_space,blk_dof_dist,nparts_per_dof,stats)

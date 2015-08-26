@@ -35,6 +35,7 @@ module par_names
   use par_io_names
   use par_environment_names
   use par_update_names
+  use par_statistics_names
 
   ! Geometry
   use par_mesh_names
