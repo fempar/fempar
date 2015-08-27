@@ -25,12 +25,67 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+module postprocess_field_nsi_names
+  use types_names
+  use problem_names
+  use postprocess_field_names
+# include "debug.i90"
+  implicit none
+
+  integer(ip), parameter :: velocity = 0 ! Fill option for "computing" velocity
+  integer(ip), parameter :: pressure = 1 ! Fill option for "computing" pressure
+
+  type, extends(postprocess_field_t) :: postprocess_field_nsi_t
+   contains
+     procedure :: compute_field => nsi_compute_field
+  end type postprocess_field_nsi_t 
+
+  public :: postprocess_field_nsi_t, velocity, pressure
+contains
+  subroutine nsi_compute_field(postprocess_field,prob,fill_process)
+    !******** READ ME: *********************************************************!
+    ! This subroutine nsi_compute_field has been created only for testing       !
+    ! purposes and it is left here as an easy example of how to use the         !
+    ! postprocess_fields_names module.                                          !
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(postprocess_field_nsi_t), intent(inout) :: postprocess_field
+    class(physical_problem_t),      intent(in)    :: prob
+    integer(ip), optional,          intent(in)    :: fill_process
+    ! Locals
+    integer(ip)        :: nelem, ndime, i
+    
+    check(present(fill_process))
+    ! Check that the postprocess_field has been created:
+    check(allocated(postprocess_field%fe_postprocess_field))
+
+    ! Extract some parameter form fe_space
+    nelem = postprocess_field%p_fe_space%g_trian%num_elems
+    ndime = postprocess_field%p_fe_space%g_trian%num_dims
+
+    select case(fill_process)
+    case(velocity)
+       do i=1,nelem
+          postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+               &          postprocess_field%p_fe_space%finite_elements(i)%unkno(:,1:ndime,1)
+       end do
+    case(pressure)
+       do i=1,nelem
+          postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+               &          postprocess_field%p_fe_space%finite_elements(i)%unkno(:,1+ndime:1+ndime,1)
+       end do
+    end select
+
+  end subroutine nsi_compute_field
+end module postprocess_field_nsi_names
+
 program par_test_nsi_iss
   use serial_names
   use par_names
   use nsi_names
   use nsi_cg_iss_names
-use lib_vtk_io_interface_names
+  use lib_vtk_io_interface_names
+  use postprocess_field_nsi_names
   implicit none
 # include "debug.i90"
 
@@ -64,6 +119,7 @@ use lib_vtk_io_interface_names
   type(solver_control_t)                             :: sctrl
   class(base_operand_t) , pointer           :: x, y
   class(base_operator_t), pointer           :: A
+  type(postprocess_field_nsi_t)        :: postprocess_vel, postprocess_pre
 
   ! Integers
   integer(ip) :: num_levels
@@ -284,10 +340,22 @@ use lib_vtk_io_interface_names
   ! Store solution to unkno
   call par_update_solution(p_unk,p_fe_space)
 
+  ! Compute postprocess field
+  call postprocess_vel%create('velocity',gdata%ndime,2,p_fe_space%fe_space,p_env)
+  call postprocess_pre%create('pressure',1,1,p_fe_space%fe_space,p_env)
+  call postprocess_vel%compute_and_finalize_field(myprob,velocity)
+  call postprocess_pre%compute_and_finalize_field(myprob,pressure)
+     
   ! Print solution to VTK file
-  istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')
-  if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
-
+  istat = fevtk%write_VTK_start(n_part=p_env%p_context%iam,o_fmt='ascii')
+  istat = fevtk%write_VTK_unknowns()
+  istat = fevtk%write_VTK_field(postprocess_vel)
+  istat = fevtk%write_VTK_field(postprocess_pre)
+  istat = fevtk%write_VTK_end() 
+  istat = fevtk%write_PVTK()
+  call postprocess_vel%free
+  call postprocess_pre%free
+  
   ! Free preconditioner
   call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_values)
   call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_struct)

@@ -42,7 +42,7 @@ module lib_vtk_io_interface_names
   use abstract_environment_names
   use Lib_VTK_IO
   use ISO_C_BINDING
-  use postpro_fields_names
+  use postprocess_field_names
 
   implicit none
 # include "debug.i90"
@@ -82,6 +82,7 @@ module lib_vtk_io_interface_names
      integer(ip)                   :: nnods          ! Number of nodes
      integer(ip)                   :: ndim           ! Dimensions of the mesh
      type(vtk_field_t), allocatable:: unknowns(:)    ! Array storing field_ts info
+     type(vtk_field_t), allocatable:: postprocess_fields(:) ! Array storing postprocess field_ts info
      logical                       :: linear_order = .False.
      logical                       :: filled = .False.
 !     integer(ip), allocatable     :: elem2subelem_i(:),elem2subelem_j(:)
@@ -119,6 +120,7 @@ module lib_vtk_io_interface_names
         procedure, private :: fill_mesh_from_triangulation
         procedure, private :: fill_mesh_superlinear_order
         procedure, private :: fill_unknowns_from_physical_problem
+        procedure, private :: add_new_postprocess_field
         procedure, private :: create_dir_hierarchy_on_root_process
         procedure, private :: get_VTK_time_output_path
         procedure, private :: get_PVD_time_output_path
@@ -513,6 +515,39 @@ contains
   ! ----------------------------------------------------------------------------------
   end subroutine fill_unknowns_from_physical_problem
 
+  ! Add and fill a new postprocess_field in f_vtk%mesh(nmesh)%postprocess_field(:)
+  subroutine add_new_postprocess_field(f_vtk, postprocess_field, nmesh)
+  ! ----------------------------------------------------------------------------------
+    class(vtk_t),              intent(INOUT) :: f_vtk
+    class(postprocess_field_t), intent(in)    :: postprocess_field
+    integer(ip), optional,     intent(IN)    :: nmesh
+    type(vtk_field_t), allocatable           :: tmp_postprocess_fields(:) !< Temporal postprocess fields
+    integer(ip)                              :: n_postprocess_fields   !< Number of temporal fiels stored
+    integer(ip)                              :: nm             !< Real Number of Mesh
+  ! ----------------------------------------------------------------------------------
+
+    nm = f_vtk%num_meshes
+    if(present(nmesh)) nm = nmesh
+    
+    if (allocated(f_vtk%mesh(nm)%postprocess_fields)) then
+       n_postprocess_fields = size(f_vtk%mesh(nm)%postprocess_fields)
+       allocate(tmp_postprocess_fields(n_postprocess_fields))
+       tmp_postprocess_fields = f_vtk%mesh(nm)%postprocess_fields
+       deallocate(f_vtk%mesh(nm)%postprocess_fields)
+       allocate(f_vtk%mesh(nm)%postprocess_fields(n_postprocess_fields+1))
+       f_vtk%mesh(nm)%postprocess_fields(1:n_postprocess_fields) = tmp_postprocess_fields
+       deallocate(tmp_postprocess_fields)
+    else
+       allocate(f_vtk%mesh(nm)%postprocess_fields(1))
+       n_postprocess_fields = 0
+    end if
+    f_vtk%mesh(nm)%postprocess_fields(n_postprocess_fields+1)%var_location = 'node'
+    f_vtk%mesh(nm)%postprocess_fields(n_postprocess_fields+1)%var_name     = postprocess_field%name
+    f_vtk%mesh(nm)%postprocess_fields(n_postprocess_fields+1)%field_type   = 'Float64'
+    f_vtk%mesh(nm)%postprocess_fields(n_postprocess_fields+1)%num_comp     = postprocess_field%nvars
+    f_vtk%mesh(nm)%postprocess_fields(n_postprocess_fields+1)%filled       = .true.
+  ! ----------------------------------------------------------------------------------
+  end subroutine add_new_postprocess_field
 
   ! Start the write of a single VTK file to disk (if I am fine tast)
   function write_VTK_start(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt, f_id) result(E_IO)
@@ -680,9 +715,11 @@ contains
   ! ----------------------------------------------------------------------------------
     implicit none
     class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
-    class(postprocess_field_t), intent(in)    :: postproc_field !< Postprocess field structure to be written
+    class(postprocess_field_t), intent(inout) :: postproc_field !< Postprocess field structure to be written
     integer(ip),      optional, intent(IN)    :: n_mesh         !< Number of MESH
     integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    type(vtk_field_t), allocatable            :: tmp_postprocess_fields !< Temporal postprocess fields
+    integer(ip)                               :: n_postprocess_fields !< Number of temporal fiels stored
     real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
     integer(ip)                               :: nm             !< Real Number of Mesh
     integer(ip)                               :: tidx           !< Actual Time InDeX
@@ -707,11 +744,13 @@ contains
 
         nm = f_vtk%num_meshes
         if(present(n_mesh)) nm = n_mesh
-    
+                
         tidx = 1
             
         if (f_vtk%mesh(nm)%status >= started .and. f_vtk%mesh(nm)%status < pointdata_closed) then
-           
+        
+           call f_vtk%add_new_postprocess_field(postproc_field,nm)
+
            if (f_vtk%mesh(nm)%status < pointdata_opened) then
               if(present(f_id)) then
                  E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
@@ -724,36 +763,44 @@ contains
            tnnod = 0
            nnods = f_vtk%mesh(nm)%nnods
            nels = size(f_vtk%mesh(nm)%ctype, dim=1)
-        
-            if(postproc_field%filled) then
-               call memalloc( postproc_field%nvars, nnods, field, __FILE__,__LINE__)
-               curr_ncomp = sum(f_vtk%mesh(nm)%fields(1:postproc_field%iunk)%num_comp)
-               do i=1, nels
-                !  elnnod = postproc_field%fe_postprocess_field(i)%nnode
-                  elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
-                  do j=1, elnnod
-                     inode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
-                     idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(inode)
+           
+           check(postproc_field%is_finalized())
+           
+           call memalloc( postproc_field%nvars, nnods, field, __FILE__,__LINE__)
+           
+           do i=1, nels
+              ! Search a component of element i with the same interpolation as the postprocess field
+              curr_ncomp = 0
+              do f=1, f_vtk%p_phys_prob%nunks
+                 curr_ncomp = curr_ncomp + f_vtk%mesh(nm)%unknowns(f)%num_comp
+                 if (f_vtk%p_fe_space%finite_elements(i)%order(curr_ncomp).eq.postproc_field%interpolation_order) exit
+              end do
+              ! Set the elemental nodes in the VTK interpolation
+              !  elnnod = postproc_field%fe_postprocess_field(i)%nnode
+              elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
+              do j=1, elnnod
+                 inode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
+                 idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(inode)
 
-                     field(1:postproc_field%nvars,j+tnnod) = &
-                          postproc_field%fe_postprocess_field(i)%nodal_properties(idx, 1:postproc_field%nvars)
-                  enddo
-                  tnnod = tnnod + elnnod 
-               enddo
-                
-               if(present(f_id)) then 
-                  E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=postproc_field%nvars, varname=postproc_field%name,var=field, cf=f_id)
-               else
-                  E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=postproc_field%nvars, varname=postproc_field%name,var=field)
-               endif
-               if(allocated(field)) call memfree(field)
-            endif
+                 field(1:postproc_field%nvars,j+tnnod) = &
+                      postproc_field%fe_postprocess_field(i)%nodal_properties(idx, 1:postproc_field%nvars)
+              enddo
+              tnnod = tnnod + elnnod 
+           enddo
+           
+           if(present(f_id)) then 
+              E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=postproc_field%nvars, varname=postproc_field%name,var=field, cf=f_id)
+           else
+              E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=postproc_field%nvars, varname=postproc_field%name,var=field)
+           endif
+           if(allocated(field)) call memfree(field)
+
         endif
-    
-    endif
+        
+     endif
 
   ! ----------------------------------------------------------------------------------
-  end function write_VTK_field
+   end function write_VTK_field
 
   ! Write a single VTK file to disk (if I am fine tast)
   function write_VTK_end(f_vtk, n_mesh, f_id) result(E_IO)
@@ -772,29 +819,32 @@ contains
 
     E_IO = 0
 
-    nm = f_vtk%num_meshes
-    if(present(n_mesh)) nm = n_mesh
-    
-    if (ft .and. (f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status /= ended)) then
-
-        if(f_vtk%mesh(nm)%status == pointdata_opened) then
-            if(present(f_id)) then
+    if (ft) then
+       
+       nm = f_vtk%num_meshes
+       if(present(n_mesh)) nm = n_mesh
+       
+       if ((f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status /= ended)) then
+          
+          if(f_vtk%mesh(nm)%status == pointdata_opened) then
+             if(present(f_id)) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
-            else
+             else
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='close')
-            endif
-            f_vtk%mesh(nm)%status = pointdata_closed
-        endif
-
-        if(present(f_id)) then       
-            E_IO = VTK_GEO_XML(cf=f_id)
-            E_IO = VTK_END_XML(cf=f_id)
-        else
-            E_IO = VTK_GEO_XML()
-            E_IO = VTK_END_XML()
-        endif
-
-        f_vtk%mesh(nm)%status = ended
+             endif
+             f_vtk%mesh(nm)%status = pointdata_closed
+          endif
+          
+          if(present(f_id)) then       
+             E_IO = VTK_GEO_XML(cf=f_id)
+             E_IO = VTK_END_XML(cf=f_id)
+          else
+             E_IO = VTK_GEO_XML()
+             E_IO = VTK_END_XML()
+          endif
+          
+          f_vtk%mesh(nm)%status = ended
+       endif
     endif
 
   ! ----------------------------------------------------------------------------------
@@ -838,6 +888,8 @@ contains
     if(present(t_step)) ts = t_step 
 
     ft =  f_vtk%p_env%am_i_fine_task()
+
+    E_IO = 0
 
     if(ft) then
         dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
@@ -906,32 +958,63 @@ contains
             do i=0, f_vtk%num_parts-1
                 E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))), cf=rf)
             enddo
-    
-            if(allocated(f_vtk%mesh(nm)%unknowns)) then
-                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=rf)
-                do i=1, size(f_vtk%mesh(nm)%unknowns, dim=1)
-                    if(f_vtk%mesh(nm)%unknowns(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%var_location)) == 'node') then
+            if(allocated(f_vtk%mesh(nm)%unknowns).or.allocated(f_vtk%mesh(nm)%postprocess_fields)) then
+               E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=rf)
+               ! Write unknowns point data
+               if (allocated(f_vtk%mesh(nm)%unknowns)) then
+                  do i=1, size(f_vtk%mesh(nm)%unknowns, dim=1)
+                     if(f_vtk%mesh(nm)%unknowns(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%var_location)) == 'node') then
                         if(allocated(f_vtk%mesh(nm)%unknowns(i)%var_name)) then
-                            var_name = f_vtk%mesh(nm)%unknowns(i)%var_name
+                           var_name = f_vtk%mesh(nm)%unknowns(i)%var_name
                         else
-                            var_name = 'Unknown_'//trim(adjustl(ch(i)))
+                           var_name = 'Unknown_'//trim(adjustl(ch(i)))
                         endif
                         E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%field_type)), Nc=f_vtk%mesh(nm)%unknowns(i)%num_comp , cf=rf)
-                    endif
-                enddo
-                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=rf)
-                E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN', cf=rf)
-                do i=1, size(f_vtk%mesh(nm)%unknowns, dim=1)
-                    if(f_vtk%mesh(nm)%unknowns(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%var_location)) == 'cell') then
-                        if(allocated(f_vtk%mesh(nm)%unknowns(i)%var_name)) then
-                            var_name = f_vtk%mesh(nm)%unknowns(i)%var_name
+                     endif
+                  enddo
+               end if
+               ! Write postprocess fields point data
+               if (allocated(f_vtk%mesh(nm)%postprocess_fields)) then
+                  do i=1, size(f_vtk%mesh(nm)%postprocess_fields, dim=1)
+                     if(f_vtk%mesh(nm)%postprocess_fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%postprocess_fields(i)%var_location)) == 'node') then
+                        if(allocated(f_vtk%mesh(nm)%postprocess_fields(i)%var_name)) then
+                           var_name = f_vtk%mesh(nm)%postprocess_fields(i)%var_name
                         else
-                            var_name = 'Unknown_'//trim(adjustl(ch(i)))
+                           var_name = 'Postprocess_field_'//trim(adjustl(ch(i)))
+                        endif
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%postprocess_fields(i)%field_type)), Nc=f_vtk%mesh(nm)%postprocess_fields(i)%num_comp , cf=rf)
+                     endif
+                  enddo
+               end if
+               E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=rf)
+               E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN', cf=rf)
+               ! Write unknowns cell data
+               if (allocated(f_vtk%mesh(nm)%unknowns)) then
+                  do i=1, size(f_vtk%mesh(nm)%unknowns, dim=1)
+                     if(f_vtk%mesh(nm)%unknowns(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%var_location)) == 'cell') then
+                        if(allocated(f_vtk%mesh(nm)%unknowns(i)%var_name)) then
+                           var_name = f_vtk%mesh(nm)%unknowns(i)%var_name
+                        else
+                           var_name = 'Unknown_'//trim(adjustl(ch(i)))
                         endif
                         E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%field_type)), cf=rf)
-                    endif
-                enddo
-                E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE', cf=rf)
+                     endif
+                  enddo
+               end if
+               ! Write postprocess fields cell data
+               if (allocated(f_vtk%mesh(nm)%postprocess_fields)) then
+                  do i=1, size(f_vtk%mesh(nm)%postprocess_fields, dim=1)
+                     if(f_vtk%mesh(nm)%postprocess_fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%postprocess_fields(i)%var_location)) == 'cell') then
+                        if(allocated(f_vtk%mesh(nm)%postprocess_fields(i)%var_name)) then
+                           var_name = f_vtk%mesh(nm)%postprocess_fields(i)%var_name
+                        else
+                           var_name = 'Postprocess_fields_'//trim(adjustl(ch(i)))
+                        endif
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%postprocess_fields(i)%field_type)), cf=rf)
+                     endif
+                  enddo
+               end if
+               E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE', cf=rf)
             endif
             E_IO = PVTK_END_XML(cf=rf)
         endif

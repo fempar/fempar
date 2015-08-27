@@ -25,12 +25,66 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+module postprocess_field_nsi_names
+  use types_names
+  use problem_names
+  use postprocess_field_names
+# include "debug.i90"
+  implicit none
+
+  integer(ip), parameter :: velocity = 0 ! Fill option for "computing" velocity
+  integer(ip), parameter :: pressure = 1 ! Fill option for "computing" pressure
+
+  type, extends(postprocess_field_t) :: postprocess_field_nsi_t
+   contains
+     procedure :: compute_field => nsi_compute_field
+  end type postprocess_field_nsi_t 
+
+  public :: postprocess_field_nsi_t, velocity, pressure
+contains
+  subroutine nsi_compute_field(postprocess_field,prob,fill_process)
+    !******** READ ME: *********************************************************!
+    ! This subroutine nsi_compute_field has been created only for testing       !
+    ! purposes and it is left here as an easy example of how to use the         !
+    ! postprocess_fields_names module.                                          !
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(postprocess_field_nsi_t), intent(inout) :: postprocess_field
+    class(physical_problem_t),      intent(in)    :: prob
+    integer(ip), optional,          intent(in)    :: fill_process
+    ! Locals
+    integer(ip)        :: nelem, ndime, i
+    
+    check(present(fill_process))
+    ! Check that the postprocess_field has been created:
+    check(allocated(postprocess_field%fe_postprocess_field))
+
+    ! Extract some parameter form fe_space
+    nelem = postprocess_field%p_fe_space%g_trian%num_elems
+    ndime = postprocess_field%p_fe_space%g_trian%num_dims
+
+    select case(fill_process)
+    case(velocity)
+       do i=1,nelem
+          postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+               &          postprocess_field%p_fe_space%finite_elements(i)%unkno(:,1:ndime,1)
+       end do
+    case(pressure)
+       do i=1,nelem
+          postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+               &          postprocess_field%p_fe_space%finite_elements(i)%unkno(:,1+ndime:1+ndime,1)
+       end do
+    end select
+
+  end subroutine nsi_compute_field
+end module postprocess_field_nsi_names
+
 program test_nsi_iss
   use serial_names
   use nsi_names
   use nsi_cg_iss_names
   use lib_vtk_io_interface_names
-  use postpro_fields_names
+  use postprocess_field_nsi_names
   implicit none
 # include "debug.i90"
   
@@ -57,7 +111,7 @@ program test_nsi_iss
   class(base_operator_t)     , pointer :: A, M
   type(graph_t)          , pointer :: f_graph
   type(block_graph_t)              :: f_blk_graph
-  type(postprocess_field_t)        :: postprocess_vel, postprocess_pre
+  type(postprocess_field_nsi_t)        :: postprocess_vel, postprocess_pre
 
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
@@ -70,7 +124,6 @@ program test_nsi_iss
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
   integer(ip), allocatable :: which_approx(:)
-  character(len=:), allocatable :: field_name
 
   ! Arguments
   character(len=256) :: dir_path_out,prefix
@@ -177,16 +230,10 @@ program test_nsi_iss
   call update_solution(feunk,fe_space)
 
   ! Compute postprocess field
-  field_name='velocity'
-  call postprocess_vel%create(field_name,gdata%ndime,nex*ney*max(1,nez),1,fe_space)
-  field_name='presure'
-  call postprocess_pre%create(field_name,1,nex*ney*max(1,nez),2,fe_space)
-  do i=1,nex*ney*max(1,nez)
-     postprocess_vel%fe_postprocess_field(i)%nodal_properties = fe_space%finite_elements(i)%unkno(:,1:gdata%ndime,1)
-     postprocess_pre%fe_postprocess_field(i)%nodal_properties = fe_space%finite_elements(i)%unkno(:,gdata%ndime+1:gdata%ndime+1,1)
-  end do
-  postprocess_vel%filled = .true.
-  postprocess_pre%filled = .true.
+  call postprocess_vel%create('velocity',gdata%ndime,2,fe_space,senv)
+  call postprocess_pre%create('pressure',1,1,fe_space,senv)
+  call postprocess_vel%compute_and_finalize_field(myprob,velocity)
+  call postprocess_pre%compute_and_finalize_field(myprob,pressure)
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK_start()
