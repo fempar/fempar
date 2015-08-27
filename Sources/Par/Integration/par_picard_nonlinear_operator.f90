@@ -60,22 +60,33 @@ module par_picard_nonlinear_operator_names
      procedure :: unassign       => unassign_par_picard_nonlinear_iteration
      procedure :: fill_constant  => compute_par_picardconstant_operator
      procedure :: fill_transient => compute_par_picardtransient_operator
-     procedure (compute_vector_interface), deferred :: compute_vector
+     procedure :: update_vector  => update_vector_par_picard_nonlinear_iteration
+     procedure :: update_preconditioner_matrix  => update_preconditioner_matrix_par_picard_nonlinear_iteration
   end type par_picard_nonlinear_operator_t
 
   ! Types
   public :: par_picard_nonlinear_operator_t
 
-  ! Abstract interfaces
-  abstract interface
-     subroutine compute_vector_interface(nlop)
-       import :: par_picard_nonlinear_operator_t
-       implicit none
-       class(par_picard_nonlinear_operator_t), intent(inout) :: nlop
-     end subroutine compute_vector_interface
-  end interface
+contains  
 
-contains
+  !==================================================================================================
+  subroutine update_vector_par_picard_nonlinear_iteration(this)
+    implicit none
+    class(par_picard_nonlinear_operator_t), intent(inout) :: this
+    
+    ! Dummy
+    
+  end subroutine update_vector_par_picard_nonlinear_iteration
+
+  !==================================================================================================
+  subroutine update_preconditioner_matrix_par_picard_nonlinear_iteration(this,stage)
+    implicit none
+    class(par_picard_nonlinear_operator_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: stage
+    
+    ! Dummy
+    
+  end subroutine update_preconditioner_matrix_par_picard_nonlinear_iteration
 
   !==================================================================================================
   subroutine create_par_picard_nonlinear_iteration(nlop,A,M,b,x,x_sol,A_int_c,A_int_t,A_int_n,b_int_c, &
@@ -158,6 +169,7 @@ contains
     end if
 
     ! Fill Preconditioner
+    call nlop%update_preconditioner_matrix(update_constant)
     call nlop%M%fill_values(update_constant)
 
   end subroutine compute_par_picardconstant_operator
@@ -191,7 +203,8 @@ contains
     end if
 
     ! Fill Preconditioner
-    !call nlop%M%fill_values(update_transient)
+    call nlop%update_preconditioner_matrix(update_transient)
+    call nlop%M%fill_values(update_transient)
 
   end subroutine compute_par_picardtransient_operator
 
@@ -249,7 +262,7 @@ contains
        end if
 
        ! Compute operand
-       call this%compute_vector()
+       call this%update_vector()
 
        ! Check convergence
        if(iiter==1) ininorm = this%b%nrm2()   
@@ -274,9 +287,10 @@ contains
              write(*,*) 'Nonlinear iterations: ',iiter
              write(*,*) 'Nonlinear error norm: ', resnorm
           end if
-       end if
+       end if          
 
        ! Compute Numeric preconditioner
+       call this%update_preconditioner_matrix(update_nonlinear)
        call this%M%fill_values(update_nonlinear)
 
        ! Solve system

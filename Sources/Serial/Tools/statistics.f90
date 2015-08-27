@@ -317,8 +317,8 @@ contains
     statistics%gdata => null()
     statistics%fe_space => null()
 
-1   format(i10,5(1x,e16.8e3))
-2   format(i10,9(1x,e16.8e3))
+1   format(i10,6(1x,e16.8e3))
+2   format(i10,10(1x,e16.8e3))
     
   end subroutine finalize_line_statistics
 

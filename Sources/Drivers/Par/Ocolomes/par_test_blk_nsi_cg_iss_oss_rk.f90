@@ -59,7 +59,8 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_momentum_operator
      procedure :: free  => free_momentum_operator
-     procedure :: compute_vector => compute_vector_momentum_operator
+     procedure :: update_vector => update_vector_momentum_operator
+     procedure :: update_preconditioner_matrix  => update_preconditioner_matrix_momentum_operator
   end type momentum_operator_t
   
   type, extends(par_picard_nonlinear_operator_t) :: pressure_operator_t 
@@ -79,7 +80,6 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_pressure_operator
      procedure :: free  => free_pressure_operator
-     procedure :: compute_vector => compute_vector_pressure_operator
   end type pressure_operator_t
   
   type, extends(par_picard_nonlinear_operator_t) :: momentum_update_operator_t 
@@ -95,7 +95,6 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_momentum_update_operator
      procedure :: free  => free_momentum_update_operator
-     procedure :: compute_vector => compute_vector_momentum_update_operator
   end type momentum_update_operator_t
   
   type, extends(par_picard_nonlinear_operator_t) :: projection_update_operator_t 
@@ -111,7 +110,6 @@ module my_nonlinear_operator_names
    contains
      procedure :: build => build_projection_update_operator
      procedure :: free  => free_projection_update_operator
-     procedure :: compute_vector => compute_vector_projection_update_operator
   end type projection_update_operator_t
 
  ! Types
@@ -121,15 +119,15 @@ module my_nonlinear_operator_names
 contains
 
   !==================================================================================================
-  subroutine build_momentum_operator(nlop,p_blk_graph,p_env,ndime,max_iter,nltol)
+  subroutine build_momentum_operator(nlop,p_blk_graph,p_env,ndime,max_iter,nltol,rkimex)
     implicit none
     class(momentum_operator_t), target, intent(inout) :: nlop
     type(par_block_graph_t)           , intent(in)    :: p_blk_graph
     class(par_environment_t)          , intent(in)    :: p_env
-    integer(ip)                       , intent(in)    :: ndime,max_iter
+    integer(ip)                       , intent(in)    :: ndime,max_iter,rkimex
     real(rp)                          , intent(in)    :: nltol
     ! Locals
-    integer(ip) :: i,num_levels,istat
+    integer(ip) :: i,num_levels,istat,update_flag
     type(par_graph_t), pointer :: p_p_graph
 
     ! Set number of levels
@@ -146,6 +144,13 @@ contains
     ! Initialize parameters
     nlop%dt  = 0.0_rp
     nlop%aii = 0.0_rp
+    
+    ! Set update flag for the block(1,1)
+    if(rkimex==0) then
+       update_flag = update_transient
+    elseif(rkimex==1) then
+       update_flag = update_nonlinear
+    end if
 
     ! Allocate matrices and vectors
     ! Mass matrix
@@ -188,7 +193,7 @@ contains
     call nlop%p_block_u_matrix%set_block_to_zero(3,1)
     call nlop%p_block_u_matrix%set_block_to_zero(3,2)
     call nlop%p_block_u_matrix%set_block_to_zero(3,3)
-    nlop%p_block_u_matrix%fill_values_stage = update_nonlinear
+    nlop%p_block_u_matrix%fill_values_stage = update_flag
     ! Auxiliar matrix (Block-X preconditioner)
     call nlop%p_mass_x_matrix%alloc(p_blk_graph)
     call nlop%p_mass_x_matrix%set_block_to_zero(1,1)
@@ -199,7 +204,7 @@ contains
     call nlop%p_mass_x_matrix%set_block_to_zero(2,3)
     call nlop%p_mass_x_matrix%set_block_to_zero(3,1)
     call nlop%p_mass_x_matrix%set_block_to_zero(3,2)
-    nlop%p_mass_x_matrix%fill_values_stage = update_nonlinear
+    nlop%p_mass_x_matrix%fill_values_stage = update_flag
     ! Mass BCs vector
     call nlop%p_block_vector_m%alloc(p_blk_graph)
     nlop%p_block_vector_m%blocks(1)%state = part_summed
@@ -233,7 +238,7 @@ contains
        nlop%point_to_p_mlevel_bddc_pars_u%ndime            = ndime
        nlop%point_to_p_mlevel_bddc_pars_u%unknowns         = all_unknowns
        nlop%point_to_p_mlevel_bddc_pars_u%pad_collectives  = pad
-       nlop%point_to_p_mlevel_bddc_pars_u%projection       = galerkin                     
+       nlop%point_to_p_mlevel_bddc_pars_u%projection       = petrov_galerkin!galerkin                     
        nlop%point_to_p_mlevel_bddc_pars_u%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
        nlop%point_to_p_mlevel_bddc_pars_u%correction_mode  = additive_symmetric                 !default 
        nlop%point_to_p_mlevel_bddc_pars_u%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
@@ -273,14 +278,14 @@ contains
     call par_preconditioner_dd_mlevel_bddc_create(nlop%p_block_u_matrix%get_block(1,1),nlop%p_mlevel_bddc_u, &
          &                                        nlop%p_mlevel_bddc_pars_u)
     call par_preconditioner_dd_mlevel_bddc_ass_struct(nlop%p_block_u_matrix%get_block(1,1),nlop%p_mlevel_bddc_u)
-    nlop%p_mlevel_bddc_u%fill_values_stage = update_transient
-    nlop%p_mlevel_bddc_u%free_values_stage = update_transient
+    nlop%p_mlevel_bddc_u%fill_values_stage = update_flag
+    nlop%p_mlevel_bddc_u%free_values_stage = update_flag
 
     ! Construct X-preconditioner (Mx^-1)
     call par_preconditioner_dd_diagonal_create(nlop%p_mass_x_matrix%get_block(3,3),nlop%p_diagonal_x)
     call par_preconditioner_dd_diagonal_ass_struct(nlop%p_mass_x_matrix%get_block(3,3),nlop%p_diagonal_x)
-    nlop%p_diagonal_x%fill_values_stage = update_transient!nonlinear
-    nlop%p_diagonal_x%free_values_stage = update_transient!nonlinear
+    nlop%p_diagonal_x%fill_values_stage = update_flag
+    nlop%p_diagonal_x%free_values_stage = update_flag
 
     ! Create Mass operator
     call nlop%Am%create(2,2)
@@ -362,14 +367,36 @@ contains
   end subroutine build_momentum_operator
 
   !==================================================================================================
-  subroutine compute_vector_momentum_operator(nlop)
+  subroutine update_vector_momentum_operator(this)
     implicit none
-    class(momentum_operator_t), intent(inout) :: nlop
+    class(momentum_operator_t), intent(inout) :: this
     
     ! Construct global operand
-    nlop%b_momentum = nlop%dt * nlop%bm + nlop%aii * nlop%bl + nlop%aii * nlop%bnl + nlop%brhs
+    this%b_momentum = this%dt * this%bm + this%aii * this%bl + this%aii * this%bnl + this%brhs
     
-  end subroutine compute_vector_momentum_operator
+  end subroutine update_vector_momentum_operator
+
+  !==================================================================================================
+  subroutine update_preconditioner_matrix_momentum_operator(this,stage)
+    implicit none
+    class(momentum_operator_t), intent(inout) :: this
+    integer(ip)               , intent(in)    :: stage
+    
+    ! Update preconditioner matrix in block(1,1)
+    if(stage==this%p_block_u_matrix%fill_values_stage) then
+       if(stage==update_transient) then
+          this%p_block_u_matrix%blocks(1,1)%p_p_matrix%f_matrix%a = &
+               & this%dt*this%p_block_matrix_m%blocks(1,1)%p_p_matrix%f_matrix%a  + &
+               & this%aii*this%p_block_matrix_l%blocks(1,1)%p_p_matrix%f_matrix%a
+       else
+          this%p_block_u_matrix%blocks(1,1)%p_p_matrix%f_matrix%a = &
+               & this%dt*this%p_block_matrix_m%blocks(1,1)%p_p_matrix%f_matrix%a  + &
+               & this%aii*this%p_block_matrix_l%blocks(1,1)%p_p_matrix%f_matrix%a + &
+               & this%aii*this%p_block_matrix_nl%blocks(1,1)%p_p_matrix%f_matrix%a
+       end if
+    end if   
+    
+  end subroutine update_preconditioner_matrix_momentum_operator
 
   !==================================================================================================
   subroutine build_pressure_operator(nlop,p_blk_graph,p_env,ndime)
@@ -511,15 +538,6 @@ contains
   end subroutine build_pressure_operator
 
   !==================================================================================================
-  subroutine compute_vector_pressure_operator(nlop)
-    implicit none
-    class(pressure_operator_t), intent(inout) :: nlop
-    
-    ! Dummy
-    
-  end subroutine compute_vector_pressure_operator
-
-  !==================================================================================================
   subroutine build_momentum_update_operator(nlop,p_blk_graph)
     implicit none
     class(momentum_update_operator_t), intent(inout) :: nlop
@@ -584,15 +602,6 @@ contains
          &           nlop%p_block_unknown, A_int_t=nlop%p_block_matrix, b_int_t=nlop%p_block_vector)
     
   end subroutine build_momentum_update_operator
-
-  !==================================================================================================
-  subroutine compute_vector_momentum_update_operator(nlop)
-    implicit none
-    class(momentum_update_operator_t), intent(inout) :: nlop
-    
-    ! Dummy
-    
-  end subroutine compute_vector_momentum_update_operator
 
  !==================================================================================================
   subroutine build_projection_update_operator(nlop,p_blk_graph)
@@ -660,15 +669,6 @@ contains
          &           nlop%p_block_unknown, A_int_t=nlop%p_block_matrix, b_int_t=nlop%p_block_vector)
     
   end subroutine build_projection_update_operator
-
-  !==================================================================================================
-  subroutine compute_vector_projection_update_operator(nlop)
-    implicit none
-    class(projection_update_operator_t), intent(inout) :: nlop
-    
-    ! Dummy
-    
-  end subroutine compute_vector_projection_update_operator
 
   !==================================================================================================
   subroutine free_momentum_operator(nlop)
@@ -1348,7 +1348,6 @@ program par_test_blk_nsi_cg_iss_oss_rk
   integer(ip), allocatable :: dof_coupling(:,:)
   integer(ip), allocatable :: analytical_v(:)
   integer(ip), allocatable :: nparts_per_dof(:)
-!!$  real(rp)   , allocatable :: stats(:,:)
 
   ! Arguments
   type(Type_Command_Line_Interface):: cli 
@@ -1534,13 +1533,6 @@ program par_test_blk_nsi_cg_iss_oss_rk
      end if
      call p_stats%initialize(gdata,p_fe_space,p_env,blk_dof_dist,2,order_v,lunio_stats)
   end if
-!!$  end if
-!!$  if(write_statistics.and.p_env%am_i_fine_task()) then
-!!$     call initialize_velocity_statistics(gdata,p_fe_space,blk_dof_dist,nparts_per_dof,stats)
-!!$     if(me==0) then
-!!$        lunio_stats = io_open(trim(dir_path_out)//trim(prefix)//'.stats',position='append')
-!!$     end if
-!!$  end if
 
   ! Assign analytical solution
   call cli%get_varying(group=trim(group),switch='-av',val=analytical_v,error=istat); if(istat/=0) then; check(.false.); end if   
@@ -1560,7 +1552,7 @@ program par_test_blk_nsi_cg_iss_oss_rk
   ! Create picard nonlinear operators
   call cli%get(group=trim(group),switch='-nltol',val=nltol,error=istat); if(istat/=0) then; check(.false.); end if  
   call cli%get(group=trim(group),switch='-nlit',val=max_iter,error=istat); if(istat/=0) then; check(.false.); end if    
-  call momentum_operator%build(p_blk_graph,p_env,gdata%ndime,max_iter,nltol)
+  call momentum_operator%build(p_blk_graph,p_env,gdata%ndime,max_iter,nltol,rk_imex)
   call pressure_operator%build(p_blk_graph,p_env,gdata%ndime)
   call momentum_update_operator%build(p_blk_graph)
   call projection_update_operator%build(p_blk_graph)
@@ -1593,14 +1585,13 @@ program par_test_blk_nsi_cg_iss_oss_rk
        &                    projection_update_operator,cg_iss_oss_rk_projection_update,           &
        &                    cg_iss_oss_rk_momentum_rhs,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
        &                    write_dissipation,dissipation_integration,trace_dissipation,dummy,    &
-       &                    lunio_dis,write_statistics,p_stats)!nparts_per_dof,stats)
+       &                    lunio_dis,write_statistics,p_stats)
   call par_timer_stop(p_timer)   
   call par_timer_report(p_timer) 
 
   ! Print statistics
   if(write_statistics) then
      call p_stats%finalize()
-!!$     call print_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats,p_env,lunio_stats)
   end if
 
   ! Print PVD file
@@ -1722,7 +1713,7 @@ contains
        &                          projection_update_operator,projection_update_integration,           &
        &                          momentum_rhs_integration,tinteg,fevtk,write_unkno_VTK,trace_unkno,  &
        &                          write_dissipation,dissipation_integration,trace_dissipation,dummy,  &
-       &                          lunio_dis,write_statistics,p_stats)!nparts_per_dof,stats)
+       &                          lunio_dis,write_statistics,p_stats)
     implicit none
     type(rungekutta_integrator_t)        , intent(inout) :: rkinteg
     type(solver_control_t)               , intent(inout) :: sctrl
@@ -1748,8 +1739,6 @@ contains
     type(par_scalar_t)                   , intent(inout) :: dummy
     integer(ip)                          , intent(in)    :: lunio_dis
     type(par_line_statistics_t)          , intent(inout) :: p_stats
-!!$    integer(ip)                          , intent(in)    :: nparts_per_dof(:)
-!!$    real(rp)                             , intent(inout) :: stats(:,:)
     ! Locals
     type(discrete_integration_pointer_t) :: approx(1)
     integer(ip) :: istage,nstage,istep,ielem,me,np
@@ -1859,7 +1848,7 @@ contains
           ! Skip 1st stage
           if(istage==1.and.momentum_operator%aii==0) then
              if(me==0) then
-                write(*,*) 'First stage skipped for momentum equation.'
+                write(*,*) 'First stage skipped for momentum equation (U_1 = U_n).'
              end if
              ! (U_n --> U_1)
              approx(1)%p => momentum_integration
@@ -1886,15 +1875,6 @@ contains
              call momentum_operator%p_block_vector%init(0.0_rp)
              call par_volume_integral(approx,p_fe_space,momentum_operator%p_block_vector)
 
-             !********************************** This is DIRTY *************************************!
-             if(p_env%am_i_fine_task()) then
-                momentum_operator%p_block_u_matrix%blocks(1,1)%p_p_matrix%f_matrix%a = &
-                     & momentum_operator%dt*momentum_operator%p_block_matrix_m%blocks(1,1)%p_p_matrix%f_matrix%a + &
-                     & momentum_operator%aii*momentum_operator%p_block_matrix_l%blocks(1,1)%p_p_matrix%f_matrix%a
-             end if
-             call momentum_operator%M%fill_values(update_transient) ! Recompute M with updated matrix values 
-             !**************************************************************************************! 
-
              ! Momentum equation solution
              approx(1)%p => momentum_integration
              call momentum_operator%apply(sctrl,p_env,approx,p_fe_space)
@@ -1908,21 +1888,29 @@ contains
           end if
 
           !**************************** NSI specific tasks *****************************************!
-          ! Update boundary conditions (velocity derivative)
-          call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,p_fe_space,2)
+          if(istage==1.and.istep>1) then
+             if(me==0) then
+                write(*,*) 'First stage skipped for pressure equation (P_1 = P_n).'
+             end if
+             ! (P_n --> P_1)
+             call par_update_nonlinear_solution(p_fe_space,pressure_integration%working_vars,3,3+1)
+          else
+             ! Update boundary conditions (velocity derivative)
+             call par_update_analytical_bcond((/(i,i=1,gdata%ndime)/),ctime,p_fe_space,2)
 
-          ! Compute pressure transient operators
-          approx(1)%p => pressure_integration
-          pressure_integration%integration_stage = update_transient
-          tinteg%ctime = ctime
-          call pressure_operator%fill_transient(approx,p_fe_space) 
+             ! Compute pressure transient operators
+             approx(1)%p => pressure_integration
+             pressure_integration%integration_stage = update_transient
+             tinteg%ctime = ctime
+             call pressure_operator%fill_transient(approx,p_fe_space) 
 
-          ! Pressure equation solution
-          approx(1)%p => pressure_integration
-          call pressure_operator%apply(sctrl,p_env,approx,p_fe_space)
+             ! Pressure equation solution
+             approx(1)%p => pressure_integration
+             call pressure_operator%apply(sctrl,p_env,approx,p_fe_space)
 
-          ! Store pressure (P --> P_i)
-          call par_update_nonlinear_solution(p_fe_space,pressure_integration%working_vars,1,3+istage) 
+             ! Store pressure (P --> P_i)
+             call par_update_nonlinear_solution(p_fe_space,pressure_integration%working_vars,1,3+istage) 
+          end if
 
           ! Restore velocity (U_i --> U)
           call par_update_nonlinear_solution(p_fe_space,momentum_integration%working_vars,3+istage,1) 
@@ -1944,7 +1932,6 @@ contains
        approx(1)%p => momentum_update_integration
        momentum_update_integration%integration_stage = update_transient
        call momentum_update_operator%fill_transient(approx,p_fe_space) 
-       call momentum_update_operator%M%fill_values(update_transient) ! Recompute M with updated matrix values 
        
        ! Momentum update equation solution
        approx(1)%p => momentum_update_integration
@@ -1961,7 +1948,6 @@ contains
        approx(1)%p => projection_update_integration
        projection_update_integration%integration_stage = update_transient
        call projection_update_operator%fill_transient(approx,p_fe_space) 
-       call projection_update_operator%M%fill_values(update_transient) ! Recompute M with updated matrix values 
 
        ! Projection update equation solution
        approx(1)%p => projection_update_integration
@@ -2040,7 +2026,6 @@ contains
        ! Compute statistics
        if(write_statistics) then
           call p_stats%compute()
-!!$          call compute_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats)
        end if
 
        ! Print solution to VTK file
@@ -2063,269 +2048,5 @@ contains
     call pressure_operator%M%free_values(update_constant)
 
   end subroutine do_time_steps_rk_nsi
-
-  !==================================================================================================
-  subroutine compute_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats)
-    implicit none
-    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
-    type(par_fe_space_t)           , intent(in)    :: p_fe_space
-    integer(ip)                    , intent(in)    :: nparts_per_dof(:)
-    real(rp)                       , intent(inout) :: stats(:,:)
-    ! Locals
-    integer(ip) :: ielem,jelem,iprob,nvapb,ivar,lvar,inode,idime,i,j,k,jnode,idof
-    integer(ip) :: ndime,pdegr,npoinx,npoiny,npoinz
-    integer(ip) :: ijkelem(3),ijknode(3),ijkaux(3),ijkpoin(3),permu(3**gdata%ndime)
-    real(rp), allocatable :: veloc(:,:,:,:)
-    
-    ! Auxiliar variables
-    ndime  = gdata%ndime
-    pdegr  = p_fe_space%fe_space%finite_elements(1)%order(2)
-    npoinx = gdata%nedir(1)*pdegr+1
-    npoiny = gdata%nedir(2)*pdegr+1
-    npoinz = gdata%nedir(3)*pdegr+1
-    if(ndime==2) then
-       permu = (/1,4,7,2,5,8,3,6,9/)
-    elseif(ndime==3) then
-       permu = (/1,10,19,4,13,22,7,16,25,2,11,20,5,14,23,8,17,26,3,12,21,6,15,24,9,18,27/)
-    end if
-
-    ! Checks
-    check(size(stats,1)==gdata%ndime*2+1)
-    check(size(stats,2)==gdata%nedir(2)*pdegr+1)
-    
-    ! Construct auxiliar array
-    ijkaux = 1
-    do idime=1,ndime
-       ijkaux(idime) = 3
-    end do
-
-    ! Allocate ijk velocity array
-    call memalloc(npoinx,npoiny,npoinz,ndime,veloc,__FILE__,__LINE__)
-    veloc = 0.0_rp
-
-    ! Loop over elements
-    do ielem = 1, p_fe_space%fe_space%g_trian%num_elems
-       jelem = p_fe_space%p_trian%elems(ielem)%globalID
-       iprob = p_fe_space%fe_space%finite_elements(ielem)%problem
-       nvapb = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%nd1
-
-       ! Global ID to ijk
-       call globalid_to_ijk(ndime,gdata%nedir,jelem,ijkelem)
-       
-       ! Loop over problem and block variables
-       do ivar = 1, nvapb
-          lvar = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%a(ivar)
-
-          ! Loop over elemental nodes
-          do inode = 1,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
-             idof  =  p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
-             jnode = permu(inode)
-
-             ! Local ID to ijk
-             call globalid_to_ijk(ndime,ijkaux,jnode,ijknode)
-
-             ! Global point ID
-             ijkpoin = (ijkelem - 1)*pdegr + ijknode
-
-             ! Fill veloc
-             if(idof>0) then
-                veloc(ijkpoin(1),ijkpoin(2),ijkpoin(3),lvar) = &
-                     & p_fe_space%fe_space%finite_elements(ielem)%unkno(inode,lvar,1)/nparts_per_dof(idof)
-             else
-                veloc(ijkpoin(1),ijkpoin(2),ijkpoin(3),lvar) = &
-                     & p_fe_space%fe_space%finite_elements(ielem)%unkno(inode,lvar,1)
-             end if
-
-          end do
-       end do
-    end do
-
-    ! Calculate umean and u2mean
-    do j=1,npoinx
-       do i=1,npoiny
-          do k=1,npoinz 
-             do idime=1,ndime
-                stats(idime,j) = stats(idime,j) + veloc(i,j,k,idime)                 ! Ui_mean
-                stats(ndime+idime,j) = stats(ndime+idime,j) + veloc(i,j,k,idime)**2  ! Ui^2_mean
-             end do
-             stats(2*ndime+1,j) = stats(2*ndime+1,j) + veloc(i,j,k,1)*veloc(i,j,k,2) ! U*V_mean
-          end do
-       end do
-    end do
-    stats = stats/(npoinx*npoinz)
-
-    ! Free array
-    call memfree(veloc,__FILE__,__LINE__)
-    
-  end subroutine compute_velocity_statistics
-
-  !==================================================================================================
-  subroutine print_velocity_statistics(gdata,p_fe_space,nparts_per_dof,stats,p_env,lunio)
-    implicit none   
-    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
-    type(par_fe_space_t)           , intent(in)    :: p_fe_space
-    integer(ip),allocatable        , intent(inout) :: nparts_per_dof(:)
-    real(rp), allocatable          , intent(inout) :: stats(:,:)
-    type(par_environment_t)        , intent(in)    :: p_env
-    integer(ip)                    , intent(in)    :: lunio
-    ! Locals
-    integer(ip) :: ielem,jelem,iprob,nvapb,ivar,lvar,inode,idime,i,j,k,jnode
-    integer(ip) :: ndime,npoinx,npoiny,npoinz,pdegr
-    integer(ip) :: ijkelem(3),ijknode(3),ijkaux(3),ijkpoin(3),permu(3**gdata%ndime)
-    real(rp), allocatable :: ycoord_ijk(:,:,:),elcoord(:,:),ycoord(:)
-    
-    ! Auxiliar variables
-    ndime  = gdata%ndime
-    pdegr  = p_fe_space%fe_space%finite_elements(1)%order(2)
-    npoinx = gdata%nedir(1)*pdegr+1
-    npoiny = gdata%nedir(2)*pdegr+1
-    npoinz = gdata%nedir(3)*pdegr+1
-    if(ndime==2) then
-       permu = (/1,4,7,2,5,8,3,6,9/)
-    elseif(ndime==3) then
-       permu = (/1,10,19,4,13,22,7,16,25,2,11,20,5,14,23,8,17,26,3,12,21,6,15,24,9,18,27/)
-    end if
-
-    ! Checks
-    check(size(stats,1)==gdata%ndime*2+1)
-    check(size(stats,2)==gdata%nedir(2)*pdegr+1)
-    
-    ! Construct auxiliar array
-    ijkaux = 1
-    do idime=1,ndime
-       ijkaux(idime) = 3
-    end do
-
-    ! Allocate ijk velocity array
-    call memalloc(npoinx,npoiny,npoinz,ycoord_ijk,__FILE__,__LINE__)
-    call memalloc(npoiny,ycoord,__FILE__,__LINE__)
-    ycoord_ijk = 0.0_rp
-
-    ! Loop over elements
-    do ielem = 1, p_fe_space%fe_space%g_trian%num_elems
-       jelem = p_fe_space%p_trian%elems(ielem)%globalID
-       iprob = p_fe_space%fe_space%finite_elements(ielem)%problem
-       nvapb = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%nd1
-
-       ! Global ID to ijk
-       call globalid_to_ijk(ndime,gdata%nedir,jelem,ijkelem)
-       
-       ! Y-variable
-       ivar = 2
-       lvar = p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%a(ivar)
-
-       ! Get coordinates
-       call memalloc(gdata%ndime,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode, &
-            &        elcoord,__FILE__,__LINE__)
-       call interpolate(gdata%ndime, p_fe_space%fe_space%finite_elements(ielem)%p_geo_reference_element%nnode, &
-            &           p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode,       &
-            &           p_fe_space%fe_space%finite_elements(ielem)%inter(lvar)%p,                              &
-            &           p_fe_space%p_trian%f_trian%elems(ielem)%coordinates,elcoord)
-
-       ! Loop over elemental nodes
-       do inode = 1,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
-          jnode = permu(inode)
-
-          ! Local ID to ijk
-          call globalid_to_ijk(ndime,ijkaux,jnode,ijknode)
-
-          ! Global point ID
-          ijkpoin = (ijkelem - 1)*pdegr + ijknode
-
-          ! Fill veloc
-          ycoord_ijk(ijkpoin(1),ijkpoin(2),ijkpoin(3)) = elcoord(2,inode)
-
-       end do
-
-       ! Deallocate elcoord
-       call memfree(elcoord,__FILE__,__LINE__)
-    end do
-
-    ! Reduce stats to root
-    ycoord = ycoord_ijk(1,:,1)
-    call psb_sum(p_env%p_context%icontxt,stats)
-    call psb_amx(p_env%p_context%icontxt,ycoord)
-
-    ! Get process info
-    call p_env%info(me,np)
-
-    ! Write file
-    if(me==0) then
-       if(ndime==2) then
-          do j=1,npoinx
-             write(lunio,1) j,ycoord(j),stats(:,j)
-          end do
-       elseif(ndime==3) then
-          do j=1,npoinx
-             write(lunio,2) j,ycoord(j),stats(:,j)
-          end do
-       end if
-    end if  
-
-    ! Deallocate
-    call memfree(ycoord,__FILE__,__LINE__)
-    call memfree(ycoord_ijk,__FILE__,__LINE__)
-    call memfree(nparts_per_dof,__FILE__,__LINE__)
-    call memfree(stats,__FILE__,__LINE__)
-    
-1 format(i10,5(1x,e16.8e3))
-2 format(i10,7(1x,e16.8e3))
-
-  end subroutine print_velocity_statistics
-
-!!$  !==================================================================================================
-!!$  subroutine globalid_to_ijk(ndime,nd,gl,ijk)
-!!$    implicit none
-!!$    integer(ip), intent(in)  :: gl,nd(3),ndime
-!!$    integer(ip), intent(out) :: ijk(3)
-!!$    ! Locals
-!!$    integer(ip) :: aux
-!!$
-!!$    if(ndime==1) then
-!!$       ijk(3) = 1
-!!$       ijk(2) = 1
-!!$       ijk(1) = gl
-!!$    elseif(ndime==2) then
-!!$       ijk(1) = floor(real(gl-1)/nd(2)) + 1
-!!$       ijk(2) = gl - (ijk(1)-1)*nd(2)
-!!$       ijk(3) = 1
-!!$    else if(ndime==3) then
-!!$       ijk(1) = floor(real(gl-1)/(nd(2)*nd(3)))+1
-!!$       aux = gl - (ijk(1)-1)*(nd(2)*nd(3))
-!!$       ijk(2) = floor(real(aux-1)/nd(3))+1
-!!$       ijk(3) = aux - (ijk(2)-1)* nd(3)
-!!$    end if
-!!$
-!!$  end subroutine globalid_to_ijk
-
-  !==================================================================================================
-  subroutine initialize_velocity_statistics(gdata,p_fe_space,blk_dof_dist,nparts_per_dof,stats)
-    implicit none
-    type(uniform_mesh_descriptor_t), intent(in)  :: gdata
-    type(par_fe_space_t)           , intent(in)  :: p_fe_space
-    type(block_dof_distribution_t) , intent(in)  :: blk_dof_dist
-    integer(ip), allocatable       , intent(out) :: nparts_per_dof(:)
-    real(rp), allocatable          , intent(out) :: stats(:,:)
-    ! Locals
-    integer(ip) :: iobje
-    integer(ip) :: ndime,npoiny,pdegr
-
-    ! Auxiliar variables
-    ndime  = gdata%ndime
-    pdegr  = p_fe_space%fe_space%finite_elements(1)%order(2)
-    npoiny = gdata%nedir(2)*pdegr+1
-
-    ! Construct npats_per_dof
-    call memalloc(blk_dof_dist%blocks(1)%nl,nparts_per_dof,__FILE__,__LINE__)
-    nparts_per_dof = 0
-    do iobje=1,blk_dof_dist%blocks(1)%nobjs
-       nparts_per_dof(blk_dof_dist%blocks(1)%lobjs(2,iobje):blk_dof_dist%blocks(1)%lobjs(3,iobje)) = blk_dof_dist%blocks(1)%lobjs(4,iobje)
-    end do
-
-    ! Allocate stats
-    call memalloc(2*ndime+1,npoiny,stats,__FILE__,__LINE__)
-    stats = 0.0_rp
-
-  end subroutine initialize_velocity_statistics 
 
 end program par_test_blk_nsi_cg_iss_oss_rk
