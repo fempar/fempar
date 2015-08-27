@@ -81,7 +81,7 @@ module lib_vtk_io_interface_names
      integer(1) , allocatable      :: ctype(:)       ! VTK element type
      integer(ip)                   :: nnods          ! Number of nodes
      integer(ip)                   :: ndim           ! Dimensions of the mesh
-     type(vtk_field_t), allocatable:: fields(:)      ! Array storing field_ts info
+     type(vtk_field_t), allocatable:: unknowns(:)    ! Array storing field_ts info
      logical                       :: linear_order = .False.
      logical                       :: filled = .False.
 !     integer(ip), allocatable     :: elem2subelem_i(:),elem2subelem_j(:)
@@ -96,6 +96,7 @@ module lib_vtk_io_interface_names
   type vtk_t
      type(vtk_mesh_t), allocatable :: mesh(:)         ! VTK mesh data and field_t descriptors
      type(fe_space_t), pointer     :: p_fe_space => NULL()  ! Poins to fe_space_t
+     class(physical_problem_t), pointer     :: p_phys_prob => NULL()  ! Poins to physical_problem_t
      class(abstract_environment_t), pointer      :: p_env => NULL()  ! Poins to fe_space_t
      real(rp), allocatable         :: steps(:)        ! Array of parameters (time, eigenvalues,etc.)
      integer(ip)                   :: steps_counter=0 ! time steps counter
@@ -117,7 +118,7 @@ module lib_vtk_io_interface_names
         procedure, private :: initialize_superlinear_order
         procedure, private :: fill_mesh_from_triangulation
         procedure, private :: fill_mesh_superlinear_order
-        procedure, private :: fill_fields_from_physical_problem
+        procedure, private :: fill_unknowns_from_physical_problem
         procedure, private :: create_dir_hierarchy_on_root_process
         procedure, private :: get_VTK_time_output_path
         procedure, private :: get_PVD_time_output_path
@@ -151,7 +152,7 @@ contains
     class(vtk_t),          intent(INOUT)   :: f_vtk
     type(triangulation_t), intent(IN)      :: f_trian
     type(fe_space_t), target, intent(IN)   :: fe_space
-    class(physical_problem_t), intent(IN)  :: phys_prob
+    class(physical_problem_t), target, intent(IN)  :: phys_prob
     class(abstract_environment_t), target, intent(IN)    :: env
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
@@ -186,6 +187,7 @@ contains
     if(present(linear_order)) lo = linear_order
 
     f_vtk%p_fe_space => fe_space
+    f_vtk%p_phys_prob => phys_prob
     f_vtk%p_env => env
 
     me = 0; np = 1; rp = 0
@@ -232,7 +234,6 @@ contains
   ! ----------------------------------------------------------------------------------
 
     call f_vtk%fill_mesh_from_triangulation(f_trian, nm)
-    call f_vtk%fill_fields_from_physical_problem(phys_prob, nm)
 
     if(present(nmesh)) nmesh = nm
 
@@ -253,7 +254,7 @@ contains
   ! ----------------------------------------------------------------------------------
 
     call f_vtk%fill_mesh_superlinear_order(fe_space, nm)
-!    call f_vtk%fill_fields_from_physical_problem(phys_prob, nm)
+!    call f_vtk%fill_unknowns_from_physical_problem(phys_prob, nm)
 
     if(present(nmesh)) nmesh = nm
 
@@ -471,13 +472,13 @@ contains
   end subroutine fill_mesh_superlinear_order
 
   ! Fill field_ts information into vtk_t derivet type
-  subroutine fill_fields_from_physical_problem(f_vtk, phys_prob, nmesh)
+  subroutine fill_unknowns_from_physical_problem(f_vtk, nmesh)
   ! ----------------------------------------------------------------------------------
     implicit none
     class(vtk_t),          intent(INOUT) :: f_vtk
-    class(physical_problem_t), intent(IN)    :: phys_prob
     integer(ip), optional,   intent(IN)    :: nmesh
-    type(vtk_field_t), allocatable           :: vtk_f_tmp(:)
+    class(physical_problem_t), pointer     :: phys_prob
+    type(vtk_field_t), allocatable         :: vtk_f_tmp(:)
     integer(ip)                            :: nm
     integer(ip)                            :: i
   ! ----------------------------------------------------------------------------------
@@ -485,27 +486,32 @@ contains
     nm = f_vtk%num_meshes
     if(present(nmesh)) nm = nmesh
 
-    if(.not. allocated (f_vtk%mesh(nm)%fields)) then
-        allocate(f_vtk%mesh(nm)%fields(phys_prob%nunks))
+    ! check that f_vtk%phys_prob has been initialized f_vtk%initilize()
+    check(associated(f_vtk%p_phys_prob)) 
+
+    phys_prob => f_vtk%p_phys_prob
+
+    if(.not. allocated (f_vtk%mesh(nm)%unknowns)) then
+        allocate(f_vtk%mesh(nm)%unknowns(phys_prob%nunks))
     else
-        deallocate(f_vtk%mesh(nm)%fields)
-        allocate(f_vtk%mesh(nm)%fields(phys_prob%nunks))
+        deallocate(f_vtk%mesh(nm)%unknowns)
+        allocate(f_vtk%mesh(nm)%unknowns(phys_prob%nunks))
     endif
 
     do i=1, phys_prob%nunks
-        f_vtk%mesh(nm)%fields(i)%var_location = 'node'
-        f_vtk%mesh(nm)%fields(i)%field_type = 'Float64'
-        f_vtk%mesh(nm)%fields(i)%var_name = 'Unknown_'//trim(adjustl(ch(i)))
+        f_vtk%mesh(nm)%unknowns(i)%var_location = 'node'
+        f_vtk%mesh(nm)%unknowns(i)%field_type = 'Float64'
+        f_vtk%mesh(nm)%unknowns(i)%var_name = 'Unknown_'//trim(adjustl(ch(i)))
         if(allocated(phys_prob%vars_of_unk)) then
-            if(size(phys_prob%vars_of_unk, dim=1) >= i) f_vtk%mesh(nm)%fields(i)%num_comp = phys_prob%vars_of_unk(i)
+            if(size(phys_prob%vars_of_unk, dim=1) >= i) f_vtk%mesh(nm)%unknowns(i)%num_comp = phys_prob%vars_of_unk(i)
         endif
         if(allocated(phys_prob%unkno_names)) then
-            if(size(phys_prob%unkno_names, dim=1) >= i) f_vtk%mesh(nm)%fields(i)%var_name = trim(adjustl(phys_prob%unkno_names(i)))
+            if(size(phys_prob%unkno_names, dim=1) >= i) f_vtk%mesh(nm)%unknowns(i)%var_name = trim(adjustl(phys_prob%unkno_names(i)))
         endif
-        f_vtk%mesh(nm)%fields(i)%filled = .True.
+        f_vtk%mesh(nm)%unknowns(i)%filled = .True.
     enddo
   ! ----------------------------------------------------------------------------------
-  end subroutine fill_fields_from_physical_problem
+  end subroutine fill_unknowns_from_physical_problem
 
 
   ! Start the write of a single VTK file to disk (if I am fine tast)
@@ -614,8 +620,11 @@ contains
         if(present(n_mesh)) nm = n_mesh
     
         tidx = 1
+
+        if(f_vtk%mesh(nm)%linear_order .and. .not. allocated(f_vtk%mesh(nm)%unknowns)) &
+            call f_vtk%fill_unknowns_from_physical_problem(nm)
             
-        if(allocated(f_vtk%mesh(nm)%fields) .and. (f_vtk%mesh(nm)%status >= started) .and. &
+        if(allocated(f_vtk%mesh(nm)%unknowns) .and. (f_vtk%mesh(nm)%status >= started) .and. &
           (f_vtk%mesh(nm)%status < pointdata_closed)) then
 
             if(f_vtk%mesh(nm)%status < pointdata_opened) then
@@ -631,29 +640,29 @@ contains
             nels = size(f_vtk%mesh(nm)%ctype, dim=1)
         
             tncomp = 0
-            do f=1, size(f_vtk%mesh(nm)%fields, dim=1) 
-                if(f_vtk%mesh(nm)%fields(f)%filled) then
+            do f=1, size(f_vtk%mesh(nm)%unknowns, dim=1) 
+                if(f_vtk%mesh(nm)%unknowns(f)%filled) then
                     tnnod = 0
-                    curr_ncomp = tncomp + f_vtk%mesh(nm)%fields(f)%num_comp
-!                   allocate(field(f_vtk%mesh(nm)%fields(f)%num_comp,nnods))
-                    call memalloc( f_vtk%mesh(nm)%fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
+                    curr_ncomp = tncomp + f_vtk%mesh(nm)%unknowns(f)%num_comp
+!                   allocate(field(f_vtk%mesh(nm)%unknowns(f)%num_comp,nnods))
+                    call memalloc( f_vtk%mesh(nm)%unknowns(f)%num_comp, nnods, field, __FILE__,__LINE__)
         
                     do i=1, nels
                         elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
                         do j=1, elnnod
                             nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
                             idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(nnode)
-                            field(1:f_vtk%mesh(nm)%fields(f)%num_comp,j+tnnod) = &
-                                 f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%fields(f)%num_comp, tidx)
+                            field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod) = &
+                                 f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx)
                         enddo
                         tnnod = tnnod + elnnod 
                     enddo
                 
                     tncomp = curr_ncomp
                     if(present(f_id)) then 
-                        E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%fields(f)%num_comp, varname=f_vtk%mesh(nm)%fields(f)%var_name,var=field, cf=f_id)
+                        E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%unknowns(f)%num_comp, varname=f_vtk%mesh(nm)%unknowns(f)%var_name,var=field, cf=f_id)
                     else
-                        E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%fields(f)%num_comp, varname=f_vtk%mesh(nm)%fields(f)%var_name,var=field)
+                        E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%unknowns(f)%num_comp, varname=f_vtk%mesh(nm)%unknowns(f)%var_name,var=field)
                     endif
                     if(allocated(field)) call memfree(field)
                 endif
@@ -898,28 +907,28 @@ contains
                 E_IO = PVTK_GEO_XML(source=trim(adjustl(f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=i, n_mesh=nm))), cf=rf)
             enddo
     
-            if(allocated(f_vtk%mesh(nm)%fields)) then
+            if(allocated(f_vtk%mesh(nm)%unknowns)) then
                 E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=rf)
-                do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
-                    if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'node') then
-                        if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
-                            var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                do i=1, size(f_vtk%mesh(nm)%unknowns, dim=1)
+                    if(f_vtk%mesh(nm)%unknowns(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%var_location)) == 'node') then
+                        if(allocated(f_vtk%mesh(nm)%unknowns(i)%var_name)) then
+                            var_name = f_vtk%mesh(nm)%unknowns(i)%var_name
                         else
                             var_name = 'Unknown_'//trim(adjustl(ch(i)))
                         endif
-                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), Nc=f_vtk%mesh(nm)%fields(i)%num_comp , cf=rf)
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%field_type)), Nc=f_vtk%mesh(nm)%unknowns(i)%num_comp , cf=rf)
                     endif
                 enddo
                 E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=rf)
                 E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN', cf=rf)
-                do i=1, size(f_vtk%mesh(nm)%fields, dim=1)
-                    if(f_vtk%mesh(nm)%fields(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%fields(i)%var_location)) == 'cell') then
-                        if(allocated(f_vtk%mesh(nm)%fields(i)%var_name)) then
-                            var_name = f_vtk%mesh(nm)%fields(i)%var_name
+                do i=1, size(f_vtk%mesh(nm)%unknowns, dim=1)
+                    if(f_vtk%mesh(nm)%unknowns(i)%filled .and. trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%var_location)) == 'cell') then
+                        if(allocated(f_vtk%mesh(nm)%unknowns(i)%var_name)) then
+                            var_name = f_vtk%mesh(nm)%unknowns(i)%var_name
                         else
                             var_name = 'Unknown_'//trim(adjustl(ch(i)))
                         endif
-                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%fields(i)%field_type)), cf=rf)
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(f_vtk%mesh(nm)%unknowns(i)%field_type)), cf=rf)
                     endif
                 enddo
                 E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE', cf=rf)
@@ -1255,14 +1264,14 @@ contains
                         call array_free(f_vtk%mesh(i)%nodes_subelem(j))
                     enddo
                 endif
-                if(allocated(f_vtk%mesh(i)%fields)) then
-                    do j=1, size(f_vtk%mesh(i)%fields)
-                        if(allocated(f_vtk%mesh(i)%fields(j)%var_location)) deallocate(f_vtk%mesh(i)%fields(j)%var_location)
-                        if(allocated(f_vtk%mesh(i)%fields(j)%var_name)) deallocate(f_vtk%mesh(i)%fields(j)%var_name)
-                        if(allocated(f_vtk%mesh(i)%fields(j)%field_type)) deallocate(f_vtk%mesh(i)%fields(j)%field_type)
-                        f_vtk%mesh(i)%fields(j)%filled = .False.
+                if(allocated(f_vtk%mesh(i)%unknowns)) then
+                    do j=1, size(f_vtk%mesh(i)%unknowns)
+                        if(allocated(f_vtk%mesh(i)%unknowns(j)%var_location)) deallocate(f_vtk%mesh(i)%unknowns(j)%var_location)
+                        if(allocated(f_vtk%mesh(i)%unknowns(j)%var_name)) deallocate(f_vtk%mesh(i)%unknowns(j)%var_name)
+                        if(allocated(f_vtk%mesh(i)%unknowns(j)%field_type)) deallocate(f_vtk%mesh(i)%unknowns(j)%field_type)
+                        f_vtk%mesh(i)%unknowns(j)%filled = .False.
                     enddo
-                    deallocate(f_vtk%mesh(i)%fields)
+                    deallocate(f_vtk%mesh(i)%unknowns)
                 endif
                 f_vtk%mesh(i)%filled = .False.
             enddo
