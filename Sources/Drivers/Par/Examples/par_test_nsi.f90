@@ -166,7 +166,7 @@ use lib_vtk_io_interface_names
 
   ! Initialize VTK output
   call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
-       &                nparts=gdata%nparts,linear_order=.true.)
+       &                nparts=gdata%nparts)!,linear_order=.false.)
 
   ! Create dof info
   call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
