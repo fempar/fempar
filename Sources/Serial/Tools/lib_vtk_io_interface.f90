@@ -622,7 +622,7 @@ contains
        nm = f_vtk%num_meshes
        if(present(n_mesh)) nm = n_mesh
 
-       if(f_vtk%mesh(f_vtk%num_meshes)%linear_order == .true.) then
+       if(f_vtk%mesh(f_vtk%num_meshes)%linear_order .eqv. .true.) then
           E_IO = write_VTK_unknowns_linear(f_vtk, nm, f_id)
        else
           E_IO = write_VTK_unknowns_superlinear(f_vtk, nm, f_id)
@@ -1220,7 +1220,7 @@ contains
 
        if(f_vtk%mesh(nm)%status==started_read) then
           
-          if(f_vtk%mesh(f_vtk%num_meshes)%linear_order == .true.) then
+          if(f_vtk%mesh(f_vtk%num_meshes)%linear_order .eqv. .true.) then
              E_IO = read_VTK_unknowns_linear(f_vtk, nm, f_id)
           else
              E_IO = read_VTK_unknowns_superlinear(f_vtk, nm, f_id)
