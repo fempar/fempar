@@ -61,6 +61,7 @@ module lib_vtk_io_interface_names
   integer(ip), parameter :: pointdata_opened = 2
   integer(ip), parameter :: pointdata_closed = 3
   integer(ip), parameter :: ended  = 4
+  integer(ip), parameter :: started_read = 5
 
   ! Type for storing field descriptors
   type vtk_field_t
@@ -112,6 +113,10 @@ module lib_vtk_io_interface_names
         procedure          :: write_VTK               ! Write a VTU file
         procedure          :: write_PVTK              ! Write a PVTU file
         procedure          :: write_PVD               ! Write a PVD file
+        procedure          :: read_VTK_start          ! Start VTU file writing
+        procedure          :: read_VTK_unknowns       ! Read the unknowns into the VTU file
+        procedure          :: read_VTK_end            ! Ends VTU file writing
+        procedure          :: read_VTK                ! Read a VTU file
         procedure          :: free                    ! Deallocate
         procedure, private :: initialize_linear_order
         procedure, private :: initialize_superlinear_order
@@ -693,7 +698,7 @@ contains
              else
                 E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%unknowns(f)%num_comp, varname=f_vtk%mesh(nm)%unknowns(f)%var_name,var=field)
              endif
-             if(allocated(field)) call memfree(field)
+             if(allocated(field)) call memfree(field, __FILE__,__LINE__)
           endif
        enddo
 
@@ -805,8 +810,6 @@ contains
                    ! Loop over geometrical nodes in subelement
                    do j=1, gnode
                       idx = f_vtk%mesh(nm)%nodes_subelem(order)%a(j,subelem)
-!!$                      nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
-!!$                      idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(nnode)
                       field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod) = &
                            f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx)
                    enddo
@@ -820,7 +823,7 @@ contains
              else
                 E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%unknowns(f)%num_comp, varname=f_vtk%mesh(nm)%unknowns(f)%var_name,var=field)
              endif
-             if(allocated(field)) call memfree(field)
+             if(allocated(field)) call memfree(field, __FILE__,__LINE__)
           endif
        enddo
 
@@ -1068,6 +1071,382 @@ contains
   ! ----------------------------------------------------------------------------------
   end function write_PVD
 
+  ! Read a single VTK file from disk (if I am fine tast)
+  function read_VTK(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),               intent(INOUT) :: f_vtk   !< VTK_t derived type
+    character(len=*), optional, intent(IN)    :: f_name  !< VTK File NAME
+    integer(ip),      optional, intent(IN)    :: n_part  !< Number of the PART
+    real(rp),         optional, intent(IN)    :: t_step  !< Time STEP value
+    integer(ip),      optional, intent(IN)    :: n_mesh  !< Number of the MESH
+    character(len=*), optional, intent(IN)    :: o_fmt   !< Ouput ForMaT
+    character(len=:), allocatable             :: fn      !< Real File Name
+    character(len=:), allocatable             :: dp      !< Real Directory Path
+    character(len=:), allocatable             :: of      !< Real Output Format
+    real(rp)                                  :: ts      !< Real Time Step
+    logical                                   :: ft      !< Fine Task
+    integer(ip)                               :: nm      !< Real Number of the Mesh
+    integer(ip)                               :: np      !< Real Number of the Part
+    integer(ip)                               :: me      !< Task identifier
+    integer(ip)                               :: fid     !< Real File ID
+    integer(ip)                               :: E_IO    !< Error IO
+  ! ----------------------------------------------------------------------------------
+
+    me = 0; np = 1
+    call f_vtk%p_env%info(me,np) 
+    np = me
+    if(present(n_part)) np = n_part
+
+    nm = f_vtk%num_meshes
+    if(present(n_mesh)) nm = n_mesh
+    
+    ts = 0._rp
+    if(present(t_step)) ts = t_step 
+
+    ft =  f_vtk%p_env%am_i_fine_task()
+
+    E_IO = 0
+
+    if(ft) then
+        dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+        fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
+        fn = dp//fn
+        if(present(f_name)) fn = f_name
+
+        of = 'raw'
+        if(present(o_fmt)) of = trim(adjustl(o_fmt))
+
+        E_IO = f_vtk%read_VTK_start(fn, np, ts, nm, of, fid) 
+        E_IO = f_vtk%read_VTK_unknowns(nm, fid)
+        E_IO = f_vtk%read_VTK_end(nm, fid)
+    endif
+
+  ! ----------------------------------------------------------------------------------
+  end function read_VTK
+
+  ! Start the read of a single VTK file from disk (if I am fine tast)
+  function read_VTK_start(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),             intent(INOUT)   :: f_vtk   !< VTK_t derived type
+    character(len=*), optional, intent(IN)    :: f_name  !< VTK File NAME
+    integer(ip),      optional, intent(IN)    :: n_part  !< Number of the PART
+    real(rp),         optional, intent(IN)    :: t_step  !< Time STEP value
+    integer(ip),      optional, intent(IN)    :: n_mesh  !< Number of the MESH
+    character(len=*), optional, intent(IN)    :: o_fmt   !< Ouput ForMaT
+    integer(ip),      optional, intent(OUT)   :: f_id    !< File ID
+    character(len=:), allocatable             :: fn      !< Real File Name
+    character(len=:), allocatable             :: dp      !< Real Directory Path
+    character(len=:), allocatable             :: of      !< Real Output Format
+    real(rp)                                  :: ts      !< Real Time Step
+    logical                                   :: ft      !< Fine Task
+    integer(ip)                               :: nm      !< Real Number of the Mesh
+    integer(ip)                               :: np      !< Real Number of the Part
+    integer(ip)                               :: me      !< Task identifier
+    integer(ip)                               :: fid     !< Real File ID
+    integer(ip)                               :: nnods   !< Number of NODeS
+    integer(ip)                               :: nels    !< Number of ELementS
+    integer(ip)                               :: E_IO    !< Error IO
+  ! ----------------------------------------------------------------------------------
+
+    check(associated(f_vtk%p_env))
+ 
+    ft =  f_vtk%p_env%am_i_fine_task() 
+
+    E_IO = 0
+    fid = -1
+    
+    if(ft) then
+        me = 0; np = 1
+        call f_vtk%p_env%info(me,np) 
+        np = me
+        if(present(n_part)) np = n_part
+
+        nm = f_vtk%num_meshes
+        if(present(n_mesh)) nm = n_mesh
+    
+        ts = 0._rp
+        if(present(t_step)) ts = t_step 
+        call f_vtk%append_step(ts)
+
+
+        if(f_vtk%mesh(nm)%status == unknown .or. f_vtk%mesh(nm)%status == ended) then
+    
+            dp = f_vtk%get_VTK_time_output_path(f_path=f_vtk%mesh(nm)%dir_path, t_step=ts, n_mesh=nm)
+            fn = f_vtk%get_VTK_filename(f_prefix=f_vtk%mesh(nm)%prefix, n_part=np, n_mesh=nm)
+            fn = dp//fn
+            if(present(f_name)) fn = f_name
+
+            if( f_vtk%create_dir_hierarchy_on_root_process(dp,issue_final_barrier=.True.) == 0) then    
+                of = 'raw'
+                if(present(o_fmt)) of = trim(adjustl(o_fmt))
+        
+                nnods = f_vtk%mesh(nm)%nnods
+                nels = size(f_vtk%mesh(nm)%ctype, dim=1)
+        
+                E_IO = VTK_INI_XML_READ(input_format = trim(adjustl(of)), filename = trim(adjustl(fn)), mesh_topology = 'UnstructuredGrid', cf=fid)
+                f_vtk%mesh(nm)%status = started_read
+            endif
+        endif
+        if(present(f_id)) f_id = fid
+
+    endif
+
+  ! ----------------------------------------------------------------------------------
+  end function read_VTK_start
+
+  ! Read a single VTK file from disk (if I am fine tast)
+  function read_VTK_unknowns(f_vtk, n_mesh, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
+    integer(ip),      optional, intent(IN)    :: n_mesh         !< Number of MESH
+    integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
+    integer(ip)                               :: nm             !< Real Number of Mesh
+    integer(ip)                               :: E_IO           !< IO Error
+    logical                                   :: ft             !< Fine Task
+
+    check(associated(f_vtk%p_env))
+    ft =  f_vtk%p_env%am_i_fine_task() 
+
+    E_IO = 0
+    
+    if(ft) then        
+
+       nm = f_vtk%num_meshes
+       if(present(n_mesh)) nm = n_mesh
+
+       if(f_vtk%mesh(nm)%status==started_read) then
+          
+          if(f_vtk%mesh(f_vtk%num_meshes)%linear_order == .true.) then
+             E_IO = read_VTK_unknowns_linear(f_vtk, nm, f_id)
+          else
+             E_IO = read_VTK_unknowns_superlinear(f_vtk, nm, f_id)
+          end if
+       
+       end if          
+
+    end if
+
+  end function read_VTK_unknowns
+
+  ! Read a single VTK file to disk (if I am fine tast) for linear interpolation
+  function read_VTK_unknowns_linear(f_vtk, nm, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
+    integer(ip),                intent(IN)    :: nm             !< Real Number of Mesh
+    integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
+    integer(ip)                               :: tidx           !< Actual Time InDeX
+    integer(ip)                               :: nnods          !< Number of NODes
+    integer(ip)                               :: nels           !< Number of ELementS
+    integer(ip)                               :: tnnod          !< Total Number of NODes
+    integer(ip)                               :: curr_ncomp     !< CURRent Number of COMPonent
+    integer(ip)                               :: tncomp         !< Total Number of COMPonents
+    integer(ip)                               :: nnode          !< NODE Number
+    integer(ip)                               :: elnnod         !< Number of NODes per ELement
+    integer(ip)                               :: i, j, f, idx   !< Indices
+    integer(ip)                               :: E_IO           !< IO Error
+    logical                                   :: ft             !< Fine Task
+  ! ----------------------------------------------------------------------------------
+    
+    tidx = 1
+
+    if(.not. allocated(f_vtk%mesh(nm)%unknowns)) call f_vtk%fill_unknowns_from_physical_problem(nm)
+
+    if(allocated(f_vtk%mesh(nm)%unknowns)) then
+
+       nnods = f_vtk%mesh(nm)%nnods
+       nels = size(f_vtk%mesh(nm)%ctype, dim=1)
+
+       tncomp = 0
+       do f=1, size(f_vtk%mesh(nm)%unknowns, dim=1) 
+          if(f_vtk%mesh(nm)%unknowns(f)%filled) then
+             tnnod = 0
+             curr_ncomp = tncomp + f_vtk%mesh(nm)%unknowns(f)%num_comp
+             !                   allocate(field(f_vtk%mesh(nm)%unknowns(f)%num_comp,nnods))
+             call memalloc( f_vtk%mesh(nm)%unknowns(f)%num_comp, nnods, field, __FILE__,__LINE__)
+
+             if(present(f_id)) then 
+                E_IO = VTK_VAR_XML_READ(var_location='node',varname=f_vtk%mesh(nm)%unknowns(f)%var_name,NC_NN=nnods, &
+                     &                  NCOMP=f_vtk%mesh(nm)%unknowns(f)%num_comp,var=field,cf=f_id)
+             else
+                E_IO = VTK_VAR_XML_READ(var_location='node',varname=f_vtk%mesh(nm)%unknowns(f)%var_name,NC_NN=nnods, &
+                     &                  NCOMP=f_vtk%mesh(nm)%unknowns(f)%num_comp,var=field)
+             end if
+
+             do i=1, nels
+                elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                do j=1, elnnod
+                   nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
+                   idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(nnode)
+                   f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx) = &
+                        &  field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod) 
+                        
+                enddo
+                tnnod = tnnod + elnnod 
+             enddo
+
+             tncomp = curr_ncomp
+             if(allocated(field)) call memfree(field, __FILE__,__LINE__)
+          endif
+       enddo
+
+    endif
+
+  ! ----------------------------------------------------------------------------------
+  end function read_VTK_unknowns_linear
+
+  ! Write a single VTK file to disk (if I am fine tast) for high order interpolation
+  function read_VTK_unknowns_superlinear(f_vtk, nm, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
+    integer(ip),                intent(IN)    :: nm             !< Real Number of Mesh
+    integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
+    integer(ip)                               :: tidx           !< Actual Time InDeX
+    integer(ip)                               :: nnods          !< Number of NODes
+    integer(ip)                               :: nels           !< Number of ELementS
+    integer(ip)                               :: nsubels        !< Number of sub_ELementS
+    integer(ip)                               :: tnnod          !< Total Number of NODes
+    integer(ip)                               :: curr_ncomp     !< CURRent Number of COMPonent
+    integer(ip)                               :: tncomp         !< Total Number of COMPonents
+    integer(ip)                               :: nnode, gnode   !< NODE Number
+    integer(ip)                               :: ndime          !< Physical dimensions
+    integer(ip)                               :: elnnod         !< Number of NODes per ELement
+    integer(ip)                               :: i, j, f, idx   !< Indices
+    integer(ip)                               :: subelem, icomp !< Indices
+    integer(ip)                               :: order          !< Order of interpolation
+    integer(ip)                               :: E_IO           !< IO Error
+    logical                                   :: ft             !< Fine Task
+    integer(ip)                               :: f_type, pos_elinf, istat, v_key, ltype(2), inode, jnode
+    real(rp), allocatable                     :: target_field(:,:)
+  ! ----------------------------------------------------------------------------------
+    
+    tidx = 1
+
+    if(.not. allocated(f_vtk%mesh(nm)%unknowns)) call f_vtk%fill_unknowns_from_physical_problem(nm)
+
+    if(allocated(f_vtk%mesh(nm)%unknowns) ) then
+
+       nnods = f_vtk%mesh(nm)%nnods
+       nels = f_vtk%p_fe_space%g_trian%num_elems
+       ndime = f_vtk%p_fe_space%g_trian%num_dims
+       f_type = Q_type_id
+
+       tncomp = 0
+       do f=1, size(f_vtk%mesh(nm)%unknowns, dim=1) 
+          if(f_vtk%mesh(nm)%unknowns(f)%filled) then
+             tnnod = 0
+             curr_ncomp = tncomp + f_vtk%mesh(nm)%unknowns(f)%num_comp
+             !                   allocate(field(f_vtk%mesh(nm)%unknowns(f)%num_comp,nnods))
+             call memalloc( f_vtk%mesh(nm)%unknowns(f)%num_comp, nnods, field, __FILE__,__LINE__)
+
+             if(present(f_id)) then 
+                E_IO = VTK_VAR_XML_READ(var_location='node',varname=f_vtk%mesh(nm)%unknowns(f)%var_name,NC_NN=nnods, &
+                     &                  NCOMP=f_vtk%mesh(nm)%unknowns(f)%num_comp,var=field,cf=f_id)
+             else
+                E_IO = VTK_VAR_XML_READ(var_location='node',varname=f_vtk%mesh(nm)%unknowns(f)%var_name,NC_NN=nnods, &
+                     &                  NCOMP=f_vtk%mesh(nm)%unknowns(f)%num_comp,var=field)
+             end if
+
+             do i=1, nels
+
+                ! Check (only working for Q-type elements)
+                check(f_vtk%p_fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
+
+                ! Set order of interpolation
+                order = maxval(f_vtk%p_fe_space%finite_elements(i)%order)
+                nsubels = Q_nnods(ndime,order-1)
+                gnode   = Q_nnods(ndime,1)
+                nnode   = Q_nnods(ndime,order)
+
+                ! Loop over subelements
+                do subelem = 1,nsubels
+
+                   ! Loop over geometrical nodes in subelement
+                   do j=1, gnode
+                      idx = f_vtk%mesh(nm)%nodes_subelem(order)%a(j,subelem)
+                       f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx) = &
+                           field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod)
+                   enddo
+                   tnnod = tnnod + gnode
+                end do
+                
+                ! Interpolate unknowns with different order of interpolation
+                if(f_vtk%p_fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
+
+                   v_key = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*order
+                   call f_vtk%p_fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+                   call memalloc(f_vtk%mesh(nm)%unknowns(f)%num_comp,nnode,target_field,__FILE__,__LINE__)
+
+                   do icomp=1,f_vtk%mesh(nm)%unknowns(f)%num_comp
+                      target_field(icomp,:) = f_vtk%p_fe_space%finite_elements(i)%unkno(:,tncomp+icomp,tidx)
+                   end do
+
+                   do icomp=1,f_vtk%mesh(nm)%unknowns(f)%num_comp
+                      do inode=1,f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%nnode
+                         jnode = f_vtk%p_fe_space%finite_elements_info(pos_elinf)%ntxob%p(inode)
+                         idx   = f_vtk%p_fe_space%finite_elements_info(pos_elinf)%ntxob%l(jnode)
+                         f_vtk%p_fe_space%finite_elements(i)%unkno(inode,tncomp+icomp,tidx) = target_field(icomp,idx)
+                      end do
+                   end do
+
+                   call memfree(target_field,__FILE__,__LINE__)
+
+                end if
+
+
+             enddo
+
+             tncomp = curr_ncomp
+             if(allocated(field)) call memfree(field, __FILE__,__LINE__)
+          endif
+       enddo
+
+    endif
+
+  ! ----------------------------------------------------------------------------------
+  end function read_VTK_unknowns_superlinear
+
+  ! Read a single VTK file from disk (if I am fine tast)
+  function read_VTK_end(f_vtk, n_mesh, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),               intent(INOUT) :: f_vtk   !< VTK_t derived type
+    integer(ip),      optional, intent(IN)    :: n_mesh  !< Number of MESH
+    integer(ip),      optional, intent(INOUT) :: f_id    !< File ID
+    integer(ip)                               :: nm      !< Real Number of Mesh
+    integer(ip)                               :: E_IO    !< IO Error
+    logical                                   :: ft      !< Fine Task
+  ! ----------------------------------------------------------------------------------
+
+    check(associated(f_vtk%p_env))
+    ft =  f_vtk%p_env%am_i_fine_task() 
+
+    E_IO = 0
+
+    nm = f_vtk%num_meshes
+    if(present(n_mesh)) nm = n_mesh
+    
+    if(ft .and. (f_vtk%mesh(nm)%status >= started_read) .and. (f_vtk%mesh(nm)%status /= ended)) then
+
+        if(present(f_id)) then       
+            E_IO = VTK_END_XML_READ(cf=f_id)
+        else
+            E_IO = VTK_END_XML_READ()
+        endif
+
+        f_vtk%mesh(nm)%status = ended
+    endif
+
+  ! ----------------------------------------------------------------------------------
+  end function read_VTK_end
+
 
   function create_dir_hierarchy_on_root_process(f_vtk, path, issue_final_barrier) result(res)
   ! ----------------------------------------------------------------------------------
@@ -1234,10 +1613,10 @@ contains
     elseif(size(f_vtk%steps)<f_vtk%num_steps) then
         call memalloc ( size(f_vtk%steps,1), aux_steps, __FILE__,__LINE__)
         aux_steps(1:size(f_vtk%steps,1)) = f_vtk%steps(1:size(f_vtk%steps,1))
-        if (allocated(f_vtk%steps)) call memfree(f_vtk%steps)
+        if (allocated(f_vtk%steps)) call memfree(f_vtk%steps, __FILE__,__LINE__)
         call memalloc ( f_vtk%num_steps, f_vtk%steps, __FILE__,__LINE__)
         f_vtk%steps(1:size(aux_steps,1)) = aux_steps(1:size(aux_steps,1))
-        if (allocated(aux_steps)) call memfree(aux_steps)
+        if (allocated(aux_steps)) call memfree(aux_steps, __FILE__,__LINE__)
     endif        
 
   ! ----------------------------------------------------------------------------------
@@ -1258,10 +1637,10 @@ contains
     elseif(size(f_vtk%steps)<max(f_vtk%num_steps,f_vtk%steps_counter)) then
         call memalloc ( size(f_vtk%steps,1), aux_steps, __FILE__,__LINE__)
         aux_steps(1:size(f_vtk%steps,1)) = f_vtk%steps(1:size(f_vtk%steps,1))
-        if (allocated(f_vtk%steps)) call memfree(f_vtk%steps)
+        if (allocated(f_vtk%steps)) call memfree(f_vtk%steps, __FILE__,__LINE__)
         call memalloc ( max(f_vtk%num_steps,f_vtk%steps_counter), f_vtk%steps, __FILE__,__LINE__)
         f_vtk%steps(1:size(aux_steps,1)) = aux_steps(1:size(aux_steps,1))
-        if (allocated(aux_steps)) call memfree(aux_steps)
+        if (allocated(aux_steps)) call memfree(aux_steps, __FILE__,__LINE__)
     endif        
 
     if (f_vtk%num_steps < f_vtk%steps_counter) f_vtk%num_steps = f_vtk%steps_counter
@@ -1329,12 +1708,12 @@ contains
 
         if(allocated(f_vtk%mesh)) then
             do i=1, size(f_vtk%mesh,1)
-                call memfree(f_vtk%mesh(i)%X)
-                call memfree(f_vtk%mesh(i)%Y)
-                call memfree(f_vtk%mesh(i)%Z)
-                call memfree(f_vtk%mesh(i)%connec)
-                call memfree(f_vtk%mesh(i)%offset)
-                call memfree(f_vtk%mesh(i)%ctype)
+                call memfree(f_vtk%mesh(i)%X, __FILE__,__LINE__)
+                call memfree(f_vtk%mesh(i)%Y, __FILE__,__LINE__)
+                call memfree(f_vtk%mesh(i)%Z, __FILE__,__LINE__)
+                call memfree(f_vtk%mesh(i)%connec, __FILE__,__LINE__)
+                call memfree(f_vtk%mesh(i)%offset, __FILE__,__LINE__)
+                call memfree(f_vtk%mesh(i)%ctype, __FILE__,__LINE__)
                 if (.not. f_vtk%mesh(i)%linear_order) then
                     do j=1, max_order
                         call array_free(f_vtk%mesh(i)%nodes_subelem(j))
@@ -1354,7 +1733,7 @@ contains
             deallocate(f_vtk%mesh)
         endif
 
-        if (allocated(f_vtk%steps)) call memfree(f_vtk%steps)
+        if (allocated(f_vtk%steps)) call memfree(f_vtk%steps, __FILE__,__LINE__)
 
     endif
     f_vtk%num_meshes = 0
