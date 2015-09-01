@@ -185,7 +185,7 @@ program test_nsi_iss
        &                static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
-  call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
+  call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix)!,linear_order=.true.)
 
   ! Create dof info
   call create_dof_info(dof_descriptor,f_trian,fe_space,f_blk_graph,gtype)
