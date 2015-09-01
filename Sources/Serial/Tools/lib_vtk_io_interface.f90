@@ -381,11 +381,6 @@ contains
 
        ! Construct the matrix of the coordinates of the node in the reference element
        call array_create(ndime,nnode,coords(order))
-!!$       call Q_refcoord(coords(order)%a,ndime,order,nnode)
-!!$
-!!$       ! Construct the interpolation of order=order
-!!$       call interpolation_create(1,1,1,ndime,geo_nnode,nnode,interp(order))
-!!$       call interpolation_local(coords(order)%a,interp(order))
 
        ! Construct the mapping of the nodes of the subelems
        num_subelems = Q_nnods(ndime,order-1)
@@ -409,7 +404,6 @@ contains
        order = maxval(fe_space%finite_elements(ielem)%order)
        num_subelems = Q_nnods(ndime,order-1)
        geo_nnode = Q_nnods(ndime,1)
-!!$       geo_nnode = interp(order)%nnode
        count_subelem = count_subelem + num_subelems
        count_poinsX = count_poinsX + num_subelems*geo_nnode
     end do
@@ -432,13 +426,10 @@ contains
     count_subelem = 0
     f_vtk%mesh(f_vtk%num_meshes)%X = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Y = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Z = 0._rp
     do ielem = 1, fe_space%g_trian%num_elems
-!!$       order = fe_space%finite_elements(ielem)%reference_element_vars(1)%p%order
        order = maxval(fe_space%finite_elements(ielem)%order)
        num_subelems = Q_nnods(ndime,order-1)
        geo_nnode    = Q_nnods(ndime,1)
        nnode        = Q_nnods(ndime,order)
-!!$       geo_nnode = interp(order)%nnode
-!!$       nnode     = interp(order)%nlocs
 
        ! Take the coordinates from the geometry mesh
        do lnode = 1, geo_nnode
@@ -449,7 +440,6 @@ contains
 
        ! Interpolate to the coordinate of all the nodes
        if (order>1) then
-!!$          call interpolate(ndime,geo_nnode,nnode,interp(order)%shape,coords(1)%a, coords(order)%a)
           ltype(2) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
           ltype(1) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*order
           v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
@@ -483,7 +473,6 @@ contains
      ! Free memory
      do order = 1, max_order
         call array_free(coords(order))
-!!$        call interpolation_free(interp(order))
      end do
 
   end subroutine fill_mesh_superlinear_order
@@ -870,17 +859,48 @@ contains
   end function write_VTK_unknowns_superlinear
 
   ! Write a single VTK file to disk (if I am fine tast)
-  function write_VTK_field(f_vtk,postproc_field, n_mesh, f_id) result(E_IO)
+  function write_VTK_field(f_vtk, postproc_field, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
     class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
     class(postprocess_field_t), intent(inout) :: postproc_field !< Postprocess field structure to be written
     integer(ip),      optional, intent(IN)    :: n_mesh         !< Number of MESH
     integer(ip),      optional, intent(IN)    :: f_id           !< File ID
-    type(vtk_field_t), allocatable            :: tmp_postprocess_fields !< Temporal postprocess fields
-    integer(ip)                               :: n_postprocess_fields !< Number of temporal fiels stored
     real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
     integer(ip)                               :: nm             !< Real Number of Mesh
+    integer(ip)                               :: E_IO           !< IO Error
+    logical                                   :: ft             !< Fine Task
+
+    check(associated(f_vtk%p_env))
+    ft =  f_vtk%p_env%am_i_fine_task() 
+
+    E_IO = 0
+    
+    if(ft) then        
+
+       nm = f_vtk%num_meshes
+       if(present(n_mesh)) nm = n_mesh
+
+       if(f_vtk%mesh(f_vtk%num_meshes)%linear_order .eqv. .true.) then
+          E_IO = write_VTK_field_linear(f_vtk, postproc_field, nm, f_id)
+       else
+          E_IO = write_VTK_field_superlinear(f_vtk, postproc_field, nm, f_id)
+       end if
+          
+
+    end if
+
+  end function write_VTK_field
+
+  ! Write a single VTK file to disk (if I am fine tast)
+  function write_VTK_field_linear(f_vtk,postproc_field, nm, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
+    class(postprocess_field_t), intent(inout) :: postproc_field !< Postprocess field structure to be written
+    integer(ip),                intent(IN)    :: nm             !< Number of MESH
+    integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
     integer(ip)                               :: tidx           !< Actual Time InDeX
     integer(ip)                               :: nnods          !< Number of NODes
     integer(ip)                               :: nels           !< Number of ELementS
@@ -900,9 +920,6 @@ contains
     E_IO = 0
     
     if(ft) then
-
-        nm = f_vtk%num_meshes
-        if(present(n_mesh)) nm = n_mesh
                 
         tidx = 1
             
@@ -932,10 +949,9 @@ contains
               curr_ncomp = 0
               do f=1, f_vtk%p_phys_prob%nunks
                  curr_ncomp = curr_ncomp + f_vtk%mesh(nm)%unknowns(f)%num_comp
-                 if (f_vtk%p_fe_space%finite_elements(i)%order(curr_ncomp).eq.postproc_field%interpolation_order) exit
+                 if (f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(f)%p%nnode.eq.postproc_field%fe_postprocess_field(i)%nnode) exit
               end do
               ! Set the elemental nodes in the VTK interpolation
-              !  elnnod = postproc_field%fe_postprocess_field(i)%nnode
               elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
               do j=1, elnnod
                  inode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
@@ -959,7 +975,139 @@ contains
      endif
 
   ! ----------------------------------------------------------------------------------
-   end function write_VTK_field
+   end function write_VTK_field_linear
+
+
+  ! Write a single VTK file to disk (if I am fine tast) for high order interpolation
+  function write_VTK_field_superlinear(f_vtk,postproc_field, nm, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),             intent(INOUT)   :: f_vtk          !< VTK_t derived type
+    class(postprocess_field_t), intent(inout) :: postproc_field !< Postprocess field structure to be written
+    integer(ip),                intent(IN)    :: nm             !< Real Number of Mesh
+    integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
+    integer(ip)                               :: tidx           !< Actual Time InDeX
+    integer(ip)                               :: nnods          !< Number of NODes
+    integer(ip)                               :: nels           !< Number of ELementS
+    integer(ip)                               :: nsubels        !< Number of sub_ELementS
+    integer(ip)                               :: tnnod          !< Total Number of NODes
+    integer(ip)                               :: curr_ncomp     !< CURRent Number of COMPonent
+    integer(ip)                               :: tncomp         !< Total Number of COMPonents
+    integer(ip)                               :: nnode, gnode   !< NODE Number
+    integer(ip)                               :: ndime          !< Physical dimensions
+    integer(ip)                               :: elnnod         !< Number of NODes per ELement
+    integer(ip)                               :: i, j, f, idx   !< Indices
+    integer(ip)                               :: subelem, icomp !< Indices
+    integer(ip)                               :: order          !< Order of interpolation
+    integer(ip)                               :: E_IO           !< IO Error
+    logical                                   :: ft             !< Fine Task
+    integer(ip)                               :: f_type, pos_voint, istat, v_key, ltype(2)
+    real(rp), allocatable                     :: origin_field(:,:), target_field(:,:)
+  ! ----------------------------------------------------------------------------------
+    
+    tidx = 1
+
+    if((f_vtk%mesh(nm)%status >= started) .and. (f_vtk%mesh(nm)%status < pointdata_closed)) then
+
+       call f_vtk%add_new_postprocess_field(postproc_field,nm)
+
+       if(f_vtk%mesh(nm)%status < pointdata_opened) then
+          if(present(f_id)) then
+             E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
+          else
+             E_IO = VTK_DAT_XML(var_location='node',var_block_action='open')
+          endif
+          f_vtk%mesh(nm)%status = pointdata_opened
+       endif
+
+       nnods = f_vtk%mesh(nm)%nnods
+       nels = f_vtk%p_fe_space%g_trian%num_elems
+       ndime = f_vtk%p_fe_space%g_trian%num_dims
+       f_type = Q_type_id
+
+       tncomp = 0
+
+       check(postproc_field%is_finalized())
+
+       tnnod = 0
+       
+       f = size(f_vtk%mesh(nm)%postprocess_fields,dim=1)
+
+       call memalloc( f_vtk%mesh(nm)%postprocess_fields(f)%num_comp, nnods, field, __FILE__,__LINE__)
+       
+       do i=1, nels
+          ! Search a component of element i with the same interpolation as the postprocess field
+          curr_ncomp = 0
+          do j=1, f_vtk%p_phys_prob%nunks
+             curr_ncomp = curr_ncomp + f_vtk%mesh(nm)%unknowns(j)%num_comp
+             if (f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(j)%p%nnode.eq.postproc_field%fe_postprocess_field(i)%nnode) exit
+          end do
+          
+          ! Check (only working for Q-type elements)
+          check(f_vtk%p_fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
+          
+          ! Set order of interpolation
+          order = maxval(f_vtk%p_fe_space%finite_elements(i)%order)
+          nsubels = Q_nnods(ndime,order-1)
+          gnode   = Q_nnods(ndime,1)
+          nnode   = Q_nnods(ndime,order)
+          
+          ! Interpolate unknowns with different order of interpolation
+          if(f_vtk%p_fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
+             
+             ! Allocate auxiliar target and origin fields
+             call memalloc(f_vtk%mesh(nm)%postprocess_fields(f)%num_comp,nnode,target_field,__FILE__,__LINE__)
+             call memalloc(f_vtk%mesh(nm)%postprocess_fields(f)%num_comp,gnode,origin_field,__FILE__,__LINE__)
+             do icomp=1,f_vtk%mesh(nm)%postprocess_fields(f)%num_comp
+                origin_field(icomp,:) = postproc_field%fe_postprocess_field(i)%nodal_properties(1:gnode,tncomp+icomp)
+             end do
+             target_field = 0.0_rp
+             
+             ! Interpolate fields
+             ltype(2) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
+             ltype(1) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*order
+             v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
+             call f_vtk%p_fe_space%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
+             assert(istat.ne.new_index)
+             call interpolate(f_vtk%mesh(nm)%postprocess_fields(f)%num_comp,gnode,nnode,f_vtk%p_fe_space%linter(pos_voint), &
+                  &           origin_field,target_field)
+             
+             do icomp=1,f_vtk%mesh(nm)%postprocess_fields(f)%num_comp
+                postproc_field%fe_postprocess_field(i)%nodal_properties(:,tncomp+icomp) = target_field(icomp,:)
+             end do
+             
+             ! Deallocate target and origin fields
+             call memfree(origin_field,__FILE__,__LINE__)
+             call memfree(target_field,__FILE__,__LINE__)
+
+          end if
+          
+          ! Loop over subelements
+          do subelem = 1,nsubels
+             
+             ! Loop over geometrical nodes in subelement
+             do j=1, gnode
+                idx = f_vtk%mesh(nm)%nodes_subelem(order)%a(j,subelem)
+                field(1:f_vtk%mesh(nm)%postprocess_fields(f)%num_comp,j+tnnod) = &
+                     postproc_field%fe_postprocess_field(i)%nodal_properties(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%postprocess_fields(f)%num_comp)
+             enddo
+             tnnod = tnnod + gnode
+          end do
+       enddo
+       
+       tncomp = curr_ncomp
+       if(present(f_id)) then 
+          E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%postprocess_fields(f)%num_comp, varname=f_vtk%mesh(nm)%postprocess_fields(f)%var_name,var=field, cf=f_id)
+       else
+          E_IO = VTK_VAR_XML(NC_NN=nnods,N_COL=f_vtk%mesh(nm)%postprocess_fields(f)%num_comp, varname=f_vtk%mesh(nm)%postprocess_fields(f)%var_name,var=field)
+       endif
+       if(allocated(field)) call memfree(field, __FILE__,__LINE__)
+    endif
+
+
+  ! ----------------------------------------------------------------------------------
+  end function write_VTK_field_superlinear
 
   ! Write a single VTK file to disk (if I am fine tast)
   function write_VTK_end(f_vtk, n_mesh, f_id) result(E_IO)

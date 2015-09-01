@@ -52,7 +52,6 @@ module postprocess_field_names
   type, abstract :: postprocess_field_t
      logical                       :: filled = .false.
      integer(ip)                   :: nvars                 ! Number of variables 
-     integer(ip)                   :: interpolation_order   ! Interpolation order of the field
      character(len=:), allocatable :: name                  ! Name of the postprocess field
      type(fe_space_t), pointer     :: p_fe_space => NULL()  ! Points to fe_space_t
      class(abstract_environment_t), pointer :: p_env => NULL() ! Points to environment
@@ -70,7 +69,7 @@ module postprocess_field_names
        import :: postprocess_field_t, physical_problem_t, ip
        implicit none
        class(postprocess_field_t), intent(inout)  :: postprocess_field
-       class(physical_problem_t),   intent(in)     :: prob
+       class(physical_problem_t),  intent(in)     :: prob
        integer(ip), optional,      intent(in)     :: fill_process
      end subroutine postprocess_field_compute_interface
   end interface
@@ -81,19 +80,19 @@ module postprocess_field_names
 contains
   
   !==================================================================================================
-  subroutine postprocess_field_create(postprocess_field,name,nvars,interpolation_order,fe_space,env)
+  subroutine postprocess_field_create(postprocess_field,name,nvars,ivar,fe_space,env)
     implicit none
     class(postprocess_field_t), intent(inout)  :: postprocess_field
-    integer(ip),                intent(in)     :: nvars, interpolation_order
-    character(len=*),           intent(in)     :: name
-    type(fe_space_t),  target,  intent(in)     :: fe_space
+    integer(ip),                intent(in)     :: nvars    ! Number of components of the postprocess_field
+    integer(ip),                intent(in)     :: ivar     ! Variable of unkno from which the interpolation is copied (if ivar < 1, the maximum interpolation is used)
+    character(len=*),           intent(in)     :: name     ! Name of the postprocess field
+    type(fe_space_t),  target,  intent(in)     :: fe_space 
     class(abstract_environment_t), target, intent(in) :: env
     ! Locals
     integer(ip)      :: ndime, ielem
 
     postprocess_field%nvars = nvars
     postprocess_field%name  = name
-    postprocess_field%interpolation_order = interpolation_order
     postprocess_field%p_fe_space => fe_space
     postprocess_field%p_env => env
     
@@ -102,7 +101,7 @@ contains
        
        do ielem=1,fe_space%g_trian%num_elems
           call postprocess_field%fe_postprocess_field(ielem)%create(postprocess_field%p_fe_space,ielem,&
-               &                                                    nvars, interpolation_order)
+               &                                                    nvars, ivar)
        end do
     end if
     
@@ -128,25 +127,29 @@ contains
   end subroutine postprocess_field_free
 
   !==================================================================================================
-  subroutine fe_postprocess_field_create(fe_postprocess_field, fe_space, ielem, nvars,              &
-       &                                 interpolation_order)
+  subroutine fe_postprocess_field_create(fe_postprocess_field, fe_space, ielem, nvars, ivar)
     implicit none
     class(fe_postprocess_field_t), intent(inout) :: fe_postprocess_field
     type(fe_space_t),              intent(inout) :: fe_space
-    integer(ip),                   intent(in)    :: ielem, nvars, interpolation_order
+    integer(ip),                   intent(in)    :: ielem, nvars, ivar
     ! Locals
-    integer(ip)   :: f_type, v_key, ndime, pos_elinf, istat
+    integer(ip)   :: i, nnode, istat!, f_type, v_key, ndime, pos_elinf
     
-    ndime = fe_space%g_trian%num_dims
-    f_type = fe_space%g_trian%elems(ielem)%geo_reference_element%ftype
-    v_key = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*interpolation_order
-    call fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-    ! Check that the interpolation choosen is already in use
-    check( istat /= new_index) 
-    fe_postprocess_field%nnode = fe_space%finite_elements_info(pos_elinf)%nnode
+    ! Get the maximum interpolation order among all varibles in ielem
+    nnode = -1
+    do i=1,fe_space%finite_elements(ielem)%num_vars
+       if (nnode.lt.fe_space%finite_elements(ielem)%reference_element_vars(i)%p%nnode) then
+          nnode = fe_space%finite_elements(ielem)%reference_element_vars(i)%p%nnode
+       end if
+    end do
 
-    call memalloc(fe_postprocess_field%nnode, nvars, fe_postprocess_field%nodal_properties,         &
-         &        __FILE__, __LINE__, valin=0.0_rp)
+    if (ivar.lt.1) then
+       fe_postprocess_field%nnode = nnode
+    else
+       fe_postprocess_field%nnode = fe_space%finite_elements_info(ivar)%nnode
+    end if
+
+    call memalloc(nnode, nvars, fe_postprocess_field%nodal_properties, __FILE__, __LINE__, valin=0.0_rp)
     
   end subroutine fe_postprocess_field_create
 

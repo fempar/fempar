@@ -230,8 +230,8 @@ program test_nsi_iss
   call update_solution(feunk,fe_space)
 
   ! Compute postprocess field
-  call postprocess_vel%create('velocity',gdata%ndime,2,fe_space,senv)
-  call postprocess_pre%create('pressure',1,1,fe_space,senv)
+  call postprocess_vel%create('velocity',gdata%ndime,1,fe_space,senv)
+  call postprocess_pre%create('pressure',1,2,fe_space,senv)
   call postprocess_vel%compute_and_finalize_field(myprob,velocity)
   call postprocess_pre%compute_and_finalize_field(myprob,pressure)
 

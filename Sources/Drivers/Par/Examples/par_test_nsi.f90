@@ -341,8 +341,8 @@ program par_test_nsi_iss
   call par_update_solution(p_unk,p_fe_space)
 
   ! Compute postprocess field
-  call postprocess_vel%create('velocity',gdata%ndime,2,p_fe_space%fe_space,p_env)
-  call postprocess_pre%create('pressure',1,1,p_fe_space%fe_space,p_env)
+  call postprocess_vel%create('velocity',gdata%ndime,1,p_fe_space%fe_space,p_env)
+  call postprocess_pre%create('pressure',1,2,p_fe_space%fe_space,p_env)
   call postprocess_vel%compute_and_finalize_field(myprob,velocity)
   call postprocess_pre%compute_and_finalize_field(myprob,pressure)
      
