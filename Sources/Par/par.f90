@@ -63,7 +63,5 @@ module par_names
   use par_create_global_dof_info_names
   use par_integration_names
   use par_scalar_names
-  use par_nonlinear_operator_names
-  use par_picard_nonlinear_operator_names
     
 end module par_names
