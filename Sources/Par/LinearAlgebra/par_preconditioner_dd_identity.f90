@@ -56,8 +56,6 @@ use psb_penv_mod_names
    contains
      procedure :: apply     => par_preconditioner_dd_identity_apply_tbp
      procedure :: apply_fun => par_preconditioner_dd_identity_apply_fun_tbp
-     procedure :: fill_values => par_preconditioner_dd_identity_fill_values_tbp
-     procedure :: free_values => par_preconditioner_dd_identity_free_values_tbp
      procedure :: free      => par_preconditioner_dd_identity_free_tbp
   end type par_preconditioner_dd_identity_t
   
@@ -217,44 +215,6 @@ use psb_penv_mod_names
     
     call x%CleanTemp()
   end function par_preconditioner_dd_identity_apply_fun_tbp
-
-  !=============================================================================
-  subroutine par_preconditioner_dd_identity_fill_values_tbp (op,stage)
-    implicit none
-    ! Parameters
-    class(par_preconditioner_dd_identity_t), intent(inout) :: op
-    integer(ip), optional                  , intent(in)    :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-
-    assert (associated(op%p_mat))
-
-    if(op%fill_values_stage==stage_) then
-       call par_preconditioner_dd_identity_fill_val ( op )
-    end if
-
-  end subroutine par_preconditioner_dd_identity_fill_values_tbp
-
-  !=============================================================================
-  subroutine par_preconditioner_dd_identity_free_values_tbp (op,stage)
-    implicit none
-    ! Parameters
-    class(par_preconditioner_dd_identity_t), intent(inout) :: op
-    integer(ip), optional , intent(in)                     :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-
-    assert (associated(op%p_mat))
-
-    if(op%free_values_stage==stage_) call par_preconditioner_dd_identity_free ( op, free_values )
-
-  end subroutine par_preconditioner_dd_identity_free_values_tbp
   
   subroutine par_preconditioner_dd_identity_free_tbp(this)
     implicit none

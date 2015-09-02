@@ -33,9 +33,10 @@ module block_matrix_names
   use matrix_names
   use block_vector_names
   use vector_names
+  
   ! Abstract types
   use base_operand_names
-  use base_integrable_operator_names
+  use base_operator_names
   implicit none
 # include "debug.i90"
 
@@ -48,7 +49,7 @@ module block_matrix_names
   end type p_matrix_t
 
   ! Block Matrix
-  type, extends(base_integrable_operator_t):: block_matrix_t
+  type, extends(base_operator_t):: block_matrix_t
 !    private ! IBM XLF 14.1 bug
     integer(ip)                     :: nblocks = -1
     type(p_matrix_t), allocatable :: blocks(:,:)
@@ -61,7 +62,6 @@ module block_matrix_names
     procedure :: get_nblocks       => block_matrix_get_nblocks
     procedure :: apply             => block_matrix_apply
     procedure :: apply_fun         => block_matrix_apply_fun
-    procedure  :: init             => block_matrix_zero
   end type block_matrix_t
 
   ! Types
@@ -70,7 +70,7 @@ module block_matrix_names
   ! Functions
   public :: block_matrix_alloc, block_matrix_alloc_block,       & 
             block_matrix_set_block_to_zero, block_matrix_print, & 
-            block_matrix_free, block_matrix_zero, block_matrix_info
+            block_matrix_free, block_matrix_info
 
 contains
 
@@ -155,22 +155,6 @@ contains
        nullify ( bmat%blocks(ib,jb)%p_f_matrix )
     end if
   end subroutine
-
-  subroutine block_matrix_zero(op)
-    implicit none
-    ! Parameters
-    class(block_matrix_t), intent(inout) :: op
-    integer(ip)                           :: ib,jb
-
-    do ib=1,op%nblocks
-       do jb=1,op%nblocks
-          if ( associated(op%blocks(ib,jb)%p_f_matrix) ) then
-             call matrix_zero (op%blocks(ib,jb)%p_f_matrix)
-          end if
-       end do
-    end do
-
-  end subroutine block_matrix_zero
 
   subroutine block_matrix_print (lunou, f_b_matrix)
     implicit none

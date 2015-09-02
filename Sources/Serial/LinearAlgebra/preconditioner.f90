@@ -129,8 +129,6 @@ module preconditioner_names
    contains
      procedure :: apply => preconditioner_apply_tbp
      procedure :: apply_fun => preconditioner_apply_fun_tbp
-     procedure :: fill_values => preconditioner_fill_values_tbp
-     procedure :: free_values => preconditioner_free_values_tbp
      procedure :: free => preconditioner_free_tbp
   end type preconditioner_t
 
@@ -798,42 +796,6 @@ contains
 
     call x%CleanTemp()
   end function preconditioner_apply_fun_tbp
-
-  !=============================================================================
-  subroutine preconditioner_fill_values_tbp (op,stage)
-    implicit none
-    ! Parameters
-    class(preconditioner_t), intent(inout) :: op
-    integer(ip), optional  , intent(in)    :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-    
-    assert (associated(op%mat))
-
-    if(op%fill_values_stage == stage_) call preconditioner_numeric(op)
-
-  end subroutine preconditioner_fill_values_tbp
-
-  !=============================================================================
-  subroutine preconditioner_free_values_tbp (op,stage)
-    implicit none
-    ! Parameters
-    class(preconditioner_t), intent(inout) :: op
-    integer(ip), optional , intent(in)     :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-    
-    assert (associated(op%mat))
-
-    if(op%free_values_stage == stage_) call preconditioner_free(free_values,op)
-
-  end subroutine preconditioner_free_values_tbp
 
   subroutine preconditioner_free_tbp(this)
     implicit none

@@ -61,8 +61,6 @@ use iso_c_binding
 
      procedure  :: apply          => block_preconditioner_u_apply
      procedure  :: apply_fun      => block_preconditioner_u_apply_fun
-     procedure  :: fill_values    => block_preconditioner_u_fill_values
-     procedure  :: free_values    => block_preconditioner_u_free_values
      procedure  :: free           => block_preconditioner_u_free_tbp
   end type block_preconditioner_u_t
 
@@ -164,44 +162,6 @@ contains
     end select
     call x%CleanTemp()
   end function block_preconditioner_u_apply_fun
-
-  ! op1%fill_values(op2)
-  ! Fill preconditioner values
-  subroutine block_preconditioner_u_fill_values (op,stage)
-    implicit none
-    class(block_preconditioner_u_t), intent(inout) :: op
-    integer(ip), optional          , intent(in)    :: stage
-
-    ! Locals
-    integer(ip) :: iblk,stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-
-    do iblk=1, op%nblocks
-       call op%blocks(iblk,iblk)%p_op%fill_values(stage_)
-    end do
-    
-  end subroutine block_preconditioner_u_fill_values
-
-  ! op1%free_values(op2)
-  ! Free preconditioner values
-  subroutine block_preconditioner_u_free_values (op,stage)
-    implicit none
-    class(block_preconditioner_u_t), intent(inout) :: op
-    integer(ip), optional , intent(in)             :: stage
-    ! Locals
-    integer(ip) :: iblk
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-
-    do iblk=1, op%nblocks
-       call op%blocks(iblk,iblk)%p_op%free_values(stage_)
-    end do
-
-  end subroutine block_preconditioner_u_free_values
 
   subroutine block_preconditioner_u_free_tbp(this)
     implicit none

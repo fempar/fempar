@@ -60,8 +60,6 @@ use iso_c_binding
 
      procedure  :: apply          => block_preconditioner_lu_apply
      procedure  :: apply_fun      => block_preconditioner_lu_apply_fun
-     procedure  :: fill_values    => block_preconditioner_lu_fill_values
-     procedure  :: free_values    => block_preconditioner_lu_free_values
      procedure  :: free           => block_preconditioner_lu_free_tbp
   end type block_preconditioner_lu_t
 
@@ -111,41 +109,6 @@ contains
     call z%free()
     deallocate(z)
   end function block_preconditioner_lu_apply_fun
-
-  ! op1%fill_values(op2)
-  ! Fill preconditioner values
-  subroutine block_preconditioner_lu_fill_values (op, stage)
-    implicit none
-    class(block_preconditioner_lu_t), intent(inout) :: op
-    integer(ip), optional           , intent(in)    :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-
-    call op%L%fill_values(stage_)
-    call op%U%fill_values(stage_)
-    
-  end subroutine block_preconditioner_lu_fill_values
-
-  ! op1%free_values(op2)
-  ! Free preconditioner values
-  subroutine block_preconditioner_lu_free_values (op,stage)
-    implicit none
-    class(block_preconditioner_lu_t), intent(inout) :: op
-    integer(ip), optional , intent(in)              :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-
-    call op%L%free_values(stage_)
-    call op%U%free_values(stage_)
-    
-  end subroutine block_preconditioner_lu_free_values
-
 
   subroutine block_preconditioner_lu_free_tbp(this)
     implicit none

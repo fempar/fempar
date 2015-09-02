@@ -83,6 +83,8 @@ module serial_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_operand_names
+  use inverse_operator_names
+
   
   ! Integration 
   use fe_space_names
@@ -99,9 +101,6 @@ module serial_names
   use problem_names
   use integration_names
   use scalar_names
-  use nonlinear_operator_names
-  use picard_nonlinear_operator_names
   use time_integration_names
-  use inverse_operator_names
 
 end module serial_names

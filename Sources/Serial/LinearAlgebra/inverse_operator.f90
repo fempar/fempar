@@ -44,8 +44,6 @@ module inverse_operator_names
      procedure :: create      => inverse_operator_create     
      procedure :: apply       => inverse_operator_apply      
      procedure :: apply_fun   => inverse_operator_apply_fun  
-     procedure :: fill_values => inverse_operator_fill_values
-     procedure :: free_values => inverse_operator_free_values
      procedure :: free        => inverse_operator_free       
   end type inverse_operator_t
 
@@ -118,36 +116,6 @@ contains
     call y%SetTemp()
     
   end function inverse_operator_apply_fun
-
-  !==================================================================================================
-  subroutine inverse_operator_fill_values(op,stage)
-    implicit none
-    class(inverse_operator_t), intent(inout) :: op
-    integer(ip), optional    , intent(in)    :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-
-    call op%M%fill_values(stage_)
-
-  end subroutine inverse_operator_fill_values
-
-  !==================================================================================================
-  subroutine inverse_operator_free_values(op,stage)
-    implicit none
-    class(inverse_operator_t), intent(inout) :: op
-    integer(ip), optional , intent(in)       :: stage
-    ! Locals
-    integer(ip) :: stage_
-    
-    stage_ = update_nonlinear
-    if(present(stage)) stage_ = stage
-    
-    call op%M%free_values(stage_)
-
-  end subroutine inverse_operator_free_values
 
 end module inverse_operator_names
 

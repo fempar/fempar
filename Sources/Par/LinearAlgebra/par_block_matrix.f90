@@ -31,8 +31,8 @@ module par_block_matrix_names
   use memor_names
   use graph_names
   use matrix_names
-  use base_integrable_operator_names
   use base_operand_names
+  use base_operator_names
 
   ! Parallel modules
   use par_matrix_names
@@ -53,7 +53,7 @@ module par_block_matrix_names
 
 
   ! Block Matrix
-  type, extends(base_integrable_operator_t) :: par_block_matrix_t
+  type, extends(base_operator_t) :: par_block_matrix_t
 !    private ! IBM XLF 14.1 bug
     integer(ip)                     :: nblocks
     type(p_par_matrix_t), allocatable :: blocks(:,:)
@@ -66,7 +66,6 @@ module par_block_matrix_names
     procedure :: get_nblocks       => par_block_matrix_get_nblocks
     procedure :: apply             => par_block_matrix_apply
     procedure :: apply_fun         => par_block_matrix_apply_fun
-    procedure :: init              => par_block_matrix_zero
   end type par_block_matrix_t
 
   ! Types
@@ -76,7 +75,6 @@ module par_block_matrix_names
   public :: par_block_matrix_alloc, par_block_matrix_alloc_block,       & 
             par_block_matrix_set_block_to_zero, par_block_matrix_print, & 
             par_block_matrix_free,                                      & 
-            par_block_matrix_zero, &
             par_block_matvec
 
 contains
@@ -215,24 +213,6 @@ contains
     deallocate ( p_b_matrix%blocks )
   
   end subroutine par_block_matrix_free
-
-  !=============================================================================
-  subroutine par_block_matrix_zero(op)
-    implicit none
-    ! Parameters
-    class(par_block_matrix_t), intent(inout) :: op
-
-    ! Locals
-    integer(ip) :: ib, jb
-    do ib=1, op%nblocks
-      do jb=1, op%nblocks
-         if ( associated(op%blocks(ib,jb)%p_p_matrix) ) then
-            call par_matrix_zero (op%blocks(ib,jb)%p_p_matrix)
-         end if
-      end do
-   end do
-
-  end subroutine par_block_matrix_zero
 
   subroutine par_block_matvec (a, x, y)
     implicit none
