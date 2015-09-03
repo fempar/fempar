@@ -31,7 +31,7 @@ module par_block_vector_names
   use memor_names
   use block_vector_names
   use vector_names
-  use base_operand_names
+  use abstract_vector_names
     
   ! Parallel modules
   use par_vector_names
@@ -60,7 +60,7 @@ module par_block_vector_names
   !=============================================================
 
   ! par_vector
-  type, extends(base_operand_t) :: par_block_vector_t
+  type, extends(abstract_vector_t) :: par_block_vector_t
      integer(ip)                     :: nblocks = 0
      type(par_vector_t), allocatable :: blocks(:)
 
@@ -419,7 +419,7 @@ contains
     implicit none
     ! Parameters
     class(par_block_vector_t), intent(in)  :: op1
-    class(base_operand_t)    , intent(in)  :: op2
+    class(abstract_vector_t)    , intent(in)  :: op2
     real(rp) :: alpha
 
     ! Locals
@@ -449,7 +449,7 @@ contains
     implicit none
     ! Parameters
     class(par_block_vector_t), intent(inout) :: op1
-    class(base_operand_t)    , intent(in)    :: op2
+    class(abstract_vector_t)    , intent(in)    :: op2
 
     ! Locals
     integer(ip) :: ib
@@ -487,7 +487,7 @@ contains
     ! Parameters 
     class(par_block_vector_t), intent(inout) :: op1
     real(rp)                 , intent(in)    :: alpha
-    class(base_operand_t)    , intent(in)    :: op2
+    class(abstract_vector_t)    , intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
 
@@ -510,7 +510,7 @@ contains
     implicit none
     class(par_block_vector_t), intent(inout) :: op1
     real(rp)                 , intent(in)    :: alpha
-    class(base_operand_t)    , intent(in)    :: op2
+    class(abstract_vector_t)    , intent(in)    :: op2
     real(rp)                 , intent(in)    :: beta
     ! Locals
     integer(ip) :: ib
@@ -546,7 +546,7 @@ contains
     implicit none
     ! Parameters
     class(par_block_vector_t)    , intent(inout) :: op1
-    class(base_operand_t), target, intent(in)    :: op2
+    class(abstract_vector_t), target, intent(in)    :: op2
  
     ! Locals
     integer(ip) :: ib

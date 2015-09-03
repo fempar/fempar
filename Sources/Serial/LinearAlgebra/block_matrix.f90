@@ -35,7 +35,7 @@ module block_matrix_names
   use vector_names
   
   ! Abstract types
-  use base_operand_names
+  use abstract_vector_names
   use abstract_operator_names
   implicit none
 # include "debug.i90"
@@ -217,8 +217,8 @@ contains
   subroutine block_matrix_apply(op,x,y)
     implicit none
     class(block_matrix_t), intent(in)    :: op
-    class(base_operand_t), intent(in)    :: x
-    class(base_operand_t), intent(inouT) :: y
+    class(abstract_vector_t), intent(in)    :: x
+    class(abstract_vector_t), intent(inouT) :: y
     ! Locals
     integer(ip) :: ib,jb
     type(vector_t) :: aux
@@ -260,8 +260,8 @@ contains
   function block_matrix_apply_fun(op,x) result(y)
     implicit none
     class(block_matrix_t), intent(in)  :: op
-    class(base_operand_t), intent(in)  :: x
-    class(base_operand_t), allocatable :: y 
+    class(abstract_vector_t), intent(in)  :: x
+    class(abstract_vector_t), allocatable :: y 
     ! Locals
     integer(ip) :: ib,jb
     type(block_vector_t), allocatable :: local_y

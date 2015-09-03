@@ -45,7 +45,7 @@ program par_test_cdr
 
   type(par_matrix_t), target                :: p_mat
   type(par_vector_t), target                :: p_vec, p_unk
-  class(base_operand_t) , pointer           :: x, y
+  class(abstract_vector_t) , pointer           :: x, y
   class(abstract_operator_t), pointer           :: A
 
   ! Preconditioner-related data structures

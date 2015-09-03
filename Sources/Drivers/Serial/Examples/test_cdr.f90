@@ -50,7 +50,7 @@ program test_cdr
 
   type(matrix_t), target             :: my_matrix
   type(vector_t), target             :: my_vector, feunk
-  class(base_operand_t) , pointer :: x, y
+  class(abstract_vector_t) , pointer :: x, y
   class(abstract_operator_t), pointer :: A
 
   type(preconditioner_t)        :: feprec

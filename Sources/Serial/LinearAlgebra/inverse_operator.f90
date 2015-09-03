@@ -28,7 +28,7 @@
 module inverse_operator_names
   use types_names
   use abstract_operator_names
-  use base_operand_names
+  use abstract_vector_names
   use abstract_solver_names
   use abstract_environment_names
   implicit none
@@ -86,8 +86,8 @@ contains
   subroutine inverse_operator_apply(op,x,y)
     implicit none
     class(inverse_operator_t), intent(in)    :: op
-    class(base_operand_t)    , intent(in)    :: x
-    class(base_operand_t)    , intent(inout) :: y
+    class(abstract_vector_t)    , intent(in)    :: x
+    class(abstract_vector_t)    , intent(inout) :: y
 
     ! Checks
     check(associated(op%A))
@@ -105,9 +105,9 @@ contains
   function inverse_operator_apply_fun(op,x) result(y)
     implicit none
     class(inverse_operator_t), intent(in) :: op
-    class(base_operand_t)    , intent(in) :: x
+    class(abstract_vector_t)    , intent(in) :: x
     ! Locals
-    class(base_operand_t), allocatable :: y
+    class(abstract_vector_t), allocatable :: y
 
     call x%GuardTemp()
     allocate(y, mold=x); call y%default_initialization()

@@ -76,7 +76,7 @@ module serial_names
   use block_vector_names
   use block_matrix_vector_names
   use abstract_solver_names
-  use base_operand_names
+  use abstract_vector_names
   use abstract_operator_names
   use block_preconditioner_l_names
   use block_preconditioner_u_names

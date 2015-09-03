@@ -51,7 +51,7 @@ program test_dirsol_mm
   type(vector_t), target :: x
   type(vector_t), target :: exact_solution 
 
-  class(base_operand_t) , pointer :: x_base, b_base, exact_solution_base
+  class(abstract_vector_t) , pointer :: x_base, b_base, exact_solution_base
   class(abstract_operator_t), pointer :: A
 
   type(preconditioner_t)        :: feprec

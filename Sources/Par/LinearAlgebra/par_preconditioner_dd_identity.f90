@@ -41,7 +41,7 @@ use memor_names
 use psb_penv_mod_names
 
   ! Abstract modules
-  use base_operand_names
+  use abstract_vector_names
   use abstract_operator_names
 
 # include "debug.i90"
@@ -167,8 +167,8 @@ use psb_penv_mod_names
     implicit none
     ! Parameters
     class(par_preconditioner_dd_identity_t)    , intent(in)    :: op
-    class(base_operand_t)   , intent(in)    :: x
-    class(base_operand_t)   , intent(inout) :: y
+    class(abstract_vector_t)   , intent(in)    :: x
+    class(abstract_vector_t)   , intent(inout) :: y
         
     call x%GuardTemp()
     
@@ -195,8 +195,8 @@ use psb_penv_mod_names
     implicit none
     ! Parameters
     class(par_preconditioner_dd_identity_t), intent(in)   :: op
-    class(base_operand_t), intent(in)  :: x
-    class(base_operand_t), allocatable :: y
+    class(abstract_vector_t), intent(in)  :: x
+    class(abstract_vector_t), allocatable :: y
     type(par_vector_t), allocatable :: local_y
     
     call x%GuardTemp()

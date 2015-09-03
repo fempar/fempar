@@ -53,7 +53,7 @@ program test_nsi_iss
   type(solver_control_t)                :: sctrl
   type(serial_environment_t)            :: senv
   type(vtk_t)                           :: fevtk
-  class(base_operand_t)       , pointer :: x, b
+  class(abstract_vector_t)       , pointer :: x, b
   class(abstract_operator_t)      , pointer :: A, M
   type(graph_t)               , pointer :: f_graph
   type(block_graph_t)                   :: f_blk_graph
@@ -258,7 +258,7 @@ contains
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
     type(fe_space_t)                    , intent(inout) :: fe_space
     class(abstract_operator_t)              , intent(inout) :: A, M
-    class(base_operand_t)               , intent(inout) :: x, b
+    class(abstract_vector_t)               , intent(inout) :: x, b
     ! Locals
     integer(ip) :: iiter
     real(rp)    :: resnorm,ininorm

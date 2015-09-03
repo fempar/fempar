@@ -30,7 +30,7 @@ module abstract_solver_names
   use types_names
   use memor_names
   use abstract_operator_names
-  use base_operand_names
+  use abstract_vector_names
   use abstract_environment_names
 
 # include "debug.i90"
@@ -154,8 +154,8 @@ contains
     implicit none
     class(abstract_operator_t), intent(in)        :: A        ! Matrix
     class(abstract_operator_t), intent(in)        :: M        ! Preconditioner
-    class(base_operand_t) , intent(in)        :: b        ! RHS
-    class(base_operand_t) , intent(inout)     :: x        ! Approximate solution
+    class(abstract_vector_t) , intent(in)        :: b        ! RHS
+    class(abstract_vector_t) , intent(inout)     :: x        ! Approximate solution
     type(solver_control_t), intent(inout)     :: ctrl     ! Solver parameters
     class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
     
@@ -207,8 +207,8 @@ contains
     ! Parameters
     class(abstract_operator_t) , intent(in)       :: A     ! Matrix
     class(abstract_operator_t) , intent(in)       :: M     ! Preconditioner
-    class(base_operand_t)  , intent(in)       :: b     ! RHS
-    class(base_operand_t)  , intent(inout)    :: x     ! Approximate solution
+    class(abstract_vector_t)  , intent(in)       :: b     ! RHS
+    class(abstract_vector_t)  , intent(inout)    :: x     ! Approximate solution
     type(solver_control_t) , intent(inout)    :: ctrl  ! Control data
     class(abstract_environment_t), intent(in) :: env   ! Serial/parallel environment 
 
@@ -218,7 +218,7 @@ contains
     real(rp)                         :: b_nrm_M      ! |b|_inv(M)
     real(rp)                         :: r_z, Ap_p, alpha, beta
     integer                          :: me, np
-    class(base_operand_t), allocatable :: r,p,Ap,z     ! Working vector_ts
+    class(abstract_vector_t), allocatable :: r,p,Ap,z     ! Working vector_ts
 
     call A%GuardTemp()
     call M%GuardTemp()
@@ -351,7 +351,7 @@ contains
 
   subroutine pcg_conv_init ( b, r , nrm_b_given, nrm_r_given, ctrl )
     implicit none 
-    class(base_operand_t) , intent(in)   :: b, r
+    class(abstract_vector_t) , intent(in)   :: b, r
     real(rp)            , intent(in)    :: nrm_b_given, nrm_r_given 
     type(solver_control_t), intent(inout) :: ctrl
     
@@ -389,7 +389,7 @@ contains
   subroutine pcg_conv_check ( r, nrm_r_given, alpha, p, ctrl )
     implicit none 
     ! Parameters
-    class(base_operand_t) , intent(in)    :: r, p
+    class(abstract_vector_t) , intent(in)    :: r, p
     real(rp)            , intent(in)    :: nrm_r_given
     real(rp)            , intent(in)    :: alpha
     type(solver_control_t), intent(inout) :: ctrl
@@ -466,8 +466,8 @@ subroutine abstract_ipcg( A, M, b, x, ctrl, env )
   ! Parameters
   class(abstract_operator_t), intent(in)    :: A        ! Matrix
   class(abstract_operator_t), intent(in)    :: M        ! Preconditioner
-  class(base_operand_t) , intent(in)    :: b        ! RHS
-  class(base_operand_t) , intent(inout) :: x        ! Approximate solution
+  class(abstract_vector_t) , intent(in)    :: b        ! RHS
+  class(abstract_vector_t) , intent(inout) :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl     ! Control data
   class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
@@ -476,7 +476,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl, env )
   real(rp)           :: b_nrm_M      ! |b|_inv(M)
   real(rp)           :: r_z, r2_z, Ap_p, alpha, beta
   integer            :: me, np
-  class(base_operand_t), allocatable  :: r,r2,p,Ap,z     ! Working vector_ts
+  class(abstract_vector_t), allocatable  :: r,r2,p,Ap,z     ! Working vector_ts
 
     call A%GuardTemp()
     call M%GuardTemp()
@@ -657,8 +657,8 @@ use blas77_interfaces_names
     ! Parameters
     class(abstract_operator_t)  , intent(in) :: A ! Matrix
     class(abstract_operator_t)  , intent(in) :: M ! Preconditioner
-    class(base_operand_t)   , intent(inout) :: x ! Solution
-    class(base_operand_t)   , intent(in)    :: b ! RHS
+    class(abstract_vector_t)   , intent(inout) :: x ! Solution
+    class(abstract_vector_t)   , intent(in)    :: b ! RHS
     type(solver_control_t), intent(inout) :: ctrl
     class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
@@ -671,8 +671,8 @@ use blas77_interfaces_names
     integer                        :: me, np
     logical                        :: exit_loop
 
-    class(base_operand_t), allocatable  :: r, z     ! Working vector_ts
-    class(base_operand_t), allocatable  :: bkry(:)  ! Krylov basis
+    class(abstract_vector_t), allocatable  :: r, z     ! Working vector_ts
+    class(abstract_vector_t), allocatable  :: bkry(:)  ! Krylov basis
 
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs.or.ctrl%stopc==res_nrmgiven_res_nrmgiven.or.ctrl%stopc==res_nrmgiven_rhs_nrmgiven)
 
@@ -1045,8 +1045,8 @@ use blas77_interfaces_names
   implicit none
   class(abstract_operator_t)   , intent(in)    :: A              ! Matrix
   class(abstract_operator_t)   , intent(in)    :: M              ! Preconditioner
-  class(base_operand_t)    , intent(inout) :: x              ! Solution
-  class(base_operand_t)    , intent(in)    :: b              ! RHS
+  class(abstract_vector_t)    , intent(inout) :: x              ! Solution
+  class(abstract_vector_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)   , intent(inout) :: ctrl
   class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
       
@@ -1059,8 +1059,8 @@ use blas77_interfaces_names
   integer                    :: me, np
   logical                    :: exit_loop
 
-  class(base_operand_t), allocatable  :: r, z       ! Working vector_ts
-  class(base_operand_t), allocatable  :: bkry(:)    ! Krylov basis
+  class(abstract_vector_t), allocatable  :: r, z       ! Working vector_ts
+  class(abstract_vector_t), allocatable  :: bkry(:)    ! Krylov basis
 
     assert(ctrl%stopc==res_nrmgiven_rhs_nrmgiven.or.ctrl%stopc==res_nrmgiven_res_nrmgiven)
 
@@ -1329,8 +1329,8 @@ use blas77_interfaces_names
   implicit none
   class(abstract_operator_t)   , intent(in)    :: A              ! Matrix
   class(abstract_operator_t)   , intent(in)    :: M              ! Preconditioner
-  class(base_operand_t)    , intent(inout) :: x              ! Solution
-  class(base_operand_t)    , intent(in)    :: b              ! RHS
+  class(abstract_vector_t)    , intent(inout) :: x              ! Solution
+  class(abstract_vector_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
   class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
@@ -1343,9 +1343,9 @@ use blas77_interfaces_names
   integer                    :: me, np
   logical                    :: exit_loop
 
-  class(base_operand_t), allocatable :: r, z    ! Working vector_ts
-  class(base_operand_t), allocatable :: bkry(:)    ! Krylov basis
-  class(base_operand_t), allocatable :: bkryz(:)   ! (Right-)Preconditioned Krylov basis
+  class(abstract_vector_t), allocatable :: r, z    ! Working vector_ts
+  class(abstract_vector_t), allocatable :: bkry(:)    ! Krylov basis
+  class(abstract_vector_t), allocatable :: bkryz(:)   ! (Right-)Preconditioned Krylov basis
 
     assert(ctrl%stopc==res_nrmgiven_rhs_nrmgiven.or.ctrl%stopc==res_nrmgiven_res_nrmgiven)
 
@@ -1612,14 +1612,14 @@ subroutine abstract_prichard (A, M, b, x, ctrl, env )
   implicit none
   class(abstract_operator_t)   , intent(in)    :: A              ! Matrix
   class(abstract_operator_t)   , intent(in)    :: M              ! Preconditioner
-  class(base_operand_t)    , intent(inout) :: x              ! Solution
-  class(base_operand_t)    , intent(in)    :: b              ! RHS
+  class(abstract_vector_t)    , intent(inout) :: x              ! Solution
+  class(abstract_vector_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
   class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   integer                          :: me, np
-  class(base_operand_t), allocatable :: r, z      ! Working vector_ts
+  class(abstract_vector_t), allocatable :: r, z      ! Working vector_ts
   real(rp)                         :: res_norm, rhs_norm
 
   assert ( ctrl%stopc == res_res .or. ctrl%stopc == res_rhs ) 
@@ -1714,8 +1714,8 @@ use lapack77_interfaces_names
   implicit none
   class(abstract_operator_t), intent(in)     :: A      ! Matrix
   class(abstract_operator_t), intent(in)     :: M      ! Preconditioner
-  class(base_operand_t),  intent(inout)  :: x      ! Solution
-  class(base_operand_t),  intent(in)     :: b      ! RHS
+  class(abstract_vector_t),  intent(inout)  :: x      ! Solution
+  class(abstract_vector_t),  intent(in)     :: b      ! RHS
   type(solver_control_t), intent(inout) :: ctrl
   class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
@@ -1729,8 +1729,8 @@ use lapack77_interfaces_names
   integer                        :: me, np, info
   logical                        :: exit_loop
 
-  class(base_operand_t), allocatable :: r, z        ! Working vector_ts
-  class(base_operand_t), allocatable :: bkry(:)     ! Krylov basis
+  class(abstract_vector_t), allocatable :: r, z        ! Working vector_ts
+  class(abstract_vector_t), allocatable :: bkry(:)     ! Krylov basis
 
   write(*,*) 'XXX', ctrl%stopc, res_res, res_rhs
  
@@ -2217,14 +2217,14 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
   ! Mandatory parameters
   class(abstract_operator_t), intent(in)    :: A        ! Matrix
   class(abstract_operator_t), intent(in)    :: M        ! Preconditioner
-  class(base_operand_t),  intent(in)    :: b        ! RHS
-  class(base_operand_t), intent(inout)  :: x        ! Approximate solution
+  class(abstract_vector_t),  intent(in)    :: b        ! RHS
+  class(abstract_vector_t), intent(inout)  :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl
   class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   !     Local arrays and variables
-  class(base_operand_t), allocatable :: r1, r2, v1, v2, w, w1, w2, y
+  class(abstract_vector_t), allocatable :: r1, r2, v1, v2, w, w1, w2, y
   real(rp)  :: alfa  , beta  , beta1 , cs    ,          &
        dbar  , delta , denom , diag  ,          &
        eps   , epsa  , epsln , epsr  , epsx  ,  &
@@ -2645,7 +2645,7 @@ end subroutine abstract_pminres
     ! Parameters
     integer(ip)               , intent(in)    :: luout
     integer(ip)               , intent(in)    :: m
-    class(base_operand_t)       , intent(inout) :: bkry(m)
+    class(abstract_vector_t)       , intent(inout) :: bkry(m)
     real(rp)                  , intent(inout) :: hh(m)
     integer(ip)               , intent(out)   :: ierrc  
 
@@ -2727,7 +2727,7 @@ end subroutine abstract_pminres
     ! Parameters  
     integer(ip), intent(in)                   :: luout
     integer(ip)               , intent(in)    :: k
-    class(base_operand_t)       , intent(inout) :: Q(k)
+    class(abstract_vector_t)       , intent(inout) :: Q(k)
     real(rp)                  , intent(inout) :: s(k)
     integer(ip)               , intent(out)   :: ierrc  
 

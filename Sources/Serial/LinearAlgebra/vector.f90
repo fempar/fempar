@@ -31,7 +31,7 @@ module vector_names
 #ifdef ENABLE_BLAS
   use blas77_interfaces_names
 #endif
-  use base_operand_names
+  use abstract_vector_names
 
 !!$#ifdef memcheck
 !!$  use iso_c_binding
@@ -55,7 +55,7 @@ module vector_names
   private
 
   ! vector
-  type, extends(base_operand_t) :: vector_t
+  type, extends(abstract_vector_t) :: vector_t
      integer(ip)                :: &
         neq = 0                       ! Number of equations
    
@@ -440,7 +440,7 @@ contains
  function vector_dot_tbp(op1,op2) result(alpha)
    implicit none
    class(vector_t), intent(in)    :: op1
-   class(base_operand_t), intent(in)  :: op2
+   class(abstract_vector_t), intent(in)  :: op2
    real(rp) :: alpha
 
    call op1%GuardTemp()
@@ -465,7 +465,7 @@ contains
  subroutine vector_copy_tbp(op1,op2)
    implicit none
    class(vector_t), intent(inout) :: op1
-   class(base_operand_t), intent(in)  :: op2
+   class(abstract_vector_t), intent(in)  :: op2
    
    call op2%GuardTemp()
    select type(op2)
@@ -488,7 +488,7 @@ contains
    implicit none
    class(vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(base_operand_t), intent(in) :: op2
+   class(abstract_vector_t), intent(in) :: op2
 
    call op2%GuardTemp()
    select type(op2)
@@ -524,7 +524,7 @@ contains
    implicit none
    class(vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(base_operand_t), intent(in) :: op2
+   class(abstract_vector_t), intent(in) :: op2
    real(rp), intent(in) :: beta
 
    call op2%GuardTemp()
@@ -577,7 +577,7 @@ contains
  subroutine vector_clone_tbp(op1,op2)
    implicit none
    class(vector_t)           ,intent(inout) :: op1
-   class(base_operand_t), target ,intent(in)    :: op2
+   class(abstract_vector_t), target ,intent(in)    :: op2
 
    call op2%GuardTemp()
    select type(op2)

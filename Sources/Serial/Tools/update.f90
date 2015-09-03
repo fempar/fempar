@@ -34,7 +34,7 @@ module update_names
   use conditions_names
   use analytical_function_names
   use interpolation_tools_names
-  use base_operand_names
+  use abstract_vector_names
   implicit none
 # include "debug.i90"
   private     
@@ -215,10 +215,10 @@ contains
   !==================================================================================================
   subroutine update_solution(vec,fe_space)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a base_operand into unkno.                         !
+    !   This subroutine stores the solution from a abstract_vector into unkno.                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(base_operand_t), intent(in)    :: vec   
+    class(abstract_vector_t), intent(in)    :: vec   
     type(fe_space_t)     , intent(inout) :: fe_space
 
     select type(vec)
@@ -334,10 +334,10 @@ contains
   !==================================================================================================
   subroutine update_initialize(vec,fe_space)
     !-----------------------------------------------------------------------------------------------!
-    !   This subroutine stores the solution from a base_operand into unkno.                         !
+    !   This subroutine stores the solution from a abstract_vector into unkno.                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(base_operand_t), intent(inout) :: vec   
+    class(abstract_vector_t), intent(inout) :: vec   
     type(fe_space_t)     , intent(in)    :: fe_space
 
     select type(vec)

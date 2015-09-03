@@ -35,7 +35,7 @@ module matrix_names
   use matvec_names
 
   ! Abstract types
-  use base_operand_names
+  use abstract_vector_names
   use abstract_operator_names
 
 #ifdef memcheck
@@ -641,8 +641,8 @@ contains
   subroutine matrix_apply(op,x,y) 
     implicit none
     class(matrix_t), intent(in)    :: op
-    class(base_operand_t) , intent(in)    :: x
-    class(base_operand_t) , intent(inout) :: y 
+    class(abstract_vector_t) , intent(in)    :: x
+    class(abstract_vector_t) , intent(inout) :: y 
 
     call x%GuardTemp()
 
@@ -669,8 +669,8 @@ contains
   function matrix_apply_fun(op,x) result(y)
     implicit none
     class(matrix_t), intent(in)  :: op
-    class(base_operand_t) , intent(in)  :: x
-    class(base_operand_t) , allocatable :: y 
+    class(abstract_vector_t) , intent(in)  :: x
+    class(abstract_vector_t) , allocatable :: y 
 
     type(vector_t), allocatable :: local_y
 

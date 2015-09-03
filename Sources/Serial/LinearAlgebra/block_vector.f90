@@ -29,7 +29,7 @@ module block_vector_names
   use types_names
   use memor_names
   use vector_names
-  use base_operand_names
+  use abstract_vector_names
   use block_graph_names
   use graph_names
   implicit none
@@ -38,7 +38,7 @@ module block_vector_names
   private
 
   ! vector
-  type, extends(base_operand_t) :: block_vector_t
+  type, extends(abstract_vector_t) :: block_vector_t
      integer(ip)                 :: nblocks = 0
      type(vector_t), allocatable :: blocks(:)
    contains
@@ -357,7 +357,7 @@ contains
     implicit none
     ! Parameters
     class(block_vector_t), intent(in)  :: op1
-    class(base_operand_t), intent(in)  :: op2
+    class(abstract_vector_t), intent(in)  :: op2
     real(rp) :: alpha
 
     ! Locals
@@ -387,7 +387,7 @@ contains
     implicit none
     ! Parameters
     class(block_vector_t), intent(inout) :: op1
-    class(base_operand_t), intent(in)    :: op2
+    class(abstract_vector_t), intent(in)    :: op2
 
     ! Locals
     integer(ip) :: ib
@@ -425,7 +425,7 @@ contains
     ! Parameters 
     class(block_vector_t), intent(inout) :: op1
     real(rp)             , intent(in)    :: alpha
-    class(base_operand_t), intent(in)    :: op2
+    class(abstract_vector_t), intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
 
@@ -448,7 +448,7 @@ contains
     implicit none
     class(block_vector_t), intent(inout) :: op1
     real(rp)             , intent(in)    :: alpha
-    class(base_operand_t), intent(in)    :: op2
+    class(abstract_vector_t), intent(in)    :: op2
     real(rp)             , intent(in)    :: beta
     ! Locals
     integer(ip)                           :: ib
@@ -484,7 +484,7 @@ contains
     implicit none
     ! Parameters
     class(block_vector_t)        , intent(inout) :: op1
-    class(base_operand_t), target, intent(in)    :: op2
+    class(abstract_vector_t), target, intent(in)    :: op2
  
     ! Locals
     integer(ip) :: ib

@@ -30,7 +30,7 @@ module block_preconditioner_u_names
   use types_names
   use memor_names
   use abstract_operator_names
-  use base_operand_names
+  use abstract_vector_names
 
   use block_operand_names
 
@@ -78,12 +78,12 @@ contains
   subroutine block_preconditioner_u_apply (op,x,y)
     implicit none
     class(block_preconditioner_u_t)     , intent(in)   :: op
-    class(base_operand_t)      , intent(in)    :: x
-    class(base_operand_t)      , intent(inout) :: y
+    class(abstract_vector_t)      , intent(in)    :: x
+    class(abstract_vector_t)      , intent(inout) :: y
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(base_operand_t), allocatable :: aux1, aux2
+    class(abstract_vector_t), allocatable :: aux1, aux2
 
     call x%GuardTemp()
     select type(x)
@@ -123,11 +123,11 @@ contains
   function block_preconditioner_u_apply_fun(op,x) result(y) 
     implicit none
     class(block_preconditioner_u_t), intent(in)  :: op
-    class(base_operand_t) , intent(in)   :: x
-    class(base_operand_t) , allocatable  :: y
+    class(abstract_vector_t) , intent(in)   :: x
+    class(abstract_vector_t) , allocatable  :: y
 
     type(block_operand_t), allocatable :: local_y
-    class(base_operand_t), allocatable :: aux1, aux2
+    class(abstract_vector_t), allocatable :: aux1, aux2
     integer(ip)                      :: iblk, jblk
 
     call x%GuardTemp()
