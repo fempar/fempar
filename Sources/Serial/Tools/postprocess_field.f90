@@ -39,6 +39,9 @@ module postprocess_field_names
 # include "debug.i90"
   private
 
+  integer(ip), parameter :: use_max_interpolation_order = 0
+  integer(ip), parameter :: use_interpolation_order_from_variable = 1
+
   ! Elemental postprocess field type
   type fe_postprocess_field_t
      integer(ip)           :: nnode
@@ -75,21 +78,29 @@ module postprocess_field_names
   end interface
 
   ! Types
-  public :: postprocess_field_t
+  public :: postprocess_field_t, use_max_interpolation_order, use_interpolation_order_from_variable
   
 contains
   
   !==================================================================================================
-  subroutine postprocess_field_create(postprocess_field,name,nvars,ivar,fe_space,env)
+  subroutine postprocess_field_create(postprocess_field,name,nvars,fe_space,env,                    &
+       &                              interpolation_order_mode,variable_identifier)
     implicit none
     class(postprocess_field_t), intent(inout)  :: postprocess_field
     integer(ip),                intent(in)     :: nvars    ! Number of components of the postprocess_field
-    integer(ip),                intent(in)     :: ivar     ! Variable of unkno from which the interpolation is copied (if ivar < 1, the maximum interpolation is used)
     character(len=*),           intent(in)     :: name     ! Name of the postprocess field
     type(fe_space_t),  target,  intent(in)     :: fe_space 
+    integer(ip),                intent(in)     :: interpolation_order_mode
+    integer(ip),   optional,    intent(in)     :: variable_identifier
     class(abstract_environment_t), target, intent(in) :: env
     ! Locals
     integer(ip)      :: ndime, ielem
+
+    assert((interpolation_order_mode.eq.use_max_interpolation_order).or. &
+         & (interpolation_order_mode.eq.use_interpolation_order_from_variable))
+    if (interpolation_order_mode.eq.use_interpolation_order_from_variable) then 
+       check(present(variable_identifier))
+    end if
 
     postprocess_field%nvars = nvars
     postprocess_field%name  = name
@@ -101,7 +112,7 @@ contains
        
        do ielem=1,fe_space%g_trian%num_elems
           call postprocess_field%fe_postprocess_field(ielem)%create(postprocess_field%p_fe_space,ielem,&
-               &                                                    nvars, ivar)
+               &                                   nvars, interpolation_order_mode, variable_identifier)
        end do
     end if
     
@@ -127,13 +138,15 @@ contains
   end subroutine postprocess_field_free
 
   !==================================================================================================
-  subroutine fe_postprocess_field_create(fe_postprocess_field, fe_space, ielem, nvars, ivar)
+  subroutine fe_postprocess_field_create(fe_postprocess_field, fe_space, ielem, nvars,              &
+       &                                 interpolation_order_mode, variable_identifier)
     implicit none
     class(fe_postprocess_field_t), intent(inout) :: fe_postprocess_field
     type(fe_space_t),              intent(inout) :: fe_space
-    integer(ip),                   intent(in)    :: ielem, nvars, ivar
+    integer(ip),                   intent(in)    :: ielem, nvars, interpolation_order_mode
+    integer(ip),   optional,       intent(in)    :: variable_identifier
     ! Locals
-    integer(ip)   :: i, nnode, istat!, f_type, v_key, ndime, pos_elinf
+    integer(ip)   :: i, nnode, istat
     
     ! Get the maximum interpolation order among all varibles in ielem
     nnode = -1
@@ -142,14 +155,16 @@ contains
           nnode = fe_space%finite_elements(ielem)%reference_element_vars(i)%p%nnode
        end if
     end do
-
-    if (ivar.lt.1) then
+    
+    select case(interpolation_order_mode)
+    case(use_max_interpolation_order)
        fe_postprocess_field%nnode = nnode
-    else
-       fe_postprocess_field%nnode = fe_space%finite_elements_info(ivar)%nnode
-    end if
+    case(use_interpolation_order_from_variable)
+       fe_postprocess_field%nnode = fe_space%finite_elements_info(variable_identifier)%nnode
+    end select
 
-    call memalloc(nnode, nvars, fe_postprocess_field%nodal_properties, __FILE__, __LINE__, valin=0.0_rp)
+    call memalloc(nnode, nvars, fe_postprocess_field%nodal_properties, __FILE__, __LINE__,          &
+         &        valin=0.0_rp)
     
   end subroutine fe_postprocess_field_create
 

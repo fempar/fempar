@@ -32,8 +32,8 @@ module postprocess_field_nsi_names
 # include "debug.i90"
   implicit none
 
-  integer(ip), parameter :: velocity = 0 ! Fill option for "computing" velocity
-  integer(ip), parameter :: pressure = 1 ! Fill option for "computing" pressure
+  integer(ip), parameter :: velocity = 1 ! Fill option for "computing" velocity
+  integer(ip), parameter :: pressure = 2 ! Fill option for "computing" pressure
 
   type, extends(postprocess_field_t) :: postprocess_field_nsi_t
    contains
@@ -341,8 +341,10 @@ program par_test_nsi_iss
   call par_update_solution(p_unk,p_fe_space)
 
   ! Compute postprocess field
-  call postprocess_vel%create('velocity',gdata%ndime,1,p_fe_space%fe_space,p_env)
-  call postprocess_pre%create('pressure',1,2,p_fe_space%fe_space,p_env)
+  call postprocess_vel%create('velocity',gdata%ndime,p_fe_space%fe_space,p_env,                     &
+       &                      use_interpolation_order_from_variable,variable_identifier=velocity)
+  call postprocess_pre%create('pressure',1,p_fe_space%fe_space,p_env,                               &
+       &                      use_interpolation_order_from_variable,variable_identifier=pressure)
   call postprocess_vel%compute_and_finalize_field(myprob,velocity)
   call postprocess_pre%compute_and_finalize_field(myprob,pressure)
      
