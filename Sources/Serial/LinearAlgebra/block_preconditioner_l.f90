@@ -29,7 +29,7 @@
 module block_preconditioner_l_names
   use types_names
   use memor_names
-  use base_operator_names
+  use abstract_operator_names
   use base_operand_names
   use block_operand_names
 
@@ -46,7 +46,7 @@ use iso_c_binding
   end type p_abs_operator_t
 
   ! Lower block triangular preconditioner 
-  type, extends(base_operator_t) :: block_preconditioner_l_t
+  type, extends(abstract_operator_t) :: block_preconditioner_l_t
 !     private ! IBM XLF 14.1 bug
      integer(ip)                       :: nblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)
@@ -198,7 +198,7 @@ contains
     ! Parameters
     class(block_preconditioner_l_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
-    class(base_operator_t)                  , intent(in)    :: op 
+    class(abstract_operator_t)                  , intent(in)    :: op 
 
     assert ( ib >= jb )
 
@@ -252,7 +252,7 @@ contains
     ! Parameters
     class(block_preconditioner_l_t), target, intent(in) :: bop
     integer(ip)                            , intent(in) :: ib,jb
-    class(base_operator_t)                 , pointer    :: block_preconditioner_l_get_block
+    class(abstract_operator_t)                 , pointer    :: block_preconditioner_l_get_block
 
     block_preconditioner_l_get_block =>  bop%blocks(ib,jb)%p_op
   end function block_preconditioner_l_get_block

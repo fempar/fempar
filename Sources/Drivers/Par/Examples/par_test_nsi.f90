@@ -63,7 +63,7 @@ program par_test_nsi_iss
   type(par_vector_t), target                         :: p_unk
   type(solver_control_t)                             :: sctrl
   class(base_operand_t) , pointer           :: x, y
-  class(base_operator_t), pointer           :: A
+  class(abstract_operator_t), pointer           :: A
 
   ! Integers
   integer(ip) :: num_levels

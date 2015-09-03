@@ -32,7 +32,7 @@ module par_block_matrix_names
   use graph_names
   use matrix_names
   use base_operand_names
-  use base_operator_names
+  use abstract_operator_names
 
   ! Parallel modules
   use par_matrix_names
@@ -53,7 +53,7 @@ module par_block_matrix_names
 
 
   ! Block Matrix
-  type, extends(base_operator_t) :: par_block_matrix_t
+  type, extends(abstract_operator_t) :: par_block_matrix_t
 !    private ! IBM XLF 14.1 bug
     integer(ip)                     :: nblocks
     type(p_par_matrix_t), allocatable :: blocks(:,:)

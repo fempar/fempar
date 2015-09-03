@@ -54,7 +54,7 @@ program test_nsi_iss
   type(serial_environment_t)            :: senv
   type(vtk_t)                           :: fevtk
   class(base_operand_t)       , pointer :: x, b
-  class(base_operator_t)      , pointer :: A, M
+  class(abstract_operator_t)      , pointer :: A, M
   type(graph_t)               , pointer :: f_graph
   type(block_graph_t)                   :: f_blk_graph
   type(scalar_t)                        :: enorm_u, enorm_p
@@ -257,7 +257,7 @@ contains
     class(abstract_environment_t)       , intent(in)    :: env
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
     type(fe_space_t)                    , intent(inout) :: fe_space
-    class(base_operator_t)              , intent(inout) :: A, M
+    class(abstract_operator_t)              , intent(inout) :: A, M
     class(base_operand_t)               , intent(inout) :: x, b
     ! Locals
     integer(ip) :: iiter
@@ -270,7 +270,7 @@ contains
        iiter = iiter+1
 
        ! Initialize Matrix and vector
-       ! ***************** Abstract procedure to initialize a base_operator ************************!
+       ! ***************** Abstract procedure to initialize a abstract_operator ************************!
        select type (A)
        type is(matrix_t)
           call matrix_zero(A)

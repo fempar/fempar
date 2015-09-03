@@ -29,7 +29,7 @@
 module abstract_solver_names
   use types_names
   use memor_names
-  use base_operator_names
+  use abstract_operator_names
   use base_operand_names
   use abstract_environment_names
 
@@ -152,8 +152,8 @@ contains
   !=============================================================================
   subroutine abstract_solve(A,M,b,x,ctrl,env)
     implicit none
-    class(base_operator_t), intent(in)        :: A        ! Matrix
-    class(base_operator_t), intent(in)        :: M        ! Preconditioner
+    class(abstract_operator_t), intent(in)        :: A        ! Matrix
+    class(abstract_operator_t), intent(in)        :: M        ! Preconditioner
     class(base_operand_t) , intent(in)        :: b        ! RHS
     class(base_operand_t) , intent(inout)     :: x        ! Approximate solution
     type(solver_control_t), intent(inout)     :: ctrl     ! Solver parameters
@@ -205,8 +205,8 @@ contains
     implicit none
 
     ! Parameters
-    class(base_operator_t) , intent(in)       :: A     ! Matrix
-    class(base_operator_t) , intent(in)       :: M     ! Preconditioner
+    class(abstract_operator_t) , intent(in)       :: A     ! Matrix
+    class(abstract_operator_t) , intent(in)       :: M     ! Preconditioner
     class(base_operand_t)  , intent(in)       :: b     ! RHS
     class(base_operand_t)  , intent(inout)    :: x     ! Approximate solution
     type(solver_control_t) , intent(inout)    :: ctrl  ! Control data
@@ -464,8 +464,8 @@ subroutine abstract_ipcg( A, M, b, x, ctrl, env )
   implicit none
 
   ! Parameters
-  class(base_operator_t), intent(in)    :: A        ! Matrix
-  class(base_operator_t), intent(in)    :: M        ! Preconditioner
+  class(abstract_operator_t), intent(in)    :: A        ! Matrix
+  class(abstract_operator_t), intent(in)    :: M        ! Preconditioner
   class(base_operand_t) , intent(in)    :: b        ! RHS
   class(base_operand_t) , intent(inout) :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl     ! Control data
@@ -655,8 +655,8 @@ use blas77_interfaces_names
 #endif
     implicit none
     ! Parameters
-    class(base_operator_t)  , intent(in) :: A ! Matrix
-    class(base_operator_t)  , intent(in) :: M ! Preconditioner
+    class(abstract_operator_t)  , intent(in) :: A ! Matrix
+    class(abstract_operator_t)  , intent(in) :: M ! Preconditioner
     class(base_operand_t)   , intent(inout) :: x ! Solution
     class(base_operand_t)   , intent(in)    :: b ! RHS
     type(solver_control_t), intent(inout) :: ctrl
@@ -1043,8 +1043,8 @@ subroutine abstract_prgmres ( A, M, b, x, ctrl, env)
 use blas77_interfaces_names
 #endif
   implicit none
-  class(base_operator_t)   , intent(in)    :: A              ! Matrix
-  class(base_operator_t)   , intent(in)    :: M              ! Preconditioner
+  class(abstract_operator_t)   , intent(in)    :: A              ! Matrix
+  class(abstract_operator_t)   , intent(in)    :: M              ! Preconditioner
   class(base_operand_t)    , intent(inout) :: x              ! Solution
   class(base_operand_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)   , intent(inout) :: ctrl
@@ -1327,8 +1327,8 @@ subroutine abstract_pfgmres ( A, M, b, x, ctrl, env)
 use blas77_interfaces_names
 #endif
   implicit none
-  class(base_operator_t)   , intent(in)    :: A              ! Matrix
-  class(base_operator_t)   , intent(in)    :: M              ! Preconditioner
+  class(abstract_operator_t)   , intent(in)    :: A              ! Matrix
+  class(abstract_operator_t)   , intent(in)    :: M              ! Preconditioner
   class(base_operand_t)    , intent(inout) :: x              ! Solution
   class(base_operand_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
@@ -1610,8 +1610,8 @@ subroutine abstract_prichard (A, M, b, x, ctrl, env )
   !
   !-----------------------------------------------------------------------
   implicit none
-  class(base_operator_t)   , intent(in)    :: A              ! Matrix
-  class(base_operator_t)   , intent(in)    :: M              ! Preconditioner
+  class(abstract_operator_t)   , intent(in)    :: A              ! Matrix
+  class(abstract_operator_t)   , intent(in)    :: M              ! Preconditioner
   class(base_operand_t)    , intent(inout) :: x              ! Solution
   class(base_operand_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
@@ -1712,8 +1712,8 @@ use lapack77_interfaces_names
 #endif
 
   implicit none
-  class(base_operator_t), intent(in)     :: A      ! Matrix
-  class(base_operator_t), intent(in)     :: M      ! Preconditioner
+  class(abstract_operator_t), intent(in)     :: A      ! Matrix
+  class(abstract_operator_t), intent(in)     :: M      ! Preconditioner
   class(base_operand_t),  intent(inout)  :: x      ! Solution
   class(base_operand_t),  intent(in)     :: b      ! RHS
   type(solver_control_t), intent(inout) :: ctrl
@@ -2215,8 +2215,8 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
   implicit none
 
   ! Mandatory parameters
-  class(base_operator_t), intent(in)    :: A        ! Matrix
-  class(base_operator_t), intent(in)    :: M        ! Preconditioner
+  class(abstract_operator_t), intent(in)    :: A        ! Matrix
+  class(abstract_operator_t), intent(in)    :: M        ! Preconditioner
   class(base_operand_t),  intent(in)    :: b        ! RHS
   class(base_operand_t), intent(inout)  :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl

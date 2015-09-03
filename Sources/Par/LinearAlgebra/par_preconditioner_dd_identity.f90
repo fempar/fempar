@@ -42,14 +42,14 @@ use psb_penv_mod_names
 
   ! Abstract modules
   use base_operand_names
-  use base_operator_names
+  use abstract_operator_names
 
 # include "debug.i90"
   
   implicit none
   private
 
-  type, extends(base_operator_t) :: par_preconditioner_dd_identity_t
+  type, extends(abstract_operator_t) :: par_preconditioner_dd_identity_t
      ! Reference to parallel matrix
      type( par_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal

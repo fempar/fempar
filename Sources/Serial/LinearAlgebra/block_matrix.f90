@@ -36,7 +36,7 @@ module block_matrix_names
   
   ! Abstract types
   use base_operand_names
-  use base_operator_names
+  use abstract_operator_names
   implicit none
 # include "debug.i90"
 
@@ -49,7 +49,7 @@ module block_matrix_names
   end type p_matrix_t
 
   ! Block Matrix
-  type, extends(base_operator_t):: block_matrix_t
+  type, extends(abstract_operator_t):: block_matrix_t
 !    private ! IBM XLF 14.1 bug
     integer(ip)                     :: nblocks = -1
     type(p_matrix_t), allocatable :: blocks(:,:)

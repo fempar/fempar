@@ -110,7 +110,7 @@ program par_test_cdr_unstructured
   type(par_matrix_t), target                :: p_mat
   type(par_vector_t), target                :: p_vec, p_unk
   class(base_operand_t) , pointer           :: x, y
-  class(base_operator_t), pointer           :: A
+  class(abstract_operator_t), pointer           :: A
 
   ! Preconditioner-related data structures
   type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag

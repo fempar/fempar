@@ -41,7 +41,7 @@ module preconditioner_names
 
   ! Abstract modules
   use base_operand_names
-  use base_operator_names
+  use abstract_operator_names
 
 # include "debug.i90"
 
@@ -78,7 +78,7 @@ module preconditioner_names
   integer (ip), parameter  :: preconditioner_free_struct = 8
   integer (ip), parameter  :: preconditioner_free_clean  = 9
 
-  type, extends(base_operator_t) :: preconditioner_t
+  type, extends(abstract_operator_t) :: preconditioner_t
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 

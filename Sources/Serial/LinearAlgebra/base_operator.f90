@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module base_operator_names
+module abstract_operator_names
   use types_names
   use memory_guard_names
   use integrable_names
@@ -36,7 +36,7 @@ module base_operator_names
   private
 
   ! Abstract operator (and its pure virtual function apply)
-  type, abstract, extends(integrable_t) :: base_operator_t
+  type, abstract, extends(integrable_t) :: abstract_operator_t
    contains
      procedure (apply_interface)         , deferred :: apply
      procedure (apply_fun_interface)     , deferred :: apply_fun
@@ -50,13 +50,13 @@ module base_operator_names
      generic    :: operator(+) => sum
      generic    :: operator(*) => mult, scal_right, scal_left, apply_fun
      generic    :: operator(-) => minus, sub
-  end type base_operator_t
+  end type abstract_operator_t
 
   ! Son class expression_operator_t. These operators are always temporary
   ! and therefore an assignment is needed to make copies. The gfortran
   ! compiler only supports A=B when A and B are polymorphic if the assignment 
   ! is overwritten.
-  type, abstract, extends(base_operator_t) :: expression_operator_t 
+  type, abstract, extends(abstract_operator_t) :: expression_operator_t 
    contains
      procedure (expression_operator_assign_interface), deferred :: assign
      generic  :: assignment(=) => assign
@@ -64,7 +64,7 @@ module base_operator_names
 
   ! Derived class binary
   type, abstract, extends(expression_operator_t) :: binary_operator_t
-     class(base_operator_t), pointer :: op1 => null(), op2 => null()
+     class(abstract_operator_t), pointer :: op1 => null(), op2 => null()
    contains
      procedure :: default_initialization => binary_operator_default_init
      procedure :: free    => binary_operator_destructor
@@ -73,9 +73,9 @@ module base_operator_names
 
 
   ! Son class abstract operator
-  type, extends(base_operator_t) :: abs_operator_t
-     class(base_operator_t), pointer :: op_stored => null()
-     class(base_operator_t), pointer :: op        => null()
+  type, extends(abstract_operator_t) :: abs_operator_t
+     class(abstract_operator_t), pointer :: op_stored => null()
+     class(abstract_operator_t), pointer :: op        => null()
    contains
      procedure  :: default_initialization => abs_operator_default_init
      procedure  :: apply     => abs_operator_apply
@@ -111,7 +111,7 @@ module base_operator_names
 
   ! Son class scal
   type, extends(expression_operator_t) :: scal_operator_t
-     class(base_operator_t), pointer :: op => null()
+     class(abstract_operator_t), pointer :: op => null()
      real(rp)                     :: alpha
    contains
      procedure  :: default_initialization => scal_operator_default_init
@@ -122,8 +122,8 @@ module base_operator_names
   end type scal_operator_t
 
   ! Son class minus
-  type, extends(base_operator_t) :: minus_operator_t
-     class(base_operator_t), pointer :: op => null()
+  type, extends(abstract_operator_t) :: minus_operator_t
+     class(abstract_operator_t), pointer :: op => null()
    contains
      procedure  :: default_initialization => minus_operator_default_init
      procedure  :: apply => minus_operator_apply
@@ -137,9 +137,9 @@ module base_operator_names
      ! op%apply(x,y) <=> y <- op*x
      ! Implicitly assumes that y is already allocated
      subroutine apply_interface(op,x,y) 
-       import :: base_operator_t, base_operand_t
+       import :: abstract_operator_t, base_operand_t
        implicit none
-       class(base_operator_t), intent(in)    :: op
+       class(abstract_operator_t), intent(in)    :: op
        class(base_operand_t) , intent(in)    :: x
        class(base_operand_t) , intent(inout) :: y 
      end subroutine apply_interface
@@ -147,9 +147,9 @@ module base_operator_names
      ! op%apply(x)
      ! Allocates room for (temporary) y
      function apply_fun_interface(op,x) result(y)
-       import :: base_operator_t, base_operand_t
+       import :: abstract_operator_t, base_operand_t
        implicit none
-       class(base_operator_t), intent(in)  :: op
+       class(abstract_operator_t), intent(in)  :: op
        class(base_operand_t) , intent(in)  :: x
        class(base_operand_t) , allocatable :: y 
      end function apply_fun_interface
@@ -157,31 +157,31 @@ module base_operator_names
      ! op1%fill_values()
      ! Fill preconditioner values
      subroutine fill_values_interface(op,stage)
-       import :: base_operator_t,ip
+       import :: abstract_operator_t,ip
        implicit none
-       class(base_operator_t), intent(inout) :: op
+       class(abstract_operator_t), intent(inout) :: op
        integer(ip), optional , intent(in)    :: stage
      end subroutine fill_values_interface
 
      ! op1%free_values()
      ! Free preconditioner values
      subroutine free_values_interface(op,stage)
-       import :: base_operator_t,ip
+       import :: abstract_operator_t,ip
        implicit none
-       class(base_operator_t), intent(inout) :: op
+       class(abstract_operator_t), intent(inout) :: op
        integer(ip), optional , intent(in)    :: stage
      end subroutine free_values_interface
 
      subroutine expression_operator_assign_interface(op1,op2)
-       import :: base_operator_t, expression_operator_t
+       import :: abstract_operator_t, expression_operator_t
        implicit none
-       class(base_operator_t)      , intent(in)    :: op2
+       class(abstract_operator_t)      , intent(in)    :: op2
        class(expression_operator_t), intent(inout) :: op1
      end subroutine expression_operator_assign_interface
 
   end interface
 
-  public :: abs_operator_t, base_operator_t, sum_operator_t, scal_operator_t
+  public :: abs_operator_t, abstract_operator_t, sum_operator_t, scal_operator_t
 
 contains
 
@@ -234,7 +234,7 @@ contains
 
   subroutine binary_operator_copy(op1,op2)
     implicit none
-    class(base_operator_t)  , intent(in)    :: op2
+    class(abstract_operator_t)  , intent(in)    :: op2
     class(binary_operator_t), intent(inout) :: op1
 
     ! global_id=global_id+1
@@ -250,7 +250,7 @@ contains
 
   subroutine binary_operator_constructor(op1,op2,res) 
     implicit none
-    class(base_operator_t)  , intent(in)    :: op1, op2
+    class(abstract_operator_t)  , intent(in)    :: op1, op2
     class(binary_operator_t), intent(inout) :: res
 
     call op1%GuardTemp()
@@ -315,7 +315,7 @@ contains
   recursive subroutine abs_operator_constructor(op1,op2)
     implicit none
     class(abs_operator_t) , intent(inout) :: op1
-    class(base_operator_t), intent(in), target  :: op2
+    class(abstract_operator_t), intent(in), target  :: op2
 
     call op1%free()
     ! global_id=global_id+1
@@ -358,7 +358,7 @@ contains
        call op1%op_stored%GuardTemp()
    class default                 ! Cannot be temporary (I don't know how to copy it!)
        !assert(.not.op2%IsTemp())
-       !out_verbosity10_2( 'Creating abs from base_operator (point to a permanent base_operator)', op1%id)
+       !out_verbosity10_2( 'Creating abs from abstract_operator (point to a permanent abstract_operator)', op1%id)
        op1%op => op2
        call op1%op%GuardTemp()
     end select
@@ -397,7 +397,7 @@ contains
 
   subroutine scal_operator_constructor(alpha,op,res)
     implicit none
-    class(base_operator_t), intent(in)    :: op
+    class(abstract_operator_t), intent(in)    :: op
     real(rp)            , intent(in)    :: alpha
     type(scal_operator_t) , intent(inout) :: res
 
@@ -443,7 +443,7 @@ contains
 
   subroutine scal_operator_copy(op1,op2)
     implicit none
-    class(base_operator_t), intent(in)    :: op2
+    class(abstract_operator_t), intent(in)    :: op2
     class(scal_operator_t), intent(inout) :: op1
     !global_id=global_id+1
     !op1%id=global_id
@@ -467,7 +467,7 @@ contains
 
   function minus_operator_constructor(op) result (res)
     implicit none
-    class(base_operator_t)    , intent(in)  :: op
+    class(abstract_operator_t)    , intent(in)  :: op
     type(minus_operator_t) :: res
     !type(scal_operator_t), allocatable :: res
     !allocate(res)
@@ -479,7 +479,7 @@ contains
 
   subroutine minus_operator_constructor_sub(op,res)
     implicit none
-    class(base_operator_t) , intent(in)    :: op
+    class(abstract_operator_t) , intent(in)    :: op
     type(minus_operator_t) , intent(inout) :: res
 
     call op%GuardTemp()
@@ -523,7 +523,7 @@ contains
 
   subroutine minus_operator_copy(op1,op2)
     implicit none
-    class(base_operator_t), intent(in)    :: op2
+    class(abstract_operator_t), intent(in)    :: op2
     class(minus_operator_t), intent(inout) :: op1
     !global_id=global_id+1
     !op1%id=global_id
@@ -544,7 +544,7 @@ contains
 !!$  ! -------------------------------------------------------------------!
   function sum_operator_constructor(op1,op2) result (res)
     implicit none
-    class(base_operator_t), intent(in)  :: op1, op2
+    class(abstract_operator_t), intent(in)  :: op1, op2
     type(sum_operator_t)  :: res
     !type(sum_operator_t)  , allocatable :: res
     !allocate(res)
@@ -556,7 +556,7 @@ contains
 
   function sub_operator_constructor(op1,op2) result (res)
     implicit none
-    class(base_operator_t), intent(in)  :: op1, op2
+    class(abstract_operator_t), intent(in)  :: op1, op2
     type(sub_operator_t)  :: res
     !type(sub_operator_t)  , allocatable :: res
     !allocate(res)
@@ -568,7 +568,7 @@ contains
 
   function mult_operator_constructor(op1,op2) result (res)
     implicit none
-    class(base_operator_t), intent(in)  :: op1, op2
+    class(abstract_operator_t), intent(in)  :: op1, op2
     type(mult_operator_t) :: res
     !type(mult_operator_t) , allocatable :: res
     !allocate(res)
@@ -580,7 +580,7 @@ contains
 
   function scal_left_operator_constructor(alpha, op_left) result (res)
     implicit none
-    class(base_operator_t)    , intent(in)  :: op_left
+    class(abstract_operator_t)    , intent(in)  :: op_left
     real(rp)                , intent(in)  :: alpha
     type(scal_operator_t) :: res
     !type(scal_operator_t), allocatable :: res
@@ -593,7 +593,7 @@ contains
   
   function scal_right_operator_constructor(op_right, alpha) result (res)
     implicit none
-    class(base_operator_t)    , intent(in)  :: op_right
+    class(abstract_operator_t)    , intent(in)  :: op_right
     real(rp)                , intent(in)  :: alpha
     type(scal_operator_t) :: res
     !type(scal_operator_t), allocatable :: res
@@ -796,4 +796,4 @@ contains
     call op%CleanTemp()
   end subroutine abs_operator_apply
 
-end module base_operator_names
+end module abstract_operator_names

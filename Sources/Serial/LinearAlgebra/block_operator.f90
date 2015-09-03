@@ -29,7 +29,7 @@
 module block_operator_names
   use types_names
   use memor_names
-  use base_operator_names
+  use abstract_operator_names
   use base_operand_names
   use block_operand_names
 
@@ -40,7 +40,7 @@ use iso_c_binding
   implicit none
   private
 
-  ! Added type(block_operator_t) as a new implementation of class(base_operator_t).
+  ! Added type(block_operator_t) as a new implementation of class(abstract_operator_t).
   ! This new kind of linear operator provides the functionality to express
   ! recursively block operators where in turn their blocks can be block operators.
   ! If one aims at using the block LU recursive preconditioning machinery,
@@ -56,7 +56,7 @@ use iso_c_binding
 
 
   ! Block operator
-  type, extends(base_operator_t) :: block_operator_t
+  type, extends(abstract_operator_t) :: block_operator_t
 !     private ! IBM XLF 14.1 bug
      integer(ip)                       :: nblocks, mblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)
@@ -208,7 +208,7 @@ contains
     ! Parameters
     class(block_operator_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
-    class(base_operator_t)              , intent(in)    :: op 
+    class(abstract_operator_t)              , intent(in)    :: op 
 
     call op%GuardTemp()
     if ( .not. associated(bop%blocks(ib,jb)%p_op) ) then
@@ -259,7 +259,7 @@ contains
     ! Parameters
     class(block_operator_t), target, intent(in) :: bop
     integer(ip)                    , intent(in) :: ib,jb
-    class(base_operator_t)         , pointer    :: block_operator_get_block
+    class(abstract_operator_t)         , pointer    :: block_operator_get_block
 
     block_operator_get_block =>  bop%blocks(ib,jb)%p_op
   end function block_operator_get_block
