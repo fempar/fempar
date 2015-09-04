@@ -59,8 +59,7 @@ module postprocess_field_names
    contains
      generic      :: create       => postprocess_field_create
      procedure, private :: postprocess_field_create
-     generic      :: free         => postprocess_field_free
-     procedure, private :: postprocess_field_free
+     procedure    :: free         => postprocess_field_free
      procedure    :: is_finalized => postprocess_field_is_finalized
      procedure    :: compute_and_finalize_field => postprocess_field_compute_and_finalize_field
      procedure(postprocess_field_compute_interface), deferred :: compute_field
