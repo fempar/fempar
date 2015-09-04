@@ -72,7 +72,6 @@ contains
     approx%beta  = 0.0_rp
     approx%gamma = 0.0_rp
 
-    ! Domain dimension
     approx%domain_dimension = 3
     
   end subroutine error_norm_create

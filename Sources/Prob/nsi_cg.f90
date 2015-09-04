@@ -131,6 +131,7 @@ contains
        check(.false.)
     end select
 
+	approx%domain_dimension = 3
   end subroutine nsi_matvec_create
 
   !=================================================================================================

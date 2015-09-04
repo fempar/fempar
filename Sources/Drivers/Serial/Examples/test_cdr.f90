@@ -36,11 +36,11 @@ program test_cdr
   type(triangulation_t)  :: f_trian
   type(matrix_t)         :: f_mat
   type(conditions_t)     :: f_cond
-  type(dof_descriptor_t)        :: dof_descriptor
-  type(fe_space_t)          :: fe_space
+  type(dof_descriptor_t) :: dof_descriptor
+  type(fe_space_t)       :: fe_space
   type(graph_t), pointer :: f_graph
   type(block_graph_t)    :: f_blk_graph
-  integer(ip)              :: gtype(1) = (/ csr_symm /)
+  logical                :: symmetric_storage(1) = (/ .true. /)
 
   type(cdr_problem_t)                   :: my_problem
   type(cdr_discrete_t)                  :: my_discrete
@@ -134,7 +134,7 @@ program test_cdr
   f_cond%valu = 1.0_rp
   call update_strong_dirichlet_bcond( fe_space, f_cond )
 
-  call create_dof_info( dof_descriptor, f_trian, fe_space, f_blk_graph, gtype )
+  call create_dof_info( dof_descriptor, f_trian, fe_space, f_blk_graph, symmetric_storage )
 
   f_graph => f_blk_graph%get_block(1,1)
   call matrix_alloc( csr_mat, symm_true, f_graph, my_matrix, positive_definite )

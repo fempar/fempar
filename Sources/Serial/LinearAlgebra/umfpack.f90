@@ -318,7 +318,7 @@ use graph_renumbering_names
     ! Locals
     integer(ip) :: status
     
-    assert ( matrix%gr%type == csr )
+    assert ( .not. matrix%gr%symmetric_storage )
 
 #ifdef ENABLE_UMFPACK
     ! Fortran to C numbering 

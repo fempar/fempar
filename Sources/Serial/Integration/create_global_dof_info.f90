@@ -68,14 +68,14 @@ contains
   ! the only thing is that *ielem* <=  *num_elems* always, so it never goes to the
   ! ghost element part.
   !*********************************************************************************
-  subroutine create_dof_info ( dof_descriptor, trian, fe_space, f_blk_graph, gtype ) ! graph
+  subroutine create_dof_info ( dof_descriptor, trian, fe_space, f_blk_graph, diagonal_blocks_symmetric_storage )
     implicit none
     ! Dummy arguments
-    type(dof_descriptor_t)              , intent(in)    :: dof_descriptor
-    type(triangulation_t)        , intent(in)    :: trian 
+    type(dof_descriptor_t)          , intent(in)    :: dof_descriptor
+    type(triangulation_t)           , intent(in)    :: trian 
     type(fe_space_t)                , intent(inout) :: fe_space 
-    type(block_graph_t)          , intent(inout) :: f_blk_graph 
-    integer(ip)          , optional, intent(in)    :: gtype(dof_descriptor%nblocks) 
+    type(block_graph_t)             , intent(inout) :: f_blk_graph 
+    logical               , optional, intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
 
     ! Locals
     integer(ip) :: iblock, jblock
@@ -93,8 +93,8 @@ contains
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
           f_graph => f_blk_graph%blocks(iblock,jblock)%p_f_graph
-          if ( iblock == jblock .and. present(gtype) ) then
-             call create_dof_graph_block ( iblock, jblock, dof_descriptor, trian, fe_space, f_graph, gtype(iblock) )
+          if ( iblock == jblock .and. present(diagonal_blocks_symmetric_storage) ) then
+             call create_dof_graph_block ( iblock, jblock, dof_descriptor, trian, fe_space, f_graph, diagonal_blocks_symmetric_storage(iblock) )
           else
              call create_dof_graph_block ( iblock, jblock, dof_descriptor, trian, fe_space, f_graph )
           end if
@@ -328,27 +328,26 @@ contains
   end subroutine create_vef2dof
 
   !*********************************************************************************
-  ! This subroutine takes the triangulation, the dof handler, and the triangulation 
-  ! and creates a dof_graph. The dof_graph includes both the coupling by continuity
-  ! like in continuous Galerkin methods, and the coupling by face terms (of 
-  ! discontinuous Galerkin type). The algorithm considers both the case with static 
-  ! condensation and without it. In order to call this subroutine, we need to compute 
-  ! first element2dof and vef2dof arrays.
+  ! This subroutine takes the fe_space and creates a dof_graph. 
+  ! The dof_graph includes both the coupling by continuity like in continuous Galerkin 
+  ! methods, and the coupling by face terms (of discontinuous Galerkin type). The algorithm 
+  ! considers both the case with static condensation and without it. In order to call this 
+  ! subroutine, we need to compute first element2dof and vef2dof arrays.
   !*********************************************************************************
-  subroutine create_dof_graph_block( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph, gtype ) 
+  subroutine create_dof_graph_block( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph, symmetric_storage ) 
     implicit none
     ! Parameters
-    integer(ip), intent(in)                     :: iblock, jblock
-    type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: fe_space 
-    type(graph_t), intent(out)                :: dof_graph
-    integer(ip), optional, intent(in)           :: gtype
+    integer(ip)            , intent(in)   :: iblock, jblock
+    type(dof_descriptor_t) , intent(in)   :: dof_descriptor
+    type(triangulation_t)  , intent(in)   :: trian 
+    type(fe_space_t)       , intent(in)   :: fe_space 
+    type(graph_t)          , intent(out)  :: dof_graph
+    logical,       optional, intent(in)   :: symmetric_storage
 
 
     ! Local variables
     integer(ip) :: iprob, l_var, count, iobje, ielem, jelem, nvapb, ivars, g_var, inter, inode, l_node
-    integer(ip) :: ltype, idof, jdof, int_i, int_j, istat, jnode, job_g, jobje, jvars, k_var , touch
+    integer(ip) :: idof, jdof, int_i, int_j, istat, jnode, job_g, jobje, jvars, k_var , touch
     integer(ip) :: l_dof, m_dof, m_node, m_var, posi, posf, l_mat, m_mat, knode
 
     integer(ip) :: nvapbi, nvapbj, nnode, i, iface, jprob, l_faci, l_facj, ic
@@ -358,22 +357,19 @@ contains
     type(hash_table_ip_ip_t) :: visited
 
     if ( iblock == jblock ) then
-       if (present(gtype) ) then 
-          dof_graph%type = gtype
+       if (present(symmetric_storage) ) then 
+          dof_graph%symmetric_storage = symmetric_storage
        else
-          dof_graph%type = csr
+          dof_graph%symmetric_storage = .false.
        end if
     else ! iblock /= jblock
-       dof_graph%type = csr
+       dof_graph%symmetric_storage = .false.
     end if
 
 
     touch = 1
-    ltype = dof_graph%type
-    assert ( ltype == csr_symm .or. ltype == csr )
 
     ! Initialize
-    dof_graph%type = ltype
     dof_graph%nv  = fe_space%ndofs(iblock) ! SB.alert : not stored there anymore
     dof_graph%nv2 = fe_space%ndofs(jblock)
     call memalloc( dof_graph%nv+1, dof_graph%ia, __FILE__,__LINE__ )
@@ -453,9 +449,7 @@ contains
     type(hash_table_ip_ip_t) :: visited
     integer(ip) :: idof, ielem, inode, iobje, iprob, istat, ivars 
     integer(ip) :: jdof, jelem, job_g, jobje, k_var, l_dof, l_mat
-    integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch, ltype
-
-    ltype = dof_graph%type
+    integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch
 
     do iobje = 1, trian%num_vefs             
        if ( fe_space%vef2dof(iblock)%p(iobje+1)-fe_space%vef2dof(iblock)%p(iobje) > 0) then
@@ -476,10 +470,10 @@ contains
                             m_var = fe_space%vef2dof(jblock)%l(jdof,2)
                             m_mat = fe_space%vef2dof(jblock)%l(jdof,3)
                             if ( dof_descriptor%dof_coupl(l_var,m_var) == 1 .and. l_mat == m_mat ) then
-                               if ( ltype == csr ) then
+                               if ( .not. dof_graph%symmetric_storage ) then
                                   dof_graph%ia(l_dof+1) = &
                                        & dof_graph%ia(l_dof+1) + 1
-                               else ! ltype == csr_symm 
+                               else
                                   if ( m_dof >= l_dof ) then
                                      dof_graph%ia(l_dof+1) = &
                                           & dof_graph%ia(l_dof+1) + 1
@@ -503,11 +497,11 @@ contains
                          m_var = dof_descriptor%problems(iprob)%p%l2g_var(k_var)
                          m_mat = fe_space%finite_elements(jelem)%continuity(m_var)
                          if ( dof_descriptor%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
-                            if ( ltype == csr ) then
+                            if ( .not. dof_graph%symmetric_storage ) then
                                dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
                                     & + fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje+1) &
                                     & - fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje)
-                            else ! ltype == csr_symm
+                            else 
                                do inode = fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje), &
                                     & fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje+1)-1
                                   l_node = fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%l(inode)
@@ -547,9 +541,7 @@ contains
     type(hash_table_ip_ip_t) :: visited
     integer(ip) :: idof, ielem, inode, iobje, iprob, istat, ivars 
     integer(ip) :: jdof, jelem, job_g, jobje, k_var, l_dof, l_mat
-    integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch, ltype, count, ic
-
-    ltype = dof_graph%type
+    integer(ip) :: l_node, l_var, m_dof, m_mat, m_var, nvapb, touch, count, ic
 
     count = 0
     do iobje = 1, trian%num_vefs 
@@ -569,12 +561,12 @@ contains
                             m_dof = fe_space%vef2dof(jblock)%l(jdof,1)
                             m_var = fe_space%vef2dof(jblock)%l(jdof,2)
                             if ( dof_descriptor%dof_coupl(l_var,m_var) == 1 ) then
-                               if ( ltype == csr ) then
+                               if ( .not. dof_graph%symmetric_storage ) then
                                   !write(*,*) '************INSERT IN IDOF: ',l_dof,' JDOF: ',m_dof
                                   ic = aux_ia(l_dof)
                                   dof_graph%ja(ic) = m_dof
                                   aux_ia(l_dof) = aux_ia(l_dof)+1
-                               else ! ltype == csr_symm 
+                               else 
                                   if ( m_dof >= l_dof ) then
                                      ic = aux_ia(l_dof)
                                      dof_graph%ja(ic) = m_dof
@@ -599,7 +591,7 @@ contains
                          m_var = dof_descriptor%problems(iprob)%p%l2g_var(k_var)
                          m_mat = fe_space%finite_elements(jelem)%continuity(m_var)
                          if ( dof_descriptor%dof_coupl(l_var, m_var) == 1 .and. l_mat == m_mat ) then                
-                            if ( ltype == csr ) then
+                            if ( .not. dof_graph%symmetric_storage ) then
                                do inode = fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje), &
                                     & fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje+1)-1
                                   l_node = fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%l(inode)
@@ -608,7 +600,7 @@ contains
                                      dof_graph%ja(ic) = m_dof
                                      aux_ia(l_dof) = aux_ia(l_dof)+1
                                end do
-                            else ! ltype == csr_symm
+                            else 
                                do inode = fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje), &
                                     & fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%p(jobje+1)-1
                                   l_node = fe_space%finite_elements(jelem)%nodes_per_vef(k_var)%p%l(inode)
@@ -647,10 +639,8 @@ contains
 
     ! Local variables
     integer(ip) :: g_var, ielem, inode, int_i, iobje, iprob, ivars, jdof, jnode, job_g
-    integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, ltype, m_dof, m_mat
+    integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, m_dof, m_mat
     integer(ip) :: m_node, m_var, nvapbi, nvapbj
-
-    ltype = dof_graph%type
 
     ! As commented for elem2dof, static condensation is false for dG, by construction of the 
     ! fem space.
@@ -672,11 +662,11 @@ contains
                         & fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%p(iobje+1)-1
                       l_node = fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%l(inode)
                       l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
-                      if ( ltype == csr ) then
+                      if ( .not. dof_graph%symmetric_storage ) then
                          dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
                               &  + fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%p(iobje+1) &
                               & - fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%p(iobje)
-                      else ! ltype == csr_symm 
+                      else  
                          do jnode = fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%p(iobje), &
                               & fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%p(iobje+1)-1
                             m_node = fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%l(jnode)
@@ -704,7 +694,7 @@ contains
                               & fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%p(iobje+1)-1
                             l_node = fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%l(inode)
                             l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
-                            if ( ltype == csr ) then
+                            if ( .not. dof_graph%symmetric_storage ) then
                                dof_graph%ia(l_dof+1) = &
                                     & dof_graph%ia(l_dof+1) + 1 
                             else if ( m_dof >= l_dof ) then
@@ -738,10 +728,8 @@ contains
 
     ! Local variables
     integer(ip) :: g_var, ielem, inode, iobje, iprob, ivars, jdof, jnode, job_g
-    integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, ltype, m_dof, m_mat
+    integer(ip) :: jobje, jvars, k_var, l_dof, l_mat, l_node, l_var, m_dof, m_mat
     integer(ip) :: m_node, m_var, nvapbi, nvapbj, i, ic
-
-    ltype = dof_graph%type
 
     if (.not.fe_space%static_condensation) then   
        do ielem  = 1, trian%num_elems
@@ -762,7 +750,7 @@ contains
                         & fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%p(iobje+1)-1
                       l_node = fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%l(inode)
                       l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
-                      if ( ltype == csr ) then
+                      if ( .not. dof_graph%symmetric_storage ) then
                          do jnode = fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%p(iobje), &
                               & fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%p(iobje+1)-1
                             m_node = fe_space%finite_elements(ielem)%nodes_per_vef(k_var)%p%l(jnode)
@@ -798,7 +786,7 @@ contains
                               & fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%p(iobje+1)-1
                             l_node = fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%l(inode)
                             l_dof = fe_space%finite_elements(ielem)%elem2dof(l_node,l_var)
-                            if ( ltype == csr ) then
+                            if ( .not. dof_graph%symmetric_storage ) then
                                ic = aux_ia(l_dof)
                                dof_graph%ja(ic) = m_dof
                                aux_ia(l_dof) = aux_ia(l_dof)+1
@@ -845,9 +833,7 @@ contains
     ! Local variables
     integer(ip) :: count, g_var, i, ielem, iface, inode, iobje, iprob, ivars, jelem
     integer(ip) :: jnode, jprob, jvars, k_var, knode, l_dof, l_faci, l_facj, l_node
-    integer(ip) :: l_var, ltype, m_dof, m_var, m_node, nnode, nvapbi, nvapbj
-
-    ltype = dof_graph%type
+    integer(ip) :: l_var, m_dof, m_var, m_node, nnode, nvapbi, nvapbj
 
     ! Loop over all interior faces (boundary faces do not include additional coupling)
     do iface = 1,fe_space%num_interior_faces
@@ -871,7 +857,7 @@ contains
                 k_var = dof_descriptor%prob_block(iblock,jprob)%a(jvars)
                 m_var = dof_descriptor%problems(jprob)%p%l2g_var(k_var)
                 if ( dof_descriptor%dof_coupl(g_var,m_var) == 1 ) then
-                   if ( ltype == csr ) then
+                   if ( .not. dof_graph%symmetric_storage ) then
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
                       nnode = fe_space%finite_elements(jelem)%reference_element_vars(k_var)%p%ntxob%p(l_facj+1) &
                            &  -fe_space%finite_elements(jelem)%reference_element_vars(k_var)%p%ntxob%p(l_facj)
@@ -970,9 +956,7 @@ contains
     ! Local variables
     integer(ip) :: count, g_var, i, ielem, iface, inode, iobje, iprob, ivars, jelem
     integer(ip) :: jnode, jprob, jvars, k_var, knode, l_dof, l_faci, l_facj, l_node
-    integer(ip) :: l_var, ltype, m_dof, m_var, m_node, nnode, nvapbi, nvapbj, ic
-
-    ltype = dof_graph%type
+    integer(ip) :: l_var, m_dof, m_var, m_node, nnode, nvapbi, nvapbj, ic
 
     ! Loop over all interior faces (boundary faces do not include additional coupling)
     do iface = 1, fe_space%num_interior_faces
@@ -996,7 +980,7 @@ contains
                 k_var = dof_descriptor%prob_block(iblock,jprob)%a(jvars)
                 m_var = dof_descriptor%problems(jprob)%p%l2g_var(k_var)
                 if ( dof_descriptor%dof_coupl(g_var,m_var) == 1 ) then
-                   if ( ltype == csr ) then
+                   if ( .not. dof_graph%symmetric_storage ) then
                       ! Couple all DOFs in ielem with face DOFs in jelem and viceversa (i=1,2)
                       do inode = 1, fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nnode
                          l_dof = fe_space%finite_elements(ielem)%elem2dof(inode,l_var)

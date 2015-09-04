@@ -64,7 +64,7 @@ program test_nsi_iss
   logical :: ginfo_state
 
   ! Integers
-  integer(ip) :: gtype(1) = (/ csr /)
+  logical     :: symmetric_storage(1) = (/ .false. /)
   integer(ip) :: ibloc,jbloc,istat,i
 
   ! Parameters
@@ -135,7 +135,7 @@ program test_nsi_iss
   call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix,linear_order=.true.)
 
   ! Create dof info
-  call create_dof_info(dof_descriptor,f_trian,fe_space,f_blk_graph,gtype)
+  call create_dof_info(dof_descriptor,f_trian,fe_space,f_blk_graph,symmetric_storage)
   f_graph => f_blk_graph%get_block(1,1)
 
   ! Assign analytical solution

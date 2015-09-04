@@ -258,19 +258,16 @@ contains
     type(matrix_t)         , intent(inout) :: a
     integer(ip), intent(in), optional      :: iblock, jblock
 
-    integer(ip) :: gtype, iprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
+    integer(ip) :: iprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
     integer(ip) :: inode, jnode, idof, jdof, k, iblock_, jblock_
 
     iblock_ = 1
     jblock_ = 1
     if ( present(iblock) ) iblock_ = iblock
     if ( present(jblock) ) jblock_ = jblock
-    
-    
-    gtype = a%gr%type
+        
     iprob = finite_element%problem
-
-
+	
     nvapb_i = dof_descriptor%prob_block(iblock_,iprob)%nd1
     nvapb_j = dof_descriptor%prob_block(jblock_,iprob)%nd1
 
@@ -297,13 +294,13 @@ contains
                 if ( idof  > 0 ) then
                    do jnode = 1,finite_element%reference_element_vars(m_var)%p%nnode
                       jdof = finite_element%elem2dof(jnode,m_var)
-                      if (  gtype == csr .and. jdof > 0 ) then
+                      if (  (.not. a%gr%symmetric_storage) .and. jdof > 0 ) then
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
                          a%a(k) = a%a(k) + finite_element%p_mat%a(finite_element%start%a(l_var)+inode-1,finite_element%start%a(m_var)+jnode-1)
-                      else if ( jdof >= idof ) then! gtype == csr_symm 
+                      else if ( jdof >= idof ) then 
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
@@ -331,14 +328,13 @@ contains
     type(matrix_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock, jblock
 
-    integer(ip) :: gtype, iprob, jprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
+    integer(ip) :: iprob, jprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
     integer(ip) :: inode, jnode, idof, jdof, k, iblock_, jblock_, iobje, i, j, ndime
 
     iblock_ = 1
     jblock_ = 1
     if ( present(iblock) ) iblock_ = iblock
     if ( present(jblock) ) jblock_ = jblock
-    gtype = a%gr%type
     do i = 1, 2
        j = 3 - i
        iprob = finite_element(i)%p%problem
@@ -358,13 +354,13 @@ contains
                    iobje = fe_face%face_vef + finite_element(j)%p%p_geo_reference_element%nvef_dim(ndime) - 1
                    do jnode = finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%p(iobje),finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%p(iobje+1)-1
                       jdof = finite_element(j)%p%elem2dof(finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%l(jnode),m_var)
-                      if (  gtype == csr .and. jdof > 0 ) then
+                      if (  (.not. a%gr%symmetric_storage) .and. jdof > 0 ) then
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do
                          assert ( k < a%gr%ia(idof+1) )
                          a%a(k) = a%a(k) + fe_face%p_mat%a(finite_element(i)%p%start%a(l_var)+inode,finite_element(j)%p%start%a(m_var)+jnode-1)
-                      else if ( jdof >= idof ) then! gtype == csr_symm 
+                      else if ( jdof >= idof ) then 
                          do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
                             if ( a%gr%ja(k) == jdof ) exit
                          end do

@@ -667,18 +667,8 @@ use mpi
                                         mlbddc%A_II_inv, & 
                                         spars=mlbddc%spars_dirichlet, &
                                         ppars=mlbddc%ppars_dirichlet)
-                                           ! symm=symm_true, &
-                                           ! sign=positive_definite )
           else
              check (.false.)
-!!$             call operator_dd_create ( p_mat%f_matrix, & 
-!!$                                           p_mat%dof_dist%f_part, &
-!!$                                           mlbddc%A_II_inv, & 
-!!$                                           dirichlet_internally=.false., &
-!!$                                           spars=mlbddc%spars_dirichlet, &
-!!$                                           ppars=mlbddc%ppars_dirichlet)
-!!$                                           ! symm=symm_true, &
-!!$                                           ! sign=positive_definite )
           end if
        end if
        ! END FINE-GRID PROBLEM DUTIES    
@@ -1231,12 +1221,12 @@ use mpi
                                  & mlbddc%nl_edges              
  
     mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
-    mlbddc%A_rr_gr%type  = p_mat%f_matrix%gr%type
+    mlbddc%A_rr_gr%symmetric_storage  = p_mat%f_matrix%gr%symmetric_storage
 
     call memalloc ( mlbddc%A_rr_gr%nv+1, mlbddc%A_rr_gr%ia, __FILE__,__LINE__ )
 
     ! Count neighbours
-    call count_graph_augment_graph_with_constraints ( p_mat%f_matrix%gr%type ,  & 
+    call count_graph_augment_graph_with_constraints ( p_mat%f_matrix%gr%symmetric_storage ,  & 
                                                       p_mat%f_matrix%gr%nv   ,  & 
                                                       p_mat%f_matrix%gr%ia   ,  & 
                                                       mlbddc%A_rr_gr%nv  , &
@@ -1251,7 +1241,7 @@ use mpi
     call memalloc ( mlbddc%A_rr_gr%ia(mlbddc%A_rr_gr%nv+1)-1, mlbddc%A_rr_gr%ja,  __FILE__,__LINE__ )
 
     ! List neighbours 
-    call list_graph_augment_graph_with_constraints ( p_mat%f_matrix%gr%type    , & 
+    call list_graph_augment_graph_with_constraints ( p_mat%f_matrix%gr%symmetric_storage    , & 
                                                      p_mat%f_matrix%gr%nv      , & 
                                                      p_mat%f_matrix%gr%ia      , & 
                                                      p_mat%f_matrix%gr%ja      , &
@@ -1271,13 +1261,14 @@ use mpi
 !!$    end if
   end subroutine augment_graph_with_constraints
 
-  subroutine count_graph_augment_graph_with_constraints ( gtype, anv, aia, arr_nv,  &
+  subroutine count_graph_augment_graph_with_constraints ( graph_is_symmetric, anv, aia, arr_nv,  &
                                                           nl, nl_coarse, & 
                                                           coarse_dofs, max_nparts, nobjs, lobjs, & 
                                                           arr_ia )
     implicit none
     ! Parameters
-    integer (ip), intent(in)  :: gtype, anv, arr_nv
+	logical     , intent(in)  :: graph_is_symmetric
+    integer (ip), intent(in)  :: anv, arr_nv
     integer (ip), intent(in)  :: aia (anv+1)
     integer (ip), intent(in)  :: nl
     integer (ip), intent(in)  :: nl_coarse
@@ -1299,7 +1290,7 @@ use mpi
        arr_ia(idarr+1) = aia(idarr+1)-aia(idarr)
     end do
 
-    if ( gtype == csr ) then
+    if ( .not. graph_is_symmetric ) then
        do i=1, nl_coarse 
           iobj   = coarse_dofs (i)
           ! Corner as a degenerated edge or
@@ -1315,7 +1306,7 @@ use mpi
              arr_ia(i+nl+1) = arr_ia(i+nl+1)+1
           end do
         end do
-    else if ( gtype == csr_symm ) then
+    else 
        do i=1, nl_coarse 
           iobj   = coarse_dofs (i)
 
@@ -1347,13 +1338,14 @@ use mpi
     
   end subroutine count_graph_augment_graph_with_constraints
 
-  subroutine list_graph_augment_graph_with_constraints ( gtype, anv, aia, aja, arr_nv, arr_ia, &
+  subroutine list_graph_augment_graph_with_constraints ( graph_is_symmetric, anv, aia, aja, arr_nv, arr_ia, &
                                                          nl, nl_coarse, & 
                                                          coarse_dofs, max_nparts, nobjs, lobjs, & 
                                                          arr_ja )
     implicit none
     ! Parameters
-    integer (ip) , intent(in)    :: gtype, anv, arr_nv
+	logical      , intent(in)    :: graph_is_symmetric
+    integer (ip) , intent(in)    :: anv, arr_nv
     integer (ip) , intent(in)    :: aia (anv+1)
     integer (ip) , intent(inout) :: arr_ia(arr_nv+1)
     integer (ip) , intent(in)    :: aja (aia(anv+1)-1)
@@ -1379,7 +1371,7 @@ use mpi
     end do
 
     
-    if ( gtype == csr ) then
+    if ( .not. graph_is_symmetric ) then
        do i=1, nl_coarse
           iobj = coarse_dofs (i)
 
@@ -1399,7 +1391,7 @@ use mpi
           end do
 
        end do
-    else if ( gtype == csr_symm ) then ! Add explicit zeros on the diagonal
+    else  ! Add explicit zeros on the diagonal
        do i=1, nl_coarse 
           iobj   = coarse_dofs (i)
 
@@ -1713,13 +1705,13 @@ use mpi
 
     mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
     mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
-    mlbddc%A_rr_gr%type  = p_mat%f_matrix%gr%type
+    mlbddc%A_rr_gr%symmetric_storage  = p_mat%f_matrix%gr%symmetric_storage
 
     call memalloc ( mlbddc%A_rr_gr%nv+1, mlbddc%A_rr_gr%ia,  __FILE__,__LINE__ )
 
     ! Count neighbours
     call count_graph_A_rr ( mlbddc%nl_corners_dofs, &
-         p_mat%f_matrix%gr%type     , & 
+         p_mat%f_matrix%gr%symmetric_storage     , & 
          p_mat%f_matrix%gr%nv       , & 
          p_mat%f_matrix%gr%ia       , & 
          p_mat%f_matrix%gr%ja       , &
@@ -1732,7 +1724,7 @@ use mpi
 
     ! List neighbours 
     call list_graph_A_rr  ( mlbddc%nl_corners_dofs, & 
-         p_mat%f_matrix%gr%type     , & 
+         p_mat%f_matrix%gr%symmetric_storage     , & 
          p_mat%f_matrix%gr%nv       , & 
          p_mat%f_matrix%gr%ia       , & 
          p_mat%f_matrix%gr%ja       , &
@@ -1749,11 +1741,12 @@ use mpi
 
   end subroutine extract_graph_A_rr
 
-  subroutine count_graph_A_rr ( nl_corners_dofs, gtype, anv, aia, aja, arrnv, perm, iperm, arria )
+  subroutine count_graph_A_rr ( nl_corners_dofs, symmetric_storage, anv, aia, aja, arrnv, perm, iperm, arria )
     implicit none
     ! Parameters
     integer (ip) , intent(in)  :: nl_corners_dofs
-    integer (ip) , intent(in)  :: gtype, anv, arrnv
+	logical      , intent(in)  :: symmetric_storage
+    integer (ip) , intent(in)  :: anv, arrnv
     integer (ip) , intent(in)  :: aia   (anv+1)
     integer (ip) , intent(in)  :: aja   (aia(anv+1)-1)
     integer (ip) , intent(in)  :: perm  (anv)
@@ -1771,9 +1764,9 @@ use mpi
           jdarr = perm( aja(jdapos) )
           if ( jdarr > nl_corners_dofs ) then
              jdarr = jdarr -nl_corners_dofs
-             if ( gtype == csr ) then
+             if ( .not. symmetric_storage ) then
                 arria(idarr+1) = arria(idarr+1) + 1 
-             else if ( gtype == csr_symm ) then
+             else 
                 if ( jdarr >= idarr ) then
                    arria(idarr+1) = arria(idarr+1) + 1 
                 else ! jdarr < idarr
@@ -1791,11 +1784,12 @@ use mpi
 
   end subroutine count_graph_A_rr
 
-  subroutine list_graph_A_rr ( nl_corners_dofs, gtype, anv, aia, aja, arrnv, arria, perm, iperm, arrja)
+  subroutine list_graph_A_rr ( nl_corners_dofs, symmetric_storage, anv, aia, aja, arrnv, arria, perm, iperm, arrja)
     implicit none
     ! Parameters
     integer (ip) , intent(in)    :: nl_corners_dofs
-    integer (ip) , intent(in)    :: gtype, anv, arrnv
+	logical      , intent(in)    :: symmetric_storage
+    integer (ip) , intent(in)    :: anv, arrnv
     integer (ip) , intent(in)    :: aia   (anv+1)
     integer (ip) , intent(inout) :: arria(arrnv+1)
     integer (ip) , intent(in)    :: aja   (aia(anv+1)-1)
@@ -1815,10 +1809,10 @@ use mpi
           jdarr = perm( aja(jdapos) )
           if ( jdarr > nl_corners_dofs ) then
              jdarr = jdarr -nl_corners_dofs
-             if ( gtype == csr ) then
+             if ( .not. symmetric_storage ) then
                 arrja ( arria(idarr) ) = jdarr
                 arria (idarr) = arria(idarr) + 1
-             else if ( gtype == csr_symm ) then
+             else 
                 if ( jdarr >= idarr ) then
                    arrja ( arria(idarr) ) = jdarr
                    arria(idarr) = arria(idarr) + 1 
@@ -1830,7 +1824,7 @@ use mpi
           end if
        end do
 
-       if ( gtype == csr ) then
+       if ( .not. symmetric_storage ) then
           ! Order increasingly column identifiers of current row 
           ! using heap sort algorithm
           call sort( k2-k1+1, arrja(k1:k2) )
@@ -1842,7 +1836,7 @@ use mpi
     end do
     arria(idarr) = 1
 
-    if ( gtype == csr_symm ) then
+    if ( symmetric_storage ) then
        do idarr=1, arrnv
           k1  = arria (idarr)
           k2  = arria (idarr+1)-1
@@ -2474,7 +2468,6 @@ use mpi
   end subroutine rcv_coarse_mesh_lnods
 
   subroutine generate_coarse_graph (mlbddc)
-use mpi
     implicit none
     ! Parameters 
     ! On input , mlbddc%f_mesh_c%pnods in C-based indexing
@@ -2482,16 +2475,11 @@ use mpi
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
-    integer(ip)    :: gtype
+    logical    :: symmetric_storage
 
-    ! AFM: Derived from the fact that f_graph within p_graph_c was not ACTUALLY created
-    if (mlbddc%A_c%symm == symm_true) then
-       gtype = csr_symm
-    else
-       gtype = csr
-    end if
-
-    call mesh_to_graph_matrix ( gtype, mlbddc%f_mesh_c, mlbddc%A_c_gr )
+    
+    symmetric_storage = (mlbddc%A_c%symm == symm_true)
+    call mesh_to_graph_matrix ( symmetric_storage, mlbddc%f_mesh_c, mlbddc%A_c_gr )
 
     if ( debug_verbose_level_2 ) then 
        call graph_print ( 6, mlbddc%A_c_gr )
@@ -2524,7 +2512,7 @@ use mpi
     integer(ip), allocatable  ::  lextp(:)    ! List of parts of external neighbors
     integer(ip), allocatable  ::  lexte(:)    ! Edge information of external neighbors
     integer(ip), allocatable  ::  lextm(:)    ! Edge information of external neighbors
-    integer(ip)  :: gtype
+    logical                   :: symmetric_storage
 
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
@@ -2634,13 +2622,8 @@ use mpi
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
-          ! AFM: Derived from the fact that f_graph within p_graph_c was not ACTUALLY created
-          if (mlbddc%p_mat_c%f_matrix%symm == symm_true) then
-             gtype = csr_symm
-          else
-             gtype = csr
-          end if
-          call mesh_to_graph_matrix ( gtype, mlbddc%p_mesh_c%f_mesh, mlbddc%p_graph_c%f_graph)
+          symmetric_storage = (mlbddc%p_mat_c%f_matrix%symm == symm_true)
+          call mesh_to_graph_matrix ( symmetric_storage, mlbddc%p_mesh_c%f_mesh, mlbddc%p_graph_c%f_graph)
 
           if ( debug_verbose_level_2 ) then 
              call graph_print ( 6,  mlbddc%p_graph_c%f_graph )
@@ -3140,7 +3123,7 @@ use mpi
 
           ! Extract a_rc/a_cr/a_rr/a_cc 
           call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
-                                                     p_mat%f_matrix%gr%type   , & 
+                                                     p_mat%f_matrix%gr%symmetric_storage   , & 
                                                      p_mat%f_matrix%gr%nv     , & 
                                                      p_mat%f_matrix%gr%ia     , & 
                                                      p_mat%f_matrix%gr%ja     , &
@@ -3161,7 +3144,7 @@ use mpi
            call matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )       
 
       call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
-                                                 p_mat_trans%f_matrix%gr%type   , & 
+                                                 p_mat_trans%f_matrix%gr%symmetric_storage   , & 
                                                  p_mat_trans%f_matrix%gr%nv     , & 
                                                  p_mat_trans%f_matrix%gr%ia     , & 
                                                  p_mat_trans%f_matrix%gr%ja     , &
@@ -3181,8 +3164,7 @@ use mpi
          end if
 
        else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem) then 
-
-          call augment_matrix_with_constraints ( p_mat%f_matrix%gr%type, & 
+          call augment_matrix_with_constraints ( p_mat%f_matrix%gr%symmetric_storage, & 
                                                  p_mat%f_matrix%gr%nv   , & 
                                                  p_mat%f_matrix%gr%ia    , & 
                                                  p_mat%f_matrix%gr%ja    , &
@@ -3203,10 +3185,8 @@ use mpi
                                                  mlbddc%C_weights )
 
          if (mlbddc%projection == petrov_galerkin ) then 
-              
           call matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )  
-
-          call augment_matrix_with_constraints ( p_mat_trans%f_matrix%gr%type, & 
+          call augment_matrix_with_constraints ( p_mat_trans%f_matrix%gr%symmetric_storage, & 
                                                  p_mat_trans%f_matrix%gr%nv   , & 
                                                  p_mat_trans%f_matrix%gr%ia    , & 
                                                  p_mat_trans%f_matrix%gr%ja    , &
@@ -3599,15 +3579,16 @@ use mpi
   end subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_2
 
 
-  subroutine extract_values_A_rr_A_cr_A_rc_A_cc ( nl_corners_dofs, gtype,  & 
-       anv, aia, aja, a,        &  
-       arrnv, arria, arrja,     &
-       perm, iperm, arr, acr, arc, acc  )
+  subroutine extract_values_A_rr_A_cr_A_rc_A_cc ( nl_corners_dofs, symmetric_storage,  & 
+                                                  anv, aia, aja, a,        &  
+                                                  arrnv, arria, arrja,     &
+                                                  perm, iperm, arr, acr, arc, acc  )
     implicit none
 
     ! Parameters
     integer (ip) , intent(in)    :: nl_corners_dofs
-    integer (ip) , intent(in)    :: gtype, anv, arrnv
+	logical      , intent(in)    :: symmetric_storage
+    integer (ip) , intent(in)    :: anv, arrnv
     integer (ip) , intent(in)    :: aia (anv+1)
     integer (ip) , intent(in)    :: aja (aia(anv+1)-1)
     real    (rp) , intent(in)    :: a   (aia(anv+1)-1)  
@@ -3639,16 +3620,12 @@ use mpi
        ida = iperm(id)
        do jdapos = aia(ida), aia(ida+1)-1
           jd = perm( aja(jdapos) )
-          ! write (*,*) 'ZZZ1', id, jd, ida, aja(jdapos), aia(ida), aia(ida+1)-1  
-          if (jd > nl_corners_dofs .and. gtype == csr_symm) then
-             ! write (*,*) 'XXX', idarr, jdarr
+          if (jd > nl_corners_dofs .and. symmetric_storage) then
              acr (id, jd-nl_corners_dofs) = a(jdapos)
              arc (jd-nl_corners_dofs, id) = a(jdapos)
-             !   elseif (jd > nl_corners_dofs) then
-             !      acr (id,jd-nl_corners_dofs) = a(jdapos) ! may be obtained here, well defined down
-          else ! jd <= nl_corners_dofs .or. gtype != csr_symm
+          else ! jd <= nl_corners_dofs .or. (.not. symmetric_storage)
              if ( jd <= nl_corners_dofs ) then
-                if (gtype == csr_symm) then
+                if (symmetric_storage) then
                    acc(id,jd) = a(jdapos)
                    acc(jd,id) = a(jdapos)
                 else
@@ -3670,11 +3647,11 @@ use mpi
           ! write (*,*) 'ZZZ2', idarr+nl_corners_dofs, jdarr, nl_corners_dofs
           if ( jdarr > nl_corners_dofs ) then
              jdarr = jdarr - nl_corners_dofs
-             if ( gtype == csr ) then
+             if ( .not. symmetric_storage ) then
                 arrja ( arria(idarr) ) = jdarr
                 arr   ( arria(idarr) ) = a(jdapos)
                 arria (idarr) = arria(idarr) + 1
-             else if ( gtype == csr_symm ) then
+             else 
                 if ( jdarr >= idarr ) then
                    arrja ( arria(idarr) ) = jdarr
                    arr   ( arria(idarr) ) = a(jdapos) 
@@ -3692,7 +3669,7 @@ use mpi
           end if
        end do
 
-       if ( gtype == csr ) then
+       if ( .not. symmetric_storage ) then
           ! Order increasingly column identifiers of current row 
           ! using heap sort algorithm
           k = k2-k1+1
@@ -3714,7 +3691,7 @@ use mpi
     end do
     arria(idarr) = 1
 
-    if ( gtype == csr_symm ) then
+    if ( symmetric_storage ) then
        do idarr=1, arrnv
           k1  = arria (idarr)
           k2  = arria (idarr+1)-1
@@ -3739,7 +3716,7 @@ use mpi
     end if
 
     !   Acr extraction 
-    if (gtype == csr) then
+    if (.not. symmetric_storage) then
        do idarr= 1,nl_corners_dofs
           ida = iperm(idarr)
           do jdapos = aia(ida), aia(ida+1)-1
@@ -3756,8 +3733,6 @@ use mpi
     call memfree  ( awork,__FILE__,__LINE__)
   end subroutine extract_values_A_rr_A_cr_A_rc_A_cc
 
-
-
   subroutine extract_trans_matrix(A, gr_a, A_t, gr_t)
 
     type(matrix_t), intent(in)     :: A         ! Input matrix
@@ -3769,17 +3744,17 @@ use mpi
     type(graph_t) :: aux_graph
     integer :: k,i,j
 
-    if ( gr_a%type == csr ) then
+    if ( .not. gr_a%symmetric_storage ) then
        call matrix_alloc ( csr_mat, symm_false, gr_a, A_t )
-    else if (gr_a%type == csr_symm) then
+    else 
        call matrix_alloc ( csr_mat, symm_true, gr_a, A_t )
     end if
 
     aux_graph = gr_a
 
-    if (gr_a%type == csr_symm) then 
+    if (gr_a%symmetric_storage) then 
        A_t%a = A%a
-    elseif (gr_a%type == csr ) then
+    else
        k = 0    
        do i = 1,gr_t%nv
           do j=1, (gr_t%ia(i+1) - gr_t%ia(i) )
@@ -3793,7 +3768,7 @@ use mpi
 
   end subroutine extract_trans_matrix
 
-  subroutine augment_matrix_with_constraints ( gtype, & 
+  subroutine augment_matrix_with_constraints ( symmetric_storage, & 
                                                anv, aia, aja, a, &  
                                                arr_nv, arr_ia, arr_ja, &
                                                nl, nl_corners, nl_edges, nl_coarse, & 
@@ -3802,7 +3777,8 @@ use mpi
     implicit none
 
     ! Parameters
-    integer (ip) , intent(in)   :: gtype, anv, arr_nv
+	logical      , intent(in)   :: symmetric_storage
+    integer (ip) , intent(in)   :: anv, arr_nv
     integer (ip) , intent(in)   :: aia (anv+1)
     integer (ip) , intent(in)   :: aja (aia(anv+1)-1)
     real    (rp) , intent(in)   :: a   (aia(anv+1)-1)  
@@ -3837,7 +3813,7 @@ use mpi
        arr_ia ( idarr ) = arr_ia( idarr ) + nz
     end do
 
-    if ( gtype == csr ) then
+    if ( .not. symmetric_storage ) then
        do i=1, nl_coarse 
           iobj     = coarse_dofs (i)
           iposedge = i-nl_corners
@@ -3881,7 +3857,7 @@ use mpi
             end do
 
        end do
-    else if ( gtype == csr_symm ) then ! Add explicit zeros on the diagonal
+    else  ! Add explicit zeros on the diagonal
        do i=1, nl_coarse
           iobj   = coarse_dofs (i)
           iposedge = i - nl_corners
@@ -8573,29 +8549,25 @@ use mpi
   end subroutine ass_csr_mat_scal
 
   !============================================================================================
-  subroutine mesh_to_graph_matrix ( gtype, primal_mesh, primal_graph )
+  subroutine mesh_to_graph_matrix ( symmetric_storage, primal_mesh, primal_graph )
     implicit none
 
     ! Parameters
-    integer(ip)          , intent(in)     :: gtype
+    logical            , intent(in)     :: symmetric_storage
     type(mesh_t)       , intent(in)     :: primal_mesh
     type(graph_t)      , intent(out)    :: primal_graph
 
 
     ! Local variables
-    type (mesh_t)                        :: dual_mesh
+    type (mesh_t)                          :: dual_mesh
     integer(ip), allocatable               :: iwork(:)       ! Integer ip working array
     integer(ip)                            :: pwork(3)       ! Pointers to work space
-
-    ! Valid graph_t types for addressing sparse matrices are csr_symm or csr
-    assert( gtype==csr_symm .or. gtype==csr )
-
 
     ! Compute dual_mesh
     call mesh_to_dual ( primal_mesh, dual_mesh )
 
     ! Allocate space for ia on the primal graph
-    primal_graph%type = gtype
+    primal_graph%symmetric_storage = symmetric_storage
 
     primal_graph%nv  = primal_mesh%npoin
     primal_graph%nv2 = primal_mesh%npoin
@@ -8610,13 +8582,13 @@ use mpi
 
     call memalloc ( pwork(3), iwork, __FILE__,__LINE__ )
     
-    call count_primal_graph_csr_scal ( primal_graph%type, primal_mesh, dual_mesh, primal_graph, &  
+    call count_primal_graph_csr_scal ( primal_graph%symmetric_storage, primal_mesh, dual_mesh, primal_graph, &  
                                        iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
 
     ! Allocate space for ja on the primal graph 
     call memalloc ( primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja, __FILE__,__LINE__)
      
-    call list_primal_graph_csr_scal  ( primal_graph%type, primal_mesh, dual_mesh, primal_graph, &
+    call list_primal_graph_csr_scal  ( primal_graph%symmetric_storage, primal_mesh, dual_mesh, primal_graph, &
                                        iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
     
     ! Free dual_mesh
@@ -8626,16 +8598,16 @@ use mpi
   end subroutine mesh_to_graph_matrix
 
   !============================================================================================
-  subroutine  count_primal_graph_csr_scal ( gtype, primal_mesh, dual_mesh, primal_graph,  &
+  subroutine  count_primal_graph_csr_scal ( symmetric_storage, primal_mesh, dual_mesh, primal_graph,  &
        &                                    ws_position, ws_neighbors )
     implicit none
 
     ! Parameters
-    integer(ip)    , intent(in)     :: gtype
+    logical      , intent(in)     :: symmetric_storage
     type(mesh_t) , intent(in)     :: primal_mesh, dual_mesh
     type(graph_t), intent(inout)  :: primal_graph
-    integer(ip)    , intent(out)    :: ws_position  (primal_mesh%npoin)
-    integer(ip)    , intent(out)    :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
+    integer(ip)  , intent(out)    :: ws_position  (primal_mesh%npoin)
+    integer(ip)  , intent(out)    :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
 
     ! Local variables
     integer(ip)                     :: ineigh  
@@ -8676,7 +8648,7 @@ use mpi
           inods2=primal_mesh%pnods(ipoindm+1)-1
           do p_ipoinpm = inods1,inods2
              ipoinpm = primal_mesh%lnods(p_ipoinpm)
-             if ( gtype == csr .or. ( gtype == csr_symm .and. ipoinpg <= ipoinpm ) ) then
+             if ( (.not. symmetric_storage) .or. ( symmetric_storage .and. ipoinpg <= ipoinpm ) ) then
                 ! write (*,*) ipoinpg, ipoindm, ipoinpm ! DBG: 
                 ! If ipoinpm not visited yet
                 if ( ws_position(ipoinpm) == 0 ) then
@@ -8701,16 +8673,16 @@ use mpi
      end subroutine count_primal_graph_csr_scal
 
      !============================================================================================
-     subroutine  list_primal_graph_csr_scal ( gtype, primal_mesh, dual_mesh, primal_graph,  &
+     subroutine  list_primal_graph_csr_scal ( symmetric_storage, primal_mesh, dual_mesh, primal_graph,  &
           &                                   ws_position, ws_neighbors )    
        implicit none
 
        ! Parameters
-       integer(ip)    , intent(in)    :: gtype
+       logical      , intent(in)    :: symmetric_storage 
        type(mesh_t) , intent(in)    :: primal_mesh, dual_mesh
        type(graph_t), intent(inout) :: primal_graph
-       integer(ip)    , intent(out)   :: ws_position  (primal_mesh%npoin)
-       integer(ip)    , intent(out)   :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
+       integer(ip)  , intent(out)   :: ws_position  (primal_mesh%npoin)
+       integer(ip)  , intent(out)   :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
 
        ! Local variables
        integer(ip)                    :: ineigh  
@@ -8749,7 +8721,7 @@ use mpi
              do p_ipoinpm = inods1,inods2
                 ipoinpm = primal_mesh%lnods(p_ipoinpm)
                 ! Only list edges (i,j) s.t., i <= j  
-                if ( gtype == csr .or. ( gtype == csr_symm .and. ipoinpg <= ipoinpm ) ) then
+                if ( .not. symmetric_storage .or. ( symmetric_storage .and. ipoinpg <= ipoinpm ) ) then
                    ! If ipoinpm not visited yet
                    if ( ws_position(ipoinpm) == 0 ) then
                       ws_position(ipoinpm) = first_free_pos

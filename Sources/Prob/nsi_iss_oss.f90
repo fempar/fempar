@@ -230,7 +230,7 @@ contains
           discret%l2g_var(i) = i
        end do
     end if
-    
+	    
   end subroutine nsi_create_discrete 
 
   !=================================================================================================

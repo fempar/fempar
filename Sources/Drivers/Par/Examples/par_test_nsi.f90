@@ -67,7 +67,7 @@ program par_test_nsi_iss
 
   ! Integers
   integer(ip) :: num_levels
-  integer(ip) :: gtype(1) = (/ csr /)
+  logical     :: symmetric_storage(1) = (/ .false. /)
   integer(ip) :: ibloc,jbloc,istat,i,j
 
   ! Allocatables
@@ -165,7 +165,7 @@ program par_test_nsi_iss
        &                nparts=gdata%nparts,linear_order=.true.)
 
   ! Create dof info
-  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
+  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph, symmetric_storage )  
 
   !if(p_env%am_i_fine_task()) call par_graph_print(6,p_blk_graph%get_block(1,1))
 

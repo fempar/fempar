@@ -557,9 +557,9 @@ contains
     integer(ip)              :: pwork(4)            ! Pointers to work space
 
     ! Allocate space for ia on the primal graph
-    primal_graph%type = part
-    primal_graph%nv   = primal_mesh%npoin
-    primal_graph%nv2  = primal_mesh%npoin
+    primal_graph%nv                = primal_mesh%npoin
+    primal_graph%nv2               = primal_mesh%npoin
+	primal_graph%symmetric_storage = .false.
     call memalloc (primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__)
 
     ! Allocate working space for count_primal_graph and list_primal_graph routines

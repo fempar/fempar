@@ -105,14 +105,14 @@ contains
            if (associated(p_graph)) then
               allocate ( bmat%blocks(ib,jb)%p_p_matrix )
               if ( (ib == jb) .and. present(sign) ) then
-                if ( p_graph%f_graph%type == csr ) then
+                if ( (.not. p_graph%f_graph%symmetric_storage) ) then
                    call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
                 else 
                    call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
                 end if
              else
                 if ( ib == jb ) then
-                   if ( p_graph%f_graph%type == csr ) then
+                   if ( p_graph%f_graph%symmetric_storage ) then
                       call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
                    else 
                       call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
@@ -140,9 +140,9 @@ contains
     if ( .not. associated( bmat%blocks(ib,jb)%p_p_matrix) ) then
        allocate ( bmat%blocks(ib,jb)%p_p_matrix )
        if ( (ib == jb) ) then
-          if ( p_graph%f_graph%type == csr ) then
+          if ( (.not. p_graph%f_graph%symmetric_storage) ) then
             call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
-          else if ( p_graph%f_graph%type == csr_symm ) then
+          else 
             call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
           end if
        else

@@ -116,7 +116,7 @@ contains
           discret%l2g_var(i) = i
        end do
     end if
-    
+	    
   end subroutine nsi_create_discrete
 
   !=================================================================================================
@@ -141,6 +141,9 @@ contains
        class default
        check(.false.)
     end select
+	
+    approx%domain_dimension = 3
+
 
   end subroutine nsi_matvec_create
 

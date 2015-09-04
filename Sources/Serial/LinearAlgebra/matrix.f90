@@ -292,7 +292,7 @@ contains
     end if
 
     write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
-    if (f_matrix%gr%type == csr) then
+    if (.not. f_matrix%gr%symmetric_storage) then
        write (lunou,*) nv1_,nv2_,f_matrix%gr%ia(f_matrix%gr%nv+1)-1
        do i=1,f_matrix%gr%nv
           do j=f_matrix%gr%ia(i),f_matrix%gr%ia(i+1)-1
@@ -303,7 +303,7 @@ contains
              end if
           end do
        end do
-    else if (f_matrix%gr%type == csr_symm) then
+    else 
        write (lunou,*) nv1_,nv2_,& 
             2*(f_matrix%gr%ia(f_matrix%gr%nv+1)-1) - f_matrix%gr%nv
 
@@ -379,14 +379,14 @@ contains
     call memalloc (    nz, a_work,__FILE__,__LINE__)
 
     if(mat%symm==symm_false) then
-       gr%type = csr
+       gr%symmetric_storage = .false.
        do i=1,nz
           ! read(lunou,*, end=10,err=10) ija_work(1,i),ija_work(2,i),a_work(i)
           read(lunou,'(i12, i12, e32.25)',end=10, err=10) ija_work(1,i), ija_work(2,i), a_work(i)
           ija_index(i)=i
        end do
     else
-       gr%type = csr_symm
+       gr%symmetric_storage = .true.
        j=1
        do i=1,nz
           read(lunou,'(i12, i12, e32.25)', end=10,err=10) ija_work(1,j),ija_work(2,j),a_work(j)
@@ -403,7 +403,6 @@ contains
     ! Allocate graph 
     gr%nv   = nv
     gr%nv2  = nv
-    gr%nzt  = nz
     call memalloc ( nv+1 , gr%ia, __FILE__,__LINE__ )
     call memalloc ( nz , gr%ja, __FILE__,__LINE__ )
 
@@ -531,19 +530,19 @@ contains
     type(graph_t) :: aux_graph
     integer :: k,i,j
 
-    if ( A%gr%type == csr ) then
+    if ( .not. A%gr%symmetric_storage ) then
        call matrix_alloc ( csr_mat, symm_false,                  &
             A%gr, A_t )
-    else if (A%gr%type == csr_symm) then
+    else 
        call matrix_alloc ( csr_mat, symm_true,                  &
             A%gr, A_t )
     end if
 
     aux_graph = A%gr
 
-    if (A%gr%type == csr_symm) then 
+    if (A%gr%symmetric_storage) then 
        A_t%a(:) = A%a(:)
-    elseif (A%gr%type == csr ) then
+    else
        k = 0    
        do i = 1, A_t%gr%nv
           do j=1, (A_t%gr%ia(i+1) - A_t%gr%ia(i) )

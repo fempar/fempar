@@ -67,15 +67,15 @@ contains
   ! ghost elements, and so, number the dofs in a conforming way.
   !*********************************************************************************
   subroutine par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, &
-       blk_dof_dist, p_blk_graph, gtype ) 
+                                               blk_dof_dist, p_blk_graph, diagonal_blocks_symmetric_storage ) 
     implicit none
     ! Paramters
-    type(dof_descriptor_t)                  , intent(in)     :: dof_descriptor
-    type(par_triangulation_t)            , intent(in)     :: p_trian
-    type(par_fe_space_t)                , intent(inout)  :: p_fe_space
-    type(block_dof_distribution_t)       , intent(inout)  :: blk_dof_dist 
-    type(par_block_graph_t)              , intent(inout)  :: p_blk_graph
-    integer(ip)              , optional, intent(in)     :: gtype(dof_descriptor%nblocks) 
+    type(dof_descriptor_t)               , intent(in)    :: dof_descriptor
+    type(par_triangulation_t)            , intent(in)    :: p_trian
+    type(par_fe_space_t)                 , intent(inout) :: p_fe_space
+    type(block_dof_distribution_t)       , intent(inout) :: blk_dof_dist 
+    type(par_block_graph_t)              , intent(inout) :: p_blk_graph
+    logical                  , optional  , intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
 
     integer(ip)               :: iblock, jblock
     type (par_graph_t), pointer :: p_graph
@@ -104,9 +104,9 @@ contains
        do iblock = 1, dof_descriptor%nblocks
           do jblock = 1, dof_descriptor%nblocks
              p_graph => p_blk_graph%blocks(iblock,jblock)%p_p_graph
-             if ( iblock == jblock .and. present(gtype) ) then
+             if ( iblock == jblock .and. present(diagonal_blocks_symmetric_storage) ) then
                 call create_dof_graph_block ( iblock, jblock, dof_descriptor, p_trian%f_trian, & 
-                     p_fe_space%fe_space, p_graph%f_graph, gtype(iblock) )
+                     p_fe_space%fe_space, p_graph%f_graph, diagonal_blocks_symmetric_storage(iblock) )
              else
                 call create_dof_graph_block ( iblock, jblock, dof_descriptor, p_trian%f_trian, &
                      p_fe_space%fe_space, p_graph%f_graph )

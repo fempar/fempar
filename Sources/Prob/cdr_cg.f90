@@ -104,7 +104,8 @@ contains
           discret%l2g_var(i) = i
        end do
     end if
-    
+  
+
   end subroutine cdr_create_discrete
 
   !=================================================================================================
@@ -126,6 +127,8 @@ contains
     class default
        check(.false.)
     end select
+	
+    approx%domain_dimension = 3
 
   end subroutine cdr_matvec_create
 

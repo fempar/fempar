@@ -124,7 +124,7 @@ program par_test_cdr_unstructured
   type(block_dof_distribution_t)        :: blk_dof_dist
   type(dof_descriptor_t)                :: dof_descriptor
   type(par_block_graph_t)               :: p_blk_graph
-  integer(ip)                           :: gtype(1) = (/ csr_symm /)
+  logical                               :: symmetric_storage(1) = (/ .true. /)
   type(par_conditions_t)                :: p_cond
 
   type(cdr_problem_t)                   :: my_problem
@@ -233,7 +233,7 @@ program par_test_cdr_unstructured
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
-  call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, gtype )  
+  call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, symmetric_storage )
 
   call par_matrix_alloc ( csr_mat, symm_true, p_blk_graph%get_block(1,1), p_mat, positive_definite )
 

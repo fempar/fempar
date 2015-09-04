@@ -345,7 +345,7 @@ use graph_renumbering_names
     type(partitioning_params_t)             :: prt_parts
     integer(ip)                   :: i
 
-    assert ( matrix%gr%type == csr_symm )
+    assert ( matrix%gr%symmetric_storage )
 
 #ifdef ENABLE_HSL_MA87
     call renumbering_alloc( matrix%gr%nv, context%renumbering )
