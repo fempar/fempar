@@ -130,10 +130,10 @@ contains
     ! This routine computes the interpolation
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)    , intent(in)  :: ndime,gnode,unode
+    integer(ip)    , intent(in)    :: ndime,gnode,unode
     type(array_rp2_t), intent(in)  :: int_array
-    real(rp)       , intent(in)  :: g_val(ndime,gnode)
-    real(rp)       , intent(out) :: u_val(ndime,unode)
+    real(rp)       , intent(in)    :: g_val(ndime,gnode)
+    real(rp)       , intent(inout) :: u_val(ndime,unode)
     ! Locals
     integer(ip) :: inode,jnode
 

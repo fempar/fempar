@@ -25,12 +25,78 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+module postprocess_field_nsi_names
+  use types_names
+  use problem_names
+  use postprocess_field_names
+# include "debug.i90"
+  implicit none
+
+  type, extends(postprocess_field_t) :: postprocess_field_velocity_t
+   contains
+     procedure :: compute_field => nsi_compute_field_vel
+  end type postprocess_field_velocity_t
+
+  type, extends(postprocess_field_t) :: postprocess_field_pressure_t
+   contains
+     procedure :: compute_field => nsi_compute_field_pre
+  end type postprocess_field_pressure_t
+
+  public :: postprocess_field_velocity_t, postprocess_field_pressure_t
+contains
+  subroutine nsi_compute_field_vel(postprocess_field)
+    !******** READ ME: *********************************************************!
+    ! This subroutine nsi_compute_field has been created only for testing       !
+    ! purposes and it is left here as an easy example of how to use the         !
+    ! postprocess_fields_names module.                                          !
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(postprocess_field_velocity_t), intent(inout) :: postprocess_field
+    ! Locals
+    integer(ip)        :: nelem, ndime, i
+
+    ! Extract some parameter form fe_space
+    nelem = postprocess_field%fe_space%g_trian%num_elems
+    ndime = postprocess_field%fe_space%g_trian%num_dims
+
+    do i=1,nelem
+       postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+            &          postprocess_field%fe_space%finite_elements(i)%unkno(:,1:ndime,1)
+    end do
+    
+
+  end subroutine nsi_compute_field_vel
+
+  subroutine nsi_compute_field_pre(postprocess_field)
+    !******** READ ME: *********************************************************!
+    ! This subroutine nsi_compute_field has been created only for testing       !
+    ! purposes and it is left here as an easy example of how to use the         !
+    ! postprocess_fields_names module.                                          !
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(postprocess_field_pressure_t), intent(inout) :: postprocess_field
+    ! Locals
+    integer(ip)        :: nelem, ndime, i
+
+    ! Extract some parameter form fe_space
+    nelem = postprocess_field%fe_space%g_trian%num_elems
+    ndime = postprocess_field%fe_space%g_trian%num_dims
+
+    do i=1,nelem
+       postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+            &          postprocess_field%fe_space%finite_elements(i)%unkno(:,1+ndime:1+ndime,1)
+    end do
+    
+  end subroutine nsi_compute_field_pre
+end module postprocess_field_nsi_names
+
 program par_test_nsi_iss
   use serial_names
   use par_names
   use nsi_names
   use nsi_cg_iss_names
-use lib_vtk_io_interface_names
+  use lib_vtk_io_interface_names
+  use postprocess_field_nsi_names
   implicit none
 # include "debug.i90"
 
@@ -64,6 +130,8 @@ use lib_vtk_io_interface_names
   type(solver_control_t)                             :: sctrl
   class(base_operand_t) , pointer           :: x, y
   class(base_operator_t), pointer           :: A
+  type(postprocess_field_velocity_t)    :: postprocess_vel
+  type(postprocess_field_pressure_t)    :: postprocess_pre
 
   ! Integers
   integer(ip) :: num_levels
@@ -166,7 +234,7 @@ use lib_vtk_io_interface_names
 
   ! Initialize VTK output
   call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
-       &                nparts=gdata%nparts,linear_order=.true.)
+       &                nparts=gdata%nparts)!,linear_order=.false.)
 
   ! Create dof info
   call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,gtype)  
@@ -189,7 +257,7 @@ use lib_vtk_io_interface_names
   ! Apply boundary conditions to unkno
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu = 1.0_rp
   call par_update_strong_dirichlet_bcond(p_fe_space,p_cond)
-  !call par_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,p_fe_space)
+  !call par_update_analytical_bcond((/1:gdata%ndime/),myprob%case_veloc,0.0_rp,p_fe_space
   call par_update_analytical_bcond((/(i, i=1,gdata%ndime)/),myprob%case_veloc,0.0_rp,p_fe_space)
   call par_update_analytical_bcond((/gdata%ndime+1/),myprob%case_press,0.0_rp,p_fe_space)
 
@@ -284,10 +352,24 @@ use lib_vtk_io_interface_names
   ! Store solution to unkno
   call par_update_solution(p_unk,p_fe_space)
 
+  ! Compute postprocess field
+  call postprocess_vel%create('velocity',gdata%ndime,p_fe_space%fe_space,p_env,                     &
+       &                      use_interpolation_order_from_variable,variable_identifier=1)
+  call postprocess_pre%create('pressure',1,p_fe_space%fe_space,p_env,                               &
+       &                      use_interpolation_order_from_variable,variable_identifier=2)
+  call postprocess_vel%compute_and_finalize_field()
+  call postprocess_pre%compute_and_finalize_field()
+     
   ! Print solution to VTK file
-  istat = fevtk%write_VTK(n_part=p_env%p_context%iam,o_fmt='ascii')
-  if(p_env%am_i_fine_task()) istat = fevtk%write_PVTK()
-
+  istat = fevtk%write_VTK_start(n_part=p_env%p_context%iam,o_fmt='ascii')
+  istat = fevtk%write_VTK_unknowns()
+  istat = fevtk%write_VTK_field(postprocess_vel)
+  istat = fevtk%write_VTK_field(postprocess_pre)
+  istat = fevtk%write_VTK_end() 
+  istat = fevtk%write_PVTK()
+  call postprocess_vel%free
+  call postprocess_pre%free
+  
   ! Free preconditioner
   call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_values)
   call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_struct)
