@@ -98,9 +98,9 @@ module lib_vtk_io_interface_names
   ! It stores the directory path and the prefix where to write in disk
   type vtk_t
      type(vtk_mesh_t), allocatable :: mesh(:)         ! VTK mesh data and field_t descriptors
-     type(fe_space_t), pointer     :: p_fe_space => NULL()  ! Poins to fe_space_t
+     type(fe_space_t), pointer     :: fe_space => NULL()  ! Poins to fe_space_t
      class(physical_problem_t), pointer     :: p_phys_prob => NULL()  ! Poins to physical_problem_t
-     class(abstract_environment_t), pointer      :: p_env => NULL()  ! Poins to fe_space_t
+     class(abstract_environment_t), pointer      :: env => NULL()  ! Poins to fe_space_t
      real(rp), allocatable         :: steps(:)        ! Array of parameters (time, eigenvalues,etc.)
      integer(ip)                   :: steps_counter=0 ! time steps counter
      integer(ip)                   :: num_meshes = 0  ! Number of VTK meshes stored
@@ -194,14 +194,14 @@ contains
 
     if(present(linear_order)) lo = linear_order
 
-    f_vtk%p_fe_space => fe_space
+    f_vtk%fe_space => fe_space
     f_vtk%p_phys_prob => phys_prob
-    f_vtk%p_env => env
+    f_vtk%env => env
 
     me = 0; np = 1; rp = 0
-    if(associated(f_vtk%p_env)) then 
-        call f_vtk%p_env%info(me,np) 
-        ft =  f_vtk%p_env%am_i_fine_task() 
+    if(associated(f_vtk%env)) then 
+        call f_vtk%env%info(me,np) 
+        ft =  f_vtk%env%am_i_fine_task() 
     endif
     if(present(root_proc)) rp = root_proc
     call f_vtk%set_root_proc(rp)
@@ -366,10 +366,6 @@ contains
     if(present(nmesh)) nmesh = f_vtk%num_meshes
     f_vtk%mesh(f_vtk%num_meshes)%linear_order = .False.
 
-
-    ! TODO:: Do it for general type (for diferent type of interpolation_t in the same mesh also)
-    ! TODO: Consider different kind of interpolation per element
-    ! TODO: consider high order geometries
     ndime = fe_space%g_trian%num_dims
     f_type = Q_type_id
 
@@ -553,7 +549,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end subroutine add_new_postprocess_field
 
-  ! Start the write of a single VTK file to disk (if I am fine tast)
+  ! Start the write of a single VTK file to disk (if I am fine MPI task)
   function write_VTK_start(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -578,16 +574,16 @@ contains
     integer(ip)                               :: E_IO    !< Error IO
   ! ----------------------------------------------------------------------------------
 
-    check(associated(f_vtk%p_env))
+    check(associated(f_vtk%env))
  
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
     fid = -1
     
     if(ft) then
         me = 0; np = 1
-        call f_vtk%p_env%info(me,np) 
+        call f_vtk%env%info(me,np) 
         np = me
         if(present(n_part)) np = n_part
 
@@ -626,7 +622,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function write_VTK_start
 
-  ! Write a single VTK file to disk (if I am fine tast)
+  ! Write a single VTK file to disk (if I am fine MPI task)
   function write_VTK_unknowns(f_vtk, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -638,8 +634,8 @@ contains
     integer(ip)                               :: E_IO           !< IO Error
     logical                                   :: ft             !< Fine Task
 
-    check(associated(f_vtk%p_env))
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    check(associated(f_vtk%env))
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
     
@@ -659,7 +655,7 @@ contains
 
   end function write_VTK_unknowns
 
-  ! Write a single VTK file to disk (if I am fine tast) for linear interpolation
+  ! Write a single VTK file to disk (if I am fine MPI task) for linear interpolation
   function write_VTK_unknowns_linear(f_vtk, nm, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -708,12 +704,12 @@ contains
              call memalloc( f_vtk%mesh(nm)%unknowns(f)%num_comp, nnods, field, __FILE__,__LINE__)
 
              do i=1, nels
-                elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                elnnod = f_vtk%fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
                 do j=1, elnnod
-                   nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
-                   idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(nnode)
+                   nnode = f_vtk%fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
+                   idx = f_vtk%fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(nnode)
                    field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod) = &
-                        f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx)
+                        f_vtk%fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx)
                 enddo
                 tnnod = tnnod + elnnod 
              enddo
@@ -733,7 +729,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function write_VTK_unknowns_linear
 
-  ! Write a single VTK file to disk (if I am fine tast) for high order interpolation
+  ! Write a single VTK file to disk (if I am fine MPI task) for high order interpolation
   function write_VTK_unknowns_superlinear(f_vtk, nm, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -777,8 +773,8 @@ contains
        endif
 
        nnods = f_vtk%mesh(nm)%nnods
-       nels = f_vtk%p_fe_space%g_trian%num_elems
-       ndime = f_vtk%p_fe_space%g_trian%num_dims
+       nels = f_vtk%fe_space%g_trian%num_elems
+       ndime = f_vtk%fe_space%g_trian%num_dims
        f_type = Q_type_id
 
        tncomp = 0
@@ -792,22 +788,22 @@ contains
              do i=1, nels
 
                 ! Check (only working for Q-type elements)
-                check(f_vtk%p_fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
+                check(f_vtk%fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
 
                 ! Set order of interpolation
-                order = maxval(f_vtk%p_fe_space%finite_elements(i)%order)
+                order = maxval(f_vtk%fe_space%finite_elements(i)%order)
                 nsubels = Q_nnods(ndime,order-1)
                 gnode   = Q_nnods(ndime,1)
                 nnode   = Q_nnods(ndime,order)
 
                 ! Interpolate unknowns with different order of interpolation
-                if(f_vtk%p_fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
+                if(f_vtk%fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
 
                    ! Allocate auxiliar target and origin fields
                    call memalloc(f_vtk%mesh(nm)%unknowns(f)%num_comp,nnode,target_field,__FILE__,__LINE__)
                    call memalloc(f_vtk%mesh(nm)%unknowns(f)%num_comp,gnode,origin_field,__FILE__,__LINE__)
                    do icomp=1,f_vtk%mesh(nm)%unknowns(f)%num_comp
-                      origin_field(icomp,:) = f_vtk%p_fe_space%finite_elements(i)%unkno(1:gnode,tncomp+icomp,tidx)
+                      origin_field(icomp,:) = f_vtk%fe_space%finite_elements(i)%unkno(1:gnode,tncomp+icomp,tidx)
                    end do
                    target_field = 0.0_rp
 
@@ -815,13 +811,13 @@ contains
                    ltype(2) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
                    ltype(1) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*order
                    v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
-                   call f_vtk%p_fe_space%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
+                   call f_vtk%fe_space%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
                    assert(istat.ne.new_index)
-                   call interpolate(f_vtk%mesh(nm)%unknowns(f)%num_comp,gnode,nnode,f_vtk%p_fe_space%linter(pos_voint), &
+                   call interpolate(f_vtk%mesh(nm)%unknowns(f)%num_comp,gnode,nnode,f_vtk%fe_space%linter(pos_voint), &
                         &           origin_field,target_field)
 
                    do icomp=1,f_vtk%mesh(nm)%unknowns(f)%num_comp
-                      f_vtk%p_fe_space%finite_elements(i)%unkno(:,tncomp+icomp,tidx) = target_field(icomp,:)
+                      f_vtk%fe_space%finite_elements(i)%unkno(:,tncomp+icomp,tidx) = target_field(icomp,:)
                    end do
 
                    ! Deallocate target and origin fields
@@ -837,7 +833,7 @@ contains
                    do j=1, gnode
                       idx = f_vtk%mesh(nm)%nodes_subelem(order)%a(j,subelem)
                       field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod) = &
-                           f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx)
+                           f_vtk%fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx)
                    enddo
                    tnnod = tnnod + gnode
                 end do
@@ -858,7 +854,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function write_VTK_unknowns_superlinear
 
-  ! Write a single VTK file to disk (if I am fine tast)
+  ! Write a single VTK file to disk (if I am fine MPI task)
   function write_VTK_field(f_vtk, postproc_field, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -871,8 +867,8 @@ contains
     integer(ip)                               :: E_IO           !< IO Error
     logical                                   :: ft             !< Fine Task
 
-    check(associated(f_vtk%p_env))
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    check(associated(f_vtk%env))
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
     
@@ -892,7 +888,7 @@ contains
 
   end function write_VTK_field
 
-  ! Write a single VTK file to disk (if I am fine tast)
+  ! Write a single VTK file to disk (if I am fine MPI task)
   function write_VTK_field_linear(f_vtk,postproc_field, nm, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -914,8 +910,8 @@ contains
     logical                                   :: ft             !< Fine Task
   ! ----------------------------------------------------------------------------------
 
-    check(associated(f_vtk%p_env))
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    check(associated(f_vtk%env))
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
     
@@ -949,13 +945,13 @@ contains
               curr_ncomp = 0
               do f=1, f_vtk%p_phys_prob%nunks
                  curr_ncomp = curr_ncomp + f_vtk%mesh(nm)%unknowns(f)%num_comp
-                 if (f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(f)%p%nnode.eq.postproc_field%fe_postprocess_field(i)%nnode) exit
+                 if (f_vtk%fe_space%finite_elements(i)%reference_element_vars(f)%p%nnode.eq.postproc_field%fe_postprocess_field(i)%nnode) exit
               end do
               ! Set the elemental nodes in the VTK interpolation
-              elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
+              elnnod = f_vtk%fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
               do j=1, elnnod
-                 inode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
-                 idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(inode)
+                 inode = f_vtk%fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
+                 idx = f_vtk%fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(inode)
 
                  field(1:postproc_field%nvars,j+tnnod) = &
                       postproc_field%fe_postprocess_field(i)%nodal_properties(idx, 1:postproc_field%nvars)
@@ -978,7 +974,7 @@ contains
    end function write_VTK_field_linear
 
 
-  ! Write a single VTK file to disk (if I am fine tast) for high order interpolation
+  ! Write a single VTK file to disk (if I am fine MPI task) for high order interpolation
   function write_VTK_field_superlinear(f_vtk,postproc_field, nm, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1022,8 +1018,8 @@ contains
        endif
 
        nnods = f_vtk%mesh(nm)%nnods
-       nels = f_vtk%p_fe_space%g_trian%num_elems
-       ndime = f_vtk%p_fe_space%g_trian%num_dims
+       nels = f_vtk%fe_space%g_trian%num_elems
+       ndime = f_vtk%fe_space%g_trian%num_dims
        f_type = Q_type_id
 
        tncomp = 0
@@ -1041,20 +1037,20 @@ contains
           curr_ncomp = 0
           do j=1, f_vtk%p_phys_prob%nunks
              curr_ncomp = curr_ncomp + f_vtk%mesh(nm)%unknowns(j)%num_comp
-             if (f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(j)%p%nnode.eq.postproc_field%fe_postprocess_field(i)%nnode) exit
+             if (f_vtk%fe_space%finite_elements(i)%reference_element_vars(j)%p%nnode.eq.postproc_field%fe_postprocess_field(i)%nnode) exit
           end do
           
           ! Check (only working for Q-type elements)
-          check(f_vtk%p_fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
+          check(f_vtk%fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
           
           ! Set order of interpolation
-          order = maxval(f_vtk%p_fe_space%finite_elements(i)%order)
+          order = maxval(f_vtk%fe_space%finite_elements(i)%order)
           nsubels = Q_nnods(ndime,order-1)
           gnode   = Q_nnods(ndime,1)
           nnode   = Q_nnods(ndime,order)
           
           ! Interpolate unknowns with different order of interpolation
-          if(f_vtk%p_fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
+          if(f_vtk%fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
              
              ! Allocate auxiliar target and origin fields
              call memalloc(f_vtk%mesh(nm)%postprocess_fields(f)%num_comp,nnode,target_field,__FILE__,__LINE__)
@@ -1068,9 +1064,9 @@ contains
              ltype(2) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)
              ltype(1) = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*order
              v_key    = (max_ndime+1)*(max_FE_types+1)*(max_order) * ltype(1) + ltype(2)
-             call f_vtk%p_fe_space%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
+             call f_vtk%fe_space%pos_interpolator%get(key=v_key, val=pos_voint, stat = istat)
              assert(istat.ne.new_index)
-             call interpolate(f_vtk%mesh(nm)%postprocess_fields(f)%num_comp,gnode,nnode,f_vtk%p_fe_space%linter(pos_voint), &
+             call interpolate(f_vtk%mesh(nm)%postprocess_fields(f)%num_comp,gnode,nnode,f_vtk%fe_space%linter(pos_voint), &
                   &           origin_field,target_field)
              
              do icomp=1,f_vtk%mesh(nm)%postprocess_fields(f)%num_comp
@@ -1109,7 +1105,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function write_VTK_field_superlinear
 
-  ! Write a single VTK file to disk (if I am fine tast)
+  ! Write a single VTK file to disk (if I am fine MPI task)
   function write_VTK_end(f_vtk, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1121,8 +1117,8 @@ contains
     logical                                   :: ft      !< Fine Task
   ! ----------------------------------------------------------------------------------
 
-    check(associated(f_vtk%p_env))
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    check(associated(f_vtk%env))
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
 
@@ -1161,7 +1157,7 @@ contains
 
 
 
-  ! Write a single VTK file to disk (if I am fine tast)
+  ! Write a single VTK file to disk (if I am fine MPI task)
   function write_VTK(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1184,7 +1180,7 @@ contains
   ! ----------------------------------------------------------------------------------
 
     me = 0; np = 1
-    call f_vtk%p_env%info(me,np) 
+    call f_vtk%env%info(me,np) 
     np = me
     if(present(n_part)) np = n_part
 
@@ -1194,7 +1190,7 @@ contains
     ts = 0._rp
     if(present(t_step)) ts = t_step 
 
-    ft =  f_vtk%p_env%am_i_fine_task()
+    ft =  f_vtk%env%am_i_fine_task()
 
     E_IO = 0
 
@@ -1234,12 +1230,12 @@ contains
   ! ----------------------------------------------------------------------------------
 
     me = 0; np = 1
-    check(associated(f_vtk%p_env))
-    call f_vtk%p_env%info(me,np) 
+    check(associated(f_vtk%env))
+    call f_vtk%env%info(me,np) 
 
     E_IO = 0
 
-    if( f_vtk%p_env%am_i_fine_task() .and. me == f_vtk%root_proc) then
+    if( f_vtk%env%am_i_fine_task() .and. me == f_vtk%root_proc) then
 
         nm = f_vtk%num_meshes
         if(present(n_mesh)) nm = n_mesh
@@ -1348,12 +1344,12 @@ contains
   ! ----------------------------------------------------------------------------------
 
     me = 0; np = 1
-    check(associated(f_vtk%p_env))
-    call f_vtk%p_env%info(me,np) 
+    check(associated(f_vtk%env))
+    call f_vtk%env%info(me,np) 
 
     E_IO = 0
 
-    if(f_vtk%p_env%am_i_fine_task() .and. me == f_vtk%root_proc) then
+    if(f_vtk%env%am_i_fine_task() .and. me == f_vtk%root_proc) then
 
         nm = f_vtk%num_meshes
         if(present(n_mesh)) nm = n_mesh
@@ -1382,7 +1378,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function write_PVD
 
-  ! Read a single VTK file from disk (if I am fine tast)
+  ! Read a single VTK file from disk (if I am fine MPI task)
   function read_VTK(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1405,7 +1401,7 @@ contains
   ! ----------------------------------------------------------------------------------
 
     me = 0; np = 1
-    call f_vtk%p_env%info(me,np) 
+    call f_vtk%env%info(me,np) 
     np = me
     if(present(n_part)) np = n_part
 
@@ -1415,7 +1411,7 @@ contains
     ts = 0._rp
     if(present(t_step)) ts = t_step 
 
-    ft =  f_vtk%p_env%am_i_fine_task()
+    ft =  f_vtk%env%am_i_fine_task()
 
     E_IO = 0
 
@@ -1436,7 +1432,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function read_VTK
 
-  ! Start the read of a single VTK file from disk (if I am fine tast)
+  ! Start the read of a single VTK file from disk (if I am fine MPI task)
   function read_VTK_start(f_vtk, f_name, n_part, t_step, n_mesh, o_fmt, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1461,16 +1457,16 @@ contains
     integer(ip)                               :: E_IO    !< Error IO
   ! ----------------------------------------------------------------------------------
 
-    check(associated(f_vtk%p_env))
+    check(associated(f_vtk%env))
  
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
     fid = -1
     
     if(ft) then
         me = 0; np = 1
-        call f_vtk%p_env%info(me,np) 
+        call f_vtk%env%info(me,np) 
         np = me
         if(present(n_part)) np = n_part
 
@@ -1507,7 +1503,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function read_VTK_start
 
-  ! Read a single VTK file from disk (if I am fine tast)
+  ! Read a single VTK file from disk (if I am fine MPI task)
   function read_VTK_unknowns(f_vtk, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1519,8 +1515,8 @@ contains
     integer(ip)                               :: E_IO           !< IO Error
     logical                                   :: ft             !< Fine Task
 
-    check(associated(f_vtk%p_env))
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    check(associated(f_vtk%env))
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
     
@@ -1543,7 +1539,7 @@ contains
 
   end function read_VTK_unknowns
 
-  ! Read a single VTK file to disk (if I am fine tast) for linear interpolation
+  ! Read a single VTK file to disk (if I am fine MPI task) for linear interpolation
   function read_VTK_unknowns_linear(f_vtk, nm, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1590,11 +1586,11 @@ contains
              end if
 
              do i=1, nels
-                elnnod = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
+                elnnod = f_vtk%fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(2)-1 !Num nodes (dim=2 -> vertex)
                 do j=1, elnnod
-                   nnode = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
-                   idx = f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(nnode)
-                   f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx) = &
+                   nnode = f_vtk%fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%p(j)
+                   idx = f_vtk%fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%ntxob%l(nnode)
+                   f_vtk%fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx) = &
                         &  field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod) 
                         
                 enddo
@@ -1611,7 +1607,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function read_VTK_unknowns_linear
 
-  ! Write a single VTK file to disk (if I am fine tast) for high order interpolation
+  ! Write a single VTK file to disk (if I am fine MPI task) for high order interpolation
   function read_VTK_unknowns_superlinear(f_vtk, nm, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1645,8 +1641,8 @@ contains
     if(allocated(f_vtk%mesh(nm)%unknowns) ) then
 
        nnods = f_vtk%mesh(nm)%nnods
-       nels = f_vtk%p_fe_space%g_trian%num_elems
-       ndime = f_vtk%p_fe_space%g_trian%num_dims
+       nels = f_vtk%fe_space%g_trian%num_elems
+       ndime = f_vtk%fe_space%g_trian%num_dims
        f_type = Q_type_id
 
        tncomp = 0
@@ -1668,10 +1664,10 @@ contains
              do i=1, nels
 
                 ! Check (only working for Q-type elements)
-                check(f_vtk%p_fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
+                check(f_vtk%fe_space%finite_elements(i)%p_geo_reference_element%ftype == Q_type_id)
 
                 ! Set order of interpolation
-                order = maxval(f_vtk%p_fe_space%finite_elements(i)%order)
+                order = maxval(f_vtk%fe_space%finite_elements(i)%order)
                 nsubels = Q_nnods(ndime,order-1)
                 gnode   = Q_nnods(ndime,1)
                 nnode   = Q_nnods(ndime,order)
@@ -1682,28 +1678,28 @@ contains
                    ! Loop over geometrical nodes in subelement
                    do j=1, gnode
                       idx = f_vtk%mesh(nm)%nodes_subelem(order)%a(j,subelem)
-                       f_vtk%p_fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx) = &
+                       f_vtk%fe_space%finite_elements(i)%unkno(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%unknowns(f)%num_comp, tidx) = &
                            field(1:f_vtk%mesh(nm)%unknowns(f)%num_comp,j+tnnod)
                    enddo
                    tnnod = tnnod + gnode
                 end do
                 
                 ! Interpolate unknowns with different order of interpolation
-                if(f_vtk%p_fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
+                if(f_vtk%fe_space%finite_elements(i)%order(curr_ncomp).ne.order) then
 
                    v_key = ndime + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*order
-                   call f_vtk%p_fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+                   call f_vtk%fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
                    call memalloc(f_vtk%mesh(nm)%unknowns(f)%num_comp,nnode,target_field,__FILE__,__LINE__)
 
                    do icomp=1,f_vtk%mesh(nm)%unknowns(f)%num_comp
-                      target_field(icomp,:) = f_vtk%p_fe_space%finite_elements(i)%unkno(:,tncomp+icomp,tidx)
+                      target_field(icomp,:) = f_vtk%fe_space%finite_elements(i)%unkno(:,tncomp+icomp,tidx)
                    end do
 
                    do icomp=1,f_vtk%mesh(nm)%unknowns(f)%num_comp
-                      do inode=1,f_vtk%p_fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%nnode
-                         jnode = f_vtk%p_fe_space%finite_elements_info(pos_elinf)%ntxob%p(inode)
-                         idx   = f_vtk%p_fe_space%finite_elements_info(pos_elinf)%ntxob%l(jnode)
-                         f_vtk%p_fe_space%finite_elements(i)%unkno(inode,tncomp+icomp,tidx) = target_field(icomp,idx)
+                      do inode=1,f_vtk%fe_space%finite_elements(i)%reference_element_vars(curr_ncomp)%p%nnode
+                         jnode = f_vtk%fe_space%finite_elements_info(pos_elinf)%ntxob%p(inode)
+                         idx   = f_vtk%fe_space%finite_elements_info(pos_elinf)%ntxob%l(jnode)
+                         f_vtk%fe_space%finite_elements(i)%unkno(inode,tncomp+icomp,tidx) = target_field(icomp,idx)
                       end do
                    end do
 
@@ -1724,7 +1720,7 @@ contains
   ! ----------------------------------------------------------------------------------
   end function read_VTK_unknowns_superlinear
 
-  ! Read a single VTK file from disk (if I am fine tast)
+  ! Read a single VTK file from disk (if I am fine MPI task)
   function read_VTK_end(f_vtk, n_mesh, f_id) result(E_IO)
   ! ----------------------------------------------------------------------------------
     implicit none
@@ -1736,8 +1732,8 @@ contains
     logical                                   :: ft      !< Fine Task
   ! ----------------------------------------------------------------------------------
 
-    check(associated(f_vtk%p_env))
-    ft =  f_vtk%p_env%am_i_fine_task() 
+    check(associated(f_vtk%env))
+    ft =  f_vtk%env%am_i_fine_task() 
 
     E_IO = 0
 
@@ -1770,8 +1766,8 @@ contains
   ! ----------------------------------------------------------------------------------
     me = 0; np = 1; ft = .False.; ifb = .False.
     if(present(issue_final_barrier)) ifb = issue_final_barrier
-    check(associated(f_vtk%p_env))
-    call f_vtk%p_env%info(me,np) 
+    check(associated(f_vtk%env))
+    call f_vtk%env%info(me,np) 
     check(f_vtk%root_proc <= np-1)
 
     res=0
@@ -1780,7 +1776,7 @@ contains
        check ( res == 0 ) 
     end if
 
-    if(ifb) call f_vtk%p_env%first_level_barrier()
+    if(ifb) call f_vtk%env%first_level_barrier()
 
   ! ----------------------------------------------------------------------------------
   end function create_dir_hierarchy_on_root_process
@@ -1851,7 +1847,7 @@ contains
     if(present(n_mesh)) nm = n_mesh
 
     me = 0; np = 1
-    call f_vtk%p_env%info(me, np)
+    call f_vtk%env%info(me, np)
     np = me
     if(present(n_part)) np = n_part
 
@@ -2012,8 +2008,8 @@ contains
     logical                       :: ft
   ! ----------------------------------------------------------------------------------
 
-    check(associated(f_vtk%p_env))
-    ft = f_vtk%p_env%am_i_fine_task() 
+    check(associated(f_vtk%env))
+    ft = f_vtk%env%am_i_fine_task() 
 
     if(ft) then
 
@@ -2051,8 +2047,8 @@ contains
     f_vtk%num_steps = 0
     f_vtk%num_parts = 0
     f_vtk%root_proc = 0
-    f_vtk%p_fe_space => NULL()
-    f_vtk%p_env => NULL()
+    f_vtk%fe_space => NULL()
+    f_vtk%env => NULL()
   ! ----------------------------------------------------------------------------------
   end subroutine free
 

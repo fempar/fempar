@@ -32,9 +32,6 @@ module postprocess_field_names
   use memor_names
   use fe_space_names
   use abstract_environment_names
-  use fe_space_types_names, only : max_FE_types, max_ndime
-  use problem_names,        only : physical_problem_t
-  use hash_table_names,     only : new_index
   implicit none
 # include "debug.i90"
   private
@@ -56,24 +53,24 @@ module postprocess_field_names
      logical                       :: filled = .false.
      integer(ip)                   :: nvars                 ! Number of variables 
      character(len=:), allocatable :: name                  ! Name of the postprocess field
-     type(fe_space_t), pointer     :: p_fe_space => NULL()  ! Points to fe_space_t
-     class(abstract_environment_t), pointer :: p_env => NULL() ! Points to environment
+     type(fe_space_t), pointer     :: fe_space => NULL()  ! Points to fe_space_t
+     class(abstract_environment_t), pointer :: env => NULL() ! Points to environment
      type(fe_postprocess_field_t), allocatable :: fe_postprocess_field(:)
    contains
-     procedure    :: create       => postprocess_field_create
-     procedure    :: free         => postprocess_field_free
+     generic      :: create       => postprocess_field_create
+     procedure, private :: postprocess_field_create
+     generic      :: free         => postprocess_field_free
+     procedure, private :: postprocess_field_free
      procedure    :: is_finalized => postprocess_field_is_finalized
      procedure    :: compute_and_finalize_field => postprocess_field_compute_and_finalize_field
      procedure(postprocess_field_compute_interface), deferred :: compute_field
   end type postprocess_field_t
 
   abstract interface
-     subroutine postprocess_field_compute_interface(postprocess_field,prob,fill_process)
-       import :: postprocess_field_t, physical_problem_t, ip
+     subroutine postprocess_field_compute_interface(postprocess_field)
+       import :: postprocess_field_t
        implicit none
        class(postprocess_field_t), intent(inout)  :: postprocess_field
-       class(physical_problem_t),  intent(in)     :: prob
-       integer(ip), optional,      intent(in)     :: fill_process
      end subroutine postprocess_field_compute_interface
   end interface
 
@@ -96,22 +93,21 @@ contains
     ! Locals
     integer(ip)      :: ndime, ielem
 
-    assert((interpolation_order_mode.eq.use_max_interpolation_order).or. &
-         & (interpolation_order_mode.eq.use_interpolation_order_from_variable))
+    assert((interpolation_order_mode.eq.use_max_interpolation_order).or.(interpolation_order_mode.eq.use_interpolation_order_from_variable))
     if (interpolation_order_mode.eq.use_interpolation_order_from_variable) then 
        check(present(variable_identifier))
     end if
 
     postprocess_field%nvars = nvars
     postprocess_field%name  = name
-    postprocess_field%p_fe_space => fe_space
-    postprocess_field%p_env => env
+    postprocess_field%fe_space => fe_space
+    postprocess_field%env => env
     
-    if (postprocess_field%p_env%am_I_fine_task()) then
+    if (postprocess_field%env%am_I_fine_task()) then
        allocate(postprocess_field%fe_postprocess_field(1:fe_space%g_trian%num_elems))
        
        do ielem=1,fe_space%g_trian%num_elems
-          call postprocess_field%fe_postprocess_field(ielem)%create(postprocess_field%p_fe_space,ielem,&
+          call postprocess_field%fe_postprocess_field(ielem)%create(postprocess_field%fe_space,ielem,&
                &                                   nvars, interpolation_order_mode, variable_identifier)
        end do
     end if
@@ -125,15 +121,15 @@ contains
     ! Locals
     integer(ip)     :: ielem, nelem
     
-    if (postprocess_field%p_env%am_I_fine_task()) then
-       nelem = postprocess_field%p_fe_space%g_trian%num_elems
+    if (postprocess_field%env%am_I_fine_task()) then
+       nelem = postprocess_field%fe_space%g_trian%num_elems
        do ielem=1,nelem
           call postprocess_field%fe_postprocess_field(ielem)%free
        end do
        deallocate(postprocess_field%fe_postprocess_field)
     end if
 
-    postprocess_field%p_fe_space => null()
+    postprocess_field%fe_space => null()
 
   end subroutine postprocess_field_free
 
@@ -177,14 +173,12 @@ contains
   end subroutine fe_postprocess_field_free
 
   !==================================================================================================
-  subroutine postprocess_field_compute_and_finalize_field(postprocess_field,prob,fill_process)
+  subroutine postprocess_field_compute_and_finalize_field(postprocess_field)
     implicit none
     class(postprocess_field_t), intent(inout) :: postprocess_field
-    class(physical_problem_t),  intent(in)    :: prob
-    integer(ip), optional,      intent(in)    :: fill_process
     
-    if (postprocess_field%p_env%am_I_fine_task()) then
-       call postprocess_field%compute_field(prob,fill_process)
+    if (postprocess_field%env%am_I_fine_task()) then
+       call postprocess_field%compute_field()
        postprocess_field%filled = .true.
     end if
   end subroutine postprocess_field_compute_and_finalize_field

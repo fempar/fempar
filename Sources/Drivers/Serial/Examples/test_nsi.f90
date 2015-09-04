@@ -32,51 +32,62 @@ module postprocess_field_nsi_names
 # include "debug.i90"
   implicit none
 
-  integer(ip), parameter :: velocity = 1 ! Fill option for "computing" velocity
-  integer(ip), parameter :: pressure = 2 ! Fill option for "computing" pressure
-
-  type, extends(postprocess_field_t) :: postprocess_field_nsi_t
+  type, extends(postprocess_field_t) :: postprocess_field_velocity_t
    contains
-     procedure :: compute_field => nsi_compute_field
-  end type postprocess_field_nsi_t 
+     procedure :: compute_field => nsi_compute_field_vel
+  end type postprocess_field_velocity_t
 
-  public :: postprocess_field_nsi_t, velocity, pressure
+  type, extends(postprocess_field_t) :: postprocess_field_pressure_t
+   contains
+     procedure :: compute_field => nsi_compute_field_pre
+  end type postprocess_field_pressure_t
+
+  public :: postprocess_field_velocity_t, postprocess_field_pressure_t
 contains
-  subroutine nsi_compute_field(postprocess_field,prob,fill_process)
+  subroutine nsi_compute_field_vel(postprocess_field)
     !******** READ ME: *********************************************************!
     ! This subroutine nsi_compute_field has been created only for testing       !
     ! purposes and it is left here as an easy example of how to use the         !
     ! postprocess_fields_names module.                                          !
     !---------------------------------------------------------------------------!
     implicit none
-    class(postprocess_field_nsi_t), intent(inout) :: postprocess_field
-    class(physical_problem_t),      intent(in)    :: prob
-    integer(ip), optional,          intent(in)    :: fill_process
+    class(postprocess_field_velocity_t), intent(inout) :: postprocess_field
     ! Locals
     integer(ip)        :: nelem, ndime, i
-    
-    check(present(fill_process))
-    ! Check that the postprocess_field has been created:
-    check(allocated(postprocess_field%fe_postprocess_field))
 
     ! Extract some parameter form fe_space
-    nelem = postprocess_field%p_fe_space%g_trian%num_elems
-    ndime = postprocess_field%p_fe_space%g_trian%num_dims
+    nelem = postprocess_field%fe_space%g_trian%num_elems
+    ndime = postprocess_field%fe_space%g_trian%num_dims
 
-    select case(fill_process)
-    case(velocity)
-       do i=1,nelem
-          postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
-               &          postprocess_field%p_fe_space%finite_elements(i)%unkno(:,1:ndime,1)
-       end do
-    case(pressure)
-       do i=1,nelem
-          postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
-               &          postprocess_field%p_fe_space%finite_elements(i)%unkno(:,1+ndime:1+ndime,1)
-       end do
-    end select
+    do i=1,nelem
+       postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+            &          postprocess_field%fe_space%finite_elements(i)%unkno(:,1:ndime,1)
+    end do
+    
 
-  end subroutine nsi_compute_field
+  end subroutine nsi_compute_field_vel
+
+  subroutine nsi_compute_field_pre(postprocess_field)
+    !******** READ ME: *********************************************************!
+    ! This subroutine nsi_compute_field has been created only for testing       !
+    ! purposes and it is left here as an easy example of how to use the         !
+    ! postprocess_fields_names module.                                          !
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(postprocess_field_pressure_t), intent(inout) :: postprocess_field
+    ! Locals
+    integer(ip)        :: nelem, ndime, i
+
+    ! Extract some parameter form fe_space
+    nelem = postprocess_field%fe_space%g_trian%num_elems
+    ndime = postprocess_field%fe_space%g_trian%num_dims
+
+    do i=1,nelem
+       postprocess_field%fe_postprocess_field(i)%nodal_properties =                              &
+            &          postprocess_field%fe_space%finite_elements(i)%unkno(:,1+ndime:1+ndime,1)
+    end do
+    
+  end subroutine nsi_compute_field_pre
 end module postprocess_field_nsi_names
 
 program test_nsi_iss
@@ -89,29 +100,30 @@ program test_nsi_iss
 # include "debug.i90"
   
   ! Types
-  type(uniform_mesh_descriptor_t)                    :: gdata
-  type(uniform_conditions_descriptor_t)                   :: bdata
-  type(reference_element_t)            :: geo_reference_element
-  type(triangulation_t)            :: f_trian
-  type(conditions_t)               :: f_cond
-  type(dof_descriptor_t)                  :: dof_descriptor
-  type(fe_space_t)                    :: fe_space  
-  type(nsi_problem_t)                  :: myprob
-  type(nsi_cg_iss_discrete_t) , target :: mydisc
-  type(nsi_cg_iss_matvec_t)   , target :: cg_iss_matvec
-  type(discrete_integration_pointer_t) :: approx(1)
-  type(matrix_t)          , target :: femat
-  type(vector_t)          , target :: fevec,feunk
-  type(preconditioner_t)                  :: feprec
-  type(preconditioner_params_t)           :: ppars
-  type(solver_control_t)               :: sctrl
-  type(serial_environment_t)           :: senv
-  type(vtk_t)                      :: fevtk
-  class(base_operand_t)      , pointer :: x, b
-  class(base_operator_t)     , pointer :: A, M
-  type(graph_t)          , pointer :: f_graph
-  type(block_graph_t)              :: f_blk_graph
-  type(postprocess_field_nsi_t)        :: postprocess_vel, postprocess_pre
+  type(uniform_mesh_descriptor_t)       :: gdata
+  type(uniform_conditions_descriptor_t) :: bdata
+  type(reference_element_t)             :: geo_reference_element
+  type(triangulation_t)                 :: f_trian
+  type(conditions_t)                    :: f_cond
+  type(dof_descriptor_t)                :: dof_descriptor
+  type(fe_space_t)                      :: fe_space  
+  type(nsi_problem_t)                   :: myprob
+  type(nsi_cg_iss_discrete_t) , target  :: mydisc
+  type(nsi_cg_iss_matvec_t)   , target  :: cg_iss_matvec
+  type(discrete_integration_pointer_t)  :: approx(1)
+  type(matrix_t)              , target  :: femat
+  type(vector_t)              , target  :: fevec,feunk
+  type(preconditioner_t)                :: feprec
+  type(preconditioner_params_t)         :: ppars
+  type(solver_control_t)                :: sctrl
+  type(serial_environment_t)            :: senv
+  type(vtk_t)                           :: fevtk
+  class(base_operand_t)      , pointer  :: x, b
+  class(base_operator_t)     , pointer  :: A, M
+  type(graph_t)              , pointer  :: f_graph
+  type(block_graph_t)                   :: f_blk_graph
+  type(postprocess_field_velocity_t)    :: postprocess_vel
+  type(postprocess_field_pressure_t)    :: postprocess_pre
 
   ! Integers
   integer(ip) :: gtype(1) = (/ csr /)
@@ -231,11 +243,11 @@ program test_nsi_iss
 
   ! Compute postprocess field
   call postprocess_vel%create('velocity',gdata%ndime,fe_space,senv,                                 &
-       &                      use_interpolation_order_from_variable,variable_identifier=velocity)
+       &                      use_interpolation_order_from_variable,variable_identifier=1)
   call postprocess_pre%create('pressure',1,fe_space,senv,                                           &
-       &                      use_interpolation_order_from_variable,variable_identifier=pressure)
-  call postprocess_vel%compute_and_finalize_field(myprob,velocity)
-  call postprocess_pre%compute_and_finalize_field(myprob,pressure)
+       &                      use_interpolation_order_from_variable,variable_identifier=2)
+  call postprocess_vel%compute_and_finalize_field()
+  call postprocess_pre%compute_and_finalize_field()
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK_start()
