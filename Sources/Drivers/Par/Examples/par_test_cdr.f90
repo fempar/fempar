@@ -58,7 +58,7 @@ program par_test_cdr
   type(block_dof_distribution_t)    :: blk_dof_dist
   type(dof_descriptor_t)            :: dof_descriptor
   type(par_block_graph_t)           :: p_blk_graph
-  logical                           :: symmetric_storage(1) = (/ .true. /)
+  logical                           :: symmetric_storage(1) = (/ .false. /)
   type(par_conditions_t)            :: p_cond
 
   type(cdr_problem_t)               :: my_problem
@@ -153,10 +153,7 @@ program par_test_cdr
   call par_mesh_to_triangulation (p_mesh, p_trian, p_cond)
   call par_timer_stop (par_mesh_to_triangulation_timer)   
   call par_timer_report (par_mesh_to_triangulation_timer)   
-  ! do i=1,p_cond%f_conditions%ncond
-  !    if(p_cond%f_conditions%code(1,i)>0) &
-  !         &  write(*,'(5(i10,2x))') i, p_cond%f_conditions%code(1,i)
-  ! end do
+
 
   call dof_descriptor%create( 1, 1, 1 )
 
@@ -195,7 +192,7 @@ program par_test_cdr
 
   call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, symmetric_storage )  
 
-  call par_matrix_alloc ( csr_mat, symm_true, p_blk_graph%get_block(1,1), p_mat, positive_definite )
+  call par_matrix_alloc ( symm_false, p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
   call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
   p_vec%state = part_summed
@@ -203,29 +200,8 @@ program par_test_cdr
   call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_unk )
   p_unk%state = full_summed
 
-  if ( p_env%am_i_fine_task() ) then
-     call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
-     ! call matrix_print ( 6, p_mat%f_matrix )
-     ! call vector_print ( 6, p_vec%f_vector )
-     !lunou = io_open ( trim('local_matrix_' //  trim(ch(p_env%p_context%iam+1)) // trim('.') // 'mtx' ), 'write')
-     !call matrix_print_matrix_market ( lunou, p_mat%f_matrix )
-     !call io_close ( lunou )
-  end if
-
-
-
-
-  call p_unk%init(1.0_rp)
-
-  A => p_mat
-  x => p_vec
-  y => p_unk
-  y = x - A*y
-  write(*,*) 'XXX error norm XXX', y%nrm2()
-  ! AFM: I had to re-assign the state of punk as the expression
-  ! y = x - A*y changed its state to part_summed!!! 
-  p_unk%state = full_summed
-
+  call par_volume_integral( approximations, p_fe_space, p_mat, p_vec )
+ 
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
   do i=1, num_levels-1
@@ -338,7 +314,7 @@ program par_test_cdr
   call par_context_free ( q_context, .false. )
   call par_context_free ( w_context )
 
-  ! call memstatus
+  call memstatus
 
 contains
   subroutine read_pars_cl (dir_path, prefix, dir_path_out, nparts, ndime)

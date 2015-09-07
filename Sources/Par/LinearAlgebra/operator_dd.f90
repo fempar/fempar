@@ -171,7 +171,6 @@ contains
     !      is not the matrix it will be used for. But as I KNOW that the
     !      only info needed at this stage is symmetry and sign 
     !      I will apply the following (DIRTY) patch.
-    mat_dum%type    = f_matrix%type
     mat_dum%symm    = symm_
     mat_dum%sign    = sign_
     call preconditioner_create( mat_dum , f_operator%M_II, f_operator%ppars)
@@ -1024,10 +1023,6 @@ use blas77_interfaces_names
           Y, & 
           ldY)
 #else
-     ! write (0,*) 'Error: operator_dd_apply_A_IG_several_rhs was not compiled with -DENABLE_MKL.'
-     ! write (0,*) 'Error: You must activate this cpp macro in order to use the Sparse BLAS in MKL'
-     ! check(1==0)
-
      ! The following lines are not efficient at all.
      ! The scaling of Y, i.e., Y = alpha *Y, should be
      ! part of matmat subroutine because now two 
@@ -1057,16 +1052,15 @@ use blas77_interfaces_names
     !
     ! this routine computes A_II, A_IG, A_GI and A_GG given the global 
     ! matrix A (see parameter "grph"). Note that A_II, A_IG, A_GI and 
-    ! A_GG are all optional. Depending on whether A is of type csr_mat 
-    ! + symm==false or csr_mat + symm==true the following output is 
-    ! produced:
+    ! A_GG are all optional. Depending on whether A is symm==false or 
+    ! symm==true the following output is produced:
     !
-    !      - csr_mat + symm=false: A_II, A_IG, A_GI and A_GG are stored 
-    !                              in csr_mat + symm=false format 
+    !      - symm=false: A_II, A_IG, A_GI and A_GG are stored 
+    !                    in symm=false format 
     !
-    !      - csr_mat + symm=true:  A_II, A_IG stored in csr_mat + symm=true 
-    !                              and A_IG in csr_mat + symm=false. Asking for 
-    !                              A_GI is an error in this case. 
+    !      - symm=true:  A_II, A_IG stored in symm=true 
+    !                    and A_IG in symm=false. Asking for 
+    !                    A_GI is an error in this case. 
     !
     ! * IMPORTANT NOTE: this routine assumes that gr pointer of A_II, A_IG, 
     !                   A_GI and A_GG is already associated. Otherwise, it 
@@ -1093,8 +1087,8 @@ use blas77_interfaces_names
 
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
 
-    csr_mat_symm   = (A%type == csr_mat .and. output_symm == symm_true )
-    csr_mat_unsymm = (A%type == csr_mat .and. output_symm == symm_false)
+    csr_mat_symm   = (output_symm == symm_true )
+    csr_mat_unsymm = (output_symm == symm_false)
 
     assert ( csr_mat_symm .or. csr_mat_unsymm )
     assert ( .not. present(A_GI) .or. csr_mat_unsymm )
@@ -1121,28 +1115,24 @@ use blas77_interfaces_names
 
     if ( present_a_ii ) then
        assert ( associated(A_II%gr) ) 
-       A_II%type     = A%type
        A_II%symm     = output_symm
        call memalloc ( A_II%gr%ia(A_II%gr%nv+1)-A_II%gr%ia(1), A_II%a,          __FILE__,__LINE__)       
     end if
 
     if ( present_a_ig ) then
        assert ( associated(A_IG%gr) ) 
-       A_IG%type    = A%type
        A_IG%symm    = symm_false
        call memalloc ( A_IG%gr%ia(A_IG%gr%nv+1)-A_IG%gr%ia(1), A_IG%a,__FILE__,__LINE__ )
     end if
 
     if ( present_a_gi ) then
        assert ( associated(A_GI%gr) ) 
-       A_GI%type    = A%type
        A_GI%symm    = symm_false
        call memalloc ( A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1), A_GI%a,                       __FILE__,__LINE__ )
     end if
 
     if ( present_a_gg ) then
        assert ( associated(A_GG%gr) ) 
-       A_GG%type    = A%type
        A_GG%symm    = output_symm
        call memalloc ( A_GG%gr%ia(A_GG%gr%nv+1)-A_GG%gr%ia(1), A_GG%a,                       __FILE__,__LINE__ )
     end if

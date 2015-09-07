@@ -113,16 +113,16 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine par_matrix_create(type,symm,dof_dist,dof_dist_cols,p_env,p_matrix,def)
+  subroutine par_matrix_create(symm,dof_dist,dof_dist_cols,p_env,p_matrix,def)
     implicit none
-    integer(ip)                      ,intent(in)  :: type, symm
-    type(dof_distribution_t), target   ,intent(in)  :: dof_dist
-    type(dof_distribution_t), target   ,intent(in)  :: dof_dist_cols
-    type(par_environment_t) , target   ,intent(in)  :: p_env
-    type(par_matrix_t)                 ,intent(out) :: p_matrix
-    integer(ip)           , optional ,intent(in)  :: def
+    integer(ip)                         ,intent(in)  :: symm
+    type(dof_distribution_t), target    ,intent(in)  :: dof_dist
+    type(dof_distribution_t), target    ,intent(in)  :: dof_dist_cols
+    type(par_environment_t) , target    ,intent(in)  :: p_env
+    type(par_matrix_t)                  ,intent(out) :: p_matrix
+    integer(ip)             , optional  ,intent(in)  :: def
 
-    call matrix_create(type,symm,p_matrix%f_matrix,def)
+    call matrix_create(symm,p_matrix%f_matrix,def)
     p_matrix%dof_dist      => dof_dist 
     p_matrix%dof_dist_cols => dof_dist_cols 
     p_matrix%p_env => p_env
@@ -159,15 +159,13 @@ contains
 
   end subroutine par_matrix_fill_val
 
-  subroutine par_matrix_alloc(type,symm,p_graph,p_matrix,def)
+  subroutine par_matrix_alloc(symm,p_graph,p_matrix,def)
     implicit none
-
-    integer(ip)     , intent(in)           :: type,symm
-    type(par_graph_t) , target, intent(in)   :: p_graph
-    type(par_matrix_t), intent(out)          :: p_matrix
-    integer(ip)     , optional, intent(in) :: def
-
-    call par_matrix_create(type,symm,p_graph%dof_dist,p_graph%dof_dist_cols,p_graph%p_env,p_matrix,def)
+    integer(ip)                 , intent(in)   :: symm
+    type(par_graph_t) , target  , intent(in)   :: p_graph
+    type(par_matrix_t)          , intent(out)  :: p_matrix
+    integer(ip)       , optional, intent(in)   :: def
+    call par_matrix_create(symm,p_graph%dof_dist,p_graph%dof_dist_cols,p_graph%p_env,p_matrix,def)
     call par_matrix_graph(p_graph,p_matrix)
     call par_matrix_fill_val(p_matrix)
   end subroutine par_matrix_alloc

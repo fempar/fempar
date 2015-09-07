@@ -448,8 +448,7 @@ use graph_renumbering_names
     real(rp), pointer :: a_(:)
 
 #ifdef ENABLE_HSL_MA87
-    assert ( matrix%type == csr_mat )
-    assert ( matrix%symm == symm_true )
+    assert ( matrix%gr%symmetric_storage )
 
     a_ => matrix%a(:)
    

@@ -570,10 +570,6 @@ contains
     nrhs = 1
 
 #ifdef ENABLE_WSMP
-
-    ! Check a correct matrix type
-    !assert (matrix%type == csr_mat)
-
     if ( present(perm) ) then
        context%perm => perm
     else
@@ -684,10 +680,6 @@ contains
     nrhs = 1
 
 #ifdef ENABLE_WSMP
-
-    ! Check a correct matrix type
-    assert (matrix%type == csr_mat)
-
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
        stop
@@ -808,12 +800,6 @@ contains
     d1dum(1) = 0.0_rp
 
 #ifdef ENABLE_WSMP
-
-     write(*,*) 'wsmp solution 0'
-
-    ! Check a correct matrix type
-    assert (matrix%type == csr_mat)
-
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
        stop
@@ -942,10 +928,6 @@ contains
     nrhs = 1
 
 #ifdef ENABLE_WSMP
-
-    ! Check a correct matrix type
-    assert (matrix%type == csr_mat)
-
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
        stop
@@ -1069,10 +1051,6 @@ contains
 
     naux = 0
 #ifdef ENABLE_WSMP
-
-    ! Check a correct matrix type
-    assert (matrix%type == csr_mat)
-
     if ( present(perm).and. (.not.associated(context%perm,perm)) ) then
        write (0,*) 'Error, WSMP: array perm cannot be changed'
        stop

@@ -46,8 +46,6 @@ use iso_c_binding
   private
 
   ! Constants:
-  ! a) matrix_t types
-  integer(ip), parameter :: csr_mat=10
   ! b) matrix symmetry
   integer(ip), parameter :: symm_true =0
   integer(ip), parameter :: symm_false=1
@@ -57,25 +55,13 @@ use iso_c_binding
   integer(ip), parameter :: indefinite            = 2 ! Both positive and negative eigenvalues
   integer(ip), parameter :: unknown               = 3 ! No info
 
-  ! Matrix
   type, extends(abstract_operator_t) :: matrix_t
      integer(ip)                :: &
-!!!          storage=undef_sto,         &      ! Storage layout (blk: block; scal: scalar)
           symm=symm_false,           &         ! Flag for symmetry
-          sign=positive_definite,    &         ! Flag for positiveness
-          type=csr_mat                         ! matrix_t type
-
-
-     ! We need to decide how blocks will be stored (transposed or not)
-     ! Currently in felap u is transposed but l is not. Seems better to
-     ! transpose both. What about trilinos?
-     real(rp), allocatable      :: &
-          !d(:),                  &         ! Diagonal components (neq) 
-          !l(:),                  &         ! Lower in css (nzs)        
-          !u(:),                  &         ! Upper in css (nzs)        
-          a(:)                             ! Lower/Upper part components ordered as:
-     ! Rows (nzt)                
-     ! Cols (nzt)                
+          sign=positive_definite               ! Flag for positiveness
+		  
+     real(rp), allocatable      :: &    
+          a(:)            
 
      type(graph_t),pointer :: &
           gr => NULL()                      ! Associated graph
@@ -92,7 +78,7 @@ use iso_c_binding
   end interface matrix_free
 
   ! Constants
-  public :: csr_mat, symm_true, symm_false
+  public :: symm_true, symm_false
   public :: positive_definite, positive_semidefinite, indefinite, unknown
 
   ! Types
@@ -130,17 +116,15 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine matrix_create(type,symm,mat,def)
+  subroutine matrix_create(symm,mat,def)
     implicit none
-    integer(ip)     , intent(in)           :: type, symm
+    integer(ip)     , intent(in)           :: symm
     type(matrix_t), intent(out)          :: mat
     integer(ip)     , optional, intent(in) :: def
 
-    assert ( type == csr_mat )
     assert ( symm == symm_true .or. symm == symm_false )
 
-    mat%symm    =  symm    ! Flag for symmetry
-    mat%type    =  type    ! matrix_t type (csr_mat)
+    mat%symm = symm    ! Flag for symmetry
 
     mat%sign = unknown
     if(present(def)) then
@@ -155,7 +139,6 @@ contains
     implicit none
     class(matrix_t), intent(inout) :: this
     this%symm = symm_false
-    this%type = csr_mat
     this%sign = positive_definite
     nullify(this%gr)
     call this%NullifyTemporary()
@@ -181,14 +164,14 @@ contains
 
   end subroutine matrix_fill_val
 
-  subroutine matrix_alloc(type,symm,gr,mat,def)
+  subroutine matrix_alloc(symm,gr,mat,def)
     implicit none
-    integer(ip)     , intent(in)           :: type, symm
+    integer(ip)     , intent(in)           :: symm
     type(graph_t) , target, intent(in)   :: gr
     type(matrix_t), intent(out)          :: mat
     integer(ip)     , optional, intent(in) :: def
 
-    call matrix_create(type,symm,mat,def)
+    call matrix_create(symm,mat,def)
     call matrix_graph(gr,mat)
     call matrix_fill_val(mat)
 
@@ -196,19 +179,12 @@ contains
 
   subroutine matrix_copy (imatrix, omatrix)
     implicit none
-    ! Parameters 
     type(matrix_t), intent(in)    :: imatrix
     type(matrix_t), intent(inout) :: omatrix
 
     ! *** IMPORTANT NOTE: This routine assumes that omatrix 
     ! already has an associated graph in omatrix%gr
-
-    ! This routine is only provided for matrices stored in CSR
-    ! format. If you need to copy a matrix in a different format,
-    ! please extend this routine
-    assert ( imatrix%type == csr_mat )
-
-    call matrix_alloc ( imatrix%type, imatrix%symm, omatrix%gr, omatrix, imatrix%sign)
+    call matrix_alloc ( imatrix%symm, omatrix%gr, omatrix, imatrix%sign)
     omatrix%a = imatrix%a
 
   end subroutine matrix_copy
@@ -224,13 +200,9 @@ contains
     call graph_print (lunou, f_matrix%gr)
 
     write (lunou, '(a)')     '*** begin matrix data structure ***'
-    if ( f_matrix%type == csr_mat ) then
-       ! write (lunou, '(4E20.13)')  f_matrix%a(:, :, :)
-       do i=1,f_matrix%gr%nv
-          !write(lunou,'(10(e14.7,1x))') f_matrix%a(:,:,f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
-          write(lunou,'(10(e25.16,1x))') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
-       end do
-    end if
+    do i=1,f_matrix%gr%nv
+       write(lunou,'(10(e25.16,1x))') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
+    end do
 
   end subroutine matrix_print
 
@@ -251,16 +223,13 @@ contains
     ! call graph_read (lunin, f_matrix%gr)
     assert ( associated(f_matrix%gr) )
 
-    if ( f_matrix%type == csr_mat ) then
-       nzt = f_matrix%gr%ia(f_matrix%gr%nv+1)-1
-       call memalloc(nzt,f_matrix%a,__FILE__,__LINE__)
+    nzt = f_matrix%gr%ia(f_matrix%gr%nv+1)-1
+    call memalloc(nzt,f_matrix%a,__FILE__,__LINE__)
 
-       do i=1,f_matrix%gr%nv/10
-          read(lunin,'(10e15.7)') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
-       end do
-       if(mod(f_matrix%gr%nv,10)>0) &
-            &read(lunin,'(10e15.7)') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
-    end if
+    do i=1,f_matrix%gr%nv/10
+       read(lunin,'(10e15.7)') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
+    end do
+    if(mod(f_matrix%gr%nv,10)>0) read(lunin,'(10e15.7)') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
 
   end subroutine matrix_read
 
@@ -309,11 +278,6 @@ contains
 
        do i=1,f_matrix%gr%nv
           do j=f_matrix%gr%ia(i),f_matrix%gr%ia(i+1)-1
-!!$                   if ( j == f_matrix%gr%ia(i) ) then
-!!$                      if ( i /= f_matrix%gr%ja(j) ) write (*,*) 'ERR', i, f_matrix%gr%ja(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1), f_matrix%gr%ia(i)
-!!$                      assert ( i ==  f_matrix%gr%ja(j) )
-!!$                   end if
-
              if (present(l2g)) then
                 write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(f_matrix%gr%ja(j)), f_matrix%a(j)
              else
@@ -345,8 +309,6 @@ contains
 
     integer(ip), allocatable :: ija_work(:,:), ija_index(:)
     real(rp)   , allocatable :: a_work(:)
-
-    mat%type    =  csr_mat ! matrix_t type (csr_mat)
 
     ! AFM: the following sentence is now NO longer permitted.
     !      Now both mat and graph are passed, and this subroutine is
@@ -509,7 +471,6 @@ contains
     real(rp), optional, intent(in)     :: alpha
     type(matrix_t)  , intent(inout)  :: C
 
-    assert ( A%type == B%type .and. A%type == C%type )
     assert ( A%symm == B%symm .and. A%symm == C%symm )
 
     if(present(alpha)) then
@@ -531,11 +492,9 @@ contains
     integer :: k,i,j
 
     if ( .not. A%gr%symmetric_storage ) then
-       call matrix_alloc ( csr_mat, symm_false,                  &
-            A%gr, A_t )
+       call matrix_alloc ( symm_false, A%gr, A_t )
     else 
-       call matrix_alloc ( csr_mat, symm_true,                  &
-            A%gr, A_t )
+       call matrix_alloc ( symm_true, A%gr, A_t )
     end if
 
     aux_graph = A%gr

@@ -146,7 +146,7 @@ program test_nsi_iss
   end if
 
   ! Allocate matrices and vectors
-  call matrix_alloc(csr_mat,symm_false,f_graph,femat)
+  call matrix_alloc(symm_false,f_graph,femat)
   call vector_alloc(f_graph%nv,fevec)
   call vector_alloc(f_graph%nv,feunk)
   call fevec%init(0.0_rp)

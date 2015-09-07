@@ -360,7 +360,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   logical, parameter :: debug_verbose_level_1 = .false. 
   logical, parameter :: debug_verbose_level_2 = .false.
-  logical, parameter :: debug_verbose_level_3 = .false. ! Prints harmonic extensions 
+  logical, parameter :: debug_verbose_level_3 = .true.  ! Prints harmonic extensions 
                                                         ! to gid files, and coarse grid system 
                                                         ! coefficient matrix to matrix market 
 
@@ -627,10 +627,10 @@ use mpi
        ! BEG. FINE-GRID PROBLEM DUTIES
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
 
-          call matrix_create(p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr, p_mat%f_matrix%sign)
+          call matrix_create(p_mat%f_matrix%symm, mlbddc%A_rr, p_mat%f_matrix%sign)
 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create(p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call matrix_create(p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
           end if
 
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -644,10 +644,9 @@ use mpi
           end if
 
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-
-          call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr, indefinite)
+          call matrix_create(p_mat%f_matrix%symm, mlbddc%A_rr, indefinite)
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call matrix_create( p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
@@ -679,7 +678,7 @@ use mpi
           ! BEG. COARSE-GRID PROBLEM DUTIES
 
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
-             call matrix_create( p_mat%f_matrix%type, p_mat%f_matrix%symm, mlbddc%A_c)
+             call matrix_create( p_mat%f_matrix%symm, mlbddc%A_c)
              call preconditioner_create( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial)
           
           !else if(mlbddc%co_sys_sol_strat == distributed) then
@@ -708,8 +707,7 @@ use mpi
              call par_graph_create ( mlbddc%dof_dist_c, mlbddc%p_env_c, mlbddc%p_graph_c )
 
              ! Create coarse matrix
-             call par_matrix_create( p_mat%f_matrix%type, & 
-                                     p_mat%f_matrix%symm, & 
+             call par_matrix_create( p_mat%f_matrix%symm, & 
                                      mlbddc%dof_dist_c, &
                                      mlbddc%dof_dist_c, &
                                      mlbddc%p_env_c, &
@@ -1261,13 +1259,13 @@ use mpi
 !!$    end if
   end subroutine augment_graph_with_constraints
 
-  subroutine count_graph_augment_graph_with_constraints ( graph_is_symmetric, anv, aia, arr_nv,  &
+  subroutine count_graph_augment_graph_with_constraints ( symmetric_storage, anv, aia, arr_nv,  &
                                                           nl, nl_coarse, & 
                                                           coarse_dofs, max_nparts, nobjs, lobjs, & 
                                                           arr_ia )
     implicit none
     ! Parameters
-	logical     , intent(in)  :: graph_is_symmetric
+	logical     , intent(in)  :: symmetric_storage
     integer (ip), intent(in)  :: anv, arr_nv
     integer (ip), intent(in)  :: aia (anv+1)
     integer (ip), intent(in)  :: nl
@@ -1290,7 +1288,7 @@ use mpi
        arr_ia(idarr+1) = aia(idarr+1)-aia(idarr)
     end do
 
-    if ( .not. graph_is_symmetric ) then
+    if ( .not. symmetric_storage ) then
        do i=1, nl_coarse 
           iobj   = coarse_dofs (i)
           ! Corner as a degenerated edge or
@@ -1338,13 +1336,13 @@ use mpi
     
   end subroutine count_graph_augment_graph_with_constraints
 
-  subroutine list_graph_augment_graph_with_constraints ( graph_is_symmetric, anv, aia, aja, arr_nv, arr_ia, &
+  subroutine list_graph_augment_graph_with_constraints ( symmetric_storage, anv, aia, aja, arr_nv, arr_ia, &
                                                          nl, nl_coarse, & 
                                                          coarse_dofs, max_nparts, nobjs, lobjs, & 
                                                          arr_ja )
     implicit none
     ! Parameters
-	logical      , intent(in)    :: graph_is_symmetric
+	logical      , intent(in)    :: symmetric_storage
     integer (ip) , intent(in)    :: anv, arr_nv
     integer (ip) , intent(in)    :: aia (anv+1)
     integer (ip) , intent(inout) :: arr_ia(arr_nv+1)
@@ -1371,7 +1369,7 @@ use mpi
     end do
 
     
-    if ( .not. graph_is_symmetric ) then
+    if ( .not. symmetric_storage ) then
        do i=1, nl_coarse
           iobj = coarse_dofs (i)
 
@@ -3745,9 +3743,9 @@ use mpi
     integer :: k,i,j
 
     if ( .not. gr_a%symmetric_storage ) then
-       call matrix_alloc ( csr_mat, symm_false, gr_a, A_t )
+       call matrix_alloc ( symm_false, gr_a, A_t )
     else 
-       call matrix_alloc ( csr_mat, symm_true, gr_a, A_t )
+       call matrix_alloc ( symm_true, gr_a, A_t )
     end if
 
     aux_graph = gr_a
@@ -8488,9 +8486,7 @@ use mpi
     
     ne=size(ea,dim=2)
     assert(ne==nn)
-    
-    assert(mat%type==csr_mat)
-    
+        
     call ass_csr_mat_scal(mat%symm,nn,ln,ea,mat%gr%nv, &
          &                mat%gr%ia,mat%gr%ja,mat%a)
 

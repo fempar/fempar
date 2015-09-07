@@ -106,19 +106,19 @@ contains
               allocate ( bmat%blocks(ib,jb)%p_p_matrix )
               if ( (ib == jb) .and. present(sign) ) then
                 if ( (.not. p_graph%f_graph%symmetric_storage) ) then
-                   call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
+                   call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
                 else 
-                   call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
+                   call par_matrix_alloc ( symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
                 end if
              else
                 if ( ib == jb ) then
                    if ( p_graph%f_graph%symmetric_storage ) then
-                      call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
+                      call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
                    else 
-                      call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
+                      call par_matrix_alloc ( symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
                    end if
                 else
-                   call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
+                   call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
                 end if
              end if
           else
@@ -141,12 +141,12 @@ contains
        allocate ( bmat%blocks(ib,jb)%p_p_matrix )
        if ( (ib == jb) ) then
           if ( (.not. p_graph%f_graph%symmetric_storage) ) then
-            call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
+            call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
           else 
-            call par_matrix_alloc ( csr_mat, symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
+            call par_matrix_alloc ( symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
           end if
        else
-          call par_matrix_alloc ( csr_mat, symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
+          call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
        end if
     end if
 

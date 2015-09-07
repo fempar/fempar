@@ -137,7 +137,7 @@ program test_cdr
   call create_dof_info( dof_descriptor, f_trian, fe_space, f_blk_graph, symmetric_storage )
 
   f_graph => f_blk_graph%get_block(1,1)
-  call matrix_alloc( csr_mat, symm_true, f_graph, my_matrix, positive_definite )
+  call matrix_alloc( symm_true, f_graph, my_matrix, positive_definite )
 
   call vector_alloc( f_graph%nv, my_vector )
   

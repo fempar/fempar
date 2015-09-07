@@ -170,7 +170,7 @@ program par_test_nsi_iss
   !if(p_env%am_i_fine_task()) call par_graph_print(6,p_blk_graph%get_block(1,1))
 
   ! Allocate matrices and vectors
-  call par_matrix_alloc(csr_mat,symm_false,p_blk_graph%get_block(1,1),p_mat)
+  call par_matrix_alloc(symm_false,p_blk_graph%get_block(1,1),p_mat)
   call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_vec)
   call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_unk)
   p_vec%state = part_summed

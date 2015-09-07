@@ -358,8 +358,7 @@ use graph_renumbering_names
     integer(ip)       :: status
 
 #ifdef ENABLE_UMFPACK
-    assert ( matrix%type == csr_mat )
-    assert ( matrix%symm == symm_false )
+    assert ( .not. matrix%gr%symmetric_storage )
 
     ! Fortran to C numbering 
     call decrement_array( matrix%gr%ia )

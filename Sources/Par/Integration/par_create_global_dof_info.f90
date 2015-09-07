@@ -77,7 +77,7 @@ contains
     type(par_block_graph_t)              , intent(inout) :: p_blk_graph
     logical                  , optional  , intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
 
-    integer(ip)               :: iblock, jblock
+    integer(ip)                 :: iblock, jblock
     type (par_graph_t), pointer :: p_graph
 
     ! Parallel environment MUST BE already created
@@ -113,8 +113,6 @@ contains
              end if
           end do
        end do
-
-       ! call graph_print ( 6, p_graph%f_graph )
     end if
   end subroutine par_create_distributed_dof_info
 

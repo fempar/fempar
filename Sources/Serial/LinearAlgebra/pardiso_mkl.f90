@@ -343,9 +343,6 @@ contains
 
 #ifdef ENABLE_MKL
 
-    ! Check a correct matrix type
-    assert (matrix%type == csr_mat)
-
     ! Initiliaze the internal solver memory pointer. This is only
     ! necessary before FIRST call of PARDISO.
     allocate  ( context%pt(64) )
