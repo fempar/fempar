@@ -49,8 +49,8 @@ use types_names
   contains
     procedure :: alloc                   => block_graph_alloc
     generic   :: alloc_block             => alloc_diagonal_block, alloc_offdiagonal_block 
-	procedure :: alloc_diagonal_block    => block_graph_alloc_diagonal_block
-	procedure :: alloc_offdiagonal_block => block_graph_alloc_diagonal_block
+    procedure :: alloc_diagonal_block    => block_graph_alloc_diagonal_block
+    procedure :: alloc_offdiagonal_block => block_graph_alloc_offdiagonal_block
     procedure :: set_block_to_zero       => block_graph_set_block_to_zero
     procedure :: free                    => block_graph_free
     procedure :: get_block               => block_graph_get_block

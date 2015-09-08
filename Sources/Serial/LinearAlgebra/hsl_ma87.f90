@@ -352,7 +352,7 @@ use graph_renumbering_names
 
     ! Call to graph_nd_renumbering
     ! Set-up graph
-    aux_graph%type = part
+    aux_graph%symmetric_storage = .false.
     aux_graph%nv   = matrix%gr%nv
     aux_graph%nv2  = matrix%gr%nv2
     call memalloc (aux_graph%nv+1, aux_graph%ia, __FILE__,__LINE__)
