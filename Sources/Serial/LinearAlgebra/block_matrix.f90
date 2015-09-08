@@ -75,70 +75,61 @@ module block_matrix_names
 contains
 
   !=============================================================================
-  subroutine block_matrix_alloc(bmat, bgraph, sign)
+  subroutine block_matrix_alloc(bmat,bgraph,diagonal_blocks_symmetric,sign_diagonal_blocks)
     implicit none
     ! Parameters
-    class(block_matrix_t), intent(inout) :: bmat
-    type(block_graph_t)  , intent(in)    :: bgraph
-    integer(ip), optional  , intent(in)    :: sign(:)
+    class(block_matrix_t)    , intent(inout) :: bmat
+    type(block_graph_t)      , intent(in)    :: bgraph
+	logical                  , intent(in)    :: diagonal_blocks_symmetric(:)
+    integer(ip)              , intent(in)    :: sign_diagonal_blocks(:)
 
-    integer(ip)                             :: ib,jb
-    type(graph_t), pointer                :: f_graph
+    integer(ip)            :: ib,jb
+    type(graph_t), pointer :: f_graph
 
-    if ( present(sign) ) then
-      assert ( size(sign) == bgraph%get_nblocks() )
-    end if
+    assert ( size(diagonal_blocks_symmetric) == bgraph%get_nblocks() )
+    assert ( size(sign_diagonal_blocks) == bgraph%get_nblocks() )
 
     bmat%nblocks = bgraph%get_nblocks()
     allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks) )
     do ib=1, bmat%nblocks 
       do jb=1, bmat%nblocks
-           f_graph => bgraph%blocks(ib,jb)%p_f_graph
-           if (associated(f_graph)) then
-              allocate ( bmat%blocks(ib,jb)%p_f_matrix )
-              if ( (ib == jb) .and. present(sign) ) then
-                if ( .not. f_graph%symmetric_storage ) then
-                   call matrix_alloc ( symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign(ib) )
-                else 
-                   call matrix_alloc ( symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign(ib) )
-                end if 
-              else
-                if ( ib == jb ) then
-                  if ( .not. f_graph%symmetric_storage ) then
-                     call matrix_alloc(symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
-                  else 
-                     call matrix_alloc(symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
-                  end if
-                else
-                  call matrix_alloc(symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix)
-                end if
-              end if
-           else
-              nullify ( bmat%blocks(ib,jb)%p_f_matrix )
-           end if
+         f_graph => bgraph%blocks(ib,jb)%p_f_graph
+         if (associated(f_graph)) then
+            allocate ( bmat%blocks(ib,jb)%p_f_matrix )
+            if ( ib == jb ) then
+              call matrix_alloc ( diagonal_blocks_symmetric(ib), f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign_diagonal_blocks(ib) )
+			else
+              call matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
+            end if
+         else
+            nullify ( bmat%blocks(ib,jb)%p_f_matrix )
+         end if
       end do
     end do
   end subroutine block_matrix_alloc
 
-  subroutine block_matrix_alloc_block (bmat,ib,jb,f_graph,sign)
+  subroutine block_matrix_alloc_block (bmat,ib,jb,f_graph,diagonal_block_symmetric,diagonal_block_sign)
     implicit none
     ! Parameters
-    class(block_matrix_t), intent(inout) :: bmat
-    integer(ip)           , intent(in)     :: ib,jb
-    type(graph_t)       , intent(in)     :: f_graph
-    integer(ip), optional , intent(in)     :: sign
-
+    class(block_matrix_t)          , intent(inout) :: bmat
+    integer(ip)                    , intent(in)    :: ib,jb
+    type(graph_t)                  , intent(in)    :: f_graph
+	logical               ,optional, intent(in)    :: diagonal_block_symmetric
+    integer(ip)           ,optional, intent(in)    :: diagonal_block_sign
+	
+	if (ib == jb ) then 
+	    assert ( present(diagonal_block_symmetric) .and. present(diagonal_block_sign) ) 
+	else 
+	    assert ( (.not. present(diagonal_block_symmetric)) .and. (.not. present(diagonal_block_sign)) )
+	end if	
+	
     assert ( associated ( bmat%blocks(ib,jb)%p_f_matrix ) )
     if ( .not. associated( bmat%blocks(ib,jb)%p_f_matrix) ) then
        allocate ( bmat%blocks(ib,jb)%p_f_matrix )
        if ( (ib == jb) ) then
-          if ( .not. f_graph%symmetric_storage ) then
-             call matrix_alloc ( symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign )
-          else 
-             call matrix_alloc ( symm_true, f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign )
-          end if
-       else
-          call matrix_alloc ( symm_false, f_graph, bmat%blocks(ib,jb)%p_f_matrix )
+          call matrix_alloc ( diagonal_block_symmetric, f_graph, bmat%blocks(ib,jb)%p_f_matrix, diagonal_block_sign )
+	   else
+	      call par_matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
        end if
     end if
   end subroutine block_matrix_alloc_block

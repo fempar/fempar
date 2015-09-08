@@ -447,9 +447,9 @@ use graph_renumbering_names
     ! Locals
     real(rp), pointer :: a_(:)
 
-#ifdef ENABLE_HSL_MA87
-    assert ( matrix%gr%symmetric_storage )
+    assert ( matrix%is_symmetric .and. matrix%sign == positive_definite .and. matrix%gr%symmetric_storage )
 
+#ifdef ENABLE_HSL_MA87
     a_ => matrix%a(:)
    
     ! Factor

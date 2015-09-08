@@ -75,7 +75,7 @@ contains
     type(par_fe_space_t)                 , intent(inout) :: p_fe_space
     type(block_dof_distribution_t)       , intent(inout) :: blk_dof_dist 
     type(par_block_graph_t)              , intent(inout) :: p_blk_graph
-    logical                  , optional  , intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
+    logical                              , intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
 
     integer(ip)                 :: iblock, jblock
     type (par_graph_t), pointer :: p_graph
@@ -97,20 +97,15 @@ contains
     call block_dof_distribution_create ( p_trian, p_fe_space, blk_dof_dist )
 
     ! Allocate par_block_graph
-    call p_blk_graph%alloc(blk_dof_dist)
+    call p_blk_graph%alloc(blk_dof_dist, diagonal_blocks_symmetric_storage)
 
     ! Fill par_block_graph
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
        do iblock = 1, dof_descriptor%nblocks
           do jblock = 1, dof_descriptor%nblocks
              p_graph => p_blk_graph%blocks(iblock,jblock)%p_p_graph
-             if ( iblock == jblock .and. present(diagonal_blocks_symmetric_storage) ) then
-                call create_dof_graph_block ( iblock, jblock, dof_descriptor, p_trian%f_trian, & 
-                     p_fe_space%fe_space, p_graph%f_graph, diagonal_blocks_symmetric_storage(iblock) )
-             else
-                call create_dof_graph_block ( iblock, jblock, dof_descriptor, p_trian%f_trian, &
-                     p_fe_space%fe_space, p_graph%f_graph )
-             end if
+             call create_dof_graph_block ( iblock, jblock, dof_descriptor, p_trian%f_trian, & 
+                                           p_fe_space%fe_space, p_graph%f_graph )
           end do
        end do
     end if

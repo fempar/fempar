@@ -58,43 +58,38 @@ module par_block_matrix_names
     integer(ip)                     :: nblocks
     type(p_par_matrix_t), allocatable :: blocks(:,:)
   contains
-    procedure :: alloc             => par_block_matrix_alloc
-    procedure :: alloc_block       => par_block_matrix_alloc_block
-    procedure :: set_block_to_zero => par_block_matrix_set_block_to_zero
-    procedure :: free              => par_block_matrix_free_tbp
-    procedure :: get_block         => par_block_matrix_get_block
-    procedure :: get_nblocks       => par_block_matrix_get_nblocks
-    procedure :: apply             => par_block_matrix_apply
-    procedure :: apply_fun         => par_block_matrix_apply_fun
+    procedure :: alloc                   => par_block_matrix_alloc
+    generic   :: alloc_block             => alloc_diagonal_block, alloc_offdiagonal_block
+	procedure :: alloc_diagonal_block    => par_block_matrix_alloc_diagonal_block
+    procedure :: alloc_offdiagonal_block => par_block_matrix_alloc_offdiagonal_block
+    procedure :: set_block_to_zero       => par_block_matrix_set_block_to_zero
+    procedure :: free                    => par_block_matrix_free_tbp
+    procedure :: get_block               => par_block_matrix_get_block
+    procedure :: get_nblocks             => par_block_matrix_get_nblocks
+    procedure :: apply                   => par_block_matrix_apply
+    procedure :: apply_fun               => par_block_matrix_apply_fun
   end type par_block_matrix_t
 
   ! Types
   public :: par_block_matrix_t
 
-  ! Functions
-  public :: par_block_matrix_alloc, par_block_matrix_alloc_block,       & 
-            par_block_matrix_set_block_to_zero, par_block_matrix_print, & 
-            par_block_matrix_free,                                      & 
-            par_block_matvec
-
 contains
 
   !=============================================================================
-  subroutine par_block_matrix_alloc (bmat,bgraph,sign)
+  subroutine par_block_matrix_alloc (bmat,bgraph,diagonal_blocks_symmetric,sign_diagonal_blocks)
     implicit none
     ! Parameters
     class(par_block_matrix_t), intent(inout) :: bmat
     type(par_block_graph_t)  , intent(in)    :: bgraph
-    integer(ip), optional  , intent(in)    :: sign(:)
+	logical                  , intent(in)    :: diagonal_blocks_symmetric(:)
+    integer(ip)              , intent(in)    :: sign_diagonal_blocks(:)
 
     ! Locals
     integer(ip) :: ib,jb
     type(par_graph_t), pointer :: p_graph
 
-
-    if ( present(sign) ) then
-      assert ( size(sign) == bgraph%get_nblocks() )
-    end if
+    assert ( size(diagonal_blocks_symmetric) == bgraph%get_nblocks() )
+    assert ( size(sign_diagonal_blocks) == bgraph%get_nblocks() )
 
     bmat%nblocks = bgraph%get_nblocks()
     allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks) )
@@ -103,23 +98,11 @@ contains
       do jb=1, bmat%nblocks
            p_graph => bgraph%blocks(ib,jb)%p_p_graph
            if (associated(p_graph)) then
-              allocate ( bmat%blocks(ib,jb)%p_p_matrix )
-              if ( (ib == jb) .and. present(sign) ) then
-                if ( (.not. p_graph%f_graph%symmetric_storage) ) then
-                   call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
-                else 
-                   call par_matrix_alloc ( symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign(ib) )
-                end if
+             allocate ( bmat%blocks(ib,jb)%p_p_matrix )
+             if ( ib == jb ) then
+               call par_matrix_alloc ( diagonal_blocks_symmetric(ib), p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign_diagonal_blocks(ib) )
              else
-                if ( ib == jb ) then
-                   if ( p_graph%f_graph%symmetric_storage ) then
-                      call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
-                   else 
-                      call par_matrix_alloc ( symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
-                   end if
-                else
-                   call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
-                end if
+               call par_matrix_alloc ( .false., p_graph, bmat%blocks(ib,jb)%p_p_matrix )
              end if
           else
              nullify ( bmat%blocks(ib,jb)%p_p_matrix )
@@ -128,29 +111,33 @@ contains
     end do
   end subroutine par_block_matrix_alloc
 
-  subroutine par_block_matrix_alloc_block (bmat,ib,jb,p_graph,sign)
+  subroutine par_block_matrix_alloc_diagonal_block (bmat,ib,p_graph,diagonal_block_symmetric,diagonal_block_sign)
     implicit none
     ! Parameters
-    class(par_block_matrix_t), target, intent(inout) :: bmat
-    integer(ip)                    , intent(in)    :: ib,jb
-    type(par_graph_t)                , intent(in)    :: p_graph
-    integer(ip)          , optional, intent(in)    :: sign
-
-    assert ( associated ( bmat%blocks(ib,jb)%p_p_matrix ) )
-    if ( .not. associated( bmat%blocks(ib,jb)%p_p_matrix) ) then
-       allocate ( bmat%blocks(ib,jb)%p_p_matrix )
-       if ( (ib == jb) ) then
-          if ( (.not. p_graph%f_graph%symmetric_storage) ) then
-            call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
-          else 
-            call par_matrix_alloc ( symm_true, p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign )
-          end if
-       else
-          call par_matrix_alloc ( symm_false, p_graph, bmat%blocks(ib,jb)%p_p_matrix )
-       end if
+    class(par_block_matrix_t),   target  , intent(inout) :: bmat
+    integer(ip)                          , intent(in)    :: ib
+    type(par_graph_t)                    , intent(in)    :: p_graph
+	logical                              , intent(in)    :: diagonal_block_symmetric
+    integer(ip)                          , intent(in)    :: diagonal_block_sign
+    assert ( associated ( bmat%blocks(ib,ib)%p_p_matrix ) )
+    if ( .not. associated( bmat%blocks(ib,ib)%p_p_matrix) ) then
+       allocate ( bmat%blocks(ib,ib)%p_p_matrix )
+       call par_matrix_alloc ( diagonal_block_symmetric, p_graph, bmat%blocks(ib,ib)%p_p_matrix, diagonal_block_sign )
     end if
-
-  end subroutine par_block_matrix_alloc_block
+  end subroutine par_block_matrix_alloc_diagonal_block
+  
+    subroutine par_block_matrix_alloc_offdiagonal_block (bmat,ib,jb,p_graph)
+    implicit none
+    ! Parameters
+    class(par_block_matrix_t),   target  , intent(inout) :: bmat
+    integer(ip)                          , intent(in)    :: ib,jb
+    type(par_graph_t)                    , intent(in)    :: p_graph
+    assert ( associated ( bmat%blocks(ib,ib)%p_p_matrix ) )
+    if ( .not. associated( bmat%blocks(ib,ib)%p_p_matrix) ) then
+       allocate ( bmat%blocks(ib,ib)%p_p_matrix )
+       call par_matrix_alloc ( .false., p_graph, bmat%blocks(ib,ib)%p_p_matrix )
+    end if
+  end subroutine par_block_matrix_alloc_offdiagonal_block
 
   subroutine par_block_matrix_set_block_to_zero (bmat,ib,jb)
     implicit none

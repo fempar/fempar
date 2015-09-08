@@ -39,7 +39,7 @@ module hsl_mi20_names
   use graph_names
 
 #ifdef ENABLE_HSL_MI20
-use hsl_mi20_double
+  use hsl_mi20_double
 #endif
 
 # include "debug.i90"
@@ -302,7 +302,6 @@ contains
     type(matrix_t)      , intent(in)            :: matrix
 
 #ifdef ENABLE_HSL_MI20
-
 #else
     call enable_hsl_mi20_error_message
 #endif
@@ -367,8 +366,7 @@ contains
     type(hsl_mi20_info_t)    , intent(out)   :: info
 
 #ifdef ENABLE_HSL_MI20
-    assert ( matrix%gr%type == csr )
-    assert ( matrix%symm == symm_false )
+    assert ( .not. matrix%gr%symmetric_storage )
     
     ! Copy matrix_t to type(ZD11_type)
     context%zd11_mat%m = matrix%gr%nv

@@ -165,12 +165,10 @@ program par_test_nsi_iss
        &                nparts=gdata%nparts,linear_order=.true.)
 
   ! Create dof info
-  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph, symmetric_storage )  
-
-  !if(p_env%am_i_fine_task()) call par_graph_print(6,p_blk_graph%get_block(1,1))
+  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,symmetric_storage)  
 
   ! Allocate matrices and vectors
-  call par_matrix_alloc(symm_false,p_blk_graph%get_block(1,1),p_mat)
+  call par_matrix_alloc(.false.,p_blk_graph%get_block(1,1),p_mat)
   call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_vec)
   call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_unk)
   p_vec%state = part_summed

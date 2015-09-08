@@ -92,13 +92,14 @@ module operator_dd_names
      type ( matrix_t )  :: A_GI
      type ( matrix_t )  :: A_GG
 
-     integer (ip)             :: symm
+	 logical :: A_GI_allocated
+	 
      type ( preconditioner_t )     :: M_II
 
-     type(solver_control_t)    , pointer :: spars
-     logical                           :: spars_allocated
+     type(solver_control_t)    , pointer    :: spars
+     logical                                :: spars_allocated
      type(preconditioner_params_t), pointer :: ppars
-     logical                           :: ppars_allocated
+     logical                                :: ppars_allocated
 
      type(dof_distribution_t) , pointer  :: dof_dist => NULL()
   end type operator_dd_t
@@ -112,13 +113,13 @@ module operator_dd_names
             operator_dd_apply, operator_dd_solve_A_II,        &
             operator_dd_apply_A_IG, operator_dd_apply_A_GI,   &
             operator_dd_apply_A_GG, operator_dd_evaluate_rhs, &
-            operator_dd_solve_interior, operator_dd_info,     &
+            operator_dd_solve_interior,      &
             operator_dd_compute_ut_op_u, operator_dd_apply_A_IG_several_rhs, &
             operator_dd_apply_A_GI_plus_A_GG
 
 contains
 
-  subroutine operator_dd_create ( f_matrix, dof_dist, f_operator, spars, ppars, symm, sign )
+  subroutine operator_dd_create ( f_matrix, dof_dist, f_operator, spars, ppars, symmetric_storage, is_symmetric, sign )
     implicit none
     ! Parameters
     type(matrix_t)        , intent(in), target           :: f_matrix
@@ -129,17 +130,24 @@ contains
     ! With this two optional parameters one may select the
     ! structure and sign of the Schur complement operator
     ! independently of f_matrix
-    integer (ip)            , intent(in), optional :: symm
+	logical                 , intent(in), optional :: symmetric_storage
+    logical                 , intent(in), optional :: is_symmetric
     integer (ip)            , intent(in), optional :: sign
 
     ! Locals
-    type    (matrix_t) :: mat_dum
-    integer (ip)         :: symm_, sign_
-
-    if ( present(symm) ) then
-       symm_ = symm
+    integer (ip)           :: sign_
+    logical                :: symmetric_storage_, is_symmetric_
+	
+    if ( present(symmetric_storage) ) then
+       symmetric_storage_ = symmetric_storage
     else
-       symm_ = f_matrix%symm
+       symmetric_storage_ = f_matrix%gr%symmetric_storage
+    end if
+	
+    if ( present(is_symmetric) ) then
+       is_symmetric_ = is_symmetric
+    else
+       is_symmetric_ = f_matrix%is_symmetric
     end if
 
     if ( present(sign) ) then
@@ -149,7 +157,22 @@ contains
     end if
 
     f_operator%dof_dist => dof_dist
-    f_operator%symm = symm_
+	
+	if ( f_matrix%gr%symmetric_storage ) then
+	  ! If the input matrix exploits symmetric_storage
+	  ! then f_operator may or may not exploit symmetric_storage
+	  ! but f_operator cannot by unsymmetric
+	  assert( is_symmetric_ )
+	else
+	  ! If the input matrix does NOT exploit symmetric_storage
+	  ! then f_operator may or may not exploit symmetric_storage.
+	  ! If f_operator exploits symmetric_storage, then it MUST be symmetric.
+	  ! If f_operator does NOT exploit symmetric_storage, then it may or may not
+	  ! be symmetric.
+	  if ( symmetric_storage_ ) then
+	      assert ( is_symmetric_ )
+      end if		  
+	end if
 
     if ( present(ppars) ) then
        f_operator%ppars => ppars
@@ -167,14 +190,30 @@ contains
        f_operator%spars_allocated = .true.
     end if
 
-    ! AFM: Here we are initializing a precond but using a matrix that
-    !      is not the matrix it will be used for. But as I KNOW that the
-    !      only info needed at this stage is symmetry and sign 
-    !      I will apply the following (DIRTY) patch.
-    mat_dum%symm    = symm_
-    mat_dum%sign    = sign_
-    call preconditioner_create( mat_dum , f_operator%M_II, f_operator%ppars)
+	f_operator%A_GI_allocated = (.not. symmetric_storage_ )
+	
+	call graph_create(symmetric_storage_, f_operator%A_II_gr)
+    call graph_create(.false., f_operator%A_IG_gr)
+    call graph_create(symmetric_storage_, f_operator%A_GG_gr)
+	if ( .not. symmetric_storage_ ) then
+      call graph_create(.false., f_operator%A_GI_gr)
+	end if
+	
+    call matrix_create(is_symmetric_, f_operator%A_II, sign_)
+	call matrix_create(.false., f_operator%A_IG)
+	call matrix_create(is_symmetric_, f_operator%A_GG, sign_)
+	if ( .not. symmetric_storage_ ) then
+	  call matrix_create(.false., f_operator%A_GI)
+	end if  
 
+	call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
+    call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
+	call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
+	if ( .not. symmetric_storage_ ) then
+      call matrix_graph(f_operator%A_GI_gr, f_operator%A_GI)
+	end if  
+	
+    call preconditioner_create( f_operator%A_II, f_operator%M_II, f_operator%ppars)
   end subroutine operator_dd_create 
 
   subroutine operator_dd_free ( f_operator, mode )
@@ -212,7 +251,7 @@ contains
        call graph_free ( f_operator%A_GG_gr )
     end if
 
-    if ( f_operator%symm == symm_false ) then
+    if ( f_operator%A_GI_allocated ) then
        if ( mode == free_values ) then
           call matrix_free( f_operator%A_GI, free_values  )
        end if
@@ -249,28 +288,25 @@ contains
     type(matrix_t)  , intent(in)                    :: f_matrix
     type(operator_dd_t), intent(inout)              :: f_operator
 
-      ! Split graph of local process into 2x2 block partitioning
-    if ( f_operator%symm == symm_false ) then
-        call split_graph_I_G ( .false., &
-                               f_matrix%gr, & 
+    ! Split graph of local process into 2x2 block partitioning
+    if ( .not. f_operator%A_II_gr%symmetric_storage  ) then
+        call split_graph_I_G ( f_matrix%gr, & 
                                f_operator%dof_dist, & 
                                G_II=f_operator%A_II_gr, G_IG=f_operator%A_IG_gr, &
                                G_GI=f_operator%A_GI_gr, G_GG=f_operator%A_GG_gr  )
-        call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
-        call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
-        call matrix_graph(f_operator%A_GI_gr, f_operator%A_GI)
-        call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
-        ! call graph_print ( 6, f_operator%A_GI%gr )
-     else if ( f_operator%symm == symm_true ) then
-        call split_graph_I_G_symm ( .true., & 
-                                    f_matrix%gr, & 
+        ! call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
+        ! call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
+        ! call matrix_graph(f_operator%A_GI_gr, f_operator%A_GI)
+        ! call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
+     else 
+        call split_graph_I_G_symm ( f_matrix%gr, & 
                                     f_operator%dof_dist, & 
                                     G_II=f_operator%A_II_gr, & 
                                     G_IG=f_operator%A_IG_gr, &
                                     G_GG=f_operator%A_GG_gr )
-        call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
-        call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
-        call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
+        ! call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
+        ! call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
+        ! call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
      end if
 
      call preconditioner_symbolic(f_operator%A_II, f_operator%M_II)
@@ -288,41 +324,25 @@ contains
     implicit none
     
     ! Parameters
-    type(matrix_t)   , intent(in)      :: f_matrix
+    type(matrix_t)     , intent(in)    :: f_matrix
     type(operator_dd_t), intent(inout) :: f_operator
-    ! integer(ip)          , intent(in)            :: me
-
-    ! Locals
-    ! integer(ip) :: lunou
 
     ! Split matrix of local process into 2x2 block partitioning
-    if ( f_operator%symm == symm_false ) then
-        call split_matrix_I_G ( f_operator%symm,                   &
-                                f_matrix,                          &
-                                f_operator%dof_dist,               & 
-                                f_operator%A_II, f_operator%A_IG,  &
+    if ( .not. f_operator%A_II_gr%symmetric_storage ) then
+        call split_matrix_I_G ( f_matrix, &
+                                f_operator%dof_dist, & 
+                                f_operator%A_II, f_operator%A_IG, &
                                 f_operator%A_GI, f_operator%A_GG )
 
-     else if ( f_operator%symm == symm_true ) then
-        call split_matrix_I_G( f_operator%symm,                            &
-                               f_matrix,                                   & 
-                               f_operator%dof_dist,                        & 
+     else 
+        call split_matrix_I_G( f_matrix, & 
+                               f_operator%dof_dist, & 
                                A_II=f_operator%A_II, A_IG=f_operator%A_IG, &  
                                A_GG=f_operator%A_GG )
      end if
 
-     ! lunou = io_open ( trim('matrix' // trim(ch(me)) // trim('.') // 'mtx' ), 'write')
-     ! call matrix_print_matrix_market ( lunou, f_operator%A_II )
-     ! call io_close (lunou)
-
-     ! call preconditioner_numeric(f_operator%A_II, f_operator%M_II)
      call preconditioner_numeric(f_operator%M_II)
-
-     ! call matrix_print ( 6, f_matrix )  ! DBG:
-     ! call matrix_print ( 6, f_operator%A_II )    ! DBG:
-     ! call matrix_print ( 6, f_operator%A_IG )    ! DBG:
-     ! call matrix_print ( 6, f_operator%A_GI )    ! DBG: 
-     ! call matrix_print ( 6, f_operator%A_GG )    ! DBG:
+	 
   end subroutine operator_dd_fill_val
 
   !=============================================================================
@@ -437,7 +457,7 @@ contains
                       0.0,   &
                       y_I%b)
 #else
-    call matvec_csr ( f_operator%A_IG%gr%nv, &
+    call matvec ( f_operator%A_IG%gr%nv, &
                     & f_operator%A_IG%gr%nv2,&
                     & f_operator%A_IG%gr%ia, &
                     & f_operator%A_IG%gr%ja, &
@@ -457,7 +477,7 @@ contains
     type(vector_t)     , intent(in)    :: x_I
     type(vector_t)     , intent(inout) :: y_G
 
-    if ( f_operator%A_GG%symm == symm_false ) then
+    if ( .not. f_operator%A_GG%gr%symmetric_storage ) then
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
                          f_operator%A_GI%gr%nv, &
@@ -472,7 +492,7 @@ contains
                          0.0,    &
                          y_G%b) 
 #else
-       call matvec_csr ( f_operator%A_GI%gr%nv, &
+       call matvec ( f_operator%A_GI%gr%nv, &
                          f_operator%A_GI%gr%nv2,&
                          f_operator%A_GI%gr%ia, &
                          f_operator%A_GI%gr%ja, &
@@ -480,7 +500,7 @@ contains
                          x_I%b,        & ! x_I
                          y_G%b         ) ! y_G
 #endif
-    else if ( f_operator%A_GG%symm == symm_true ) then
+    else 
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'T', & 
                          f_operator%A_IG%gr%nv, &
@@ -495,7 +515,7 @@ contains
                          0.0,   &
                          y_G%b)
 #else
-       call matvec_csr_trans ( f_operator%A_IG%gr%nv, &
+       call matvec_trans ( f_operator%A_IG%gr%nv, &
                     &          f_operator%A_IG%gr%nv2,&
                     &          f_operator%A_IG%gr%ia, &
                     &          f_operator%A_IG%gr%ja, &
@@ -520,7 +540,7 @@ contains
    call vector_create_view ( x, 1, f_operator%A_II%gr%nv, x_I )
    call vector_create_view ( x, f_operator%A_II%gr%nv+1, f_operator%A_II%gr%nv+f_operator%A_GG%gr%nv, x_G )
 
-   if ( f_operator%A_GG%symm == symm_false ) then
+   if ( .not. f_operator%A_GG%gr%symmetric_storage ) then
 #ifdef ENABLE_MKL
       call mkl_dcsrmv ( 'N', & 
                         f_operator%A_GI%gr%nv, &
@@ -535,7 +555,7 @@ contains
                         0.0, &
                         y_G%b)
 #else
-      call matvec_csr ( f_operator%A_GI%gr%nv, &
+      call matvec ( f_operator%A_GI%gr%nv, &
                         f_operator%A_GI%gr%nv2,&
                         f_operator%A_GI%gr%ia, &
                         f_operator%A_GI%gr%ja, &
@@ -543,7 +563,7 @@ contains
                         x_I%b,        & ! x_I
                         y_G%b         ) ! y_G
 #endif
-   else if ( f_operator%A_GG%symm == symm_true ) then
+   else 
 #ifdef ENABLE_MKL
       call mkl_dcsrmv ( 'T', & 
                         f_operator%A_IG%gr%nv, &
@@ -558,7 +578,7 @@ contains
                         0.0,   &
                         y_G%b)
 #else
-      call matvec_csr ( f_operator%A_IG%gr%nv, &
+      call matvec ( f_operator%A_IG%gr%nv, &
                    &    f_operator%A_IG%gr%nv2,&
                    &    f_operator%A_IG%gr%ia, &
                    &    f_operator%A_IG%gr%ja, &
@@ -568,7 +588,7 @@ contains
 #endif
    end if
 
-   if ( f_operator%A_GG%symm == symm_false ) then
+   if ( .not. f_operator%A_GG%gr%symmetric_storage ) then
 #ifdef ENABLE_MKL
       call mkl_dcsrmv ( 'N', & 
                         f_operator%A_GG%gr%nv, &
@@ -584,7 +604,7 @@ contains
                         y_G%b)
 #else
         check(1==0)
-!!$           call matvec_csr_scal ( f_operator%A_GG%nd1,    &    
+!!$           call matvec_scal ( f_operator%A_GG%nd1,    &    
 !!$                          &       f_operator%A_GG%nd2,    &
 !!$                          &       f_operator%A_GG%gr%nv,  &
 !!$                          &       f_operator%A_GG%gr%nv2, &
@@ -595,7 +615,7 @@ contains
 !!$                          &       y_G%b          )
 #endif
            ! call vector_print ( 6, y_G ) ! DBG:
-     else if ( f_operator%A_GG%symm == symm_true ) then
+     else 
 #ifdef ENABLE_MKL
         call mkl_dcsrmv ( 'N', & 
                           f_operator%A_GG%gr%nv, &
@@ -611,15 +631,6 @@ contains
                           y_G%b)
 #else
         check(1==0)
-!!$           call matvec_csr_symm_scal ( f_operator%A_GG%nd1,    &   
-!!$                        &              f_operator%A_GG%nd2,    &
-!!$                        &              f_operator%A_GG%gr%nv,  &
-!!$                        &              f_operator%A_GG%gr%nv2, &
-!!$                        &              f_operator%A_GG%gr%ia,  &
-!!$                        &              f_operator%A_GG%gr%ja,  &
-!!$                        &              f_operator%A_GG%a,      &
-!!$                        &              x_G%b,         & 
-!!$                        &              y_G%b          )
 #endif
         ! call vector_print ( 6, y_G ) ! DBG:
      end if
@@ -637,15 +648,8 @@ contains
     type(vector_t)     , intent(in)    :: x_G
     type(vector_t)     , intent(inout) :: y_G
 
-    if ( f_operator%A_GG%symm == symm_false ) then
+    if ( .not. f_operator%A_GG%gr%symmetric_storage  ) then
 #ifdef ENABLE_MKL
-!!$            call mkl_dcsrgemv( 'N',                   & 
-!!$                               f_operator%A_GG%gr%nv, &
-!!$                               f_operator%A_GG%a,     &
-!!$                               f_operator%A_GG%gr%ia, & 
-!!$                               f_operator%A_GG%gr%ja, &
-!!$                               x_G%b,                 &
-!!$                               y_G%b)
        call mkl_dcsrmv ( 'N', & 
                          f_operator%A_GG%gr%nv, &
                          f_operator%A_GG%gr%nv2, &
@@ -659,7 +663,7 @@ contains
                          0.0,   &
                          y_G%b)
 #else
-       call matvec_csr ( f_operator%A_GG%gr%nv,  &
+       call matvec ( f_operator%A_GG%gr%nv,  &
                          f_operator%A_GG%gr%nv2, &
                          f_operator%A_GG%gr%ia,  &
                          f_operator%A_GG%gr%ja,  &
@@ -668,7 +672,7 @@ contains
                          y_G%b          )
 #endif
        ! call vector_print ( 6, y_G ) ! DBG:
-    else if ( f_operator%A_GG%symm == symm_true ) then
+    else 
 #ifdef ENABLE_MKL
 !!$            call mkl_dcsrsymv( 'U',                   & 
 !!$                               f_operator%A_GG%gr%nv, &
@@ -690,7 +694,7 @@ contains
                          0.0,   &
                          y_G%b)
 #else
-       call matvec_csr_symm ( f_operator%A_GG%gr%nv,  &
+       call matvec_symmetric_storage ( f_operator%A_GG%gr%nv,  &
                               f_operator%A_GG%gr%nv2, &
                               f_operator%A_GG%gr%ia,  &
                               f_operator%A_GG%gr%ja,  &
@@ -698,7 +702,6 @@ contains
                               x_G%b,         & 
                               y_G%b          )
 #endif
-       ! call vector_print ( 6, y_G ) ! DBG:
     end if
   end subroutine  operator_dd_apply_A_GG
 
@@ -792,18 +795,6 @@ contains
 
   end subroutine operator_dd_solve_interior
 
-  subroutine operator_dd_info ( f_operator, me, np )
-    implicit none
-
-    ! Parameters 
-    type(operator_dd_t), intent(in)    :: f_operator
-    integer              , intent(out)   :: me
-    integer              , intent(out)   :: np
-
-    me = 0
-    np = 1
-  end subroutine operator_dd_info
-
   ! Computes the product v <- u^T op u restricted to the second block row of op 
   ! Documentation:   http://software.intel.com/sites/products/documentation/hpc/
   !                  compilerpro/en-us/cpp/win/mkl/refman/bla/functn_mkl_dcsrmm.html#functn_mkl_dcsrmm
@@ -827,7 +818,7 @@ use blas77_interfaces_names
 #ifdef ENABLE_MKL
     ! work <- 0.0*work + 1.0 * A_GG * u_G
     work = 0.0_rp
-    if (f_operator%A_GG%symm == symm_true) then
+    if (f_operator%A_GG%gr%symmetric_storage) then
         call mkl_dcsrmm ('N', & 
                          f_operator%A_GG%gr%nv, &
                          n, &
@@ -844,7 +835,7 @@ use blas77_interfaces_names
                          work, & 
                          f_operator%A_GG%gr%nv)
 
-    else if (f_operator%A_GG%symm == symm_false) then
+    else 
         call mkl_dcsrmm ( 'N', & 
                          f_operator%A_GG%gr%nv, &
                          n, &
@@ -897,7 +888,7 @@ use blas77_interfaces_names
 
 #ifdef ENABLE_MKL
     work = 0.0_rp
-    if (f_operator%A_II%symm == symm_true) then
+    if (f_operator%A_II%gr%symmetric_storage) then
         call mkl_dcsrmm ( 'T', & 
                          f_operator%A_IG%gr%nv, &
                          n, &
@@ -913,8 +904,7 @@ use blas77_interfaces_names
                          0.0, & 
                          work, & 
                          f_operator%A_GG%gr%nv)
-
-    else if (f_operator%A_II%symm == symm_false) then
+    else 
         call mkl_dcsrmm ( 'N', & 
                          f_operator%A_GI%gr%nv, &
                          n, &
@@ -933,41 +923,21 @@ use blas77_interfaces_names
     end if
 
 #else
-
-    if (f_operator%A_II%symm == symm_true) then
+    if (f_operator%A_II%symmetric_storage) then
        call matmat_trans ( f_operator%A_IG, & 
-                               n, & 
-                               f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
-                               u, & 
-                               f_operator%A_GG%gr%nv, &
-                               work )
-!!$        call mkl_dcsrmm ( 'T', & 
-!!$                         f_operator%A_IG%gr%nv, &
-!!$                         n, &
-!!$                         f_operator%A_IG%gr%nv2, &
-!!$                         1.0, &
-!!$                         'GXXF', & 
-!!$                         f_operator%A_IG%a, &
-!!$                         f_operator%A_IG%gr%ja, & 
-!!$                         f_operator%A_IG%gr%ia(1), & 
-!!$                         f_operator%A_IG%gr%ia(2), & 
-!!$                         u, &
-!!$                         f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
-!!$                         0.0, & 
-!!$                         work, & 
-!!$                         f_operator%A_GG%gr%nv)
-    else if (f_operator%A_II%symm == symm_false) then
+                           n, & 
+                           f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
+                           u, & 
+                           f_operator%A_GG%gr%nv, &
+                           work )
+    else 
        call matmat ( f_operator%A_GI, & 
-                         n, & 
-                         f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
-                         u, & 
-                         f_operator%A_GG%gr%nv, &
-                         work )
+                     n, & 
+                     f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
+                     u, & 
+                     f_operator%A_GG%gr%nv, &
+                     work )
     end if
-     ! call matmat ( f_operator%A_GI, n, u(1:f_operator%A_II%gr%nv,:), work )
-     ! write (0,*) 'Error: operator_dd_compute_ut_op_u was not compiled with -DENABLE_MKL.'
-     ! write (0,*) 'Error: You must activate this cpp macro in order to use the Sparse BLAS in MKL'
-     ! check(1==0) 
 #endif
 
     if (present(opu)) opu = opu + work
@@ -1041,8 +1011,7 @@ use blas77_interfaces_names
 
   end subroutine operator_dd_apply_A_IG_several_rhs
 
-  subroutine split_matrix_I_G (  output_symm, &
-                                 A, dof_dist, A_II, A_IG, A_GI, A_GG  )
+  subroutine split_matrix_I_G ( A, dof_dist, A_II, A_IG, A_GI, A_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
     ! "dof_dist" input parameter: 
@@ -1051,26 +1020,15 @@ use blas77_interfaces_names
     !      [A_GI A_GG]
     !
     ! this routine computes A_II, A_IG, A_GI and A_GG given the global 
-    ! matrix A (see parameter "grph"). Note that A_II, A_IG, A_GI and 
-    ! A_GG are all optional. Depending on whether A is symm==false or 
-    ! symm==true the following output is produced:
-    !
-    !      - symm=false: A_II, A_IG, A_GI and A_GG are stored 
-    !                    in symm=false format 
-    !
-    !      - symm=true:  A_II, A_IG stored in symm=true 
-    !                    and A_IG in symm=false. Asking for 
-    !                    A_GI is an error in this case. 
+    ! matrix A. Note that A_II, A_IG, A_GI and A_GG are all optional.
     !
     ! * IMPORTANT NOTE: this routine assumes that gr pointer of A_II, A_IG, 
     !                   A_GI and A_GG is already associated. Otherwise, it 
     !                   does not work.
     !-----------------------------------------------------------------------
     implicit none
-
-    integer(ip)           , intent(in)                :: output_symm
-    type(matrix_t)      , intent(in)                :: A
-    type(dof_distribution_t), intent(in)                :: dof_dist 
+    type(matrix_t)          , intent(in) :: A
+    type(dof_distribution_t), intent(in) :: dof_dist 
 
     type(matrix_t)     , intent(inout), optional   :: A_II
     type(matrix_t)     , intent(inout), optional   :: A_IG
@@ -1079,19 +1037,13 @@ use blas77_interfaces_names
 
     integer :: ipoing, offset
 
-    ! Locals
-    logical     :: csr_mat_symm, csr_mat_unsymm
 
-    logical     :: present_a_ii, present_a_ig, & 
+    logical :: present_a_ii, present_a_ig, & 
          & present_a_gi, present_a_gg
 
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
 
-    csr_mat_symm   = (output_symm == symm_true )
-    csr_mat_unsymm = (output_symm == symm_false)
-
-    assert ( csr_mat_symm .or. csr_mat_unsymm )
-    assert ( .not. present(A_GI) .or. csr_mat_unsymm )
+    assert ( .not. present(A_GI) .or. (.not. A_II%gr%symmetric_storage) )
 
     ni_rows = dof_dist%ni  
     nb_rows = dof_dist%nb  
@@ -1099,13 +1051,11 @@ use blas77_interfaces_names
     nb_cols = dof_dist%nb  
 
     ! If any inout matrix is present, we are done !
-    if ( csr_mat_unsymm ) then 
+    if ( .not. A_II%gr%symmetric_storage ) then 
        if ( .not. (present(A_II) .or. present(A_IG) & 
             & .or. present(A_GI) .or. present(A_GG) ) ) return
     else 
-       if ( csr_mat_symm ) then
-          if ( .not. (present(A_II) .or. present(A_IG) .or. present(A_GG) ) ) return
-       end if
+       if ( .not. (present(A_II) .or. present(A_IG) .or. present(A_GG) ) ) return
     end if
 
     present_a_ii = present( A_II )
@@ -1114,45 +1064,41 @@ use blas77_interfaces_names
     present_a_gg = present( A_GG )
 
     if ( present_a_ii ) then
-       assert ( associated(A_II%gr) ) 
-       A_II%symm     = output_symm
+       assert ( associated(A_II%gr) )
        call memalloc ( A_II%gr%ia(A_II%gr%nv+1)-A_II%gr%ia(1), A_II%a,          __FILE__,__LINE__)       
     end if
 
     if ( present_a_ig ) then
        assert ( associated(A_IG%gr) ) 
-       A_IG%symm    = symm_false
        call memalloc ( A_IG%gr%ia(A_IG%gr%nv+1)-A_IG%gr%ia(1), A_IG%a,__FILE__,__LINE__ )
     end if
 
     if ( present_a_gi ) then
        assert ( associated(A_GI%gr) ) 
-       A_GI%symm    = symm_false
        call memalloc ( A_GI%gr%ia(A_GI%gr%nv+1)-A_GI%gr%ia(1), A_GI%a,                       __FILE__,__LINE__ )
     end if
 
     if ( present_a_gg ) then
        assert ( associated(A_GG%gr) ) 
-       A_GG%symm    = output_symm
        call memalloc ( A_GG%gr%ia(A_GG%gr%nv+1)-A_GG%gr%ia(1), A_GG%a,                       __FILE__,__LINE__ )
     end if
 
     ! List values on each row of G_II/G_IG
     if ( present_a_ii .or. present_a_ig ) then
           do  ipoing=1, ni_rows 
-             if ( output_symm == A%symm ) then
+             if ( A_II%gr%symmetric_storage .eqv. A%gr%symmetric_storage ) then
                 if (present_a_ii) then 
                    A_II%a(  A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
                         A%a(  A%gr%ia(ipoing):A%gr%ia(ipoing)+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
                 end if
-             else if ( output_symm == symm_true .and. A%symm == symm_false ) then
+             else if ( A_II%gr%symmetric_storage .and. (.not. A%gr%symmetric_storage) ) then
                 if (present_a_ii) then
                    offset = (A%gr%ia(ipoing+1)- A%gr%ia(ipoing))-(A_IG%gr%ia(ipoing+1)-A_IG%gr%ia(ipoing))-(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))
                    A_II%a( A_II%gr%ia(ipoing):A_II%gr%ia(ipoing+1)-1 ) = &  
                         A%a( A%gr%ia(ipoing)+offset:A%gr%ia(ipoing)+offset+(A_II%gr%ia(ipoing+1)-A_II%gr%ia(ipoing))-1 )
                 end if
-             else if ( output_symm == symm_false .and. A%symm == symm_true ) then
-               ! Not implemented yet. 
+             else if ( (.not. A_II%gr%symmetric_storage) .and. A%gr%symmetric_storage ) then
+               ! Not implemented yet 
 			   check ( .false. )
              end if
 
@@ -1180,7 +1126,7 @@ use blas77_interfaces_names
 
   end subroutine split_matrix_I_G
 
-  subroutine split_graph_I_G ( diagonal_blocks_symmetric_storage, grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
+  subroutine split_graph_I_G ( grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
     ! "dof_dist" input parameter: 
@@ -1190,55 +1136,44 @@ use blas77_interfaces_names
     !
     ! this routine computes the graphs associated with A_II, A_IG,
     ! A_GI and A_GG given the graph of the global matrix A (see parameter "grph"). 
-    ! Note that G_II, G_IG, G_GI and A_GG are all optional. Depending on whether
-    ! "diagonal_blocks_symmetric_storage" is .true. or .false. the following output is produced:
-    !
-    !      - .false.: G_II, G_IG, G_GI and G_GG will not exploit symmetric storage 
-    !
-    !      - .true.:  G_II, G_GG will exploit symmetric storage and G_IG will not. Asking
-    !                 for G_GI is an error in this case. 
+    ! Note that G_II, G_IG, G_GI and A_GG are all optional.
     !
     ! * IMPORTANT NOTE: this subroutine assumes that "grph" has column indices
     !                   listed in increasing order. Otherwise, it does not work.
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    logical                  , intent(in) :: diagonal_blocks_symmetric_storage
     type(graph_t)            , intent(in) :: grph
     type(dof_distribution_t) , intent(in) :: dof_dist 
-
-    type(graph_t)     , intent(out), optional   :: G_II
-    type(graph_t)     , intent(out), optional   :: G_IG
-    type(graph_t)     , intent(out), optional   :: G_GI
-    type(graph_t)     , intent(out), optional   :: G_GG
+    type(graph_t)     , intent(inout), optional   :: G_II
+    type(graph_t)     , intent(inout), optional   :: G_IG
+    type(graph_t)     , intent(inout), optional   :: G_GI
+    type(graph_t)     , intent(inout), optional   :: G_GG
 	
-    assert ( (.not. present(G_GI)) .or. (.not. diagonal_blocks_symmetric_storage) )
+    assert ( (.not. present(G_GI)) .or. (.not. G_II%symmetric_storage) )
     
     ! If any output graph is present, we are done !
-    if ( .not. grph%symmetric_storage ) then 
+    if ( .not. G_II%symmetric_storage ) then 
       if ( .not. (present(G_II) .or. present(G_IG) & 
          & .or. present(G_GI) .or. present(G_GG) ) ) return
     else 
-        if ( grph%symmetric_storage ) then
-          if ( .not. (present(G_II) .or. present(G_IG) .or. present(G_GG) ) ) return
-        end if
+      if ( .not. (present(G_II) .or. present(G_IG) .or. present(G_GG) ) ) return
     end if
 
-    call split_graph_I_G_count_list ( diagonal_blocks_symmetric_storage, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
+    call split_graph_I_G_count_list ( grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
 
   end subroutine split_graph_I_G
 
-  subroutine split_graph_I_G_count_list ( diagonal_blocks_symmetric_storage, grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
+  subroutine split_graph_I_G_count_list ( grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
     implicit none
     ! Parameters
-    logical                  , intent(in)  :: diagonal_blocks_symmetric_storage
     type(graph_t)            , intent(in)  :: grph
     type(dof_distribution_t) , intent(in)  :: dof_dist 
 
-    type(graph_t)     , intent(out), optional   :: G_II
-    type(graph_t)     , intent(out), optional   :: G_IG
-    type(graph_t)     , intent(out), optional   :: G_GI
-    type(graph_t)     , intent(out), optional   :: G_GG
+    type(graph_t)     , intent(inout), optional   :: G_II
+    type(graph_t)     , intent(inout), optional   :: G_IG
+    type(graph_t)     , intent(inout), optional   :: G_GI
+    type(graph_t)     , intent(inout), optional   :: G_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
@@ -1262,7 +1197,6 @@ use blas77_interfaces_names
     if ( present_g_ii ) then
        G_II%nv           = ni_rows
        G_II%nv2          = ni_cols
-       G_II%symmetric_storage = diagonal_blocks_symmetric_storage
        call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
        G_II%ia(1) = 1
     end if
@@ -1270,7 +1204,6 @@ use blas77_interfaces_names
     if ( present_g_ig ) then
        G_IG%nv           = ni_rows
        G_IG%nv2          = nb_cols
-       G_IG%symmetric_storage = .false.
        call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
        G_IG%ia(1) = 1
     end if
@@ -1278,7 +1211,6 @@ use blas77_interfaces_names
     if ( present_g_gi ) then
        G_GI%nv   = nb_rows
        G_GI%nv2  = ni_cols
-       G_GI%symmetric_storage = .false. 
        call memalloc ( G_GI%nv+1, G_GI%ia,__FILE__,__LINE__ )
        G_GI%ia(1) = 1
     end if
@@ -1286,7 +1218,6 @@ use blas77_interfaces_names
     if ( present_g_gg ) then
        G_GG%nv   = nb_rows
        G_GG%nv2  = nb_cols
-       G_GG%symmetric_storage = diagonal_blocks_symmetric_storage 
        call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
        G_GG%ia(1) = 1
     end if
@@ -1299,7 +1230,7 @@ use blas77_interfaces_names
     ! List number of nonzeros on each row of G_II/G_IG
     if ( present_g_ii .or. present_g_ig ) then
        do ipoing=1, ni_rows
-          if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+          if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
@@ -1308,7 +1239,7 @@ use blas77_interfaces_names
                    nz_ig = nz_ig + 1 
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+          else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
 
@@ -1318,7 +1249,7 @@ use blas77_interfaces_names
                    nz_ig = nz_ig + 1 
                 end if
              end do
-          else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+          else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
              ! Not implemented yet. Trigger an assertion.
              check ( .false. )
           end if
@@ -1337,7 +1268,7 @@ use blas77_interfaces_names
     if ( present_g_gi .or. present_g_gg ) then  
        ! List number of nonzeros on each row of G_GI/G_GG)
        do ipoing=ni_rows+1, ni_rows + nb_rows
-          if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+          if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
@@ -1346,7 +1277,7 @@ use blas77_interfaces_names
                    nz_gg = nz_gg + 1
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+          else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
@@ -1356,7 +1287,7 @@ use blas77_interfaces_names
                 end if
              end do
 
-          else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+          else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage) ) then
              ! Not implemented yet.
              check ( .false. )
           end if
@@ -1397,7 +1328,7 @@ use blas77_interfaces_names
     ! List nonzeros on each row of G_II/G_IG
     if ( present_g_ii .or. present_g_ig ) then
        do ipoing=1, ni_rows
-          if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+          if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
@@ -1412,7 +1343,7 @@ use blas77_interfaces_names
                    end if
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+          else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
                 if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
@@ -1427,7 +1358,7 @@ use blas77_interfaces_names
                    end if
                 end if
              end do
-          else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+          else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
              ! Not implemented yet.
              check ( .false. )
           end if
@@ -1438,7 +1369,7 @@ use blas77_interfaces_names
     ! List number of nonzeros on each row of G_GI/G_GG
     if ( present_g_gi .or. present_g_gg ) then 
        do ipoing=ni_rows+1, ni_rows + nb_rows
-          if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+          if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols .and. present_g_gi ) then
@@ -1451,7 +1382,7 @@ use blas77_interfaces_names
                    end if
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+          else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage ) then
              do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
                 ipoing_neig = grph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
@@ -1466,7 +1397,7 @@ use blas77_interfaces_names
                    end if
                 end if
              end do
-          else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+          else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage ) ) then
              ! Not implemented yet.
              check ( .false. )
           end if
@@ -1475,7 +1406,7 @@ use blas77_interfaces_names
 
   end subroutine split_graph_I_G_count_list
   
-  subroutine split_graph_I_G_symm ( diagonal_blocks_symmetric_storage, grph, dof_dist, G_II, G_IG, G_GG  )
+  subroutine split_graph_I_G_symm ( grph, dof_dist, G_II, G_IG, G_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
     ! "dof_dist" input parameter: 
@@ -1485,41 +1416,33 @@ use blas77_interfaces_names
     !
     ! this routine computes the graphs associated with A_II, A_IG,
     ! A_GI and A_GG given the graph of the global matrix A (see parameter "grph"). 
-    ! Note that G_II, G_IG, G_GI and G_GG are all optional. Depending on whether
-    ! diagonal_blocks_symmetric_storage is .false. or .true. the following output is produced:
-    !
-    !      - .false.:   G_II, G_IG, G_GI and G_GG are stored in unsymmetric format 
-    !
-    !      - .true.:   G_II, G_GG stored in symmetric csr format. Asking
-    !                   for G_GI is an error in this case. 
+    ! Note that G_II, G_IG, G_GI and G_GG are all optional.
     !
     ! * IMPORTANT NOTE: this routine assumes that "grph" has column indices
     !                   listed in increasing order. Otherwise, it does not work.
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    logical                  , intent(in)  :: diagonal_blocks_symmetric_storage
     type(graph_t)            , intent(in)  :: grph
     type(dof_distribution_t) , intent(in)  :: dof_dist 
 
-    type(graph_t)     , intent(out) :: G_II
-    type(graph_t)     , intent(out) :: G_IG
-    type(graph_t)     , intent(out) :: G_GG
+    type(graph_t)     , intent(inout) :: G_II
+    type(graph_t)     , intent(inout) :: G_IG
+    type(graph_t)     , intent(inout) :: G_GG
     
-    call split_graph_I_G_count_list_symm ( diagonal_blocks_symmetric_storage, grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
+    call split_graph_I_G_count_list_symm ( grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
 
   end subroutine split_graph_I_G_symm
 
-  subroutine split_graph_I_G_count_list_symm ( diagonal_blocks_symmetric_storage, grph, dof_dist, G_II, G_IG, G_GG  )
+  subroutine split_graph_I_G_count_list_symm ( grph, dof_dist, G_II, G_IG, G_GG  )
     implicit none
     ! Parameters
-    logical                  , intent(in) :: diagonal_blocks_symmetric_storage
     type(graph_t)            , intent(in) :: grph
     type(dof_distribution_t) , intent(in) :: dof_dist 
 
-    type(graph_t)     , intent(out)   :: G_II
-    type(graph_t)     , intent(out)   :: G_IG
-    type(graph_t)     , intent(out)   :: G_GG
+    type(graph_t)     , intent(inout)   :: G_II
+    type(graph_t)     , intent(inout)   :: G_IG
+    type(graph_t)     , intent(inout)   :: G_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
@@ -1532,19 +1455,16 @@ use blas77_interfaces_names
 
     G_II%nv   = ni_rows
     G_II%nv2  = ni_cols
-    G_II%symmetric_storage = diagonal_blocks_symmetric_storage
     call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
     G_II%ia(1) = 1
 
     G_IG%nv   = ni_rows
     G_IG%nv2  = nb_cols
-    G_IG%symmetric_storage = .false.
     call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
     G_IG%ia(1) = 1
 
     G_GG%nv   = nb_rows
     G_GG%nv2  = nb_cols
-    G_GG%symmetric_storage = diagonal_blocks_symmetric_storage 
     call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
     G_GG%ia(1) = 1
 
@@ -1555,7 +1475,7 @@ use blas77_interfaces_names
 
     ! List number of nonzeros on each row of G_II/G_IG
     do ipoing=1, ni_rows
-       if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+       if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
 
@@ -1565,7 +1485,7 @@ use blas77_interfaces_names
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+       else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
              if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
@@ -1574,18 +1494,17 @@ use blas77_interfaces_names
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+       else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
           ! Not implemented yet.
           check ( .false. )
        end if
-
        G_II%ia(ipoing+1) = nz_ii
        G_IG%ia(ipoing+1) = nz_ig
     end do
 
     ! List number of nonzeros on each row of G_GI/G_GG)
     do ipoing=ni_rows+1, ni_rows + nb_rows
-       if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+       if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
              if ( ipoing_neig <= ni_cols ) then
@@ -1594,7 +1513,7 @@ use blas77_interfaces_names
                 nz_gg = nz_gg + 1
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+       else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
              if ( ipoing_neig <= ni_cols ) then
@@ -1604,13 +1523,11 @@ use blas77_interfaces_names
              end if
           end do
 
-       else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+       else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage) ) then
           ! Not implemented yet.
           check ( .false. )
        end if
-
        G_GG%ia(ipoing+1-ni_rows) = nz_gg
-
     end do
 
     call memalloc (nz_ii-1, G_II%ja, __FILE__,__LINE__)
@@ -1624,7 +1541,7 @@ use blas77_interfaces_names
 
     ! List nonzeros on each row of G_II/G_IG
     do ipoing=1, ni_rows
-       if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+       if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
              if ( ipoing_neig <= ni_cols ) then
@@ -1635,7 +1552,7 @@ use blas77_interfaces_names
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+       else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
              if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
@@ -1646,7 +1563,7 @@ use blas77_interfaces_names
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+       else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
           ! Not implemented yet.
           check ( .false. )
        end if
@@ -1655,7 +1572,7 @@ use blas77_interfaces_names
 
     ! List number of nonzeros on each row of G_GI/G_GG
     do ipoing=ni_rows+1, ni_rows + nb_rows
-       if ( grph%symmetric_storage .eqv. diagonal_blocks_symmetric_storage ) then
+       if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
              if ( ipoing_neig > ni_cols ) then
@@ -1663,7 +1580,7 @@ use blas77_interfaces_names
                 nz_gg = nz_gg + 1
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. diagonal_blocks_symmetric_storage ) then
+       else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage  ) then
           do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
              ipoing_neig = grph%ja(pos_neig)
              if ( ipoing_neig >= ipoing ) then
@@ -1671,7 +1588,7 @@ use blas77_interfaces_names
                 nz_gg = nz_gg + 1
              end if
           end do
-       else if ( grph%symmetric_storage .and. (.not. diagonal_blocks_symmetric_storage) ) then
+       else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage ) ) then
           ! Not implemented yet.
           check ( .false. )
        end if

@@ -32,12 +32,11 @@ module wsmp_names
   ! be performed here.
 
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use matrix_names
   use vector_names 
-!  use graph_names
-!  use graph_partition
+
 # include "debug.i90"
   
   implicit none
@@ -52,14 +51,6 @@ use memor_names
   integer(ip), save      :: context_status (64) = 0
   integer(ip), parameter :: max_contexts_symm   = 63
   integer(ip), parameter :: max_contexts_unsy   = 1
-
-  ! Posible matrix types managed in wsmp_context_t
-  integer , parameter    :: wsmp_symm = 2  ! Symmetric
-  integer , parameter    :: wsmp_unsy = 1  ! Unsymmetric
-
-  ! Posible matrix signs managed in wsmp_context
-  integer , parameter    :: wsmp_undefined = 0
-  integer , parameter    :: wsmp_positive  = 1
 
   ! Possible states of wsmp_context
   integer(ip), parameter :: not_created   = 0
@@ -104,8 +95,9 @@ use memor_names
 
   type wsmp_context_t
      ! Our components
-     integer(ip) :: mtype = wsmp_symm      ! Matrix symmetry (check consistency between calls)
-     integer(ip) :: sign  = wsmp_undefined ! Matrix symmetry (check consistency between calls)
+     logical     :: symmetric_storage
+     logical     :: is_symmetric 
+     integer(ip) :: sign 
      ! WSMP components
      integer     :: id    = 0              ! wsmp internal context id
      integer     :: n     = 0              ! Number of rows/cols of the matrix    
@@ -122,10 +114,6 @@ use memor_names
 
   ! Types
   public :: wsmp_context_t
-
-  ! Constants (matrix types)
-  public :: wsmp_symm, &
-       &    wsmp_unsy
 
 
   ! Possible actions that can be perfomed by solve_wsmp
@@ -371,44 +359,31 @@ contains
     nrhs = 1
 
 #ifdef ENABLE_WSMP
+    context%symmetric_storage  = matrix%symmetric_storage
+    context%is_symmetric       = matrix%is_symmetric
+    context%sign               = matrix%sign
 
-    ! Choose wsmp context according to matrix
-    if(matrix%symm == symm_true) then
+    ! Choose wsmp context according to matrix properties
+    if(context%symmetric_storage .and. context%is_symmetric) then
        if ( num_contexts_symm == 0 ) then 
           call wsmp_initialize
-!          write(*,*) 'wsmp_initialize'
        end if
        do idc=0, max_contexts_symm-1
           if ( context_status(idc+1) == 0 ) then
              context_status(idc+1) = 1
              context%id = idc
-             context%mtype = wsmp_symm
              num_contexts_symm = num_contexts_symm +1
              exit
           end if
        end do
-!!$       if(num_contexts_symm < max_contexts_symm) then
-!!$          num_contexts_symm = num_contexts_symm +1
-!!$          context%id = num_contexts_symm
-!!$          context%mtype = wsmp_symm
-!!$       else
-!!$          write (0,*) 'Error, WSMP: reached maximum number of symmetric contexts'
-!!$          stop
-!!$       end if
-    else if(matrix%symm == symm_false) then
+    else 
        if(num_contexts_unsy < max_contexts_unsy) then
           num_contexts_unsy = num_contexts_unsy +1
           context%id = num_contexts_unsy
-          context%mtype = wsmp_unsy
        else
           write (0,*) 'Error, WSMP: reached maximum number of unsymmetric contexts'
-          stop
+          check(.false.)
        end if
-    end if
-    if(matrix%sign == positive_definite) then
-       context%sign = wsmp_positive
-    else if(matrix%sign /= positive_definite) then
-       context%sign = wsmp_undefined
     end if
 
     ! Allocate and fill default parameters just in case
@@ -418,20 +393,20 @@ contains
     context%iparm(1) = 0
     context%iparm(2) = 0
     context%iparm(3) = 0
-    if(context%mtype==wsmp_symm) then
+    if(context%is_symmetric .and. context%symmetric_storage) then
        call wssmp (i0dum, i1dum, i1dum, d1dum, d1dum, i1dum, i1dum, d1dum, &
             &      i0dum, nrhs,aux, naux, i1dum, context%iparm, context%dparm)
-       if(context%sign == wsmp_undefined) then
+       if(context%sign /= positive_definite) then
           context%iparm(31)=2 ! LDLt factorization with pivoting (default is 0, cholesky)
        end if
-    else if(context%mtype==wsmp_unsy) then
+    else 
        call wgsmp (i0dum, i1dum, i1dum, d1dum, d1dum, i0dum, nrhs, d1dum, &
             &      context%iparm, context%dparm)      
     end if
     if (context%iparm(64) /= 0) then
        write (0,*) 'Error, WSMP: the following ERROR was detected: ', & 
             &       context%iparm(64), 'during initialization'
-       stop
+       check(.false.)
     end if
 
     ! Now fill user parameters, if present
@@ -449,22 +424,21 @@ contains
        iparm_(1) = 0
        iparm_(2) = 0
        iparm_(3) = 0
-       if(context%mtype==wsmp_symm) then
+       if(context%is_symmetric .and. context%symmetric_storage) then
           call wssmp (i0dum, i1dum, i1dum, d1dum, d1dum, i1dum, i1dum, d1dum, &
                &      i0dum, nrhs,aux, naux, i1dum, iparm_, dparm_)
-          if(context%sign == wsmp_undefined) then
+          if(context%sign /= positive_definite) then
              iparm_(31)=2 ! LDLt factorization with pivoting (default is 0, cholesky)
           end if
-       else if(context%mtype==wsmp_unsy) then
+       else 
           call wgsmp (i0dum, i1dum, i1dum, d1dum, d1dum, i0dum, nrhs, d1dum, &
                &      iparm_, dparm_)      
        end if
        if (iparm_(64) /= 0) then
           write (0,*) 'Error, WSMP: the following ERROR was detected: ', & 
                &       iparm_(64), 'during initialization'
-          stop
+          check(.false.)
        end if
-
     end if
 
 #else
@@ -477,9 +451,9 @@ contains
     implicit none
 
     ! Parameters
-    integer(ip)       , intent(in)    :: mode
+    integer(ip)       , intent(in)      :: mode
     type(wsmp_context_t), intent(inout) :: context
-    integer                           :: i0dum, nrhs, naux, i, info
+    integer                             :: i0dum, nrhs, naux, i, info
 
 
 #ifdef ENABLE_WSMP
@@ -504,7 +478,7 @@ contains
     end if
 
     if ( mode == wsmp_free_struct  ) then
-       if(context%mtype==wsmp_symm) then
+       if(context%symmetric_storage .and. context%is_symmetric) then
           ! Recall context
           call wrecallmat (context%id, info)
           if (info/=0) then
@@ -518,14 +492,14 @@ contains
              write (0,*) 'WSMP: error storing context',context%id , info
              stop
           end if
-       else if(context%mtype==wsmp_unsy) then
+       else 
           !num_contexts_unsy = num_contexts_unsy - 1
           !if(num_contexts_unsy==0) call wgsfree()
           call wgsfree()
        end if
     else if ( mode == wsmp_free_values ) then
        ! Release internal memory only for L and U factors of current context
-       if(context%mtype==wsmp_symm) then
+       if(context%symmetric_storage .and. context%is_symmetric) then
           ! Recall context
           call wrecallmat (context%id, info)
           if (info/=0) then
@@ -538,7 +512,7 @@ contains
              write (0,*) 'WSMP: error storing context',context%id , info
              stop
           end if
-       else if(context%mtype==wsmp_unsy) then
+       else
           call wgffree()
        end if
     end if
@@ -603,7 +577,7 @@ contains
     iparm_(2) = 1
     iparm_(3) = 2
 
-    if(context%mtype==wsmp_symm) then
+    if(context%symmetric_storage .and. context%is_symmetric) then
 
        a_ => adumm
        iparm_(10) = 2
@@ -631,7 +605,7 @@ contains
           stop
        end if
 
-    else if(context%mtype==wsmp_unsy) then
+    else 
 
        a_ => matrix%a(:)
 
@@ -707,7 +681,7 @@ contains
     iparm_(2) = 3
     iparm_(3) = 3
 
-    if(context%mtype==wsmp_symm) then
+    if(context%symmetric_storage .and. context%is_symmetric) then
 
        ! Recall context
        call wrecallmat (context%id, info)
@@ -745,8 +719,7 @@ contains
           stop
        end if
 
-    else if(context%mtype==wsmp_unsy) then
-
+    else 
        call wgsmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
             &      i0dum, nrhs, d1dum, iparm_, dparm_)
        ! call wgsmp (n, ia, ja, avals, b, ldb, nrhs, rmisc, iparm, dparm)
@@ -838,7 +811,7 @@ contains
     iparm_(2) = 4
     iparm_(3) = 4 ! Set this value to 5 to perform iterative refinement...
 
-    if(context%mtype==wsmp_symm) then
+    if(context%symmetric_storage .and. context%is_symmetric) then
 
        ! Recall context
        call wrecallmat (context%id, info)
@@ -870,7 +843,7 @@ contains
           stop
        end if
 
-    else if(context%mtype==wsmp_unsy) then
+    else 
 
        if ( present(rmisc) ) then
           rmisc_ => rmisc
@@ -959,7 +932,7 @@ contains
     iparm_(2) = 4
     iparm_(3) = 4 ! Set this value to 5 to perform iterative refinement...
 
-    if(context%mtype==wsmp_symm) then
+    if(context%symmetric_storage .and. context%is_symmetric) then
 
        ! Recall context
        call wrecallmat (context%id, info)
@@ -989,7 +962,7 @@ contains
           stop
        end if
 
-    else if(context%mtype==wsmp_unsy) then
+    else 
 
        if ( present(rmisc) ) then
           rmisc_ => rmisc
@@ -1082,7 +1055,7 @@ contains
     iparm_(2) = 4
     iparm_(3) = 4 ! Set this value to 5 to perform iterative refinement...
 
-    if(context%mtype==wsmp_symm) then
+    if(context%symmetric_storage .and. context%is_symmetric) then
 
        ! Recall context
        call wrecallmat (context%id, info)
@@ -1112,7 +1085,7 @@ contains
           stop
        end if
 
-    else if(context%mtype==wsmp_unsy) then
+    else 
 
        if ( present(rmisc) ) then
           rmisc_ => rmisc

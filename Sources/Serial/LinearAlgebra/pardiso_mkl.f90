@@ -66,8 +66,8 @@ module pardiso_mkl_names
      ! Our components
      integer(ip) :: state = not_created
      ! Pardiso components (send as arguments)
-     integer     :: mtype   ! type of the matrix
-     integer     :: n       ! Number of rows/cols of the matrix
+     integer     :: mtype   
+     integer     :: n       
 #ifdef ENABLE_MKL
      type ( mkl_pardiso_handle ), allocatable  :: pt(:)
 #endif
@@ -279,15 +279,11 @@ contains
     select case(action)
 
     case ( pardiso_mkl_solve )
-
        ! Check pre-conditions
        assert ( context%state ==  num_computed )
        call pardiso_mkl_solution_several_rhs ( context, A, nrhs, b, ldb, x, ldx, iparm, msglvl )
-
     case default
-
-       ! Write an error message and stop ?      
-
+       ! Write an error message and stop ?
     end select
 
   end subroutine pardiso_mkl_r2
@@ -308,15 +304,11 @@ contains
     select case(action)
 
     case ( pardiso_mkl_solve )
-
        ! Check pre-conditions
        assert ( context%state ==  num_computed )
        call pardiso_mkl_solution_real ( context, A, b, x, iparm, msglvl )
-
     case default
-
-       ! Write an error message and stop ?      
-
+       ! Write an error message and stop ?
     end select
 
   end subroutine pardiso_mkl_r1
@@ -335,14 +327,13 @@ contains
   subroutine pardiso_mkl_init ( context, matrix, iparm)
     implicit none
     ! Parameters
-    type(matrix_t)          , intent(in)   :: matrix
-    type(pardiso_mkl_context_t) , intent(out)  :: context
-    integer                   , intent(out), optional :: iparm(64)
+    type(matrix_t)                         , intent(in)   :: matrix
+    type(pardiso_mkl_context_t)            , intent(out)  :: context
+    integer                     , optional , intent(out)  :: iparm(64)
     ! Locals
     integer :: mtype, i
 
 #ifdef ENABLE_MKL
-
     ! Initiliaze the internal solver memory pointer. This is only
     ! necessary before FIRST call of PARDISO.
     allocate  ( context%pt(64) )
@@ -351,15 +342,15 @@ contains
     end do
 
     ! Choose pardiso_mkl matrix according to matrix
-    if(matrix%symm == symm_true.and.matrix%sign == positive_definite) then
+    if(matrix%gr%symmetric_storage.and.matrix%is_symmetric.and.matrix%sign == positive_definite) then
        mtype = pardiso_mkl_spd
-    else if(matrix%symm == symm_true.and.matrix%sign /= positive_definite) then
+    else if(matrix%gr%symmetric_storage.and.matrix%is_symmetric.and.matrix%sign /= positive_definite) then
        mtype = pardiso_mkl_sin
-    else if(matrix%symm == symm_false) then
+    else ! if(.not. matrix%gr%symmetric_storage) then
        mtype = pardiso_mkl_uss
-!!$       !!!!!!!!!! PROVISIONAL for uns mtype !!!!!!!!!!
-       mtype = pardiso_mkl_uns
-!!$       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       !!!!!!!!!! PROVISIONAL for uns mtype !!!!!!!!!!
+       ! mtype = pardiso_mkl_uns
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     end if
 
     context%mtype = mtype

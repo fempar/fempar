@@ -44,33 +44,31 @@ use types_names
   ! Block Graph 
   type block_graph_t
 !     private ! IBM XLF 14.1 bug
-     integer(ip)                    :: nblocks = -1
+     integer(ip)                  :: nblocks = -1
      type(p_graph_t), allocatable :: blocks(:,:)
   contains
-    procedure :: alloc             => block_graph_alloc
-    procedure :: alloc_block       => block_graph_alloc_block 
-    procedure :: set_block_to_zero => block_graph_set_block_to_zero
-    procedure :: free              => block_graph_free
-    procedure :: get_block         => block_graph_get_block
-    procedure :: get_nblocks       => block_graph_get_nblocks
+    procedure :: alloc                   => block_graph_alloc
+    generic   :: alloc_block             => alloc_diagonal_block, alloc_offdiagonal_block 
+	procedure :: alloc_diagonal_block    => block_graph_alloc_diagonal_block
+	procedure :: alloc_offdiagonal_block => block_graph_alloc_diagonal_block
+    procedure :: set_block_to_zero       => block_graph_set_block_to_zero
+    procedure :: free                    => block_graph_free
+    procedure :: get_block               => block_graph_get_block
+    procedure :: get_nblocks             => block_graph_get_nblocks
   end type block_graph_t
 
   ! Types
-  public :: block_graph_t
-
-  ! Functions
-  public :: block_graph_alloc, block_graph_alloc_block,       & 
-            block_graph_set_block_to_zero, block_graph_print, & 
-            block_graph_free, block_graph_get_block, block_graph_get_nblocks                                 
+  public :: block_graph_t                              
 
 contains
 
   !=============================================================================
-  subroutine block_graph_alloc ( p_f_graph, nblocks)
+  subroutine block_graph_alloc ( p_f_graph, nblocks, diagonal_blocks_symmetric_storage )
     implicit none
     ! Parameters
-    class(block_graph_t)              , intent(inout) :: p_f_graph
-    integer(ip)                         , intent(in)    :: nblocks
+    class(block_graph_t), intent(inout) :: p_f_graph
+    integer(ip)         , intent(in)    :: nblocks
+    logical             , intent(in)    :: diagonal_blocks_symmetric_storage(nblocks) 
 
     ! Locals
     integer(ip) :: istat
@@ -83,24 +81,48 @@ contains
       do jb=1, nblocks
            allocate ( p_f_graph%blocks(ib,jb)%p_f_graph, stat=istat )
            check(istat==0)
+		   if ( ib == jb ) then
+		       call graph_create ( diagonal_blocks_symmetric_storage(ib), p_f_graph%blocks(ib,jb)%p_f_graph )
+		   else
+		       call graph_create ( .false., p_f_graph%blocks(ib,jb)%p_f_graph )
+		   end if
       end do
     end do
   end subroutine block_graph_alloc
 
-  subroutine block_graph_alloc_block (p_f_graph,ib,jb)
+  subroutine block_graph_alloc_diagonal_block (p_f_graph,ib,diagonal_block_symmetric)
     implicit none
     ! Parameters
     class(block_graph_t), target, intent(inout) :: p_f_graph
-    integer(ip)                  , intent(in)    :: ib,jb
+    integer(ip)                  , intent(in)   :: ib
+	logical                      , intent(in)   :: diagonal_block_symmetric
     ! Locals
     integer(ip) :: istat
 
+    assert ( .not. associated( p_f_graph%blocks(ib,ib)%p_f_graph) )
+    if ( .not. associated( p_f_graph%blocks(ib,ib)%p_f_graph) ) then
+       allocate ( p_f_graph%blocks(ib,ib)%p_f_graph, stat=istat )
+       check(istat==0)
+	   call graph_create ( diagonal_block_symmetric, p_f_graph%blocks(ib,ib)%p_f_graph )
+    end if
+  end subroutine block_graph_alloc_diagonal_block
+  
+    subroutine block_graph_alloc_offdiagonal_block (p_f_graph,ib,jb)
+    implicit none
+    ! Parameters
+    class(block_graph_t), target, intent(inout) :: p_f_graph
+    integer(ip)                 , intent(in)    :: ib, jb
+    ! Locals
+    integer(ip) :: istat
+	
+    assert ( ib /= jb )
     assert ( .not. associated( p_f_graph%blocks(ib,jb)%p_f_graph) )
     if ( .not. associated( p_f_graph%blocks(ib,jb)%p_f_graph)) then
        allocate ( p_f_graph%blocks(ib,jb)%p_f_graph, stat=istat )
        check(istat==0)
+	   call graph_create ( .false., p_f_graph%blocks(ib,jb)%p_f_graph )
     end if
-  end subroutine block_graph_alloc_block
+  end subroutine block_graph_alloc_offdiagonal_block
 
   subroutine block_graph_set_block_to_zero (p_f_graph,ib,jb)
     implicit none
@@ -115,7 +137,7 @@ contains
        check(istat==0)
        ! AFM: to address this scenario. The graph might be partially or fully created!!!
        ! call graph_free ( p_f_graph%blocks(ib,jb)%p_f_graph, free_clean)
-       nullify    (p_f_graph%blocks(ib,jb)%p_f_graph)
+       nullify (p_f_graph%blocks(ib,jb)%p_f_graph)
     end if
   end subroutine block_graph_set_block_to_zero
   

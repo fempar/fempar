@@ -511,7 +511,7 @@ contains
     else if (prec%type==diag_prec) then
        ! Allocate + extract
        call memalloc ( mat%gr%nv, prec%d, __FILE__,__LINE__)
-       call extract_diagonal(mat%symm,mat%gr%nv,mat%gr%ia,mat%gr%ja,mat%a,mat%gr%nv,prec%d)
+       call extract_diagonal(mat%gr%symmetric_storage,mat%gr%nv,mat%gr%ia,mat%gr%ja,mat%a,mat%gr%nv,prec%d)
        ! Invert diagonal
        call invert_diagonal  ( mat%gr%nv, prec%d )
     else if(prec%type/=no_prec) then
@@ -682,10 +682,11 @@ contains
 
   end subroutine apply_diagonal
 
-  subroutine extract_diagonal (ks,nv,ia,ja,a,d_nv,d)
+  subroutine extract_diagonal (graph_symmetric_storage,nv,ia,ja,a,d_nv,d)
     implicit none
     ! Parameters
-    integer(ip), intent(in)  :: ks,nv,d_nv
+	logical    , intent(in)  :: graph_symmetric_storage
+    integer(ip), intent(in)  :: nv,d_nv
     integer(ip), intent(in)  :: ia(nv+1),ja(ia(nv+1)-1)
     real(rp)   , intent(in)  :: a(ia(nv+1)-1)
     real(rp)   , intent(out) :: d(d_nv)
@@ -693,7 +694,7 @@ contains
     ! Locals
     integer(ip)              :: iv, iz, of, izc, ivc
 
-    if(ks==symm_false) then                     ! Unsymmetric 
+    if(.not. graph_symmetric_storage) then
        do iv = 1, nv
           iz   = ia(iv)
           of   = 0
@@ -708,7 +709,7 @@ contains
              of       = of + 1
           end do ! ivc
        end do ! iv
-    else if (ks==symm_true) then               ! Symmetric
+    else
        do iv = 1, nv
           izc     = ia(iv)
           assert(ja(izc)==iv)

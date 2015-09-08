@@ -235,7 +235,7 @@ program par_test_cdr_unstructured
 
   call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, symmetric_storage )
 
-  call par_matrix_alloc ( symm_true, p_blk_graph%get_block(1,1), p_mat, positive_definite )
+  call par_matrix_alloc ( .true., p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
   call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
   p_vec%state = part_summed

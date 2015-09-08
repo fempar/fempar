@@ -82,8 +82,7 @@ program test_dirsol_mm
   ! Read a symmetric matrix
   call matrix_compose_name_matrix_market ( prefix, name ) 
   lunio = io_open(trim(dir_path) // '/' // trim(name),status='old')
-  ! call matrix_read_matrix_market (lunio, mmmat, mmgraph, symm_true, positive_definite)
-  call matrix_read_matrix_market (lunio, mmmat, mmgraph, symm_false)
+  call matrix_read_matrix_market (lunio, mmmat, mmgraph, is_symmetric=.false.)
 
   call io_close(lunio)
 

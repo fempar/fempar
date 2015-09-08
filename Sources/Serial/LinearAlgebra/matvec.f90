@@ -36,12 +36,12 @@ module matvec_names
 # include "debug.i90"
   private
 
-  public :: matvec_csr, matvec_csr_trans, matvec_csr_symm, matvec_csr_symm_trans
+  public :: matvec, matvec_trans, matvec_symmetric_storage, matvec_symmetric_storage_trans
   
 contains
 
   ! Debugged
-  subroutine matvec_csr (nv,nv2,ia,ja,a,x,y)
+  subroutine matvec (nv,nv2,ia,ja,a,x,y)
     implicit none
     integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
     real(rp)   , intent(in)  :: a(ia(nv+1)-1),x(nv2)
@@ -56,10 +56,10 @@ contains
        end do ! iz
     end do ! iv
 
-  end subroutine matvec_csr
+  end subroutine matvec
 
   ! Debugged
-  subroutine matvec_csr_symm (nv,nv2,ia,ja,a,x,y)
+  subroutine matvec_symmetric_storage (nv,nv2,ia,ja,a,x,y)
     implicit none
     integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
     real(rp)   , intent(in)  :: a(ia(nv+1)-1),x(nv2)
@@ -78,10 +78,10 @@ contains
        end do ! iz
     end do ! iv
 
-  end subroutine matvec_csr_symm
+  end subroutine matvec_symmetric_storage
 
   ! Debugged
-  subroutine matvec_csr_trans (nv,nv2,ia,ja,a,x,y)
+  subroutine matvec_trans (nv,nv2,ia,ja,a,x,y)
     implicit none
     integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
     real(rp)   , intent(in)  :: a(ia(nv+1)-1), x(nv)
@@ -96,9 +96,9 @@ contains
        end do ! iz
     end do ! iv
     
-  end subroutine matvec_csr_trans
+  end subroutine matvec_trans
 
-  subroutine matvec_csr_symm_trans (nv,nv2,ia,ja,a,x,y)
+  subroutine matvec_symmetric_storage_trans (nv,nv2,ia,ja,a,x,y)
     implicit none
     integer(ip), intent(in)  :: nv,nv2,ia(nv+1),ja(ia(nv+1)-1)
     real(rp)   , intent(in)  :: a(ia(nv+1)-1), x(nv)
@@ -106,10 +106,10 @@ contains
     integer(ip)              :: iv,iz,jv,id,jd
     integer(ip)              :: of, ivc, izc, jvc
 
-    write (0,*) 'Error: the body of matvec_csr_symm_trans in matvec.f90 still to be written'
+    write (0,*) 'Error: the body of matvec_symmetric_storage_trans in matvec.f90 still to be written'
     write (0,*) 'Error: volunteers are welcome !!!'
     stop 
-  end subroutine matvec_csr_symm_trans
+  end subroutine matvec_symmetric_storage_trans
 
 
 

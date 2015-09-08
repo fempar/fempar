@@ -75,29 +75,24 @@ contains
     type(triangulation_t)           , intent(in)    :: trian 
     type(fe_space_t)                , intent(inout) :: fe_space 
     type(block_graph_t)             , intent(inout) :: f_blk_graph 
-    logical               , optional, intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
+    logical                         , intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
 
     ! Locals
     integer(ip) :: iblock, jblock
     type(graph_t), pointer :: f_graph
-
 
     call create_element_to_dof_and_ndofs( dof_descriptor, trian, fe_space )
 
     call create_vef2dof( dof_descriptor, trian, fe_space )
 
     ! Create block graph
-    call f_blk_graph%alloc(dof_descriptor%nblocks)
+    call f_blk_graph%alloc(dof_descriptor%nblocks, diagonal_blocks_symmetric_storage)
 
     ! To be called after the reordering of dofs
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
           f_graph => f_blk_graph%blocks(iblock,jblock)%p_f_graph
-          if ( iblock == jblock .and. present(diagonal_blocks_symmetric_storage) ) then
-             call create_dof_graph_block ( iblock, jblock, dof_descriptor, trian, fe_space, f_graph, diagonal_blocks_symmetric_storage(iblock) )
-          else
-             call create_dof_graph_block ( iblock, jblock, dof_descriptor, trian, fe_space, f_graph )
-          end if
+          call create_dof_graph_block ( iblock, jblock, dof_descriptor, trian, fe_space, f_graph )
        end do
     end do
 
@@ -334,15 +329,14 @@ contains
   ! considers both the case with static condensation and without it. In order to call this 
   ! subroutine, we need to compute first element2dof and vef2dof arrays.
   !*********************************************************************************
-  subroutine create_dof_graph_block( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph, symmetric_storage ) 
+  subroutine create_dof_graph_block( iblock, jblock, dof_descriptor, trian, fe_space, dof_graph ) 
     implicit none
     ! Parameters
-    integer(ip)            , intent(in)   :: iblock, jblock
-    type(dof_descriptor_t) , intent(in)   :: dof_descriptor
-    type(triangulation_t)  , intent(in)   :: trian 
-    type(fe_space_t)       , intent(in)   :: fe_space 
-    type(graph_t)          , intent(out)  :: dof_graph
-    logical,       optional, intent(in)   :: symmetric_storage
+    integer(ip)            , intent(in)     :: iblock, jblock
+    type(dof_descriptor_t) , intent(in)     :: dof_descriptor
+    type(triangulation_t)  , intent(in)     :: trian 
+    type(fe_space_t)       , intent(in)     :: fe_space 
+    type(graph_t)          , intent(inout)  :: dof_graph
 
 
     ! Local variables
@@ -356,21 +350,11 @@ contains
     integer(ip), allocatable :: aux_ia(:)
     type(hash_table_ip_ip_t) :: visited
 
-    if ( iblock == jblock ) then
-       if (present(symmetric_storage) ) then 
-          dof_graph%symmetric_storage = symmetric_storage
-       else
-          dof_graph%symmetric_storage = .false.
-       end if
-    else ! iblock /= jblock
-       dof_graph%symmetric_storage = .false.
-    end if
-
 
     touch = 1
 
     ! Initialize
-    dof_graph%nv  = fe_space%ndofs(iblock) ! SB.alert : not stored there anymore
+    dof_graph%nv  = fe_space%ndofs(iblock)
     dof_graph%nv2 = fe_space%ndofs(jblock)
     call memalloc( dof_graph%nv+1, dof_graph%ia, __FILE__,__LINE__ )
     dof_graph%ia = 0
@@ -562,7 +546,6 @@ contains
                             m_var = fe_space%vef2dof(jblock)%l(jdof,2)
                             if ( dof_descriptor%dof_coupl(l_var,m_var) == 1 ) then
                                if ( .not. dof_graph%symmetric_storage ) then
-                                  !write(*,*) '************INSERT IN IDOF: ',l_dof,' JDOF: ',m_dof
                                   ic = aux_ia(l_dof)
                                   dof_graph%ja(ic) = m_dof
                                   aux_ia(l_dof) = aux_ia(l_dof)+1

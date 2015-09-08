@@ -58,7 +58,7 @@ program par_test_cdr
   type(block_dof_distribution_t)    :: blk_dof_dist
   type(dof_descriptor_t)            :: dof_descriptor
   type(par_block_graph_t)           :: p_blk_graph
-  logical                           :: symmetric_storage(1) = (/ .false. /)
+  logical                           :: symmetric_storage(1) = (/ .true. /)
   type(par_conditions_t)            :: p_cond
 
   type(cdr_problem_t)               :: my_problem
@@ -192,7 +192,7 @@ program par_test_cdr
 
   call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, symmetric_storage )  
 
-  call par_matrix_alloc ( symm_false, p_blk_graph%get_block(1,1), p_mat, positive_definite )
+  call par_matrix_alloc ( .true., p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
   call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
   p_vec%state = part_summed

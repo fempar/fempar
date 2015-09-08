@@ -280,9 +280,9 @@ module par_preconditioner_dd_mlevel_bddc_names
 
      ! END. Global info preconditioner 
      ! (global data only in processor/s in charge of the coarse grid system)
-
-     integer (ip)             :: symm
-     integer (ip)             :: sign
+     logical      :: symmetric_storage
+     logical      :: is_symmetric
+     integer (ip) :: sign
      type ( preconditioner_t )     :: M_rr ,M_rr_trans
      type ( preconditioner_t )     :: M_c                                  ! co_sys_sol_strat = serial
    
@@ -410,10 +410,10 @@ use mpi
     assert ( associated(p_mat%p_env%b_context) )
     assert ( p_mat%p_env%b_context%created .eqv. .true. )
 
-    mlbddc%symm    = p_mat%f_matrix%symm
-    mlbddc%sign    = p_mat%f_matrix%sign
+    mlbddc%symmetric_storage  = p_mat%f_matrix%gr%symmetric_storage
+    mlbddc%is_symmetric       = p_mat%f_matrix%is_symmetric
+    mlbddc%sign               = p_mat%f_matrix%sign
 
-    !assert ( mlbddc_params%unknowns == interface_unknowns .or. mlbddc_params%unknowns == all_unknowns )
     assert ( mlbddc_params%unknowns == all_unknowns ) ! Only global unknowns accepted in the multilevel?
     mlbddc%unknowns  = mlbddc_params%unknowns
 
@@ -626,16 +626,16 @@ use mpi
 
        ! BEG. FINE-GRID PROBLEM DUTIES
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
-
-          call matrix_create(p_mat%f_matrix%symm, mlbddc%A_rr, p_mat%f_matrix%sign)
-
+          call graph_create(p_mat%f_matrix%gr%symmetric_storage, mlbddc%A_rr_gr) 
+          call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, p_mat%f_matrix%sign)
+          call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create(p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, p_mat%f_matrix%sign)
+             call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans) 
           end if
 
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
-
              if ( mlbddc%projection == petrov_galerkin ) then 
                 call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
              end if
@@ -644,9 +644,11 @@ use mpi
           end if
 
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-          call matrix_create(p_mat%f_matrix%symm, mlbddc%A_rr, indefinite)
+          call graph_create(p_mat%f_matrix%gr%symmetric_storage, mlbddc%A_rr_gr) 
+          call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, indefinite)
+          call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create( p_mat%f_matrix%symm, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
@@ -676,13 +678,11 @@ use mpi
     if ( i_am_coarse_task .or. i_am_higher_level_task ) then
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           ! BEG. COARSE-GRID PROBLEM DUTIES
-
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
-             call matrix_create( p_mat%f_matrix%symm, mlbddc%A_c)
-             call preconditioner_create( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial)
-          
-          !else if(mlbddc%co_sys_sol_strat == distributed) then
-
+             call graph_create ( p_mat%f_matrix%gr%symmetric_storage,  mlbddc%A_c_gr )
+             call matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_c, p_mat%f_matrix%sign )
+             call matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c )
+             call preconditioner_create ( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial )
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
              assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level serial
 
@@ -704,14 +704,18 @@ use mpi
              call par_mesh_create ( mlbddc%p_env_c, mlbddc%p_mesh_c )
 
              ! Create coarse graph 
-             call par_graph_create ( mlbddc%dof_dist_c, mlbddc%p_env_c, mlbddc%p_graph_c )
+             call par_graph_create ( p_mat%f_matrix%gr%symmetric_storage, mlbddc%dof_dist_c, mlbddc%p_env_c, mlbddc%p_graph_c )
 
              ! Create coarse matrix
-             call par_matrix_create( p_mat%f_matrix%symm, & 
+             call par_matrix_create( p_mat%f_matrix%is_symmetric, & 
                                      mlbddc%dof_dist_c, &
                                      mlbddc%dof_dist_c, &
                                      mlbddc%p_env_c, &
-                                     mlbddc%p_mat_c)
+                                     mlbddc%p_mat_c, &
+                                     p_mat%f_matrix%sign)
+
+             ! Associate coarse graph to coarse matrix
+             call par_matrix_graph ( mlbddc%p_graph_c, mlbddc%p_mat_c )
 
              ! Allocate inverse
              allocate(mlbddc%p_M_c, stat=istat)
@@ -719,12 +723,10 @@ use mpi
 
              ! Recursively call bddc_create
              call par_preconditioner_dd_mlevel_bddc_create(mlbddc%p_mat_c, mlbddc%p_M_c, mlbddc%ppars_coarse_bddc )
-
           end if
        else
           check(.false.)
        end if
-
        ! END COARSE-GRID PROBLEM DUTIES    
     end if
 
@@ -993,42 +995,31 @@ use mpi
                    call memfree ( mlbddc%A_rr_trans_inv_C_r_T,__FILE__,__LINE__)
                 end if
 
-                if (mlbddc%symm == symm_false .or. & 
-                     (mlbddc%symm == symm_true .and. (mlbddc%sign == indefinite .or. mlbddc%sign == unknown)) ) then
+                if (.not. mlbddc%is_symmetric  .or. & 
+                     (mlbddc%sign /= positive_definite .or. (.not. mlbddc%symmetric_storage) )) then
                    call memfree ( mlbddc%ipiv,__FILE__,__LINE__)
-                   if (mlbddc%projection == petrov_galerkin )  then 
+                   if (mlbddc%projection == petrov_galerkin)  then 
                       call memfree ( mlbddc%ipiv_trans,__FILE__,__LINE__)
                    end if
-
                 end if
 
                 if (mlbddc%schur_edge_lag_mult == compute_from_scratch ) then
-                   call memfree ( mlbddc%S_rr_neumann, & 
-                        & 'par_preconditioner_dd_bddc_free::mlbddc%S_rr_neumann' )
-                   
-                   call memfree ( mlbddc%A_rr_inv_C_r_T_neumann, & 
-                        & 'par_preconditioner_dd_bddc_free::mlbddc%A_rr_inv_C_r_T_neumann' )
+                   call memfree ( mlbddc%S_rr_neumann, __FILE__, __LINE__)
+                   call memfree ( mlbddc%A_rr_inv_C_r_T_neumann, __FILE__, __LINE__ )
                    
                    if (mlbddc%projection == petrov_galerkin )  then 
-                      call memfree ( mlbddc%S_rr_trans_neumann, & 
-                           & 'par_preconditioner_dd_bddc_free::mlbddc%S_rr_neumann' )
-
-                      call memfree ( mlbddc%A_rr_trans_inv_C_r_T_neumann, & 
-                           & 'par_preconditioner_dd_bddc_free::mlbddc%A_rr_inv_C_r_T_neumann' )   
+                      call memfree ( mlbddc%S_rr_trans_neumann, __FILE__, __LINE__ )
+                      call memfree ( mlbddc%A_rr_trans_inv_C_r_T_neumann, __FILE__, __LINE__)
                    end if
 
-                   if (mlbddc%symm == symm_false .or. & 
-                        (mlbddc%symm == symm_true .and. & 
-                        (mlbddc%sign == indefinite .or. mlbddc%sign == unknown)) ) then
-                      call memfree ( mlbddc%ipiv_neumann, & 
-                           & 'par_preconditioner_dd_bddc_free::mlbddc%ipiv' )
+                   if (.not. mlbddc%is_symmetric .or. &  
+                        (mlbddc%sign /= positive_definite .or. (.not. mlbddc%symmetric_storage))) then
+                      call memfree ( mlbddc%ipiv_neumann, __FILE__, __LINE__)
                       if (mlbddc%projection == petrov_galerkin )  then 
-                         call memfree ( mlbddc%ipiv_trans_neumann, & 
-                              & 'par_preconditioner_dd_bddc_free::mlbddc%ipiv' )
+                         call memfree ( mlbddc%ipiv_trans_neumann, __FILE__, __LINE__)
                       end if
                    end if
                 end if
-
              end if
           end if
           ! END FINE-GRID PROBLEM DUTIES
@@ -1164,20 +1155,18 @@ use mpi
           call augment_graph_with_constraints ( p_mat, mlbddc )
        end if
        
-       call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr)
-
-          if (mlbddc%projection == petrov_galerkin) then
-             call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr_trans)
-          end if
+       ! call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr)
+       ! if (mlbddc%projection == petrov_galerkin) then
+       !    call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr_trans)
+       ! end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_symbolic( mlbddc%A_rr , mlbddc%M_rr )
-
+          call preconditioner_symbolic( mlbddc%A_rr , mlbddc%M_rr )
           if (mlbddc%projection == petrov_galerkin) then
              call preconditioner_symbolic( mlbddc%A_rr_trans , mlbddc%M_rr_trans )
           end if
-
        end if
+
        if ( mlbddc%unknowns == all_unknowns ) then
           call operator_dd_ass_struct (p_mat%f_matrix, mlbddc%A_II_inv ) 
        end if
@@ -1191,13 +1180,13 @@ use mpi
 
        ! BEG. COARSE-GRID PROBLEM DUTIES
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
-          call matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c)
+          ! call matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c)
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_symbolic( mlbddc%A_c , mlbddc%M_c )
           end if
        else if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
           ! Assign coarse matrix graph (the partition)
-          call par_matrix_graph ( mlbddc%p_graph_c, mlbddc%p_mat_c)
+          ! call par_matrix_graph ( mlbddc%p_graph_c, mlbddc%p_mat_c)
           call par_preconditioner_dd_mlevel_bddc_ass_struct ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
        end if
        ! END COARSE-GRID PROBLEM DUTIES
@@ -1219,7 +1208,6 @@ use mpi
                                  & mlbddc%nl_edges              
  
     mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
-    mlbddc%A_rr_gr%symmetric_storage  = p_mat%f_matrix%gr%symmetric_storage
 
     call memalloc ( mlbddc%A_rr_gr%nv+1, mlbddc%A_rr_gr%ia, __FILE__,__LINE__ )
 
@@ -1703,7 +1691,6 @@ use mpi
 
     mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
     mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
-    mlbddc%A_rr_gr%symmetric_storage  = p_mat%f_matrix%gr%symmetric_storage
 
     call memalloc ( mlbddc%A_rr_gr%nv+1, mlbddc%A_rr_gr%ia,  __FILE__,__LINE__ )
 
@@ -2474,10 +2461,8 @@ use mpi
 
     ! Locals
     logical    :: symmetric_storage
-
     
-    symmetric_storage = (mlbddc%A_c%symm == symm_true)
-    call mesh_to_graph_matrix ( symmetric_storage, mlbddc%f_mesh_c, mlbddc%A_c_gr )
+    call mesh_to_graph_matrix ( mlbddc%f_mesh_c, mlbddc%A_c_gr )
 
     if ( debug_verbose_level_2 ) then 
        call graph_print ( 6, mlbddc%A_c_gr )
@@ -2620,8 +2605,7 @@ use mpi
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
-          symmetric_storage = (mlbddc%p_mat_c%f_matrix%symm == symm_true)
-          call mesh_to_graph_matrix ( symmetric_storage, mlbddc%p_mesh_c%f_mesh, mlbddc%p_graph_c%f_graph)
+          call mesh_to_graph_matrix ( mlbddc%p_mesh_c%f_mesh, mlbddc%p_graph_c%f_graph)
 
           if ( debug_verbose_level_2 ) then 
              call graph_print ( 6,  mlbddc%p_graph_c%f_graph )
@@ -3743,9 +3727,9 @@ use mpi
     integer :: k,i,j
 
     if ( .not. gr_a%symmetric_storage ) then
-       call matrix_alloc ( symm_false, gr_a, A_t )
+       call matrix_alloc ( .false., gr_a, A_t )
     else 
-       call matrix_alloc ( symm_true, gr_a, A_t )
+       call matrix_alloc ( .true., gr_a, A_t )
     end if
 
     aux_graph = gr_a
@@ -4752,26 +4736,21 @@ use mpi
 
     call memfree ( C_r_T,__FILE__,__LINE__)
 
-    if (mlbddc%symm == symm_true) then
-       
+    if (mlbddc%is_symmetric .and. mlbddc%symmetric_storage) then
        if ( mlbddc%sign == positive_definite ) then
-          
           if ( mlbddc%nl_edges > 0 ) then 
              call DPOTRF ( 'U', &
                   mlbddc%nl_edges, &
                   S_rr, &
                   mlbddc%nl_edges, &
                   error )
-             
              if (error /= 0) then
                 write (0,*) 'Error, DOPTRF: the following ERROR was detected: ', error
                 check(1==0)
              end if
           end if
-          
        else if ( mlbddc%sign == indefinite .or. mlbddc%sign == unknown ) then
           call memalloc (  mlbddc%nl_edges, ipiv, __FILE__,__LINE__ )
-          
           if ( mlbddc%nl_edges > 0 ) then 
              lwork = ILAENV ( 1, 'DSYTRF', 'U', mlbddc%nl_edges, -1, -1, -1 )
              if ( lwork < 0 ) then
@@ -4780,7 +4759,6 @@ use mpi
              end if
              lwork = mlbddc%nl_edges
              call memalloc (  lwork, work,  __FILE__,__LINE__ )
-             
              call DSYTRF ( 'U', &
                   mlbddc%nl_edges, &
                   S_rr, &
@@ -4788,8 +4766,7 @@ use mpi
                   ipiv,&
                   work, &
                   lwork, &
-                  error )
-             
+                  error )      
              if (error /= 0) then
                 write (0,*) 'Error, DSYTRF: the following ERROR was detected: ', error
                 check(1==0)
@@ -4798,25 +4775,15 @@ use mpi
              call memfree ( work,__FILE__,__LINE__)
           end if
        end if
-
-    else if (mlbddc%symm == symm_false) then
-
+    else 
        call memalloc (  mlbddc%nl_edges, ipiv, __FILE__,__LINE__ )
-
        if ( mlbddc%nl_edges > 0 ) then 
-
-          ! write (*,*) mlbddc%nl_edges  
-          ! write (*,*) mlbddc%S_rr
-
           call DGETRF(  mlbddc%nl_edges, & 
-               mlbddc%nl_edges, &
-               S_rr, &
-               mlbddc%nl_edges, &
-               ipiv, &
-               error )
-
-          ! write (*,*) mlbddc%ipiv
-
+                        mlbddc%nl_edges, &
+                        S_rr, &
+                        mlbddc%nl_edges, &
+                        ipiv, &
+                        error )
           if (error /= 0) then
              write (0,*) 'Error, DGETRF: the following ERROR was detected: ', error
              check(1==0)
@@ -4825,7 +4792,7 @@ use mpi
     end if
 
     if (mlbddc%schur_edge_lag_mult == compute_from_scratch ) then
-       if (mlbddc%symm == symm_true) then
+       if (mlbddc%is_symmetric .and. mlbddc%symmetric_storage) then
           if ( mlbddc%sign == positive_definite ) then
               if ( mlbddc%nl_edges > 0 ) then 
                 call DPOTRF ( 'U', &
@@ -4840,9 +4807,7 @@ use mpi
                 end if
              end if
           else if ( mlbddc%sign == indefinite .or. mlbddc%sign == unknown ) then
-             call memalloc (  mlbddc%nl_edges, & 
-                  &  ipiv_neumann, & 
-                  &  'compute_edge_lagrange_multipliers_schur_complement::mlbddc%ipiv_neumann' )
+             call memalloc (  mlbddc%nl_edges, ipiv_neumann, __FILE__, __LINE__ ) 
 
              if ( mlbddc%nl_edges > 0 ) then 
                 lwork = ILAENV ( 1, 'DSYTRF', 'U', mlbddc%nl_edges, -1, -1, -1 )
@@ -4851,9 +4816,7 @@ use mpi
                    check(1==0)
                 end if
                 lwork = mlbddc%nl_edges * lwork
-                call memalloc (  lwork, & 
-                     &  work,  & 
-                     &  'compute_edge_lagrange_multipliers_schur_complement::work' )
+                call memalloc (  lwork, work, __FILE__, __LINE__ ) 
 
                 call DSYTRF ( 'U', &
                      mlbddc%nl_edges, &
@@ -4872,21 +4835,11 @@ use mpi
                 call memfree ( work, & 
                      &  'compute_edge_lagrange_multipliers_schur_complement::work' )
              end if
-          else
-             write (0,*) 'Error, no dense factorization for symmetric positive_semidefinite matrices available'
-             check(1==0)
           end if
-       else if (mlbddc%symm == symm_false) then
-
-          call memalloc (  mlbddc%nl_edges, & 
-               &  ipiv_neumann, & 
-               &  'compute_edge_lagrange_multipliers_schur_complement::mlbddc%ipiv_neumann' )
+       else
+          call memalloc (  mlbddc%nl_edges, ipiv_neumann, __FILE__, __LINE__ ) 
           
           if ( mlbddc%nl_edges > 0 ) then 
-
-             ! write (*,*) mlbddc%nl_edges * mlbddc%nd1 
-             ! write (*,*) mlbddc%S_rr_neumann
-
              call DGETRF(  mlbddc%nl_edges, & 
                   mlbddc%nl_edges, &
                   S_rr_neumann, &
@@ -4894,14 +4847,11 @@ use mpi
                   ipiv_neumann, &
                   error )
 
-             ! write (*,*) mlbddc%ipiv_neumann
-
              if (error /= 0) then
                 write (0,*) 'Error, DGETRF: the following ERROR was detected: ', error
                 check(1==0)
              end if
           end if
-
        end if
     end if
 #else
@@ -5057,13 +5007,9 @@ use mpi
 #ifdef ENABLE_BLAS
     if ( mlbddc%nl_edges > 0 ) then
        if ( schur_edge_lag_mult == compute_from_scratch ) then
-          if (mlbddc%symm == symm_true) then
-
+          if (mlbddc%is_symmetric .and. mlbddc%symmetric_storage) then
              lambda_r = rhs 
-
              if ( mlbddc%sign == positive_definite ) then
-                ! write (*,*) lambda_r(1:10,1)
-
                 ! Fwd. substitution with U^T
                 call DTRSM ( 'L', &
                      'U', & ! U is in the upper triangle
@@ -5077,8 +5023,6 @@ use mpi
                      lambda_r,&
                      mlbddc%nl_edges)
 
-                ! write (*,*) lambda_r(1:10,1)
-
                 ! Bck. substitution with U
                 call DTRSM ( 'L', &
                      'U', & ! U is in the upper triangle
@@ -5091,8 +5035,6 @@ use mpi
                      mlbddc%nl_edges,&
                      lambda_r,&
                      mlbddc%nl_edges)
-
-                ! write (*,*) lambda_r(1:10,1)
              else if ( mlbddc%sign == indefinite .or. mlbddc%sign == unknown ) then
               ! Bck. substitution with U
                 call DSYTRS ( 'U', &
@@ -5112,12 +5054,8 @@ use mpi
                 write (0,*) 'Error, no dense factorization for symmetric positive_semidefinite matrices available'
                 check(1==0)
              end if
-
-          else if (mlbddc%symm == symm_false) then
-
-             call memalloc (  nrhs,       & 
-                  &           aux ,       & 
-                  &           'solve_edge_lagrange_multipliers_explicit_schur::aux' )
+          else 
+             call memalloc (  nrhs, aux, __FILE__, __LINE__ )
 
              ! Apply row interchanges to RHS
              lambda_r = rhs
@@ -5154,19 +5092,12 @@ use mpi
                   lambda_r,&
                   mlbddc%nl_edges)
 
-             call memfree ( aux , 'solve_edge_lagrange_multipliers_explicit_schur::aux' )
+             call memfree ( aux , __FILE__, __LINE__ )
           end if 
        else
-
-          if (mlbddc%symm == symm_true) then
-
+          if (mlbddc%is_symmetric .and. mlbddc%symmetric_storage) then
              lambda_r = rhs 
-
-
              if ( mlbddc%sign == positive_definite ) then
-
-                ! write (*,*) lambda_r(1:10,1)
-
                 ! Fwd. substitution with U^T
                 call DTRSM ( 'L', &
                      'U', & ! U is in the upper triangle
@@ -5180,9 +5111,6 @@ use mpi
                      lambda_r,&
                      mlbddc%nl_edges)
 
-                ! write (*,*) lambda_r(1:10,1)
-
-
                 ! Bck. substitution with U
                 call DTRSM ( 'L', &
                      'U', & ! U is in the upper triangle
@@ -5195,8 +5123,6 @@ use mpi
                      mlbddc%nl_edges ,&
                      lambda_r,&
                      mlbddc%nl_edges )
-
-                ! write (*,*) lambda_r(1:10,1)
              else if ( mlbddc%sign == indefinite .or. mlbddc%sign == unknown ) then
                 ! Bck. substitution with U
                 call DSYTRS ( 'U', &
@@ -5216,12 +5142,8 @@ use mpi
                 write (0,*) 'Error, no dense factorization for symmetric positive_semidefinite matrices available'
                 check(1==0)
              end if
-
-          else if (mlbddc%symm == symm_false) then
-
-             call memalloc (  nrhs,       & 
-                  &           aux ,       & 
-                  &           'solve_edge_lagrange_multipliers_explicit_schur::aux' )
+          else 
+             call memalloc (  nrhs, aux, __FILE__, __LINE__ )
 
              ! Apply row interchanges to RHS
              lambda_r = rhs
@@ -5258,7 +5180,7 @@ use mpi
                   lambda_r,&
                   mlbddc%nl_edges  )
 
-             call memfree ( aux , 'solve_edge_lagrange_multipliers_explicit_schur::aux' )
+             call memfree ( aux , __FILE__, __LINE__ )
           end if
        end if
     end if
@@ -5323,7 +5245,7 @@ use mpi
 
    if ( mlbddc%nl_coarse > 0 ) then 
 
-      call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges) ,                       work2, __FILE__,__LINE__ )
+      call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
 
       if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
 
@@ -5497,11 +5419,8 @@ use mpi
     ! end do
 
     if ( mlbddc%nl_corners+mlbddc%nl_edges > 0 ) then
-       call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges) ,             work1, __FILE__,__LINE__ )
-
-       call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges) ,             work2, __FILE__,__LINE__ )
-
-
+       call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work1, __FILE__,__LINE__ )
+       call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
 
        work1 = 0.0_rp
        j = 1
@@ -5660,14 +5579,14 @@ end if
           else
 
              ! HERE a_ci = \Phi^t A_i \Phi 
-             call memalloc ( mlbddc%p_mat%dof_dist%nl, &
-                  (mlbddc%nl_edges+mlbddc%nl_corners),  &
-                  work, 'assemble_a_c::work' )
+             call memalloc ( mlbddc%p_mat%dof_dist%nl,& 
+                             (mlbddc%nl_edges+mlbddc%nl_corners), &
+                             work, __FILE__, __LINE__ )
 
              work = 0.0_rp
 #ifdef ENABLE_MKL
              ! work2 <- 0.0 * work2 + 1.0 * A * work1
-             if (p_mat%f_matrix%symm == symm_true) then
+             if (p_mat%f_matrix%gr%symmetric_storage) then
                 call mkl_dcsrmm ('N', &
                      p_mat%f_matrix%gr%nv, &
                      (mlbddc%nl_edges+mlbddc%nl_corners), &
@@ -5684,7 +5603,7 @@ end if
                      work, &
                      p_mat%f_matrix%gr%nv)
 
-             else if (p_mat%f_matrix%symm == symm_false) then
+             else 
                 call mkl_dcsrmm ( 'N', &
                      p_mat%f_matrix%gr%nv, &
                      (mlbddc%nl_edges+mlbddc%nl_corners), &
@@ -8487,15 +8406,16 @@ use mpi
     ne=size(ea,dim=2)
     assert(ne==nn)
         
-    call ass_csr_mat_scal(mat%symm,nn,ln,ea,mat%gr%nv, &
+    call ass_csr_mat_scal(mat%gr%symmetric_storage,nn,ln,ea,mat%gr%nv, &
          &                mat%gr%ia,mat%gr%ja,mat%a)
 
   end subroutine matrix_assembly
 
-  subroutine ass_csr_mat_scal (ks,nn,ln,ea,nv,ia,ja,a)
+  subroutine ass_csr_mat_scal (graph_symmetric_storage,nn,ln,ea,nv,ia,ja,a)
     implicit none
     ! Parameters
-    integer(ip) ,intent(in)    :: ks, nn, nv
+	logical     , intent(in)   :: graph_symmetric_storage
+    integer(ip) ,intent(in)    :: nn, nv
     integer(ip) ,intent(in)    :: ln(nn), ia(nv+1), ja(ia(nv+1)-1)
     real(rp)    ,intent(in)    :: ea(nn,nn)
     real(rp)    ,intent(inout) :: a(ia(nv+1)-1)
@@ -8504,7 +8424,7 @@ use mpi
     integer(ip)                :: in,jn,iv,jv,iz
     integer(ip)                :: distance
     
-    if(ks==1) then ! Unsymmetric 
+    if(.not. graph_symmetric_storage) then
        do in=1,nn
           iv = ln(in)
           do jn = 1,nn
@@ -8518,7 +8438,7 @@ use mpi
              a(iz) = a(iz) + ea(in, jn)
           end do ! end jn
        end do ! end in
-    else ! Symmetric (upper triangle)
+    else 
        do in=1,nn
           iv=ln(in)
           do jn = 1,nn
@@ -8545,13 +8465,12 @@ use mpi
   end subroutine ass_csr_mat_scal
 
   !============================================================================================
-  subroutine mesh_to_graph_matrix ( symmetric_storage, primal_mesh, primal_graph )
+  subroutine mesh_to_graph_matrix ( primal_mesh, primal_graph )
     implicit none
 
     ! Parameters
-    logical            , intent(in)     :: symmetric_storage
     type(mesh_t)       , intent(in)     :: primal_mesh
-    type(graph_t)      , intent(out)    :: primal_graph
+    type(graph_t)      , intent(inout)  :: primal_graph
 
 
     ! Local variables
@@ -8561,9 +8480,6 @@ use mpi
 
     ! Compute dual_mesh
     call mesh_to_dual ( primal_mesh, dual_mesh )
-
-    ! Allocate space for ia on the primal graph
-    primal_graph%symmetric_storage = symmetric_storage
 
     primal_graph%nv  = primal_mesh%npoin
     primal_graph%nv2 = primal_mesh%npoin

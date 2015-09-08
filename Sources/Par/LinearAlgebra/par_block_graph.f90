@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_block_graph_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
 
   ! Parallel modules 
   use par_environment_names
@@ -50,33 +50,31 @@ use memor_names
   ! Block Graph 
   type par_block_graph_t
 !    private ! IBM XLF 14.1 bug
-    integer(ip)                    :: nblocks = -1
+    integer(ip)                      :: nblocks = -1
     type(p_par_graph_t), allocatable :: blocks(:,:)
   contains
-    procedure :: alloc             => par_block_graph_alloc
-    procedure :: alloc_block       => par_block_graph_alloc_block 
-    procedure :: set_block_to_zero => par_block_graph_set_block_to_zero
-    procedure :: free              => par_block_graph_free
-    procedure :: get_block         => par_block_graph_get_block
-    procedure :: get_nblocks       => par_block_graph_get_nblocks
+    procedure :: alloc                   => par_block_graph_alloc
+    generic   :: alloc_block             => alloc_diagonal_block, alloc_offdiagonal_block 
+    procedure :: alloc_diagonal_block    => par_block_graph_alloc_diagonal_block
+    procedure :: alloc_offdiagonal_block => par_block_graph_alloc_offdiagonal_block
+    procedure :: set_block_to_zero       => par_block_graph_set_block_to_zero
+    procedure :: free                    => par_block_graph_free
+    procedure :: get_block               => par_block_graph_get_block
+    procedure :: get_nblocks             => par_block_graph_get_nblocks
   end type par_block_graph_t
 
   ! Types
-  public :: par_block_graph_t
-
-  ! Functions
-  public :: par_block_graph_alloc, par_block_graph_alloc_block,       & 
-            par_block_graph_set_block_to_zero, par_block_graph_print, & 
-            par_block_graph_free, par_block_graph_get_block                                 
+  public :: par_block_graph_t                              
 
 contains
 
   !=============================================================================
-  subroutine par_block_graph_alloc (p_b_graph, blk_dof_dist)
+  subroutine par_block_graph_alloc (p_b_graph, blk_dof_dist, diagonal_blocks_symmetric_storage)
     implicit none
     ! Parameters
-    class(par_block_graph_t)              , intent(inout) :: p_b_graph
+    class(par_block_graph_t)             , intent(inout)  :: p_b_graph
     type(block_dof_distribution_t),target, intent(in)     :: blk_dof_dist 
+    logical                              , intent(in)     :: diagonal_blocks_symmetric_storage(:) 
 
     ! Locals
     integer(ip) :: istat
@@ -89,34 +87,63 @@ contains
       do jb=1, p_b_graph%nblocks
            allocate ( p_b_graph%blocks(ib,jb)%p_p_graph, stat=istat )
            check(istat==0)
-           call par_graph_create ( blk_dof_dist%blocks(ib), & 
-                                   blk_dof_dist%blocks(jb), & 
-                                   blk_dof_dist%p_env, & 
-                                   p_b_graph%blocks(ib,jb)%p_p_graph )
+           if ( ib == jb ) then
+             call par_graph_create ( diagonal_blocks_symmetric_storage(ib), &
+                                     blk_dof_dist%blocks(ib), & 
+                                     blk_dof_dist%p_env, & 
+                                     p_b_graph%blocks(ib,jb)%p_p_graph )     
+           else
+             call par_graph_create ( blk_dof_dist%blocks(ib), & 
+                                     blk_dof_dist%blocks(jb), & 
+                                     blk_dof_dist%p_env, & 
+                                     p_b_graph%blocks(ib,jb)%p_p_graph )
+           end if 
       end do
     end do
   end subroutine par_block_graph_alloc
 
-  subroutine par_block_graph_alloc_block (p_b_graph,dof_dist_rows,dof_dist_cols,p_env,ib,jb)
+  subroutine par_block_graph_alloc_diagonal_block (p_b_graph,dof_dist,p_env,ib,diagonal_block_symmetric)
     implicit none
     ! Parameters
-    class(par_block_graph_t), target, intent(inout) :: p_b_graph
-    type(dof_distribution_t)        , intent(in)    :: dof_dist_rows
-    type(dof_distribution_t)        , intent(in)    :: dof_dist_cols
-    type(par_environment_t)         , intent(in)    :: p_env
-    integer(ip)                   , intent(in)    :: ib,jb
+    class(par_block_graph_t), target  , intent(inout) :: p_b_graph
+    type(dof_distribution_t)          , intent(in)    :: dof_dist
+    type(par_environment_t)           , intent(in)    :: p_env
+    integer(ip)                       , intent(in)    :: ib
+    logical                           , intent(in)    :: diagonal_block_symmetric
+
     ! Locals
     integer(ip) :: istat
+    if ( .not. associated( p_b_graph%blocks(ib,ib)%p_p_graph) ) then
+       allocate ( p_b_graph%blocks(ib,ib)%p_p_graph, stat=istat )
+       check(istat==0)
+       call par_graph_create ( diagonal_block_symmetric,&
+                               dof_dist, & 
+                               p_env, & 
+                               p_b_graph%blocks(ib,ib)%p_p_graph )
+    end if
+  end subroutine par_block_graph_alloc_diagonal_block
+  
+    subroutine par_block_graph_alloc_offdiagonal_block (p_b_graph,dof_dist_rows,dof_dist_cols,p_env,ib,jb)
+    implicit none
+    ! Parameters
+    class(par_block_graph_t), target  , intent(inout) :: p_b_graph
+    type(dof_distribution_t)          , intent(in)    :: dof_dist_rows
+    type(dof_distribution_t)          , intent(in)    :: dof_dist_cols
+    type(par_environment_t)           , intent(in)    :: p_env
+    integer(ip)                       , intent(in)    :: ib,jb
 
-    if ( .not. associated( p_b_graph%blocks(ib,jb)%p_p_graph)) then
+    ! Locals
+    integer(ip) :: istat
+    assert ( ib /= jb ) 
+    if ( .not. associated( p_b_graph%blocks(ib,jb)%p_p_graph) ) then
        allocate ( p_b_graph%blocks(ib,jb)%p_p_graph, stat=istat )
        check(istat==0)
-       call par_graph_create ( dof_dist_rows, & 
-                               dof_dist_cols, & 
+       call par_graph_create ( dof_dist_cols, &
+                               dof_dist_rows, & 
                                p_env, & 
                                p_b_graph%blocks(ib,jb)%p_p_graph )
     end if
-  end subroutine par_block_graph_alloc_block
+  end subroutine par_block_graph_alloc_offdiagonal_block
 
   subroutine par_block_graph_set_block_to_zero (p_b_graph,ib,jb)
     implicit none

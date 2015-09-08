@@ -53,9 +53,17 @@ use memor_names
   public :: graph_t
 
   ! Functions
-  public :: graph_copy, graph_free, graph_print
+  public :: graph_create, graph_copy, graph_free, graph_print
 
 contains
+  !=============================================================================
+  subroutine graph_create (symmetric_storage,graph)
+    implicit none
+	logical      , intent(in)  :: symmetric_storage
+    type(graph_t), intent(out) :: graph
+
+	graph%symmetric_storage = symmetric_storage
+  end subroutine graph_create
 
   !=============================================================================
   subroutine graph_copy (igraph, ograph)

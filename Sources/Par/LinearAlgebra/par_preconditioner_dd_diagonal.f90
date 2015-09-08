@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_preconditioner_dd_diagonal_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use vector_names
   use preconditioner_names, only: invert_diagonal, apply_diagonal, extract_diagonal
 
@@ -38,7 +38,7 @@ use memor_names
   use par_context_names
   use par_environment_names
   use dof_distribution_names
-use psb_penv_mod_names
+  use psb_penv_mod_names
 
   ! Abstract modules
   use abstract_vector_names
@@ -126,7 +126,7 @@ use psb_penv_mod_names
 
     ! Allocate + extract
     call memalloc ( neq, p_prec_dd_diagonal%d, __FILE__,__LINE__)
-    call extract_diagonal ( p_matrix%f_matrix%symm, &
+    call extract_diagonal ( p_matrix%f_matrix%gr%symmetric_storage, &
                             p_matrix%f_matrix%gr%nv, &
                             p_matrix%f_matrix%gr%ia, &
                             p_matrix%f_matrix%gr%ja, &

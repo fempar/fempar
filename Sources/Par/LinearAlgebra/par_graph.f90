@@ -27,11 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_graph_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use graph_names
 #ifdef memcheck       
-use iso_c_binding
+  use iso_c_binding
 #endif
 
   ! Parallel modules
@@ -108,12 +108,15 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine par_graph_create_square ( dof_dist, p_env, p_graph )
+  subroutine par_graph_create_square ( symmetric_storage, dof_dist, p_env, p_graph )
     implicit none 
     ! Parameters
+	logical                         , intent(in)  :: symmetric_storage
     type(dof_distribution_t), target, intent(in)  :: dof_dist
     type(par_environment_t) , target, intent(in)  :: p_env
     type(par_graph_t)               , intent(out) :: p_graph
+	
+	p_graph%f_graph%symmetric_storage = symmetric_storage
     p_graph%p_env => p_env
     p_graph%dof_dist => dof_dist
     p_graph%dof_dist_cols => dof_dist
@@ -127,6 +130,8 @@ contains
     type(dof_distribution_t), target, intent(in)  :: dof_dist_cols
     type(par_environment_t) , target, intent(in)  :: p_env
     type(par_graph_t)               , intent(out) :: p_graph
+	
+	p_graph%f_graph%symmetric_storage = .false.
     p_graph%p_env => p_env
     p_graph%dof_dist => dof_dist
     p_graph%dof_dist_cols => dof_dist_cols
@@ -138,7 +143,6 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     type(par_graph_t), intent(inout)  :: p_graph
-    
     call par_graph_free_progressively (p_graph, free_struct)
     call par_graph_free_progressively (p_graph, free_clean )
   end subroutine par_graph_free_one_shot
