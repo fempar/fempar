@@ -422,24 +422,20 @@ contains
   end subroutine matrix_zero
 
   subroutine matrix_transpose(A, A_t)
-    type(matrix_t), intent(in)   :: A    ! Input matrix
-    type(matrix_t), intent(out)  :: A_t  ! Output matrix
+    type(matrix_t), intent(in)     :: A    ! Input matrix
+    type(matrix_t), intent(inout)  :: A_t  ! Output matrix
 
     ! Locals 
     type(graph_t) :: aux_graph
     integer :: k,i,j
-
-    if ( .not. A%gr%symmetric_storage ) then
-       call matrix_alloc ( .false. , A%gr, A_t )
-    else 
-       call matrix_alloc ( .true.  , A%gr, A_t )
-    end if
-
-    aux_graph = A%gr
-
+	
+	assert ( A%gr%symmetric_storage .eqv. A_t%gr%symmetric_storage )
+    assert ( A%gr%nv == A_t%gr%nv .and. A%gr%nv2 == A_t%gr%nv2 )
+	
     if (A%gr%symmetric_storage) then 
        A_t%a(:) = A%a(:)
     else
+	   call graph_copy ( A%gr, aux_graph )
        k = 0    
        do i = 1, A_t%gr%nv
           do j=1, (A_t%gr%ia(i+1) - A_t%gr%ia(i) )
@@ -448,8 +444,8 @@ contains
              aux_graph%ia(A_t%gr%ja(k)) = aux_graph%ia(A_t%gr%ja(k)) + 1
           end do
        end do
+	   call graph_free ( aux_graph )
     end if
-
   end subroutine matrix_transpose
 
   subroutine matrix_matvec (a,x,y)

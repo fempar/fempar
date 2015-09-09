@@ -360,9 +360,9 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   logical, parameter :: debug_verbose_level_1 = .false. 
   logical, parameter :: debug_verbose_level_2 = .false.
-  logical, parameter :: debug_verbose_level_3 = .true.  ! Prints harmonic extensions 
-                                                        ! to gid files, and coarse grid system 
-                                                        ! coefficient matrix to matrix market 
+  logical, parameter :: debug_verbose_level_3 = .false.  ! Prints harmonic extensions 
+                                                         ! to gid files, and coarse grid system 
+                                                         ! coefficient matrix to matrix market 
 
 contains
 
@@ -630,7 +630,7 @@ use mpi
           call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, p_mat%f_matrix%sign)
           call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, p_mat%f_matrix%sign)
+             call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
              call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans) 
           end if
 
@@ -648,7 +648,8 @@ use mpi
           call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, indefinite)
           call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, indefinite)
+			 call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
@@ -986,12 +987,10 @@ use mpi
                   mlbddc%kind_coarse_dofs == faces .or. & 
                   mlbddc%kind_coarse_dofs == corners_and_faces ) then
                 call memfree ( mlbddc%S_rr,__FILE__,__LINE__)
-                
                 call memfree ( mlbddc%A_rr_inv_C_r_T,__FILE__,__LINE__)
 
                 if (mlbddc%projection == petrov_galerkin )  then 
                    call memfree ( mlbddc%S_rr_trans,__FILE__,__LINE__)
-
                    call memfree ( mlbddc%A_rr_trans_inv_C_r_T,__FILE__,__LINE__)
                 end if
 
@@ -3038,9 +3037,9 @@ use mpi
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
 
     ! Locals
-    integer(ip) :: me, np, lunou
-    logical     :: i_am_fine_task
-    type(par_matrix_t) :: p_mat_trans
+    integer(ip)    :: me, np, lunou
+    logical        :: i_am_fine_task
+    type(matrix_t) :: mat_trans
 
 
     ! The routine requires the partition/context info
@@ -3071,7 +3070,7 @@ use mpi
        call matrix_fill_val ( mlbddc%A_rr )
       
        if (mlbddc%projection == petrov_galerkin ) then 
-       call matrix_fill_val ( mlbddc%A_rr_trans )
+          call matrix_fill_val ( mlbddc%A_rr_trans )
        end if
 
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -3120,29 +3119,27 @@ use mpi
                                                      mlbddc%A_rc, &              
                                                      mlbddc%A_cc )
 
-       
           if ( mlbddc%projection == petrov_galerkin ) then 
-
-           call matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )       
-
-      call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
-                                                 p_mat_trans%f_matrix%gr%symmetric_storage   , & 
-                                                 p_mat_trans%f_matrix%gr%nv     , & 
-                                                 p_mat_trans%f_matrix%gr%ia     , & 
-                                                 p_mat_trans%f_matrix%gr%ja     , &
-                                                 p_mat_trans%f_matrix%a         , &
-                                                 mlbddc%A_rr_gr%nv   , & 
-                                                 mlbddc%A_rr_gr%ia   , &
-                                                 mlbddc%A_rr_gr%ja   , &
-                                                 mlbddc%perm         , &
-                                                 mlbddc%iperm        , &       
-                                                 mlbddc%A_rr_trans%a       , &
-                                                 mlbddc%A_rc_trans, & 
-                                                 mlbddc%A_cr_trans, &              
-                                                 mlbddc%A_cc_trans )
-
-           call matrix_free(p_mat_trans%f_matrix)
-          
+		     call matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, p_mat%f_matrix%sign)
+			 call matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
+			 call matrix_fill_val  ( mat_trans )
+			 call matrix_transpose ( p_mat%f_matrix, mat_trans ) 
+             call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
+                                                        mat_trans%gr%symmetric_storage, & 
+                                                        mat_trans%gr%nv     , & 
+                                                        mat_trans%gr%ia     , & 
+                                                        mat_trans%gr%ja     , &
+                                                        mat_trans%a         , &
+                                                        mlbddc%A_rr_gr%nv   , & 
+                                                        mlbddc%A_rr_gr%ia   , &
+                                                        mlbddc%A_rr_gr%ja   , &
+                                                        mlbddc%perm         , &
+                                                        mlbddc%iperm        , &       
+                                                        mlbddc%A_rr_trans%a       , &
+                                                        mlbddc%A_rc_trans, & 
+                                                        mlbddc%A_cr_trans, &              
+                                                        mlbddc%A_cc_trans )
+             call matrix_free(mat_trans)
          end if
 
        else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem) then 
@@ -3165,31 +3162,31 @@ use mpi
                                                  mlbddc%A_rr%a,  &
                                                  mlbddc%p_mat%dof_dist%nb, &
                                                  mlbddc%C_weights )
-
          if (mlbddc%projection == petrov_galerkin ) then 
-          call matrix_transpose( p_mat%f_matrix, p_mat_trans%f_matrix )  
-          call augment_matrix_with_constraints ( p_mat_trans%f_matrix%gr%symmetric_storage, & 
-                                                 p_mat_trans%f_matrix%gr%nv   , & 
-                                                 p_mat_trans%f_matrix%gr%ia    , & 
-                                                 p_mat_trans%f_matrix%gr%ja    , &
-                                                 p_mat_trans%f_matrix%a    , &
-                                                 mlbddc%A_rr_gr%nv   , & 
-                                                 mlbddc%A_rr_gr%ia   , &
-                                                 mlbddc%A_rr_gr%ja, &
-                                                 mlbddc%p_mat%dof_dist%nl, &
-                                                 mlbddc%nl_corners, &
-                                                 mlbddc%nl_edges, &
-                                                 mlbddc%nl_coarse, &
-                                                 mlbddc%coarse_dofs, &
-                                                 mlbddc%p_mat%dof_dist%max_nparts, &
-                                                 mlbddc%p_mat%dof_dist%omap%nl, &
-                                                 mlbddc%p_mat%dof_dist%lobjs, &
-                                                 mlbddc%A_rr_trans%a, &
-                                                 mlbddc%p_mat%dof_dist%nb, &
-                                                 mlbddc%C_weights  )
-        
-            call matrix_free(p_mat_trans%f_matrix)
-
+		   call matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, indefinite)
+		   call matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
+		   call matrix_fill_val  ( mat_trans )
+		   call matrix_transpose ( p_mat%f_matrix, mat_trans ) 
+		   call augment_matrix_with_constraints ( mat_trans%gr%symmetric_storage, & 
+                                                  mat_trans%gr%nv   , & 
+                                                  mat_trans%gr%ia    , & 
+                                                  mat_trans%gr%ja    , &
+                                                  mat_trans%a    , &
+                                                  mlbddc%A_rr_gr%nv   , & 
+                                                  mlbddc%A_rr_gr%ia   , &
+                                                  mlbddc%A_rr_gr%ja, &
+                                                  mlbddc%p_mat%dof_dist%nl, &
+                                                  mlbddc%nl_corners, &
+                                                  mlbddc%nl_edges, &
+                                                  mlbddc%nl_coarse, &
+                                                  mlbddc%coarse_dofs, &
+                                                  mlbddc%p_mat%dof_dist%max_nparts, &
+                                                  mlbddc%p_mat%dof_dist%omap%nl, &
+                                                  mlbddc%p_mat%dof_dist%lobjs, &
+                                                  mlbddc%A_rr_trans%a, &
+                                                  mlbddc%p_mat%dof_dist%nb, &
+                                                  mlbddc%C_weights  )
+            call matrix_free(mat_trans)
          end if
 
        end if

@@ -208,7 +208,7 @@ program par_test_cdr
      point_to_p_mlevel_bddc_pars%ndime            = ndime
      point_to_p_mlevel_bddc_pars%unknowns         = all_unknowns
      point_to_p_mlevel_bddc_pars%pad_collectives  = pad
-     point_to_p_mlevel_bddc_pars%projection       = galerkin                           !default
+     point_to_p_mlevel_bddc_pars%projection       = petrov_galerkin                    !default
      point_to_p_mlevel_bddc_pars%subd_elmat_calc  = phit_minus_c_i_t_lambda            !default  
      point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric                 !default 
      point_to_p_mlevel_bddc_pars%nn_sys_sol_strat = corners_rest_part_solve_expl_schur ! default 
