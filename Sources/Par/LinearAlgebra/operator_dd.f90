@@ -923,7 +923,7 @@ use blas77_interfaces_names
     end if
 
 #else
-    if (f_operator%A_II%symmetric_storage) then
+    if (f_operator%A_II%gr%symmetric_storage) then
        call matmat_trans ( f_operator%A_IG, & 
                            n, & 
                            f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
