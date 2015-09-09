@@ -78,7 +78,7 @@ contains
 
     call conditions_create( cnd_old%ncode, cnd_old%nvalu, cnd_old%ncond, cnd_new)
     cnd_new%code=cnd_old%code
-    cnd_new%valu=cnd_old%code
+    cnd_new%valu=cnd_old%valu
 
   end subroutine conditions_copy
 
