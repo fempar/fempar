@@ -46,6 +46,8 @@ module lib_vtk_io_interface_names
   implicit none
 # include "debug.i90"
 
+  private
+  
   interface
     function mkdir_recursive(path) bind(c,name="mkdir_recursive")
       use iso_c_binding

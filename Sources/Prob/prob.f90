@@ -25,51 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module block_matrix_vector_names
-use types_names
-  use block_matrix_names
-  use block_vector_names
-  use matrix_names
-  use vector_names
-  implicit none
-# include "debug.i90"
+module prob_names  
 
-  private
+  ! Physical problems
+  use cdr_names
+  use nsi_names
+  
+  ! Discrete problems
+  use cdr_stabilized_continuous_Galerkin_names
+  use nsi_cg_asgs_names
+  use nsi_cg_iss_names
+  use nsi_cg_iss_oss_names
+  use norm_names
 
-  public :: block_matvec
-
-contains
-
-  subroutine block_matvec (a, x, y)
-    implicit none
-    ! Parameters
-    type(block_matrix_t), intent(in)    :: a
-    type(block_vector_t), intent(in)    :: x
-    type(block_vector_t), intent(inout) :: y
-
-    ! Locals
-    type(matrix_t), pointer :: f_matrix
-    type(vector_t)          :: aux
-    integer(ip)               :: ib, jb
-
-    assert ( a%get_nblocks() == x%nblocks )
-    assert ( a%get_nblocks() == y%nblocks )
-    
-    do ib=1, a%get_nblocks()
-       call vector_zero  ( y%blocks(ib) )
-       call vector_clone ( y%blocks(ib), aux ) 
-       do jb=1, a%get_nblocks()
-          f_matrix => a%blocks(ib,jb)%p_f_matrix
-          if ( associated(f_matrix) ) then
-             ! aux <- A(ib,jb) * x(jb)
-             call matrix_matvec ( f_matrix, x%blocks(jb), aux )
-             
-             ! y(ib) <- y(ib) + aux 
-             call vector_pxpy ( aux, y%blocks(ib) ) 
-          end if
-       end do
-       call vector_free ( aux )
-    end do
-  end subroutine block_matvec
-
-end module block_matrix_vector_names
+end module prob_names

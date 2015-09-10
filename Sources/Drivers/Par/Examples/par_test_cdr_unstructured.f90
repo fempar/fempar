@@ -94,8 +94,7 @@ program par_test_cdr_unstructured
   !----------------------------------------------------------
   use serial_names
   use par_names
-  use cdr_names
-  use cdr_stabilized_continuous_Galerkin_names 
+  use prob_names
   use mypart_names
   
   implicit none

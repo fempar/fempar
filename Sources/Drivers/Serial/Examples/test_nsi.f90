@@ -27,10 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program test_nsi_iss
   use serial_names
-  use nsi_names
-  use nsi_cg_iss_names
-  use norm_names
-  use lib_vtk_io_interface_names
+  use prob_names
   implicit none
 # include "debug.i90"
   

@@ -1994,10 +1994,10 @@ use mpi
 
   subroutine transfer_coarse_int (icontxt_g, iam_g, np_g, data)
     ! Formerly count_global_coarse_dofs_f_tasks_c_tasks_w_coarse_duties
-use psb_const_mod_names
-use psb_penv_mod_names
+    use psb_const_mod_names
+    use psb_penv_mod_names
 #ifdef MPI_MOD
-use mpi
+    use mpi
 #endif
     implicit none
 #ifdef MPI_H
@@ -2256,7 +2256,7 @@ use mpi
 
        call memfree ( pad_buf_snd,__FILE__,__LINE__)
 
-    else if (pad_collectives == nopad ) then 
+    else if (pad_collectives == nopad ) then
        call mpi_gatherv( coarse_dofs_vars_global, nl_coarse*2, psb_mpi_integer, &
                          rcv_dum, rcv_dumvec, rcv_dumvec, psb_mpi_integer, &
                          root_g, mpi_comm_g, iret)

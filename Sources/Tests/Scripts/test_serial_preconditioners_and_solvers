@@ -1,0 +1,28 @@
+#!/bin/sh
+TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+final_exit_code=0
+if [ -f "$TEST_BINARY_PATH" ]
+then
+ if [ -d "$TEST_INPUT_DATA_PATH" ] 
+   then
+
+      TEST_INPUT_FILE=$(($(dd if=/dev/urandom count=1 2> /dev/null | cksum | cut -d' ' -f1) % 32768))
+      echo "$TEST_INPUT_DATA_PATH/" > $TEST_INPUT_FILE 
+      echo "operator7" >> $TEST_INPUT_FILE 
+       
+      $TEST_BINARY_PATH $TEST_INPUT_FILE 
+      if [ $? -ne 0 ] 
+      then
+         final_exit_code=1
+      fi
+   else
+      echo "$0: input data directory not found!"
+      final_exit_code=1
+   fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $1."
+  final_exit_code=1
+fi
+rm -Rf $TEST_INPUT_FILE
+exit $final_exit_code 

@@ -27,18 +27,18 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module cdr_stabilized_continuous_Galerkin_names
-use types_names
-use memor_names
- use array_names
- use problem_names
- use cdr_names
- use element_fields_names
- use element_tools_names
- use finite_element_names
- implicit none
- private 
+  use types_names
+  use memor_names
+  use array_names
+  use problem_names
+  use cdr_names
+  use element_fields_names
+  use element_tools_names
+  use finite_element_names
+  implicit none
+  private 
 
- type, extends(discrete_problem_t) :: cdr_discrete_t
+  type, extends(discrete_problem_t) :: cdr_discrete_t
     integer(ip) ::   & 
          kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
          kfl_lump,   & ! Flag for lumped mass submatrix
@@ -61,9 +61,24 @@ use memor_names
       procedure :: create  => cdr_matvec_create
       procedure :: compute => cdr_matvec
       procedure :: free    => cdr_matvec_free
-   end type cdr_approximation_t
+   end type cdr_approximation_t   
 
- public :: cdr_approximation_t, cdr_discrete_t
+   type, extends(discrete_integration_t) :: cdr_nonlinear_t
+      type(cdr_discrete_t), pointer :: discret
+      type(cdr_problem_t) , pointer :: physics
+    contains
+      procedure :: create  => cdr_nonlinear_create
+      procedure :: compute => cdr_nonlinear
+      procedure :: free    => cdr_nonlinear_free
+   end type cdr_nonlinear_t
+
+  ! Unkno components parameter definition
+  integer(ip), parameter :: current   = 1
+  integer(ip), parameter :: prev_iter = 2
+  integer(ip), parameter :: prev_step = 3
+
+
+ public :: cdr_approximation_t, cdr_discrete_t, cdr_nonlinear_t
 
 contains
 
@@ -104,8 +119,7 @@ contains
           discret%l2g_var(i) = i
        end do
     end if
-  
-
+    
   end subroutine cdr_create_discrete
 
   !=================================================================================================
@@ -127,10 +141,42 @@ contains
     class default
        check(.false.)
     end select
-	
-    approx%domain_dimension = 3
+
+    ! Allocate working variables
+    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
+    approx%working_vars(1) = 1
+
+    approx%domain_dimension = 3 
 
   end subroutine cdr_matvec_create
+
+  !=================================================================================================
+  subroutine cdr_nonlinear_create( approx, physics, discret )
+    implicit none
+    class(cdr_nonlinear_t)       , intent(inout) :: approx
+    class(physical_problem_t), target, intent(in)    :: physics
+    class(discrete_problem_t), target, intent(in)    :: discret
+
+    select type (physics)
+    type is(cdr_problem_t)
+       approx%physics => physics
+    class default
+       check(.false.)
+    end select 
+    select type (discret)
+    type is(cdr_discrete_t)
+       approx%discret => discret
+    class default
+       check(.false.)
+    end select
+
+    ! Allocate working variables
+    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
+    approx%working_vars(1) = 1
+
+    approx%domain_dimension = 3 
+
+  end subroutine cdr_nonlinear_create
 
   !=================================================================================================
   subroutine cdr_matvec_free(approx)
@@ -140,7 +186,23 @@ contains
     approx%physics => null()
     approx%discret => null()
 
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
   end subroutine cdr_matvec_free
+
+  !=================================================================================================
+  subroutine cdr_nonlinear_free(approx)
+    implicit none
+    class(cdr_nonlinear_t)  , intent(inout) :: approx
+
+    approx%physics => null()
+    approx%discret => null()
+
+    ! Deallocate working variables
+    call memfree(approx%working_vars,__FILE__,__LINE__)
+
+  end subroutine cdr_nonlinear_free
 
   !=================================================================================================
   subroutine cdr_matvec(approx,finite_element)
@@ -168,34 +230,6 @@ contains
     finite_element%p_vec%a = 0.0_rp
     ndime = approx%physics%ndime
 
-    !u = basis_function(approx%physics,1,finite_element%start%a,integ)
-    !p = basis_function(approx%physics,2,finite_element%start%a,integ)
-    !v = basis_function(approx%physics,1,finite_element%start%a,integ) 
-    !q = basis_function(approx%physics,2,finite_element%start%a,integ)
-
-    ! The fields can be created once and reused on each element
-    ! To do that we require an initial loop over elements and
-    ! an initialization call.
-    !call create_vector (approx%physics, 1, integ, a)
-    !call create_vector (approx%physics, 1, integ, u_n)
-    ! Then for each element fill values
-    !call interpolation (unkno, 1, 1, integ, a)
-    !call interpolation (unkno, 1, 3, integ, u_n)
-
-    ! Dirty, isnt'it?
-    !h%a=integ(1)%p%femap%hleng(1,:)     ! max
-    !h%a=integ(1)%p%femap%hleng(ndime,:) ! min
-
-    !mu = approx%physics%diffu
-
-    !dtinv  = approx%discret%dtinv
-    !c1 = approx%discret%k1tau
-    !c2 = approx%discret%k1tau
-
-    ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
-    !tau = inv(tau)
-
-    !mat = integral(grad(v),grad(u))
 
     nnode = finite_element%integ(1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%uint_phy%nlocs
@@ -212,16 +246,80 @@ contains
           end do
        end do
     end do
- 
-    !mat = integral(v,dtinv*u) + integral(grad(v),grad(u))
-    !mat = integral(v,dtinv*u) + integral(v, a*grad(u)) + integral(grad(v),mu*grad(u)) + integral(a*grad(v),tau*a*grad(u)) + integral(div(v),p) + integral(q,div(u))
-
-    ! This will not work right now becaus + of basis_functions and gradients is not defined.
-    !mat = integral(v,dtinv*u+a*grad(u)) + mu*integral(grad(v),grad(u)) + integral(a*grad(v),tau*a*grad(u) ) + integral(div(v),p) + integral(q,div(u))
 
     ! Apply boundary conditions
     call impose_strong_dirichlet_data(finite_element) 
 
   end subroutine cdr_matvec
+
+  !=================================================================================================
+  subroutine cdr_nonlinear(approx,finite_element)
+    implicit none
+    class(cdr_nonlinear_t), intent(inout) :: approx
+    type(finite_element_t)    , intent(inout) :: finite_element
+    ! Locals
+    type(scalar_t) :: force,gpunk
+    integer(ip)    :: idime,igaus,inode,jnode,ngaus,nnode,ndime
+    real(rp)       :: factor,work(4)
+
+    work = 0.0_rp
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
+    ndime = approx%physics%ndime
+    nnode = finite_element%integ(1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%uint_phy%nlocs
+
+    ! Set force term
+    call create_scalar(approx%physics,1,finite_element%integ,force)
+    force%a=0.0_rp
+    ! Impose analytical solution
+    if(finite_element%p_analytical_code%a(1,1)>0) then 
+       call cdr_analytical_force(approx%physics,finite_element,0.0_rp,force)
+    end if
+
+    ! Unknown interpolation
+    if(approx%physics%kfl_react>0) then
+       call create_scalar(approx%physics,1,finite_element%integ,gpunk)
+       call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpunk)
+    end if
+    
+    do igaus = 1,ngaus
+       factor = finite_element%integ(1)%p%femap%detjm(igaus) * finite_element%integ(1)%p%quad%weight(igaus)
+
+       ! Compute analytical reaction
+       if(approx%physics%kfl_react>0) then
+          call cdr_analytical_reaction(approx%physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
+               &                       gpunk%a(igaus),approx%physics%kfl_react,approx%physics%react)
+       end if
+       
+       do inode = 1, nnode
+          do jnode = 1, nnode
+             do idime = 1,ndime
+                ! nu (grad u, grad v)
+                finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
+                     & factor * approx%physics%diffu * &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
+             end do
+             ! react ( u, v)
+             finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
+                  & factor * approx%physics%react * &
+                  & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
+                  & finite_element%integ(1)%p%uint_phy%shape(jnode,igaus)
+          end do
+          ! Force term (f,v)
+          finite_element%p_vec%a(inode) = finite_element%p_vec%a(inode) +  &
+                  & factor * force%a(igaus) * &
+                  & finite_element%integ(1)%p%uint_phy%shape(inode,igaus)
+       end do
+    end do
+
+    call memfree(force%a,__FILE__,__LINE__)
+    if(approx%physics%kfl_react>0) call memfree(gpunk%a,__FILE__,__LINE__)
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(finite_element) 
+
+  end subroutine cdr_nonlinear
 
 end module cdr_stabilized_continuous_Galerkin_names

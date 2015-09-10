@@ -80,7 +80,7 @@ contains
     ! Parameters
     class(block_matrix_t)    , intent(inout) :: bmat
     type(block_graph_t)      , intent(in)    :: bgraph
-	logical                  , intent(in)    :: diagonal_blocks_symmetric(:)
+    logical                  , intent(in)    :: diagonal_blocks_symmetric(:)
     integer(ip)              , intent(in)    :: sign_diagonal_blocks(:)
 
     integer(ip)            :: ib,jb
@@ -92,19 +92,19 @@ contains
     bmat%nblocks = bgraph%get_nblocks()
     allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks) )
     do ib=1, bmat%nblocks 
-      do jb=1, bmat%nblocks
-         f_graph => bgraph%blocks(ib,jb)%p_f_graph
-         if (associated(f_graph)) then
-            allocate ( bmat%blocks(ib,jb)%p_f_matrix )
-            if ( ib == jb ) then
-              call matrix_alloc ( diagonal_blocks_symmetric(ib), f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign_diagonal_blocks(ib) )
-			else
-              call matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
-            end if
-         else
-            nullify ( bmat%blocks(ib,jb)%p_f_matrix )
-         end if
-      end do
+       do jb=1, bmat%nblocks
+          f_graph => bgraph%blocks(ib,jb)%p_f_graph
+          if (associated(f_graph)) then
+             allocate ( bmat%blocks(ib,jb)%p_f_matrix )
+             if ( ib == jb ) then
+                call matrix_alloc ( diagonal_blocks_symmetric(ib), f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign_diagonal_blocks(ib) )
+             else
+                call matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
+             end if
+          else
+             nullify ( bmat%blocks(ib,jb)%p_f_matrix )
+          end if
+       end do
     end do
   end subroutine block_matrix_alloc
 
@@ -129,7 +129,7 @@ contains
        if ( (ib == jb) ) then
           call matrix_alloc ( diagonal_block_symmetric, f_graph, bmat%blocks(ib,jb)%p_f_matrix, diagonal_block_sign )
 	   else
-	      call par_matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
+	      call matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
        end if
     end if
   end subroutine block_matrix_alloc_block
@@ -226,7 +226,7 @@ contains
              do jb=1,op%nblocks
                 if ( associated(op%blocks(ib,jb)%p_f_matrix) ) then
                    ! aux <- A(ib,jb) * x(jb)
-                   call matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
+                   call matrix_matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
                    ! y(ib) <- y(ib) + aux
                    call y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
                 end if
@@ -266,7 +266,7 @@ contains
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks
              ! aux <- A(ib,jb) * x(jb)
-             call matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
+             call matrix_matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
              ! y(ib) <- y(ib) + aux
              call local_y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
           end do

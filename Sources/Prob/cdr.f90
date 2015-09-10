@@ -25,18 +25,23 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module cdr_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use problem_names
+  use finite_element_names
+  use element_fields_names
+  use element_tools_names
+  use analytical_function_names
   implicit none
+# include "debug.i90"
   private 
 
   type, extends(physical_problem_t) :: cdr_problem_t
      integer(ip) ::   & 
           kfl_conv,   & ! Flag for enabling advection
           kfl_tder,   & ! Flag for time derivative computation
+          kfl_react,  & ! Flag for analytical reaction
           case_space, & ! Exact solution (space function)
           case_tempo    ! Exact solution (temporal function)
      real(rp) ::         &
@@ -47,7 +52,7 @@ use memor_names
      procedure :: free => cdr_free
   end type cdr_problem_t
 
-  public :: cdr_problem_t
+  public :: cdr_problem_t, cdr_analytical_force, cdr_analytical_reaction
 
 contains
 
@@ -74,6 +79,7 @@ contains
     ! Flags
     prob%kfl_conv = 1 ! Enabling advection
     prob%kfl_tder = 0 ! Time derivative not computed 
+    prob%kfl_react = 0 ! Non analytical reaction
 
     ! Problem variables
     prob%react  = 0.0_rp  ! Reaction
@@ -84,8 +90,6 @@ contains
     prob%case_tempo   = 0      ! Exact solution (in time)
 
   end subroutine cdr_create
-
-
 
   !=================================================================================================
   subroutine cdr_free( prob )
@@ -99,5 +103,102 @@ contains
 
   end subroutine cdr_free
 
+  !==================================================================================================
+  subroutine cdr_analytical_force(physics,finite_element,ctime,force)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the elemental force needed to impose an analytical solution        !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(cdr_problem_t)   , intent(inout) :: physics
+    type(finite_element_t), intent(in)    :: finite_element
+    real(rp)              , intent(in)    :: ctime
+    type(scalar_t)        , intent(inout) :: force
+    ! Locals
+    integer(ip)    :: igaus,ivars,idime,conve
+    real(rp)       :: gpvno
+    real(rp)       :: params(11,physics%nvars)
+    
+    ! Loop over gauss points
+    do igaus=1,finite_element%integ(1)%p%quad%ngaus
+       
+       ! Evaluate unknowns and derivatives
+       params = 0.0_rp
+       do ivars=1,physics%nvars
+          call evaluate_analytical(finite_element%p_analytical_code%a(ivars,1),                  &
+               &                   finite_element%p_analytical_code%a(ivars,2),                  &
+               &                   physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
+               &                   ctime,params(:,ivars))
+       end do
+
+       ! Compute analytical reaction
+       if(physics%kfl_react>0) then
+          call cdr_analytical_reaction(physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
+               &                       params(1,1),physics%kfl_react,physics%react)
+       end if
+
+       ! Evaluate force
+       call cdr_force(physics%ndime,physics%diffu,physics%react,params,force%a(igaus))
+
+    end do
+
+  end subroutine cdr_analytical_force
+
+  !==================================================================================================
+  subroutine  cdr_force(ndime,diffu,react,params,force)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine evaluates the elemental force needed to impose an analytical solution       !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip), intent(in)    :: ndime
+    real(rp)   , intent(in)    :: diffu,react,params(11,1)
+    real(rp)   , intent(inout) :: force
+
+    real(rp)    :: u,d2udx,d2udy,d2udz,d2udxy,d2udxz,d2udyz
+    real(rp)    :: dudx,dudy,dudz,dudt
+
+    !
+    dudt = params(11,1)
+    !
+    u = params(1,1)
+    !
+    dudx = params(2,1)
+    dudy = params(3,1)
+    dudz = params(4,1)
+    !
+    d2udx = params(5,1)
+    d2udy = params(6,1)
+    d2udz = params(7,1)
+    !
+    d2udxy = params(8,1)
+    d2udxz = params(9,1)
+    d2udyz = params(10,1)
+
+    force =  dudt - diffu*(d2udx+d2udy+d2udz) + react*u
+
+  end subroutine cdr_force
+
+  !==================================================================================================
+  subroutine  cdr_analytical_reaction(ndime,clocs,unkno,kfl_react,react)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the analytical expression of the reaction constant                 !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    integer(ip), intent(in)    :: ndime,kfl_react
+    real(rp)   , intent(in)    :: clocs(ndime),unkno
+    real(rp)   , intent(inout) :: react
+
+    react = 0.0_rp
+    
+    if(kfl_react==1) then
+       react = 1.0_rp
+    elseif(kfl_react==2) then
+       react = clocs(1) + clocs(2)
+    elseif(kfl_react==3) then
+       react = unkno
+    end if
+
+  end subroutine cdr_analytical_reaction
+
 
 end module cdr_names
+

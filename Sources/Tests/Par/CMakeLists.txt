@@ -12,7 +12,9 @@
 #################################################################
 
 IF(MPI_Fortran_COMPILER)
-
+    IF(NOT MPIEXEC)
+        MESSAGE(WARNING "MPIEXEC was not found. Parallel TESTS will not be performed!")
+    ENDIF()
     INCLUDE(CMakeForceCompiler)
     CMAKE_FORCE_Fortran_COMPILER(${MPI_Fortran_COMPILER} ${CMAKE_Fortran_COMPILER_ID})
 
@@ -34,7 +36,8 @@ IF(MPI_Fortran_COMPILER)
     #            LINK_DIRECTORIES(${LIB_PATH})
             ENDIF()
         ENDFOREACH()
-        ADD_TEST(${EXE_NAME}_TEST 
-             ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${CMAKE_SOURCE_DIR}/Sources/Tests/Data/${EXE_NAME}.txt)
+	IF(MPIEXEC)
+            ADD_TEST(${EXE_NAME}_TEST ${SCRIPTS_TESTS_PATH}/${EXE_NAME} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_TESTS_PATH}/${EXE_NAME})
+        ENDIF()
     ENDFOREACH()
 ENDIF()

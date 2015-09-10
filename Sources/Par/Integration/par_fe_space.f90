@@ -59,6 +59,8 @@ use iso_c_binding
 
      ! Pointer to parallel triangulation
      type(par_triangulation_t), pointer :: p_trian => NULL()
+  contains
+     procedure :: set_analytical_code => par_fe_space_set_analytical_code
   end type par_fe_space_t
 
   ! Types
@@ -172,7 +174,7 @@ contains
   !==================================================================================================
   subroutine par_fe_space_set_analytical_code(p_fe_space,spatial_code,temporal_code)
     implicit none
-    type(par_fe_space_t), intent(inout) :: p_fe_space
+    class(par_fe_space_t), intent(inout) :: p_fe_space
     integer(ip)         , intent(in)    :: spatial_code(:)
     integer(ip)         , intent(in)    :: temporal_code(:)
 

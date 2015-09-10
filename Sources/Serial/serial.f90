@@ -34,10 +34,12 @@ module serial_names
   use stdio_names
   use hash_table_names
   use postpro_names
+  use abstract_environment_names
   use serial_environment_names
   use update_names
   use rungekutta_names
   use statistics_names
+  use lib_vtk_io_interface_names
 
   ! Geometry
   use map_names

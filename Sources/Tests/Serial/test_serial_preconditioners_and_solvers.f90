@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-program test_dirsol_mm
+program test_serial_preconditioners_and_solvers
   !-----------------------------------------------------------------------
   !
   !  Test program for solvers wrapped in FEMPAR
@@ -420,14 +420,11 @@ contains
 !            open(unit=10, file=trim(filename), form='FORMATTED', access='SEQUENTIAL', action = 'READ', iostat = ios)
 !            if(ios /= 0) call io_check(ios,filename)
 
-            read(unit=iu, fmt=*, iostat = ios) dir_path
+            read(unit=iu, fmt='(a)', iostat = ios) dir_path
             call io_check(ios,filename)
-            ! dirpath is a relative path from filename folder
-            dir_path=trim(filename(1:index( filename, '/', back=.true.)))//trim(dir_path)
             read(unit=iu, fmt=*, iostat = ios) prefix
             call io_check(ios,filename)
             
-    
             if (solver==3) then
                 read(unit=iu, fmt=*, iostat = ios) smoother
                 call io_check(ios,filename)
@@ -435,9 +432,8 @@ contains
                 call io_check(ios,filename)
                 read(unit=iu, fmt=*, iostat = ios) st_parameter
                 call io_check(ios,filename)
-
             end if
-
+            close(iu)
         endif
 
   end subroutine read_pars_cl_test_dirsol_mm_from_file
@@ -504,4 +500,4 @@ contains
     return
   end function wtime
 
-end program test_dirsol_mm
+end program test_serial_preconditioners_and_solvers
