@@ -28,7 +28,7 @@
 module block_matrix_vector_names
 use types_names
   use block_matrix_names
-  use block_vector_names
+  use serial_block_array_names
   use matrix_names
   use serial_scalar_array_names
   implicit none
@@ -44,8 +44,8 @@ contains
     implicit none
     ! Parameters
     type(block_matrix_t), intent(in)    :: a
-    type(block_vector_t), intent(in)    :: x
-    type(block_vector_t), intent(inout) :: y
+    type(serial_block_array_t), intent(in)    :: x
+    type(serial_block_array_t), intent(inout) :: y
 
     ! Locals
     type(matrix_t), pointer :: f_matrix

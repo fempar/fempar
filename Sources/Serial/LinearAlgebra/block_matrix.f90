@@ -31,7 +31,7 @@ module block_matrix_names
   use graph_names
   use block_graph_names
   use matrix_names
-  use block_vector_names
+  use serial_block_array_names
   use serial_scalar_array_names
   
   ! Abstract types
@@ -218,9 +218,9 @@ contains
 
     call y%init(0.0_rp)
     select type(x)
-    class is (block_vector_t)
+    class is (serial_block_array_t)
        select type(y)
-       class is(block_vector_t)
+       class is(serial_block_array_t)
           do ib=1,op%nblocks
              call aux%clone(y%blocks(ib))
              do jb=1,op%nblocks
@@ -255,13 +255,13 @@ contains
     class(abstract_vector_t), allocatable :: y 
     ! Locals
     integer(ip) :: ib,jb
-    type(block_vector_t), allocatable :: local_y
+    type(serial_block_array_t), allocatable :: local_y
     type(serial_scalar_array_t) :: aux
 
     select type(x)
-    class is (block_vector_t)
+    class is (serial_block_array_t)
        allocate(local_y)
-       call local_y%block_vector_alloc_blocks(op%nblocks)
+       call local_y%serial_block_array_blocks(op%nblocks)
        do ib=1,op%nblocks
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks

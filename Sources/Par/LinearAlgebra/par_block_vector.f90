@@ -29,7 +29,6 @@ module par_block_vector_names
   ! Serial modules
   use types_names
   use memor_names
-  use block_vector_names
   use serial_scalar_array_names
   use abstract_vector_names
     
@@ -42,39 +41,11 @@ module par_block_vector_names
 # include "debug.i90"
 
   private
- 
-  !=============================================================
-  ! TO-CONSIDER:
-  ! 
-  ! x par_block_vector_dot and par_block_vector_nrm2 are not 
-  !   optimal as a global communication (i.e., allreduce) is 
-  !   required for each block. A more clever strategy could 
-  !   replicate the body of par_vector_dot on each block of 
-  !   par_block_vector_dot, and reduce the number of global 
-  !   communications to one. However, with this strategy the code 
-  !   would become significantly dirty. Does it really pay off ?
-  ! 
-  ! x Support for this parallel data structure in integrate.i90 
-  !   would eliminate f_blk_vector member of par_block_vector and 
-  !   par_block_vector_fill_complete method.
-  !=============================================================
 
   ! par_vector
   type, extends(abstract_vector_t) :: par_block_vector_t
      integer(ip)                     :: nblocks = 0
      type(par_vector_t), allocatable :: blocks(:)
-
-     ! **IMPORTANT NOTE**: This is an auxiliary data 
-     ! structure provided in order to use SERIAL 
-     ! block_vector assembly routines. The blocks of this 
-     ! data structure are just VIEWS to the corresponding 
-     ! counterparts in type(par_vector_t), allocatable :: blocks(:).
-     ! This is required because currently integrate.i90 only
-     ! accepts fem* data structures. If we provided support for 
-     ! par* data structures in integrate.i90 we would not require 
-     ! this aux. data structure
-     type(block_vector_t)          :: f_blk_vector
-     logical                       :: fill_completed
    contains
      procedure :: dot   => par_block_vector_dot_tbp
      procedure :: copy  => par_block_vector_copy_tbp
@@ -95,7 +66,7 @@ module par_block_vector_names
 
   ! Functions
   public :: par_block_vector_free,                                              &
-            par_block_vector_fill_complete, par_block_vector_create_view,       &
+            par_block_vector_create_view,       &
             par_block_vector_clone,         par_block_vector_comm,              &
             par_block_vector_weight,                                            &
             par_block_vector_dot,           par_block_vector_nrm2,              &
@@ -120,10 +91,6 @@ contains
 
     bvec%nblocks = 0
     deallocate( bvec%blocks )
-    if ( bvec%fill_completed ) then
-      call block_vector_free ( bvec%f_blk_vector )
-      bvec%fill_completed = .false.
-    end if
   end subroutine par_block_vector_free
 
   !=============================================================================
@@ -150,30 +117,8 @@ contains
     integer(ip)           , intent(in)  :: nblocks
 
     bvec%nblocks        = nblocks
-    bvec%fill_completed = .false.
     allocate ( bvec%blocks(nblocks) )
   end subroutine par_block_vector_alloc_blocks
-
-  !=============================================================================
-  subroutine par_block_vector_fill_complete (bvec)
-    implicit none
-    ! Parameters
-    type(par_block_vector_t), intent(inout) :: bvec
-    
-    ! Locals
-    integer(ip) :: ib  
-  
-    assert ( .not. bvec%fill_completed )
-  
-    call bvec%f_blk_vector%block_vector_alloc_blocks(bvec%nblocks)
-
-    do ib=1, bvec%nblocks
-       call serial_scalar_array_create_view ( bvec%blocks(ib)%f_vector,        &  
-                                   & 1, bvec%blocks(ib)%f_vector%neq, &
-                                   & bvec%f_blk_vector%blocks(ib))
-    end do
-    bvec%fill_completed = .true.
-  end subroutine par_block_vector_fill_complete
 
   !=============================================================================
   subroutine par_block_vector_create_view (svec, start, end, tvec)
