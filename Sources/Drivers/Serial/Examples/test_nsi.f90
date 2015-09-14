@@ -111,7 +111,7 @@ program test_nsi_iss
   type(nsi_cg_iss_matvec_t)   , target  :: cg_iss_matvec
   type(discrete_integration_pointer_t)  :: approx(1)
   type(matrix_t)              , target  :: femat
-  type(vector_t)              , target  :: fevec,feunk
+  type(serial_scalar_array_t)              , target  :: fevec,feunk
   type(preconditioner_t)                :: feprec
   type(preconditioner_params_t)         :: ppars
   type(solver_control_t)                :: sctrl
@@ -212,8 +212,8 @@ program test_nsi_iss
 
   ! Allocate matrices and vectors
   call matrix_alloc(.false.,f_graph,femat)
-  call vector_alloc(f_graph%nv,fevec)
-  call vector_alloc(f_graph%nv,feunk)
+  call serial_scalar_array_alloc(f_graph%nv,fevec)
+  call serial_scalar_array_alloc(f_graph%nv,feunk)
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
@@ -277,8 +277,8 @@ program test_nsi_iss
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
   call f_blk_graph%free()
-  call vector_free(feunk)
-  call vector_free(fevec)
+  call serial_scalar_array_free(feunk)
+  call serial_scalar_array_free(fevec)
   call matrix_free(femat) 
   call fe_space_free(fe_space) 
   call myprob%free
@@ -406,7 +406,7 @@ contains
        ! Store solution to unkno
        ! ***************** Abstract procedure to update from a base operant ************************!
        select type (x)
-       type is(vector_t)
+       type is(serial_scalar_array_t)
           call update_solution(x,fe_space)
        class default
           check(.false.)

@@ -31,7 +31,7 @@ module preconditioner_names
   use memor_names
   use graph_names
   use matrix_names
-  use vector_names
+  use serial_scalar_array_names
   use pardiso_mkl_names
   use wsmp_names
   use hsl_mi20_names
@@ -229,7 +229,7 @@ contains
     type(preconditioner_params_t), intent(in), optional :: pars
 
     ! Locals
-    type (vector_t) :: dum
+    type (serial_scalar_array_t) :: dum
 
     prec%mat => mat
 
@@ -309,7 +309,7 @@ contains
 
     ! Locals
     type (matrix_t) :: adum 
-    type (vector_t) :: vdum 
+    type (serial_scalar_array_t) :: vdum 
 
     if ( action == preconditioner_free_clean ) then
        nullify(prec%mat)
@@ -411,7 +411,7 @@ contains
     type(matrix_t)      , intent(in), target    :: mat
     type(preconditioner_t)     , intent(inout) :: prec
     ! Locals
-    type (vector_t) :: vdum 
+    type (serial_scalar_array_t) :: vdum 
 
     prec%mat => mat
 
@@ -454,7 +454,7 @@ contains
     type(preconditioner_t), target, intent(inout) :: prec
     ! Locals
     type(matrix_t), pointer :: mat
-    type (vector_t) :: vdum 
+    type (serial_scalar_array_t) :: vdum 
     integer(ip)       :: ilev, n, nnz
     integer(ip)       :: i, j
     real(rp)          :: diag
@@ -527,11 +527,11 @@ contains
     ! Parameters
     type(matrix_t)      , intent(in)    :: mat
     type(preconditioner_t)     , intent(inout) :: prec
-    type(vector_t)      , intent(in)    :: x
-    type(vector_t)      , intent(inout) :: y
+    type(serial_scalar_array_t)      , intent(in)    :: x
+    type(serial_scalar_array_t)      , intent(inout) :: y
     ! Locals
-    type (vector_t) :: vdum 
-    type (vector_t) :: E_r
+    type (serial_scalar_array_t) :: vdum 
+    type (serial_scalar_array_t) :: E_r
     real (rp)         :: alpha, beta
     integer(ip)       :: j 
 
@@ -544,7 +544,7 @@ contains
        call wsmp ( wsmp_solve, prec%wsmp_ctxt, mat, x, y, &
             &      prec%wsmp_iparm, prec%wsmp_rparm )
     else if(prec%type==no_prec) then
-       call vector_copy (x,y)
+       call serial_scalar_array_copy (x,y)
     else if ( prec%type==diag_prec ) then
        call apply_diagonal  ( mat%gr%nv, prec%d, x%b, y%b )
     else if (prec%type==hsl_mi20_prec) then
@@ -573,7 +573,7 @@ contains
     real(rp)          , intent(inout)     :: y (ldy, nrhs)
 
     ! Locals
-    type (vector_t)      :: vdum
+    type (serial_scalar_array_t)      :: vdum
     integer(ip)            :: i, j 
     real(rp) , allocatable :: E_r(:,:) 
     real (rp), allocatable :: alpha(:), beta(:)
@@ -622,7 +622,7 @@ contains
     real(rp)         , intent(inout) :: y (mat%gr%nv)
 
     ! Locals
-    type (vector_t)     :: vdum 
+    type (serial_scalar_array_t)     :: vdum 
     real(rp), allocatable :: E_r(:) 
     real (rp)             :: alpha, beta
     integer(ip)           :: j 
@@ -732,9 +732,9 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (vector_t)
+    class is (serial_scalar_array_t)
        select type(y)
-       class is(vector_t)
+       class is(serial_scalar_array_t)
           if(op%type==pardiso_mkl_prec) then
              call pardiso_mkl ( pardiso_mkl_solve, op%pardiso_mkl_ctxt,  &
                   &             op%mat, x, y, op%pardiso_mkl_iparm ) 
@@ -776,7 +776,7 @@ contains
     class(preconditioner_t), intent(in)   :: op
     class(abstract_vector_t), intent(in)  :: x
     class(abstract_vector_t), allocatable :: y
-    type(vector_t), allocatable :: local_y
+    type(serial_scalar_array_t), allocatable :: local_y
 
     
     assert (associated(op%mat))
@@ -784,9 +784,9 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (vector_t)
+    class is (serial_scalar_array_t)
        allocate(local_y)
-       call vector_alloc ( op%mat%gr%nv, local_y)
+       call serial_scalar_array_alloc ( op%mat%gr%nv, local_y)
        call op%apply(x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

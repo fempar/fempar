@@ -35,7 +35,7 @@ module hsl_mi20_names
   use types_names
   use memor_names
   use matrix_names
-  use vector_names 
+  use serial_scalar_array_names 
   use graph_names
 
 #ifdef ENABLE_HSL_MI20
@@ -140,8 +140,8 @@ contains
     integer(ip)           , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
     type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(serial_scalar_array_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(serial_scalar_array_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
 
     type(hsl_mi20_data_t)    , intent(inout) :: data
     type(hsl_mi20_control_t) , intent(in)    :: ctrl
@@ -412,8 +412,8 @@ contains
     ! Parameters 
     type(hsl_mi20_context_t), intent(inout)        :: context
     type(matrix_t)  , intent(in)               :: matrix
-    type(vector_t)  , intent(in), target       :: x
-    type(vector_t)  , intent(inout), target    :: y
+    type(serial_scalar_array_t)  , intent(in), target       :: x
+    type(serial_scalar_array_t)  , intent(inout), target    :: y
     type(hsl_mi20_data_t)    , intent(in)          :: data
     type(hsl_mi20_control_t) , intent(in)          :: ctrl
     type(hsl_mi20_info_t)    , intent(out)         :: info

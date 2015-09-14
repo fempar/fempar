@@ -35,7 +35,7 @@ module assembly_names
   use block_matrix_names
   use matrix_names
   use block_vector_names
-  use vector_names
+  use serial_scalar_array_names
   use scalar_names
   use graph_names
 
@@ -58,7 +58,7 @@ contains
     select type(a)
     class is(matrix_t)
        call assembly_element_matrix_mono(finite_element, dof_descriptor, a) 
-    class is(vector_t)
+    class is(serial_scalar_array_t)
        call assembly_element_vector_mono(finite_element, dof_descriptor, a)
     class is(block_matrix_t)
        call assembly_element_matrix_block(finite_element, dof_descriptor, a)
@@ -204,7 +204,7 @@ contains
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
-    type(vector_t)        , intent(inout) :: a
+    type(serial_scalar_array_t)        , intent(inout) :: a
     
     call element_vector_assembly( dof_descriptor, finite_element, a )
 
@@ -242,7 +242,7 @@ contains
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(fe_face_t)       , intent(in)    :: fe_face
     type(finite_element_t), intent(in)    :: finite_element
-    type(vector_t)        , intent(inout) :: a
+    type(serial_scalar_array_t)        , intent(inout) :: a
 
     ! Note: This subroutine only has sense on interface / boundary faces, only
     ! related to ONE element.
@@ -381,7 +381,7 @@ contains
     ! Parameters
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
-    type(vector_t)        , intent(inout) :: a
+    type(serial_scalar_array_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock
 
     integer(ip) :: iprob, nvapb_i, ivars, l_var, m_var
@@ -410,7 +410,7 @@ contains
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
     type(fe_face_t)       , intent(in)    :: fe_face
-    type(vector_t)        , intent(inout) :: a
+    type(serial_scalar_array_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock
 
     integer(ip) :: iprob, nvapb_i, ivars, l_var, g_var

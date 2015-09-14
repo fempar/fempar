@@ -37,7 +37,7 @@ use umfpack_interface_names
 use types_names
 use memor_names
   use matrix_names
-  use vector_names 
+  use serial_scalar_array_names 
   use graph_names
   use renumbering_names
 
@@ -103,8 +103,8 @@ contains
     integer(ip)           , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
     type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(serial_scalar_array_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(serial_scalar_array_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
 
     select case(action)
 
@@ -395,8 +395,8 @@ use graph_renumbering_names
     ! Parameters 
     type(umfpack_context_t), intent(inout)         :: context
     type(matrix_t)     , intent(in), target    :: matrix
-    type(vector_t)     , intent(in), target    :: x
-    type(vector_t)     , intent(inout), target :: y
+    type(serial_scalar_array_t)     , intent(in), target    :: x
+    type(serial_scalar_array_t)     , intent(inout), target :: y
 
     ! Locals
     real(rp), pointer :: x_(:)

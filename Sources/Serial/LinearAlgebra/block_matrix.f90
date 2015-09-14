@@ -32,7 +32,7 @@ module block_matrix_names
   use block_graph_names
   use matrix_names
   use block_vector_names
-  use vector_names
+  use serial_scalar_array_names
   
   ! Abstract types
   use abstract_vector_names
@@ -212,7 +212,7 @@ contains
     class(abstract_vector_t), intent(inouT) :: y
     ! Locals
     integer(ip) :: ib,jb
-    type(vector_t) :: aux
+    type(serial_scalar_array_t) :: aux
 
     call x%GuardTemp()
 
@@ -256,7 +256,7 @@ contains
     ! Locals
     integer(ip) :: ib,jb
     type(block_vector_t), allocatable :: local_y
-    type(vector_t) :: aux
+    type(serial_scalar_array_t) :: aux
 
     select type(x)
     class is (block_vector_t)

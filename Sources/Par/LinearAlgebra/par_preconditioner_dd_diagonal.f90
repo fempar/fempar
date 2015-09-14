@@ -29,7 +29,7 @@ module par_preconditioner_dd_diagonal_names
   ! Serial modules
   use types_names
   use memor_names
-  use vector_names
+  use serial_scalar_array_names
   use preconditioner_names, only: invert_diagonal, apply_diagonal, extract_diagonal
 
   ! Parallel modules

@@ -47,9 +47,9 @@ program test_serial_preconditioners_and_solvers
 
   type(matrix_t), target :: mmmat
   type(graph_t)          :: mmgraph
-  type(vector_t), target :: b
-  type(vector_t), target :: x
-  type(vector_t), target :: exact_solution 
+  type(serial_scalar_array_t), target :: b
+  type(serial_scalar_array_t), target :: x
+  type(serial_scalar_array_t), target :: exact_solution 
 
   class(abstract_vector_t) , pointer :: x_base, b_base, exact_solution_base
   class(abstract_operator_t), pointer :: A
@@ -94,9 +94,9 @@ program test_serial_preconditioners_and_solvers
 !!$  call io_close(lunio)
 
   ! Alloc vectors
-  call vector_alloc (mmmat%gr%nv,b)
-  call vector_alloc (mmmat%gr%nv,x)
-  call vector_alloc (mmmat%gr%nv,exact_solution)
+  call serial_scalar_array_alloc (mmmat%gr%nv,b)
+  call serial_scalar_array_alloc (mmmat%gr%nv,x)
+  call serial_scalar_array_alloc (mmmat%gr%nv,exact_solution)
   call exact_solution%init(1.0_rp)
 
   A      => mmmat
@@ -309,9 +309,9 @@ program test_serial_preconditioners_and_solvers
 
   call graph_free ( mmgraph )
   call matrix_free ( mmmat ) 
-  call vector_free (b)
-  call vector_free (x)
-  call vector_free (exact_solution)
+  call serial_scalar_array_free (b)
+  call serial_scalar_array_free (x)
+  call serial_scalar_array_free (exact_solution)
 
 contains
 

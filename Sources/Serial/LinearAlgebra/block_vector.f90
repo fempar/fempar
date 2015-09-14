@@ -28,7 +28,7 @@
 module block_vector_names
   use types_names
   use memor_names
-  use vector_names
+  use serial_scalar_array_names
   use abstract_vector_names
   use block_graph_names
   use graph_names
@@ -40,7 +40,7 @@ module block_vector_names
   ! vector
   type, extends(abstract_vector_t) :: block_vector_t
      integer(ip)                 :: nblocks = 0
-     type(vector_t), allocatable :: blocks(:)
+     type(serial_scalar_array_t), allocatable :: blocks(:)
    contains
      procedure :: dot  => block_vector_dot_tbp
      procedure :: copy => block_vector_copy_tbp
@@ -83,7 +83,7 @@ contains
     integer(ip)  :: ib
    
     do ib=1, bvec%nblocks
-       call vector_free ( bvec%blocks(ib) )
+       call serial_scalar_array_free ( bvec%blocks(ib) )
     end do
     
     bvec%nblocks = 0
@@ -102,7 +102,7 @@ contains
     allocate ( bvec%blocks(bvec%nblocks) )
     do ib=1, bvec%nblocks
        f_graph => bgraph%get_block(ib,ib)
-       call vector_alloc ( f_graph%nv, bvec%blocks(ib) )
+       call serial_scalar_array_alloc ( f_graph%nv, bvec%blocks(ib) )
     end do
 
   end subroutine block_vector_alloc_all
@@ -131,7 +131,7 @@ contains
     call tvec%block_vector_alloc_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
-       call vector_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
+       call serial_scalar_array_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
     end do
   end subroutine block_vector_create_view
 
@@ -148,7 +148,7 @@ contains
     call tvec%block_vector_alloc_blocks(svec%nblocks)
    
     do ib=1, svec%nblocks
-       call vector_clone (svec%blocks(ib), tvec%blocks(ib))
+       call serial_scalar_array_clone (svec%blocks(ib), tvec%blocks(ib))
     end do
 
   end subroutine block_vector_clone
@@ -176,7 +176,7 @@ contains
 
     t = 0.0_rp
     do ib=1,x%nblocks
-      call vector_dot ( x%blocks(ib), y%blocks(ib), aux )
+      call serial_scalar_array_dot ( x%blocks(ib), y%blocks(ib), aux )
       t = t + aux
     end do 
   end subroutine block_vector_dot
@@ -200,7 +200,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, x%nblocks
-      call vector_copy ( x%blocks(ib), y%blocks(ib) )
+      call serial_scalar_array_copy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine block_vector_copy
 
@@ -211,7 +211,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, y%nblocks
-      call vector_zero ( y%blocks(ib) )
+      call serial_scalar_array_zero ( y%blocks(ib) )
     end do 
 
   end subroutine block_vector_zero
@@ -224,7 +224,7 @@ contains
     integer(ip)                           :: ib
 
     do ib=1, y%nblocks
-      call vector_init ( alpha, y%blocks(ib) )
+      call serial_scalar_array_init ( alpha, y%blocks(ib) )
     end do    
   end subroutine block_vector_init
   
@@ -239,7 +239,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call vector_scale ( t, x%blocks(ib), y%blocks(ib) )
+      call serial_scalar_array_scale ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
   end subroutine block_vector_scale
@@ -253,7 +253,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call vector_mxpy ( x%blocks(ib), y%blocks(ib) )
+      call serial_scalar_array_mxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine block_vector_mxpy
   subroutine block_vector_axpy(t,x,y)
@@ -266,7 +266,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call vector_axpy ( t, x%blocks(ib), y%blocks(ib) )
+      call serial_scalar_array_axpy ( t, x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine block_vector_axpy
 
@@ -281,7 +281,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call vector_aypx ( t, x%blocks(ib), y%blocks(ib) )
+      call serial_scalar_array_aypx ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
   end subroutine block_vector_aypx
@@ -295,7 +295,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call vector_pxpy ( x%blocks(ib), y%blocks(ib) )
+      call serial_scalar_array_pxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine block_vector_pxpy
 
@@ -308,7 +308,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call vector_pxmy ( x%blocks(ib), y%blocks(ib) )
+      call serial_scalar_array_pxmy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine block_vector_pxmy
 
@@ -321,7 +321,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, x%nblocks
-      call vector_print ( luout, x%blocks(ib) )
+      call serial_scalar_array_print ( luout, x%blocks(ib) )
     end do 
   end subroutine block_vector_print
 

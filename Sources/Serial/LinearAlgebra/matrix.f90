@@ -31,7 +31,7 @@ module matrix_names
   use memor_names
   use sort_names
   use graph_names
-  use vector_names
+  use serial_scalar_array_names
   use matvec_names
 
   ! Abstract types
@@ -451,8 +451,8 @@ contains
   subroutine matrix_matvec (a,x,y)
     implicit none
     type(matrix_t) , intent(in)    :: a
-    type(vector_t) , intent(in)    :: x
-    type(vector_t) , intent(inout) :: y
+    type(serial_scalar_array_t) , intent(in)    :: x
+    type(serial_scalar_array_t) , intent(inout) :: y
     real(rp) :: aux
 
     if (.not. a%gr%symmetric_storage) then
@@ -487,8 +487,8 @@ contains
   subroutine matrix_matvec_trans (a,x,y)
     implicit none
     type(matrix_t) , intent(in)    :: a
-    type(vector_t) , intent(in)    :: x
-    type(vector_t) , intent(inout) :: y
+    type(serial_scalar_array_t) , intent(in)    :: x
+    type(serial_scalar_array_t) , intent(inout) :: y
     if (.not. a%gr%symmetric_storage) then
        call matvec_trans(a%gr%nv,a%gr%nv2,a%gr%ia,a%gr%ja,a%a,x%b,y%b)
     else 
@@ -531,9 +531,9 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (vector_t)
+    class is (serial_scalar_array_t)
        select type(y)
-       class is(vector_t)
+       class is(serial_scalar_array_t)
           call matrix_matvec(op, x, y)
           ! call vector_print(6,y)
        class default
@@ -556,12 +556,12 @@ contains
     class(abstract_vector_t) , intent(in)  :: x
     class(abstract_vector_t) , allocatable :: y 
 
-    type(vector_t), allocatable :: local_y
+    type(serial_scalar_array_t), allocatable :: local_y
 
     select type(x)
-    class is (vector_t)
+    class is (serial_scalar_array_t)
        allocate(local_y)
-       call vector_alloc ( op%gr%nv, local_y)
+       call serial_scalar_array_alloc ( op%gr%nv, local_y)
        call matrix_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

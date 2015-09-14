@@ -35,7 +35,7 @@ module wsmp_names
   use types_names
   use memor_names
   use matrix_names
-  use vector_names 
+  use serial_scalar_array_names 
 
 # include "debug.i90"
   
@@ -171,8 +171,8 @@ contains
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
     type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
-    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
+    type(serial_scalar_array_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
+    type(serial_scalar_array_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     ! Optional parameters
 !!$    integer , intent(inout), target, optional :: perm(A%gr%nv)
 !!$    integer , intent(inout), target, optional :: iperm(A%gr%nv)
@@ -749,8 +749,8 @@ contains
     type(wsmp_context_t), intent(inout), target :: context
     type(matrix_t)  , intent(in)   , target :: matrix
 !    type(vector_t)  , intent(in)   , target :: x
-    type(vector_t)  , intent(in)            :: x
-    type(vector_t)  , intent(inout), target :: y
+    type(serial_scalar_array_t)  , intent(in)            :: x
+    type(serial_scalar_array_t)  , intent(inout), target :: y
     integer, intent(inout), target, optional :: perm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
     integer, intent(inout), target, optional :: iparm(64)

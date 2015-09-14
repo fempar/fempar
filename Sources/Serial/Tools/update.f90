@@ -29,7 +29,7 @@ module update_names
   use types_names
   use memor_names
   use fe_space_names
-  use vector_names
+  use serial_scalar_array_names
   use block_vector_names
   use conditions_names
   use analytical_function_names
@@ -222,7 +222,7 @@ contains
     type(fe_space_t)     , intent(inout) :: fe_space
 
     select type(vec)
-    class is(vector_t)
+    class is(serial_scalar_array_t)
        call update_solution_mono(vec,fe_space)
     class is(block_vector_t)
        call update_solution_block(vec,fe_space)
@@ -239,7 +239,7 @@ contains
     !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(vector_t)     , intent(in)    :: fevec   
+    type(serial_scalar_array_t)     , intent(in)    :: fevec   
     type(fe_space_t)      , intent(inout) :: fe_space
     integer(ip), optional, intent(in)    :: iblock
     ! Locals
@@ -341,7 +341,7 @@ contains
     type(fe_space_t)     , intent(in)    :: fe_space
 
     select type(vec)
-    class is(vector_t)
+    class is(serial_scalar_array_t)
        call update_initialize_mono(vec,fe_space)
     class is(block_vector_t)
        call update_initialize_block(vec,fe_space)
@@ -358,7 +358,7 @@ contains
     !   This subroutine stores the solution from a vector into unkno.                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(vector_t)       , intent(inout) :: fevec   
+    type(serial_scalar_array_t)       , intent(inout) :: fevec   
     type(fe_space_t)     , intent(in)    :: fe_space
     integer(ip), optional, intent(in)    :: iblock
     ! Locals

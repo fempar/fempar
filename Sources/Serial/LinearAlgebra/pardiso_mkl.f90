@@ -39,7 +39,7 @@ module pardiso_mkl_names
   use types_names
   use memor_names
   use matrix_names
-  use vector_names 
+  use serial_scalar_array_names 
 
   ! F90 interface to Intel MKL PARDISO
 #ifdef ENABLE_MKL
@@ -142,8 +142,8 @@ contains
                                                         ! (see public constants above)
     type(pardiso_mkl_context_t), intent(inout) :: context ! Information required between calls
     type(matrix_t), intent(in)             :: A       ! Linear system coefficient matrix
-    type(vector_t), intent(in)             :: b       ! RHS (Right-hand-side)
-    type(vector_t), intent(inout)          :: x       ! LHS (Left-hand-side)
+    type(serial_scalar_array_t), intent(in)             :: b       ! RHS (Right-hand-side)
+    type(serial_scalar_array_t), intent(inout)          :: x       ! LHS (Left-hand-side)
     integer         , intent(inout), target, optional :: iparm(64)
     integer         , optional                     :: msglvl
     integer         , intent(in), target, optional :: perm(*)
@@ -623,8 +623,8 @@ contains
     ! Parameters 
     type(pardiso_mkl_context_t), intent(inout)                   :: context
     type(matrix_t)         , intent(in)   , target           :: matrix
-    type(vector_t)         , intent(in)   , target           :: x
-    type(vector_t)         , intent(inout), target           :: y
+    type(serial_scalar_array_t)         , intent(in)   , target           :: x
+    type(serial_scalar_array_t)         , intent(inout), target           :: y
     integer                  , intent(in)   , target, optional :: iparm(64)
     integer                  , intent(in)   , optional         :: msglvl
 

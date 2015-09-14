@@ -74,7 +74,7 @@ module serial_names
   use matrix_names
   use block_graph_names
   use preconditioner_names
-  use vector_names
+  use serial_scalar_array_names
   use block_matrix_names
   use block_vector_names
   use block_matrix_vector_names

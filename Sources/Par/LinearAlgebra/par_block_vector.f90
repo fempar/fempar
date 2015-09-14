@@ -30,7 +30,7 @@ module par_block_vector_names
   use types_names
   use memor_names
   use block_vector_names
-  use vector_names
+  use serial_scalar_array_names
   use abstract_vector_names
     
   ! Parallel modules
@@ -168,7 +168,7 @@ contains
     call bvec%f_blk_vector%block_vector_alloc_blocks(bvec%nblocks)
 
     do ib=1, bvec%nblocks
-       call vector_create_view ( bvec%blocks(ib)%f_vector,        &  
+       call serial_scalar_array_create_view ( bvec%blocks(ib)%f_vector,        &  
                                    & 1, bvec%blocks(ib)%f_vector%neq, &
                                    & bvec%f_blk_vector%blocks(ib))
     end do

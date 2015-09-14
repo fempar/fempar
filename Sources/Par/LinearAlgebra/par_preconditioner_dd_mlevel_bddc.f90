@@ -50,7 +50,7 @@ module par_preconditioner_dd_mlevel_bddc_names
   use matrix_names
   use preconditioner_names
   use graph_names
-  use vector_names
+  use serial_scalar_array_names
   use operator_dd_names
   use postpro_names
   use stdio_names
@@ -383,7 +383,7 @@ use mpi
     ! Locals
     integer            :: i, istat
     logical            :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
-    type (vector_t)  :: dum 
+    type (serial_scalar_array_t)  :: dum 
     type (matrix_t)  :: mat_dum
     type (par_context_t) :: dum_context
 
@@ -742,7 +742,7 @@ use mpi
     integer(ip)                     , intent(in)    :: mode
 
     ! Locals
-    type (vector_t) :: dum 
+    type (serial_scalar_array_t) :: dum 
     integer           :: iam, istat
     logical           :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
 
@@ -6037,7 +6037,7 @@ use mpi
     type(par_vector_t)      :: r, dx, v1, v2, v3, aux
     type(par_vector_t)      :: r_I, r_G, x_I, x_G, r_v1, y_I, y_G, dx_I, dx_G
     type(par_vector_t)      :: p_r_c, p_z_c
-    type(vector_t)      :: r_c, z_c, dum_vec
+    type(serial_scalar_array_t)      :: r_c, z_c, dum_vec
     logical               :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
     ! The routine requires the partition/context info
@@ -6091,7 +6091,7 @@ use mpi
           call par_vector_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
           ! Init interior vertices to zero
-          call vector_zero ( r_I%f_vector )
+          call serial_scalar_array_zero ( r_I%f_vector )
 
           ! Phase 1: compute coarse-grid correction v1
           call par_vector_clone ( x_G, v1 )
@@ -6182,7 +6182,7 @@ use mpi
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%f_vector, dx_I%f_vector )
-          call vector_zero            ( dx_G%f_vector )
+          call serial_scalar_array_zero            ( dx_G%f_vector )
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6253,7 +6253,7 @@ use mpi
 
           ! 6) Compute 1), 2)
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, dx_I%f_vector )
-          call vector_zero            ( dx_G%f_vector )
+          call serial_scalar_array_zero            ( dx_G%f_vector )
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6274,13 +6274,13 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              ! Assemble coarse-grid residual
-             call vector_alloc ( mlbddc%A_c%gr%nv, r_c )    
+             call serial_scalar_array_alloc ( mlbddc%A_c%gr%nv, r_c )    
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, r_c )
 
              ! Solve coarse-grid problem serially
-             call vector_alloc ( mlbddc%A_c%gr%nv, z_c )    
+             call serial_scalar_array_alloc ( mlbddc%A_c%gr%nv, z_c )    
              mlbddc%spars_coarse%nrhs=1
-             call vector_zero(z_c)
+             call serial_scalar_array_zero(z_c)
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call solve( mlbddc%A_c, mlbddc%M_c, r_c, z_c, mlbddc%spars_coarse)
              else
@@ -6293,8 +6293,8 @@ use mpi
              ! Scatter solution of coarse-grid problem 
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, z_c, v1 )
 
-             call vector_free (z_c)
-             call vector_free (r_c)
+             call serial_scalar_array_free (z_c)
+             call serial_scalar_array_free (r_c)
           end if
 
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -6380,7 +6380,7 @@ use mpi
    ! Parameters
    type(par_preconditioner_dd_mlevel_bddc_t) ,intent(in) :: mlbddc
    type(par_vector_t)                 ,intent(in) :: r_G
-   type(vector_t)                 ,intent(inout) :: r_c 
+   type(serial_scalar_array_t)                 ,intent(inout) :: r_c 
 
    ! Locals
    integer :: me, np
@@ -6498,7 +6498,7 @@ use mpi
    implicit none
    ! Parameters
    type(par_preconditioner_dd_mlevel_bddc_t), intent(in) :: mlbddc
-   type(vector_t)                , intent(inout) :: z_c
+   type(serial_scalar_array_t)                , intent(inout) :: z_c
    type(par_vector_t)                , intent(inout) :: v_G 
 
    ! Locals
@@ -6917,7 +6917,7 @@ use mpi
     implicit none
 
     ! Parameters
-    type(vector_t), intent(inout)         :: r_c
+    type(serial_scalar_array_t), intent(inout)         :: r_c
     integer(ip)     , intent(in)            :: np, ng_coarse, sz_r_ci_gathered
     integer(ip)     , intent(in)            :: ptr_coarse_dofs (np+1)
     integer(ip)     , intent(in)            :: lst_coarse_dofs (ptr_coarse_dofs(np+1))
@@ -6936,7 +6936,7 @@ use mpi
      ! AFM: r_c should have been allocated in advance by the caller subroutine.
      !      As vector_alloc already initializes r_c to zero, the following
      !      sentence might not be needed. I leave it for safety reasons.
-     call vector_zero(r_c)
+     call serial_scalar_array_zero(r_c)
      if ( .not. present(perm) ) then
         base_ptr = 0
         base_dof = 1
@@ -6989,7 +6989,7 @@ use mpi
     integer(ip), intent(in)      :: max_coarse_dofs
     integer(ip), intent(in)      :: ptr_coarse_dofs (np_g+1)
     integer(ip), intent(in)      :: lst_coarse_dofs (ptr_coarse_dofs (np_g+1))
-    type(vector_t), intent(in) :: z_c
+    type(serial_scalar_array_t), intent(in) :: z_c
     integer(ip), optional, intent(in) :: perm(np_g-1)
 
     ! Locals
@@ -7596,7 +7596,7 @@ use mpi
 
     ! Locals
     real(rp), allocatable :: C_weights_i(:), C_weights_i_gathered(:)
-    type(vector_t)      :: C_weights_next_level
+    type(serial_scalar_array_t)      :: C_weights_next_level
     type(par_vector_t)      :: constraint_weights
     integer(ip)           :: i, j, sum
     logical               :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
@@ -7640,10 +7640,10 @@ use mpi
        C_weights_i = 0.0_rp
 
        if ( mlbddc%nl_coarse > 0 ) then           
-              call vector_alloc(mlbddc%p_mat%dof_dist%nb, constraint_weights%f_vector)
+              call serial_scalar_array_alloc(mlbddc%p_mat%dof_dist%nb, constraint_weights%f_vector)
               constraint_weights%f_vector%b = mlbddc%C_weights
               call apply_harm_trans( mlbddc, constraint_weights, C_weights_i ) 
-              call vector_free ( constraint_weights%f_vector ) 
+              call serial_scalar_array_free ( constraint_weights%f_vector ) 
        end if
     end if
 
@@ -7663,7 +7663,7 @@ use mpi
                  call psb_barrier ( mlbddc%g_context%icontxt )
               end if
       
-         call vector_alloc ( mlbddc%ng_coarse, C_weights_next_level )
+         call serial_scalar_array_alloc ( mlbddc%ng_coarse, C_weights_next_level )
          call sum_coarse_stiffness_vectors ( C_weights_next_level, &
                                              mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
@@ -7681,7 +7681,7 @@ use mpi
 
         call memalloc (  nb ,  mlbddc%p_M_c%C_weights , __FILE__, __LINE__) 
         mlbddc%p_M_c%C_weights = C_weights_next_level%b(ni+1:ni+nb)
-        call vector_free ( C_weights_next_level ) 
+        call serial_scalar_array_free ( C_weights_next_level ) 
 
         call memfree ( C_weights_i_gathered,__FILE__,__LINE__)
 
@@ -8729,8 +8729,8 @@ use mpi
     implicit none
     type(matrix_t)    ,intent(in)    :: A     ! Matrix
     type(preconditioner_t)   ,intent(in)    :: M     ! Preconditioner
-    type(vector_t)    ,intent(in)    :: b     ! RHS
-    type(vector_t)    ,intent(inout) :: x     ! Approximate solution
+    type(serial_scalar_array_t)    ,intent(in)    :: b     ! RHS
+    type(serial_scalar_array_t)    ,intent(inout) :: x     ! Approximate solution
     type(solver_control_t),intent(inout) :: pars  ! Solver parameters
 
     ! Locals
@@ -8749,8 +8749,8 @@ use mpi
     type(solver_control_t)        ,intent(inout) :: pars       ! Solver parameters
 
     ! Locals
-    type(vector_t)         :: vector_b
-    type(vector_t)         :: vector_x
+    type(serial_scalar_array_t)         :: vector_b
+    type(serial_scalar_array_t)         :: vector_x
     type(serial_environment_t) :: senv
 
     ! fill vector_b members
@@ -8777,8 +8777,8 @@ use mpi
     real(rp)           , target ,intent(inout) :: x(ldx, pars%nrhs) ! Approximate solution
 
     ! Locals
-    type(vector_t)         :: vector_b
-    type(vector_t)         :: vector_x
+    type(serial_scalar_array_t)         :: vector_b
+    type(serial_scalar_array_t)         :: vector_x
     type(serial_environment_t) :: senv
     integer(ip)              :: k
     integer(ip)              :: tot_its
