@@ -61,7 +61,7 @@ module serial_block_array_names
 
   ! Functions
   public :: serial_block_array_free,        & 
-            serial_block_array_create_view, serial_block_array_clone, & 
+            serial_block_array_create_view, &
             serial_block_array_comm,                                &
             serial_block_array_dot,                                 & 
             serial_block_array_nrm2, serial_block_array_copy,         & 
@@ -79,7 +79,7 @@ contains
     integer(ip)  :: ib
    
     do ib=1, bvec%nblocks
-       call serial_scalar_array_free ( bvec%blocks(ib) )
+       call bvec%blocks(ib)%free()
     end do
     
     bvec%nblocks = 0
@@ -98,7 +98,7 @@ contains
     allocate ( bvec%blocks(bvec%nblocks) )
     do ib=1, bvec%nblocks
        f_graph => bgraph%get_block(ib,ib)
-       call serial_scalar_array_alloc ( f_graph%nv, bvec%blocks(ib) )
+       call bvec%blocks(ib)%create(f_graph%nv)
     end do
 
   end subroutine serial_block_array_alloc_all
@@ -127,27 +127,9 @@ contains
     call tvec%serial_block_array_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
-       call serial_scalar_array_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
+       call svec%blocks(ib)%create_view (start, end, tvec%blocks(ib))
     end do
   end subroutine serial_block_array_create_view
-
-  !=============================================================================
-  subroutine serial_block_array_clone ( svec, tvec )
-    implicit none
-    ! Parameters
-    type(serial_block_array_t), intent( in ) :: svec
-    type(serial_block_array_t), intent(out) :: tvec
- 
-    ! Locals
-    integer(ip) :: ib
-   
-    call tvec%serial_block_array_blocks(svec%nblocks)
-   
-    do ib=1, svec%nblocks
-       call serial_scalar_array_clone (svec%blocks(ib), tvec%blocks(ib))
-    end do
-
-  end subroutine serial_block_array_clone
 
   !=============================================================================
   ! Dummy method required to specialize Krylov subspace methods
@@ -172,7 +154,7 @@ contains
 
     t = 0.0_rp
     do ib=1,x%nblocks
-      call serial_scalar_array_dot ( x%blocks(ib), y%blocks(ib), aux )
+      aux=x%blocks(ib)%dot(y%blocks(ib))
       t = t + aux
     end do 
   end subroutine serial_block_array_dot
@@ -196,7 +178,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, x%nblocks
-      call serial_scalar_array_copy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%copy(x%blocks(ib))
     end do 
   end subroutine serial_block_array_copy
 
@@ -207,7 +189,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, y%nblocks
-      call serial_scalar_array_zero ( y%blocks(ib) )
+      call y%blocks(ib)%init(0.0_rp)
     end do 
 
   end subroutine serial_block_array_zero
@@ -220,7 +202,7 @@ contains
     integer(ip)                           :: ib
 
     do ib=1, y%nblocks
-      call serial_scalar_array_init ( alpha, y%blocks(ib) )
+      call y%blocks(ib)%init(alpha)
     end do    
   end subroutine serial_block_array_init
   
@@ -235,7 +217,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call serial_scalar_array_scale ( t, x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%scal (t, x%blocks(ib))
     end do 
 
   end subroutine serial_block_array_scale
@@ -249,7 +231,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call serial_scalar_array_mxpy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby ( -1.0_rp, x%blocks(ib), 1.0_rp )
     end do 
   end subroutine serial_block_array_mxpy
   subroutine serial_block_array_axpy(t,x,y)
@@ -262,7 +244,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call serial_scalar_array_axpy ( t, x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby ( t, x%blocks(ib), 1.0_rp )
     end do 
   end subroutine serial_block_array_axpy
 
@@ -277,7 +259,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call serial_scalar_array_aypx ( t, x%blocks(ib), y%blocks(ib) )
+     call y%blocks(ib)%axpby(1.0_rp,x%blocks(ib),t)
     end do 
 
   end subroutine serial_block_array_aypx
@@ -291,7 +273,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call serial_scalar_array_pxpy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby ( 1.0_rp, x%blocks(ib), 1.0_rp )
     end do 
   end subroutine serial_block_array_pxpy
 
@@ -304,7 +286,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call serial_scalar_array_pxmy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby ( 1.0_rp, x%blocks(ib), -1.0_rp )
     end do 
   end subroutine serial_block_array_pxmy
 
@@ -317,7 +299,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, x%nblocks
-      call serial_scalar_array_print ( luout, x%blocks(ib) )
+      call x%blocks(ib)%print(luout)
     end do 
   end subroutine serial_block_array_print
 

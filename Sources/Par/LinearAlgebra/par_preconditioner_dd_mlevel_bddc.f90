@@ -6091,7 +6091,7 @@ use mpi
           call par_scalar_array_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
           ! Init interior vertices to zero
-          call serial_scalar_array_zero ( r_I%f_vector )
+          call r_I%f_vector%init(0.0_rp)
 
           ! Phase 1: compute coarse-grid correction v1
           call par_scalar_array_clone ( x_G, v1 )
@@ -6182,7 +6182,7 @@ use mpi
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%f_vector, dx_I%f_vector )
-          call serial_scalar_array_zero            ( dx_G%f_vector )
+          call dx_G%f_vector%init(0.0_rp)
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6253,7 +6253,7 @@ use mpi
 
           ! 6) Compute 1), 2)
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, dx_I%f_vector )
-          call serial_scalar_array_zero            ( dx_G%f_vector )
+          call dx_G%f_vector%init(0.0_rp)
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6274,13 +6274,13 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              ! Assemble coarse-grid residual
-             call serial_scalar_array_alloc ( mlbddc%A_c%gr%nv, r_c )    
+             call r_c%create(mlbddc%A_c%gr%nv)    
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, r_c )
 
              ! Solve coarse-grid problem serially
-             call serial_scalar_array_alloc ( mlbddc%A_c%gr%nv, z_c )    
+             call z_c%create ( mlbddc%A_c%gr%nv )    
              mlbddc%spars_coarse%nrhs=1
-             call serial_scalar_array_zero(z_c)
+             call z_c%init(0.0_rp)
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call solve( mlbddc%A_c, mlbddc%M_c, r_c, z_c, mlbddc%spars_coarse)
              else
@@ -6293,8 +6293,8 @@ use mpi
              ! Scatter solution of coarse-grid problem 
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, z_c, v1 )
 
-             call serial_scalar_array_free (z_c)
-             call serial_scalar_array_free (r_c)
+             call z_c%free()
+             call r_c%free()
           end if
 
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -6936,7 +6936,7 @@ use mpi
      ! AFM: r_c should have been allocated in advance by the caller subroutine.
      !      As vector_alloc already initializes r_c to zero, the following
      !      sentence might not be needed. I leave it for safety reasons.
-     call serial_scalar_array_zero(r_c)
+     call r_c%init(0.0_rp)
      if ( .not. present(perm) ) then
         base_ptr = 0
         base_dof = 1
@@ -7640,10 +7640,10 @@ use mpi
        C_weights_i = 0.0_rp
 
        if ( mlbddc%nl_coarse > 0 ) then           
-              call serial_scalar_array_alloc(mlbddc%p_mat%dof_dist%nb, constraint_weights%f_vector)
+              call constraint_weights%f_vector%create(mlbddc%p_mat%dof_dist%nb)
               constraint_weights%f_vector%b = mlbddc%C_weights
               call apply_harm_trans( mlbddc, constraint_weights, C_weights_i ) 
-              call serial_scalar_array_free ( constraint_weights%f_vector ) 
+              call constraint_weights%f_vector%free()
        end if
     end if
 
@@ -7663,7 +7663,7 @@ use mpi
                  call psb_barrier ( mlbddc%g_context%icontxt )
               end if
       
-         call serial_scalar_array_alloc ( mlbddc%ng_coarse, C_weights_next_level )
+         call C_weights_next_level%create (mlbddc%ng_coarse)
          call sum_coarse_stiffness_vectors ( C_weights_next_level, &
                                              mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
@@ -7681,7 +7681,7 @@ use mpi
 
         call memalloc (  nb ,  mlbddc%p_M_c%C_weights , __FILE__, __LINE__) 
         mlbddc%p_M_c%C_weights = C_weights_next_level%b(ni+1:ni+nb)
-        call serial_scalar_array_free ( C_weights_next_level ) 
+        call C_weights_next_level%free()
 
         call memfree ( C_weights_i_gathered,__FILE__,__LINE__)
 

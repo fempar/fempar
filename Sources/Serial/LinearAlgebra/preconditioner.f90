@@ -544,7 +544,7 @@ contains
        call wsmp ( wsmp_solve, prec%wsmp_ctxt, mat, x, y, &
             &      prec%wsmp_iparm, prec%wsmp_rparm )
     else if(prec%type==no_prec) then
-       call serial_scalar_array_copy (x,y)
+       call y%copy(x)
     else if ( prec%type==diag_prec ) then
        call apply_diagonal  ( mat%gr%nv, prec%d, x%b, y%b )
     else if (prec%type==hsl_mi20_prec) then
@@ -786,7 +786,7 @@ contains
     select type(x)
     class is (serial_scalar_array_t)
        allocate(local_y)
-       call serial_scalar_array_alloc ( op%mat%gr%nv, local_y)
+       call local_y%create (op%mat%gr%nv)
        call op%apply(x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

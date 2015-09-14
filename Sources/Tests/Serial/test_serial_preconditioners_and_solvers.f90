@@ -94,9 +94,9 @@ program test_serial_preconditioners_and_solvers
 !!$  call io_close(lunio)
 
   ! Alloc vectors
-  call serial_scalar_array_alloc (mmmat%gr%nv,b)
-  call serial_scalar_array_alloc (mmmat%gr%nv,x)
-  call serial_scalar_array_alloc (mmmat%gr%nv,exact_solution)
+  call b%create (mmmat%gr%nv)
+  call x%create (mmmat%gr%nv)
+  call exact_solution%create(mmmat%gr%nv)
   call exact_solution%init(1.0_rp)
 
   A      => mmmat
@@ -309,9 +309,9 @@ program test_serial_preconditioners_and_solvers
 
   call graph_free ( mmgraph )
   call matrix_free ( mmmat ) 
-  call serial_scalar_array_free (b)
-  call serial_scalar_array_free (x)
-  call serial_scalar_array_free (exact_solution)
+  call b%free()
+  call x%free()
+  call exact_solution%free()
 
 contains
 

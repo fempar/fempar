@@ -56,8 +56,8 @@ contains
     assert ( a%get_nblocks() == y%nblocks )
     
     do ib=1, a%get_nblocks()
-       call serial_scalar_array_zero  ( y%blocks(ib) )
-       call serial_scalar_array_clone ( y%blocks(ib), aux ) 
+       call y%blocks(ib)%init(0.0_rp)
+       call aux%clone(y%blocks(ib)) 
        do jb=1, a%get_nblocks()
           f_matrix => a%blocks(ib,jb)%p_f_matrix
           if ( associated(f_matrix) ) then
@@ -65,10 +65,10 @@ contains
              call matrix_matvec ( f_matrix, x%blocks(jb), aux )
              
              ! y(ib) <- y(ib) + aux 
-             call serial_scalar_array_pxpy ( aux, y%blocks(ib) ) 
+             call y%blocks(ib)%axpby ( 1.0_rp, aux, 1.0_rp ) 
           end if
        end do
-       call serial_scalar_array_free ( aux )
+       call aux%free()
     end do
   end subroutine block_matvec
 

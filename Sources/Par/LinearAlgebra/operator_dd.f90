@@ -110,9 +110,9 @@ module operator_dd_names
 
   public :: operator_dd_create, operator_dd_free,             &  
             operator_dd_ass_struct, operator_dd_fill_val,     & 
-            operator_dd_apply, operator_dd_solve_A_II,        &
+            operator_dd_solve_A_II,        &
             operator_dd_apply_A_IG, operator_dd_apply_A_GI,   &
-            operator_dd_apply_A_GG, operator_dd_evaluate_rhs, &
+            operator_dd_apply_A_GG, &
             operator_dd_solve_interior,      &
             operator_dd_compute_ut_op_u, operator_dd_apply_A_IG_several_rhs, &
             operator_dd_apply_A_GI_plus_A_GG
@@ -294,28 +294,19 @@ contains
                                f_operator%dof_dist, & 
                                G_II=f_operator%A_II_gr, G_IG=f_operator%A_IG_gr, &
                                G_GI=f_operator%A_GI_gr, G_GG=f_operator%A_GG_gr  )
-        ! call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
-        ! call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
-        ! call matrix_graph(f_operator%A_GI_gr, f_operator%A_GI)
-        ! call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
      else 
         call split_graph_I_G_symm ( f_matrix%gr, & 
                                     f_operator%dof_dist, & 
                                     G_II=f_operator%A_II_gr, & 
                                     G_IG=f_operator%A_IG_gr, &
                                     G_GG=f_operator%A_GG_gr )
-        ! call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
-        ! call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
-        ! call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
      end if
 
      call preconditioner_symbolic(f_operator%A_II, f_operator%M_II)
-
      ! call graph_print ( 6, f_operator%A_II%gr ) ! DBG:
      ! call graph_print ( 6, f_operator%A_IG%gr ) ! DBG:
      ! call graph_print ( 6, f_operator%A_GI%gr ) ! DBG:
      ! call graph_print ( 6, f_operator%A_GG%gr ) ! DBG:
-
   end subroutine operator_dd_ass_struct
 
   !=============================================================================
@@ -344,76 +335,6 @@ contains
      call preconditioner_numeric(f_operator%M_II)
 	 
   end subroutine operator_dd_fill_val
-
-  !=============================================================================
-  ! Computes y_G -< S_G x_G, where S_G the local Schur
-  ! complement is given by S_G <- A_GG - A_G_I A_II^-1 A_IG
-  ! VERY IMPORTANT: operator_dd_apply is well-defined if and only if x_G and 
-  !                 y_G are vectors on the interface
-  !=============================================================================  
-  subroutine operator_dd_apply ( f_operator, x_G, y_G )
-    implicit none
-
-    ! Parameters 
-    type(operator_dd_t), intent(in)     :: f_operator
-    type(serial_scalar_array_t)     , intent(in)     :: x_G
-    type(serial_scalar_array_t)     , intent(inout)  :: y_G
-
-    ! Locals 
-    type(serial_scalar_array_t)       :: ws_vec       ! Local workspace vector_t
-
-    type(serial_scalar_array_t)       :: ws_vec_I     ! View of the interior nodes
-    type(serial_scalar_array_t)       :: ws_vec_I_2   ! Extra ws required by pardiso
-    type(serial_scalar_array_t)       :: ws_vec_G     ! View of the interfaces
-                                           
-    integer(ip)            :: ni, nl
-
- 
-    ni = f_operator%dof_dist%ni   ! # of interior nodes
-    nl = f_operator%dof_dist%nl   ! # of local nodes
-
-    ! Allocate space for ws_vec
-    call serial_scalar_array_alloc ( nl,   ws_vec)
- 
-    ! Create a view of ws_vec to point to the interfaces
-    call serial_scalar_array_create_view ( ws_vec,    1, ni, ws_vec_I )
-    call serial_scalar_array_clone ( ws_vec_I, ws_vec_I_2 )
-
-    ! Create a view of ws_vec to point to the interior nodes
-    call serial_scalar_array_create_view ( ws_vec, ni+1, nl, ws_vec_G )
-
-    ! Perform the following computations:
-    ! (a) y_G <- A_GG * x_G
-    call operator_dd_apply_A_GG ( f_operator, x_G, y_G )
-    ! call matrix_print (6, f_operator%A_GG) ! DBG:
-    ! call vector_print (6,x_G)     ! DBG:
-    ! call vector_print (6,y_G)     ! DBG:
-
-    ! (b) ws_vec_I_2  <- A_IG * x_G
-    call operator_dd_apply_A_IG ( f_operator, x_G, ws_vec_I_2 )
-    ! call vector_print (6, x_G)         ! DBG:
-    ! call vector_print (6, ws_vec_I_2)  ! DBG:
-
-    ! (c) ws_vec_I  <- A_II^-1 *  ws_vec_I_2
-    call operator_dd_solve_A_II ( f_operator, ws_vec_I_2, ws_vec_I )
-    ! call vector_print (6, ws_vec_I_2)     ! DBG:
-    ! call vector_print (6, ws_vec_I)       ! DBG: 
-
-    ! (d) ws_vec_G <- A_GI * ws_vec_I
-    call operator_dd_apply_A_GI ( f_operator, ws_vec_I, ws_vec_G )
-    ! call matrix_print (6, f_operator%A_IG) ! DBG:
-    ! call vector_print (6, ws_vec_I)     ! DBG: 
-    ! call vector_print (6, ws_vec_G)     ! DBG:
-
-    ! (e) y_G <- y_G - ws_vec_G 
-    call serial_scalar_array_mxpy( ws_vec_G, y_G )
-
-    ! Free memory of local worksize vector
-    call serial_scalar_array_free ( ws_vec )
-    call serial_scalar_array_free ( ws_vec_I_2 )
-
-  end subroutine operator_dd_apply 
-
   
   ! Computes y_I <- A_II^-1 * x_I
   subroutine operator_dd_solve_A_II ( f_operator, x_I, y_I )
@@ -537,8 +458,8 @@ contains
     type(serial_scalar_array_t)     , intent(inout)  :: y_G
     type(serial_scalar_array_t)                      :: x_I, x_G
 
-   call serial_scalar_array_create_view ( x, 1, f_operator%A_II%gr%nv, x_I )
-   call serial_scalar_array_create_view ( x, f_operator%A_II%gr%nv+1, f_operator%A_II%gr%nv+f_operator%A_GG%gr%nv, x_G )
+   call x%create_view(1, f_operator%A_II%gr%nv, x_I )
+   call x%create_view(f_operator%A_II%gr%nv+1, f_operator%A_II%gr%nv+f_operator%A_GG%gr%nv, x_G )
 
    if ( .not. f_operator%A_GG%gr%symmetric_storage ) then
 #ifdef ENABLE_MKL
@@ -674,13 +595,6 @@ contains
        ! call vector_print ( 6, y_G ) ! DBG:
     else 
 #ifdef ENABLE_MKL
-!!$            call mkl_dcsrsymv( 'U',                   & 
-!!$                               f_operator%A_GG%gr%nv, &
-!!$                               f_operator%A_GG%a,     &
-!!$                               f_operator%A_GG%gr%ia, & 
-!!$                               f_operator%A_GG%gr%ja, &
-!!$                               x_G%b,                 &
-!!$                               y_G%b)
        call mkl_dcsrmv ( 'N', & 
                          f_operator%A_GG%gr%nv, &
                          f_operator%A_GG%gr%nv2, &
@@ -705,43 +619,6 @@ contains
     end if
   end subroutine  operator_dd_apply_A_GG
 
-  ! Computes g_G < b_G - A_GI * A_II^-1 b_I
-  subroutine operator_dd_evaluate_rhs ( f_operator, b_I, b_G, g_G )
-    implicit none
-    ! Parameters 
-    type(operator_dd_t), intent(inout) :: f_operator
-    type(serial_scalar_array_t)     , intent(in)    :: b_I
-    type(serial_scalar_array_t)     , intent(in)    :: b_G
-    type(serial_scalar_array_t)     , intent(inout) :: g_G
-    
-    ! Locals 
-    type(serial_scalar_array_t)                     :: ws_vec_I     ! Work space, interior nodes
-    type(serial_scalar_array_t)                     :: ws_vec_G     ! Work space, interface
-
-    call serial_scalar_array_clone ( b_I, ws_vec_I )
-    call serial_scalar_array_clone ( b_G, ws_vec_G )
-    
-    ! ws_vec_I <- A_II^-1 * b_I   
-    call operator_dd_solve_A_II ( f_operator, b_I, ws_vec_I )
-    ! call vector_print ( 6, b_I      ) ! DBG:
-    ! call vector_print ( 6, ws_vec_I ) ! DBG:
-    
-    ! ws_vec_G <- A_GI * ws_vec_I  
-    call operator_dd_apply_A_GI ( f_operator, ws_vec_I, ws_vec_G )
-    
-    ! g_G <- b_G 
-    call serial_scalar_array_copy ( b_G, g_G )
-    
-    ! g_G <- g_G - ws_vec_G
-    ! call vector_print ( 6, g_G )            ! DBG:
-    ! call vector_print ( 6, ws_vec_G )       ! DBG:
-    call serial_scalar_array_mxpy ( ws_vec_G, g_G )
-    ! call vector_print ( 6, g_G ) ! DBG:
-    
-    call serial_scalar_array_free ( ws_vec_I )
-    call serial_scalar_array_free ( ws_vec_G )
-  end subroutine  operator_dd_evaluate_rhs
-
   ! Computes x_I <- A_II^-1 * (b_I - A_IG * x_G)
   subroutine operator_dd_solve_interior ( f_operator, b_I, x_G, x_I )
     implicit none
@@ -755,43 +632,22 @@ contains
     ! Locals 
     type(serial_scalar_array_t)  :: ws_vec_I
 
-    call serial_scalar_array_clone ( b_I, ws_vec_I   )
+    call ws_vec_I%clone(b_I)
 
     ! Compute x_I <- A_II^-1 * (b_I - A_IG * x_G)
     ! x_I <- A_IG * x_G  
     call operator_dd_apply_A_IG ( f_operator, x_G, x_I )
-    ! call vector_print ( 6, x_G )       ! DBG:
-    ! call vector_print ( 6, x_I )       ! DBG:
-    ! call matrix_print ( 6, f_operator%A_IG )    ! DBG:
-    ! call matrix_print ( 6, f_operator%A_II )
-    ! call vector_print ( 6, x_G )       ! DBG:
-    ! call vector_print ( 6, ws_vec_I )  ! DBG:
-    ! call vector_print ( 6, x_G )        ! DBG:
-    ! call vector_print ( 6, ws_vec_I )   ! DBG:
-    
-    ! Bypass vector* operations and use vector* ones
-    ! to avoid dealing with the state member of vector
+	
     ! ws_vec_I <- b_I
-    call serial_scalar_array_copy ( b_I, ws_vec_I )
-    ! call vector_print ( 6, b_I ) ! DBG:
-    ! call vector_print ( 6, ws_vec_I ) ! DBG: 
-    
-    ! ws_vec_I <- ws_vec_I - x_I  
-    ! call vector_print ( 6, ws_vec_I ) ! DBG:
-    ! call vector_print ( 6, x_I      ) ! DBG:  
-    call serial_scalar_array_mxpy  ( x_I, ws_vec_I )
-    ! call vector_print ( 6, ws_vec_I ) ! DBG: 
-    ! call vector_print ( 6, x_I ) ! DBG: 
-    
-    ! (c) x_I  <- A_II^-1 *  ws_vec_I
+    call ws_vec_I%copy (b_I)
+	
+    ! ws_vec_I <- ws_vec_I - x_I   
+	call ws_vec_I%axpby(-1.0_rp,x_I,1.0_rp)
+	
+    ! x_I  <- A_II^-1 *  ws_vec_I
     call operator_dd_solve_A_II ( f_operator, ws_vec_I, x_I )
-    ! call vector_print ( 6, ws_vec_I ) ! DBG:
-    ! call vector_print ( 6, x_I )      ! DBG:
     
-    call serial_scalar_array_free ( ws_vec_I   )
-    
-    ! call vector_print ( 6, x_I ) ! DBG: 
-    ! call vector_print ( 6, b_I ) ! DBG:
+	call ws_vec_I%free()
 
   end subroutine operator_dd_solve_interior
 

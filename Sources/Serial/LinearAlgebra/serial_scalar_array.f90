@@ -53,16 +53,21 @@ module serial_scalar_array_names
      real(rp), pointer          :: &
         b(:) => NULL()
    contains
-     ! Provide type bound procedures (tbp) implementors
-     procedure :: dot  => serial_scalar_array_dot_tbp
-     procedure :: copy => serial_scalar_array_copy_tbp
-     procedure :: init => serial_scalar_array_init_tbp
-     procedure :: scal => serial_scalar_array_scal_tbp
-     procedure :: axpby => serial_scalar_array_axpby_tbp
-     procedure :: nrm2 => serial_scalar_array_nrm2_tbp
-     procedure :: clone => serial_scalar_array_clone_tbp
-     procedure :: comm  => serial_scalar_array_comm_tbp
-     procedure :: free  => serial_scalar_array_free_tbp
+   
+	 procedure :: create              => serial_scalar_array_create
+	 procedure :: create_view         => serial_scalar_array_create_view
+	 procedure :: print               => serial_scalar_array_print
+	 procedure :: print_matrix_market => serial_scalar_array_print_matrix_market
+   
+     procedure :: dot  => serial_scalar_array_dot
+     procedure :: copy => serial_scalar_array_copy
+     procedure :: init => serial_scalar_array_init
+     procedure :: scal => serial_scalar_array_scal
+     procedure :: axpby => serial_scalar_array_axpby
+     procedure :: nrm2 => serial_scalar_array_nrm2
+     procedure :: clone => serial_scalar_array_clone
+     procedure :: comm  => serial_scalar_array_comm
+     procedure :: free  => serial_scalar_array_free
      procedure :: default_initialization => serial_scalar_array_default_init
   end type serial_scalar_array_t
 
@@ -72,24 +77,7 @@ module serial_scalar_array_names
   ! Constants 
   public :: reference
 
-  ! Functions
-  public :: serial_scalar_array_free, &
-            serial_scalar_array_alloc, serial_scalar_array_clone, serial_scalar_array_create_view ,           & 
-            serial_scalar_array_dot, serial_scalar_array_copy,                      & 
-            serial_scalar_array_zero, serial_scalar_array_init, serial_scalar_array_scale, serial_scalar_array_mxpy,   & 
-            serial_scalar_array_axpy, serial_scalar_array_aypx, serial_scalar_array_pxpy, serial_scalar_array_pxmy,    & 
-            serial_scalar_array_print, serial_scalar_array_print_matrix_market
 contains
-
-  !=============================================================================
-  subroutine serial_scalar_array_free (vec)
-    implicit none
-    type(serial_scalar_array_t), intent(inout) :: vec
-    assert (vec%mode == allocated .or. vec%mode == reference)
-    vec%neq     = 0          ! Number of equations
-    if (vec%mode == allocated) call memfreep(vec%b,__FILE__,__LINE__)
-    vec%mode = not_created
-  end subroutine serial_scalar_array_free
 
   !=============================================================================
   subroutine serial_scalar_array_default_init (this)
@@ -102,214 +90,56 @@ contains
   end subroutine serial_scalar_array_default_init
 
   !=============================================================================
-  subroutine serial_scalar_array_alloc(neq,vec)
+  subroutine serial_scalar_array_create(this,neq)
     implicit none
-    integer(ip)     , intent(in)    :: neq
-    type(serial_scalar_array_t), intent(inout) :: vec
+	class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                , intent(in)    :: neq
     assert ( vec%mode == not_created )
-    vec%neq     = neq  ! Number of equations
-    call memallocp(vec%neq,vec%b,__FILE__,__LINE__)
-    vec%b    = 0.0_rp
-    vec%mode = allocated
-  end subroutine serial_scalar_array_alloc
+    this%neq     = neq  ! Number of equations
+    call memallocp(this%neq,this%b,__FILE__,__LINE__)
+    this%b    = 0.0_rp
+    this%mode = allocated
+  end subroutine serial_scalar_array_create
   
-  subroutine serial_scalar_array_create_view (svec, start, end, tvec)
+  subroutine serial_scalar_array_create_view (this, start, end, tvec)
     implicit none
-    type(serial_scalar_array_t), intent(in), target  :: svec
+    class(serial_scalar_array_t), intent(in), target  :: this
     integer(ip)     , intent(in)          :: start
     integer(ip)     , intent(in)          :: end
     type(serial_scalar_array_t), intent(inout)       :: tvec
 
     assert ( tvec%mode == not_created )
 
-    tvec%neq     =  end-start+1           ! Number of equations
-    tvec%b => svec%b(start:end)
+    tvec%neq =  end-start+1 ! Number of equations
+    tvec%b => this%b(start:end)
     tvec%mode =  reference
   end subroutine serial_scalar_array_create_view
 
-  subroutine serial_scalar_array_clone ( svec, tvec )
+  subroutine serial_scalar_array_print (this, luout)
     implicit none
-    type(serial_scalar_array_t), intent( in ) :: svec
-    type(serial_scalar_array_t), intent(out) :: tvec
-    tvec%neq     =  svec%neq       ! Number of equations
-    call memallocp(tvec%neq,tvec%b,__FILE__,__LINE__)
-    tvec%b = 0.0_rp
-    tvec%mode = allocated 
-  end subroutine serial_scalar_array_clone
+    class(serial_scalar_array_t), intent(in) :: this
+    integer(ip)                , intent(in) :: luout
 
-  !=============================================================================
-  subroutine serial_scalar_array_dot (x, y, t)
-    implicit none
-    type(serial_scalar_array_t), intent(in)  :: x
-    type(serial_scalar_array_t), intent(in)  :: y
-    real(rp)        , intent(out) :: t
-
-    assert ( x%neq == y%neq )
-
-#ifdef ENABLE_BLAS
-    t = ddot( x%neq, x%b, 1, y%b, 1 )
-#else
-!!$    AFM: A non BLAS-based implementation of the
-!!$    dot product should go here
-    check(1==0)
-#endif
-
-  end subroutine serial_scalar_array_dot
-
-  !=============================================================================
-  subroutine serial_scalar_array_copy(x,y)
-    implicit none
-    type(serial_scalar_array_t), intent(in)    :: x
-    type(serial_scalar_array_t), intent(inout) :: y
-
-    assert ( x%neq == y%neq )
-
-#ifdef ENABLE_BLAS
-    call dcopy ( x%neq, x%b, 1, y%b, 1 ) 
-#else
-    y%b=x%b
-#endif
-  end subroutine serial_scalar_array_copy
-  subroutine serial_scalar_array_zero(y)
-    implicit none
-    type(serial_scalar_array_t), intent(inout) :: y
-    y%b=0.0_rp
-  end subroutine serial_scalar_array_zero
-
-  subroutine serial_scalar_array_init(alpha, y)
-    implicit none
-    type(serial_scalar_array_t), intent(inout) :: y 
-    real(rp), intent(in)            :: alpha  
-    y%b=alpha
-  end subroutine serial_scalar_array_init
-  
-  subroutine serial_scalar_array_scale(t,x,y)
-    implicit none
-    real(rp)        , intent(in)    :: t
-    type(serial_scalar_array_t), intent(in)    :: x
-    type(serial_scalar_array_t), intent(inout) :: y
-
-    assert ( x%neq == y%neq )
-
-#ifdef ENABLE_BLAS
-    ! I guess that two calls to the level 1
-    ! BLAS can not be competitive against 
-    ! just one F90 vector operation. I have to
-    ! measure the difference among these two
-    ! options. 
-    call dcopy ( x%neq, x%b, 1, y%b, 1)
-    call dscal ( y%neq, t, y%b, 1)
-#else
-    y%b=t*x%b
-#endif
-  end subroutine serial_scalar_array_scale
-
-  subroutine serial_scalar_array_mxpy(x,y)
-    implicit none
-    type(serial_scalar_array_t), intent(in)    :: x
-    type(serial_scalar_array_t), intent(inout) :: y
-    assert ( x%neq == y%neq )
-#ifdef ENABLE_BLAS
-    call daxpy ( x%neq, -1.0, x%b, 1, y%b, 1 )
-#else
-    y%b=y%b-x%b
-#endif
-  end subroutine serial_scalar_array_mxpy
-  subroutine serial_scalar_array_axpy(t,x,y)
-    implicit none
-    real(rp)   , intent(in)         :: t
-    type(serial_scalar_array_t), intent(in)    :: x
-    type(serial_scalar_array_t), intent(inout) :: y
-    assert ( x%neq == y%neq )
-#ifdef ENABLE_BLAS
-    call daxpy ( x%neq, t, x%b, 1, y%b, 1 )
-#else
-    y%b=y%b+t*x%b
-#endif
-  end subroutine serial_scalar_array_axpy
-
-  subroutine serial_scalar_array_aypx(t,x,y)
-    implicit none
-    real(rp)        , intent(in)    :: t
-    type(serial_scalar_array_t), intent(in)    :: x
-    type(serial_scalar_array_t), intent(inout) :: y
-    assert ( x%neq == y%neq )
-#ifdef ENABLE_BLAS
-    ! I guess that two calls to the level 1
-    ! BLAS can not be competitive against 
-    ! just one F90 vector operation. I have to
-    ! measure the difference among these two
-    ! options. 
-    call dscal ( y%neq, t, y%b, 1)
-    call daxpy ( x%neq, 1.0, x%b, 1, y%b, 1 )    
-#else
-    y%b=x%b+t*y%b
-#endif
-  end subroutine serial_scalar_array_aypx
-
-  subroutine serial_scalar_array_pxpy(x,y)
-    implicit none
-    type(serial_scalar_array_t), intent(in)    :: x
-    type(serial_scalar_array_t), intent(inout) :: y
-    assert ( x%neq == y%neq )
-#ifdef ENABLE_BLAS
-    call daxpy ( x%neq, 1.0, x%b, 1, y%b, 1 )    
-#else
-    y%b=y%b+x%b
-#endif
-  end subroutine serial_scalar_array_pxpy
-
-  subroutine serial_scalar_array_pxmy(x,y)
-    implicit none
-    type(serial_scalar_array_t), intent(in)    :: x
-    type(serial_scalar_array_t), intent(inout) :: y
-    assert ( x%neq == y%neq )
-#ifdef ENABLE_BLAS
-    ! I guess that two calls to the level 1
-    ! BLAS can not be competitive against 
-    ! just one F90 vector operation. I have to
-    ! measure the difference among these two
-    ! options. 
-    call dscal ( y%neq, -1.0, y%b, 1)
-    call daxpy ( x%neq, 1.0, x%b, 1, y%b, 1 ) 
-#else
-    y%b=x%b-y%b
-#endif
-  end subroutine serial_scalar_array_pxmy
-
-  subroutine serial_scalar_array_print (luout, x)
-    implicit none
-    type(serial_scalar_array_t), intent(in) :: x
-    integer(ip),      intent(in) :: luout
-    
-    ! Locals
-    integer(ip) :: i
-
-    write (luout, '(a)')     '*** begin vector data structure ***'
-    write(luout,'(a,i10)') 'size', x%neq
-    write (luout,'(e25.16)') x%b
-	
+    write (luout, '(a)')     '*** begin serial_scalar_array data structure ***'
+    write(luout,'(a,i10)') 'size', this%neq
+    write (luout,'(e25.16)') this%b
+	write (luout, '(a)')     '*** end serial_scalar_array data structure ***'
   end subroutine serial_scalar_array_print
 
-  subroutine serial_scalar_array_print_matrix_market ( luout, x )
+  subroutine serial_scalar_array_print_matrix_market ( this, luout )
    implicit none
-   ! Parameters
-   type(serial_scalar_array_t), intent(in) :: x
-   integer(ip),      intent(in) :: luout
-
-   ! Locals
-   integer (ip) :: i, id
-
+   class(serial_scalar_array_t), intent(in) :: this
+   integer(ip)                , intent(in) :: luout
+   integer (ip) :: i
    write (luout,'(a)') '%%MatrixMarket matrix array real general'
-   write (luout,*) x%neq , 1
-   do i=1,x%neq 
-     write (luout,*) x%b( i )
+   write (luout,*) this%neq , 1
+   do i=1,this%neq 
+     write (luout,*) this%b( i )
    end do
-
  end subroutine serial_scalar_array_print_matrix_market
 
  ! alpha <- op1^T * op2
- function serial_scalar_array_dot_tbp(op1,op2) result(alpha)
+ function serial_scalar_array_dot(op1,op2) result(alpha)
    implicit none
    class(serial_scalar_array_t), intent(in)    :: op1
    class(abstract_vector_t), intent(in)  :: op2
@@ -331,10 +161,10 @@ contains
    end select
    call op1%CleanTemp()
    call op2%CleanTemp()
- end function serial_scalar_array_dot_tbp
+ end function serial_scalar_array_dot
 
  ! op1 <- op2 
- subroutine serial_scalar_array_copy_tbp(op1,op2)
+ subroutine serial_scalar_array_copy(op1,op2)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op1
    class(abstract_vector_t), intent(in)  :: op2
@@ -353,10 +183,10 @@ contains
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine serial_scalar_array_copy_tbp
+ end subroutine serial_scalar_array_copy
 
  ! op1 <- alpha * op2
- subroutine serial_scalar_array_scal_tbp(op1,alpha,op2)
+ subroutine serial_scalar_array_scal(op1,alpha,op2)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
@@ -382,17 +212,17 @@ contains
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine serial_scalar_array_scal_tbp
+ end subroutine serial_scalar_array_scal
  ! op <- alpha
- subroutine serial_scalar_array_init_tbp(op,alpha)
+ subroutine serial_scalar_array_init(op,alpha)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op
    real(rp), intent(in) :: alpha
    op%b=alpha
- end subroutine serial_scalar_array_init_tbp
+ end subroutine serial_scalar_array_init
 
  ! op1 <- alpha*op2 + beta*op1
- subroutine serial_scalar_array_axpby_tbp(op1, alpha, op2, beta)
+ subroutine serial_scalar_array_axpby(op1, alpha, op2, beta)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
@@ -426,10 +256,10 @@ contains
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine serial_scalar_array_axpby_tbp
+ end subroutine serial_scalar_array_axpby
 
  ! alpha <- nrm2(op)
- function serial_scalar_array_nrm2_tbp(op) result(alpha)
+ function serial_scalar_array_nrm2(op) result(alpha)
    implicit none
    class(serial_scalar_array_t), intent(in)  :: op
    real(rp) :: alpha
@@ -443,10 +273,10 @@ contains
 #endif
 
    call op%CleanTemp()
- end function serial_scalar_array_nrm2_tbp
+ end function serial_scalar_array_nrm2
 
  ! op1 <- clone(op2) 
- subroutine serial_scalar_array_clone_tbp(op1,op2)
+ subroutine serial_scalar_array_clone(op1,op2)
    implicit none
    class(serial_scalar_array_t)           ,intent(inout) :: op1
    class(abstract_vector_t), target ,intent(in)    :: op2
@@ -457,26 +287,21 @@ contains
       if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
       op1%neq     =  op2%neq       ! Number of equations
       call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
-      ! AFM: I think that clone should NOT init the memory just allocated.
-      ! The code that surrounds clone (e.g., Krylov solvers) should not
-      ! rely on vector_clone_tbp initializing the memory. I will comment
-      ! it out, and expect that the codes continue working.
-      ! op1%b = 0.0_rp 
       op1%mode = allocated
    class default
       write(0,'(a)') 'vector_t%clone: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine serial_scalar_array_clone_tbp
+ end subroutine serial_scalar_array_clone
 
  ! op <- comm(op)
- subroutine serial_scalar_array_comm_tbp(op)
+ subroutine serial_scalar_array_comm(op)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op
- end subroutine serial_scalar_array_comm_tbp
+ end subroutine serial_scalar_array_comm
 
- subroutine serial_scalar_array_free_tbp(this)
+ subroutine serial_scalar_array_free(this)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: this
 
@@ -484,6 +309,6 @@ contains
    if (this%mode == allocated) call memfreep(this%b,__FILE__,__LINE__)
    nullify(this%b)
    this%mode = not_created
- end subroutine serial_scalar_array_free_tbp
+ end subroutine serial_scalar_array_free
 
 end module serial_scalar_array_names

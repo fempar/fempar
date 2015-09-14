@@ -138,7 +138,7 @@ program test_cdr
   f_graph => f_blk_graph%get_block(1,1)
   call matrix_alloc( .true., f_graph, my_matrix, positive_definite )
 
-  call serial_scalar_array_alloc( f_graph%nv, my_vector )
+  call my_vector%create ( f_graph%nv )
   
   call volume_integral( approximations, fe_space, my_matrix, my_vector)
 
@@ -150,7 +150,7 @@ program test_cdr
   !call preconditioner_log_info(feprec)
 
   write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',f_graph%nv
-  call serial_scalar_array_alloc( f_graph%nv, feunk )
+  call feunk%create ( f_graph%nv )
   call feunk%init(1.0_rp)
 
 
@@ -168,7 +168,7 @@ program test_cdr
   A => my_matrix
   x => my_vector
   y => feunk
-  call serial_scalar_array_print( 6, feunk)
+  call feunk%print(6)
   call matrix_print( 6, my_matrix)
 
   ! feunk = my_vector - my_matrix*feunk 
@@ -194,8 +194,8 @@ program test_cdr
   call memfree( problem, __FILE__, __LINE__)
 
   call f_blk_graph%free()
-  call serial_scalar_array_free( feunk )
-  call serial_scalar_array_free( my_vector )
+  call feunk%free()
+  call my_vector%free()
   call matrix_free( my_matrix) 
   call fe_space_free(fe_space) 
   call my_problem%free

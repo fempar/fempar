@@ -561,7 +561,7 @@ contains
     select type(x)
     class is (serial_scalar_array_t)
        allocate(local_y)
-       call serial_scalar_array_alloc ( op%gr%nv, local_y)
+       call local_y%create(op%gr%nv)
        call matrix_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

@@ -212,8 +212,8 @@ program test_nsi_iss
 
   ! Allocate matrices and vectors
   call matrix_alloc(.false.,f_graph,femat)
-  call serial_scalar_array_alloc(f_graph%nv,fevec)
-  call serial_scalar_array_alloc(f_graph%nv,feunk)
+  call fevec%create(f_graph%nv)
+  call feunk%create(f_graph%nv)
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
@@ -277,8 +277,8 @@ program test_nsi_iss
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
   call f_blk_graph%free()
-  call serial_scalar_array_free(feunk)
-  call serial_scalar_array_free(fevec)
+  call feunk%free()
+  call fevec%free()
   call matrix_free(femat) 
   call fe_space_free(fe_space) 
   call myprob%free

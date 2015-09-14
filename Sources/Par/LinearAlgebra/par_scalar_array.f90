@@ -153,7 +153,7 @@ contains
     p_vec%dof_dist => dof_dist
     p_vec%p_env    => p_env 
     if(p_env%p_context%iam<0) return
-    call serial_scalar_array_alloc ( dof_dist%nl, p_vec%f_vector )
+    call p_vec%f_vector%create (dof_dist%nl)
     p_vec%state = undefined
   end subroutine par_scalar_array_alloc
 
@@ -171,7 +171,7 @@ contains
     p_vec%state = undefined
 
     ! Free local part
-    call serial_scalar_array_free ( p_vec%f_vector )
+    call p_vec%f_vector%free()
 
     nullify ( p_vec%dof_dist )
     nullify ( p_vec%p_env )
@@ -200,7 +200,7 @@ contains
     if(s_p_vec%p_env%p_context%iam<0) return
 
     ! Call vector_create_view
-    call serial_scalar_array_create_view ( s_p_vec%f_vector, start, end, t_p_vec%f_vector ) 
+    call s_p_vec%f_vector%create_view (start, end, t_p_vec%f_vector) 
 
   end subroutine par_scalar_array_create_view
 
@@ -221,7 +221,7 @@ contains
 
     if(s_p_vec%p_env%p_context%iam<0) return
 
-    call serial_scalar_array_clone ( s_p_vec%f_vector, t_p_vec%f_vector )
+    call t_p_vec%f_vector%clone(s_p_vec%f_vector)
 
   end subroutine par_scalar_array_clone
 
@@ -412,10 +412,9 @@ use par_sparse_global_collectives_names
 
     assert ( x%state /= undefined .and. y%state /= undefined  )
 
-
     if ( (x%state == part_summed .and. y%state == full_summed) .or. (x%state == full_summed .and. y%state == part_summed) ) then
        ! Perform local dot products
-       call serial_scalar_array_dot (x%f_vector, y%f_vector, t)
+       t=x%f_vector%dot(y%f_vector)
     else if ( (x%state == full_summed .and. y%state == full_summed) ) then
        ! Perform local weighted dot products
        call weighted_dot (x, y, t)
@@ -431,8 +430,7 @@ use par_sparse_global_collectives_names
        ! to fully summed
        call comm_interface ( ws_vec )
        
-
-       call serial_scalar_array_dot ( x%f_vector, ws_vec%f_vector, t )
+       t=x%f_vector%dot(ws_vec%f_vector)
 
        call par_scalar_array_free ( ws_vec )
     end if
@@ -467,7 +465,7 @@ use par_sparse_global_collectives_names
     if ( ni > 0 ) then
        call par_scalar_array_create_view ( x, 1, ni, x_I )
        call par_scalar_array_create_view ( y, 1, ni, y_I )
-       call serial_scalar_array_dot ( x_I%f_vector, y_I%f_vector, t )
+       t=x_I%f_vector%dot(y_I%f_vector)
     else
        t = 0.0_rp
     end if
@@ -499,7 +497,7 @@ use par_sparse_global_collectives_names
 
     assert ( x%state /= undefined  )
     ! Perform local copy
-    call serial_scalar_array_copy ( x%f_vector, y%f_vector )
+    call y%f_vector%copy (x%f_vector)
     y%state = x%state
   end subroutine par_scalar_array_copy
 
@@ -519,7 +517,7 @@ use par_sparse_global_collectives_names
     ! write(*,*) 'XXX'
     assert ( y%state /= undefined  )
     ! Zero-out local copy
-    call serial_scalar_array_zero ( y%f_vector )
+    call y%f_vector%init(0.0_rp)
     
   end subroutine par_scalar_array_zero
 
@@ -535,14 +533,7 @@ use par_sparse_global_collectives_names
     assert ( associated(y%p_env%p_context) )
     assert ( y%p_env%p_context%created .eqv. .true.)
     if(y%p_env%p_context%iam<0) return
-
-    if  ( t == 0.0_rp ) then
-       call par_scalar_array_zero(y)
-    else 
-       ! Scale local copy
-       call serial_scalar_array_init (t, y%f_vector)
-       ! y%state = full_summed
-    end if
+    call y%f_vector%init(t)
   end subroutine par_scalar_array_init
 
 
@@ -566,7 +557,7 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined )
 
     ! Scale local copy
-    call serial_scalar_array_scale (t, x%f_vector, y%f_vector )
+    call y%f_vector%scal(t, x%f_vector)
     y%state = x%state
   end subroutine par_scalar_array_scale
 
@@ -589,8 +580,7 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
 
-    call serial_scalar_array_mxpy (x%f_vector, y%f_vector )
-
+    call y%f_vector%axpby (-1.0_rp, x%f_vector, 1.0_rp)
   end subroutine par_scalar_array_mxpy
 
   !=============================================================================
@@ -613,7 +603,7 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
 
-    call serial_scalar_array_axpy  ( t, x%f_vector, y%f_vector )
+    call y%f_vector%axpby ( t, x%f_vector, 1.0_rp )
   end subroutine par_scalar_array_axpy
 
   !=============================================================================
@@ -635,7 +625,7 @@ use par_sparse_global_collectives_names
     ! Check matching partition/handler
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
-    call serial_scalar_array_aypx (t, x%f_vector, y%f_vector )
+    call y%f_vector%axpby (1.0_rp,x%f_vector,t)
   end subroutine par_scalar_array_aypx
 
   !=============================================================================
@@ -656,7 +646,7 @@ use par_sparse_global_collectives_names
     ! Check matching partition/handler
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
-    call serial_scalar_array_pxpy ( x%f_vector, y%f_vector )
+    call y%f_vector%axpby ( 1.0_rp, x%f_vector, 1.0_rp )
 
   end subroutine par_scalar_array_pxpy
 
@@ -682,7 +672,7 @@ use par_sparse_global_collectives_names
     ! call vector_print ( 6, x%f_vector )
     ! write (*,*) 'YA'
     ! call vector_print ( 6, y%f_vector )
-    call serial_scalar_array_pxmy ( x%f_vector, y%f_vector )
+    call y%f_vector%axpby ( 1.0_rp, x%f_vector, -1.0_rp )
     ! write (*,*) 'YD'
     ! call vector_print ( 6, y%f_vector )
   end subroutine par_scalar_array_pxmy
@@ -698,10 +688,10 @@ use par_sparse_global_collectives_names
     assert ( p_vec%p_env%p_context%created .eqv. .true.)
     if(p_vec%p_env%p_context%iam<0) return
 
-    write(luout,'(a)') '*** begin par_vector data structure ***'
+    write(luout,'(a)') '*** begin par_scalar_array data structure ***'
     call  dof_distribution_print (luout, p_vec%dof_dist)
-    call  serial_scalar_array_print    (luout, p_vec%f_vector)
-    write(luout,'(a)') '*** end par_vector data structure ***'
+    call  p_vec%f_vector%print(luout)
+    write(luout,'(a)') '*** end par_scalar_array data structure ***'
 
   end subroutine par_scalar_array_print
 
@@ -745,9 +735,8 @@ use par_sparse_global_collectives_names
 
     ! Read partition data from path_file file
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')       
-    call serial_scalar_array_print_matrix_market ( lunou, p_vec%f_vector )
+    call p_vec%f_vector%print_matrix_market (lunou)
     call io_close (lunou)
-
   end subroutine par_scalar_array_print_matrix_market
 
   function count_digits_par_vector ( i )
@@ -1077,7 +1066,7 @@ use par_sparse_global_collectives_names
    this%state = undefined
    
    ! Free local part
-   call serial_scalar_array_free ( this%f_vector )
+   call this%f_vector%free()
    
    nullify ( this%dof_dist )
    nullify ( this%p_env )
