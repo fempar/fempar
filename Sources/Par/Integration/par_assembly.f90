@@ -32,7 +32,7 @@ module par_assembly_names
   use integrable_names
   use dof_descriptor_names
   use par_matrix_names
-  use par_vector_names
+  use par_scalar_array_names
   use par_block_matrix_names
   use par_block_vector_names
   use par_scalar_names
@@ -55,7 +55,7 @@ contains
     select type(a)
     class is(par_matrix_t)
        call assembly_element_par_matrix_mono(finite_element, dof_descriptor, a) 
-    class is(par_vector_t)
+    class is(par_scalar_array_t)
        call assembly_element_par_vector_mono(finite_element, dof_descriptor, a)
     class is(par_block_matrix_t)
        call assembly_element_par_matrix_block(finite_element, dof_descriptor, a)
@@ -125,7 +125,7 @@ contains
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
-    type(par_vector_t)    , intent(inout) :: a
+    type(par_scalar_array_t)    , intent(inout) :: a
 
     if(a%p_env%am_i_fine_task()) then
        call element_vector_assembly( dof_descriptor, finite_element, a%f_vector )

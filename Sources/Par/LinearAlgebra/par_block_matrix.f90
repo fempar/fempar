@@ -36,7 +36,7 @@ module par_block_matrix_names
 
   ! Parallel modules
   use par_matrix_names
-  use par_vector_names
+  use par_scalar_array_names
   use par_graph_names
   use par_block_graph_names
   use par_block_vector_names
@@ -209,7 +209,7 @@ contains
     type(par_block_vector_t), intent(inout) :: y
 
     ! Locals
-    type(par_vector_t)       :: aux
+    type(par_scalar_array_t)       :: aux
     integer(ip)            :: ib, jb
 
     assert ( a%nblocks == x%nblocks )
@@ -218,8 +218,8 @@ contains
 
     do ib=1, a%nblocks
        y%blocks(ib)%state = part_summed
-       call par_vector_zero  ( y%blocks(ib) )
-       call par_vector_clone ( y%blocks(ib), aux ) 
+       call par_scalar_array_zero  ( y%blocks(ib) )
+       call par_scalar_array_clone ( y%blocks(ib), aux ) 
        do jb=1, a%nblocks
           if ( associated(a%blocks(ib,jb)%p_p_matrix) ) then
              ! aux <- A(ib,jb) * x(jb)
@@ -229,14 +229,14 @@ contains
              !call vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG:
 
              ! y(ib) <- y(ib) + aux 
-             call par_vector_pxpy ( aux, y%blocks(ib) )
+             call par_scalar_array_pxpy ( aux, y%blocks(ib) )
 
              ! write (*,*) 'XXXX', ib, '   ', jb                 ! DBG:
              !call vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG: 
 
           end if
        end do
-       call par_vector_free ( aux )
+       call par_scalar_array_free ( aux )
     end do
   end subroutine par_block_matvec
 
@@ -249,7 +249,7 @@ contains
     class(abstract_vector_t)    , intent(inouT) :: y
     ! Locals
     integer(ip)        :: ib,jb
-    type(par_vector_t) :: aux
+    type(par_scalar_array_t) :: aux
 
     call x%GuardTemp()
 
@@ -293,7 +293,7 @@ contains
     ! Locals
     integer(ip) :: ib,jb
     type(par_block_vector_t), allocatable :: local_y
-    type(par_vector_t) :: aux
+    type(par_scalar_array_t) :: aux
 
     select type(x)
     class is (par_block_vector_t)

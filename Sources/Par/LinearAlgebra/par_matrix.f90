@@ -40,7 +40,7 @@ module par_matrix_names
   use par_environment_names
   use par_context_names
   use par_graph_names
-  use par_vector_names
+  use par_scalar_array_names
   use psb_penv_mod_names
   use dof_distribution_names
 
@@ -307,8 +307,8 @@ contains
     implicit none
     ! Parameters
     type(par_matrix_t) , intent(in)    :: a
-    type(par_vector_t) , intent(in)    :: x
-    type(par_vector_t) , intent(inout) :: y
+    type(par_scalar_array_t) , intent(in)    :: x
+    type(par_scalar_array_t) , intent(inout) :: y
     ! Locals
     !integer(c_int)                   :: ierrc
     real :: aux
@@ -341,8 +341,8 @@ contains
     implicit none
     ! Parameters
     type(par_matrix_t) , intent(in)    :: a
-    type(par_vector_t) , intent(in)    :: x
-    type(par_vector_t) , intent(inout) :: y
+    type(par_scalar_array_t) , intent(in)    :: x
+    type(par_scalar_array_t) , intent(inout) :: y
     ! Locals
     !integer(c_int)                   :: ierrc
 	
@@ -373,9 +373,9 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (par_vector_t)
+    class is (par_scalar_array_t)
        select type(y)
-       class is(par_vector_t)
+       class is(par_scalar_array_t)
           call par_matvec(op, x, y)
           ! call vector_print(6,y)
        class default
@@ -398,12 +398,12 @@ contains
     class(abstract_vector_t) , intent(in)  :: x
     class(abstract_vector_t) , allocatable :: y 
 
-    type(par_vector_t), allocatable :: local_y
+    type(par_scalar_array_t), allocatable :: local_y
 
     select type(x)
-    class is (par_vector_t)
+    class is (par_scalar_array_t)
        allocate(local_y)
-       call par_vector_alloc ( op%dof_dist, x%p_env, local_y)
+       call par_scalar_array_alloc ( op%dof_dist, x%p_env, local_y)
        call par_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_vector_names
+module par_scalar_array_names
   ! Serial modules
   use types_names
   use memor_names
@@ -55,69 +55,54 @@ module par_vector_names
   implicit none
   private
 
-  !=============================================================
-  ! TODO:
-  ! 
-  ! x Call to BLAS double precision or single precision 
-  !   subroutines depending on the value of the rp parameter. 
-  !   Currently we are always calling double precision variants 
-  !   of the BLAS subroutines.
-  ! 
-  !=============================================================
-
   integer(ip), parameter :: undefined     = -1 ! Undefined. State to be assigned by the user or externally.
   integer(ip), parameter :: part_summed   = 0  ! partially summed element-based vector
   integer(ip), parameter :: full_summed   = 1  ! fully     summed element-based vector
 
   ! Distributed Vector
-  type, extends(abstract_vector_t) :: par_vector_t
+  type, extends(abstract_vector_t) :: par_scalar_array_t
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
-     ! This is required for both eb and vb data 
-     ! distributions
      type( serial_scalar_array_t ) :: f_vector
-
      ! Partially or fully summed
      integer(ip)  :: state 
-
      ! Parallel DoF distribution control info.
      type ( dof_distribution_t ), pointer  :: dof_dist => NULL()
-
      type ( par_environment_t ) , pointer  :: p_env => NULL()
    contains
      ! Provide type bound procedures (tbp) implementors
-     procedure :: dot  => par_vector_dot_tbp
-     procedure :: copy => par_vector_copy_tbp
-     procedure :: init => par_vector_init_tbp
-     procedure :: scal => par_vector_scal_tbp
-     procedure :: axpby => par_vector_axpby_tbp
-     procedure :: nrm2 => par_vector_nrm2_tbp
-     procedure :: clone => par_vector_clone_tbp
-     procedure :: comm  => par_vector_comm_tbp
-     procedure :: free  => par_vector_free_tbp
+     procedure :: dot  => par_scalar_array_dot_tbp
+     procedure :: copy => par_scalar_array_copy_tbp
+     procedure :: init => par_scalar_array_init_tbp
+     procedure :: scal => par_scalar_array_scal_tbp
+     procedure :: axpby => par_scalar_array_axpby_tbp
+     procedure :: nrm2 => par_scalar_array_nrm2_tbp
+     procedure :: clone => par_scalar_array_clone_tbp
+     procedure :: comm  => par_scalar_array_comm_tbp
+     procedure :: free  => par_scalar_array_free_tbp
 
-     procedure :: default_initialization  => par_vector_default_init
-  end type par_vector_t
+     procedure :: default_initialization  => par_scalar_array_default_init
+  end type par_scalar_array_t
 
 
   ! Types
-  public :: par_vector_t
+  public :: par_scalar_array_t
 
   ! Constants 
   public :: undefined, part_summed, full_summed
 
   ! Functions
-  public :: par_vector_alloc,    par_vector_free,     par_vector_create_view, & 
-       &  par_vector_clone,                                                 &
-       &  par_vector_comm,     par_vector_weight,   par_vector_nrm2,        &
-       &  par_vector_dot,      par_vector_copy,     par_vector_zero,        &
-       &  par_vector_init,                                                  &
-       &  par_vector_scale,    par_vector_mxpy,     par_vector_axpy,        &
-       &  par_vector_aypx,     par_vector_pxpy,     par_vector_pxmy ,       &
-       &  par_vector_print,    par_vector_print_matrix_market
+  public :: par_scalar_array_alloc,    par_scalar_array_free,     par_scalar_array_create_view, & 
+       &  par_scalar_array_clone,                                                 &
+       &  par_scalar_array_comm,     par_scalar_array_weight,   par_scalar_array_nrm2,        &
+       &  par_scalar_array_dot,      par_scalar_array_copy,     par_scalar_array_zero,        &
+       &  par_scalar_array_init,                                                  &
+       &  par_scalar_array_scale,    par_scalar_array_mxpy,     par_scalar_array_axpy,        &
+       &  par_scalar_array_aypx,     par_scalar_array_pxpy,     par_scalar_array_pxmy ,       &
+       &  par_scalar_array_print,    par_scalar_array_print_matrix_market
 
 !***********************************************************************
-! Allocatable arrays of type(vector_t)
+! Allocatable arrays of type(par_scalar_array_t)
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -127,7 +112,7 @@ module par_vector_names
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(par_vector_t)
+# define var_type type(par_scalar_array_t)
 # define var_size 52
 # define bound_kind ip
 # include "mem_header.i90"
@@ -139,24 +124,24 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine par_vector_default_init (this)
+  subroutine par_scalar_array_default_init (this)
     implicit none
-    class(par_vector_t), intent(inout) :: this
+    class(par_scalar_array_t), intent(inout) :: this
 
     call this%f_vector%default_initialization()
     nullify(this%dof_dist)
     nullify(this%p_env)
     call this%NullifyTemporary()
 
-  end subroutine par_vector_default_init
+  end subroutine par_scalar_array_default_init
 
   !=============================================================================
-  subroutine par_vector_alloc (dof_dist, p_env, p_vec)
+  subroutine par_scalar_array_alloc (dof_dist, p_env, p_vec)
     implicit none
     ! Parameters
     type(dof_distribution_t), target, intent(in)  :: dof_dist
     type(par_environment_t) , target, intent(in)  :: p_env
-    type(par_vector_t)              , intent(out) :: p_vec
+    type(par_scalar_array_t)              , intent(out) :: p_vec
 
     ! Locals
     integer(ip)                               :: idof, id
@@ -170,12 +155,12 @@ contains
     if(p_env%p_context%iam<0) return
     call serial_scalar_array_alloc ( dof_dist%nl, p_vec%f_vector )
     p_vec%state = undefined
-  end subroutine par_vector_alloc
+  end subroutine par_scalar_array_alloc
 
   !=============================================================================
-  subroutine par_vector_free(p_vec)
+  subroutine par_scalar_array_free(p_vec)
     implicit none
-    type(par_vector_t), intent(inout) :: p_vec
+    type(par_scalar_array_t), intent(inout) :: p_vec
 
     ! The routine requires the partition/context info
     assert ( associated( p_vec%dof_dist ) )
@@ -190,15 +175,15 @@ contains
 
     nullify ( p_vec%dof_dist )
     nullify ( p_vec%p_env )
-  end subroutine par_vector_free
+  end subroutine par_scalar_array_free
 
   !=============================================================================
-  subroutine par_vector_create_view (s_p_vec, start, end, t_p_vec)
+  subroutine par_scalar_array_create_view (s_p_vec, start, end, t_p_vec)
     implicit none
-    type(par_vector_t), intent(in), target :: s_p_vec
+    type(par_scalar_array_t), intent(in), target :: s_p_vec
     integer(ip)     , intent(in)         :: start
     integer(ip)     , intent(in)         :: end
-    type(par_vector_t), intent(out)        :: t_p_vec
+    type(par_scalar_array_t), intent(out)        :: t_p_vec
 
     ! The routine requires the partition/context info
     assert ( associated( s_p_vec%dof_dist ) )
@@ -217,13 +202,13 @@ contains
     ! Call vector_create_view
     call serial_scalar_array_create_view ( s_p_vec%f_vector, start, end, t_p_vec%f_vector ) 
 
-  end subroutine par_vector_create_view
+  end subroutine par_scalar_array_create_view
 
   !=============================================================================
-  subroutine par_vector_clone (s_p_vec, t_p_vec)
+  subroutine par_scalar_array_clone (s_p_vec, t_p_vec)
     implicit none
-    type(par_vector_t), intent(in), target :: s_p_vec
-    type(par_vector_t), intent(out)        :: t_p_vec 
+    type(par_scalar_array_t), intent(in), target :: s_p_vec
+    type(par_scalar_array_t), intent(out)        :: t_p_vec 
 
     ! p_env%p_context is required within this subroutine 
     assert ( associated(s_p_vec%dof_dist) )
@@ -238,16 +223,16 @@ contains
 
     call serial_scalar_array_clone ( s_p_vec%f_vector, t_p_vec%f_vector )
 
-  end subroutine par_vector_clone
+  end subroutine par_scalar_array_clone
 
-  subroutine par_vector_comm ( p_vec )
+  subroutine par_scalar_array_comm ( p_vec )
     implicit none
     ! Parameters
-    type(par_vector_t), intent(inout) :: p_vec
+    type(par_scalar_array_t), intent(inout) :: p_vec
 
     ! Local variables
     integer(ip)      :: ni 
-    type(par_vector_t) :: p_vec_G
+    type(par_scalar_array_t) :: p_vec_G
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist) )
@@ -257,11 +242,11 @@ contains
 
 
     ni = p_vec%f_vector%neq - p_vec%dof_dist%nb
-    call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
+    call par_scalar_array_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
     call comm_interface ( p_vec_G )
 
     p_vec%state = full_summed
-  end subroutine par_vector_comm
+  end subroutine par_scalar_array_comm
 
   !=============================================================================
   ! VERY IMPORTANT: comm_interface is well-defined if and only if p_vec is a 
@@ -272,7 +257,7 @@ use par_sparse_global_collectives_names
     implicit none
 
     ! Parameters
-    type(par_vector_t), intent(inout)         :: p_vec
+    type(par_scalar_array_t), intent(inout)         :: p_vec
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist) )
@@ -317,15 +302,15 @@ use par_sparse_global_collectives_names
 
   end subroutine comm_interface
 
-  subroutine par_vector_weight ( p_vec, weight )
+  subroutine par_scalar_array_weight ( p_vec, weight )
     implicit none
     ! Parameters
-    type(par_vector_t), intent(inout)                :: p_vec
+    type(par_scalar_array_t), intent(inout)                :: p_vec
     real(rp)        , intent(in), target, optional :: weight(*)
 
     ! Local variables
     integer(ip)      :: ni 
-    type(par_vector_t) :: p_vec_G
+    type(par_scalar_array_t) :: p_vec_G
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist) )
@@ -335,11 +320,11 @@ use par_sparse_global_collectives_names
 
 
     ni = p_vec%f_vector%neq - p_vec%dof_dist%nb
-    call par_vector_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
+    call par_scalar_array_create_view ( p_vec, ni+1, p_vec%f_vector%neq, p_vec_G )
     call weight_interface ( p_vec_G, weight )
 
     p_vec%state = part_summed
-  end subroutine par_vector_weight
+  end subroutine par_scalar_array_weight
 
   !=============================================================================
   ! VERY IMPORTANT: weight_interface is well-defined if and only if p_vec is a 
@@ -348,7 +333,7 @@ use par_sparse_global_collectives_names
   subroutine weight_interface ( p_vec, weight )
     implicit none
     ! Parameters
-    type(par_vector_t), intent(inout)                :: p_vec
+    type(par_scalar_array_t), intent(inout)                :: p_vec
     real(rp)        , intent(in), target, optional :: weight(*)
 
     ! Local variables
@@ -385,9 +370,9 @@ use par_sparse_global_collectives_names
     end if
   end subroutine weight_interface
 
-  subroutine par_vector_nrm2 (x, t)
+  subroutine par_scalar_array_nrm2 (x, t)
     implicit none
-    type(par_vector_t)   , intent(in), target  :: x
+    type(par_scalar_array_t)   , intent(in), target  :: x
     real(rp)           , intent(out)         :: t
     integer(ip)                           :: ierrc
 
@@ -400,9 +385,9 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined )
     ! write (*,*) 'PPP'
     ! call vector_print ( 6, x%f_vector )
-    call par_vector_dot (x,x,t)
+    call par_scalar_array_dot (x,x,t)
     t = sqrt(t)
-  end subroutine par_vector_nrm2
+  end subroutine par_scalar_array_nrm2
 
   !=============================================================================
   ! VERY IMPORTANT: dot_interface is well-defined if and only if x/y are 
@@ -411,13 +396,13 @@ use par_sparse_global_collectives_names
   subroutine dot_interface(x,y,t)
     implicit none
     ! Parameters  
-    type(par_vector_t), intent(in)  :: x
-    type(par_vector_t), intent(in)  :: y
+    type(par_scalar_array_t), intent(in)  :: x
+    type(par_scalar_array_t), intent(in)  :: y
     real(rp)    , intent(out)     :: t
 
     ! Locals 
     integer(ip)                :: ierrc
-    type(par_vector_t)              :: ws_vec
+    type(par_scalar_array_t)              :: ws_vec
 
     ! Pointer to part/context object is required
     assert ( associated(x%dof_dist   ) )
@@ -437,10 +422,10 @@ use par_sparse_global_collectives_names
     else if ( (x%state == part_summed .and. y%state == part_summed) ) then
 
        ! Allocate space for ws_vec
-       call par_vector_clone ( x, ws_vec )
+       call par_scalar_array_clone ( x, ws_vec )
 
        ! ws_vec <- x  
-       call par_vector_copy  ( x, ws_vec )
+       call par_scalar_array_copy  ( x, ws_vec )
 
        ! Transform ws_vec from partially summed 
        ! to fully summed
@@ -449,23 +434,23 @@ use par_sparse_global_collectives_names
 
        call serial_scalar_array_dot ( x%f_vector, ws_vec%f_vector, t )
 
-       call par_vector_free ( ws_vec )
+       call par_scalar_array_free ( ws_vec )
     end if
 
 
   end subroutine dot_interface
 
-  subroutine par_vector_dot (x,y,t)
+  subroutine par_scalar_array_dot (x,y,t)
     implicit none
     ! Parameters  
-    type(par_vector_t), intent(in)  :: x
-    type(par_vector_t), intent(in)  :: y
+    type(par_scalar_array_t), intent(in)  :: x
+    type(par_scalar_array_t), intent(in)  :: y
     real(rp)        , intent(out) :: t
 
     ! Locals 
     integer(ip)                :: ierrc
     integer(ip)                   :: ni 
-    type(par_vector_t)              :: x_I, x_G, y_I, y_G
+    type(par_scalar_array_t)              :: x_I, x_G, y_I, y_G
     real(rp)                      :: s
 
     ! Pointer to part/context object is required
@@ -480,28 +465,28 @@ use par_sparse_global_collectives_names
     
     ni = x%f_vector%neq - x%dof_dist%nb
     if ( ni > 0 ) then
-       call par_vector_create_view ( x, 1, ni, x_I )
-       call par_vector_create_view ( y, 1, ni, y_I )
+       call par_scalar_array_create_view ( x, 1, ni, x_I )
+       call par_scalar_array_create_view ( y, 1, ni, y_I )
        call serial_scalar_array_dot ( x_I%f_vector, y_I%f_vector, t )
     else
        t = 0.0_rp
     end if
     
-    call par_vector_create_view ( x, ni+1, x%f_vector%neq, x_G )
-    call par_vector_create_view ( y, ni+1, y%f_vector%neq, y_G )
+    call par_scalar_array_create_view ( x, ni+1, x%f_vector%neq, x_G )
+    call par_scalar_array_create_view ( y, ni+1, y%f_vector%neq, y_G )
     call dot_interface          ( x_G, y_G, s )
     
     t = t + s
     
     ! Reduce-sum local dot products on all processes
     call psb_sum ( y%p_env%p_context%icontxt, t )
-  end subroutine par_vector_dot
+  end subroutine par_scalar_array_dot
 
   !=============================================================================
-  subroutine par_vector_copy(x,y)
+  subroutine par_scalar_array_copy(x,y)
     implicit none
-    type(par_vector_t), intent(in)    :: x
-    type(par_vector_t), intent(inout) :: y
+    type(par_scalar_array_t), intent(in)    :: x
+    type(par_scalar_array_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -516,12 +501,12 @@ use par_sparse_global_collectives_names
     ! Perform local copy
     call serial_scalar_array_copy ( x%f_vector, y%f_vector )
     y%state = x%state
-  end subroutine par_vector_copy
+  end subroutine par_scalar_array_copy
 
   !=============================================================================
-  subroutine par_vector_zero(y)
+  subroutine par_scalar_array_zero(y)
     implicit none
-    type(par_vector_t), intent(inout) :: y
+    type(par_scalar_array_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -536,13 +521,13 @@ use par_sparse_global_collectives_names
     ! Zero-out local copy
     call serial_scalar_array_zero ( y%f_vector )
     
-  end subroutine par_vector_zero
+  end subroutine par_scalar_array_zero
 
   !=============================================================================
-  subroutine par_vector_init (t,y)
+  subroutine par_scalar_array_init (t,y)
     implicit none
     real(rp)        , intent(in)     :: t
-    type(par_vector_t), intent(inout)  :: y
+    type(par_scalar_array_t), intent(inout)  :: y
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
@@ -552,21 +537,21 @@ use par_sparse_global_collectives_names
     if(y%p_env%p_context%iam<0) return
 
     if  ( t == 0.0_rp ) then
-       call par_vector_zero(y)
+       call par_scalar_array_zero(y)
     else 
        ! Scale local copy
        call serial_scalar_array_init (t, y%f_vector)
        ! y%state = full_summed
     end if
-  end subroutine par_vector_init
+  end subroutine par_scalar_array_init
 
 
   !=============================================================================
-  subroutine par_vector_scale(t,x,y)
+  subroutine par_scalar_array_scale(t,x,y)
     implicit none
     real(rp)    , intent(in)         :: t
-    type(par_vector_t), intent(in)     :: x
-    type(par_vector_t), intent(inout)  :: y
+    type(par_scalar_array_t), intent(in)     :: x
+    type(par_scalar_array_t), intent(inout)  :: y
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
@@ -583,13 +568,13 @@ use par_sparse_global_collectives_names
     ! Scale local copy
     call serial_scalar_array_scale (t, x%f_vector, y%f_vector )
     y%state = x%state
-  end subroutine par_vector_scale
+  end subroutine par_scalar_array_scale
 
   !=============================================================================
-  subroutine par_vector_mxpy(x,y)
+  subroutine par_scalar_array_mxpy(x,y)
     implicit none
-    type(par_vector_t), intent(in)    :: x
-    type(par_vector_t), intent(inout) :: y
+    type(par_scalar_array_t), intent(in)    :: x
+    type(par_scalar_array_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -606,14 +591,14 @@ use par_sparse_global_collectives_names
 
     call serial_scalar_array_mxpy (x%f_vector, y%f_vector )
 
-  end subroutine par_vector_mxpy
+  end subroutine par_scalar_array_mxpy
 
   !=============================================================================
-  subroutine par_vector_axpy(t,x,y)
+  subroutine par_scalar_array_axpy(t,x,y)
     implicit none
     real(rp)   , intent(in)         :: t
-    type(par_vector_t), intent(in)    :: x
-    type(par_vector_t), intent(inout) :: y
+    type(par_scalar_array_t), intent(in)    :: x
+    type(par_scalar_array_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -629,14 +614,14 @@ use par_sparse_global_collectives_names
     assert ( x%state == y%state )
 
     call serial_scalar_array_axpy  ( t, x%f_vector, y%f_vector )
-  end subroutine par_vector_axpy
+  end subroutine par_scalar_array_axpy
 
   !=============================================================================
-  subroutine par_vector_aypx(t,x,y)
+  subroutine par_scalar_array_aypx(t,x,y)
     implicit none
     real(rp)    , intent(in)        :: t
-    type(par_vector_t), intent(in)    :: x
-    type(par_vector_t), intent(inout) :: y
+    type(par_scalar_array_t), intent(in)    :: x
+    type(par_scalar_array_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -651,13 +636,13 @@ use par_sparse_global_collectives_names
     assert ( x%state /= undefined .and. y%state /= undefined  )
     assert ( x%state == y%state )
     call serial_scalar_array_aypx (t, x%f_vector, y%f_vector )
-  end subroutine par_vector_aypx
+  end subroutine par_scalar_array_aypx
 
   !=============================================================================
-  subroutine par_vector_pxpy(x,y)
+  subroutine par_scalar_array_pxpy(x,y)
     implicit none
-    type(par_vector_t), intent(in)    :: x
-    type(par_vector_t), intent(inout) :: y
+    type(par_scalar_array_t), intent(in)    :: x
+    type(par_scalar_array_t), intent(inout) :: y
     integer(ip)                  :: ierrc
 
     ! Pointer to part/context object is required
@@ -673,13 +658,13 @@ use par_sparse_global_collectives_names
     assert ( x%state == y%state )
     call serial_scalar_array_pxpy ( x%f_vector, y%f_vector )
 
-  end subroutine par_vector_pxpy
+  end subroutine par_scalar_array_pxpy
 
   !=============================================================================
-  subroutine par_vector_pxmy(x,y)
+  subroutine par_scalar_array_pxmy(x,y)
     implicit none
-    type(par_vector_t), intent(in)     :: x
-    type(par_vector_t), intent(inout)  :: y
+    type(par_scalar_array_t), intent(in)     :: x
+    type(par_scalar_array_t), intent(inout)  :: y
     integer(ip)                   :: ierrc
 
     ! Pointer to part/context object is required
@@ -700,12 +685,12 @@ use par_sparse_global_collectives_names
     call serial_scalar_array_pxmy ( x%f_vector, y%f_vector )
     ! write (*,*) 'YD'
     ! call vector_print ( 6, y%f_vector )
-  end subroutine par_vector_pxmy
+  end subroutine par_scalar_array_pxmy
 
-  subroutine par_vector_print ( luout, p_vec )
+  subroutine par_scalar_array_print ( luout, p_vec )
     implicit none
     integer(ip),      intent(in) :: luout
-    type(par_vector_t), intent(in) :: p_vec
+    type(par_scalar_array_t), intent(in) :: p_vec
 
     ! Pointer to part/context object is required
     assert ( associated(p_vec%dof_dist   ) )
@@ -718,14 +703,14 @@ use par_sparse_global_collectives_names
     call  serial_scalar_array_print    (luout, p_vec%f_vector)
     write(luout,'(a)') '*** end par_vector data structure ***'
 
-  end subroutine par_vector_print
+  end subroutine par_scalar_array_print
 
-  subroutine par_vector_print_matrix_market ( dir_path, prefix, p_vec )
+  subroutine par_scalar_array_print_matrix_market ( dir_path, prefix, p_vec )
     implicit none
     ! Parameters
     character *(*)  , intent(in)  :: dir_path
     character *(*)  , intent(in)  :: prefix
-    type(par_vector_t), intent(in)  :: p_vec
+    type(par_scalar_array_t), intent(in)  :: p_vec
 
     ! Locals
     integer         :: iam, num_procs, lunou
@@ -763,7 +748,7 @@ use par_sparse_global_collectives_names
     call serial_scalar_array_print_matrix_market ( lunou, p_vec%f_vector )
     call io_close (lunou)
 
-  end subroutine par_vector_print_matrix_market
+  end subroutine par_scalar_array_print_matrix_market
 
   function count_digits_par_vector ( i )
     implicit none
@@ -789,8 +774,8 @@ use par_sparse_global_collectives_names
   subroutine weighted_dot (x,y,t)
     implicit none
     ! Parameters  
-    type(par_vector_t), intent(in)  :: x
-    type(par_vector_t), intent(in)  :: y
+    type(par_scalar_array_t), intent(in)  :: x
+    type(par_scalar_array_t), intent(in)  :: y
     real(rp)    , intent(out)     :: t
 
     ! Local variables
@@ -832,15 +817,15 @@ use par_sparse_global_collectives_names
   end subroutine flat_weighted_dot
 
   ! alpha <- op1^T * op2
- function par_vector_dot_tbp(op1,op2) result(alpha)
+ function par_scalar_array_dot_tbp(op1,op2) result(alpha)
    implicit none
-   class(par_vector_t), intent(in)    :: op1
+   class(par_scalar_array_t), intent(in)    :: op1
    class(abstract_vector_t), intent(in)  :: op2
    real(rp) :: alpha
 
    ! Locals 
    integer(ip)                   :: ni 
-   type(par_vector_t)              :: x_I, x_G, y_I, y_G
+   type(par_scalar_array_t)              :: x_I, x_G, y_I, y_G
    real(rp)                      :: s
 
    ! Alpha should be defined in all tasks (not only in coarse-grid ones)
@@ -849,7 +834,7 @@ use par_sparse_global_collectives_names
    call op1%GuardTemp()
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector_t)
+   class is (par_scalar_array_t)
       ! Pointer to part/context object is required
       assert ( associated(op1%dof_dist   ) )
       assert ( associated(op1%p_env%p_context) )
@@ -862,15 +847,15 @@ use par_sparse_global_collectives_names
       
       ni = op1%f_vector%neq - op1%dof_dist%nb
       if ( ni > 0 ) then
-         call par_vector_create_view ( op1, 1, ni, x_I )
-         call par_vector_create_view ( op2, 1, ni, y_I )
+         call par_scalar_array_create_view ( op1, 1, ni, x_I )
+         call par_scalar_array_create_view ( op2, 1, ni, y_I )
          alpha = x_I%f_vector%dot ( y_I%f_vector )
       else
          alpha = 0.0_rp
       end if
       
-      call par_vector_create_view ( op1, ni+1, op1%f_vector%neq, x_G )
-      call par_vector_create_view ( op2, ni+1, op2%f_vector%neq, y_G )
+      call par_scalar_array_create_view ( op1, ni+1, op1%f_vector%neq, x_G )
+      call par_scalar_array_create_view ( op2, ni+1, op2%f_vector%neq, y_G )
       call dot_interface          ( x_G, y_G, s )
       
       alpha = alpha + s
@@ -883,17 +868,17 @@ use par_sparse_global_collectives_names
    end select
    call op1%CleanTemp()
    call op2%CleanTemp()
- end function par_vector_dot_tbp
+ end function par_scalar_array_dot_tbp
 
  ! op1 <- op2 
- subroutine par_vector_copy_tbp(op1,op2)
+ subroutine par_scalar_array_copy_tbp(op1,op2)
    implicit none
-   class(par_vector_t), intent(inout) :: op1
+   class(par_scalar_array_t), intent(inout) :: op1
    class(abstract_vector_t), intent(in)  :: op2
    
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector_t)
+   class is (par_scalar_array_t)
       ! Pointer to part/context object is required
       assert ( associated(op2%dof_dist   ) )
       assert ( associated(op2%p_env%p_context) )
@@ -911,18 +896,18 @@ use par_sparse_global_collectives_names
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine par_vector_copy_tbp
+ end subroutine par_scalar_array_copy_tbp
 
  ! op1 <- alpha * op2
- subroutine par_vector_scal_tbp(op1,alpha,op2)
+ subroutine par_scalar_array_scal_tbp(op1,alpha,op2)
    implicit none
-   class(par_vector_t), intent(inout) :: op1
+   class(par_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
    class(abstract_vector_t), intent(in) :: op2
 
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector_t)
+   class is (par_scalar_array_t)
       ! Pointer to part/context object is required
       assert ( associated(op2%dof_dist   ) )
       assert ( associated(op2%p_env%p_context) )
@@ -942,11 +927,11 @@ use par_sparse_global_collectives_names
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine par_vector_scal_tbp
+ end subroutine par_scalar_array_scal_tbp
  ! op <- alpha
- subroutine par_vector_init_tbp(op,alpha)
+ subroutine par_scalar_array_init_tbp(op,alpha)
    implicit none
-   class(par_vector_t), intent(inout) :: op
+   class(par_scalar_array_t), intent(inout) :: op
    real(rp), intent(in) :: alpha
    
    ! Pointer to part/context object is required
@@ -958,19 +943,19 @@ use par_sparse_global_collectives_names
    ! Init local copy
    call op%f_vector%init(alpha)
    ! op%state = full_summed
- end subroutine par_vector_init_tbp
+ end subroutine par_scalar_array_init_tbp
 
  ! op1 <- alpha*op2 + beta*op1
- subroutine par_vector_axpby_tbp(op1, alpha, op2, beta)
+ subroutine par_scalar_array_axpby_tbp(op1, alpha, op2, beta)
    implicit none
-   class(par_vector_t), intent(inout) :: op1
+   class(par_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
    class(abstract_vector_t), intent(in) :: op2
    real(rp), intent(in) :: beta
 
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector_t)
+   class is (par_scalar_array_t)
       ! Pointer to part/context object is required
       assert ( associated(op2%dof_dist   ) )
       assert ( associated(op2%p_env%p_context) )
@@ -989,12 +974,12 @@ use par_sparse_global_collectives_names
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine par_vector_axpby_tbp
+ end subroutine par_scalar_array_axpby_tbp
 
  ! alpha <- nrm2(op)
- function par_vector_nrm2_tbp(op) result(alpha)
+ function par_scalar_array_nrm2_tbp(op) result(alpha)
    implicit none
-   class(par_vector_t), intent(in)  :: op
+   class(par_scalar_array_t), intent(in)  :: op
    real(rp) :: alpha
    
    ! Alpha should be defined in all tasks (not only in coarse-grid ones)
@@ -1002,7 +987,7 @@ use par_sparse_global_collectives_names
 
    call op%GuardTemp()
    select type(op)
-   class is (par_vector_t)
+   class is (par_scalar_array_t)
       ! p_env%p_context is required within this subroutine 
       assert ( associated(op%dof_dist) )
       assert ( associated(op%p_env%p_context) )
@@ -1016,17 +1001,17 @@ use par_sparse_global_collectives_names
       check(1==0)
    end select   
    call op%CleanTemp()
- end function par_vector_nrm2_tbp
+ end function par_scalar_array_nrm2_tbp
 
  ! op1 <- clone(op2) 
- subroutine par_vector_clone_tbp(op1,op2)
+ subroutine par_scalar_array_clone_tbp(op1,op2)
    implicit none
-   class(par_vector_t)          , intent(inout) :: op1
+   class(par_scalar_array_t)          , intent(inout) :: op1
    class(abstract_vector_t), target, intent(in)    :: op2
 
    call op2%GuardTemp()
    select type(op2)
-   class is (par_vector_t)
+   class is (par_scalar_array_t)
       ! p_env%p_context is required within this subroutine 
       assert ( associated(op2%dof_dist) )
       assert ( associated(op2%p_env%p_context) )
@@ -1054,16 +1039,16 @@ use par_sparse_global_collectives_names
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine par_vector_clone_tbp
+ end subroutine par_scalar_array_clone_tbp
 
  ! op <- comm(op)
- subroutine par_vector_comm_tbp(op)
+ subroutine par_scalar_array_comm_tbp(op)
    implicit none
-   class(par_vector_t), intent(inout) :: op
+   class(par_scalar_array_t), intent(inout) :: op
 
    ! Local variables
    integer(ip)      :: ni 
-   type(par_vector_t) :: op_G
+   type(par_scalar_array_t) :: op_G
 
    ! Pointer to part/context object is required
    assert ( associated(op%dof_dist) )
@@ -1072,16 +1057,16 @@ use par_sparse_global_collectives_names
    if(op%p_env%p_context%iam<0) return
    
    ni = op%f_vector%neq - op%dof_dist%nb
-   call par_vector_create_view ( op, ni+1, op%f_vector%neq, op_G )
+   call par_scalar_array_create_view ( op, ni+1, op%f_vector%neq, op_G )
    call comm_interface ( op_G )
    
    op%state = full_summed
 
- end subroutine par_vector_comm_tbp
+ end subroutine par_scalar_array_comm_tbp
 
- subroutine par_vector_free_tbp(this)
+ subroutine par_scalar_array_free_tbp(this)
    implicit none
-   class(par_vector_t), intent(inout) :: this
+   class(par_scalar_array_t), intent(inout) :: this
 
    ! The routine requires the partition/context info
    assert ( associated( this%dof_dist ) )
@@ -1097,7 +1082,7 @@ use par_sparse_global_collectives_names
    nullify ( this%dof_dist )
    nullify ( this%p_env )
 
- end subroutine par_vector_free_tbp
+ end subroutine par_scalar_array_free_tbp
 
 
-end module par_vector_names
+end module par_scalar_array_names

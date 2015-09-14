@@ -33,7 +33,7 @@ module par_block_vector_names
   use abstract_vector_names
     
   ! Parallel modules
-  use par_vector_names
+  use par_scalar_array_names
   use par_block_graph_names
   use par_graph_names
 
@@ -45,7 +45,7 @@ module par_block_vector_names
   ! par_vector
   type, extends(abstract_vector_t) :: par_block_vector_t
      integer(ip)                     :: nblocks = 0
-     type(par_vector_t), allocatable :: blocks(:)
+     type(par_scalar_array_t), allocatable :: blocks(:)
    contains
      procedure :: dot   => par_block_vector_dot_tbp
      procedure :: copy  => par_block_vector_copy_tbp
@@ -86,7 +86,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, bvec%nblocks
-       call par_vector_free ( bvec%blocks(ib) )
+       call par_scalar_array_free ( bvec%blocks(ib) )
     end do
 
     bvec%nblocks = 0
@@ -105,7 +105,7 @@ contains
     allocate ( bvec%blocks(bvec%nblocks) )
     do ib=1, bvec%nblocks
        p_graph => p_bgraph%get_block(ib,ib)
-       call par_vector_alloc ( p_graph%dof_dist, p_graph%p_env, bvec%blocks(ib) )
+       call par_scalar_array_alloc ( p_graph%dof_dist, p_graph%p_env, bvec%blocks(ib) )
     end do
 
   end subroutine par_block_vector_alloc_all
@@ -135,7 +135,7 @@ contains
     call tvec%par_block_vector_alloc_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
-       call par_vector_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
+       call par_scalar_array_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
     end do
   end subroutine par_block_vector_create_view
 
@@ -152,7 +152,7 @@ contains
     call tvec%par_block_vector_alloc_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
-       call par_vector_clone (svec%blocks(ib), tvec%blocks(ib))
+       call par_scalar_array_clone (svec%blocks(ib), tvec%blocks(ib))
     end do
 
   end subroutine par_block_vector_clone
@@ -166,7 +166,7 @@ contains
     ! Local variables
     integer(ip) :: ib
     do ib=1, p_vec%nblocks
-       call par_vector_comm ( p_vec%blocks(ib) )
+       call par_scalar_array_comm ( p_vec%blocks(ib) )
     end do
 
   end subroutine par_block_vector_comm
@@ -180,7 +180,7 @@ contains
     ! Local variables
     integer(ip) :: ib
     do ib=1, p_vec%nblocks
-       call par_vector_weight ( p_vec%blocks(ib) )
+       call par_scalar_array_weight ( p_vec%blocks(ib) )
     end do
 
   end subroutine par_block_vector_weight
@@ -201,7 +201,7 @@ contains
 
     t = 0.0_rp
     do ib=1,x%nblocks
-      call par_vector_dot ( x%blocks(ib), y%blocks(ib), aux )
+      call par_scalar_array_dot ( x%blocks(ib), y%blocks(ib), aux )
       t = t + aux
     end do 
   end subroutine par_block_vector_dot
@@ -233,7 +233,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, x%nblocks
-      call par_vector_copy ( x%blocks(ib), y%blocks(ib) )
+      call par_scalar_array_copy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine par_block_vector_copy
 
@@ -244,7 +244,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, y%nblocks
-      call par_vector_zero ( y%blocks(ib) )
+      call par_scalar_array_zero ( y%blocks(ib) )
     end do 
 
   end subroutine par_block_vector_zero
@@ -257,7 +257,7 @@ contains
     integer(ip)                           :: ib
 
     do ib=1, y%nblocks
-      call par_vector_init ( alpha, y%blocks(ib) )
+      call par_scalar_array_init ( alpha, y%blocks(ib) )
     end do    
   end subroutine par_block_vector_init
   
@@ -272,7 +272,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_vector_scale ( t, x%blocks(ib), y%blocks(ib) )
+      call par_scalar_array_scale ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
   end subroutine par_block_vector_scale
@@ -286,7 +286,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_vector_mxpy ( x%blocks(ib), y%blocks(ib) )
+      call par_scalar_array_mxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine par_block_vector_mxpy
   subroutine par_block_vector_axpy(t,x,y)
@@ -299,7 +299,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_vector_axpy ( t, x%blocks(ib), y%blocks(ib) )
+      call par_scalar_array_axpy ( t, x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine par_block_vector_axpy
 
@@ -314,7 +314,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_vector_aypx ( t, x%blocks(ib), y%blocks(ib) )
+      call par_scalar_array_aypx ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
   end subroutine par_block_vector_aypx
@@ -328,7 +328,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_vector_pxpy ( x%blocks(ib), y%blocks(ib) )
+      call par_scalar_array_pxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine par_block_vector_pxpy
 
@@ -341,7 +341,7 @@ contains
        
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_vector_pxmy ( x%blocks(ib), y%blocks(ib) )
+      call par_scalar_array_pxmy ( x%blocks(ib), y%blocks(ib) )
     end do 
   end subroutine par_block_vector_pxmy
 
@@ -355,7 +355,7 @@ contains
 
     do ib=1, x%nblocks
        write (*,*) 'Block-vector ', ib
-       call par_vector_print ( luout, x%blocks(ib) )
+       call par_scalar_array_print ( luout, x%blocks(ib) )
     end do 
   end subroutine par_block_vector_print
 

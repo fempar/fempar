@@ -33,7 +33,7 @@ use memor_names
   use preconditioner_names, only: invert_diagonal, apply_diagonal, extract_diagonal
 
   ! Parallel modules
-  use par_vector_names
+  use par_scalar_array_names
   use par_matrix_names
   use par_context_names
   use par_environment_names
@@ -109,7 +109,7 @@ use psb_penv_mod_names
     ! Locals
     type(par_matrix_t), pointer :: p_matrix
     integer(ip)       :: neq
-    type (par_vector_t) :: p_vec
+    type (par_scalar_array_t) :: p_vec
 
     p_matrix  => p_prec_dd_identity%p_mat
 
@@ -125,8 +125,8 @@ use psb_penv_mod_names
     implicit none
     ! Parameters
     type(par_preconditioner_dd_identity_t) , intent(in)    :: p_prec_dd_identity
-    type(par_vector_t)              , intent(in)    :: x
-    type(par_vector_t)              , intent(inout) :: y
+    type(par_scalar_array_t)              , intent(in)    :: x
+    type(par_scalar_array_t)              , intent(inout) :: y
 
     assert ( associated(p_prec_dd_identity%p_mat) )
     assert ( associated(p_prec_dd_identity%p_mat%p_env) )
@@ -173,9 +173,9 @@ use psb_penv_mod_names
     call x%GuardTemp()
     
     select type(x)
-    class is (par_vector_t)
+    class is (par_scalar_array_t)
        select type(y)
-       class is(par_vector_t)
+       class is(par_scalar_array_t)
           call par_preconditioner_dd_identity_apply_all_unk ( op, x, y )
        class default
           write(0,'(a)') 'matrix_t%apply: unsupported y class'
@@ -197,14 +197,14 @@ use psb_penv_mod_names
     class(par_preconditioner_dd_identity_t), intent(in)   :: op
     class(abstract_vector_t), intent(in)  :: x
     class(abstract_vector_t), allocatable :: y
-    type(par_vector_t), allocatable :: local_y
+    type(par_scalar_array_t), allocatable :: local_y
     
     call x%GuardTemp()
     
     select type(x)
-    class is (par_vector_t)
+    class is (par_scalar_array_t)
        allocate(local_y)
-       call par_vector_alloc ( x%dof_dist, x%p_env, local_y)
+       call par_scalar_array_alloc ( x%dof_dist, x%p_env, local_y)
        call par_preconditioner_dd_identity_apply_all_unk ( op, x, local_y )
        call move_alloc(local_y, y)
        call y%SetTemp()

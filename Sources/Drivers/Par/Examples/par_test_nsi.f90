@@ -123,8 +123,8 @@ program par_test_nsi_iss
   type(par_preconditioner_dd_identity_t)                    :: p_prec_dd_diag
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars 
   type(par_matrix_t), target                         :: p_mat
-  type(par_vector_t), target                         :: p_vec
-  type(par_vector_t), target                         :: p_unk
+  type(par_scalar_array_t), target                         :: p_vec
+  type(par_scalar_array_t), target                         :: p_unk
   type(solver_control_t)                             :: sctrl
   class(abstract_vector_t) , pointer           :: x, y
   class(abstract_operator_t), pointer           :: A
@@ -235,8 +235,8 @@ program par_test_nsi_iss
 
   ! Allocate matrices and vectors
   call par_matrix_alloc(.false.,p_blk_graph%get_block(1,1),p_mat)
-  call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_vec)
-  call par_vector_alloc(blk_dof_dist%get_block(1),p_env,p_unk)
+  call par_scalar_array_alloc(blk_dof_dist%get_block(1),p_env,p_vec)
+  call par_scalar_array_alloc(blk_dof_dist%get_block(1),p_env,p_unk)
   p_vec%state = part_summed
   p_unk%state = full_summed
   call p_vec%init(0.0_rp)
@@ -375,8 +375,8 @@ program par_test_nsi_iss
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
   call par_matrix_free (p_mat)
-  call par_vector_free (p_vec)
-  call par_vector_free (p_unk)
+  call par_scalar_array_free (p_vec)
+  call par_scalar_array_free (p_unk)
   call p_blk_graph%free
   call blk_dof_dist%free
   call par_fe_space_free(p_fe_space) 

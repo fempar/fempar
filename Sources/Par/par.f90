@@ -46,7 +46,7 @@ module par_names
   use par_uniform_refinement_names
 
   ! Linear algebra
-  use par_vector_names
+  use par_scalar_array_names
   use par_matrix_names
   use par_graph_names
   use par_block_matrix_names

@@ -107,7 +107,7 @@ program par_test_cdr_unstructured
   type(par_fe_space_t)      :: p_fe_space
 
   type(par_matrix_t), target                :: p_mat
-  type(par_vector_t), target                :: p_vec, p_unk
+  type(par_scalar_array_t), target                :: p_vec, p_unk
   class(abstract_vector_t) , pointer           :: x, y
   class(abstract_operator_t), pointer           :: A
 
@@ -236,10 +236,10 @@ program par_test_cdr_unstructured
 
   call par_matrix_alloc ( .true., p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
-  call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
+  call par_scalar_array_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
   p_vec%state = part_summed
   
-  call par_vector_alloc ( blk_dof_dist%get_block(1), p_env, p_unk )
+  call par_scalar_array_alloc ( blk_dof_dist%get_block(1), p_env, p_unk )
   p_unk%state = full_summed
 
   if ( p_env%am_i_fine_task() ) then
@@ -367,8 +367,8 @@ program par_test_cdr_unstructured
 
 
   call par_matrix_free (p_mat)
-  call par_vector_free (p_vec)
-  call par_vector_free (p_unk)
+  call par_scalar_array_free (p_vec)
+  call par_scalar_array_free (p_unk)
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
