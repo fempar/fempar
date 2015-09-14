@@ -71,9 +71,6 @@ module finite_element_names
      
      ! Unknown + other values
      real(rp)        , allocatable :: unkno(:,:,:)      ! Values of the solution on the nodes of the elem  (max_num_nodes, nvars, time_steps_to_store)
-     real(rp)        , allocatable :: nodal_properties(:,:)   ! Values of (interpolated) properties on the nodes of the elem 
-                                                              ! (max_num_nodes, num_nodal_props)
-                                                              ! They can be used to store postprocessing fields, e.g. vorticity in nsi
      real(rp)        , allocatable :: gauss_properties(:,:,:) ! Gauss point level properties with history, e.g. subscales,  rank?
 
      ! Boundary conditions

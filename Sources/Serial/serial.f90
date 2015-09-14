@@ -40,6 +40,7 @@ module serial_names
   use rungekutta_names
   use statistics_names
   use lib_vtk_io_interface_names
+  use postprocess_field_names
 
   ! Geometry
   use map_names
