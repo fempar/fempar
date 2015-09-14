@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_block_vector_names
+module par_block_array_names
   ! Serial modules
   use types_names
   use memor_names
@@ -43,44 +43,44 @@ module par_block_vector_names
   private
 
   ! par_vector
-  type, extends(abstract_vector_t) :: par_block_vector_t
+  type, extends(abstract_vector_t) :: par_block_array_t
      integer(ip)                     :: nblocks = 0
      type(par_scalar_array_t), allocatable :: blocks(:)
    contains
-     procedure :: dot   => par_block_vector_dot_tbp
-     procedure :: copy  => par_block_vector_copy_tbp
-     procedure :: init  => par_block_vector_init_tbp
-     procedure :: scal  => par_block_vector_scal_tbp
-     procedure :: axpby => par_block_vector_axpby_tbp
-     procedure :: nrm2  => par_block_vector_nrm2_tbp
-     procedure :: clone => par_block_vector_clone_tbp
-     procedure :: comm  => par_block_vector_comm_tbp
-     procedure :: free  => par_block_vector_free_tbp
-     procedure :: par_block_vector_alloc_blocks
-     procedure :: par_block_vector_alloc_all
-     generic   :: alloc => par_block_vector_alloc_blocks, par_block_vector_alloc_all
-  end type par_block_vector_t
+     procedure :: dot   => par_block_array_dot_tbp
+     procedure :: copy  => par_block_array_copy_tbp
+     procedure :: init  => par_block_array_init_tbp
+     procedure :: scal  => par_block_array_scal_tbp
+     procedure :: axpby => par_block_array_axpby_tbp
+     procedure :: nrm2  => par_block_array_nrm2_tbp
+     procedure :: clone => par_block_array_tbp
+     procedure :: comm  => par_block_array_comm_tbp
+     procedure :: free  => par_block_array_free_tbp
+     procedure :: par_block_array_alloc_blocks
+     procedure :: par_block_array_alloc_all
+     generic   :: alloc => par_block_array_alloc_blocks, par_block_array_alloc_all
+  end type par_block_array_t
 
   ! Types
-  public :: par_block_vector_t
+  public :: par_block_array_t
 
   ! Functions
-  public :: par_block_vector_free,                                              &
-            par_block_vector_create_view,       &
-            par_block_vector_clone,         par_block_vector_comm,              &
-            par_block_vector_weight,                                            &
-            par_block_vector_dot,           par_block_vector_nrm2,              &
-            par_block_vector_copy,          par_block_vector_zero,              &
-            par_block_vector_init,          par_block_vector_scale,             & 
-            par_block_vector_mxpy,          par_block_vector_axpy,              &
-            par_block_vector_aypx,          par_block_vector_pxpy,              &
-            par_block_vector_pxmy,          par_block_vector_print     
+  public :: par_block_array_free,                                              &
+            par_block_array_create_view,       &
+            par_block_array_clone,         par_block_array_comm,              &
+            par_block_array_weight,                                            &
+            par_block_array_dot,           par_block_array_nrm2,              &
+            par_block_array_copy,          par_block_array_zero,              &
+            par_block_array_init,          par_block_array_scale,             & 
+            par_block_array_mxpy,          par_block_array_axpy,              &
+            par_block_array_aypx,          par_block_array_pxpy,              &
+            par_block_array_pxmy,          par_block_array_print     
 contains
 
   !=============================================================================
-  subroutine par_block_vector_free (bvec)
+  subroutine par_block_array_free (bvec)
     implicit none
-    type(par_block_vector_t), intent(inout) :: bvec
+    type(par_block_array_t), intent(inout) :: bvec
 
     ! Locals
     integer(ip) :: ib
@@ -91,12 +91,12 @@ contains
 
     bvec%nblocks = 0
     deallocate( bvec%blocks )
-  end subroutine par_block_vector_free
+  end subroutine par_block_array_free
 
   !=============================================================================
-  subroutine par_block_vector_alloc_all(bvec, p_bgraph)
+  subroutine par_block_array_alloc_all(bvec, p_bgraph)
     implicit none
-    class(par_block_vector_t), intent(out) :: bvec
+    class(par_block_array_t), intent(out) :: bvec
     type(par_block_graph_t)  , intent(in)  :: p_bgraph
     integer(ip)  :: ib
     type(par_graph_t), pointer :: p_graph
@@ -108,60 +108,60 @@ contains
        call par_scalar_array_alloc ( p_graph%dof_dist, p_graph%p_env, bvec%blocks(ib) )
     end do
 
-  end subroutine par_block_vector_alloc_all
+  end subroutine par_block_array_alloc_all
 
   !=============================================================================
-  subroutine par_block_vector_alloc_blocks ( bvec, nblocks)
+  subroutine par_block_array_alloc_blocks ( bvec, nblocks)
     implicit none
-    class(par_block_vector_t), intent(out) :: bvec
+    class(par_block_array_t), intent(out) :: bvec
     integer(ip)           , intent(in)  :: nblocks
 
     bvec%nblocks        = nblocks
     allocate ( bvec%blocks(nblocks) )
-  end subroutine par_block_vector_alloc_blocks
+  end subroutine par_block_array_alloc_blocks
 
   !=============================================================================
-  subroutine par_block_vector_create_view (svec, start, end, tvec)
+  subroutine par_block_array_create_view (svec, start, end, tvec)
     implicit none
     ! Parameters
-    type(par_block_vector_t), intent(in)  :: svec
+    type(par_block_array_t), intent(in)  :: svec
     integer(ip)     , intent(in)        :: start
     integer(ip)     , intent(in)        :: end
-    type(par_block_vector_t), intent(out) :: tvec
+    type(par_block_array_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
 
-    call tvec%par_block_vector_alloc_blocks(svec%nblocks)
+    call tvec%par_block_array_alloc_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
        call par_scalar_array_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
     end do
-  end subroutine par_block_vector_create_view
+  end subroutine par_block_array_create_view
 
   !=============================================================================
-  subroutine par_block_vector_clone ( svec, tvec )
+  subroutine par_block_array_clone ( svec, tvec )
     implicit none
     ! Parameters
-    type(par_block_vector_t), intent( in ) :: svec
-    type(par_block_vector_t), intent(out) :: tvec
+    type(par_block_array_t), intent( in ) :: svec
+    type(par_block_array_t), intent(out) :: tvec
  
     ! Locals
     integer(ip) :: ib
 
-    call tvec%par_block_vector_alloc_blocks(svec%nblocks)
+    call tvec%par_block_array_alloc_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
        call par_scalar_array_clone (svec%blocks(ib), tvec%blocks(ib))
     end do
 
-  end subroutine par_block_vector_clone
+  end subroutine par_block_array_clone
 
-  subroutine par_block_vector_comm ( p_vec )
+  subroutine par_block_array_comm ( p_vec )
     implicit none
 
     ! Parameters
-    type(par_block_vector_t), intent(inout)         :: p_vec
+    type(par_block_array_t), intent(inout)         :: p_vec
 
     ! Local variables
     integer(ip) :: ib
@@ -169,13 +169,13 @@ contains
        call par_scalar_array_comm ( p_vec%blocks(ib) )
     end do
 
-  end subroutine par_block_vector_comm
+  end subroutine par_block_array_comm
 
-  subroutine par_block_vector_weight ( p_vec )
+  subroutine par_block_array_weight ( p_vec )
     implicit none
 
     ! Parameters
-    type(par_block_vector_t), intent(inout)         :: p_vec
+    type(par_block_array_t), intent(inout)         :: p_vec
 
     ! Local variables
     integer(ip) :: ib
@@ -183,14 +183,14 @@ contains
        call par_scalar_array_weight ( p_vec%blocks(ib) )
     end do
 
-  end subroutine par_block_vector_weight
+  end subroutine par_block_array_weight
 
   !=============================================================================
-  subroutine par_block_vector_dot (x, y, t)
+  subroutine par_block_array_dot (x, y, t)
     implicit none
     ! Parameters
-    type(par_block_vector_t), intent(in)  :: x
-    type(par_block_vector_t), intent(in)  :: y
+    type(par_block_array_t), intent(in)  :: x
+    type(par_block_array_t), intent(in)  :: y
     real(rp)              , intent(out) :: t
      
     ! Locals
@@ -204,12 +204,12 @@ contains
       call par_scalar_array_dot ( x%blocks(ib), y%blocks(ib), aux )
       t = t + aux
     end do 
-  end subroutine par_block_vector_dot
+  end subroutine par_block_array_dot
 
   !=============================================================================
-  subroutine par_block_vector_nrm2(x,t)
+  subroutine par_block_array_nrm2(x,t)
     implicit none
-    type(par_block_vector_t), intent(in)  :: x
+    type(par_block_array_t), intent(in)  :: x
     real(rp)              , intent(out) :: t
 
     ! p_part%p_context is required within this subroutine
@@ -218,15 +218,15 @@ contains
 
     if(x%blocks(1)%p_env%p_context%iam<0) return
 
-    call par_block_vector_dot (x, x, t)
+    call par_block_array_dot (x, x, t)
     t = sqrt(t)
-  end subroutine par_block_vector_nrm2
+  end subroutine par_block_array_nrm2
 
   !=============================================================================
-  subroutine par_block_vector_copy(x,y)
+  subroutine par_block_array_copy(x,y)
     implicit none
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
 
     ! Locals
     integer(ip) :: ib
@@ -235,11 +235,11 @@ contains
     do ib=1, x%nblocks
       call par_scalar_array_copy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine par_block_vector_copy
+  end subroutine par_block_array_copy
 
-  subroutine par_block_vector_zero(y)
+  subroutine par_block_array_zero(y)
     implicit none
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(inout) :: y
     ! Locals
     integer(ip) :: ib
 
@@ -247,11 +247,11 @@ contains
       call par_scalar_array_zero ( y%blocks(ib) )
     end do 
 
-  end subroutine par_block_vector_zero
+  end subroutine par_block_array_zero
 
-  subroutine par_block_vector_init(alpha, y)
+  subroutine par_block_array_init(alpha, y)
     implicit none
-    type(par_block_vector_t), intent(inout) :: y 
+    type(par_block_array_t), intent(inout) :: y 
     real(rp), intent(in)                  :: alpha  
     ! Locals
     integer(ip)                           :: ib
@@ -259,14 +259,14 @@ contains
     do ib=1, y%nblocks
       call par_scalar_array_init ( alpha, y%blocks(ib) )
     end do    
-  end subroutine par_block_vector_init
+  end subroutine par_block_array_init
   
-  subroutine par_block_vector_scale(t, x, y)
+  subroutine par_block_array_scale(t, x, y)
     implicit none
     ! Parameters 
     real(rp)              , intent(in)    :: t
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -275,12 +275,12 @@ contains
       call par_scalar_array_scale ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
-  end subroutine par_block_vector_scale
+  end subroutine par_block_array_scale
 
-  subroutine par_block_vector_mxpy(x,y)
+  subroutine par_block_array_mxpy(x,y)
     implicit none
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -288,12 +288,12 @@ contains
     do ib=1, y%nblocks
       call par_scalar_array_mxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine par_block_vector_mxpy
-  subroutine par_block_vector_axpy(t,x,y)
+  end subroutine par_block_array_mxpy
+  subroutine par_block_array_axpy(t,x,y)
     implicit none
     real(rp)   , intent(in)         :: t
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -301,13 +301,13 @@ contains
     do ib=1, y%nblocks
       call par_scalar_array_axpy ( t, x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine par_block_vector_axpy
+  end subroutine par_block_array_axpy
 
-  subroutine par_block_vector_aypx(t,x,y)
+  subroutine par_block_array_aypx(t,x,y)
     implicit none
     real(rp)        , intent(in)    :: t
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
 
     ! Locals
     integer(ip)                           :: ib
@@ -317,12 +317,12 @@ contains
       call par_scalar_array_aypx ( t, x%blocks(ib), y%blocks(ib) )
     end do 
 
-  end subroutine par_block_vector_aypx
+  end subroutine par_block_array_aypx
 
-  subroutine par_block_vector_pxpy(x,y)
+  subroutine par_block_array_pxpy(x,y)
     implicit none
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
 
@@ -330,12 +330,12 @@ contains
     do ib=1, y%nblocks
       call par_scalar_array_pxpy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine par_block_vector_pxpy
+  end subroutine par_block_array_pxpy
 
-  subroutine par_block_vector_pxmy(x,y)
+  subroutine par_block_array_pxmy(x,y)
     implicit none
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
     ! Locals
     integer(ip)                           :: ib
        
@@ -343,11 +343,11 @@ contains
     do ib=1, y%nblocks
       call par_scalar_array_pxmy ( x%blocks(ib), y%blocks(ib) )
     end do 
-  end subroutine par_block_vector_pxmy
+  end subroutine par_block_array_pxmy
 
-  subroutine par_block_vector_print (luout, x)
+  subroutine par_block_array_print (luout, x)
     implicit none
-    type(par_block_vector_t), intent(in) :: x
+    type(par_block_array_t), intent(in) :: x
     integer(ip)           , intent(in) :: luout
     
     ! Locals
@@ -357,13 +357,13 @@ contains
        write (*,*) 'Block-vector ', ib
        call par_scalar_array_print ( luout, x%blocks(ib) )
     end do 
-  end subroutine par_block_vector_print
+  end subroutine par_block_array_print
 
   ! alpha <- op1^T * op2
-  function par_block_vector_dot_tbp(op1,op2) result(alpha)
+  function par_block_array_dot_tbp(op1,op2) result(alpha)
     implicit none
     ! Parameters
-    class(par_block_vector_t), intent(in)  :: op1
+    class(par_block_array_t), intent(in)  :: op1
     class(abstract_vector_t)    , intent(in)  :: op2
     real(rp) :: alpha
 
@@ -374,7 +374,7 @@ contains
     call op1%GuardTemp()
     call op2%GuardTemp()
     select type(op2)
-    class is (par_block_vector_t)
+    class is (par_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        alpha = 0.0_rp
        do ib=1,op1%nblocks
@@ -387,13 +387,13 @@ contains
     end select
     call op1%CleanTemp()
     call op2%CleanTemp()
-  end function par_block_vector_dot_tbp
+  end function par_block_array_dot_tbp
 
   ! op1 <- op2 
-  subroutine par_block_vector_copy_tbp(op1,op2)
+  subroutine par_block_array_copy_tbp(op1,op2)
     implicit none
     ! Parameters
-    class(par_block_vector_t), intent(inout) :: op1
+    class(par_block_array_t), intent(inout) :: op1
     class(abstract_vector_t)    , intent(in)    :: op2
 
     ! Locals
@@ -401,7 +401,7 @@ contains
 
     call op2%GuardTemp()
     select type(op2)
-    class is (par_block_vector_t)
+    class is (par_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%copy(op2%blocks(ib))
@@ -411,12 +411,12 @@ contains
        check(1==0)
     end select
     call op2%CleanTemp()
-  end subroutine par_block_vector_copy_tbp
+  end subroutine par_block_array_copy_tbp
 
   ! op <- alpha
-  subroutine par_block_vector_init_tbp(op,alpha)
+  subroutine par_block_array_init_tbp(op,alpha)
     implicit none
-    class(par_block_vector_t), intent(inout) :: op 
+    class(par_block_array_t), intent(inout) :: op 
     real(rp)                 , intent(in)    :: alpha  
     ! Locals
     integer(ip) :: ib
@@ -424,13 +424,13 @@ contains
     do ib=1, op%nblocks
        call op%blocks(ib)%init(alpha)
     end do
-  end subroutine par_block_vector_init_tbp
+  end subroutine par_block_array_init_tbp
 
   ! op1 <- alpha * op2
-  subroutine par_block_vector_scal_tbp(op1,alpha,op2)
+  subroutine par_block_array_scal_tbp(op1,alpha,op2)
     implicit none
     ! Parameters 
-    class(par_block_vector_t), intent(inout) :: op1
+    class(par_block_array_t), intent(inout) :: op1
     real(rp)                 , intent(in)    :: alpha
     class(abstract_vector_t)    , intent(in)    :: op2
     ! Locals
@@ -438,7 +438,7 @@ contains
 
     call op2%GuardTemp()
     select type(op2)
-       class is (par_block_vector_t)
+       class is (par_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%scal(alpha,op2%blocks(ib))
@@ -448,12 +448,12 @@ contains
        check(1==0)
     end select
     call op2%CleanTemp()
-  end subroutine par_block_vector_scal_tbp
+  end subroutine par_block_array_scal_tbp
 
   ! op1 <- alpha*op2 + beta*op1
-  subroutine par_block_vector_axpby_tbp(op1,alpha,op2,beta)
+  subroutine par_block_array_axpby_tbp(op1,alpha,op2,beta)
     implicit none
-    class(par_block_vector_t), intent(inout) :: op1
+    class(par_block_array_t), intent(inout) :: op1
     real(rp)                 , intent(in)    :: alpha
     class(abstract_vector_t)    , intent(in)    :: op2
     real(rp)                 , intent(in)    :: beta
@@ -462,7 +462,7 @@ contains
 
     call op2%GuardTemp()
     select type(op2)
-    class is (par_block_vector_t)
+    class is (par_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%axpby(alpha,op2%blocks(ib),beta)
@@ -472,25 +472,25 @@ contains
        check(1==0)
     end select
     call op2%CleanTemp()
-  end subroutine par_block_vector_axpby_tbp
+  end subroutine par_block_array_axpby_tbp
 
   ! alpha <- nrm2(op)
-  function par_block_vector_nrm2_tbp(op) result(alpha)
+  function par_block_array_nrm2_tbp(op) result(alpha)
     implicit none
-    class(par_block_vector_t), intent(in) :: op
+    class(par_block_array_t), intent(in) :: op
     real(rp) :: alpha
 
     call op%GuardTemp()
     alpha = op%dot(op)
     alpha = sqrt(alpha)
     call op%CleanTemp()
-  end function par_block_vector_nrm2_tbp
+  end function par_block_array_nrm2_tbp
 
   ! op1 <- clone(op2) 
-  subroutine par_block_vector_clone_tbp(op1,op2)
+  subroutine par_block_array_tbp(op1,op2)
     implicit none
     ! Parameters
-    class(par_block_vector_t)    , intent(inout) :: op1
+    class(par_block_array_t)    , intent(inout) :: op1
     class(abstract_vector_t), target, intent(in)    :: op2
  
     ! Locals
@@ -498,7 +498,7 @@ contains
 
     call op2%GuardTemp()
     select type(op2)
-    class is (par_block_vector_t)
+    class is (par_block_array_t)
        op1%nblocks = op2%nblocks
        if(allocated(op1%blocks)) deallocate ( op1%blocks )
        allocate(op1%blocks(op1%nblocks))
@@ -510,12 +510,12 @@ contains
        check(1==0)
     end select
     call op2%CleanTemp()
-  end subroutine par_block_vector_clone_tbp
+  end subroutine par_block_array_tbp
 
   ! op <- comm(op)
-  subroutine par_block_vector_comm_tbp(op)
+  subroutine par_block_array_comm_tbp(op)
     implicit none
-    class(par_block_vector_t), intent(inout) :: op 
+    class(par_block_array_t), intent(inout) :: op 
  
     ! Locals
     integer(ip) :: ib
@@ -524,11 +524,11 @@ contains
        call op%blocks(ib)%comm()
     end do
     
-  end subroutine par_block_vector_comm_tbp
+  end subroutine par_block_array_comm_tbp
 
-  subroutine par_block_vector_free_tbp(this)
+  subroutine par_block_array_free_tbp(this)
     implicit none
-    class(par_block_vector_t), intent(inout) :: this
+    class(par_block_array_t), intent(inout) :: this
     integer(ip)  :: ib
    
     do ib=1, this%nblocks
@@ -536,6 +536,6 @@ contains
     end do
     this%nblocks = 0
     deallocate( this%blocks )
-  end subroutine par_block_vector_free_tbp
+  end subroutine par_block_array_free_tbp
 
-end module par_block_vector_names
+end module par_block_array_names

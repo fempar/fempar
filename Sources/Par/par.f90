@@ -50,7 +50,7 @@ module par_names
   use par_matrix_names
   use par_graph_names
   use par_block_matrix_names
-  use par_block_vector_names
+  use par_block_array_names
   use par_block_graph_names
   use block_dof_distribution_names
   use par_dd_base_names

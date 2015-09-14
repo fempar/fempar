@@ -36,7 +36,7 @@ module par_update_names
   use par_fe_space_names
   use par_conditions_names
   use par_scalar_array_names
-  use par_block_vector_names
+  use par_block_array_names
   
   implicit none
 # include "debug.i90"
@@ -124,7 +124,7 @@ contains
     select type(vec)
     class is(par_scalar_array_t)
        call par_update_solution_mono(vec,p_fe_space)
-    class is(par_block_vector_t)
+    class is(par_block_array_t)
        call par_update_solution_block(vec,p_fe_space)
     class default
        write(*,*) 'par_update_solution:: vec type not supported'
@@ -160,7 +160,7 @@ contains
     !   This subroutine stores the solution from a par_block_vector into unkno.                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_block_vector_t), intent(in)    :: blk_p_vec   
+    type(par_block_array_t), intent(in)    :: blk_p_vec   
     type(par_fe_space_t)   , intent(inout) :: p_fe_space
     ! Locals
     integer(ip) :: iblock
@@ -217,7 +217,7 @@ contains
     select type(vec)
     class is(par_scalar_array_t)
        call par_update_initialize_mono(vec,p_fe_space)
-    class is(par_block_vector_t)
+    class is(par_block_array_t)
        call par_update_initialize_block(vec,p_fe_space)
     class default
        write(*,*) 'par_update_solution:: vec type not supported'
@@ -253,7 +253,7 @@ contains
     !   This subroutine stores the solution from a par_block_vector into unkno.                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(par_block_vector_t), intent(inout) :: blk_p_vec   
+    type(par_block_array_t), intent(inout) :: blk_p_vec   
     type(par_fe_space_t)    , intent(in)    :: p_fe_space
     ! Locals
     integer(ip) :: iblock

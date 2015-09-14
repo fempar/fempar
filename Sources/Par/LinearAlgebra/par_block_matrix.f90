@@ -39,7 +39,7 @@ module par_block_matrix_names
   use par_scalar_array_names
   use par_graph_names
   use par_block_graph_names
-  use par_block_vector_names
+  use par_block_array_names
 
   implicit none
 # include "debug.i90"
@@ -205,8 +205,8 @@ contains
     implicit none
     ! Parameters
     type(par_block_matrix_t), intent(in)    :: a
-    type(par_block_vector_t), intent(in)    :: x
-    type(par_block_vector_t), intent(inout) :: y
+    type(par_block_array_t), intent(in)    :: x
+    type(par_block_array_t), intent(inout) :: y
 
     ! Locals
     type(par_scalar_array_t)       :: aux
@@ -255,9 +255,9 @@ contains
 
     call y%init(0.0_rp)
     select type(x)
-    class is (par_block_vector_t)
+    class is (par_block_array_t)
        select type(y)
-       class is(par_block_vector_t)
+       class is(par_block_array_t)
           do ib=1,op%nblocks
              call aux%clone(y%blocks(ib))
              do jb=1,op%nblocks
@@ -292,13 +292,13 @@ contains
     class(abstract_vector_t)    , allocatable :: y 
     ! Locals
     integer(ip) :: ib,jb
-    type(par_block_vector_t), allocatable :: local_y
+    type(par_block_array_t), allocatable :: local_y
     type(par_scalar_array_t) :: aux
 
     select type(x)
-    class is (par_block_vector_t)
+    class is (par_block_array_t)
        allocate(local_y)
-       call local_y%par_block_vector_alloc_blocks(op%nblocks)
+       call local_y%par_block_array_alloc_blocks(op%nblocks)
        do ib=1,op%nblocks
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks
