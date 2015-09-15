@@ -42,7 +42,6 @@ module serial_scalar_array_names
 
   private
 
-  ! vector
   type, extends(abstract_vector_t) :: serial_scalar_array_t
      integer(ip)                :: &
         neq = 0                       ! Number of equations
@@ -156,7 +155,7 @@ contains
     check(1==0)
 #endif
    class default
-      write(0,'(a)') 'vector_t%dot: unsupported op2 class'
+      write(0,'(a)') 'serial_scalar_array_t%dot: unsupported op2 class'
       check(1==0)
    end select
    call op1%CleanTemp()
@@ -179,7 +178,7 @@ contains
       op1%b=op2%b
 #endif
    class default
-      write(0,'(a)') 'vector_t%copy: unsupported op2 class'
+      write(0,'(a)') 'serial_scalar_array_t%copy: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -197,18 +196,13 @@ contains
    class is (serial_scalar_array_t)
       assert ( op2%neq == op1%neq )
 #ifdef ENABLE_BLAS
-      ! I guess that two calls to the level 1
-      ! BLAS can not be competitive against 
-      ! just one F90 vector operation. I have to
-      ! measure the difference among these two
-      ! options. 
       call dcopy ( op2%neq, op2%b, 1, op1%b, 1)
       call dscal ( op1%neq, alpha, op1%b, 1)
 #else
       op1%b=alpha*op2%b
 #endif
    class default
-      write(0,'(a)') 'vector_t%scal: unsupported op2 class'
+      write(0,'(a)') 'serial_scalar_array_t%scal: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -252,7 +246,7 @@ contains
 #endif  
       end if
    class default
-      write(0,'(a)') 'vector_t%axpby: unsupported op2 class'
+      write(0,'(a)') 'serial_scalar_array_t%axpby: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -289,7 +283,7 @@ contains
       call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
       op1%mode = allocated
    class default
-      write(0,'(a)') 'vector_t%clone: unsupported op2 class'
+      write(0,'(a)') 'serial_scalar_array_t%clone: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()

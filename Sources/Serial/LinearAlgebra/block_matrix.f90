@@ -261,7 +261,7 @@ contains
     select type(x)
     class is (serial_block_array_t)
        allocate(local_y)
-       call local_y%serial_block_array_blocks(op%nblocks)
+       call local_y%create(op%nblocks)
        do ib=1,op%nblocks
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks
