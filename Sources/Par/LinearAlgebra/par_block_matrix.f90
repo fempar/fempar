@@ -218,25 +218,18 @@ contains
 
     do ib=1, a%nblocks
        y%blocks(ib)%state = part_summed
-       call par_scalar_array_zero  ( y%blocks(ib) )
-       call par_scalar_array_clone ( y%blocks(ib), aux ) 
+       call y%blocks(ib)%init(0.0_rp)
+       call aux%clone ( y%blocks(ib) ) 
        do jb=1, a%nblocks
           if ( associated(a%blocks(ib,jb)%p_p_matrix) ) then
              ! aux <- A(ib,jb) * x(jb)
              call par_matvec ( a%blocks(ib,jb)%p_p_matrix, x%blocks(jb), aux ) 
 
-             !write (*,*) 'XXXX', ib, '   ', jb                  ! DBG:
-             !call vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG:
-
              ! y(ib) <- y(ib) + aux 
-             call par_scalar_array_pxpy ( aux, y%blocks(ib) )
-
-             ! write (*,*) 'XXXX', ib, '   ', jb                 ! DBG:
-             !call vector_print ( 6, y%blocks(ib)%f_vector ) ! DBG: 
-
+             call y%blocks(ib)%axpby ( 1.0_rp, aux, 1.0_rp )
           end if
        end do
-       call par_scalar_array_free ( aux )
+       call aux%free()
     end do
   end subroutine par_block_matvec
 

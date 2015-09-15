@@ -235,8 +235,8 @@ program par_test_nsi_iss
 
   ! Allocate matrices and vectors
   call par_matrix_alloc(.false.,p_blk_graph%get_block(1,1),p_mat)
-  call par_scalar_array_alloc(blk_dof_dist%get_block(1),p_env,p_vec)
-  call par_scalar_array_alloc(blk_dof_dist%get_block(1),p_env,p_unk)
+  call p_vec%create(blk_dof_dist%get_block(1),p_env)
+  call p_unk%create(blk_dof_dist%get_block(1),p_env)
   p_vec%state = part_summed
   p_unk%state = full_summed
   call p_vec%init(0.0_rp)
@@ -375,8 +375,8 @@ program par_test_nsi_iss
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
   call par_matrix_free (p_mat)
-  call par_scalar_array_free (p_vec)
-  call par_scalar_array_free (p_unk)
+  call p_vec%free
+  call p_unk%free()
   call p_blk_graph%free
   call blk_dof_dist%free
   call par_fe_space_free(p_fe_space) 

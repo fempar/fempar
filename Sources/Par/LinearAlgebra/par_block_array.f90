@@ -67,7 +67,7 @@ module par_block_array_names
   ! Functions
   public :: par_block_array_free,                                              &
             par_block_array_create_view,       &
-            par_block_array_clone,         par_block_array_comm,              &
+            par_block_array_comm,              &
             par_block_array_weight,                                            &
             par_block_array_dot,           par_block_array_nrm2,              &
             par_block_array_copy,          par_block_array_zero,              &
@@ -86,7 +86,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, bvec%nblocks
-       call par_scalar_array_free ( bvec%blocks(ib) )
+       call bvec%blocks(ib)%free()
     end do
 
     bvec%nblocks = 0
@@ -97,7 +97,7 @@ contains
   subroutine par_block_array_alloc_all(bvec, p_bgraph)
     implicit none
     class(par_block_array_t), intent(out) :: bvec
-    type(par_block_graph_t)  , intent(in)  :: p_bgraph
+    type(par_block_graph_t) , intent(in)  :: p_bgraph
     integer(ip)  :: ib
     type(par_graph_t), pointer :: p_graph
     
@@ -105,7 +105,7 @@ contains
     allocate ( bvec%blocks(bvec%nblocks) )
     do ib=1, bvec%nblocks
        p_graph => p_bgraph%get_block(ib,ib)
-       call par_scalar_array_alloc ( p_graph%dof_dist, p_graph%p_env, bvec%blocks(ib) )
+       call bvec%blocks(ib)%create ( p_graph%dof_dist, p_graph%p_env )
     end do
 
   end subroutine par_block_array_alloc_all
@@ -135,27 +135,9 @@ contains
     call tvec%par_block_array_alloc_blocks(svec%nblocks)
 
     do ib=1, svec%nblocks
-       call par_scalar_array_create_view (svec%blocks(ib), start, end, tvec%blocks(ib))
+       call svec%blocks(ib)%create_view(start, end, tvec%blocks(ib))
     end do
   end subroutine par_block_array_create_view
-
-  !=============================================================================
-  subroutine par_block_array_clone ( svec, tvec )
-    implicit none
-    ! Parameters
-    type(par_block_array_t), intent( in ) :: svec
-    type(par_block_array_t), intent(out) :: tvec
- 
-    ! Locals
-    integer(ip) :: ib
-
-    call tvec%par_block_array_alloc_blocks(svec%nblocks)
-
-    do ib=1, svec%nblocks
-       call par_scalar_array_clone (svec%blocks(ib), tvec%blocks(ib))
-    end do
-
-  end subroutine par_block_array_clone
 
   subroutine par_block_array_comm ( p_vec )
     implicit none
@@ -166,7 +148,7 @@ contains
     ! Local variables
     integer(ip) :: ib
     do ib=1, p_vec%nblocks
-       call par_scalar_array_comm ( p_vec%blocks(ib) )
+       call p_vec%blocks(ib)%comm()
     end do
 
   end subroutine par_block_array_comm
@@ -180,7 +162,7 @@ contains
     ! Local variables
     integer(ip) :: ib
     do ib=1, p_vec%nblocks
-       call par_scalar_array_weight ( p_vec%blocks(ib) )
+       call p_vec%blocks(ib)%weight()
     end do
 
   end subroutine par_block_array_weight
@@ -201,7 +183,7 @@ contains
 
     t = 0.0_rp
     do ib=1,x%nblocks
-      call par_scalar_array_dot ( x%blocks(ib), y%blocks(ib), aux )
+      aux = x%blocks(ib)%dot(y%blocks(ib))
       t = t + aux
     end do 
   end subroutine par_block_array_dot
@@ -233,7 +215,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, x%nblocks
-      call par_scalar_array_copy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%copy(x%blocks(ib))
     end do 
   end subroutine par_block_array_copy
 
@@ -244,7 +226,7 @@ contains
     integer(ip) :: ib
 
     do ib=1, y%nblocks
-      call par_scalar_array_zero ( y%blocks(ib) )
+      call y%blocks(ib)%init(0.0_rp)
     end do 
 
   end subroutine par_block_array_zero
@@ -257,7 +239,7 @@ contains
     integer(ip)                           :: ib
 
     do ib=1, y%nblocks
-      call par_scalar_array_init ( alpha, y%blocks(ib) )
+      call y%blocks(ib)%init(alpha)
     end do    
   end subroutine par_block_array_init
   
@@ -272,7 +254,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_scalar_array_scale ( t, x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%scal(t, x%blocks(ib))
     end do 
 
   end subroutine par_block_array_scale
@@ -286,7 +268,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_scalar_array_mxpy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby (-1.0_rp, x%blocks(ib), 1.0_rp)
     end do 
   end subroutine par_block_array_mxpy
   subroutine par_block_array_axpy(t,x,y)
@@ -299,7 +281,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_scalar_array_axpy ( t, x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby(t, x%blocks(ib), 1.0_rp)
     end do 
   end subroutine par_block_array_axpy
 
@@ -314,7 +296,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_scalar_array_aypx ( t, x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby ( 1.0_rp, x%blocks(ib),  t)
     end do 
 
   end subroutine par_block_array_aypx
@@ -328,7 +310,7 @@ contains
 
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_scalar_array_pxpy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby ( 1.0_rp, x%blocks(ib), 1.0_rp )
     end do 
   end subroutine par_block_array_pxpy
 
@@ -341,21 +323,21 @@ contains
        
     assert ( x%nblocks == y%nblocks )
     do ib=1, y%nblocks
-      call par_scalar_array_pxmy ( x%blocks(ib), y%blocks(ib) )
+      call y%blocks(ib)%axpby ( 1.0_rp, x%blocks(ib), -1.0_rp )
     end do 
   end subroutine par_block_array_pxmy
 
-  subroutine par_block_array_print (luout, x)
+  subroutine par_block_array_print (this,luout)
     implicit none
-    type(par_block_array_t), intent(in) :: x
-    integer(ip)           , intent(in) :: luout
+    class(par_block_array_t), intent(in) :: this
+    integer(ip)             , intent(in) :: luout
     
     ! Locals
     integer(ip) :: ib
 
-    do ib=1, x%nblocks
+    do ib=1, this%nblocks
        write (*,*) 'Block-vector ', ib
-       call par_scalar_array_print ( luout, x%blocks(ib) )
+       call this%blocks(ib)%print(luout)
     end do 
   end subroutine par_block_array_print
 

@@ -40,7 +40,6 @@ module block_matrix_names
   implicit none
 # include "debug.i90"
 
-
   private
 
   ! Pointer to matrix

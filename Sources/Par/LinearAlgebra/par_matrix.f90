@@ -403,7 +403,7 @@ contains
     select type(x)
     class is (par_scalar_array_t)
        allocate(local_y)
-       call par_scalar_array_alloc ( op%dof_dist, x%p_env, local_y)
+       call local_y%create (op%dof_dist, x%p_env)
        call par_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

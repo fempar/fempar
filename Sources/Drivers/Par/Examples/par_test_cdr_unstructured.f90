@@ -236,10 +236,10 @@ program par_test_cdr_unstructured
 
   call par_matrix_alloc ( .true., p_blk_graph%get_block(1,1), p_mat, positive_definite )
 
-  call par_scalar_array_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
+  call p_vec%create ( blk_dof_dist%get_block(1), p_env )
   p_vec%state = part_summed
   
-  call par_scalar_array_alloc ( blk_dof_dist%get_block(1), p_env, p_unk )
+  call p_unk%create ( blk_dof_dist%get_block(1), p_env )
   p_unk%state = full_summed
 
   if ( p_env%am_i_fine_task() ) then
@@ -367,8 +367,8 @@ program par_test_cdr_unstructured
 
 
   call par_matrix_free (p_mat)
-  call par_scalar_array_free (p_vec)
-  call par_scalar_array_free (p_unk)
+  call p_vec%free()
+  call p_unk%free()
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)

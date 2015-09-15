@@ -431,10 +431,10 @@ program par_test_mlbddc_poisson_problem
 
   call par_matrix_alloc ( test_params%is_symmetric, p_blk_graph%get_block(1,1), p_mat, test_params%sign )
 
-  call par_scalar_array_alloc ( blk_dof_dist%get_block(1), p_env, p_vec )
+  call p_vec%create ( blk_dof_dist%get_block(1), p_env )
   p_vec%state = part_summed
 
-  call par_scalar_array_alloc ( blk_dof_dist%get_block(1), p_env, p_unk )
+  call p_unk%create ( blk_dof_dist%get_block(1), p_env )
   p_unk%state = full_summed
 
   call par_update_analytical_bcond( vars_of_unk=(/1/), ctime=0.0_rp, p_fe_space=p_fe_space)
@@ -532,8 +532,8 @@ program par_test_mlbddc_poisson_problem
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
   call par_matrix_free (p_mat)
-  call par_scalar_array_free (p_vec)
-  call par_scalar_array_free (p_unk)
+  call p_vec%free()
+  call p_unk%free()
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)

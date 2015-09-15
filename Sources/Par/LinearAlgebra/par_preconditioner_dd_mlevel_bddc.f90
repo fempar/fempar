@@ -6081,103 +6081,97 @@ use mpi
        if ( mlbddc%correction_mode == additive ) then
 
           ! Create temporary vector
-          call par_scalar_array_alloc ( mlbddc%p_mat%dof_dist, mlbddc%p_mat%p_env, r )
+          call r%create( mlbddc%p_mat%dof_dist,mlbddc%p_mat%p_env)
 
           ! par_vector_create view calls next
           ! requires a state to be assigned to r !!!
           r%state = x%state
-          call par_scalar_array_create_view ( r,                                      1, mlbddc%p_mat%dof_dist%ni, r_I )
-          call par_scalar_array_create_view ( r, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
-          call par_scalar_array_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
+          call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
+          call r%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
+          call x%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
           ! Init interior vertices to zero
           call r_I%f_vector%init(0.0_rp)
 
           ! Phase 1: compute coarse-grid correction v1
-          call par_scalar_array_clone ( x_G, v1 )
+          call v1%clone(x_G)
 
           ! Copy residual into temporal vector
-          call par_scalar_array_copy  ( x_G, r_G  )
+          call r_G%copy(x_G)
 
           if ( r%state == part_summed ) then 
              ! Summ  residual
-             call par_scalar_array_comm ( r_G )
+             call r_G%comm()
           end if
 
           ! 1.2. ws_vec_G <- W_i R_i r
           ! Weight residual
           if ( associated (mlbddc%weight) ) then
-             call par_scalar_array_weight ( r_G, mlbddc%weight ) 
+             call r_G%weight(mlbddc%weight) 
           else
-             call par_scalar_array_weight ( r_G ) 
+             call r_G%weight()
           end if
 
           call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r_G, dum_vec )
 
-          call par_scalar_array_clone ( x_G, v2 )
+          call v2%clone(x_G)
 
           call par_preconditioner_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v2 )
 
-!!$          if ( temp_fine_coarse_grid_overlap ) then 
-!!$             call par_timer_stop ( mlbddc%timer_applyprec_ov_fine  ) 
-!!$          end if
-
           call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, dum_vec, v1 )
 
-          call par_scalar_array_create_view ( y, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
-          call par_scalar_array_create_view ( x,                                 1, mlbddc%p_mat%dof_dist%ni, x_I )
+          call y%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
+          call x%create_view(1, mlbddc%p_mat%dof_dist%ni, x_I )
 
-          call par_scalar_array_copy ( v1, y_G )
-          call par_scalar_array_pxpy ( v2, y_G )
-          call par_scalar_array_free ( v1 )
-          call par_scalar_array_free ( v2 )
+          call y_G%copy(v1)
+          call y_G%axpby ( 1.0_rp, v2, 1.0_rp )
+          call v1%free()
+          call v2%free()
 
           if ( associated (mlbddc%weight) ) then
-             call par_scalar_array_weight ( y_G, mlbddc%weight ) 
+             call y_G%weight(mlbddc%weight ) 
           else
-             call par_scalar_array_weight ( y_G ) 
+             call y_G%weight() 
           end if
-          call par_scalar_array_comm   ( y_G )
+          call y_G%comm()
 
           ! r_I <- A_IG * y_G
           call operator_dd_apply_A_IG ( mlbddc%A_II_inv, y_G%f_vector, r_I%f_vector )
 
           ! r <- x_I - r_I <- -r_I + x_I
-          call par_scalar_array_pxmy  ( x_I, r_I )
+          call r_I%axpby(1.0_rp, x_I, -1.0_rp)
 
-          call par_scalar_array_create_view (  y, 1, mlbddc%p_mat%dof_dist%ni, y_I  )
+          call y%create_view(1, mlbddc%p_mat%dof_dist%ni, y_I  )
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, y_I%f_vector )
 
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
-
-          call par_scalar_array_free   (r)
-
+          call r%free()
        else if (mlbddc%correction_mode == additive_symmetric) then
           ! Create temporary vectors
-          call par_scalar_array_clone ( x, r  )
-          call par_scalar_array_clone ( x, aux  )
-          call par_scalar_array_clone ( y, dx )
+          call r%clone(x)
+          call aux%clone(x)
+          call dx%clone(y)
 
-          call par_scalar_array_copy ( x, aux )
+          call aux%copy(x)
           if ( aux%state == full_summed ) then
-             call par_scalar_array_weight ( aux )
+             call aux%weight()
           end if
 
           ! par_vector_create view calls next
           ! requires a state to be assigned to r !!!
           r%state = x%state
-          call par_scalar_array_create_view ( r,                                      1, mlbddc%p_mat%dof_dist%ni, r_I )
-          call par_scalar_array_create_view ( r, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
+          call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
+          call r%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
 
-          call par_scalar_array_create_view ( aux,                                      1, mlbddc%p_mat%dof_dist%ni, x_I )
-          call par_scalar_array_create_view ( aux, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
+          call aux%create_view(1, mlbddc%p_mat%dof_dist%ni, x_I )
+          call aux%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
-          call par_scalar_array_create_view ( y,                                      1, mlbddc%p_mat%dof_dist%ni, y_I )
-          call par_scalar_array_create_view ( y, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
+          call y%create_view(1, mlbddc%p_mat%dof_dist%ni, y_I )
+          call y%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
 
-          call par_scalar_array_create_view ( dx,                                      1, mlbddc%p_mat%dof_dist%ni, dx_I )
-          call par_scalar_array_create_view ( dx, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, dx_G )
+          call dx%create_view(1, mlbddc%p_mat%dof_dist%ni, dx_I )
+          call dx%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, dx_G )
 
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
@@ -6187,36 +6181,36 @@ use mpi
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
           ! 2) Compute x = x + dx     (idem x_I = x_I + dx_I,    x_G = x_G)
-          call par_scalar_array_copy ( dx, y )
+          call y%copy(dx)
 
           ! 3) Compute r = r - A dx
           ! r <- Adx
           call par_matvec ( mlbddc%p_mat, dx, r ) 
+		  
           ! r <- -r + x
-          call par_scalar_array_pxmy  ( aux, r )
-
+          call r%axpby ( 1.0_rp, aux, -1.0_rp )
 
           ! 4) Compute dx = A_{BDDC}^{-1} r
 
           ! Phase 1: compute coarse-grid correction v1
-          call par_scalar_array_clone ( x_G, v1 )
+          call v1%clone(x_G)
 
           if ( r%state == part_summed ) then 
-             ! Summ  residual
-             call par_scalar_array_comm ( r_G )
+             ! Sum residual
+             call r_G%comm()
           end if
 
           ! 1.2. ws_vec_G <- W_i R_i r
           ! Weight residual
           if ( associated (mlbddc%weight) ) then
-             call par_scalar_array_weight ( r_G, mlbddc%weight ) 
+             call r_G%weight(mlbddc%weight) 
           else
-             call par_scalar_array_weight ( r_G ) 
+             call r_G%weight()
           end if
 
           call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r_G, dum_vec )
 
-          call par_scalar_array_clone ( x_G, v2 )
+          call v2%clone(x_G)
 
           call par_preconditioner_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v2 )
 
@@ -6226,30 +6220,30 @@ use mpi
 
           call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, z_c, v1 )
 
-          call par_scalar_array_copy ( v1, dx_G )
-          call par_scalar_array_pxpy ( v2, dx_G )
-          call par_scalar_array_free ( v1 )
-          call par_scalar_array_free ( v2 )
+          call dx_G%copy(v1)
+          call dx_G%axpby(1.0_rp, v2, 1.0_rp)
+          call v1%free()
+          call v2%free()
 
           if ( associated (mlbddc%weight) ) then
-             call par_scalar_array_weight ( dx_G, mlbddc%weight ) 
+             call dx_G%weight(mlbddc%weight) 
           else
-             call par_scalar_array_weight ( dx_G ) 
+             call dx_G%weight()
           end if
-          call par_scalar_array_comm   ( dx_G )
+          call dx_G%comm()
 
-          call par_scalar_array_zero ( dx_I )
+          call dx_I%init(0.0_rp)
 
           ! 5) Do 2) and 3)
           ! 2) Compute x = x + dx
-          call par_scalar_array_pxpy ( dx, y )
+          call y%axpby(1.0_rp, dx, 1.0_rp)
 
           ! 3) Compute r = r - A dx 
-          call par_scalar_array_copy ( r, aux )
+          call aux%copy(r)
           ! r <- Adx
           call par_matvec ( mlbddc%p_mat, dx, r ) 
           ! r <- -r + x
-          call par_scalar_array_pxmy  ( aux, r )
+          call r%axpby  ( 1.0_rp, aux, -1.0_rp )
 
           ! 6) Compute 1), 2)
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, dx_I%f_vector )
@@ -6258,11 +6252,11 @@ use mpi
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
           ! 2) Compute x = x + dx
-          call par_scalar_array_pxpy ( dx, y )
+          call y%axpby(1.0_rp, dx, 1.0_rp)
 
-          call par_scalar_array_free   (r)
-          call par_scalar_array_free   (aux)
-          call par_scalar_array_free   (dx)
+          call r%free()
+          call aux%free()
+          call dx%free()
 
           if ( temp_fine_coarse_grid_overlap ) then 
             if (i_am_fine_task) then
@@ -6301,7 +6295,7 @@ use mpi
           assert(mlbddc%p_mat%p_env%num_levels>2)
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Assemble coarse-grid residual in parallel
-             call par_scalar_array_alloc ( mlbddc%dof_dist_c, mlbddc%p_env_c, p_r_c)
+             call p_r_c%create ( mlbddc%dof_dist_c, mlbddc%p_env_c)
              p_r_c%state = part_summed
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, p_r_c%f_vector )
              ! call vector_print_matrix_market (6, p_r_c%f_vector)
@@ -6309,7 +6303,7 @@ use mpi
              ! AFM: In the future, the following call should be replaced by a call that allows
              ! the solution of the coarse-grid problem via a krylov subspace solver  
              ! A simple solve specialization may help here ??? 
-             call par_scalar_array_alloc ( mlbddc%dof_dist_c, mlbddc%p_env_c, p_z_c)
+             call p_z_c%create ( mlbddc%dof_dist_c, mlbddc%p_env_c)
              p_z_c%state = full_summed
 
              ! call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c )
@@ -6319,8 +6313,8 @@ use mpi
              ! Scatter solution of coarse-grid problem 
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, p_z_c%f_vector, v1 )
 
-             call par_scalar_array_free (p_z_c)
-             call par_scalar_array_free (p_r_c)
+             call p_z_c%free()
+             call p_r_c%free()
           end if
        end if
 !!$       if ( temp_fine_coarse_grid_overlap ) then 
@@ -6331,7 +6325,6 @@ use mpi
     end if
     
   end subroutine par_preconditioner_dd_mlevel_bddc_apply_all_unk
-
 
   !=============================================================================
   subroutine par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, mlbddc, b, x)
@@ -6352,25 +6345,25 @@ use mpi
     assert ( p_mat%p_env%num_levels > 1 ) 
 
     if ( mlbddc%p_mat%p_env%p_context%iam >= 0 ) then
-       call par_scalar_array_clone ( b, r )
+       call r%clone(b)
 
-       call par_scalar_array_create_view ( r, 1, mlbddc%p_mat%dof_dist%ni, r_I )
-       call par_scalar_array_create_view ( b, 1, mlbddc%p_mat%dof_dist%ni, b_I )
-       call par_scalar_array_create_view ( x, 1, mlbddc%p_mat%dof_dist%ni, x_I )
-       call par_scalar_array_create_view ( x, mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
+       call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
+       call b%create_view(1, mlbddc%p_mat%dof_dist%ni, b_I )
+       call x%create_view(1, mlbddc%p_mat%dof_dist%ni, x_I )
+       call x%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
        
        ! r_I <- A_IG * y_G
        call operator_dd_apply_A_IG ( mlbddc%A_II_inv, x_G%f_vector, r_I%f_vector )
        
        ! r <- x_I - r_I <- -r_I + x_I
-       call par_scalar_array_pxmy ( b_I, r_I )
+       call r_I%axpby ( 1.0_rp, b_I, -1.0_rp )
        
        call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, x_I%f_vector )
 
        mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
        mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
        
-       call par_scalar_array_free (r)
+       call r%free()
     end if
 
   end subroutine par_preconditioner_dd_mlevel_bddc_static_condensation
@@ -8707,7 +8700,7 @@ use mpi
        select type(x)
           class is (par_scalar_array_t)
           allocate(local_y)
-          call par_scalar_array_alloc ( x%dof_dist, x%p_env, local_y)
+          call local_y%create ( x%dof_dist, x%p_env )
           call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
           call move_alloc(local_y, y)
           call y%SetTemp()
