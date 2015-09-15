@@ -31,7 +31,7 @@ module block_operator_names
   use memor_names
   use abstract_operator_names
   use vector_names
-  use block_operand_names
+  use block_vector_names
 
 #ifdef memcheck
 use iso_c_binding
@@ -96,17 +96,17 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (block_operand_t)
+    class is (block_vector_t)
        select type(y)
-       class is(block_operand_t)
-          allocate(aux, mold=y%blocks(1)%p_op); call aux%default_initialization()
+       class is(block_vector_t)
+          allocate(aux, mold=y%blocks(1)%vector); call aux%default_initialization()
           do iblk=1, op%mblocks
-             call y%blocks(iblk)%p_op%init(0.0_rp)
-             call aux%clone(y%blocks(iblk)%p_op)
+             call y%blocks(iblk)%vector%init(0.0_rp)
+             call aux%clone(y%blocks(iblk)%vector)
              do jblk=1, op%nblocks
                 if (associated(op%blocks(iblk,jblk)%p_op)) then
-                    call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%p_op,aux)
-                    call y%blocks(iblk)%p_op%axpby(1.0,aux,1.0)
+                    call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux)
+                    call y%blocks(iblk)%vector%axpby(1.0,aux,1.0)
                  end if
               end do
              call aux%free()
@@ -133,31 +133,31 @@ contains
     class(vector_t) , intent(in)   :: x
     class(vector_t) , allocatable  :: y
 
-    type(block_operand_t), allocatable :: local_y
+    type(block_vector_t), allocatable :: local_y
     class(vector_t), allocatable :: aux
     integer(ip)                      :: iblk, jblk, first_block_in_row
 
     call x%GuardTemp()
 
     select type(x)
-    class is (block_operand_t)
+    class is (block_vector_t)
        allocate(local_y)
        call local_y%create(op%mblocks)
-       allocate(aux, mold=x%blocks(1)%p_op); call aux%default_initialization()
+       allocate(aux, mold=x%blocks(1)%vector); call aux%default_initialization()
        do iblk=1, op%mblocks
           first_block_in_row = 1
           do jblk=1, op%nblocks
              if (associated(op%blocks(iblk,jblk)%p_op)) then
                 if ( first_block_in_row == 1 ) then
-                   aux = op%blocks(iblk,jblk)%p_op * x%blocks(jblk)%p_op
-                   allocate(local_y%blocks(iblk)%p_op, mold=aux); call local_y%blocks(iblk)%p_op%default_initialization()
+                   aux = op%blocks(iblk,jblk)%p_op * x%blocks(jblk)%vector
+                   allocate(local_y%blocks(iblk)%vector, mold=aux); call local_y%blocks(iblk)%vector%default_initialization()
                    local_y%blocks(iblk)%allocated = .true.
-                   call local_y%blocks(iblk)%p_op%clone(aux)
-                   call local_y%blocks(iblk)%p_op%copy(aux)
+                   call local_y%blocks(iblk)%vector%clone(aux)
+                   call local_y%blocks(iblk)%vector%copy(aux)
                    first_block_in_row = 0
                 else
-                   call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%p_op,aux)
-                   call local_y%blocks(iblk)%p_op%axpby(1.0,aux,1.0)
+                   call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux)
+                   call local_y%blocks(iblk)%vector%axpby(1.0,aux,1.0)
                 end if
              end if
           end do

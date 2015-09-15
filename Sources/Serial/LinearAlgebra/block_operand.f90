@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module block_operand_names
+module block_vector_names
   use types_names
   use memor_names
   use vector_names
@@ -35,52 +35,47 @@ module block_operand_names
 
   private
 
-  ! Pointer to abstract_vector
-  type p_abs_operand_t
-     logical                      :: allocated  = .false.
-     class(vector_t), pointer :: p_op => null()
-  end type p_abs_operand_t
+  type p_vector_t
+     logical :: allocated  = .false.
+     class(vector_t), pointer :: vector => null()
+  end type p_vector_t
 
-  ! Added type(block_operand_t) as a new implementation of class(vector_t).
-  ! type(block_operand_t) is the only type compatible with type(block_operator_t).
+  ! Added type(block_vector_t) as a new implementation of class(vector_t).
+  ! type(block_vector_t) is the only type compatible with type(block_vector_t).
   ! Therefore, if one aims to solve a linear system by means of an, e.g., block
   ! LU recursive preconditioned GMRES, then both the right hand side, and sought-after
-  ! solution have to be provided to abstract_gmres as type(block_operand_t) instances.
-  ! type(block_operand_t) provides the necessary (concrete) interface to build
-  ! type(block_operand_t) instances as views, e.g., of the components of a
-  ! type(block_vector_t) or type(par_block_vector_t).
+  ! solution have to be provided to abstract_gmres as type(block_vector_t) instances.
+  ! type(block_vector_t) provides the necessary (concrete) interface to build
+  ! type(block_vector_t) instances as views, e.g., of the components of a
+  ! type(block_array_t) or type(par_block_array_t).
 
   ! block_operand
-  type, extends(vector_t) :: block_operand_t
-     integer(ip)                      :: nblocks
-     type(p_abs_operand_t), allocatable :: blocks(:)
-   contains
-     
-     procedure :: create    => block_operand_create
-     procedure :: set_block => block_operand_set_block
-     procedure :: destroy   => block_operand_free_tbp
-
-     ! Provide type bound procedures (tbp) implementors
-     procedure :: dot  => block_operand_dot_tbp
-     procedure :: copy => block_operand_copy_tbp
-     procedure :: init => block_operand_init_tbp
-     procedure :: scal => block_operand_scal_tbp
-     procedure :: axpby => block_operand_axpby_tbp
-     procedure :: nrm2 => block_operand_nrm2_tbp
-     procedure :: clone => block_operand_clone_tbp
-     procedure :: comm  => block_operand_comm_tbp
-     procedure :: free  => block_operand_free_tbp
-  end type block_operand_t
+  type, extends(vector_t) :: block_vector_t
+     integer(ip)                   :: nblocks
+     type(p_vector_t), allocatable :: blocks(:)
+   contains     
+     procedure :: create    => block_vector_create
+     procedure :: set_block => block_vector_set_block
+     procedure :: dot  => block_vector_dot
+     procedure :: copy => block_vector_copy
+     procedure :: init => block_vector_init
+     procedure :: scal => block_vector_scal
+     procedure :: axpby => block_vector_axpby
+     procedure :: nrm2 => block_vector_nrm2
+     procedure :: clone => block_vector_clone
+     procedure :: comm  => block_vector_comm
+     procedure :: free  => block_vector_free
+  end type block_vector_t
 
   ! Types
-  public :: block_operand_t
+  public :: block_vector_t
 
 contains
 
-  subroutine block_operand_create (bop, nblocks)
+  subroutine block_vector_create (bop, nblocks)
     implicit none
     ! Parameters
-    class(block_operand_t)    , intent(inout) :: bop
+    class(block_vector_t)    , intent(inout) :: bop
     integer(ip)             , intent(in)    :: nblocks
 
     ! Locals
@@ -92,53 +87,53 @@ contains
     allocate ( bop%blocks(nblocks) )
     do iblk=1, nblocks
        bop%blocks(iblk)%allocated = .false.
-       nullify(bop%blocks(iblk)%p_op)
+       nullify(bop%blocks(iblk)%vector)
     end do
           
-  end subroutine block_operand_create
+  end subroutine block_vector_create
 
-  subroutine block_operand_set_block (bop, ib, op)
+  subroutine block_vector_set_block (bop, ib, op)
     implicit none
     ! Parameters
-    class(block_operand_t)        , intent(inout) :: bop
+    class(block_vector_t)        , intent(inout) :: bop
     integer(ip)                 , intent(in)    :: ib
     class(vector_t), target , intent(in)    :: op 
     
-    ! A base operand to be associated to a block cannot be temporary
+    ! A vector_t to be associated to a block cannot be temporary
     assert( .not. op%IsTemp() )
     
     if ( bop%blocks(ib)%allocated ) then
-       deallocate(bop%blocks(ib)%p_op)
+       deallocate(bop%blocks(ib)%vector)
     end if
 
     bop%blocks(ib)%allocated = .false.    
-    bop%blocks(ib)%p_op => op
-  end subroutine block_operand_set_block
+    bop%blocks(ib)%vector => op
+  end subroutine block_vector_set_block
 
 
-  subroutine block_operand_free_tbp (this)
+  subroutine block_vector_free (this)
     implicit none
-    class(block_operand_t), intent(inout) :: this 
+    class(block_vector_t), intent(inout) :: this 
 
     ! Locals
     integer(ip) :: iblk
 
     do iblk=1, this%nblocks
        if ( this%blocks(iblk)%allocated ) then
-          call this%blocks(iblk)%p_op%free()
-          deallocate(this%blocks(iblk)%p_op) 
+          call this%blocks(iblk)%vector%free()
+          deallocate(this%blocks(iblk)%vector) 
        end if 
-       nullify(this%blocks(iblk)%p_op)
+       nullify(this%blocks(iblk)%vector)
        this%blocks(iblk)%allocated = .false. 
     end do
     this%nblocks = 0 
     if(allocated( this%blocks )) deallocate( this%blocks )
-  end subroutine block_operand_free_tbp
+  end subroutine block_vector_free
 
  ! alpha <- op1^T * op2
- function block_operand_dot_tbp(op1,op2) result(alpha)
+ function block_vector_dot(op1,op2) result(alpha)
    implicit none
-   class(block_operand_t), intent(in) :: op1
+   class(block_vector_t), intent(in) :: op1
    class(vector_t) , intent(in) :: op2
    real(rp) :: alpha
    ! Locals
@@ -147,13 +142,13 @@ contains
    call op1%GuardTemp()
    call op2%GuardTemp()
    select type(op2)
-   class is (block_operand_t)
+   class is (block_vector_t)
       assert ( op1%nblocks == op2%nblocks )
       alpha = 0.0_rp
       do iblk=1, op1%nblocks
-         assert(associated(op1%blocks(iblk)%p_op))
-         assert(associated(op2%blocks(iblk)%p_op))   
-         alpha = alpha + op1%blocks(iblk)%p_op%dot(op2%blocks(iblk)%p_op) 
+         assert(associated(op1%blocks(iblk)%vector))
+         assert(associated(op2%blocks(iblk)%vector))   
+         alpha = alpha + op1%blocks(iblk)%vector%dot(op2%blocks(iblk)%vector) 
       end do
    class default
       write(0,'(a)') 'block_operand_t%dot: unsupported op2 class'
@@ -161,36 +156,36 @@ contains
    end select
    call op1%CleanTemp()
    call op2%CleanTemp()
- end function block_operand_dot_tbp
+ end function block_vector_dot
 
  ! op1 <- op2 
- subroutine block_operand_copy_tbp(op1,op2)
+ subroutine block_vector_copy(op1,op2)
    implicit none
-   class(block_operand_t), intent(inout) :: op1
+   class(block_vector_t), intent(inout) :: op1
    class(vector_t), intent(in)  :: op2
    ! Locals
    integer(ip) :: iblk
    
    call op2%GuardTemp()
    select type(op2)
-   class is (block_operand_t)
+   class is (block_vector_t)
       assert ( op1%nblocks == op2%nblocks )
       do iblk=1, op1%nblocks
-         assert(associated(op1%blocks(iblk)%p_op))
-         assert(associated(op2%blocks(iblk)%p_op)) 
-        call op1%blocks(iblk)%p_op%copy(op2%blocks(iblk)%p_op) 
+         assert(associated(op1%blocks(iblk)%vector))
+         assert(associated(op2%blocks(iblk)%vector)) 
+        call op1%blocks(iblk)%vector%copy(op2%blocks(iblk)%vector) 
       end do
    class default
       write(0,'(a)') 'block_operand_t%copy: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine block_operand_copy_tbp
+ end subroutine block_vector_copy
 
  ! op1 <- alpha * op2
- subroutine block_operand_scal_tbp(op1,alpha,op2)
+ subroutine block_vector_scal(op1,alpha,op2)
    implicit none
-   class(block_operand_t), intent(inout) :: op1
+   class(block_vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
    class(vector_t), intent(in) :: op2
    ! Locals
@@ -198,36 +193,36 @@ contains
 
    call op2%GuardTemp()
    select type(op2)
-   class is (block_operand_t)
+   class is (block_vector_t)
       assert ( op1%nblocks == op2%nblocks )
       do iblk=1, op1%nblocks
-         assert(associated(op1%blocks(iblk)%p_op))
-         assert(associated(op2%blocks(iblk)%p_op)) 
-        call op1%blocks(iblk)%p_op%scal(alpha,op2%blocks(iblk)%p_op) 
+         assert(associated(op1%blocks(iblk)%vector))
+         assert(associated(op2%blocks(iblk)%vector)) 
+        call op1%blocks(iblk)%vector%scal(alpha,op2%blocks(iblk)%vector) 
       end do
    class default
       write(0,'(a)') 'block_operand_t%scal: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine block_operand_scal_tbp
+ end subroutine block_vector_scal
  ! op <- alpha
- subroutine block_operand_init_tbp(op,alpha)
+ subroutine block_vector_init(op,alpha)
    implicit none
-   class(block_operand_t), intent(inout) :: op
+   class(block_vector_t), intent(inout) :: op
    real(rp), intent(in) :: alpha
    ! Locals
    integer(ip) :: iblk
    do iblk=1, op%nblocks
-      assert(associated(op%blocks(iblk)%p_op))
-      call op%blocks(iblk)%p_op%init(alpha) 
+      assert(associated(op%blocks(iblk)%vector))
+      call op%blocks(iblk)%vector%init(alpha) 
    end do
- end subroutine block_operand_init_tbp
+ end subroutine block_vector_init
 
  ! op1 <- alpha*op2 + beta*op1
- subroutine block_operand_axpby_tbp(op1, alpha, op2, beta)
+ subroutine block_vector_axpby(op1, alpha, op2, beta)
    implicit none
-   class(block_operand_t), intent(inout) :: op1
+   class(block_vector_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
    class(vector_t), intent(in) :: op2
    real(rp), intent(in) :: beta
@@ -236,67 +231,66 @@ contains
 
    call op2%GuardTemp()
    select type(op2)
-   class is (block_operand_t)
+   class is (block_vector_t)
      do iblk=1, op1%nblocks
-        assert(associated(op1%blocks(iblk)%p_op))
-        assert(associated(op2%blocks(iblk)%p_op))
-        call op1%blocks(iblk)%p_op%axpby(alpha, op2%blocks(iblk)%p_op, beta) 
+        assert(associated(op1%blocks(iblk)%vector))
+        assert(associated(op2%blocks(iblk)%vector))
+        call op1%blocks(iblk)%vector%axpby(alpha, op2%blocks(iblk)%vector, beta) 
      end do
    class default
       write(0,'(a)') 'block_operand_t%axpby: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine block_operand_axpby_tbp
+ end subroutine block_vector_axpby
 
  ! alpha <- nrm2(op)
- function block_operand_nrm2_tbp(op) result(alpha)
+ function block_vector_nrm2(op) result(alpha)
    implicit none
-   class(block_operand_t), intent(in)  :: op
+   class(block_vector_t), intent(in)  :: op
    real(rp) :: alpha
    call op%GuardTemp()
    alpha = op%dot(op)
    alpha = sqrt(alpha)
    call op%CleanTemp()
- end function block_operand_nrm2_tbp
+ end function block_vector_nrm2
 
  ! op1 <- clone(op2) 
- subroutine block_operand_clone_tbp(op1,op2)
+ subroutine block_vector_clone(op1,op2)
    implicit none
-   class(block_operand_t)         , intent(inout) :: op1
+   class(block_vector_t)         , intent(inout) :: op1
    class(vector_t) , target , intent(in)    :: op2
    ! Locals
    integer(ip) :: iblk
 
    call op2%GuardTemp()
    select type(op2)
-   class is (block_operand_t)
+   class is (block_vector_t)
      call op1%free()
      call op1%create(op2%nblocks) 
      do iblk=1, op2%nblocks
-        assert(associated(op2%blocks(iblk)%p_op))
-       allocate(op1%blocks(iblk)%p_op, mold=op2%blocks(iblk)%p_op); call op1%blocks(iblk)%p_op%default_initialization()
+        assert(associated(op2%blocks(iblk)%vector))
+       allocate(op1%blocks(iblk)%vector, mold=op2%blocks(iblk)%vector); call op1%blocks(iblk)%vector%default_initialization()
        op1%blocks(iblk)%allocated = .true. 
-       call op1%blocks(iblk)%p_op%clone(op2%blocks(iblk)%p_op) 
+       call op1%blocks(iblk)%vector%clone(op2%blocks(iblk)%vector) 
      end do
    class default
       write(0,'(a)') 'block_operand_t%clone: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
- end subroutine block_operand_clone_tbp
+ end subroutine block_vector_clone
 
  ! op <- comm(op)
- subroutine block_operand_comm_tbp(op)
+ subroutine block_vector_comm(op)
    implicit none
-   class(block_operand_t), intent(inout) :: op
+   class(block_vector_t), intent(inout) :: op
    ! Locals
    integer(ip) :: iblk
    do iblk=1, op%nblocks
-      assert(associated(op%blocks(iblk)%p_op))
-      call op%blocks(iblk)%p_op%comm() 
+      assert(associated(op%blocks(iblk)%vector))
+      call op%blocks(iblk)%vector%comm() 
    end do
- end subroutine block_operand_comm_tbp
-
-
-end module block_operand_names
+ end subroutine block_vector_comm
+ 
+end module block_vector_names

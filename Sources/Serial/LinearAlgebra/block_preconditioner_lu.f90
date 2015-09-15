@@ -31,7 +31,7 @@ module block_preconditioner_lu_names
   use memor_names
   use abstract_operator_names
   use vector_names
-  use block_operand_names
+  use block_vector_names
   use block_preconditioner_l_names
   use block_preconditioner_u_names
 
