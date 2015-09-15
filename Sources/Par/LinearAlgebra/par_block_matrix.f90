@@ -291,7 +291,7 @@ contains
     select type(x)
     class is (par_block_array_t)
        allocate(local_y)
-       call local_y%par_block_array_alloc_blocks(op%nblocks)
+       call local_y%create(op%nblocks)
        do ib=1,op%nblocks
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks

@@ -43,10 +43,10 @@ module serial_block_array_names
      type(serial_scalar_array_t), allocatable :: blocks(:)
    contains
      procedure :: create_view => serial_block_array_create_view
-     procedure, private :: create_from_nblocks => serial_block_array_create_from_nblocks
-	 procedure, private :: create_from_block_graph  => serial_block_array_create_from_block_graph
-     generic   :: create => create_from_nblocks, & 
-	                        create_from_block_graph
+     procedure, private :: serial_block_array_create_from_nblocks
+	 procedure, private :: serial_block_array_create_from_block_graph
+     generic :: create => serial_block_array_create_from_nblocks, & 
+	                      serial_block_array_create_from_block_graph
      procedure :: print => 	serial_block_array_print						
 
      procedure :: dot  => serial_block_array_dot
