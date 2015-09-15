@@ -93,7 +93,7 @@ contains
     implicit none
 	class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                , intent(in)    :: neq
-    assert ( vec%mode == not_created )
+    assert ( this%mode == not_created )
     this%neq     = neq  ! Number of equations
     call memallocp(this%neq,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp

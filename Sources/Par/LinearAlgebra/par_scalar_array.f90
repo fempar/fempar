@@ -159,15 +159,15 @@ contains
     type(par_scalar_array_t), intent(out)        :: t_p_vec
 
     ! The routine requires the partition/context info
-    assert ( associated( s_p_vec%dof_dist ) )
-    assert ( associated( s_p_vec%p_env%p_context ) )
-    assert ( s_p_vec%p_env%p_context%created .eqv. .true.)
+    assert ( associated( this%dof_dist ) )
+    assert ( associated( this%p_env%p_context ) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
 
     ! Associate dof distribution and parallel environment 
     t_p_vec%dof_dist => this%dof_dist
     t_p_vec%p_env    => this%p_env
 
-    assert ( s_p_vec%state /= undefined )
+    assert ( this%state /= undefined )
     t_p_vec%state = this%state
     
     if(this%p_env%p_context%iam<0) return
@@ -242,9 +242,9 @@ use par_sparse_global_collectives_names
     type(par_scalar_array_t) :: p_vec_G
 
     ! Pointer to part/context object is required
-    assert ( associated(p_vec%dof_dist) )
-    assert ( associated(p_vec%p_env%p_context) )
-    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    assert ( associated(this%dof_dist) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
 
 
@@ -345,9 +345,9 @@ use par_sparse_global_collectives_names
 	integer(ip)              , intent(in) :: luout
 	
     ! Pointer to part/context object is required
-    assert ( associated(p_vec%dof_dist   ) )
-    assert ( associated(p_vec%p_env%p_context) )
-    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    assert ( associated(this%dof_dist   ) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
     write(luout,'(a)') '*** begin par_scalar_array_t data structure ***'
     call  dof_distribution_print (luout, this%dof_dist)
@@ -369,9 +369,9 @@ use par_sparse_global_collectives_names
     character(256)  :: zeros
     character(256)  :: part_id
 
-    assert ( associated(p_vec%dof_dist   ) )
-    assert ( associated(p_vec%p_env%p_context) )
-    assert ( p_vec%p_env%p_context%created .eqv. .true.)
+    assert ( associated(this%dof_dist   ) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
 
     name = trim(prefix) // '.par_vector' // '.mtx'
