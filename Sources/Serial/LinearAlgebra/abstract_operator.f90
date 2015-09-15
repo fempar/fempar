@@ -29,7 +29,7 @@ module abstract_operator_names
   use types_names
   use memory_guard_names
   use integrable_names
-  use abstract_vector_names
+  use vector_names
   implicit none
 # include "debug.i90"
 
@@ -125,21 +125,21 @@ module abstract_operator_names
      ! op%apply(x,y) <=> y <- op*x
      ! Implicitly assumes that y is already allocated
      subroutine apply_interface(op,x,y) 
-       import :: abstract_operator_t, abstract_vector_t
+       import :: abstract_operator_t, vector_t
        implicit none
        class(abstract_operator_t), intent(in)    :: op
-       class(abstract_vector_t) , intent(in)    :: x
-       class(abstract_vector_t) , intent(inout) :: y 
+       class(vector_t) , intent(in)    :: x
+       class(vector_t) , intent(inout) :: y 
      end subroutine apply_interface
 
      ! op%apply(x)
      ! Allocates room for (temporary) y
      function apply_fun_interface(op,x) result(y)
-       import :: abstract_operator_t, abstract_vector_t
+       import :: abstract_operator_t, vector_t
        implicit none
        class(abstract_operator_t), intent(in)  :: op
-       class(abstract_vector_t) , intent(in)  :: x
-       class(abstract_vector_t) , allocatable :: y 
+       class(vector_t) , intent(in)  :: x
+       class(vector_t) , allocatable :: y 
      end function apply_fun_interface
 
      subroutine expression_operator_assign_interface(op1,op2)
@@ -492,8 +492,8 @@ contains
   function sum_operator_apply_fun(op,x) result(y)
     implicit none
     class(sum_operator_t), intent(in)       :: op
-    class(abstract_vector_t)     , intent(in)  :: x
-    class(abstract_vector_t)     , allocatable :: y 
+    class(vector_t)     , intent(in)  :: x
+    class(vector_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x); call y%default_initialization()
@@ -507,8 +507,8 @@ contains
   subroutine sum_operator_apply(op,x,y)
     implicit none
     class(sum_operator_t), intent(in)    :: op
-    class(abstract_vector_t), intent(in)    :: x
-    class(abstract_vector_t), intent(inout) :: y 
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     ! y <- op2*x
@@ -523,8 +523,8 @@ contains
   function sub_operator_apply_fun(op,x) result(y)
     implicit none
     class(sub_operator_t), intent(in)       :: op
-    class(abstract_vector_t)     , intent(in)  :: x
-    class(abstract_vector_t)     , allocatable :: y 
+    class(vector_t)     , intent(in)  :: x
+    class(vector_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x); call y%default_initialization()
@@ -538,8 +538,8 @@ contains
   subroutine sub_operator_apply(op,x,y)
     implicit none
     class(sub_operator_t), intent(in)    :: op
-    class(abstract_vector_t), intent(in)    :: x
-    class(abstract_vector_t), intent(inout) :: y 
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     ! y <- op2*x
@@ -553,8 +553,8 @@ contains
   function mult_operator_apply_fun(op,x) result(y)
     implicit none
     class(mult_operator_t), intent(in)       :: op
-    class(abstract_vector_t)     , intent(in)  :: x
-    class(abstract_vector_t)     , allocatable :: y 
+    class(vector_t)     , intent(in)  :: x
+    class(vector_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x); call y%default_initialization()
@@ -567,8 +567,8 @@ contains
   subroutine mult_operator_apply(op,x,y)
     implicit none
     class(mult_operator_t), intent(in)    :: op
-    class(abstract_vector_t), intent(in)    :: x
-    class(abstract_vector_t), intent(inout) :: y 
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     call op%op2%apply ( op%op1*x, y )
@@ -579,8 +579,8 @@ contains
   function  scal_operator_apply_fun(op,x) result(y)
     implicit none
     class(scal_operator_t), intent(in)      :: op
-    class(abstract_vector_t)     , intent(in)  :: x
-    class(abstract_vector_t)     , allocatable :: y 
+    class(vector_t)     , intent(in)  :: x
+    class(vector_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x); call y%default_initialization()
@@ -594,8 +594,8 @@ contains
   subroutine scal_operator_apply(op,x,y)
     implicit none
     class(scal_operator_t), intent(in)   :: op
-    class(abstract_vector_t), intent(in)    :: x
-    class(abstract_vector_t), intent(inout) :: y 
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     call op%op%apply(x,y)
@@ -607,8 +607,8 @@ contains
   function  minus_operator_apply_fun(op,x) result(y)
     implicit none
     class(minus_operator_t), intent(in)       :: op
-    class(abstract_vector_t)     , intent(in)  :: x
-    class(abstract_vector_t)     , allocatable :: y 
+    class(vector_t)     , intent(in)  :: x
+    class(vector_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x); call y%default_initialization()
@@ -622,8 +622,8 @@ contains
   subroutine minus_operator_apply(op,x,y)
     implicit none
     class(minus_operator_t), intent(in)  :: op
-    class(abstract_vector_t), intent(in)    :: x
-    class(abstract_vector_t), intent(inout) :: y 
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     call op%op%apply(x,y)
@@ -635,8 +635,8 @@ contains
   function  abs_operator_apply_fun(op,x) result(y)
     implicit none
     class(abs_operator_t), intent(in)       :: op
-    class(abstract_vector_t)     , intent(in)  :: x
-    class(abstract_vector_t)     , allocatable :: y 
+    class(vector_t)     , intent(in)  :: x
+    class(vector_t)     , allocatable :: y 
     call op%GuardTemp()
     call x%GuardTemp()
     allocate(y, mold=x); call y%default_initialization()
@@ -659,8 +659,8 @@ contains
   subroutine abs_operator_apply(op,x,y)
     implicit none
     class(abs_operator_t), intent(in)    :: op
-    class(abstract_vector_t), intent(in)    :: x
-    class(abstract_vector_t), intent(inout) :: y 
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y 
     call op%GuardTemp()
     call x%GuardTemp()
 

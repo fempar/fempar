@@ -28,7 +28,7 @@
 module block_operand_names
   use types_names
   use memor_names
-  use abstract_vector_names
+  use vector_names
 
   implicit none
 # include "debug.i90"
@@ -38,10 +38,10 @@ module block_operand_names
   ! Pointer to abstract_vector
   type p_abs_operand_t
      logical                      :: allocated  = .false.
-     class(abstract_vector_t), pointer :: p_op => null()
+     class(vector_t), pointer :: p_op => null()
   end type p_abs_operand_t
 
-  ! Added type(block_operand_t) as a new implementation of class(abstract_vector_t).
+  ! Added type(block_operand_t) as a new implementation of class(vector_t).
   ! type(block_operand_t) is the only type compatible with type(block_operator_t).
   ! Therefore, if one aims to solve a linear system by means of an, e.g., block
   ! LU recursive preconditioned GMRES, then both the right hand side, and sought-after
@@ -51,7 +51,7 @@ module block_operand_names
   ! type(block_vector_t) or type(par_block_vector_t).
 
   ! block_operand
-  type, extends(abstract_vector_t) :: block_operand_t
+  type, extends(vector_t) :: block_operand_t
      integer(ip)                      :: nblocks
      type(p_abs_operand_t), allocatable :: blocks(:)
    contains
@@ -102,7 +102,7 @@ contains
     ! Parameters
     class(block_operand_t)        , intent(inout) :: bop
     integer(ip)                 , intent(in)    :: ib
-    class(abstract_vector_t), target , intent(in)    :: op 
+    class(vector_t), target , intent(in)    :: op 
     
     ! A base operand to be associated to a block cannot be temporary
     assert( .not. op%IsTemp() )
@@ -139,7 +139,7 @@ contains
  function block_operand_dot_tbp(op1,op2) result(alpha)
    implicit none
    class(block_operand_t), intent(in) :: op1
-   class(abstract_vector_t) , intent(in) :: op2
+   class(vector_t) , intent(in) :: op2
    real(rp) :: alpha
    ! Locals
    integer(ip) :: iblk
@@ -167,7 +167,7 @@ contains
  subroutine block_operand_copy_tbp(op1,op2)
    implicit none
    class(block_operand_t), intent(inout) :: op1
-   class(abstract_vector_t), intent(in)  :: op2
+   class(vector_t), intent(in)  :: op2
    ! Locals
    integer(ip) :: iblk
    
@@ -192,7 +192,7 @@ contains
    implicit none
    class(block_operand_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(abstract_vector_t), intent(in) :: op2
+   class(vector_t), intent(in) :: op2
    ! Locals
    integer(ip) :: iblk
 
@@ -229,7 +229,7 @@ contains
    implicit none
    class(block_operand_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(abstract_vector_t), intent(in) :: op2
+   class(vector_t), intent(in) :: op2
    real(rp), intent(in) :: beta
    ! Locals
    integer(ip) :: iblk
@@ -264,7 +264,7 @@ contains
  subroutine block_operand_clone_tbp(op1,op2)
    implicit none
    class(block_operand_t)         , intent(inout) :: op1
-   class(abstract_vector_t) , target , intent(in)    :: op2
+   class(vector_t) , target , intent(in)    :: op2
    ! Locals
    integer(ip) :: iblk
 

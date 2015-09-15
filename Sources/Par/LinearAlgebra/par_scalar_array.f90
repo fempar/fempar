@@ -48,7 +48,7 @@ module par_scalar_array_names
   use psb_penv_mod_names
 
   ! Abstract types
-  use abstract_vector_names
+  use vector_names
 
 # include "debug.i90"
 
@@ -60,7 +60,7 @@ module par_scalar_array_names
   integer(ip), parameter :: full_summed   = 1  ! fully     summed element-based vector
 
   ! Distributed Vector
-  type, extends(abstract_vector_t) :: par_scalar_array_t
+  type, extends(vector_t) :: par_scalar_array_t
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
      type( serial_scalar_array_t ) :: f_vector
@@ -469,7 +469,7 @@ use par_sparse_global_collectives_names
  function par_scalar_array_dot(op1,op2) result(alpha)
    implicit none
    class(par_scalar_array_t), intent(in)    :: op1
-   class(abstract_vector_t), intent(in)  :: op2
+   class(vector_t), intent(in)  :: op2
    real(rp) :: alpha
 
    ! Locals 
@@ -523,7 +523,7 @@ use par_sparse_global_collectives_names
  subroutine par_scalar_array_copy(op1,op2)
    implicit none
    class(par_scalar_array_t), intent(inout) :: op1
-   class(abstract_vector_t), intent(in)  :: op2
+   class(vector_t), intent(in)  :: op2
    
    call op2%GuardTemp()
    select type(op2)
@@ -552,7 +552,7 @@ use par_sparse_global_collectives_names
    implicit none
    class(par_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(abstract_vector_t), intent(in) :: op2
+   class(vector_t), intent(in) :: op2
 
    call op2%GuardTemp()
    select type(op2)
@@ -599,7 +599,7 @@ use par_sparse_global_collectives_names
    implicit none
    class(par_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(abstract_vector_t), intent(in) :: op2
+   class(vector_t), intent(in) :: op2
    real(rp), intent(in) :: beta
 
    call op2%GuardTemp()
@@ -656,7 +656,7 @@ use par_sparse_global_collectives_names
  subroutine par_scalar_array_clone(op1,op2)
    implicit none
    class(par_scalar_array_t)          , intent(inout) :: op1
-   class(abstract_vector_t), target, intent(in)    :: op2
+   class(vector_t), target, intent(in)    :: op2
 
    call op2%GuardTemp()
    select type(op2)

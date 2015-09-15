@@ -30,7 +30,7 @@ module par_update_names
   use types_names
   use memor_names
   use update_names
-  use abstract_vector_names
+  use vector_names
 
   ! Parallel modules
   use par_fe_space_names
@@ -118,7 +118,7 @@ contains
     !   This subroutine stores the solution from a abstract_vector into unkno.                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(abstract_vector_t), intent(in)    :: vec   
+    class(vector_t), intent(in)    :: vec   
     type(par_fe_space_t) , intent(inout) :: p_fe_space
 
     select type(vec)
@@ -211,7 +211,7 @@ contains
     !   This subroutine stores the solution from a abstract_vector into unkno.                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(abstract_vector_t), intent(inout) :: vec   
+    class(vector_t), intent(inout) :: vec   
     type(par_fe_space_t) , intent(in)    :: p_fe_space
 
     select type(vec)

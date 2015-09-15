@@ -69,7 +69,7 @@ module par_preconditioner_dd_mlevel_bddc_names
   use par_timer_names
 
   ! Abstract modules
-  use abstract_vector_names
+  use vector_names
   use abstract_operator_names
 
 # include "debug.i90"
@@ -8661,8 +8661,8 @@ use mpi
        implicit none
        ! Parameters
        class(par_preconditioner_dd_mlevel_bddc_t)    , intent(in)    :: op
-       class(abstract_vector_t)   , intent(in)    :: x
-       class(abstract_vector_t)   , intent(inout) :: y
+       class(vector_t)   , intent(in)    :: x
+       class(vector_t)   , intent(inout) :: y
 
 !!$       assert (associated(op%mat))
 
@@ -8691,8 +8691,8 @@ use mpi
        implicit none
        ! Parameters
        class(par_preconditioner_dd_mlevel_bddc_t), intent(in)   :: op
-       class(abstract_vector_t), intent(in)  :: x
-       class(abstract_vector_t), allocatable :: y
+       class(vector_t), intent(in)  :: x
+       class(vector_t), allocatable :: y
        type(par_scalar_array_t), allocatable :: local_y
 
        call x%GuardTemp()

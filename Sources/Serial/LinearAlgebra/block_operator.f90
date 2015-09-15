@@ -30,7 +30,7 @@ module block_operator_names
   use types_names
   use memor_names
   use abstract_operator_names
-  use abstract_vector_names
+  use vector_names
   use block_operand_names
 
 #ifdef memcheck
@@ -86,12 +86,12 @@ contains
   subroutine block_operator_apply (op,x,y)
     implicit none
     class(block_operator_t)     , intent(in)   :: op
-    class(abstract_vector_t)      , intent(in)    :: x
-    class(abstract_vector_t)      , intent(inout) :: y
+    class(vector_t)      , intent(in)    :: x
+    class(vector_t)      , intent(inout) :: y
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(abstract_vector_t), allocatable :: aux
+    class(vector_t), allocatable :: aux
 
     call x%GuardTemp()
 
@@ -130,11 +130,11 @@ contains
   function block_operator_apply_fun(op,x) result(y)
     implicit none
     class(block_operator_t), intent(in)  :: op
-    class(abstract_vector_t) , intent(in)   :: x
-    class(abstract_vector_t) , allocatable  :: y
+    class(vector_t) , intent(in)   :: x
+    class(vector_t) , allocatable  :: y
 
     type(block_operand_t), allocatable :: local_y
-    class(abstract_vector_t), allocatable :: aux
+    class(vector_t), allocatable :: aux
     integer(ip)                      :: iblk, jblk, first_block_in_row
 
     call x%GuardTemp()

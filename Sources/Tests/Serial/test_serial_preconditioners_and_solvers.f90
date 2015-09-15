@@ -51,7 +51,7 @@ program test_serial_preconditioners_and_solvers
   type(serial_scalar_array_t), target :: x
   type(serial_scalar_array_t), target :: exact_solution 
 
-  class(abstract_vector_t) , pointer :: x_base, b_base, exact_solution_base
+  class(vector_t) , pointer :: x_base, b_base, exact_solution_base
   class(abstract_operator_t), pointer :: A
 
   type(preconditioner_t)        :: feprec

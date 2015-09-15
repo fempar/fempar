@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module abstract_vector_names
+module vector_names
     use types_names
     use	memory_guard_names
     use integrable_names
@@ -33,7 +33,7 @@ module abstract_vector_names
 
   private
   
-  type, abstract, extends(integrable_t) :: abstract_vector_t
+  type, abstract, extends(integrable_t) :: vector_t
    contains
      procedure (dot_interface) , deferred  :: dot
      procedure (copy_interface), deferred  :: copy
@@ -44,88 +44,88 @@ module abstract_vector_names
      procedure (clone_interface), deferred :: clone
      procedure (comm_interface), deferred  :: comm
 
-     procedure :: sum_operand
-     procedure :: sub_operand
-     procedure :: minus_operand
-     procedure, pass(left)  :: scal_left_operand
-     procedure, pass(right) :: scal_right_operand
-     procedure :: assign_operand
+     procedure :: sum_vector
+     procedure :: sub_vector
+     procedure :: minus_vector
+     procedure, pass(left)  :: scal_left_vector
+     procedure, pass(right) :: scal_right_vector
+     procedure :: assign_vector
 
-     generic  :: operator(+) => sum_operand
-     generic  :: operator(-) => sub_operand, minus_operand
-     generic  :: operator(*) => scal_left_operand, scal_right_operand
-     generic  :: assignment(=) => assign_operand
-  end type abstract_vector_t
+     generic  :: operator(+) => sum_vector
+     generic  :: operator(-) => sub_vector, minus_vector
+     generic  :: operator(*) => scal_left_vector, scal_right_vector
+     generic  :: assignment(=) => assign_vector
+  end type vector_t
 
   abstract interface
      ! alpha <- op1^T * op2
      function dot_interface(op1,op2) result(alpha)
-       import :: abstract_vector_t, rp
+       import :: vector_t, rp
        implicit none
-       class(abstract_vector_t), intent(in)  :: op1,op2
+       class(vector_t), intent(in)  :: op1,op2
        real(rp) :: alpha
      end function dot_interface
      ! op1 <- op2 
      subroutine copy_interface(op1,op2)
-       import :: abstract_vector_t
+       import :: vector_t
        implicit none
-       class(abstract_vector_t), intent(inout) :: op1
-       class(abstract_vector_t), intent(in)    :: op2
+       class(vector_t), intent(inout) :: op1
+       class(vector_t), intent(in)    :: op2
      end subroutine copy_interface
      ! op1 <- alpha * op2
      subroutine scal_interface(op1,alpha,op2)
-       import :: abstract_vector_t, rp
+       import :: vector_t, rp
        implicit none
-       class(abstract_vector_t), intent(inout) :: op1
+       class(vector_t), intent(inout) :: op1
        real(rp), intent(in) :: alpha
-       class(abstract_vector_t), intent(in) :: op2
+       class(vector_t), intent(in) :: op2
      end subroutine scal_interface
      ! op <- alpha
      subroutine init_interface(op,alpha)
-       import :: abstract_vector_t, rp
+       import :: vector_t, rp
        implicit none
-       class(abstract_vector_t), intent(inout) :: op
+       class(vector_t), intent(inout) :: op
        real(rp), intent(in) :: alpha
      end subroutine init_interface
      ! op1 <- alpha*op2 + beta*op1
      subroutine axpby_interface(op1, alpha, op2, beta)
-       import :: abstract_vector_t, rp
+       import :: vector_t, rp
        implicit none
-       class(abstract_vector_t), intent(inout) :: op1
+       class(vector_t), intent(inout) :: op1
        real(rp), intent(in) :: alpha
-       class(abstract_vector_t), intent(in) :: op2
+       class(vector_t), intent(in) :: op2
        real(rp), intent(in) :: beta
      end subroutine axpby_interface
      ! alpha <- nrm2(op)
      function nrm2_interface(op) result(alpha)
-       import :: abstract_vector_t, rp
+       import :: vector_t, rp
        implicit none
-       class(abstract_vector_t), intent(in)  :: op
+       class(vector_t), intent(in)  :: op
        real(rp) :: alpha
      end function nrm2_interface
      ! op1 <- clone(op2) 
      subroutine clone_interface(op1,op2)
-       import :: abstract_vector_t
+       import :: vector_t
        implicit none
-       class(abstract_vector_t)         ,intent(inout) :: op1
-       class(abstract_vector_t), target ,intent(in)    :: op2
+       class(vector_t)         ,intent(inout) :: op1
+       class(vector_t), target ,intent(in)    :: op2
      end subroutine clone_interface
      ! op <- comm(op)
      subroutine comm_interface(op)
-       import :: abstract_vector_t
+       import :: vector_t
        implicit none
-       class(abstract_vector_t), intent(inout) :: op
+       class(vector_t), intent(inout) :: op
      end subroutine comm_interface
   end interface
 
-  public :: abstract_vector_t
+  public :: vector_t
 
 contains  
   ! res <- op1 + op2
-  function sum_operand(op1,op2) result (res)
+  function sum_vector(op1,op2) result (res)
     implicit none
-    class(abstract_vector_t), intent(in)  :: op1, op2
-    class(abstract_vector_t), allocatable :: res
+    class(vector_t), intent(in)  :: op1, op2
+    class(vector_t), allocatable :: res
     
     call op1%GuardTemp()
     call op2%GuardTemp()
@@ -139,13 +139,13 @@ contains
     call op1%CleanTemp()
     call op2%CleanTemp()
     call res%SetTemp()
-  end function sum_operand
+  end function sum_vector
 
   ! res <- op1 - op2
-  function sub_operand(op1,op2) result (res)
+  function sub_vector(op1,op2) result (res)
     implicit none
-    class(abstract_vector_t), intent(in)  :: op1, op2
-    class(abstract_vector_t), allocatable :: res
+    class(vector_t), intent(in)  :: op1, op2
+    class(vector_t), allocatable :: res
 
     call op1%GuardTemp()
     call op2%GuardTemp()
@@ -159,13 +159,13 @@ contains
     call op1%CleanTemp()
     call op2%CleanTemp()
     call res%SetTemp()
-  end function sub_operand
+  end function sub_vector
   
   ! res <- -op
-  function minus_operand(op) result (res)
+  function minus_vector(op) result (res)
     implicit none
-    class(abstract_vector_t), intent(in)   :: op
-    class(abstract_vector_t), allocatable  :: res
+    class(vector_t), intent(in)   :: op
+    class(vector_t), allocatable  :: res
 
     call op%GuardTemp()
     
@@ -175,14 +175,14 @@ contains
 
     call op%CleanTemp()
     call res%SetTemp()
-  end function minus_operand
+  end function minus_vector
 
     ! res <- op*alpha
-  function scal_left_operand(left,alpha) result (res)
+  function scal_left_vector(left,alpha) result (res)
     implicit none
-    class(abstract_vector_t), intent(in)   :: left
+    class(vector_t), intent(in)   :: left
     real (rp), intent(in)             :: alpha
-    class(abstract_vector_t), allocatable  :: res
+    class(vector_t), allocatable  :: res
 
     call left%GuardTemp()
     
@@ -192,14 +192,14 @@ contains
 
     call left%CleanTemp()
     call res%SetTemp()
-  end function scal_left_operand
+  end function scal_left_vector
 
   ! res <- alpha*op
-  function scal_right_operand(alpha,right) result (res)
+  function scal_right_vector(alpha,right) result (res)
     implicit none
     real (rp), intent(in)             :: alpha
-    class(abstract_vector_t), intent(in)   :: right
-    class(abstract_vector_t), allocatable  :: res
+    class(vector_t), intent(in)   :: right
+    class(vector_t), allocatable  :: res
 
     call right%GuardTemp()
     
@@ -209,13 +209,13 @@ contains
     
     call right%CleanTemp()
     call res%SetTemp()
-  end function scal_right_operand
+  end function scal_right_vector
 
   ! op1 <- op2
-  subroutine assign_operand(op1,op2) 
+  subroutine assign_vector(op1,op2) 
     implicit none
-    class(abstract_vector_t), intent(inout):: op1
-    class(abstract_vector_t), intent(in):: op2
+    class(vector_t), intent(inout):: op1
+    class(vector_t), intent(in):: op2
 
     call op2%GuardTemp()
     
@@ -223,6 +223,6 @@ contains
     call op1%copy(op2)
     
     call op2%CleanTemp()
-  end subroutine assign_operand
+  end subroutine assign_vector
 
-end module abstract_vector_names
+end module vector_names

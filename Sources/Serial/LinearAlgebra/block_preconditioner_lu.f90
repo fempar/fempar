@@ -30,7 +30,7 @@ module block_preconditioner_lu_names
   use types_names
   use memor_names
   use abstract_operator_names
-  use abstract_vector_names
+  use vector_names
   use block_operand_names
   use block_preconditioner_l_names
   use block_preconditioner_u_names
@@ -79,9 +79,9 @@ contains
   subroutine block_preconditioner_lu_apply (op,x,y)
     implicit none
     class(block_preconditioner_lu_t)     , intent(in)   :: op
-    class(abstract_vector_t)      , intent(in)    :: x
-    class(abstract_vector_t)      , intent(inout) :: y
-    class(abstract_vector_t), allocatable :: z
+    class(vector_t)      , intent(in)    :: x
+    class(vector_t)      , intent(inout) :: y
+    class(vector_t), allocatable :: z
     allocate(z, mold=y); call z%default_initialization()
     call z%clone(y)
     call x%GuardTemp()
@@ -97,9 +97,9 @@ contains
   function block_preconditioner_lu_apply_fun(op,x) result(y)
     implicit none
     class(block_preconditioner_lu_t), intent(in)  :: op
-    class(abstract_vector_t) , intent(in)   :: x
-    class(abstract_vector_t) , allocatable  :: y
-    class(abstract_vector_t), allocatable :: z
+    class(vector_t) , intent(in)   :: x
+    class(vector_t) , allocatable  :: y
+    class(vector_t), allocatable :: z
 
     allocate(z, mold=x); call z%default_initialization()
     call x%GuardTemp()

@@ -108,7 +108,7 @@ program par_test_cdr_unstructured
 
   type(par_matrix_t), target                :: p_mat
   type(par_scalar_array_t), target                :: p_vec, p_unk
-  class(abstract_vector_t) , pointer           :: x, y
+  class(vector_t) , pointer           :: x, y
   class(abstract_operator_t), pointer           :: A
 
   ! Preconditioner-related data structures

@@ -40,7 +40,7 @@ module preconditioner_names
   use umfpack_names
 
   ! Abstract modules
-  use abstract_vector_names
+  use vector_names
   use abstract_operator_names
 
 # include "debug.i90"
@@ -724,8 +724,8 @@ contains
     implicit none
     ! Parameters
     class(preconditioner_t)    , intent(in)    :: op
-    class(abstract_vector_t)   , intent(in)    :: x
-    class(abstract_vector_t)   , intent(inout) :: y
+    class(vector_t)   , intent(in)    :: x
+    class(vector_t)   , intent(inout) :: y
     
     assert (associated(op%mat))
 
@@ -774,8 +774,8 @@ contains
     implicit none
     ! Parameters
     class(preconditioner_t), intent(in)   :: op
-    class(abstract_vector_t), intent(in)  :: x
-    class(abstract_vector_t), allocatable :: y
+    class(vector_t), intent(in)  :: x
+    class(vector_t), allocatable :: y
     type(serial_scalar_array_t), allocatable :: local_y
 
     

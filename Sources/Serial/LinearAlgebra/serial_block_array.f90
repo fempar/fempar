@@ -29,7 +29,7 @@ module serial_block_array_names
   use types_names
   use memor_names
   use serial_scalar_array_names
-  use abstract_vector_names
+  use vector_names
   use block_graph_names
   use graph_names
   implicit none
@@ -38,7 +38,7 @@ module serial_block_array_names
   private
 
   ! vector
-  type, extends(abstract_vector_t) :: serial_block_array_t
+  type, extends(vector_t) :: serial_block_array_t
      integer(ip)                              :: nblocks = 0
      type(serial_scalar_array_t), allocatable :: blocks(:)
    contains
@@ -128,7 +128,7 @@ contains
     implicit none
     ! Parameters
     class(serial_block_array_t), intent(in)  :: op1
-    class(abstract_vector_t)   , intent(in)  :: op2
+    class(vector_t)   , intent(in)  :: op2
     real(rp) :: alpha
 
     ! Locals
@@ -158,7 +158,7 @@ contains
     implicit none
     ! Parameters
     class(serial_block_array_t), intent(inout) :: op1
-    class(abstract_vector_t)   , intent(in)    :: op2
+    class(vector_t)   , intent(in)    :: op2
 
     ! Locals
     integer(ip) :: ib
@@ -196,7 +196,7 @@ contains
     ! Parameters 
     class(serial_block_array_t), intent(inout) :: op1
     real(rp)             , intent(in)    :: alpha
-    class(abstract_vector_t), intent(in)    :: op2
+    class(vector_t), intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
 
@@ -219,7 +219,7 @@ contains
     implicit none
     class(serial_block_array_t), intent(inout) :: op1
     real(rp)             , intent(in)    :: alpha
-    class(abstract_vector_t), intent(in)    :: op2
+    class(vector_t), intent(in)    :: op2
     real(rp)             , intent(in)    :: beta
     ! Locals
     integer(ip)                           :: ib
@@ -255,7 +255,7 @@ contains
     implicit none
     ! Parameters
     class(serial_block_array_t)     , intent(inout) :: op1
-    class(abstract_vector_t), target, intent(in)    :: op2
+    class(vector_t), target, intent(in)    :: op2
  
     ! Locals
     integer(ip) :: ib

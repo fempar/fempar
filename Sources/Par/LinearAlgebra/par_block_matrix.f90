@@ -31,7 +31,7 @@ module par_block_matrix_names
   use memor_names
   use graph_names
   use matrix_names
-  use abstract_vector_names
+  use vector_names
   use abstract_operator_names
 
   ! Parallel modules
@@ -238,8 +238,8 @@ contains
   subroutine par_block_matrix_apply(op,x,y)
     implicit none
     class(par_block_matrix_t), intent(in)    :: op
-    class(abstract_vector_t)    , intent(in)    :: x
-    class(abstract_vector_t)    , intent(inouT) :: y
+    class(vector_t)    , intent(in)    :: x
+    class(vector_t)    , intent(inouT) :: y
     ! Locals
     integer(ip)        :: ib,jb
     type(par_scalar_array_t) :: aux
@@ -281,8 +281,8 @@ contains
   function par_block_matrix_apply_fun(op,x) result(y)
     implicit none
     class(par_block_matrix_t), intent(in)  :: op
-    class(abstract_vector_t)    , intent(in)  :: x
-    class(abstract_vector_t)    , allocatable :: y 
+    class(vector_t)    , intent(in)  :: x
+    class(vector_t)    , allocatable :: y 
     ! Locals
     integer(ip) :: ib,jb
     type(par_block_array_t), allocatable :: local_y

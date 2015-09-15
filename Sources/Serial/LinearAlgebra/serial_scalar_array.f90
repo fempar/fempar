@@ -31,7 +31,7 @@ module serial_scalar_array_names
 #ifdef ENABLE_BLAS
   use blas77_interfaces_names
 #endif
-  use abstract_vector_names
+  use vector_names
 
   implicit none
 # include "debug.i90"
@@ -42,7 +42,7 @@ module serial_scalar_array_names
 
   private
 
-  type, extends(abstract_vector_t) :: serial_scalar_array_t
+  type, extends(vector_t) :: serial_scalar_array_t
      integer(ip)                :: &
         neq = 0                       ! Number of equations
    
@@ -141,7 +141,7 @@ contains
  function serial_scalar_array_dot(op1,op2) result(alpha)
    implicit none
    class(serial_scalar_array_t), intent(in)    :: op1
-   class(abstract_vector_t), intent(in)  :: op2
+   class(vector_t), intent(in)  :: op2
    real(rp) :: alpha
 
    call op1%GuardTemp()
@@ -166,7 +166,7 @@ contains
  subroutine serial_scalar_array_copy(op1,op2)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op1
-   class(abstract_vector_t), intent(in)  :: op2
+   class(vector_t), intent(in)  :: op2
    
    call op2%GuardTemp()
    select type(op2)
@@ -189,7 +189,7 @@ contains
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(abstract_vector_t), intent(in) :: op2
+   class(vector_t), intent(in) :: op2
 
    call op2%GuardTemp()
    select type(op2)
@@ -220,7 +220,7 @@ contains
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op1
    real(rp), intent(in) :: alpha
-   class(abstract_vector_t), intent(in) :: op2
+   class(vector_t), intent(in) :: op2
    real(rp), intent(in) :: beta
 
    call op2%GuardTemp()
@@ -273,7 +273,7 @@ contains
  subroutine serial_scalar_array_clone(op1,op2)
    implicit none
    class(serial_scalar_array_t)           ,intent(inout) :: op1
-   class(abstract_vector_t), target ,intent(in)    :: op2
+   class(vector_t), target ,intent(in)    :: op2
 
    call op2%GuardTemp()
    select type(op2)

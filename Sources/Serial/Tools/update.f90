@@ -34,7 +34,7 @@ module update_names
   use conditions_names
   use analytical_function_names
   use interpolation_tools_names
-  use abstract_vector_names
+  use vector_names
   implicit none
 # include "debug.i90"
   private     
@@ -218,7 +218,7 @@ contains
     !   This subroutine stores the solution from a abstract_vector into unkno.                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(abstract_vector_t), intent(in)    :: vec   
+    class(vector_t), intent(in)    :: vec   
     type(fe_space_t)     , intent(inout) :: fe_space
 
     select type(vec)
@@ -337,7 +337,7 @@ contains
     !   This subroutine stores the solution from a abstract_vector into unkno.                         !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(abstract_vector_t), intent(inout) :: vec   
+    class(vector_t), intent(inout) :: vec   
     type(fe_space_t)     , intent(in)    :: fe_space
 
     select type(vec)
