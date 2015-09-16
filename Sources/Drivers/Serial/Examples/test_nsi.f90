@@ -110,7 +110,7 @@ program test_nsi_iss
   type(nsi_cg_iss_discrete_t) , target  :: mydisc
   type(nsi_cg_iss_matvec_t)   , target  :: cg_iss_matvec
   type(discrete_integration_pointer_t)  :: approx(1)
-  type(matrix_t)              , target  :: femat
+  type(serial_scalar_matrix_t)              , target  :: femat
   type(serial_scalar_array_t)              , target  :: fevec,feunk
   type(preconditioner_t)                :: feprec
   type(preconditioner_params_t)         :: ppars
@@ -211,7 +211,7 @@ program test_nsi_iss
   end if
 
   ! Allocate matrices and vectors
-  call matrix_alloc(.false.,f_graph,femat)
+  call serial_scalar_matrix_alloc(.false.,f_graph,femat)
   call fevec%create(f_graph%nv)
   call feunk%create(f_graph%nv)
   call fevec%init(0.0_rp)
@@ -279,7 +279,7 @@ program test_nsi_iss
   call f_blk_graph%free()
   call feunk%free()
   call fevec%free()
-  call matrix_free(femat) 
+  call serial_scalar_matrix_free(femat) 
   call fe_space_free(fe_space) 
   call myprob%free
   call mydisc%free
@@ -352,8 +352,8 @@ contains
        ! Initialize Matrix and vector
        ! ***************** Abstract procedure to initialize a abstract_operator ************************!
        select type (A)
-       type is(matrix_t)
-          call matrix_zero(A)
+       type is(serial_scalar_matrix_t)
+          call serial_scalar_matrix_zero(A)
        class default
           check(.false.)
        end select
@@ -376,7 +376,7 @@ contains
        ! Compute Numeric preconditioner
        ! ***************** Abstract procedure to compute precond numeric ***************************!
        select type (A)
-       type is(matrix_t)
+       type is(serial_scalar_matrix_t)
           select type (M)
           type is(preconditioner_t)
              call preconditioner_numeric(M)

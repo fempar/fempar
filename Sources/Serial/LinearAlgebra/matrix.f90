@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
-module matrix_names
+module serial_scalar_matrix_names
   use types_names
   use memor_names
   use sort_names
@@ -52,39 +52,39 @@ module matrix_names
   integer(ip), parameter :: indefinite            = 2 ! Both positive and negative eigenvalues
   integer(ip), parameter :: unknown               = 3 ! No info
 
-  type, extends(abstract_operator_t) :: matrix_t
+  type, extends(abstract_operator_t) :: serial_scalar_matrix_t
      logical                    :: is_symmetric    
      integer(ip)                :: sign            
      real(rp)     , allocatable :: a(:)            
      type(graph_t), pointer     :: gr => NULL() 
    contains
-     procedure  :: apply                  => matrix_apply
-     procedure  :: apply_fun              => matrix_apply_fun
-     procedure  :: free                   => matrix_free_tbp
-     procedure  :: default_initialization => matrix_default_init
-  end type matrix_t
+     procedure  :: apply                  => serial_scalar_matrix_apply
+     procedure  :: apply_fun              => serial_scalar_matrix_apply_fun
+     procedure  :: free                   => serial_scalar_matrix_free_tbp
+     procedure  :: default_initialization => serial_scalar_matrix_default_init
+  end type serial_scalar_matrix_t
 
-  interface matrix_free
-     module procedure matrix_free_one_shot, matrix_free_progressively
-  end interface matrix_free
+  interface serial_scalar_matrix_free
+     module procedure serial_scalar_matrix_free_one_shot, serial_scalar_matrix_free_progressively
+  end interface serial_scalar_matrix_free
 
   ! Constants
   public :: positive_definite, positive_semidefinite, indefinite, unknown
 
   ! Types
-  public :: matrix_t
+  public :: serial_scalar_matrix_t
 
   ! Functions
-  public :: matrix_create, matrix_graph, matrix_fill_val, &
-       &    matrix_alloc, matrix_copy, matrix_print, matrix_read,    &
-       &    matrix_print_matrix_market,  & 
-       &    matrix_free, matrix_zero,  &
-       &    matrix_transpose, &
-       &    matrix_compose_name_matrix_market, matrix_read_matrix_market, &
-       &    matrix_matvec, matrix_matvec_trans, matmat, matmat_trans
+  public :: serial_scalar_matrix_create, serial_scalar_matrix_graph, serial_scalar_matrix_fill_val, &
+       &    serial_scalar_matrix_alloc, serial_scalar_matrix_copy, serial_scalar_matrix_print, serial_scalar_matrix_read,    &
+       &    serial_scalar_matrix_print_matrix_market,  & 
+       &    serial_scalar_matrix_free, serial_scalar_matrix_zero,  &
+       &    serial_scalar_matrix_transpose, &
+       &    serial_scalar_matrix_compose_name_matrix_market, serial_scalar_matrix_read_matrix_market, &
+       &    serial_scalar_matrix_matvec, serial_scalar_matrix_matvec_trans, serial_scalar_matmat, serial_scalar_matmat_trans
 
 !***********************************************************************
-! Allocatable arrays of type(matrix_t)
+! Allocatable arrays of type(serial_scalar_matrix_t)
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -94,7 +94,7 @@ module matrix_names
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 
-# define var_type type(matrix_t)
+# define var_type type(serial_scalar_matrix_t)
 # define var_size 80
 # define bound_kind ip
 # include "mem_header.i90"
@@ -106,10 +106,10 @@ contains
 # include "mem_body.i90"
 
   !=============================================================================
-  subroutine matrix_create(is_symmetric,mat,def)
+  subroutine serial_scalar_matrix_create(is_symmetric,mat,def)
     implicit none
     logical         , intent(in)           :: is_symmetric
-    type(matrix_t)  , intent(out)          :: mat
+    type(serial_scalar_matrix_t)  , intent(out)          :: mat
     integer(ip)     , optional, intent(in) :: def
 
     mat%is_symmetric = is_symmetric
@@ -119,59 +119,59 @@ contains
        mat%sign = def
     end if
 
-  end subroutine matrix_create
+  end subroutine serial_scalar_matrix_create
 
   !=============================================================================
-  subroutine matrix_default_init (this)
+  subroutine serial_scalar_matrix_default_init (this)
     implicit none
-    class(matrix_t), intent(inout) :: this
+    class(serial_scalar_matrix_t), intent(inout) :: this
     this%is_symmetric = .false.
     this%sign = unknown
     nullify(this%gr)
     call this%NullifyTemporary()
-  end subroutine matrix_default_init
+  end subroutine serial_scalar_matrix_default_init
 
-  subroutine matrix_graph(gr,mat)
+  subroutine serial_scalar_matrix_graph(gr,mat)
     implicit none
     type(graph_t) , target, intent(in) :: gr
-    type(matrix_t), intent(inout)      :: mat
+    type(serial_scalar_matrix_t), intent(inout)      :: mat
     ! If symmetric_storage, then the matrix MUST BE symmetric
     assert  ( (.not. gr%symmetric_storage) .or. mat%is_symmetric )
     mat%gr => gr
-  end subroutine matrix_graph
+  end subroutine serial_scalar_matrix_graph
 
-  subroutine matrix_fill_val(mat)
+  subroutine serial_scalar_matrix_fill_val(mat)
     implicit none
-    type(matrix_t), intent(inout) :: mat
+    type(serial_scalar_matrix_t), intent(inout) :: mat
     call memalloc(mat%gr%ia(mat%gr%nv+1)-1,mat%a,__FILE__,__LINE__)
     mat%a = 0.0_rp
-  end subroutine matrix_fill_val
+  end subroutine serial_scalar_matrix_fill_val
 
-  subroutine matrix_alloc(is_symmetric,gr,mat,def)
+  subroutine serial_scalar_matrix_alloc(is_symmetric,gr,mat,def)
     implicit none
     logical                 , intent(in)  :: is_symmetric
     type(graph_t) , target  , intent(in)  :: gr
-    type(matrix_t)          , intent(out) :: mat
+    type(serial_scalar_matrix_t)          , intent(out) :: mat
     integer(ip)   , optional, intent(in)  :: def
-    call matrix_create(is_symmetric,mat,def)
-    call matrix_graph(gr,mat)
-    call matrix_fill_val(mat)
-  end subroutine matrix_alloc
+    call serial_scalar_matrix_create(is_symmetric,mat,def)
+    call serial_scalar_matrix_graph(gr,mat)
+    call serial_scalar_matrix_fill_val(mat)
+  end subroutine serial_scalar_matrix_alloc
 
-  subroutine matrix_copy (imatrix, omatrix)
+  subroutine serial_scalar_matrix_copy (imatrix, omatrix)
     implicit none
-    type(matrix_t), intent(in)    :: imatrix
-    type(matrix_t), intent(inout) :: omatrix
+    type(serial_scalar_matrix_t), intent(in)    :: imatrix
+    type(serial_scalar_matrix_t), intent(inout) :: omatrix
     ! *** IMPORTANT NOTE: This routine assumes that omatrix 
     ! already has an associated graph in omatrix%gr
-    call matrix_alloc ( imatrix%is_symmetric, omatrix%gr, omatrix, imatrix%sign)
+    call serial_scalar_matrix_alloc ( imatrix%is_symmetric, omatrix%gr, omatrix, imatrix%sign)
     omatrix%a = imatrix%a
-  end subroutine matrix_copy
+  end subroutine serial_scalar_matrix_copy
 
   !=============================================================================
-  subroutine matrix_print(lunou, f_matrix)
+  subroutine serial_scalar_matrix_print(lunou, f_matrix)
     implicit none
-    type(matrix_t), intent(in)    :: f_matrix
+    type(serial_scalar_matrix_t), intent(in)    :: f_matrix
     integer(ip)     , intent(in)    :: lunou
     integer(ip)                     :: i
     assert ( associated(f_matrix%gr) )
@@ -180,14 +180,14 @@ contains
     do i=1,f_matrix%gr%nv
        write(lunou,'(10(e25.16,1x))') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
     end do
-  end subroutine matrix_print
+  end subroutine serial_scalar_matrix_print
 
   !=============================================================================
-  subroutine matrix_read(lunin, f_matrix)
+  subroutine serial_scalar_matrix_read(lunin, f_matrix)
     implicit none
     ! Parameters
     integer(ip)     , intent(in)    :: lunin
-    type(matrix_t), intent(inout) :: f_matrix
+    type(serial_scalar_matrix_t), intent(inout) :: f_matrix
     
     ! Locals
     integer(ip)                     :: i,nzt
@@ -207,19 +207,19 @@ contains
     end do
     if(mod(f_matrix%gr%nv,10)>0) read(lunin,'(10e15.7)') f_matrix%a(f_matrix%gr%ia(i):f_matrix%gr%ia(i+1)-1)
 
-  end subroutine matrix_read
+  end subroutine serial_scalar_matrix_read
 
   !=============================================================================
-  subroutine matrix_compose_name_matrix_market ( prefix, name ) 
+  subroutine serial_scalar_matrix_compose_name_matrix_market ( prefix, name ) 
     implicit none
     character *(*), intent(in)        :: prefix 
     character *(*), intent(out)       :: name
     name = trim(prefix) // '.mtx'
-  end subroutine matrix_compose_name_matrix_market
+  end subroutine serial_scalar_matrix_compose_name_matrix_market
 
-  subroutine matrix_print_matrix_market (lunou, f_matrix, ng, l2g)
+  subroutine serial_scalar_matrix_print_matrix_market (lunou, f_matrix, ng, l2g)
     implicit none
-    type(matrix_t), intent(in)           :: f_matrix
+    type(serial_scalar_matrix_t), intent(in)           :: f_matrix
     integer(ip)     , intent(in)           :: lunou
     integer(ip)     , intent(in), optional :: ng
     integer(ip)     , intent(in), optional :: l2g (*)
@@ -270,12 +270,12 @@ contains
        end do
     end if
 
-  end subroutine matrix_print_matrix_market
+  end subroutine serial_scalar_matrix_print_matrix_market
 
-  subroutine matrix_read_matrix_market (lunou, mat, gr, is_symmetric, sign)
+  subroutine serial_scalar_matrix_read_matrix_market (lunou, mat, gr, is_symmetric, sign)
     implicit none
     integer(ip)   , intent(in)          :: lunou
-    type(matrix_t), intent(inout)         :: mat
+    type(serial_scalar_matrix_t), intent(inout)         :: mat
     type(graph_t) , target, intent(inout) :: gr 
     logical       , intent(in), optional  :: is_symmetric
     integer(ip)   , intent(in), optional  :: sign
@@ -373,21 +373,21 @@ contains
 10  write (0,*) 'Error reading matrix eof or err'
     stop
 
-  end subroutine matrix_read_matrix_market
+  end subroutine serial_scalar_matrix_read_matrix_market
 
   !=============================================================================
-  subroutine matrix_free_one_shot (f_matrix)
+  subroutine serial_scalar_matrix_free_one_shot (f_matrix)
     implicit none
-    type(matrix_t), intent(inout) :: f_matrix
-    call matrix_free_progressively ( f_matrix, free_values )
-    call matrix_free_progressively ( f_matrix, free_struct )
-    call matrix_free_progressively ( f_matrix, free_clean )
-  end subroutine matrix_free_one_shot
+    type(serial_scalar_matrix_t), intent(inout) :: f_matrix
+    call serial_scalar_matrix_free_progressively ( f_matrix, free_values )
+    call serial_scalar_matrix_free_progressively ( f_matrix, free_struct )
+    call serial_scalar_matrix_free_progressively ( f_matrix, free_clean )
+  end subroutine serial_scalar_matrix_free_one_shot
 
     !=============================================================================
-  subroutine matrix_free_progressively (f_matrix, mode)
+  subroutine serial_scalar_matrix_free_progressively (f_matrix, mode)
     implicit none
-    type(matrix_t), intent(inout) :: f_matrix
+    type(serial_scalar_matrix_t), intent(inout) :: f_matrix
     integer(ip)     , intent(in)    :: mode 
 
     if ( mode == free_clean ) then
@@ -412,18 +412,18 @@ contains
        call memfree( f_matrix%a,__FILE__,__LINE__)
     end if
 
-  end subroutine matrix_free_progressively
+  end subroutine serial_scalar_matrix_free_progressively
 
   !=============================================================================
-  subroutine matrix_zero(mat)
+  subroutine serial_scalar_matrix_zero(mat)
     implicit none
-    type(matrix_t), intent(inout)       :: mat
+    type(serial_scalar_matrix_t), intent(inout)       :: mat
     mat%a = 0.0_rp
-  end subroutine matrix_zero
+  end subroutine serial_scalar_matrix_zero
 
-  subroutine matrix_transpose(A, A_t)
-    type(matrix_t), intent(in)     :: A    ! Input matrix
-    type(matrix_t), intent(inout)  :: A_t  ! Output matrix
+  subroutine serial_scalar_matrix_transpose(A, A_t)
+    type(serial_scalar_matrix_t), intent(in)     :: A    ! Input matrix
+    type(serial_scalar_matrix_t), intent(inout)  :: A_t  ! Output matrix
 
     ! Locals 
     type(graph_t) :: aux_graph
@@ -446,11 +446,11 @@ contains
        end do
 	   call graph_free ( aux_graph )
     end if
-  end subroutine matrix_transpose
+  end subroutine serial_scalar_matrix_transpose
 
-  subroutine matrix_matvec (a,x,y)
+  subroutine serial_scalar_matrix_matvec (a,x,y)
     implicit none
-    type(matrix_t) , intent(in)    :: a
+    type(serial_scalar_matrix_t) , intent(in)    :: a
     type(serial_scalar_array_t) , intent(in)    :: x
     type(serial_scalar_array_t) , intent(inout) :: y
     real(rp) :: aux
@@ -461,11 +461,11 @@ contains
        call matvec_symmetric_storage(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
     end if
 
-  end subroutine matrix_matvec
+  end subroutine serial_scalar_matrix_matvec
 
-  subroutine matmat (a, n, ldX, x, ldY, y)
+  subroutine serial_scalar_matmat (a, n, ldX, x, ldY, y)
     implicit none
-    type(matrix_t) , intent(in)    :: a
+    type(serial_scalar_matrix_t) , intent(in)    :: a
     integer(ip)      , intent(in)    :: n
     integer(ip)      , intent(in)    :: ldX
     real(rp)         , intent(in)    :: x(ldX, n)
@@ -482,11 +482,11 @@ contains
           call matvec_symmetric_storage(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x(1:a%gr%nv2,i),y(1:a%gr%nv,i))          
        end if
     end do
-  end subroutine matmat
+  end subroutine serial_scalar_matmat
 
-  subroutine matrix_matvec_trans (a,x,y)
+  subroutine serial_scalar_matrix_matvec_trans (a,x,y)
     implicit none
-    type(matrix_t) , intent(in)    :: a
+    type(serial_scalar_matrix_t) , intent(in)    :: a
     type(serial_scalar_array_t) , intent(in)    :: x
     type(serial_scalar_array_t) , intent(inout) :: y
     if (.not. a%gr%symmetric_storage) then
@@ -494,13 +494,13 @@ contains
     else 
        call matvec_symmetric_storage_trans(a%gr%nv,a%gr%nv,a%gr%ia,a%gr%ja,a%a,x%b,y%b)          
     end if
-  end subroutine matrix_matvec_trans
+  end subroutine serial_scalar_matrix_matvec_trans
 
-  subroutine matmat_trans (a, n, ldX, x, ldY, y)
+  subroutine serial_scalar_matmat_trans (a, n, ldX, x, ldY, y)
     implicit none
 
     ! Parameters
-    type(matrix_t) , intent(in)    :: a
+    type(serial_scalar_matrix_t) , intent(in)    :: a
     integer(ip)    , intent(in)    :: n
     integer(ip)    , intent(in)    :: ldX
     real(rp)       , intent(in)    :: x(ldX, n)
@@ -518,13 +518,13 @@ contains
        end if
     end do
 
-  end subroutine matmat_trans
+  end subroutine serial_scalar_matmat_trans
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine matrix_apply(op,x,y) 
+  subroutine serial_scalar_matrix_apply(op,x,y) 
     implicit none
-    class(matrix_t), intent(in)    :: op
+    class(serial_scalar_matrix_t), intent(in)    :: op
     class(vector_t) , intent(in)    :: x
     class(vector_t) , intent(inout) :: y 
 
@@ -534,7 +534,7 @@ contains
     class is (serial_scalar_array_t)
        select type(y)
        class is(serial_scalar_array_t)
-          call matrix_matvec(op, x, y)
+          call serial_scalar_matrix_matvec(op, x, y)
           ! call vector_print(6,y)
        class default
           write(0,'(a)') 'matrix_t%apply: unsupported y class'
@@ -546,13 +546,13 @@ contains
     end select
 
     call x%CleanTemp()
-  end subroutine matrix_apply
+  end subroutine serial_scalar_matrix_apply
 
   ! op%apply(x)
   ! Allocates room for (temporary) y
-  function matrix_apply_fun(op,x) result(y)
+  function serial_scalar_matrix_apply_fun(op,x) result(y)
     implicit none
-    class(matrix_t), intent(in)  :: op
+    class(serial_scalar_matrix_t), intent(in)  :: op
     class(vector_t) , intent(in)  :: x
     class(vector_t) , allocatable :: y 
 
@@ -562,18 +562,18 @@ contains
     class is (serial_scalar_array_t)
        allocate(local_y)
        call local_y%create(op%gr%nv)
-       call matrix_matvec(op, x, local_y)
+       call serial_scalar_matrix_matvec(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()
     class default
        write(0,'(a)') 'matrix_t%apply_fun: unsupported x class'
        check(1==0)
     end select
-  end function matrix_apply_fun
+  end function serial_scalar_matrix_apply_fun
 
-  subroutine matrix_free_tbp(this)
+  subroutine serial_scalar_matrix_free_tbp(this)
     implicit none
-    class(matrix_t), intent(inout) :: this
-  end subroutine matrix_free_tbp
+    class(serial_scalar_matrix_t), intent(inout) :: this
+  end subroutine serial_scalar_matrix_free_tbp
 
-end module matrix_names
+end module serial_scalar_matrix_names

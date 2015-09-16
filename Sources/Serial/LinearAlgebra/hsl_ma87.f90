@@ -34,7 +34,7 @@ module hsl_ma87_names
   ! Serial modules
   use types_names
   use memor_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use serial_scalar_array_names 
   use graph_names
   use renumbering_names
@@ -135,7 +135,7 @@ contains
     type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)           , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(serial_scalar_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     type(serial_scalar_array_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
     type(serial_scalar_array_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
 
@@ -220,7 +220,7 @@ contains
     type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(serial_scalar_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
 !    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
 !    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)    :: nrhs, ldb, ldx
@@ -253,7 +253,7 @@ contains
     type(hsl_ma87_context_t), intent(inout) :: context   ! Information required between calls
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
-    type(matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
+    type(serial_scalar_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
     real(rp)          , intent(in)    :: b (A%gr%nv)
     real(rp)          , intent(inout) :: x (A%gr%nv)
 
@@ -291,7 +291,7 @@ contains
     implicit none
     ! Parameters
     type(hsl_ma87_context_t), intent(inout), target :: context
-    type(matrix_t)      , intent(in)            :: matrix
+    type(serial_scalar_matrix_t)      , intent(in)            :: matrix
 
 #ifdef ENABLE_HSL_MA87
 
@@ -336,7 +336,7 @@ use graph_renumbering_names
 
     ! Parameters 
     type(hsl_ma87_context_t) , intent(inout) :: context
-    type(matrix_t)       , intent(in)    :: matrix
+    type(serial_scalar_matrix_t)       , intent(in)    :: matrix
     type(hsl_ma87_control_t) , intent(in)    :: ctrl
     type(hsl_ma87_info_t)    , intent(out)   :: info
 
@@ -440,7 +440,7 @@ use graph_renumbering_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t) , intent(inout) :: context
-    type(matrix_t)       , target, intent(in) :: matrix
+    type(serial_scalar_matrix_t)       , target, intent(in) :: matrix
     type(hsl_ma87_control_t) , intent(in)    :: ctrl
     type(hsl_ma87_info_t)    , intent(inout) :: info
 
@@ -477,7 +477,7 @@ use graph_renumbering_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t), intent(inout)        :: context
-    type(matrix_t)  , intent(in)               :: matrix
+    type(serial_scalar_matrix_t)  , intent(in)               :: matrix
     type(serial_scalar_array_t)  , intent(in), target       :: x
     type(serial_scalar_array_t)  , intent(inout), target    :: y
     type(hsl_ma87_control_t) , intent(in)          :: ctrl
@@ -515,7 +515,7 @@ use graph_renumbering_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t), intent(inout) :: context
-    type(matrix_t)  , intent(in)   :: matrix
+    type(serial_scalar_matrix_t)  , intent(in)   :: matrix
     real(rp)          , intent(in)    :: rhs (matrix%gr%nv)
     real(rp)          , intent(inout) :: sol (matrix%gr%nv)
     type(hsl_ma87_control_t) , intent(in) :: ctrl
@@ -545,7 +545,7 @@ use graph_renumbering_names
     implicit none
     ! Parameters 
     type(hsl_ma87_context_t), intent(inout), target :: context
-    type(matrix_t)  , intent(in)   , target :: matrix
+    type(serial_scalar_matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs, ldrhs, ldsol
     real(rp)          , intent(in)   , target :: rhs (ldrhs, nrhs)
     real(rp)          , intent(inout), target :: sol (ldsol, nrhs)

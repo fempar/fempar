@@ -36,7 +36,7 @@ module operator_dd_names
   use types_names
   use memor_names
   use graph_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use matvec_names
   use serial_scalar_array_names
   use preconditioner_names
@@ -87,10 +87,10 @@ module operator_dd_names
      type ( graph_t )  :: A_GI_gr
      type ( graph_t )  :: A_GG_gr
 
-     type ( matrix_t )  :: A_II 
-     type ( matrix_t )  :: A_IG 
-     type ( matrix_t )  :: A_GI
-     type ( matrix_t )  :: A_GG
+     type ( serial_scalar_matrix_t )  :: A_II 
+     type ( serial_scalar_matrix_t )  :: A_IG 
+     type ( serial_scalar_matrix_t )  :: A_GI
+     type ( serial_scalar_matrix_t )  :: A_GG
 
 	 logical :: A_GI_allocated
 	 
@@ -122,7 +122,7 @@ contains
   subroutine operator_dd_create ( f_matrix, dof_dist, f_operator, spars, ppars, symmetric_storage, is_symmetric, sign )
     implicit none
     ! Parameters
-    type(matrix_t)        , intent(in), target           :: f_matrix
+    type(serial_scalar_matrix_t)        , intent(in), target           :: f_matrix
     type(dof_distribution_t)  , intent(in), target           :: dof_dist
     type(operator_dd_t)   , intent(out)                  :: f_operator
     type(solver_control_t)    , intent(in), target, optional :: spars
@@ -199,18 +199,18 @@ contains
       call graph_create(.false., f_operator%A_GI_gr)
 	end if
 	
-    call matrix_create(is_symmetric_, f_operator%A_II, sign_)
-	call matrix_create(.false., f_operator%A_IG)
-	call matrix_create(is_symmetric_, f_operator%A_GG, sign_)
+    call serial_scalar_matrix_create(is_symmetric_, f_operator%A_II, sign_)
+	call serial_scalar_matrix_create(.false., f_operator%A_IG)
+	call serial_scalar_matrix_create(is_symmetric_, f_operator%A_GG, sign_)
 	if ( .not. symmetric_storage_ ) then
-	  call matrix_create(.false., f_operator%A_GI)
+	  call serial_scalar_matrix_create(.false., f_operator%A_GI)
 	end if  
 
-	call matrix_graph(f_operator%A_II_gr, f_operator%A_II)
-    call matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
-	call matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
+	call serial_scalar_matrix_graph(f_operator%A_II_gr, f_operator%A_II)
+    call serial_scalar_matrix_graph(f_operator%A_IG_gr, f_operator%A_IG)
+	call serial_scalar_matrix_graph(f_operator%A_GG_gr, f_operator%A_GG)
 	if ( .not. symmetric_storage_ ) then
-      call matrix_graph(f_operator%A_GI_gr, f_operator%A_GI)
+      call serial_scalar_matrix_graph(f_operator%A_GI_gr, f_operator%A_GI)
 	end if  
 	
     call preconditioner_create( f_operator%A_II, f_operator%M_II, f_operator%ppars)
@@ -236,15 +236,15 @@ contains
 
     ! Free memory associated to the blocks of the operator
     if ( mode == free_values ) then
-       call matrix_free ( f_operator%A_II, free_values )
-       call matrix_free ( f_operator%A_IG, free_values )
-       call matrix_free ( f_operator%A_GG, free_values )
+       call serial_scalar_matrix_free ( f_operator%A_II, free_values )
+       call serial_scalar_matrix_free ( f_operator%A_IG, free_values )
+       call serial_scalar_matrix_free ( f_operator%A_GG, free_values )
     end if
 
     if ( mode == free_struct ) then
-       call matrix_free ( f_operator%A_II, free_struct )
-       call matrix_free ( f_operator%A_IG, free_struct )
-       call matrix_free ( f_operator%A_GG, free_struct )
+       call serial_scalar_matrix_free ( f_operator%A_II, free_struct )
+       call serial_scalar_matrix_free ( f_operator%A_IG, free_struct )
+       call serial_scalar_matrix_free ( f_operator%A_GG, free_struct )
 
        call graph_free ( f_operator%A_II_gr )
        call graph_free ( f_operator%A_IG_gr )
@@ -253,11 +253,11 @@ contains
 
     if ( f_operator%A_GI_allocated ) then
        if ( mode == free_values ) then
-          call matrix_free( f_operator%A_GI, free_values  )
+          call serial_scalar_matrix_free( f_operator%A_GI, free_values  )
        end if
 
        if ( mode == free_struct ) then
-          call matrix_free( f_operator%A_GI, free_struct  )
+          call serial_scalar_matrix_free( f_operator%A_GI, free_struct  )
           call graph_free ( f_operator%A_GI_gr ) 
        end if
     end if
@@ -285,7 +285,7 @@ contains
     implicit none
 
     ! Parameters 
-    type(matrix_t)  , intent(in)                    :: f_matrix
+    type(serial_scalar_matrix_t)  , intent(in)                    :: f_matrix
     type(operator_dd_t), intent(inout)              :: f_operator
 
     ! Split graph of local process into 2x2 block partitioning
@@ -315,7 +315,7 @@ contains
     implicit none
     
     ! Parameters
-    type(matrix_t)     , intent(in)    :: f_matrix
+    type(serial_scalar_matrix_t)     , intent(in)    :: f_matrix
     type(operator_dd_t), intent(inout) :: f_operator
 
     ! Split matrix of local process into 2x2 block partitioning
@@ -710,7 +710,7 @@ use blas77_interfaces_names
      end if
      
 #else
-     call matmat ( f_operator%A_GG, & 
+     call serial_scalar_matmat ( f_operator%A_GG, & 
                        n, & 
                        f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
                        u(f_operator%A_II%gr%nv+1,1), & 
@@ -780,14 +780,14 @@ use blas77_interfaces_names
 
 #else
     if (f_operator%A_II%gr%symmetric_storage) then
-       call matmat_trans ( f_operator%A_IG, & 
+       call serial_scalar_matmat_trans ( f_operator%A_IG, & 
                            n, & 
                            f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
                            u, & 
                            f_operator%A_GG%gr%nv, &
                            work )
     else 
-       call matmat ( f_operator%A_GI, & 
+       call serial_scalar_matmat ( f_operator%A_GI, & 
                      n, & 
                      f_operator%A_II%gr%nv + f_operator%A_GG%gr%nv, &  
                      u, & 
@@ -856,7 +856,7 @@ use blas77_interfaces_names
      ! of code to be cost-negligible so I did not expend
      ! too much time in here ... 
      assert  ( beta == 0.0 )
-     call matmat ( f_operator%A_IG, & 
+     call serial_scalar_matmat ( f_operator%A_IG, & 
           nrhs, & 
           ldX, &  
           X, & 
@@ -883,13 +883,13 @@ use blas77_interfaces_names
     !                   does not work.
     !-----------------------------------------------------------------------
     implicit none
-    type(matrix_t)          , intent(in) :: A
+    type(serial_scalar_matrix_t)          , intent(in) :: A
     type(dof_distribution_t), intent(in) :: dof_dist 
 
-    type(matrix_t)     , intent(inout), optional   :: A_II
-    type(matrix_t)     , intent(inout), optional   :: A_IG
-    type(matrix_t)     , intent(inout), optional   :: A_GI
-    type(matrix_t)     , intent(inout), optional   :: A_GG
+    type(serial_scalar_matrix_t)     , intent(inout), optional   :: A_II
+    type(serial_scalar_matrix_t)     , intent(inout), optional   :: A_IG
+    type(serial_scalar_matrix_t)     , intent(inout), optional   :: A_GI
+    type(serial_scalar_matrix_t)     , intent(inout), optional   :: A_GG
 
     integer :: ipoing, offset
 

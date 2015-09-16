@@ -45,7 +45,7 @@ program test_serial_preconditioners_and_solvers
   integer(ip) , allocatable :: list_solvers_to_be_tested(:)
   integer(ip)               :: lunio
 
-  type(matrix_t), target :: mmmat
+  type(serial_scalar_matrix_t), target :: mmmat
   type(graph_t)          :: mmgraph
   type(serial_scalar_array_t), target :: b
   type(serial_scalar_array_t), target :: x
@@ -80,9 +80,9 @@ program test_serial_preconditioners_and_solvers
   call read_pars_cl_test_dirsol_mm ( solver, driver, dir_path, prefix, smoother, one_pass_coarsen, st_parameter, from_file)
 
   ! Read a symmetric matrix
-  call matrix_compose_name_matrix_market ( prefix, name ) 
+  call serial_scalar_matrix_compose_name_matrix_market ( prefix, name ) 
   lunio = io_open(trim(dir_path) // '/' // trim(name),status='old')
-  call matrix_read_matrix_market (lunio, mmmat, mmgraph, is_symmetric=.false.)
+  call serial_scalar_matrix_read_matrix_market (lunio, mmmat, mmgraph, is_symmetric=.false.)
 
   call io_close(lunio)
 
@@ -308,7 +308,7 @@ program test_serial_preconditioners_and_solvers
 
 
   call graph_free ( mmgraph )
-  call matrix_free ( mmmat ) 
+  call serial_scalar_matrix_free ( mmmat ) 
   call b%free()
   call x%free()
   call exact_solution%free()

@@ -47,7 +47,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   use abstract_solver_names
   use mesh_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use preconditioner_names
   use graph_names
   use serial_scalar_array_names
@@ -187,7 +187,7 @@ module par_preconditioner_dd_mlevel_bddc_names
      ! and iperm store the correspondence among A_i and P^T A_i P
      type ( graph_t )      :: A_rr_gr
      type ( graph_t )      :: A_rr_trans_gr
-     type ( matrix_t )     :: A_rr, A_rr_trans
+     type ( serial_scalar_matrix_t )     :: A_rr, A_rr_trans
      real(rp) , allocatable  :: A_rc(:,:), A_cr(:,:), A_cc(:,:)
      real(rp) , allocatable  :: A_cr_trans(:,:), A_rc_trans(:,:), A_cc_trans(:,:)
      logical                 :: enable_constraint_weights
@@ -267,7 +267,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
      ! Coarse grid system coefficient matrix
      type ( graph_t )         :: A_c_gr     ! co_sys_sol_strat = serial
-     type ( matrix_t )        :: A_c 
+     type ( serial_scalar_matrix_t )        :: A_c 
      type ( mesh_t )          :: f_mesh_c
 
      type ( par_environment_t )   :: p_env_c      ! Parallel environment for the coarse-grid problem
@@ -384,7 +384,7 @@ use mpi
     integer            :: i, istat
     logical            :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
     type (serial_scalar_array_t)  :: dum 
-    type (matrix_t)  :: mat_dum
+    type (serial_scalar_matrix_t)  :: mat_dum
     type (par_context_t) :: dum_context
 
 
@@ -627,11 +627,11 @@ use mpi
        ! BEG. FINE-GRID PROBLEM DUTIES
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
           call graph_create(p_mat%f_matrix%gr%symmetric_storage, mlbddc%A_rr_gr) 
-          call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, p_mat%f_matrix%sign)
-          call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
+          call serial_scalar_matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, p_mat%f_matrix%sign)
+          call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
-             call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans) 
+             call serial_scalar_matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
+             call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans) 
           end if
 
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -645,11 +645,11 @@ use mpi
 
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
           call graph_create(p_mat%f_matrix%gr%symmetric_storage, mlbddc%A_rr_gr) 
-          call matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, indefinite)
-          call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
+          call serial_scalar_matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, indefinite)
+          call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, indefinite)
-			 call matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans)
+             call serial_scalar_matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, indefinite)
+			 call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
@@ -681,8 +681,8 @@ use mpi
           ! BEG. COARSE-GRID PROBLEM DUTIES
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
              call graph_create ( p_mat%f_matrix%gr%symmetric_storage,  mlbddc%A_c_gr )
-             call matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_c, p_mat%f_matrix%sign )
-             call matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c )
+             call serial_scalar_matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_c, p_mat%f_matrix%sign )
+             call serial_scalar_matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c )
              call preconditioner_create ( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial )
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
              assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level serial
@@ -892,11 +892,11 @@ use mpi
              call operator_dd_free ( mlbddc%A_II_inv, free_struct )
           end if
 
-          call matrix_free ( mlbddc%A_rr, free_struct )
+          call serial_scalar_matrix_free ( mlbddc%A_rr, free_struct )
           call graph_free ( mlbddc%A_rr_gr )
  
           if ( mlbddc%projection == petrov_galerkin ) then 
-          call matrix_free ( mlbddc%A_rr_trans, free_struct )
+          call serial_scalar_matrix_free ( mlbddc%A_rr_trans, free_struct )
             end if
    
           call memfree ( mlbddc%coarse_dofs,__FILE__,__LINE__)
@@ -916,7 +916,7 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_struct, mlbddc%M_c )
              end if
-             call matrix_free ( mlbddc%A_c, free_struct )
+             call serial_scalar_matrix_free ( mlbddc%A_c, free_struct )
              call graph_free ( mlbddc%A_c_gr )
              call mesh_free ( mlbddc%f_mesh_c )
              call memfree ( mlbddc%vars, __FILE__, __LINE__)
@@ -969,14 +969,14 @@ use mpi
              call operator_dd_free ( mlbddc%A_II_inv, free_values )
           end if
 
-          call matrix_free ( mlbddc%A_rr, free_values )
+          call serial_scalar_matrix_free ( mlbddc%A_rr, free_values )
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%blk_lag_mul,__FILE__,__LINE__) 
 
              if (mlbddc%projection == petrov_galerkin )  then 
-          call matrix_free ( mlbddc%A_rr_trans, free_values )
+          call serial_scalar_matrix_free ( mlbddc%A_rr_trans, free_values )
              end if
 
           if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -1030,7 +1030,7 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_values, mlbddc%M_c )
              end if
-             call matrix_free ( mlbddc%A_c, free_values )
+             call serial_scalar_matrix_free ( mlbddc%A_c, free_values )
           end if
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
           assert(mlbddc%p_mat%p_env%num_levels>2) 
@@ -3039,7 +3039,7 @@ use mpi
     ! Locals
     integer(ip)    :: me, np, lunou
     logical        :: i_am_fine_task
-    type(matrix_t) :: mat_trans
+    type(serial_scalar_matrix_t) :: mat_trans
 
 
     ! The routine requires the partition/context info
@@ -3067,10 +3067,10 @@ use mpi
 
     if (i_am_fine_task) then
        ! BEG. FINE-GRID PROBLEM DUTIES
-       call matrix_fill_val ( mlbddc%A_rr )
+       call serial_scalar_matrix_fill_val ( mlbddc%A_rr )
       
        if (mlbddc%projection == petrov_galerkin ) then 
-          call matrix_fill_val ( mlbddc%A_rr_trans )
+          call serial_scalar_matrix_fill_val ( mlbddc%A_rr_trans )
        end if
 
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -3120,10 +3120,10 @@ use mpi
                                                      mlbddc%A_cc )
 
           if ( mlbddc%projection == petrov_galerkin ) then 
-		     call matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, p_mat%f_matrix%sign)
-			 call matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
-			 call matrix_fill_val  ( mat_trans )
-			 call matrix_transpose ( p_mat%f_matrix, mat_trans ) 
+		     call serial_scalar_matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, p_mat%f_matrix%sign)
+			 call serial_scalar_matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
+			 call serial_scalar_matrix_fill_val  ( mat_trans )
+			 call serial_scalar_matrix_transpose ( p_mat%f_matrix, mat_trans ) 
              call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
                                                         mat_trans%gr%symmetric_storage, & 
                                                         mat_trans%gr%nv     , & 
@@ -3139,7 +3139,7 @@ use mpi
                                                         mlbddc%A_rc_trans, & 
                                                         mlbddc%A_cr_trans, &              
                                                         mlbddc%A_cc_trans )
-             call matrix_free(mat_trans)
+             call serial_scalar_matrix_free(mat_trans)
          end if
 
        else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem) then 
@@ -3163,10 +3163,10 @@ use mpi
                                                  mlbddc%p_mat%dof_dist%nb, &
                                                  mlbddc%C_weights )
          if (mlbddc%projection == petrov_galerkin ) then 
-		   call matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, indefinite)
-		   call matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
-		   call matrix_fill_val  ( mat_trans )
-		   call matrix_transpose ( p_mat%f_matrix, mat_trans ) 
+		   call serial_scalar_matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, indefinite)
+		   call serial_scalar_matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
+		   call serial_scalar_matrix_fill_val  ( mat_trans )
+		   call serial_scalar_matrix_transpose ( p_mat%f_matrix, mat_trans ) 
 		   call augment_matrix_with_constraints ( mat_trans%gr%symmetric_storage, & 
                                                   mat_trans%gr%nv   , & 
                                                   mat_trans%gr%ia    , & 
@@ -3186,7 +3186,7 @@ use mpi
                                                   mlbddc%A_rr_trans%a, &
                                                   mlbddc%p_mat%dof_dist%nb, &
                                                   mlbddc%C_weights  )
-            call matrix_free(mat_trans)
+            call serial_scalar_matrix_free(mat_trans)
          end if
 
        end if
@@ -3194,7 +3194,7 @@ use mpi
        if ( debug_verbose_level_3 ) then
           call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
           lunou = io_open ( trim('fine_matrix_mlevel_bddc_' //  trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') // trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
-          call matrix_print_matrix_market ( lunou, mlbddc%A_rr )
+          call serial_scalar_matrix_print_matrix_market ( lunou, mlbddc%A_rr )
           call io_close ( lunou )
        end if
 
@@ -3514,7 +3514,7 @@ use mpi
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
           if ( debug_verbose_level_3 ) then
              lunou =  io_open ( trim('A_mlevel_bddc_c.mtx'), 'write')  
-             call matrix_print_matrix_market (lunou,  mlbddc%A_c)
+             call serial_scalar_matrix_print_matrix_market (lunou,  mlbddc%A_c)
              call io_close (lunou)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -3544,7 +3544,7 @@ use mpi
           if ( debug_verbose_level_3 ) then
              call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
              lunou = io_open ( trim('dirichlet_matrix_mlevel_bddc_' // trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') //  trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
-             call matrix_print_matrix_market ( lunou, mlbddc%A_II_inv%A_II )
+             call serial_scalar_matrix_print_matrix_market ( lunou, mlbddc%A_II_inv%A_II )
              call io_close ( lunou )
           end if
        end if
@@ -3714,9 +3714,9 @@ use mpi
 
   subroutine extract_trans_matrix(A, gr_a, A_t, gr_t)
 
-    type(matrix_t), intent(in)     :: A         ! Input matrix
+    type(serial_scalar_matrix_t), intent(in)     :: A         ! Input matrix
     type(graph_t),  target, intent(in)     :: gr_a      ! Graph of the matrix
-    type(matrix_t), intent(out)  :: A_t       ! Output matrix
+    type(serial_scalar_matrix_t), intent(out)  :: A_t       ! Output matrix
     type(graph_t), pointer,  intent(out)  :: gr_t      ! Graph of the transpose matrix
 
     ! Locals 
@@ -3724,9 +3724,9 @@ use mpi
     integer :: k,i,j
 
     if ( .not. gr_a%symmetric_storage ) then
-       call matrix_alloc ( .false., gr_a, A_t )
+       call serial_scalar_matrix_alloc ( .false., gr_a, A_t )
     else 
-       call matrix_alloc ( .true., gr_a, A_t )
+       call serial_scalar_matrix_alloc ( .true., gr_a, A_t )
     end if
 
     aux_graph = gr_a
@@ -3899,7 +3899,7 @@ use mpi
     ! Parameters 
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
 
-    type(matrix_t)       , intent(inout)            :: A_rr
+    type(serial_scalar_matrix_t)       , intent(inout)            :: A_rr
     type(preconditioner_t)      , intent(inout)            :: M_rr
 
     real(rp)               , intent(inout)         :: A_rc ( mlbddc%A_rr_gr%nv  , &
@@ -4588,7 +4588,7 @@ use mpi
     implicit none
     ! Parameters 
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
-    type(matrix_t)          , intent(inout)   :: A_rr
+    type(serial_scalar_matrix_t)          , intent(inout)   :: A_rr
     type(preconditioner_t)         , intent(inout)   :: M_rr
 
     real(rp), allocatable     , intent(inout)   :: A_rr_inv_C_r_T(:,:) , A_rr_inv_C_r_T_neumann(:,:)
@@ -5209,7 +5209,7 @@ use mpi
     real(rp)                 , intent(in)   :: A_cc( mlbddc%nl_corners  , &
                                                      mlbddc%nl_corners  )
 
-    type(matrix_t)         , intent(inout)   :: A_rr
+    type(serial_scalar_matrix_t)         , intent(inout)   :: A_rr
     type(preconditioner_t)        , intent(inout)   :: M_rr
 
     real (rp)                , intent(in)      :: A_rr_inv_C_r_T (:,:) 
@@ -5393,7 +5393,7 @@ use mpi
     integer                  , intent(in), target, optional :: iparm(64)
     integer                  , intent(in), optional         :: msglvl
 
-    type(matrix_t)      , intent(inout)   :: A_rr
+    type(serial_scalar_matrix_t)      , intent(inout)   :: A_rr
     type(preconditioner_t)     , intent(inout)   :: M_rr
     real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist%nl, &
                                                      mlbddc%nl_edges+mlbddc%nl_corners)    
@@ -5619,7 +5619,7 @@ end if
              end if
              ! write (*,*) work ! DBG:
 #else
-             call matmat ( p_mat%f_matrix, & 
+             call serial_scalar_matmat ( p_mat%f_matrix, & 
                   (mlbddc%nl_edges+mlbddc%nl_corners), &
                   mlbddc%p_mat%dof_dist%nl, &
                   mlbddc%rPhi, &
@@ -5722,7 +5722,7 @@ end if
        end if
 
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  
-          call matrix_fill_val (mlbddc%A_c)
+          call serial_scalar_matrix_fill_val (mlbddc%A_c)
 
           call sum_coarse_stiffness_matrices ( mlbddc%A_c, &
                                                mlbddc%g_context%np, & 
@@ -5734,7 +5734,7 @@ end if
        else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
           assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
           
-          call matrix_fill_val (mlbddc%p_mat_c%f_matrix)
+          call serial_scalar_matrix_fill_val (mlbddc%p_mat_c%f_matrix)
 
           call sum_coarse_stiffness_matrices ( mlbddc%p_mat_c%f_matrix, &
                                                mlbddc%g_context%np, & 
@@ -5776,7 +5776,7 @@ end if
     implicit none
 
     ! Parameters
-    type(matrix_t), intent(inout) :: A_c
+    type(serial_scalar_matrix_t), intent(inout) :: A_c
     integer(ip)     , intent(in)    :: np, sz_a_ci_gathered
     integer(ip)     , intent(in)    :: ptr_coarse_dofs (np+1)
     integer(ip)     , intent(in)    :: lst_coarse_dofs (ptr_coarse_dofs(np+1))
@@ -5859,7 +5859,7 @@ end if
     end if
 
     if (debug_verbose_level_2) then 
-       call matrix_print ( 6, A_c ) ! DBG:
+       call serial_scalar_matrix_print ( 6, A_c ) ! DBG:
     end if
 
 
@@ -8382,7 +8382,7 @@ use mpi
     integer(ip)      ,intent(in)    :: nn
     integer(ip)      ,intent(in)    :: ln(:)
     real(rp)         ,intent(in)    :: ea(:,:)
-    type(matrix_t) ,intent(inout) :: mat
+    type(serial_scalar_matrix_t) ,intent(inout) :: mat
     
     ! Locals
     integer(ip) :: nl, ne
@@ -8720,7 +8720,7 @@ use mpi
 
   subroutine matrix_preconditioner_vector_solve (A,M,b,x,pars)
     implicit none
-    type(matrix_t)    ,intent(in)    :: A     ! Matrix
+    type(serial_scalar_matrix_t)    ,intent(in)    :: A     ! Matrix
     type(preconditioner_t)   ,intent(in)    :: M     ! Preconditioner
     type(serial_scalar_array_t)    ,intent(in)    :: b     ! RHS
     type(serial_scalar_array_t)    ,intent(inout) :: x     ! Approximate solution
@@ -8735,7 +8735,7 @@ use mpi
 
   subroutine matrix_preconditioner_r1_solve (A,M,b,x,pars)
     implicit none
-    type(matrix_t)            ,intent(in)    :: A          ! Matrix
+    type(serial_scalar_matrix_t)            ,intent(in)    :: A          ! Matrix
     type(preconditioner_t)           ,intent(in)    :: M          ! Preconditioner
     real(rp)           , target ,intent(in)    :: b(A%gr%nv) ! RHS
     real(rp)           , target ,intent(inout) :: x(A%gr%nv) ! Approximate solution
@@ -8762,7 +8762,7 @@ use mpi
 
   subroutine matrix_preconditioner_r2_solve (A,M,b,ldb,x,ldx,pars)
     implicit none
-    type(matrix_t)            ,intent(in)    :: A                 ! Matrix
+    type(serial_scalar_matrix_t)            ,intent(in)    :: A                 ! Matrix
     type(preconditioner_t)           ,intent(in)    :: M                 ! Preconditioner
     type(solver_control_t)        ,intent(inout) :: pars              ! Solver parameters
     integer(ip)                 ,intent(in)    :: ldb, ldx

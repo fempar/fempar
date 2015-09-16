@@ -33,7 +33,7 @@ module assembly_names
   use integrable_names
   use dof_descriptor_names
   use block_matrix_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use serial_block_array_names
   use serial_scalar_array_names
   use scalar_names
@@ -56,7 +56,7 @@ contains
     class(integrable_t)   , intent(inout) :: a
 
     select type(a)
-    class is(matrix_t)
+    class is(serial_scalar_matrix_t)
        call assembly_element_matrix_mono(finite_element, dof_descriptor, a) 
     class is(serial_scalar_array_t)
        call assembly_element_vector_mono(finite_element, dof_descriptor, a)
@@ -81,7 +81,7 @@ contains
     class(integrable_t)   , intent(inout) :: a
 
     select type(a)
-    class is(matrix_t)
+    class is(serial_scalar_matrix_t)
        call assembly_face_element_matrix_mono(fe_face, finite_elements, dof_descriptor, a) 
     !class is(vector_t)
     !   call assembly_face_element_vector_mono(fe_face, dof_descriptor, a)
@@ -103,7 +103,7 @@ contains
     
     integer(ip) :: ivar, iblock, jblock
 
-    type(matrix_t), pointer :: f_matrix
+    type(serial_scalar_matrix_t), pointer :: f_matrix
 
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
@@ -120,7 +120,7 @@ contains
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
-    type(matrix_t)        , intent(inout) :: a
+    type(serial_scalar_matrix_t)        , intent(inout) :: a
 
     call element_matrix_assembly( dof_descriptor, finite_element, a )
 
@@ -135,7 +135,7 @@ contains
 
     integer(ip) :: iblock, jblock, i
     type(array_ip1_t) :: start_aux
-    type(matrix_t), pointer :: f_matrix
+    type(serial_scalar_matrix_t), pointer :: f_matrix
 
     ! Auxiliar local start array to store start(2)
     call array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
@@ -165,7 +165,7 @@ contains
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(fe_face_t)       , intent(in)    :: fe_face
     type(finite_element_pointer_t), intent(in)    :: finite_element(2)
-    type(matrix_t)        , intent(inout) :: a
+    type(serial_scalar_matrix_t)        , intent(inout) :: a
 
     integer(ip) :: i
     type(array_ip1_t) :: start_aux
@@ -255,7 +255,7 @@ contains
     ! Parameters
     type(dof_descriptor_t)    , intent(in)    :: dof_descriptor
     type(finite_element_t) , intent(in)    :: finite_element
-    type(matrix_t)         , intent(inout) :: a
+    type(serial_scalar_matrix_t)         , intent(inout) :: a
     integer(ip), intent(in), optional      :: iblock, jblock
 
     integer(ip) :: iprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var
@@ -325,7 +325,7 @@ contains
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_pointer_t), intent(in)    :: finite_element(2)
     type(fe_face_t)       , intent(in)    :: fe_face
-    type(matrix_t)        , intent(inout) :: a
+    type(serial_scalar_matrix_t)        , intent(inout) :: a
     integer(ip), intent(in), optional :: iblock, jblock
 
     integer(ip) :: iprob, jprob, nvapb_i, nvapb_j, ivars, jvars, l_var, m_var, g_var, k_var

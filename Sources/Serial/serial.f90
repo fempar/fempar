@@ -71,7 +71,7 @@ module serial_names
   use migratory_element_names
 
   ! Linear Algebra
-  use matrix_names
+  use serial_scalar_matrix_names
   use block_graph_names
   use preconditioner_names
   use serial_scalar_array_names

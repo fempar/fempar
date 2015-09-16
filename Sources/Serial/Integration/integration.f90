@@ -37,7 +37,7 @@ module integration_names
   use fe_space_names
   use assembly_names
   use block_matrix_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use serial_block_array_names
   use serial_scalar_array_names
   use finite_element_names

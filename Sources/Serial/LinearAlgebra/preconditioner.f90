@@ -30,7 +30,7 @@ module preconditioner_names
   use types_names
   use memor_names
   use graph_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use serial_scalar_array_names
   use pardiso_mkl_names
   use wsmp_names
@@ -124,7 +124,7 @@ module preconditioner_names
      !      preconditioner. The linear coefficient matrix is no longer passed to 
      !      precond%apply(r,z) in the abstract implementation of Krylov subspace methods, but
      !      it is still required.
-     type(matrix_t), pointer :: mat
+     type(serial_scalar_matrix_t), pointer :: mat
 
    contains
      procedure :: apply => preconditioner_apply_tbp
@@ -224,7 +224,7 @@ contains
   subroutine  preconditioner_create (mat, prec, pars)
     implicit none
     ! Parameters
-    type(matrix_t)        , target, intent(in)           :: mat
+    type(serial_scalar_matrix_t)        , target, intent(in)           :: mat
     type(preconditioner_t)       , intent(inout)        :: prec
     type(preconditioner_params_t), intent(in), optional :: pars
 
@@ -308,7 +308,7 @@ contains
     integer(ip)      , intent(in)    :: action
 
     ! Locals
-    type (matrix_t) :: adum 
+    type (serial_scalar_matrix_t) :: adum 
     type (serial_scalar_array_t) :: vdum 
 
     if ( action == preconditioner_free_clean ) then
@@ -408,7 +408,7 @@ contains
   subroutine preconditioner_symbolic(mat, prec)
     implicit none
     ! Parameters
-    type(matrix_t)      , intent(in), target    :: mat
+    type(serial_scalar_matrix_t)      , intent(in), target    :: mat
     type(preconditioner_t)     , intent(inout) :: prec
     ! Locals
     type (serial_scalar_array_t) :: vdum 
@@ -453,7 +453,7 @@ contains
     ! Parameters
     type(preconditioner_t), target, intent(inout) :: prec
     ! Locals
-    type(matrix_t), pointer :: mat
+    type(serial_scalar_matrix_t), pointer :: mat
     type (serial_scalar_array_t) :: vdum 
     integer(ip)       :: ilev, n, nnz
     integer(ip)       :: i, j
@@ -525,7 +525,7 @@ contains
   subroutine preconditioner_apply_vector (mat, prec, x, y)
     implicit none
     ! Parameters
-    type(matrix_t)      , intent(in)    :: mat
+    type(serial_scalar_matrix_t)      , intent(in)    :: mat
     type(preconditioner_t)     , intent(inout) :: prec
     type(serial_scalar_array_t)      , intent(in)    :: x
     type(serial_scalar_array_t)      , intent(inout) :: y
@@ -566,7 +566,7 @@ contains
   subroutine preconditioner_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
     implicit none
     ! Parameters
-    type(matrix_t)      , intent(in)    :: mat
+    type(serial_scalar_matrix_t)      , intent(in)    :: mat
     type(preconditioner_t)     , intent(inout) :: prec
     integer(ip)       , intent(in)        :: nrhs, ldx, ldy
     real(rp)          , intent(in)        :: x (ldx, nrhs)
@@ -616,7 +616,7 @@ contains
   subroutine preconditioner_apply_r1 (mat, prec, x, y)
     implicit none
     ! Parameters
-    type(matrix_t) , intent(in)    :: mat
+    type(serial_scalar_matrix_t) , intent(in)    :: mat
     type(preconditioner_t), intent(inout) :: prec
     real(rp)         , intent(in)    :: x (mat%gr%nv)
     real(rp)         , intent(inout) :: y (mat%gr%nv)

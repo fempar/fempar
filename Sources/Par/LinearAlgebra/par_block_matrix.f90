@@ -30,7 +30,7 @@ module par_block_matrix_names
   use types_names
   use memor_names
   use graph_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use vector_names
   use abstract_operator_names
 

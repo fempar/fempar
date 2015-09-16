@@ -33,7 +33,7 @@ program test_cdr
   ! Our data
   type(mesh_t)           :: f_mesh
   type(triangulation_t)  :: f_trian
-  type(matrix_t)         :: f_mat
+  type(serial_scalar_matrix_t)         :: f_mat
   type(conditions_t)     :: f_cond
   type(dof_descriptor_t) :: dof_descriptor
   type(fe_space_t)       :: fe_space
@@ -47,7 +47,7 @@ program test_cdr
   integer(ip)                         :: num_approximations
   type(discrete_integration_pointer_t)  :: approximations(1)
 
-  type(matrix_t), target             :: my_matrix
+  type(serial_scalar_matrix_t), target             :: my_matrix
   type(serial_scalar_array_t), target             :: my_vector, feunk
   class(vector_t) , pointer :: x, y
   class(abstract_operator_t), pointer :: A
@@ -136,7 +136,7 @@ program test_cdr
   call create_dof_info( dof_descriptor, f_trian, fe_space, f_blk_graph, symmetric_storage )
 
   f_graph => f_blk_graph%get_block(1,1)
-  call matrix_alloc( .true., f_graph, my_matrix, positive_definite )
+  call serial_scalar_matrix_alloc( .true., f_graph, my_matrix, positive_definite )
 
   call my_vector%create ( f_graph%nv )
   
@@ -169,7 +169,7 @@ program test_cdr
   x => my_vector
   y => feunk
   call feunk%print(6)
-  call matrix_print( 6, my_matrix)
+  call serial_scalar_matrix_print( 6, my_matrix)
 
   ! feunk = my_vector - my_matrix*feunk 
   y = x - A*y 
@@ -196,7 +196,7 @@ program test_cdr
   call f_blk_graph%free()
   call feunk%free()
   call my_vector%free()
-  call matrix_free( my_matrix) 
+  call serial_scalar_matrix_free( my_matrix) 
   call fe_space_free(fe_space) 
   call my_problem%free
   call my_discrete%free

@@ -30,7 +30,7 @@ module block_matrix_names
   use memor_names
   use graph_names
   use block_graph_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use serial_block_array_names
   use serial_scalar_array_names
   
@@ -44,7 +44,7 @@ module block_matrix_names
 
   ! Pointer to matrix
   type p_matrix_t
-    type(matrix_t), pointer :: p_f_matrix
+    type(serial_scalar_matrix_t), pointer :: p_f_matrix
   end type p_matrix_t
 
   ! Block Matrix
@@ -96,9 +96,9 @@ contains
           if (associated(f_graph)) then
              allocate ( bmat%blocks(ib,jb)%p_f_matrix )
              if ( ib == jb ) then
-                call matrix_alloc ( diagonal_blocks_symmetric(ib), f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign_diagonal_blocks(ib) )
+                call serial_scalar_matrix_alloc ( diagonal_blocks_symmetric(ib), f_graph, bmat%blocks(ib,jb)%p_f_matrix, sign_diagonal_blocks(ib) )
              else
-                call matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
+                call serial_scalar_matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
              end if
           else
              nullify ( bmat%blocks(ib,jb)%p_f_matrix )
@@ -126,9 +126,9 @@ contains
     if ( .not. associated( bmat%blocks(ib,jb)%p_f_matrix) ) then
        allocate ( bmat%blocks(ib,jb)%p_f_matrix )
        if ( (ib == jb) ) then
-          call matrix_alloc ( diagonal_block_symmetric, f_graph, bmat%blocks(ib,jb)%p_f_matrix, diagonal_block_sign )
+          call serial_scalar_matrix_alloc ( diagonal_block_symmetric, f_graph, bmat%blocks(ib,jb)%p_f_matrix, diagonal_block_sign )
 	   else
-	      call matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
+	      call serial_scalar_matrix_alloc ( .false., f_graph, bmat%blocks(ib,jb)%p_f_matrix )
        end if
     end if
   end subroutine block_matrix_alloc_block
@@ -140,7 +140,7 @@ contains
     integer(ip)           , intent(in)    :: ib,jb
 
     if ( associated(bmat%blocks(ib,jb)%p_f_matrix) ) then
-       call matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
+       call serial_scalar_matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
        deallocate (bmat%blocks(ib,jb)%p_f_matrix)
        nullify ( bmat%blocks(ib,jb)%p_f_matrix )
     end if
@@ -162,7 +162,7 @@ contains
     do ib=1, bmat%nblocks 
        do jb=1, bmat%nblocks
           if ( associated(bmat%blocks(ib,jb)%p_f_matrix) ) then
-             call matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
+             call serial_scalar_matrix_free( bmat%blocks(ib,jb)%p_f_matrix )
              deallocate (bmat%blocks(ib,jb)%p_f_matrix) 
           end if
        end do
@@ -177,7 +177,7 @@ contains
     ! Parameters
     class(block_matrix_t), target, intent(in) :: bmat
     integer(ip)                    , intent(in) :: ib,jb
-    type(matrix_t)               , pointer    :: block_matrix_get_block
+    type(serial_scalar_matrix_t)               , pointer    :: block_matrix_get_block
 
     block_matrix_get_block =>  bmat%blocks(ib,jb)%p_f_matrix
   end function block_matrix_get_block
@@ -225,7 +225,7 @@ contains
              do jb=1,op%nblocks
                 if ( associated(op%blocks(ib,jb)%p_f_matrix) ) then
                    ! aux <- A(ib,jb) * x(jb)
-                   call matrix_matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
+                   call serial_scalar_matrix_matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
                    ! y(ib) <- y(ib) + aux
                    call y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
                 end if
@@ -265,7 +265,7 @@ contains
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks
              ! aux <- A(ib,jb) * x(jb)
-             call matrix_matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
+             call serial_scalar_matrix_matvec(op%blocks(ib,jb)%p_f_matrix,x%blocks(jb),aux)
              ! y(ib) <- y(ib) + aux
              call local_y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
           end do
@@ -287,7 +287,7 @@ contains
     do ib=1, this%nblocks 
        do jb=1, this%nblocks
           if ( associated(this%blocks(ib,jb)%p_f_matrix) ) then
-             call matrix_free( this%blocks(ib,jb)%p_f_matrix )
+             call serial_scalar_matrix_free( this%blocks(ib,jb)%p_f_matrix )
              deallocate (this%blocks(ib,jb)%p_f_matrix) 
           end if
        end do

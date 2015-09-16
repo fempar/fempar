@@ -29,7 +29,7 @@ module block_matrix_vector_names
 use types_names
   use block_matrix_names
   use serial_block_array_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use serial_scalar_array_names
   implicit none
 # include "debug.i90"
@@ -48,7 +48,7 @@ contains
     type(serial_block_array_t), intent(inout) :: y
 
     ! Locals
-    type(matrix_t), pointer :: f_matrix
+    type(serial_scalar_matrix_t), pointer :: f_matrix
     type(serial_scalar_array_t)          :: aux
     integer(ip)               :: ib, jb
 
@@ -62,7 +62,7 @@ contains
           f_matrix => a%blocks(ib,jb)%p_f_matrix
           if ( associated(f_matrix) ) then
              ! aux <- A(ib,jb) * x(jb)
-             call matrix_matvec ( f_matrix, x%blocks(jb), aux )
+             call serial_scalar_matrix_matvec ( f_matrix, x%blocks(jb), aux )
              
              ! y(ib) <- y(ib) + aux 
              call y%blocks(ib)%axpby ( 1.0_rp, aux, 1.0_rp ) 

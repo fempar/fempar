@@ -29,7 +29,7 @@ module par_matrix_names
   ! Serial modules
   use types_names
   use memor_names
-  use matrix_names
+  use serial_scalar_matrix_names
   use array_names
   use stdio_names
 #ifdef memcheck
@@ -58,7 +58,7 @@ module par_matrix_names
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( matrix_t )       :: f_matrix
+     type( serial_scalar_matrix_t )       :: f_matrix
 
      type(par_graph_t), pointer :: &
         p_graph => NULL()             ! Associated par_graph
@@ -121,7 +121,7 @@ contains
     type(par_environment_t) , target    ,intent(in)  :: p_env
     type(par_matrix_t)                  ,intent(out) :: p_matrix
     integer(ip)             , optional  ,intent(in)  :: def
-    call matrix_create(is_symmetric,p_matrix%f_matrix,def)
+    call serial_scalar_matrix_create(is_symmetric,p_matrix%f_matrix,def)
     p_matrix%dof_dist      => dof_dist 
     p_matrix%dof_dist_cols => dof_dist_cols 
     p_matrix%p_env => p_env
@@ -141,7 +141,7 @@ contains
     p_matrix%p_graph => p_graph
 
     ! if(p_graph%p_env%p_context%iam>=0) 
-    call matrix_graph ( p_graph%f_graph, p_matrix%f_matrix )
+    call serial_scalar_matrix_graph ( p_graph%f_graph, p_matrix%f_matrix )
   end subroutine par_matrix_graph
 
   subroutine par_matrix_fill_val(p_matrix)
@@ -149,7 +149,7 @@ contains
     type(par_matrix_t), intent(inout)          :: p_matrix
 
     if(p_matrix%p_env%p_context%iam>=0) then
-       call matrix_fill_val(p_matrix%f_matrix)
+       call serial_scalar_matrix_fill_val(p_matrix%f_matrix)
     else
        return
     end if
@@ -206,7 +206,7 @@ contains
     end if
 
     ! Free local part
-    call matrix_free ( p_matrix%f_matrix, mode )
+    call serial_scalar_matrix_free ( p_matrix%f_matrix, mode )
 
   end subroutine par_matrix_free_progressively
 
@@ -266,7 +266,7 @@ contains
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')
 
 
-    call matrix_print_matrix_market ( lunou, p_mat%f_matrix )
+    call serial_scalar_matrix_print_matrix_market ( lunou, p_mat%f_matrix )
 
     call io_close (lunou)
 
@@ -300,7 +300,7 @@ contains
 
     if(p_matrix%p_env%p_context%iam<0) return
 
-    call matrix_zero ( p_matrix%f_matrix )
+    call serial_scalar_matrix_zero ( p_matrix%f_matrix )
   end subroutine par_matrix_zero
 
   subroutine par_matvec(a,x,y)
@@ -331,7 +331,7 @@ contains
     ! call vector_print ( 6, x%f_vector )
     ! write (*,*) 'MVAY'
     ! call vector_print ( 6, y%f_vector )
-    call matrix_matvec (a%f_matrix, x%f_vector, y%f_vector) 
+    call serial_scalar_matrix_matvec (a%f_matrix, x%f_vector, y%f_vector) 
     ! write (*,*) 'MVD'
     ! call vector_print ( 6, y%f_vector )
     y%state = part_summed
@@ -358,7 +358,7 @@ contains
     assert ( associated(y%p_env%p_context) )
     
     assert (x%state == full_summed) 
-    call matrix_matvec_trans (a%f_matrix, x%f_vector, y%f_vector) 
+    call serial_scalar_matrix_matvec_trans (a%f_matrix, x%f_vector, y%f_vector) 
     y%state = part_summed
   end subroutine par_matvec_trans
 
