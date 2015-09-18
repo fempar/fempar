@@ -366,7 +366,7 @@ use graph_renumbering_names
     call graph_nd_renumbering(prt_parts,aux_graph,context%renumbering) 
 
     ! De-allocate aux_graph
-    call graph_free ( aux_graph )
+    call aux_graph%free()
 
     call ma87_analyse(matrix%graph%nv, matrix%graph%ia, matrix%graph%ja, &
                       context%renumbering%lperm, context%keep, ctrl%control, info%info)
