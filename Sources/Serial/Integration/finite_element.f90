@@ -161,11 +161,12 @@ contains
     
     ! Locals
     integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip
+    integer(ip)   :: size_of_ip,size_of_logical
     
     size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_logical = size(transfer(.true.,mold))
 
-    n = size_of_ip*3 + 2*size_of_ip*(my%num_vars)
+    n = size_of_ip*3 + 2*size_of_ip*(my%num_vars) + size_of_logical*(my%num_vars)
 
   end subroutine finite_element_size
 
