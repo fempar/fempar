@@ -177,11 +177,12 @@ contains
     
     ! Locals
     integer(ieep) :: mold(1)
-    integer(ip) :: size_of_ip
+    integer(ip) :: size_of_ip,size_of_logical
 
     integer(ip) :: start, end
 
     size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_logical = size(transfer(.true.,mold))
 
     start = 1
     end   = start + size_of_ip -1
@@ -204,7 +205,7 @@ contains
     buffer(start:end) = transfer(my%continuity,mold)
 
     start = end + 1
-    end   = start + my%num_vars*size_of_ip - 1
+    end   = start + my%num_vars*size_of_logical - 1
     buffer(start:end) = transfer(my%enable_face_integration,mold)
 
   end subroutine finite_element_pack
