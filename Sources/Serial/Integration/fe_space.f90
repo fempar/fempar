@@ -311,7 +311,7 @@ contains
           fe_space%finite_elements(ielem)%face_coupling(ivar) = face_coupling(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
           
           fe_space%finite_elements(ielem)%order(ivar) = order(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
-          if ( fe_space%finite_elements(ielem)%continuity(ivar) == 0 ) then
+          if ( fe_space%finite_elements(ielem)%face_coupling(ivar) == 1 ) then
              fe_space%static_condensation = .false. ! Static condensation + dG not possible
           end if
 
@@ -617,7 +617,7 @@ contains
     type(fe_space_t), intent(inout)               :: fe_space
 
     integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
-    integer(ip) :: g_var, iprob, jprob, ivars, jvars
+    integer(ip) :: g_var, iprob, jprob, ivars, jvars, face_coupling_i
 
     ! integration faces (interior / boundary)
     ! The list of boundary faces includes all faces, whereas the interior ones are only those
@@ -637,7 +637,8 @@ contains
                 jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
-                if ( mat_i == 0 .or. mat_i /= mat_j ) then
+                face_coupling_i = fe_space%finite_elements(ielem)%face_coupling(ivars)
+                if ( (mat_i == 0 .or. mat_i /= mat_j) .and. face_coupling_i == 1  ) then
                    count_int = count_int + 1
                    exit
                    !fe_space%interior_faces(count_int) = iobje
@@ -673,7 +674,8 @@ contains
                 jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
-                if ( mat_i == 0 .or. mat_i /= mat_j ) then
+                face_coupling_i = fe_space%finite_elements(ielem)%face_coupling(ivars)
+                if ( (mat_i == 0 .or. mat_i /= mat_j) .and. face_coupling_i == 1 ) then
                    count_int = count_int + 1
                    fe_space%interior_faces(count_int)%face_vef = iobje
                    exit
