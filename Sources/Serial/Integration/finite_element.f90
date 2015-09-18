@@ -217,10 +217,11 @@ contains
 
     ! Locals
     integer(ieep) :: mold(1)
-    integer(ip) :: size_of_ip
+    integer(ip) :: size_of_ip,size_of_logical
     integer(ip) :: start, end
     
     size_of_ip   = size(transfer(1_ip ,mold))
+    size_of_logical = size(transfer(.true.,mold))
 
     start = 1
     end   = start + size_of_ip -1
@@ -249,7 +250,7 @@ contains
     call memalloc( my%num_vars, my%enable_face_integration, __FILE__, __LINE__ )
      
     start = end + 1
-    end   = start + my%num_vars*size_of_ip - 1
+    end   = start + my%num_vars*size_of_logical - 1
     my%enable_face_integration = transfer(buffer(start:end), my%enable_face_integration)
     
   end subroutine finite_element_unpack
