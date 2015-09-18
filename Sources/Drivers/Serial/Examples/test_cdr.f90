@@ -66,6 +66,7 @@ program test_cdr
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
 
   integer(ip), allocatable :: continuity(:,:)
+  integer(ip), allocatable :: face_coupling(:,:)
 
   integer(ip) :: lunio, istat
 
@@ -117,6 +118,9 @@ program test_cdr
   call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
    continuity = 0 ! (dG)
   ! continuity = 1
+  call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, face_coupling, __FILE__, __LINE__)
+   face_coupling = 1 ! (dG)
+  ! face_coupling = 0 ! (cG/ No face integration)
   call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
   order = 5
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
@@ -129,8 +133,8 @@ program test_cdr
   ! Continuity
   !write(*,*) 'Continuity', continuity
 
-  call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, order, material, &
-       & which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = .false., & 
+  call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, face_coupling, order, &
+       & material, which_approx=which_approx,  time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
@@ -192,6 +196,7 @@ program test_cdr
   ! call preconditioner_dd_mlevel_bddc_create ( f_mat, mlbddc, mlbddc_params )
 
   call memfree( continuity, __FILE__, __LINE__)
+  call memfree( face_coupling, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)

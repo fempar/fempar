@@ -62,6 +62,7 @@ module finite_element_names
 
      ! Connectivity
      integer(ip)       , allocatable :: continuity(:)     ! Continuity flag per variable
+     integer(ip)       , allocatable :: face_coupling(:)  ! Face coupling flag per variable
      type(list_pointer_t), allocatable :: nodes_per_vef(:)   ! Nodes per vefq (including interior) (nvars)
      integer(ip)                     :: material          ! Material ! SB.alert : material can be used as p   
      ! use of material still unclear
@@ -127,6 +128,7 @@ contains
     write (lunou,*) 'Order of each variable: ', finite_element%order
     write (lunou,*) 'Continuity of each variable: ', size(finite_element%continuity)
     write (lunou,*) 'Continuity of each variable: ', finite_element%continuity
+    write (lunou,*) 'Face coupling of each variable: ', finite_element%face_coupling
     write (lunou,*) 'Element material: ', finite_element%material
     write (lunou,*) 'Boundary conditions code: ', finite_element%bc_code
 
@@ -201,6 +203,10 @@ contains
     end   = start + my%num_vars*size_of_ip - 1
     buffer(start:end) = transfer(my%continuity,mold)
 
+    start = end + 1
+    end   = start + my%num_vars*size_of_ip - 1
+    buffer(start:end) = transfer(my%face_coupling,mold)
+
   end subroutine finite_element_pack
 
   subroutine finite_element_unpack(my, n, buffer)
@@ -240,6 +246,12 @@ contains
     end   = start + my%num_vars*size_of_ip - 1
     my%continuity = transfer(buffer(start:end), my%continuity)
     
+    call memalloc( my%num_vars, my%face_coupling, __FILE__, __LINE__ )
+     
+    start = end + 1
+    end   = start + my%num_vars*size_of_ip - 1
+    my%face_coupling = transfer(buffer(start:end), my%face_coupling)
+    
   end subroutine finite_element_unpack
 
   subroutine finite_element_free_unpacked(finite_element)
@@ -248,6 +260,7 @@ contains
 
     call memfree( finite_element%order, __FILE__, __LINE__ )
     call memfree( finite_element%continuity, __FILE__, __LINE__ )
+    call memfree( finite_element%face_coupling, __FILE__, __LINE__ )
     
   end subroutine finite_element_free_unpacked
 
