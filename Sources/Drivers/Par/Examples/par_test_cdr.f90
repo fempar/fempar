@@ -83,6 +83,7 @@ program par_test_cdr
 
   integer(ip), allocatable :: order(:,:), material(:), problem(:), which_approx(:)
   integer(ip), allocatable :: continuity(:,:)
+  logical    , allocatable :: enable_face_integration(:,:)
 
   call meminit
 
@@ -174,7 +175,9 @@ program par_test_cdr
   ! ... for as many problems as we have
 
   call memalloc( p_trian%f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
-  continuity = 1 !(dG)
+  continuity = 1 !(cG)
+  call memalloc( p_trian%f_trian%num_elems, dof_descriptor%nvars_global, enable_face_integration, __FILE__, __LINE__)
+  enable_face_integration = .false.
   call memalloc( p_trian%f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
   order = 1
   call memalloc( p_trian%f_trian%num_elems, material, __FILE__, __LINE__)
@@ -190,7 +193,7 @@ program par_test_cdr
   ! Continuity
   ! write(*,*) 'Continuity', continuity
   call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
-                              p_cond, continuity, order, material, &
+                              p_cond, continuity, enable_face_integration, order, material, &
                               which_approx, time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
@@ -322,6 +325,7 @@ program par_test_cdr
   call par_vector_free (p_unk)
 
   call memfree( continuity, __FILE__, __LINE__)
+  call memfree( enable_face_integration, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)

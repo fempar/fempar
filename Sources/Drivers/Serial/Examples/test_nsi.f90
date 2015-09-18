@@ -132,6 +132,7 @@ program test_nsi_iss
 
   ! Allocatable
   integer(ip), allocatable :: continuity(:,:)
+  logical    , allocatable :: enable_face_integration(:,:)
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
@@ -182,18 +183,20 @@ program test_nsi_iss
 
   ! Allocate auxiliar elemental arrays
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
+  call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,enable_face_integration, __FILE__,__LINE__)
   call memalloc(f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,problem,__FILE__,__LINE__)
   call memalloc(f_trian%num_elems,which_approx,__FILE__,__LINE__)
   continuity             = 1
+  enable_face_integration = .false.
   order(:,1:gdata%ndime) = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
   which_approx           = 1 
   
   ! Create fe_space
-  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,order,material,which_approx, &
-       &                time_steps_to_store=3, hierarchical_basis=.false.,             &
+  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,enable_face_integration, &
+       &                order,material,which_approx,time_steps_to_store=3, hierarchical_basis=.false.,    &
        &                static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
@@ -266,6 +269,7 @@ program test_nsi_iss
 
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)
+  call memfree(enable_face_integration,__FILE__,__LINE__)
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)

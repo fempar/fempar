@@ -156,7 +156,7 @@ contains
                 do ivars = 1, nvapb
                    l_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars)
                    g_var = dof_descriptor%problems(iprob)%p%l2g_var(l_var)
-                   if ( fe_space%finite_elements(ielem)%continuity(g_var) == 0 ) then
+                   if ( fe_space%finite_elements(ielem)%enable_face_integration(g_var) ) then
                       do inode = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(l_faci), &
                            & fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(l_faci+1)-1
                          l_node = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%l(inode)
