@@ -77,7 +77,7 @@ contains
   ! together with some optional flags. The output of this subroutine is a fe_space
   ! with the required info on ghost elements.
   !*********************************************************************************
-  subroutine par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, p_cond, continuity, face_coupling,  &
+  subroutine par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, p_cond, continuity, enable_face_integration,  &
                                     order, material, which_approx, time_steps_to_store, hierarchical_basis, &
                                     static_condensation, num_continuity )
     implicit none
@@ -88,7 +88,7 @@ contains
     integer(ip)                    , intent(in)    :: problem(:)
     type(par_conditions_t)           , intent(in)    :: p_cond  
     integer(ip)                    , intent(in)    :: continuity(:,:)
-    integer(ip)                    , intent(in)    :: face_coupling(:,:)
+    logical                        , intent(in)    :: enable_face_integration(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
     integer(ip)                    , intent(in)    :: which_approx(:)
@@ -116,7 +116,8 @@ contains
 !!$    write (*,*) 'XXX', num_approximations, istat
 !!$    check (istat == 0)    
 
-       call fe_space_fe_list_create ( p_fe_space%fe_space, problem, which_approx, continuity, face_coupling, order, material, p_cond%f_conditions )
+       call fe_space_fe_list_create ( p_fe_space%fe_space, problem, which_approx, continuity, enable_face_integration, &
+            &                         order, material, p_cond%f_conditions )
 
        ! Communicate problem, continuity, order, and material
        !write(*,*) '***** EXCHANGE GHOST INFO *****'

@@ -108,7 +108,7 @@ contains
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_create( g_trian, dof_descriptor, fe_space, problem, bcond, continuity, face_coupling, & 
+  subroutine fe_space_create( g_trian, dof_descriptor, fe_space, problem, bcond, continuity, enable_face_integration, & 
                               order, material, which_approx, time_steps_to_store, hierarchical_basis,       & 
                               static_condensation, num_continuity, num_ghosts )
     implicit none
@@ -118,7 +118,7 @@ contains
     integer(ip)                    , intent(in)    :: problem(:)
     type(conditions_t)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
-    integer(ip)                    , intent(in)    :: face_coupling(:,:)
+    logical                        , intent(in)    :: enable_face_integration(:,:)
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
     integer(ip)                    , intent(in)    :: which_approx(:)
@@ -139,7 +139,7 @@ contains
 !!$   write (*,*) 'XXX', num_approximations, istat
 !!$   check (istat == 0)    
 
-    call fe_space_fe_list_create ( fe_space, problem, which_approx, continuity, face_coupling, order, material, bcond )
+    call fe_space_fe_list_create ( fe_space, problem, which_approx, continuity, enable_face_integration, order, material, bcond )
 
     call integration_faces_list( fe_space )
 
@@ -228,11 +228,13 @@ contains
   !==================================================================================================
   ! Fill the fe_space_t assuming that all elements are of type f_type but each variable has different
   ! interpolation order
-  subroutine fe_space_fe_list_create( fe_space, problem, which_approx, continuity, face_coupling, order, material, bcond )
+  subroutine fe_space_fe_list_create( fe_space, problem, which_approx, continuity, enable_face_integration, &
+       &                              order, material, bcond )
     implicit none
     type(fe_space_t), intent(inout), target  :: fe_space
     integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
-    integer(ip)    , intent(in)       :: continuity(:,:), face_coupling(:,:), which_approx(:)
+    integer(ip)    , intent(in)       :: continuity(:,:), which_approx(:)
+    logical        , intent(in)       :: enable_face_integration(:,:) 
     type(conditions_t), intent(in)  :: bcond
 
     integer(ip) :: nunk, v_key, ltype(2), nnode, max_num_nodes, nunk_tot, dim, f_order, f_type, nvars, nvars_tot
@@ -284,8 +286,8 @@ contains
        ! Set continuity per unknown
        call memalloc(nvars, fe_space%finite_elements(ielem)%continuity, __FILE__, __LINE__)
 
-       ! Set face_coupling per unknown
-       call memalloc(nvars, fe_space%finite_elements(ielem)%face_coupling, __FILE__, __LINE__)
+       ! Set enable_face_integration per unknown
+       call memalloc(nvars, fe_space%finite_elements(ielem)%enable_face_integration, __FILE__, __LINE__)
 
        ! Set order per unknown
        call memalloc(nvars, fe_space%finite_elements(ielem)%order, __FILE__, __LINE__)
@@ -308,10 +310,10 @@ contains
           fe_space%finite_elements(ielem)%continuity(ivar) = continuity(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
 
           ! Fill face coupling
-          fe_space%finite_elements(ielem)%face_coupling(ivar) = face_coupling(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
+          fe_space%finite_elements(ielem)%enable_face_integration(ivar) = enable_face_integration(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
           
           fe_space%finite_elements(ielem)%order(ivar) = order(ielem,fe_space%dof_descriptor%problems(problem(ielem))%p%l2g_var(ivar))
-          if ( fe_space%finite_elements(ielem)%face_coupling(ivar) == 1 ) then
+          if ( fe_space%finite_elements(ielem)%enable_face_integration(ivar) ) then
              fe_space%static_condensation = .false. ! Static condensation + dG not possible
           end if
 
@@ -536,7 +538,7 @@ contains
        if(allocated(fe_space%finite_elements(i)%inter)) call memfree(fe_space%finite_elements(i)%inter,__FILE__,__LINE__)
        !if(allocated(fe_space%finite_elements(i)%iv))    call memfree(fe_space%finite_elements(i)%iv   ,__FILE__,__LINE__)
        if(allocated(fe_space%finite_elements(i)%continuity))    call memfree(fe_space%finite_elements(i)%continuity   ,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%face_coupling)) call memfree(fe_space%finite_elements(i)%face_coupling,__FILE__,__LINE__)
+       if(allocated(fe_space%finite_elements(i)%enable_face_integration)) call memfree(fe_space%finite_elements(i)%enable_face_integration,__FILE__,__LINE__)
        if(allocated(fe_space%finite_elements(i)%order))    call memfree(fe_space%finite_elements(i)%order   ,__FILE__,__LINE__)
        !if(allocated(fe_space%finite_elements(i)%material))    call memfree(fe_space%finite_elements(i)%iv   ,__FILE__,__LINE__)
        !if(allocated(fe_space%finite_elements(i)%p_nod)) call memfree(fe_space%finite_elements(i)%p_nod,__FILE__,__LINE__)
@@ -617,7 +619,7 @@ contains
     type(fe_space_t), intent(inout)               :: fe_space
 
     integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
-    integer(ip) :: g_var, iprob, jprob, ivars, jvars, face_coupling_i
+    integer(ip) :: g_var, iprob, jprob, ivars, jvars, enable_face_integration_i
 
     ! integration faces (interior / boundary)
     ! The list of boundary faces includes all faces, whereas the interior ones are only those
@@ -637,8 +639,8 @@ contains
                 jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
-                face_coupling_i = fe_space%finite_elements(ielem)%face_coupling(ivars)
-                if ( (mat_i == 0 .or. mat_i /= mat_j) .and. face_coupling_i == 1  ) then
+                enable_face_integration_i = fe_space%finite_elements(ielem)%enable_face_integration(ivars)
+                if ( (mat_i == 0 .or. mat_i /= mat_j) .and. enable_face_integration_i ) then
                    count_int = count_int + 1
                    exit
                    !fe_space%interior_faces(count_int) = iobje
@@ -674,8 +676,8 @@ contains
                 jvars = fe_space%dof_descriptor%g2l_vars(g_var,jprob)
                 mat_i = fe_space%finite_elements(ielem)%continuity(ivars)
                 mat_j = fe_space%finite_elements(jelem)%continuity(jvars)
-                face_coupling_i = fe_space%finite_elements(ielem)%face_coupling(ivars)
-                if ( (mat_i == 0 .or. mat_i /= mat_j) .and. face_coupling_i == 1 ) then
+                enable_face_integration_i = fe_space%finite_elements(ielem)%enable_face_integration(ivars)
+                if ( (mat_i == 0 .or. mat_i /= mat_j) .and. enable_face_integration_i ) then
                    count_int = count_int + 1
                    fe_space%interior_faces(count_int)%face_vef = iobje
                    exit

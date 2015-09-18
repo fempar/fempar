@@ -148,7 +148,7 @@ contains
                    iprob = p_fe_space%fe_space%finite_elements(ielem)%problem
                    do ivars = 1,p_fe_space%fe_space%dof_descriptor%prob_block(iblock,iprob)%nd1
                       l_var = p_fe_space%fe_space%dof_descriptor%prob_block(iblock,iprob)%a(ivars)
-                      if ( p_fe_space%fe_space%finite_elements(ielem)%face_coupling(l_var) == 1 ) then
+                      if ( p_fe_space%fe_space%finite_elements(ielem)%enable_face_integration(l_var) ) then
                          obje_l = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nvef_dim(p_trian%f_trian%num_dims)
                          est_max_itf_dofs = est_max_itf_dofs + &
                               p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(obje_l+1) - &
@@ -910,7 +910,7 @@ contains
           do ivars = 1, nvapb
              l_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars)
              g_var = dof_descriptor%problems(iprob)%p%l2g_var(l_var)  
-             if ( fe_space%finite_elements(ielem)%face_coupling(g_var) /= 1 .or. &
+             if ( (.not.fe_space%finite_elements(ielem)%enable_face_integration(g_var)) .or. &
                   & p_trian%elems(ielem)%interface == -1 ) then
                 iobje = p_trian%f_trian%elems(ielem)%num_vefs+1
                 do inode = fe_space%finite_elements(ielem)%nodes_per_vef(l_var)%p%p(iobje), &
@@ -1096,7 +1096,7 @@ contains
        do ivars = 1, dof_descriptor%prob_block(iblock,iprob)%nd1
           l_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars) 
           g_var = dof_descriptor%problems(iprob)%p%l2g_var(l_var)
-          if ( fe_space%finite_elements(ielem)%face_coupling(g_var) == 1 ) then ! dG local element on the interface
+          if ( fe_space%finite_elements(ielem)%enable_face_integration(g_var) ) then ! dG local element on the interface
              ! Identify and put interface DOFs
              do obje_l = p_trian%f_trian%elems(ielem)%geo_reference_element%nvef_dim(p_trian%f_trian%num_dims), &
                   &      p_trian%f_trian%elems(ielem)%geo_reference_element%nvef_dim(p_trian%f_trian%num_dims+1)-1
