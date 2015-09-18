@@ -254,8 +254,8 @@ contains
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
     type(serial_scalar_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    real(rp)          , intent(in)    :: b (A%gr%nv)
-    real(rp)          , intent(inout) :: x (A%gr%nv)
+    real(rp)          , intent(in)    :: b (A%graph%nv)
+    real(rp)          , intent(inout) :: x (A%graph%nv)
 
     type(hsl_ma87_control_t) , intent(in)          :: ctrl
     type(hsl_ma87_info_t)    , intent(inout)       :: info
@@ -345,22 +345,22 @@ use graph_renumbering_names
     type(partitioning_params_t)             :: prt_parts
     integer(ip)                   :: i
 
-    assert ( matrix%gr%symmetric_storage )
+    assert ( matrix%graph%symmetric_storage )
 
 #ifdef ENABLE_HSL_MA87
-    call renumbering_alloc( matrix%gr%nv, context%renumbering )
+    call renumbering_alloc( matrix%graph%nv, context%renumbering )
 
     ! Call to graph_nd_renumbering
     ! Set-up graph
     aux_graph%symmetric_storage = .false.
-    aux_graph%nv   = matrix%gr%nv
-    aux_graph%nv2  = matrix%gr%nv2
+    aux_graph%nv   = matrix%graph%nv
+    aux_graph%nv2  = matrix%graph%nv2
     call memalloc (aux_graph%nv+1, aux_graph%ia, __FILE__,__LINE__)
-    call memalloc ( (matrix%gr%ia(aux_graph%nv+1)-1-aux_graph%nv)*2, aux_graph%ja, __FILE__,__LINE__)
+    call memalloc ( (matrix%graph%ia(aux_graph%nv+1)-1-aux_graph%nv)*2, aux_graph%ja, __FILE__,__LINE__)
 
-    call half_to_full ( aux_graph%nv, matrix%gr%ia, matrix%gr%ja, aux_graph%ia, aux_graph%ja )
+    call half_to_full ( aux_graph%nv, matrix%graph%ia, matrix%graph%ja, aux_graph%ia, aux_graph%ja )
 
-    ! call graph_print (6, matrix%gr)
+    ! call graph_print (6, matrix%graph)
     ! call graph_print (6, aux_graph)
     
     call graph_nd_renumbering(prt_parts,aux_graph,context%renumbering) 
@@ -368,7 +368,7 @@ use graph_renumbering_names
     ! De-allocate aux_graph
     call graph_free ( aux_graph )
 
-    call ma87_analyse(matrix%gr%nv, matrix%gr%ia, matrix%gr%ja, &
+    call ma87_analyse(matrix%graph%nv, matrix%graph%ia, matrix%graph%ja, &
                       context%renumbering%lperm, context%keep, ctrl%control, info%info)
 
     if ( info%info%flag < 0 ) then
@@ -447,13 +447,13 @@ use graph_renumbering_names
     ! Locals
     real(rp), pointer :: a_(:)
 
-    assert ( matrix%is_symmetric .and. matrix%sign == positive_definite .and. matrix%gr%symmetric_storage )
+    assert ( matrix%is_symmetric .and. matrix%sign == positive_definite .and. matrix%graph%symmetric_storage )
 
 #ifdef ENABLE_HSL_MA87
     a_ => matrix%a(:)
    
     ! Factor
-    call ma87_factor(matrix%gr%nv, matrix%gr%ia, matrix%gr%ja, &
+    call ma87_factor(matrix%graph%nv, matrix%graph%ia, matrix%graph%ja, &
                      a_, context%renumbering%lperm, context%keep, ctrl%control, info%info)
 
 
@@ -516,8 +516,8 @@ use graph_renumbering_names
     ! Parameters 
     type(hsl_ma87_context_t), intent(inout) :: context
     type(serial_scalar_matrix_t)  , intent(in)   :: matrix
-    real(rp)          , intent(in)    :: rhs (matrix%gr%nv)
-    real(rp)          , intent(inout) :: sol (matrix%gr%nv)
+    real(rp)          , intent(in)    :: rhs (matrix%graph%nv)
+    real(rp)          , intent(inout) :: sol (matrix%graph%nv)
     type(hsl_ma87_control_t) , intent(in) :: ctrl
     type(hsl_ma87_info_t)    , intent(inout):: info
 
@@ -558,7 +558,7 @@ use graph_renumbering_names
 
 #ifdef ENABLE_HSL_MA87
     do i=1,nrhs
-       sol(1:matrix%gr%nv,i) = rhs(1:matrix%gr%nv,i)
+       sol(1:matrix%graph%nv,i) = rhs(1:matrix%graph%nv,i)
     end do
 
     ! Solve

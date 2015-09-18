@@ -47,77 +47,70 @@ use memor_names
      integer(ip), allocatable   :: &
         ia(:),                     &    ! Indices to adjacencies        
         ja(:)                           ! Adjacencies
+    contains
+	   procedure :: create => graph_create
+	   procedure :: print  => graph_print
+	   procedure :: copy   => graph_copy
+	   procedure :: free   => graph_free
   end type graph_t
 
   ! Types
   public :: graph_t
 
-  ! Functions
-  public :: graph_create, graph_copy, graph_free, graph_print
 
 contains
+  
   !=============================================================================
-  subroutine graph_create (symmetric_storage,graph)
+  subroutine graph_create (this,symmetric_storage)
     implicit none
+    class(graph_t), intent(out) :: this
 	logical      , intent(in)  :: symmetric_storage
-    type(graph_t), intent(out) :: graph
-
-	graph%symmetric_storage = symmetric_storage
+	this%symmetric_storage = symmetric_storage
   end subroutine graph_create
 
   !=============================================================================
   subroutine graph_copy (igraph, ograph)
     implicit none
-    type(graph_t), intent(in)    :: igraph
-    type(graph_t), intent(inout) :: ograph
-
+    class(graph_t), intent(in)    :: igraph
+    type(graph_t), intent(out) :: ograph
 	ograph%symmetric_storage = igraph%symmetric_storage
-	
     ograph%nv   = igraph%nv
     ograph%nv2  = igraph%nv2
-
     ! Alloc/copy ia array
     call memalloc ( igraph%nv+1, ograph%ia, __FILE__,__LINE__ )
     ograph%ia = igraph%ia
-   
     ! Allocate space/copy ja array 
     call memalloc ( igraph%ia(igraph%nv+1)-1, ograph%ja,__FILE__,__LINE__) 
     ograph%ja = igraph%ja
-
   end subroutine graph_copy
-
+  
   !=============================================================================
-  subroutine graph_free(g)
-    !-----------------------------------------------------------------------
-    ! This routine 
-    !-----------------------------------------------------------------------
+  subroutine graph_free(this)
     implicit none
-    type(graph_t), intent(inout)  :: g
-
-    call memfree (g%ia,__FILE__,__LINE__)
-    call memfree (g%ja,__FILE__,__LINE__)
-
+    class(graph_t), intent(inout)  :: this
+    call memfree (this%ia,__FILE__,__LINE__)
+    call memfree (this%ja,__FILE__,__LINE__)
   end subroutine graph_free
 
   !=============================================================================
-  subroutine graph_print(lunou, g)
+  subroutine graph_print(graph,lunou)
     implicit none
+	class(graph_t),  intent(in) :: graph
     integer(ip)    ,  intent(in) :: lunou
-    type(graph_t),  intent(in) :: g
 
     ! Local variables
     integer(ip) :: i,j
 
     write (lunou, '(a)')     '*** begin graph data structure ***'
-    write (lunou, '(a,i10)') 'Number of vertices (rows):', g%nv
-    write (lunou, '(a,i10)') 'Number of vertices (cols):', g%nv2
+    write (lunou, '(a,i10)') 'Number of vertices (rows):', graph%nv
+    write (lunou, '(a,i10)') 'Number of vertices (cols):', graph%nv2
 
     write (lunou, '(a)')     'Pointers to adjacency lists (ia):'
-    write (lunou, '(10i10)')    g%ia(1:(g%nv+1))
+    write (lunou, '(10i10)')    graph%ia(1:(graph%nv+1))
 
     write (lunou, '(a)')      'Adjacency lists of each vertex:'
-    do i=1,g%nv
-       write(lunou,'(10i10)') i, g%ja(g%ia(i):g%ia(i+1)-1)
+    do i=1,graph%nv
+       write(lunou,'(10i10)') i, graph%ja(graph%ia(i):graph%ia(i+1)-1)
     end do
     write (lunou, '(a)')     '*** end graph data structure ***'
 

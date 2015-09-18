@@ -32,7 +32,7 @@ module par_statistics_names
   use generate_uniform_triangulation_names
   use par_fe_space_names
   use par_environment_names
-  use block_dof_distribution_names
+  use blocks_dof_distribution_names
   use interpolation_tools_names
   use psi_reduce_mod_names
   implicit none
@@ -56,14 +56,14 @@ module par_statistics_names
 contains
 
   !==================================================================================================
-  subroutine initialize_par_line_statistics(p_stats,gdata,p_fe_space,p_env,blk_dof_dist,direction, &
+  subroutine initialize_par_line_statistics(p_stats,gdata,p_fe_space,p_env,blocks_dof_distribution,direction, &
        &                                    order,lunio,iblock,iprob)
     implicit none
     class(par_line_statistics_t)    , intent(inout) :: p_stats
     type(uniform_mesh_descriptor_t), intent(in)    :: gdata
     type(par_fe_space_t)    ,target, intent(in)    :: p_fe_space
     type(par_environment_t) ,target, intent(in)    :: p_env
-    type(block_dof_distribution_t) , intent(in)    :: blk_dof_dist
+    type(blocks_dof_distribution_t) , intent(in)   :: blocks_dof_distribution
     integer(ip)                    , intent(in)    :: direction,order,lunio
     integer(ip), optional          , intent(in)    :: iblock,iprob
     ! Locals
@@ -79,12 +79,12 @@ contains
        call p_stats%f_stats%initialize(gdata,p_fe_space%fe_space,direction,order,lunio,iblock,iprob)
 
        ! Construct npats_per_dof
-       call memalloc(blk_dof_dist%blocks(p_stats%f_stats%iblock)%nl,p_stats%nparts_per_dof,__FILE__,__LINE__)
+       call memalloc(blocks_dof_distribution%blocks(p_stats%f_stats%iblock)%nl,p_stats%nparts_per_dof,__FILE__,__LINE__)
        p_stats%nparts_per_dof = 0
-       do iobje=1,blk_dof_dist%blocks(p_stats%f_stats%iblock)%nobjs
-          iniobj = blk_dof_dist%blocks(p_stats%f_stats%iblock)%lobjs(2,iobje)
-          endobj = blk_dof_dist%blocks(p_stats%f_stats%iblock)%lobjs(3,iobje)
-          p_stats%nparts_per_dof(iniobj:endobj) = blk_dof_dist%blocks(p_stats%f_stats%iblock)%lobjs(4,iobje)
+       do iobje=1,blocks_dof_distribution%blocks(p_stats%f_stats%iblock)%nobjs
+          iniobj = blocks_dof_distribution%blocks(p_stats%f_stats%iblock)%lobjs(2,iobje)
+          endobj = blocks_dof_distribution%blocks(p_stats%f_stats%iblock)%lobjs(3,iobje)
+          p_stats%nparts_per_dof(iniobj:endobj) = blocks_dof_distribution%blocks(p_stats%f_stats%iblock)%lobjs(4,iobje)
        end do
 
     end if

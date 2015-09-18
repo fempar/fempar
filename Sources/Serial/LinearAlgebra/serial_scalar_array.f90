@@ -89,12 +89,12 @@ contains
   end subroutine serial_scalar_array_default_init
 
   !=============================================================================
-  subroutine serial_scalar_array_create(this,neq)
+  subroutine serial_scalar_array_create(this,size)
     implicit none
 	class(serial_scalar_array_t), intent(inout) :: this
-    integer(ip)                , intent(in)    :: neq
+    integer(ip)                 , intent(in)    :: size
     assert ( this%mode == not_created )
-    this%neq     = neq  ! Number of equations
+    this%neq     = size  
     call memallocp(this%neq,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp
     this%mode = allocated

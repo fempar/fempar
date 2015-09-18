@@ -281,7 +281,7 @@ program par_test_mlbddc_poisson_problem
   type(par_triangulation_t) :: p_trian
   type(par_fe_space_t)      :: p_fe_space
 
-  type(par_matrix_t), target                :: p_mat
+  type(par_scalar_matrix_t), target                :: p_mat
   type(par_scalar_array_t), target                :: p_vec, p_unk
   class(vector_t) , pointer           :: x, y
   class(abstract_operator_t), pointer           :: A
@@ -293,10 +293,8 @@ program par_test_mlbddc_poisson_problem
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
   integer(ip), allocatable :: kind_coarse_dofs(:)
   type(solver_control_t)            :: sctrl
-  type(block_dof_distribution_t)    :: blk_dof_dist
+  type(blocks_dof_distribution_t), pointer    :: blocks_dof_distribution
   type(dof_descriptor_t)            :: dof_descriptor
-  type(par_block_graph_t)           :: p_blk_graph
-  logical                           :: symmetric_storage(1)
   type(par_conditions_t)            :: p_cond
 
   type(cdr_problem_t)               :: my_problem
@@ -426,15 +424,18 @@ program par_test_mlbddc_poisson_problem
 
   call p_fe_space%set_analytical_code( spatial_code=(/1/), temporal_code=(/0/) ) 
 
-  symmetric_storage(1) =  test_params%symmetric_storage 
-  call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, symmetric_storage  )  
+  call par_create_distributed_dof_info ( p_fe_space )
+  blocks_dof_distribution => p_fe_space%get_blocks_dof_distribution()
+  
+  call p_fe_space%make_coefficient_matrix ( test_params%symmetric_storage, & 
+										    test_params%is_symmetric, &
+											test_params%sign, &
+											p_mat )
 
-  call par_matrix_alloc ( test_params%is_symmetric, p_blk_graph%get_block(1,1), p_mat, test_params%sign )
-
-  call p_vec%create ( blk_dof_dist%get_block(1), p_env )
+  call p_vec%create ( blocks_dof_distribution%get_block(1), p_env )
   p_vec%state = part_summed
 
-  call p_unk%create ( blk_dof_dist%get_block(1), p_env )
+  call p_unk%create ( blocks_dof_distribution%get_block(1), p_env )
   p_unk%state = full_summed
 
   call par_update_analytical_bcond( vars_of_unk=(/1/), ctime=0.0_rp, p_fe_space=p_fe_space)
@@ -531,7 +532,7 @@ program par_test_mlbddc_poisson_problem
 
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
-  call par_matrix_free (p_mat)
+  call p_mat%free()
   call p_vec%free()
   call p_unk%free()
 
@@ -540,8 +541,6 @@ program par_test_mlbddc_poisson_problem
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
 
-  call p_blk_graph%free
-  call blk_dof_dist%free
   call par_fe_space_free(p_fe_space) 
   call my_problem%free
   call my_discrete%free

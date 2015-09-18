@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module block_dof_distribution_names
+module blocks_dof_distribution_names
   ! Serial modules
   use types_names
   
@@ -37,26 +37,27 @@ module block_dof_distribution_names
 # include "debug.i90"
   private
   
-  type block_dof_distribution_t
-     integer(ip)                          :: nblocks = -1 
+  type blocks_dof_distribution_t
+     integer(ip) :: nblocks = -1 
      type (dof_distribution_t), allocatable :: blocks(:)
-     type (par_environment_t)     , pointer :: p_env
+     type (par_environment_t) , pointer :: p_env
   contains
-     procedure :: alloc     => block_dof_distribution_alloc
-     procedure :: free      => block_dof_distribution_free
-     procedure :: get_block => block_dof_distribution_get_block
-  end type block_dof_distribution_t
+     procedure :: create    => blocks_dof_distribution_create
+     procedure :: free      => blocks_dof_distribution_free
+     procedure :: get_block => blocks_dof_distribution_get_block
+  end type blocks_dof_distribution_t
 
   ! Types
-  public :: block_dof_distribution_t
+  public :: blocks_dof_distribution_t
   
 contains
 
-  subroutine block_dof_distribution_alloc(blk_dof_dist,p_env,nblocks)
+  subroutine blocks_dof_distribution_create(this,nblocks,p_env)
     implicit none
-    class(block_dof_distribution_t)     , intent(inout) :: blk_dof_dist 
-    type(par_environment_t)     , target, intent(in)    :: p_env
+    class(blocks_dof_distribution_t)  , intent(inout) :: this 
     integer(ip)                       , intent(in)    :: nblocks
+	type(par_environment_t), target   , intent(in)    :: p_env
+
 
     ! Locals
     integer(ip) :: istat
@@ -64,46 +65,46 @@ contains
     ! Parallel environment MUST BE already created
     assert ( p_env%created )
     
-    blk_dof_dist%nblocks = nblocks
-    allocate ( blk_dof_dist%blocks(nblocks), stat=istat )
+    this%nblocks = nblocks
+    allocate ( this%blocks(nblocks), stat=istat )
     check ( istat == 0 )
-    blk_dof_dist%p_env => p_env
-  end subroutine block_dof_distribution_alloc
+    this%p_env => p_env
+  end subroutine blocks_dof_distribution_create
 
-  subroutine block_dof_distribution_free(blk_dof_dist)
+  subroutine blocks_dof_distribution_free(this)
     implicit none
-    class(block_dof_distribution_t), intent(inout) :: blk_dof_dist
+    class(blocks_dof_distribution_t), intent(inout) :: this
 
     ! Locals
     integer(ip) :: istat, iblock
 
     ! Parallel environment MUST BE already created
-    assert ( associated(blk_dof_dist%p_env) )
-    assert ( blk_dof_dist%p_env%created )
+    assert ( associated(this%p_env) )
+    assert ( this%p_env%created )
 
-    if( blk_dof_dist%p_env%p_context%iam >= 0 ) then
-      do iblock = 1, blk_dof_dist%nblocks
-        call dof_distribution_free ( blk_dof_dist%blocks(iblock) )
+    if( this%p_env%p_context%iam >= 0 ) then
+      do iblock = 1, this%nblocks
+        call dof_distribution_free ( this%blocks(iblock) )
       end do 
     end if 
     
-    blk_dof_dist%nblocks = -1 
-    deallocate (blk_dof_dist%blocks,stat=istat)
+    this%nblocks = -1 
+    deallocate (this%blocks,stat=istat)
     check(istat == 0)
-    nullify(blk_dof_dist%p_env)
-  end subroutine block_dof_distribution_free
+    nullify(this%p_env)
+  end subroutine blocks_dof_distribution_free
   
-  function block_dof_distribution_get_block(blk_dof_dist,iblock)
+  function blocks_dof_distribution_get_block(this,iblock)
     implicit none
-    class(block_dof_distribution_t), target, intent(in) :: blk_dof_dist
-    integer(ip)                          , intent(in) :: iblock
-    type(dof_distribution_t)      , pointer             :: block_dof_distribution_get_block
+    class(blocks_dof_distribution_t), target, intent(in) :: this
+    integer(ip)                             , intent(in) :: iblock
+    type(dof_distribution_t), pointer                    :: blocks_dof_distribution_get_block
 
     ! Parallel environment MUST BE already created
-    assert ( associated(blk_dof_dist%p_env) )
-    assert ( blk_dof_dist%p_env%created )
+    assert ( associated(this%p_env) )
+    assert ( this%p_env%created )
 
-    block_dof_distribution_get_block => blk_dof_dist%blocks(iblock) 
-  end function block_dof_distribution_get_block
+    blocks_dof_distribution_get_block => this%blocks(iblock) 
+  end function blocks_dof_distribution_get_block
   
-end module block_dof_distribution_names
+end module blocks_dof_distribution_names

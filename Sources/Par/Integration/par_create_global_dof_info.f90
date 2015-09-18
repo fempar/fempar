@@ -43,10 +43,8 @@ module par_create_global_dof_info_names
   ! Par Modules
   use par_triangulation_names
   use par_fe_space_names
-  use par_graph_names
-  use par_block_graph_names
-  use block_dof_distribution_names
-  use block_dof_distribution_create_names 
+  use blocks_dof_distribution_names
+  use block_dof_distribution_setup_names 
 
   implicit none
 # include "debug.i90"
@@ -57,76 +55,54 @@ module par_create_global_dof_info_names
 contains
 
   !*********************************************************************************
-  ! This subroutine is intended to generate the dof generation and the dof graph 
+  ! This subroutine is intended to generate the dof generation and the dof  
   ! distribution. Here, the element2dof array is created as in serial, but next the
   ! dofs in ghost elements on interface faces coupled via interface discontinuous
-  ! Galerkin terms are also included. Next, vef2dof and the dof_graph are generated
-  ! using the same serial functions. Finally, the gluing info for dofs is generated,
+  ! Galerkin terms are also included. Next, vef2dof is generated using the same serial functions. 
+  ! Finally, the gluing info for dofs is generated,
   ! based on VEFs objects, the parallel triangulation info, and the ghost element info,
   ! relying on the fact that, with this info, we know how to put together interior and
   ! ghost elements, and so, number the dofs in a conforming way.
   !*********************************************************************************
-  subroutine par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, &
-                                               blk_dof_dist, p_blk_graph, diagonal_blocks_symmetric_storage ) 
+  subroutine par_create_distributed_dof_info ( p_fe_space ) 
     implicit none
     ! Paramters
-    type(dof_descriptor_t)               , intent(in)    :: dof_descriptor
-    type(par_triangulation_t)            , intent(in)    :: p_trian
     type(par_fe_space_t)                 , intent(inout) :: p_fe_space
-    type(block_dof_distribution_t)       , intent(inout) :: blk_dof_dist 
-    type(par_block_graph_t)              , intent(inout) :: p_blk_graph
-    logical                              , intent(in)    :: diagonal_blocks_symmetric_storage(dof_descriptor%nblocks) 
-
-    integer(ip)                 :: iblock, jblock
-    type (par_graph_t), pointer :: p_graph
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_fe_space%p_trian) )
+	assert ( associated(p_fe_space%dof_descriptor) )
     assert ( p_fe_space%p_trian%p_env%created )
 
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
-       call create_element_to_dof_and_ndofs( dof_descriptor, p_trian%f_trian, p_fe_space%fe_space )
-       call ghost_dofs_by_integration( dof_descriptor, p_trian, p_fe_space%fe_space )
-       call create_vef2dof( dof_descriptor, p_trian%f_trian, p_fe_space%fe_space )
+       call create_element_to_dof_and_ndofs( p_fe_space%fe_space )
+       call ghost_dofs_by_integration( p_fe_space%p_trian, p_fe_space%fe_space )
+       call create_vef2dof( p_fe_space%fe_space )
     end if
 
     ! Allocate block_dof_distribution
-    call blk_dof_dist%alloc(p_trian%p_env, dof_descriptor%nblocks )
+    call p_fe_space%blocks_dof_distribution%create(p_fe_space%dof_descriptor%nblocks, p_fe_space%p_trian%p_env)
 
     ! Fill block_dof_distribution
-    call block_dof_distribution_create ( p_trian, p_fe_space, blk_dof_dist )
-
-    ! Allocate par_block_graph
-    call p_blk_graph%alloc(blk_dof_dist, diagonal_blocks_symmetric_storage)
-
-    ! Fill par_block_graph
-    if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
-       do iblock = 1, dof_descriptor%nblocks
-          do jblock = 1, dof_descriptor%nblocks
-             p_graph => p_blk_graph%blocks(iblock,jblock)%p_p_graph
-             call create_dof_graph_block ( iblock, jblock, dof_descriptor, p_trian%f_trian, & 
-                                           p_fe_space%fe_space, p_graph%f_graph )
-          end do
-       end do
-    end if
+    call block_dof_distribution_setup ( p_fe_space%p_trian, p_fe_space, p_fe_space%blocks_dof_distribution )
+	
   end subroutine par_create_distributed_dof_info
 
   !*********************************************************************************
-  ! This subroutine takes the triangulation, the dof handler, and the finite element 
-  ! space, and puts the dofs that are local but due to ghost elements when using 
-  ! discontinuous Galerkin methods. In this case, the face dofs on the ghost element
-  ! side are considered local elements (replicated among processors). 
+  ! This subroutine takes finite element space, and puts the dofs that are local 
+  ! but due to ghost elements when using discontinuous Galerkin methods. In this case, 
+  ! the face dofs on the ghost element side are considered local elements 
+  ! (replicated among processors). 
   !*********************************************************************************
-  subroutine ghost_dofs_by_integration( dof_descriptor, p_trian, fe_space )
+  subroutine ghost_dofs_by_integration( p_trian, fe_space )
     implicit none
-    type(dof_descriptor_t)      , intent(in)       :: dof_descriptor
-    type(par_triangulation_t), intent(in)       :: p_trian
-    type(fe_space_t)        , intent(inout)    :: fe_space
+    type(par_triangulation_t) , intent(in)    :: p_trian
+    type(fe_space_t)          , intent(inout) :: fe_space
 
     integer(ip) :: iobje, i, ielem, l_faci, iprob, nvapb, ivars, l_var, g_var, inode, l_node, count
     integer(ip) :: iblock, lobje
 
-    do iblock = 1, dof_descriptor%nblocks
+    do iblock = 1, fe_space%dof_descriptor%nblocks
 
        count = fe_space%ndofs(iblock)    
 
@@ -145,10 +121,10 @@ contains
                 l_faci = local_position(lobje,p_trian%f_trian%elems(ielem)%vefs, &
                      & p_trian%f_trian%elems(ielem)%num_vefs )
                 iprob = fe_space%finite_elements(ielem)%problem
-                nvapb = dof_descriptor%prob_block(iblock,iprob)%nd1 
+                nvapb = fe_space%dof_descriptor%prob_block(iblock,iprob)%nd1 
                 do ivars = 1, nvapb
-                   l_var = dof_descriptor%prob_block(iblock,iprob)%a(ivars)
-                   g_var = dof_descriptor%problems(iprob)%p%l2g_var(l_var)
+                   l_var = fe_space%dof_descriptor%prob_block(iblock,iprob)%a(ivars)
+                   g_var = fe_space%dof_descriptor%problems(iprob)%p%l2g_var(l_var)
                    if ( fe_space%finite_elements(ielem)%continuity(g_var) == 0 ) then
                       do inode = fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(l_faci), &
                            & fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(l_faci+1)-1

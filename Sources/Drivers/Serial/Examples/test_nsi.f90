@@ -120,7 +120,6 @@ program test_nsi_iss
   class(vector_t)       , pointer :: x, b
   class(abstract_operator_t)      , pointer :: A, M
   type(graph_t)               , pointer :: f_graph
-  type(block_graph_t)                   :: f_blk_graph
   type(scalar_t)                        :: enorm_u, enorm_p
   type(error_norm_t)           , target :: error_compute
   type(postprocess_field_velocity_t)    :: postprocess_vel
@@ -200,8 +199,7 @@ program test_nsi_iss
   call fevtk%initialize(f_trian,fe_space,myprob,senv,dir_path_out,prefix)!,linear_order=.true.)
 
   ! Create dof info
-  call create_dof_info(dof_descriptor,f_trian,fe_space,f_blk_graph,symmetric_storage)
-  f_graph => f_blk_graph%get_block(1,1)
+  call create_dof_info(fe_space)
 
   ! Assign analytical solution
   if(gdata%ndime==2) then
@@ -211,9 +209,9 @@ program test_nsi_iss
   end if
 
   ! Allocate matrices and vectors
-  call serial_scalar_matrix_alloc(.false.,f_graph,femat)
-  call fevec%create(f_graph%nv)
-  call feunk%create(f_graph%nv)
+  call fe_space%make_coefficient_matrix( symmetric_storage=.false., is_symmetric=.false., sign=indefinite, serial_scalar_matrix=femat)
+  call fevec%create(femat%graph%nv)
+  call feunk%create(femat%graph%nv)
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno
@@ -276,10 +274,9 @@ program test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
-  call f_blk_graph%free()
   call feunk%free()
   call fevec%free()
-  call serial_scalar_matrix_free(femat) 
+  call femat%free()
   call fe_space_free(fe_space) 
   call myprob%free
   call mydisc%free
@@ -353,7 +350,7 @@ contains
        ! ***************** Abstract procedure to initialize a abstract_operator ************************!
        select type (A)
        type is(serial_scalar_matrix_t)
-          call serial_scalar_matrix_zero(A)
+          call A%init(0.0_rp)
        class default
           check(.false.)
        end select

@@ -37,9 +37,6 @@ program test_cdr
   type(conditions_t)     :: f_cond
   type(dof_descriptor_t) :: dof_descriptor
   type(fe_space_t)       :: fe_space
-  type(graph_t), pointer :: f_graph
-  type(block_graph_t)    :: f_blk_graph
-  logical                :: symmetric_storage(1) = (/ .true. /)
 
   type(cdr_problem_t)                   :: my_problem
   type(cdr_discrete_t)                  :: my_discrete
@@ -56,6 +53,8 @@ program test_cdr
   type(preconditioner_params_t) :: ppars
   type(solver_control_t)     :: sctrl
   type(serial_environment_t) :: senv
+  
+  type(serial_block_matrix_t) :: XXX
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -67,11 +66,11 @@ program test_cdr
   integer(ip), allocatable :: continuity(:,:)
 
   integer(ip) :: lunio, istat
-
+  
   call meminit
 
   ! Read parameters from command-line
-  call  read_pars_cl_test_cdr ( dir_path, prefix, dir_path_out )
+  call read_pars_cl_test_cdr ( dir_path, prefix, dir_path_out )
 
   ! Read mesh
   call mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
@@ -89,7 +88,7 @@ program test_cdr
 
   ! write(*,*) 'conditions%code', f_cond%code
   ! write(*,*) 'conditions%valu', f_cond%valu
-  f_cond%code = 0 ! (dG)
+  ! f_cond%code = 0 ! (dG)
   !call triangulation_print( 6 , f_trian )
 
   vars_prob = 1
@@ -114,18 +113,14 @@ program test_cdr
 
 
   call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
-   continuity = 0 ! (dG)
-  ! continuity = 1
+  continuity = 1
   call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
-  order = 5
+  order = 1
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
   material = 1
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
-
-  ! Continuity
-  !write(*,*) 'Continuity', continuity
-
+  
   call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, order, material, &
        & time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
@@ -133,12 +128,11 @@ program test_cdr
   f_cond%valu = 1.0_rp
   call update_strong_dirichlet_bcond( fe_space, f_cond )
 
-  call create_dof_info( dof_descriptor, f_trian, fe_space, f_blk_graph, symmetric_storage )
+  call create_dof_info( fe_space )
 
-  f_graph => f_blk_graph%get_block(1,1)
-  call serial_scalar_matrix_alloc( .true., f_graph, my_matrix, positive_definite )
+  call fe_space%make_coefficient_matrix( symmetric_storage=.false., is_symmetric=.true., sign=positive_definite, serial_scalar_matrix=my_matrix )
 
-  call my_vector%create ( f_graph%nv )
+  call my_vector%create ( my_matrix%graph%nv )
   
   call volume_integral( approximations, fe_space, my_matrix, my_vector)
 
@@ -149,8 +143,8 @@ program test_cdr
   !call preconditioner_numeric (my_matrix, feprec)
   !call preconditioner_log_info(feprec)
 
-  write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',f_graph%nv
-  call feunk%create ( f_graph%nv )
+  write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',my_matrix%graph%nv
+  call feunk%create ( my_matrix%graph%nv )
   call feunk%init(1.0_rp)
 
 
@@ -169,34 +163,21 @@ program test_cdr
   x => my_vector
   y => feunk
   call feunk%print(6)
-  call serial_scalar_matrix_print( 6, my_matrix)
+  call my_matrix%print(6)
 
   ! feunk = my_vector - my_matrix*feunk 
   y = x - A*y 
 
   write(*,*) 'XXX error solver norm XXX', feunk%nrm2()
 
-  !call vector_print( 6, feunk)
-
-  !call preconditioner_free ( preconditioner_free_values, feprec)
-  !call preconditioner_free ( preconditioner_free_struct, feprec)
-  !call preconditioner_free ( preconditioner_free_clean, feprec)
-
-  !write (*,*) '********** FINISHED ASSEMBLY **********'
-
-
-  ! call matrix_print( 6, my_matrix)
-  ! call preconditioner_dd_mlevel_bddc_create ( f_mat, mlbddc, mlbddc_params )
-
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
 
-  call f_blk_graph%free()
   call feunk%free()
   call my_vector%free()
-  call serial_scalar_matrix_free( my_matrix) 
+  call my_matrix%free()
   call fe_space_free(fe_space) 
   call my_problem%free
   call my_discrete%free

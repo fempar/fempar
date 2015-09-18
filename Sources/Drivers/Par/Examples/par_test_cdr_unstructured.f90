@@ -106,10 +106,10 @@ program par_test_cdr_unstructured
   type(par_triangulation_t) :: p_trian
   type(par_fe_space_t)      :: p_fe_space
 
-  type(par_matrix_t), target                :: p_mat
+  type(par_scalar_matrix_t), target                :: p_mat
   type(par_scalar_array_t), target                :: p_vec, p_unk
   class(vector_t) , pointer           :: x, y
-  class(abstract_operator_t), pointer           :: A
+  class(abstract_operator_t), pointer  :: A
 
   ! Preconditioner-related data structures
   type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag
@@ -120,9 +120,8 @@ program par_test_cdr_unstructured
   integer(ip), allocatable :: kind_coarse_dofs(:)
 
   type(solver_control_t)                :: sctrl
-  type(block_dof_distribution_t)        :: blk_dof_dist
+  type(blocks_dof_distribution_t), pointer :: blocks_dof_distribution
   type(dof_descriptor_t)                :: dof_descriptor
-  type(par_block_graph_t)               :: p_blk_graph
   logical                               :: symmetric_storage(1) = (/ .true. /)
   type(par_conditions_t)                :: p_cond
 
@@ -232,20 +231,22 @@ program par_test_cdr_unstructured
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
-  call par_create_distributed_dof_info ( dof_descriptor, p_trian, p_fe_space, blk_dof_dist, p_blk_graph, symmetric_storage )
+  call par_create_distributed_dof_info ( p_fe_space )
+  blocks_dof_distribution => p_fe_space%get_blocks_dof_distribution()
 
-  call par_matrix_alloc ( .true., p_blk_graph%get_block(1,1), p_mat, positive_definite )
+  call p_fe_space%make_coefficient_matrix ( .true., & 
+       									    .true., &
+											positive_definite, &
+											p_mat )
 
-  call p_vec%create ( blk_dof_dist%get_block(1), p_env )
+  call p_vec%create ( blocks_dof_distribution%get_block(1), p_env )
   p_vec%state = part_summed
   
-  call p_unk%create ( blk_dof_dist%get_block(1), p_env )
+  call p_unk%create ( blocks_dof_distribution%get_block(1), p_env )
   p_unk%state = full_summed
 
   if ( p_env%am_i_fine_task() ) then
      call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
-     !call matrix_print ( 6, p_mat%f_matrix )
-     ! call vector_print ( 6, p_vec%f_vector )
   end if
 
   call p_unk%init(1.0_rp)
@@ -353,20 +354,7 @@ program par_test_cdr_unstructured
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
 
-!!$  call par_preconditioner_dd_diagonal_create ( p_mat, p_prec_dd_diag )
-!!$  call par_preconditioner_dd_diagonal_ass_struct ( p_mat, p_prec_dd_diag )
-!!$  call par_preconditioner_dd_diagonal_fill_val ( p_mat, p_prec_dd_diag )
-!!$  
-!!$  call p_unk%init(0.0_rp)
-!!$
-!!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
-!!$
-!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_values )
-!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_struct )
-!!$  call par_preconditioner_dd_diagonal_free ( p_prec_dd_diag, free_clean )
-
-
-  call par_matrix_free (p_mat)
+  call p_mat%free()
   call p_vec%free()
   call p_unk%free()
 
@@ -375,8 +363,6 @@ program par_test_cdr_unstructured
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
 
-  call p_blk_graph%free
-  call blk_dof_dist%free
   call par_fe_space_free(p_fe_space) 
   call my_problem%free
   call my_discrete%free
@@ -630,7 +616,7 @@ contains
        call conditions_free(p_conditions%f_conditions)
 
        ! Deallocate temporary data
-       call graph_free(dual_graph)
+       call dual_graph%free()
        call mesh_free(dual_mesh)
        call memfree(num_elems_per_subdomain, __FILE__, __LINE__)
     end if

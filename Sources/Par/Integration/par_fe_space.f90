@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_fe_space_names
-  ! Fem Modules
+  ! Serial Modules
   use types_names
   use memor_names
   use fe_space_names
@@ -41,6 +41,9 @@ module par_fe_space_names
   use par_triangulation_names
   use par_element_exchange_names
   use par_conditions_names
+  use blocks_dof_distribution_names
+  use par_scalar_matrix_names
+  use par_block_matrix_names
 
 #ifdef memcheck
 use iso_c_binding
@@ -50,17 +53,21 @@ use iso_c_binding
   private
 
   type par_fe_space_t
-     ! Data structure which stores the local part
-     ! of the BC's mapped to the current subdomain
-     type(fe_space_t)              :: fe_space
-     
-     integer(ip)                  :: num_interface_faces
-     type(fe_face_t), allocatable  :: interface_faces(:)
-
-     ! Pointer to parallel triangulation
+     type(fe_space_t) :: fe_space
+     type(dof_descriptor_t)   , pointer :: dof_descriptor => NULL()
      type(par_triangulation_t), pointer :: p_trian => NULL()
+	 
+	 ! Extra data members that p_fe_space adds to fe_space (local portion)
+	 type(blocks_dof_distribution_t) :: blocks_dof_distribution
+	 integer(ip)                     :: num_interface_faces
+     type(fe_face_t), allocatable    :: interface_faces(:)
   contains
+     procedure, private :: par_fe_space_create_make_par_scalar_coefficient_matrix
+     procedure, private :: par_fe_space_create_make_par_block_coefficient_matrix
+	 generic :: make_coefficient_matrix => par_fe_space_create_make_par_scalar_coefficient_matrix, &
+	                                       par_fe_space_create_make_par_block_coefficient_matrix
      procedure :: set_analytical_code => par_fe_space_set_analytical_code
+	 procedure :: get_blocks_dof_distribution => par_fe_space_get_blocks_dof_distribution
   end type par_fe_space_t
 
   ! Types
@@ -71,6 +78,42 @@ use iso_c_binding
 
 contains
 
+  subroutine par_fe_space_create_make_par_scalar_coefficient_matrix(p_fe_space,symmetric_storage,is_symmetric,sign,par_scalar_matrix)
+    implicit none
+	class(par_fe_space_t)        , intent(in)  :: p_fe_space
+    logical                      , intent(in)  :: symmetric_storage
+    logical                      , intent(in)  :: is_symmetric
+	integer(ip)                  , intent(in)  :: sign
+    type(par_scalar_matrix_t)    , intent(out) :: par_scalar_matrix
+	
+	assert ( p_fe_space%dof_descriptor%nblocks == 1 ) 
+	call par_scalar_matrix%create(symmetric_storage, & 
+								  is_symmetric, &
+								  sign, &
+								  p_fe_space%blocks_dof_distribution%get_block(1), &
+								  p_fe_space%p_trian%p_env)
+	
+	if ( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+	  call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, p_fe_space%fe_space, par_scalar_matrix%f_matrix%graph )
+	end if  
+	
+	call par_scalar_matrix%allocate()
+  end subroutine par_fe_space_create_make_par_scalar_coefficient_matrix
+  
+  subroutine par_fe_space_create_make_par_block_coefficient_matrix(fe_space, & 
+												  diagonal_blocks_symmetric_storage, & 
+												  diagonal_blocks_symmetric, &
+												  diagonal_blocks_sign,& 
+												  par_block_matrix)
+    implicit none
+    class(par_fe_space_t)       , intent(in)  :: fe_space
+	logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(fe_space%dof_descriptor%nblocks)
+    logical                     , intent(in)  :: diagonal_blocks_symmetric(fe_space%dof_descriptor%nblocks)
+    integer(ip)                 , intent(in)  :: diagonal_blocks_sign(fe_space%dof_descriptor%nblocks)
+	type(par_block_matrix_t)    , intent(out) :: par_block_matrix
+	
+	
+  end subroutine par_fe_space_create_make_par_block_coefficient_matrix
 
   !*********************************************************************************
   ! This subroutine is intended to be called from a parallel driver, having as input
@@ -85,55 +128,38 @@ contains
     implicit none
     ! Dummy arguments
     type(par_triangulation_t), target, intent(in)    :: p_trian
-    type(dof_descriptor_t)              , intent(in)    :: dof_descriptor
-    type(par_fe_space_t)            , intent(inout) :: p_fe_space  
-    integer(ip)                    , intent(in)    :: problem(:)
+    type(dof_descriptor_t)   , target, intent(in)    :: dof_descriptor
+    type(par_fe_space_t)            , intent(inout)  :: p_fe_space  
+    integer(ip)                    , intent(in)      :: problem(:)
     type(par_conditions_t)           , intent(in)    :: p_cond
-    integer(ip)                    , intent(in)    :: continuity(:,:)
-    integer(ip)                    , intent(in)    :: order(:,:)
-    integer(ip)                    , intent(in)    :: material(:)
-    integer(ip)          , optional, intent(in)    :: time_steps_to_store
-    logical          , optional, intent(in)    :: hierarchical_basis
-    logical          , optional, intent(in)    :: static_condensation
-    integer(ip)          , optional, intent(in)    :: num_continuity   
+    integer(ip)                    , intent(in)      :: continuity(:,:)
+    integer(ip)                    , intent(in)      :: order(:,:)
+    integer(ip)                    , intent(in)      :: material(:)
+    integer(ip)          , optional, intent(in)      :: time_steps_to_store
+    logical          , optional, intent(in)          :: hierarchical_basis
+    logical          , optional, intent(in)          :: static_condensation
+    integer(ip)          , optional, intent(in)      :: num_continuity   
     
     ! Local variables
     integer(ip) :: istat
 
     ! Parallel environment MUST BE already created
     assert ( p_trian%p_env%created )
-    p_fe_space%p_trian => p_trian 
+    p_fe_space%p_trian        => p_trian 
+	p_fe_space%dof_descriptor => dof_descriptor
 
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
-
        call fe_space_allocate_structures(  p_trian%f_trian, dof_descriptor, p_fe_space%fe_space,            &
             time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
             static_condensation = static_condensation, num_continuity = num_continuity, &
             num_ghosts = p_trian%num_ghosts ) 
 
        call fe_space_fe_list_create ( p_fe_space%fe_space, problem, continuity, order, material, p_cond%f_conditions )
-
        ! Communicate problem, continuity, order, and material
-       !write(*,*) '***** EXCHANGE GHOST INFO *****'
        call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_fe_space%fe_space%finite_elements )
-
        ! Create ghost fem space (only partially, i.e., previous info)
-       ! write(*,*) '***** FILL GHOST ELEMENTS  *****'
        call ghost_fe_list_create ( p_fe_space ) 
-
-       call integration_faces_list( p_fe_space%fe_space )
-
-       !write(*,*) 'num_elems+1', p_fe_space%g_trian%num_elems+1
-       !write(*,*) 'num_ghosts', num_ghosts
-       !do ielem = p_fe_space%g_trian%num_elems+1, p_fe_space%g_trian%num_elems+num_ghosts
-       !   call reference_element_write( p_trian%f_trian%elems(ielem)%geo_reference_element )
-       !end do
-
-       !write(*,*) 'num_elems+1', p_fe_space%g_trian%num_elems+1
-       !write(*,*) 'num_ghosts', num_ghosts
-       !do ielem = p_fe_space%g_trian%num_elems+1, p_fe_space%g_trian%num_elems+num_ghosts
-       !   call reference_element_write( p_fe_space%g_trian%elems(ielem)%geo_reference_element )
-       !end do
+       call fe_space_integration_faces_list( p_fe_space%fe_space )
     end if
 
   end subroutine par_fe_space_create
@@ -160,8 +186,9 @@ contains
        end do
        call fe_space_free(p_fe_space%fe_space)
     end if
-    
+    call p_fe_space%blocks_dof_distribution%free()
     nullify ( p_fe_space%p_trian )
+	nullify ( p_fe_space%dof_descriptor )
   end subroutine par_fe_space_free
 
   subroutine par_fe_space_print ( p_fe_space )
@@ -184,6 +211,14 @@ contains
 
   end subroutine par_fe_space_set_analytical_code
 
+  
+  !==================================================================================================
+  function par_fe_space_get_blocks_dof_distribution(p_fe_space)
+    implicit none
+    class(par_fe_space_t), target, intent(in) :: p_fe_space
+    type(blocks_dof_distribution_t), pointer :: par_fe_space_get_blocks_dof_distribution 
+	par_fe_space_get_blocks_dof_distribution => p_fe_space%blocks_dof_distribution
+  end function par_fe_space_get_blocks_dof_distribution
 
   !*********************************************************************************
   ! This subroutine takes the local finite element space, extended with ghost 

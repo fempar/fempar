@@ -60,12 +60,11 @@ module par_preconditioner_dd_mlevel_bddc_names
   use psb_penv_mod_names
   use par_environment_names
   use dof_distribution_names
-  use block_dof_distribution_create_names
-  use par_matrix_names
+  use block_dof_distribution_setup_names
+  use par_scalar_matrix_names
   use par_scalar_array_names
   use par_context_names
   use par_mesh_names
-  use par_graph_names
   use par_timer_names
 
   ! Abstract modules
@@ -108,8 +107,8 @@ module par_preconditioner_dd_mlevel_bddc_names
      integer(ip) :: pad_collectives    =  default_pad_collectives     ! Pad collectives ? 
      integer(ip) :: schur_edge_lag_mult=  default_schur_edge_lag_mult ! Re-use Schur complement edge-lagrange multipliers and  A_rr^-1 C_r^T
      integer(ip) :: subd_elmat_calc    =  default_subd_elmat_calc     ! Compute A_c as \Phi_t A_i \Phi or as \Phi_t (-C_i^t \Lambda) ? 
-     logical                  :: enable_constraint_weights = .false. 
-     real(rp), allocatable    :: C_weights(:) 
+     logical                           :: enable_constraint_weights = .false. 
+     real(rp), allocatable             :: C_weights(:) 
 
      ! preconditioner_params and solver_control have their own defaults
      type(preconditioner_params_t)  :: ppars_harm
@@ -185,8 +184,6 @@ module par_preconditioner_dd_mlevel_bddc_names
      ! where corners are numbered first, and then the complement
      ! (edges+the rest of dofs of the subdomain). The arrays perm
      ! and iperm store the correspondence among A_i and P^T A_i P
-     type ( graph_t )      :: A_rr_gr
-     type ( graph_t )      :: A_rr_trans_gr
      type ( serial_scalar_matrix_t )     :: A_rr, A_rr_trans
      real(rp) , allocatable  :: A_rc(:,:), A_cr(:,:), A_cc(:,:)
      real(rp) , allocatable  :: A_cr_trans(:,:), A_rc_trans(:,:), A_cc_trans(:,:)
@@ -265,18 +262,16 @@ module par_preconditioner_dd_mlevel_bddc_names
      ! This is required ONLY when pad_collectives == pad
      integer (ip)              :: max_coarse_dofs
 
-     ! Coarse grid system coefficient matrix
-     type ( graph_t )         :: A_c_gr     ! co_sys_sol_strat = serial
-     type ( serial_scalar_matrix_t )        :: A_c 
-     type ( mesh_t )          :: f_mesh_c
+     ! Coarse grid system coefficient matrix     
+     type ( serial_scalar_matrix_t )  :: A_c      ! co_sys_sol_strat = serial 
+     type ( mesh_t )                  :: f_mesh_c
 
      type ( par_environment_t )   :: p_env_c      ! Parallel environment for the coarse-grid problem
      type ( dof_distribution_t )  :: dof_dist_c   ! co_sys_sol_strat = recursive (or distributed, not implemented yet)
-     type ( renumbering_t )             :: erenumbering_c       ! Element renumbering_tbering required to pass from c_mesh to p_mesh_c
+     type ( renumbering_t )       :: erenumbering_c       ! Element renumbering_tbering required to pass from c_mesh to p_mesh_c
                                                 ! (this is required for the assembly of the coarse-grid matrix)
      type ( par_mesh_t )          :: p_mesh_c
-     type ( par_graph_t )         :: p_graph_c
-     type ( par_matrix_t )        :: p_mat_c
+     type ( par_scalar_matrix_t ) :: p_mat_c
 
      ! END. Global info preconditioner 
      ! (global data only in processor/s in charge of the coarse grid system)
@@ -291,7 +286,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
      type ( operator_dd_t ) :: A_II_inv ! Only required if unknowns == all_unknowns
 
-     type ( par_matrix_t  )     , pointer  :: p_mat    => NULL()
+     type ( par_scalar_matrix_t  )     , pointer  :: p_mat    => NULL()
 
      type (par_context_t)  :: g_context ! Fine to coarse comm
      type (par_context_t)  :: c_context ! Coarse process
@@ -376,7 +371,7 @@ use mpi
 #endif
     !implicit none
     ! Parameters
-    type(par_matrix_t)                       , target ,intent(in)  :: p_mat
+    type(par_scalar_matrix_t)                       , target ,intent(in)  :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t)                ,intent(out) :: mlbddc
     type(par_preconditioner_dd_mlevel_bddc_params_t), target ,intent(in)  :: mlbddc_params
 
@@ -410,7 +405,7 @@ use mpi
     assert ( associated(p_mat%p_env%b_context) )
     assert ( p_mat%p_env%b_context%created .eqv. .true. )
 
-    mlbddc%symmetric_storage  = p_mat%f_matrix%gr%symmetric_storage
+    mlbddc%symmetric_storage  = p_mat%f_matrix%graph%symmetric_storage
     mlbddc%is_symmetric       = p_mat%f_matrix%is_symmetric
     mlbddc%sign               = p_mat%f_matrix%sign
 
@@ -626,12 +621,9 @@ use mpi
 
        ! BEG. FINE-GRID PROBLEM DUTIES
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
-          call graph_create(p_mat%f_matrix%gr%symmetric_storage, mlbddc%A_rr_gr) 
-          call serial_scalar_matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, p_mat%f_matrix%sign)
-          call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
+          call mlbddc%A_rr%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign)
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call serial_scalar_matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, p_mat%f_matrix%sign)
-             call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans) 
+             call mlbddc%A_rr_trans%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign) 
           end if
 
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -643,14 +635,11 @@ use mpi
              check(.false.)
           end if
 
-       else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-          call graph_create(p_mat%f_matrix%gr%symmetric_storage, mlbddc%A_rr_gr) 
-          call serial_scalar_matrix_create(p_mat%f_matrix%is_symmetric, mlbddc%A_rr, indefinite)
-          call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr) 
+       else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then 
+          call mlbddc%A_rr%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, indefinite) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call serial_scalar_matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_rr_trans, indefinite)
-			 call serial_scalar_matrix_graph(mlbddc%A_rr_gr, mlbddc%A_rr_trans)
-          end if
+            call mlbddc%A_rr_trans%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, indefinite)
+	      end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
              if ( mlbddc%projection==petrov_galerkin ) then 
@@ -680,9 +669,7 @@ use mpi
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           ! BEG. COARSE-GRID PROBLEM DUTIES
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
-             call graph_create ( p_mat%f_matrix%gr%symmetric_storage,  mlbddc%A_c_gr )
-             call serial_scalar_matrix_create( p_mat%f_matrix%is_symmetric, mlbddc%A_c, p_mat%f_matrix%sign )
-             call serial_scalar_matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c )
+             call mlbddc%A_c%create( p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign )
              call preconditioner_create ( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial )
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
              assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level serial
@@ -704,19 +691,12 @@ use mpi
              ! Create coarse mesh
              call par_mesh_create ( mlbddc%p_env_c, mlbddc%p_mesh_c )
 
-             ! Create coarse graph 
-             call par_graph_create ( p_mat%f_matrix%gr%symmetric_storage, mlbddc%dof_dist_c, mlbddc%p_env_c, mlbddc%p_graph_c )
-
              ! Create coarse matrix
-             call par_matrix_create( p_mat%f_matrix%is_symmetric, & 
-                                     mlbddc%dof_dist_c, &
-                                     mlbddc%dof_dist_c, &
-                                     mlbddc%p_env_c, &
-                                     mlbddc%p_mat_c, &
-                                     p_mat%f_matrix%sign)
-
-             ! Associate coarse graph to coarse matrix
-             call par_matrix_graph ( mlbddc%p_graph_c, mlbddc%p_mat_c )
+             call mlbddc%p_mat_c%create( p_mat%f_matrix%graph%symmetric_storage, & 
+										 p_mat%f_matrix%is_symmetric, &
+										 p_mat%f_matrix%sign, &
+                                         mlbddc%dof_dist_c, &
+                                         mlbddc%p_env_c )
 
              ! Allocate inverse
              allocate(mlbddc%p_M_c, stat=istat)
@@ -778,9 +758,11 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_free ( preconditioner_free_clean  , mlbddc%M_rr )
+             call preconditioner_free (preconditioner_free_clean, mlbddc%M_rr)
+			 call mlbddc%A_rr%free_in_stages(free_clean)
              if (mlbddc%projection == petrov_galerkin )  then 
                 call preconditioner_free ( preconditioner_free_clean, mlbddc%M_rr_trans ) 
+				call mlbddc%A_rr_trans%free_in_stages(free_clean)
              end if
           else
              check(.false.)
@@ -796,27 +778,22 @@ use mpi
        ! BEG. COARSE-GRID PROBLEM DUTIES
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           if(mlbddc%co_sys_sol_strat == serial_gather) then
-
              if ( i_am_coarse_task ) then
-                call preconditioner_free ( preconditioner_free_clean  , mlbddc%M_c )
+               call preconditioner_free(preconditioner_free_clean, mlbddc%M_c)
+			   call mlbddc%A_c%free_in_stages(free_clean)
              end if
-             
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
-
              assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
              
              if ( i_am_coarse_task .or. i_am_higher_level_task ) then
                 ! Recursively call bddc_free
-                call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_clean )
+                call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_clean)
                 
                 ! These lines should be uncommented when the structures are actually filled
                 ! In fact we should add flags to indicate that in each free routine
                 
                 ! Free coarse matrix
-                call par_matrix_free( mlbddc%p_mat_c, free_clean)
-                
-                ! Free coarse graph
-                call par_graph_free ( mlbddc%p_graph_c, free_clean )
+                call mlbddc%p_mat_c%free_in_stages(free_clean)
                 
                 ! Free coarse mesh
                 call par_mesh_free ( mlbddc%p_mesh_c, free_clean )
@@ -832,7 +809,6 @@ use mpi
                 ! Deallocate inverse
                 deallocate(mlbddc%p_M_c, stat=istat)
                 assert(istat==0)
-                
              end if
              
              ! deallocate(mlbddc%p_mat%p_env%c_context, stat = istat)
@@ -892,12 +868,11 @@ use mpi
              call operator_dd_free ( mlbddc%A_II_inv, free_struct )
           end if
 
-          call serial_scalar_matrix_free ( mlbddc%A_rr, free_struct )
-          call graph_free ( mlbddc%A_rr_gr )
+          call mlbddc%A_rr%free_in_stages(free_struct)
  
           if ( mlbddc%projection == petrov_galerkin ) then 
-          call serial_scalar_matrix_free ( mlbddc%A_rr_trans, free_struct )
-            end if
+             call mlbddc%A_rr_trans%free_in_stages(free_struct)
+          end if
    
           call memfree ( mlbddc%coarse_dofs,__FILE__,__LINE__)
 
@@ -916,8 +891,7 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_struct, mlbddc%M_c )
              end if
-             call serial_scalar_matrix_free ( mlbddc%A_c, free_struct )
-             call graph_free ( mlbddc%A_c_gr )
+             call mlbddc%A_c%free_in_stages(free_struct)
              call mesh_free ( mlbddc%f_mesh_c )
              call memfree ( mlbddc%vars, __FILE__, __LINE__)
              call memfree ( mlbddc%ptr_coarse_dofs, __FILE__, __LINE__)
@@ -945,11 +919,8 @@ use mpi
              ! Free coarse mesh
              call par_mesh_free ( mlbddc%p_mesh_c, free_struct )
              
-             ! Free coarse graph
-             call par_graph_free ( mlbddc%p_graph_c, free_struct )
-             
              ! Free coarse matrix
-             call par_matrix_free( mlbddc%p_mat_c, free_struct)
+             call mlbddc%p_mat_c%free_in_stages(free_struct)
           end if
           
        end if
@@ -969,15 +940,15 @@ use mpi
              call operator_dd_free ( mlbddc%A_II_inv, free_values )
           end if
 
-          call serial_scalar_matrix_free ( mlbddc%A_rr, free_values )
+          call mlbddc%A_rr%free_in_stages ( free_values )
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%blk_lag_mul,__FILE__,__LINE__) 
 
-             if (mlbddc%projection == petrov_galerkin )  then 
-          call serial_scalar_matrix_free ( mlbddc%A_rr_trans, free_values )
-             end if
+          if (mlbddc%projection == petrov_galerkin )  then 
+             call mlbddc%A_rr_trans%free_in_stages(free_values)
+          end if
 
           if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
              if ( mlbddc%kind_coarse_dofs == corners_and_edges .or. & 
@@ -1030,7 +1001,7 @@ use mpi
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
                 call preconditioner_free ( preconditioner_free_values, mlbddc%M_c )
              end if
-             call serial_scalar_matrix_free ( mlbddc%A_c, free_values )
+             call mlbddc%A_c%free_in_stages(free_values)
           end if
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
           assert(mlbddc%p_mat%p_env%num_levels>2) 
@@ -1039,7 +1010,7 @@ use mpi
              call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_values )
 
              ! Free coarse matrix
-             call par_matrix_free( mlbddc%p_mat_c, free_values)
+             call mlbddc%p_mat_c%free_in_stages(free_values)
           end if
        end if
 
@@ -1053,7 +1024,7 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_matrix_t)                , target, intent(in)    :: p_mat
+    type(par_scalar_matrix_t)                , target, intent(in)    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
  
     type (mesh_t)  :: c_mesh
@@ -1127,19 +1098,6 @@ use mpi
           ! END COARSE-GRID PROBLEM DUTIES
        end if
     end if
-
-    
-!!$    if ( temp_fine_coarse_grid_overlap ) then
-!!$       if ( .not. i_am_higher_level_task ) then
-!!$          call par_timer_stop ( mlbddc%timer_coll_assprec  )
-!!$          call psb_barrier ( mlbddc%g_context%icontxt )
-!!$          if ( i_am_fine_task ) then
-!!$             call par_timer_start ( mlbddc%timer_assprec_ov_fine  ) 
-!!$          else if ( i_am_coarse_task ) then
-!!$             call par_timer_start ( mlbddc%timer_assprec_ov_coarse ) 
-!!$          end if
-!!$       end if
-!!$    end if
     
     if ( i_am_fine_task ) then
 
@@ -1153,16 +1111,12 @@ use mpi
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
           call augment_graph_with_constraints ( p_mat, mlbddc )
        end if
-       
-       ! call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr)
-       ! if (mlbddc%projection == petrov_galerkin) then
-       !    call matrix_graph ( mlbddc%A_rr_gr, mlbddc%A_rr_trans)
-       ! end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           call preconditioner_symbolic( mlbddc%A_rr , mlbddc%M_rr )
           if (mlbddc%projection == petrov_galerkin) then
-             call preconditioner_symbolic( mlbddc%A_rr_trans , mlbddc%M_rr_trans )
+		     call mlbddc%A_rr%graph%copy(mlbddc%A_rr_trans%graph)
+             call preconditioner_symbolic( mlbddc%A_rr_trans, mlbddc%M_rr_trans )
           end if
        end if
 
@@ -1179,7 +1133,6 @@ use mpi
 
        ! BEG. COARSE-GRID PROBLEM DUTIES
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
-          ! call matrix_graph ( mlbddc%A_c_gr, mlbddc%A_c)
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_symbolic( mlbddc%A_c , mlbddc%M_c )
           end if
@@ -1197,51 +1150,51 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_matrix_t)         , intent(in)     :: p_mat
+    type(par_scalar_matrix_t)         , intent(in)     :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
 
     integer :: info
 
-    mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl  + &
+    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist%nl  + &
                                  & mlbddc%nl_corners             + &
                                  & mlbddc%nl_edges              
  
-    mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
+    mlbddc%A_rr%graph%nv2   = mlbddc%A_rr%graph%nv
 
-    call memalloc ( mlbddc%A_rr_gr%nv+1, mlbddc%A_rr_gr%ia, __FILE__,__LINE__ )
+    call memalloc ( mlbddc%A_rr%graph%nv+1, mlbddc%A_rr%graph%ia, __FILE__,__LINE__ )
 
     ! Count neighbours
-    call count_graph_augment_graph_with_constraints ( p_mat%f_matrix%gr%symmetric_storage ,  & 
-                                                      p_mat%f_matrix%gr%nv   ,  & 
-                                                      p_mat%f_matrix%gr%ia   ,  & 
-                                                      mlbddc%A_rr_gr%nv  , &
+    call count_graph_augment_graph_with_constraints ( p_mat%f_matrix%graph%symmetric_storage ,  & 
+                                                      p_mat%f_matrix%graph%nv   ,  & 
+                                                      p_mat%f_matrix%graph%ia   ,  & 
+                                                      mlbddc%A_rr%graph%nv  , &
                                                       mlbddc%p_mat%dof_dist%nl, &
                                                       mlbddc%nl_coarse, &
                                                       mlbddc%coarse_dofs, &
                                                       mlbddc%p_mat%dof_dist%max_nparts, &
                                                       mlbddc%p_mat%dof_dist%omap%nl, &
                                                       mlbddc%p_mat%dof_dist%lobjs, &
-                                                      mlbddc%A_rr_gr%ia  )
+                                                      mlbddc%A_rr%graph%ia  )
 
-    call memalloc ( mlbddc%A_rr_gr%ia(mlbddc%A_rr_gr%nv+1)-1, mlbddc%A_rr_gr%ja,  __FILE__,__LINE__ )
+    call memalloc ( mlbddc%A_rr%graph%ia(mlbddc%A_rr%graph%nv+1)-1, mlbddc%A_rr%graph%ja,  __FILE__,__LINE__ )
 
     ! List neighbours 
-    call list_graph_augment_graph_with_constraints ( p_mat%f_matrix%gr%symmetric_storage    , & 
-                                                     p_mat%f_matrix%gr%nv      , & 
-                                                     p_mat%f_matrix%gr%ia      , & 
-                                                     p_mat%f_matrix%gr%ja      , &
-                                                     mlbddc%A_rr_gr%nv     , & 
-                                                     mlbddc%A_rr_gr%ia     , &
+    call list_graph_augment_graph_with_constraints ( p_mat%f_matrix%graph%symmetric_storage    , & 
+                                                     p_mat%f_matrix%graph%nv      , & 
+                                                     p_mat%f_matrix%graph%ia      , & 
+                                                     p_mat%f_matrix%graph%ja      , &
+                                                     mlbddc%A_rr%graph%nv     , & 
+                                                     mlbddc%A_rr%graph%ia     , &
                                                      mlbddc%p_mat%dof_dist%nl, &
                                                      mlbddc%nl_coarse, &
                                                      mlbddc%coarse_dofs, &
                                                      mlbddc%p_mat%dof_dist%max_nparts, &
                                                      mlbddc%p_mat%dof_dist%omap%nl, &
                                                      mlbddc%p_mat%dof_dist%lobjs, &
-                                                     mlbddc%A_rr_gr%ja  )
+                                                     mlbddc%A_rr%graph%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
-!!$       call graph_print (6, p_mat%f_matrix%gr )
+!!$       call graph_print (6, p_mat%f_matrix%%graph )
 !!$       call graph_print (6, mlbddc%A_rr_gr)
 !!$    end if
   end subroutine augment_graph_with_constraints
@@ -1685,41 +1638,41 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_matrix_t)         , intent(in)                    :: p_mat
+    type(par_scalar_matrix_t)         , intent(in)                    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)                 :: mlbddc
 
-    mlbddc%A_rr_gr%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
-    mlbddc%A_rr_gr%nv2   = mlbddc%A_rr_gr%nv
+    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
+    mlbddc%A_rr%graph%nv2   = mlbddc%A_rr%graph%nv
 
-    call memalloc ( mlbddc%A_rr_gr%nv+1, mlbddc%A_rr_gr%ia,  __FILE__,__LINE__ )
+    call memalloc ( mlbddc%A_rr%graph%nv+1, mlbddc%A_rr%graph%ia,  __FILE__,__LINE__ )
 
     ! Count neighbours
     call count_graph_A_rr ( mlbddc%nl_corners_dofs, &
-         p_mat%f_matrix%gr%symmetric_storage     , & 
-         p_mat%f_matrix%gr%nv       , & 
-         p_mat%f_matrix%gr%ia       , & 
-         p_mat%f_matrix%gr%ja       , &
-         mlbddc%A_rr_gr%nv     , & 
+         p_mat%f_matrix%graph%symmetric_storage     , & 
+         p_mat%f_matrix%graph%nv       , & 
+         p_mat%f_matrix%graph%ia       , & 
+         p_mat%f_matrix%graph%ja       , &
+         mlbddc%A_rr%graph%nv     , & 
          mlbddc%perm           , &
          mlbddc%iperm          , &   
-         mlbddc%A_rr_gr%ia  )
+         mlbddc%A_rr%graph%ia  )
 
-    call memalloc ( mlbddc%A_rr_gr%ia(mlbddc%A_rr_gr%nv+1)-1, mlbddc%A_rr_gr%ja,  __FILE__,__LINE__ )
+    call memalloc ( mlbddc%A_rr%graph%ia(mlbddc%A_rr%graph%nv+1)-1, mlbddc%A_rr%graph%ja,  __FILE__,__LINE__ )
 
     ! List neighbours 
     call list_graph_A_rr  ( mlbddc%nl_corners_dofs, & 
-         p_mat%f_matrix%gr%symmetric_storage     , & 
-         p_mat%f_matrix%gr%nv       , & 
-         p_mat%f_matrix%gr%ia       , & 
-         p_mat%f_matrix%gr%ja       , &
-         mlbddc%A_rr_gr%nv     , & 
-         mlbddc%A_rr_gr%ia     , & 
+         p_mat%f_matrix%graph%symmetric_storage     , & 
+         p_mat%f_matrix%graph%nv       , & 
+         p_mat%f_matrix%graph%ia       , & 
+         p_mat%f_matrix%graph%ja       , &
+         mlbddc%A_rr%graph%nv     , & 
+         mlbddc%A_rr%graph%ia     , & 
          mlbddc%perm           , &
          mlbddc%iperm          , &       
-         mlbddc%A_rr_gr%ja  )
+         mlbddc%A_rr%graph%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
-!!$       ! call graph_print (6, p_mat%f_matrix%gr )
+!!$       ! call graph_print (6, p_mat%f_matrix%graph )
 !!$       call graph_print (6, mlbddc%A_rr_gr)
 !!$    end if
 
@@ -2461,10 +2414,10 @@ use mpi
     ! Locals
     logical    :: symmetric_storage
     
-    call mesh_to_graph_matrix ( mlbddc%f_mesh_c, mlbddc%A_c_gr )
+    call mesh_to_graph_matrix ( mlbddc%f_mesh_c, mlbddc%A_c%graph )
 
     if ( debug_verbose_level_2 ) then 
-       call graph_print ( 6, mlbddc%A_c_gr )
+       call mlbddc%A_c%graph%print (6)
     end if
 
   end subroutine generate_coarse_graph
@@ -2604,10 +2557,10 @@ use mpi
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
-          call mesh_to_graph_matrix ( mlbddc%p_mesh_c%f_mesh, mlbddc%p_graph_c%f_graph)
+          call mesh_to_graph_matrix ( mlbddc%p_mesh_c%f_mesh, mlbddc%p_mat_c%f_matrix%graph)
 
           if ( debug_verbose_level_2 ) then 
-             call graph_print ( 6,  mlbddc%p_graph_c%f_graph )
+             call mlbddc%p_mat_c%f_matrix%graph%print (6)
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
@@ -3003,7 +2956,7 @@ use mpi
     type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
 
     ! Locals
-    type(par_matrix_t), pointer :: p_mat
+    type(par_scalar_matrix_t), pointer :: p_mat
     logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
     p_mat => mlbddc%p_mat
@@ -3021,7 +2974,6 @@ use mpi
 
     if ( i_am_coarse_task .or. i_am_higher_level_task ) then
        if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
-          !call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
           call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_M_c ) 
        end if
     end if
@@ -3033,14 +2985,13 @@ use mpi
                                            
     implicit none
     ! Parameters 
-    type(par_matrix_t)         , intent(in)                    :: p_mat
-    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
+    type(par_scalar_matrix_t)                               , intent(in)    :: p_mat
+    type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
 
     ! Locals
-    integer(ip)    :: me, np, lunou
-    logical        :: i_am_fine_task
+    integer(ip)                  :: me, np, lunou
+    logical                      :: i_am_fine_task
     type(serial_scalar_matrix_t) :: mat_trans
-
 
     ! The routine requires the partition/context info
     assert ( associated(p_mat%p_env) )
@@ -3067,51 +3018,44 @@ use mpi
 
     if (i_am_fine_task) then
        ! BEG. FINE-GRID PROBLEM DUTIES
-       call serial_scalar_matrix_fill_val ( mlbddc%A_rr )
+       call mlbddc%A_rr%allocate()
       
-       if (mlbddc%projection == petrov_galerkin ) then 
-          call serial_scalar_matrix_fill_val ( mlbddc%A_rr_trans )
+       if (mlbddc%projection == petrov_galerkin) then 
+          call mlbddc%A_rr_trans%allocate()
        end if
 
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
-
-          call memalloc ( mlbddc%A_rr_gr%nv,      &
+          call memalloc ( mlbddc%A_rr%graph%nv,      &
                           mlbddc%nl_corners_dofs, &
                           mlbddc%A_rc, __FILE__,__LINE__ )
-
           call memalloc ( mlbddc%nl_corners_dofs, &
-                          mlbddc%A_rr_gr%nv,      & 
+                          mlbddc%A_rr%graph%nv,      & 
                           mlbddc%A_cr, __FILE__,__LINE__ ) 
-
           call memalloc ( mlbddc%nl_corners_dofs, &
                           mlbddc%nl_corners_dofs, &
                           mlbddc%A_cc, __FILE__,__LINE__ )
-
           if (mlbddc%projection == petrov_galerkin ) then 
-          call memalloc ( mlbddc%A_rr_gr%nv,      &
-                          mlbddc%nl_corners_dofs, &
-                          mlbddc%A_cr_trans, __FILE__,__LINE__ )
-
-          call memalloc ( mlbddc%nl_corners_dofs, &
-                          mlbddc%A_rr_gr%nv,      & 
-                          mlbddc%A_rc_trans, __FILE__,__LINE__ ) 
-
-          call memalloc ( mlbddc%nl_corners_dofs, &
-                          mlbddc%nl_corners_dofs, &
-                          mlbddc%A_cc_trans, __FILE__,__LINE__ )
+            call memalloc ( mlbddc%A_rr%graph%nv,      &
+                            mlbddc%nl_corners_dofs, &
+                            mlbddc%A_cr_trans, __FILE__,__LINE__ )
+            call memalloc ( mlbddc%nl_corners_dofs, &
+                            mlbddc%A_rr%graph%nv,      & 
+                            mlbddc%A_rc_trans, __FILE__,__LINE__ ) 
+            call memalloc ( mlbddc%nl_corners_dofs, &
+                            mlbddc%nl_corners_dofs, &
+                            mlbddc%A_cc_trans, __FILE__,__LINE__ )
           end if
        
-
           ! Extract a_rc/a_cr/a_rr/a_cc 
           call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
-                                                     p_mat%f_matrix%gr%symmetric_storage   , & 
-                                                     p_mat%f_matrix%gr%nv     , & 
-                                                     p_mat%f_matrix%gr%ia     , & 
-                                                     p_mat%f_matrix%gr%ja     , &
+                                                     p_mat%f_matrix%graph%symmetric_storage   , & 
+                                                     p_mat%f_matrix%graph%nv     , & 
+                                                     p_mat%f_matrix%graph%ia     , & 
+                                                     p_mat%f_matrix%graph%ja     , &
                                                      p_mat%f_matrix%a         , &
-                                                     mlbddc%A_rr_gr%nv   , & 
-                                                     mlbddc%A_rr_gr%ia   , &
-                                                     mlbddc%A_rr_gr%ja   , &
+                                                     mlbddc%A_rr%graph%nv   , & 
+                                                     mlbddc%A_rr%graph%ia   , &
+                                                     mlbddc%A_rr%graph%ja   , &
                                                      mlbddc%perm         , &
                                                      mlbddc%iperm        , &       
                                                      mlbddc%A_rr%a       , &
@@ -3120,37 +3064,35 @@ use mpi
                                                      mlbddc%A_cc )
 
           if ( mlbddc%projection == petrov_galerkin ) then 
-		     call serial_scalar_matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, p_mat%f_matrix%sign)
-			 call serial_scalar_matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
-			 call serial_scalar_matrix_fill_val  ( mat_trans )
-			 call serial_scalar_matrix_transpose ( p_mat%f_matrix, mat_trans ) 
+		     call mat_trans%create ( p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign)
+			 call p_mat%f_matrix%transpose(mat_trans) 
              call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
-                                                        mat_trans%gr%symmetric_storage, & 
-                                                        mat_trans%gr%nv     , & 
-                                                        mat_trans%gr%ia     , & 
-                                                        mat_trans%gr%ja     , &
+                                                        mat_trans%graph%symmetric_storage, & 
+                                                        mat_trans%graph%nv     , & 
+                                                        mat_trans%graph%ia     , & 
+                                                        mat_trans%graph%ja     , &
                                                         mat_trans%a         , &
-                                                        mlbddc%A_rr_gr%nv   , & 
-                                                        mlbddc%A_rr_gr%ia   , &
-                                                        mlbddc%A_rr_gr%ja   , &
+                                                        mlbddc%A_rr%graph%nv   , & 
+                                                        mlbddc%A_rr%graph%ia   , &
+                                                        mlbddc%A_rr%graph%ja   , &
                                                         mlbddc%perm         , &
                                                         mlbddc%iperm        , &       
                                                         mlbddc%A_rr_trans%a       , &
                                                         mlbddc%A_rc_trans, & 
                                                         mlbddc%A_cr_trans, &              
                                                         mlbddc%A_cc_trans )
-             call serial_scalar_matrix_free(mat_trans)
+             call mat_trans%free()
          end if
 
        else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem) then 
-          call augment_matrix_with_constraints ( p_mat%f_matrix%gr%symmetric_storage, & 
-                                                 p_mat%f_matrix%gr%nv   , & 
-                                                 p_mat%f_matrix%gr%ia    , & 
-                                                 p_mat%f_matrix%gr%ja    , &
+          call augment_matrix_with_constraints ( p_mat%f_matrix%graph%symmetric_storage, & 
+                                                 p_mat%f_matrix%graph%nv   , & 
+                                                 p_mat%f_matrix%graph%ia    , & 
+                                                 p_mat%f_matrix%graph%ja    , &
                                                  p_mat%f_matrix%a    , &
-                                                 mlbddc%A_rr_gr%nv   , & 
-                                                 mlbddc%A_rr_gr%ia   , &
-                                                 mlbddc%A_rr_gr%ja, &
+                                                 mlbddc%A_rr%graph%nv   , & 
+                                                 mlbddc%A_rr%graph%ia   , &
+                                                 mlbddc%A_rr%graph%ja, &
                                                  mlbddc%p_mat%dof_dist%nl, &
                                                  mlbddc%nl_corners, &
                                                  mlbddc%nl_edges, &
@@ -3163,18 +3105,16 @@ use mpi
                                                  mlbddc%p_mat%dof_dist%nb, &
                                                  mlbddc%C_weights )
          if (mlbddc%projection == petrov_galerkin ) then 
-		   call serial_scalar_matrix_create    ( p_mat%f_matrix%is_symmetric, mat_trans, indefinite)
-		   call serial_scalar_matrix_graph     ( p_mat%f_matrix%gr, mat_trans )
-		   call serial_scalar_matrix_fill_val  ( mat_trans )
-		   call serial_scalar_matrix_transpose ( p_mat%f_matrix, mat_trans ) 
-		   call augment_matrix_with_constraints ( mat_trans%gr%symmetric_storage, & 
-                                                  mat_trans%gr%nv   , & 
-                                                  mat_trans%gr%ia    , & 
-                                                  mat_trans%gr%ja    , &
+		   call mat_trans%create ( p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, indefinite)
+		   call p_mat%f_matrix%transpose(mat_trans) 
+		   call augment_matrix_with_constraints ( mat_trans%graph%symmetric_storage, & 
+                                                  mat_trans%graph%nv   , & 
+                                                  mat_trans%graph%ia    , & 
+                                                  mat_trans%graph%ja    , &
                                                   mat_trans%a    , &
-                                                  mlbddc%A_rr_gr%nv   , & 
-                                                  mlbddc%A_rr_gr%ia   , &
-                                                  mlbddc%A_rr_gr%ja, &
+                                                  mlbddc%A_rr%graph%nv   , & 
+                                                  mlbddc%A_rr%graph%ia   , &
+                                                  mlbddc%A_rr%graph%ja, &
                                                   mlbddc%p_mat%dof_dist%nl, &
                                                   mlbddc%nl_corners, &
                                                   mlbddc%nl_edges, &
@@ -3186,7 +3126,7 @@ use mpi
                                                   mlbddc%A_rr_trans%a, &
                                                   mlbddc%p_mat%dof_dist%nb, &
                                                   mlbddc%C_weights  )
-            call serial_scalar_matrix_free(mat_trans)
+            call mat_trans%free()
          end if
 
        end if
@@ -3194,23 +3134,19 @@ use mpi
        if ( debug_verbose_level_3 ) then
           call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
           lunou = io_open ( trim('fine_matrix_mlevel_bddc_' //  trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') // trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
-          call serial_scalar_matrix_print_matrix_market ( lunou, mlbddc%A_rr )
+          call mlbddc%A_rr%print_matrix_market ( lunou )
           call io_close ( lunou )
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          ! call preconditioner_numeric( mlbddc%A_rr , mlbddc%M_rr )
           call preconditioner_numeric( mlbddc%M_rr )
           
           if (mlbddc%projection == petrov_galerkin ) then 
-             !call preconditioner_numeric( mlbddc%A_rr_trans, mlbddc%M_rr_trans ) 
              call preconditioner_numeric( mlbddc%M_rr_trans ) 
           end if
 
        else
           check(.false.)
-!!$          call operator_mat_create (mlbddc%A_rr, mlbddc%A_rr_mat_op )
-!!$          call abs_operator_convert(mlbddc%A_rr_mat_op, mlbddc%A_rr_op)
        end if
     end if
 
@@ -3222,7 +3158,7 @@ use mpi
                                            
     implicit none
     ! Parameters 
-    type(par_matrix_t)         , intent(in)                    :: p_mat
+    type(par_scalar_matrix_t)         , intent(in)                    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target  :: mlbddc
     logical, optional, intent(in)                            :: realloc_harm_extensions
 
@@ -3274,7 +3210,7 @@ use mpi
                              mlbddc%nl_edges+mlbddc%nl_corners, & 
                              rhs, __FILE__,__LINE__ )
 
-             call memalloc ( mlbddc%A_rr_gr%nv, & 
+             call memalloc ( mlbddc%A_rr%graph%nv, & 
                              mlbddc%nl_corners, & 
                              work, __FILE__,__LINE__ )
 
@@ -3284,7 +3220,7 @@ use mpi
                                 mlbddc%nl_edges+mlbddc%nl_corners, & 
                                 rhs_t, __FILE__,__LINE__ )
 
-                call memalloc ( mlbddc%A_rr_gr%nv, & 
+                call memalloc ( mlbddc%A_rr%graph%nv, & 
                                 mlbddc%nl_corners, & 
                                 work_t, __FILE__,__LINE__ )
              end if
@@ -3324,17 +3260,17 @@ use mpi
                                                                        mlbddc%ipiv, &
                                                                        mlbddc%ipiv_neumann ) 
 
-                if (mlbddc%projection == petrov_galerkin ) then 
-             call compute_edge_lagrange_multipliers_schur_complement ( mlbddc, & 
-                                                                       mlbddc%A_rr_trans, &
-                                                                       mlbddc%M_rr_trans, &
-                                                                       mlbddc%S_rr_trans, &
-                                                                       mlbddc%S_rr_trans_neumann, &
-                                                                       mlbddc%A_rr_trans_inv_C_r_T, &
-                                                                       mlbddc%A_rr_trans_inv_C_r_T_neumann, &
-                                                                       mlbddc%ipiv_trans, &
-                                                                       mlbddc%ipiv_trans_neumann ) 
-                end if
+             if (mlbddc%projection == petrov_galerkin ) then 
+               call compute_edge_lagrange_multipliers_schur_complement ( mlbddc, & 
+                                                                         mlbddc%A_rr_trans, &
+                                                                         mlbddc%M_rr_trans, &
+                                                                         mlbddc%S_rr_trans, &
+                                                                         mlbddc%S_rr_trans_neumann, &
+                                                                         mlbddc%A_rr_trans_inv_C_r_T, &
+                                                                         mlbddc%A_rr_trans_inv_C_r_T_neumann, &
+                                                                         mlbddc%ipiv_trans, &
+                                                                         mlbddc%ipiv_trans_neumann ) 
+             end if
              
 
               call solve_edge_lagrange_multipliers_explicit_schur ( mlbddc, &
@@ -3364,14 +3300,11 @@ use mpi
           else
              call memalloc ( mlbddc%nl_edges, 0, lambda_r, __FILE__,__LINE__ )   
 
-             call memalloc ( mlbddc%A_rr_gr%nv, 0, work, __FILE__,__LINE__ )    
+             call memalloc ( mlbddc%A_rr%graph%nv, 0, work, __FILE__,__LINE__ )    
 
            if (mlbddc%projection == petrov_galerkin ) then 
-
              call memalloc ( mlbddc%nl_edges, 0, lambda_r_t, __FILE__,__LINE__ )   
-
-             call memalloc ( mlbddc%A_rr_gr%nv, 0, work_t, __FILE__,__LINE__ ) 
-           
+             call memalloc ( mlbddc%A_rr%graph%nv, 0, work_t, __FILE__,__LINE__ ) 
            end if
                
           end if
@@ -3514,7 +3447,7 @@ use mpi
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
           if ( debug_verbose_level_3 ) then
              lunou =  io_open ( trim('A_mlevel_bddc_c.mtx'), 'write')  
-             call serial_scalar_matrix_print_matrix_market (lunou,  mlbddc%A_c)
+             call mlbddc%A_c%print_matrix_market (lunou)
              call io_close (lunou)
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -3544,7 +3477,7 @@ use mpi
           if ( debug_verbose_level_3 ) then
              call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
              lunou = io_open ( trim('dirichlet_matrix_mlevel_bddc_' // trim(ch(mlbddc%p_mat%p_env%num_levels)) // trim('+') //  trim(ch(me+1)) // trim('.') // 'mtx' ), 'write')
-             call serial_scalar_matrix_print_matrix_market ( lunou, mlbddc%A_II_inv%A_II )
+             call mlbddc%A_II_inv%A_II%print_matrix_market (lunou)
              call io_close ( lunou )
           end if
        end if
@@ -3712,41 +3645,6 @@ use mpi
     call memfree  ( awork,__FILE__,__LINE__)
   end subroutine extract_values_A_rr_A_cr_A_rc_A_cc
 
-  subroutine extract_trans_matrix(A, gr_a, A_t, gr_t)
-
-    type(serial_scalar_matrix_t), intent(in)     :: A         ! Input matrix
-    type(graph_t),  target, intent(in)     :: gr_a      ! Graph of the matrix
-    type(serial_scalar_matrix_t), intent(out)  :: A_t       ! Output matrix
-    type(graph_t), pointer,  intent(out)  :: gr_t      ! Graph of the transpose matrix
-
-    ! Locals 
-    type(graph_t) :: aux_graph
-    integer :: k,i,j
-
-    if ( .not. gr_a%symmetric_storage ) then
-       call serial_scalar_matrix_alloc ( .false., gr_a, A_t )
-    else 
-       call serial_scalar_matrix_alloc ( .true., gr_a, A_t )
-    end if
-
-    aux_graph = gr_a
-
-    if (gr_a%symmetric_storage) then 
-       A_t%a = A%a
-    else
-       k = 0    
-       do i = 1,gr_t%nv
-          do j=1, (gr_t%ia(i+1) - gr_t%ia(i) )
-             k = k+1
-             A_t%a(k) = A%a(aux_graph%ia( gr_t%ja(k) ) )
-             aux_graph%ia(gr_t%ja(k)) = aux_graph%ia(gr_t%ja(k)) + 1
-          end do
-       end do
-
-    end if
-
-  end subroutine extract_trans_matrix
-
   subroutine augment_matrix_with_constraints ( symmetric_storage, & 
                                                anv, aia, aja, a, &  
                                                arr_nv, arr_ia, arr_ja, &
@@ -3902,13 +3800,13 @@ use mpi
     type(serial_scalar_matrix_t)       , intent(inout)            :: A_rr
     type(preconditioner_t)      , intent(inout)            :: M_rr
 
-    real(rp)               , intent(inout)         :: A_rc ( mlbddc%A_rr_gr%nv  , &
+    real(rp)               , intent(inout)         :: A_rc ( mlbddc%A_rr%graph%nv  , &
                                                                mlbddc%nl_corners) 
 
     real(rp)               , intent(out)           :: rhs ( mlbddc%nl_edges, & 
                                                               (mlbddc%nl_edges+mlbddc%nl_corners))
 
-    real(rp)               , intent(out)           :: work ( mlbddc%A_rr_gr%nv, & 
+    real(rp)               , intent(out)           :: work ( mlbddc%A_rr%graph%nv, & 
                                                                mlbddc%nl_corners)
     ! Locals
     integer(ip)             :: base, i, start, icoarse
@@ -3922,14 +3820,14 @@ use mpi
        work = 0.0_rp
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call solve(A_rr, M_rr, &
-                        A_rc, mlbddc%A_rr_gr%nv,  &
-                        work, mlbddc%A_rr_gr%nv,  &
+                        A_rc, mlbddc%A_rr%graph%nv,  &
+                        work, mlbddc%A_rr%graph%nv,  &
                         mlbddc%spars_harm)  
        else
           check(.false.)
 !!$          call solve( mlbddc%A_rr_op, mlbddc%M_inv_op_rr, &
-!!$               A_rc, mlbddc%A_rr_gr%nv,  &
-!!$               work, mlbddc%A_rr_gr%nv,  &
+!!$               A_rc, mlbddc%A_rr%graph%nv,  &
+!!$               work, mlbddc%A_rr%graph%nv,  &
 !!$               mlbddc%spars_harm)
        end if
 
@@ -3959,7 +3857,7 @@ use mpi
                                 mlbddc%p_mat%dof_dist%omap%nl, &
                                 mlbddc%p_mat%dof_dist%lobjs, &
                                 mlbddc%nl_edges, & 
-                                mlbddc%A_rr_gr%nv, &
+                                mlbddc%A_rr%graph%nv, &
                                 mlbddc%nl_corners, & 
                                 work, & 
                                 1.0_rp, &
@@ -4609,14 +4507,14 @@ use mpi
 #ifdef ENABLE_LAPACK
     call memalloc (  mlbddc%nl_edges, mlbddc%nl_edges,  S_rr,  __FILE__,__LINE__ )
 
-    call memalloc ( mlbddc%A_rr_gr%nv,   mlbddc%nl_edges, A_rr_inv_C_r_T,    __FILE__,__LINE__ )
+    call memalloc ( mlbddc%A_rr%graph%nv, mlbddc%nl_edges, A_rr_inv_C_r_T,    __FILE__,__LINE__ )
 
     if (mlbddc%schur_edge_lag_mult == compute_from_scratch ) then
        call memalloc (  mlbddc%nl_edges, mlbddc%nl_edges,  S_rr_neumann,  __FILE__,__LINE__ )
-       call memalloc (  mlbddc%A_rr_gr%nv,   mlbddc%nl_edges,  A_rr_inv_C_r_T_neumann,    __FILE__,__LINE__ )
+       call memalloc (  mlbddc%A_rr%graph%nv,   mlbddc%nl_edges,  A_rr_inv_C_r_T_neumann,    __FILE__,__LINE__ )
     end if
 
-    call memalloc (  mlbddc%A_rr_gr%nv,    mlbddc%nl_edges, C_r_T, __FILE__,__LINE__ )
+    call memalloc (  mlbddc%A_rr%graph%nv,    mlbddc%nl_edges, C_r_T, __FILE__,__LINE__ )
 
 
     ! Compute C_r_T
@@ -4645,14 +4543,14 @@ use mpi
        A_rr_inv_C_r_T = 0.0_rp
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           call solve( A_rr, M_rr, &
-                      C_r_T, mlbddc%A_rr_gr%nv, &
-                      A_rr_inv_C_r_T, mlbddc%A_rr_gr%nv, &
+                      C_r_T, mlbddc%A_rr%graph%nv, &
+                      A_rr_inv_C_r_T, mlbddc%A_rr%graph%nv, &
                       mlbddc%spars_harm)
        else 
           check(.false.)
 !!$          call solve( mlbddc%A_rr_op, mlbddc%M_inv_op_rr, &
-!!$               C_r_T, mlbddc%A_rr_gr%nv, &
-!!$               A_rr_inv_C_r_T, mlbddc%A_rr_gr%nv, &
+!!$               C_r_T, mlbddc%A_rr%graph%nv, &
+!!$               A_rr_inv_C_r_T, mlbddc%A_rr%graph%nv, &
 !!$               mlbddc%spars_harm)
        end if
 
@@ -4664,14 +4562,14 @@ use mpi
           A_rr_inv_C_r_T_neumann = 0.0_rp
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call solve( A_rr, M_rr, & 
-                         C_r_T, mlbddc%A_rr_gr%nv, &
-                         A_rr_inv_C_r_T_neumann, mlbddc%A_rr_gr%nv, &
+                         C_r_T, mlbddc%A_rr%graph%nv, &
+                         A_rr_inv_C_r_T_neumann, mlbddc%A_rr%graph%nv, &
                          mlbddc%spars_neumann)
           else
              check(.false.)
 !!$             call solve( mlbddc%A_rr_op, mlbddc%M_inv_op_rr, & 
-!!$                  C_r_T, mlbddc%A_rr_gr%nv, &
-!!$                  A_rr_inv_C_r_T_neumann, mlbddc%A_rr_gr%nv, &
+!!$                  C_r_T, mlbddc%A_rr%graph%nv, &
+!!$                  A_rr_inv_C_r_T_neumann, mlbddc%A_rr%graph%nv, &
 !!$                  mlbddc%spars_neumann)
           end if
        end if
@@ -4693,7 +4591,7 @@ use mpi
                              mlbddc%p_mat%dof_dist%omap%nl, &
                              mlbddc%p_mat%dof_dist%lobjs, &
                              mlbddc%nl_edges, & 
-                             mlbddc%A_rr_gr%nv, &
+                             mlbddc%A_rr%graph%nv, &
                              mlbddc%nl_edges, & 
                              A_rr_inv_C_r_T, & 
                              0.0_rp, &
@@ -4719,7 +4617,7 @@ use mpi
                                 mlbddc%p_mat%dof_dist%omap%nl, &
                                 mlbddc%p_mat%dof_dist%lobjs, &
                                 mlbddc%nl_edges, & 
-                                mlbddc%A_rr_gr%nv, &
+                                mlbddc%A_rr%graph%nv, &
                                 mlbddc%nl_edges, & 
                                 A_rr_inv_C_r_T_neumann, & 
                                 0.0_rp, &
@@ -5201,9 +5099,9 @@ use mpi
     implicit none
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target :: mlbddc
     real(rp)                 , intent(in)   :: A_cr( mlbddc%nl_corners, &
-                                                     mlbddc%A_rr_gr%nv  )
+                                                     mlbddc%A_rr%graph%nv  )
 
-    real(rp)                 , intent(in)   :: A_rc( mlbddc%A_rr_gr%nv, &
+    real(rp)                 , intent(in)   :: A_rc( mlbddc%A_rr%graph%nv, &
                                                      mlbddc%nl_corners  )
 
     real(rp)                 , intent(in)   :: A_cc( mlbddc%nl_corners  , &
@@ -5218,7 +5116,7 @@ use mpi
     real(rp)                 , intent(in)   :: lambda_r ( mlbddc%nl_edges  , & 
                                                           (mlbddc%nl_edges+mlbddc%nl_corners) )
 
-    real(rp)                 , intent(in)  :: work ( mlbddc%A_rr_gr%nv, & 
+    real(rp)                 , intent(in)  :: work ( mlbddc%A_rr%graph%nv, & 
                                                      mlbddc%nl_corners   )
 
     character(len=1)         , intent(in)  :: system ! 'N' for rPhi computation, 'T' for lPhi computation
@@ -5242,7 +5140,7 @@ use mpi
 
    if ( mlbddc%nl_coarse > 0 ) then 
 
-      call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
+      call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
 
       if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
 
@@ -5260,17 +5158,17 @@ use mpi
             if ( mlbddc%nl_edges > 0 ) then
                call DGEMM( 'N', &
                     'N', &
-                    mlbddc%A_rr_gr%nv, &
+                    mlbddc%A_rr%graph%nv, &
                     (mlbddc%nl_corners+mlbddc%nl_edges) , &
                     mlbddc%nl_edges , &
                     -1.0, &
                     A_rr_inv_C_r_T, &
-                    mlbddc%A_rr_gr%nv, &
+                    mlbddc%A_rr%graph%nv, &
                     lambda_r, &
                     mlbddc%nl_edges , &
                     1.0, &
                     work2, &
-                    mlbddc%A_rr_gr%nv)
+                    mlbddc%A_rr%graph%nv)
              ! write (*,*) a_ci ! DBG:
             end if
 #else
@@ -5279,7 +5177,7 @@ use mpi
             check(.false.)    
 #endif
          else if (mlbddc%kind_coarse_dofs == corners) then
-            call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work1, __FILE__,__LINE__ )
+            call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work1, __FILE__,__LINE__ )
 
             work1 = 0.0_rp
             work1 ( :, 1:mlbddc%nl_corners ) = -A_rc(:,:)
@@ -5290,14 +5188,14 @@ use mpi
 
             if ( mlbddc%internal_problems == handled_by_bddc_module) then
                call solve( A_rr, M_rr, &
-                           work1, mlbddc%A_rr_gr%nv, &
-                           work2, mlbddc%A_rr_gr%nv, &
+                           work1, mlbddc%A_rr%graph%nv, &
+                           work2, mlbddc%A_rr%graph%nv, &
                            mlbddc%spars_harm)
             else
                check(.false.)
 !!$               call solve( mlbddc%A_rr_op, mlbddc%M_inv_op_rr, &
-!!$                           work1, mlbddc%A_rr_gr%nv, &
-!!$                           work2, mlbddc%A_rr_gr%nv, &
+!!$                           work1, mlbddc%A_rr%graph%nv, &
+!!$                           work2, mlbddc%A_rr%graph%nv, &
 !!$                           mlbddc%spars_harm)
             end if
             call memfree ( work1,__FILE__,__LINE__) 
@@ -5320,12 +5218,12 @@ use mpi
                     'N', &
                     mlbddc%nl_corners  , &
                     mlbddc%nl_coarse   , &
-                    mlbddc%A_rr_gr%nv, &
+                    mlbddc%A_rr%graph%nv, &
                     -1.0, &
                     A_cr, &
                     mlbddc%nl_corners, &
                     work2, &
-                    mlbddc%A_rr_gr%nv, &
+                    mlbddc%A_rr%graph%nv, &
                     1.0, &
                     mlbddc%blk_lag_mul, &
                     mlbddc%nl_coarse  )
@@ -5416,12 +5314,12 @@ use mpi
     ! end do
 
     if ( mlbddc%nl_corners+mlbddc%nl_edges > 0 ) then
-       call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work1, __FILE__,__LINE__ )
-       call memalloc ( mlbddc%A_rr_gr%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
+       call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work1, __FILE__,__LINE__ )
+       call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
 
        work1 = 0.0_rp
        j = 1
-       do i = mlbddc%p_mat%dof_dist%nl   + 1, mlbddc%A_rr_gr%nv
+       do i = mlbddc%p_mat%dof_dist%nl   + 1, mlbddc%A_rr%graph%nv
          work1 (i,j) = 1.0_rp
          j = j + 1 
        end do
@@ -5432,14 +5330,14 @@ use mpi
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           call solve( A_rr, M_rr, &
-                      work1, mlbddc%A_rr_gr%nv, &
-                      work2,  mlbddc%A_rr_gr%nv, &
+                      work1, mlbddc%A_rr%graph%nv, &
+                      work2,  mlbddc%A_rr%graph%nv, &
                       mlbddc%spars_harm)
        else 
           check(.false.)
 !!$          call solve( mlbddc%A_rr_op, mlbddc%M_inv_op_rr, &
-!!$                      work1, mlbddc%A_rr_gr%nv, &
-!!$                      work2,  mlbddc%A_rr_gr%nv, &
+!!$                      work1, mlbddc%A_rr%graph%nv, &
+!!$                      work2,  mlbddc%A_rr%graph%nv, &
 !!$                      mlbddc%spars_harm)
        end if
 
@@ -5483,7 +5381,7 @@ end if
   subroutine assemble_A_c (p_mat, mlbddc, realloc_harm_extensions)
     implicit none
     ! Parameters  
-    type(par_matrix_t)         , intent(in)     :: p_mat
+    type(par_scalar_matrix_t)         , intent(in)     :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
     logical, intent(in), optional :: realloc_harm_extensions
 
@@ -5583,50 +5481,48 @@ end if
              work = 0.0_rp
 #ifdef ENABLE_MKL
              ! work2 <- 0.0 * work2 + 1.0 * A * work1
-             if (p_mat%f_matrix%gr%symmetric_storage) then
+             if (p_mat%f_matrix%graph%symmetric_storage) then
                 call mkl_dcsrmm ('N', &
-                     p_mat%f_matrix%gr%nv, &
+                     p_mat%f_matrix%graph%nv, &
                      (mlbddc%nl_edges+mlbddc%nl_corners), &
-                     p_mat%f_matrix%gr%nv, &
+                     p_mat%f_matrix%graph%nv, &
                      1.0, &
                      'SUNF', &
                      p_mat%f_matrix%a, &
-                     p_mat%f_matrix%gr%ja, &
-                     p_mat%f_matrix%gr%ia(1), &
-                     p_mat%f_matrix%gr%ia(2), &
+                     p_mat%f_matrix%graph%ja, &
+                     p_mat%f_matrix%graph%ia(1), &
+                     p_mat%f_matrix%graph%ia(2), &
                      mlbddc%rPhi, &
-                     p_mat%f_matrix%gr%nv, &
+                     p_mat%f_matrix%graph%nv, &
                      0.0, &
                      work, &
-                     p_mat%f_matrix%gr%nv)
+                     p_mat%f_matrix%graph%nv)
 
              else 
                 call mkl_dcsrmm ( 'N', &
-                     p_mat%f_matrix%gr%nv, &
+                     p_mat%f_matrix%graph%nv, &
                      (mlbddc%nl_edges+mlbddc%nl_corners), &
-                     p_mat%f_matrix%gr%nv, &
+                     p_mat%f_matrix%graph%nv, &
                      1.0, &
                      'GXXF', &
                      p_mat%f_matrix%a, &
-                     p_mat%f_matrix%gr%ja, &
-                     p_mat%f_matrix%gr%ia(1), &
-                     p_mat%f_matrix%gr%ia(2), &
+                     p_mat%f_matrix%graph%ja, &
+                     p_mat%f_matrix%graph%ia(1), &
+                     p_mat%f_matrix%graph%ia(2), &
                      mlbddc%rPhi, &
-                     p_mat%f_matrix%gr%nv, &
+                     p_mat%f_matrix%graph%nv, &
                      0.0, &
                      work, &
-                     p_mat%f_matrix%gr%nv)
+                     p_mat%f_matrix%graph%nv)
              end if
              ! write (*,*) work ! DBG:
 #else
-             call serial_scalar_matmat ( p_mat%f_matrix, & 
-                  (mlbddc%nl_edges+mlbddc%nl_corners), &
-                  mlbddc%p_mat%dof_dist%nl, &
-                  mlbddc%rPhi, &
-                  mlbddc%p_mat%dof_dist%nl, &
-                  work )
+             call p_mat%f_matrix%apply_to_dense_matrix ( (mlbddc%nl_edges+mlbddc%nl_corners), &
+                                                          mlbddc%p_mat%dof_dist%nl, &
+                                                          mlbddc%rPhi, &
+                                                          mlbddc%p_mat%dof_dist%nl, &
+                                                          work )
 #endif
-
              a_ci = 0.0_rp 
 
 #ifdef ENABLE_BLAS
@@ -5722,8 +5618,7 @@ end if
        end if
 
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  
-          call serial_scalar_matrix_fill_val (mlbddc%A_c)
-
+          call mlbddc%A_c%allocate()
           call sum_coarse_stiffness_matrices ( mlbddc%A_c, &
                                                mlbddc%g_context%np, & 
                                                mlbddc%ptr_coarse_dofs, &
@@ -5733,9 +5628,7 @@ end if
           
        else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
           assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
-          
-          call serial_scalar_matrix_fill_val (mlbddc%p_mat_c%f_matrix)
-
+          call mlbddc%p_mat_c%allocate()
           call sum_coarse_stiffness_matrices ( mlbddc%p_mat_c%f_matrix, &
                                                mlbddc%g_context%np, & 
                                                mlbddc%ptr_coarse_dofs, &
@@ -5859,7 +5752,7 @@ end if
     end if
 
     if (debug_verbose_level_2) then 
-       call serial_scalar_matrix_print ( 6, A_c ) ! DBG:
+       call A_c%print ( 6 ) ! DBG:
     end if
 
 
@@ -6185,7 +6078,7 @@ use mpi
 
           ! 3) Compute r = r - A dx
           ! r <- Adx
-          call par_matvec ( mlbddc%p_mat, dx, r ) 
+          call mlbddc%p_mat%apply( dx, r ) 
 		  
           ! r <- -r + x
           call r%axpby ( 1.0_rp, aux, -1.0_rp )
@@ -6241,7 +6134,7 @@ use mpi
           ! 3) Compute r = r - A dx 
           call aux%copy(r)
           ! r <- Adx
-          call par_matvec ( mlbddc%p_mat, dx, r ) 
+          call mlbddc%p_mat%apply(dx, r) 
           ! r <- -r + x
           call r%axpby  ( 1.0_rp, aux, -1.0_rp )
 
@@ -6268,11 +6161,11 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              ! Assemble coarse-grid residual
-             call r_c%create(mlbddc%A_c%gr%nv)    
+             call r_c%create(mlbddc%A_c%graph%nv)    
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, r_c )
 
              ! Solve coarse-grid problem serially
-             call z_c%create ( mlbddc%A_c%gr%nv )    
+             call z_c%create ( mlbddc%A_c%graph%nv )    
              mlbddc%spars_coarse%nrhs=1
              call z_c%init(0.0_rp)
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -6330,7 +6223,7 @@ use mpi
   subroutine par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, mlbddc, b, x)
     implicit none
     ! Parameters
-    type(par_matrix_t)                , intent(in)    :: p_mat
+    type(par_scalar_matrix_t)                , intent(in)    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
     type(par_scalar_array_t)                , intent(in)    :: b
     type(par_scalar_array_t)                , intent(inout) :: x
@@ -6576,7 +6469,7 @@ use mpi
     ! Phase 2: compute substructure correction v_G
     if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
 
-       call memalloc ( mlbddc%A_rr_gr%nv, r_r, __FILE__,__LINE__ )
+       call memalloc ( mlbddc%A_rr%graph%nv, r_r, __FILE__,__LINE__ )
 
        call apply_perm_to_residual ( mlbddc%p_mat%dof_dist%nl , &
                                      mlbddc%nl_corners , & 
@@ -6591,7 +6484,7 @@ use mpi
             mlbddc%kind_coarse_dofs == faces .or. & 
             mlbddc%kind_coarse_dofs == corners_and_faces ) then
           call memalloc ( mlbddc%nl_edges , rhs, __FILE__,__LINE__ )
-          call memalloc ( mlbddc%A_rr_gr%nv, work, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%A_rr%graph%nv, work, __FILE__,__LINE__ )
 
           call compute_neumann_edge_lagrange_multipliers_rhs (mlbddc, r_r, rhs, work)
 
@@ -6615,7 +6508,7 @@ use mpi
           call memalloc ( 0,                          work, __FILE__,__LINE__ )
        end if
 
-       call memalloc ( mlbddc%A_rr_gr%nv, z_r, __FILE__,__LINE__ )
+       call memalloc ( mlbddc%A_rr%graph%nv, z_r, __FILE__,__LINE__ )
 
        call solve_neumann_problem (mlbddc, r_r, lambda_r, work, z_r)
 
@@ -7216,9 +7109,9 @@ use mpi
     ! Parameters 
     type(par_preconditioner_dd_mlevel_bddc_t), intent(in), target :: mlbddc
 
-    real(rp)                 , intent(inout)         :: r_r  (mlbddc%A_rr_gr%nv)
+    real(rp)                 , intent(inout)         :: r_r  (mlbddc%A_rr%graph%nv)
     real(rp)                 , intent(out)           :: rhs  (mlbddc%nl_edges )
-    real(rp)                 , intent(out)           :: work (mlbddc%A_rr_gr%nv) 
+    real(rp)                 , intent(out)           :: work (mlbddc%A_rr%graph%nv) 
 
     integer           , intent(in), target, optional :: iparm(64)
     integer           , intent(in), optional         :: msglvl
@@ -7255,7 +7148,7 @@ use mpi
                              mlbddc%p_mat%dof_dist%omap%nl, &
                              mlbddc%p_mat%dof_dist%lobjs, &
                              mlbddc%nl_edges   , & 
-                             mlbddc%A_rr_gr%nv, &
+                             mlbddc%A_rr%graph%nv, &
                              1, & 
                              work, & 
                              0.0_rp, &
@@ -7271,10 +7164,10 @@ use mpi
   subroutine solve_neumann_problem (mlbddc, r_r, lambda_r, work, z_r)
     implicit none
     type(par_preconditioner_dd_mlevel_bddc_t), intent(in), target        :: mlbddc
-    real(rp)                 , intent(inout)                :: r_r (mlbddc%A_rr_gr%nv)
+    real(rp)                 , intent(inout)                :: r_r (mlbddc%A_rr%graph%nv)
     real(rp)                 , intent(in)                   :: lambda_r (mlbddc%nl_edges  )
-    real(rp)                 , intent(in)                   :: work (mlbddc%A_rr_gr%nv) 
-    real(rp)                 , intent(out)                  :: z_r  (mlbddc%A_rr_gr%nv)
+    real(rp)                 , intent(in)                   :: work (mlbddc%A_rr%graph%nv) 
+    real(rp)                 , intent(out)                  :: z_r  (mlbddc%A_rr%graph%nv)
 
     ! Locals
     real(rp), allocatable :: work2(:)
@@ -7298,11 +7191,11 @@ use mpi
 
          if (mlbddc%schur_edge_lag_mult == compute_from_scratch ) then
             call DGEMV( 'N', & 
-                        mlbddc%A_rr_gr%nv, &
+                        mlbddc%A_rr%graph%nv, &
                         mlbddc%nl_edges, &
                         -1.0, &
                         mlbddc%A_rr_inv_C_r_T_neumann, &
-                        mlbddc%A_rr_gr%nv, &
+                        mlbddc%A_rr%graph%nv, &
                         lambda_r, &
                         1, &
                         1.0, & 
@@ -7310,11 +7203,11 @@ use mpi
                         1)
          else
             call DGEMV( 'N', & 
-                        mlbddc%A_rr_gr%nv, &
+                        mlbddc%A_rr%graph%nv, &
                         mlbddc%nl_edges , &
                         -1.0, &
                         mlbddc%A_rr_inv_C_r_T, &
-                        mlbddc%A_rr_gr%nv, &
+                        mlbddc%A_rr%graph%nv, &
                         lambda_r, &
                         1, &
                         1.0, & 
@@ -8396,8 +8289,8 @@ use mpi
     ne=size(ea,dim=2)
     assert(ne==nn)
         
-    call ass_csr_mat_scal(mat%gr%symmetric_storage,nn,ln,ea,mat%gr%nv, &
-         &                mat%gr%ia,mat%gr%ja,mat%a)
+    call ass_csr_mat_scal(mat%graph%symmetric_storage,nn,ln,ea,mat%graph%nv, &
+         &                mat%graph%ia,mat%graph%ja,mat%a)
 
   end subroutine matrix_assembly
 
@@ -8737,8 +8630,8 @@ use mpi
     implicit none
     type(serial_scalar_matrix_t)            ,intent(in)    :: A          ! Matrix
     type(preconditioner_t)           ,intent(in)    :: M          ! Preconditioner
-    real(rp)           , target ,intent(in)    :: b(A%gr%nv) ! RHS
-    real(rp)           , target ,intent(inout) :: x(A%gr%nv) ! Approximate solution
+    real(rp)           , target ,intent(in)    :: b(A%graph%nv) ! RHS
+    real(rp)           , target ,intent(inout) :: x(A%graph%nv) ! Approximate solution
     type(solver_control_t)        ,intent(inout) :: pars       ! Solver parameters
 
     ! Locals
@@ -8747,12 +8640,12 @@ use mpi
     type(serial_environment_t) :: senv
 
     ! fill vector_b members
-    vector_b%neq     =  A%gr%nv
+    vector_b%neq     =  A%graph%nv
     vector_b%mode    =  reference
     vector_b%b => b   
 
     ! fill vector_x members
-    vector_x%neq     = A%gr%nv 
+    vector_x%neq     = A%graph%nv 
     vector_x%mode    = reference 
     vector_x%b       => x 
 
@@ -8782,12 +8675,12 @@ use mpi
     tot_its = 0 
     do k=1, pars%nrhs
        ! fill b members
-       vector_b%neq     =  A%gr%nv
+       vector_b%neq     =  A%graph%nv
        vector_b%mode    =  reference
        vector_b%b       => b(:,k)
        
        ! fill vector_x members
-       vector_x%neq     =  A%gr%nv
+       vector_x%neq     =  A%graph%nv
        vector_x%mode    =  reference 
        vector_x%b       => x(:,k)
 

@@ -147,7 +147,7 @@ contains
     integer         , intent(inout), target, optional :: iparm(64)
     integer         , optional                     :: msglvl
     integer         , intent(in), target, optional :: perm(*)
-!    integer         , intent(in), target, optional :: perm(A%gr%nv)
+!    integer         , intent(in), target, optional :: perm(A%graph%nv)
 
     select case(action)
 
@@ -274,7 +274,7 @@ contains
     real(rp)        , intent(inout)          :: x (ldx, nrhs)
     integer         , intent(inout), target, optional :: iparm(64)
     integer                                , optional :: msglvl
-    integer         , intent(in)   , target, optional :: perm(A%gr%nv)
+    integer         , intent(in)   , target, optional :: perm(A%graph%nv)
 
     select case(action)
 
@@ -295,11 +295,11 @@ contains
     integer(ip)              , intent(in)    :: action
     type(pardiso_mkl_context_t), intent(inout) :: context
     type(serial_scalar_matrix_t), intent(in)             :: A 
-    real(rp)        , intent(in)             :: b (A%gr%nv)
-    real(rp)        , intent(inout)          :: x (A%gr%nv)
+    real(rp)        , intent(in)             :: b (A%graph%nv)
+    real(rp)        , intent(inout)          :: x (A%graph%nv)
     integer         , intent(inout), target, optional :: iparm(64)
     integer                                , optional :: msglvl
-    integer         , intent(in)   , target, optional :: perm(A%gr%nv)
+    integer         , intent(in)   , target, optional :: perm(A%graph%nv)
 
     select case(action)
 
@@ -342,11 +342,11 @@ contains
     end do
 
     ! Choose pardiso_mkl matrix according to matrix
-    if(matrix%gr%symmetric_storage.and.matrix%is_symmetric.and.matrix%sign == positive_definite) then
+    if(matrix%graph%symmetric_storage.and.matrix%is_symmetric.and.matrix%sign == positive_definite) then
        mtype = pardiso_mkl_spd
-    else if(matrix%gr%symmetric_storage.and.matrix%is_symmetric.and.matrix%sign /= positive_definite) then
+    else if(matrix%graph%symmetric_storage.and.matrix%is_symmetric.and.matrix%sign /= positive_definite) then
        mtype = pardiso_mkl_sin
-    else ! if(.not. matrix%gr%symmetric_storage) then
+    else ! if(.not. matrix%graph%symmetric_storage) then
        mtype = pardiso_mkl_uss
        !!!!!!!!!! PROVISIONAL for uns mtype !!!!!!!!!!
        ! mtype = pardiso_mkl_uns
@@ -483,7 +483,7 @@ contains
     ! Parameters 
     type(pardiso_mkl_context_t), intent(inout)                 :: context
     type(serial_scalar_matrix_t)         , intent(in)                    :: matrix
-    integer                  , intent(in), target, optional  :: perm(matrix%gr%nv)
+    integer                  , intent(in), target, optional  :: perm(matrix%graph%nv)
     integer                  , intent(in), target, optional  :: iparm(64)
     integer                  , intent(in), optional          :: msglvl
 
@@ -527,13 +527,13 @@ contains
        end do
     end if
 
-    context%n = matrix%gr%nv
+    context%n = matrix%graph%nv
 
     ! Reordering and symbolic factorization, this step also allocates 
     ! all memory that is necessary for the factorization
     phase = 11 ! only reordering and symbolic factorization
     call pardiso ( context%pt, maxfct, mnum, context%mtype, phase, & 
-         &         matrix%gr%nv, ddum, matrix%gr%ia, matrix%gr%ja, &
+         &         matrix%graph%nv, ddum, matrix%graph%ia, matrix%graph%ja, &
          &         perm_, nrhsp,  iparm_, msglvl_, ddum, ddum, error )
     if (error /= 0) then
        write (0,*) 'Error, PARDISO_MKL: the following ERROR was detected: ', & 
@@ -599,7 +599,7 @@ contains
     a_ => matrix%a(:)
 
     call pardiso (  context%pt, maxfct, mnum, context%mtype, phase,  & 
-         &          matrix%gr%nv, a_, matrix%gr%ia, matrix%gr%ja,  &
+         &          matrix%graph%nv, a_, matrix%graph%ia, matrix%graph%ja,  &
          &          idum, nrhsp, iparm_, msglvl_, ddum, ddum, error)
     if (error /= 0) then
        write (0,*) 'Error, PARDISO_MKL: the following ERROR was detected: ', & 
@@ -669,7 +669,7 @@ contains
     x_ => x%b(:)
     y_ => y%b(:)
     call pardiso ( context%pt, maxfct, mnum, context%mtype, phase,   & 
-         &         matrix%gr%nv, a_, matrix%gr%ia, matrix%gr%ja,  & 
+         &         matrix%graph%nv, a_, matrix%graph%ia, matrix%graph%ja,  & 
          &         idum, nrhsp, iparm_, msglvl_, x_, y_, error)
     if (error /= 0) then
        write (0,*) 'Error, PARDISO_MKL: the following ERROR was detected: ', & 
@@ -694,8 +694,8 @@ contains
     ! Parameters 
     type(pardiso_mkl_context_t), intent(inout)                   :: context
     type(serial_scalar_matrix_t)         , intent(in)   , target           :: matrix
-    real(rp)                 , intent(in)   , target           :: rhs (matrix%gr%nv)
-    real(rp)                 , intent(inout), target           :: sol (matrix%gr%nv)
+    real(rp)                 , intent(in)   , target           :: rhs (matrix%graph%nv)
+    real(rp)                 , intent(inout), target           :: sol (matrix%graph%nv)
     integer                  , intent(in)   , target, optional :: iparm(64)
     integer                  , intent(in)   , optional         :: msglvl
 
@@ -748,10 +748,10 @@ contains
          mnum, &
          context%mtype, & 
          phase, & 
-         matrix%gr%nv, &
+         matrix%graph%nv, &
          a_, &
-         matrix%gr%ia, & 
-         matrix%gr%ja, &
+         matrix%graph%ia, & 
+         matrix%graph%ja, &
          idum, &
          nrhs, & 
          iparm_, &
@@ -831,20 +831,20 @@ contains
     phase = 33 ! only Fwd/Bck substitution
     a_ => matrix%a(:)
 
-    if ( ldrhs == matrix%gr%nv ) then
+    if ( ldrhs == matrix%graph%nv ) then
        x_ => rhs(1:1,1)
     else
-       call memalloc (matrix%gr%nv, nrhs, workrhs, __FILE__,__LINE__ )
+       call memalloc (matrix%graph%nv, nrhs, workrhs, __FILE__,__LINE__ )
        do i=1,nrhs
-          workrhs(:,i) = rhs(1:matrix%gr%nv,i)
+          workrhs(:,i) = rhs(1:matrix%graph%nv,i)
        end do
        x_ => workrhs(1:1,1)
     end if
 
-    if ( ldsol == matrix%gr%nv ) then
+    if ( ldsol == matrix%graph%nv ) then
        y_ => sol(1:1,1)
     else
-       call memalloc (matrix%gr%nv, nrhs, worksol, __FILE__,__LINE__ )
+       call memalloc (matrix%graph%nv, nrhs, worksol, __FILE__,__LINE__ )
        y_ => worksol(1:1,1)
     end if
 
@@ -853,10 +853,10 @@ contains
          mnum, &
          context%mtype, & 
          phase, & 
-         matrix%gr%nv, &
+         matrix%graph%nv, &
          a_, &
-         matrix%gr%ia, & 
-         matrix%gr%ja, &
+         matrix%graph%ia, & 
+         matrix%graph%ja, &
          idum, &
          nrhs, & 
          iparm_, &
@@ -871,13 +871,13 @@ contains
        stop
     end if
 
-    if ( ldrhs /= matrix%gr%nv ) then
+    if ( ldrhs /= matrix%graph%nv ) then
        call memfree (workrhs, __FILE__,__LINE__ )
     end if
 
-    if ( ldsol /= matrix%gr%nv ) then
+    if ( ldsol /= matrix%graph%nv ) then
        do i=1,nrhs
-          sol(1:matrix%gr%nv,i) = worksol(:,i)
+          sol(1:matrix%graph%nv,i) = worksol(:,i)
        end do
        call memfree (worksol, __FILE__,__LINE__ )
     end if

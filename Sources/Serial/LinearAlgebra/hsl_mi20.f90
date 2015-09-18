@@ -261,8 +261,8 @@ contains
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
     type(serial_scalar_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    real(rp)          , intent(in)    :: b (A%gr%nv)
-    real(rp)          , intent(inout) :: x (A%gr%nv)
+    real(rp)          , intent(in)    :: b (A%graph%nv)
+    real(rp)          , intent(inout) :: x (A%graph%nv)
 
     type(hsl_mi20_data_t)    , intent(in)          :: data
     type(hsl_mi20_control_t) , intent(in)          :: ctrl
@@ -366,19 +366,19 @@ contains
     type(hsl_mi20_info_t)    , intent(out)   :: info
 
 #ifdef ENABLE_HSL_MI20
-    assert ( .not. matrix%gr%symmetric_storage )
+    assert ( .not. matrix%graph%symmetric_storage )
     
     ! Copy matrix_t to type(ZD11_type)
-    context%zd11_mat%m = matrix%gr%nv
-    context%zd11_mat%n = matrix%gr%nv2
+    context%zd11_mat%m = matrix%graph%nv
+    context%zd11_mat%n = matrix%graph%nv2
 
     call memalloc( context%zd11_mat%m+1,context%zd11_mat%ptr,__FILE__,__LINE__)
 
-    context%zd11_mat%ptr = matrix%gr%ia
+    context%zd11_mat%ptr = matrix%graph%ia
 
     call memalloc( context%zd11_mat%ptr(context%zd11_mat%m+1)-1,context%zd11_mat%col, __FILE__,__LINE__)
 
-    context%zd11_mat%col = matrix%gr%ja
+    context%zd11_mat%col = matrix%graph%ja
 
     call memalloc( context%zd11_mat%ptr(context%zd11_mat%m+1)-1, context%zd11_mat%val,__FILE__,__LINE__)
 
@@ -455,8 +455,8 @@ contains
     ! Parameters 
     type(hsl_mi20_context_t), intent(inout) :: context
     type(serial_scalar_matrix_t)  , intent(in)   :: matrix
-    real(rp)          , intent(in)    :: rhs (matrix%gr%nv)
-    real(rp)          , intent(inout) :: sol (matrix%gr%nv)
+    real(rp)          , intent(in)    :: rhs (matrix%graph%nv)
+    real(rp)          , intent(inout) :: sol (matrix%graph%nv)
     type(hsl_mi20_data_t)    , intent(in) :: data
     type(hsl_mi20_control_t) , intent(in) :: ctrl
     type(hsl_mi20_info_t)    , intent(out):: info
@@ -497,8 +497,8 @@ contains
     
 #ifdef ENABLE_HSL_MI20
     do irhs=1, nrhs
-       rhs_ => rhs(1:matrix%gr%nv,irhs)
-       sol_ => sol(1:matrix%gr%nv,irhs)
+       rhs_ => rhs(1:matrix%graph%nv,irhs)
+       sol_ => sol(1:matrix%graph%nv,irhs)
        call hsl_mi20_solution_real ( context, matrix, rhs_, sol_, data, ctrl, info  )
     end do
 #else

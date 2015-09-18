@@ -34,7 +34,7 @@ use memor_names
 
   ! Parallel modules
   use par_scalar_array_names
-  use par_matrix_names
+  use par_scalar_matrix_names
   use par_context_names
   use par_environment_names
   use dof_distribution_names
@@ -51,7 +51,7 @@ use psb_penv_mod_names
 
   type, extends(abstract_operator_t) :: par_preconditioner_dd_identity_t
      ! Reference to parallel matrix
-     type( par_matrix_t ), pointer     :: p_mat => NULL()   
+     type( par_scalar_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal
    contains
      procedure :: apply     => par_preconditioner_dd_identity_apply_tbp
@@ -73,7 +73,7 @@ use psb_penv_mod_names
   subroutine par_preconditioner_dd_identity_create (p_matrix, p_prec_dd_identity)
     implicit none
     ! Parameters
-    type(par_matrix_t)             , target, intent(in)  :: p_matrix
+    type(par_scalar_matrix_t)             , target, intent(in)  :: p_matrix
     type(par_preconditioner_dd_identity_t)        , intent(out) :: p_prec_dd_identity
 
     
@@ -89,7 +89,7 @@ use psb_penv_mod_names
   subroutine par_preconditioner_dd_identity_ass_struct (p_matrix, p_prec_dd_identity)
     implicit none
     ! Parameters
-    type(par_matrix_t)             , target, intent(in)    :: p_matrix
+    type(par_scalar_matrix_t)             , target, intent(in)    :: p_matrix
     type(par_preconditioner_dd_identity_t)        , intent(inout) :: p_prec_dd_identity
 
     assert ( associated(p_matrix%p_env) )
@@ -107,7 +107,7 @@ use psb_penv_mod_names
     type(par_preconditioner_dd_identity_t), target, intent(inout) :: p_prec_dd_identity
 
     ! Locals
-    type(par_matrix_t), pointer :: p_matrix
+    type(par_scalar_matrix_t), pointer :: p_matrix
     integer(ip)       :: neq
     type (par_scalar_array_t) :: p_vec
 

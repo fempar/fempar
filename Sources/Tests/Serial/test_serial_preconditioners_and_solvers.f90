@@ -46,7 +46,6 @@ program test_serial_preconditioners_and_solvers
   integer(ip)               :: lunio
 
   type(serial_scalar_matrix_t), target :: mmmat
-  type(graph_t)          :: mmgraph
   type(serial_scalar_array_t), target :: b
   type(serial_scalar_array_t), target :: x
   type(serial_scalar_array_t), target :: exact_solution 
@@ -73,30 +72,19 @@ program test_serial_preconditioners_and_solvers
   real(8)          :: t1, t2, gerror, aerror
 
   logical          :: from_file
-
-
+  
   call meminit
   
   call read_pars_cl_test_dirsol_mm ( solver, driver, dir_path, prefix, smoother, one_pass_coarsen, st_parameter, from_file)
-
-  ! Read a symmetric matrix
-  call serial_scalar_matrix_compose_name_matrix_market ( prefix, name ) 
+  name = trim(prefix) // '.mtx'
   lunio = io_open(trim(dir_path) // '/' // trim(name),status='old')
-  call serial_scalar_matrix_read_matrix_market (lunio, mmmat, mmgraph, is_symmetric=.false.)
-
+  call mmmat%read_matrix_market (lunio, symmetric_storage=.false., is_symmetric=.false., sign=indefinite)
   call io_close(lunio)
 
-!!$  prefix = trim(prefix) // '.out'
-!!$  write(*,*) prefix
-!!$  call matrix_compose_name_matrix_market ( prefix , name ) 
-!!$  lunio = io_open(trim(dir_path) // '/' // trim(name))
-!!$  call matrix_print_matrix_market (lunio, mmmat)
-!!$  call io_close(lunio)
-
   ! Alloc vectors
-  call b%create (mmmat%gr%nv)
-  call x%create (mmmat%gr%nv)
-  call exact_solution%create(mmmat%gr%nv)
+  call b%create (mmmat%graph%nv)
+  call x%create (mmmat%graph%nv)
+  call exact_solution%create(mmmat%graph%nv)
   call exact_solution%init(1.0_rp)
 
   A      => mmmat
@@ -307,8 +295,7 @@ program test_serial_preconditioners_and_solvers
   endif
 
 
-  call graph_free ( mmgraph )
-  call serial_scalar_matrix_free ( mmmat ) 
+  call mmmat%free()
   call b%free()
   call x%free()
   call exact_solution%free()

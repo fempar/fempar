@@ -34,7 +34,7 @@ module par_preconditioner_dd_diagonal_names
 
   ! Parallel modules
   use par_scalar_array_names
-  use par_matrix_names
+  use par_scalar_matrix_names
   use par_context_names
   use par_environment_names
   use dof_distribution_names
@@ -51,7 +51,7 @@ module par_preconditioner_dd_diagonal_names
 
   type, extends(abstract_operator_t) :: par_preconditioner_dd_diagonal_t
      ! Reference to parallel matrix
-     type( par_matrix_t ), pointer     :: p_mat => NULL()   
+     type( par_scalar_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal
    contains
      procedure :: apply     => par_preconditioner_dd_diagonal_apply_tbp
@@ -74,7 +74,7 @@ module par_preconditioner_dd_diagonal_names
   subroutine par_preconditioner_dd_diagonal_create (p_matrix, p_prec_dd_diagonal)
     implicit none
     ! Parameters
-    type(par_matrix_t)             , target, intent(in)  :: p_matrix
+    type(par_scalar_matrix_t)             , target, intent(in)  :: p_matrix
     type(par_preconditioner_dd_diagonal_t)        , intent(out) :: p_prec_dd_diagonal
 
     
@@ -90,7 +90,7 @@ module par_preconditioner_dd_diagonal_names
   subroutine par_preconditioner_dd_diagonal_ass_struct (p_matrix, p_prec_dd_diagonal)
     implicit none
     ! Parameters
-    type(par_matrix_t)             , target, intent(in)    :: p_matrix
+    type(par_scalar_matrix_t)             , target, intent(in)    :: p_matrix
     type(par_preconditioner_dd_diagonal_t)        , intent(inout) :: p_prec_dd_diagonal
 
     assert ( associated(p_matrix%p_env) )
@@ -108,7 +108,7 @@ module par_preconditioner_dd_diagonal_names
     type(par_preconditioner_dd_diagonal_t), target, intent(inout) :: p_prec_dd_diagonal
 
     ! Locals
-    type(par_matrix_t), pointer :: p_matrix
+    type(par_scalar_matrix_t), pointer :: p_matrix
     integer(ip)       :: neq
     type (par_scalar_array_t) :: p_vec
 
@@ -120,18 +120,18 @@ module par_preconditioner_dd_diagonal_names
 
     if ( p_prec_dd_diagonal%p_mat%p_env%p_context%iam < 0 ) return
 
-    neq = p_matrix%p_graph%f_graph%nv
+    neq = p_matrix%f_matrix%graph%nv
        
     ! Allocate, extract, sum, and invert diagonal 
 
     ! Allocate + extract
     call memalloc ( neq, p_prec_dd_diagonal%d, __FILE__,__LINE__)
-    call extract_diagonal ( p_matrix%f_matrix%gr%symmetric_storage, &
-                            p_matrix%f_matrix%gr%nv, &
-                            p_matrix%f_matrix%gr%ia, &
-                            p_matrix%f_matrix%gr%ja, &
+    call extract_diagonal ( p_matrix%f_matrix%graph%symmetric_storage, &
+                            p_matrix%f_matrix%graph%nv, &
+                            p_matrix%f_matrix%graph%ia, &
+                            p_matrix%f_matrix%graph%ja, &
                             p_matrix%f_matrix%a, &
-                            p_matrix%f_matrix%gr%nv, &
+                            p_matrix%f_matrix%graph%nv, &
                             p_prec_dd_diagonal%d )
     
     ! Create a view of p_prec_dd_diagonal%d. This is ugly and
@@ -165,7 +165,7 @@ module par_preconditioner_dd_diagonal_names
 
     if(p_prec_dd_diagonal%p_mat%p_env%p_context%iam<0) return
 
-    call apply_diagonal  ( p_prec_dd_diagonal%p_mat%p_graph%f_graph%nv, & 
+    call apply_diagonal  ( p_prec_dd_diagonal%p_mat%f_matrix%graph%nv, & 
                            p_prec_dd_diagonal%d, & 
                            x%f_vector%b, & 
                            y%f_vector%b )

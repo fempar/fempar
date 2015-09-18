@@ -33,9 +33,9 @@ module par_block_array_names
   use vector_names
     
   ! Parallel modules
+  use par_environment_names
   use par_scalar_array_names
-  use par_block_graph_names
-  use par_graph_names
+  use blocks_dof_distribution_names
 
   implicit none
 # include "debug.i90"
@@ -47,10 +47,10 @@ module par_block_array_names
      integer(ip) :: nblocks = 0
      type(par_scalar_array_t), allocatable :: blocks(:)
    contains	 
-     procedure, private :: par_block_array_create_with_nblocks
-     procedure, private :: par_block_array_create_with_block_graph
-     generic :: create => par_block_array_create_with_nblocks, & 
-	                      par_block_array_create_with_block_graph
+     procedure, private :: par_block_array_create_only_blocks_container
+     procedure, private :: par_block_array_create_blocks_container_and_all_blocks
+     generic :: create => par_block_array_create_only_blocks_container, & 
+	                      par_block_array_create_blocks_container_and_all_blocks
      procedure :: create_view => par_block_array_create_view
      procedure :: weight => par_block_array_weight
      procedure :: print => par_block_array_print
@@ -74,31 +74,29 @@ module par_block_array_names
 contains
 
   !=============================================================================
-  subroutine par_block_array_create_with_block_graph(this, p_bgraph)
+  subroutine par_block_array_create_blocks_container_and_all_blocks(this, nblocks, blocks_dof_distribution)
     implicit none
-    class(par_block_array_t), intent(out) :: this
-    type(par_block_graph_t) , intent(in)  :: p_bgraph
+    class(par_block_array_t)      , intent(out) :: this
+    integer(ip)                   , intent(in)  :: nblocks
+	type(blocks_dof_distribution_t), intent(in) :: blocks_dof_distribution
     integer(ip)  :: ib
-    type(par_graph_t), pointer :: p_graph
-    
-    this%nblocks = p_bgraph%get_nblocks()
-    allocate ( this%blocks(this%nblocks) )
+   
+    call this%create(nblocks)
     do ib=1, this%nblocks
-       p_graph => p_bgraph%get_block(ib,ib)
-       call this%blocks(ib)%create ( p_graph%dof_dist, p_graph%p_env )
+       call this%blocks(ib)%create ( blocks_dof_distribution%blocks(ib), blocks_dof_distribution%p_env )
     end do
 
-  end subroutine par_block_array_create_with_block_graph
+  end subroutine par_block_array_create_blocks_container_and_all_blocks
 
   !=============================================================================
-  subroutine par_block_array_create_with_nblocks (this, nblocks)
+  subroutine par_block_array_create_only_blocks_container (this, nblocks)
     implicit none
     class(par_block_array_t), intent(out) :: this
     integer(ip)             , intent(in)  :: nblocks
 
     this%nblocks = nblocks
     allocate ( this%blocks(nblocks) )
-  end subroutine par_block_array_create_with_nblocks
+  end subroutine par_block_array_create_only_blocks_container
 
   !=============================================================================
   subroutine par_block_array_create_view (this, start, end, tvec)

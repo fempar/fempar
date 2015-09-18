@@ -72,12 +72,10 @@ module serial_names
 
   ! Linear Algebra
   use serial_scalar_matrix_names
-  use block_graph_names
   use preconditioner_names
   use serial_scalar_array_names
-  use block_matrix_names
+  use serial_block_matrix_names
   use serial_block_array_names
-  use block_matrix_vector_names
   use abstract_solver_names
   use vector_names
   use abstract_operator_names

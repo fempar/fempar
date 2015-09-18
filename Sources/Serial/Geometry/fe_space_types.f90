@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module fe_space_types_names
   use types_names
   use memor_names
@@ -35,6 +34,8 @@ module fe_space_types_names
 #endif
 
   implicit none
+# include "debug.i90"
+
   private
 
   integer(ip), parameter       :: max_nnode  = 512  ! Maximum amount of nodes in an element (512=2**9)

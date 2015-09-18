@@ -489,14 +489,14 @@ contains
        do ilev=1, prec%lev
           n   = prec%hsl_mi20_data%coarse_data(ilev)%A_mat%m
           nnz = prec%hsl_mi20_data%coarse_data(ilev)%A_mat%ptr(n+1)-1
-          ! write (*,*) 'XXX', ilev, n, nnz, mat%gr%nv, mat%gr%ia(mat%gr%nv+1)-1
+          ! write (*,*) 'XXX', ilev, n, nnz, mat%graph%nv, mat%graph%ia(mat%graph%nv+1)-1
           prec%cs = prec%cs + dble(nnz)/dble(n)
           prec%cg = prec%cg + dble(n)
           prec%ca = prec%ca + dble(nnz)
        end do
        prec%cs = prec%cs/dble(prec%lev)
-       prec%cg = prec%cg/dble(mat%gr%nv)
-       prec%ca = prec%ca/dble(mat%gr%ia(mat%gr%nv+1)-1)
+       prec%cg = prec%cg/dble(mat%graph%nv)
+       prec%ca = prec%ca/dble(mat%graph%ia(mat%graph%nv+1)-1)
 #endif
     else if (prec%type==hsl_ma87_prec) then
        call hsl_ma87 ( hsl_ma87_compute_num, prec%hsl_ma87_ctxt, mat, vdum, vdum, &
@@ -510,10 +510,10 @@ contains
 #endif
     else if (prec%type==diag_prec) then
        ! Allocate + extract
-       call memalloc ( mat%gr%nv, prec%d, __FILE__,__LINE__)
-       call extract_diagonal(mat%gr%symmetric_storage,mat%gr%nv,mat%gr%ia,mat%gr%ja,mat%a,mat%gr%nv,prec%d)
+       call memalloc ( mat%graph%nv, prec%d, __FILE__,__LINE__)
+       call extract_diagonal(mat%graph%symmetric_storage,mat%graph%nv,mat%graph%ia,mat%graph%ja,mat%a,mat%graph%nv,prec%d)
        ! Invert diagonal
-       call invert_diagonal  ( mat%gr%nv, prec%d )
+       call invert_diagonal  ( mat%graph%nv, prec%d )
     else if(prec%type/=no_prec) then
        write (0,*) 'Error: preconditioner type not supported'
        check(1==0)
@@ -546,7 +546,7 @@ contains
     else if(prec%type==no_prec) then
        call y%copy(x)
     else if ( prec%type==diag_prec ) then
-       call apply_diagonal  ( mat%gr%nv, prec%d, x%b, y%b )
+       call apply_diagonal  ( mat%graph%nv, prec%d, x%b, y%b )
     else if (prec%type==hsl_mi20_prec) then
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, x, y, &
                &       prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
@@ -585,17 +585,17 @@ contains
        ! AFM : I did not modify wsmp interface in such
        ! a way that it is able to handle non-contiguous
        ! 2D arrays. PENDING!!!
-       assert ( mat%gr%nv == ldx )
-       assert ( mat%gr%nv == ldy )
+       assert ( mat%graph%nv == ldx )
+       assert ( mat%graph%nv == ldy )
        call wsmp ( wsmp_solve, prec%wsmp_ctxt, mat, nrhs, x, y, &
             &      prec%wsmp_iparm, prec%wsmp_rparm )
     else if(prec%type==no_prec) then
        do i=1, nrhs
-          y(1:mat%gr%nv,i) = x(1:mat%gr%nv,i)
+          y(1:mat%graph%nv,i) = x(1:mat%graph%nv,i)
        end do
     else if(prec%type==diag_prec) then
        do i=1, nrhs
-          call apply_diagonal ( mat%gr%nv, prec%d, x(1,i), y(1,i) )
+          call apply_diagonal ( mat%graph%nv, prec%d, x(1,i), y(1,i) )
        end do
     else if (prec%type==hsl_mi20_prec) then
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, nrhs, x, ldx, y, ldy, &
@@ -618,8 +618,8 @@ contains
     ! Parameters
     type(serial_scalar_matrix_t) , intent(in)    :: mat
     type(preconditioner_t), intent(inout) :: prec
-    real(rp)         , intent(in)    :: x (mat%gr%nv)
-    real(rp)         , intent(inout) :: y (mat%gr%nv)
+    real(rp)         , intent(in)    :: x (mat%graph%nv)
+    real(rp)         , intent(inout) :: y (mat%graph%nv)
 
     ! Locals
     type (serial_scalar_array_t)     :: vdum 
@@ -636,7 +636,7 @@ contains
     else if(prec%type==no_prec) then
        y=x
     else if(prec%type==diag_prec) then
-       call apply_diagonal ( mat%gr%nv, prec%d, x, y )
+       call apply_diagonal ( mat%graph%nv, prec%d, x, y )
     else if (prec%type==hsl_mi20_prec) then
           call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat,  x, y, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
@@ -744,7 +744,7 @@ contains
           else if(op%type==no_prec) then
              call y%copy(x)
           else if ( op%type==diag_prec) then
-             call apply_diagonal  ( op%mat%gr%nv, op%d, x%b, y%b )
+             call apply_diagonal  ( op%mat%graph%nv, op%d, x%b, y%b )
           else if (op%type==hsl_mi20_prec) then
              call hsl_mi20 ( hsl_mi20_solve, op%hsl_mi20_ctxt, op%mat, x, y, &
                   &       op%hsl_mi20_data, op%hsl_mi20_ctrl, op%hsl_mi20_info )
@@ -786,7 +786,7 @@ contains
     select type(x)
     class is (serial_scalar_array_t)
        allocate(local_y)
-       call local_y%create (op%mat%gr%nv)
+       call local_y%create (op%mat%graph%nv)
        call op%apply(x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

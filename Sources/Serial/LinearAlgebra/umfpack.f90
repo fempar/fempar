@@ -216,8 +216,8 @@ contains
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
     type(serial_scalar_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    real(rp)          , intent(in)    :: b (A%gr%nv)
-    real(rp)          , intent(inout) :: x (A%gr%nv)
+    real(rp)          , intent(in)    :: b (A%graph%nv)
+    real(rp)          , intent(inout) :: x (A%graph%nv)
 
 
     select case(action)
@@ -318,17 +318,17 @@ use graph_renumbering_names
     ! Locals
     integer(ip) :: status
     
-    assert ( .not. matrix%gr%symmetric_storage )
+    assert ( .not. matrix%graph%symmetric_storage )
 
 #ifdef ENABLE_UMFPACK
     ! Fortran to C numbering 
-    call decrement_array( matrix%gr%ia )
-    call decrement_array( matrix%gr%ja )
+    call decrement_array( matrix%graph%ia )
+    call decrement_array( matrix%graph%ja )
 
     !
     !  From the matrix data, create the symbolic factorization information.
     !
-    status = umfpack_di_symbolic ( matrix%gr%nv, matrix%gr%nv2, matrix%gr%ia, matrix%gr%ja, C_NULL_PTR, context%Symbolic, context%Control, context%Info)
+    status = umfpack_di_symbolic ( matrix%graph%nv, matrix%graph%nv2, matrix%graph%ia, matrix%graph%ja, C_NULL_PTR, context%Symbolic, context%Control, context%Info)
     if ( status < 0 ) then
       write ( *, '(a)' ) ''
       write ( *, '(a)' ) 'UMFPACK - Fatal error!'
@@ -337,8 +337,8 @@ use graph_renumbering_names
     end if
     
      ! C to Fortran numbering 
-    call increment_array( matrix%gr%ia )
-    call increment_array( matrix%gr%ja )
+    call increment_array( matrix%graph%ia )
+    call increment_array( matrix%graph%ja )
 #else
     call enable_umfpack_error_message
 #endif
@@ -358,18 +358,18 @@ use graph_renumbering_names
     integer(ip)       :: status
 
 #ifdef ENABLE_UMFPACK
-    assert ( .not. matrix%gr%symmetric_storage )
+    assert ( .not. matrix%graph%symmetric_storage )
 
     ! Fortran to C numbering 
-    call decrement_array( matrix%gr%ia )
-    call decrement_array( matrix%gr%ja )
+    call decrement_array( matrix%graph%ia )
+    call decrement_array( matrix%graph%ja )
 
     a_ => matrix%a(:)
 
     !
     !  From the symbolic factorization information, carry out the numeric factorization.
     !
-    status = umfpack_di_numeric ( matrix%gr%ia, matrix%gr%ja, a_, context%Symbolic, context%Numeric, context%Control, context%Info )
+    status = umfpack_di_numeric ( matrix%graph%ia, matrix%graph%ja, a_, context%Symbolic, context%Numeric, context%Control, context%Info )
   
     if ( status < 0 ) then
       write ( *, '(a)' ) ''
@@ -379,8 +379,8 @@ use graph_renumbering_names
     end if
 
      ! C to Fortran numbering 
-    call increment_array( matrix%gr%ia )
-    call increment_array( matrix%gr%ja )
+    call increment_array( matrix%graph%ia )
+    call increment_array( matrix%graph%ja )
 #else
     call enable_umfpack_error_message
 #endif
@@ -406,8 +406,8 @@ use graph_renumbering_names
 
 #ifdef ENABLE_UMFPACK
     ! Fortran to C numbering 
-    call decrement_array( matrix%gr%ia )
-    call decrement_array( matrix%gr%ja )
+    call decrement_array( matrix%graph%ia )
+    call decrement_array( matrix%graph%ja )
 
     x_ => x%b(:)
     y_ => y%b(:)
@@ -416,7 +416,7 @@ use graph_renumbering_names
     !
     ! Solve the linear system.
     !
-    status = umfpack_di_solve ( UMFPACK_At, matrix%gr%ia, matrix%gr%ja, a_, y_, x_, context%Numeric, context%Control, context%Info )
+    status = umfpack_di_solve ( UMFPACK_At, matrix%graph%ia, matrix%graph%ja, a_, y_, x_, context%Numeric, context%Control, context%Info )
 
     if ( status < 0 ) then
       write ( *, '(a)' ) ''
@@ -426,8 +426,8 @@ use graph_renumbering_names
     end if
 
     ! C to Fortran numbering 
-    call increment_array( matrix%gr%ia )
-    call increment_array( matrix%gr%ja )
+    call increment_array( matrix%graph%ia )
+    call increment_array( matrix%graph%ja )
 #else
     call enable_umfpack_error_message
 #endif
@@ -440,8 +440,8 @@ use graph_renumbering_names
     ! Parameters 
     type(umfpack_context_t), intent(inout)   :: context
     type(serial_scalar_matrix_t)  , intent(in), target :: matrix
-    real(rp)          , intent(in)         :: rhs (matrix%gr%nv)
-    real(rp)          , intent(inout)      :: sol (matrix%gr%nv)
+    real(rp)          , intent(in)         :: rhs (matrix%graph%nv)
+    real(rp)          , intent(inout)      :: sol (matrix%graph%nv)
     
     ! Locals 
     real(rp), pointer :: a_(:)
@@ -449,15 +449,15 @@ use graph_renumbering_names
 
 #ifdef ENABLE_UMFPACK
     ! Fortran to C numbering 
-    call decrement_array( matrix%gr%ia )
-    call decrement_array( matrix%gr%ja )
+    call decrement_array( matrix%graph%ia )
+    call decrement_array( matrix%graph%ja )
 
     a_ => matrix%a(:)
 
     !
     ! Solve the linear system.
     !
-    status = umfpack_di_solve ( UMFPACK_At, matrix%gr%ia, matrix%gr%ja, a_, sol, rhs, context%Numeric, context%Control, context%Info )
+    status = umfpack_di_solve ( UMFPACK_At, matrix%graph%ia, matrix%graph%ja, a_, sol, rhs, context%Numeric, context%Control, context%Info )
 
     if ( status < 0 ) then
       write ( *, '(a)' ) ''
@@ -467,8 +467,8 @@ use graph_renumbering_names
     end if
 
     ! C to Fortran numbering 
-    call increment_array( matrix%gr%ia )
-    call increment_array( matrix%gr%ja )
+    call increment_array( matrix%graph%ia )
+    call increment_array( matrix%graph%ja )
 #else
     call enable_umfpack_error_message
 #endif
@@ -493,8 +493,8 @@ use graph_renumbering_names
 
 #ifdef ENABLE_UMFPACK
     ! Fortran to C numbering 
-    call decrement_array( matrix%gr%ia )
-    call decrement_array( matrix%gr%ja )
+    call decrement_array( matrix%graph%ia )
+    call decrement_array( matrix%graph%ja )
 
     a_ => matrix%a(:)
 
@@ -502,7 +502,7 @@ use graph_renumbering_names
       !
       ! Solve the linear system.
       !
-      status = umfpack_di_solve ( UMFPACK_At, matrix%gr%ia, matrix%gr%ja, a_, sol(1,i), rhs(1,i), context%Numeric, context%Control, context%Info )
+      status = umfpack_di_solve ( UMFPACK_At, matrix%graph%ia, matrix%graph%ja, a_, sol(1,i), rhs(1,i), context%Numeric, context%Control, context%Info )
       if ( status < 0 ) then
         write ( *, '(a)' ) ''
         write ( *, '(a)' ) 'UMFPACK - Fatal error!'
@@ -512,8 +512,8 @@ use graph_renumbering_names
     end do
 
     ! C to Fortran numbering 
-    call increment_array( matrix%gr%ia )
-    call increment_array( matrix%gr%ja )
+    call increment_array( matrix%graph%ia )
+    call increment_array( matrix%graph%ja )
 #else
     call enable_umfpack_error_message
 #endif

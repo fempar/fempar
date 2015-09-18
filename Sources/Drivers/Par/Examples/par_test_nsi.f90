@@ -116,13 +116,12 @@ program par_test_nsi_iss
   type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
   type(discrete_integration_pointer_t)               :: approx(1)
   type(vtk_t)                                        :: fevtk
-  type(par_block_graph_t)                            :: p_blk_graph
-  type(block_dof_distribution_t)                     :: blk_dof_dist
+  type(blocks_dof_distribution_t), pointer           :: blocks_dof_distribution
   type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
   type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
   type(par_preconditioner_dd_identity_t)                    :: p_prec_dd_diag
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars 
-  type(par_matrix_t), target                         :: p_mat
+  type(par_scalar_matrix_t), target                         :: p_mat
   type(par_scalar_array_t), target                         :: p_vec
   type(par_scalar_array_t), target                         :: p_unk
   type(solver_control_t)                             :: sctrl
@@ -147,7 +146,7 @@ program par_test_nsi_iss
   ! Arguments
   character(len=256) :: dir_path_out,prefix
   integer(ip)        :: nex,ney,nez,npx,npy,npz
-
+  
   call meminit
 
   ! Read parameters from command-line
@@ -231,12 +230,16 @@ program par_test_nsi_iss
        &                nparts=gdata%nparts)!,linear_order=.false.)
 
   ! Create dof info
-  call par_create_distributed_dof_info(dof_descriptor,p_trian,p_fe_space,blk_dof_dist,p_blk_graph,symmetric_storage)  
-
-  ! Allocate matrices and vectors
-  call par_matrix_alloc(.false.,p_blk_graph%get_block(1,1),p_mat)
-  call p_vec%create(blk_dof_dist%get_block(1),p_env)
-  call p_unk%create(blk_dof_dist%get_block(1),p_env)
+  call par_create_distributed_dof_info(p_fe_space)
+  blocks_dof_distribution => p_fe_space%get_blocks_dof_distribution()
+  
+  call p_fe_space%make_coefficient_matrix ( .false., & 
+       									    .false., &
+											indefinite, &
+											p_mat )
+  
+  call p_vec%create(blocks_dof_distribution%get_block(1),p_env)
+  call p_unk%create(blocks_dof_distribution%get_block(1),p_env)
   p_vec%state = part_summed
   p_unk%state = full_summed
   call p_vec%init(0.0_rp)
@@ -374,11 +377,9 @@ program par_test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
-  call par_matrix_free (p_mat)
+  call p_mat%free()
   call p_vec%free
-  call p_unk%free()
-  call p_blk_graph%free
-  call blk_dof_dist%free
+  call p_unk%free()     
   call par_fe_space_free(p_fe_space) 
   call myprob%free
   call mydisc%free

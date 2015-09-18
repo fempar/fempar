@@ -32,7 +32,7 @@ module assembly_names
   !use fe_space_names
   use integrable_names
   use dof_descriptor_names
-  use block_matrix_names
+  use serial_block_matrix_names
   use serial_scalar_matrix_names
   use serial_block_array_names
   use serial_scalar_array_names
@@ -60,7 +60,7 @@ contains
        call assembly_element_matrix_mono(finite_element, dof_descriptor, a) 
     class is(serial_scalar_array_t)
        call assembly_element_vector_mono(finite_element, dof_descriptor, a)
-    class is(block_matrix_t)
+    class is(serial_block_matrix_t)
        call assembly_element_matrix_block(finite_element, dof_descriptor, a)
     class is(serial_block_array_t)
        call assembly_element_vector_block(finite_element, dof_descriptor, a)
@@ -85,7 +85,7 @@ contains
        call assembly_face_element_matrix_mono(fe_face, finite_elements, dof_descriptor, a) 
     !class is(vector_t)
     !   call assembly_face_element_vector_mono(fe_face, dof_descriptor, a)
-    class is(block_matrix_t)
+    class is(serial_block_matrix_t)
        call assembly_face_element_matrix_block(fe_face, finite_elements, dof_descriptor, a)
     !class is(block_vector_t)
     !   call assembly_face_element_vector_block(fe_face, dof_descriptor, a)
@@ -99,7 +99,7 @@ contains
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
-    type(block_matrix_t)  , intent(inout) :: a
+    type(serial_block_matrix_t)  , intent(inout) :: a
     
     integer(ip) :: ivar, iblock, jblock
 
@@ -107,7 +107,7 @@ contains
 
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
-          f_matrix => a%blocks(iblock,jblock)%p_f_matrix
+          f_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
           if ( associated(f_matrix) ) then
              call element_matrix_assembly( dof_descriptor, finite_element, f_matrix, iblock, jblock )
           end if 
@@ -131,7 +131,7 @@ contains
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(fe_face_t)       , intent(in)    :: fe_face
     type(finite_element_pointer_t), intent(in)    :: finite_element(2)
-    type(block_matrix_t)  , intent(inout) :: a
+    type(serial_block_matrix_t)  , intent(inout) :: a
 
     integer(ip) :: iblock, jblock, i
     type(array_ip1_t) :: start_aux
@@ -145,7 +145,7 @@ contains
 
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
-          f_matrix => a%blocks(iblock,jblock)%p_f_matrix
+          f_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
           if ( associated(f_matrix) ) then
             do i = 1,2
                call element_matrix_assembly( dof_descriptor, finite_element(i)%p, f_matrix, iblock, jblock )
@@ -294,17 +294,17 @@ contains
                 if ( idof  > 0 ) then
                    do jnode = 1,finite_element%reference_element_vars(m_var)%p%nnode
                       jdof = finite_element%elem2dof(jnode,m_var)
-                      if (  (.not. a%gr%symmetric_storage) .and. jdof > 0 ) then
-                         do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
-                            if ( a%gr%ja(k) == jdof ) exit
+                      if (  (.not. a%graph%symmetric_storage) .and. jdof > 0 ) then
+                         do k = a%graph%ia(idof),a%graph%ia(idof+1)-1
+                            if ( a%graph%ja(k) == jdof ) exit
                          end do
-                         assert ( k < a%gr%ia(idof+1) )
+                         assert ( k < a%graph%ia(idof+1) )
                          a%a(k) = a%a(k) + finite_element%p_mat%a(finite_element%start%a(l_var)+inode-1,finite_element%start%a(m_var)+jnode-1)
                       else if ( jdof >= idof ) then 
-                         do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
-                            if ( a%gr%ja(k) == jdof ) exit
+                         do k = a%graph%ia(idof),a%graph%ia(idof+1)-1
+                            if ( a%graph%ja(k) == jdof ) exit
                          end do
-                         assert ( k < a%gr%ia(idof+1) )
+                         assert ( k < a%graph%ia(idof+1) )
                          a%a(k) = a%a(k) + finite_element%p_mat%a(finite_element%start%a(l_var)+inode-1,finite_element%start%a(m_var)+jnode-1)
                       end if
                    end do
@@ -354,17 +354,17 @@ contains
                    iobje = fe_face%face_vef + finite_element(j)%p%p_geo_reference_element%nvef_dim(ndime) - 1
                    do jnode = finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%p(iobje),finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%p(iobje+1)-1
                       jdof = finite_element(j)%p%elem2dof(finite_element(j)%p%reference_element_vars(m_var)%p%ntxob%l(jnode),m_var)
-                      if (  (.not. a%gr%symmetric_storage) .and. jdof > 0 ) then
-                         do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
-                            if ( a%gr%ja(k) == jdof ) exit
+                      if (  (.not. a%graph%symmetric_storage) .and. jdof > 0 ) then
+                         do k = a%graph%ia(idof),a%graph%ia(idof+1)-1
+                            if ( a%graph%ja(k) == jdof ) exit
                          end do
-                         assert ( k < a%gr%ia(idof+1) )
+                         assert ( k < a%graph%ia(idof+1) )
                          a%a(k) = a%a(k) + fe_face%p_mat%a(finite_element(i)%p%start%a(l_var)+inode,finite_element(j)%p%start%a(m_var)+jnode-1)
                       else if ( jdof >= idof ) then 
-                         do k = a%gr%ia(idof),a%gr%ia(idof+1)-1
-                            if ( a%gr%ja(k) == jdof ) exit
+                         do k = a%graph%ia(idof),a%graph%ia(idof+1)-1
+                            if ( a%graph%ja(k) == jdof ) exit
                          end do
-                         assert ( k < a%gr%ia(idof+1) )
+                         assert ( k < a%graph%ia(idof+1) )
                          a%a(k) = a%a(k) + fe_face%p_mat%a(finite_element(i)%p%start%a(l_var)+inode,finite_element(j)%p%start%a(m_var)+jnode-1)
                       end if
                    end do

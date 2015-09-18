@@ -174,10 +174,10 @@ contains
     type(serial_scalar_array_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
     type(serial_scalar_array_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     ! Optional parameters
-!!$    integer , intent(inout), target, optional :: perm(A%gr%nv)
-!!$    integer , intent(inout), target, optional :: iperm(A%gr%nv)
-!!$    integer , intent(inout), target, optional :: mrp(A%gr%nv)
-!!$    real(8) , intent(inout), target, optional :: rmisc(A%gr%nv)
+!!$    integer , intent(inout), target, optional :: perm(A%graph%nv)
+!!$    integer , intent(inout), target, optional :: iperm(A%graph%nv)
+!!$    integer , intent(inout), target, optional :: mrp(A%graph%nv)
+!!$    real(8) , intent(inout), target, optional :: rmisc(A%graph%nv)
     integer , intent(inout), target, optional :: perm(*)
     integer , intent(inout), target, optional :: iperm(*)
     integer , intent(inout), target, optional :: mrp(*)
@@ -270,14 +270,14 @@ contains
 !    type(vector_t)  , intent(in)    :: b         ! RHS (Right-hand-side)
 !    type(vector_t)  , intent(inout) :: x         ! LHS (Left-hand-side)
     integer(ip)       , intent(in)            :: nrhs
-    real(rp)          , intent(in)    :: b (A%gr%nv, nrhs)
-    real(rp)          , intent(inout) :: x (A%gr%nv, nrhs)
+    real(rp)          , intent(in)    :: b (A%graph%nv, nrhs)
+    real(rp)          , intent(inout) :: x (A%graph%nv, nrhs)
 
     ! Optional parameters
-    integer , intent(inout), target, optional :: perm(A%gr%nv)
-    integer , intent(inout), target, optional :: iperm(A%gr%nv)
-    integer , intent(inout), target, optional :: mrp(A%gr%nv)
-    real(8) , intent(inout), target, optional :: rmisc(A%gr%nv)
+    integer , intent(inout), target, optional :: perm(A%graph%nv)
+    integer , intent(inout), target, optional :: iperm(A%graph%nv)
+    integer , intent(inout), target, optional :: mrp(A%graph%nv)
+    real(8) , intent(inout), target, optional :: rmisc(A%graph%nv)
     integer , intent(inout), target, optional :: iparm(64)
     real(8) , intent(inout), target, optional :: dparm(64)
 
@@ -305,14 +305,14 @@ contains
     integer(ip)       , intent(in)    :: action    ! Action to be performed 
                                                    ! (see public constants above)
     type(serial_scalar_matrix_t)  , intent(in)    :: A         ! Linear system coefficient matrix
-    real(rp)          , intent(in)    :: b (A%gr%nv)
-    real(rp)          , intent(inout) :: x (A%gr%nv)
+    real(rp)          , intent(in)    :: b (A%graph%nv)
+    real(rp)          , intent(inout) :: x (A%graph%nv)
 
     ! Optional parameters
-    integer , intent(inout), target, optional :: perm(A%gr%nv)
-    integer , intent(inout), target, optional :: iperm(A%gr%nv)
-    integer , intent(inout), target, optional :: mrp(A%gr%nv)
-    real(8) , intent(inout), target, optional :: rmisc(A%gr%nv)
+    integer , intent(inout), target, optional :: perm(A%graph%nv)
+    integer , intent(inout), target, optional :: iperm(A%graph%nv)
+    integer , intent(inout), target, optional :: mrp(A%graph%nv)
+    real(8) , intent(inout), target, optional :: rmisc(A%graph%nv)
     integer , intent(inout), target, optional :: iparm(64)
     real(8) , intent(inout), target, optional :: dparm(64)
 
@@ -529,8 +529,8 @@ contains
     ! Parameters 
     type(wsmp_context_t), intent(inout), target :: context
     type(serial_scalar_matrix_t)  , intent(in), target    :: matrix
-    integer, intent(inout), target, optional  :: perm(matrix%gr%nv)
-    integer, intent(inout), target, optional  :: iperm(matrix%gr%nv)
+    integer, intent(inout), target, optional  :: perm(matrix%graph%nv)
+    integer, intent(inout), target, optional  :: iperm(matrix%graph%nv)
     integer, intent(inout), target, optional  :: iparm(64)
     real   , intent(inout), target, optional  :: dparm(64)
     ! Locals
@@ -547,13 +547,13 @@ contains
     if ( present(perm) ) then
        context%perm => perm
     else
-       call memallocp (matrix%gr%nv, context%perm, __FILE__,__LINE__ )
+       call memallocp (matrix%graph%nv, context%perm, __FILE__,__LINE__ )
     end if
 
     if ( present(iperm) ) then
        context%iperm => iperm
     else
-       call memallocp (matrix%gr%nv, context%iperm, __FILE__,__LINE__ )
+       call memallocp (matrix%graph%nv, context%iperm, __FILE__,__LINE__ )
     end if
 
     if ( present(iparm) ) then
@@ -584,7 +584,7 @@ contains
 
        !write(*,*) 'Performing analysis', iparm_(31)
 
-       call wssmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
+       call wssmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, d1dum, &
             &      context%perm, context%iperm, d1dum, i0dum, nrhs, aux, &
             &      naux, i1dum, iparm_, dparm_)
 
@@ -609,7 +609,7 @@ contains
 
        a_ => matrix%a(:)
 
-       call wgsmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
+       call wgsmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, d1dum, &
             &      i0dum, nrhs, d1dum, iparm_, dparm_)
        ! call wgsmp (n, ia, ja, avals, b, ldb, nrhs, rmisc, iparm, dparm)
        ! n, ia, ja, avals in matrix
@@ -636,9 +636,9 @@ contains
     ! Parameters 
     type(wsmp_context_t), intent(inout),target :: context
     type(serial_scalar_matrix_t)  , intent(in), target   :: matrix
-    integer, intent(inout), target, optional :: perm(matrix%gr%nv)
-    integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
-    integer, intent(inout), target, optional :: mrp(matrix%gr%nv)
+    integer, intent(inout), target, optional :: perm(matrix%graph%nv)
+    integer, intent(inout), target, optional :: iperm(matrix%graph%nv)
+    integer, intent(inout), target, optional :: mrp(matrix%graph%nv)
     integer, intent(inout), target, optional :: iparm(64)
     real   , intent(inout), target, optional :: dparm(64)
     ! Locals
@@ -699,7 +699,7 @@ contains
        !write(*,*) 'Performing factorization', iparm_(31)
        !write (*,*) 'iparm_', iparm_
 
-       call wssmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
+       call wssmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, d1dum, &
             &      context%perm, context%iperm, d1dum, i0dum, nrhs, aux, &
             &      naux, mrp, iparm_, dparm_)
 
@@ -720,7 +720,7 @@ contains
        end if
 
     else 
-       call wgsmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
+       call wgsmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, d1dum, &
             &      i0dum, nrhs, d1dum, iparm_, dparm_)
        ! call wgsmp (n, ia, ja, avals, b, ldb, nrhs, rmisc, iparm, dparm)
        ! n, ia, ja, avals in matrix
@@ -751,11 +751,11 @@ contains
 !    type(vector_t)  , intent(in)   , target :: x
     type(serial_scalar_array_t)  , intent(in)            :: x
     type(serial_scalar_array_t)  , intent(inout), target :: y
-    integer, intent(inout), target, optional :: perm(matrix%gr%nv)
-    integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
+    integer, intent(inout), target, optional :: perm(matrix%graph%nv)
+    integer, intent(inout), target, optional :: iperm(matrix%graph%nv)
     integer, intent(inout), target, optional :: iparm(64)
     real   , intent(inout), target, optional :: dparm(64)
-    real   , intent(inout), target, optional :: rmisc(matrix%gr%nv)
+    real   , intent(inout), target, optional :: rmisc(matrix%graph%nv)
     ! Locals
     integer  :: i0dum, nrhs, naux, i, info
     real(8)  :: d0dum, aux 
@@ -825,8 +825,8 @@ contains
 
        write(*,*) 'Performing solution', iparm_(10), iparm_(31)
 
-       call wssmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
-            &      context%perm, context%iperm, y_, matrix%gr%nv, nrhs,  &
+       call wssmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, d1dum, &
+            &      context%perm, context%iperm, y_, matrix%graph%nv, nrhs,  &
             &      aux, naux, i1dum, iparm_, dparm_)
        ! call wssmp (n, ia, ja, avals, diag, perm, invp, b, ldb, nrhs,
        !             aux, naux, mrp, context%iparm, context%dparm)
@@ -851,8 +851,8 @@ contains
           rmisc_ => d1dum
        end if
 
-       call wgsmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, y_, &
-            &      matrix%gr%nv, nrhs, rmisc_, iparm_, dparm_)
+       call wgsmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, y_, &
+            &      matrix%graph%nv, nrhs, rmisc_, iparm_, dparm_)
        ! call wgsmp (n, ia, ja, avals, b, ldb, nrhs, rmisc, iparm, dparm)
        ! n, ia, ja, avals in matrix
        ! ldb=1 nrhs=1 b in vector 
@@ -879,13 +879,13 @@ contains
     ! Parameters 
     type(wsmp_context_t), intent(inout), target :: context
     type(serial_scalar_matrix_t)  , intent(in)   , target :: matrix
-    real(rp)          , intent(in)   , target :: rhs (matrix%gr%nv)
-    real(rp)          , intent(inout), target :: sol (matrix%gr%nv)
-    integer, intent(inout), target, optional :: perm(matrix%gr%nv)
-    integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
+    real(rp)          , intent(in)   , target :: rhs (matrix%graph%nv)
+    real(rp)          , intent(inout), target :: sol (matrix%graph%nv)
+    integer, intent(inout), target, optional :: perm(matrix%graph%nv)
+    integer, intent(inout), target, optional :: iperm(matrix%graph%nv)
     integer, intent(inout), target, optional :: iparm(64)
     real   , intent(inout), target, optional :: dparm(64)
-    real   , intent(inout), target, optional :: rmisc(matrix%gr%nv)
+    real   , intent(inout), target, optional :: rmisc(matrix%graph%nv)
     ! Locals
     integer  :: i0dum, naux, i, info
     real(8)  :: d0dum, aux 
@@ -944,8 +944,8 @@ contains
        ! Perform both ordering and symbolic factorizations
        ! They are different tasks in the symmetric version
        ! but the same task in the unsymmetric one.
-       call wssmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
-            &      context%perm, context%iperm, y_, matrix%gr%nv, nrhs,  &
+       call wssmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, d1dum, &
+            &      context%perm, context%iperm, y_, matrix%graph%nv, nrhs,  &
             &      aux, naux, i1dum, iparm_, dparm_)
        ! call wssmp (n, ia, ja, avals, diag, perm, invp, b, ldb, nrhs,
        !             aux, naux, mrp, context%iparm, context%dparm)
@@ -970,8 +970,8 @@ contains
           rmisc_ => d1dum
        end if
 
-       call wgsmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, y_, &
-            &      matrix%gr%nv, nrhs, rmisc_ , iparm_, dparm_)
+       call wgsmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, y_, &
+            &      matrix%graph%nv, nrhs, rmisc_ , iparm_, dparm_)
        ! call wgsmp (n, ia, ja, avals, b, ldb, nrhs, rmisc, iparm, dparm)
        ! n, ia, ja, avals in matrix
        ! ldb=1 nrhs=1 b in vector 
@@ -999,13 +999,13 @@ contains
     type(wsmp_context_t), intent(inout), target :: context
     type(serial_scalar_matrix_t)  , intent(in)   , target :: matrix
     integer(ip)       , intent(in)            :: nrhs
-    real(rp)          , intent(in)   , target :: rhs (matrix%gr%nv, nrhs)
-    real(rp)          , intent(inout), target :: sol (matrix%gr%nv, nrhs)
-    integer, intent(inout), target, optional :: perm(matrix%gr%nv)
-    integer, intent(inout), target, optional :: iperm(matrix%gr%nv)
+    real(rp)          , intent(in)   , target :: rhs (matrix%graph%nv, nrhs)
+    real(rp)          , intent(inout), target :: sol (matrix%graph%nv, nrhs)
+    integer, intent(inout), target, optional :: perm(matrix%graph%nv)
+    integer, intent(inout), target, optional :: iperm(matrix%graph%nv)
     integer, intent(inout), target, optional :: iparm(64)
     real   , intent(inout), target, optional :: dparm(64)
-    real   , intent(inout), target, optional :: rmisc(matrix%gr%nv)
+    real   , intent(inout), target, optional :: rmisc(matrix%graph%nv)
     ! Locals
     integer  :: i0dum, naux, i, info
     real(8)  :: d0dum, aux 
@@ -1067,8 +1067,8 @@ contains
        ! Perform both ordering and symbolic factorizations
        ! They are different tasks in the symmetric version
        ! but the same task in the unsymmetric one.
-       call wssmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, d1dum, &
-            &      context%perm, context%iperm, y_, matrix%gr%nv, nrhs,  &
+       call wssmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, d1dum, &
+            &      context%perm, context%iperm, y_, matrix%graph%nv, nrhs,  &
             &      aux, naux, i1dum, iparm_, dparm_)
        ! call wssmp (n, ia, ja, avals, diag, perm, invp, b, ldb, nrhs,
        !             aux, naux, mrp, context%iparm, context%dparm)
@@ -1093,8 +1093,8 @@ contains
           rmisc_ => d1dum
        end if
 
-       call wgsmp (matrix%gr%nv, matrix%gr%ia, matrix%gr%ja , a_, y_, &
-            &      matrix%gr%nv, nrhs, rmisc_ , iparm_, dparm_)
+       call wgsmp (matrix%graph%nv, matrix%graph%ia, matrix%graph%ja , a_, y_, &
+            &      matrix%graph%nv, nrhs, rmisc_ , iparm_, dparm_)
        ! call wgsmp (n, ia, ja, avals, b, ldb, nrhs, rmisc, iparm, dparm)
        ! n, ia, ja, avals in matrix
        ! ldb=1 nrhs=1 b in vector 

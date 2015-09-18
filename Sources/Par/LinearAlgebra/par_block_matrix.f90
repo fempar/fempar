@@ -29,41 +29,47 @@ module par_block_matrix_names
   ! Serial modules
   use types_names
   use memor_names
-  use graph_names
-  use serial_scalar_matrix_names
-  use vector_names
   use abstract_operator_names
+  use vector_names
 
   ! Parallel modules
-  use par_matrix_names
+  use par_environment_names
+  use par_scalar_matrix_names
   use par_scalar_array_names
-  use par_graph_names
-  use par_block_graph_names
   use par_block_array_names
+  use dof_distribution_names
+  use blocks_dof_distribution_names
 
   implicit none
 # include "debug.i90"
 
   private
 
-  ! Pointer to matrix
-  type p_par_matrix_t
-    type(par_matrix_t), pointer :: p_p_matrix
-  end type p_par_matrix_t
+  type p_par_scalar_matrix_t
+    type(par_scalar_matrix_t), pointer :: par_scalar_matrix
+  end type p_par_scalar_matrix_t
 
-
-  ! Block Matrix
   type, extends(abstract_operator_t) :: par_block_matrix_t
-!    private ! IBM XLF 14.1 bug
-    integer(ip)                     :: nblocks
-    type(p_par_matrix_t), allocatable :: blocks(:,:)
+    ! private ! IBM XLF 14.1 bug
+    integer(ip) :: nblocks
+    type(p_par_scalar_matrix_t), allocatable :: blocks(:,:)
   contains
-    procedure :: alloc                   => par_block_matrix_alloc
-    generic   :: alloc_block             => alloc_diagonal_block, alloc_offdiagonal_block
-	procedure :: alloc_diagonal_block    => par_block_matrix_alloc_diagonal_block
-    procedure :: alloc_offdiagonal_block => par_block_matrix_alloc_offdiagonal_block
+  
+    procedure, private :: par_block_matrix_create_only_blocks_container
+    procedure, private :: par_block_matrix_create_blocks_container_and_all_blocks
+    generic :: create  => par_block_matrix_create_only_blocks_container, &
+	                      par_block_matrix_create_blocks_container_and_all_blocks
+						  
+	procedure, private :: par_block_matrix_create_diagonal_block
+	procedure, private :: par_block_matrix_create_offdiagonal_block
+    generic :: create_block => par_block_matrix_create_diagonal_block, &
+	                           par_block_matrix_create_offdiagonal_block
+							 
+	procedure  :: allocate => par_block_matrix_allocate
+  
     procedure :: set_block_to_zero       => par_block_matrix_set_block_to_zero
-    procedure :: free                    => par_block_matrix_free_tbp
+    procedure :: free                    => par_block_matrix_free_in_one_shot
+	procedure :: free_in_stages          => par_block_matrix_free_in_stages
     procedure :: get_block               => par_block_matrix_get_block
     procedure :: get_nblocks             => par_block_matrix_get_nblocks
     procedure :: apply                   => par_block_matrix_apply
@@ -76,79 +82,132 @@ module par_block_matrix_names
 contains
 
   !=============================================================================
-  subroutine par_block_matrix_alloc (bmat,bgraph,diagonal_blocks_symmetric,sign_diagonal_blocks)
+  subroutine par_block_matrix_create_blocks_container_and_all_blocks(this, & 
+																	 blocks_dof_distribution, & 
+																	 diagonal_blocks_symmetric_storage, & 
+																	 diagonal_blocks_symmetric,& 
+																	 diagonal_blocks_sign)
     implicit none
-    ! Parameters
-    class(par_block_matrix_t), intent(inout) :: bmat
-    type(par_block_graph_t)  , intent(in)    :: bgraph
-	logical                  , intent(in)    :: diagonal_blocks_symmetric(:)
-    integer(ip)              , intent(in)    :: sign_diagonal_blocks(:)
+    class(par_block_matrix_t)      , intent(out) :: this
+	type(blocks_dof_distribution_t), intent(in)  :: blocks_dof_distribution
+	logical                        , intent(in)  :: diagonal_blocks_symmetric_storage(blocks_dof_distribution%nblocks)
+    logical                        , intent(in)  :: diagonal_blocks_symmetric(blocks_dof_distribution%nblocks)
+    integer(ip)                    , intent(in)  :: diagonal_blocks_sign(blocks_dof_distribution%nblocks)
 
-    ! Locals
-    integer(ip) :: ib,jb
-    type(par_graph_t), pointer :: p_graph
+    integer(ip) :: ib,jb,istat
 
-    assert ( size(diagonal_blocks_symmetric) == bgraph%get_nblocks() )
-    assert ( size(sign_diagonal_blocks) == bgraph%get_nblocks() )
-
-    bmat%nblocks = bgraph%get_nblocks()
-    allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks) )
-
-    do ib=1, bmat%nblocks
-      do jb=1, bmat%nblocks
-           p_graph => bgraph%blocks(ib,jb)%p_p_graph
-           if (associated(p_graph)) then
-             allocate ( bmat%blocks(ib,jb)%p_p_matrix )
-             if ( ib == jb ) then
-               call par_matrix_alloc ( diagonal_blocks_symmetric(ib), p_graph, bmat%blocks(ib,jb)%p_p_matrix, sign_diagonal_blocks(ib) )
-             else
-               call par_matrix_alloc ( .false., p_graph, bmat%blocks(ib,jb)%p_p_matrix )
-             end if
-          else
-             nullify ( bmat%blocks(ib,jb)%p_p_matrix )
-          end if
+    call this%create(blocks_dof_distribution%nblocks)
+    do ib=1, this%nblocks 
+       do jb=1, this%nblocks
+         allocate ( this%blocks(ib,jb)%par_scalar_matrix )
+         if ( ib == jb ) then
+           call this%blocks(ib,jb)%par_scalar_matrix%create( diagonal_blocks_symmetric_storage(ib), & 
+															 diagonal_blocks_symmetric(ib), & 
+															 diagonal_blocks_sign(ib), &
+															 blocks_dof_distribution%get_block(ib),&
+															 blocks_dof_distribution%p_env )
+         else
+           call this%blocks(ib,jb)%par_scalar_matrix%create(blocks_dof_distribution%get_block(ib), &
+															blocks_dof_distribution%get_block(jb), &
+														    blocks_dof_distribution%p_env )
+         end if
        end do
     end do
-  end subroutine par_block_matrix_alloc
-
-  subroutine par_block_matrix_alloc_diagonal_block (bmat,ib,p_graph,diagonal_block_symmetric,diagonal_block_sign)
-    implicit none
-    ! Parameters
-    class(par_block_matrix_t),   target  , intent(inout) :: bmat
-    integer(ip)                          , intent(in)    :: ib
-    type(par_graph_t)                    , intent(in)    :: p_graph
-	logical                              , intent(in)    :: diagonal_block_symmetric
-    integer(ip)                          , intent(in)    :: diagonal_block_sign
-    assert ( associated ( bmat%blocks(ib,ib)%p_p_matrix ) )
-    if ( .not. associated( bmat%blocks(ib,ib)%p_p_matrix) ) then
-       allocate ( bmat%blocks(ib,ib)%p_p_matrix )
-       call par_matrix_alloc ( diagonal_block_symmetric, p_graph, bmat%blocks(ib,ib)%p_p_matrix, diagonal_block_sign )
-    end if
-  end subroutine par_block_matrix_alloc_diagonal_block
+  end subroutine par_block_matrix_create_blocks_container_and_all_blocks
   
-    subroutine par_block_matrix_alloc_offdiagonal_block (bmat,ib,jb,p_graph)
+  !=============================================================================
+  subroutine par_block_matrix_create_only_blocks_container(this,nblocks)
     implicit none
     ! Parameters
-    class(par_block_matrix_t),   target  , intent(inout) :: bmat
-    integer(ip)                          , intent(in)    :: ib,jb
-    type(par_graph_t)                    , intent(in)    :: p_graph
-    assert ( associated ( bmat%blocks(ib,ib)%p_p_matrix ) )
-    if ( .not. associated( bmat%blocks(ib,ib)%p_p_matrix) ) then
-       allocate ( bmat%blocks(ib,ib)%p_p_matrix )
-       call par_matrix_alloc ( .false., p_graph, bmat%blocks(ib,ib)%p_p_matrix )
-    end if
-  end subroutine par_block_matrix_alloc_offdiagonal_block
+    class(par_block_matrix_t), intent(out) :: this
+	integer(ip)              , intent(in)  :: nblocks
+	integer(ip) :: istat
+    this%nblocks = nblocks
+    allocate ( this%blocks(this%nblocks,this%nblocks), stat=istat )
+	check (istat==0)
+  end subroutine par_block_matrix_create_only_blocks_container
+  
+  !=============================================================================
+  subroutine par_block_matrix_create_diagonal_block(this, & 
+													ib, &
+							                        dof_distribution, &
+													p_env, &
+													symmetric_storage, & 
+													is_symmetric,& 
+													sign)
+    implicit none
+    class(par_block_matrix_t)      , intent(out) :: this
+	integer(ip)                    , intent(in)  :: ib
+	type(dof_distribution_t)       , intent(in)  :: dof_distribution
+	type(par_environment_t)        , intent(in)  :: p_env
+	logical                        , intent(in)  :: symmetric_storage
+    logical                        , intent(in)  :: is_symmetric
+    integer(ip)                    , intent(in)  :: sign
 
-  subroutine par_block_matrix_set_block_to_zero (bmat,ib,jb)
+    integer(ip) :: istat
+
+	assert ( associated ( this%blocks(ib,ib)%par_scalar_matrix ) )
+    allocate ( this%blocks(ib,ib)%par_scalar_matrix, stat=istat )
+	check ( istat==0 )
+	
+    call this%blocks(ib,ib)%par_scalar_matrix%create( symmetric_storage, & 
+												      is_symmetric, & 
+													  sign, &
+													  dof_distribution,&
+													  p_env )
+	end subroutine par_block_matrix_create_diagonal_block
+	
+  !=============================================================================
+  subroutine par_block_matrix_create_offdiagonal_block(this, & 
+													   ib, &
+							                           dof_distribution, &
+													   dof_distribution_cols, &
+													   p_env )
+    implicit none
+    class(par_block_matrix_t)      , intent(out) :: this
+	integer(ip)                    , intent(in)  :: ib
+	type(dof_distribution_t)       , intent(in)  :: dof_distribution
+	type(dof_distribution_t)       , intent(in)  :: dof_distribution_cols
+	type(par_environment_t)        , intent(in)  :: p_env
+
+    integer(ip) :: istat
+
+	assert ( associated ( this%blocks(ib,ib)%par_scalar_matrix ) )
+    allocate ( this%blocks(ib,ib)%par_scalar_matrix, stat=istat )
+	check ( istat==0 )
+	
+    call this%blocks(ib,ib)%par_scalar_matrix%create( dof_distribution,&
+													  dof_distribution_cols,&
+													  p_env )
+
+  end subroutine par_block_matrix_create_offdiagonal_block
+  
+  !=============================================================================
+  subroutine par_block_matrix_allocate(this)
+    implicit none
+    class(par_block_matrix_t), intent(inout) :: this
+    integer(ip) :: ib,jb
+	
+    do ib=1, this%nblocks
+       do jb=1, this%nblocks
+         if ( associated( this%blocks(ib,jb)%par_scalar_matrix ) ) then
+           call this%blocks(ib,jb)%par_scalar_matrix%allocate()
+		 end if
+       end do
+    end do
+  end subroutine par_block_matrix_allocate
+  
+  !=============================================================================
+  subroutine par_block_matrix_set_block_to_zero (this,ib,jb)
     implicit none
     ! Parameters
-    class(par_block_matrix_t), intent(inout) :: bmat
+    class(par_block_matrix_t), intent(inout) :: this
     integer(ip)           , intent(in)  :: ib,jb
 
-    if ( associated(bmat%blocks(ib,jb)%p_p_matrix) ) then
-       call par_matrix_free( bmat%blocks(ib,jb)%p_p_matrix )
-       deallocate (bmat%blocks(ib,jb)%p_p_matrix)
-       nullify ( bmat%blocks(ib,jb)%p_p_matrix )
+    if ( associated(this%blocks(ib,jb)%par_scalar_matrix) ) then
+       call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_clean)
+       deallocate (this%blocks(ib,jb)%par_scalar_matrix)
+       nullify ( this%blocks(ib,jb)%par_scalar_matrix )
     end if
 
   end subroutine par_block_matrix_set_block_to_zero
@@ -158,9 +217,9 @@ contains
     ! Parameters
     class(par_block_matrix_t), target, intent(in) :: bmat
     integer(ip)                    , intent(in) :: ib,jb
-    type(par_matrix_t)               , pointer    :: par_block_matrix_get_block
+    type(par_scalar_matrix_t)               , pointer    :: par_block_matrix_get_block
 
-    par_block_matrix_get_block =>  bmat%blocks(ib,jb)%p_p_matrix
+    par_block_matrix_get_block =>  bmat%blocks(ib,jb)%par_scalar_matrix
   end function par_block_matrix_get_block
 
   function par_block_matrix_get_nblocks (bmat)
@@ -171,67 +230,6 @@ contains
     par_block_matrix_get_nblocks = bmat%nblocks
   end function par_block_matrix_get_nblocks
 
-
-  subroutine par_block_matrix_print (lunou, p_b_matrix)
-    implicit none
-    type(par_block_matrix_t), intent(in)    :: p_b_matrix
-    integer(ip)           , intent(in)    :: lunou
-    integer(ip)                           :: i
-
-    check(.false.)
-  end subroutine par_block_matrix_print
-
-  !=============================================================================
-  subroutine par_block_matrix_free (p_b_matrix)
-    implicit none
-    class(par_block_matrix_t), intent(inout) :: p_b_matrix
-    integer(ip) :: ib,jb
-
-    do ib=1, p_b_matrix%nblocks
-       do jb=1, p_b_matrix%nblocks
-          if ( associated(p_b_matrix%blocks(ib,jb)%p_p_matrix) ) then
-             call par_matrix_free( p_b_matrix%blocks(ib,jb)%p_p_matrix )
-             deallocate (p_b_matrix%blocks(ib,jb)%p_p_matrix) 
-          end if
-       end do
-    end do
-
-    p_b_matrix%nblocks = 0
-    deallocate ( p_b_matrix%blocks )
-  
-  end subroutine par_block_matrix_free
-
-  subroutine par_block_matvec (a, x, y)
-    implicit none
-    ! Parameters
-    type(par_block_matrix_t), intent(in)    :: a
-    type(par_block_array_t), intent(in)    :: x
-    type(par_block_array_t), intent(inout) :: y
-
-    ! Locals
-    type(par_scalar_array_t)       :: aux
-    integer(ip)            :: ib, jb
-
-    assert ( a%nblocks == x%nblocks )
-    assert ( a%nblocks == y%nblocks )     
-
-
-    do ib=1, a%nblocks
-       y%blocks(ib)%state = part_summed
-       call y%blocks(ib)%init(0.0_rp)
-       call aux%clone ( y%blocks(ib) ) 
-       do jb=1, a%nblocks
-          if ( associated(a%blocks(ib,jb)%p_p_matrix) ) then
-             ! aux <- A(ib,jb) * x(jb)
-             call par_matvec ( a%blocks(ib,jb)%p_p_matrix, x%blocks(jb), aux ) 
-
-             ! y(ib) <- y(ib) + aux 
-             call y%blocks(ib)%axpby ( 1.0_rp, aux, 1.0_rp )
-          end if
-       end do
-       call aux%free()
-    end do
-  end subroutine par_block_matvec
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
@@ -254,9 +252,9 @@ contains
           do ib=1,op%nblocks
              call aux%clone(y%blocks(ib))
              do jb=1,op%nblocks
-                if ( associated(op%blocks(ib,jb)%p_p_matrix) ) then
+                if ( associated(op%blocks(ib,jb)%par_scalar_matrix) ) then
                    ! aux <- A(ib,jb) * x(jb)
-                   call par_matvec(op%blocks(ib,jb)%p_p_matrix,x%blocks(jb),aux)
+                   call op%blocks(ib,jb)%par_scalar_matrix%apply(x%blocks(jb),aux)
                    ! y(ib) <- y(ib) + aux
                    call y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
                 end if
@@ -296,7 +294,7 @@ contains
           call aux%clone(local_y%blocks(ib))
           do jb=1,op%nblocks
              ! aux <- A(ib,jb) * x(jb)
-             call par_matvec(op%blocks(ib,jb)%p_p_matrix,x%blocks(jb),aux)
+             call op%blocks(ib,jb)%par_scalar_matrix%apply(x%blocks(jb),aux)
              ! y(ib) <- y(ib) + aux
              call local_y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
           end do
@@ -309,23 +307,42 @@ contains
        check(1==0)
     end select
   end function par_block_matrix_apply_fun
-
-  subroutine par_block_matrix_free_tbp(this)
+  
+    subroutine par_block_matrix_free_in_one_shot(this)
     implicit none
     class(par_block_matrix_t), intent(inout) :: this
     integer(ip) :: ib,jb
+    call this%free_in_stages(free_values)
+	call this%free_in_stages(free_struct)
+	call this%free_in_stages(free_clean)
+  end subroutine par_block_matrix_free_in_one_shot
+  
+    subroutine par_block_matrix_free_in_stages(this,action)
+    implicit none
+    class(par_block_matrix_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: action
+    integer(ip) :: ib,jb, istat
 
     do ib=1, this%nblocks 
        do jb=1, this%nblocks
-          if ( associated(this%blocks(ib,jb)%p_p_matrix) ) then
-             call par_matrix_free( this%blocks(ib,jb)%p_p_matrix )
-             deallocate (this%blocks(ib,jb)%p_p_matrix) 
+          if ( associated(this%blocks(ib,jb)%par_scalar_matrix) ) then
+		    if ( action == free_clean ) then
+			  call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_clean)
+			  deallocate (this%blocks(ib,jb)%par_scalar_matrix, stat=istat)
+			  check(istat==0)
+            else if ( action == free_struct ) then 
+			  call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_struct)
+            else if ( action == free_values ) then
+			  call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_values)
+            end if
           end if
        end do
     end do
-
-    this%nblocks = -1 
-    deallocate ( this%blocks ) 
-  end subroutine par_block_matrix_free_tbp
+	if (action == free_clean) then
+	   this%nblocks = 0
+	   deallocate ( this%blocks, stat=istat)
+	   check(istat==0)
+	end if
+  end subroutine par_block_matrix_free_in_stages
 
 end module par_block_matrix_names

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module block_dof_distribution_create_names
+module block_dof_distribution_setup_names
   ! Serial modules
   use types_names
   use memor_names
@@ -39,7 +39,7 @@ module block_dof_distribution_create_names
   use hash_table_names
 
   ! Parallel modules
-  use block_dof_distribution_names
+  use blocks_dof_distribution_names
   use dof_distribution_names  
   use par_triangulation_names
   use par_fe_space_names
@@ -50,7 +50,7 @@ module block_dof_distribution_create_names
   private
 
   ! Functions
-  public :: block_dof_distribution_create, create_int_objs, create_omap
+  public :: block_dof_distribution_setup, create_int_objs, create_omap
 
 contains
 
@@ -79,13 +79,13 @@ contains
   ! There is currently a dG part list_interface_dofs_by_face_integration but it does
   ! not work yet, since we are facing some issues (see issue #29 in SERVERCOMFUS)
   !*********************************************************************************
-  subroutine block_dof_distribution_create( p_trian, p_fe_space, blk_dof_dist)
+  subroutine block_dof_distribution_setup( p_trian, p_fe_space, blocks_dof_dist)
     implicit none
 
     ! Parameters
     type(par_triangulation_t)     , intent(in)     :: p_trian
     type(par_fe_space_t)         , intent(inout)  :: p_fe_space
-    type(block_dof_distribution_t), intent(inout)  :: blk_dof_dist
+    type(blocks_dof_distribution_t), intent(inout)  :: blocks_dof_dist
 
     ! Locals
     integer(ip)               :: i, j, k, iobj, ielem, jelem, iprob, nvapb, l_var, g_var, mater, obje_l, idof, g_dof, g_mat, l_pos, iblock, ivars
@@ -188,8 +188,8 @@ contains
                &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
 
           ! Initialize trivial components of blk_dof_dist%blocks(iblock)
-          blk_dof_dist%blocks(iblock)%ipart  = ipart
-          blk_dof_dist%blocks(iblock)%nparts = nparts
+          blocks_dof_dist%blocks(iblock)%ipart  = ipart
+          blocks_dof_dist%blocks(iblock)%nparts = nparts
 
           ! Transfer interface DOFs to dofs_object array (already w/ interiors)
           if ( count_interior + count_object_dof /= p_fe_space%fe_space%ndofs(iblock) ) then
@@ -207,12 +207,12 @@ contains
           call psb_max ( p_trian%p_env%p_context%icontxt, max_nparts )
 
           ! Initialize max_nparts for blk_dof_dist%blocks(iblock)%npadj
-          blk_dof_dist%blocks(iblock)%max_nparts = max_nparts
+          blocks_dof_dist%blocks(iblock)%max_nparts = max_nparts
 
           ! Initialize npadj/lpadj for blk_dof_dist%blocks(iblock)%npadj
-          blk_dof_dist%blocks(iblock)%npadj = npadj
-          call memalloc ( blk_dof_dist%blocks(iblock)%npadj, blk_dof_dist%blocks(iblock)%lpadj, __FILE__, __LINE__ )
-          blk_dof_dist%blocks(iblock)%lpadj = ws_parts_visited_list_all(1:blk_dof_dist%blocks(iblock)%npadj)
+          blocks_dof_dist%blocks(iblock)%npadj = npadj
+          call memalloc ( blocks_dof_dist%blocks(iblock)%npadj, blocks_dof_dist%blocks(iblock)%lpadj, __FILE__, __LINE__ )
+          blocks_dof_dist%blocks(iblock)%lpadj = ws_parts_visited_list_all(1:blocks_dof_dist%blocks(iblock)%npadj)
 
           ! Re-number boundary DoFs in increasing order by physical unknown identifier, the 
           ! number of parts they belong and, for DoFs sharing the same number of parts,
@@ -266,27 +266,27 @@ contains
 
           ! Reallocate lobjs and add internal object first
           nobjs = nobjs + 1
-          blk_dof_dist%blocks(iblock)%nobjs = nobjs
-          call memalloc (max_nparts+4, nobjs, blk_dof_dist%blocks(iblock)%lobjs,__FILE__,__LINE__)
-          blk_dof_dist%blocks(iblock)%lobjs = 0
+          blocks_dof_dist%blocks(iblock)%nobjs = nobjs
+          call memalloc (max_nparts+4, nobjs, blocks_dof_dist%blocks(iblock)%lobjs,__FILE__,__LINE__)
+          blocks_dof_dist%blocks(iblock)%lobjs = 0
 
 
           ! Internal object
-          blk_dof_dist%blocks(iblock)%lobjs (1,1) = -1
-          blk_dof_dist%blocks(iblock)%lobjs (2,1) = 1
-          blk_dof_dist%blocks(iblock)%lobjs (3,1) = count_interior
-          blk_dof_dist%blocks(iblock)%lobjs (4,1) = 1
-          blk_dof_dist%blocks(iblock)%lobjs (5,1) = ipart
-          blk_dof_dist%blocks(iblock)%lobjs (6:max_nparts+4,1) = 0
+          blocks_dof_dist%blocks(iblock)%lobjs (1,1) = -1
+          blocks_dof_dist%blocks(iblock)%lobjs (2,1) = 1
+          blocks_dof_dist%blocks(iblock)%lobjs (3,1) = count_interior
+          blocks_dof_dist%blocks(iblock)%lobjs (4,1) = 1
+          blocks_dof_dist%blocks(iblock)%lobjs (5,1) = ipart
+          blocks_dof_dist%blocks(iblock)%lobjs (6:max_nparts+4,1) = 0
 
           ! Copy ws_lobjs_temp to lobjs ...
           do i=1,nobjs-1
-             blk_dof_dist%blocks(iblock)%lobjs(:,i+1)=ws_lobjs_temp(1:(max_nparts+4), i)
+             blocks_dof_dist%blocks(iblock)%lobjs(:,i+1)=ws_lobjs_temp(1:(max_nparts+4), i)
           end do
 
-          blk_dof_dist%blocks(iblock)%nl = blk_dof_dist%blocks(iblock)%lobjs (3,nobjs)
-          blk_dof_dist%blocks(iblock)%ni = blk_dof_dist%blocks(iblock)%lobjs (3,1)
-          blk_dof_dist%blocks(iblock)%nb = blk_dof_dist%blocks(iblock)%nl - blk_dof_dist%blocks(iblock)%ni
+          blocks_dof_dist%blocks(iblock)%nl = blocks_dof_dist%blocks(iblock)%lobjs (3,nobjs)
+          blocks_dof_dist%blocks(iblock)%ni = blocks_dof_dist%blocks(iblock)%lobjs (3,1)
+          blocks_dof_dist%blocks(iblock)%nb = blocks_dof_dist%blocks(iblock)%nl - blocks_dof_dist%blocks(iblock)%ni
 
           call memfree ( ws_lobjs_temp,__FILE__,__LINE__)
 
@@ -345,31 +345,31 @@ contains
           call memfree ( dofs_object,__FILE__,__LINE__)
 
           call create_int_objs ( ipart, &
-               blk_dof_dist%blocks(iblock)%npadj, &
-               blk_dof_dist%blocks(iblock)%lpadj, &
-               blk_dof_dist%blocks(iblock)%max_nparts , &
-               blk_dof_dist%blocks(iblock)%nobjs      , &
-               blk_dof_dist%blocks(iblock)%lobjs      , &
-               blk_dof_dist%blocks(iblock)%int_objs%n , &
-               blk_dof_dist%blocks(iblock)%int_objs%p , &
-               blk_dof_dist%blocks(iblock)%int_objs%l ) 
+               blocks_dof_dist%blocks(iblock)%npadj, &
+               blocks_dof_dist%blocks(iblock)%lpadj, &
+               blocks_dof_dist%blocks(iblock)%max_nparts , &
+               blocks_dof_dist%blocks(iblock)%nobjs      , &
+               blocks_dof_dist%blocks(iblock)%lobjs      , &
+               blocks_dof_dist%blocks(iblock)%int_objs%n , &
+               blocks_dof_dist%blocks(iblock)%int_objs%p , &
+               blocks_dof_dist%blocks(iblock)%int_objs%l ) 
 
           call create_omap ( p_trian%p_env%p_context%icontxt    , & ! Communication context
                p_trian%p_env%p_context%iam         , &
                p_trian%p_env%p_context%np         , &
-               blk_dof_dist%blocks(iblock)%npadj, &
-               blk_dof_dist%blocks(iblock)%lpadj, & 
-               blk_dof_dist%blocks(iblock)%int_objs%p, &  
-               blk_dof_dist%blocks(iblock)%int_objs%l, &
-               blk_dof_dist%blocks(iblock)%max_nparts , & 
-               blk_dof_dist%blocks(iblock)%nobjs      , & 
-               blk_dof_dist%blocks(iblock)%lobjs      , &
-               blk_dof_dist%blocks(iblock)%omap%nl,     &
-               blk_dof_dist%blocks(iblock)%omap%ng,     &
-               blk_dof_dist%blocks(iblock)%omap%ni,     &
-               blk_dof_dist%blocks(iblock)%omap%nb,     &
-               blk_dof_dist%blocks(iblock)%omap%ne,     &
-               blk_dof_dist%blocks(iblock)%omap%l2g )
+               blocks_dof_dist%blocks(iblock)%npadj, &
+               blocks_dof_dist%blocks(iblock)%lpadj, & 
+               blocks_dof_dist%blocks(iblock)%int_objs%p, &  
+               blocks_dof_dist%blocks(iblock)%int_objs%l, &
+               blocks_dof_dist%blocks(iblock)%max_nparts , & 
+               blocks_dof_dist%blocks(iblock)%nobjs      , & 
+               blocks_dof_dist%blocks(iblock)%lobjs      , &
+               blocks_dof_dist%blocks(iblock)%omap%nl,     &
+               blocks_dof_dist%blocks(iblock)%omap%ng,     &
+               blocks_dof_dist%blocks(iblock)%omap%ni,     &
+               blocks_dof_dist%blocks(iblock)%omap%nb,     &
+               blocks_dof_dist%blocks(iblock)%omap%ne,     &
+               blocks_dof_dist%blocks(iblock)%omap%l2g )
 
           call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
           call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
@@ -379,13 +379,13 @@ contains
 
           ! Compute dof_import_t instance within dof_dist instance such that 
           ! DoF nearest neighbour exchanges can be performed 
-          call dof_distribution_compute_import(blk_dof_dist%blocks(iblock))
+          call dof_distribution_compute_import(blocks_dof_dist%blocks(iblock))
 
           ! call dof_distribution_print ( 6, blk_dof_dist%blocks(iblock) )
        end do
     end if
 
-  end subroutine block_dof_distribution_create
+  end subroutine block_dof_distribution_setup
 
   subroutine create_int_objs ( ipart      , &
        npadj      , &
@@ -1219,4 +1219,4 @@ contains
 
   end function local_node
 
-end module block_dof_distribution_create_names
+end module block_dof_distribution_setup_names

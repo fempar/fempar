@@ -30,7 +30,6 @@ module serial_block_array_names
   use memor_names
   use serial_scalar_array_names
   use vector_names
-  use block_graph_names
   use graph_names
   implicit none
 # include "debug.i90"
@@ -42,12 +41,13 @@ module serial_block_array_names
      integer(ip)                              :: nblocks = 0
      type(serial_scalar_array_t), allocatable :: blocks(:)
    contains
+     procedure, private :: serial_block_array_create_only_blocks_container
+	 procedure, private :: serial_block_array_create_blocks_container_and_all_blocks
+     generic :: create => serial_block_array_create_only_blocks_container, &
+	                      serial_block_array_create_blocks_container_and_all_blocks
+						  
      procedure :: create_view => serial_block_array_create_view
-     procedure, private :: serial_block_array_create_from_nblocks
-	 procedure, private :: serial_block_array_create_from_block_graph
-     generic :: create => serial_block_array_create_from_nblocks, & 
-	                      serial_block_array_create_from_block_graph
-     procedure :: print => 	serial_block_array_print						
+     procedure :: print => 	serial_block_array_print			
 
      procedure :: dot  => serial_block_array_dot
      procedure :: copy => serial_block_array_copy
@@ -65,43 +65,45 @@ module serial_block_array_names
 
 contains
 
-  !=============================================================================
-  subroutine serial_block_array_create_from_block_graph(this, bgraph)
-    implicit none
-    class(serial_block_array_t), intent(out) :: this
-    type(block_graph_t) , intent(in)  :: bgraph
-    integer(ip)  :: ib
-    type(graph_t), pointer :: f_graph
-    
-    this%nblocks = bgraph%get_nblocks()
-    allocate ( this%blocks(this%nblocks) )
-    do ib=1, this%nblocks
-       f_graph => bgraph%get_block(ib,ib)
-       call this%blocks(ib)%create(f_graph%nv)
-    end do
-
-  end subroutine serial_block_array_create_from_block_graph
-
-  !=============================================================================
-  subroutine serial_block_array_create_from_nblocks(this,nblocks)
+!=============================================================================
+  subroutine serial_block_array_create_only_blocks_container(this,nblocks)
     implicit none
     class(serial_block_array_t), intent(out) :: this
     integer(ip)                , intent(in)  :: nblocks
+	
+	integer(ip) :: istat
+
     this%nblocks = nblocks
-    allocate ( this%blocks(nblocks) )
-  end subroutine serial_block_array_create_from_nblocks
+    allocate ( this%blocks(nblocks), stat=istat )
+	check ( istat == 0 )
+  end subroutine serial_block_array_create_only_blocks_container
+  
+  !=============================================================================
+  subroutine serial_block_array_create_blocks_container_and_all_blocks(this,nblocks,size_of_blocks)
+    implicit none
+    class(serial_block_array_t), intent(out) :: this
+    integer(ip)                , intent(in)  :: nblocks
+	integer(ip)                , intent(in)  :: size_of_blocks(nblocks)
+	
+	integer(ip) :: istat
+    integer(ip) :: ib
+
+    call this%create(nblocks)
+	
+    do ib=1, this%nblocks
+      call this%blocks(ib)%create(size_of_blocks(ib))
+    end do 
+	
+  end subroutine serial_block_array_create_blocks_container_and_all_blocks
 
   !=============================================================================
   subroutine serial_block_array_create_view (this, start, end, tvec)
     implicit none
-    ! Parameters
     class(serial_block_array_t), intent(in) :: this
     integer(ip)                , intent(in) :: start
     integer(ip)                , intent(in) :: end
     type(serial_block_array_t), intent(out) :: tvec
- 
-    ! Locals
-    integer(ip) :: ib
+    integer(ip) :: istat, ib
 
     call tvec%create(this%nblocks)
 

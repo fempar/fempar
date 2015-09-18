@@ -126,7 +126,7 @@ contains
     end do
 
     call mesh_free(dual_femesh)
-    call graph_free(fe_graph)
+    call fe_graph%free()
     call memfree(ldome,__FILE__,__LINE__)
   end subroutine create_mesh_distribution
 

@@ -47,12 +47,10 @@ module par_names
 
   ! Linear algebra
   use par_scalar_array_names
-  use par_matrix_names
-  use par_graph_names
+  use par_scalar_matrix_names
   use par_block_matrix_names
   use par_block_array_names
-  use par_block_graph_names
-  use block_dof_distribution_names
+  use blocks_dof_distribution_names
   use par_dd_base_names
   use par_preconditioner_dd_diagonal_names
   use par_preconditioner_dd_mlevel_bddc_names
