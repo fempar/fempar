@@ -122,8 +122,8 @@ contains
   ! together with some optional flags. The output of this subroutine is a fe_space
   ! with the required info on ghost elements.
   !*********************************************************************************
-  subroutine par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, p_cond, continuity, order,     &
-                                    material, time_steps_to_store, hierarchical_basis, &
+  subroutine par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, p_cond, continuity, enable_face_integration,  &
+                                    order, material,  time_steps_to_store, hierarchical_basis, &
                                     static_condensation, num_continuity )
     implicit none
     ! Dummy arguments
@@ -133,12 +133,14 @@ contains
     integer(ip)                    , intent(in)      :: problem(:)
     type(par_conditions_t)           , intent(in)    :: p_cond
     integer(ip)                    , intent(in)      :: continuity(:,:)
+	logical                        , intent(in)    :: enable_face_integration(:,:)
     integer(ip)                    , intent(in)      :: order(:,:)
     integer(ip)                    , intent(in)      :: material(:)
     integer(ip)          , optional, intent(in)      :: time_steps_to_store
     logical          , optional, intent(in)          :: hierarchical_basis
     logical          , optional, intent(in)          :: static_condensation
     integer(ip)          , optional, intent(in)      :: num_continuity   
+
     
     ! Local variables
     integer(ip) :: istat
@@ -154,7 +156,9 @@ contains
             static_condensation = static_condensation, num_continuity = num_continuity, &
             num_ghosts = p_trian%num_ghosts ) 
 
-       call fe_space_fe_list_create ( p_fe_space%fe_space, problem, continuity, order, material, p_cond%f_conditions )
+       call fe_space_fe_list_create ( p_fe_space%fe_space, problem, continuity, enable_face_integration, &
+            &                         order, material, p_cond%f_conditions )
+
        ! Communicate problem, continuity, order, and material
        call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_fe_space%fe_space%finite_elements )
        ! Create ghost fem space (only partially, i.e., previous info)

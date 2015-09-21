@@ -139,6 +139,7 @@ program par_test_nsi_iss
   integer(ip), allocatable :: id_parts(:)
   integer(ip), allocatable :: num_parts(:)
   integer(ip), allocatable :: continuity(:,:)
+  logical    , allocatable :: enable_face_integration(:,:)
   integer(ip), allocatable :: order(:,:)
   integer(ip), allocatable :: material(:)
   integer(ip), allocatable :: problem(:)
@@ -212,18 +213,20 @@ program par_test_nsi_iss
 
   ! Allocate auxiliar elemental arrays
   call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,continuity, __FILE__,__LINE__)
+  call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,enable_face_integration, __FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,dof_descriptor%nvars_global,order,__FILE__,__LINE__)
   call memalloc(p_trian%f_trian%num_elems,problem,__FILE__,__LINE__)
   continuity             = 1
+  enable_face_integration = .false.
   order(:,1:gdata%ndime) = 2
   order(:,gdata%ndime+1) = 1
   problem                = 1
 
   ! Create par_fe_space
-  call par_fe_space_create(p_trian,dof_descriptor,p_fe_space,problem,p_cond,continuity,order,material, &
-       &                   time_steps_to_store=3,                             &
-       &                   hierarchical_basis=.false.,                         &
-       &                   static_condensation=.false.,num_continuity=1)
+  call par_fe_space_create(p_trian,dof_descriptor,p_fe_space,problem,p_cond,continuity,enable_face_integration, &
+       &                    order,material,time_steps_to_store=3,                        &
+       &                    hierarchical_basis=.false.,                         &
+       &                    static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
   call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
@@ -373,6 +376,7 @@ program par_test_nsi_iss
   call memfree(id_parts , __FILE__, __LINE__)
   call memfree(num_parts, __FILE__, __LINE__)
   call memfree(continuity,__FILE__,__LINE__)
+  call memfree(enable_face_integration,__FILE__,__LINE__)
   call memfree(order,__FILE__,__LINE__)
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)

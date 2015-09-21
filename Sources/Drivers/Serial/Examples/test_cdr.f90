@@ -64,6 +64,7 @@ program test_cdr
   integer(ip), allocatable :: order(:,:), material(:), problem(:)
 
   integer(ip), allocatable :: continuity(:,:)
+  logical    , allocatable :: enable_face_integration(:,:)
 
   integer(ip) :: lunio, istat
   
@@ -114,6 +115,8 @@ program test_cdr
 
   call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
   continuity = 1
+  call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, enable_face_integration, __FILE__, __LINE__)
+  enable_face_integration = .false. ! (cG/ No face integration)
   call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
   order = 1
   call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
@@ -121,8 +124,8 @@ program test_cdr
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
   
-  call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, order, material, &
-       & time_steps_to_store = 1, hierarchical_basis = .false., & 
+  call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, enable_face_integration, order, &
+       & material, time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
 
   f_cond%valu = 1.0_rp
@@ -171,6 +174,7 @@ program test_cdr
   write(*,*) 'XXX error solver norm XXX', feunk%nrm2()
 
   call memfree( continuity, __FILE__, __LINE__)
+  call memfree( enable_face_integration, __FILE__, __LINE__)
   call memfree( order, __FILE__, __LINE__)
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
