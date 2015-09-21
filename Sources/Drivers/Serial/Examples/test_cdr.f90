@@ -47,7 +47,7 @@ program test_cdr
   type(serial_scalar_matrix_t), target             :: my_matrix
   type(serial_scalar_array_t), target             :: my_vector, feunk
   class(vector_t) , pointer :: x, y
-  class(abstract_operator_t), pointer :: A
+  class(operator_t), pointer :: A
 
   type(preconditioner_t)        :: feprec
   type(preconditioner_params_t) :: ppars

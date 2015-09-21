@@ -29,7 +29,7 @@
 module block_operator_names
   use types_names
   use memor_names
-  use abstract_operator_names
+  use operator_names
   use vector_names
   use block_vector_names
 
@@ -51,12 +51,12 @@ use iso_c_binding
 
   ! Pointer to operator
   type p_abs_operator_t
-     type(abs_operator_t), pointer :: p_op => null()
+     type(dynamic_state_operator_t), pointer :: p_op => null()
   end type p_abs_operator_t
 
 
   ! Block operator
-  type, extends(abstract_operator_t) :: block_operator_t
+  type, extends(operator_t) :: block_operator_t
 !     private ! IBM XLF 14.1 bug
      integer(ip)                       :: nblocks, mblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)
@@ -208,7 +208,7 @@ contains
     ! Parameters
     class(block_operator_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
-    class(abstract_operator_t)              , intent(in)    :: op 
+    class(operator_t)              , intent(in)    :: op 
 
     call op%GuardTemp()
     if ( .not. associated(bop%blocks(ib,jb)%p_op) ) then
@@ -259,7 +259,7 @@ contains
     ! Parameters
     class(block_operator_t), target, intent(in) :: bop
     integer(ip)                    , intent(in) :: ib,jb
-    class(abstract_operator_t)         , pointer    :: block_operator_get_block
+    class(operator_t)         , pointer    :: block_operator_get_block
 
     block_operator_get_block =>  bop%blocks(ib,jb)%p_op
   end function block_operator_get_block

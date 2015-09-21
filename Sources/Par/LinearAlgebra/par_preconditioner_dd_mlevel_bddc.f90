@@ -69,7 +69,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   ! Abstract modules
   use vector_names
-  use abstract_operator_names
+  use operator_names
 
 # include "debug.i90"
   implicit none
@@ -132,7 +132,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   end type par_preconditioner_dd_mlevel_bddc_params_t
 
-  type, extends(abstract_operator_t) :: par_preconditioner_dd_mlevel_bddc_t
+  type, extends(operator_t) :: par_preconditioner_dd_mlevel_bddc_t
      real(rp), pointer :: weight(:) => NULL()
 
      ! Preconditioner params

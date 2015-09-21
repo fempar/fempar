@@ -29,7 +29,7 @@
 module block_preconditioner_lu_names
   use types_names
   use memor_names
-  use abstract_operator_names
+  use operator_names
   use vector_names
   use block_vector_names
   use block_preconditioner_l_names
@@ -44,11 +44,11 @@ use iso_c_binding
 
   ! Pointer to operator
   type p_abs_operator_t
-     type(abs_operator_t), pointer :: p_op => null()
+     type(dynamic_state_operator_t), pointer :: p_op => null()
   end type p_abs_operator_t
 
   ! Lower block triangular preconditioner 
-  type, extends(abstract_operator_t) :: block_preconditioner_lu_t
+  type, extends(operator_t) :: block_preconditioner_lu_t
      private
      type(block_preconditioner_l_t) :: L
      type(block_preconditioner_u_t) :: U
@@ -131,7 +131,7 @@ contains
     ! Parameters
     class(block_preconditioner_lu_t)    , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: factor, ib, jb
-    class(abstract_operator_t)              , intent(in)    :: op 
+    class(operator_t)              , intent(in)    :: op 
 
     assert(factor==lower .or. factor==upper)
 

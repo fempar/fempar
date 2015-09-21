@@ -284,7 +284,7 @@ program par_test_mlbddc_poisson_problem
   type(par_scalar_matrix_t), target                :: p_mat
   type(par_scalar_array_t), target                :: p_vec, p_unk
   class(vector_t) , pointer           :: x, y
-  class(abstract_operator_t), pointer           :: A
+  class(operator_t), pointer           :: A
 
   ! Preconditioner-related data structures
   type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag

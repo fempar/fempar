@@ -29,7 +29,7 @@ module par_block_matrix_names
   ! Serial modules
   use types_names
   use memor_names
-  use abstract_operator_names
+  use operator_names
   use vector_names
 
   ! Parallel modules
@@ -49,7 +49,7 @@ module par_block_matrix_names
     type(par_scalar_matrix_t), pointer :: par_scalar_matrix
   end type p_par_scalar_matrix_t
 
-  type, extends(abstract_operator_t) :: par_block_matrix_t
+  type, extends(operator_t) :: par_block_matrix_t
     ! private ! IBM XLF 14.1 bug
     integer(ip) :: nblocks
     type(p_par_scalar_matrix_t), allocatable :: blocks(:,:)

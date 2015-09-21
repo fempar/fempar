@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module abstract_operator_names
+module operator_names
   use types_names
   use memory_guard_names
   use integrable_names
@@ -36,7 +36,7 @@ module abstract_operator_names
   private
 
   ! Abstract operator (and its deferred TBPs)
-  type, abstract, extends(integrable_t) :: abstract_operator_t
+  type, abstract, extends(integrable_t) :: operator_t
    contains
      procedure (apply_interface)         , deferred :: apply
      procedure (apply_fun_interface)     , deferred :: apply_fun
@@ -49,38 +49,46 @@ module abstract_operator_names
      generic    :: operator(+) => sum
      generic    :: operator(*) => mult, scal_right, scal_left, apply_fun
      generic    :: operator(-) => minus, sub
-  end type abstract_operator_t
+  end type operator_t
 
   ! Son class expression_operator_t. These operators are always temporary
   ! and therefore an assignment is needed to make copies. The gfortran
   ! compiler only supports A=B when A and B are polymorphic if the assignment 
   ! is overwritten.
-  type, abstract, extends(abstract_operator_t) :: expression_operator_t 
+  type, abstract, extends(operator_t) :: expression_operator_t 
    contains
      procedure (expression_operator_assign_interface), deferred :: assign
      generic  :: assignment(=) => assign
   end type expression_operator_t
 
   type, abstract, extends(expression_operator_t) :: binary_operator_t
-     class(abstract_operator_t), pointer :: op1 => null(), op2 => null()
+     class(operator_t), pointer :: op1 => null(), op2 => null()
    contains
      procedure :: default_initialization => binary_operator_default_init
      procedure :: free    => binary_operator_destructor
      procedure :: assign  => binary_operator_copy
   end type binary_operator_t
-
-
-  type, extends(abstract_operator_t) :: abs_operator_t
-     class(abstract_operator_t), pointer :: op_stored => null()
-     class(abstract_operator_t), pointer :: op        => null()
+  
+    type, abstract, extends(expression_operator_t) :: unary_operator_t
+     class(operator_t), pointer :: op => null()
    contains
-     procedure  :: default_initialization => abs_operator_default_init
-     procedure  :: apply     => abs_operator_apply
-     procedure  :: apply_fun => abs_operator_apply_fun
-     procedure  :: free  => abs_operator_destructor
-     procedure  :: assign => abs_operator_constructor
+     procedure :: default_initialization => unary_operator_default_init
+     procedure :: free    => unary_operator_destructor
+     procedure :: assign  => unary_operator_copy
+  end type unary_operator_t
+
+
+  type, extends(operator_t) :: dynamic_state_operator_t
+     class(operator_t), pointer :: op_stored => null()
+     class(operator_t), pointer :: op        => null()
+   contains
+     procedure  :: default_initialization => dynamic_state_operator_default_init
+     procedure  :: apply     => dynamic_state_operator_apply
+     procedure  :: apply_fun => dynamic_state_operator_apply_fun
+     procedure  :: free  => dynamic_state_operator_destructor
+     procedure  :: assign => dynamic_state_operator_constructor
      generic    :: assignment(=) => assign
-  end type abs_operator_t
+  end type dynamic_state_operator_t
 
   type, extends(binary_operator_t) :: sum_operator_t
   contains
@@ -100,34 +108,26 @@ module abstract_operator_names
      procedure  :: apply_fun => mult_operator_apply_fun 
   end type mult_operator_t
 
-  type, extends(expression_operator_t) :: scal_operator_t
-     class(abstract_operator_t), pointer :: op => null()
-     real(rp)                     :: alpha
+  type, extends(unary_operator_t) :: scal_operator_t
+     real(rp) :: alpha
    contains
-     procedure  :: default_initialization => scal_operator_default_init
      procedure  :: apply => scal_operator_apply
      procedure  :: apply_fun => scal_operator_apply_fun
-     procedure  :: free => scal_operator_destructor
-     procedure  :: assign => scal_operator_copy
   end type scal_operator_t
 
-  type, extends(abstract_operator_t) :: minus_operator_t
-     class(abstract_operator_t), pointer :: op => null()
+  type, extends(unary_operator_t) :: minus_operator_t
    contains
-     procedure  :: default_initialization => minus_operator_default_init
      procedure  :: apply => minus_operator_apply
-     procedure  :: apply_fun => minus_operator_apply_fun 
-     procedure  :: free => minus_operator_destructor
-     procedure  :: assign => minus_operator_copy
+     procedure  :: apply_fun => minus_operator_apply_fun
   end type minus_operator_t
 
   abstract interface
      ! op%apply(x,y) <=> y <- op*x
      ! Implicitly assumes that y is already allocated
      subroutine apply_interface(op,x,y) 
-       import :: abstract_operator_t, vector_t
+       import :: operator_t, vector_t
        implicit none
-       class(abstract_operator_t), intent(in)    :: op
+       class(operator_t), intent(in)    :: op
        class(vector_t) , intent(in)    :: x
        class(vector_t) , intent(inout) :: y 
      end subroutine apply_interface
@@ -135,23 +135,23 @@ module abstract_operator_names
      ! op%apply(x)
      ! Allocates room for (temporary) y
      function apply_fun_interface(op,x) result(y)
-       import :: abstract_operator_t, vector_t
+       import :: operator_t, vector_t
        implicit none
-       class(abstract_operator_t), intent(in)  :: op
+       class(operator_t), intent(in)  :: op
        class(vector_t) , intent(in)  :: x
        class(vector_t) , allocatable :: y 
      end function apply_fun_interface
 
      subroutine expression_operator_assign_interface(op1,op2)
-       import :: abstract_operator_t, expression_operator_t
+       import :: operator_t, expression_operator_t
        implicit none
-       class(abstract_operator_t)      , intent(in)    :: op2
+       class(operator_t)      , intent(in)    :: op2
        class(expression_operator_t), intent(inout) :: op1
      end subroutine expression_operator_assign_interface
 
   end interface
 
-  public :: abs_operator_t, abstract_operator_t, sum_operator_t, scal_operator_t
+  public :: dynamic_state_operator_t, operator_t, sum_operator_t, scal_operator_t
 
 contains
 
@@ -170,7 +170,7 @@ contains
     select type(that => this%op1)
     class is(expression_operator_t)
        call that%CleanTemp()
-    class is(abs_operator_t)
+    class is(dynamic_state_operator_t)
        call that%CleanTemp()
     class default
        check(1==0)
@@ -180,7 +180,7 @@ contains
     select type(that => this%op2)
     class is(expression_operator_t)
        call that%CleanTemp()
-    class is(abs_operator_t)
+    class is(dynamic_state_operator_t)
        call that%CleanTemp()
     class default
        check(1==0)
@@ -190,7 +190,7 @@ contains
 
   subroutine binary_operator_copy(op1,op2)
     implicit none
-    class(abstract_operator_t)  , intent(in)    :: op2
+    class(operator_t)  , intent(in)    :: op2
     class(binary_operator_t), intent(inout) :: op1
 
     select type(op2)
@@ -203,7 +203,7 @@ contains
 
   subroutine binary_operator_constructor(op1,op2,res) 
     implicit none
-    class(abstract_operator_t)  , intent(in)    :: op1, op2
+    class(operator_t)  , intent(in)    :: op1, op2
     class(binary_operator_t), intent(inout) :: res
 
     call op1%GuardTemp()
@@ -214,7 +214,7 @@ contains
     class is(expression_operator_t)
        allocate(res%op1,mold=op1); call res%op1%default_initialization()
     class default
-       allocate(abs_operator_t::res%op1)
+       allocate(dynamic_state_operator_t::res%op1)
     end select
 	
     ! Assign op1
@@ -222,7 +222,7 @@ contains
     class is(expression_operator_t)
        this = op1 ! Here = is overloaded (and potentially recursive)
        call this%GuardTemp()
-    class is(abs_operator_t)
+    class is(dynamic_state_operator_t)
        this = op1 ! Here = is overloaded (and potentially recursive)
        call this%SetTemp()
        call this%GuardTemp()
@@ -233,14 +233,14 @@ contains
     class is(expression_operator_t)
        allocate(res%op2,mold=op2); call res%op2%default_initialization()
     class default
-       allocate(abs_operator_t::res%op2)
+       allocate(dynamic_state_operator_t::res%op2)
     end select
     ! Assign op2
     select type(that => res%op2)
     class is(expression_operator_t)
        that = op2 ! Here = is overloaded (and potentially recursive)
        call that%GuardTemp()
-    class is(abs_operator_t)
+    class is(dynamic_state_operator_t)
        that = op2 ! Here = is overloaded (and potentially recursive)
        call that%SetTemp()
        call that%GuardTemp()
@@ -249,32 +249,97 @@ contains
     call op1%CleanTemp()
     call op2%CleanTemp()
   end subroutine binary_operator_constructor
-
-  subroutine abs_operator_default_init(this)
+  
+  subroutine unary_operator_default_init(this)
     implicit none
-    class(abs_operator_t), intent(inout) :: this
+    class(unary_operator_t), intent(inout) :: this
+    nullify(this%op)
+    call this%NullifyTemporary()
+  end subroutine unary_operator_default_init
+
+  subroutine unary_operator_destructor(this)
+    implicit none
+    class(unary_operator_t), intent(inout) :: this
+
+    select type(that => this%op)
+    class is(expression_operator_t)
+       call that%CleanTemp()
+    class is(dynamic_state_operator_t)
+       call that%CleanTemp()
+    class default
+       check(1==0)
+    end select
+    deallocate(this%op)
+  end subroutine unary_operator_destructor
+
+  subroutine unary_operator_copy(op1,op2)
+    implicit none
+	class(unary_operator_t), intent(inout) :: op1
+    class(operator_t)  , intent(in)    :: op2
+
+    select type(op2)
+    class is(unary_operator_t)
+       call unary_operator_constructor(op2%op,op1)
+    class default
+       check(1==0)
+    end select
+  end subroutine unary_operator_copy
+
+  subroutine unary_operator_constructor(op,res) 
+    implicit none
+    class(operator_t)  , intent(in)    :: op
+    class(unary_operator_t), intent(inout) :: res
+
+    call op%GuardTemp()
+
+    ! Allocate op1
+    select type(op)
+    class is(expression_operator_t)
+       allocate(res%op,mold=op); call res%op%default_initialization()
+    class default
+       allocate(dynamic_state_operator_t::res%op)
+    end select
+	
+    ! Assign op1
+    select type(this => res%op)
+    class is(expression_operator_t)
+       this = op ! Here = is overloaded (and potentially recursive)
+       call this%GuardTemp()
+    class is(dynamic_state_operator_t)
+       this = op ! Here = is overloaded (and potentially recursive)
+       call this%SetTemp()
+       call this%GuardTemp()
+    end select
+	
+    call res%SetTemp()
+    call op%CleanTemp()
+  end subroutine unary_operator_constructor
+
+  subroutine dynamic_state_operator_default_init(this)
+    implicit none
+    class(dynamic_state_operator_t), intent(inout) :: this
     nullify(this%op)
     nullify(this%op_stored)
     call this%NullifyTemporary()
-  end subroutine abs_operator_default_init
+  end subroutine dynamic_state_operator_default_init
 
-  recursive subroutine abs_operator_constructor(op1,op2)
+  recursive subroutine dynamic_state_operator_constructor(op1,op2)
     implicit none
-    class(abs_operator_t) , intent(inout) :: op1
-    class(abstract_operator_t), intent(in), target  :: op2
+    class(dynamic_state_operator_t) , intent(inout) :: op1
+    class(operator_t), intent(in), target  :: op2
 
     call op1%free()
 
     call op2%GuardTemp()
     select type(op2)
-    class is(abs_operator_t) ! Can be temporary (or not)
+    class is(dynamic_state_operator_t) ! Can be temporary (or not)
        if(associated(op2%op_stored)) then
           assert(.not.associated(op2%op))
           allocate(op1%op_stored, mold = op2%op_stored); call op1%op_stored%default_initialization()
           select type(this => op1%op_stored)
           class is(expression_operator_t)
              this = op2%op_stored
-          class is(abs_operator_t)
+          class is(dynamic_state_operator_t)
              this = op2%op_stored
           class default
              check(1==0)
@@ -299,11 +364,11 @@ contains
        call op1%op%GuardTemp()
     end select
     call op2%CleanTemp()
-  end subroutine abs_operator_constructor
+  end subroutine dynamic_state_operator_constructor
 
-  subroutine abs_operator_destructor(this)
+  subroutine dynamic_state_operator_destructor(this)
     implicit none
-    class(abs_operator_t), intent(inout) :: this
+    class(dynamic_state_operator_t), intent(inout) :: this
 
     if(associated(this%op)) then
        assert(.not.associated(this%op_stored))
@@ -314,136 +379,14 @@ contains
        call this%op_stored%CleanTemp()
        deallocate(this%op_stored)
     end if
-  end subroutine abs_operator_destructor
-
-  subroutine scal_operator_default_init(this)
-    implicit none
-    class(scal_operator_t), intent(inout) :: this
-    nullify(this%op)
-    call this%NullifyTemporary()
-  end subroutine scal_operator_default_init
-
-  subroutine scal_operator_constructor(alpha,op,res)
-    implicit none
-    class(abstract_operator_t), intent(in)    :: op
-    real(rp)            , intent(in)    :: alpha
-    type(scal_operator_t) , intent(inout) :: res
-
-    call op%GuardTemp()
-    res%alpha = alpha
-    ! Allocate op
-    select type(op)
-    class is(expression_operator_t)
-       allocate(res%op,mold=op); call res%op%default_initialization()
-    class default
-       allocate(abs_operator_t::res%op)
-    end select
-    ! Assign op
-    select type(this => res%op)
-    class is(expression_operator_t)
-       this = op ! Here = is overloaded (and potentially recursive)
-       call this%GuardTemp()
-    class is(abs_operator_t)
-       this = op ! Here = is overloaded (and potentially recursive)
-       call this%SetTemp()
-       call this%GuardTemp()
-    end select
-    call res%SetTemp()
-    call op%CleanTemp()
-  end subroutine scal_operator_constructor
-
-  subroutine scal_operator_destructor(this)
-    implicit none
-    class(scal_operator_t), intent(inout) :: this 
-    select type(that => this%op)
-    class is(expression_operator_t)
-       call that%CleanTemp()
-    class is(abs_operator_t)
-       call that%CleanTemp()
-    class default
-       check(1==0)
-    end select
-    deallocate(this%op)
-  end subroutine scal_operator_destructor
-
-  subroutine scal_operator_copy(op1,op2)
-    implicit none
-    class(abstract_operator_t), intent(in)    :: op2
-    class(scal_operator_t), intent(inout) :: op1
-    select type(op2)
-    class is(scal_operator_t)
-       call scal_operator_constructor(op2%alpha,op2%op,op1) ! Not the default constructor
-    class default
-       check(1==0)
-    end select
-  end subroutine scal_operator_copy
-
-  subroutine minus_operator_default_init(this)
-    implicit none
-    class(minus_operator_t), intent(inout) :: this
-    nullify(this%op)
-    call this%NullifyTemporary()
-  end subroutine minus_operator_default_init
+  end subroutine dynamic_state_operator_destructor
 
   function minus_operator_constructor(op) result (res)
     implicit none
-    class(abstract_operator_t)    , intent(in)  :: op
+    class(operator_t)    , intent(in)  :: op
     type(minus_operator_t) :: res
-    call minus_operator_constructor_sub(op,res)
-  end function minus_operator_constructor
-
-  subroutine minus_operator_constructor_sub(op,res)
-    implicit none
-    class(abstract_operator_t) , intent(in)    :: op
-    type(minus_operator_t) , intent(inout) :: res
-
-    call op%GuardTemp()
-    ! Allocate op
-    select type(op)
-    class is(expression_operator_t)
-       allocate(res%op,mold=op); call res%op%default_initialization()
-    class default
-       allocate(abs_operator_t::res%op)
-    end select
-    ! Assign op
-    select type(this => res%op)
-    class is(expression_operator_t)
-       this = op ! Here = is overloaded (and potentially recursive)
-       call this%GuardTemp()
-    class is(abs_operator_t)
-       this = op ! Here = is overloaded (and potentially recursive)
-       call this%SetTemp()
-       call this%GuardTemp()
-    end select
-    call res%SetTemp()
-    call op%CleanTemp()
-  end subroutine minus_operator_constructor_sub
-
-  subroutine minus_operator_destructor(this)
-    implicit none
-    class(minus_operator_t), intent(inout) :: this 
-    select type(that => this%op)
-    class is(expression_operator_t)
-       call that%CleanTemp()
-    class is(abs_operator_t)
-       call that%CleanTemp()
-    class default
-       check(1==0)
-    end select
-    deallocate(this%op)
-  end subroutine minus_operator_destructor
-
-  subroutine minus_operator_copy(op1,op2)
-    implicit none
-    class(abstract_operator_t), intent(in)    :: op2
-    class(minus_operator_t), intent(inout) :: op1
-    select type(op2)
-    class is(minus_operator_t)
-       call minus_operator_constructor_sub(op2%op,op1) ! Not the default constructor
-    class default
-       check(1==0)
-    end select
-  end subroutine minus_operator_copy
+	call unary_operator_constructor(op,res)
+   end function minus_operator_constructor
 
 !!$  !--------------------------------------------------------------------!
 !!$  ! Construction and deallocation functions/subroutines of the nodes of! 
@@ -451,39 +394,41 @@ contains
 !!$  ! -------------------------------------------------------------------!
   function sum_operator_constructor(op1,op2) result (res)
     implicit none
-    class(abstract_operator_t), intent(in)  :: op1, op2
+    class(operator_t), intent(in)  :: op1, op2
     type(sum_operator_t)  :: res
     call binary_operator_constructor(op1,op2,res) 
   end function sum_operator_constructor
 
   function sub_operator_constructor(op1,op2) result (res)
     implicit none
-    class(abstract_operator_t), intent(in)  :: op1, op2
+    class(operator_t), intent(in)  :: op1, op2
     type(sub_operator_t)  :: res
     call binary_operator_constructor(op1,op2,res) 
   end function sub_operator_constructor
 
   function mult_operator_constructor(op1,op2) result (res)
     implicit none
-    class(abstract_operator_t), intent(in)  :: op1, op2
+    class(operator_t), intent(in)  :: op1, op2
     type(mult_operator_t) :: res
     call binary_operator_constructor(op1,op2,res)
   end function mult_operator_constructor
 
   function scal_left_operator_constructor(alpha, op_left) result (res)
     implicit none
-    class(abstract_operator_t)    , intent(in)  :: op_left
-    real(rp)                , intent(in)  :: alpha
-    type(scal_operator_t) :: res
-    call scal_operator_constructor(alpha,op_left,res)
+    class(operator_t)    , intent(in)  :: op_left
+    real(rp)             , intent(in)  :: alpha
+    type(scal_operator_t)              :: res
+	res%alpha=alpha
+    call unary_operator_constructor(op_left,res)
   end function scal_left_operator_constructor
   
   function scal_right_operator_constructor(op_right, alpha) result (res)
     implicit none
-    class(abstract_operator_t)    , intent(in)  :: op_right
+    class(operator_t)       , intent(in)  :: op_right
     real(rp)                , intent(in)  :: alpha
-    type(scal_operator_t) :: res
-    call scal_operator_constructor(alpha,op_right,res)
+    type(scal_operator_t)                 :: res
+	res%alpha=alpha
+    call unary_operator_constructor(op_right,res)
   end function scal_right_operator_constructor
 
   !-------------------------------------!
@@ -632,9 +577,9 @@ contains
     call op%CleanTemp()
   end subroutine minus_operator_apply
 
-  function  abs_operator_apply_fun(op,x) result(y)
+  function  dynamic_state_operator_apply_fun(op,x) result(y)
     implicit none
-    class(abs_operator_t), intent(in)       :: op
+    class(dynamic_state_operator_t), intent(in)       :: op
     class(vector_t)     , intent(in)  :: x
     class(vector_t)     , allocatable :: y 
     call op%GuardTemp()
@@ -654,11 +599,11 @@ contains
     call x%CleanTemp()
     call op%CleanTemp()
     call y%SetTemp()
-  end function abs_operator_apply_fun
+  end function dynamic_state_operator_apply_fun
 
-  subroutine abs_operator_apply(op,x,y)
+  subroutine dynamic_state_operator_apply(op,x,y)
     implicit none
-    class(abs_operator_t), intent(in)    :: op
+    class(dynamic_state_operator_t), intent(in)    :: op
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     call op%GuardTemp()
@@ -676,6 +621,6 @@ contains
 
     call x%CleanTemp()
     call op%CleanTemp()
-  end subroutine abs_operator_apply
+  end subroutine dynamic_state_operator_apply
 
-end module abstract_operator_names
+end module operator_names

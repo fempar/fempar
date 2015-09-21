@@ -45,14 +45,14 @@ module par_scalar_matrix_names
 
   ! Abstract types
   use vector_names
-  use abstract_operator_names
+  use operator_names
   
   implicit none
 # include "debug.i90"
 
   private
 
-  type, extends(abstract_operator_t) :: par_scalar_matrix_t
+  type, extends(operator_t) :: par_scalar_matrix_t
      ! Data structure which stores the local part 
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 

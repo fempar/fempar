@@ -118,7 +118,7 @@ program test_nsi_iss
   type(serial_environment_t)            :: senv
   type(vtk_t)                           :: fevtk
   class(vector_t)       , pointer :: x, b
-  class(abstract_operator_t)      , pointer :: A, M
+  class(operator_t)      , pointer :: A, M
   type(graph_t)               , pointer :: f_graph
   type(scalar_t)                        :: enorm_u, enorm_p
   type(error_norm_t)           , target :: error_compute
@@ -334,7 +334,7 @@ contains
     class(abstract_environment_t)       , intent(in)    :: env
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
     type(fe_space_t)                    , intent(inout) :: fe_space
-    class(abstract_operator_t)              , intent(inout) :: A, M
+    class(operator_t)              , intent(inout) :: A, M
     class(vector_t)               , intent(inout) :: x, b
     ! Locals
     integer(ip) :: iiter

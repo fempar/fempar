@@ -34,7 +34,7 @@ module serial_block_matrix_names
   
   ! Abstract types
   use vector_names
-  use abstract_operator_names
+  use operator_names
   
   implicit none
 # include "debug.i90"
@@ -45,7 +45,7 @@ module serial_block_matrix_names
     type(serial_scalar_matrix_t), pointer :: serial_scalar_matrix
   end type p_serial_scalar_matrix_t
 
-  type, extends(abstract_operator_t):: serial_block_matrix_t
+  type, extends(operator_t):: serial_block_matrix_t
     ! private ! IBM XLF 14.1 bug
     integer(ip) :: nblocks = -1
     type(p_serial_scalar_matrix_t), allocatable :: blocks(:,:)

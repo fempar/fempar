@@ -35,7 +35,7 @@ module serial_scalar_matrix_names
 
   ! Abstract types
   use vector_names
-  use abstract_operator_names
+  use operator_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -51,7 +51,7 @@ module serial_scalar_matrix_names
   integer(ip), parameter :: indefinite            = 2 ! Both positive and negative eigenvalues
   integer(ip), parameter :: unknown               = 3 ! No info
 
-  type, extends(abstract_operator_t) :: serial_scalar_matrix_t
+  type, extends(operator_t) :: serial_scalar_matrix_t
      logical                    :: is_symmetric    
      integer(ip)                :: sign            
      real(rp)     , allocatable :: a(:)            
