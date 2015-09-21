@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module problem_names
   use types_names
   use memor_names
-  use array_names
   use integration_tools_names
   use finite_element_names
   implicit none
+# include "debug.i90"
+
   private
 
   type :: physical_problem_t

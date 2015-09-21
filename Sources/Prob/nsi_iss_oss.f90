@@ -28,7 +28,6 @@
 module nsi_cg_iss_oss_names
   use types_names
   use memor_names
-  use array_names
   use problem_names
   use nsi_names
   use finite_element_names

@@ -29,7 +29,7 @@ module dof_descriptor_names
 use types_names
 use memor_names
   use problem_names
-  use array_names
+  use allocatable_array_names
 
   implicit none
 # include "debug.i90"
@@ -57,7 +57,7 @@ use memor_names
 
      ! Auxiliary arrays
      integer(ip), allocatable     :: g2l_vars(:,:)
-     type(array_ip1_t), allocatable :: prob_block(:,:)
+     type(allocatable_array_ip1_t), allocatable :: prob_block(:,:)
 
    contains
      procedure :: set_problem
@@ -194,7 +194,7 @@ contains
              count = count + 1 
           end if
        end do
-       call array_create( count, dof_descriptor%prob_block(iblock,iprob))
+       call allocatable_array_create( count, dof_descriptor%prob_block(iblock,iprob))
        count = 0 
        do l_var = 1, dof_descriptor%problems(iprob)%p%nvars
           if ( dof_descriptor%vars_block(dof_descriptor%problems(iprob)%p%l2g_var(l_var)) == iblock ) then

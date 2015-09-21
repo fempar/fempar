@@ -45,12 +45,12 @@ module interpolation_tools_names
 #endif
   use fe_space_types_names
   use interpolation_names
-  use array_names
+  use allocatable_array_names
   implicit none
   private
 
   type interpolator_pointer_t
-     type(array_rp2_t), pointer :: p => NULL()
+     type(allocatable_array_rp2_t), pointer :: p => NULL()
   end type interpolator_pointer_t
 
   ! Types
@@ -76,7 +76,7 @@ contains
     implicit none
     integer(ip)          , intent(in)  :: gtype, utype
     integer(ip)          , intent(in)  :: ndime, g_ord, u_ord, gnode, unode
-    type(array_rp2_t)      , intent(out) :: int_array
+    type(allocatable_array_rp2_t)      , intent(out) :: int_array
     logical, optional, intent(in)  :: khie
     ! Locals
     integer(ip)           :: nlocs, i
@@ -106,7 +106,7 @@ contains
     end if
 
     ! Store shape
-    call array_create(gnode,unode,int_array)
+    call allocatable_array_create(gnode,unode,int_array)
     int_array%a = inter%shape
 
     ! Deallocate
@@ -118,9 +118,9 @@ contains
   !==================================================================================================
   subroutine interpolator_free(int_array)
     implicit none
-    type(array_rp2_t), intent(inout) :: int_array
+    type(allocatable_array_rp2_t), intent(inout) :: int_array
 
-    call array_free(int_array)
+    call allocatable_array_free(int_array)
 
   end subroutine interpolator_free
 
@@ -131,7 +131,7 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)    , intent(in)    :: ndime,gnode,unode
-    type(array_rp2_t), intent(in)  :: int_array
+    type(allocatable_array_rp2_t), intent(in)  :: int_array
     real(rp)       , intent(in)    :: g_val(ndime,gnode)
     real(rp)       , intent(inout) :: u_val(ndime,unode)
     ! Locals

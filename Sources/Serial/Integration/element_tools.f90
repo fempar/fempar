@@ -29,7 +29,7 @@
 module element_tools_names
   use types_names
   use memor_names
-  use array_names
+  use allocatable_array_names
   use volume_integration_tools_names
   use face_integration_tools_names
   use element_fields_names
@@ -981,7 +981,7 @@ contains
     implicit none
     type(basis_function_t), intent(in) :: v
     type(basis_function_t), intent(in) :: u
-    type(array_rp2_t) :: mat
+    type(allocatable_array_rp2_t) :: mat
 
     integer(ip)  :: unode,vnode,ngaus
     integer(ip)  :: ipos,jpos,inode,jnode,ivar,igaus
@@ -993,7 +993,7 @@ contains
 
     ! Allocate mat with mold=p_mat
     assert(v%ndof==u%ndof)
-    call array_create(v%ndof,u%ndof,mat)
+    call allocatable_array_create(v%ndof,u%ndof,mat)
 
     ! Now perform operations according to left_factor TODO
     if(allocated(v%left_factor)) then
@@ -1056,7 +1056,7 @@ contains
     implicit none
     type(basis_function_gradient_t), intent(in) :: gv
     type(basis_function_gradient_t), intent(in) :: gu
-    type(array_rp2_t) :: mat
+    type(allocatable_array_rp2_t) :: mat
 
     integer(ip)  :: unode,vnode,ndime,ngaus
     integer(ip)  :: ipos,jpos,inode,jnode,idime,ivar,igaus
@@ -1069,7 +1069,7 @@ contains
 
     ! Allocate mat with mold=p_mat
     assert(gv%ndof==gu%ndof)
-    call array_create(gv%ndof,gu%ndof,mat)
+    call allocatable_array_create(gv%ndof,gu%ndof,mat)
 
     ! Now perform operations according to left_factor TODO
     if(allocated(gv%left_factor)) then

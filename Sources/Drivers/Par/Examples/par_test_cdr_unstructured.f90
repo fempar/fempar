@@ -239,10 +239,10 @@ program par_test_cdr_unstructured
 											positive_definite, &
 											p_mat )
 
-  call p_vec%create ( blocks_dof_distribution%get_block(1), p_env )
+  call p_vec%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
   p_vec%state = part_summed
   
-  call p_unk%create ( blocks_dof_distribution%get_block(1), p_env )
+  call p_unk%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
   p_unk%state = full_summed
 
   if ( p_env%am_i_fine_task() ) then

@@ -786,7 +786,7 @@ contains
     select type(x)
     class is (serial_scalar_array_t)
        allocate(local_y)
-       call local_y%create (op%mat%graph%nv)
+       call local_y%create_and_allocate (op%mat%graph%nv)
        call op%apply(x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

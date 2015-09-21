@@ -25,17 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module cdr_stabilized_continuous_Galerkin_names
   use types_names
   use memor_names
-  use array_names
   use problem_names
   use cdr_names
   use element_fields_names
   use element_tools_names
   use finite_element_names
   implicit none
+# include "debug.i90"
   private 
 
   type, extends(discrete_problem_t) :: cdr_discrete_t

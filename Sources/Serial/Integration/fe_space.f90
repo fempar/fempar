@@ -29,7 +29,7 @@ module fe_space_names
   ! Modules
   use types_names
   use memor_names
-  use array_names
+  use allocatable_array_names
   use triangulation_names
   use hash_table_names
   use problem_names
@@ -71,8 +71,8 @@ module fe_space_names
 
      ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elmatvec
-     type(array_rp2_t)                    :: lelmat(max_global_interpolations)
-     type(array_rp1_t)                    :: lelvec(max_global_interpolations)
+     type(allocatable_array_rp2_t)                    :: lelmat(max_global_interpolations)
+     type(allocatable_array_rp1_t)                    :: lelvec(max_global_interpolations)
 
      ! Integrator
      type(position_hash_table_t)          :: pos_volume_integrator
@@ -81,11 +81,11 @@ module fe_space_names
      type(face_integrator_t)              :: lfaci(max_global_interpolations)
 
      ! Interpolator
-     type(array_rp2_t)                    :: linter(max_global_interpolations)
+     type(allocatable_array_rp2_t)                    :: linter(max_global_interpolations)
 
      ! Starting DOF position
      type(position_hash_table_t)          :: pos_start
-     type(array_ip1_t)                    :: lstart(max_number_problems)
+     type(allocatable_array_ip1_t)                    :: lstart(max_number_problems)
 
      ! Array of reference elements (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elem_info
@@ -101,7 +101,7 @@ module fe_space_names
      integer(ip)                         :: num_interior_faces, num_boundary_faces
 
      ! Analytical function auxiliar array
-     type(array_ip2_t)                    :: l_analytical_code(max_number_problems)
+     type(allocatable_array_ip2_t)                    :: l_analytical_code(max_number_problems)
 
      ! Much better here rather than as a module variable
      !type(list_t) :: void_list_t
@@ -366,8 +366,8 @@ contains
        ! Assign pointer to p_mat and p_vec in ielem
        call fe_space%pos_elmatvec%get(key=lndof,val=pos_elmatvec,stat=istat)
        if ( istat == new_index ) then
-          call array_create ( lndof, lndof, fe_space%lelmat(pos_elmatvec) )
-          call array_create ( lndof, fe_space%lelvec(pos_elmatvec) )
+          call allocatable_array_create ( lndof, lndof, fe_space%lelmat(pos_elmatvec) )
+          call allocatable_array_create ( lndof, fe_space%lelvec(pos_elmatvec) )
        end if
        fe_space%finite_elements(ielem)%p_mat => fe_space%lelmat(pos_elmatvec)
        fe_space%finite_elements(ielem)%p_vec => fe_space%lelvec(pos_elmatvec)
@@ -412,7 +412,7 @@ contains
        call fe_space%pos_start%get(key=nvars, val=pos_voint, stat = istat)
        if ( istat == new_index ) then
           call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_descriptor,fe_space%lstart(pos_voint))
-          call array_create(nvars,2,fe_space%l_analytical_code(pos_voint))
+          call allocatable_array_create(nvars,2,fe_space%l_analytical_code(pos_voint))
        end if
        fe_space%finite_elements(ielem)%start             => fe_space%lstart(pos_voint)
        fe_space%finite_elements(ielem)%p_analytical_code => fe_space%l_analytical_code(pos_voint)
@@ -552,8 +552,8 @@ contains
     nullify ( fe_space%finite_elements )
 
     do i = 1,fe_space%pos_elmatvec%last()
-       call array_free( fe_space%lelmat(i) )
-       call array_free( fe_space%lelvec(i) )
+       call allocatable_array_free( fe_space%lelmat(i) )
+       call allocatable_array_free( fe_space%lelvec(i) )
     end do
     !deallocate ( fe_space%lelmat )
     !deallocate ( fe_space%lelvec )
@@ -573,8 +573,8 @@ contains
     call fe_space%pos_elem_info%free
 
     do i = 1,fe_space%pos_start%last()
-       call array_free( fe_space%lstart(i) )
-       call array_free( fe_space%l_analytical_code(i) )
+       call allocatable_array_free( fe_space%lstart(i) )
+       call allocatable_array_free( fe_space%l_analytical_code(i) )
     end do
     call fe_space%pos_start%free
 
@@ -701,11 +701,11 @@ contains
     implicit none
 	type(finite_element_t), intent(in)  :: finite_element
     type(dof_descriptor_t), intent(in)  :: dof_descriptor
-    type(array_ip1_t)     , intent(out) :: start
+    type(allocatable_array_ip1_t)     , intent(out) :: start
 
     integer(ip) :: ivar
 
-    call array_create(dof_descriptor%problems(finite_element%problem)%p%nvars+1,start)
+    call allocatable_array_create(dof_descriptor%problems(finite_element%problem)%p%nvars+1,start)
 
     do ivar = 1,dof_descriptor%problems(finite_element%problem)%p%nvars
        start%a(ivar+1) = finite_element%reference_element_vars(ivar)%p%nnode

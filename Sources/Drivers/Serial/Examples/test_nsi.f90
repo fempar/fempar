@@ -210,8 +210,8 @@ program test_nsi_iss
 
   ! Allocate matrices and vectors
   call fe_space%make_coefficient_matrix( symmetric_storage=.false., is_symmetric=.false., sign=indefinite, serial_scalar_matrix=femat)
-  call fevec%create(femat%graph%nv)
-  call feunk%create(femat%graph%nv)
+  call fevec%create_and_allocate(femat%graph%nv)
+  call feunk%create_and_allocate(femat%graph%nv)
   call fevec%init(0.0_rp)
 
   ! Apply boundary conditions to unkno

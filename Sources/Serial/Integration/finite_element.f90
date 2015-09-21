@@ -30,7 +30,7 @@ module finite_element_names
   ! Modules
   use types_names
   use memor_names
-  use array_names
+  use allocatable_array_names
   use integration_tools_names
   use interpolation_tools_names
   !use face_integration_names
@@ -53,7 +53,7 @@ module finite_element_names
      integer(ip),      allocatable :: order(:)                ! Order per variable
      type(volume_integrator_pointer_t), allocatable :: integ(:) ! Pointer to integration parameters
      type(interpolator_pointer_t)     , allocatable :: inter(:) ! Pointer to interpolator
-     type(array_ip1_t)                , pointer     :: start => NULL() ! Pointer to starting DOF position vector
+     type(allocatable_array_ip1_t)    , pointer     :: start => NULL() ! Pointer to starting DOF position vector
      ! order in f_inf, it can be eliminated
 
      ! Problem and approximation
@@ -77,12 +77,12 @@ module finite_element_names
      integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
      
      ! Auxiliary working arrays (element matrix, vector and scalar)
-     type(array_rp2_t), pointer :: p_mat ! Pointer to the elemental matrix
-     type(array_rp1_t), pointer :: p_vec ! Pointer to the elemental vector_t
+     type(allocatable_array_rp2_t), pointer :: p_mat ! Pointer to the elemental matrix
+     type(allocatable_array_rp1_t), pointer :: p_vec ! Pointer to the elemental vector_t
      real(rp)                   :: scalar ! Elemental scalar
 
      ! Analytical function code pointer
-     type(array_ip2_t), pointer :: p_analytical_code => NULL()
+     type(allocatable_array_ip2_t), pointer :: p_analytical_code => NULL()
 
    contains
      procedure :: size   => finite_element_size
@@ -105,8 +105,8 @@ module finite_element_names
      integer(ip)               :: local_face(2)       ! Face pos in element
 
      ! Auxiliary working arrays (face+element matrix and vector)
-     type(array_rp2_t), pointer  :: p_mat ! Pointer to the elemental matrix
-     type(array_rp1_t), pointer  :: p_vec ! Pointer to face integration vector_t
+     type(allocatable_array_rp2_t), pointer  :: p_mat ! Pointer to the elemental matrix
+     type(allocatable_array_rp1_t), pointer  :: p_vec ! Pointer to face integration vector_t
 
      !type(array_ip1_t), allocatable:: o2n(2)           ! permutation of the gauss points in elem2
      ! SB.alert : temporary, it is a lot of memory, and should be handled via a hash table

@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module assembly_names
   use types_names
-  use array_names
+  use allocatable_array_names
   use finite_element_names
   !use fe_space_names
   use integrable_names
@@ -134,11 +134,11 @@ contains
     type(serial_block_matrix_t)  , intent(inout) :: a
 
     integer(ip) :: iblock, jblock, i
-    type(array_ip1_t) :: start_aux
+    type(allocatable_array_ip1_t) :: start_aux
     type(serial_scalar_matrix_t), pointer :: f_matrix
 
     ! Auxiliar local start array to store start(2)
-    call array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
+    call allocatable_array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
     start_aux%a = finite_element(2)%p%start%a
 
     finite_element(2)%p%start%a = finite_element(2)%p%start%a + finite_element(1)%p%start%a(dof_descriptor%problems(finite_element(1)%p%problem)%p%nvars+1) - 1
@@ -168,10 +168,10 @@ contains
     type(serial_scalar_matrix_t)        , intent(inout) :: a
 
     integer(ip) :: i
-    type(array_ip1_t) :: start_aux
+    type(allocatable_array_ip1_t) :: start_aux
 
     ! Auxiliar local start array to store start(2)
-    call array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
+    call allocatable_array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
     start_aux%a = finite_element(2)%p%start%a
 
     finite_element(2)%p%start%a = finite_element(2)%p%start%a + finite_element(1)%p%start%a(dof_descriptor%problems(finite_element(1)%p%problem)%p%nvars+1) - 1

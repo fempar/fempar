@@ -30,7 +30,7 @@ module serial_names
   ! Tools
   use types_names
   use memor_names
-  use array_names
+  use allocatable_array_names
   use stdio_names
   use hash_table_names
   use postpro_names

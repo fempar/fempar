@@ -27,9 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # include "debug.i90"
 module nsi_cg_asgs_names
-  use types_names
-  use memor_names
- use array_names
+ use types_names
+ use memor_names
  use problem_names
  use nsi_names
  use element_fields_names

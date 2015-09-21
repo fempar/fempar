@@ -33,7 +33,7 @@ module lib_vtk_io_interface_names
   use types_names
   use memor_names
   use stdio_names
-  use array_names
+  use allocatable_array_names
   use interpolation_names
   use fe_space_types_names
   use fe_space_names
@@ -91,7 +91,7 @@ module lib_vtk_io_interface_names
      logical                       :: filled = .False.
 !     integer(ip), allocatable     :: elem2subelem_i(:),elem2subelem_j(:)
      integer(ip)                   :: num_sub_elems
-     type(array_ip2_t)             :: nodes_subelem(max_order)
+     type(allocatable_array_ip2_t)             :: nodes_subelem(max_order)
      integer(ip)                   :: status = unknown ! Status of the write process
   end type vtk_mesh_t
 
@@ -351,7 +351,7 @@ contains
     integer(ip)           :: first_coord(fe_space%g_trian%num_dims), g_coord(fe_space%g_trian%num_dims)
     integer(ip)           :: l_coord(fe_space%g_trian%num_dims)
     type(interpolation_t)   :: interp(max_order)
-    type(array_rp2_t)       :: coords(max_order)
+    type(allocatable_array_rp2_t)       :: coords(max_order)
     
     ! Meshes allocation
     if(f_vtk%num_meshes == 0) then 
@@ -378,11 +378,11 @@ contains
        geo_nnode = Q_nnods(ndime,1)
 
        ! Construct the matrix of the coordinates of the node in the reference element
-       call array_create(ndime,nnode,coords(order))
+       call allocatable_array_create(ndime,nnode,coords(order))
 
        ! Construct the mapping of the nodes of the subelems
        num_subelems = Q_nnods(ndime,order-1)
-       call array_create(geo_nnode,num_subelems,f_vtk%mesh(f_vtk%num_meshes)%nodes_subelem(order))
+       call allocatable_array_create(geo_nnode,num_subelems,f_vtk%mesh(f_vtk%num_meshes)%nodes_subelem(order))
        do subelem = 1, num_subelems
           call Q_ijkg(first_coord,subelem,ndime,order-1)
           do lnode = 1, geo_nnode
@@ -470,7 +470,7 @@ contains
      
      ! Free memory
      do order = 1, max_order
-        call array_free(coords(order))
+        call allocatable_array_free(coords(order))
      end do
 
   end subroutine fill_mesh_superlinear_order
@@ -2025,7 +2025,7 @@ contains
                 call memfree(f_vtk%mesh(i)%ctype, __FILE__,__LINE__)
                 if (.not. f_vtk%mesh(i)%linear_order) then
                     do j=1, max_order
-                        call array_free(f_vtk%mesh(i)%nodes_subelem(j))
+                        call allocatable_array_free(f_vtk%mesh(i)%nodes_subelem(j))
                     enddo
                 endif
                 if(allocated(f_vtk%mesh(i)%unknowns)) then

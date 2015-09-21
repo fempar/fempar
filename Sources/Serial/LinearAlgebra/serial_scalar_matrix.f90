@@ -36,6 +36,7 @@ module serial_scalar_matrix_names
   ! Abstract types
   use vector_names
   use operator_names
+  use matrix_names
 
 #ifdef memcheck
   use iso_c_binding
@@ -51,7 +52,7 @@ module serial_scalar_matrix_names
   integer(ip), parameter :: indefinite            = 2 ! Both positive and negative eigenvalues
   integer(ip), parameter :: unknown               = 3 ! No info
 
-  type, extends(operator_t) :: serial_scalar_matrix_t
+  type, extends(matrix_t) :: serial_scalar_matrix_t
      logical                    :: is_symmetric    
      integer(ip)                :: sign            
      real(rp)     , allocatable :: a(:)            
@@ -153,17 +154,17 @@ contains
   end subroutine serial_scalar_matrix_free_in_one_shot
 
   !=============================================================================
-  subroutine serial_scalar_matrix_free_in_stages (this, mode)
+  subroutine serial_scalar_matrix_free_in_stages (this, action)
     implicit none
     class(serial_scalar_matrix_t), intent(inout) :: this
-    integer(ip)                  , intent(in)    :: mode
+    integer(ip)                  , intent(in)    :: action
 	integer(ip) :: istat
-    if ( mode == free_clean ) then
+    if ( action == free_clean ) then
       deallocate( this%graph, stat=istat )
 	  check ( istat == 0 )
-    else if ( mode == free_struct ) then
+    else if ( action == free_struct ) then
 	  call this%graph%free() 
-    else if ( mode == free_values ) then
+    else if ( action == free_values ) then
       call memfree( this%a,__FILE__,__LINE__)
     end if
   end subroutine serial_scalar_matrix_free_in_stages
@@ -467,7 +468,7 @@ contains
     select type(x)
     class is (serial_scalar_array_t)
        allocate(local_y)
-       call local_y%create(op%graph%nv)
+       call local_y%create_and_allocate(op%graph%nv)
        call op%apply(x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

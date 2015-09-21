@@ -132,7 +132,7 @@ program test_cdr
 
   call fe_space%make_coefficient_matrix( symmetric_storage=.false., is_symmetric=.true., sign=positive_definite, serial_scalar_matrix=my_matrix )
 
-  call my_vector%create ( my_matrix%graph%nv )
+  call my_vector%create_and_allocate ( my_matrix%graph%nv )
   
   call volume_integral( approximations, fe_space, my_matrix, my_vector)
 
@@ -144,7 +144,7 @@ program test_cdr
   !call preconditioner_log_info(feprec)
 
   write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',my_matrix%graph%nv
-  call feunk%create ( my_matrix%graph%nv )
+  call feunk%create_and_allocate ( my_matrix%graph%nv )
   call feunk%init(1.0_rp)
 
 

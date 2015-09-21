@@ -5974,7 +5974,7 @@ use mpi
        if ( mlbddc%correction_mode == additive ) then
 
           ! Create temporary vector
-          call r%create( mlbddc%p_mat%dof_dist,mlbddc%p_mat%p_env)
+          call r%create_and_allocate( mlbddc%p_mat%dof_dist,mlbddc%p_mat%p_env)
 
           ! par_vector_create view calls next
           ! requires a state to be assigned to r !!!
@@ -6161,11 +6161,11 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              ! Assemble coarse-grid residual
-             call r_c%create(mlbddc%A_c%graph%nv)    
+             call r_c%create_and_allocate(mlbddc%A_c%graph%nv)    
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, r_c )
 
              ! Solve coarse-grid problem serially
-             call z_c%create ( mlbddc%A_c%graph%nv )    
+             call z_c%create_and_allocate ( mlbddc%A_c%graph%nv )    
              mlbddc%spars_coarse%nrhs=1
              call z_c%init(0.0_rp)
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -6188,7 +6188,7 @@ use mpi
           assert(mlbddc%p_mat%p_env%num_levels>2)
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Assemble coarse-grid residual in parallel
-             call p_r_c%create ( mlbddc%dof_dist_c, mlbddc%p_env_c)
+             call p_r_c%create_and_allocate ( mlbddc%dof_dist_c, mlbddc%p_env_c)
              p_r_c%state = part_summed
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, p_r_c%f_vector )
              ! call vector_print_matrix_market (6, p_r_c%f_vector)
@@ -6196,7 +6196,7 @@ use mpi
              ! AFM: In the future, the following call should be replaced by a call that allows
              ! the solution of the coarse-grid problem via a krylov subspace solver  
              ! A simple solve specialization may help here ??? 
-             call p_z_c%create ( mlbddc%dof_dist_c, mlbddc%p_env_c)
+             call p_z_c%create_and_allocate ( mlbddc%dof_dist_c, mlbddc%p_env_c)
              p_z_c%state = full_summed
 
              ! call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c )
@@ -7526,7 +7526,7 @@ use mpi
        C_weights_i = 0.0_rp
 
        if ( mlbddc%nl_coarse > 0 ) then           
-              call constraint_weights%f_vector%create(mlbddc%p_mat%dof_dist%nb)
+              call constraint_weights%f_vector%create_and_allocate(mlbddc%p_mat%dof_dist%nb)
               constraint_weights%f_vector%b = mlbddc%C_weights
               call apply_harm_trans( mlbddc, constraint_weights, C_weights_i ) 
               call constraint_weights%f_vector%free()
@@ -7549,7 +7549,7 @@ use mpi
                  call psb_barrier ( mlbddc%g_context%icontxt )
               end if
       
-         call C_weights_next_level%create (mlbddc%ng_coarse)
+         call C_weights_next_level%create_and_allocate (mlbddc%ng_coarse)
          call sum_coarse_stiffness_vectors ( C_weights_next_level, &
                                              mlbddc%g_context%np, & 
                                              mlbddc%ng_coarse, & 
@@ -8593,7 +8593,7 @@ use mpi
        select type(x)
           class is (par_scalar_array_t)
           allocate(local_y)
-          call local_y%create ( x%dof_dist, x%p_env )
+          call local_y%create_and_allocate ( x%dof_dist, x%p_env )
           call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
           call move_alloc(local_y, y)
           call y%SetTemp()

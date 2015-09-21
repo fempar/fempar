@@ -30,7 +30,6 @@ module par_scalar_matrix_names
   use types_names
   use memor_names
   use serial_scalar_matrix_names
-  use array_names
   use stdio_names
 #ifdef memcheck
   use iso_c_binding
@@ -46,13 +45,14 @@ module par_scalar_matrix_names
   ! Abstract types
   use vector_names
   use operator_names
-  
+  use matrix_names
+
   implicit none
 # include "debug.i90"
 
   private
 
-  type, extends(operator_t) :: par_scalar_matrix_t
+  type, extends(matrix_t) :: par_scalar_matrix_t
      ! Data structure which stores the local part 
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 
@@ -158,28 +158,28 @@ contains
   end subroutine par_scalar_matrix_free_in_one_shot
 
   !=============================================================================
-  subroutine par_scalar_matrix_free_in_stages(this, mode)
+  subroutine par_scalar_matrix_free_in_stages(this, action)
     implicit none
     class(par_scalar_matrix_t), intent(inout) :: this
-    integer(ip)               , intent(in)    :: mode
+    integer(ip)               , intent(in)    :: action
 
     ! The routine requires the partition/context info
     assert ( associated(this%dof_dist) )
     assert ( associated(this%p_env%p_context) )
     assert ( this%p_env%p_context%created .eqv. .true.)
-    assert ( mode == free_clean .or. mode == free_struct .or. mode == free_values )
+    assert ( action == free_clean .or. action == free_struct .or. action == free_values )
 
     if(this%p_env%p_context%iam<0) return
 
-    if ( mode == free_clean ) then
+    if ( action == free_clean ) then
        nullify ( this%dof_dist )
        nullify ( this%dof_dist_cols )
        nullify ( this%p_env )
-	   call this%f_matrix%free_in_stages(mode)
-    else if ( mode == free_struct ) then
-	   call this%f_matrix%free_in_stages(mode)
-	else if ( mode == free_values ) then
-	   call this%f_matrix%free_in_stages(mode)
+	   call this%f_matrix%free_in_stages(action)
+    else if ( action == free_struct ) then
+	   call this%f_matrix%free_in_stages(action)
+	else if ( action == free_values ) then
+	   call this%f_matrix%free_in_stages(action)
     end if
 	
   end subroutine par_scalar_matrix_free_in_stages
@@ -330,7 +330,7 @@ contains
     select type(x)
     class is (par_scalar_array_t)
        allocate(local_y)
-       call local_y%create (op%dof_dist, x%p_env)
+       call local_y%create_and_allocate (op%dof_dist, x%p_env)
        call par_scalar_matrix_apply(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

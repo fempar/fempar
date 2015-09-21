@@ -35,7 +35,8 @@ module serial_block_matrix_names
   ! Abstract types
   use vector_names
   use operator_names
-  
+  use matrix_names
+
   implicit none
 # include "debug.i90"
 
@@ -45,7 +46,7 @@ module serial_block_matrix_names
     type(serial_scalar_matrix_t), pointer :: serial_scalar_matrix
   end type p_serial_scalar_matrix_t
 
-  type, extends(operator_t):: serial_block_matrix_t
+  type, extends(matrix_t):: serial_block_matrix_t
     ! private ! IBM XLF 14.1 bug
     integer(ip) :: nblocks = -1
     type(p_serial_scalar_matrix_t), allocatable :: blocks(:,:)
@@ -141,15 +142,15 @@ contains
   end subroutine serial_block_matrix_create_offdiagonal_block
   
   !=============================================================================
-  subroutine serial_block_matrix_allocate(bmat)
+  subroutine serial_block_matrix_allocate(this)
     implicit none
-    class(serial_block_matrix_t), intent(inout) :: bmat
+    class(serial_block_matrix_t), intent(inout) :: this
     integer(ip) :: ib,jb
 	
-    do ib=1, bmat%nblocks
-       do jb=1, bmat%nblocks
-         if ( associated( bmat%blocks(ib,jb)%serial_scalar_matrix ) ) then
-           call bmat%blocks(ib,jb)%serial_scalar_matrix%allocate()
+    do ib=1, this%nblocks
+       do jb=1, this%nblocks
+         if ( associated( this%blocks(ib,jb)%serial_scalar_matrix ) ) then
+           call this%blocks(ib,jb)%serial_scalar_matrix%allocate()
 		 end if
        end do
     end do

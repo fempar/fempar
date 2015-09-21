@@ -82,9 +82,9 @@ program test_serial_preconditioners_and_solvers
   call io_close(lunio)
 
   ! Alloc vectors
-  call b%create (mmmat%graph%nv)
-  call x%create (mmmat%graph%nv)
-  call exact_solution%create(mmmat%graph%nv)
+  call b%create_and_allocate (mmmat%graph%nv)
+  call x%create_and_allocate (mmmat%graph%nv)
+  call exact_solution%create_and_allocate(mmmat%graph%nv)
   call exact_solution%init(1.0_rp)
 
   A      => mmmat

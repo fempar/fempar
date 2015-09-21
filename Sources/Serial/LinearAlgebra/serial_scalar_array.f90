@@ -31,6 +31,7 @@ module serial_scalar_array_names
 #ifdef ENABLE_BLAS
   use blas77_interfaces_names
 #endif
+  use array_names
   use vector_names
 
   implicit none
@@ -42,7 +43,7 @@ module serial_scalar_array_names
 
   private
 
-  type, extends(vector_t) :: serial_scalar_array_t
+  type, extends(array_t) :: serial_scalar_array_t
      integer(ip)                :: &
         neq = 0                       ! Number of equations
    
@@ -53,7 +54,9 @@ module serial_scalar_array_names
         b(:) => NULL()
    contains
    
+	 procedure :: create_and_allocate => serial_scalar_array_create_and_allocate
 	 procedure :: create              => serial_scalar_array_create
+	 procedure :: allocate            => serial_scalar_array_allocate
 	 procedure :: create_view         => serial_scalar_array_create_view
 	 procedure :: print               => serial_scalar_array_print
 	 procedure :: print_matrix_market => serial_scalar_array_print_matrix_market
@@ -87,18 +90,33 @@ contains
     nullify(this%b)
     call this%NullifyTemporary()
   end subroutine serial_scalar_array_default_init
-
+  
+  !=============================================================================
+  subroutine serial_scalar_array_create_and_allocate(this,size)
+    implicit none
+	class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: size
+    call this%create(size)
+	call this%allocate()
+  end subroutine serial_scalar_array_create_and_allocate
+  
   !=============================================================================
   subroutine serial_scalar_array_create(this,size)
     implicit none
 	class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: size
     assert ( this%mode == not_created )
-    this%neq     = size  
+    this%neq  = size  
+	this%mode = allocated
+  end subroutine serial_scalar_array_create
+  
+  !=============================================================================
+  subroutine serial_scalar_array_allocate(this)
+    implicit none
+	class(serial_scalar_array_t), intent(inout) :: this
     call memallocp(this%neq,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp
-    this%mode = allocated
-  end subroutine serial_scalar_array_create
+  end subroutine serial_scalar_array_allocate
   
   subroutine serial_scalar_array_create_view (this, start, end, tvec)
     implicit none

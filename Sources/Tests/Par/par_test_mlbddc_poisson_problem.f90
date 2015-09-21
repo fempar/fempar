@@ -432,10 +432,10 @@ program par_test_mlbddc_poisson_problem
 											test_params%sign, &
 											p_mat )
 
-  call p_vec%create ( blocks_dof_distribution%get_block(1), p_env )
+  call p_vec%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
   p_vec%state = part_summed
 
-  call p_unk%create ( blocks_dof_distribution%get_block(1), p_env )
+  call p_unk%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
   p_unk%state = full_summed
 
   call par_update_analytical_bcond( vars_of_unk=(/1/), ctime=0.0_rp, p_fe_space=p_fe_space)

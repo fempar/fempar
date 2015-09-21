@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module create_global_dof_info_names
   use types_names
-  use array_names
   use memor_names
   use triangulation_names
   use fe_space_names

@@ -31,7 +31,8 @@ module par_scalar_array_names
   use memor_names
   use stdio_names
   use serial_scalar_array_names
-  use map_apply_names
+  use array_names
+  use vector_names
 
 #ifdef ENABLE_BLAS       
   use blas77_interfaces_names
@@ -60,7 +61,7 @@ module par_scalar_array_names
   integer(ip), parameter :: full_summed   = 1  ! fully     summed element-based vector
 
   ! Distributed Vector
-  type, extends(vector_t) :: par_scalar_array_t
+  type, extends(array_t) :: par_scalar_array_t
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
      type( serial_scalar_array_t ) :: f_vector
@@ -70,7 +71,9 @@ module par_scalar_array_names
      type ( dof_distribution_t ), pointer  :: dof_dist => NULL()
      type ( par_environment_t ) , pointer  :: p_env => NULL()
    contains
-     procedure :: create              => par_scalar_array_create
+     procedure :: create_and_allocate => par_scalar_array_create_and_allocate
+	 procedure :: create              => par_scalar_array_create
+     procedure :: allocate            => par_scalar_array_allocate
 	 procedure :: create_view         => par_scalar_array_create_view
      procedure :: weight              => par_scalar_array_weight
      procedure :: print               => par_scalar_array_print
@@ -133,6 +136,18 @@ contains
   end subroutine par_scalar_array_default_init
 
   !=============================================================================
+  subroutine par_scalar_array_create_and_allocate (this, dof_dist, p_env)
+    implicit none
+    ! Parameters
+	class(par_scalar_array_t), intent(out) :: this
+    type(dof_distribution_t) , intent(in)  :: dof_dist
+    type(par_environment_t)  , intent(in)  :: p_env
+
+    call this%create(dof_dist, p_env)
+	call this%allocate()
+  end subroutine par_scalar_array_create_and_allocate
+  
+  !=============================================================================
   subroutine par_scalar_array_create (this, dof_dist, p_env)
     implicit none
     ! Parameters
@@ -145,10 +160,23 @@ contains
     assert ( p_env%p_context%created .eqv. .true.)
     this%dof_dist => dof_dist
     this%p_env    => p_env 
-    if(p_env%p_context%iam<0) return
+	if(this%p_env%p_context%iam<0) return
     call this%f_vector%create (dof_dist%nl)
-    this%state = undefined
   end subroutine par_scalar_array_create
+  
+  !=============================================================================
+  subroutine par_scalar_array_allocate (this)
+    implicit none
+    ! Parameters
+	class(par_scalar_array_t), intent(inout) :: this
+    ! p_env%p_context is required within this subroutine
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.) 
+    assert ( associated(this%dof_dist) )
+	if(this%p_env%p_context%iam<0) return
+    call this%f_vector%allocate ()
+    this%state = undefined
+  end subroutine par_scalar_array_allocate
 
   !=============================================================================
   subroutine par_scalar_array_create_view (this, start, end, t_p_vec)

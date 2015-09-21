@@ -238,8 +238,8 @@ program par_test_nsi_iss
 											indefinite, &
 											p_mat )
   
-  call p_vec%create(blocks_dof_distribution%get_block(1),p_env)
-  call p_unk%create(blocks_dof_distribution%get_block(1),p_env)
+  call p_vec%create_and_allocate(blocks_dof_distribution%get_block(1),p_env)
+  call p_unk%create_and_allocate(blocks_dof_distribution%get_block(1),p_env)
   p_vec%state = part_summed
   p_unk%state = full_summed
   call p_vec%init(0.0_rp)
