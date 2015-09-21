@@ -225,7 +225,7 @@ program par_test_cdr_unstructured
 
   ! Continuity
   ! write(*,*) 'Continuity', continuity
-  call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
+  call p_fe_space%create ( p_trian, dof_descriptor, problem, &
                               p_cond, continuity, enable_face_integration, order, material, &
                               time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
@@ -367,7 +367,7 @@ program par_test_cdr_unstructured
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
 
-  call par_fe_space_free(p_fe_space) 
+  call p_fe_space%free() 
   call my_problem%free
   call my_discrete%free
   call my_approximation%free

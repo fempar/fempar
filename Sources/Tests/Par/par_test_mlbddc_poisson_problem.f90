@@ -417,11 +417,11 @@ program par_test_mlbddc_poisson_problem
 
   call par_timer_start (par_fe_space_create_timer)
 
-  call par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, &
-                             p_cond, continuity, enable_face_integration, order, material, &
-                             time_steps_to_store = 1, &
-                             hierarchical_basis = .false., &
-                             & static_condensation = .false., num_continuity = 1 )
+  call p_fe_space%create ( p_trian, dof_descriptor, problem, &
+                           p_cond, continuity, enable_face_integration, order, material, &
+                           time_steps_to_store = 1, &
+                           hierarchical_basis = .false., &
+                           static_condensation = .false., num_continuity = 1 )
 
   call par_timer_stop (par_fe_space_create_timer)
   call par_timer_report(par_fe_space_create_timer)
@@ -546,7 +546,7 @@ program par_test_mlbddc_poisson_problem
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
 
-  call par_fe_space_free(p_fe_space) 
+  call p_fe_space%free()
   call my_problem%free
   call my_discrete%free
   call my_approximation%free

@@ -62,54 +62,55 @@ use iso_c_binding
 	 integer(ip)                     :: num_interface_faces
      type(fe_face_t), allocatable    :: interface_faces(:)
   contains
-     procedure, private :: par_fe_space_create_make_par_scalar_coefficient_matrix
+     procedure :: create => par_fe_space_create
+	 procedure :: free => par_fe_space_free
+	 procedure :: print => par_fe_space_print
+     procedure :: set_analytical_code => par_fe_space_set_analytical_code
+	 procedure :: get_blocks_dof_distribution => par_fe_space_get_blocks_dof_distribution
+	 
+	 procedure, private :: par_fe_space_create_make_par_scalar_coefficient_matrix
      procedure, private :: par_fe_space_create_make_par_block_coefficient_matrix
 	 generic :: make_coefficient_matrix => par_fe_space_create_make_par_scalar_coefficient_matrix, &
 	                                       par_fe_space_create_make_par_block_coefficient_matrix
-     procedure :: set_analytical_code => par_fe_space_set_analytical_code
-	 procedure :: get_blocks_dof_distribution => par_fe_space_get_blocks_dof_distribution
   end type par_fe_space_t
 
   ! Types
   public :: par_fe_space_t
 
-  ! Methods
-  public :: par_fe_space_create,  par_fe_space_print, par_fe_space_free, par_fe_space_set_analytical_code
-
 contains
 
-  subroutine par_fe_space_create_make_par_scalar_coefficient_matrix(p_fe_space,symmetric_storage,is_symmetric,sign,par_scalar_matrix)
+  subroutine par_fe_space_create_make_par_scalar_coefficient_matrix(this,symmetric_storage,is_symmetric,sign,par_scalar_matrix)
     implicit none
-	class(par_fe_space_t)        , intent(in)  :: p_fe_space
+	class(par_fe_space_t)        , intent(in)  :: this
     logical                      , intent(in)  :: symmetric_storage
     logical                      , intent(in)  :: is_symmetric
 	integer(ip)                  , intent(in)  :: sign
     type(par_scalar_matrix_t)    , intent(out) :: par_scalar_matrix
 	
-	assert ( p_fe_space%dof_descriptor%nblocks == 1 ) 
+	assert ( this%dof_descriptor%nblocks == 1 ) 
 	call par_scalar_matrix%create(symmetric_storage, & 
 								  is_symmetric, &
 								  sign, &
-								  p_fe_space%blocks_dof_distribution%get_block(1), &
-								  p_fe_space%p_trian%p_env)
+								  this%blocks_dof_distribution%get_block(1), &
+								  this%p_trian%p_env)
 	
-	if ( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-	  call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, p_fe_space%serial_fe_space, par_scalar_matrix%f_matrix%graph )
+	if ( this%p_trian%p_env%am_i_fine_task() ) then
+	  call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, par_scalar_matrix%f_matrix%graph )
 	end if  
 	
 	call par_scalar_matrix%allocate()
   end subroutine par_fe_space_create_make_par_scalar_coefficient_matrix
   
-  subroutine par_fe_space_create_make_par_block_coefficient_matrix(fe_space, & 
+  subroutine par_fe_space_create_make_par_block_coefficient_matrix(this, & 
 												  diagonal_blocks_symmetric_storage, & 
 												  diagonal_blocks_symmetric, &
 												  diagonal_blocks_sign,& 
 												  par_block_matrix)
     implicit none
-    class(par_fe_space_t)       , intent(in)  :: fe_space
-	logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(fe_space%dof_descriptor%nblocks)
-    logical                     , intent(in)  :: diagonal_blocks_symmetric(fe_space%dof_descriptor%nblocks)
-    integer(ip)                 , intent(in)  :: diagonal_blocks_sign(fe_space%dof_descriptor%nblocks)
+    class(par_fe_space_t)       , intent(in)  :: this
+	logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(this%dof_descriptor%nblocks)
+    logical                     , intent(in)  :: diagonal_blocks_symmetric(this%dof_descriptor%nblocks)
+    integer(ip)                 , intent(in)  :: diagonal_blocks_sign(this%dof_descriptor%nblocks)
 	type(par_block_matrix_t)    , intent(out) :: par_block_matrix
 	
 	
@@ -122,16 +123,16 @@ contains
   ! together with some optional flags. The output of this subroutine is a fe_space
   ! with the required info on ghost elements.
   !*********************************************************************************
-  subroutine par_fe_space_create ( p_trian, dof_descriptor, p_fe_space, problem, p_cond, continuity, enable_face_integration,  &
+  subroutine par_fe_space_create ( this, p_trian, dof_descriptor, problem, p_cond, continuity, enable_face_integration,  &
                                     order, material,  time_steps_to_store, hierarchical_basis, &
                                     static_condensation, num_continuity )
     implicit none
     ! Dummy arguments
+	class(par_fe_space_t)            , intent(inout)  :: this  
     type(par_triangulation_t), target, intent(in)    :: p_trian
     type(dof_descriptor_t)   , target, intent(in)    :: dof_descriptor
-    type(par_fe_space_t)            , intent(inout)  :: p_fe_space  
     integer(ip)                    , intent(in)      :: problem(:)
-    type(par_conditions_t)           , intent(in)    :: p_cond
+    type(par_conditions_t)         , intent(in)      :: p_cond
     integer(ip)                    , intent(in)      :: continuity(:,:)
 	logical                        , intent(in)      :: enable_face_integration(:,:)
     integer(ip)                    , intent(in)      :: order(:,:)
@@ -147,59 +148,61 @@ contains
 
     ! Parallel environment MUST BE already created
     assert ( p_trian%p_env%created )
-    p_fe_space%p_trian        => p_trian 
-	p_fe_space%dof_descriptor => dof_descriptor
+    this%p_trian        => p_trian 
+	this%dof_descriptor => dof_descriptor
 
-    if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
-       call serial_fe_space_allocate_structures(  p_fe_space%serial_fe_space, p_trian%f_trian, dof_descriptor, &
+    if( this%p_trian%p_env%p_context%iam >= 0 ) then
+       call serial_fe_space_allocate_structures(  this%serial_fe_space, p_trian%f_trian, dof_descriptor, &
                                                   time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
                                                   static_condensation = static_condensation, num_continuity = num_continuity, &
                                                   num_ghosts = p_trian%num_ghosts ) 
 
-       call serial_fe_space_fe_list_create ( p_fe_space%serial_fe_space, problem, continuity, enable_face_integration, &
+       call serial_fe_space_fe_list_create ( this%serial_fe_space, problem, continuity, enable_face_integration, &
             &                                order, material, p_cond%f_conditions )
 
        ! Communicate problem, continuity, order, and material
-       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_fe_space%serial_fe_space%finite_elements )
+       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, this%serial_fe_space%finite_elements )
        ! Create ghost fem space (only partially, i.e., previous info)
-       call ghost_fe_list_create ( p_fe_space ) 
-       call serial_fe_space_integration_faces_list( p_fe_space%serial_fe_space )
+       call ghost_fe_list_create ( this ) 
+       call serial_fe_space_integration_faces_list( this%serial_fe_space )
     end if
 
   end subroutine par_fe_space_create
   
-  subroutine par_fe_space_free ( p_fe_space )
+  subroutine par_fe_space_free ( this )
     implicit none
     ! Dummy arguments
-    type(par_fe_space_t), intent(inout) :: p_fe_space  
+    class(par_fe_space_t), intent(inout) :: this  
     
     ! Local variables
     integer(ip) :: ielem
     
     ! Parallel environment MUST BE already created
-    assert ( associated(p_fe_space%p_trian) )
-    assert ( p_fe_space%p_trian%p_env%created )
+    assert ( associated(this%p_trian) )
+    assert ( this%p_trian%p_env%created )
     
-    if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
+    if( this%p_trian%p_env%p_context%iam >= 0 ) then
        ! Deallocate type(finite_element_ts) associated to ghost elements
-       do ielem = p_fe_space%p_trian%f_trian%num_elems+1, p_fe_space%p_trian%f_trian%num_elems+p_fe_space%p_trian%num_ghosts
-          if(allocated(p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars)) call memfree(p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars,__FILE__,__LINE__)
-          if(allocated(p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof)) call memfree(p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof,__FILE__,__LINE__)
-          if(allocated(p_fe_space%serial_fe_space%finite_elements(ielem)%unkno)) call memfree(p_fe_space%serial_fe_space%finite_elements(ielem)%unkno,__FILE__,__LINE__)
-          call finite_element_free_unpacked(p_fe_space%serial_fe_space%finite_elements(ielem))
+       do ielem = this%p_trian%f_trian%num_elems+1, this%p_trian%f_trian%num_elems+this%p_trian%num_ghosts
+          if(allocated(this%serial_fe_space%finite_elements(ielem)%reference_element_vars)) call memfree(this%serial_fe_space%finite_elements(ielem)%reference_element_vars,__FILE__,__LINE__)
+          if(allocated(this%serial_fe_space%finite_elements(ielem)%elem2dof)) call memfree(this%serial_fe_space%finite_elements(ielem)%elem2dof,__FILE__,__LINE__)
+          if(allocated(this%serial_fe_space%finite_elements(ielem)%unkno)) call memfree(this%serial_fe_space%finite_elements(ielem)%unkno,__FILE__,__LINE__)
+          call finite_element_free_unpacked(this%serial_fe_space%finite_elements(ielem))
        end do
-       call p_fe_space%serial_fe_space%free()
+       call this%serial_fe_space%free()
     end if
-    call p_fe_space%blocks_dof_distribution%free()
-    nullify ( p_fe_space%p_trian )
-	nullify ( p_fe_space%dof_descriptor )
+    call this%blocks_dof_distribution%free()
+    nullify ( this%p_trian )
+	nullify ( this%dof_descriptor )
   end subroutine par_fe_space_free
 
-  subroutine par_fe_space_print ( p_fe_space )
+  subroutine par_fe_space_print ( p_fe_space, lunou )
     implicit none
-    type(par_fe_space_t), intent(in) :: p_fe_space  
-
-    
+    class(par_fe_space_t), intent(in) :: p_fe_space
+	integer(ip)          , intent(in) :: lunou
+    if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
+	  call p_fe_space%serial_fe_space%print(lunou, p_fe_space%p_trian%num_ghosts)
+    end if
   end subroutine par_fe_space_print
 
   !==================================================================================================

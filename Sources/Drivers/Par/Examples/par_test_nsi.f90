@@ -223,10 +223,10 @@ program par_test_nsi_iss
   problem                = 1
 
   ! Create par_fe_space
-  call par_fe_space_create(p_trian,dof_descriptor,p_fe_space,problem,p_cond,continuity,enable_face_integration, &
-       &                    order,material,time_steps_to_store=3,                        &
-       &                    hierarchical_basis=.false.,                         &
-       &                    static_condensation=.false.,num_continuity=1)
+  call p_fe_space%create(p_trian,dof_descriptor,problem,p_cond,continuity,enable_face_integration, &
+       &                 order,material,time_steps_to_store=3, &
+       &                 hierarchical_basis=.false., &
+       &                 static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
   call fevtk%initialize(p_trian%f_trian,p_fe_space%serial_fe_space,myprob,p_env,dir_path_out,prefix, &
@@ -384,7 +384,7 @@ program par_test_nsi_iss
   call p_mat%free()
   call p_vec%free
   call p_unk%free()     
-  call par_fe_space_free(p_fe_space) 
+  call p_fe_space%free()
   call myprob%free
   call mydisc%free
   call cg_iss_matvec%free
