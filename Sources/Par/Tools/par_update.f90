@@ -63,7 +63,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_strong_dirichlet_bcond( p_fe_space%fe_space, p_cond%f_conditions )
+       call update_strong_dirichlet_bcond( p_fe_space%serial_fe_space, p_cond%f_conditions )
     end if
 
   end subroutine par_update_strong_dirichlet_bcond
@@ -85,7 +85,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_analytical_bcond( vars_of_unk,ctime,p_fe_space%fe_space,tvar)
+       call update_analytical_bcond( vars_of_unk,ctime,p_fe_space%serial_fe_space,tvar)
     end if
 
   end subroutine par_update_analytical_bcond
@@ -107,7 +107,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_analytical_initial( vars_of_unk,ctime,p_fe_space%fe_space,tvar)
+       call update_analytical_initial( vars_of_unk,ctime,p_fe_space%serial_fe_space,tvar)
     end if
 
   end subroutine par_update_analytical_initial
@@ -149,7 +149,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_solution_mono(p_vec%f_vector,p_fe_space%fe_space,iblock)
+       call update_solution_mono(p_vec%f_vector,p_fe_space%serial_fe_space,iblock)
     end if
 
   end subroutine par_update_solution_mono
@@ -176,7 +176,7 @@ contains
        do iblock = 1,blk_p_vec%nblocks
 
           ! Call monolithic update
-          call update_solution_mono(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
+          call update_solution_mono(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%serial_fe_space,iblock)
 
        end do
 
@@ -200,7 +200,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_nonlinear_solution(p_fe_space%fe_space,working_vars,origin,current)
+       call update_nonlinear_solution(p_fe_space%serial_fe_space,working_vars,origin,current)
     end if
 
   end subroutine par_update_nonlinear_solution
@@ -242,7 +242,7 @@ contains
 
     ! If fine task call serial subroutine
     if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-       call update_initialize_mono(p_vec%f_vector,p_fe_space%fe_space,iblock)
+       call update_initialize_mono(p_vec%f_vector,p_fe_space%serial_fe_space,iblock)
     end if
 
   end subroutine par_update_initialize_mono
@@ -269,7 +269,7 @@ contains
        do iblock = 1,blk_p_vec%nblocks
 
           ! Call monolithic update
-          call update_initialize_mono(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%fe_space,iblock)
+          call update_initialize_mono(blk_p_vec%blocks(iblock)%f_vector,p_fe_space%serial_fe_space,iblock)
 
        end do
 

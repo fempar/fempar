@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fe_space_names
+module serial_fe_space_names
   ! Modules
   use types_names
   use memor_names
@@ -35,7 +35,6 @@ module fe_space_names
   use problem_names
   use integration_tools_names
   use interpolation_tools_names
-  !use face_integration_names
   use fe_space_types_names
   use dof_descriptor_names
   use migratory_element_names
@@ -58,7 +57,7 @@ module fe_space_names
                                 & max_number_problems  = 2               ! Maximum number of problems
 
   ! Global information of the fe_space
-  type fe_space_t  
+  type serial_fe_space_t  
      integer(ip)                       :: num_continuity       ! Number of materials (maximum value)
      logical                           :: static_condensation  ! Flag for static condensation 
      logical                           :: hierarchical_basis   ! Flag for hierarchical basis
@@ -71,8 +70,8 @@ module fe_space_names
 
      ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elmatvec
-     type(allocatable_array_rp2_t)                    :: lelmat(max_global_interpolations)
-     type(allocatable_array_rp1_t)                    :: lelvec(max_global_interpolations)
+     type(allocatable_array_rp2_t)        :: lelmat(max_global_interpolations)
+     type(allocatable_array_rp1_t)        :: lelvec(max_global_interpolations)
 
      ! Integrator
      type(position_hash_table_t)          :: pos_volume_integrator
@@ -81,11 +80,11 @@ module fe_space_names
      type(face_integrator_t)              :: lfaci(max_global_interpolations)
 
      ! Interpolator
-     type(allocatable_array_rp2_t)                    :: linter(max_global_interpolations)
+     type(allocatable_array_rp2_t)        :: linter(max_global_interpolations)
 
      ! Starting DOF position
      type(position_hash_table_t)          :: pos_start
-     type(allocatable_array_ip1_t)                    :: lstart(max_number_problems)
+     type(allocatable_array_ip1_t)        :: lstart(max_number_problems)
 
      ! Array of reference elements (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elem_info
@@ -101,68 +100,67 @@ module fe_space_names
      integer(ip)                         :: num_interior_faces, num_boundary_faces
 
      ! Analytical function auxiliar array
-     type(allocatable_array_ip2_t)                    :: l_analytical_code(max_number_problems)
-
-     ! Much better here rather than as a module variable
-     !type(list_t) :: void_list_t
+     type(allocatable_array_ip2_t)       :: l_analytical_code(max_number_problems)
 
    contains
-     procedure, private :: fe_space_create_make_serial_scalar_coefficient_matrix
-     procedure, private :: fe_space_create_make_serial_block_coefficient_matrix
-	 generic :: make_coefficient_matrix => fe_space_create_make_serial_scalar_coefficient_matrix, &
-	                                       fe_space_create_make_serial_block_coefficient_matrix
-     procedure :: set_analytical_code => fe_space_set_analytical_code
-  end type fe_space_t
+     procedure :: create => serial_fe_space_create
+	 procedure :: free => serial_fe_space_free
+	 procedure :: print => serial_fe_space_print
+     procedure :: set_analytical_code => serial_fe_space_set_analytical_code
+	 procedure, private :: serial_fe_space_create_make_serial_scalar_coefficient_matrix
+     procedure, private :: serial_fe_space_create_make_serial_block_coefficient_matrix
+	 generic :: make_coefficient_matrix => serial_fe_space_create_make_serial_scalar_coefficient_matrix, &
+	                                       serial_fe_space_create_make_serial_block_coefficient_matrix
+  end type serial_fe_space_t
 
   ! Types
-  public :: fe_space_t
+  public :: serial_fe_space_t
 
   ! Methods
-  public :: fe_space_create, fe_space_print, fe_space_free, &
-       &    fe_space_integration_faces_list, fe_space_allocate_structures, &
-       &    fe_space_fe_list_create, setup_dof_graph_from_block_row_col_identifiers
+  public :: serial_fe_space_integration_faces_list, serial_fe_space_allocate_structures, &
+       &    serial_fe_space_fe_list_create, setup_dof_graph_from_block_row_col_identifiers
 
 contains
 
-  subroutine fe_space_create_make_serial_scalar_coefficient_matrix(fe_space,symmetric_storage,is_symmetric,sign,serial_scalar_matrix)
+  subroutine serial_fe_space_create_make_serial_scalar_coefficient_matrix(this,symmetric_storage,is_symmetric,sign,serial_scalar_matrix)
     implicit none
-	class(fe_space_t)            , intent(in)  :: fe_space
+	class(serial_fe_space_t)     , intent(in)  :: this
     logical                      , intent(in)  :: symmetric_storage
     logical                      , intent(in)  :: is_symmetric
 	integer(ip)                  , intent(in)  :: sign
     type(serial_scalar_matrix_t) , intent(out) :: serial_scalar_matrix
 	
-	assert ( fe_space%dof_descriptor%nblocks == 1 ) 
+	assert ( this%dof_descriptor%nblocks == 1 ) 
 	call serial_scalar_matrix%create(symmetric_storage,is_symmetric,sign)
-	call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, fe_space, serial_scalar_matrix%graph )
+	call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, serial_scalar_matrix%graph )
 	call serial_scalar_matrix%allocate()
-  end subroutine fe_space_create_make_serial_scalar_coefficient_matrix
+  end subroutine serial_fe_space_create_make_serial_scalar_coefficient_matrix
   
-  subroutine fe_space_create_make_serial_block_coefficient_matrix(fe_space, & 
+  subroutine serial_fe_space_create_make_serial_block_coefficient_matrix(this, & 
 												  diagonal_blocks_symmetric_storage, & 
 												  diagonal_blocks_symmetric, &
 												  diagonal_blocks_sign,& 
 												  serial_block_matrix)
     implicit none
-    class(fe_space_t)            , intent(in)  :: fe_space
-	logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(fe_space%dof_descriptor%nblocks)
-    logical                     , intent(in)  :: diagonal_blocks_symmetric(fe_space%dof_descriptor%nblocks)
-    integer(ip)                 , intent(in)  :: diagonal_blocks_sign(fe_space%dof_descriptor%nblocks)
+    class(serial_fe_space_t)    , intent(in)  :: this
+	logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(this%dof_descriptor%nblocks)
+    logical                     , intent(in)  :: diagonal_blocks_symmetric(this%dof_descriptor%nblocks)
+    integer(ip)                 , intent(in)  :: diagonal_blocks_sign(this%dof_descriptor%nblocks)
 	type(serial_block_matrix_t) , intent(out) :: serial_block_matrix
 	
 	
-  end subroutine fe_space_create_make_serial_block_coefficient_matrix
+  end subroutine serial_fe_space_create_make_serial_block_coefficient_matrix
 
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_create( g_trian, dof_descriptor, fe_space, problem, bcond, continuity, enable_face_integration, & 
+  subroutine serial_fe_space_create( this, g_trian, dof_descriptor, problem, bcond, continuity, enable_face_integration, & 
                               order, material, time_steps_to_store, hierarchical_basis,       & 
                               static_condensation, num_continuity, num_ghosts )
     implicit none
+	class(serial_fe_space_t)        , target, intent(inout) :: this
     type(triangulation_t), target, intent(in)    :: g_trian   
     type(dof_descriptor_t)      , target, intent(in)    :: dof_descriptor
-    type(fe_space_t)        , target, intent(inout) :: fe_space
     integer(ip)                    , intent(in)    :: problem(:)
     type(conditions_t)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
@@ -170,29 +168,29 @@ contains
     integer(ip)                    , intent(in)    :: order(:,:)
     integer(ip)                    , intent(in)    :: material(:)
     integer(ip)          , optional, intent(in)    :: time_steps_to_store
-    logical          , optional, intent(in)    :: hierarchical_basis
-    logical          , optional, intent(in)    :: static_condensation
+    logical              , optional, intent(in)    :: hierarchical_basis
+    logical              , optional, intent(in)    :: static_condensation
     integer(ip)          , optional, intent(in)    :: num_continuity   
     integer(ip)          , optional, intent(in)    :: num_ghosts         
 
     integer(ip) :: istat, num_ghosts_
 
-    call fe_space_allocate_structures( g_trian, dof_descriptor, fe_space, time_steps_to_store = time_steps_to_store,&
-         hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
-          num_continuity = num_continuity, num_ghosts = num_ghosts )  
+    call serial_fe_space_allocate_structures( this, g_trian, dof_descriptor, time_steps_to_store = time_steps_to_store, &
+                                              hierarchical_basis = hierarchical_basis, static_condensation = static_condensation, &
+                                              num_continuity = num_continuity, num_ghosts = num_ghosts )  
 
-    call fe_space_fe_list_create ( fe_space, problem, continuity, enable_face_integration, order, material, bcond )
-
-  end subroutine fe_space_create
+    call serial_fe_space_fe_list_create ( this, problem, continuity, enable_face_integration, order, material, bcond )
+	
+  end subroutine serial_fe_space_create
 
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
-  subroutine fe_space_allocate_structures( g_trian, dof_descriptor, fe_space, time_steps_to_store, &
+  subroutine serial_fe_space_allocate_structures(fe_space, g_trian, dof_descriptor,time_steps_to_store, &
        & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
-    type(fe_space_t)   ,  target, intent(inout)                :: fe_space
+    type(serial_fe_space_t)   ,  target, intent(inout) :: fe_space
     type(triangulation_t)   , intent(in), target   :: g_trian   
-    type(dof_descriptor_t) , intent(in), target           :: dof_descriptor  
+    type(dof_descriptor_t) , intent(in), target    :: dof_descriptor  
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical, optional, intent(in) :: hierarchical_basis
     logical, optional, intent(in) :: static_condensation
@@ -263,14 +261,14 @@ contains
     ! Initialization of starting DOF position array
     call fe_space%pos_start%init(ht_length)
 
-  end subroutine fe_space_allocate_structures
+  end subroutine serial_fe_space_allocate_structures
 
   !==================================================================================================
   ! Fill the fe_space_t assuming that all elements are of type f_type but each variable has different
   ! interpolation order
-  subroutine fe_space_fe_list_create( fe_space, problem, continuity, enable_face_integration, order, material, bcond )
+  subroutine serial_fe_space_fe_list_create( fe_space, problem, continuity, enable_face_integration, order, material, bcond )
     implicit none
-    type(fe_space_t), intent(inout), target  :: fe_space
+    type(serial_fe_space_t), intent(inout), target  :: fe_space
     integer(ip)    , intent(in)       :: material(:), order(:,:), problem(:)
     integer(ip)    , intent(in)       :: continuity(:,:)
     logical        , intent(in)       :: enable_face_integration(:,:) 
@@ -425,7 +423,7 @@ contains
        fe_space%l_analytical_code(pos_voint)%a = 0
     end do
 
-  end subroutine fe_space_fe_list_create
+  end subroutine serial_fe_space_fe_list_create
 
   !==================================================================================================
   subroutine dof_to_elnod( el2dof, idof, ivar, nvef, pnodob, lnode )
@@ -453,11 +451,11 @@ contains
 
   end subroutine dof_to_elnod
 
-  subroutine fe_space_print ( lunou, fe_space, num_ghosts )
+  subroutine serial_fe_space_print ( this, lunou, num_ghosts )
     implicit none
-    integer(ip)      , intent(in) :: lunou
-    type(fe_space_t), intent(in) :: fe_space
-    integer(ip), optional, intent(in) :: num_ghosts    
+	class(serial_fe_space_t), intent(in) :: this
+    integer(ip)             , intent(in) :: lunou
+    integer(ip)   , optional, intent(in) :: num_ghosts    
 
     integer(ip) :: ielem, num_ghosts_
     
@@ -468,166 +466,106 @@ contains
        num_ghosts_ = 0
     end if
     
-    write (lunou,*) 'Number of materials: ', fe_space%num_continuity
-    write (lunou,*) 'Static condensation flag: ', fe_space%static_condensation
+    write (lunou,*) 'Number of materials: ', this%num_continuity
+    write (lunou,*) 'Static condensation flag: ', this%static_condensation
 
     write (lunou,*) '****PRINT ELEMENT LIST INFO****'
-    do ielem = 1, fe_space%g_trian%num_elems + num_ghosts_
+    do ielem = 1, this%g_trian%num_elems + num_ghosts_
        write (lunou,*) '****PRINT ELEMENT ',ielem,' INFO****'
-       call finite_element_print ( lunou, fe_space%finite_elements(ielem) )
+       call finite_element_print ( lunou, this%finite_elements(ielem) )
        write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
     end do
 
-    write (lunou,*) 'Number boundary faces: ', fe_space%num_boundary_faces
-    write (lunou,*) 'Number interior faces: ', fe_space%num_interior_faces
-    write (lunou,*) 'Boundary faces: ', fe_space%boundary_faces(:)%face_vef
-    write (lunou,*) 'Interior faces: ', fe_space%interior_faces(:)%face_vef
-    
-
-  end subroutine fe_space_print
+    write (lunou,*) 'Number boundary faces: ', this%num_boundary_faces
+    write (lunou,*) 'Number interior faces: ', this%num_interior_faces
+    write (lunou,*) 'Boundary faces: ', this%boundary_faces(:)%face_vef
+    write (lunou,*) 'Interior faces: ', this%interior_faces(:)%face_vef
+  end subroutine serial_fe_space_print
 
  !==================================================================================================
-  subroutine fe_space_free ( fe_space )
+  subroutine serial_fe_space_free ( this )
     implicit none
-    type(fe_space_t), intent(inout) :: fe_space
+    class(serial_fe_space_t), intent(inout) :: this
     integer(ip)                    :: i,j
     integer(ip) :: istat
 
-    ! SB.alert : To be thought for the new structure triangulation
-    ! lface_free
-    ! if (allocated(fe_space%fe_faces)) then
-    !    j = 1
-    !    do i = 1, fe_space%g_trian%num_vefs
-    !       if ( trian%vefs(i)%dimension == fe_space%g_trian%num_dims-1 ) then
-    !          fe_space%fe_faces(i)%nei_elem  = 0
-    !          fe_space%fe_faces(i)%pos_elem  = 0
-    !          fe_space%fe_faces(i)%subface   = 0
-    !          fe_space%fe_faces(i)%refinement_level = 0
-    !          nullify (fe_space%fe_faces(i)%p_mat)
-    !          nullify (fe_space%fe_faces(i)%p_vec)
-    !          if (allocated(fe_space%fe_faces(i)%integ)) call memfree(fe_space%fe_faces(i)%integ,__FILE__,__LINE__)
-    !          if ( trian%vefs(i)%border /= -1) then
-    !             do j=1,fe_space%finite_elements(fe_space%fe_faces(i)%nei_elem(1))%p%nvars
-    !                call array_free(fe_space%fe_faces(i)%o2n(j))
-    !             end do
-    !             call memfree(fe_space%fe_faces(i)%o2n,__FILE__,__LINE__)
-    !          end if
-    !          j = j+1
-    !       end if
-    !    end do
-
-    !    deallocate(fe_space%fe_faces)
-    !    ! Face integrators free
-    !    do i = 1,fe_space%cur_lfaci-1 
-    !       call integ_free( fe_space%lfaci(i) )
-    !    end do
-    !    fe_space%cur_lfaci = 0
-    !    call fe_space%ht_pos_face_integrator%free
-    ! end if
-
-    
-
-    do i = 1, fe_space%g_trian%num_elems
-!       nullify ( fe_space%finite_elements(i)%problem )
-       call memfree( fe_space%finite_elements(i)%elem2dof,__FILE__,__LINE__)
-       call memfree( fe_space%finite_elements(i)%unkno,__FILE__,__LINE__)
-       !call memfree( fe_space%finite_elements(i)%jvars,__FILE__,__LINE__)
-       if (allocated(fe_space%finite_elements(i)%bc_code)) then
-          call memfree(fe_space%finite_elements(i)%bc_code,__FILE__,__LINE__)
+    do i = 1, this%g_trian%num_elems
+       call memfree( this%finite_elements(i)%elem2dof,__FILE__,__LINE__)
+       call memfree( this%finite_elements(i)%unkno,__FILE__,__LINE__)
+       if (allocated(this%finite_elements(i)%bc_code)) then
+          call memfree(this%finite_elements(i)%bc_code,__FILE__,__LINE__)
        end if
-       nullify ( fe_space%finite_elements(i)%p_geo_reference_element )
-       nullify ( fe_space%finite_elements(i)%p_mat )
-       nullify ( fe_space%finite_elements(i)%p_vec )
-       nullify ( fe_space%finite_elements(i)%start )
-       do j = 1, fe_space%finite_elements(i)%num_vars
-          nullify ( fe_space%finite_elements(i)%nodes_per_vef(j)%p )  
+       nullify ( this%finite_elements(i)%p_geo_reference_element )
+       nullify ( this%finite_elements(i)%p_mat )
+       nullify ( this%finite_elements(i)%p_vec )
+       nullify ( this%finite_elements(i)%start )
+       do j = 1, this%finite_elements(i)%num_vars
+          nullify ( this%finite_elements(i)%nodes_per_vef(j)%p )  
        end do
-       !if(allocated(fe_space%finite_elements(i)%nodes_per_vef)) call memfree(fe_space%finite_elements(i)%nodes_per_vef,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%reference_element_vars)) call memfree(fe_space%finite_elements(i)%reference_element_vars,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%integ)) call memfree(fe_space%finite_elements(i)%integ,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%inter)) call memfree(fe_space%finite_elements(i)%inter,__FILE__,__LINE__)
-       !if(allocated(fe_space%finite_elements(i)%iv))    call memfree(fe_space%finite_elements(i)%iv   ,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%continuity))    call memfree(fe_space%finite_elements(i)%continuity   ,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%enable_face_integration)) call memfree(fe_space%finite_elements(i)%enable_face_integration,__FILE__,__LINE__)
-       if(allocated(fe_space%finite_elements(i)%order))    call memfree(fe_space%finite_elements(i)%order   ,__FILE__,__LINE__)
-       !if(allocated(fe_space%finite_elements(i)%material))    call memfree(fe_space%finite_elements(i)%iv   ,__FILE__,__LINE__)
-       !if(allocated(fe_space%finite_elements(i)%p_nod)) call memfree(fe_space%finite_elements(i)%p_nod,__FILE__,__LINE__)
+       if(allocated(this%finite_elements(i)%reference_element_vars)) call memfree(this%finite_elements(i)%reference_element_vars,__FILE__,__LINE__)
+       if(allocated(this%finite_elements(i)%integ)) call memfree(this%finite_elements(i)%integ,__FILE__,__LINE__)
+       if(allocated(this%finite_elements(i)%inter)) call memfree(this%finite_elements(i)%inter,__FILE__,__LINE__)
+       if(allocated(this%finite_elements(i)%continuity))    call memfree(this%finite_elements(i)%continuity   ,__FILE__,__LINE__)
+       if(allocated(this%finite_elements(i)%enable_face_integration)) call memfree(this%finite_elements(i)%enable_face_integration,__FILE__,__LINE__)
+       if(allocated(this%finite_elements(i)%order))    call memfree(this%finite_elements(i)%order   ,__FILE__,__LINE__)
     end do
     
-    deallocate ( fe_space%mig_elems, stat=istat )
+    deallocate ( this%mig_elems, stat=istat )
     check(istat==0)
-    nullify ( fe_space%finite_elements )
+    nullify ( this%finite_elements )
 
-    do i = 1,fe_space%pos_elmatvec%last()
-       call allocatable_array_free( fe_space%lelmat(i) )
-       call allocatable_array_free( fe_space%lelvec(i) )
+    do i = 1,this%pos_elmatvec%last()
+       call allocatable_array_free( this%lelmat(i) )
+       call allocatable_array_free( this%lelvec(i) )
     end do
-    !deallocate ( fe_space%lelmat )
-    !deallocate ( fe_space%lelvec )
-    call fe_space%pos_elmatvec%free
-    call fe_space%pos_elmatvec%free
+    call this%pos_elmatvec%free
+    call this%pos_elmatvec%free
 
-    do i = 1,fe_space%pos_volume_integrator%last()
-       call volume_integrator_free( fe_space%lvoli(i) )
-       call interpolator_free( fe_space%linter(i) )
+    do i = 1,this%pos_volume_integrator%last()
+       call volume_integrator_free( this%lvoli(i) )
+       call interpolator_free( this%linter(i) )
     end do
-    !deallocate ( fe_space%lvoli )
-    call fe_space%pos_volume_integrator%free
+    call this%pos_volume_integrator%free
 
-    do i = 1,fe_space%pos_elem_info%last()
-       call reference_element_free (fe_space%finite_elements_info(i))
+    do i = 1,this%pos_elem_info%last()
+       call reference_element_free (this%finite_elements_info(i))
     end do
-    call fe_space%pos_elem_info%free
+    call this%pos_elem_info%free
 
-    do i = 1,fe_space%pos_start%last()
-       call allocatable_array_free( fe_space%lstart(i) )
-       call allocatable_array_free( fe_space%l_analytical_code(i) )
+    do i = 1,this%pos_start%last()
+       call allocatable_array_free( this%lstart(i) )
+       call allocatable_array_free( this%l_analytical_code(i) )
     end do
-    call fe_space%pos_start%free
+    call this%pos_start%free
 
-    nullify ( fe_space%g_trian )
+    nullify ( this%g_trian )
 
-    !call memfree( fe_space%void_list%p, __FILE__, __LINE__ )
-    !call memfree( fe_space%void_list%l, __FILE__, __LINE__ )
-    !fe_space%void_list%n = 0
-
-    do i = 1, fe_space%dof_descriptor%nblocks
-       call memfree (fe_space%vef2dof(i)%p , __FILE__, __LINE__ )
-       call memfree (fe_space%vef2dof(i)%l , __FILE__, __LINE__ )
+    do i = 1, this%dof_descriptor%nblocks
+       call memfree (this%vef2dof(i)%p , __FILE__, __LINE__ )
+       call memfree (this%vef2dof(i)%l , __FILE__, __LINE__ )
     end do
 
-    call memfree (fe_space%ndofs , __FILE__, __LINE__ )
+    call memfree (this%ndofs , __FILE__, __LINE__ )
 
-    deallocate( fe_space%interior_faces, stat=istat)
+    deallocate( this%interior_faces, stat=istat)
     check ( istat == 0 )
 
-    deallocate( fe_space%boundary_faces, stat=istat)
+    deallocate( this%boundary_faces, stat=istat)
     check ( istat == 0 )
 
-  end subroutine fe_space_free
+  end subroutine serial_fe_space_free
 
   subroutine get_p_faces ( fe_space, trian )
     implicit none
-    type(fe_space_t), intent(in)  :: fe_space
+    type(serial_fe_space_t), intent(in)  :: fe_space
     type(triangulation_t), intent(inout)    :: trian
-
-    !   integer(ip) :: i
-
-
-    !   num_faces
-
-    !   call memalloc ( trian%num_elems, num_faces, __FILE__,__LINE__ )
-
-    !   do i=1,mesh%nelem
-    !         mesh%p_face(i) = mesh%pnods(i) + fe_space%finite_elements(i)%reference_element_vars(1)%p%nvef_dim(mesh%ndime) -1
-    !   end do
 
   end subroutine get_p_faces
 
-  subroutine fe_space_integration_faces_list( fe_space ) 
+  subroutine serial_fe_space_integration_faces_list( fe_space ) 
     implicit none
     ! Parameters
-    type(fe_space_t), intent(inout)               :: fe_space
+    type(serial_fe_space_t), intent(inout)               :: fe_space
 
     integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
     integer(ip) :: g_var, iprob, jprob, ivars, jvars
@@ -704,7 +642,7 @@ contains
     end do
 
 
-  end subroutine fe_space_integration_faces_list
+  end subroutine serial_fe_space_integration_faces_list
 
   !==================================================================================================
   subroutine pointer_variable( finite_element, dof_descriptor, start ) 
@@ -727,9 +665,9 @@ contains
   end subroutine pointer_variable
 
   !==================================================================================================
-  subroutine fe_space_set_analytical_code(fe_space,spatial_code,temporal_code)
+  subroutine serial_fe_space_set_analytical_code(fe_space,spatial_code,temporal_code)
     implicit none
-    class(fe_space_t), intent(inout) :: fe_space
+    class(serial_fe_space_t), intent(inout) :: fe_space
     integer(ip)      , intent(in)    :: spatial_code(:)
     integer(ip)      , intent(in)    :: temporal_code(:)
     ! Locals
@@ -750,7 +688,7 @@ contains
        check(.false.)
     end if
 
-  end subroutine fe_space_set_analytical_code
+  end subroutine serial_fe_space_set_analytical_code
   
   !*********************************************************************************
   ! This subroutine takes the fe_space and creates a dof_graph. 
@@ -767,7 +705,7 @@ contains
     implicit none
     ! Parameters
     integer(ip)            , intent(in)     :: iblock, jblock
-    type(fe_space_t)       , intent(in)     :: fe_space 
+    type(serial_fe_space_t)       , intent(in)     :: fe_space 
     type(graph_t)          , intent(inout)  :: dof_graph
 
     ! Local variables
@@ -833,7 +771,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: fe_space 
+    type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
@@ -924,7 +862,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: fe_space 
+    type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)                :: dof_graph
     integer(ip), intent(inout)                :: aux_ia(:)
 
@@ -1024,7 +962,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: fe_space 
+    type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)                :: dof_graph
 
     ! Local variables
@@ -1112,7 +1050,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: fe_space 
+    type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
@@ -1217,7 +1155,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: fe_space 
+    type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)              :: dof_graph
 
     ! Local variables
@@ -1339,7 +1277,7 @@ contains
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(in)                 :: fe_space 
+    type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
 
@@ -1493,5 +1431,5 @@ contains
 
   end function local_position
 
-end module fe_space_names
+end module serial_fe_space_names
 

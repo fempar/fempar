@@ -29,7 +29,7 @@ module generate_vefs_mesh_conditions_names
   use types_names
   use memor_names
   use mesh_names
-  use fe_space_names
+  use serial_fe_space_names
   use fe_space_types_names
   use interpolation_names
   use conditions_names

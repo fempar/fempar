@@ -29,7 +29,7 @@ module statistics_names
   use memor_names
   use types_names
   use generate_uniform_triangulation_names
-  use fe_space_names
+  use serial_fe_space_names
   use interpolation_tools_names
   implicit none
 # include "debug.i90"
@@ -45,7 +45,7 @@ module statistics_names
      integer(ip)           :: iblock        ! Field block
      integer(ip)           :: iprob         ! Problem ID
      type(uniform_mesh_descriptor_t), pointer :: gdata => NULL()    ! Pointer to uniform mesh descriptor
-     type(fe_space_t)               , pointer :: fe_space => NULL() ! Pointer to FE space
+     type(serial_fe_space_t)               , pointer :: fe_space => NULL() ! Pointer to FE space
    contains
      procedure :: initialize => initialize_line_statistics
      procedure :: compute    => compute_line_statistics
@@ -72,7 +72,7 @@ contains
     implicit none
     class(line_statistics_t)              , intent(inout) :: statistics
     type(uniform_mesh_descriptor_t),target, intent(in)    :: gdata
-    type(fe_space_t)               ,target, intent(in)    :: fe_space
+    type(serial_fe_space_t)               ,target, intent(in)    :: fe_space
     integer(ip)                           , intent(in)    :: direction,order,lunio
     integer(ip), optional                 , intent(in)    :: iblock,iprob
     ! Locals

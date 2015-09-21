@@ -229,7 +229,7 @@ program par_test_nsi_iss
        &                    static_condensation=.false.,num_continuity=1)
 
   ! Initialize VTK output
-  call fevtk%initialize(p_trian%f_trian,p_fe_space%fe_space,myprob,p_env,dir_path_out,prefix, &
+  call fevtk%initialize(p_trian%f_trian,p_fe_space%serial_fe_space,myprob,p_env,dir_path_out,prefix, &
        &                nparts=gdata%nparts)!,linear_order=.false.)
 
   ! Create dof info
@@ -260,7 +260,7 @@ program par_test_nsi_iss
 
   ! Integrate
   if(p_env%am_i_fine_task()) then
-     call volume_integral(approx,p_fe_space%fe_space,p_mat%f_matrix,p_vec%f_vector)
+     call volume_integral(approx,p_fe_space%serial_fe_space,p_mat%f_matrix,p_vec%f_vector)
   end if
 
   ! Define (recursive) parameters
@@ -350,9 +350,9 @@ program par_test_nsi_iss
   call par_update_solution(p_unk,p_fe_space)
 
   ! Compute postprocess field
-  call postprocess_vel%create('velocity',gdata%ndime,p_fe_space%fe_space,p_env,                     &
+  call postprocess_vel%create('velocity',gdata%ndime,p_fe_space%serial_fe_space,p_env,                     &
        &                      use_interpolation_order_from_variable,variable_identifier=1)
-  call postprocess_pre%create('pressure',1,p_fe_space%fe_space,p_env,                               &
+  call postprocess_pre%create('pressure',1,p_fe_space%serial_fe_space,p_env,                               &
        &                      use_interpolation_order_from_variable,variable_identifier=2)
   call postprocess_vel%compute_and_finalize_field()
   call postprocess_pre%compute_and_finalize_field()

@@ -29,7 +29,7 @@
 module element_fields_names
   use types_names
   use memor_names
-  use fe_space_names
+  use serial_fe_space_names
   use memory_guard_names
   use problem_names
   implicit none

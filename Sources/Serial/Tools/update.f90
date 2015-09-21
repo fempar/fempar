@@ -28,7 +28,7 @@
 module update_names
   use types_names
   use memor_names
-  use fe_space_names
+  use serial_fe_space_names
   use serial_scalar_array_names
   use serial_block_array_names
   use conditions_names
@@ -52,7 +52,7 @@ contains
     !   This subroutine updates Dirichlet boundary conditions in unkno from conditions values.  !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fe_space_t)     , intent(inout) :: fe_space
+    type(serial_fe_space_t)     , intent(inout) :: fe_space
     type(conditions_t), intent(in)    :: fcond
     ! Locals
     integer(ip) :: ielem, iobje, ivar, inode, l_node, gvar, lobje, prob
@@ -84,7 +84,7 @@ contains
     implicit none
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     real(rp)             , intent(in)    :: ctime
-    type(fe_space_t)     , intent(inout) :: fe_space
+    type(serial_fe_space_t)     , intent(inout) :: fe_space
     integer(ip), optional, intent(in)    :: tvar
     ! Locals
     integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
@@ -154,7 +154,7 @@ contains
     implicit none
     integer(ip)          , intent(in)    :: vars_of_unk(:)
     real(rp)             , intent(in)    :: ctime
-    type(fe_space_t)     , intent(inout) :: fe_space
+    type(serial_fe_space_t)     , intent(inout) :: fe_space
     integer(ip), optional, intent(in)    :: tvar
     ! Locals
     integer(ip) :: ielem,prob,ndime,iobje,lobje,inode,lnode
@@ -219,7 +219,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(vector_t), intent(in)    :: vec   
-    type(fe_space_t)     , intent(inout) :: fe_space
+    type(serial_fe_space_t)     , intent(inout) :: fe_space
 
     select type(vec)
     class is(serial_scalar_array_t)
@@ -240,7 +240,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(serial_scalar_array_t)     , intent(in)    :: fevec   
-    type(fe_space_t)      , intent(inout) :: fe_space
+    type(serial_fe_space_t)      , intent(inout) :: fe_space
     integer(ip), optional, intent(in)    :: iblock
     ! Locals
     integer(ip) :: ielem,iblock_,iprob,nvapb,ivar,lvar,inode,idof
@@ -281,7 +281,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(serial_block_array_t), intent(in)    :: blvec   
-    type(fe_space_t)       , intent(inout) :: fe_space
+    type(serial_fe_space_t)       , intent(inout) :: fe_space
     ! Locals
     integer(ip) :: iblock
 
@@ -301,7 +301,7 @@ contains
     !   This subroutine stores the previous nonlinear solution.                                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(fe_space_t)     , intent(inout) :: fe_space
+    type(serial_fe_space_t)     , intent(inout) :: fe_space
     integer(ip)          , intent(in)    :: working_vars(:)
     integer(ip), optional, intent(in)    :: origin,current
     ! Locals
@@ -338,7 +338,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(vector_t), intent(inout) :: vec   
-    type(fe_space_t)     , intent(in)    :: fe_space
+    type(serial_fe_space_t)     , intent(in)    :: fe_space
 
     select type(vec)
     class is(serial_scalar_array_t)
@@ -359,7 +359,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(serial_scalar_array_t)       , intent(inout) :: fevec   
-    type(fe_space_t)     , intent(in)    :: fe_space
+    type(serial_fe_space_t)     , intent(in)    :: fe_space
     integer(ip), optional, intent(in)    :: iblock
     ! Locals
     integer(ip) :: ielem,iblock_,iprob,nvapb,ivar,lvar,inode,idof
@@ -400,7 +400,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(serial_block_array_t), intent(inout) :: blvec   
-    type(fe_space_t)    , intent(in)    :: fe_space
+    type(serial_fe_space_t)    , intent(in)    :: fe_space
     ! Locals
     integer(ip) :: iblock
 

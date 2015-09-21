@@ -33,7 +33,7 @@ module fe_space_faces_names
   !use integration_names
   use integration_tools_names
   !  use mesh_faces
-  use fe_space_names
+  use serial_fe_space_names
   use fe_space_types_names
   use triangulation_names
   use allocatable_array_names
@@ -52,7 +52,7 @@ contains
   subroutine fe_space_faces_list_create( trian, fe_space )
     implicit none
     ! Parameters
-    type(fe_space_t)      , intent(inout),target  :: fe_space
+    type(serial_fe_space_t)      , intent(inout),target  :: fe_space
     type(triangulation_t)   , intent(in), target   :: trian   
 
     ! Local variables

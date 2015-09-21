@@ -35,7 +35,7 @@ module par_create_global_dof_info_names
   use triangulation_names
   use graph_names
   use create_global_dof_info_names
-  use fe_space_names
+  use serial_fe_space_names
   use hash_table_names
 
   use finite_element_names
@@ -75,9 +75,9 @@ contains
     assert ( p_fe_space%p_trian%p_env%created )
 
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
-       call create_element_to_dof_and_ndofs( p_fe_space%fe_space )
-       call ghost_dofs_by_integration( p_fe_space%p_trian, p_fe_space%fe_space )
-       call create_vef2dof( p_fe_space%fe_space )
+       call create_element_to_dof_and_ndofs( p_fe_space%serial_fe_space )
+       call ghost_dofs_by_integration( p_fe_space%p_trian, p_fe_space%serial_fe_space )
+       call create_vef2dof( p_fe_space%serial_fe_space )
     end if
 
     ! Allocate block_dof_distribution
@@ -97,7 +97,7 @@ contains
   subroutine ghost_dofs_by_integration( p_trian, fe_space )
     implicit none
     type(par_triangulation_t) , intent(in)    :: p_trian
-    type(fe_space_t)          , intent(inout) :: fe_space
+    type(serial_fe_space_t)          , intent(inout) :: fe_space
 
     integer(ip) :: iobje, i, ielem, l_faci, iprob, nvapb, ivars, l_var, g_var, inode, l_node, count
     integer(ip) :: iblock, lobje

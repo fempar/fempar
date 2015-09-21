@@ -29,7 +29,7 @@ module create_global_dof_info_names
   use types_names
   use memor_names
   use triangulation_names
-  use fe_space_names
+  use serial_fe_space_names
   use dof_descriptor_names
   use fe_space_types_names
   use hash_table_names
@@ -60,7 +60,7 @@ contains
   !*********************************************************************************
   subroutine create_dof_info ( fe_space )
     implicit none
-    type(fe_space_t), intent(inout) :: fe_space 
+    type(serial_fe_space_t), intent(inout) :: fe_space 
     call create_element_to_dof_and_ndofs( fe_space )
     call create_vef2dof( fe_space )
   end subroutine create_dof_info
@@ -76,7 +76,7 @@ contains
   subroutine create_element_to_dof_and_ndofs( fe_space ) 
     implicit none
     ! Parameters
-    type(fe_space_t)     , intent(inout) :: fe_space 
+    type(serial_fe_space_t)     , intent(inout) :: fe_space 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
@@ -191,7 +191,7 @@ contains
   subroutine create_vef2dof ( fe_space ) 
     implicit none
     ! Parameters
-    type(fe_space_t), intent(inout) :: fe_space 
+    type(serial_fe_space_t), intent(inout) :: fe_space 
 
     ! Local variables
     integer(ip) :: iprob, l_var, iblock, count, iobje, ielem, jelem, nvapb, ivars, g_var
@@ -292,7 +292,7 @@ contains
     ! Parameters
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(inout)              :: fe_space 
+    type(serial_fe_space_t), intent(inout)              :: fe_space 
     integer(ip), intent(inout)                  :: count
     integer(ip), intent(in)                     :: g_var, jelem, l_var, obje_l
 
@@ -318,7 +318,7 @@ contains
     ! Parameters
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     type(triangulation_t), intent(in)         :: trian 
-    type(fe_space_t), intent(inout)              :: fe_space
+    type(serial_fe_space_t), intent(inout)              :: fe_space
     integer(ip), intent(in)                     :: touch(:,:,:), mater, g_var, iobje, jelem, l_var, obje_l
     integer(ip), intent(out)                    :: o2n(:)
 

@@ -34,7 +34,7 @@ module integration_names
   use integration_tools_names
   use femap_interp_names
   use finite_element_names
-  use fe_space_names
+  use serial_fe_space_names
   use assembly_names
   use serial_block_matrix_names
   use serial_scalar_matrix_names
@@ -71,7 +71,7 @@ contains
   subroutine volume_integral(approx,fe_space,res1,res2,alternative_assembly,alternative_assembly_face)
     implicit none
     ! Parameters
-    type(fe_space_t)                    , intent(inout) :: fe_space
+    type(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(integrable_t)                 , intent(inout) :: res1
     class(integrable_t), optional       , intent(inout) :: res2
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)

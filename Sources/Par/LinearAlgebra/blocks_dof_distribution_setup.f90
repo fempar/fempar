@@ -34,7 +34,7 @@ module block_dof_distribution_setup_names
   use dof_import_names
   use dof_descriptor_names
   use fe_space_types_names
-  use fe_space_names
+  use serial_fe_space_names
   use finite_element_names
   use hash_table_names
 
@@ -128,13 +128,13 @@ contains
        end do
        call psb_max ( p_trian%p_env%p_context%icontxt, est_max_nparts ) 
 
-       do iblock = 1, p_fe_space%fe_space%dof_descriptor%nblocks  
+       do iblock = 1, p_fe_space%serial_fe_space%dof_descriptor%nblocks  
           est_max_itf_dofs = 0
           ! Count an estimate of DOFs on interface objects (where continuity wants to be enforced)
           do i=1, p_trian%num_itfc_vefs
              iobj = p_trian%lst_itfc_vefs(i)
-             est_max_itf_dofs = est_max_itf_dofs + p_fe_space%fe_space%vef2dof(iblock)%p(iobj+1) &
-                  & - p_fe_space%fe_space%vef2dof(iblock)%p(iobj)
+             est_max_itf_dofs = est_max_itf_dofs + p_fe_space%serial_fe_space%vef2dof(iblock)%p(iobj+1) &
+                  & - p_fe_space%serial_fe_space%vef2dof(iblock)%p(iobj)
           end do
           ! Count DOFs on interface faces of dG elements (upper bound, since for an element with some
           ! faces on the interface, the dofs on corners/edges belonging to that face are counted more
@@ -145,24 +145,24 @@ contains
              if ( p_trian%f_trian%vefs(iobj)%dimension == p_trian%f_trian%num_dims - 1 ) then
                 do j =1,2
                    ielem = p_trian%f_trian%vefs(iobj)%elems_around(j)
-                   iprob = p_fe_space%fe_space%finite_elements(ielem)%problem
-                   do ivars = 1,p_fe_space%fe_space%dof_descriptor%prob_block(iblock,iprob)%nd1
-                      l_var = p_fe_space%fe_space%dof_descriptor%prob_block(iblock,iprob)%a(ivars)
-                      if ( p_fe_space%fe_space%finite_elements(ielem)%enable_face_integration(l_var) ) then
-                         obje_l = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nvef_dim(p_trian%f_trian%num_dims)
+                   iprob = p_fe_space%serial_fe_space%finite_elements(ielem)%problem
+                   do ivars = 1,p_fe_space%serial_fe_space%dof_descriptor%prob_block(iblock,iprob)%nd1
+                      l_var = p_fe_space%serial_fe_space%dof_descriptor%prob_block(iblock,iprob)%a(ivars)
+                      if ( p_fe_space%serial_fe_space%finite_elements(ielem)%enable_face_integration(l_var) ) then
+                         obje_l = p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nvef_dim(p_trian%f_trian%num_dims)
                          est_max_itf_dofs = est_max_itf_dofs + &
-                              p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(obje_l+1) - &
-                              p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(obje_l)
+                              p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(obje_l+1) - &
+                              p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%ntxob%p(obje_l)
                       end if
                    end do
                 end do
              end if
           end do
 
-          call memalloc ( p_fe_space%fe_space%ndofs(iblock), dofs_object, __FILE__, __LINE__ )
+          call memalloc ( p_fe_space%serial_fe_space%ndofs(iblock), dofs_object, __FILE__, __LINE__ )
           call memalloc ( nparts, ws_parts_visited_list_all, __FILE__, __LINE__ )
           call memalloc ( est_max_nparts+4, est_max_itf_dofs, lst_parts_per_dof_obj, __FILE__, __LINE__ )
-          call memalloc ( est_max_nparts+3, p_fe_space%fe_space%num_continuity, p_fe_space%fe_space%dof_descriptor%nvars_global, touch, __FILE__, __LINE__ )
+          call memalloc ( est_max_nparts+3, p_fe_space%serial_fe_space%num_continuity, p_fe_space%serial_fe_space%dof_descriptor%nvars_global, touch, __FILE__, __LINE__ )
           call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__  )  
           call memalloc ( est_max_nparts+4, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__  )
           call memalloc ( est_max_itf_dofs, dofs_object_ext, __FILE__, __LINE__ )
@@ -173,17 +173,17 @@ contains
           count_object_dof = 0
 
           ! See description of the subroutine 
-          call list_interior_dofs ( iblock, p_trian, p_fe_space%fe_space, p_fe_space%fe_space%dof_descriptor, count_interior, dofs_object )
+          call list_interior_dofs ( iblock, p_trian, p_fe_space%serial_fe_space, p_fe_space%serial_fe_space%dof_descriptor, count_interior, dofs_object )
 
           call ws_parts_visited_all%init(tbl_length)
 
           ! See description of the subroutine 
-          call list_interface_dofs_by_continuity ( iblock, p_trian, p_fe_space%fe_space, p_fe_space%fe_space%dof_descriptor, count_object_dof, &
+          call list_interface_dofs_by_continuity ( iblock, p_trian, p_fe_space%serial_fe_space, p_fe_space%serial_fe_space%dof_descriptor, count_object_dof, &
                & count_interior, dofs_object, dofs_object_ext, est_max_nparts, touch, ws_parts_visited_all, &
                &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
 
           ! See description of the subroutine  
-          call list_interface_dofs_by_face_integration ( iblock, p_trian, p_fe_space%fe_space, p_fe_space%fe_space%dof_descriptor, &
+          call list_interface_dofs_by_face_integration ( iblock, p_trian, p_fe_space%serial_fe_space, p_fe_space%serial_fe_space%dof_descriptor, &
                count_object_dof, count_interior, dofs_object, dofs_object_ext, est_max_nparts, ws_parts_visited_all, &
                &   ws_parts_visited_list_all, lst_parts_per_dof_obj, max_nparts, npadj )
 
@@ -192,7 +192,7 @@ contains
           blocks_dof_dist%blocks(iblock)%nparts = nparts
 
           ! Transfer interface DOFs to dofs_object array (already w/ interiors)
-          if ( count_interior + count_object_dof /= p_fe_space%fe_space%ndofs(iblock) ) then
+          if ( count_interior + count_object_dof /= p_fe_space%serial_fe_space%ndofs(iblock) ) then
              call memrealloc( count_interior + count_object_dof, dofs_object, __FILE__, __LINE__ )
           end if
 
@@ -294,8 +294,8 @@ contains
           ! As a result, I put the following assert, that checks we are in the cG case
           ! assert( count_interior + count_object_dof == p_fe_space%fe_space%ndofs(iblock) )
           ! Auxiliary inverse of dofs_object
-          call memalloc ( p_fe_space%fe_space%ndofs(iblock), l2lo2n, __FILE__,__LINE__)
-          call memalloc ( p_fe_space%fe_space%ndofs(iblock), l2ln2o, __FILE__,__LINE__)
+          call memalloc ( p_fe_space%serial_fe_space%ndofs(iblock), l2lo2n, __FILE__,__LINE__)
+          call memalloc ( p_fe_space%serial_fe_space%ndofs(iblock), l2ln2o, __FILE__,__LINE__)
 
           !write (*,*) 'dofs_object',dofs_object
           !l2ln2o = 0
@@ -323,18 +323,18 @@ contains
           end do
 
           ! Update vef2dof(iblock)
-          do i = 1,p_fe_space%fe_space%vef2dof(iblock)%p(p_trian%f_trian%num_vefs+1)-1
-             p_fe_space%fe_space%vef2dof(iblock)%l(i,1) = l2lo2n(p_fe_space%fe_space%vef2dof(iblock)%l(i,1))
+          do i = 1,p_fe_space%serial_fe_space%vef2dof(iblock)%p(p_trian%f_trian%num_vefs+1)-1
+             p_fe_space%serial_fe_space%vef2dof(iblock)%l(i,1) = l2lo2n(p_fe_space%serial_fe_space%vef2dof(iblock)%l(i,1))
           end do
 
           do ielem = 1, p_trian%f_trian%num_elems + p_trian%num_ghosts
-             iprob = p_fe_space%fe_space%finite_elements(ielem)%problem
-             nvapb = p_fe_space%fe_space%dof_descriptor%prob_block(iblock,iprob)%nd1
+             iprob = p_fe_space%serial_fe_space%finite_elements(ielem)%problem
+             nvapb = p_fe_space%serial_fe_space%dof_descriptor%prob_block(iblock,iprob)%nd1
              do ivars = 1, nvapb
-                l_var = p_fe_space%fe_space%dof_descriptor%prob_block(iblock,iprob)%a(ivars)
-                do inode = 1,p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nnode
-                   if ( p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,l_var) > 0 ) then 
-                      p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,l_var) = l2lo2n(p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,l_var))
+                l_var = p_fe_space%serial_fe_space%dof_descriptor%prob_block(iblock,iprob)%a(ivars)
+                do inode = 1,p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(l_var)%p%nnode
+                   if ( p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof(inode,l_var) > 0 ) then 
+                      p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof(inode,l_var) = l2lo2n(p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof(inode,l_var))
                    end if
                 end do
              end do
@@ -885,7 +885,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock
     type(par_triangulation_t), intent(in)         :: p_trian 
-    type(fe_space_t), intent(in)                 :: fe_space
+    type(serial_fe_space_t), intent(in)                 :: fe_space
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     integer(ip), intent(inout)                  :: count_interior, dofs_object(:)
 
@@ -938,7 +938,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock
     type(par_triangulation_t), intent(in)         :: p_trian 
-    type(fe_space_t), intent(in)                 :: fe_space
+    type(serial_fe_space_t), intent(in)                 :: fe_space
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     integer(ip), intent(inout)                  :: count_object_dof, count_interior, dofs_object_interior(:), dofs_object_interface(:)
     integer(ip), intent(inout)                  :: est_max_nparts, touch(:,:,:)
@@ -1067,7 +1067,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock
     type(par_triangulation_t), intent(in)         :: p_trian 
-    type(fe_space_t), intent(in)                 :: fe_space
+    type(serial_fe_space_t), intent(in)                 :: fe_space
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
     integer(ip), intent(inout)                  :: count_interior, count_obj_dof
     integer(ip), intent(inout)                  :: dofs_object_interior(:), dofs_object_interface(:), est_max_nparts

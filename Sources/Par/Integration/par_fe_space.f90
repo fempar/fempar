@@ -29,7 +29,7 @@ module par_fe_space_names
   ! Serial Modules
   use types_names
   use memor_names
-  use fe_space_names
+  use serial_fe_space_names
   use fe_space_types_names
   use problem_names
   use dof_descriptor_names
@@ -53,7 +53,7 @@ use iso_c_binding
   private
 
   type par_fe_space_t
-     type(fe_space_t) :: fe_space
+     type(serial_fe_space_t) :: serial_fe_space
      type(dof_descriptor_t)   , pointer :: dof_descriptor => NULL()
      type(par_triangulation_t), pointer :: p_trian => NULL()
 	 
@@ -94,7 +94,7 @@ contains
 								  p_fe_space%p_trian%p_env)
 	
 	if ( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
-	  call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, p_fe_space%fe_space, par_scalar_matrix%f_matrix%graph )
+	  call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, p_fe_space%serial_fe_space, par_scalar_matrix%f_matrix%graph )
 	end if  
 	
 	call par_scalar_matrix%allocate()
@@ -133,7 +133,7 @@ contains
     integer(ip)                    , intent(in)      :: problem(:)
     type(par_conditions_t)           , intent(in)    :: p_cond
     integer(ip)                    , intent(in)      :: continuity(:,:)
-	logical                        , intent(in)    :: enable_face_integration(:,:)
+	logical                        , intent(in)      :: enable_face_integration(:,:)
     integer(ip)                    , intent(in)      :: order(:,:)
     integer(ip)                    , intent(in)      :: material(:)
     integer(ip)          , optional, intent(in)      :: time_steps_to_store
@@ -151,19 +151,19 @@ contains
 	p_fe_space%dof_descriptor => dof_descriptor
 
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
-       call fe_space_allocate_structures(  p_trian%f_trian, dof_descriptor, p_fe_space%fe_space,            &
-            time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
-            static_condensation = static_condensation, num_continuity = num_continuity, &
-            num_ghosts = p_trian%num_ghosts ) 
+       call serial_fe_space_allocate_structures(  p_fe_space%serial_fe_space, p_trian%f_trian, dof_descriptor, &
+                                                  time_steps_to_store = time_steps_to_store, hierarchical_basis = hierarchical_basis, &
+                                                  static_condensation = static_condensation, num_continuity = num_continuity, &
+                                                  num_ghosts = p_trian%num_ghosts ) 
 
-       call fe_space_fe_list_create ( p_fe_space%fe_space, problem, continuity, enable_face_integration, &
-            &                         order, material, p_cond%f_conditions )
+       call serial_fe_space_fe_list_create ( p_fe_space%serial_fe_space, problem, continuity, enable_face_integration, &
+            &                                order, material, p_cond%f_conditions )
 
        ! Communicate problem, continuity, order, and material
-       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_fe_space%fe_space%finite_elements )
+       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_fe_space%serial_fe_space%finite_elements )
        ! Create ghost fem space (only partially, i.e., previous info)
        call ghost_fe_list_create ( p_fe_space ) 
-       call fe_space_integration_faces_list( p_fe_space%fe_space )
+       call serial_fe_space_integration_faces_list( p_fe_space%serial_fe_space )
     end if
 
   end subroutine par_fe_space_create
@@ -183,12 +183,12 @@ contains
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then
        ! Deallocate type(finite_element_ts) associated to ghost elements
        do ielem = p_fe_space%p_trian%f_trian%num_elems+1, p_fe_space%p_trian%f_trian%num_elems+p_fe_space%p_trian%num_ghosts
-          if(allocated(p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars)) call memfree(p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars,__FILE__,__LINE__)
-          if(allocated(p_fe_space%fe_space%finite_elements(ielem)%elem2dof)) call memfree(p_fe_space%fe_space%finite_elements(ielem)%elem2dof,__FILE__,__LINE__)
-          if(allocated(p_fe_space%fe_space%finite_elements(ielem)%unkno)) call memfree(p_fe_space%fe_space%finite_elements(ielem)%unkno,__FILE__,__LINE__)
-          call finite_element_free_unpacked(p_fe_space%fe_space%finite_elements(ielem))
+          if(allocated(p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars)) call memfree(p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars,__FILE__,__LINE__)
+          if(allocated(p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof)) call memfree(p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof,__FILE__,__LINE__)
+          if(allocated(p_fe_space%serial_fe_space%finite_elements(ielem)%unkno)) call memfree(p_fe_space%serial_fe_space%finite_elements(ielem)%unkno,__FILE__,__LINE__)
+          call finite_element_free_unpacked(p_fe_space%serial_fe_space%finite_elements(ielem))
        end do
-       call fe_space_free(p_fe_space%fe_space)
+       call p_fe_space%serial_fe_space%free()
     end if
     call p_fe_space%blocks_dof_distribution%free()
     nullify ( p_fe_space%p_trian )
@@ -210,7 +210,7 @@ contains
     integer(ip)         , intent(in)    :: temporal_code(:)
 
     if(p_fe_space%p_trian%p_env%am_i_fine_task()) then
-       call p_fe_space%fe_space%set_analytical_code(spatial_code,temporal_code)
+       call p_fe_space%serial_fe_space%set_analytical_code(spatial_code,temporal_code)
     end if
 
   end subroutine par_fe_space_set_analytical_code
@@ -241,29 +241,29 @@ contains
 
     do ielem = p_fe_space%p_trian%f_trian%num_elems+1, p_fe_space%p_trian%f_trian%num_elems+p_fe_space%p_trian%num_ghosts
        !write (*,*) '************* GHOST ELEMENT *************',ielem
-       nvars = p_fe_space%fe_space%dof_descriptor%problems(p_fe_space%fe_space%finite_elements(ielem)%problem)%p%nvars
-       p_fe_space%fe_space%finite_elements(ielem)%num_vars = nvars
+       nvars = p_fe_space%serial_fe_space%dof_descriptor%problems(p_fe_space%serial_fe_space%finite_elements(ielem)%problem)%p%nvars
+       p_fe_space%serial_fe_space%finite_elements(ielem)%num_vars = nvars
        f_type = p_fe_space%p_trian%f_trian%elems(ielem)%geo_reference_element%ftype
        !write(*,*) 'f_type ghosts',f_type
        !write(*,*) 'nvars',nvars
        assert ( f_type > 0)
-       call memalloc(nvars, p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars, __FILE__, __LINE__ )
-       allocate(p_fe_space%fe_space%finite_elements(ielem)%nodes_per_vef(nvars), stat=istat )
+       call memalloc(nvars, p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars, __FILE__, __LINE__ )
+       allocate(p_fe_space%serial_fe_space%finite_elements(ielem)%nodes_per_vef(nvars), stat=istat )
        do ivar=1,nvars
-          f_order = p_fe_space%fe_space%finite_elements(ielem)%order(ivar)
+          f_order = p_fe_space%serial_fe_space%finite_elements(ielem)%order(ivar)
           !write(*,*) 'f_order',f_order
           v_key = p_fe_space%p_trian%f_trian%num_dims + (max_ndime+1)*f_type + (max_ndime+1)*(max_FE_types+1)*f_order
-          call p_fe_space%fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+          call p_fe_space%serial_fe_space%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
           if ( istat == new_index) then 
              !write (*,*) ' FIXED INFO NEW'
-             call reference_element_create(p_fe_space%fe_space%finite_elements_info(pos_elinf),f_type,              &
+             call reference_element_create(p_fe_space%serial_fe_space%finite_elements_info(pos_elinf),f_type,              &
                   &                             f_order,p_fe_space%p_trian%f_trian%num_dims)
           end if
-          p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)
-          if ( p_fe_space%fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
-             p_fe_space%fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)%ndxob
+          p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p => p_fe_space%serial_fe_space%finite_elements_info(pos_elinf)
+          if ( p_fe_space%serial_fe_space%finite_elements(ielem)%continuity(ivar) /= 0 ) then
+             p_fe_space%serial_fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => p_fe_space%serial_fe_space%finite_elements_info(pos_elinf)%ndxob
           else 
-             p_fe_space%fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => p_fe_space%fe_space%finite_elements_info(pos_elinf)%ndxob_int
+             p_fe_space%serial_fe_space%finite_elements(ielem)%nodes_per_vef(ivar)%p => p_fe_space%serial_fe_space%finite_elements_info(pos_elinf)%ndxob_int
           end if
        end do
 
@@ -271,20 +271,20 @@ contains
        lndof = 0
        max_num_nodes = 0
        do ivar=1,nvars
-          if ( p_fe_space%fe_space%static_condensation ) then
-             nnode = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode -                                   &
-                  &  p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_vef(p_fe_space%fe_space%g_trian%num_dims+1) ! SB.alert : do not use nodes_vef
+          if ( p_fe_space%serial_fe_space%static_condensation ) then
+             nnode = p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode -                                   &
+                  &  p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nodes_vef(p_fe_space%serial_fe_space%g_trian%num_dims+1) ! SB.alert : do not use nodes_vef
           else
-             nnode = p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode 
+             nnode = p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(ivar)%p%nnode 
           end if
           lndof = lndof + nnode
           max_num_nodes = max(max_num_nodes,nnode)
        end do
 
-       call memalloc( max_num_nodes, nvars, p_fe_space%fe_space%finite_elements(ielem)%elem2dof, __FILE__,__LINE__ )
-       p_fe_space%fe_space%finite_elements(ielem)%elem2dof = 0
-       call memalloc( max_num_nodes, nvars, p_fe_space%fe_space%time_steps_to_store, p_fe_space%fe_space%finite_elements(ielem)%unkno, __FILE__,__LINE__)
-       p_fe_space%fe_space%finite_elements(ielem)%unkno = 0.0_rp
+       call memalloc( max_num_nodes, nvars, p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof, __FILE__,__LINE__ )
+       p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof = 0
+       call memalloc( max_num_nodes, nvars, p_fe_space%serial_fe_space%time_steps_to_store, p_fe_space%serial_fe_space%finite_elements(ielem)%unkno, __FILE__,__LINE__)
+       p_fe_space%serial_fe_space%finite_elements(ielem)%unkno = 0.0_rp
     end do
 
   end subroutine ghost_fe_list_create

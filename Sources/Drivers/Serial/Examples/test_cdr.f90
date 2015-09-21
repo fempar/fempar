@@ -36,7 +36,7 @@ program test_cdr
   type(serial_scalar_matrix_t)         :: f_mat
   type(conditions_t)     :: f_cond
   type(dof_descriptor_t) :: dof_descriptor
-  type(fe_space_t)       :: fe_space
+  type(serial_fe_space_t)       :: fe_space
 
   type(cdr_problem_t)                   :: my_problem
   type(cdr_discrete_t)                  :: my_discrete
@@ -124,7 +124,7 @@ program test_cdr
   call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
   problem = 1
   
-  call fe_space_create ( f_trian, dof_descriptor, fe_space, problem, f_cond, continuity, enable_face_integration, order, &
+  call fe_space%create ( f_trian, dof_descriptor, problem, f_cond, continuity, enable_face_integration, order, &
        & material, time_steps_to_store = 1, hierarchical_basis = .false., & 
        & static_condensation = .false., num_continuity = 1 )
 
@@ -182,7 +182,7 @@ program test_cdr
   call feunk%free()
   call my_vector%free()
   call my_matrix%free()
-  call fe_space_free(fe_space) 
+  call fe_space%free()
   call my_problem%free
   call my_discrete%free
   call my_approximation%free

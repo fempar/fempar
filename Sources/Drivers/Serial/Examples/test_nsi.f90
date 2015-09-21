@@ -104,7 +104,7 @@ program test_nsi_iss
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
   type(dof_descriptor_t)                :: dof_descriptor
-  type(fe_space_t)                      :: fe_space  
+  type(serial_fe_space_t)                      :: fe_space  
   type(nsi_problem_t)                   :: myprob
 
   type(nsi_cg_iss_discrete_t) , target  :: mydisc
@@ -194,7 +194,7 @@ program test_nsi_iss
   problem                = 1
   
   ! Create fe_space
-  call fe_space_create(f_trian,dof_descriptor,fe_space,problem,f_cond,continuity,enable_face_integration, &
+  call fe_space%create(f_trian,dof_descriptor,problem,f_cond,continuity,enable_face_integration, &
        &                order,material,time_steps_to_store=3, hierarchical_basis=.false.,    &
        &                static_condensation=.false.,num_continuity=1)
 
@@ -281,7 +281,7 @@ program test_nsi_iss
   call feunk%free()
   call fevec%free()
   call femat%free()
-  call fe_space_free(fe_space) 
+  call fe_space%free()
   call myprob%free
   call mydisc%free
   call error_compute%free
@@ -337,7 +337,7 @@ contains
     integer(ip)                         , intent(in)    :: maxit    
     class(abstract_environment_t)       , intent(in)    :: env
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
-    type(fe_space_t)                    , intent(inout) :: fe_space
+    type(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(operator_t)              , intent(inout) :: A, M
     class(vector_t)               , intent(inout) :: x, b
     ! Locals

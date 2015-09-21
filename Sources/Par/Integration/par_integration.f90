@@ -48,7 +48,7 @@ contains
     type(discrete_integration_pointer_t), intent(inout) :: approx(:)
 
     if(p_fe_space%p_trian%p_env%am_i_fine_task()) then
-       call volume_integral(approx,p_fe_space%fe_space,res1,res2,par_assembly)
+       call volume_integral(approx,p_fe_space%serial_fe_space,res1,res2,par_assembly)
     end if
     
   end subroutine par_volume_integral

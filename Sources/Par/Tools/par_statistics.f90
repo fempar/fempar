@@ -76,7 +76,7 @@ contains
     if(p_env%am_i_fine_task()) then
 
        ! Fill serial type
-       call p_stats%f_stats%initialize(gdata,p_fe_space%fe_space,direction,order,lunio,iblock,iprob)
+       call p_stats%f_stats%initialize(gdata,p_fe_space%serial_fe_space,direction,order,lunio,iblock,iprob)
 
        ! Construct npats_per_dof
        call memalloc(blocks_dof_distribution%blocks(p_stats%f_stats%iblock)%nl,p_stats%nparts_per_dof,__FILE__,__LINE__)
@@ -136,10 +136,10 @@ contains
        field = 0.0_rp
 
        ! Loop over elements
-       do ielem = 1, p_stats%p_fe_space%fe_space%g_trian%num_elems
+       do ielem = 1, p_stats%p_fe_space%serial_fe_space%g_trian%num_elems
           jelem = p_stats%p_fe_space%p_trian%elems(ielem)%globalID
-          iprob = p_stats%p_fe_space%fe_space%finite_elements(ielem)%problem
-          nvapb = p_stats%p_fe_space%fe_space%dof_descriptor%prob_block(p_stats%f_stats%iblock,iprob)%nd1
+          iprob = p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%problem
+          nvapb = p_stats%p_fe_space%serial_fe_space%dof_descriptor%prob_block(p_stats%f_stats%iblock,iprob)%nd1
 
           if(iprob/=p_stats%f_stats%iprob) cycle
 
@@ -148,11 +148,11 @@ contains
 
           ! Loop over problem and block variables
           do ivar = 1, nvapb
-             lvar = p_stats%p_fe_space%fe_space%dof_descriptor%prob_block(p_stats%f_stats%iblock,iprob)%a(ivar)
+             lvar = p_stats%p_fe_space%serial_fe_space%dof_descriptor%prob_block(p_stats%f_stats%iblock,iprob)%a(ivar)
 
              ! Loop over elemental nodes
-             do inode = 1,p_stats%p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
-                idof  =  p_stats%p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
+             do inode = 1,p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
+                idof  =  p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
                 jnode = permu(inode)
 
                 ! Local ID to ijk
@@ -164,10 +164,10 @@ contains
                 ! Fill field
                 if(idof>0) then
                    field(ijkpoin(1),ijkpoin(2),ijkpoin(3),lvar) = &
-                        & p_stats%p_fe_space%fe_space%finite_elements(ielem)%unkno(inode,lvar,1)/p_stats%nparts_per_dof(idof)
+                        & p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%unkno(inode,lvar,1)/p_stats%nparts_per_dof(idof)
                 else
                    field(ijkpoin(1),ijkpoin(2),ijkpoin(3),lvar) = &
-                        & p_stats%p_fe_space%fe_space%finite_elements(ielem)%unkno(inode,lvar,1)
+                        & p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%unkno(inode,lvar,1)
                 end if
 
              end do
@@ -253,10 +253,10 @@ contains
        ycoord_ijk = 0.0_rp
 
        ! Loop over elements
-       do ielem = 1, p_stats%p_fe_space%fe_space%g_trian%num_elems
+       do ielem = 1, p_stats%p_fe_space%serial_fe_space%g_trian%num_elems
           jelem = p_stats%p_fe_space%p_trian%elems(ielem)%globalID
-          iprob = p_stats%p_fe_space%fe_space%finite_elements(ielem)%problem
-          nvapb = p_stats%p_fe_space%fe_space%dof_descriptor%prob_block(1,iprob)%nd1
+          iprob = p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%problem
+          nvapb = p_stats%p_fe_space%serial_fe_space%dof_descriptor%prob_block(1,iprob)%nd1
 
           if(iprob/=p_stats%f_stats%iprob) cycle
 
@@ -265,19 +265,19 @@ contains
 
           ! Direction variable
           ivar = p_stats%f_stats%direction
-          lvar = p_stats%p_fe_space%fe_space%dof_descriptor%prob_block(p_stats%f_stats%iblock,iprob)%a(ivar)
+          lvar = p_stats%p_fe_space%serial_fe_space%dof_descriptor%prob_block(p_stats%f_stats%iblock,iprob)%a(ivar)
 
           ! Get coordinates
-          call memalloc(ndime,p_stats%p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode, &
+          call memalloc(ndime,p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode, &
                &        elcoord,__FILE__,__LINE__)
-          call interpolate(ndime, p_stats%p_fe_space%fe_space%finite_elements(ielem)%p_geo_reference_element%nnode, &
-               &           p_stats%p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode, &
-               &           p_stats%p_fe_space%fe_space%finite_elements(ielem)%inter(lvar)%p,                        &
+          call interpolate(ndime, p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%p_geo_reference_element%nnode, &
+               &           p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode, &
+               &           p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%inter(lvar)%p,                        &
                &           p_stats%p_fe_space%p_trian%f_trian%elems(ielem)%coordinates,elcoord)
 
           ! Loop over elemental nodes
-          do inode = 1,p_stats%p_fe_space%fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
-             idof  = p_stats%p_fe_space%fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
+          do inode = 1,p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%reference_element_vars(lvar)%p%nnode
+             idof  = p_stats%p_fe_space%serial_fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
              jnode = permu(inode)
 
              ! Local ID to ijk

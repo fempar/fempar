@@ -88,7 +88,7 @@ module serial_names
 
   
   ! Integration 
-  use fe_space_names
+  use serial_fe_space_names
   use fe_space_types_names
   use fe_space_faces_names
   use dof_descriptor_names

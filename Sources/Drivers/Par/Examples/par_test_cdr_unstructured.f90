@@ -249,7 +249,7 @@ program par_test_cdr_unstructured
   p_unk%state = full_summed
 
   if ( p_env%am_i_fine_task() ) then
-     call volume_integral( approximations, p_fe_space%fe_space, p_mat%f_matrix, p_vec%f_vector)
+     call volume_integral( approximations, p_fe_space%serial_fe_space, p_mat%f_matrix, p_vec%f_vector)
   end if
 
   call p_unk%init(1.0_rp)

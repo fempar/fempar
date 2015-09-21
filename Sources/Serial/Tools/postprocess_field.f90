@@ -30,7 +30,7 @@ module postprocess_field_names
 
   use types_names
   use memor_names
-  use fe_space_names
+  use serial_fe_space_names
   use abstract_environment_names
   implicit none
 # include "debug.i90"
@@ -53,7 +53,7 @@ module postprocess_field_names
      logical                       :: filled = .false.
      integer(ip)                   :: nvars                 ! Number of variables 
      character(len=:), allocatable :: name                  ! Name of the postprocess field
-     type(fe_space_t), pointer     :: fe_space => NULL()  ! Points to fe_space_t
+     type(serial_fe_space_t), pointer     :: fe_space => NULL()  ! Points to fe_space_t
      class(abstract_environment_t), pointer :: env => NULL() ! Points to environment
      type(fe_postprocess_field_t), allocatable :: fe_postprocess_field(:)
    contains
@@ -85,7 +85,7 @@ contains
     class(postprocess_field_t), intent(inout)  :: postprocess_field
     integer(ip),                intent(in)     :: nvars    ! Number of components of the postprocess_field
     character(len=*),           intent(in)     :: name     ! Name of the postprocess field
-    type(fe_space_t),  target,  intent(in)     :: fe_space 
+    type(serial_fe_space_t),  target,  intent(in)     :: fe_space 
     integer(ip),                intent(in)     :: interpolation_order_mode
     integer(ip),   optional,    intent(in)     :: variable_identifier
     class(abstract_environment_t), target, intent(in) :: env
@@ -137,7 +137,7 @@ contains
        &                                 interpolation_order_mode, variable_identifier)
     implicit none
     class(fe_postprocess_field_t), intent(inout) :: fe_postprocess_field
-    type(fe_space_t),              intent(inout) :: fe_space
+    type(serial_fe_space_t),              intent(inout) :: fe_space
     integer(ip),                   intent(in)    :: ielem, nvars, interpolation_order_mode
     integer(ip),   optional,       intent(in)    :: variable_identifier
     ! Locals
