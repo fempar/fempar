@@ -619,7 +619,8 @@ contains
     type(fe_space_t), intent(inout)               :: fe_space
 
     integer(ip) :: count_int, count_bou, mat_i, mat_j, iobje, ielem, jelem, istat
-    integer(ip) :: g_var, iprob, jprob, ivars, jvars, enable_face_integration_i
+    integer(ip) :: g_var, iprob, jprob, ivars, jvars
+    logical     :: enable_face_integration_i
 
     ! integration faces (interior / boundary)
     ! The list of boundary faces includes all faces, whereas the interior ones are only those
