@@ -69,7 +69,7 @@ module serial_scalar_array_names
      procedure :: nrm2 => serial_scalar_array_nrm2
      procedure :: clone => serial_scalar_array_clone
      procedure :: comm  => serial_scalar_array_comm
-     procedure :: free  => serial_scalar_array_free
+	 procedure :: free_in_stages  => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
   end type serial_scalar_array_t
 
@@ -312,15 +312,21 @@ contains
    implicit none
    class(serial_scalar_array_t), intent(inout) :: op
  end subroutine serial_scalar_array_comm
-
- subroutine serial_scalar_array_free(this)
+ 
+  subroutine serial_scalar_array_free_in_stages(this,action)
    implicit none
    class(serial_scalar_array_t), intent(inout) :: this
-
-   this%neq     = 0          ! Number of equations
-   if (this%mode == allocated) call memfreep(this%b,__FILE__,__LINE__)
-   nullify(this%b)
-   this%mode = not_created
- end subroutine serial_scalar_array_free
+   integer(ip)                 , intent(in)    :: action
+   assert ( action == free_clean .or. action == free_struct .or. action == free_values )
+   if ( action == free_clean ) then
+     ! Undo create
+     this%neq = 0
+	 this%mode = not_created
+   else if ( action == free_values ) then
+     ! Undo allocate
+     if (this%mode == allocated) call memfreep(this%b,__FILE__,__LINE__)
+     nullify(this%b)
+   end if
+ end subroutine serial_scalar_array_free_in_stages
 
 end module serial_scalar_array_names

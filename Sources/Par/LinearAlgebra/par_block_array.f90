@@ -66,9 +66,7 @@ module par_block_array_names
      procedure :: nrm2  => par_block_array_nrm2
      procedure :: clone => par_block_array
      procedure :: comm  => par_block_array_comm
-     procedure :: free  => par_block_array_free
-     
-
+     procedure :: free_in_stages  => par_block_array_free_in_stages
   end type par_block_array_t
 
   ! Types
@@ -336,17 +334,22 @@ contains
     end do
     
   end subroutine par_block_array_comm
-
-  subroutine par_block_array_free(this)
+  
+  subroutine par_block_array_free_in_stages(this,action)
     implicit none
     class(par_block_array_t), intent(inout) :: this
+	integer(ip)             , intent(in)    :: action
+
     integer(ip)  :: ib
    
     do ib=1, this%nblocks
-       call this%blocks(ib)%free()
+       call this%blocks(ib)%free_in_stages(action)
     end do
-    this%nblocks = 0
-    deallocate( this%blocks )
-  end subroutine par_block_array_free
+	
+	if ( action == free_clean ) then
+      this%nblocks = 0
+      deallocate( this%blocks )
+	end if  
+  end subroutine par_block_array_free_in_stages
 
 end module par_block_array_names

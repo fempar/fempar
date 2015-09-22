@@ -69,7 +69,6 @@ module par_block_matrix_names
 	procedure  :: allocate => par_block_matrix_allocate
   
     procedure :: set_block_to_zero       => par_block_matrix_set_block_to_zero
-    procedure :: free                    => par_block_matrix_free_in_one_shot
 	procedure :: free_in_stages          => par_block_matrix_free_in_stages
     procedure :: get_block               => par_block_matrix_get_block
     procedure :: get_nblocks             => par_block_matrix_get_nblocks
@@ -308,15 +307,6 @@ contains
        check(1==0)
     end select
   end function par_block_matrix_apply_fun
-  
-    subroutine par_block_matrix_free_in_one_shot(this)
-    implicit none
-    class(par_block_matrix_t), intent(inout) :: this
-    integer(ip) :: ib,jb
-    call this%free_in_stages(free_values)
-	call this%free_in_stages(free_struct)
-	call this%free_in_stages(free_clean)
-  end subroutine par_block_matrix_free_in_one_shot
   
     subroutine par_block_matrix_free_in_stages(this,action)
     implicit none

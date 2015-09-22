@@ -73,7 +73,6 @@ module serial_scalar_matrix_names
 	 procedure  :: init                            => serial_scalar_matrix_init
      procedure  :: apply                           => serial_scalar_matrix_apply
      procedure  :: apply_fun                       => serial_scalar_matrix_apply_fun
-     procedure  :: free                            => serial_scalar_matrix_free_in_one_shot
 	 procedure  :: free_in_stages                  => serial_scalar_matrix_free_in_stages
      procedure  :: default_initialization          => serial_scalar_matrix_default_init
   end type serial_scalar_matrix_t
@@ -143,15 +142,6 @@ contains
 	call memalloc(this%graph%ia(this%graph%nv+1)-1,this%a,__FILE__,__LINE__)
     this%a = 0.0_rp
   end subroutine serial_scalar_matrix_allocate
-  
-   !=============================================================================
-  subroutine serial_scalar_matrix_free_in_one_shot (this)
-    implicit none
-    class(serial_scalar_matrix_t), intent(inout) :: this
-    call this%free_in_stages(free_values)
-    call this%free_in_stages(free_struct)
-    call this%free_in_stages(free_clean)
-  end subroutine serial_scalar_matrix_free_in_one_shot
 
   !=============================================================================
   subroutine serial_scalar_matrix_free_in_stages (this, action)

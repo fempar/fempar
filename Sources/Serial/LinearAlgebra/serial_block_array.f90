@@ -60,7 +60,7 @@ module serial_block_array_names
      procedure :: nrm2 => serial_block_array_nrm2
      procedure :: clone => serial_block_array_clone
      procedure :: comm  => serial_block_array_comm
-     procedure :: free  => serial_block_array_free
+	 procedure :: free_in_stages  => serial_block_array_free_in_stages
   end type serial_block_array_t
 
   ! Types
@@ -315,17 +315,21 @@ contains
     implicit none
     class(serial_block_array_t), intent(inout) :: op 
   end subroutine serial_block_array_comm
-
-  subroutine serial_block_array_free(this)
+  
+  subroutine serial_block_array_free_in_stages(this,action)
     implicit none
     class(serial_block_array_t), intent(inout) :: this
-    integer(ip)  :: ib
+	integer(ip)                , intent(in)    :: action
+    integer(ip)  :: ib, istat
    
     do ib=1, this%nblocks
-       call this%blocks(ib)%free()
+       call this%blocks(ib)%free_in_stages(action)
     end do
-    this%nblocks = 0
-    deallocate( this%blocks )
-  end subroutine serial_block_array_free
+	if ( action == free_clean ) then
+       this%nblocks = 0
+       deallocate( this%blocks, stat=istat )
+	   check(istat==0)
+	end if   
+  end subroutine serial_block_array_free_in_stages
 
 end module serial_block_array_names

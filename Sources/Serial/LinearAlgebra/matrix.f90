@@ -37,7 +37,10 @@ module matrix_names
     contains
 	  procedure (allocate_interface)      , deferred :: allocate
 	  procedure (free_in_stages_interface), deferred :: free_in_stages
-	  ! Inherits free deferred procedure from memory_guard_t => operator_t
+	  ! This subroutine is an instance of the Template Method pattern with
+	  ! free_in_stages being the primitive method. According to this pattern,
+	  ! template methods cannot be overrided by subclasses
+  	  procedure, non_overridable :: free => matrix_free_template_method
   end type
   
   abstract interface
@@ -47,7 +50,7 @@ module matrix_names
 	   implicit none
        class(matrix_t)       , intent(inout) :: this
      end subroutine allocate_interface
-	 ! Progressively free all dynamic memory in three stages: action={free_numeric,free_symbolic,free_clean}
+	 ! Progressively free a matrix_t in three stages: action={free_numeric,free_symbolic,free_clean}
 	 subroutine free_in_stages_interface(this,action) 
        import :: matrix_t, ip
        implicit none
@@ -59,4 +62,14 @@ module matrix_names
   ! Data types
   public :: matrix_t
 
+contains  
+  
+   subroutine matrix_free_template_method ( this )
+     implicit none
+	 class(matrix_t), intent(inout) :: this
+	 call this%free_in_stages(free_values)
+	 call this%free_in_stages(free_struct)
+	 call this%free_in_stages(free_clean)
+   end subroutine matrix_free_template_method  
+  
 end module matrix_names

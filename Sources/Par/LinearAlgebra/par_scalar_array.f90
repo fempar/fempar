@@ -88,8 +88,7 @@ module par_scalar_array_names
      procedure :: nrm2 => par_scalar_array_nrm2
      procedure :: clone => par_scalar_array_clone
      procedure :: comm  => par_scalar_array_comm
-     procedure :: free  => par_scalar_array_free
-
+     procedure :: free_in_stages  => par_scalar_array_free_in_stages
      procedure :: default_initialization  => par_scalar_array_default_init
   end type par_scalar_array_t
 
@@ -160,6 +159,7 @@ contains
     assert ( p_env%p_context%created .eqv. .true.)
     this%dof_dist => dof_dist
     this%p_env    => p_env 
+	this%state = undefined
 	if(this%p_env%p_context%iam<0) return
     call this%f_vector%create (dof_dist%nl)
   end subroutine par_scalar_array_create
@@ -175,7 +175,6 @@ contains
     assert ( associated(this%dof_dist) )
 	if(this%p_env%p_context%iam<0) return
     call this%f_vector%allocate ()
-    this%state = undefined
   end subroutine par_scalar_array_allocate
 
   !=============================================================================
@@ -724,26 +723,31 @@ use par_sparse_global_collectives_names
    call comm_interface ( op_G )
    op%state = full_summed
  end subroutine par_scalar_array_comm
-
- subroutine par_scalar_array_free(this)
+ 
+  subroutine par_scalar_array_free_in_stages(this,action)
    implicit none
    class(par_scalar_array_t), intent(inout) :: this
+   integer(ip)              , intent(in)    :: action
 
    ! The routine requires the partition/context info
    assert ( associated( this%dof_dist ) )
    assert ( associated( this%p_env%p_context ) )
    assert ( this%p_env%p_context%created .eqv. .true.)
+   assert ( action == free_clean .or. action == free_struct .or. action == free_values )
+
+   
+   if ( action == free_clean ) then
+     this%state = undefined
+     nullify ( this%dof_dist )
+     nullify ( this%p_env )
+   end if	 
+   
    if(this%p_env%p_context%iam<0) return
    
-   this%state = undefined
-   
    ! Free local part
-   call this%f_vector%free()
+   call this%f_vector%free_in_stages(action)
    
-   nullify ( this%dof_dist )
-   nullify ( this%p_env )
-
- end subroutine par_scalar_array_free
+ end subroutine par_scalar_array_free_in_stages
 
 
 end module par_scalar_array_names

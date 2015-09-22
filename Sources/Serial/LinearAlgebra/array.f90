@@ -36,7 +36,11 @@ module array_names
   type, abstract, extends(vector_t) :: array_t
   contains
   	  procedure (allocate_interface), deferred :: allocate
-  	  ! Inherits free deferred procedure from memory_guard_t => vector_t
+	  procedure (free_in_stages_interface), deferred :: free_in_stages
+	  ! This subroutine is an instance of the Template Method pattern with
+	  ! free_in_stages being the primitive method. According to this pattern,
+	  ! template methods cannot be overrided by subclasses
+  	  procedure, non_overridable :: free => array_free_template_method
   end type
   
     abstract interface
@@ -46,9 +50,26 @@ module array_names
 	   implicit none
        class(array_t), intent(inout) :: this
      end subroutine allocate_interface
+	 ! Progressively free an array_t instance in three stages: action={free_numeric,free_symbolic,free_clean}
+     subroutine free_in_stages_interface(this,action) 
+	   import :: array_t, ip
+	   implicit none
+       class(array_t), intent(inout) :: this
+	   integer(ip)   , intent(in)    :: action
+     end subroutine free_in_stages_interface
   end interface
   
   ! Data types
   public :: array_t
+  
+contains
+
+   subroutine array_free_template_method ( this )
+     implicit none
+	 class(array_t), intent(inout) :: this
+	 call this%free_in_stages(free_values)
+	 call this%free_in_stages(free_struct)
+	 call this%free_in_stages(free_clean)
+   end subroutine array_free_template_method
 
 end module array_names

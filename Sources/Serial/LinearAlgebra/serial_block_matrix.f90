@@ -62,7 +62,6 @@ module serial_block_matrix_names
 	                           serial_block_matrix_create_offdiagonal_block
 							 
 	procedure :: allocate           => serial_block_matrix_allocate
-	procedure :: free               => serial_block_matrix_free_in_one_shot
 	procedure :: free_in_stages     => serial_block_matrix_free_in_stages
     procedure :: set_block_to_zero  => serial_block_matrix_set_block_to_zero
     procedure :: get_block          => serial_block_matrix_get_block
@@ -267,15 +266,6 @@ contains
        check(1==0)
     end select
   end function serial_block_matrix_apply_fun
-
-  subroutine serial_block_matrix_free_in_one_shot(this)
-    implicit none
-    class(serial_block_matrix_t), intent(inout) :: this
-    integer(ip) :: ib,jb
-    call this%free_in_stages(free_values)
-	call this%free_in_stages(free_struct)
-	call this%free_in_stages(free_clean)
-  end subroutine serial_block_matrix_free_in_one_shot
   
     subroutine serial_block_matrix_free_in_stages(this,action)
     implicit none

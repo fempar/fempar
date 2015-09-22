@@ -79,7 +79,6 @@ module par_scalar_matrix_names
      procedure  :: apply     => par_scalar_matrix_apply
      procedure  :: apply_fun => par_scalar_matrix_apply_fun
 	 procedure  :: free_in_stages => par_scalar_matrix_free_in_stages
-     procedure  :: free      => par_scalar_matrix_free_in_one_shot
   end type par_scalar_matrix_t
 
   ! Types
@@ -146,16 +145,6 @@ contains
        call this%f_matrix%allocate()
     end if
   end subroutine par_scalar_matrix_allocate
-  
-  !=============================================================================
-  subroutine par_scalar_matrix_free_in_one_shot(this)
-    implicit none
-
-    class(par_scalar_matrix_t), intent(inout) :: this
-    call this%free_in_stages(free_values)
-    call this%free_in_stages(free_struct)
-    call this%free_in_stages(free_clean)
-  end subroutine par_scalar_matrix_free_in_one_shot
 
   !=============================================================================
   subroutine par_scalar_matrix_free_in_stages(this, action)
