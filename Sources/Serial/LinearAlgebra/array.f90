@@ -40,7 +40,7 @@ module array_names
 	  ! This subroutine is an instance of the Template Method pattern with
 	  ! free_in_stages being the primitive method. According to this pattern,
 	  ! template methods cannot be overrided by subclasses
-  	  procedure, non_overridable :: free => array_free_template_method
+  	  procedure :: free => array_free_template_method
   end type
   
     abstract interface
