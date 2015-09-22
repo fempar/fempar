@@ -29,7 +29,8 @@ module matrix_array_assembler_names
   use types_names
   use matrix_names
   use array_names
-
+  use assembler_names
+  
   implicit none
 # include "debug.i90"
   private
