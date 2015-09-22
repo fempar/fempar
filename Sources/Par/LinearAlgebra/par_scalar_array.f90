@@ -733,20 +733,26 @@ use par_sparse_global_collectives_names
    assert ( associated( this%dof_dist ) )
    assert ( associated( this%p_env%p_context ) )
    assert ( this%p_env%p_context%created .eqv. .true.)
-   assert ( action == free_clean .or. action == free_struct .or. action == free_values )
-
+   assert ( action == free_clean .or. action == free_struct .or. action == free_values )	 
    
-   if ( action == free_clean ) then
-     this%state = undefined
-     nullify ( this%dof_dist )
-     nullify ( this%p_env )
-   end if	 
-   
-   if(this%p_env%p_context%iam<0) return
+   if(this%p_env%p_context%iam<0) then 
+      if ( action == free_clean ) then
+        this%state = undefined
+        nullify ( this%dof_dist )
+        nullify ( this%p_env )
+      end if
+      return
+   end if	  
    
    ! Free local part
    call this%f_vector%free_in_stages(action)
    
+    if ( action == free_clean ) then
+     this%state = undefined
+     nullify ( this%dof_dist )
+     nullify ( this%p_env )
+   end if
+
  end subroutine par_scalar_array_free_in_stages
 
 
