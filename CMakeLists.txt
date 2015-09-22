@@ -208,10 +208,27 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 # ENABLE TESTING
 #################################################################
 
-STRING(TIMESTAMP DATE "%Y-%m-%d_%H:%M")
-SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL} CACHE STRING "" )
 ENABLE_TESTING()
 INCLUDE(CTest)
+
+#################################################################
+# SET BUILD NAME
+#################################################################
+
+IF(${BUILD_TESTING})
+    FIND_PACKAGE( Git )
+    IF(${GIT_FOUND})
+        # Get the current working branch
+        EXECUTE_PROCESS(
+            COMMAND git rev-parse --abbrev-ref HEAD
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE GIT_BRANCH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    ENDIF()
+ENDIF()
+
+SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL}@${GIT_BRANCH} CACHE STRING "" )
 
 #################################################################
 # STATIC LIBRARIES
