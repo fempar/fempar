@@ -84,7 +84,7 @@ contains
           p_matrix => a%get_block(iblock,jblock)
           if ( associated(p_matrix) ) then
              if(p_matrix%p_env%am_i_fine_task()) then
-                call element_matrix_assembly( dof_descriptor, finite_element, p_matrix%f_matrix, iblock, jblock )
+                call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, p_matrix%f_matrix, iblock, jblock )
              end if
           end if 
        end do
@@ -99,7 +99,7 @@ contains
     type(par_scalar_matrix_t)    , intent(inout) :: a
 
     if(a%p_env%am_i_fine_task()) then
-       call element_matrix_assembly( dof_descriptor, finite_element, a%f_matrix )
+       call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, a%f_matrix )
     end if
 
   end subroutine assembly_element_par_matrix_mono
@@ -114,7 +114,7 @@ contains
 
     do iblock = 1, dof_descriptor%nblocks
        if(a%blocks(iblock)%p_env%am_i_fine_task()) then
-          call element_vector_assembly( dof_descriptor, finite_element, a%blocks(iblock)%f_vector, &
+          call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a%blocks(iblock)%f_vector, &
                & iblock )
        end if
     end do
@@ -128,7 +128,7 @@ contains
     type(par_scalar_array_t)    , intent(inout) :: a
 
     if(a%p_env%am_i_fine_task()) then
-       call element_vector_assembly( dof_descriptor, finite_element, a%f_vector )
+       call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a%f_vector )
     end if
 
   end subroutine assembly_element_par_vector_mono

@@ -44,7 +44,7 @@ module assembly_names
   private
 
   ! Functions
-  public :: assembly, assembly_face, element_matrix_assembly, element_vector_assembly
+  public :: assembly, assembly_face, element_serial_scalar_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
 
@@ -109,7 +109,7 @@ contains
        do jblock = 1, dof_descriptor%nblocks
           f_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
           if ( associated(f_matrix) ) then
-             call element_matrix_assembly( dof_descriptor, finite_element, f_matrix, iblock, jblock )
+             call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, f_matrix, iblock, jblock )
           end if 
        end do
     end do
@@ -122,7 +122,7 @@ contains
     type(finite_element_t), intent(in)    :: finite_element
     type(serial_scalar_matrix_t)        , intent(inout) :: a
 
-    call element_matrix_assembly( dof_descriptor, finite_element, a )
+    call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, a )
 
   end subroutine assembly_element_matrix_mono
 
@@ -148,7 +148,7 @@ contains
           f_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
           if ( associated(f_matrix) ) then
             do i = 1,2
-               call element_matrix_assembly( dof_descriptor, finite_element(i)%p, f_matrix, iblock, jblock )
+               call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element(i)%p, f_matrix, iblock, jblock )
             end do
             call face_element_matrix_assembly( dof_descriptor, finite_element, fe_face, f_matrix, iblock, jblock )
           end if
@@ -176,7 +176,7 @@ contains
 
     finite_element(2)%p%start%a = finite_element(2)%p%start%a + finite_element(1)%p%start%a(dof_descriptor%problems(finite_element(1)%p%problem)%p%nvars+1) - 1
     do i = 1,2
-       call element_matrix_assembly( dof_descriptor, finite_element(i)%p, a )
+       call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element(i)%p, a )
     end do
     call face_element_matrix_assembly( dof_descriptor, finite_element, fe_face, a )
 
@@ -194,7 +194,7 @@ contains
     integer(ip) :: iblock
 
     do iblock = 1, dof_descriptor%nblocks
-       call element_vector_assembly( dof_descriptor, finite_element, a%blocks(iblock), &
+       call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a%blocks(iblock), &
             & iblock )
     end do
 
@@ -206,7 +206,7 @@ contains
     type(finite_element_t), intent(in)    :: finite_element
     type(serial_scalar_array_t)        , intent(inout) :: a
     
-    call element_vector_assembly( dof_descriptor, finite_element, a )
+    call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a )
 
   end subroutine assembly_element_vector_mono
 
@@ -250,7 +250,7 @@ contains
 
   end subroutine assembly_face_vector_mono
 
-  subroutine element_matrix_assembly( dof_descriptor, finite_element, a, iblock, jblock )
+  subroutine element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, a, iblock, jblock )
     implicit none
     ! Parameters
     type(dof_descriptor_t)    , intent(in)    :: dof_descriptor
@@ -317,7 +317,7 @@ contains
     !write(*,*) 'system_matrix'
     !call matrix_print(6,a)
 
-  end subroutine element_matrix_assembly
+  end subroutine element_serial_scalar_matrix_assembly
 
   subroutine face_element_matrix_assembly( dof_descriptor, finite_element, fe_face, a, iblock, jblock )
     implicit none
@@ -376,7 +376,7 @@ contains
 
   end subroutine face_element_matrix_assembly
 
-  subroutine element_vector_assembly( dof_descriptor, finite_element, a, iblock )
+  subroutine element_serial_scalar_array_assembly( dof_descriptor, finite_element, a, iblock )
     implicit none
     ! Parameters
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
@@ -402,7 +402,7 @@ contains
        end do
     end do
 
-  end subroutine element_vector_assembly
+  end subroutine element_serial_scalar_array_assembly
 
   subroutine face_vector_assembly( dof_descriptor, finite_element, fe_face, a, iblock )
     implicit none
