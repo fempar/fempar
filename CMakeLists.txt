@@ -180,7 +180,7 @@ IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES
   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" OR Fortran_COMPILER_NAME MATCHES "ifort*")
   # ifort (untested)
-  set(FORTRAN_FLAGS "-r8 -fpp -W1 ${EXTRA_FLAGS} ")
+  set(FORTRAN_FLAGS "-r8 -fpp -W1 -fPIC ${EXTRA_FLAGS} ")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all -ftrapuv -warn nointerfaces ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
@@ -208,30 +208,28 @@ message (STATUS "CMAKE_Fortran_FLAGS_RELEASE: " ${CMAKE_Fortran_FLAGS_RELEASE})
 message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 
 #################################################################
+# SET BUILD NAME
+#################################################################
+
+FIND_PACKAGE( Git )
+IF(${GIT_FOUND})
+    # Get the current working branch
+    EXECUTE_PROCESS(
+        COMMAND git rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+ENDIF()
+
+SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL}@${GIT_COMMIT} CACHE STRING "" )
+
+#################################################################
 # ENABLE TESTING
 #################################################################
 
 ENABLE_TESTING()
 INCLUDE(CTest)
-
-#################################################################
-# SET BUILD NAME
-#################################################################
-
-IF(${BUILD_TESTING})
-    FIND_PACKAGE( Git )
-    IF(${GIT_FOUND})
-        # Get the current working branch
-        EXECUTE_PROCESS(
-            COMMAND git rev-parse --abbrev-ref HEAD
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_VARIABLE GIT_BRANCH
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    ENDIF()
-ENDIF()
-
-SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL}@${GIT_BRANCH} CACHE STRING "" )
 
 #################################################################
 # STATIC LIBRARIES
