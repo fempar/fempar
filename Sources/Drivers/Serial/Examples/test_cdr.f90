@@ -42,7 +42,7 @@ program test_cdr
   type(cdr_discrete_t)                  :: my_discrete
   type(cdr_approximation_t), target     :: my_approximation
   integer(ip)                         :: num_approximations
-  type(discrete_integration_pointer_t)  :: approximations(1)
+  type(p_discrete_integration_t)  :: approximations(1)
 
   type(serial_scalar_matrix_t), target             :: my_matrix
   type(serial_scalar_array_t), target             :: my_vector, feunk
@@ -104,7 +104,7 @@ program test_cdr
   call my_discrete%create( my_problem)
   call my_approximation%create(my_problem,my_discrete)
   num_approximations=1
-  approximations(1)%p => my_approximation
+  approximations(1)%discrete_integration => my_approximation
 
   call dof_descriptor%set_problem( 1, my_discrete )
   !                     ( ndime, dof_descriptor, l2g_vars, iprob ) 

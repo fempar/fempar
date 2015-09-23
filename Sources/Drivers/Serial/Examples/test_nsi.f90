@@ -109,7 +109,7 @@ program test_nsi_iss
 
   type(nsi_cg_iss_discrete_t) , target  :: mydisc
   type(nsi_cg_iss_matvec_t)   , target  :: cg_iss_matvec
-  type(discrete_integration_pointer_t)  :: approx(1)
+  type(p_discrete_integration_t)  :: approx(1)
   type(serial_scalar_matrix_t)              , target  :: femat
   type(serial_scalar_array_t)              , target  :: fevec,feunk
   type(preconditioner_t)                :: feprec
@@ -177,7 +177,7 @@ program test_nsi_iss
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
   call dof_descriptor%set_problem(1,mydisc)
-  approx(1)%p       => cg_iss_matvec
+  approx(1)%discrete_integration       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp
@@ -261,7 +261,7 @@ program test_nsi_iss
 
   ! Compute error norm
   call error_compute%create(myprob,mydisc)
-  approx(1)%p => error_compute
+  approx(1)%discrete_integration => error_compute
   error_compute%unknown_id = velocity
   call enorm_u%init()
   call volume_integral(approx,fe_space,enorm_u)
@@ -336,7 +336,7 @@ contains
     real(rp)                            , intent(in)    :: nltol
     integer(ip)                         , intent(in)    :: maxit    
     class(abstract_environment_t)       , intent(in)    :: env
-    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    type(p_discrete_integration_t), intent(inout) :: approx(:)
     type(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(operator_t)              , intent(inout) :: A, M
     class(vector_t)               , intent(inout) :: x, b

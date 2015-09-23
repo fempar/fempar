@@ -81,9 +81,9 @@ module problem_names
       procedure :: compute_face
    end type discrete_integration_t
 
-   type :: discrete_integration_pointer_t
-      class(discrete_integration_t), pointer :: p
-   end type discrete_integration_pointer_t
+   type :: p_discrete_integration_t
+      class(discrete_integration_t), pointer :: discrete_integration
+   end type p_discrete_integration_t
 
   abstract interface
      subroutine create_problem_interface(discret,physics,l2g)
@@ -115,7 +115,7 @@ module problem_names
 
   public :: physical_problem_t, p_physical_problem_t, discrete_problem_t, &
             discrete_problem_pointer_t, discrete_problem_free,            &
-            discrete_integration_t, discrete_integration_pointer_t
+            discrete_integration_t, p_discrete_integration_t
 
 contains 
 

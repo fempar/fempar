@@ -42,8 +42,20 @@ module par_fe_space_names
   use par_element_exchange_names
   use par_conditions_names
   use blocks_dof_distribution_names
+  
+    ! Abstract modules
+  use fe_space_names
+  use assembler_names
+  use matrix_array_assembler_names
+  use matrix_names
+  use array_names
+  
+  ! Concrete implementations 
+  use par_scalar_matrix_array_assembler_names
   use par_scalar_matrix_names
   use par_block_matrix_names
+  use par_scalar_array_names
+  use par_block_array_names
 
 #ifdef memcheck
 use iso_c_binding
@@ -52,9 +64,8 @@ use iso_c_binding
 # include "debug.i90"
   private
 
-  type par_fe_space_t
+  type, extends(fe_space_t) :: par_fe_space_t
      type(serial_fe_space_t) :: serial_fe_space
-     type(dof_descriptor_t)   , pointer :: dof_descriptor => NULL()
      type(par_triangulation_t), pointer :: p_trian => NULL()
 	 
 	 ! Extra data members that p_fe_space adds to fe_space (local portion)
@@ -72,12 +83,99 @@ use iso_c_binding
      procedure, private :: par_fe_space_create_make_par_block_coefficient_matrix
 	 generic :: make_coefficient_matrix => par_fe_space_create_make_par_scalar_coefficient_matrix, &
 	                                       par_fe_space_create_make_par_block_coefficient_matrix
+										   
+	 procedure :: create_matrix_array_assembler         => par_fe_space_create_matrix_array_assembler
+	 procedure :: symbolic_setup_matrix_array_assembler => par_fe_space_symbolic_setup_matrix_array_assembler
+	 procedure :: volume_integral                       => par_fe_space_volume_integral 									   
   end type par_fe_space_t
 
   ! Types
   public :: par_fe_space_t
 
 contains
+
+ function par_fe_space_create_matrix_array_assembler(this,& 
+											         diagonal_blocks_symmetric_storage,&
+											         diagonal_blocks_symmetric,&
+											         diagonal_blocks_sign)
+    implicit none
+	class(par_fe_space_t)          , intent(in) :: this
+	logical                        , intent(in) :: diagonal_blocks_symmetric_storage(:)
+    logical                        , intent(in) :: diagonal_blocks_symmetric(:)
+	integer(ip)                    , intent(in) :: diagonal_blocks_sign(:)
+	class(matrix_array_assembler_t), pointer    :: par_fe_space_create_matrix_array_assembler
+	
+	class(matrix_t), pointer :: matrix
+	class(array_t) , pointer :: array
+	
+	assert ( size(diagonal_blocks_symmetric_storage) == this%dof_descriptor%nblocks )
+	assert ( size(diagonal_blocks_symmetric) == this%dof_descriptor%nblocks )
+	assert ( size(diagonal_blocks_sign) == this%dof_descriptor%nblocks )
+	
+	! 1. Select dynamically the type of class(matrix_array_assembler_t), class(matrix_t) and class(vector_t)
+	! 2. Create class(matrix_t) and class(vector_t) accordingly to their dynamic type
+	if (this%dof_descriptor%nblocks == 1) then
+	  allocate ( par_scalar_matrix_array_assembler_t :: par_fe_space_create_matrix_array_assembler )
+	  allocate ( par_scalar_matrix_t :: matrix )
+	  allocate ( par_scalar_array_t  :: array )
+	  select type(matrix)
+        class is(par_scalar_matrix_t)
+	      call matrix%create(diagonal_blocks_symmetric_storage(1),& 
+							 diagonal_blocks_symmetric(1),& 
+							 diagonal_blocks_sign(1), &
+							 this%blocks_dof_distribution%get_block(1), &
+						     this%p_trian%p_env)
+	    class default
+          check(.false.)
+        end select 
+	  select type(array)
+        class is(par_scalar_array_t)
+	      call array%create(this%blocks_dof_distribution%blocks(1), this%p_trian%p_env)
+		  array%state = part_summed
+	    class default
+         check(.false.)
+      end select 
+	else
+	  ! allocate ( par_block_matrix_array_assembler_t :: par_fe_space_create_matrix_array_assembler )
+	  allocate ( par_block_matrix_t :: matrix )
+	  allocate ( par_block_array_t  :: array )
+	  check(.false.)
+	  ! This itinerary still to be implemented ...
+	end if
+	call par_fe_space_create_matrix_array_assembler%set_matrix(matrix)
+	call par_fe_space_create_matrix_array_assembler%set_array(array)
+  end function par_fe_space_create_matrix_array_assembler
+  
+  subroutine par_fe_space_symbolic_setup_matrix_array_assembler(this,matrix_array_assembler)
+	implicit none
+	class(par_fe_space_t)           , intent(in)    :: this
+	class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+	
+    ! Polymorphic matrix 
+	class(matrix_t), pointer :: matrix
+	
+	matrix => matrix_array_assembler%get_matrix()
+    select type(matrix)
+      class is(par_scalar_matrix_t)
+	     if ( matrix%p_env%am_i_fine_task() ) then
+            call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, matrix%f_matrix%graph )
+		 end if	
+	  class is(par_block_matrix_t)
+	  class default
+         check(.false.)
+    end select
+	
+  end subroutine par_fe_space_symbolic_setup_matrix_array_assembler
+
+  subroutine par_fe_space_volume_integral(this,approximations,assembler)
+	implicit none
+	class(par_fe_space_t)          , intent(in)    :: this
+	class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+	class(assembler_t)             , intent(inout) :: assembler
+	if ( this%p_trian%p_env%am_i_fine_task() ) then
+	  call this%serial_fe_space%volume_integral(approximations,assembler)
+	end if
+  end subroutine par_fe_space_volume_integral
 
   subroutine par_fe_space_create_make_par_scalar_coefficient_matrix(this,symmetric_storage,is_symmetric,sign,par_scalar_matrix)
     implicit none
@@ -128,16 +226,16 @@ contains
                                     static_condensation, num_continuity )
     implicit none
     ! Dummy arguments
-	class(par_fe_space_t)            , intent(inout)  :: this  
+	class(par_fe_space_t)            , intent(inout) :: this  
     type(par_triangulation_t), target, intent(in)    :: p_trian
-    type(dof_descriptor_t)   , target, intent(in)    :: dof_descriptor
-    integer(ip)                    , intent(in)      :: problem(:)
-    type(par_conditions_t)         , intent(in)      :: p_cond
-    integer(ip)                    , intent(in)      :: continuity(:,:)
-	logical                        , intent(in)      :: enable_face_integration(:,:)
-    integer(ip)                    , intent(in)      :: order(:,:)
-    integer(ip)                    , intent(in)      :: material(:)
-    integer(ip)          , optional, intent(in)      :: time_steps_to_store
+    type(dof_descriptor_t)           , intent(in)    :: dof_descriptor
+    integer(ip)                      , intent(in)    :: problem(:)
+    type(par_conditions_t)           , intent(in)    :: p_cond
+    integer(ip)                      , intent(in)    :: continuity(:,:)
+	logical                          , intent(in)    :: enable_face_integration(:,:)
+    integer(ip)                      , intent(in)    :: order(:,:)
+    integer(ip)                      , intent(in)    :: material(:)
+    integer(ip)          , optional  , intent(in)    :: time_steps_to_store
     logical          , optional, intent(in)          :: hierarchical_basis
     logical          , optional, intent(in)          :: static_condensation
     integer(ip)          , optional, intent(in)      :: num_continuity   
@@ -149,7 +247,7 @@ contains
     ! Parallel environment MUST BE already created
     assert ( p_trian%p_env%created )
     this%p_trian        => p_trian 
-	this%dof_descriptor => dof_descriptor
+	call this%set_dof_descriptor(dof_descriptor)
 
     if( this%p_trian%p_env%p_context%iam >= 0 ) then
        call serial_fe_space_allocate_structures(  this%serial_fe_space, p_trian%f_trian, dof_descriptor, &

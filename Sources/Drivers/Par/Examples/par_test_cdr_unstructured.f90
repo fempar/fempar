@@ -129,7 +129,7 @@ program par_test_cdr_unstructured
   type(cdr_discrete_t)                  :: my_discrete
   type(cdr_approximation_t), target     :: my_approximation
   integer(ip)                           :: num_approximations
-  type(discrete_integration_pointer_t)  :: approximations(1)
+  type(p_discrete_integration_t)  :: approximations(1)
 
   integer(ip)              :: num_levels, nparts, ndime
   integer(ip), allocatable :: id_parts(:), num_parts(:)
@@ -207,7 +207,7 @@ program par_test_cdr_unstructured
   call my_discrete%create( my_problem )
   call my_approximation%create(my_problem,my_discrete)
   num_approximations=1
-  approximations(1)%p => my_approximation
+  approximations(1)%discrete_integration => my_approximation
   
   call dof_descriptor%set_problem( 1, my_discrete )
   ! ... for as many problems as we have

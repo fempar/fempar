@@ -455,6 +455,7 @@ contains
 
     type(serial_scalar_array_t), allocatable :: local_y
 
+    call x%GuardTemp()
     select type(x)
     class is (serial_scalar_array_t)
        allocate(local_y)
@@ -466,6 +467,7 @@ contains
        write(0,'(a)') 'serial_scalar_matrix_t%apply_fun: unsupported x class'
        check(1==0)
     end select
+    call x%CleanTemp()
   end function serial_scalar_matrix_apply_fun
 
   subroutine serial_scalar_matrix_free_tbp(this)

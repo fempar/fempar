@@ -72,13 +72,16 @@ module serial_names
 
   ! Linear Algebra
   use serial_scalar_matrix_names
-  use preconditioner_names
   use serial_scalar_array_names
   use serial_block_matrix_names
   use serial_block_array_names
+  use preconditioner_names
   use abstract_solver_names
-  use vector_names
+  use fe_affine_operator_names
   use operator_names
+  use vector_names
+  use matrix_names
+  use array_names
   use block_preconditioner_l_names
   use block_preconditioner_u_names
   use block_preconditioner_lu_names

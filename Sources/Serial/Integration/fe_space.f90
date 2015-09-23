@@ -27,14 +27,24 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fe_space_names
   use types_names
+  
+  ! Abstract modules
+  use assembler_names
   use matrix_array_assembler_names
+  use dof_descriptor_names
+  use problem_names
   
   implicit none
 # include "debug.i90"
   private
 
   type, abstract :: fe_space_t
+    ! A reference to an instance of type(dof_descriptor_t) has
+    ! to be available in all subclasses of class(fe_space_t)
+    type(dof_descriptor_t), pointer :: dof_descriptor
   contains
+    procedure :: set_dof_descriptor => fe_space_set_dof_descriptor
+	procedure (volume_integral_interface)                      , deferred :: volume_integral
     procedure (create_matrix_array_assembler_interface)        , deferred :: create_matrix_array_assembler
 	procedure (symbolic_setup_matrix_array_assembler_interface), deferred :: symbolic_setup_matrix_array_assembler
   end type
@@ -66,9 +76,24 @@ module fe_space_names
 	  class(fe_space_t)              , intent(in)    :: this
 	  class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
     end subroutine symbolic_setup_matrix_array_assembler_interface
+	
+	subroutine volume_integral_interface(this,approximations,assembler)
+	  import :: fe_space_t, p_discrete_integration_t,assembler_t
+	  implicit none
+	  class(fe_space_t)              , intent(in)    :: this
+	  class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+	  class(assembler_t)             , intent(inout) :: assembler
+    end subroutine volume_integral_interface
   end interface
   
   ! Data types
   public :: fe_space_t
-  
+
+contains
+     subroutine fe_space_set_dof_descriptor(this,dof_descriptor)
+	    implicit none
+		class(fe_space_t), intent(inout) :: this
+		type(dof_descriptor_t), target :: dof_descriptor
+		this%dof_descriptor => dof_descriptor
+	 end subroutine
 end module fe_space_names

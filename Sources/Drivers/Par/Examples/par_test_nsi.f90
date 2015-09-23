@@ -114,7 +114,7 @@ program par_test_nsi_iss
   type(nsi_problem_t)                                :: myprob
   type(nsi_cg_iss_discrete_t)               , target :: mydisc
   type(nsi_cg_iss_matvec_t)                 , target :: cg_iss_matvec
-  type(discrete_integration_pointer_t)               :: approx(1)
+  type(p_discrete_integration_t)               :: approx(1)
   type(vtk_t)                                        :: fevtk
   type(blocks_dof_distribution_t), pointer           :: blocks_dof_distribution
   type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
@@ -204,7 +204,7 @@ program par_test_nsi_iss
   call mydisc%create(myprob)
   call cg_iss_matvec%create(myprob,mydisc)
   call dof_descriptor%set_problem(1,mydisc)
-  approx(1)%p       => cg_iss_matvec
+  approx(1)%discrete_integration       => cg_iss_matvec
   mydisc%dtinv      = 0.0_rp
   myprob%kfl_conv   = 1
   myprob%diffu      = 1.0_rp

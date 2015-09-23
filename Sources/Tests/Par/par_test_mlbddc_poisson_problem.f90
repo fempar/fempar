@@ -281,28 +281,30 @@ program par_test_mlbddc_poisson_problem
   type(par_triangulation_t) :: p_trian
   type(par_fe_space_t)      :: p_fe_space
 
-  type(par_scalar_matrix_t), target                :: p_mat
-  type(par_scalar_array_t), target                :: p_vec, p_unk
-  class(vector_t) , pointer           :: x, y
-  class(operator_t), pointer           :: A
-
+  type(par_scalar_matrix_t), pointer  :: p_mat
+  class(matrix_t)          , pointer  :: matrix
+  type(par_scalar_array_t) , pointer  :: p_vec
+  class(array_t)           , pointer  :: array
+  type(par_scalar_array_t)            :: p_unk
+  
+  type(fe_affine_operator_t)          :: fe_affine_operator
+  
   ! Preconditioner-related data structures
-  type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag
   type(par_preconditioner_dd_mlevel_bddc_t), target :: p_mlevel_bddc
   type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
   integer(ip), allocatable :: kind_coarse_dofs(:)
+
+  
   type(solver_control_t)            :: sctrl
-  type(blocks_dof_distribution_t), pointer    :: blocks_dof_distribution
   type(dof_descriptor_t)            :: dof_descriptor
   type(par_conditions_t)            :: p_cond
-
   type(cdr_problem_t)               :: my_problem
   type(cdr_discrete_t)              :: my_discrete
   type(cdr_nonlinear_t), target     :: my_approximation
   type(par_scalar_t)                :: enorm
   type(error_norm_t)   , target     :: error_compute
-  type(discrete_integration_pointer_t)  :: approximations(1)
+  type(p_discrete_integration_t)  :: approximations(1)
 
   integer(ip)              :: num_levels
   integer(ip), allocatable :: id_parts(:), num_parts(:)
@@ -399,7 +401,7 @@ program par_test_mlbddc_poisson_problem
   call my_problem%create( p_trian%f_trian%num_dims )
   call my_discrete%create( my_problem )
   call my_approximation%create(my_problem,my_discrete)
-  approximations(1)%p => my_approximation
+  approximations(1)%discrete_integration => my_approximation
   
   call dof_descriptor%set_problem( 1, my_discrete )
   ! ... for as many problems as we have
@@ -416,35 +418,45 @@ program par_test_mlbddc_poisson_problem
   problem = 1
 
   call par_timer_start (par_fe_space_create_timer)
-
   call p_fe_space%create ( p_trian, dof_descriptor, problem, &
                            p_cond, continuity, enable_face_integration, order, material, &
                            time_steps_to_store = 1, &
                            hierarchical_basis = .false., &
                            static_condensation = .false., num_continuity = 1 )
-
+  call par_create_distributed_dof_info ( p_fe_space )
+  call p_fe_space%set_analytical_code( spatial_code=(/1/), temporal_code=(/0/) ) 
+  call par_update_analytical_bcond( vars_of_unk=(/1/), ctime=0.0_rp, p_fe_space=p_fe_space)
   call par_timer_stop (par_fe_space_create_timer)
   call par_timer_report(par_fe_space_create_timer)
-
-  call p_fe_space%set_analytical_code( spatial_code=(/1/), temporal_code=(/0/) ) 
-
-  call par_create_distributed_dof_info ( p_fe_space )
-  blocks_dof_distribution => p_fe_space%get_blocks_dof_distribution()
   
-  call p_fe_space%make_coefficient_matrix ( test_params%symmetric_storage, & 
-										    test_params%is_symmetric, &
-											test_params%sign, &
-											p_mat )
+  call fe_affine_operator%create ( (/test_params%symmetric_storage/), &
+								   (/test_params%is_symmetric/), & 
+								   (/test_params%sign/), &
+								   p_fe_space, &
+								   approximations)
+  
+  call fe_affine_operator%symbolic_setup()
+  call fe_affine_operator%numerical_setup()
 
-  call p_vec%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
-  p_vec%state = part_summed
+  matrix => fe_affine_operator%get_matrix()
+  select type(matrix)
+  class is(par_scalar_matrix_t)
+    p_mat => matrix
+  class default
+     check(.false.)
+  end select 
 
-  call p_unk%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
+  array => fe_affine_operator%get_array()
+  select type(array)
+  class is(par_scalar_array_t)
+    p_vec => array
+  class default
+    check(.false.)
+  end select 
+  
+  call p_unk%clone(p_vec)
   p_unk%state = full_summed
 
-  call par_update_analytical_bcond( vars_of_unk=(/1/), ctime=0.0_rp, p_fe_space=p_fe_space)
-
-  call par_volume_integral( approximations, p_fe_space, p_mat, p_vec )
  
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
@@ -485,7 +497,7 @@ program par_test_mlbddc_poisson_problem
 
   ! Compute error norm
   call error_compute%create(my_problem,my_discrete)
-  approximations(1)%p => error_compute
+  approximations(1)%discrete_integration => error_compute
   call enorm%create(p_env)
 
   call memalloc ( test_params%ndime, kind_coarse_dofs, __FILE__, __LINE__ )
@@ -525,6 +537,7 @@ program par_test_mlbddc_poisson_problem
      call par_volume_integral(approximations,p_fe_space,enorm)
      call enorm%reduce()
      if(w_context%iam==0) then
+	    write(*,*) sqrt(enorm%get())
         check ( sqrt(enorm%get()) < 1.0e-06 )
      end if
 
@@ -536,8 +549,7 @@ program par_test_mlbddc_poisson_problem
 
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
-  call p_mat%free()
-  call p_vec%free()
+  call fe_affine_operator%free()
   call p_unk%free()
 
   call memfree( continuity, __FILE__, __LINE__)

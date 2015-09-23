@@ -45,6 +45,7 @@ module serial_fe_space_names
   
   ! Abstract modules
   use fe_space_names
+  use assembler_names
   use matrix_array_assembler_names
   use matrix_names
   use array_names
@@ -76,7 +77,6 @@ module serial_fe_space_names
      type(fe_face_t)           , allocatable :: fe_faces(:)             ! List of active faces
 
      type(triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
-     type(dof_descriptor_t)        , pointer :: dof_descriptor
 
      ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elmatvec
@@ -124,6 +124,7 @@ module serial_fe_space_names
 	
 	 procedure :: create_matrix_array_assembler         => serial_fe_space_create_matrix_array_assembler
 	 procedure :: symbolic_setup_matrix_array_assembler => serial_fe_space_symbolic_setup_matrix_array_assembler
+	 procedure :: volume_integral                       => serial_fe_space_volume_integral 
   end type serial_fe_space_t
 
   ! Types
@@ -175,6 +176,7 @@ contains
 	  ! allocate ( serial_block_matrix_array_assembler_t :: serial_fe_space_create_matrix_array_assembler )
 	  allocate ( serial_block_matrix_t :: matrix )
 	  allocate ( serial_block_array_t  :: array )
+	  check(.false.)
 	end if
 	call serial_fe_space_create_matrix_array_assembler%set_matrix(matrix)
 	call serial_fe_space_create_matrix_array_assembler%set_array(array)
@@ -193,13 +195,35 @@ contains
       class is(serial_scalar_matrix_t)
          call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, matrix%graph )
 	  class is(serial_block_matrix_t)
-	  
 	  class default
          check(.false.)
     end select
 	
   end subroutine serial_fe_space_symbolic_setup_matrix_array_assembler
 
+  subroutine serial_fe_space_volume_integral(this,approximations,assembler)
+	implicit none
+	class(serial_fe_space_t)       , intent(in)    :: this
+	class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+	class(assembler_t)             , intent(inout) :: assembler
+	
+	integer(ip) :: ielem, iapprox, ivar
+	
+	do iapprox=1,size(approximations)
+	  do ielem=1,this%g_trian%num_elems
+         if(associated(approximations(iapprox)%discrete_integration%domain)) then
+             if(approximations(iapprox)%discrete_integration%domain(ielem)==0) cycle
+         end if
+         ! Compute integration tools on ielem for each ivar (they all share the quadrature inside integ)
+         do ivar=1,this%finite_elements(ielem)%num_vars
+           call volume_integrator_update(this%finite_elements(ielem)%integ(ivar)%p,this%g_trian%elems(ielem)%coordinates)
+         end do
+         call approximations(iapprox)%discrete_integration%compute(this%finite_elements(ielem))
+         call assembler%assembly(this%dof_descriptor,this%finite_elements(ielem)) 
+      end do
+	end do
+  end subroutine serial_fe_space_volume_integral
+  
 
   subroutine serial_fe_space_create_make_serial_scalar_coefficient_matrix(this,symmetric_storage,is_symmetric,sign,serial_scalar_matrix)
     implicit none
@@ -234,12 +258,12 @@ contains
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
   subroutine serial_fe_space_create( this, g_trian, dof_descriptor, problem, bcond, continuity, enable_face_integration, & 
-                              order, material, time_steps_to_store, hierarchical_basis,       & 
-                              static_condensation, num_continuity, num_ghosts )
+                                     order, material, time_steps_to_store, hierarchical_basis,       & 
+                                     static_condensation, num_continuity, num_ghosts )
     implicit none
 	class(serial_fe_space_t)        , target, intent(inout) :: this
     type(triangulation_t), target, intent(in)    :: g_trian   
-    type(dof_descriptor_t)      , target, intent(in)    :: dof_descriptor
+    type(dof_descriptor_t)       ,intent(in)    :: dof_descriptor
     integer(ip)                    , intent(in)    :: problem(:)
     type(conditions_t)           , intent(in)    :: bcond
     integer(ip)                    , intent(in)    :: continuity(:,:)
@@ -325,7 +349,7 @@ contains
     fe_space%g_trian => g_trian
 
     !  Initialization of pointer to dof_descriptor
-    fe_space%dof_descriptor => dof_descriptor
+    call fe_space%set_dof_descriptor(dof_descriptor)
 
     ! Allocation of elemental matrix and vector parameters
     call fe_space%pos_elmatvec%init(ht_length)

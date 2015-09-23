@@ -74,7 +74,7 @@ contains
     type(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(integrable_t)                 , intent(inout) :: res1
     class(integrable_t), optional       , intent(inout) :: res2
-    type(discrete_integration_pointer_t), intent(inout) :: approx(:)
+    type(p_discrete_integration_t), intent(inout) :: approx(:)
     procedure(assembly_interface)      , optional :: alternative_assembly
     procedure(assembly_face_interface) , optional :: alternative_assembly_face
 
@@ -84,11 +84,11 @@ contains
 
     do i=1,size(approx)
 
-       if(approx(i)%p%domain_dimension==3) then
+       if(approx(i)%discrete_integration%domain_dimension==3) then
 
           do ielem=1,fe_space%g_trian%num_elems
-             if(associated(approx(i)%p%domain)) then
-                if(approx(i)%p%domain(ielem)==0) cycle
+             if(associated(approx(i)%discrete_integration%domain)) then
+                if(approx(i)%discrete_integration%domain(ielem)==0) cycle
              end if
 
              nvars = fe_space%finite_elements(ielem)%num_vars
@@ -97,7 +97,7 @@ contains
                 call volume_integrator_update(fe_space%finite_elements(ielem)%integ(ivar)%p,fe_space%g_trian%elems(ielem)%coordinates)
              end do
 
-             call approx(i)%p%compute(fe_space%finite_elements(ielem))
+             call approx(i)%discrete_integration%compute(fe_space%finite_elements(ielem))
 
              ! Assembly first contribution
              if(present(alternative_assembly)) then
@@ -116,10 +116,10 @@ contains
 
           end do
 
-       else if(approx(i)%p%domain_dimension==2) then
+       else if(approx(i)%discrete_integration%domain_dimension==2) then
 
-          check(associated(approx(i)%p%domain))
-          do iface=1,size(approx(i)%p%domain)
+          check(associated(approx(i)%discrete_integration%domain))
+          do iface=1,size(approx(i)%discrete_integration%domain)
 
              ! TO DO: develop face_integrator_update in the same line of volume_integrator_update
              ! adapting the old code commented in integration_tools.f90 line 352 (old subroutine
@@ -131,7 +131,7 @@ contains
              !    call volume_integrator_update(fe_space%fe_faces(iface)%integ(ivar)%p,fe_space%g_trian%elems(ielem)%coordinates)
              ! end do
 
-             call approx(i)%p%compute_face(fe_space%fe_faces(iface))
+             call approx(i)%discrete_integration%compute_face(fe_space%fe_faces(iface))
 
              finite_elements(1)%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(1))
              finite_elements(2)%p => fe_space%finite_elements(fe_space%fe_faces(iface)%neighbor_element(2))
