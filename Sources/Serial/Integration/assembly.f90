@@ -64,8 +64,6 @@ contains
        call assembly_element_matrix_block(finite_element, dof_descriptor, a)
     class is(serial_block_array_t)
        call assembly_element_vector_block(finite_element, dof_descriptor, a)
-    class is(serial_scalar_t)
-       call assembly_element_scalar(finite_element, dof_descriptor, a)
     class default
        ! class not yet implemented
        check(.false.)
@@ -209,16 +207,6 @@ contains
     call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a )
 
   end subroutine assembly_element_vector_mono
-
-  subroutine assembly_element_scalar ( finite_element, dof_descriptor, a ) 
-    implicit none
-    type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element
-    type(serial_scalar_t)        , intent(inout) :: a
-    
-    call a%sum(finite_element%scalar)
-
-  end subroutine assembly_element_scalar
 
   subroutine assembly_face_vector_block(  fe_face, finite_element, dof_descriptor, a ) 
     implicit none

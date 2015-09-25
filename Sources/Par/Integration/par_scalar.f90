@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_scalar_names
   use types_names
-  use integrable_names
+  use scalar_names
   use serial_scalar_names
   use par_environment_names
   use psb_penv_mod_names
@@ -35,9 +35,9 @@ module par_scalar_names
   implicit none
   private
 
-  type, extends(integrable_t) :: par_scalar_t
+  type, extends(scalar_t) :: par_scalar_t
      private
-     type(serial_scalar_t)                   :: f_scalar
+     type(serial_scalar_t)            :: f_scalar
      type(par_environment_t), pointer :: p_env => NULL()
   contains
     procedure :: create    => par_scalar_create

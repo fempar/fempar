@@ -61,8 +61,6 @@ contains
        call assembly_element_par_matrix_block(finite_element, dof_descriptor, a)
     class is(par_block_array_t)
        call assembly_element_par_vector_block(finite_element, dof_descriptor, a)
-    class is(par_scalar_t)
-       call assembly_element_par_scalar(finite_element, dof_descriptor, a)
     class default
        ! class not yet implemented
        check(.false.)
@@ -132,15 +130,5 @@ contains
     end if
 
   end subroutine assembly_element_par_vector_mono
-
-  subroutine assembly_element_par_scalar ( finite_element, dof_descriptor, a ) 
-    implicit none
-    type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element
-    type(par_scalar_t)    , intent(inout) :: a
-    
-    call a%sum(finite_element%scalar)
-
-  end subroutine assembly_element_par_scalar
 
 end module par_assembly_names

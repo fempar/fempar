@@ -297,7 +297,7 @@ contains
    select type(op2)
    class is (serial_scalar_array_t)
       if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
-      op1%neq     =  op2%neq       ! Number of equations
+      op1%neq     =  op2%neq
       call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
       op1%mode = allocated
    class default

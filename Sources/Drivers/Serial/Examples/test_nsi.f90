@@ -264,10 +264,10 @@ program test_nsi_iss
   approx(1)%discrete_integration => error_compute
   error_compute%unknown_id = velocity
   call enorm_u%init(0.0_rp)
-  call volume_integral(approx,fe_space,enorm_u)
+  call fe_space%volume_integral(approx,enorm_u)
   error_compute%unknown_id = pressure
   call enorm_p%init(0.0_rp)
-  call volume_integral(approx,fe_space,enorm_p)
+  call fe_space%volume_integral(approx,enorm_p)
   write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get_value())
   write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get_value()) 
 

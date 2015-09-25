@@ -27,11 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module serial_scalar_names
   use types_names
-  use integrable_names
+  use scalar_names
   implicit none
   private
 
-  type, extends(integrable_t) :: serial_scalar_t
+  type, extends(scalar_t) :: serial_scalar_t
      private
      real(rp) :: value 
   contains
