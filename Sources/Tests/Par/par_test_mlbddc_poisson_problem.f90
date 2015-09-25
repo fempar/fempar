@@ -286,7 +286,6 @@ program par_test_mlbddc_poisson_problem
   type(par_scalar_array_t) , pointer  :: p_vec
   class(array_t)           , pointer  :: array
   type(par_scalar_array_t)            :: p_unk
-  
   type(fe_affine_operator_t)          :: fe_affine_operator
   
   ! Preconditioner-related data structures

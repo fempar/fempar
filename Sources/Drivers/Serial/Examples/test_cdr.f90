@@ -33,19 +33,22 @@ program test_cdr
   ! Our data
   type(mesh_t)           :: f_mesh
   type(triangulation_t)  :: f_trian
-  type(serial_scalar_matrix_t)         :: f_mat
   type(conditions_t)     :: f_cond
   type(dof_descriptor_t) :: dof_descriptor
-  type(serial_fe_space_t)       :: fe_space
-
+  type(serial_fe_space_t) :: fe_space
   type(cdr_problem_t)                   :: my_problem
   type(cdr_discrete_t)                  :: my_discrete
   type(cdr_approximation_t), target     :: my_approximation
   integer(ip)                         :: num_approximations
   type(p_discrete_integration_t)  :: approximations(1)
+  class(matrix_t)             , pointer :: matrix
+  type(serial_scalar_matrix_t), pointer :: my_matrix
+  class(array_t)           , pointer  :: array
+  type(serial_scalar_array_t), pointer  :: my_array
+  type(serial_scalar_array_t), target   :: feunk
+  type(fe_affine_operator_t)            :: fe_affine_operator
 
-  type(serial_scalar_matrix_t), target             :: my_matrix
-  type(serial_scalar_array_t), target             :: my_vector, feunk
+  
   class(vector_t) , pointer :: x, y
   class(operator_t), pointer :: A
 
@@ -54,8 +57,6 @@ program test_cdr
   type(solver_control_t)     :: sctrl
   type(serial_environment_t) :: senv
   
-  type(serial_block_matrix_t) :: XXX
-
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
   character(len=256)       :: prefix, filename
@@ -133,27 +134,31 @@ program test_cdr
 
   call create_dof_info( fe_space )
 
-  call fe_space%make_coefficient_matrix( symmetric_storage=.false., is_symmetric=.true., sign=positive_definite, serial_scalar_matrix=my_matrix )
-
-  call my_vector%create_and_allocate ( my_matrix%graph%nv )
+  call fe_affine_operator%create ( (/.true./), &
+								   (/.true./), & 
+								   (/positive_definite/), &
+								   fe_space, &
+								   approximations)
   
-  call volume_integral( approximations, fe_space, my_matrix, my_vector)
-
-  !sctrl%method=direct
-  !ppars%type = pardiso_mkl_prec
-  !call preconditioner_create  (my_matrix, feprec, ppars)
-  !call preconditioner_symbolic(my_matrix, feprec)
-  !call preconditioner_numeric (my_matrix, feprec)
-  !call preconditioner_log_info(feprec)
-
-  write (*,*) '********** STARTING RES COMP **********,dof_graph(1,1)%nv',my_matrix%graph%nv
-  call feunk%create_and_allocate ( my_matrix%graph%nv )
-  call feunk%init(1.0_rp)
-
-
-
-  ! feunk = my_vector - my_matrix*feunk 
-  !y = x - A*y 
+  call fe_affine_operator%symbolic_setup()
+  call fe_affine_operator%numerical_setup()
+  
+  matrix => fe_affine_operator%get_matrix()
+  select type(matrix)
+  class is(serial_scalar_matrix_t)
+    my_matrix => matrix
+  class default
+    check(.false.)
+  end select 
+  
+  array => fe_affine_operator%get_array()
+  select type(array)
+  class is(serial_scalar_array_t)
+    my_array => array
+  class default
+    check(.false.)
+  end select 
+  call feunk%clone(my_array) 
 
   !call vector_print( 6, feunk)
   write(*,*) 'XXX error vs exact norm XXX', feunk%nrm2()
@@ -163,7 +168,7 @@ program test_cdr
   !call solver_control_free_conv_his(sctrl)
 
   A => my_matrix
-  x => my_vector
+  x => my_array
   y => feunk
   call feunk%print(6)
   call my_matrix%print(6)
@@ -180,8 +185,7 @@ program test_cdr
   call memfree( problem, __FILE__, __LINE__)
 
   call feunk%free()
-  call my_vector%free()
-  call my_matrix%free()
+  call fe_affine_operator%free()
   call fe_space%free()
   call my_problem%free
   call my_discrete%free
@@ -190,9 +194,7 @@ program test_cdr
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
-
   call memstatus
-
 contains
 
   subroutine read_pars_cl_test_cdr (dir_path, prefix, dir_path_out)

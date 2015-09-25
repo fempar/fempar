@@ -121,9 +121,14 @@ program par_test_nsi_iss
   type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
   type(par_preconditioner_dd_identity_t)                    :: p_prec_dd_diag
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars 
-  type(par_scalar_matrix_t), target                         :: p_mat
-  type(par_scalar_array_t), target                         :: p_vec
-  type(par_scalar_array_t), target                         :: p_unk
+  
+  class(matrix_t)          , pointer  :: matrix
+  type(par_scalar_matrix_t), pointer  :: p_mat
+  type(par_scalar_array_t), pointer   :: p_vec
+  class(array_t)           , pointer  :: array
+  type(par_scalar_array_t), target    :: p_unk
+  type(fe_affine_operator_t)          :: fe_affine_operator
+
   type(solver_control_t)                             :: sctrl
   class(vector_t) , pointer           :: x, y
   class(operator_t), pointer           :: A
@@ -227,41 +232,48 @@ program par_test_nsi_iss
        &                 order,material,time_steps_to_store=3, &
        &                 hierarchical_basis=.false., &
        &                 static_condensation=.false.,num_continuity=1)
+  call par_create_distributed_dof_info ( p_fe_space )
 
-  ! Initialize VTK output
-  call fevtk%initialize(p_trian%f_trian,p_fe_space%serial_fe_space,myprob,p_env,dir_path_out,prefix, &
-       &                nparts=gdata%nparts)!,linear_order=.false.)
-
-  ! Create dof info
-  call par_create_distributed_dof_info(p_fe_space)
-  blocks_dof_distribution => p_fe_space%get_blocks_dof_distribution()
   
-  call p_fe_space%make_coefficient_matrix ( .false., & 
-       									    .false., &
-											indefinite, &
-											p_mat )
-  
-  call p_vec%create_and_allocate(blocks_dof_distribution%get_block(1),p_env)
-  call p_unk%create_and_allocate(blocks_dof_distribution%get_block(1),p_env)
-  p_vec%state = part_summed
-  p_unk%state = full_summed
-  call p_vec%init(0.0_rp)
-
-  !call p_unk%init(1.0_rp)
-  !call par_vector_weight(p_unk)
-  !call p_unk%comm()
-  !call par_vector_print(6,p_unk)
-  
-  ! Apply boundary conditions to unkno
+    ! Apply boundary conditions to unkno
   if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu = 1.0_rp
   call par_update_strong_dirichlet_bcond(p_fe_space,p_cond)
   call par_update_analytical_bcond(vars_of_unk=(/(i,i=1,gdata%ndime)/),ctime=0.0_rp,p_fe_space=p_fe_space)
   call par_update_analytical_bcond(vars_of_unk=(/gdata%ndime+1/),ctime=0.0_rp,p_fe_space=p_fe_space)
 
-  ! Integrate
-  if(p_env%am_i_fine_task()) then
-     call volume_integral(approx,p_fe_space%serial_fe_space,p_mat%f_matrix,p_vec%f_vector)
-  end if
+  ! Initialize VTK output
+  call fevtk%initialize(p_trian%f_trian,p_fe_space%serial_fe_space,myprob,p_env,dir_path_out,prefix, &
+       &                nparts=gdata%nparts)!,linear_order=.false.)
+
+  call fe_affine_operator%create ( (/.false./), &
+								   (/.false./), & 
+								   (/indefinite/), &
+								   p_fe_space, &
+								   approx)
+  
+  call fe_affine_operator%symbolic_setup()
+  call fe_affine_operator%numerical_setup()
+
+  matrix => fe_affine_operator%get_matrix()
+  select type(matrix)
+  class is(par_scalar_matrix_t)
+    p_mat => matrix
+  class default
+    check(.false.)
+  end select 
+
+  array => fe_affine_operator%get_array()
+  select type(array)
+  class is(par_scalar_array_t)
+    p_vec => array
+  class default
+    check(.false.)
+  end select 
+  
+  call p_unk%clone(p_vec)
+  p_unk%state = full_summed
+  
+  call p_vec%init(0.0_rp)
 
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
@@ -381,9 +393,9 @@ program par_test_nsi_iss
   call memfree(material,__FILE__,__LINE__)
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
-  call p_mat%free()
-  call p_vec%free
-  call p_unk%free()     
+  call p_unk%free() 
+  call fe_affine_operator%free()
+
   call p_fe_space%free()
   call myprob%free
   call mydisc%free

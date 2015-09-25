@@ -29,7 +29,6 @@ module par_scalar_matrix_array_assembler_names
   use types_names
   use finite_element_names
   use dof_descriptor_names
-  use assembly_names
  
   ! Abstract modules
   use matrix_array_assembler_names
@@ -37,6 +36,7 @@ module par_scalar_matrix_array_assembler_names
   use array_names
   
   ! Concrete implementations
+  use serial_scalar_matrix_array_assembler_names
   use par_scalar_matrix_names
   use par_scalar_array_names
   
@@ -83,5 +83,28 @@ contains
        check(.false.)
     end select 
   end subroutine par_scalar_matrix_array_assembler_assembly
+  
+  
+  subroutine element_par_scalar_array_assembly(dof_descriptor, finite_element, a) 
+    implicit none
+    type(dof_descriptor_t), intent(in)    :: dof_descriptor
+    type(finite_element_t), intent(in)    :: finite_element
+    type(par_scalar_matrix_t)    , intent(inout) :: a
+    if(a%p_env%am_i_fine_task()) then
+       call element_serial_scalar_matrix_assembly(dof_descriptor, finite_element, a%f_matrix)
+    end if
+  end subroutine element_par_scalar_array_assembly
+  
+  subroutine assembly_element_par_vector_mono(dof_descriptor, finite_element,  a) 
+    implicit none
+    type(dof_descriptor_t), intent(in)    :: dof_descriptor
+    type(finite_element_t), intent(in)    :: finite_element
+    type(par_scalar_array_t)    , intent(inout) :: a
+
+    if(a%p_env%am_i_fine_task()) then
+       call element_serial_scalar_array_assembly(dof_descriptor, finite_element, a%f_vector)
+    end if
+
+  end subroutine assembly_element_par_vector_mono
   
 end module par_scalar_matrix_array_assembler_names

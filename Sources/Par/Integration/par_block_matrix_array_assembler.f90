@@ -25,58 +25,70 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_assembly_names
+module par_block_matrix_array_assembler_names
   use types_names
-  use assembly_names
   use finite_element_names
-  use integrable_names
   use dof_descriptor_names
+  use allocatable_array_names
+
+  ! Abstract modules
+  use matrix_array_assembler_names
+  use matrix_names
+  use array_names
+  
+  ! Concrete implementations
+  use serial_scalar_matrix_array_assembler_names
   use par_scalar_matrix_names
-  use par_scalar_array_names
   use par_block_matrix_names
   use par_block_array_names
-  use par_scalar_names
   
   implicit none
 # include "debug.i90"
   private
+
+  type, extends(matrix_array_assembler_t) :: par_block_matrix_array_assembler_t
+  contains
+	procedure :: assembly => par_block_matrix_array_assembler_assembly
+  end type
+	 
+  ! Data types
+  public :: par_block_matrix_array_assembler_t
   
-  public :: par_assembly
-
 contains
-
-  subroutine par_assembly(finite_element, dof_descriptor, a ) 
+  subroutine par_block_matrix_array_assembler_assembly(this,dof_descriptor,finite_element) 
     implicit none
-    ! Parameters
-    type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element
-    class(integrable_t)   , intent(inout) :: a
-
-    select type(a)
-    class is(par_scalar_matrix_t)
-       call assembly_element_par_matrix_mono(finite_element, dof_descriptor, a) 
-    class is(par_scalar_array_t)
-       call assembly_element_par_vector_mono(finite_element, dof_descriptor, a)
+    class(par_block_matrix_array_assembler_t), intent(inout) :: this
+    type(dof_descriptor_t)                       , intent(in)    :: dof_descriptor
+    type(finite_element_t)                       , intent(in)    :: finite_element
+	
+	class(matrix_t), pointer :: matrix
+	class(array_t) , pointer :: array
+	
+	matrix => this%get_matrix()
+	array  => this%get_array()
+	
+	select type(matrix)
     class is(par_block_matrix_t)
-       call assembly_element_par_matrix_block(finite_element, dof_descriptor, a)
-    class is(par_block_array_t)
-       call assembly_element_par_vector_block(finite_element, dof_descriptor, a)
-    class default
-       ! class not yet implemented
+	   call element_par_block_matrix_assembly( dof_descriptor, finite_element, matrix )
+	 class default
        check(.false.)
-    end select
-  end subroutine par_assembly
-
-  subroutine assembly_element_par_matrix_block(  finite_element, dof_descriptor, a ) 
+    end select  
+	
+    select type(array)
+    class is(par_block_array_t)
+	   call element_par_block_array_assembly( dof_descriptor, finite_element, array )
+	 class default
+       check(.false.)
+    end select 
+  end subroutine par_block_matrix_array_assembler_assembly
+  
+  subroutine element_par_block_matrix_assembly(  dof_descriptor, finite_element,  a ) 
     implicit none
     type(dof_descriptor_t)  , intent(in)    :: dof_descriptor
     type(finite_element_t)  , intent(in)    :: finite_element
     type(par_block_matrix_t), intent(inout) :: a
-    
     integer(ip) :: ivar, iblock, jblock
-
     type(par_scalar_matrix_t), pointer :: p_matrix
-
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
           p_matrix => a%get_block(iblock,jblock)
@@ -87,22 +99,9 @@ contains
           end if 
        end do
     end do
+  end subroutine element_par_block_matrix_assembly
 
-  end subroutine assembly_element_par_matrix_block
-
-  subroutine assembly_element_par_matrix_mono(  finite_element, dof_descriptor, a ) 
-    implicit none
-    type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element
-    type(par_scalar_matrix_t)    , intent(inout) :: a
-
-    if(a%p_env%am_i_fine_task()) then
-       call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, a%f_matrix )
-    end if
-
-  end subroutine assembly_element_par_matrix_mono
-
-  subroutine assembly_element_par_vector_block(  finite_element, dof_descriptor, a ) 
+  subroutine element_par_block_array_assembly(  dof_descriptor, finite_element,  a ) 
     implicit none
     type(dof_descriptor_t)  , intent(in)    :: dof_descriptor
     type(finite_element_t)  , intent(in)    :: finite_element
@@ -116,19 +115,6 @@ contains
                & iblock )
        end if
     end do
+  end subroutine element_par_block_array_assembly
 
-  end subroutine assembly_element_par_vector_block
-
-  subroutine assembly_element_par_vector_mono(  finite_element, dof_descriptor, a ) 
-    implicit none
-    type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element
-    type(par_scalar_array_t)    , intent(inout) :: a
-
-    if(a%p_env%am_i_fine_task()) then
-       call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a%f_vector )
-    end if
-
-  end subroutine assembly_element_par_vector_mono
-
-end module par_assembly_names
+end module par_block_matrix_array_assembler_names

@@ -106,8 +106,12 @@ program par_test_cdr_unstructured
   type(par_triangulation_t) :: p_trian
   type(par_fe_space_t)      :: p_fe_space
 
-  type(par_scalar_matrix_t), target                :: p_mat
-  type(par_scalar_array_t), target                :: p_vec, p_unk
+  class(matrix_t)          , pointer  :: matrix
+  type(par_scalar_matrix_t), pointer  :: p_mat
+  class(array_t)           , pointer  :: array
+  type(par_scalar_array_t) , target   :: p_unk
+  type(par_scalar_array_t) , pointer  :: p_vec
+  type(fe_affine_operator_t)          :: fe_affine_operator
   class(vector_t) , pointer           :: x, y
   class(operator_t), pointer  :: A
 
@@ -120,7 +124,6 @@ program par_test_cdr_unstructured
   integer(ip), allocatable :: kind_coarse_dofs(:)
 
   type(solver_control_t)                :: sctrl
-  type(blocks_dof_distribution_t), pointer :: blocks_dof_distribution
   type(dof_descriptor_t)                :: dof_descriptor
   logical                               :: symmetric_storage(1) = (/ .true. /)
   type(par_conditions_t)                :: p_cond
@@ -230,27 +233,39 @@ program par_test_cdr_unstructured
                               time_steps_to_store = 1, &
                               hierarchical_basis = .false., &
                               & static_condensation = .false., num_continuity = 1 )
+  
+  call par_create_distributed_dof_info ( p_fe_space )
 
   ! if ( p_env%am_i_fine_task() ) p_cond%f_conditions%valu=1.0_rp
   call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
 
-  call par_create_distributed_dof_info ( p_fe_space )
-  blocks_dof_distribution => p_fe_space%get_blocks_dof_distribution()
-
-  call p_fe_space%make_coefficient_matrix ( .true., & 
-       									    .true., &
-											positive_definite, &
-											p_mat )
-
-  call p_vec%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
-  p_vec%state = part_summed
+  call fe_affine_operator%create ( (/.true./), &
+								   (/.true./), & 
+								   (/positive_definite/), &
+								   p_fe_space, &
+								   approximations)
   
-  call p_unk%create_and_allocate ( blocks_dof_distribution%get_block(1), p_env )
-  p_unk%state = full_summed
+  call fe_affine_operator%symbolic_setup()
+  call fe_affine_operator%numerical_setup()
 
-  if ( p_env%am_i_fine_task() ) then
-     call volume_integral( approximations, p_fe_space%serial_fe_space, p_mat%f_matrix, p_vec%f_vector)
-  end if
+  matrix => fe_affine_operator%get_matrix()
+  select type(matrix)
+  class is(par_scalar_matrix_t)
+    p_mat => matrix
+  class default
+    check(.false.)
+  end select 
+
+  array => fe_affine_operator%get_array()
+  select type(array)
+  class is(par_scalar_array_t)
+    p_vec => array
+  class default
+    check(.false.)
+  end select 
+  
+  call p_unk%clone(p_vec)
+  p_unk%state = full_summed
 
   call p_unk%init(1.0_rp)
 
@@ -356,10 +371,8 @@ program par_test_cdr_unstructured
 
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
 
-
-  call p_mat%free()
-  call p_vec%free()
   call p_unk%free()
+  call fe_affine_operator%free()
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( enable_face_integration, __FILE__, __LINE__)

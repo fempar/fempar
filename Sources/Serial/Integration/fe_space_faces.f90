@@ -30,7 +30,6 @@ module fe_space_faces_names
   use memor_names
   use hash_table_names
   use mesh_names
-  !use integration_names
   use integration_tools_names
   !  use mesh_faces
   use serial_fe_space_names

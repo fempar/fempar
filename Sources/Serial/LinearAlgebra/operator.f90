@@ -28,7 +28,6 @@
 module operator_names
   use types_names
   use memory_guard_names
-  use integrable_names
   use vector_names
   implicit none
 # include "debug.i90"
@@ -36,7 +35,7 @@ module operator_names
   private
 
   ! Abstract operator (and its deferred TBPs)
-  type, abstract, extends(integrable_t) :: operator_t
+  type, abstract, extends(memory_guard_t) :: operator_t
    contains
      procedure (apply_interface)         , deferred :: apply
      procedure (apply_fun_interface)     , deferred :: apply_fun

@@ -95,7 +95,6 @@ module serial_names
   use fe_space_types_names
   use fe_space_faces_names
   use dof_descriptor_names
-  use integration_names
   use quadrature_names
   use interpolation_names
   use femap_names
@@ -103,7 +102,6 @@ module serial_names
   use create_global_dof_info_names
   !use element_gather_tools
   use problem_names
-  use integration_names
   use serial_scalar_names
   use time_integration_names
 

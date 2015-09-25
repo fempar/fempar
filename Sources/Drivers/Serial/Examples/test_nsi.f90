@@ -104,23 +104,26 @@ program test_nsi_iss
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
   type(dof_descriptor_t)                :: dof_descriptor
-  type(serial_fe_space_t)                      :: fe_space  
+  type(serial_fe_space_t)               :: fe_space  
   type(nsi_problem_t)                   :: myprob
 
   type(nsi_cg_iss_discrete_t) , target  :: mydisc
   type(nsi_cg_iss_matvec_t)   , target  :: cg_iss_matvec
-  type(p_discrete_integration_t)  :: approx(1)
-  type(serial_scalar_matrix_t)              , target  :: femat
-  type(serial_scalar_array_t)              , target  :: fevec,feunk
+  type(p_discrete_integration_t)        :: approx(1)
+  class(matrix_t)             , pointer :: matrix
+  type(serial_scalar_matrix_t), pointer :: femat
+  class(array_t)              , pointer :: array
+  type(serial_scalar_array_t) , pointer :: fevec
+  type(serial_scalar_array_t)           :: feunk
+  type(fe_affine_operator_t)          :: fe_affine_operator
+
+  
   type(preconditioner_t)                :: feprec
   type(preconditioner_params_t)         :: ppars
   type(solver_control_t)                :: sctrl
   type(serial_environment_t)            :: senv
   type(vtk_t)                           :: fevtk
-  class(vector_t)       , pointer :: x, b
-  class(operator_t)      , pointer :: A, M
-  type(graph_t)               , pointer :: f_graph
-  type(serial_scalar_t)                        :: enorm_u, enorm_p
+  type(serial_scalar_t)                 :: enorm_u, enorm_p
   type(error_norm_t)           , target :: error_compute
   type(postprocess_field_velocity_t)    :: postprocess_vel
   type(postprocess_field_pressure_t)    :: postprocess_pre
@@ -128,7 +131,6 @@ program test_nsi_iss
   logical :: ginfo_state
 
   ! Integers
-  logical     :: symmetric_storage(1) = (/ .false. /)
   integer(ip) :: ibloc,jbloc,istat,i
 
   ! Parameters
@@ -210,18 +212,38 @@ program test_nsi_iss
   else
      write(*,*) 'analytical function not ready for 3D'
   end if
-
-  ! Allocate matrices and vectors
-  call fe_space%make_coefficient_matrix( symmetric_storage=.false., is_symmetric=.false., sign=indefinite, serial_scalar_matrix=femat)
-  call fevec%create_and_allocate(femat%graph%nv)
-  call feunk%create_and_allocate(femat%graph%nv)
-  call fevec%init(0.0_rp)
-
+  
   ! Apply boundary conditions to unkno
   call update_strong_dirichlet_bcond(fe_space,f_cond)
   ! CORRECT
   call update_analytical_bcond(vars_of_unk=(/(i,i=1,gdata%ndime)/),ctime=0.0_rp,fe_space=fe_space)
   call update_analytical_bcond(vars_of_unk=(/gdata%ndime+1/),ctime=0.0_rp,fe_space=fe_space)
+  
+  call fe_affine_operator%create ( (/.false./), &
+								   (/.false./), & 
+								   (/indefinite/), &
+								   fe_space, &
+								   approx)
+  
+  call fe_affine_operator%symbolic_setup()
+  call fe_affine_operator%numerical_setup()
+  
+  matrix => fe_affine_operator%get_matrix()
+  select type(matrix)
+  class is(serial_scalar_matrix_t)
+    femat => matrix
+  class default
+    check(.false.)
+  end select 
+  
+  array => fe_affine_operator%get_array()
+  select type(array)
+  class is(serial_scalar_array_t)
+    fevec => array
+  class default
+    check(.false.)
+  end select 
+  call feunk%clone(fevec) 
 
   ! Solver control parameters
   sctrl%method = direct
@@ -235,7 +257,7 @@ program test_nsi_iss
   call preconditioner_log_info(feprec)
 
   ! Do nonlinear iterations
-  call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,femat,feprec,fevec,feunk)
+  !call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,femat,feprec,fevec,feunk)
 
   ! Free preconditioner
   call preconditioner_free(preconditioner_free_struct,feprec)
@@ -247,7 +269,7 @@ program test_nsi_iss
   call postprocess_pre%create('pressure',1,fe_space,senv,                                           &
        &                      use_interpolation_order_from_variable,variable_identifier=2)
   call postprocess_vel%compute_and_finalize_field()
-  call postprocess_pre%compute_and_finalize_field()
+  call postprocess_pre%compute_and_finalize_field() 
 
   ! Print solution to VTK file
   istat = fevtk%write_VTK_start()
@@ -279,8 +301,7 @@ program test_nsi_iss
   call memfree(problem,__FILE__,__LINE__)
   call fevtk%free
   call feunk%free()
-  call fevec%free()
-  call femat%free()
+  call fe_affine_operator%free()
   call fe_space%free()
   call myprob%free
   call mydisc%free
@@ -329,97 +350,97 @@ contains
 
   end subroutine read_pars_cl_test_nsi
 
-  !==================================================================================================
-  subroutine nonlinear_iteration( sctrl, nltol, maxit, env, approx, fe_space, A, M, b, x )
-    implicit none
-    type(solver_control_t)              , intent(inout) :: sctrl
-    real(rp)                            , intent(in)    :: nltol
-    integer(ip)                         , intent(in)    :: maxit    
-    class(abstract_environment_t)       , intent(in)    :: env
-    type(p_discrete_integration_t), intent(inout) :: approx(:)
-    type(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(operator_t)              , intent(inout) :: A, M
-    class(vector_t)               , intent(inout) :: x, b
-    ! Locals
-    integer(ip) :: iiter
-    real(rp)    :: resnorm,ininorm
-    
-    iiter = 0
-    do while( iiter < maxit )
+  !!==================================================================================================
+  !subroutine nonlinear_iteration( sctrl, nltol, maxit, env, approx, fe_space, A, M, b, x )
+  !  implicit none
+  !  type(solver_control_t)              , intent(inout) :: sctrl
+  !  real(rp)                            , intent(in)    :: nltol
+  !  integer(ip)                         , intent(in)    :: maxit    
+  !  class(abstract_environment_t)       , intent(in)    :: env
+  !  type(p_discrete_integration_t), intent(inout) :: approx(:)
+  !  type(serial_fe_space_t)                    , intent(inout) :: fe_space
+  !  class(operator_t)              , intent(inout) :: A, M
+  !  class(vector_t)               , intent(inout) :: x, b
+  !  ! Locals
+  !  integer(ip) :: iiter
+  !  real(rp)    :: resnorm,ininorm
+  !  
+  !  iiter = 0
+  !  do while( iiter < maxit )
 
-       ! Update counter
-       iiter = iiter+1
+  !     ! Update counter
+  !     iiter = iiter+1
 
-       ! Initialize Matrix and vector
-       ! ***************** Abstract procedure to initialize a abstract_operator ************************!
-       select type (A)
-       type is(serial_scalar_matrix_t)
-          call A%init(0.0_rp)
-       class default
-          check(.false.)
-       end select
-       !********************************************************************************************!
-       call b%init(0.0_rp)
+  !     ! Initialize Matrix and vector
+  !     ! ***************** Abstract procedure to initialize a abstract_operator ************************!
+  !     select type (A)
+  !     type is(serial_scalar_matrix_t)
+  !        call A%init(0.0_rp)
+  !     class default
+  !        check(.false.)
+  !     end select
+  !     !********************************************************************************************!
+  !     call b%init(0.0_rp)
 
-       ! Integrate system
-       call volume_integral(approx,fe_space,A,b)
+  !     ! Integrate system
+  !     call volume_integral(approx,fe_space,A,b)
 
-       ! Check convergence
-       if(iiter==1) ininorm = b%nrm2()
-       x = b - A*x
-       resnorm = x%nrm2()
-       if( resnorm < nltol*ininorm) then
-          write(*,*) 'Nonlinear iterations: ', iiter
-          write(*,*) 'Nonlinear error norm: ', resnorm
-          exit
-       end if
+  !     ! Check convergence
+  !     if(iiter==1) ininorm = b%nrm2()
+  !     x = b - A*x
+  !     resnorm = x%nrm2()
+  !     if( resnorm < nltol*ininorm) then
+  !        write(*,*) 'Nonlinear iterations: ', iiter
+  !        write(*,*) 'Nonlinear error norm: ', resnorm
+  !        exit
+  !     end if
 
-       ! Compute Numeric preconditioner
-       ! ***************** Abstract procedure to compute precond numeric ***************************!
-       select type (A)
-       type is(serial_scalar_matrix_t)
-          select type (M)
-          type is(preconditioner_t)
-             call preconditioner_numeric(M)
-          class default
-             check(.false.)
-          end select
-       class default
-          check(.false.)
-       end select
-       !********************************************************************************************!
+  !     ! Compute Numeric preconditioner
+  !     ! ***************** Abstract procedure to compute precond numeric ***************************!
+  !     select type (A)
+  !     type is(serial_scalar_matrix_t)
+  !        select type (M)
+  !        type is(preconditioner_t)
+  !           call preconditioner_numeric(M)
+  !        class default
+  !           check(.false.)
+  !        end select
+  !     class default
+  !        check(.false.)
+  !     end select
+  !     !********************************************************************************************!
 
-       ! Solve system
-       call abstract_solve(A,M,b,x,sctrl,env)
-       call solver_control_log_conv_his(sctrl)
-       call solver_control_free_conv_his(sctrl)
+  !     ! Solve system
+  !     call abstract_solve(A,M,b,x,sctrl,env)
+  !     call solver_control_log_conv_his(sctrl)
+  !     call solver_control_free_conv_his(sctrl)
 
-       ! Free Numeric preconditioner
-       ! ******************** Abstract procedure to free precond numeric ***************************!
-       select type (M)
-       type is(preconditioner_t)
-          call preconditioner_free(preconditioner_free_values,M)
-          class default
-          check(.false.)
-       end select
-       !********************************************************************************************!
-       
-       ! Store solution to unkno
-       ! ***************** Abstract procedure to update from a base operant ************************!
-       select type (x)
-       type is(serial_scalar_array_t)
-          call update_solution(x,fe_space)
-       class default
-          check(.false.)
-       end select
-       !********************************************************************************************!
-       
-       ! CORRECT
-       ! Store nonlinear iteration ( k+1 --> k )
-       !call update_nonlinear(fe_space)
-       
-    end do
+  !     ! Free Numeric preconditioner
+  !     ! ******************** Abstract procedure to free precond numeric ***************************!
+  !     select type (M)
+  !     type is(preconditioner_t)
+  !        call preconditioner_free(preconditioner_free_values,M)
+  !        class default
+  !        check(.false.)
+  !     end select
+  !     !********************************************************************************************!
+  !     
+  !     ! Store solution to unkno
+  !     ! ***************** Abstract procedure to update from a base operant ************************!
+  !     select type (x)
+  !     type is(serial_scalar_array_t)
+  !        call update_solution(x,fe_space)
+  !     class default
+  !        check(.false.)
+  !     end select
+  !     !********************************************************************************************!
+  !     
+  !     ! CORRECT
+  !     ! Store nonlinear iteration ( k+1 --> k )
+  !     !call update_nonlinear(fe_space)
+  !     
+  !  end do
 
-  end subroutine nonlinear_iteration
+  !end subroutine nonlinear_iteration
   
 end program test_nsi_iss

@@ -26,14 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module vector_names
-    use types_names
-    use	memory_guard_names
-    use integrable_names
-	implicit none
+  use types_names
+  use memory_guard_names
+  implicit none
 
   private
   
-  type, abstract, extends(integrable_t) :: vector_t
+  type, abstract, extends(memory_guard_t) :: vector_t
    contains
      procedure (dot_interface) , deferred  :: dot
      procedure (copy_interface), deferred  :: copy
