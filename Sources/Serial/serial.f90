@@ -104,7 +104,7 @@ module serial_names
   !use element_gather_tools
   use problem_names
   use integration_names
-  use scalar_names
+  use serial_scalar_names
   use time_integration_names
 
 end module serial_names

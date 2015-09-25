@@ -28,7 +28,7 @@
 module par_scalar_names
   use types_names
   use integrable_names
-  use scalar_names
+  use serial_scalar_names
   use par_environment_names
   use psb_penv_mod_names
 # include "debug.i90"
@@ -37,15 +37,15 @@ module par_scalar_names
 
   type, extends(integrable_t) :: par_scalar_t
      private
-     type(scalar_t) :: f_scalar
+     type(serial_scalar_t)                   :: f_scalar
      type(par_environment_t), pointer :: p_env => NULL()
   contains
-    procedure :: create => par_scalar_create
-    procedure :: free   => par_scalar_free
-    procedure :: init   => par_scalar_init
-    procedure :: sum    => par_scalar_sum
-    procedure :: get    => par_scalar_get
-    procedure :: reduce => par_scalar_reduce
+    procedure :: create    => par_scalar_create
+	procedure :: init      => par_scalar_init
+	procedure :: sum       => par_scalar_sum
+	procedure :: reduce    => par_scalar_reduce
+	procedure :: get_value => par_scalar_get_value
+    procedure :: free      => par_scalar_free
   end type par_scalar_t
 
   ! Types
@@ -73,6 +73,8 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(par_scalar_t), intent(inout) :: this
+	
+	nullify(this%p_env)
   end subroutine par_scalar_free
 
   !==================================================================================================
@@ -82,7 +84,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(par_scalar_t), intent(inout) :: this
-    real(rp), optional , intent(in)    :: b
+    real(rp)           , intent(in)    :: b
     
     assert(associated(this%p_env))
 
@@ -99,7 +101,7 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(par_scalar_t), intent(inout) :: this
-    real(rp)       , intent(in)    :: b
+    real(rp)           , intent(in)    :: b
     
     assert(associated(this%p_env))
 
@@ -110,23 +112,23 @@ contains
   end subroutine par_scalar_sum
 
   !==================================================================================================
-  function par_scalar_get (this)
+  function par_scalar_get_value (this)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine returns the par_scalar value.                                               !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(par_scalar_t), intent(inout) :: this
-    real(rp)                       :: par_scalar_get
+    real(rp)                       :: par_scalar_get_value
     
     assert(associated(this%p_env))
 
     if(this%p_env%am_i_fine_task()) then
-       par_scalar_get = this%f_scalar%get()
+       par_scalar_get_value = this%f_scalar%get_value()
     else
-       par_scalar_get = 0.0_rp
+       par_scalar_get_value = 0.0_rp
     end if
 
-  end function par_scalar_get
+  end function par_scalar_get_value
 
   !==================================================================================================
   subroutine par_scalar_reduce (this)
@@ -141,7 +143,7 @@ contains
     assert(associated(this%p_env))
 
     if(this%p_env%am_i_fine_task()) then
-       a = this%f_scalar%get()
+       a = this%f_scalar%get_value()
        call psb_sum ( this%p_env%p_context%icontxt, a )
        call this%f_scalar%init(a)
     end if

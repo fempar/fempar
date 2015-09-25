@@ -36,7 +36,7 @@ module assembly_names
   use serial_scalar_matrix_names
   use serial_block_array_names
   use serial_scalar_array_names
-  use scalar_names
+  use serial_scalar_names
   use graph_names
 
   implicit none
@@ -64,7 +64,7 @@ contains
        call assembly_element_matrix_block(finite_element, dof_descriptor, a)
     class is(serial_block_array_t)
        call assembly_element_vector_block(finite_element, dof_descriptor, a)
-    class is(scalar_t)
+    class is(serial_scalar_t)
        call assembly_element_scalar(finite_element, dof_descriptor, a)
     class default
        ! class not yet implemented
@@ -214,7 +214,7 @@ contains
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
     type(finite_element_t), intent(in)    :: finite_element
-    type(scalar_t)        , intent(inout) :: a
+    type(serial_scalar_t)        , intent(inout) :: a
     
     call a%sum(finite_element%scalar)
 

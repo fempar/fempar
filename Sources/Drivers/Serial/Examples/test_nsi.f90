@@ -120,7 +120,7 @@ program test_nsi_iss
   class(vector_t)       , pointer :: x, b
   class(operator_t)      , pointer :: A, M
   type(graph_t)               , pointer :: f_graph
-  type(scalar_t)                        :: enorm_u, enorm_p
+  type(serial_scalar_t)                        :: enorm_u, enorm_p
   type(error_norm_t)           , target :: error_compute
   type(postprocess_field_velocity_t)    :: postprocess_vel
   type(postprocess_field_pressure_t)    :: postprocess_pre
@@ -263,13 +263,13 @@ program test_nsi_iss
   call error_compute%create(myprob,mydisc)
   approx(1)%discrete_integration => error_compute
   error_compute%unknown_id = velocity
-  call enorm_u%init()
+  call enorm_u%init(0.0_rp)
   call volume_integral(approx,fe_space,enorm_u)
   error_compute%unknown_id = pressure
-  call enorm_p%init()
+  call enorm_p%init(0.0_rp)
   call volume_integral(approx,fe_space,enorm_p)
-  write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get())
-  write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get()) 
+  write(*,*) 'Velocity error norm: ', sqrt(enorm_u%get_value())
+  write(*,*) 'Pressure error norm: ', sqrt(enorm_p%get_value()) 
 
   ! Deallocate
   call memfree(continuity,__FILE__,__LINE__)

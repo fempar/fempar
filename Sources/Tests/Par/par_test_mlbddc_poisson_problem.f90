@@ -533,12 +533,12 @@ program par_test_mlbddc_poisson_problem
 
      call par_update_solution(p_unk,p_fe_space)
 
-     call enorm%init()
+     call enorm%init(0.0_rp)
      call par_volume_integral(approximations,p_fe_space,enorm)
      call enorm%reduce()
      if(w_context%iam==0) then
-	    write(*,*) sqrt(enorm%get())
-        check ( sqrt(enorm%get()) < 1.0e-06 )
+	    write(*,*) sqrt(enorm%get_value())
+        check ( sqrt(enorm%get_value()) < 1.0e-06 )
      end if
 
      ! Free bddc inverse

@@ -25,78 +25,70 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module scalar_names
+module serial_scalar_names
   use types_names
   use integrable_names
   implicit none
   private
 
-  type, extends(integrable_t) :: scalar_t
+  type, extends(integrable_t) :: serial_scalar_t
      private
-     real(rp) :: a     ! Scalar
+     real(rp) :: value 
   contains
-    procedure :: free => scalar_free
-    procedure :: init => scalar_init
-    procedure :: sum  => scalar_sum
-    procedure :: get  => scalar_get
-  end type scalar_t
+    procedure :: create     => serial_scalar_create
+	procedure :: init       => serial_scalar_init
+	procedure :: sum        => serial_scalar_sum
+    procedure :: reduce     => serial_scalar_reduce
+	procedure :: get_value  => serial_scalar_get_value
+	procedure :: free       => serial_scalar_free
+  end type serial_scalar_t
   
   ! Types
-  public :: scalar_t
+  public :: serial_scalar_t
 
 contains
 
   !==================================================================================================
-  subroutine scalar_free (this)
-    !-----------------------------------------------------------------------------------------------!
-    !   Dummy subroutine to specialize deferred procedure.                                          !
-    !-----------------------------------------------------------------------------------------------!
+  subroutine serial_scalar_create (this)
     implicit none
-    class(scalar_t), intent(inout) :: this
-  end subroutine scalar_free
+    class(serial_scalar_t), intent(inout) :: this
+  end subroutine serial_scalar_create
 
   !==================================================================================================
-  subroutine scalar_init (this,b)
-    !-----------------------------------------------------------------------------------------------!
-    !   This subroutine initialize the scalar.                                                      !
-    !-----------------------------------------------------------------------------------------------!
+  subroutine serial_scalar_init (this,b)
     implicit none
-    class(scalar_t)   , intent(inout) :: this
-    real(rp), optional, intent(in)    :: b
-    ! Locals
-    real(rp) :: b_
-    
-    b_ = 0.0_rp
-    if(present(b)) b_ = b
-    this%a = b_
-
-  end subroutine scalar_init
+    class(serial_scalar_t), intent(inout) :: this
+    real(rp)              ,  intent(in)   :: b
+    this%value = b
+  end subroutine serial_scalar_init
 
   !==================================================================================================
-  subroutine scalar_sum (this,b)
-    !-----------------------------------------------------------------------------------------------!
-    !   This subroutine sum a real to the scalar.                                                   !
-    !-----------------------------------------------------------------------------------------------!
+  subroutine serial_scalar_sum (this,b)
     implicit none
-    class(scalar_t), intent(inout) :: this
-    real(rp)       , intent(in)    :: b
-    
-    this%a = this%a + b
-
-  end subroutine scalar_sum
+    class(serial_scalar_t), intent(inout) :: this
+    real(rp)              , intent(in)    :: b
+    this%value = this%value + b
+  end subroutine serial_scalar_sum
+  
+  !==================================================================================================
+  subroutine serial_scalar_reduce (this)
+    implicit none
+    class(serial_scalar_t), intent(inout) :: this
+  end subroutine serial_scalar_reduce
 
   !==================================================================================================
-  function scalar_get (this)
-    !-----------------------------------------------------------------------------------------------!
-    !   This subroutine returns the scalar value.                                                   !
-    !-----------------------------------------------------------------------------------------------!
+  function serial_scalar_get_value (this)
     implicit none
-    class(scalar_t), intent(inout) :: this
-    real(rp)                       :: scalar_get
-    
-    scalar_get = this%a
+    class(serial_scalar_t), intent(inout) :: this
+    real(rp)                              :: serial_scalar_get_value
+    serial_scalar_get_value = this%value
+  end function serial_scalar_get_value
 
-  end function scalar_get
-
-end module scalar_names
+  !==================================================================================================
+  subroutine serial_scalar_free (this)
+    implicit none
+    class(serial_scalar_t), intent(inout) :: this
+  end subroutine serial_scalar_free
+  
+end module serial_scalar_names
   
