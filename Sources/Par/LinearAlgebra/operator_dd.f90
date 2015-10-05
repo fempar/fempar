@@ -874,23 +874,19 @@ use blas77_interfaces_names
     present_a_gg = present( A_GG )
 
     if ( present_a_ii ) then
-       assert ( associated(A_II%graph) )
-       call memalloc ( A_II%graph%ia(A_II%graph%nv+1)-A_II%graph%ia(1), A_II%a,          __FILE__,__LINE__)       
+       call A_II%allocate()       
     end if
 
     if ( present_a_ig ) then
-       assert ( associated(A_IG%graph) ) 
-       call memalloc ( A_IG%graph%ia(A_IG%graph%nv+1)-A_IG%graph%ia(1), A_IG%a,__FILE__,__LINE__ )
+	   call A_IG%allocate()
     end if
 
     if ( present_a_gi ) then
-       assert ( associated(A_GI%graph) ) 
-       call memalloc ( A_GI%graph%ia(A_GI%graph%nv+1)-A_GI%graph%ia(1), A_GI%a,                       __FILE__,__LINE__ )
+       call A_GI%allocate()
     end if
 
     if ( present_a_gg ) then
-       assert ( associated(A_GG%graph) ) 
-       call memalloc ( A_GG%graph%ia(A_GG%graph%nv+1)-A_GG%graph%ia(1), A_GG%a,                       __FILE__,__LINE__ )
+       call A_GG%allocate()
     end if
 
     ! List values on each row of G_II/G_IG

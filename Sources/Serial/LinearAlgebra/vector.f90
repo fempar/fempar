@@ -43,6 +43,7 @@ module vector_names
      procedure (clone_interface), deferred :: clone
      procedure (comm_interface), deferred  :: comm
 
+     procedure :: belongs_to_the_same_vector_space
      procedure :: sum_vector
      procedure :: sub_vector
      procedure :: minus_vector
@@ -223,5 +224,15 @@ contains
     
     call op2%CleanTemp()
   end subroutine assign_vector
+  
+  ! Determines whether op1 belongs to the same
+  ! vector space as op2
+  function belongs_to_the_same_vector_space(op1,op2) 
+    implicit none
+    class(vector_t), intent(in):: op1
+    class(vector_t), intent(in):: op2
+    logical :: belongs_to_the_same_vector_space
+    belongs_to_the_same_vector_space = .false.
+  end function belongs_to_the_same_vector_space
 
 end module vector_names

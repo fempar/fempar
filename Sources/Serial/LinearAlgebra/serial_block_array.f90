@@ -39,19 +39,20 @@ module serial_block_array_names
 
   ! vector
   type, extends(array_t) :: serial_block_array_t
-     integer(ip)                              :: nblocks = 0
+     integer(ip)                              :: nblocks = -1
      type(serial_scalar_array_t), allocatable :: blocks(:)
    contains
      procedure, private :: serial_block_array_create_only_blocks_container
-	 procedure, private :: serial_block_array_create_blocks_container_and_blocks
+     procedure, private :: serial_block_array_create_blocks_container_and_blocks
      procedure          :: create_and_allocate => serial_block_array_create_blocks_container_and_allocate_blocks
-	 generic            :: create => serial_block_array_create_only_blocks_container, &
-						             serial_block_array_create_blocks_container_and_blocks
-	 procedure          :: allocate => serial_block_array_allocate_blocks 								 
-						  
+     generic            :: create => serial_block_array_create_only_blocks_container, &
+                                     serial_block_array_create_blocks_container_and_blocks
+     procedure          :: allocate => serial_block_array_allocate_blocks 								 
+     
      procedure :: create_view => serial_block_array_create_view
-     procedure :: print => 	serial_block_array_print			
-
+     procedure :: print       => serial_block_array_print	
+     procedure :: get_block   => serial_block_array_get_block
+     
      procedure :: dot  => serial_block_array_dot
      procedure :: copy => serial_block_array_copy
      procedure :: init => serial_block_array_init
@@ -60,72 +61,72 @@ module serial_block_array_names
      procedure :: nrm2 => serial_block_array_nrm2
      procedure :: clone => serial_block_array_clone
      procedure :: comm  => serial_block_array_comm
-	 procedure :: free_in_stages  => serial_block_array_free_in_stages
+     procedure :: free_in_stages  => serial_block_array_free_in_stages
   end type serial_block_array_t
-
+  
   ! Types
   public :: serial_block_array_t
-
+  
 contains
-
-!=============================================================================
+  
+  !=============================================================================
   subroutine serial_block_array_create_only_blocks_container(this,nblocks)
     implicit none
     class(serial_block_array_t), intent(out) :: this
     integer(ip)                , intent(in)  :: nblocks
-	
-	integer(ip) :: istat
+
+    integer(ip) :: istat
 
     this%nblocks = nblocks
     allocate ( this%blocks(nblocks), stat=istat )
-	check ( istat == 0 )
+    check ( istat == 0 )
   end subroutine serial_block_array_create_only_blocks_container
-  
+
   !=============================================================================
   subroutine serial_block_array_create_blocks_container_and_blocks(this,nblocks,size_of_blocks)
     implicit none
     class(serial_block_array_t), intent(out) :: this
     integer(ip)                , intent(in)  :: nblocks
-	integer(ip)                , intent(in)  :: size_of_blocks(nblocks)
-	
+    integer(ip)                , intent(in)  :: size_of_blocks(nblocks)
+
     integer(ip) :: ib
 
     call this%create(nblocks)
-	
+
     do ib=1, this%nblocks
-      call this%blocks(ib)%create(size_of_blocks(ib))
-    end do 
-	
+       call this%blocks(ib)%create(size_of_blocks(ib))
+    end do
+
   end subroutine serial_block_array_create_blocks_container_and_blocks
-  
-    !=============================================================================
+
+  !=============================================================================
   subroutine serial_block_array_create_blocks_container_and_allocate_blocks(this,nblocks,size_of_blocks)
     implicit none
     class(serial_block_array_t), intent(out) :: this
     integer(ip)                , intent(in)  :: nblocks
-	integer(ip)                , intent(in)  :: size_of_blocks(nblocks)
-	
+    integer(ip)                , intent(in)  :: size_of_blocks(nblocks)
+
     integer(ip) :: ib
 
     call this%create(nblocks)
-	
+
     do ib=1, this%nblocks
-      call this%blocks(ib)%create_and_allocate(size_of_blocks(ib))
-    end do 
-	
+       call this%blocks(ib)%create_and_allocate(size_of_blocks(ib))
+    end do
+
   end subroutine serial_block_array_create_blocks_container_and_allocate_blocks
-  
+
   !=============================================================================
   subroutine serial_block_array_allocate_blocks(this)
     implicit none
     class(serial_block_array_t), intent(inout) :: this
-	
+
     integer(ip) :: ib
-	
+
     do ib=1, this%nblocks
-      call this%blocks(ib)%allocate()
-    end do 
-	
+       call this%blocks(ib)%allocate()
+    end do
+
   end subroutine serial_block_array_allocate_blocks
 
   !=============================================================================
@@ -148,15 +149,23 @@ contains
     implicit none
     class(serial_block_array_t), intent(in) :: this
     integer(ip)                , intent(in) :: luout
-    
+
     ! Locals
     integer(ip) :: ib
 
     do ib=1, this%nblocks
-      call this%blocks(ib)%print(luout)
-    end do 
+       call this%blocks(ib)%print(luout)
+    end do
   end subroutine serial_block_array_print
   
+  function serial_block_array_get_block (this,ib)
+    implicit none
+    class(serial_block_array_t), target, intent(in) :: this
+    integer(ip)                        , intent(in) :: ib
+    type(serial_scalar_array_t)        , pointer    :: serial_block_array_get_block
+    serial_block_array_get_block => this%blocks(ib)
+  end function serial_block_array_get_block
+
   ! alpha <- op1^T * op2
   function serial_block_array_dot(op1,op2) result(alpha)
     implicit none
@@ -172,14 +181,14 @@ contains
     call op1%GuardTemp()
     call op2%GuardTemp()
     select type(op2)
-    class is (serial_block_array_t)
+       class is (serial_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        alpha = 0.0_rp
        do ib=1,op1%nblocks
           aux = op1%blocks(ib)%dot(op2%blocks(ib))
           alpha = alpha + aux
        end do
-    class default
+       class default
        write(0,'(a)') 'serial_block_array_t%dot: unsupported op2 class'
        check(1==0)
     end select
@@ -199,12 +208,12 @@ contains
 
     call op2%GuardTemp()
     select type(op2)
-    class is (serial_block_array_t)
+       class is (serial_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%copy(op2%blocks(ib))
        end do
-    class default
+       class default
        write(0,'(a)') 'serial_block_array_t%copy: unsupported op2 class'
        check(1==0)
     end select
@@ -221,9 +230,9 @@ contains
 
     do ib=1, op%nblocks
        call op%blocks(ib)%init(alpha)
-    end do    
+    end do
   end subroutine serial_block_array_init
-  
+
   ! op1 <- alpha * op2
   subroutine serial_block_array_scal(op1,alpha,op2)
     implicit none
@@ -236,12 +245,12 @@ contains
 
     call op2%GuardTemp()
     select type(op2)
-    class is (serial_block_array_t)
+       class is (serial_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%scal(alpha,op2%blocks(ib))
        end do
-    class default
+       class default
        write(0,'(a)') 'serial_block_array_t%scal: unsupported op2 class'
        check(1==0)
     end select
@@ -260,12 +269,12 @@ contains
 
     call op2%GuardTemp()
     select type(op2)
-    class is (serial_block_array_t)
+       class is (serial_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%axpby(alpha,op2%blocks(ib),beta)
        end do
-    class default
+       class default
        write(0,'(a)') 'serial_block_array_t%axpby: unsupported op2 class'
        check(1==0)
     end select
@@ -281,7 +290,7 @@ contains
     call op%GuardTemp()
     alpha = op%dot(op)
     alpha = sqrt(alpha)
-   call op%CleanTemp()
+    call op%CleanTemp()
   end function serial_block_array_nrm2
 
   ! op1 <- clone(op2) 
@@ -290,20 +299,20 @@ contains
     ! Parameters
     class(serial_block_array_t)     , intent(inout) :: op1
     class(vector_t), target, intent(in)    :: op2
- 
+
     ! Locals
     integer(ip) :: ib
 
     call op2%GuardTemp()
     select type(op2)
-    class is (serial_block_array_t)
+       class is (serial_block_array_t)
        op1%nblocks = op2%nblocks
        if(allocated(op1%blocks)) deallocate ( op1%blocks )
        allocate(op1%blocks(op1%nblocks))
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
-    class default
+       class default
        write(0,'(a)') 'serial_block_array_t%clone: unsupported op2 class'
        check(1==0)
     end select
@@ -315,21 +324,21 @@ contains
     implicit none
     class(serial_block_array_t), intent(inout) :: op 
   end subroutine serial_block_array_comm
-  
+
   subroutine serial_block_array_free_in_stages(this,action)
     implicit none
     class(serial_block_array_t), intent(inout) :: this
-	integer(ip)                , intent(in)    :: action
+    integer(ip)                , intent(in)    :: action
     integer(ip)  :: ib, istat
-   
+
     do ib=1, this%nblocks
        call this%blocks(ib)%free_in_stages(action)
     end do
-	if ( action == free_clean ) then
+    if ( action == free_clean ) then
        this%nblocks = 0
        deallocate( this%blocks, stat=istat )
-	   check(istat==0)
-	end if   
+       check(istat==0)
+    end if
   end subroutine serial_block_array_free_in_stages
 
 end module serial_block_array_names

@@ -170,6 +170,7 @@ contains
 
 	call x%GuardTemp()
 	matrix => op%matrix_array_assembler%get_matrix()
+	allocate(y, mold=x); call y%default_initialization()
     y = matrix%apply_fun(x) 
 	call x%CleanTemp()
 	call y%SetTemp()
