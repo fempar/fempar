@@ -177,7 +177,7 @@ module par_preconditioner_dd_mlevel_bddc_names
      integer (ip), allocatable :: perm  (:)       ! Permutation from A_i to matrix P^T A_i P 
      integer (ip), allocatable :: iperm (:)       ! Permutation from P^T A_i P to A_i
 
-     ! Let A_i refer to p_matrix%f_matrix, then the BDDC
+     ! Let A_i refer to p_matrix%serial_scalar_matrix, then the BDDC
      ! algorithm requires a symmetric permutation of A_i, 
      ! P, s.t. P^T A_i P = [ A_cc A_cr ]
      !                     [ A_rc A_rr ],
@@ -405,9 +405,9 @@ use mpi
     assert ( associated(p_mat%p_env%b_context) )
     assert ( p_mat%p_env%b_context%created .eqv. .true. )
 
-    mlbddc%symmetric_storage  = p_mat%f_matrix%graph%symmetric_storage
-    mlbddc%is_symmetric       = p_mat%f_matrix%is_symmetric
-    mlbddc%sign               = p_mat%f_matrix%sign
+    mlbddc%symmetric_storage  = p_mat%serial_scalar_matrix%graph%symmetric_storage
+    mlbddc%is_symmetric       = p_mat%serial_scalar_matrix%is_symmetric
+    mlbddc%sign               = p_mat%serial_scalar_matrix%sign
 
     assert ( mlbddc_params%unknowns == all_unknowns ) ! Only global unknowns accepted in the multilevel?
     mlbddc%unknowns  = mlbddc_params%unknowns
@@ -621,9 +621,9 @@ use mpi
 
        ! BEG. FINE-GRID PROBLEM DUTIES
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
-          call mlbddc%A_rr%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign)
+          call mlbddc%A_rr%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign)
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call mlbddc%A_rr_trans%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign) 
+             call mlbddc%A_rr_trans%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign) 
           end if
 
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -636,9 +636,9 @@ use mpi
           end if
 
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then 
-          call mlbddc%A_rr%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, indefinite) 
+          call mlbddc%A_rr%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-            call mlbddc%A_rr_trans%create(p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, indefinite)
+            call mlbddc%A_rr_trans%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite)
 	      end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
@@ -653,7 +653,7 @@ use mpi
 
        if ( mlbddc%unknowns == all_unknowns ) then
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-              call operator_dd_create ( p_mat%f_matrix, & 
+              call operator_dd_create ( p_mat%serial_scalar_matrix, & 
                                         p_mat%dof_dist, &
                                         mlbddc%A_II_inv, & 
                                         spars=mlbddc%spars_dirichlet, &
@@ -669,7 +669,7 @@ use mpi
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           ! BEG. COARSE-GRID PROBLEM DUTIES
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
-             call mlbddc%A_c%create( p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign )
+             call mlbddc%A_c%create( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign )
              call preconditioner_create ( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial )
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
              assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level serial
@@ -692,9 +692,9 @@ use mpi
              call par_mesh_create ( mlbddc%p_env_c, mlbddc%p_mesh_c )
 
              ! Create coarse matrix
-             call mlbddc%p_mat_c%create( p_mat%f_matrix%graph%symmetric_storage, & 
-										 p_mat%f_matrix%is_symmetric, &
-										 p_mat%f_matrix%sign, &
+             call mlbddc%p_mat_c%create( p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
+										 p_mat%serial_scalar_matrix%is_symmetric, &
+										 p_mat%serial_scalar_matrix%sign, &
                                          mlbddc%dof_dist_c, &
                                          mlbddc%p_env_c )
 
@@ -1121,7 +1121,7 @@ use mpi
        end if
 
        if ( mlbddc%unknowns == all_unknowns ) then
-          call operator_dd_ass_struct (p_mat%f_matrix, mlbddc%A_II_inv ) 
+          call operator_dd_ass_struct (p_mat%serial_scalar_matrix, mlbddc%A_II_inv ) 
        end if
        ! END FINE-GRID PROBLEM DUTIES
 
@@ -1164,9 +1164,9 @@ use mpi
     call memalloc ( mlbddc%A_rr%graph%nv+1, mlbddc%A_rr%graph%ia, __FILE__,__LINE__ )
 
     ! Count neighbours
-    call count_graph_augment_graph_with_constraints ( p_mat%f_matrix%graph%symmetric_storage ,  & 
-                                                      p_mat%f_matrix%graph%nv   ,  & 
-                                                      p_mat%f_matrix%graph%ia   ,  & 
+    call count_graph_augment_graph_with_constraints ( p_mat%serial_scalar_matrix%graph%symmetric_storage ,  & 
+                                                      p_mat%serial_scalar_matrix%graph%nv   ,  & 
+                                                      p_mat%serial_scalar_matrix%graph%ia   ,  & 
                                                       mlbddc%A_rr%graph%nv  , &
                                                       mlbddc%p_mat%dof_dist%nl, &
                                                       mlbddc%nl_coarse, &
@@ -1179,10 +1179,10 @@ use mpi
     call memalloc ( mlbddc%A_rr%graph%ia(mlbddc%A_rr%graph%nv+1)-1, mlbddc%A_rr%graph%ja,  __FILE__,__LINE__ )
 
     ! List neighbours 
-    call list_graph_augment_graph_with_constraints ( p_mat%f_matrix%graph%symmetric_storage    , & 
-                                                     p_mat%f_matrix%graph%nv      , & 
-                                                     p_mat%f_matrix%graph%ia      , & 
-                                                     p_mat%f_matrix%graph%ja      , &
+    call list_graph_augment_graph_with_constraints ( p_mat%serial_scalar_matrix%graph%symmetric_storage    , & 
+                                                     p_mat%serial_scalar_matrix%graph%nv      , & 
+                                                     p_mat%serial_scalar_matrix%graph%ia      , & 
+                                                     p_mat%serial_scalar_matrix%graph%ja      , &
                                                      mlbddc%A_rr%graph%nv     , & 
                                                      mlbddc%A_rr%graph%ia     , &
                                                      mlbddc%p_mat%dof_dist%nl, &
@@ -1194,7 +1194,7 @@ use mpi
                                                      mlbddc%A_rr%graph%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
-!!$       call graph_print (6, p_mat%f_matrix%%graph )
+!!$       call graph_print (6, p_mat%serial_scalar_matrix%%graph )
 !!$       call graph_print (6, mlbddc%A_rr_gr)
 !!$    end if
   end subroutine augment_graph_with_constraints
@@ -1648,10 +1648,10 @@ use mpi
 
     ! Count neighbours
     call count_graph_A_rr ( mlbddc%nl_corners_dofs, &
-         p_mat%f_matrix%graph%symmetric_storage     , & 
-         p_mat%f_matrix%graph%nv       , & 
-         p_mat%f_matrix%graph%ia       , & 
-         p_mat%f_matrix%graph%ja       , &
+         p_mat%serial_scalar_matrix%graph%symmetric_storage     , & 
+         p_mat%serial_scalar_matrix%graph%nv       , & 
+         p_mat%serial_scalar_matrix%graph%ia       , & 
+         p_mat%serial_scalar_matrix%graph%ja       , &
          mlbddc%A_rr%graph%nv     , & 
          mlbddc%perm           , &
          mlbddc%iperm          , &   
@@ -1661,10 +1661,10 @@ use mpi
 
     ! List neighbours 
     call list_graph_A_rr  ( mlbddc%nl_corners_dofs, & 
-         p_mat%f_matrix%graph%symmetric_storage     , & 
-         p_mat%f_matrix%graph%nv       , & 
-         p_mat%f_matrix%graph%ia       , & 
-         p_mat%f_matrix%graph%ja       , &
+         p_mat%serial_scalar_matrix%graph%symmetric_storage     , & 
+         p_mat%serial_scalar_matrix%graph%nv       , & 
+         p_mat%serial_scalar_matrix%graph%ia       , & 
+         p_mat%serial_scalar_matrix%graph%ja       , &
          mlbddc%A_rr%graph%nv     , & 
          mlbddc%A_rr%graph%ia     , & 
          mlbddc%perm           , &
@@ -1672,7 +1672,7 @@ use mpi
          mlbddc%A_rr%graph%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
-!!$       ! call graph_print (6, p_mat%f_matrix%graph )
+!!$       ! call graph_print (6, p_mat%serial_scalar_matrix%graph )
 !!$       call graph_print (6, mlbddc%A_rr_gr)
 !!$    end if
 
@@ -2557,10 +2557,10 @@ use mpi
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
-          call mesh_to_graph_matrix ( mlbddc%p_mesh_c%f_mesh, mlbddc%p_mat_c%f_matrix%graph)
+          call mesh_to_graph_matrix ( mlbddc%p_mesh_c%f_mesh, mlbddc%p_mat_c%serial_scalar_matrix%graph)
 
           if ( debug_verbose_level_2 ) then 
-             call mlbddc%p_mat_c%f_matrix%graph%print (6)
+             call mlbddc%p_mat_c%serial_scalar_matrix%graph%print (6)
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
@@ -3048,11 +3048,11 @@ use mpi
        
           ! Extract a_rc/a_cr/a_rr/a_cc 
           call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
-                                                     p_mat%f_matrix%graph%symmetric_storage   , & 
-                                                     p_mat%f_matrix%graph%nv     , & 
-                                                     p_mat%f_matrix%graph%ia     , & 
-                                                     p_mat%f_matrix%graph%ja     , &
-                                                     p_mat%f_matrix%a         , &
+                                                     p_mat%serial_scalar_matrix%graph%symmetric_storage   , & 
+                                                     p_mat%serial_scalar_matrix%graph%nv     , & 
+                                                     p_mat%serial_scalar_matrix%graph%ia     , & 
+                                                     p_mat%serial_scalar_matrix%graph%ja     , &
+                                                     p_mat%serial_scalar_matrix%a         , &
                                                      mlbddc%A_rr%graph%nv   , & 
                                                      mlbddc%A_rr%graph%ia   , &
                                                      mlbddc%A_rr%graph%ja   , &
@@ -3064,8 +3064,8 @@ use mpi
                                                      mlbddc%A_cc )
 
           if ( mlbddc%projection == petrov_galerkin ) then 
-		     call mat_trans%create ( p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, p_mat%f_matrix%sign)
-			 call p_mat%f_matrix%transpose(mat_trans) 
+		     call mat_trans%create ( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign)
+			 call p_mat%serial_scalar_matrix%transpose(mat_trans) 
              call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
                                                         mat_trans%graph%symmetric_storage, & 
                                                         mat_trans%graph%nv     , & 
@@ -3085,11 +3085,11 @@ use mpi
          end if
 
        else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem) then 
-          call augment_matrix_with_constraints ( p_mat%f_matrix%graph%symmetric_storage, & 
-                                                 p_mat%f_matrix%graph%nv   , & 
-                                                 p_mat%f_matrix%graph%ia    , & 
-                                                 p_mat%f_matrix%graph%ja    , &
-                                                 p_mat%f_matrix%a    , &
+          call augment_matrix_with_constraints ( p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
+                                                 p_mat%serial_scalar_matrix%graph%nv   , & 
+                                                 p_mat%serial_scalar_matrix%graph%ia    , & 
+                                                 p_mat%serial_scalar_matrix%graph%ja    , &
+                                                 p_mat%serial_scalar_matrix%a    , &
                                                  mlbddc%A_rr%graph%nv   , & 
                                                  mlbddc%A_rr%graph%ia   , &
                                                  mlbddc%A_rr%graph%ja, &
@@ -3105,8 +3105,8 @@ use mpi
                                                  mlbddc%p_mat%dof_dist%nb, &
                                                  mlbddc%C_weights )
          if (mlbddc%projection == petrov_galerkin ) then 
-		   call mat_trans%create ( p_mat%f_matrix%graph%symmetric_storage, p_mat%f_matrix%is_symmetric, indefinite)
-		   call p_mat%f_matrix%transpose(mat_trans) 
+		   call mat_trans%create ( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite)
+		   call p_mat%serial_scalar_matrix%transpose(mat_trans) 
 		   call augment_matrix_with_constraints ( mat_trans%graph%symmetric_storage, & 
                                                   mat_trans%graph%nv   , & 
                                                   mat_trans%graph%ia    , & 
@@ -3471,7 +3471,7 @@ use mpi
        
        if ( mlbddc%unknowns == all_unknowns ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
-          call operator_dd_fill_val (p_mat%f_matrix, mlbddc%A_II_inv) 
+          call operator_dd_fill_val (p_mat%serial_scalar_matrix, mlbddc%A_II_inv) 
           ! END. FINE-GRID PROBLEM DUTIES 
           
           if ( debug_verbose_level_3 ) then
@@ -5481,43 +5481,43 @@ end if
              work = 0.0_rp
 #ifdef ENABLE_MKL
              ! work2 <- 0.0 * work2 + 1.0 * A * work1
-             if (p_mat%f_matrix%graph%symmetric_storage) then
+             if (p_mat%serial_scalar_matrix%graph%symmetric_storage) then
                 call mkl_dcsrmm ('N', &
-                     p_mat%f_matrix%graph%nv, &
+                     p_mat%serial_scalar_matrix%graph%nv, &
                      (mlbddc%nl_edges+mlbddc%nl_corners), &
-                     p_mat%f_matrix%graph%nv, &
+                     p_mat%serial_scalar_matrix%graph%nv, &
                      1.0, &
                      'SUNF', &
-                     p_mat%f_matrix%a, &
-                     p_mat%f_matrix%graph%ja, &
-                     p_mat%f_matrix%graph%ia(1), &
-                     p_mat%f_matrix%graph%ia(2), &
+                     p_mat%serial_scalar_matrix%a, &
+                     p_mat%serial_scalar_matrix%graph%ja, &
+                     p_mat%serial_scalar_matrix%graph%ia(1), &
+                     p_mat%serial_scalar_matrix%graph%ia(2), &
                      mlbddc%rPhi, &
-                     p_mat%f_matrix%graph%nv, &
+                     p_mat%serial_scalar_matrix%graph%nv, &
                      0.0, &
                      work, &
-                     p_mat%f_matrix%graph%nv)
+                     p_mat%serial_scalar_matrix%graph%nv)
 
              else 
                 call mkl_dcsrmm ( 'N', &
-                     p_mat%f_matrix%graph%nv, &
+                     p_mat%serial_scalar_matrix%graph%nv, &
                      (mlbddc%nl_edges+mlbddc%nl_corners), &
-                     p_mat%f_matrix%graph%nv, &
+                     p_mat%serial_scalar_matrix%graph%nv, &
                      1.0, &
                      'GXXF', &
-                     p_mat%f_matrix%a, &
-                     p_mat%f_matrix%graph%ja, &
-                     p_mat%f_matrix%graph%ia(1), &
-                     p_mat%f_matrix%graph%ia(2), &
+                     p_mat%serial_scalar_matrix%a, &
+                     p_mat%serial_scalar_matrix%graph%ja, &
+                     p_mat%serial_scalar_matrix%graph%ia(1), &
+                     p_mat%serial_scalar_matrix%graph%ia(2), &
                      mlbddc%rPhi, &
-                     p_mat%f_matrix%graph%nv, &
+                     p_mat%serial_scalar_matrix%graph%nv, &
                      0.0, &
                      work, &
-                     p_mat%f_matrix%graph%nv)
+                     p_mat%serial_scalar_matrix%graph%nv)
              end if
              ! write (*,*) work ! DBG:
 #else
-             call p_mat%f_matrix%apply_to_dense_matrix ( (mlbddc%nl_edges+mlbddc%nl_corners), &
+             call p_mat%serial_scalar_matrix%apply_to_dense_matrix ( (mlbddc%nl_edges+mlbddc%nl_corners), &
                                                           mlbddc%p_mat%dof_dist%nl, &
                                                           mlbddc%rPhi, &
                                                           mlbddc%p_mat%dof_dist%nl, &
@@ -5629,7 +5629,7 @@ end if
        else if ( mlbddc%co_sys_sol_strat == recursive_bddc ) then
           assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
           call mlbddc%p_mat_c%allocate()
-          call sum_coarse_stiffness_matrices ( mlbddc%p_mat_c%f_matrix, &
+          call sum_coarse_stiffness_matrices ( mlbddc%p_mat_c%serial_scalar_matrix, &
                                                mlbddc%g_context%np, & 
                                                mlbddc%ptr_coarse_dofs, &
                                                mlbddc%p_mesh_c%f_mesh%lnods, &
@@ -5984,7 +5984,7 @@ use mpi
           call x%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
           ! Init interior vertices to zero
-          call r_I%f_vector%init(0.0_rp)
+          call r_I%serial_scalar_array%init(0.0_rp)
 
           ! Phase 1: compute coarse-grid correction v1
           call v1%clone(x_G)
@@ -6029,13 +6029,13 @@ use mpi
           call y_G%comm()
 
           ! r_I <- A_IG * y_G
-          call operator_dd_apply_A_IG ( mlbddc%A_II_inv, y_G%f_vector, r_I%f_vector )
+          call operator_dd_apply_A_IG ( mlbddc%A_II_inv, y_G%serial_scalar_array, r_I%serial_scalar_array )
 
           ! r <- x_I - r_I <- -r_I + x_I
           call r_I%axpby(1.0_rp, x_I, -1.0_rp)
 
           call y%create_view(1, mlbddc%p_mat%dof_dist%ni, y_I  )
-          call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, y_I%f_vector )
+          call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%serial_scalar_array, y_I%serial_scalar_array )
 
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
@@ -6068,8 +6068,8 @@ use mpi
 
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
-          call operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%f_vector, dx_I%f_vector )
-          call dx_G%f_vector%init(0.0_rp)
+          call operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%serial_scalar_array, dx_I%serial_scalar_array )
+          call dx_G%serial_scalar_array%init(0.0_rp)
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6139,8 +6139,8 @@ use mpi
           call r%axpby  ( 1.0_rp, aux, -1.0_rp )
 
           ! 6) Compute 1), 2)
-          call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, dx_I%f_vector )
-          call dx_G%f_vector%init(0.0_rp)
+          call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%serial_scalar_array, dx_I%serial_scalar_array )
+          call dx_G%serial_scalar_array%init(0.0_rp)
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6190,8 +6190,8 @@ use mpi
              ! Assemble coarse-grid residual in parallel
              call p_r_c%create_and_allocate ( mlbddc%dof_dist_c, mlbddc%p_env_c)
              p_r_c%state = part_summed
-             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, p_r_c%f_vector )
-             ! call vector_print_matrix_market (6, p_r_c%f_vector)
+             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, p_r_c%serial_scalar_array )
+             ! call vector_print_matrix_market (6, p_r_c%serial_scalar_array)
              ! Solve coarse-grid problem via recursive bddc
              ! AFM: In the future, the following call should be replaced by a call that allows
              ! the solution of the coarse-grid problem via a krylov subspace solver  
@@ -6204,7 +6204,7 @@ use mpi
              call abstract_solve( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c, mlbddc%spars_coarse, mlbddc%p_env_c)
 
              ! Scatter solution of coarse-grid problem 
-             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, p_z_c%f_vector, v1 )
+             call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, p_z_c%serial_scalar_array, v1 )
 
              call p_z_c%free()
              call p_r_c%free()
@@ -6246,12 +6246,12 @@ use mpi
        call x%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
        
        ! r_I <- A_IG * y_G
-       call operator_dd_apply_A_IG ( mlbddc%A_II_inv, x_G%f_vector, r_I%f_vector )
+       call operator_dd_apply_A_IG ( mlbddc%A_II_inv, x_G%serial_scalar_array, r_I%serial_scalar_array )
        
        ! r <- x_I - r_I <- -r_I + x_I
        call r_I%axpby ( 1.0_rp, b_I, -1.0_rp )
        
-       call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%f_vector, x_I%f_vector )
+       call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%serial_scalar_array, x_I%serial_scalar_array )
 
        mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
        mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
@@ -6474,7 +6474,7 @@ use mpi
        call apply_perm_to_residual ( mlbddc%p_mat%dof_dist%nl , &
                                      mlbddc%nl_corners , & 
                                      mlbddc%perm, &                                  
-                                     r%f_vector%b, &
+                                     r%serial_scalar_array%b, &
                                      r_r )
 
        if ( mlbddc%kind_coarse_dofs == corners_and_edges .or. & 
@@ -6521,7 +6521,7 @@ use mpi
                                  mlbddc%nl_corners , &
                                  mlbddc%iperm, &
                                  z_r, &
-                                 v_G%f_vector%b )
+                                 v_G%serial_scalar_array%b )
 
        call memfree ( z_r,__FILE__,__LINE__)
        call memfree ( lambda_r,__FILE__,__LINE__) 
@@ -6532,7 +6532,7 @@ use mpi
        call memalloc ( (mlbddc%p_mat%dof_dist%nl+mlbddc%nl_coarse), aug_r, __FILE__, __LINE__ )
        call memalloc ( (mlbddc%p_mat%dof_dist%nl+mlbddc%nl_coarse), aug_v, __FILE__, __LINE__ )
 
-       aug_r(1:mlbddc%p_mat%dof_dist%nl )  = r%f_vector%b
+       aug_r(1:mlbddc%p_mat%dof_dist%nl )  = r%serial_scalar_array%b
        aug_r(mlbddc%p_mat%dof_dist%nl+1:) = 0.0_rp
 
        mlbddc%spars_neumann%nrhs=1
@@ -6546,7 +6546,7 @@ use mpi
        end if
 
 
-       v_G%f_vector%b = aug_v ( mlbddc%p_mat%dof_dist%ni+1:mlbddc%p_mat%dof_dist%nl   ) 
+       v_G%serial_scalar_array%b = aug_v ( mlbddc%p_mat%dof_dist%ni+1:mlbddc%p_mat%dof_dist%nl   ) 
 
        call memfree ( aug_r,__FILE__,__LINE__)
        call memfree ( aug_v,__FILE__,__LINE__)
@@ -6578,7 +6578,7 @@ use mpi
       !                1.0, &
       !                mlbddc%rPhi, &
       !                mlbddc%p_mat%dof_dist%nl  , &
-      !                r%f_vector%b, &
+      !                r%serial_scalar_array%b, &
       !                1, &
       !                0.0, & 
       !                r_ci, & 
@@ -6590,7 +6590,7 @@ use mpi
                       1.0, &
                       mlbddc%lPhi, &
                       mlbddc%p_mat%dof_dist%nb  , &
-                      r%f_vector%b, &
+                      r%serial_scalar_array%b, &
                       1, &
                       0.0, & 
                       r_ci, & 
@@ -6615,7 +6615,7 @@ use mpi
 
 #ifdef ENABLE_BLAS
       ! r <- 1.0 * rPhi * r_ci + 0.0 * r 
-      r%f_vector%b = 0.0
+      r%serial_scalar_array%b = 0.0
       ! if ( mlbddc%unknowns == all_unknowns ) then
       !   call DGEMV(  'N', & 
       !                mlbddc%p_mat%dof_dist%nl  , &
@@ -6626,7 +6626,7 @@ use mpi
       !                r_ci, &
       !                1,    &
       !                0.0,  & 
-      !                r%f_vector%b, & 
+      !                r%serial_scalar_array%b, & 
       !                1)         
       !else if ( mlbddc%unknowns == interface_unknowns ) then
          call DGEMV(  'N', & 
@@ -6638,7 +6638,7 @@ use mpi
                       r_ci, &
                       1,    &
                       0.0,  & 
-                      r%f_vector%b, & 
+                      r%serial_scalar_array%b, & 
                       1)
       ! end if
 #else
@@ -7526,10 +7526,10 @@ use mpi
        C_weights_i = 0.0_rp
 
        if ( mlbddc%nl_coarse > 0 ) then           
-              call constraint_weights%f_vector%create_and_allocate(mlbddc%p_mat%dof_dist%nb)
-              constraint_weights%f_vector%b = mlbddc%C_weights
+              call constraint_weights%serial_scalar_array%create_and_allocate(mlbddc%p_mat%dof_dist%nb)
+              constraint_weights%serial_scalar_array%b = mlbddc%C_weights
               call apply_harm_trans( mlbddc, constraint_weights, C_weights_i ) 
-              call constraint_weights%f_vector%free()
+              call constraint_weights%serial_scalar_array%free()
        end if
     end if
 

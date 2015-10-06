@@ -94,7 +94,7 @@ contains
           p_matrix => a%get_block(iblock,jblock)
           if ( associated(p_matrix) ) then
              if(p_matrix%p_env%am_i_fine_task()) then
-                call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, p_matrix%f_matrix, iblock, jblock )
+                call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, p_matrix%serial_scalar_matrix, iblock, jblock )
              end if
           end if 
        end do
@@ -111,7 +111,7 @@ contains
 
     do iblock = 1, dof_descriptor%nblocks
        if(a%blocks(iblock)%p_env%am_i_fine_task()) then
-          call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a%blocks(iblock)%f_vector, &
+          call element_serial_scalar_array_assembly( dof_descriptor, finite_element, a%blocks(iblock)%serial_scalar_array, &
                & iblock )
        end if
     end do

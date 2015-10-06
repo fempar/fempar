@@ -120,27 +120,27 @@ module par_preconditioner_dd_diagonal_names
 
     if ( p_prec_dd_diagonal%p_mat%p_env%p_context%iam < 0 ) return
 
-    neq = p_matrix%f_matrix%graph%nv
+    neq = p_matrix%serial_scalar_matrix%graph%nv
        
     ! Allocate, extract, sum, and invert diagonal 
 
     ! Allocate + extract
     call memalloc ( neq, p_prec_dd_diagonal%d, __FILE__,__LINE__)
-    call extract_diagonal ( p_matrix%f_matrix%graph%symmetric_storage, &
-                            p_matrix%f_matrix%graph%nv, &
-                            p_matrix%f_matrix%graph%ia, &
-                            p_matrix%f_matrix%graph%ja, &
-                            p_matrix%f_matrix%a, &
-                            p_matrix%f_matrix%graph%nv, &
+    call extract_diagonal ( p_matrix%serial_scalar_matrix%graph%symmetric_storage, &
+                            p_matrix%serial_scalar_matrix%graph%nv, &
+                            p_matrix%serial_scalar_matrix%graph%ia, &
+                            p_matrix%serial_scalar_matrix%graph%ja, &
+                            p_matrix%serial_scalar_matrix%a, &
+                            p_matrix%serial_scalar_matrix%graph%nv, &
                             p_prec_dd_diagonal%d )
     
     ! Create a view of p_prec_dd_diagonal%d. This is ugly and
     ! violates principles of OO design, but at least it works
     p_vec%dof_dist      => p_prec_dd_diagonal%p_mat%dof_dist
     p_vec%p_env         => p_prec_dd_diagonal%p_mat%p_env
-    p_vec%f_vector%size  = neq
-    p_vec%f_vector%mode = reference  
-    p_vec%f_vector%b    => p_prec_dd_diagonal%d
+    p_vec%serial_scalar_array%size  = neq
+    p_vec%serial_scalar_array%mode = reference  
+    p_vec%serial_scalar_array%b    => p_prec_dd_diagonal%d
 
     ! Communicate
     call p_vec%comm()
@@ -165,10 +165,10 @@ module par_preconditioner_dd_diagonal_names
 
     if(p_prec_dd_diagonal%p_mat%p_env%p_context%iam<0) return
 
-    call apply_diagonal  ( p_prec_dd_diagonal%p_mat%f_matrix%graph%nv, & 
+    call apply_diagonal  ( p_prec_dd_diagonal%p_mat%serial_scalar_matrix%graph%nv, & 
                            p_prec_dd_diagonal%d, & 
-                           x%f_vector%b, & 
-                           y%f_vector%b )
+                           x%serial_scalar_array%b, & 
+                           y%serial_scalar_array%b )
 
     ! Comm
     if ( x%state == part_summed ) then

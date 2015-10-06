@@ -158,7 +158,7 @@ contains
     select type(matrix)
       class is(par_scalar_matrix_t)
 	     if ( matrix%p_env%am_i_fine_task() ) then
-            call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, matrix%f_matrix%graph )
+            call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, matrix%serial_scalar_matrix%graph )
 		 end if	
 	  class is(par_block_matrix_t)
 	  class default
@@ -193,7 +193,7 @@ contains
 								  this%p_trian%p_env)
 	
 	if ( this%p_trian%p_env%am_i_fine_task() ) then
-	  call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, par_scalar_matrix%f_matrix%graph )
+	  call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, par_scalar_matrix%serial_scalar_matrix%graph )
 	end if  
 	
 	call par_scalar_matrix%allocate()

@@ -64,7 +64,7 @@ module par_scalar_array_names
   type, extends(array_t) :: par_scalar_array_t
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
-     type( serial_scalar_array_t ) :: f_vector
+     type( serial_scalar_array_t ) :: serial_scalar_array
      ! Partially or fully summed
      integer(ip)  :: state 
      ! Parallel DoF distribution control info.
@@ -128,7 +128,7 @@ contains
     implicit none
     class(par_scalar_array_t), intent(inout) :: this
 
-    call this%f_vector%default_initialization()
+    call this%serial_scalar_array%default_initialization()
     nullify(this%dof_dist)
     nullify(this%p_env)
     call this%NullifyTemporary()
@@ -161,7 +161,7 @@ contains
     this%p_env    => p_env 
     this%state = undefined
     if(this%p_env%p_context%iam<0) return
-    call this%f_vector%create (dof_dist%nl)
+    call this%serial_scalar_array%create (dof_dist%nl)
   end subroutine par_scalar_array_create
   
   !=============================================================================
@@ -174,7 +174,7 @@ contains
     assert ( this%p_env%p_context%created .eqv. .true.) 
     assert ( associated(this%dof_dist) )
     if(this%p_env%p_context%iam<0) return
-    call this%f_vector%allocate ()
+    call this%serial_scalar_array%allocate ()
   end subroutine par_scalar_array_allocate
 
   !=============================================================================
@@ -200,7 +200,7 @@ contains
     if(this%p_env%p_context%iam<0) return
 
     ! Call vector_create_view
-    call this%f_vector%create_view (start, end, t_p_vec%f_vector) 
+    call this%serial_scalar_array%create_view (start, end, t_p_vec%serial_scalar_array) 
 
   end subroutine par_scalar_array_create_view
 
@@ -223,8 +223,8 @@ contains
 
 
     ! call import_print (6, p_vec%dof_dist%dof_import)
-    ! write(*,*) 'SE 1', size(p_vec%f_vector%b)
-    ! call vector_print ( 6, p_vec%f_vector )
+    ! write(*,*) 'SE 1', size(p_vec%serial_scalar_array%b)
+    ! call vector_print ( 6, p_vec%serial_scalar_array )
 
     ! First stage: owners receive/reduce, non-owners send
     call single_exchange ( p_vec%p_env%p_context%icontxt, &
@@ -238,7 +238,7 @@ contains
          p_vec%dof_dist%dof_import%pack_idx,   &
          1.0_rp,                         &
          1.0_rp,                         &
-         p_vec%f_vector%b ) 
+         p_vec%serial_scalar_array%b ) 
 
     ! write(*,*) 'SE 2'
 
@@ -254,7 +254,7 @@ contains
          p_vec%dof_dist%dof_import%unpack_idx, &
          1.0_rp,                         &
          0.0_rp,                         &
-         p_vec%f_vector%b )
+         p_vec%serial_scalar_array%b )
 
   end subroutine comm_interface
 
@@ -275,8 +275,8 @@ contains
     if(this%p_env%p_context%iam<0) return
 
 
-    ni = this%f_vector%size - this%dof_dist%nb
-    call this%create_view ( ni+1, this%f_vector%size, p_vec_G )
+    ni = this%serial_scalar_array%size - this%dof_dist%nb
+    call this%create_view ( ni+1, this%serial_scalar_array%size, p_vec_G )
     call weight_interface ( p_vec_G, weight )
 
     this%state = part_summed
@@ -307,7 +307,7 @@ contains
        i1 = 1
        i2 = p_vec%dof_dist%nb
        do i=i1,i2
-          p_vec%f_vector%b(i) =  p_vec%f_vector%b(i) * weight(i)
+          p_vec%serial_scalar_array%b(i) =  p_vec%serial_scalar_array%b(i) * weight(i)
        end do
     else 
 
@@ -316,9 +316,9 @@ contains
           i1 = p_vec%dof_dist%lobjs(2,iobj) - p_vec%dof_dist%ni
           i2 = p_vec%dof_dist%lobjs(3,iobj) - p_vec%dof_dist%ni
 #ifdef ENABLE_BLAS
-          call dscal ( (i2-i1+1), weigt, p_vec%f_vector%b(i1:i2), 1 )
+          call dscal ( (i2-i1+1), weigt, p_vec%serial_scalar_array%b(i1:i2), 1 )
 #else
-          p_vec%f_vector%b(i1:i2) = weigt * p_vec%f_vector%b(i1:i2)
+          p_vec%serial_scalar_array%b(i1:i2) = weigt * p_vec%serial_scalar_array%b(i1:i2)
 #endif 
        end do
 
@@ -350,7 +350,7 @@ contains
 
     if ( (x%state == part_summed .and. y%state == full_summed) .or. (x%state == full_summed .and. y%state == part_summed) ) then
        ! Perform local dot products
-       t=x%f_vector%dot(y%f_vector)
+       t=x%serial_scalar_array%dot(y%serial_scalar_array)
     else if ( (x%state == full_summed .and. y%state == full_summed) ) then
        ! Perform local weighted dot products
        call weighted_dot (x, y, t)
@@ -361,7 +361,7 @@ contains
        call ws_vec%copy(x)
        ! Transform ws_vec from partially summed to fully summed
        call comm_interface ( ws_vec )
-       t=x%f_vector%dot(ws_vec%f_vector)
+       t=x%serial_scalar_array%dot(ws_vec%serial_scalar_array)
        call ws_vec%free()
     end if
   end subroutine dot_interface
@@ -378,7 +378,7 @@ contains
     if(this%p_env%p_context%iam<0) return
     write(luout,'(a)') '*** begin par_scalar_array_t data structure ***'
     call  dof_distribution_print (luout, this%dof_dist)
-    call  this%f_vector%print(luout)
+    call  this%serial_scalar_array%print(luout)
     write(luout,'(a)') '*** end par_scalar_array_t data structure ***'
   end subroutine par_scalar_array_print
 
@@ -422,7 +422,7 @@ contains
 
     ! Read partition data from path_file file
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')       
-    call this%f_vector%print_matrix_market (lunou)
+    call this%serial_scalar_array%print_matrix_market (lunou)
     call io_close (lunou)
   end subroutine par_scalar_array_print_matrix_market
 
@@ -470,7 +470,7 @@ contains
        i1=x%dof_dist%lobjs(2,iobj) - x%dof_dist%ni
        i2=x%dof_dist%lobjs(3,iobj) - x%dof_dist%ni
        call flat_weighted_dot ( i1, i2, & 
-            & x%f_vector%b, y%f_vector%b, weigt, t) 
+            & x%serial_scalar_array%b, y%serial_scalar_array%b, weigt, t) 
     end do
   end subroutine weighted_dot
 
@@ -521,17 +521,17 @@ contains
 
        assert ( op1%state /= undefined .and. op2%state /= undefined  )
 
-       ni = op1%f_vector%size - op1%dof_dist%nb
+       ni = op1%serial_scalar_array%size - op1%dof_dist%nb
        if ( ni > 0 ) then
           call op1%create_view (1, ni, x_I)
           call op2%create_view (1, ni, y_I)
-          alpha = x_I%f_vector%dot ( y_I%f_vector )
+          alpha = x_I%serial_scalar_array%dot ( y_I%serial_scalar_array )
        else
           alpha = 0.0_rp
        end if
 
-       call op1%create_view(ni+1, op1%f_vector%size, x_G )
-       call op2%create_view(ni+1, op2%f_vector%size, y_G )
+       call op1%create_view(ni+1, op1%serial_scalar_array%size, x_G )
+       call op2%create_view(ni+1, op2%serial_scalar_array%size, y_G )
        call dot_interface          ( x_G, y_G, s )
 
        alpha = alpha + s
@@ -565,7 +565,7 @@ contains
 
        assert ( op2%state /= undefined  )
        ! Perform local copy
-       call op1%f_vector%copy ( op2%f_vector )
+       call op1%serial_scalar_array%copy ( op2%serial_scalar_array )
        op1%state = op2%state
        class default
        write(0,'(a)') 'par_scalar_array_t%copy: unsupported op2 class'
@@ -596,7 +596,7 @@ contains
        assert ( op2%state /= undefined )
 
        ! Scal local copy
-       call op1%f_vector%scal ( alpha, op2%f_vector )
+       call op1%serial_scalar_array%scal ( alpha, op2%serial_scalar_array )
        op1%state = op2%state
        class default
        write(0,'(a)') 'par_scalar_array_t%scal: unsupported op2 class'
@@ -617,7 +617,7 @@ contains
     if(op%p_env%p_context%iam<0) return
 
     ! Init local copy
-    call op%f_vector%init(alpha)
+    call op%serial_scalar_array%init(alpha)
     ! op%state = full_summed
   end subroutine par_scalar_array_init
 
@@ -644,7 +644,7 @@ contains
        assert ( op1%state /= undefined .and. op2%state /= undefined  )
        assert ( op1%state == op2%state )
 
-       call op1%f_vector%axpby( alpha, op2%f_vector, beta )
+       call op1%serial_scalar_array%axpby( alpha, op2%serial_scalar_array, beta )
        class default
        write(0,'(a)') 'par_scalar_array_t%axpby: unsupported op2 class'
        check(1==0)
@@ -696,7 +696,7 @@ contains
        op1%p_env    => op2%p_env
        op1%state    =  op2%state
        if(op2%p_env%p_context%iam<0) return
-       call op1%f_vector%clone ( op2%f_vector )
+       call op1%serial_scalar_array%clone ( op2%serial_scalar_array )
        class default
        write(0,'(a)') 'par_scalar_array_t%clone: unsupported op2 class'
        check(1==0)
@@ -718,8 +718,8 @@ contains
     assert ( associated(op%p_env%p_context) )
     assert ( op%p_env%p_context%created .eqv. .true.)
     if(op%p_env%p_context%iam<0) return
-    ni = op%f_vector%size - op%dof_dist%nb
-    call op%create_view(ni+1, op%f_vector%size, op_G)
+    ni = op%serial_scalar_array%size - op%dof_dist%nb
+    call op%create_view(ni+1, op%serial_scalar_array%size, op_G)
     call comm_interface ( op_G )
     op%state = full_summed
   end subroutine par_scalar_array_comm
@@ -745,7 +745,7 @@ contains
     end if
 
     ! Free local part
-    call this%f_vector%free_in_stages(action)
+    call this%serial_scalar_array%free_in_stages(action)
 
     if ( action == free_clean ) then
        this%state = undefined

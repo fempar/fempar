@@ -89,12 +89,12 @@ contains
     type(serial_block_matrix_t), intent(inout) :: a
 	
     integer(ip) :: ivar, iblock, jblock
-    type(serial_scalar_matrix_t), pointer :: f_matrix
+    type(serial_scalar_matrix_t), pointer :: serial_scalar_matrix
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
-          f_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
-          if ( associated(f_matrix) ) then
-             call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, f_matrix, iblock, jblock )
+          serial_scalar_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
+          if ( associated(serial_scalar_matrix) ) then
+             call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, serial_scalar_matrix, iblock, jblock )
           end if 
        end do
     end do
@@ -123,7 +123,7 @@ contains
 
     integer(ip) :: iblock, jblock, i
     type(allocatable_array_ip1_t) :: start_aux
-    type(serial_scalar_matrix_t), pointer :: f_matrix
+    type(serial_scalar_matrix_t), pointer :: serial_scalar_matrix
 
     ! Auxiliar local start array to store start(2)
     call allocatable_array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
@@ -133,12 +133,12 @@ contains
 
     do iblock = 1, dof_descriptor%nblocks
        do jblock = 1, dof_descriptor%nblocks
-          f_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
-          if ( associated(f_matrix) ) then
+          serial_scalar_matrix => a%blocks(iblock,jblock)%serial_scalar_matrix
+          if ( associated(serial_scalar_matrix) ) then
             do i = 1,2
-               call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element(i)%p, f_matrix, iblock, jblock )
+               call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element(i)%p, serial_scalar_matrix, iblock, jblock )
             end do
-            call face_element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, fe_face, f_matrix, iblock, jblock )
+            call face_element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, fe_face, serial_scalar_matrix, iblock, jblock )
           end if
        end do
     end do

@@ -57,7 +57,7 @@ module par_scalar_matrix_names
      ! of the matrix mapped to the current processor.
      ! This is required for both eb and vb data 
      ! distributions
-     type( serial_scalar_matrix_t )       :: f_matrix
+     type( serial_scalar_matrix_t ) :: serial_scalar_matrix
      
      type(dof_distribution_t), pointer :: &
         dof_dist => NULL()            ! Associated (ROW) dof_distribution
@@ -117,7 +117,7 @@ contains
     type(dof_distribution_t), target    ,intent(in)  :: dof_dist
     type(par_environment_t) , target    ,intent(in)  :: p_env
 
-    call this%f_matrix%create(symmetric_storage,is_symmetric,sign)
+    call this%serial_scalar_matrix%create(symmetric_storage,is_symmetric,sign)
     this%dof_dist      => dof_dist 
     this%dof_dist_cols => dof_dist
     this%p_env => p_env
@@ -131,7 +131,7 @@ contains
 	type(dof_distribution_t), target    ,intent(in)  :: dof_dist_cols
     type(par_environment_t) , target    ,intent(in)  :: p_env
 
-    call this%f_matrix%create()
+    call this%serial_scalar_matrix%create()
     this%dof_dist => dof_dist 
     this%dof_dist_cols => dof_dist_cols
     this%p_env => p_env
@@ -142,7 +142,7 @@ contains
     class(par_scalar_matrix_t), intent(inout) :: this
 
     if(this%p_env%p_context%iam>=0) then
-       call this%f_matrix%allocate()
+       call this%serial_scalar_matrix%allocate()
     end if
   end subroutine par_scalar_matrix_allocate
 
@@ -164,11 +164,11 @@ contains
        nullify ( this%dof_dist )
        nullify ( this%dof_dist_cols )
        nullify ( this%p_env )
-	   call this%f_matrix%free_in_stages(action)
+	   call this%serial_scalar_matrix%free_in_stages(action)
     else if ( action == free_struct ) then
-	   call this%f_matrix%free_in_stages(action)
+	   call this%serial_scalar_matrix%free_in_stages(action)
 	else if ( action == free_values ) then
-	   call this%f_matrix%free_in_stages(action)
+	   call this%serial_scalar_matrix%free_in_stages(action)
     end if
 	
   end subroutine par_scalar_matrix_free_in_stages
@@ -212,7 +212,7 @@ contains
     ! Read partition data from path_file file
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')
 	
-    call this%f_matrix%print_matrix_market(lunou)
+    call this%serial_scalar_matrix%print_matrix_market(lunou)
 
     call io_close (lunou)
 
@@ -247,7 +247,7 @@ contains
 
     if(p_matrix%p_env%p_context%iam<0) return
 
-    call p_matrix%f_matrix%init(alpha)
+    call p_matrix%serial_scalar_matrix%init(alpha)
   end subroutine par_scalar_matrix_init
 
   subroutine par_scalar_matrix_apply_concrete(a,x,y)
@@ -274,7 +274,7 @@ contains
     assert ( associated(y%p_env%p_context) )
     
     assert (x%state == full_summed) 
-    call a%f_matrix%apply(x%f_vector, y%f_vector)
+    call a%serial_scalar_matrix%apply(x%serial_scalar_array, y%serial_scalar_array)
     y%state = part_summed
   end subroutine par_scalar_matrix_apply_concrete
 

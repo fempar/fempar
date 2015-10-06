@@ -86,8 +86,8 @@ module operator_dd_names
      type ( serial_scalar_matrix_t )  :: A_GI
      type ( serial_scalar_matrix_t )  :: A_GG
 
-	 logical :: A_GI_allocated
-	 
+     logical :: A_GI_allocated
+
      type ( preconditioner_t )     :: M_II
 
      type(solver_control_t)    , pointer    :: spars
@@ -113,60 +113,60 @@ module operator_dd_names
 
 contains
 
-  subroutine operator_dd_create ( f_matrix, dof_dist, f_operator, spars, ppars, symmetric_storage, is_symmetric, sign )
+  subroutine operator_dd_create ( serial_scalar_matrix, dof_dist, f_operator, spars, ppars, symmetric_storage, is_symmetric, sign )
     implicit none
     ! Parameters
-    type(serial_scalar_matrix_t)        , intent(in), target           :: f_matrix
+    type(serial_scalar_matrix_t)        , intent(in), target           :: serial_scalar_matrix
     type(dof_distribution_t)  , intent(in), target           :: dof_dist
     type(operator_dd_t)   , intent(out)                  :: f_operator
     type(solver_control_t)    , intent(in), target, optional :: spars
     type(preconditioner_params_t), intent(in), target, optional :: ppars
     ! With this two optional parameters one may select the
     ! structure and sign of the Schur complement operator
-    ! independently of f_matrix
-	logical                 , intent(in), optional :: symmetric_storage
+    ! independently of serial_scalar_matrix
+    logical                 , intent(in), optional :: symmetric_storage
     logical                 , intent(in), optional :: is_symmetric
     integer (ip)            , intent(in), optional :: sign
 
     ! Locals
     integer (ip)           :: sign_
     logical                :: symmetric_storage_, is_symmetric_
-	
+
     if ( present(symmetric_storage) ) then
        symmetric_storage_ = symmetric_storage
     else
-       symmetric_storage_ = f_matrix%graph%symmetric_storage
+       symmetric_storage_ = serial_scalar_matrix%graph%symmetric_storage
     end if
-	
+
     if ( present(is_symmetric) ) then
        is_symmetric_ = is_symmetric
     else
-       is_symmetric_ = f_matrix%is_symmetric
+       is_symmetric_ = serial_scalar_matrix%is_symmetric
     end if
 
     if ( present(sign) ) then
        sign_ = sign
     else
-       sign_ = f_matrix%sign
+       sign_ = serial_scalar_matrix%sign
     end if
 
     f_operator%dof_dist => dof_dist
-	
-	if ( f_matrix%graph%symmetric_storage ) then
-	  ! If the input matrix exploits symmetric_storage
-	  ! then f_operator may or may not exploit symmetric_storage
-	  ! but f_operator cannot by unsymmetric
-	  assert( is_symmetric_ )
-	else
-	  ! If the input matrix does NOT exploit symmetric_storage
-	  ! then f_operator may or may not exploit symmetric_storage.
-	  ! If f_operator exploits symmetric_storage, then it MUST be symmetric.
-	  ! If f_operator does NOT exploit symmetric_storage, then it may or may not
-	  ! be symmetric.
-	  if ( symmetric_storage_ ) then
-	      assert ( is_symmetric_ )
-      end if		  
-	end if
+
+    if ( serial_scalar_matrix%graph%symmetric_storage ) then
+       ! If the input matrix exploits symmetric_storage
+       ! then f_operator may or may not exploit symmetric_storage
+       ! but f_operator cannot by unsymmetric
+       assert( is_symmetric_ )
+    else
+       ! If the input matrix does NOT exploit symmetric_storage
+       ! then f_operator may or may not exploit symmetric_storage.
+       ! If f_operator exploits symmetric_storage, then it MUST be symmetric.
+       ! If f_operator does NOT exploit symmetric_storage, then it may or may not
+       ! be symmetric.
+       if ( symmetric_storage_ ) then
+          assert ( is_symmetric_ )
+       end if
+    end if
 
     if ( present(ppars) ) then
        f_operator%ppars => ppars
@@ -184,17 +184,17 @@ contains
        f_operator%spars_allocated = .true.
     end if
 
-	f_operator%A_GI_allocated = (.not. symmetric_storage_ )
-			
-	call f_operator%A_II%create(symmetric_storage_, is_symmetric_, sign_)
-	call f_operator%A_IG%create()
-	call f_operator%A_GG%create(symmetric_storage_, is_symmetric_, sign_)
-	if ( .not. symmetric_storage_ ) then
-	  call f_operator%A_GI%create()
-	end if
-	
+    f_operator%A_GI_allocated = (.not. symmetric_storage_ )
+
+    call f_operator%A_II%create(symmetric_storage_, is_symmetric_, sign_)
+    call f_operator%A_IG%create()
+    call f_operator%A_GG%create(symmetric_storage_, is_symmetric_, sign_)
+    if ( .not. symmetric_storage_ ) then
+       call f_operator%A_GI%create()
+    end if
+
     call preconditioner_create( f_operator%A_II, f_operator%M_II, f_operator%ppars)
-  end subroutine operator_dd_create 
+  end subroutine operator_dd_create
 
   subroutine operator_dd_free ( f_operator, mode )
     implicit none
@@ -205,93 +205,93 @@ contains
 
     if ( mode == free_clean ) then
        call preconditioner_free ( preconditioner_free_clean, f_operator%M_II )
-	   call f_operator%A_II%free_in_stages(free_clean)
+       call f_operator%A_II%free_in_stages(free_clean)
        call f_operator%A_IG%free_in_stages(free_clean)
        call f_operator%A_GG%free_in_stages(free_clean)
-	   if ( f_operator%A_GI_allocated ) then
-	     call f_operator%A_GI%free_in_stages(free_clean) 
-	   end if
-	   
-	   if ( f_operator%ppars_allocated  ) then
+       if ( f_operator%A_GI_allocated ) then
+          call f_operator%A_GI%free_in_stages(free_clean) 
+       end if
+
+       if ( f_operator%ppars_allocated  ) then
           deallocate(f_operator%ppars)
        else
           nullify(f_operator%ppars)
        end if
-	   
-	   if ( f_operator%spars_allocated  ) then
+
+       if ( f_operator%spars_allocated  ) then
           deallocate(f_operator%spars)
        else
           nullify(f_operator%spars)
        end if
     else if ( mode == free_struct  ) then
        call preconditioner_free ( preconditioner_free_struct , f_operator%M_II )
-	   call f_operator%A_II%free_in_stages(free_struct)
+       call f_operator%A_II%free_in_stages(free_struct)
        call f_operator%A_IG%free_in_stages(free_struct)
        call f_operator%A_GG%free_in_stages(free_struct)
-	   if ( f_operator%A_GI_allocated ) then
-	      call f_operator%A_GI%free_in_stages(free_struct) 
-	   end if
+       if ( f_operator%A_GI_allocated ) then
+          call f_operator%A_GI%free_in_stages(free_struct) 
+       end if
     else if ( mode == free_values ) then
        call preconditioner_free ( preconditioner_free_values , f_operator%M_II )
-	   call f_operator%A_II%free_in_stages(free_values)
+       call f_operator%A_II%free_in_stages(free_values)
        call f_operator%A_IG%free_in_stages(free_values)
        call f_operator%A_GG%free_in_stages(free_values)
-	   if ( f_operator%A_GI_allocated ) then
-	     call f_operator%A_GI%free_in_stages(free_values)
-	   end if
+       if ( f_operator%A_GI_allocated ) then
+          call f_operator%A_GI%free_in_stages(free_values)
+       end if
     end if
 
   end subroutine operator_dd_free
-  
+
   !=============================================================================
-  subroutine operator_dd_ass_struct ( f_matrix, f_operator )
+  subroutine operator_dd_ass_struct ( serial_scalar_matrix, f_operator )
     implicit none
 
     ! Parameters 
-    type(serial_scalar_matrix_t)  , intent(in)      :: f_matrix
+    type(serial_scalar_matrix_t)  , intent(in)      :: serial_scalar_matrix
     type(operator_dd_t)           , intent(inout)   :: f_operator
 
     ! Split graph of local process into 2x2 block partitioning
     if ( .not. f_operator%A_II%graph%symmetric_storage  ) then
-        call split_graph_I_G ( f_matrix%graph, & 
-                               f_operator%dof_dist, & 
-                               G_II=f_operator%A_II%graph, G_IG=f_operator%A_IG%graph, &
-                               G_GI=f_operator%A_GI%graph, G_GG=f_operator%A_GG%graph  )
-     else 
-        call split_graph_I_G_symm ( f_matrix%graph, & 
-                                    f_operator%dof_dist, & 
-                                    G_II=f_operator%A_II%graph, & 
-                                    G_IG=f_operator%A_IG%graph, &
-                                    G_GG=f_operator%A_GG%graph )
-     end if
+       call split_graph_I_G ( serial_scalar_matrix%graph, & 
+            f_operator%dof_dist, & 
+            G_II=f_operator%A_II%graph, G_IG=f_operator%A_IG%graph, &
+            G_GI=f_operator%A_GI%graph, G_GG=f_operator%A_GG%graph  )
+    else 
+       call split_graph_I_G_symm ( serial_scalar_matrix%graph, & 
+            f_operator%dof_dist, & 
+            G_II=f_operator%A_II%graph, & 
+            G_IG=f_operator%A_IG%graph, &
+            G_GG=f_operator%A_GG%graph )
+    end if
 
-     call preconditioner_symbolic(f_operator%A_II, f_operator%M_II)
+    call preconditioner_symbolic(f_operator%A_II, f_operator%M_II)
   end subroutine operator_dd_ass_struct
 
   !=============================================================================
-  subroutine operator_dd_fill_val ( f_matrix, f_operator ) 
+  subroutine operator_dd_fill_val ( serial_scalar_matrix, f_operator ) 
     use stdio_names
     implicit none
-    
+
     ! Parameters
-    type(serial_scalar_matrix_t), intent(in)    :: f_matrix
+    type(serial_scalar_matrix_t), intent(in)    :: serial_scalar_matrix
     type(operator_dd_t)         , intent(inout) :: f_operator
 
     ! Split matrix of local process into 2x2 block partitioning
     if ( .not. f_operator%A_II%graph%symmetric_storage ) then
-        call split_matrix_I_G ( f_matrix, &
-                                f_operator%dof_dist, & 
-                                f_operator%A_II, f_operator%A_IG, &
-                                f_operator%A_GI, f_operator%A_GG )
+       call split_matrix_I_G ( serial_scalar_matrix, &
+            f_operator%dof_dist, & 
+            f_operator%A_II, f_operator%A_IG, &
+            f_operator%A_GI, f_operator%A_GG )
 
-     else 
-        call split_matrix_I_G( f_matrix, & 
-                               f_operator%dof_dist, & 
-                               A_II=f_operator%A_II, A_IG=f_operator%A_IG, &  
-                               A_GG=f_operator%A_GG )
-     end if
+    else 
+       call split_matrix_I_G( serial_scalar_matrix, & 
+            f_operator%dof_dist, & 
+            A_II=f_operator%A_II, A_IG=f_operator%A_IG, &  
+            A_GG=f_operator%A_GG )
+    end if
 
-     call preconditioner_numeric(f_operator%M_II)
+    call preconditioner_numeric(f_operator%M_II)
   end subroutine operator_dd_fill_val
   
   ! Computes y_I <- A_II^-1 * x_I
@@ -324,25 +324,25 @@ contains
 
 #ifdef ENABLE_MKL
     call mkl_dcsrmv ( 'N', & 
-                      f_operator%A_IG%graph%nv, &
-                      f_operator%A_IG%graph%nv2, &
-                      1.0, &
-                      'GXXF', & 
-                      f_operator%A_IG%a, &
-                      f_operator%A_IG%graph%ja, & 
-                      f_operator%A_IG%graph%ia(1), & 
-                      f_operator%A_IG%graph%ia(2), & 
-                      x_G%b, &
-                      0.0,   &
-                      y_I%b)
+         f_operator%A_IG%graph%nv, &
+         f_operator%A_IG%graph%nv2, &
+         1.0, &
+         'GXXF', & 
+         f_operator%A_IG%a, &
+         f_operator%A_IG%graph%ja, & 
+         f_operator%A_IG%graph%ia(1), & 
+         f_operator%A_IG%graph%ia(2), & 
+         x_G%b, &
+         0.0,   &
+         y_I%b)
 #else
     call matvec ( f_operator%A_IG%graph%nv, &
-                    & f_operator%A_IG%graph%nv2,&
-                    & f_operator%A_IG%graph%ia, &
-                    & f_operator%A_IG%graph%ja, &
-                    & f_operator%A_IG%a,     &
-                    & x_G%b,        & 
-                    & y_I%b  )
+         & f_operator%A_IG%graph%nv2,&
+         & f_operator%A_IG%graph%ia, &
+         & f_operator%A_IG%graph%ja, &
+         & f_operator%A_IG%a,     &
+         & x_G%b,        & 
+         & y_I%b  )
 #endif
 
   end subroutine operator_dd_apply_A_IG
@@ -359,48 +359,48 @@ contains
     if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-                         f_operator%A_GI%graph%nv, &
-                         f_operator%A_GI%graph%nv2, &
-                         1.0, &
-                         'GXXF', & 
-                         f_operator%A_GI%a, &
-                         f_operator%A_GI%graph%ja, & 
-                         f_operator%A_GI%graph%ia(1), & 
-                         f_operator%A_GI%graph%ia(2), & 
-                         x_I%b, &
-                         0.0,    &
-                         y_G%b) 
+            f_operator%A_GI%graph%nv, &
+            f_operator%A_GI%graph%nv2, &
+            1.0, &
+            'GXXF', & 
+            f_operator%A_GI%a, &
+            f_operator%A_GI%graph%ja, & 
+            f_operator%A_GI%graph%ia(1), & 
+            f_operator%A_GI%graph%ia(2), & 
+            x_I%b, &
+            0.0,    &
+            y_G%b) 
 #else
        call matvec ( f_operator%A_GI%graph%nv, &
-                         f_operator%A_GI%graph%nv2,&
-                         f_operator%A_GI%graph%ia, &
-                         f_operator%A_GI%graph%ja, &
-                         f_operator%A_GI%a,     &
-                         x_I%b,        & ! x_I
-                         y_G%b         ) ! y_G
+            f_operator%A_GI%graph%nv2,&
+            f_operator%A_GI%graph%ia, &
+            f_operator%A_GI%graph%ja, &
+            f_operator%A_GI%a,     &
+            x_I%b,        & ! x_I
+            y_G%b         ) ! y_G
 #endif
     else 
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'T', & 
-                         f_operator%A_IG%graph%nv, &
-                         f_operator%A_IG%graph%nv2, &
-                         1.0, &
-                         'GXXF', & 
-                         f_operator%A_IG%a, &
-                         f_operator%A_IG%graph%ja, & 
-                         f_operator%A_IG%graph%ia(1), & 
-                         f_operator%A_IG%graph%ia(2), & 
-                         x_I%b, &
-                         0.0,   &
-                         y_G%b)
+            f_operator%A_IG%graph%nv, &
+            f_operator%A_IG%graph%nv2, &
+            1.0, &
+            'GXXF', & 
+            f_operator%A_IG%a, &
+            f_operator%A_IG%graph%ja, & 
+            f_operator%A_IG%graph%ia(1), & 
+            f_operator%A_IG%graph%ia(2), & 
+            x_I%b, &
+            0.0,   &
+            y_G%b)
 #else
        call matvec_trans ( f_operator%A_IG%graph%nv, &
-                    &          f_operator%A_IG%graph%nv2,&
-                    &          f_operator%A_IG%graph%ia, &
-                    &          f_operator%A_IG%graph%ja, &
-                    &          f_operator%A_IG%a,     &
-                    &          x_I%b,        & ! x_I 
-                    &          y_G%b         ) ! y_G 
+            &          f_operator%A_IG%graph%nv2,&
+            &          f_operator%A_IG%graph%ia, &
+            &          f_operator%A_IG%graph%ja, &
+            &          f_operator%A_IG%a,     &
+            &          x_I%b,        & ! x_I 
+            &          y_G%b         ) ! y_G 
 #endif
     end if
   end subroutine operator_dd_apply_A_GI
@@ -416,73 +416,73 @@ contains
     type(serial_scalar_array_t)     , intent(inout)  :: y_G
     type(serial_scalar_array_t)                      :: x_I, x_G
 
-   call x%create_view(1, f_operator%A_II%graph%nv, x_I )
-   call x%create_view(f_operator%A_II%graph%nv+1, f_operator%A_II%graph%nv+f_operator%A_GG%graph%nv, x_G )
+    call x%create_view(1, f_operator%A_II%graph%nv, x_I )
+    call x%create_view(f_operator%A_II%graph%nv+1, f_operator%A_II%graph%nv+f_operator%A_GG%graph%nv, x_G )
 
-   if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
+    if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
 #ifdef ENABLE_MKL
-      call mkl_dcsrmv ( 'N', & 
-                        f_operator%A_GI%graph%nv, &
-                        f_operator%A_GI%graph%nv2, &
-                        1.0, &
-                        'GXXF', & 
-                        f_operator%A_GI%a, &
-                        f_operator%A_GI%graph%ja, & 
-                        f_operator%A_GI%graph%ia(1), & 
-                        f_operator%A_GI%graph%ia(2), & 
-                        x_I%b, &
-                        0.0, &
-                        y_G%b)
+       call mkl_dcsrmv ( 'N', & 
+            f_operator%A_GI%graph%nv, &
+            f_operator%A_GI%graph%nv2, &
+            1.0, &
+            'GXXF', & 
+            f_operator%A_GI%a, &
+            f_operator%A_GI%graph%ja, & 
+            f_operator%A_GI%graph%ia(1), & 
+            f_operator%A_GI%graph%ia(2), & 
+            x_I%b, &
+            0.0, &
+            y_G%b)
 #else
-      call matvec ( f_operator%A_GI%graph%nv, &
-                        f_operator%A_GI%graph%nv2,&
-                        f_operator%A_GI%graph%ia, &
-                        f_operator%A_GI%graph%ja, &
-                        f_operator%A_GI%a,     &
-                        x_I%b,        & ! x_I
-                        y_G%b         ) ! y_G
+       call matvec ( f_operator%A_GI%graph%nv, &
+            f_operator%A_GI%graph%nv2,&
+            f_operator%A_GI%graph%ia, &
+            f_operator%A_GI%graph%ja, &
+            f_operator%A_GI%a,     &
+            x_I%b,        & ! x_I
+            y_G%b         ) ! y_G
 #endif
-   else 
+    else 
 #ifdef ENABLE_MKL
-      call mkl_dcsrmv ( 'T', & 
-                        f_operator%A_IG%graph%nv, &
-                        f_operator%A_IG%graph%nv2, &
-                        1.0, &
-                        'GXXF', & 
-                        f_operator%A_IG%a, &
-                        f_operator%A_IG%graph%ja, & 
-                        f_operator%A_IG%graph%ia(1), & 
-                        f_operator%A_IG%graph%ia(2), & 
-                        x_I%b, &
-                        0.0,   &
-                        y_G%b)
+       call mkl_dcsrmv ( 'T', & 
+            f_operator%A_IG%graph%nv, &
+            f_operator%A_IG%graph%nv2, &
+            1.0, &
+            'GXXF', & 
+            f_operator%A_IG%a, &
+            f_operator%A_IG%graph%ja, & 
+            f_operator%A_IG%graph%ia(1), & 
+            f_operator%A_IG%graph%ia(2), & 
+            x_I%b, &
+            0.0,   &
+            y_G%b)
 #else
-      call matvec ( f_operator%A_IG%graph%nv, &
-                   &    f_operator%A_IG%graph%nv2,&
-                   &    f_operator%A_IG%graph%ia, &
-                   &    f_operator%A_IG%graph%ja, &
-                   &    f_operator%A_IG%a,     &
-                   &    x_I%b,        & ! x_I 
-                   &    y_G%b         ) ! y_G 
+       call matvec ( f_operator%A_IG%graph%nv, &
+            &    f_operator%A_IG%graph%nv2,&
+            &    f_operator%A_IG%graph%ia, &
+            &    f_operator%A_IG%graph%ja, &
+            &    f_operator%A_IG%a,     &
+            &    x_I%b,        & ! x_I 
+            &    y_G%b         ) ! y_G 
 #endif
-   end if
+    end if
 
-   if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
+    if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
 #ifdef ENABLE_MKL
-      call mkl_dcsrmv ( 'N', & 
-                        f_operator%A_GG%graph%nv, &
-                        f_operator%A_GG%graph%nv2, &
-                        1.0, &
-                        'GXXF', & 
-                        f_operator%A_GG%a, &
-                        f_operator%A_GG%graph%ja, & 
-                        f_operator%A_GG%graph%ia(1), & 
-                        f_operator%A_GG%graph%ia(2), & 
-                        x_G%b, &
-                        1.0,   &
-                        y_G%b)
+       call mkl_dcsrmv ( 'N', & 
+            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%nv2, &
+            1.0, &
+            'GXXF', & 
+            f_operator%A_GG%a, &
+            f_operator%A_GG%graph%ja, & 
+            f_operator%A_GG%graph%ia(1), & 
+            f_operator%A_GG%graph%ia(2), & 
+            x_G%b, &
+            1.0,   &
+            y_G%b)
 #else
-        check(1==0)
+       check(1==0)
 !!$           call matvec_scal ( f_operator%A_GG%nd1,    &    
 !!$                          &       f_operator%A_GG%nd2,    &
 !!$                          &       f_operator%A_GG%graph%nv,  &
@@ -493,31 +493,28 @@ contains
 !!$                          &       x_G%b,         & 
 !!$                          &       y_G%b          )
 #endif
-           ! call vector_print ( 6, y_G ) ! DBG:
-     else 
+       ! call vector_print ( 6, y_G ) ! DBG:
+    else 
 #ifdef ENABLE_MKL
-        call mkl_dcsrmv ( 'N', & 
-                          f_operator%A_GG%graph%nv, &
-                          f_operator%A_GG%graph%nv2, &
-                          1.0, &
-                          'SUNF', & 
-                          f_operator%A_GG%a, &
-                          f_operator%A_GG%graph%ja, & 
-                          f_operator%A_GG%graph%ia(1), & 
-                          f_operator%A_GG%graph%ia(2), & 
-                          x_G%b, &
-                          1.0,   &
-                          y_G%b)
+       call mkl_dcsrmv ( 'N', & 
+            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%nv2, &
+            1.0, &
+            'SUNF', & 
+            f_operator%A_GG%a, &
+            f_operator%A_GG%graph%ja, & 
+            f_operator%A_GG%graph%ia(1), & 
+            f_operator%A_GG%graph%ia(2), & 
+            x_G%b, &
+            1.0,   &
+            y_G%b)
 #else
-        check(1==0)
+       check(1==0)
 #endif
-        ! call vector_print ( 6, y_G ) ! DBG:
-     end if
+       ! call vector_print ( 6, y_G ) ! DBG:
+    end if
 
   end subroutine operator_dd_apply_A_GI_plus_A_GG
-
-
-
 
   ! Computes y_G < A_GG * x_G
   subroutine operator_dd_apply_A_GG ( f_operator, x_G, y_G )
@@ -530,49 +527,49 @@ contains
     if ( .not. f_operator%A_GG%graph%symmetric_storage  ) then
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-                         f_operator%A_GG%graph%nv, &
-                         f_operator%A_GG%graph%nv2, &
-                         1.0, &
-                         'GXXF', & 
-                         f_operator%A_GG%a, &
-                         f_operator%A_GG%graph%ja, & 
-                         f_operator%A_GG%graph%ia(1), & 
-                         f_operator%A_GG%graph%ia(2), & 
-                         x_G%b, &
-                         0.0,   &
-                         y_G%b)
+            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%nv2, &
+            1.0, &
+            'GXXF', & 
+            f_operator%A_GG%a, &
+            f_operator%A_GG%graph%ja, & 
+            f_operator%A_GG%graph%ia(1), & 
+            f_operator%A_GG%graph%ia(2), & 
+            x_G%b, &
+            0.0,   &
+            y_G%b)
 #else
        call matvec ( f_operator%A_GG%graph%nv,  &
-                         f_operator%A_GG%graph%nv2, &
-                         f_operator%A_GG%graph%ia,  &
-                         f_operator%A_GG%graph%ja,  &
-                         f_operator%A_GG%a,      &
-                         x_G%b,         & 
-                         y_G%b          )
+            f_operator%A_GG%graph%nv2, &
+            f_operator%A_GG%graph%ia,  &
+            f_operator%A_GG%graph%ja,  &
+            f_operator%A_GG%a,      &
+            x_G%b,         & 
+            y_G%b          )
 #endif
        ! call vector_print ( 6, y_G ) ! DBG:
     else 
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-                         f_operator%A_GG%graph%nv, &
-                         f_operator%A_GG%graph%nv2, &
-                         1.0, &
-                         'SUNF', & 
-                         f_operator%A_GG%a, &
-                         f_operator%A_GG%graph%ja, & 
-                         f_operator%A_GG%graph%ia(1), & 
-                         f_operator%A_GG%graph%ia(2), & 
-                         x_G%b, &
-                         0.0,   &
-                         y_G%b)
+            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%nv2, &
+            1.0, &
+            'SUNF', & 
+            f_operator%A_GG%a, &
+            f_operator%A_GG%graph%ja, & 
+            f_operator%A_GG%graph%ia(1), & 
+            f_operator%A_GG%graph%ia(2), & 
+            x_G%b, &
+            0.0,   &
+            y_G%b)
 #else
        call matvec_symmetric_storage ( f_operator%A_GG%graph%nv,  &
-                              f_operator%A_GG%graph%nv2, &
-                              f_operator%A_GG%graph%ia,  &
-                              f_operator%A_GG%graph%ja,  &
-                              f_operator%A_GG%a,      &
-                              x_G%b,         & 
-                              y_G%b          )
+            f_operator%A_GG%graph%nv2, &
+            f_operator%A_GG%graph%ia,  &
+            f_operator%A_GG%graph%ja,  &
+            f_operator%A_GG%a,      &
+            x_G%b,         & 
+            y_G%b          )
 #endif
     end if
   end subroutine  operator_dd_apply_A_GG
@@ -595,17 +592,17 @@ contains
     ! Compute x_I <- A_II^-1 * (b_I - A_IG * x_G)
     ! x_I <- A_IG * x_G  
     call operator_dd_apply_A_IG ( f_operator, x_G, x_I )
-	
+
     ! ws_vec_I <- b_I
     call ws_vec_I%copy (b_I)
-	
+
     ! ws_vec_I <- ws_vec_I - x_I   
-	call ws_vec_I%axpby(-1.0_rp,x_I,1.0_rp)
-	
+    call ws_vec_I%axpby(-1.0_rp,x_I,1.0_rp)
+
     ! x_I  <- A_II^-1 *  ws_vec_I
     call operator_dd_solve_A_II ( f_operator, ws_vec_I, x_I )
-    
-	call ws_vec_I%free()
+
+    call ws_vec_I%free()
 
   end subroutine operator_dd_solve_interior
 
@@ -614,7 +611,7 @@ contains
   !                  compilerpro/en-us/cpp/win/mkl/refman/bla/functn_mkl_dcsrmm.html#functn_mkl_dcsrmm
   subroutine operator_dd_compute_ut_op_u (f_operator, n, u, v, opu)  
 #ifdef ENABLE_BLAS       
-use blas77_interfaces_names
+    use blas77_interfaces_names
 #endif
     implicit none 
     ! Parameters  
@@ -623,7 +620,7 @@ use blas77_interfaces_names
     real (rp)             , intent(in)            :: u (f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, n) 
     real (rp)             , intent(out)           :: v (n,n)
     real (rp)             , optional, intent(out) :: opu (f_operator%A_GG%graph%nv,  n) 
- 
+
     ! Locals
     real(rp), allocatable :: work(:,:)
 
@@ -633,190 +630,190 @@ use blas77_interfaces_names
     ! work <- 0.0*work + 1.0 * A_GG * u_G
     work = 0.0_rp
     if (f_operator%A_GG%graph%symmetric_storage) then
-        call mkl_dcsrmm ('N', & 
-                         f_operator%A_GG%graph%nv, &
-                         n, &
-                         f_operator%A_GG%graph%nv, &
-                         1.0, &
-                         'SUNF', & 
-                         f_operator%A_GG%a, &
-                         f_operator%A_GG%graph%ja, & 
-                         f_operator%A_GG%graph%ia(1), & 
-                         f_operator%A_GG%graph%ia(2), & 
-                         u(f_operator%A_II%graph%nv+1,1), &
-                         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-                         0.0, & 
-                         work, & 
-                         f_operator%A_GG%graph%nv)
+       call mkl_dcsrmm ('N', & 
+            f_operator%A_GG%graph%nv, &
+            n, &
+            f_operator%A_GG%graph%nv, &
+            1.0, &
+            'SUNF', & 
+            f_operator%A_GG%a, &
+            f_operator%A_GG%graph%ja, & 
+            f_operator%A_GG%graph%ia(1), & 
+            f_operator%A_GG%graph%ia(2), & 
+            u(f_operator%A_II%graph%nv+1,1), &
+            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            0.0, & 
+            work, & 
+            f_operator%A_GG%graph%nv)
 
     else 
-        call mkl_dcsrmm ( 'N', & 
-                         f_operator%A_GG%graph%nv, &
-                         n, &
-                         f_operator%A_GG%graph%nv, &
-                         1.0, &
-                         'GXXF', &  
-                         f_operator%A_GG%a, &
-                         f_operator%A_GG%graph%ja, & 
-                         f_operator%A_GG%graph%ia(1), & 
-                         f_operator%A_GG%graph%ia(2), & 
-                         u(f_operator%A_II%graph%nv+1,1), &
-                         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-                         0.0, & 
-                         work, & 
-                         f_operator%A_GG%graph%nv)
-     end if
-     
+       call mkl_dcsrmm ( 'N', & 
+            f_operator%A_GG%graph%nv, &
+            n, &
+            f_operator%A_GG%graph%nv, &
+            1.0, &
+            'GXXF', &  
+            f_operator%A_GG%a, &
+            f_operator%A_GG%graph%ja, & 
+            f_operator%A_GG%graph%ia(1), & 
+            f_operator%A_GG%graph%ia(2), & 
+            u(f_operator%A_II%graph%nv+1,1), &
+            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            0.0, & 
+            work, & 
+            f_operator%A_GG%graph%nv)
+    end if
+
 #else
-     call f_operator%A_GG%apply_to_dense_matrix (n, & 
-                                                 f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-                                                 u(f_operator%A_II%graph%nv+1,1), & 
-                                                 f_operator%A_GG%graph%nv, &
-                                                 work )
+    call f_operator%A_GG%apply_to_dense_matrix (n, & 
+         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+         u(f_operator%A_II%graph%nv+1,1), & 
+         f_operator%A_GG%graph%nv, &
+         work )
 #endif
 
     if (present(opu)) opu = work
-    
+
 #ifdef ENABLE_BLAS
-      v = 0.0_rp
-      call DGEMM( 'T', &
-                  'N', &
-                  n, &
-                  n, &
-                  f_operator%A_GG%graph%nv, &
-                  1.0, &
-                  u(f_operator%A_II%graph%nv+1,1), &
-                  f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &
-                  work, &
-                  f_operator%A_GG%graph%nv, &
-                  0.0, &
-                  v, &
-                  n)
+    v = 0.0_rp
+    call DGEMM( 'T', &
+         'N', &
+         n, &
+         n, &
+         f_operator%A_GG%graph%nv, &
+         1.0, &
+         u(f_operator%A_II%graph%nv+1,1), &
+         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &
+         work, &
+         f_operator%A_GG%graph%nv, &
+         0.0, &
+         v, &
+         n)
 #else
-     write (0,*) 'Error: operator_dd_compute_ut_op_u was not compiled with -DENABLE_BLAS.'
-     write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
-     check(1==0)    
+    write (0,*) 'Error: operator_dd_compute_ut_op_u was not compiled with -DENABLE_BLAS.'
+    write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
+    check(1==0)    
 #endif
 
 
 #ifdef ENABLE_MKL
     work = 0.0_rp
     if (f_operator%A_II%graph%symmetric_storage) then
-        call mkl_dcsrmm ( 'T', & 
-                         f_operator%A_IG%graph%nv, &
-                         n, &
-                         f_operator%A_IG%graph%nv2, &
-                         1.0, &
-                         'GXXF', & 
-                         f_operator%A_IG%a, &
-                         f_operator%A_IG%graph%ja, & 
-                         f_operator%A_IG%graph%ia(1), & 
-                         f_operator%A_IG%graph%ia(2), & 
-                         u, &
-                         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-                         0.0, & 
-                         work, & 
-                         f_operator%A_GG%graph%nv)
+       call mkl_dcsrmm ( 'T', & 
+            f_operator%A_IG%graph%nv, &
+            n, &
+            f_operator%A_IG%graph%nv2, &
+            1.0, &
+            'GXXF', & 
+            f_operator%A_IG%a, &
+            f_operator%A_IG%graph%ja, & 
+            f_operator%A_IG%graph%ia(1), & 
+            f_operator%A_IG%graph%ia(2), & 
+            u, &
+            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            0.0, & 
+            work, & 
+            f_operator%A_GG%graph%nv)
     else 
-        call mkl_dcsrmm ( 'N', & 
-                         f_operator%A_GI%graph%nv, &
-                         n, &
-                         f_operator%A_GI%graph%nv2, &
-                         1.0, &
-                         'GXXF', &  
-                         f_operator%A_GI%a, &
-                         f_operator%A_GI%graph%ja, & 
-                         f_operator%A_GI%graph%ia(1), & 
-                         f_operator%A_GI%graph%ia(2), & 
-                         u, &
-                         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-                         0.0, & 
-                         work, & 
-                         f_operator%A_GG%graph%nv)
+       call mkl_dcsrmm ( 'N', & 
+            f_operator%A_GI%graph%nv, &
+            n, &
+            f_operator%A_GI%graph%nv2, &
+            1.0, &
+            'GXXF', &  
+            f_operator%A_GI%a, &
+            f_operator%A_GI%graph%ja, & 
+            f_operator%A_GI%graph%ia(1), & 
+            f_operator%A_GI%graph%ia(2), & 
+            u, &
+            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            0.0, & 
+            work, & 
+            f_operator%A_GG%graph%nv)
     end if
 
 #else
     if (f_operator%A_II%graph%symmetric_storage) then
        call f_operator%A_IG%apply_transpose_to_dense_matrix ( n, & 
-                                                              f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-                                                              u, & 
-                                                              f_operator%A_GG%graph%nv, &
-                                                              work )
+            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            u, & 
+            f_operator%A_GG%graph%nv, &
+            work )
     else 
        call f_operator%A_GI%apply_to_dense_matrix ( n, & 
-                                                    f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-                                                    u, & 
-                                                    f_operator%A_GG%graph%nv, &
-                                                    work )
+            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            u, & 
+            f_operator%A_GG%graph%nv, &
+            work )
     end if
 #endif
 
     if (present(opu)) opu = opu + work
 
 #ifdef ENABLE_BLAS
-      call DGEMM( 'T', &
-                  'N', &
-                  n, &
-                  n, &
-                  f_operator%A_GG%graph%nv, &
-                  1.0, &
-                  u(f_operator%A_II%graph%nv+1,1), &
-                  f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &
-                  work, &
-                  f_operator%A_GG%graph%nv, &
-                  1.0, &
-                  v, &
-                  n)
+    call DGEMM( 'T', &
+         'N', &
+         n, &
+         n, &
+         f_operator%A_GG%graph%nv, &
+         1.0, &
+         u(f_operator%A_II%graph%nv+1,1), &
+         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &
+         work, &
+         f_operator%A_GG%graph%nv, &
+         1.0, &
+         v, &
+         n)
 #else
-      write (0,*) 'Error: operator_dd_compute_ut_op_u was not compiled with -DENABLE_BLAS.'
-      write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
-      check(1==0)    
+    write (0,*) 'Error: operator_dd_compute_ut_op_u was not compiled with -DENABLE_BLAS.'
+    write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
+    check(1==0)    
 #endif
 
     call memfree ( work,__FILE__,__LINE__)
-   end subroutine operator_dd_compute_ut_op_u
+  end subroutine operator_dd_compute_ut_op_u
 
-   ! Computes Y <- beta*Y + alfa*A_IG * X
-   subroutine operator_dd_apply_A_IG_several_rhs ( f_operator, nrhs, alpha, X, ldX, beta, Y, ldY )
-     implicit none
+  ! Computes Y <- beta*Y + alfa*A_IG * X
+  subroutine operator_dd_apply_A_IG_several_rhs ( f_operator, nrhs, alpha, X, ldX, beta, Y, ldY )
+    implicit none
 
-     ! Parameters 
-     type(operator_dd_t), intent(in)    :: f_operator
-     integer(ip), intent(in)              :: nrhs, ldX, ldY
-     real(rp)   , intent(in)              :: alpha, beta
-     real(rp)   , intent(in)              :: X (ldX, nrhs)
-     real(rp)   , intent(inout)           :: Y (ldY , nrhs)
+    ! Parameters 
+    type(operator_dd_t), intent(in)    :: f_operator
+    integer(ip), intent(in)              :: nrhs, ldX, ldY
+    real(rp)   , intent(in)              :: alpha, beta
+    real(rp)   , intent(in)              :: X (ldX, nrhs)
+    real(rp)   , intent(inout)           :: Y (ldY , nrhs)
 
 #ifdef ENABLE_MKL
-     call mkl_dcsrmm ( 'N', & 
-          f_operator%A_IG%graph%nv, &
-          nrhs, &
-          f_operator%A_IG%graph%nv2, &
-          alpha, &
-          'GXXF', &  
-          f_operator%A_IG%a, &
-          f_operator%A_IG%graph%ja, & 
-          f_operator%A_IG%graph%ia(1), & 
-          f_operator%A_IG%graph%ia(2), & 
-          X, &
-          ldX, &  
-          beta, & 
-          Y, & 
-          ldY)
+    call mkl_dcsrmm ( 'N', & 
+         f_operator%A_IG%graph%nv, &
+         nrhs, &
+         f_operator%A_IG%graph%nv2, &
+         alpha, &
+         'GXXF', &  
+         f_operator%A_IG%a, &
+         f_operator%A_IG%graph%ja, & 
+         f_operator%A_IG%graph%ia(1), & 
+         f_operator%A_IG%graph%ia(2), & 
+         X, &
+         ldX, &  
+         beta, & 
+         Y, & 
+         ldY)
 #else
-     ! The following lines are not efficient at all.
-     ! The scaling of Y, i.e., Y = alpha *Y, should be
-     ! part of matmat subroutine because now two 
-     ! traversals of Y are required. I expect this piece
-     ! of code to be cost-negligible so I did not expend
-     ! too much time in here ... 
-     assert  ( beta == 0.0 )
-     call f_operator%A_IG%apply_to_dense_matrix ( nrhs, & 
-                                                  ldX, &  
-                                                  X, & 
-                                                  ldY, &
-                                                  Y ) 
-     Y(1:f_operator%A_IG%graph%nv,:) = alpha*Y(1:f_operator%A_IG%graph%nv,:)
+    ! The following lines are not efficient at all.
+    ! The scaling of Y, i.e., Y = alpha *Y, should be
+    ! part of matmat subroutine because now two 
+    ! traversals of Y are required. I expect this piece
+    ! of code to be cost-negligible so I did not expend
+    ! too much time in here ... 
+    assert  ( beta == 0.0 )
+    call f_operator%A_IG%apply_to_dense_matrix ( nrhs, & 
+         ldX, &  
+         X, & 
+         ldY, &
+         Y ) 
+    Y(1:f_operator%A_IG%graph%nv,:) = alpha*Y(1:f_operator%A_IG%graph%nv,:)
 #endif
 
   end subroutine operator_dd_apply_A_IG_several_rhs
@@ -878,7 +875,7 @@ use blas77_interfaces_names
     end if
 
     if ( present_a_ig ) then
-	   call A_IG%allocate()
+       call A_IG%allocate()
     end if
 
     if ( present_a_gi ) then
@@ -891,28 +888,28 @@ use blas77_interfaces_names
 
     ! List values on each row of G_II/G_IG
     if ( present_a_ii .or. present_a_ig ) then
-          do  ipoing=1, ni_rows 
-             if ( A_II%graph%symmetric_storage .eqv. A%graph%symmetric_storage ) then
-                if (present_a_ii) then 
-                   A_II%a(  A_II%graph%ia(ipoing):A_II%graph%ia(ipoing+1)-1 ) = &  
-                        A%a(  A%graph%ia(ipoing):A%graph%ia(ipoing)+(A_II%graph%ia(ipoing+1)-A_II%graph%ia(ipoing))-1 )
-                end if
-             else if ( A_II%graph%symmetric_storage .and. (.not. A%graph%symmetric_storage) ) then
-                if (present_a_ii) then
-                   offset = (A%graph%ia(ipoing+1)- A%graph%ia(ipoing))-(A_IG%graph%ia(ipoing+1)-A_IG%graph%ia(ipoing))-(A_II%graph%ia(ipoing+1)-A_II%graph%ia(ipoing))
-                   A_II%a( A_II%graph%ia(ipoing):A_II%graph%ia(ipoing+1)-1 ) = &  
-                        A%a( A%graph%ia(ipoing)+offset:A%graph%ia(ipoing)+offset+(A_II%graph%ia(ipoing+1)-A_II%graph%ia(ipoing))-1 )
-                end if
-             else if ( (.not. A_II%graph%symmetric_storage) .and. A%graph%symmetric_storage ) then
-               ! Not implemented yet 
-			   check ( .false. )
+       do  ipoing=1, ni_rows 
+          if ( A_II%graph%symmetric_storage .eqv. A%graph%symmetric_storage ) then
+             if (present_a_ii) then 
+                A_II%a(  A_II%graph%ia(ipoing):A_II%graph%ia(ipoing+1)-1 ) = &  
+                     A%a(  A%graph%ia(ipoing):A%graph%ia(ipoing)+(A_II%graph%ia(ipoing+1)-A_II%graph%ia(ipoing))-1 )
              end if
+          else if ( A_II%graph%symmetric_storage .and. (.not. A%graph%symmetric_storage) ) then
+             if (present_a_ii) then
+                offset = (A%graph%ia(ipoing+1)- A%graph%ia(ipoing))-(A_IG%graph%ia(ipoing+1)-A_IG%graph%ia(ipoing))-(A_II%graph%ia(ipoing+1)-A_II%graph%ia(ipoing))
+                A_II%a( A_II%graph%ia(ipoing):A_II%graph%ia(ipoing+1)-1 ) = &  
+                     A%a( A%graph%ia(ipoing)+offset:A%graph%ia(ipoing)+offset+(A_II%graph%ia(ipoing+1)-A_II%graph%ia(ipoing))-1 )
+             end if
+          else if ( (.not. A_II%graph%symmetric_storage) .and. A%graph%symmetric_storage ) then
+             ! Not implemented yet 
+             check ( .false. )
+          end if
 
-             if (present_a_ig) then
-                A_IG%a( A_IG%graph%ia(ipoing):A_IG%graph%ia(ipoing+1)-1 ) = &
-                     A%a( A%graph%ia(ipoing+1)-(A_IG%graph%ia(ipoing+1)-A_IG%graph%ia(ipoing)):A%graph%ia(ipoing+1)-1)
-             end if
-          end do
+          if (present_a_ig) then
+             A_IG%a( A_IG%graph%ia(ipoing):A_IG%graph%ia(ipoing+1)-1 ) = &
+                  A%a( A%graph%ia(ipoing+1)-(A_IG%graph%ia(ipoing+1)-A_IG%graph%ia(ipoing)):A%graph%ia(ipoing+1)-1)
+          end if
+       end do
     end if
 
 
@@ -955,15 +952,15 @@ use blas77_interfaces_names
     type(graph_t)     , intent(inout), optional   :: G_IG
     type(graph_t)     , intent(inout), optional   :: G_GI
     type(graph_t)     , intent(inout), optional   :: G_GG
-	
+
     assert ( (.not. present(G_GI)) .or. (.not. G_II%symmetric_storage) )
-    
+
     ! If any output graph is present, we are done !
     if ( .not. G_II%symmetric_storage ) then 
-      if ( .not. (present(G_II) .or. present(G_IG) & 
-         & .or. present(G_GI) .or. present(G_GG) ) ) return
+       if ( .not. (present(G_II) .or. present(G_IG) & 
+            & .or. present(G_GI) .or. present(G_GG) ) ) return
     else 
-      if ( .not. (present(G_II) .or. present(G_IG) .or. present(G_GG) ) ) return
+       if ( .not. (present(G_II) .or. present(G_IG) .or. present(G_GG) ) ) return
     end if
 
     call split_graph_I_G_count_list ( grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
@@ -1211,7 +1208,7 @@ use blas77_interfaces_names
     end if
 
   end subroutine split_graph_I_G_count_list
-  
+
   subroutine split_graph_I_G_symm ( grph, dof_dist, G_II, G_IG, G_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
@@ -1235,7 +1232,7 @@ use blas77_interfaces_names
     type(graph_t)     , intent(inout) :: G_II
     type(graph_t)     , intent(inout) :: G_IG
     type(graph_t)     , intent(inout) :: G_GG
-    
+
     call split_graph_I_G_count_list_symm ( grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
 
   end subroutine split_graph_I_G_symm

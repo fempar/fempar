@@ -68,7 +68,7 @@ contains
 	select type(matrix)
     class is(par_scalar_matrix_t)
 	   if ( matrix%p_env%am_i_fine_task() ) then
-	     call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, matrix%f_matrix )
+	     call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, matrix%serial_scalar_matrix )
 	   end if	 
 	 class default
        check(.false.)
@@ -77,7 +77,7 @@ contains
     select type(array)
     class is(par_scalar_array_t)
 	   if ( array%p_env%am_i_fine_task() ) then
-	     call element_serial_scalar_array_assembly( dof_descriptor, finite_element, array%f_vector )
+	     call element_serial_scalar_array_assembly( dof_descriptor, finite_element, array%serial_scalar_array )
 	   end if
 	 class default
        check(.false.)
@@ -91,7 +91,7 @@ contains
     type(finite_element_t), intent(in)    :: finite_element
     type(par_scalar_matrix_t)    , intent(inout) :: a
     if(a%p_env%am_i_fine_task()) then
-       call element_serial_scalar_matrix_assembly(dof_descriptor, finite_element, a%f_matrix)
+       call element_serial_scalar_matrix_assembly(dof_descriptor, finite_element, a%serial_scalar_matrix)
     end if
   end subroutine element_par_scalar_array_assembly
   
@@ -102,7 +102,7 @@ contains
     type(par_scalar_array_t)    , intent(inout) :: a
 
     if(a%p_env%am_i_fine_task()) then
-       call element_serial_scalar_array_assembly(dof_descriptor, finite_element, a%f_vector)
+       call element_serial_scalar_array_assembly(dof_descriptor, finite_element, a%serial_scalar_array)
     end if
 
   end subroutine assembly_element_par_vector_mono
