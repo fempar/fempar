@@ -8640,12 +8640,12 @@ use mpi
     type(serial_environment_t) :: senv
 
     ! fill vector_b members
-    vector_b%neq     =  A%graph%nv
+    vector_b%size     =  A%graph%nv
     vector_b%mode    =  reference
     vector_b%b => b   
 
     ! fill vector_x members
-    vector_x%neq     = A%graph%nv 
+    vector_x%size     = A%graph%nv 
     vector_x%mode    = reference 
     vector_x%b       => x 
 
@@ -8675,12 +8675,12 @@ use mpi
     tot_its = 0 
     do k=1, pars%nrhs
        ! fill b members
-       vector_b%neq     =  A%graph%nv
+       vector_b%size     =  A%graph%nv
        vector_b%mode    =  reference
        vector_b%b       => b(:,k)
        
        ! fill vector_x members
-       vector_x%neq     =  A%graph%nv
+       vector_x%size     =  A%graph%nv
        vector_x%mode    =  reference 
        vector_x%b       => x(:,k)
 

@@ -138,7 +138,7 @@ module par_preconditioner_dd_diagonal_names
     ! violates principles of OO design, but at least it works
     p_vec%dof_dist      => p_prec_dd_diagonal%p_mat%dof_dist
     p_vec%p_env         => p_prec_dd_diagonal%p_mat%p_env
-    p_vec%f_vector%neq  = neq
+    p_vec%f_vector%size  = neq
     p_vec%f_vector%mode = reference  
     p_vec%f_vector%b    => p_prec_dd_diagonal%d
 

@@ -44,7 +44,7 @@ module serial_scalar_array_names
   private
 
   type, extends(array_t) :: serial_scalar_array_t
-     integer(ip)                :: neq = 0                       
+     integer(ip)                :: size = 0                       
      integer(ip)                :: mode = not_created           
      real(rp), pointer          :: b(:) => NULL()
    contains
@@ -80,7 +80,7 @@ contains
   subroutine serial_scalar_array_default_init (this)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
-    this%neq  = 0
+    this%size  = 0
     this%mode = not_created
     nullify(this%b)
     call this%NullifyTemporary()
@@ -101,7 +101,7 @@ contains
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: size
     assert ( this%mode == not_created )
-    this%neq  = size  
+    this%size  = size  
     this%mode = allocated
   end subroutine serial_scalar_array_create
 
@@ -109,7 +109,7 @@ contains
   subroutine serial_scalar_array_allocate(this)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
-    call memallocp(this%neq,this%b,__FILE__,__LINE__)
+    call memallocp(this%size,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp
   end subroutine serial_scalar_array_allocate
 
@@ -122,7 +122,7 @@ contains
 
     assert ( tvec%mode == not_created )
 
-    tvec%neq =  end-start+1 ! Number of equations
+    tvec%size =  end-start+1 ! Number of equations
     tvec%b => this%b(start:end)
     tvec%mode =  reference
   end subroutine serial_scalar_array_create_view
@@ -133,7 +133,7 @@ contains
     integer(ip)                , intent(in) :: luout
 
     write (luout, '(a)')     '*** begin serial_scalar_array data structure ***'
-    write(luout,'(a,i10)') 'size', this%neq
+    write(luout,'(a,i10)') 'size', this%size
     write (luout,'(e25.16)') this%b
     write (luout, '(a)')     '*** end serial_scalar_array data structure ***'
   end subroutine serial_scalar_array_print
@@ -144,8 +144,8 @@ contains
     integer(ip)                , intent(in) :: luout
     integer (ip) :: i
     write (luout,'(a)') '%%MatrixMarket matrix array real general'
-    write (luout,*) this%neq , 1
-    do i=1,this%neq 
+    write (luout,*) this%size , 1
+    do i=1,this%size 
        write (luout,*) this%b( i )
     end do
   end subroutine serial_scalar_array_print_matrix_market
@@ -161,9 +161,9 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
-       assert ( op1%neq == op2%neq )
+       assert ( op1%size == op2%size )
 #ifdef ENABLE_BLAS
-       alpha = ddot( op1%neq, op1%b, 1, op2%b, 1 )
+       alpha = ddot( op1%size, op1%b, 1, op2%b, 1 )
 #else
        check(1==0)
 #endif
@@ -184,9 +184,9 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
-       assert ( op2%neq == op1%neq )
+       assert ( op2%size == op1%size )
 #ifdef ENABLE_BLAS
-       call dcopy ( op2%neq, op2%b, 1, op1%b, 1 ) 
+       call dcopy ( op2%size, op2%b, 1, op1%b, 1 ) 
 #else
        op1%b=op2%b
 #endif
@@ -207,10 +207,10 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
-       assert ( op2%neq == op1%neq )
+       assert ( op2%size == op1%size )
 #ifdef ENABLE_BLAS
-       call dcopy ( op2%neq, op2%b, 1, op1%b, 1)
-       call dscal ( op1%neq, alpha, op1%b, 1)
+       call dcopy ( op2%size, op2%b, 1, op1%b, 1)
+       call dscal ( op1%size, alpha, op1%b, 1)
 #else
        op1%b=alpha*op2%b
 #endif
@@ -239,13 +239,13 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
-       assert ( op2%neq == op1%neq )
+       assert ( op2%size == op1%size )
        if ( beta == 0.0_rp ) then
           call op1%scal(alpha, op2)
        else if ( beta == 1.0_rp ) then
           ! AXPY
 #ifdef ENABLE_BLAS
-          call daxpy ( op2%neq, alpha, op2%b, 1, op1%b, 1 )
+          call daxpy ( op2%size, alpha, op2%b, 1, op1%b, 1 )
 #else
           op1%b=op1%b+alpha*op2%b
 #endif
@@ -253,7 +253,7 @@ contains
           ! SCAL + AXPY
           call op1%scal(beta, op1)
 #ifdef ENABLE_BLAS
-          call daxpy ( op2%neq, alpha, op2%b, 1, op1%b, 1 )    
+          call daxpy ( op2%size, alpha, op2%b, 1, op1%b, 1 )    
 #else
           op1%b=op1%b+alpha*op2%b
 #endif  
@@ -273,7 +273,7 @@ contains
     call op%GuardTemp()
 
 #ifdef ENABLE_BLAS
-    alpha = dnrm2( op%neq, op%b, 1 )
+    alpha = dnrm2( op%size, op%b, 1 )
 #else
     alpha = op%dot(op)
     alpha = sqrt(alpha)
@@ -292,8 +292,8 @@ contains
     select type(op2)
        class is (serial_scalar_array_t)
        if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
-       op1%neq     =  op2%neq
-       call memallocp(op1%neq,op1%b,__FILE__,__LINE__)
+       op1%size     =  op2%size
+       call memallocp(op1%size,op1%b,__FILE__,__LINE__)
        op1%mode = allocated
        class default
        write(0,'(a)') 'serial_scalar_array_t%clone: unsupported op2 class'
@@ -315,7 +315,7 @@ contains
     assert ( action == free_clean .or. action == free_struct .or. action == free_values )
     if ( action == free_clean ) then
        ! Undo create
-       this%neq = 0
+       this%size = 0
        this%mode = not_created
     else if ( action == free_values ) then
        ! Undo allocate
@@ -332,7 +332,7 @@ contains
    serial_scalar_array_same_vector_space = .false.
    select type(vector)
    class is (serial_scalar_array_t)
-     serial_scalar_array_same_vector_space = (this%neq == vector%neq)
+     serial_scalar_array_same_vector_space = (this%size == vector%size)
    end select
  end function serial_scalar_array_same_vector_space
 

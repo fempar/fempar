@@ -275,8 +275,8 @@ contains
     if(this%p_env%p_context%iam<0) return
 
 
-    ni = this%f_vector%neq - this%dof_dist%nb
-    call this%create_view ( ni+1, this%f_vector%neq, p_vec_G )
+    ni = this%f_vector%size - this%dof_dist%nb
+    call this%create_view ( ni+1, this%f_vector%size, p_vec_G )
     call weight_interface ( p_vec_G, weight )
 
     this%state = part_summed
@@ -521,7 +521,7 @@ contains
 
        assert ( op1%state /= undefined .and. op2%state /= undefined  )
 
-       ni = op1%f_vector%neq - op1%dof_dist%nb
+       ni = op1%f_vector%size - op1%dof_dist%nb
        if ( ni > 0 ) then
           call op1%create_view (1, ni, x_I)
           call op2%create_view (1, ni, y_I)
@@ -530,8 +530,8 @@ contains
           alpha = 0.0_rp
        end if
 
-       call op1%create_view(ni+1, op1%f_vector%neq, x_G )
-       call op2%create_view(ni+1, op2%f_vector%neq, y_G )
+       call op1%create_view(ni+1, op1%f_vector%size, x_G )
+       call op2%create_view(ni+1, op2%f_vector%size, y_G )
        call dot_interface          ( x_G, y_G, s )
 
        alpha = alpha + s
@@ -718,8 +718,8 @@ contains
     assert ( associated(op%p_env%p_context) )
     assert ( op%p_env%p_context%created .eqv. .true.)
     if(op%p_env%p_context%iam<0) return
-    ni = op%f_vector%neq - op%dof_dist%nb
-    call op%create_view(ni+1, op%f_vector%neq, op_G)
+    ni = op%f_vector%size - op%dof_dist%nb
+    call op%create_view(ni+1, op%f_vector%size, op_G)
     call comm_interface ( op_G )
     op%state = full_summed
   end subroutine par_scalar_array_comm
