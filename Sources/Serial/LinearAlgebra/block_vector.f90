@@ -64,6 +64,7 @@ module block_vector_names
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
      procedure :: comm  => block_vector_comm
+     procedure :: same_vector_space => block_vector_same_vector_space
      procedure :: free  => block_vector_free
   end type block_vector_t
 
@@ -285,12 +286,35 @@ contains
  subroutine block_vector_comm(op)
    implicit none
    class(block_vector_t), intent(inout) :: op
-   ! Locals
    integer(ip) :: iblk
    do iblk=1, op%nblocks
       assert(associated(op%blocks(iblk)%vector))
       call op%blocks(iblk)%vector%comm() 
    end do
  end subroutine block_vector_comm
+ 
+ function block_vector_same_vector_space(this,vector)
+   implicit none
+   class(block_vector_t), intent(in) :: this
+   class(vector_t), intent(in) :: vector
+   logical :: block_vector_same_vector_space
+   integer(ip) :: iblk
+   
+   block_vector_same_vector_space = .false.
+   select type(vector)
+   class is (block_vector_t)
+     block_vector_same_vector_space = (this%nblocks == vector%nblocks)
+     if ( block_vector_same_vector_space ) then
+       do iblk=1, this%nblocks
+          assert(associated(this%blocks(iblk)%vector))
+          assert(associated(vector%blocks(iblk)%vector))
+          block_vector_same_vector_space = this%blocks(iblk)%vector%same_vector_space(vector%blocks(iblk)%vector)
+          if ( .not. block_vector_same_vector_space ) then
+            exit
+          end if
+       end do
+     end if
+   end select
+ end function block_vector_same_vector_space
  
 end module block_vector_names

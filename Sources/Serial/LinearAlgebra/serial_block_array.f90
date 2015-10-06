@@ -61,6 +61,7 @@ module serial_block_array_names
      procedure :: nrm2 => serial_block_array_nrm2
      procedure :: clone => serial_block_array_clone
      procedure :: comm  => serial_block_array_comm
+     procedure :: same_vector_space => serial_block_array_same_vector_space
      procedure :: free_in_stages  => serial_block_array_free_in_stages
   end type serial_block_array_t
   
@@ -340,5 +341,27 @@ contains
        check(istat==0)
     end if
   end subroutine serial_block_array_free_in_stages
+  
+ function serial_block_array_same_vector_space(this,vector)
+   implicit none
+   class(serial_block_array_t), intent(in) :: this
+   class(vector_t), intent(in) :: vector
+   logical :: serial_block_array_same_vector_space
+   integer(ip) :: iblk
+   
+   serial_block_array_same_vector_space = .false.
+   select type(vector)
+   class is (serial_block_array_t)
+     serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+     if ( serial_block_array_same_vector_space ) then
+       do iblk=1, this%nblocks
+          serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+          if ( .not. serial_block_array_same_vector_space ) then
+            exit
+          end if
+       end do
+     end if
+   end select
+ end function serial_block_array_same_vector_space
 
 end module serial_block_array_names

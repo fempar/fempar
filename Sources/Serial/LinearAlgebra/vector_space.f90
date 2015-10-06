@@ -32,8 +32,15 @@ module vector_space_names
 
   private
   
+  ! type(vector_space_t) is a concrete data type which represents a vector 
+  ! space in its strict mathematical sense. This data type follows two different 
+  ! creational patterns:
+  ! 1. PROTOTYPE. It aggregates a polymorphic class(vector_t) instance,
+  !    that acts as a prototypical instance.
+  ! 2. FACTORY_METHOD. It provides a TBP, called create_vector, which
+  !    creates a class(vector_t) polymorphic instance by cloning the
+  !    prototypical instance. create_vector is the factory method.
   type:: vector_space_t
-    ! We will follow the prototype pattern for vector_space_t
     private
     class(vector_t), allocatable :: vector
    contains
@@ -97,7 +104,7 @@ contains
        class(vector_space_t), intent(in) :: this
        class(vector_space_t), intent(in) :: vector_space
        logical :: vector_space_equal_to
-       vector_space_equal_to = this%vector%belongs_to_the_same_vector_space(vector_space%vector)
+       vector_space_equal_to = this%vector%same_vector_space(vector_space%vector)
      end function vector_space_equal_to
 
      ! Returns true if vector belongs to this and false if it does not
@@ -106,7 +113,7 @@ contains
        class(vector_space_t), intent(in) :: this
        class(vector_t)      , intent(in) :: vector
        logical vector_space_belongs_to
-       vector_space_belongs_to = this%vector%belongs_to_the_same_vector_space(vector)
+       vector_space_belongs_to = this%vector%same_vector_space(vector)
      end function vector_space_belongs_to
      
      subroutine vector_space_free(this)

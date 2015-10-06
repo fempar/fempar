@@ -72,13 +72,13 @@ module par_scalar_array_names
      type ( par_environment_t ) , pointer  :: p_env => NULL()
    contains
      procedure :: create_and_allocate => par_scalar_array_create_and_allocate
-	 procedure :: create              => par_scalar_array_create
+     procedure :: create              => par_scalar_array_create
      procedure :: allocate            => par_scalar_array_allocate
-	 procedure :: create_view         => par_scalar_array_create_view
+     procedure :: create_view         => par_scalar_array_create_view
      procedure :: weight              => par_scalar_array_weight
      procedure :: print               => par_scalar_array_print
-	 procedure :: print_market_market => par_scalar_array_print_matrix_market
-	 
+     procedure :: print_market_market => par_scalar_array_print_matrix_market
+
      ! Provide type bound procedures (tbp) implementors
      procedure :: dot  => par_scalar_array_dot
      procedure :: copy => par_scalar_array_copy
@@ -88,6 +88,7 @@ module par_scalar_array_names
      procedure :: nrm2 => par_scalar_array_nrm2
      procedure :: clone => par_scalar_array_clone
      procedure :: comm  => par_scalar_array_comm
+     procedure :: same_vector_space => par_scalar_array_same_vector_space
      procedure :: free_in_stages  => par_scalar_array_free_in_stages
      procedure :: default_initialization  => par_scalar_array_default_init
   end type par_scalar_array_t
@@ -131,26 +132,25 @@ contains
     nullify(this%dof_dist)
     nullify(this%p_env)
     call this%NullifyTemporary()
-
   end subroutine par_scalar_array_default_init
 
   !=============================================================================
   subroutine par_scalar_array_create_and_allocate (this, dof_dist, p_env)
     implicit none
     ! Parameters
-	class(par_scalar_array_t), intent(out) :: this
+    class(par_scalar_array_t), intent(out) :: this
     type(dof_distribution_t) , intent(in)  :: dof_dist
     type(par_environment_t)  , intent(in)  :: p_env
 
     call this%create(dof_dist, p_env)
-	call this%allocate()
+    call this%allocate()
   end subroutine par_scalar_array_create_and_allocate
   
   !=============================================================================
   subroutine par_scalar_array_create (this, dof_dist, p_env)
     implicit none
     ! Parameters
-	class(par_scalar_array_t)       , intent(out) :: this
+    class(par_scalar_array_t)       , intent(out) :: this
     type(dof_distribution_t), target, intent(in)  :: dof_dist
     type(par_environment_t) , target, intent(in)  :: p_env
 
@@ -159,8 +159,8 @@ contains
     assert ( p_env%p_context%created .eqv. .true.)
     this%dof_dist => dof_dist
     this%p_env    => p_env 
-	this%state = undefined
-	if(this%p_env%p_context%iam<0) return
+    this%state = undefined
+    if(this%p_env%p_context%iam<0) return
     call this%f_vector%create (dof_dist%nl)
   end subroutine par_scalar_array_create
   
@@ -168,12 +168,12 @@ contains
   subroutine par_scalar_array_allocate (this)
     implicit none
     ! Parameters
-	class(par_scalar_array_t), intent(inout) :: this
+    class(par_scalar_array_t), intent(inout) :: this
     ! p_env%p_context is required within this subroutine
     assert ( associated(this%p_env%p_context) )
     assert ( this%p_env%p_context%created .eqv. .true.) 
     assert ( associated(this%dof_dist) )
-	if(this%p_env%p_context%iam<0) return
+    if(this%p_env%p_context%iam<0) return
     call this%f_vector%allocate ()
   end subroutine par_scalar_array_allocate
 
@@ -196,7 +196,7 @@ contains
 
     assert ( this%state /= undefined )
     t_p_vec%state = this%state
-    
+
     if(this%p_env%p_context%iam<0) return
 
     ! Call vector_create_view
@@ -209,7 +209,7 @@ contains
   !                 vector on the interface
   !=============================================================================
   subroutine comm_interface (p_vec)
-use par_sparse_global_collectives_names
+    use par_sparse_global_collectives_names
     implicit none
 
     ! Parameters
@@ -369,8 +369,8 @@ use par_sparse_global_collectives_names
   subroutine par_scalar_array_print ( this, luout )
     implicit none
     class(par_scalar_array_t), intent(in) :: this
-	integer(ip)              , intent(in) :: luout
-	
+    integer(ip)              , intent(in) :: luout
+
     ! Pointer to part/context object is required
     assert ( associated(this%dof_dist   ) )
     assert ( associated(this%p_env%p_context) )
@@ -385,7 +385,7 @@ use par_sparse_global_collectives_names
   subroutine par_scalar_array_print_matrix_market ( this, dir_path, prefix )
     implicit none
     ! Parameters
-	class(par_scalar_array_t), intent(in)  :: this
+    class(par_scalar_array_t), intent(in)  :: this
     character (*)            , intent(in)  :: dir_path
     character (*)            , intent(in)  :: prefix
 
@@ -488,272 +488,283 @@ use par_sparse_global_collectives_names
     integer(ip)                :: i, id
 
     do i=i1,i2
-          t = t + weigt * x(i) * y(i)
+       t = t + weigt * x(i) * y(i)
     end do
   end subroutine flat_weighted_dot
 
   ! alpha <- op1^T * op2
- function par_scalar_array_dot(op1,op2) result(alpha)
-   implicit none
-   class(par_scalar_array_t), intent(in)    :: op1
-   class(vector_t), intent(in)  :: op2
-   real(rp) :: alpha
+  function par_scalar_array_dot(op1,op2) result(alpha)
+    implicit none
+    class(par_scalar_array_t), intent(in)    :: op1
+    class(vector_t), intent(in)  :: op2
+    real(rp) :: alpha
 
-   ! Locals 
-   integer(ip)                   :: ni 
-   type(par_scalar_array_t)              :: x_I, x_G, y_I, y_G
-   real(rp)                      :: s
+    ! Locals 
+    integer(ip)                   :: ni 
+    type(par_scalar_array_t)              :: x_I, x_G, y_I, y_G
+    real(rp)                      :: s
 
-   ! Alpha should be defined in all tasks (not only in coarse-grid ones)
-   alpha = 0.0_rp
+    ! Alpha should be defined in all tasks (not only in coarse-grid ones)
+    alpha = 0.0_rp
 
-   call op1%GuardTemp()
-   call op2%GuardTemp()
-   select type(op2)
-   class is (par_scalar_array_t)
-      ! Pointer to part/context object is required
-      assert ( associated(op1%dof_dist   ) )
-      assert ( associated(op1%p_env%p_context) )
-      assert ( associated(op2%dof_dist   ) )
-      assert ( associated(op2%p_env%p_context) )
-      assert ( op1%p_env%p_context%created .eqv. .true.)
-      if(op1%p_env%p_context%iam<0) return
-      
-      assert ( op1%state /= undefined .and. op2%state /= undefined  )
-      
-      ni = op1%f_vector%neq - op1%dof_dist%nb
-      if ( ni > 0 ) then
-         call op1%create_view (1, ni, x_I)
-         call op2%create_view (1, ni, y_I)
-         alpha = x_I%f_vector%dot ( y_I%f_vector )
-      else
-         alpha = 0.0_rp
-      end if
-      
-      call op1%create_view(ni+1, op1%f_vector%neq, x_G )
-      call op2%create_view(ni+1, op2%f_vector%neq, y_G )
-      call dot_interface          ( x_G, y_G, s )
-      
-      alpha = alpha + s
-      
-      ! Reduce-sum local dot products on all processes
-      call psb_sum ( op2%p_env%p_context%icontxt, alpha )
-   class default
-      write(0,'(a)') 'par_scalar_array_t%dot: unsupported op2 class'
-      check(1==0)
-   end select
-   call op1%CleanTemp()
-   call op2%CleanTemp()
- end function par_scalar_array_dot
+    call op1%GuardTemp()
+    call op2%GuardTemp()
+    select type(op2)
+       class is (par_scalar_array_t)
+          ! Pointer to part/context object is required
+       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%p_env%p_context) )
+       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%p_env%p_context) )
+       assert ( op1%p_env%p_context%created .eqv. .true.)
+       if(op1%p_env%p_context%iam<0) return
 
- ! op1 <- op2 
- subroutine par_scalar_array_copy(op1,op2)
-   implicit none
-   class(par_scalar_array_t), intent(inout) :: op1
-   class(vector_t), intent(in)  :: op2
-   
-   call op2%GuardTemp()
-   select type(op2)
-   class is (par_scalar_array_t)
-      ! Pointer to part/context object is required
-      assert ( associated(op2%dof_dist   ) )
-      assert ( associated(op2%p_env%p_context) )
-      assert ( associated(op1%dof_dist   ) )
-      assert ( associated(op1%p_env%p_context) )
-      assert ( op2%p_env%p_context%created .eqv. .true.)
-      if(op2%p_env%p_context%iam<0) return
-      
-      assert ( op2%state /= undefined  )
-      ! Perform local copy
-      call op1%f_vector%copy ( op2%f_vector )
-      op1%state = op2%state
-   class default
-      write(0,'(a)') 'par_scalar_array_t%copy: unsupported op2 class'
-      check(1==0)
-   end select
-   call op2%CleanTemp()
- end subroutine par_scalar_array_copy
+       assert ( op1%state /= undefined .and. op2%state /= undefined  )
 
- ! op1 <- alpha * op2
- subroutine par_scalar_array_scal(op1,alpha,op2)
-   implicit none
-   class(par_scalar_array_t), intent(inout) :: op1
-   real(rp), intent(in) :: alpha
-   class(vector_t), intent(in) :: op2
+       ni = op1%f_vector%neq - op1%dof_dist%nb
+       if ( ni > 0 ) then
+          call op1%create_view (1, ni, x_I)
+          call op2%create_view (1, ni, y_I)
+          alpha = x_I%f_vector%dot ( y_I%f_vector )
+       else
+          alpha = 0.0_rp
+       end if
 
-   call op2%GuardTemp()
-   select type(op2)
-   class is (par_scalar_array_t)
-      ! Pointer to part/context object is required
-      assert ( associated(op2%dof_dist   ) )
-      assert ( associated(op2%p_env%p_context) )
-      assert ( associated(op1%dof_dist   ) )
-      assert ( associated(op1%p_env%p_context) )
-      assert ( op1%p_env%p_context%created .eqv. .true.)
-      if(op1%p_env%p_context%iam<0) return
-      
-      ! Check matching partition/handler
-      assert ( op2%state /= undefined )
-      
-      ! Scal local copy
-      call op1%f_vector%scal ( alpha, op2%f_vector )
-      op1%state = op2%state
-   class default
-      write(0,'(a)') 'par_scalar_array_t%scal: unsupported op2 class'
-      check(1==0)
-   end select
-   call op2%CleanTemp()
- end subroutine par_scalar_array_scal
- ! op <- alpha
- subroutine par_scalar_array_init(op,alpha)
-   implicit none
-   class(par_scalar_array_t), intent(inout) :: op
-   real(rp), intent(in) :: alpha
-   
-   ! Pointer to part/context object is required
-   assert ( associated(op%dof_dist   ) )
-   assert ( associated(op%p_env%p_context) )
-   assert ( op%p_env%p_context%created .eqv. .true.)
-   if(op%p_env%p_context%iam<0) return
-  
-   ! Init local copy
-   call op%f_vector%init(alpha)
-   ! op%state = full_summed
- end subroutine par_scalar_array_init
+       call op1%create_view(ni+1, op1%f_vector%neq, x_G )
+       call op2%create_view(ni+1, op2%f_vector%neq, y_G )
+       call dot_interface          ( x_G, y_G, s )
 
- ! op1 <- alpha*op2 + beta*op1
- subroutine par_scalar_array_axpby(op1, alpha, op2, beta)
-   implicit none
-   class(par_scalar_array_t), intent(inout) :: op1
-   real(rp), intent(in) :: alpha
-   class(vector_t), intent(in) :: op2
-   real(rp), intent(in) :: beta
+       alpha = alpha + s
 
-   call op2%GuardTemp()
-   select type(op2)
-   class is (par_scalar_array_t)
-      ! Pointer to part/context object is required
-      assert ( associated(op2%dof_dist   ) )
-      assert ( associated(op2%p_env%p_context) )
-      assert ( associated(op1%dof_dist   ) )
-      assert ( associated(op1%p_env%p_context) )
-      assert ( op1%p_env%p_context%created )
-      if(op1%p_env%p_context%iam<0) return
-      
-      ! Check matching partition/handler
-      assert ( op1%state /= undefined .and. op2%state /= undefined  )
-      assert ( op1%state == op2%state )
-      
-      call op1%f_vector%axpby( alpha, op2%f_vector, beta )
-   class default
-      write(0,'(a)') 'par_scalar_array_t%axpby: unsupported op2 class'
-      check(1==0)
-   end select
-   call op2%CleanTemp()
- end subroutine par_scalar_array_axpby
+       ! Reduce-sum local dot products on all processes
+       call psb_sum ( op2%p_env%p_context%icontxt, alpha )
+       class default
+       write(0,'(a)') 'par_scalar_array_t%dot: unsupported op2 class'
+       check(1==0)
+    end select
+    call op1%CleanTemp()
+    call op2%CleanTemp()
+  end function par_scalar_array_dot
 
- ! alpha <- nrm2(op)
- function par_scalar_array_nrm2(op) result(alpha)
-   implicit none
-   class(par_scalar_array_t), intent(in)  :: op
-   real(rp) :: alpha
-   
-   ! Alpha should be defined in all tasks (not only in coarse-grid ones)
-   alpha = 0.0_rp
+  ! op1 <- op2 
+  subroutine par_scalar_array_copy(op1,op2)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: op1
+    class(vector_t), intent(in)  :: op2
 
-   call op%GuardTemp()
-   select type(op)
-   class is (par_scalar_array_t)
-      ! p_env%p_context is required within this subroutine 
-      assert ( associated(op%dof_dist) )
-      assert ( associated(op%p_env%p_context) )
-      assert ( op%p_env%p_context%created )
-      if(op%p_env%p_context%iam<0) return
-      assert ( op%state /= undefined )
-      alpha = op%dot(op)
-      alpha = sqrt(alpha)
-   class default
-      write(0,'(a)') 'par_scalar_array_t%nrm2: unsupported op2 class'
-      check(1==0)
-   end select   
-   call op%CleanTemp()
- end function par_scalar_array_nrm2
+    call op2%GuardTemp()
+    select type(op2)
+       class is (par_scalar_array_t)
+          ! Pointer to part/context object is required
+       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%p_env%p_context) )
+       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%p_env%p_context) )
+       assert ( op2%p_env%p_context%created .eqv. .true.)
+       if(op2%p_env%p_context%iam<0) return
 
- ! op1 <- clone(op2) 
- subroutine par_scalar_array_clone(op1,op2)
-   implicit none
-   class(par_scalar_array_t)          , intent(inout) :: op1
-   class(vector_t), target, intent(in)    :: op2
+       assert ( op2%state /= undefined  )
+       ! Perform local copy
+       call op1%f_vector%copy ( op2%f_vector )
+       op1%state = op2%state
+       class default
+       write(0,'(a)') 'par_scalar_array_t%copy: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine par_scalar_array_copy
 
-   call op2%GuardTemp()
-   select type(op2)
-   class is (par_scalar_array_t)
-      ! p_env%p_context is required within this subroutine 
-      assert ( associated(op2%dof_dist) )
-      assert ( associated(op2%p_env%p_context) )
-      assert ( op2%p_env%p_context%created )
-      op1%dof_dist => op2%dof_dist
-      op1%p_env    => op2%p_env
-      op1%state    =  op2%state
-      if(op2%p_env%p_context%iam<0) return
-      call op1%f_vector%clone ( op2%f_vector )
-   class default
-      write(0,'(a)') 'par_scalar_array_t%clone: unsupported op2 class'
-      check(1==0)
-   end select
-   call op2%CleanTemp()
- end subroutine par_scalar_array_clone
+  ! op1 <- alpha * op2
+  subroutine par_scalar_array_scal(op1,alpha,op2)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: op1
+    real(rp), intent(in) :: alpha
+    class(vector_t), intent(in) :: op2
 
- ! op <- comm(op)
- subroutine par_scalar_array_comm(op)
-   implicit none
-   class(par_scalar_array_t), intent(inout) :: op
+    call op2%GuardTemp()
+    select type(op2)
+       class is (par_scalar_array_t)
+          ! Pointer to part/context object is required
+       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%p_env%p_context) )
+       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%p_env%p_context) )
+       assert ( op1%p_env%p_context%created .eqv. .true.)
+       if(op1%p_env%p_context%iam<0) return
 
-   ! Local variables
-   integer(ip)      :: ni 
-   type(par_scalar_array_t) :: op_G
+       ! Check matching partition/handler
+       assert ( op2%state /= undefined )
 
-   ! Pointer to part/context object is required
-   assert ( associated(op%dof_dist) )
-   assert ( associated(op%p_env%p_context) )
-   assert ( op%p_env%p_context%created .eqv. .true.)
-   if(op%p_env%p_context%iam<0) return
-   ni = op%f_vector%neq - op%dof_dist%nb
-   call op%create_view(ni+1, op%f_vector%neq, op_G)
-   call comm_interface ( op_G )
-   op%state = full_summed
- end subroutine par_scalar_array_comm
- 
+       ! Scal local copy
+       call op1%f_vector%scal ( alpha, op2%f_vector )
+       op1%state = op2%state
+       class default
+       write(0,'(a)') 'par_scalar_array_t%scal: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine par_scalar_array_scal
+  ! op <- alpha
+  subroutine par_scalar_array_init(op,alpha)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: op
+    real(rp), intent(in) :: alpha
+
+    ! Pointer to part/context object is required
+    assert ( associated(op%dof_dist   ) )
+    assert ( associated(op%p_env%p_context) )
+    assert ( op%p_env%p_context%created .eqv. .true.)
+    if(op%p_env%p_context%iam<0) return
+
+    ! Init local copy
+    call op%f_vector%init(alpha)
+    ! op%state = full_summed
+  end subroutine par_scalar_array_init
+
+  ! op1 <- alpha*op2 + beta*op1
+  subroutine par_scalar_array_axpby(op1, alpha, op2, beta)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: op1
+    real(rp), intent(in) :: alpha
+    class(vector_t), intent(in) :: op2
+    real(rp), intent(in) :: beta
+
+    call op2%GuardTemp()
+    select type(op2)
+       class is (par_scalar_array_t)
+          ! Pointer to part/context object is required
+       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%p_env%p_context) )
+       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%p_env%p_context) )
+       assert ( op1%p_env%p_context%created )
+       if(op1%p_env%p_context%iam<0) return
+
+       ! Check matching partition/handler
+       assert ( op1%state /= undefined .and. op2%state /= undefined  )
+       assert ( op1%state == op2%state )
+
+       call op1%f_vector%axpby( alpha, op2%f_vector, beta )
+       class default
+       write(0,'(a)') 'par_scalar_array_t%axpby: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine par_scalar_array_axpby
+
+  ! alpha <- nrm2(op)
+  function par_scalar_array_nrm2(op) result(alpha)
+    implicit none
+    class(par_scalar_array_t), intent(in)  :: op
+    real(rp) :: alpha
+
+    ! Alpha should be defined in all tasks (not only in coarse-grid ones)
+    alpha = 0.0_rp
+
+    call op%GuardTemp()
+    select type(op)
+       class is (par_scalar_array_t)
+          ! p_env%p_context is required within this subroutine 
+       assert ( associated(op%dof_dist) )
+       assert ( associated(op%p_env%p_context) )
+       assert ( op%p_env%p_context%created )
+       if(op%p_env%p_context%iam<0) return
+       assert ( op%state /= undefined )
+       alpha = op%dot(op)
+       alpha = sqrt(alpha)
+       class default
+       write(0,'(a)') 'par_scalar_array_t%nrm2: unsupported op2 class'
+       check(1==0)
+    end select
+    call op%CleanTemp()
+  end function par_scalar_array_nrm2
+
+  ! op1 <- clone(op2) 
+  subroutine par_scalar_array_clone(op1,op2)
+    implicit none
+    class(par_scalar_array_t)          , intent(inout) :: op1
+    class(vector_t), target, intent(in)    :: op2
+
+    call op2%GuardTemp()
+    select type(op2)
+       class is (par_scalar_array_t)
+          ! p_env%p_context is required within this subroutine 
+       assert ( associated(op2%dof_dist) )
+       assert ( associated(op2%p_env%p_context) )
+       assert ( op2%p_env%p_context%created )
+       op1%dof_dist => op2%dof_dist
+       op1%p_env    => op2%p_env
+       op1%state    =  op2%state
+       if(op2%p_env%p_context%iam<0) return
+       call op1%f_vector%clone ( op2%f_vector )
+       class default
+       write(0,'(a)') 'par_scalar_array_t%clone: unsupported op2 class'
+       check(1==0)
+    end select
+    call op2%CleanTemp()
+  end subroutine par_scalar_array_clone
+
+  ! op <- comm(op)
+  subroutine par_scalar_array_comm(op)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: op
+
+    ! Local variables
+    integer(ip)      :: ni 
+    type(par_scalar_array_t) :: op_G
+
+    ! Pointer to part/context object is required
+    assert ( associated(op%dof_dist) )
+    assert ( associated(op%p_env%p_context) )
+    assert ( op%p_env%p_context%created .eqv. .true.)
+    if(op%p_env%p_context%iam<0) return
+    ni = op%f_vector%neq - op%dof_dist%nb
+    call op%create_view(ni+1, op%f_vector%neq, op_G)
+    call comm_interface ( op_G )
+    op%state = full_summed
+  end subroutine par_scalar_array_comm
+
   subroutine par_scalar_array_free_in_stages(this,action)
-   implicit none
-   class(par_scalar_array_t), intent(inout) :: this
-   integer(ip)              , intent(in)    :: action
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: this
+    integer(ip)              , intent(in)    :: action
 
-   ! The routine requires the partition/context info
-   assert ( associated( this%dof_dist ) )
-   assert ( associated( this%p_env%p_context ) )
-   assert ( this%p_env%p_context%created .eqv. .true.)
-   assert ( action == free_clean .or. action == free_struct .or. action == free_values )	 
-   
-   if(this%p_env%p_context%iam<0) then 
-      if ( action == free_clean ) then
-        this%state = undefined
-        nullify ( this%dof_dist )
-        nullify ( this%p_env )
-      end if
-      return
-   end if	  
-   
-   ! Free local part
-   call this%f_vector%free_in_stages(action)
-   
+    ! The routine requires the partition/context info
+    assert ( associated( this%dof_dist ) )
+    assert ( associated( this%p_env%p_context ) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
+    assert ( action == free_clean .or. action == free_struct .or. action == free_values )	 
+
+    if(this%p_env%p_context%iam<0) then 
+       if ( action == free_clean ) then
+          this%state = undefined
+          nullify ( this%dof_dist )
+          nullify ( this%p_env )
+       end if
+       return
+    end if
+
+    ! Free local part
+    call this%f_vector%free_in_stages(action)
+
     if ( action == free_clean ) then
-     this%state = undefined
-     nullify ( this%dof_dist )
-     nullify ( this%p_env )
-   end if
-
- end subroutine par_scalar_array_free_in_stages
-
-
+       this%state = undefined
+       nullify ( this%dof_dist )
+       nullify ( this%p_env )
+    end if
+  end subroutine par_scalar_array_free_in_stages
+  
+  function par_scalar_array_same_vector_space(this,vector)
+   implicit none
+   class(par_scalar_array_t), intent(in) :: this
+   class(vector_t)             , intent(in) :: vector
+   logical :: par_scalar_array_same_vector_space
+   par_scalar_array_same_vector_space = .false.
+   select type(vector)
+   class is (par_scalar_array_t)
+     par_scalar_array_same_vector_space = (this%dof_dist%nl == vector%dof_dist%nl)
+   end select
+ end function par_scalar_array_same_vector_space
+  
+  
 end module par_scalar_array_names

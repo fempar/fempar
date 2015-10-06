@@ -42,8 +42,8 @@ module vector_names
      procedure (nrm2_interface), deferred  :: nrm2
      procedure (clone_interface), deferred :: clone
      procedure (comm_interface), deferred  :: comm
+     procedure (same_vector_space_interface), deferred :: same_vector_space
 
-     procedure :: belongs_to_the_same_vector_space
      procedure :: sum_vector
      procedure :: sub_vector
      procedure :: minus_vector
@@ -116,6 +116,15 @@ module vector_names
        implicit none
        class(vector_t), intent(inout) :: op
      end subroutine comm_interface
+     ! Determines whether this belongs to the same
+     ! vector space as vector   
+     function same_vector_space_interface(this,vector)
+       import :: vector_t
+       implicit none
+       class(vector_t), intent(in) :: this
+       class(vector_t), intent(in) :: vector
+       logical :: same_vector_space_interface
+     end function
   end interface
 
   public :: vector_t
@@ -224,15 +233,4 @@ contains
     
     call op2%CleanTemp()
   end subroutine assign_vector
-  
-  ! Determines whether op1 belongs to the same
-  ! vector space as op2
-  function belongs_to_the_same_vector_space(op1,op2) 
-    implicit none
-    class(vector_t), intent(in):: op1
-    class(vector_t), intent(in):: op2
-    logical :: belongs_to_the_same_vector_space
-    belongs_to_the_same_vector_space = .false.
-  end function belongs_to_the_same_vector_space
-
 end module vector_names

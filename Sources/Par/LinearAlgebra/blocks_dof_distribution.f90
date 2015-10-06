@@ -41,7 +41,7 @@ module blocks_dof_distribution_names
      integer(ip) :: nblocks = -1 
      type (dof_distribution_t), allocatable :: blocks(:)
      type (par_environment_t) , pointer :: p_env
-  contains
+   contains
      procedure :: create    => blocks_dof_distribution_create
      procedure :: free      => blocks_dof_distribution_free
      procedure :: get_block => blocks_dof_distribution_get_block
@@ -56,7 +56,7 @@ contains
     implicit none
     class(blocks_dof_distribution_t)  , intent(inout) :: this 
     integer(ip)                       , intent(in)    :: nblocks
-	type(par_environment_t), target   , intent(in)    :: p_env
+    type(par_environment_t), target   , intent(in)    :: p_env
 
 
     ! Locals
@@ -64,7 +64,7 @@ contains
 
     ! Parallel environment MUST BE already created
     assert ( p_env%created )
-    
+
     this%nblocks = nblocks
     allocate ( this%blocks(nblocks), stat=istat )
     check ( istat == 0 )
@@ -83,11 +83,11 @@ contains
     assert ( this%p_env%created )
 
     if( this%p_env%p_context%iam >= 0 ) then
-      do iblock = 1, this%nblocks
-        call dof_distribution_free ( this%blocks(iblock) )
-      end do 
-    end if 
-    
+       do iblock = 1, this%nblocks
+          call dof_distribution_free ( this%blocks(iblock) )
+       end do
+    end if
+
     this%nblocks = -1 
     deallocate (this%blocks,stat=istat)
     check(istat == 0)

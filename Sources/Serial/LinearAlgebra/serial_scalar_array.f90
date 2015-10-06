@@ -63,6 +63,7 @@ module serial_scalar_array_names
      procedure :: nrm2 => serial_scalar_array_nrm2
      procedure :: clone => serial_scalar_array_clone
      procedure :: comm  => serial_scalar_array_comm
+     procedure :: same_vector_space => serial_scalar_array_same_vector_space
      procedure :: free_in_stages  => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
   end type serial_scalar_array_t
@@ -322,5 +323,17 @@ contains
        nullify(this%b)
     end if
   end subroutine serial_scalar_array_free_in_stages
+  
+ function serial_scalar_array_same_vector_space(this,vector)
+   implicit none
+   class(serial_scalar_array_t), intent(in) :: this
+   class(vector_t)             , intent(in) :: vector
+   logical :: serial_scalar_array_same_vector_space
+   serial_scalar_array_same_vector_space = .false.
+   select type(vector)
+   class is (serial_scalar_array_t)
+     serial_scalar_array_same_vector_space = (this%neq == vector%neq)
+   end select
+ end function serial_scalar_array_same_vector_space
 
 end module serial_scalar_array_names
