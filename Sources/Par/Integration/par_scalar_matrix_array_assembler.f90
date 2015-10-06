@@ -45,10 +45,10 @@ module par_scalar_matrix_array_assembler_names
   private
 
   type, extends(matrix_array_assembler_t) :: par_scalar_matrix_array_assembler_t
-  contains
-	procedure :: assembly => par_scalar_matrix_array_assembler_assembly
-  end type
-	 
+   contains
+     procedure :: assembly => par_scalar_matrix_array_assembler_assembly
+  end type par_scalar_matrix_array_assembler_t
+
   ! Data types
   public :: par_scalar_matrix_array_assembler_t
   
@@ -58,33 +58,32 @@ contains
     class(par_scalar_matrix_array_assembler_t), intent(inout) :: this
     type(dof_descriptor_t)                       , intent(in)    :: dof_descriptor
     type(finite_element_t)                       , intent(in)    :: finite_element
-	
-	class(matrix_t), pointer :: matrix
-	class(array_t) , pointer :: array
-	
-	matrix => this%get_matrix()
-	array  => this%get_array()
-	
-	select type(matrix)
-    class is(par_scalar_matrix_t)
-	   if ( matrix%p_env%am_i_fine_task() ) then
-	     call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, matrix%serial_scalar_matrix )
-	   end if	 
-	 class default
+
+    class(matrix_t), pointer :: matrix
+    class(array_t) , pointer :: array
+
+    matrix => this%get_matrix()
+    array  => this%get_array()
+
+    select type(matrix)
+       class is(par_scalar_matrix_t)
+       if ( matrix%p_env%am_i_fine_task() ) then
+          call element_serial_scalar_matrix_assembly( dof_descriptor, finite_element, matrix%serial_scalar_matrix )
+       end if
+       class default
        check(.false.)
-    end select  
-	
+    end select
+
     select type(array)
-    class is(par_scalar_array_t)
-	   if ( array%p_env%am_i_fine_task() ) then
-	     call element_serial_scalar_array_assembly( dof_descriptor, finite_element, array%serial_scalar_array )
-	   end if
-	 class default
+       class is(par_scalar_array_t)
+       if ( array%p_env%am_i_fine_task() ) then
+          call element_serial_scalar_array_assembly( dof_descriptor, finite_element, array%serial_scalar_array )
+       end if
+       class default
        check(.false.)
-    end select 
+    end select
   end subroutine par_scalar_matrix_array_assembler_assembly
-  
-  
+
   subroutine element_par_scalar_array_assembly(dof_descriptor, finite_element, a) 
     implicit none
     type(dof_descriptor_t), intent(in)    :: dof_descriptor
@@ -94,17 +93,16 @@ contains
        call element_serial_scalar_matrix_assembly(dof_descriptor, finite_element, a%serial_scalar_matrix)
     end if
   end subroutine element_par_scalar_array_assembly
-  
+
   subroutine assembly_element_par_vector_mono(dof_descriptor, finite_element,  a) 
     implicit none
-    type(dof_descriptor_t), intent(in)    :: dof_descriptor
-    type(finite_element_t), intent(in)    :: finite_element
-    type(par_scalar_array_t)    , intent(inout) :: a
+    type(dof_descriptor_t), intent(in)      :: dof_descriptor
+    type(finite_element_t), intent(in)      :: finite_element
+    type(par_scalar_array_t), intent(inout) :: a
 
     if(a%p_env%am_i_fine_task()) then
        call element_serial_scalar_array_assembly(dof_descriptor, finite_element, a%serial_scalar_array)
     end if
-
   end subroutine assembly_element_par_vector_mono
   
 end module par_scalar_matrix_array_assembler_names

@@ -270,9 +270,7 @@ program par_test_nsi_iss
     check(.false.)
   end select 
   
-  call p_unk%clone(p_vec)
-  p_unk%state = full_summed
-  
+  call p_unk%clone(p_vec)  
   call p_vec%init(0.0_rp)
 
   ! Define (recursive) parameters
@@ -326,14 +324,6 @@ program par_test_nsi_iss
   sctrl%stopc=res_nrmgiven_res_nrmgiven
   sctrl%orto=icgs
   sctrl%rtol=1.0e-14_rp
-
-!!$  call p_unk%init(1.0_rp)
-!!$  A => p_mat
-!!$  x => p_vec
-!!$  y => p_unk
-!!$  y = x - A*y
-!!$  write(*,*) 'XXX error norm XXX', y%nrm2()
-!!$  p_unk%state = full_summed
 
   ! Create Preconditioner 
   call par_preconditioner_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)

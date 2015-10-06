@@ -132,16 +132,7 @@ use psb_penv_mod_names
     assert ( associated(p_prec_dd_identity%p_mat%p_env) )
     assert ( p_prec_dd_identity%p_mat%p_env%created )
     assert ( associated(p_prec_dd_identity%p_mat%dof_dist) )
-
-    if(p_prec_dd_identity%p_mat%p_env%p_context%iam<0) return
-
     call y%copy(x)
-    
-    ! Comm
-    if ( x%state == part_summed ) then
-       call y%comm()
-    end if
-
   end subroutine par_preconditioner_dd_identity_apply_all_unk
 
   !=============================================================================

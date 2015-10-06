@@ -107,7 +107,6 @@ module operator_dd_names
             operator_dd_solve_A_II,        &
             operator_dd_apply_A_IG, operator_dd_apply_A_GI,   &
             operator_dd_apply_A_GG, &
-            operator_dd_solve_interior,      &
             operator_dd_compute_ut_op_u, operator_dd_apply_A_IG_several_rhs, &
             operator_dd_apply_A_GI_plus_A_GG
 
@@ -573,38 +572,6 @@ contains
 #endif
     end if
   end subroutine  operator_dd_apply_A_GG
-
-  ! Computes x_I <- A_II^-1 * (b_I - A_IG * x_G)
-  subroutine operator_dd_solve_interior ( f_operator, b_I, x_G, x_I )
-    implicit none
-
-    ! Parameters 
-    type(operator_dd_t), intent(inout),target  :: f_operator
-    type(serial_scalar_array_t)  , intent(in)      :: b_I
-    type(serial_scalar_array_t)  , intent(in)      :: x_G
-    type(serial_scalar_array_t)  , intent(inout)   :: x_I
-
-    ! Locals 
-    type(serial_scalar_array_t)  :: ws_vec_I
-
-    call ws_vec_I%clone(b_I)
-
-    ! Compute x_I <- A_II^-1 * (b_I - A_IG * x_G)
-    ! x_I <- A_IG * x_G  
-    call operator_dd_apply_A_IG ( f_operator, x_G, x_I )
-
-    ! ws_vec_I <- b_I
-    call ws_vec_I%copy (b_I)
-
-    ! ws_vec_I <- ws_vec_I - x_I   
-    call ws_vec_I%axpby(-1.0_rp,x_I,1.0_rp)
-
-    ! x_I  <- A_II^-1 *  ws_vec_I
-    call operator_dd_solve_A_II ( f_operator, ws_vec_I, x_I )
-
-    call ws_vec_I%free()
-
-  end subroutine operator_dd_solve_interior
 
   ! Computes the product v <- u^T op u restricted to the second block row of op 
   ! Documentation:   http://software.intel.com/sites/products/documentation/hpc/

@@ -258,7 +258,6 @@ contains
     ! 2) z=inv(M)r
     call M%apply(r,z)
 
-
     ! 3) <r,z>
     r_z = r%dot(z) 
 

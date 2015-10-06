@@ -169,12 +169,6 @@ module par_preconditioner_dd_diagonal_names
                            p_prec_dd_diagonal%d, & 
                            x%serial_scalar_array%b, & 
                            y%serial_scalar_array%b )
-
-    ! Comm
-    if ( x%state == part_summed ) then
-       call y%comm()
-    end if
-
   end subroutine par_preconditioner_dd_diagonal_apply_all_unk
 
   !=============================================================================

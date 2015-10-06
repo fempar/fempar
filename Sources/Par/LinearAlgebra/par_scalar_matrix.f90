@@ -273,9 +273,8 @@ contains
     assert ( associated(y%p_env) )
     assert ( associated(y%p_env%p_context) )
     
-    assert (x%state == full_summed) 
     call a%serial_scalar_matrix%apply(x%serial_scalar_array, y%serial_scalar_array)
-    y%state = part_summed
+    call y%comm()
   end subroutine par_scalar_matrix_apply_concrete
 
   ! op%apply(x,y) <=> y <- op*x

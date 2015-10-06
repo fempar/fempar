@@ -429,10 +429,10 @@ program par_test_mlbddc_poisson_problem
   call par_timer_report(par_fe_space_create_timer)
   
   call fe_affine_operator%create ( (/test_params%symmetric_storage/), &
-								   (/test_params%is_symmetric/), & 
-								   (/test_params%sign/), &
-								   p_fe_space, &
-								   approximations)
+								                           (/test_params%is_symmetric/), & 
+								                           (/test_params%sign/), &
+								                           p_fe_space, &
+								                           approximations)
   
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -454,8 +454,6 @@ program par_test_mlbddc_poisson_problem
   end select 
   
   call p_unk%clone(p_vec)
-  p_unk%state = full_summed
-
  
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
@@ -466,7 +464,7 @@ program par_test_mlbddc_poisson_problem
      point_to_p_mlevel_bddc_pars%projection           = test_params%projection
      point_to_p_mlevel_bddc_pars%schur_edge_lag_mult  = test_params%schur_edge_lag_mult
      point_to_p_mlevel_bddc_pars%subd_elmat_calc      = test_params%subd_elmat_calc             
-     point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric                  
+     point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric              
      point_to_p_mlevel_bddc_pars%nn_sys_sol_strat     = test_params%nn_sys_sol_strat  
 
      if ( i < num_levels-1 ) then
@@ -479,7 +477,7 @@ program par_test_mlbddc_poisson_problem
            point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
            point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-08
            point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
-           point_to_p_mlevel_bddc_pars%correction_mode  = additive
+           point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric
         end if
         allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = ierror)
         check(ierror==0)
@@ -527,7 +525,9 @@ program par_test_mlbddc_poisson_problem
      call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
      ! Fill val
      call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
-
+     
+     ! call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
+     
      call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
 
      call par_update_solution(p_unk,p_fe_space)

@@ -5970,33 +5970,24 @@ use mpi
     assert ( mlbddc%correction_mode == additive .or. mlbddc%correction_mode == additive_symmetric )
 
     if ( i_am_fine_task ) then
-
        if ( mlbddc%correction_mode == additive ) then
-
           ! Create temporary vector
           call r%create_and_allocate( mlbddc%p_mat%dof_dist,mlbddc%p_mat%p_env)
-
-          ! par_vector_create view calls next
-          ! requires a state to be assigned to r !!!
-          r%state = x%state
           call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
           call r%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
           call x%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
 
           ! Init interior vertices to zero
-          call r_I%serial_scalar_array%init(0.0_rp)
+          call r_I%init(0.0_rp)
 
           ! Phase 1: compute coarse-grid correction v1
           call v1%clone(x_G)
 
-          ! Copy residual into temporal vector
+          ! Copy input residual into temporal vector
           call r_G%copy(x_G)
 
-          if ( r%state == part_summed ) then 
-             ! Summ  residual
-             call r_G%comm()
-          end if
-
+          !call r_G%serial_scalar_array%print(6)
+          
           ! 1.2. ws_vec_G <- W_i R_i r
           ! Weight residual
           if ( associated (mlbddc%weight) ) then
@@ -6044,16 +6035,9 @@ use mpi
           ! Create temporary vectors
           call r%clone(x)
           call aux%clone(x)
-          call dx%clone(y)
-
           call aux%copy(x)
-          if ( aux%state == full_summed ) then
-             call aux%weight()
-          end if
-
-          ! par_vector_create view calls next
-          ! requires a state to be assigned to r !!!
-          r%state = x%state
+          call dx%clone(y)
+          
           call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
           call r%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
 
@@ -6069,29 +6053,22 @@ use mpi
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, x_I%serial_scalar_array, dx_I%serial_scalar_array )
-          call dx_G%serial_scalar_array%init(0.0_rp)
-          !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
-          !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
+          call dx_G%init(0.0_rp)
 
           ! 2) Compute x = x + dx     (idem x_I = x_I + dx_I,    x_G = x_G)
           call y%copy(dx)
 
-          ! 3) Compute r = r - A dx
-          ! r <- Adx
-          call mlbddc%p_mat%apply( dx, r ) 
-		  
-          ! r <- -r + x
-          call r%axpby ( 1.0_rp, aux, -1.0_rp )
+          ! I-A P_D = [ 0                    0 ]
+          !           [ -A_GI A_II^{-1}      I ]
+          call r_I%init(0.0_rp)
+          call operator_dd_apply_A_GI ( mlbddc%A_II_inv, dx_I%serial_scalar_array, r_G%serial_scalar_array )
+          call r_G%comm()
+          call r_G%axpby(1.0_rp,x_G,-1.0_rp)
 
           ! 4) Compute dx = A_{BDDC}^{-1} r
 
           ! Phase 1: compute coarse-grid correction v1
           call v1%clone(x_G)
-
-          if ( r%state == part_summed ) then 
-             ! Sum residual
-             call r_G%comm()
-          end if
 
           ! 1.2. ws_vec_G <- W_i R_i r
           ! Weight residual
@@ -6107,10 +6084,6 @@ use mpi
 
           call par_preconditioner_dd_mlevel_bddc_compute_fine_grid_correction ( mlbddc, r, v2 )
 
-!!$          if ( temp_fine_coarse_grid_overlap ) then 
-!!$             call par_timer_stop ( mlbddc%timer_applyprec_ov_fine  ) 
-!!$          end if
-
           call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, z_c, v1 )
 
           call dx_G%copy(v1)
@@ -6124,23 +6097,20 @@ use mpi
              call dx_G%weight()
           end if
           call dx_G%comm()
-
           call dx_I%init(0.0_rp)
 
           ! 5) Do 2) and 3)
           ! 2) Compute x = x + dx
           call y%axpby(1.0_rp, dx, 1.0_rp)
-
-          ! 3) Compute r = r - A dx 
-          call aux%copy(r)
-          ! r <- Adx
-          call mlbddc%p_mat%apply(dx, r) 
-          ! r <- -r + x
-          call r%axpby  ( 1.0_rp, aux, -1.0_rp )
-
+          
+          ! I-P_D A = [ 0      -A_II^{-1} A_IG ]
+          !           [ 0                   I  ]
+          !
           ! 6) Compute 1), 2)
+          call operator_dd_apply_A_IG ( mlbddc%A_II_inv, dx_G%serial_scalar_array, r_I%serial_scalar_array )
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%serial_scalar_array, dx_I%serial_scalar_array )
-          call dx_G%serial_scalar_array%init(0.0_rp)
+          call dx_I%scal(-1.0_rp,dx_I)
+          call dx_G%init(0.0_rp)
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
           !mlbddc%dirichlet_its (mlbddc%num_dirichlet_solves) = mlbddc%spars_dirichlet%it
 
@@ -6189,17 +6159,12 @@ use mpi
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Assemble coarse-grid residual in parallel
              call p_r_c%create_and_allocate ( mlbddc%dof_dist_c, mlbddc%p_env_c)
-             p_r_c%state = part_summed
              call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_ass_r_c ( mlbddc, r, p_r_c%serial_scalar_array )
-             ! call vector_print_matrix_market (6, p_r_c%serial_scalar_array)
-             ! Solve coarse-grid problem via recursive bddc
-             ! AFM: In the future, the following call should be replaced by a call that allows
-             ! the solution of the coarse-grid problem via a krylov subspace solver  
-             ! A simple solve specialization may help here ??? 
+             call p_r_c%comm()
+             
+             ! Solve coarse-grid problem via recursive bddc 
              call p_z_c%create_and_allocate ( mlbddc%dof_dist_c, mlbddc%p_env_c)
-             p_z_c%state = full_summed
 
-             ! call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c )
              mlbddc%spars_coarse%nrhs=1
              call abstract_solve( mlbddc%p_mat_c, mlbddc%p_M_c, p_r_c, p_z_c, mlbddc%spars_coarse, mlbddc%p_env_c)
 
@@ -6210,11 +6175,6 @@ use mpi
              call p_r_c%free()
           end if
        end if
-!!$       if ( temp_fine_coarse_grid_overlap ) then 
-!!$          if ( i_am_coarse_task ) then
-!!$             call par_timer_stop ( mlbddc%timer_applyprec_ov_coarse  ) 
-!!$          end if
-!!$       end if
     end if
     
   end subroutine par_preconditioner_dd_mlevel_bddc_apply_all_unk
@@ -6265,8 +6225,8 @@ use mpi
    implicit none
    ! Parameters
    type(par_preconditioner_dd_mlevel_bddc_t) ,intent(in) :: mlbddc
-   type(par_scalar_array_t)                 ,intent(in) :: r_G
-   type(serial_scalar_array_t)                 ,intent(inout) :: r_c 
+   type(par_scalar_array_t)                  ,intent(in) :: r_G
+   type(serial_scalar_array_t)               ,intent(inout) :: r_c 
 
    ! Locals
    integer :: me, np

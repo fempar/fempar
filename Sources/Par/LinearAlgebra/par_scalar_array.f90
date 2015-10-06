@@ -56,17 +56,11 @@ module par_scalar_array_names
   implicit none
   private
 
-  integer(ip), parameter :: undefined     = -1 ! Undefined. State to be assigned by the user or externally.
-  integer(ip), parameter :: part_summed   = 0  ! partially summed element-based vector
-  integer(ip), parameter :: full_summed   = 1  ! fully     summed element-based vector
-
   ! Distributed Vector
   type, extends(array_t) :: par_scalar_array_t
      ! Data structure which stores the local part 
      ! of the vector mapped to the current processor.
      type( serial_scalar_array_t ) :: serial_scalar_array
-     ! Partially or fully summed
-     integer(ip)  :: state 
      ! Parallel DoF distribution control info.
      type ( dof_distribution_t ), pointer  :: dof_dist => NULL()
      type ( par_environment_t ) , pointer  :: p_env => NULL()
@@ -96,9 +90,6 @@ module par_scalar_array_names
 
   ! Types
   public :: par_scalar_array_t
-
-  ! Constants 
-  public :: undefined, part_summed, full_summed
 
 
 !***********************************************************************
@@ -159,7 +150,6 @@ contains
     assert ( p_env%p_context%created .eqv. .true.)
     this%dof_dist => dof_dist
     this%p_env    => p_env 
-    this%state = undefined
     if(this%p_env%p_context%iam<0) return
     call this%serial_scalar_array%create (dof_dist%nl)
   end subroutine par_scalar_array_create
@@ -193,9 +183,6 @@ contains
     ! Associate dof distribution and parallel environment 
     t_p_vec%dof_dist => this%dof_dist
     t_p_vec%p_env    => this%p_env
-
-    assert ( this%state /= undefined )
-    t_p_vec%state = this%state
 
     if(this%p_env%p_context%iam<0) return
 
@@ -278,8 +265,6 @@ contains
     ni = this%serial_scalar_array%size - this%dof_dist%nb
     call this%create_view ( ni+1, this%serial_scalar_array%size, p_vec_G )
     call weight_interface ( p_vec_G, weight )
-
-    this%state = part_summed
   end subroutine par_scalar_array_weight
 
   !=============================================================================
@@ -334,11 +319,11 @@ contains
     ! Parameters  
     type(par_scalar_array_t), intent(in)  :: x
     type(par_scalar_array_t), intent(in)  :: y
-    real(rp)    , intent(out)     :: t
+    real(rp)                , intent(out) :: t
 
     ! Locals 
     integer(ip)                :: ierrc
-    type(par_scalar_array_t)              :: ws_vec
+    type(par_scalar_array_t)   :: ws_vec
 
     ! Pointer to part/context object is required
     assert ( associated(x%dof_dist   ) )
@@ -346,24 +331,22 @@ contains
     assert ( associated(y%dof_dist   ) )
     assert ( associated(y%p_env%p_context) )
 
-    assert ( x%state /= undefined .and. y%state /= undefined  )
-
-    if ( (x%state == part_summed .and. y%state == full_summed) .or. (x%state == full_summed .and. y%state == part_summed) ) then
-       ! Perform local dot products
-       t=x%serial_scalar_array%dot(y%serial_scalar_array)
-    else if ( (x%state == full_summed .and. y%state == full_summed) ) then
-       ! Perform local weighted dot products
-       call weighted_dot (x, y, t)
-    else if ( (x%state == part_summed .and. y%state == part_summed) ) then
-       ! Allocate space for ws_vec
-       call ws_vec%clone(x)
-       ! ws_vec <- x  
-       call ws_vec%copy(x)
-       ! Transform ws_vec from partially summed to fully summed
-       call comm_interface ( ws_vec )
-       t=x%serial_scalar_array%dot(ws_vec%serial_scalar_array)
-       call ws_vec%free()
-    end if
+    !if ( (x%state == part_summed .and. y%state == full_summed) .or. (x%state == full_summed .and. y%state == part_summed) ) then
+    !   ! Perform local dot products
+    !   t=x%serial_scalar_array%dot(y%serial_scalar_array)
+    !else if ( (x%state == full_summed .and. y%state == full_summed) ) then
+    ! Perform local weighted dot products
+    call weighted_dot (x, y, t)
+    !else if ( (x%state == part_summed .and. y%state == part_summed) ) then
+    !   ! Allocate space for ws_vec
+    !   call ws_vec%clone(x)
+    !   ! ws_vec <- x  
+    !   call ws_vec%copy(x)
+    !   ! Transform ws_vec from partially summed to fully summed
+    !   call comm_interface ( ws_vec )
+    !   t=x%serial_scalar_array%dot(ws_vec%serial_scalar_array)
+    !   call ws_vec%free()
+    !end if
   end subroutine dot_interface
 
   subroutine par_scalar_array_print ( this, luout )
@@ -519,8 +502,6 @@ contains
        assert ( op1%p_env%p_context%created .eqv. .true.)
        if(op1%p_env%p_context%iam<0) return
 
-       assert ( op1%state /= undefined .and. op2%state /= undefined  )
-
        ni = op1%serial_scalar_array%size - op1%dof_dist%nb
        if ( ni > 0 ) then
           call op1%create_view (1, ni, x_I)
@@ -563,10 +544,8 @@ contains
        assert ( op2%p_env%p_context%created .eqv. .true.)
        if(op2%p_env%p_context%iam<0) return
 
-       assert ( op2%state /= undefined  )
        ! Perform local copy
        call op1%serial_scalar_array%copy ( op2%serial_scalar_array )
-       op1%state = op2%state
        class default
        write(0,'(a)') 'par_scalar_array_t%copy: unsupported op2 class'
        check(1==0)
@@ -592,12 +571,8 @@ contains
        assert ( op1%p_env%p_context%created .eqv. .true.)
        if(op1%p_env%p_context%iam<0) return
 
-       ! Check matching partition/handler
-       assert ( op2%state /= undefined )
-
        ! Scal local copy
        call op1%serial_scalar_array%scal ( alpha, op2%serial_scalar_array )
-       op1%state = op2%state
        class default
        write(0,'(a)') 'par_scalar_array_t%scal: unsupported op2 class'
        check(1==0)
@@ -618,7 +593,6 @@ contains
 
     ! Init local copy
     call op%serial_scalar_array%init(alpha)
-    ! op%state = full_summed
   end subroutine par_scalar_array_init
 
   ! op1 <- alpha*op2 + beta*op1
@@ -639,11 +613,6 @@ contains
        assert ( associated(op1%p_env%p_context) )
        assert ( op1%p_env%p_context%created )
        if(op1%p_env%p_context%iam<0) return
-
-       ! Check matching partition/handler
-       assert ( op1%state /= undefined .and. op2%state /= undefined  )
-       assert ( op1%state == op2%state )
-
        call op1%serial_scalar_array%axpby( alpha, op2%serial_scalar_array, beta )
        class default
        write(0,'(a)') 'par_scalar_array_t%axpby: unsupported op2 class'
@@ -669,7 +638,6 @@ contains
        assert ( associated(op%p_env%p_context) )
        assert ( op%p_env%p_context%created )
        if(op%p_env%p_context%iam<0) return
-       assert ( op%state /= undefined )
        alpha = op%dot(op)
        alpha = sqrt(alpha)
        class default
@@ -694,7 +662,6 @@ contains
        assert ( op2%p_env%p_context%created )
        op1%dof_dist => op2%dof_dist
        op1%p_env    => op2%p_env
-       op1%state    =  op2%state
        if(op2%p_env%p_context%iam<0) return
        call op1%serial_scalar_array%clone ( op2%serial_scalar_array )
        class default
@@ -721,7 +688,6 @@ contains
     ni = op%serial_scalar_array%size - op%dof_dist%nb
     call op%create_view(ni+1, op%serial_scalar_array%size, op_G)
     call comm_interface ( op_G )
-    op%state = full_summed
   end subroutine par_scalar_array_comm
 
   subroutine par_scalar_array_free_in_stages(this,action)
@@ -737,7 +703,6 @@ contains
 
     if(this%p_env%p_context%iam<0) then 
        if ( action == free_clean ) then
-          this%state = undefined
           nullify ( this%dof_dist )
           nullify ( this%p_env )
        end if
@@ -748,7 +713,6 @@ contains
     call this%serial_scalar_array%free_in_stages(action)
 
     if ( action == free_clean ) then
-       this%state = undefined
        nullify ( this%dof_dist )
        nullify ( this%p_env )
     end if
