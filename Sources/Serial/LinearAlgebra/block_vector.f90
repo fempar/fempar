@@ -63,7 +63,6 @@ module block_vector_names
      procedure :: axpby => block_vector_axpby
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
-     procedure :: comm  => block_vector_comm
      procedure :: same_vector_space => block_vector_same_vector_space
      procedure :: free  => block_vector_free
   end type block_vector_t
@@ -281,17 +280,6 @@ contains
    end select
    call op2%CleanTemp()
  end subroutine block_vector_clone
-
- ! op <- comm(op)
- subroutine block_vector_comm(op)
-   implicit none
-   class(block_vector_t), intent(inout) :: op
-   integer(ip) :: iblk
-   do iblk=1, op%nblocks
-      assert(associated(op%blocks(iblk)%vector))
-      call op%blocks(iblk)%vector%comm() 
-   end do
- end subroutine block_vector_comm
  
  function block_vector_same_vector_space(this,vector)
    implicit none

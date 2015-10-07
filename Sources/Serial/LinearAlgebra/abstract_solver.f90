@@ -1094,9 +1094,6 @@ use blas77_interfaces_names
     ! r = b-r
     call r%axpby(1.0_rp,b,-1.0_rp)
 
-    ! part_summed to full_summed
-    call r%comm() 
-
     ! res_norm = ||r||_2
     res_norm = r%nrm2()
 
@@ -1128,9 +1125,6 @@ use blas77_interfaces_names
     
             ! r = b-r
             call r%axpby(1.0_rp,b,-1.0_rp)
-            
-            ! part_summed to full_summed
-            call r%comm()
 
             ! res_norm = ||r||_2
             res_norm = r%nrm2()
@@ -1161,9 +1155,6 @@ use blas77_interfaces_names
             call bkry(kloc+1)%default_initialization()
             call bkry(kloc+1)%clone(x)
             call A%apply(z, bkry(kloc+1))
-
-            ! part_summed to full_summed
-            call bkry(kloc+1)%comm()
 
             if ( env%am_i_fine_task() ) then
                 ! Orthogonalize
@@ -1379,9 +1370,6 @@ use blas77_interfaces_names
     ! r = b-r
     call r%axpby(1.0_rp,b,-1.0_rp)
 
-    ! part_summed to full_summed
-    call r%comm()
-
     ! res_norm = ||r||_2
     res_norm = r%nrm2()
 
@@ -1411,9 +1399,6 @@ use blas77_interfaces_names
             ! r = b-r
             call r%axpby(1.0_rp,b,-1.0_rp)
 
-            ! part_summed to full_summed
-            call r%comm()
-
             ! res_norm = ||r||_2
             res_norm = r%nrm2()
         end if
@@ -1442,9 +1427,6 @@ use blas77_interfaces_names
             call bkry(kloc+1)%default_initialization()
             call bkry(kloc+1)%clone(x)
             call A%apply(bkryz(kloc),bkry(kloc+1))
-
-            ! part_summed to full_summed
-            call bkry(kloc+1)%comm()
         
             if ( env%am_i_fine_task() ) then
                 ! Orthogonalize
@@ -1577,11 +1559,11 @@ use blas77_interfaces_names
     call z%free()
 
     ! Deallocate Krylov basis
-    do i=1, max_kloc
+    do i=1, max_kloc-1
        call bkry(i)%free()
        call bkryz(i)%free()
     end do
-    call bkry(ctrl%dkrymax+1)%free()
+    call bkry(max_kloc)%free()
     deallocate ( bkry )
     deallocate ( bkryz )
 

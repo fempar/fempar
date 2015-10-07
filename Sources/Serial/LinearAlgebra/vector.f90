@@ -41,7 +41,6 @@ module vector_names
      procedure (axpby_interface), deferred :: axpby ! y <- a*x + b*y
      procedure (nrm2_interface), deferred  :: nrm2
      procedure (clone_interface), deferred :: clone
-     procedure (comm_interface), deferred  :: comm
      procedure (same_vector_space_interface), deferred :: same_vector_space
 
      procedure :: sum_vector
@@ -110,12 +109,6 @@ module vector_names
        class(vector_t)         ,intent(inout) :: op1
        class(vector_t), target ,intent(in)    :: op2
      end subroutine clone_interface
-     ! op <- comm(op)
-     subroutine comm_interface(op)
-       import :: vector_t
-       implicit none
-       class(vector_t), intent(inout) :: op
-     end subroutine comm_interface
      ! Determines whether this belongs to the same
      ! vector space as vector   
      function same_vector_space_interface(this,vector)
