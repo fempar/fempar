@@ -79,7 +79,7 @@ use psb_penv_mod_names
     
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist) )
+    assert ( associated(p_matrix%dof_dist_domain) )
 
     p_prec_dd_identity%p_mat    => p_matrix
 
@@ -94,7 +94,7 @@ use psb_penv_mod_names
 
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist) )
+    assert ( associated(p_matrix%dof_dist_domain) )
 
     p_prec_dd_identity%p_mat    => p_matrix
 
@@ -115,7 +115,7 @@ use psb_penv_mod_names
 
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist) )
+    assert ( associated(p_matrix%dof_dist_domain) )
 
 
   end subroutine par_preconditioner_dd_identity_fill_val
@@ -131,7 +131,7 @@ use psb_penv_mod_names
     assert ( associated(p_prec_dd_identity%p_mat) )
     assert ( associated(p_prec_dd_identity%p_mat%p_env) )
     assert ( p_prec_dd_identity%p_mat%p_env%created )
-    assert ( associated(p_prec_dd_identity%p_mat%dof_dist) )
+    assert ( associated(p_prec_dd_identity%p_mat%dof_dist_domain) )
     call y%copy(x)
   end subroutine par_preconditioner_dd_identity_apply_all_unk
 
@@ -145,7 +145,7 @@ use psb_penv_mod_names
     assert ( associated(p_prec_dd_identity%p_mat) )
     assert ( associated(p_prec_dd_identity%p_mat%p_env) )
     assert ( p_prec_dd_identity%p_mat%p_env%created )
-    assert ( associated(p_prec_dd_identity%p_mat%dof_dist) )
+    assert ( associated(p_prec_dd_identity%p_mat%dof_dist_domain) )
 
     if ( mode == free_clean ) then
        nullify ( p_prec_dd_identity%p_mat )

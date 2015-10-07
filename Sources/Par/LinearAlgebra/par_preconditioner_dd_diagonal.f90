@@ -80,7 +80,7 @@ module par_preconditioner_dd_diagonal_names
     
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist) )
+    assert ( associated(p_matrix%dof_dist_domain) )
 
     p_prec_dd_diagonal%p_mat    => p_matrix
 
@@ -95,7 +95,7 @@ module par_preconditioner_dd_diagonal_names
 
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist) )
+    assert ( associated(p_matrix%dof_dist_domain) )
 
     p_prec_dd_diagonal%p_mat    => p_matrix
 
@@ -116,7 +116,7 @@ module par_preconditioner_dd_diagonal_names
 
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist) )
+    assert ( associated(p_matrix%dof_dist_domain) )
 
     if ( p_prec_dd_diagonal%p_mat%p_env%p_context%iam < 0 ) return
 
@@ -136,7 +136,7 @@ module par_preconditioner_dd_diagonal_names
     
     ! Create a view of p_prec_dd_diagonal%d. This is ugly and
     ! violates principles of OO design, but at least it works
-    p_vec%dof_dist      => p_prec_dd_diagonal%p_mat%dof_dist
+    p_vec%dof_dist      => p_prec_dd_diagonal%p_mat%dof_dist_domain
     p_vec%p_env         => p_prec_dd_diagonal%p_mat%p_env
     p_vec%serial_scalar_array%size  = neq
     p_vec%serial_scalar_array%mode = reference  
@@ -161,7 +161,7 @@ module par_preconditioner_dd_diagonal_names
     assert ( associated(p_prec_dd_diagonal%p_mat) )
     assert ( associated(p_prec_dd_diagonal%p_mat%p_env) )
     assert ( p_prec_dd_diagonal%p_mat%p_env%created )
-    assert ( associated(p_prec_dd_diagonal%p_mat%dof_dist) )
+    assert ( associated(p_prec_dd_diagonal%p_mat%dof_dist_domain) )
 
     if(p_prec_dd_diagonal%p_mat%p_env%p_context%iam<0) return
 
@@ -181,7 +181,7 @@ module par_preconditioner_dd_diagonal_names
     assert ( associated(p_prec_dd_diagonal%p_mat) )
     assert ( associated(p_prec_dd_diagonal%p_mat%p_env) )
     assert ( p_prec_dd_diagonal%p_mat%p_env%created )
-    assert ( associated(p_prec_dd_diagonal%p_mat%dof_dist) )
+    assert ( associated(p_prec_dd_diagonal%p_mat%dof_dist_domain) )
 
     if (p_prec_dd_diagonal%p_mat%p_env%p_context%iam<0) return
     

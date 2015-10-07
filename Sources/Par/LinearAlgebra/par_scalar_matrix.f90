@@ -54,17 +54,13 @@ module par_scalar_matrix_names
   private
 
   type, extends(matrix_t) :: par_scalar_matrix_t
-     ! Data structure which stores the local part 
-     ! of the matrix mapped to the current processor.
-     ! This is required for both eb and vb data 
-     ! distributions
      type( serial_scalar_matrix_t ) :: serial_scalar_matrix
 
      type(dof_distribution_t), pointer :: &
-          dof_dist => NULL()            ! Associated (ROW) dof_distribution
+          dof_dist_domain => NULL()
 
      type(dof_distribution_t), pointer :: &
-          dof_dist_cols => NULL()       ! Associated (COL) dof_distribution
+          dof_dist_range => NULL()
 
      type(par_environment_t), pointer :: &
           p_env => NULL()
@@ -119,22 +115,22 @@ contains
     type(par_environment_t) , target    ,intent(in)  :: p_env
 
     call this%serial_scalar_matrix%create(symmetric_storage,is_symmetric,sign)
-    this%dof_dist      => dof_dist 
-    this%dof_dist_cols => dof_dist
+    this%dof_dist_domain      => dof_dist 
+    this%dof_dist_range => dof_dist
     this%p_env => p_env
   end subroutine par_scalar_matrix_create_square
   
   !=============================================================================
-  subroutine par_scalar_matrix_create_rectangular(this,dof_dist,dof_dist_cols,p_env)
+  subroutine par_scalar_matrix_create_rectangular(this,dof_dist_domain,dof_dist_range,p_env)
     implicit none
     class(par_scalar_matrix_t)          ,intent(out) :: this
-    type(dof_distribution_t), target    ,intent(in)  :: dof_dist
-    type(dof_distribution_t), target    ,intent(in)  :: dof_dist_cols
+    type(dof_distribution_t), target    ,intent(in)  :: dof_dist_domain
+    type(dof_distribution_t), target    ,intent(in)  :: dof_dist_range
     type(par_environment_t) , target    ,intent(in)  :: p_env
 
     call this%serial_scalar_matrix%create()
-    this%dof_dist => dof_dist 
-    this%dof_dist_cols => dof_dist_cols
+    this%dof_dist_domain => dof_dist_domain 
+    this%dof_dist_range => dof_dist_range
     this%p_env => p_env
   end subroutine par_scalar_matrix_create_rectangular
   
@@ -150,8 +146,8 @@ contains
        call this%serial_scalar_matrix%allocate()
     end if
     
-    call range_vector%create_and_allocate(this%dof_dist_cols,this%p_env)
-    call domain_vector%create_and_allocate(this%dof_dist,this%p_env)
+    call range_vector%create_and_allocate(this%dof_dist_range,this%p_env)
+    call domain_vector%create_and_allocate(this%dof_dist_domain,this%p_env)
 
     range_vector_space => this%get_range_vector_space()
     call range_vector_space%create(range_vector)
@@ -170,7 +166,8 @@ contains
     integer(ip)               , intent(in)    :: action
 
     ! The routine requires the partition/context info
-    assert ( associated(this%dof_dist) )
+    assert ( associated(this%dof_dist_domain) )
+    assert ( associated(this%dof_dist_range) )
     assert ( associated(this%p_env%p_context) )
     assert ( this%p_env%p_context%created .eqv. .true.)
     assert ( action == free_clean .or. action == free_struct .or. action == free_values )
@@ -178,8 +175,8 @@ contains
     if(this%p_env%p_context%iam<0) return
 
     if ( action == free_clean ) then
-       nullify ( this%dof_dist )
-       nullify ( this%dof_dist_cols )
+       nullify ( this%dof_dist_domain )
+       nullify ( this%dof_dist_range )
        nullify ( this%p_env )
        call this%serial_scalar_matrix%free_in_stages(action)
     else if ( action == free_struct ) then
@@ -336,7 +333,7 @@ contains
     select type(x)
        class is (par_scalar_array_t)
        allocate(local_y)
-       call local_y%create_and_allocate (op%dof_dist, x%p_env)
+       call local_y%create_and_allocate (op%dof_dist_domain, x%p_env)
        call par_scalar_matrix_apply(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()

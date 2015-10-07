@@ -391,7 +391,7 @@ use mpi
     assert ( associated(p_mat%p_env) )
     assert ( p_mat%p_env%created )
     assert ( p_mat%p_env%num_levels > 1 )
-    assert ( associated(p_mat%dof_dist) )
+    assert ( associated(p_mat%dof_dist_domain) )
 
 
     assert ( p_mat%p_env%w_context%created .eqv. .true. )
@@ -461,7 +461,7 @@ use mpi
 
    if(allocated(mlbddc_params%weight)) then
        if (mlbddc%p_mat%p_env%p_context%iam>=0) then
-          mlbddc%weight => mlbddc_params%weight(1:p_mat%dof_dist%nb)
+          mlbddc%weight => mlbddc_params%weight(1:p_mat%dof_dist_domain%nb)
        else
           nullify(mlbddc%weight)
        end if
@@ -470,18 +470,18 @@ use mpi
     end if
 
     ! Now create c_context (the coarse context) and d_context (the set of unused tasks) by spliting q_context
-    ! allocate(mlbddc%p_mat%dof_dist%c_context, stat = istat)
+    ! allocate(mlbddc%p_mat%dof_dist_domain%c_context, stat = istat)
     ! assert(istat==0)
-    ! allocate(mlbddc%p_mat%dof_dist%d_context, stat = istat)
+    ! allocate(mlbddc%p_mat%dof_dist_domain%d_context, stat = istat)
     ! assert(istat==0)
-    ! if(mlbddc%p_mat%dof_dist%q_context%iam >= 0) then
-    !    if(mlbddc%p_mat%dof_dist%q_context%iam < mlbddc%p_mat%dof_dist%num_parts(2)) then
-    !       call par_context_create ( inhouse, 1, mlbddc%p_mat%dof_dist%c_context, mlbddc%p_mat%dof_dist%d_context, mlbddc%p_mat%dof_dist%w_context )
+    ! if(mlbddc%p_mat%dof_dist_domain%q_context%iam >= 0) then
+    !    if(mlbddc%p_mat%dof_dist_domain%q_context%iam < mlbddc%p_mat%dof_dist_domain%num_parts(2)) then
+    !       call par_context_create ( inhouse, 1, mlbddc%p_mat%dof_dist_domain%c_context, mlbddc%p_mat%dof_dist_domain%d_context, mlbddc%p_mat%dof_dist_domain%w_context )
     !    else
-    !       call par_context_create ( inhouse, 2, mlbddc%p_mat%dof_dist%d_context, mlbddc%p_mat%dof_dist%c_context, mlbddc%p_mat%dof_dist%w_context )
+    !       call par_context_create ( inhouse, 2, mlbddc%p_mat%dof_dist_domain%d_context, mlbddc%p_mat%dof_dist_domain%c_context, mlbddc%p_mat%dof_dist_domain%w_context )
     !    end if
     ! else
-    !    call par_context_create ( inhouse, -1, mlbddc%p_mat%dof_dist%c_context, mlbddc%p_mat%dof_dist%d_context, mlbddc%p_mat%dof_dist%w_context )
+    !    call par_context_create ( inhouse, -1, mlbddc%p_mat%dof_dist_domain%c_context, mlbddc%p_mat%dof_dist_domain%d_context, mlbddc%p_mat%dof_dist_domain%w_context )
     ! end if
     ! write(*,*) 'c_context and d_context created'
     if(mlbddc%p_mat%p_env%q_context%iam >= 0) then
@@ -614,7 +614,7 @@ use mpi
  
        if (mlbddc%enable_constraint_weights) then 
           if(  allocated(mlbddc_params%C_weights )) then 
-             call memalloc ( p_mat%dof_dist%nb, mlbddc%C_weights, __FILE__, __LINE__ )
+             call memalloc ( p_mat%dof_dist_domain%nb, mlbddc%C_weights, __FILE__, __LINE__ )
              mlbddc%C_weights = mlbddc_params%C_weights 
           end if
        end if
@@ -654,7 +654,7 @@ use mpi
        if ( mlbddc%unknowns == all_unknowns ) then
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
               call operator_dd_create ( p_mat%serial_scalar_matrix, & 
-                                        p_mat%dof_dist, &
+                                        p_mat%dof_dist_domain, &
                                         mlbddc%A_II_inv, & 
                                         spars=mlbddc%spars_dirichlet, &
                                         ppars=mlbddc%ppars_dirichlet)
@@ -1155,7 +1155,7 @@ use mpi
 
     integer :: info
 
-    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist%nl  + &
+    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist_domain%nl  + &
                                  & mlbddc%nl_corners             + &
                                  & mlbddc%nl_edges              
  
@@ -1168,12 +1168,12 @@ use mpi
                                                       p_mat%serial_scalar_matrix%graph%nv   ,  & 
                                                       p_mat%serial_scalar_matrix%graph%ia   ,  & 
                                                       mlbddc%A_rr%graph%nv  , &
-                                                      mlbddc%p_mat%dof_dist%nl, &
+                                                      mlbddc%p_mat%dof_dist_domain%nl, &
                                                       mlbddc%nl_coarse, &
                                                       mlbddc%coarse_dofs, &
-                                                      mlbddc%p_mat%dof_dist%max_nparts, &
-                                                      mlbddc%p_mat%dof_dist%omap%nl, &
-                                                      mlbddc%p_mat%dof_dist%lobjs, &
+                                                      mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                                                      mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                                                      mlbddc%p_mat%dof_dist_domain%lobjs, &
                                                       mlbddc%A_rr%graph%ia  )
 
     call memalloc ( mlbddc%A_rr%graph%ia(mlbddc%A_rr%graph%nv+1)-1, mlbddc%A_rr%graph%ja,  __FILE__,__LINE__ )
@@ -1185,12 +1185,12 @@ use mpi
                                                      p_mat%serial_scalar_matrix%graph%ja      , &
                                                      mlbddc%A_rr%graph%nv     , & 
                                                      mlbddc%A_rr%graph%ia     , &
-                                                     mlbddc%p_mat%dof_dist%nl, &
+                                                     mlbddc%p_mat%dof_dist_domain%nl, &
                                                      mlbddc%nl_coarse, &
                                                      mlbddc%coarse_dofs, &
-                                                     mlbddc%p_mat%dof_dist%max_nparts, &
-                                                     mlbddc%p_mat%dof_dist%omap%nl, &
-                                                     mlbddc%p_mat%dof_dist%lobjs, &
+                                                     mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                                                     mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                                                     mlbddc%p_mat%dof_dist_domain%lobjs, &
                                                      mlbddc%A_rr%graph%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
@@ -1371,9 +1371,9 @@ use mpi
     ! Locals
     integer (ip) :: iobj, icorner, iedge
 
-    call count_coarse_dofs ( mlbddc%p_mat%dof_dist%max_nparts  , &
-                             mlbddc%p_mat%dof_dist%omap%nl     , &
-                             mlbddc%p_mat%dof_dist%lobjs       , &
+    call count_coarse_dofs ( mlbddc%p_mat%dof_dist_domain%max_nparts  , &
+                             mlbddc%p_mat%dof_dist_domain%omap%nl     , &
+                             mlbddc%p_mat%dof_dist_domain%lobjs       , &
                              mlbddc%kind_coarse_dofs          , &
                              mlbddc%ndime                     , &
                              mlbddc%nl_corners                , &
@@ -1389,14 +1389,14 @@ use mpi
     
     if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then 
        
-       call memalloc ( mlbddc%p_mat%dof_dist%nl,  mlbddc%perm,__FILE__,__LINE__ )
-       call memalloc ( mlbddc%p_mat%dof_dist%nl, mlbddc%iperm,__FILE__,__LINE__ )
-       call list_coarse_dofs ( mlbddc%p_mat%dof_dist%max_nparts, &
-                               mlbddc%p_mat%dof_dist%omap%nl   , &
-                               mlbddc%p_mat%dof_dist%lobjs     , &
+       call memalloc ( mlbddc%p_mat%dof_dist_domain%nl,  mlbddc%perm,__FILE__,__LINE__ )
+       call memalloc ( mlbddc%p_mat%dof_dist_domain%nl, mlbddc%iperm,__FILE__,__LINE__ )
+       call list_coarse_dofs ( mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                               mlbddc%p_mat%dof_dist_domain%omap%nl   , &
+                               mlbddc%p_mat%dof_dist_domain%lobjs     , &
                                mlbddc%kind_coarse_dofs        , &
                                mlbddc%ndime                   , &
-                               mlbddc%p_mat%dof_dist%nl   , &
+                               mlbddc%p_mat%dof_dist_domain%nl   , &
                                mlbddc%nl_corners              , &
                                mlbddc%nl_corners_dofs         , &
                                mlbddc%nl_edges                , &
@@ -1406,12 +1406,12 @@ use mpi
                                mlbddc%perm                    )
 
     else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-       call list_coarse_dofs ( mlbddc%p_mat%dof_dist%max_nparts, &
-                               mlbddc%p_mat%dof_dist%omap%nl   , &
-                               mlbddc%p_mat%dof_dist%lobjs     , &
+       call list_coarse_dofs ( mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                               mlbddc%p_mat%dof_dist_domain%omap%nl   , &
+                               mlbddc%p_mat%dof_dist_domain%lobjs     , &
                                mlbddc%kind_coarse_dofs        , &
                                mlbddc%ndime                   , &
-                               mlbddc%p_mat%dof_dist%nl   , &
+                               mlbddc%p_mat%dof_dist_domain%nl   , &
                                mlbddc%nl_corners              , &
                                mlbddc%nl_corners_dofs         , &
                                mlbddc%nl_edges                , &
@@ -1641,7 +1641,7 @@ use mpi
     type(par_scalar_matrix_t)         , intent(in)                    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)                 :: mlbddc
 
-    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist%nl - mlbddc%nl_corners_dofs
+    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist_domain%nl - mlbddc%nl_corners_dofs
     mlbddc%A_rr%graph%nv2   = mlbddc%A_rr%graph%nv
 
     call memalloc ( mlbddc%A_rr%graph%nv+1, mlbddc%A_rr%graph%ia,  __FILE__,__LINE__ )
@@ -1812,12 +1812,12 @@ use mpi
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%p_mat%dof_dist%omap%ng )
+                                  mlbddc%p_mat%dof_dist_domain%omap%ng )
 
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%p_mat%dof_dist%max_nparts )
+                                  mlbddc%p_mat%dof_dist_domain%max_nparts )
 
        ! write (*,*) 'I am fine task', mlbddc%g_context%iam, mlbddc%g_context%np
        ! call psb_barrier ( mlbddc%p_mat%p_env%p_context%icontxt)
@@ -1842,11 +1842,11 @@ use mpi
                                     mlbddc%nl_coarse,                &
                                     mlbddc%coarse_dofs,              &
                                     mlbddc%max_coarse_dofs,          &
-                                    mlbddc%p_mat%dof_dist%omap%ng,    &
-                                    mlbddc%p_mat%dof_dist%max_nparts, &
-                                    mlbddc%p_mat%dof_dist%omap%nl,    &
-                                    mlbddc%p_mat%dof_dist%omap%l2g,   &
-                                    mlbddc%p_mat%dof_dist%lobjs)      
+                                    mlbddc%p_mat%dof_dist_domain%omap%ng,    &
+                                    mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                                    mlbddc%p_mat%dof_dist_domain%omap%nl,    &
+                                    mlbddc%p_mat%dof_dist_domain%omap%l2g,   &
+                                    mlbddc%p_mat%dof_dist_domain%lobjs)      
                                     ! AFM: ng_coarse is not ACTUALLY needed
                                     !      in the fine-grid tasks for the algorithm
                                     !      we are using for assembling coarse-grid graph
@@ -1859,12 +1859,12 @@ use mpi
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%p_mat%dof_dist%omap%ng )
+                                  mlbddc%p_mat%dof_dist_domain%omap%ng )
 
        call transfer_coarse_int ( mlbddc%g_context%icontxt, &
                                   mlbddc%g_context%iam, &
                                   mlbddc%g_context%np, &
-                                  mlbddc%p_mat%dof_dist%max_nparts )
+                                  mlbddc%p_mat%dof_dist_domain%max_nparts )
 
        c_mesh%nelem = mlbddc%g_context%np-1
        call memalloc ( c_mesh%nelem+1, c_mesh%pnods,__FILE__,__LINE__ ) 
@@ -1904,7 +1904,7 @@ use mpi
        call memalloc ( c_mesh%pnods(c_mesh%nelem+1)-1, c_mesh%lnods,__FILE__,__LINE__ ) 
 
        ! lnods is given in local numbering, the global number of (coarse) nodes being
-       ! mlbddc%p_mat%dof_dist%omap%ng which is used to allocate a work array
+       ! mlbddc%p_mat%dof_dist_domain%omap%ng which is used to allocate a work array
        ! TODO: use a hash table to avoid it.
        ! If we were interested in the global numbering of nodes, it could be stored
        ! at this point, where it is lost.
@@ -1914,7 +1914,7 @@ use mpi
                                     mlbddc%c_context%np, &
                                     mlbddc%pad_collectives,  &  
                                     mlbddc%max_coarse_dofs,  &
-                                    mlbddc%p_mat%dof_dist%omap%ng,  &
+                                    mlbddc%p_mat%dof_dist_domain%omap%ng,  &
                                     mlbddc%ptr_coarse_dofs,   & 
                                     c_mesh%lnods,   &
                                     mlbddc%vars,   &
@@ -2464,7 +2464,7 @@ use mpi
                                                         mlbddc%g_context%iam,     &
                                                         mlbddc%g_context%np,      &
                                                         mlbddc%pad_collectives,          &
-                                                        mlbddc%p_mat%dof_dist%max_nparts, &  
+                                                        mlbddc%p_mat%dof_dist_domain%max_nparts, &  
                                                         c_mesh%npoin,    &
                                                         c_mesh%nnode,    &
                                                         mlbddc%ptr_coarse_dofs,    &
@@ -2575,11 +2575,11 @@ use mpi
 
        else if ( i_am_fine_task ) then
 
-          call memalloc ( mlbddc%p_mat%dof_dist%npadj, neighbours_coarse_parts, __FILE__,__LINE__) 
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%npadj, neighbours_coarse_parts, __FILE__,__LINE__) 
 
           call fetch_parts_coarse_neighbours ( mlbddc%p_mat%p_env%p_context%icontxt, & 
-                                               mlbddc%p_mat%dof_dist%npadj, & 
-                                               mlbddc%p_mat%dof_dist%lpadj, & 
+                                               mlbddc%p_mat%dof_dist_domain%npadj, & 
+                                               mlbddc%p_mat%dof_dist_domain%lpadj, & 
                                                mlbddc%p_mat%p_env%id_parts(2), &
                                                neighbours_coarse_parts)
 
@@ -2587,13 +2587,13 @@ use mpi
                                                         mlbddc%g_context%iam,     &
                                                         mlbddc%g_context%np,      &
                                                         mlbddc%pad_collectives,          &
-                                                        mlbddc%p_mat%dof_dist%max_nparts, &  
+                                                        mlbddc%p_mat%dof_dist_domain%max_nparts, &  
                                                         mlbddc%nl_coarse,                &
                                                         mlbddc%coarse_dofs,              &
-                                                        mlbddc%p_mat%dof_dist%omap%nl,    &
-                                                        mlbddc%p_mat%dof_dist%lobjs,      &
-                                                        mlbddc%p_mat%dof_dist%npadj,      &
-                                                        mlbddc%p_mat%dof_dist%lpadj,      &
+                                                        mlbddc%p_mat%dof_dist_domain%omap%nl,    &
+                                                        mlbddc%p_mat%dof_dist_domain%lobjs,      &
+                                                        mlbddc%p_mat%dof_dist_domain%npadj,      &
+                                                        mlbddc%p_mat%dof_dist_domain%lpadj,      &
                                                         mlbddc%p_mat%p_env%id_parts,          &
                                                         neighbours_coarse_parts,            &
                                                         mlbddc%max_coarse_dofs)
@@ -3093,16 +3093,16 @@ use mpi
                                                  mlbddc%A_rr%graph%nv   , & 
                                                  mlbddc%A_rr%graph%ia   , &
                                                  mlbddc%A_rr%graph%ja, &
-                                                 mlbddc%p_mat%dof_dist%nl, &
+                                                 mlbddc%p_mat%dof_dist_domain%nl, &
                                                  mlbddc%nl_corners, &
                                                  mlbddc%nl_edges, &
                                                  mlbddc%nl_coarse, &
                                                  mlbddc%coarse_dofs, &
-                                                 mlbddc%p_mat%dof_dist%max_nparts, &
-                                                 mlbddc%p_mat%dof_dist%omap%nl, &
-                                                 mlbddc%p_mat%dof_dist%lobjs, &
+                                                 mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                                                 mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                                                 mlbddc%p_mat%dof_dist_domain%lobjs, &
                                                  mlbddc%A_rr%a,  &
-                                                 mlbddc%p_mat%dof_dist%nb, &
+                                                 mlbddc%p_mat%dof_dist_domain%nb, &
                                                  mlbddc%C_weights )
          if (mlbddc%projection == petrov_galerkin ) then 
 		   call mat_trans%create ( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite)
@@ -3115,16 +3115,16 @@ use mpi
                                                   mlbddc%A_rr%graph%nv   , & 
                                                   mlbddc%A_rr%graph%ia   , &
                                                   mlbddc%A_rr%graph%ja, &
-                                                  mlbddc%p_mat%dof_dist%nl, &
+                                                  mlbddc%p_mat%dof_dist_domain%nl, &
                                                   mlbddc%nl_corners, &
                                                   mlbddc%nl_edges, &
                                                   mlbddc%nl_coarse, &
                                                   mlbddc%coarse_dofs, &
-                                                  mlbddc%p_mat%dof_dist%max_nparts, &
-                                                  mlbddc%p_mat%dof_dist%omap%nl, &
-                                                  mlbddc%p_mat%dof_dist%lobjs, &
+                                                  mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                                                  mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                                                  mlbddc%p_mat%dof_dist_domain%lobjs, &
                                                   mlbddc%A_rr_trans%a, &
-                                                  mlbddc%p_mat%dof_dist%nb, &
+                                                  mlbddc%p_mat%dof_dist_domain%nb, &
                                                   mlbddc%C_weights  )
             call mat_trans%free()
          end if
@@ -3309,7 +3309,7 @@ use mpi
                
           end if
 
-          call memalloc ( mlbddc%p_mat%dof_dist%nl, & 
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nl, & 
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%rPhi, __FILE__, __LINE__ )
 
@@ -3317,7 +3317,7 @@ use mpi
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%blk_lag_mul, __FILE__,__LINE__ )
 
-          call memalloc ( mlbddc%p_mat%dof_dist%nl, & 
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nl, & 
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%lPhi, __FILE__, __LINE__ )
 
@@ -3368,11 +3368,11 @@ use mpi
           end if
 
        else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-          call memalloc ( mlbddc%p_mat%dof_dist%nl, &
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nl, &
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%rPhi, __FILE__,__LINE__ )
 
-          call memalloc ( mlbddc%p_mat%dof_dist%nl, &
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nl, &
                           mlbddc%nl_edges+mlbddc%nl_corners, & 
                           mlbddc%lPhi, __FILE__,__LINE__ )
 
@@ -3847,15 +3847,15 @@ use mpi
        ! Y = alpha * Y + beta * C_r * X
        ! C_r => nl_edges x n(A_rr)
 
-       call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
+       call update_with_c_r   ( mlbddc%p_mat%dof_dist_domain%nl, &
                                 mlbddc%perm, &
                                 mlbddc%iperm, &
                                 mlbddc%nl_corners, &
                                 mlbddc%nl_edges, &
                                 mlbddc%coarse_dofs, &
-                                mlbddc%p_mat%dof_dist%max_nparts, &
-                                mlbddc%p_mat%dof_dist%omap%nl, &
-                                mlbddc%p_mat%dof_dist%lobjs, &
+                                mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                                mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                                mlbddc%p_mat%dof_dist_domain%lobjs, &
                                 mlbddc%nl_edges, & 
                                 mlbddc%A_rr%graph%nv, &
                                 mlbddc%nl_corners, & 
@@ -3863,7 +3863,7 @@ use mpi
                                 1.0_rp, &
                                 -1.0_rp, & 
                                 rhs, &
-                                mlbddc%p_mat%dof_dist%nb, &
+                                mlbddc%p_mat%dof_dist_domain%nb, &
                                 mlbddc%C_weights )
     end if
     
@@ -4518,17 +4518,17 @@ use mpi
 
 
     ! Compute C_r_T
-    call compute_c_r_trans ( mlbddc%p_mat%dof_dist%nl, &
+    call compute_c_r_trans ( mlbddc%p_mat%dof_dist_domain%nl, &
                              mlbddc%perm, &
                              mlbddc%iperm, &
                              mlbddc%nl_corners, &
                              mlbddc%nl_edges, &
                              mlbddc%coarse_dofs, &
-                             mlbddc%p_mat%dof_dist%max_nparts, &
-                             mlbddc%p_mat%dof_dist%omap%nl, &
-                             mlbddc%p_mat%dof_dist%lobjs, &
+                             mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                             mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                             mlbddc%p_mat%dof_dist_domain%lobjs, &
                              C_r_T, &  
-                             mlbddc%p_mat%dof_dist%nb, &
+                             mlbddc%p_mat%dof_dist_domain%nb, &
                              mlbddc%C_weights )
 
 
@@ -4581,15 +4581,15 @@ use mpi
     ! C_r => nl_edges x n(A_rr)
     S_rr = 0.0
 
-    call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
+    call update_with_c_r   ( mlbddc%p_mat%dof_dist_domain%nl, &
                              mlbddc%perm, &
                              mlbddc%iperm, &
                              mlbddc%nl_corners, &
                              mlbddc%nl_edges, &
                              mlbddc%coarse_dofs, &
-                             mlbddc%p_mat%dof_dist%max_nparts, &
-                             mlbddc%p_mat%dof_dist%omap%nl, &
-                             mlbddc%p_mat%dof_dist%lobjs, &
+                             mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                             mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                             mlbddc%p_mat%dof_dist_domain%lobjs, &
                              mlbddc%nl_edges, & 
                              mlbddc%A_rr%graph%nv, &
                              mlbddc%nl_edges, & 
@@ -4597,7 +4597,7 @@ use mpi
                              0.0_rp, &
                              1.0_rp, & 
                              S_rr,  & 
-                             mlbddc%p_mat%dof_dist%nb, &
+                             mlbddc%p_mat%dof_dist_domain%nb, &
                              mlbddc%C_weights )
 
 
@@ -4607,15 +4607,15 @@ use mpi
        ! C_r => nl_edges x n(A_rr)
        S_rr_neumann = 0.0
 
-       call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
+       call update_with_c_r   ( mlbddc%p_mat%dof_dist_domain%nl, &
                                 mlbddc%perm, &
                                 mlbddc%iperm, &
                                 mlbddc%nl_corners, &
                                 mlbddc%nl_edges, &
                                 mlbddc%coarse_dofs, &
-                                mlbddc%p_mat%dof_dist%max_nparts, &
-                                mlbddc%p_mat%dof_dist%omap%nl, &
-                                mlbddc%p_mat%dof_dist%lobjs, &
+                                mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                                mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                                mlbddc%p_mat%dof_dist_domain%lobjs, &
                                 mlbddc%nl_edges, & 
                                 mlbddc%A_rr%graph%nv, &
                                 mlbddc%nl_edges, & 
@@ -4623,7 +4623,7 @@ use mpi
                                 0.0_rp, &
                                 1.0_rp, & 
                                 S_rr_neumann, &
-                                mlbddc%p_mat%dof_dist%nb, &
+                                mlbddc%p_mat%dof_dist_domain%nb, &
                                 mlbddc%C_weights ) 
 
     end if
@@ -5111,7 +5111,7 @@ use mpi
     type(preconditioner_t)        , intent(inout)   :: M_rr
 
     real (rp)                , intent(in)      :: A_rr_inv_C_r_T (:,:) 
-    real(rp)                 , intent(inout)   :: rPhi (mlbddc%p_mat%dof_dist%nl,&
+    real(rp)                 , intent(inout)   :: rPhi (mlbddc%p_mat%dof_dist_domain%nl,&
                                                         mlbddc%nl_edges+mlbddc%nl_corners)
     real(rp)                 , intent(in)   :: lambda_r ( mlbddc%nl_edges  , & 
                                                           (mlbddc%nl_edges+mlbddc%nl_corners) )
@@ -5239,9 +5239,9 @@ use mpi
       end if
 
       base = mlbddc%nl_corners   
-      do j=1, mlbddc%p_mat%dof_dist%nl  
+      do j=1, mlbddc%p_mat%dof_dist_domain%nl  
          k =  mlbddc%iperm(j)
-         ! write (*,*) j, k, mlbddc%p_mat%dof_dist%nl  , base DBG:
+         ! write (*,*) j, k, mlbddc%p_mat%dof_dist_domain%nl  , base DBG:
          if (j <= base) then
             ! harm_c [I_c 0] 
             rPhi(k,:) = 0.0_rp
@@ -5254,13 +5254,13 @@ use mpi
 
       if ( debug_verbose_level_3 ) then
 
-            call memalloc ( mlbddc%p_mat%dof_dist%nl, aux, __FILE__,__LINE__ )
+            call memalloc ( mlbddc%p_mat%dof_dist_domain%nl, aux, __FILE__,__LINE__ )
 
             call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
 
             do iadj=1, mlbddc%nl_coarse 
 
-               do j=1,mlbddc%p_mat%dof_dist%nl 
+               do j=1,mlbddc%p_mat%dof_dist_domain%nl 
                   aux(j) = rPhi(j,iadj)
                end do
 
@@ -5293,7 +5293,7 @@ use mpi
 
     type(serial_scalar_matrix_t)      , intent(inout)   :: A_rr
     type(preconditioner_t)     , intent(inout)   :: M_rr
-    real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist%nl, &
+    real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist_domain%nl, &
                                                      mlbddc%nl_edges+mlbddc%nl_corners)    
     character(len=1)      , intent(in)      :: system ! Information about the regular system or the system assoc                                                        iated to the transpose matrix
 
@@ -5319,7 +5319,7 @@ use mpi
 
        work1 = 0.0_rp
        j = 1
-       do i = mlbddc%p_mat%dof_dist%nl   + 1, mlbddc%A_rr%graph%nv
+       do i = mlbddc%p_mat%dof_dist_domain%nl   + 1, mlbddc%A_rr%graph%nv
          work1 (i,j) = 1.0_rp
          j = j + 1 
        end do
@@ -5341,21 +5341,21 @@ use mpi
 !!$                      mlbddc%spars_harm)
        end if
 
-             rPhi = work2 (1:mlbddc%p_mat%dof_dist%nl ,:) 
+             rPhi = work2 (1:mlbddc%p_mat%dof_dist_domain%nl ,:) 
 
              if ( system == 'N' ) then 
                 if ( mlbddc%subd_elmat_calc == phit_minus_c_i_t_lambda ) then
-                   mlbddc%blk_lag_mul = work2 (mlbddc%p_mat%dof_dist%nl +1:,:)
+                   mlbddc%blk_lag_mul = work2 (mlbddc%p_mat%dof_dist_domain%nl +1:,:)
                 end if
              end if
 
        if ( debug_verbose_level_3 ) then
-          call memalloc ( 1, mlbddc%p_mat%dof_dist%nl, work3, __FILE__,__LINE__ )
+          call memalloc ( 1, mlbddc%p_mat%dof_dist_domain%nl, work3, __FILE__,__LINE__ )
           call par_context_info ( mlbddc%p_mat%p_env%p_context, me, np )
 
 
           do iadj=1, mlbddc%nl_coarse 
-             do j=1,mlbddc%p_mat%dof_dist%nl 
+             do j=1,mlbddc%p_mat%dof_dist_domain%nl 
                 work3(1,j) = rPhi(j,iadj)
              end do
 
@@ -5424,20 +5424,20 @@ end if
 
           if ( mlbddc%subd_elmat_calc == phit_minus_c_i_t_lambda ) then
 
-             call memalloc ( mlbddc%p_mat%dof_dist%nb, (mlbddc%nl_edges+mlbddc%nl_corners), work, __FILE__,__LINE__ )
+             call memalloc ( mlbddc%p_mat%dof_dist_domain%nb, (mlbddc%nl_edges+mlbddc%nl_corners), work, __FILE__,__LINE__ )
 
              work = 0.0_rp
 
              ! Compute S \PHI_G == -C_i^t * blk_lag_mul (see art002)
 
-             call update_with_c_i_trans ( mlbddc%p_mat%dof_dist%nl, &
+             call update_with_c_i_trans ( mlbddc%p_mat%dof_dist_domain%nl, &
                   mlbddc%nl_corners, &
                   mlbddc%nl_edges, &
                   mlbddc%coarse_dofs, &
-                  mlbddc%p_mat%dof_dist%max_nparts, &
-                  mlbddc%p_mat%dof_dist%omap%nl, &
-                  mlbddc%p_mat%dof_dist%lobjs, &
-                  mlbddc%p_mat%dof_dist%nb  , & 
+                  mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                  mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                  mlbddc%p_mat%dof_dist_domain%lobjs, &
+                  mlbddc%p_mat%dof_dist_domain%nb  , & 
                   (mlbddc%nl_edges+mlbddc%nl_corners) , & 
                   (mlbddc%nl_edges+mlbddc%nl_corners) , &
                   mlbddc%blk_lag_mul, & 
@@ -5454,12 +5454,12 @@ end if
                   'N', &
                   mlbddc%nl_coarse  , &
                   mlbddc%nl_coarse  , &
-                  mlbddc%p_mat%dof_dist%nb  , &
+                  mlbddc%p_mat%dof_dist_domain%nb  , &
                   1.0, &
-                  mlbddc%lPhi(mlbddc%p_mat%dof_dist%ni  +1,1), &
-                  mlbddc%p_mat%dof_dist%nl   , &
+                  mlbddc%lPhi(mlbddc%p_mat%dof_dist_domain%ni  +1,1), &
+                  mlbddc%p_mat%dof_dist_domain%nl   , &
                   work, &
-                  mlbddc%p_mat%dof_dist%nb  , &
+                  mlbddc%p_mat%dof_dist_domain%nb  , &
                   0.0, &
                   a_ci, &
                   mlbddc%nl_coarse  )
@@ -5474,7 +5474,7 @@ end if
           else
 
              ! HERE a_ci = \Phi^t A_i \Phi 
-             call memalloc ( mlbddc%p_mat%dof_dist%nl,& 
+             call memalloc ( mlbddc%p_mat%dof_dist_domain%nl,& 
                              (mlbddc%nl_edges+mlbddc%nl_corners), &
                              work, __FILE__, __LINE__ )
 
@@ -5518,9 +5518,9 @@ end if
              ! write (*,*) work ! DBG:
 #else
              call p_mat%serial_scalar_matrix%apply_to_dense_matrix ( (mlbddc%nl_edges+mlbddc%nl_corners), &
-                                                          mlbddc%p_mat%dof_dist%nl, &
+                                                          mlbddc%p_mat%dof_dist_domain%nl, &
                                                           mlbddc%rPhi, &
-                                                          mlbddc%p_mat%dof_dist%nl, &
+                                                          mlbddc%p_mat%dof_dist_domain%nl, &
                                                           work )
 #endif
              a_ci = 0.0_rp 
@@ -5530,12 +5530,12 @@ end if
                   'N', &
                   mlbddc%nl_coarse, &
                   mlbddc%nl_coarse, &
-                  mlbddc%p_mat%dof_dist%nl, &
+                  mlbddc%p_mat%dof_dist_domain%nl, &
                   1.0, &
                   mlbddc%lPhi, &
-                  mlbddc%p_mat%dof_dist%nl , &
+                  mlbddc%p_mat%dof_dist_domain%nl , &
                   work, &
-                  mlbddc%p_mat%dof_dist%nl, &
+                  mlbddc%p_mat%dof_dist_domain%nl, &
                   0.0, &
                   a_ci, &
                   mlbddc%nl_coarse)
@@ -5554,27 +5554,27 @@ end if
 
           ! if ( mlbddc%unknowns == interface_unknowns ) then
           ! Re-alloc right side harmonic extensions (rPhi)
-          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
 
           work = mlbddc%rPhi( &
-               mlbddc%p_mat%dof_dist%ni+1:,:)
+               mlbddc%p_mat%dof_dist_domain%ni+1:,:)
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
 
-          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%rPhi, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%rPhi, __FILE__,__LINE__ )
 
           mlbddc%rPhi = work
           call memfree ( work,__FILE__,__LINE__)
 
           ! Re-alloc left side harmonic extensions (lPhi)
-          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nb, mlbddc%nl_edges+mlbddc%nl_corners,  work, __FILE__,__LINE__ )
 
           work = mlbddc%lPhi( &
-               mlbddc%p_mat%dof_dist%ni+1:,:)
+               mlbddc%p_mat%dof_dist_domain%ni+1:,:)
 
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
 
-          call memalloc ( mlbddc%p_mat%dof_dist%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%lPhi, __FILE__,__LINE__ )
+          call memalloc ( mlbddc%p_mat%dof_dist_domain%nb, mlbddc%nl_edges+mlbddc%nl_corners,  mlbddc%lPhi, __FILE__,__LINE__ )
 
           mlbddc%lPhi = work
           call memfree ( work,__FILE__,__LINE__)
@@ -5972,10 +5972,10 @@ use mpi
     if ( i_am_fine_task ) then
        if ( mlbddc%correction_mode == additive ) then
           ! Create temporary vector
-          call r%create_and_allocate( mlbddc%p_mat%dof_dist,mlbddc%p_mat%p_env)
-          call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
-          call r%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
-          call x%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
+          call r%create_and_allocate( mlbddc%p_mat%dof_dist_domain,mlbddc%p_mat%p_env)
+          call r%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, r_I )
+          call r%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, r_G )
+          call x%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, x_G )
 
           ! Init interior vertices to zero
           call r_I%init(0.0_rp)
@@ -6004,8 +6004,8 @@ use mpi
 
           call par_preconditioner_dd_mlevel_bddc_compute_c_g_corr_scatter ( mlbddc, dum_vec, v1 )
 
-          call y%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
-          call x%create_view(1, mlbddc%p_mat%dof_dist%ni, x_I )
+          call y%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, y_G )
+          call x%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, x_I )
 
           call y_G%copy(v1)
           call y_G%axpby ( 1.0_rp, v2, 1.0_rp )
@@ -6025,7 +6025,7 @@ use mpi
           ! r <- x_I - r_I <- -r_I + x_I
           call r_I%axpby(1.0_rp, x_I, -1.0_rp)
 
-          call y%create_view(1, mlbddc%p_mat%dof_dist%ni, y_I  )
+          call y%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, y_I  )
           call operator_dd_solve_A_II ( mlbddc%A_II_inv, r_I%serial_scalar_array, y_I%serial_scalar_array )
 
           !mlbddc%num_dirichlet_solves = mlbddc%num_dirichlet_solves + 1
@@ -6038,17 +6038,17 @@ use mpi
           call aux%copy(x)
           call dx%clone(y)
           
-          call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
-          call r%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, r_G )
+          call r%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, r_I )
+          call r%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, r_G )
 
-          call aux%create_view(1, mlbddc%p_mat%dof_dist%ni, x_I )
-          call aux%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
+          call aux%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, x_I )
+          call aux%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, x_G )
 
-          call y%create_view(1, mlbddc%p_mat%dof_dist%ni, y_I )
-          call y%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, y_G )
+          call y%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, y_I )
+          call y%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, y_G )
 
-          call dx%create_view(1, mlbddc%p_mat%dof_dist%ni, dx_I )
-          call dx%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, dx_G )
+          call dx%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, dx_I )
+          call dx%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, dx_G )
 
 
           ! 1) Compute dx_I = A_II^-1 r_I,   dx_G = 0
@@ -6200,10 +6200,10 @@ use mpi
     if ( mlbddc%p_mat%p_env%p_context%iam >= 0 ) then
        call r%clone(b)
 
-       call r%create_view(1, mlbddc%p_mat%dof_dist%ni, r_I )
-       call b%create_view(1, mlbddc%p_mat%dof_dist%ni, b_I )
-       call x%create_view(1, mlbddc%p_mat%dof_dist%ni, x_I )
-       call x%create_view(mlbddc%p_mat%dof_dist%ni+1, mlbddc%p_mat%dof_dist%nl, x_G )
+       call r%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, r_I )
+       call b%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, b_I )
+       call x%create_view(1, mlbddc%p_mat%dof_dist_domain%ni, x_I )
+       call x%create_view(mlbddc%p_mat%dof_dist_domain%ni+1, mlbddc%p_mat%dof_dist_domain%nl, x_G )
        
        ! r_I <- A_IG * y_G
        call operator_dd_apply_A_IG ( mlbddc%A_II_inv, x_G%serial_scalar_array, r_I%serial_scalar_array )
@@ -6431,7 +6431,7 @@ use mpi
 
        call memalloc ( mlbddc%A_rr%graph%nv, r_r, __FILE__,__LINE__ )
 
-       call apply_perm_to_residual ( mlbddc%p_mat%dof_dist%nl , &
+       call apply_perm_to_residual ( mlbddc%p_mat%dof_dist_domain%nl , &
                                      mlbddc%nl_corners , & 
                                      mlbddc%perm, &                                  
                                      r%serial_scalar_array%b, &
@@ -6476,8 +6476,8 @@ use mpi
        
 
        call apply_iperm_to_z_r ( mlbddc%unknowns, &  
-                                 mlbddc%p_mat%dof_dist%nl , &
-                                 mlbddc%p_mat%dof_dist%ni , &
+                                 mlbddc%p_mat%dof_dist_domain%nl , &
+                                 mlbddc%p_mat%dof_dist_domain%ni , &
                                  mlbddc%nl_corners , &
                                  mlbddc%iperm, &
                                  z_r, &
@@ -6489,11 +6489,11 @@ use mpi
 
     else if ( mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
 
-       call memalloc ( (mlbddc%p_mat%dof_dist%nl+mlbddc%nl_coarse), aug_r, __FILE__, __LINE__ )
-       call memalloc ( (mlbddc%p_mat%dof_dist%nl+mlbddc%nl_coarse), aug_v, __FILE__, __LINE__ )
+       call memalloc ( (mlbddc%p_mat%dof_dist_domain%nl+mlbddc%nl_coarse), aug_r, __FILE__, __LINE__ )
+       call memalloc ( (mlbddc%p_mat%dof_dist_domain%nl+mlbddc%nl_coarse), aug_v, __FILE__, __LINE__ )
 
-       aug_r(1:mlbddc%p_mat%dof_dist%nl )  = r%serial_scalar_array%b
-       aug_r(mlbddc%p_mat%dof_dist%nl+1:) = 0.0_rp
+       aug_r(1:mlbddc%p_mat%dof_dist_domain%nl )  = r%serial_scalar_array%b
+       aug_r(mlbddc%p_mat%dof_dist_domain%nl+1:) = 0.0_rp
 
        mlbddc%spars_neumann%nrhs=1
        ! mlbddc%spars%method=direct
@@ -6506,7 +6506,7 @@ use mpi
        end if
 
 
-       v_G%serial_scalar_array%b = aug_v ( mlbddc%p_mat%dof_dist%ni+1:mlbddc%p_mat%dof_dist%nl   ) 
+       v_G%serial_scalar_array%b = aug_v ( mlbddc%p_mat%dof_dist_domain%ni+1:mlbddc%p_mat%dof_dist_domain%nl   ) 
 
        call memfree ( aug_r,__FILE__,__LINE__)
        call memfree ( aug_v,__FILE__,__LINE__)
@@ -6533,11 +6533,11 @@ use mpi
       ! r_ci <- 1.0 * rPhi^T * r + 0.0 * r_ci 
       ! if ( mlbddc%unknowns == all_unknowns ) then
       !    call DGEMV(  'T', & 
-      !                mlbddc%p_mat%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist_domain%nl  , &
       !                mlbddc%nl_coarse  , &
       !                1.0, &
       !                mlbddc%rPhi, &
-      !                mlbddc%p_mat%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist_domain%nl  , &
       !                r%serial_scalar_array%b, &
       !                1, &
       !                0.0, & 
@@ -6545,11 +6545,11 @@ use mpi
       !                1)
       !else if ( mlbddc%unknowns == interface_unknowns ) then
          call DGEMV(  'T', & 
-                      mlbddc%p_mat%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist_domain%nb  , &
                       mlbddc%nl_coarse  , &
                       1.0, &
                       mlbddc%lPhi, &
-                      mlbddc%p_mat%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist_domain%nb  , &
                       r%serial_scalar_array%b, &
                       1, &
                       0.0, & 
@@ -6578,11 +6578,11 @@ use mpi
       r%serial_scalar_array%b = 0.0
       ! if ( mlbddc%unknowns == all_unknowns ) then
       !   call DGEMV(  'N', & 
-      !                mlbddc%p_mat%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist_domain%nl  , &
       !                mlbddc%nl_coarse  , &
       !                1.0, &
       !                mlbddc%rPhi, &
-      !                mlbddc%p_mat%dof_dist%nl  , &
+      !                mlbddc%p_mat%dof_dist_domain%nl  , &
       !                r_ci, &
       !                1,    &
       !                0.0,  & 
@@ -6590,11 +6590,11 @@ use mpi
       !                1)         
       !else if ( mlbddc%unknowns == interface_unknowns ) then
          call DGEMV(  'N', & 
-                      mlbddc%p_mat%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist_domain%nb  , &
                       mlbddc%nl_coarse  , &
                       1.0, &
                       mlbddc%rPhi, &
-                      mlbddc%p_mat%dof_dist%nb  , &
+                      mlbddc%p_mat%dof_dist_domain%nb  , &
                       r_ci, &
                       1,    &
                       0.0,  & 
@@ -7098,15 +7098,15 @@ use mpi
     ! Y = alpha * Y + beta * C_r * X
     ! C_r => nl_edges x n(A_rr)
 
-    call update_with_c_r   ( mlbddc%p_mat%dof_dist%nl, &
+    call update_with_c_r   ( mlbddc%p_mat%dof_dist_domain%nl, &
                              mlbddc%perm, &
                              mlbddc%iperm, &
                              mlbddc%nl_corners, &
                              mlbddc%nl_edges, &
                              mlbddc%coarse_dofs, &
-                             mlbddc%p_mat%dof_dist%max_nparts, &
-                             mlbddc%p_mat%dof_dist%omap%nl, &
-                             mlbddc%p_mat%dof_dist%lobjs, &
+                             mlbddc%p_mat%dof_dist_domain%max_nparts, &
+                             mlbddc%p_mat%dof_dist_domain%omap%nl, &
+                             mlbddc%p_mat%dof_dist_domain%lobjs, &
                              mlbddc%nl_edges   , & 
                              mlbddc%A_rr%graph%nv, &
                              1, & 
@@ -7114,7 +7114,7 @@ use mpi
                              0.0_rp, &
                              1.0_rp, & 
                              rhs, &
-                             mlbddc%p_mat%dof_dist%nb, &
+                             mlbddc%p_mat%dof_dist_domain%nb, &
                              mlbddc%C_weights )
 
   end subroutine compute_neumann_edge_lagrange_multipliers_rhs
@@ -7466,12 +7466,12 @@ use mpi
        ! BEGIN FINE-GRID RELATED DUTIES
        ! if (allocated(mlbddc%C_weights) ) then 
        !    !First of all compute local CORNER DOF over next level edge value 
-       !    nid = mlbddc%p_mat%dof_dist%nl -  mlbddc%p_mat%dof_dist%nb
+       !    nid = mlbddc%p_mat%dof_dist_domain%nl -  mlbddc%p_mat%dof_dist_domain%nb
        !    do i=1, mlbddc%nl_coarse 
        !       iobj  = mlbddc%coarse_dofs (i)
        !       ! Each COARSE DOF is given its size
-       !       j1 = mlbddc%p_mat%dof_dist%lobjs(2,iobj)
-       !       j2 = mlbddc%p_mat%dof_dist%lobjs(3,iobj)
+       !       j1 = mlbddc%p_mat%dof_dist_domain%lobjs(2,iobj)
+       !       j2 = mlbddc%p_mat%dof_dist_domain%lobjs(3,iobj)
 
        !       do jd = j1, j2         
        !          if (j2-j1 .eq. 0) then 
@@ -7486,7 +7486,7 @@ use mpi
        C_weights_i = 0.0_rp
 
        if ( mlbddc%nl_coarse > 0 ) then           
-              call constraint_weights%serial_scalar_array%create_and_allocate(mlbddc%p_mat%dof_dist%nb)
+              call constraint_weights%serial_scalar_array%create_and_allocate(mlbddc%p_mat%dof_dist_domain%nb)
               constraint_weights%serial_scalar_array%b = mlbddc%C_weights
               call apply_harm_trans( mlbddc, constraint_weights, C_weights_i ) 
               call constraint_weights%serial_scalar_array%free()
@@ -7522,8 +7522,8 @@ use mpi
         ! Take only the interface weights from the full constraints weights vector 
         nl_coarse_dofs = mlbddc%p_M_c%nl_corners_dofs + mlbddc%p_M_c%nl_edges_dofs
 
-        ni = mlbddc%p_mat_c%dof_dist%ni
-        nb  = mlbddc%p_mat_c%dof_dist%nb
+        ni = mlbddc%p_mat_c%dof_dist_domain%ni
+        nb  = mlbddc%p_mat_c%dof_dist_domain%nb
 
         call memalloc (  nb ,  mlbddc%p_M_c%C_weights , __FILE__, __LINE__) 
         mlbddc%p_M_c%C_weights = C_weights_next_level%b(ni+1:ni+nb)

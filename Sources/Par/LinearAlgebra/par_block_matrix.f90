@@ -205,8 +205,8 @@ contains
           if ( ib == jb ) then
             range_vector_block  => range_vector%get_block(ib) 
             domain_vector_block => domain_vector%get_block(ib) 
-            call range_vector_block%create_and_allocate(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_cols,this%blocks(ib,jb)%par_scalar_matrix%p_env)
-            call domain_vector_block%create_and_allocate(this%blocks(ib,ib)%par_scalar_matrix%dof_dist,this%blocks(ib,jb)%par_scalar_matrix%p_env)
+            call range_vector_block%create_and_allocate(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_range,this%blocks(ib,jb)%par_scalar_matrix%p_env)
+            call domain_vector_block%create_and_allocate(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_domain,this%blocks(ib,jb)%par_scalar_matrix%p_env)
           end if
        end do
     end do
