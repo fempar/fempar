@@ -330,23 +330,8 @@ contains
     assert ( associated(x%p_env%p_context) )
     assert ( associated(y%dof_dist   ) )
     assert ( associated(y%p_env%p_context) )
-
-    !if ( (x%state == part_summed .and. y%state == full_summed) .or. (x%state == full_summed .and. y%state == part_summed) ) then
-    !   ! Perform local dot products
-    !   t=x%serial_scalar_array%dot(y%serial_scalar_array)
-    !else if ( (x%state == full_summed .and. y%state == full_summed) ) then
-    ! Perform local weighted dot products
+    
     call weighted_dot (x, y, t)
-    !else if ( (x%state == part_summed .and. y%state == part_summed) ) then
-    !   ! Allocate space for ws_vec
-    !   call ws_vec%clone(x)
-    !   ! ws_vec <- x  
-    !   call ws_vec%copy(x)
-    !   ! Transform ws_vec from partially summed to fully summed
-    !   call comm_interface ( ws_vec )
-    !   t=x%serial_scalar_array%dot(ws_vec%serial_scalar_array)
-    !   call ws_vec%free()
-    !end if
   end subroutine dot_interface
 
   subroutine par_scalar_array_print ( this, luout )

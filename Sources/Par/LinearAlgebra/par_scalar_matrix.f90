@@ -46,6 +46,7 @@ module par_scalar_matrix_names
   use vector_names
   use operator_names
   use matrix_names
+  use vector_space_names
 
   implicit none
 # include "debug.i90"
@@ -58,27 +59,27 @@ module par_scalar_matrix_names
      ! This is required for both eb and vb data 
      ! distributions
      type( serial_scalar_matrix_t ) :: serial_scalar_matrix
-     
+
      type(dof_distribution_t), pointer :: &
-        dof_dist => NULL()            ! Associated (ROW) dof_distribution
-     
+          dof_dist => NULL()            ! Associated (ROW) dof_distribution
+
      type(dof_distribution_t), pointer :: &
-        dof_dist_cols => NULL()       ! Associated (COL) dof_distribution
+          dof_dist_cols => NULL()       ! Associated (COL) dof_distribution
 
      type(par_environment_t), pointer :: &
           p_env => NULL()
    contains
      generic  :: create   => par_scalar_matrix_create_square, &
-	                           par_scalar_matrix_create_rectangular
-	 procedure, private :: par_scalar_matrix_create_square
-	 procedure, private :: par_scalar_matrix_create_rectangular
-	 
-	 procedure  :: allocate => par_scalar_matrix_allocate
+          par_scalar_matrix_create_rectangular
+     procedure, private :: par_scalar_matrix_create_square
+     procedure, private :: par_scalar_matrix_create_rectangular
+
+     procedure  :: allocate => par_scalar_matrix_allocate
      procedure  :: print_matrix_market => par_scalar_matrix_print_matrix_market						 
-	 procedure  :: init      => par_scalar_matrix_init
+     procedure  :: init      => par_scalar_matrix_init
      procedure  :: apply     => par_scalar_matrix_apply
      procedure  :: apply_fun => par_scalar_matrix_apply_fun
-	 procedure  :: free_in_stages => par_scalar_matrix_free_in_stages
+     procedure  :: free_in_stages => par_scalar_matrix_free_in_stages
   end type par_scalar_matrix_t
 
   ! Types
@@ -110,10 +111,10 @@ contains
   !=============================================================================
   subroutine par_scalar_matrix_create_square(this,symmetric_storage,is_symmetric,sign,dof_dist,p_env)
     implicit none
-	class(par_scalar_matrix_t)          ,intent(out) :: this
-	logical                             ,intent(in)  :: symmetric_storage
+    class(par_scalar_matrix_t)          ,intent(out) :: this
+    logical                             ,intent(in)  :: symmetric_storage
     logical                             ,intent(in)  :: is_symmetric
-	integer(ip)                         ,intent(in)  :: sign
+    integer(ip)                         ,intent(in)  :: sign
     type(dof_distribution_t), target    ,intent(in)  :: dof_dist
     type(par_environment_t) , target    ,intent(in)  :: p_env
 
@@ -126,9 +127,9 @@ contains
   !=============================================================================
   subroutine par_scalar_matrix_create_rectangular(this,dof_dist,dof_dist_cols,p_env)
     implicit none
-	class(par_scalar_matrix_t)          ,intent(out) :: this
+    class(par_scalar_matrix_t)          ,intent(out) :: this
     type(dof_distribution_t), target    ,intent(in)  :: dof_dist
-	type(dof_distribution_t), target    ,intent(in)  :: dof_dist_cols
+    type(dof_distribution_t), target    ,intent(in)  :: dof_dist_cols
     type(par_environment_t) , target    ,intent(in)  :: p_env
 
     call this%serial_scalar_matrix%create()
@@ -140,10 +141,26 @@ contains
   subroutine par_scalar_matrix_allocate(this)
     implicit none
     class(par_scalar_matrix_t), intent(inout) :: this
-
+    type(par_scalar_array_t) :: range_vector
+    type(par_scalar_array_t) :: domain_vector
+    type(vector_space_t), pointer :: range_vector_space
+    type(vector_space_t), pointer :: domain_vector_space
+    
     if(this%p_env%p_context%iam>=0) then
        call this%serial_scalar_matrix%allocate()
     end if
+    
+    call range_vector%create_and_allocate(this%dof_dist_cols,this%p_env)
+    call domain_vector%create_and_allocate(this%dof_dist,this%p_env)
+
+    range_vector_space => this%get_range_vector_space()
+    call range_vector_space%create(range_vector)
+    
+    domain_vector_space => this%get_domain_vector_space()
+    call domain_vector_space%create(domain_vector)
+    
+    call range_vector%free()
+    call domain_vector%free()
   end subroutine par_scalar_matrix_allocate
 
   !=============================================================================
@@ -164,19 +181,20 @@ contains
        nullify ( this%dof_dist )
        nullify ( this%dof_dist_cols )
        nullify ( this%p_env )
-	   call this%serial_scalar_matrix%free_in_stages(action)
+       call this%serial_scalar_matrix%free_in_stages(action)
     else if ( action == free_struct ) then
-	   call this%serial_scalar_matrix%free_in_stages(action)
-	else if ( action == free_values ) then
-	   call this%serial_scalar_matrix%free_in_stages(action)
+       call this%serial_scalar_matrix%free_in_stages(action)
+    else if ( action == free_values ) then
+       call this%serial_scalar_matrix%free_in_stages(action)
+       call this%free_vector_spaces()
     end if
-	
+
   end subroutine par_scalar_matrix_free_in_stages
   
 
   subroutine par_scalar_matrix_print_matrix_market ( this, dir_path, prefix )
     implicit none
-	class(par_scalar_matrix_t), intent(in) :: this
+    class(par_scalar_matrix_t), intent(in) :: this
     character (*)            , intent(in) :: dir_path
     character (*)            , intent(in) :: prefix
     integer         :: iam, num_procs, lunou
@@ -197,13 +215,13 @@ contains
 
     ! Form the file_path of the partition object to be read
     iam = iam + 1 ! Partition identifers start from 1 !!
-     
+
     ndigs_num_procs = count_digits_par_matrix (num_procs)
     zeros = ' '   
     ndigs_iam = count_digits_par_matrix ( iam )
-   
+
     ! write(*,*) ndgs_num_procs, ndigs_iam DBG
-    
+
     do j=1,  ndigs_num_procs - ndigs_iam
        zeros (j:j) = '0'
     end do
@@ -211,7 +229,7 @@ contains
 
     ! Read partition data from path_file file
     lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')
-	
+
     call this%serial_scalar_matrix%print_matrix_market(lunou)
 
     call io_close (lunou)
@@ -239,7 +257,7 @@ contains
     implicit none
     ! Parameters 
     class(par_scalar_matrix_t), intent(inout) :: p_matrix
-	real(rp)                  , intent(in)    :: alpha    
+    real(rp)                  , intent(in)    :: alpha    
 
     ! p_env%p_context is required within this subroutine
     assert ( associated(p_matrix%p_env%p_context) )
@@ -272,7 +290,7 @@ contains
 
     assert ( associated(y%p_env) )
     assert ( associated(y%p_env%p_context) )
-    
+
     call a%serial_scalar_matrix%apply(x%serial_scalar_array, y%serial_scalar_array)
     call y%comm()
   end subroutine par_scalar_matrix_apply_concrete
@@ -288,16 +306,16 @@ contains
     call x%GuardTemp()
 
     select type(x)
-    class is (par_scalar_array_t)
+       class is (par_scalar_array_t)
        select type(y)
-       class is(par_scalar_array_t)
+          class is(par_scalar_array_t)
           call par_scalar_matrix_apply_concrete(op, x, y)
           ! call vector_print(6,y)
-       class default
+          class default
           write(0,'(a)') 'par_scalar_matrix_t%apply: unsupported y class'
           check(1==0)
        end select
-    class default
+       class default
        write(0,'(a)') 'par_scalar_matrix_t%apply: unsupported x class'
        check(1==0)
     end select
@@ -316,13 +334,13 @@ contains
     type(par_scalar_array_t), allocatable :: local_y
 
     select type(x)
-    class is (par_scalar_array_t)
+       class is (par_scalar_array_t)
        allocate(local_y)
        call local_y%create_and_allocate (op%dof_dist, x%p_env)
        call par_scalar_matrix_apply(op, x, local_y)
        call move_alloc(local_y, y)
        call y%SetTemp()
-    class default
+       class default
        write(0,'(a)') 'par_scalar_matrix_t%apply_fun: unsupported x class'
        check(1==0)
     end select

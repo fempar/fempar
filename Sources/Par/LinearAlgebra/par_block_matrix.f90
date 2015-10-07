@@ -29,9 +29,12 @@ module par_block_matrix_names
   ! Serial modules
   use types_names
   use memor_names
+  
+  ! Abstract modules
   use operator_names
   use matrix_names
   use vector_names
+  use vector_space_names
 
   ! Parallel modules
   use par_environment_names
@@ -55,11 +58,10 @@ module par_block_matrix_names
      integer(ip) :: nblocks
      type(p_par_scalar_matrix_t), allocatable :: blocks(:,:)
    contains
-
      procedure, private :: par_block_matrix_create_only_blocks_container
      procedure, private :: par_block_matrix_create_blocks_container_and_all_blocks
      generic :: create  => par_block_matrix_create_only_blocks_container, &
-          par_block_matrix_create_blocks_container_and_all_blocks
+                           par_block_matrix_create_blocks_container_and_all_blocks
 
      procedure, private :: par_block_matrix_create_diagonal_block
      procedure, private :: par_block_matrix_create_offdiagonal_block
@@ -160,8 +162,8 @@ contains
   !=============================================================================
   subroutine par_block_matrix_create_offdiagonal_block(this, & 
                                                        ib, &
-						       dof_distribution, &
-						       dof_distribution_cols, &
+						                                                 dof_distribution, &
+						                                                 dof_distribution_cols, &
                                                        p_env )
     implicit none
     class(par_block_matrix_t)      , intent(out) :: this
@@ -186,14 +188,34 @@ contains
     implicit none
     class(par_block_matrix_t), intent(inout) :: this
     integer(ip) :: ib,jb
+    type(par_block_array_t) :: range_vector
+    type(par_block_array_t) :: domain_vector
+    type(par_scalar_array_t), pointer :: range_vector_block
+    type(par_scalar_array_t), pointer :: domain_vector_block
+    type(vector_space_t), pointer :: range_vector_space
+    type(vector_space_t), pointer :: domain_vector_space
     
+    call range_vector%create(this%nblocks)
+    call domain_vector%create(this%nblocks)
     do ib=1, this%nblocks
        do jb=1, this%nblocks
           if ( associated( this%blocks(ib,jb)%par_scalar_matrix ) ) then
              call this%blocks(ib,jb)%par_scalar_matrix%allocate()
           end if
+          if ( ib == jb ) then
+            range_vector_block  => range_vector%get_block(ib) 
+            domain_vector_block => domain_vector%get_block(ib) 
+            call range_vector_block%create_and_allocate(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_cols,this%blocks(ib,jb)%par_scalar_matrix%p_env)
+            call domain_vector_block%create_and_allocate(this%blocks(ib,ib)%par_scalar_matrix%dof_dist,this%blocks(ib,jb)%par_scalar_matrix%p_env)
+          end if
        end do
     end do
+    range_vector_space => this%get_range_vector_space()
+    call range_vector_space%create(range_vector)
+    domain_vector_space => this%get_domain_vector_space()
+    call domain_vector_space%create(domain_vector)
+    call range_vector%free()
+    call domain_vector%free()
   end subroutine par_block_matrix_allocate
   
   !=============================================================================
@@ -323,6 +345,7 @@ contains
                 call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_struct)
              else if ( action == free_values ) then
                 call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_values)
+                call this%free_vector_spaces()
              end if
           end if
        end do

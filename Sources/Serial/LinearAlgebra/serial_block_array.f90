@@ -52,6 +52,7 @@ module serial_block_array_names
      procedure :: create_view => serial_block_array_create_view
      procedure :: print       => serial_block_array_print	
      procedure :: get_block   => serial_block_array_get_block
+     procedure :: get_nblocks => serial_block_array_get_nblocks
      
      procedure :: dot  => serial_block_array_dot
      procedure :: copy => serial_block_array_copy
@@ -166,6 +167,14 @@ contains
     type(serial_scalar_array_t)        , pointer    :: serial_block_array_get_block
     serial_block_array_get_block => this%blocks(ib)
   end function serial_block_array_get_block
+
+  function serial_block_array_get_nblocks (this)
+    implicit none
+    ! Parameters
+    class(serial_block_array_t), target, intent(in) :: this
+    integer(ip)                                     :: serial_block_array_get_nblocks
+    serial_block_array_get_nblocks = this%nblocks
+  end function serial_block_array_get_nblocks
 
   ! alpha <- op1^T * op2
   function serial_block_array_dot(op1,op2) result(alpha)

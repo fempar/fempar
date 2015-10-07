@@ -143,8 +143,8 @@ contains
     class(serial_scalar_matrix_t), intent(inout) :: this
     type(serial_scalar_array_t) :: range_vector
     type(serial_scalar_array_t) :: domain_vector
-    class(vector_space_t), pointer :: range_vector_space
-    class(vector_space_t), pointer :: domain_vector_space
+    type(vector_space_t), pointer :: range_vector_space
+    type(vector_space_t), pointer :: domain_vector_space
 
     call memalloc(this%graph%ia(this%graph%nv+1)-1,this%a,__FILE__,__LINE__)
     this%a = 0.0_rp

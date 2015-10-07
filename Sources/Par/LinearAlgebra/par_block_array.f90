@@ -57,6 +57,8 @@ module par_block_array_names
      procedure :: create_view => par_block_array_create_view
      procedure :: weight => par_block_array_weight
      procedure :: print => par_block_array_print
+     procedure :: get_block => par_block_array_get_block
+     procedure :: get_nblocks => par_block_array_get_nblocks
 
      procedure :: dot   => par_block_array_dot
      procedure :: copy  => par_block_array_copy
@@ -64,7 +66,7 @@ module par_block_array_names
      procedure :: scal  => par_block_array_scal
      procedure :: axpby => par_block_array_axpby
      procedure :: nrm2  => par_block_array_nrm2
-     procedure :: clone => par_block_array
+     procedure :: clone => par_block_array_clone
      procedure :: comm  => par_block_array_comm
      procedure :: same_vector_space => par_block_array_same_vector_space
      procedure :: free_in_stages  => par_block_array_free_in_stages
@@ -168,6 +170,24 @@ contains
        call this%blocks(ib)%print(luout)
     end do
   end subroutine par_block_array_print
+  
+  function par_block_array_get_block (this,ib)
+    implicit none
+    ! Parameters
+    class(par_block_array_t), target, intent(in) :: this
+    integer(ip)                     , intent(in) :: ib
+    type(par_scalar_array_t)        , pointer    :: par_block_array_get_block
+    
+    par_block_array_get_block => this%blocks(ib)
+  end function par_block_array_get_block
+
+  function par_block_array_get_nblocks (this)
+    implicit none
+    ! Parameters
+    class(par_block_array_t), target, intent(in) :: this
+    integer(ip)                                  :: par_block_array_get_nblocks
+    par_block_array_get_nblocks = this%nblocks
+  end function par_block_array_get_nblocks
 
   ! alpha <- op1^T * op2
   function par_block_array_dot(op1,op2) result(alpha)
@@ -297,7 +317,7 @@ contains
   end function par_block_array_nrm2
 
   ! op1 <- clone(op2) 
-  subroutine par_block_array(op1,op2)
+  subroutine par_block_array_clone(op1,op2)
     implicit none
     ! Parameters
     class(par_block_array_t)    , intent(inout) :: op1
@@ -320,7 +340,7 @@ contains
        check(1==0)
     end select
     call op2%CleanTemp()
-  end subroutine par_block_array
+  end subroutine par_block_array_clone
 
   ! op <- comm(op)
   subroutine par_block_array_comm(op)
