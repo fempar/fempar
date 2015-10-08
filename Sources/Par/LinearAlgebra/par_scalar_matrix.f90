@@ -146,8 +146,8 @@ contains
        call this%serial_scalar_matrix%allocate()
     end if
     
-    call range_vector%create_and_allocate(this%dof_dist_range,this%p_env)
-    call domain_vector%create_and_allocate(this%dof_dist_domain,this%p_env)
+    call range_vector%create(this%dof_dist_range,this%p_env)
+    call domain_vector%create(this%dof_dist_domain,this%p_env)
 
     range_vector_space => this%get_range_vector_space()
     call range_vector_space%create(range_vector)

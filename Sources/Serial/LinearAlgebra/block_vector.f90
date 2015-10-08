@@ -258,8 +258,8 @@ contains
  ! op1 <- clone(op2) 
  subroutine block_vector_clone(op1,op2)
    implicit none
-   class(block_vector_t)         , intent(inout) :: op1
-   class(vector_t) , target , intent(in)    :: op2
+   class(block_vector_t), intent(inout) :: op1
+   class(vector_t), intent(in)    :: op2
    ! Locals
    integer(ip) :: iblk
 

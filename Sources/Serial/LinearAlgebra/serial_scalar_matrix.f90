@@ -149,8 +149,8 @@ contains
     call memalloc(this%graph%ia(this%graph%nv+1)-1,this%a,__FILE__,__LINE__)
     this%a = 0.0_rp
     
-    call range_vector%create_and_allocate(this%graph%nv)
-    call domain_vector%create_and_allocate(this%graph%nv2)
+    call range_vector%create(this%graph%nv)
+    call domain_vector%create(this%graph%nv2)
 
     range_vector_space => this%get_range_vector_space()
     call range_vector_space%create(range_vector)

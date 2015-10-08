@@ -663,7 +663,7 @@ use blas77_interfaces_names
 
 
     integer(ip)                    :: ierrc
-    integer(ip)                    :: kloc, kloc_aux, max_kloc, i, j, k_hh, id
+    integer(ip)                    :: kloc, kloc_aux, i, j, k_hh, id
     real(rp)                       :: res_norm, res_2_norm, rhs_norm
     real(rp)                       :: alpha, c, s 
     real(rp)   , allocatable       :: hh(:,:), g(:), g_aux(:), cs(:,:)
@@ -741,7 +741,6 @@ use blas77_interfaces_names
        if ( (ctrl%trace > 0) .and. (me == 0) ) call solver_control_log_header(ctrl)
     end if
 
-    max_kloc = 0
     ctrl%it = 0
     outer: do while ( (.not.exit_loop).and.(ctrl%it<ctrl%itmax) )
 
@@ -899,8 +898,6 @@ use blas77_interfaces_names
           end if
        end do inner
 
-       max_kloc = max(kloc+1,max_kloc)
-
        if ( env%am_i_fine_task() ) then ! Am I a fine task ?
           if ( ierrc == -2 ) then
              write (ctrl%luout,*) '** Warning: LGMRES: ortho failed due to abnormal numbers, no way to proceed'
@@ -977,7 +974,7 @@ use blas77_interfaces_names
     deallocate(z)
 
     ! Deallocate Krylov basis
-    do i=1, max_kloc
+    do i=1, ctrl%dkrymax+1
        call bkry(i)%free()
     end do
     deallocate ( bkry )
@@ -1051,7 +1048,7 @@ use blas77_interfaces_names
       
 
   integer(ip)                :: ierrc
-  integer(ip)                :: kloc, max_kloc, i, j, k_hh, id
+  integer(ip)                :: kloc, i, j, k_hh, id
   real(rp)                   :: res_norm, rhs_norm
   real(rp)                   :: alpha, c, s
   real(rp)   , allocatable   :: hh(:,:), g(:), cs(:,:)
@@ -1111,9 +1108,6 @@ use blas77_interfaces_names
     if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
-
-    max_kloc = 0
-
     ctrl%it = 0
   outer: do while ( (.not.exit_loop) .and. &
        &            (ctrl%it < ctrl%itmax))
@@ -1210,9 +1204,7 @@ use blas77_interfaces_names
                 if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
             end if
         end do inner
-
-        max_kloc = max(kloc+1, max_kloc)
-
+        
         if ( kloc > 0 ) then
             if ( env%am_i_fine_task() ) then
                 if ( ierrc == -2 ) then
@@ -1290,7 +1282,7 @@ use blas77_interfaces_names
     deallocate(z)
 
     ! Deallocate Krylov basis
-    do i=1, max_kloc
+    do i=1, ctrl%dkrymax+1
        call bkry(i)%free()
     end do
     deallocate ( bkry )
@@ -1326,7 +1318,7 @@ use blas77_interfaces_names
 
 
   integer(ip)                :: ierrc
-  integer(ip)                :: kloc, max_kloc, i, j, k_hh, id
+  integer(ip)                :: kloc, i, j, k_hh, id
   real(rp)                   :: res_norm, rhs_norm
   real(rp)                   :: alpha, c, s
   real(rp)   , allocatable   :: hh(:,:), g(:), cs(:,:)
@@ -1387,7 +1379,6 @@ use blas77_interfaces_names
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
 
-    max_kloc = 0
     ctrl%it = 0
     outer: do while ( (.not.exit_loop ) .and. &
         &            (ctrl%it < ctrl%itmax))
@@ -1483,9 +1474,7 @@ use blas77_interfaces_names
                 if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_conv(ctrl)
             end if
         end do inner
-
-        max_kloc = max(kloc+1, max_kloc)
-
+        
         if ( kloc > 0 ) then
             if ( env%am_i_fine_task() ) then
                 if ( ierrc == -2 ) then
@@ -1559,11 +1548,11 @@ use blas77_interfaces_names
     call z%free()
 
     ! Deallocate Krylov basis
-    do i=1, max_kloc-1
+    do i=1, ctrl%dkrymax
        call bkry(i)%free()
        call bkryz(i)%free()
     end do
-    call bkry(max_kloc)%free()
+    call bkry(ctrl%dkrymax+1)%free()
     deallocate ( bkry )
     deallocate ( bkryz )
 
@@ -1712,8 +1701,6 @@ use lapack77_interfaces_names
 
   class(vector_t), allocatable :: r, z        ! Working vector_ts
   class(vector_t), allocatable :: bkry(:)     ! Krylov basis
-
-  write(*,*) 'XXX', ctrl%stopc, res_res, res_rhs
  
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs)
 

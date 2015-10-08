@@ -36,9 +36,13 @@ module serial_block_array_names
 # include "debug.i90"
 
   private
-
+  
+  integer(ip), parameter :: not_created  = 0 
+  integer(ip), parameter :: blocks_container_created = 1
+ 
   ! vector
   type, extends(array_t) :: serial_block_array_t
+     integer(ip)                              :: state = not_created
      integer(ip)                              :: nblocks = -1
      type(serial_scalar_array_t), allocatable :: blocks(:)
    contains
@@ -61,7 +65,6 @@ module serial_block_array_names
      procedure :: axpby => serial_block_array_axpby
      procedure :: nrm2 => serial_block_array_nrm2
      procedure :: clone => serial_block_array_clone
-     procedure :: comm  => serial_block_array_comm
      procedure :: same_vector_space => serial_block_array_same_vector_space
      procedure :: free_in_stages  => serial_block_array_free_in_stages
   end type serial_block_array_t
@@ -76,12 +79,12 @@ contains
     implicit none
     class(serial_block_array_t), intent(out) :: this
     integer(ip)                , intent(in)  :: nblocks
-
-    integer(ip) :: istat
-
+    integer(ip)                              :: istat
+    assert ( this%state == not_created )
     this%nblocks = nblocks
     allocate ( this%blocks(nblocks), stat=istat )
     check ( istat == 0 )
+    this%state = blocks_container_created
   end subroutine serial_block_array_create_only_blocks_container
 
   !=============================================================================
@@ -92,13 +95,11 @@ contains
     integer(ip)                , intent(in)  :: size_of_blocks(nblocks)
 
     integer(ip) :: ib
-
     call this%create(nblocks)
-
     do ib=1, this%nblocks
        call this%blocks(ib)%create(size_of_blocks(ib))
     end do
-
+    this%state = blocks_container_created
   end subroutine serial_block_array_create_blocks_container_and_blocks
 
   !=============================================================================
@@ -111,11 +112,10 @@ contains
     integer(ip) :: ib
 
     call this%create(nblocks)
-
     do ib=1, this%nblocks
        call this%blocks(ib)%create_and_allocate(size_of_blocks(ib))
     end do
-
+    this%state = blocks_container_created
   end subroutine serial_block_array_create_blocks_container_and_allocate_blocks
 
   !=============================================================================
@@ -125,6 +125,7 @@ contains
 
     integer(ip) :: ib
 
+    assert ( this%state ==  blocks_container_created )
     do ib=1, this%nblocks
        call this%blocks(ib)%allocate()
     end do
@@ -141,10 +142,10 @@ contains
     integer(ip) :: istat, ib
 
     call tvec%create(this%nblocks)
-
     do ib=1, this%nblocks
        call this%blocks(ib)%create_view (start, end, tvec%blocks(ib))
     end do
+    tvec%state = blocks_container_created
   end subroutine serial_block_array_create_view
 
   subroutine serial_block_array_print (this,luout)
@@ -154,7 +155,7 @@ contains
 
     ! Locals
     integer(ip) :: ib
-
+    assert(this%state == blocks_container_created)
     do ib=1, this%nblocks
        call this%blocks(ib)%print(luout)
     end do
@@ -165,6 +166,7 @@ contains
     class(serial_block_array_t), target, intent(in) :: this
     integer(ip)                        , intent(in) :: ib
     type(serial_scalar_array_t)        , pointer    :: serial_block_array_get_block
+    assert(this%state == blocks_container_created)
     serial_block_array_get_block => this%blocks(ib)
   end function serial_block_array_get_block
 
@@ -173,6 +175,7 @@ contains
     ! Parameters
     class(serial_block_array_t), target, intent(in) :: this
     integer(ip)                                     :: serial_block_array_get_nblocks
+    assert(this%state == blocks_container_created)
     serial_block_array_get_nblocks = this%nblocks
   end function serial_block_array_get_nblocks
 
@@ -187,11 +190,12 @@ contains
     ! Locals
     real(rp)    :: aux
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op1%GuardTemp()
     call op2%GuardTemp()
     select type(op2)
        class is (serial_block_array_t)
+       assert(op2%state == blocks_container_created)
        assert ( op1%nblocks == op2%nblocks )
        alpha = 0.0_rp
        do ib=1,op1%nblocks
@@ -215,10 +219,11 @@ contains
 
     ! Locals
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (serial_block_array_t)
+       assert(op2%state == blocks_container_created)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%copy(op2%blocks(ib))
@@ -237,7 +242,7 @@ contains
     real(rp)             , intent(in)    :: alpha  
     ! Locals
     integer(ip) :: ib
-
+    assert(op%state == blocks_container_created)
     do ib=1, op%nblocks
        call op%blocks(ib)%init(alpha)
     end do
@@ -252,10 +257,11 @@ contains
     class(vector_t), intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (serial_block_array_t)
+       assert(op2%state == blocks_container_created)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%scal(alpha,op2%blocks(ib))
@@ -276,10 +282,11 @@ contains
     real(rp)             , intent(in)    :: beta
     ! Locals
     integer(ip)                           :: ib
-
+    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (serial_block_array_t)
+       assert(op2%state == blocks_container_created)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%axpby(alpha,op2%blocks(ib),beta)
@@ -296,7 +303,7 @@ contains
     implicit none
     class(serial_block_array_t), intent(in) :: op
     real(rp) :: alpha
-
+    assert(op%state == blocks_container_created)
     call op%GuardTemp()
     alpha = op%dot(op)
     alpha = sqrt(alpha)
@@ -308,7 +315,7 @@ contains
     implicit none
     ! Parameters
     class(serial_block_array_t)     , intent(inout) :: op1
-    class(vector_t), target, intent(in)    :: op2
+    class(vector_t), intent(in)    :: op2
 
     ! Locals
     integer(ip) :: ib
@@ -316,9 +323,9 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (serial_block_array_t)
-       op1%nblocks = op2%nblocks
-       if(allocated(op1%blocks)) deallocate ( op1%blocks )
-       allocate(op1%blocks(op1%nblocks))
+       assert(op2%state == blocks_container_created)
+       call op1%free()
+       call op1%create(op2%nblocks)
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
@@ -329,26 +336,30 @@ contains
     call op2%CleanTemp()
   end subroutine serial_block_array_clone
 
-  ! op <- comm(op)
-  subroutine serial_block_array_comm(op)
-    implicit none
-    class(serial_block_array_t), intent(inout) :: op 
-  end subroutine serial_block_array_comm
-
   subroutine serial_block_array_free_in_stages(this,action)
     implicit none
     class(serial_block_array_t), intent(inout) :: this
     integer(ip)                , intent(in)    :: action
-    integer(ip)  :: ib, istat
+    integer(ip)                                :: ib, istat
 
-    do ib=1, this%nblocks
-       call this%blocks(ib)%free_in_stages(action)
-    end do
-    if ( action == free_clean ) then
-       this%nblocks = 0
-       deallocate( this%blocks, stat=istat )
-       check(istat==0)
+    if ( this%state == blocks_container_created ) then
+      do ib=1, this%nblocks
+         call this%blocks(ib)%free_in_stages(action)
+      end do
     end if
+    
+    if ( action == free_clean ) then
+      ! if ( this%state == not_created ) Do NOTHING
+      if ( this%state == blocks_container_created ) then
+        this%nblocks = 0
+        deallocate( this%blocks, stat=istat )
+        check(istat==0)
+        this%state = not_created
+      end if
+    end if
+    ! else if ( action == free_values ) then
+    !   DO NOTHING
+    ! end if
   end subroutine serial_block_array_free_in_stages
   
  function serial_block_array_same_vector_space(this,vector)
@@ -357,10 +368,11 @@ contains
    class(vector_t), intent(in) :: vector
    logical :: serial_block_array_same_vector_space
    integer(ip) :: iblk
-   
+   assert ( this%state == blocks_container_created )
    serial_block_array_same_vector_space = .false.
    select type(vector)
    class is (serial_block_array_t)
+     assert ( vector%state == blocks_container_created )
      serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
      if ( serial_block_array_same_vector_space ) then
        do iblk=1, this%nblocks

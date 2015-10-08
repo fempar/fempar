@@ -43,7 +43,11 @@ module par_block_array_names
 
   private
 
+  integer(ip), parameter :: not_created  = 0
+  integer(ip), parameter :: blocks_container_created = 1
+  
   type, extends(array_t) :: par_block_array_t
+     integer(ip) :: state = not_created
      integer(ip) :: nblocks = 0
      type(par_scalar_array_t), allocatable :: blocks(:)
    contains	 
@@ -76,6 +80,16 @@ module par_block_array_names
   public :: par_block_array_t
   
 contains
+  !=============================================================================
+  subroutine par_block_array_create_only_blocks_container (this, nblocks)
+    implicit none
+    class(par_block_array_t), intent(out) :: this
+    integer(ip)             , intent(in)  :: nblocks
+
+    this%nblocks = nblocks
+    allocate ( this%blocks(nblocks) )
+    this%state = blocks_container_created
+  end subroutine par_block_array_create_only_blocks_container
 
   !=============================================================================
   subroutine par_block_array_create_blocks_container_and_blocks(this, nblocks, blocks_dof_distribution)
@@ -89,7 +103,7 @@ contains
     do ib=1, this%nblocks
        call this%blocks(ib)%create ( blocks_dof_distribution%blocks(ib), blocks_dof_distribution%p_env )
     end do
-
+    this%state = blocks_container_created
   end subroutine par_block_array_create_blocks_container_and_blocks
   
   !=============================================================================
@@ -104,7 +118,7 @@ contains
     do ib=1, this%nblocks
        call this%blocks(ib)%create_and_allocate ( blocks_dof_distribution%blocks(ib), blocks_dof_distribution%p_env )
     end do
-
+    this%state = blocks_container_created
   end subroutine par_block_array_create_blocks_container_and_allocate_blocks
   
   !=============================================================================
@@ -112,22 +126,12 @@ contains
     implicit none
     class(par_block_array_t), intent(inout) :: this
     integer(ip)  :: ib
-
+    
+    assert ( this%state ==  blocks_container_created )
     do ib=1, this%nblocks
        call this%blocks(ib)%allocate ()
     end do
-
   end subroutine par_block_array_create_blocks_allocate_blocks
-
-  !=============================================================================
-  subroutine par_block_array_create_only_blocks_container (this, nblocks)
-    implicit none
-    class(par_block_array_t), intent(out) :: this
-    integer(ip)             , intent(in)  :: nblocks
-
-    this%nblocks = nblocks
-    allocate ( this%blocks(nblocks) )
-  end subroutine par_block_array_create_only_blocks_container
 
   !=============================================================================
   subroutine par_block_array_create_view (this, start, end, tvec)
@@ -142,16 +146,17 @@ contains
     integer(ip) :: ib
 
     call tvec%create(this%nblocks)
-
     do ib=1, this%nblocks
        call this%blocks(ib)%create_view(start, end, tvec%blocks(ib))
     end do
+    tvec%state = blocks_container_created
   end subroutine par_block_array_create_view
 
   subroutine par_block_array_weight ( p_vec )
     implicit none
     class(par_block_array_t), intent(inout) :: p_vec
     integer(ip) :: ib
+    assert(p_vec%state == blocks_container_created)
     do ib=1, p_vec%nblocks
        call p_vec%blocks(ib)%weight()
     end do
@@ -164,7 +169,7 @@ contains
 
     ! Locals
     integer(ip) :: ib
-
+    assert(this%state == blocks_container_created)
     do ib=1, this%nblocks
        write (*,*) 'Block-vector ', ib
        call this%blocks(ib)%print(luout)
@@ -177,7 +182,7 @@ contains
     class(par_block_array_t), target, intent(in) :: this
     integer(ip)                     , intent(in) :: ib
     type(par_scalar_array_t)        , pointer    :: par_block_array_get_block
-    
+    assert(this%state == blocks_container_created)
     par_block_array_get_block => this%blocks(ib)
   end function par_block_array_get_block
 
@@ -186,6 +191,7 @@ contains
     ! Parameters
     class(par_block_array_t), target, intent(in) :: this
     integer(ip)                                  :: par_block_array_get_nblocks
+    assert(this%state == blocks_container_created)
     par_block_array_get_nblocks = this%nblocks
   end function par_block_array_get_nblocks
 
@@ -200,12 +206,13 @@ contains
     ! Locals
     real(rp)    :: aux
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op1%GuardTemp()
     call op2%GuardTemp()
     select type(op2)
        class is (par_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
+       assert(op2%state == blocks_container_created)
        alpha = 0.0_rp
        do ib=1,op1%nblocks
           aux = op1%blocks(ib)%dot(op2%blocks(ib))
@@ -228,11 +235,12 @@ contains
 
     ! Locals
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (par_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
+       assert(op2%state == blocks_container_created)
        do ib=1,op1%nblocks
           call op1%blocks(ib)%copy(op2%blocks(ib))
        end do
@@ -250,7 +258,7 @@ contains
     real(rp)                 , intent(in)    :: alpha  
     ! Locals
     integer(ip) :: ib
-
+    assert(op%state == blocks_container_created)
     do ib=1, op%nblocks
        call op%blocks(ib)%init(alpha)
     end do
@@ -265,11 +273,12 @@ contains
     class(vector_t)    , intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (par_block_array_t)
        assert ( op1%nblocks == op2%nblocks )
+       assert(op2%state == blocks_container_created)
        do ib=1,op1%nblocks
           call op1%blocks(ib)%scal(alpha,op2%blocks(ib))
        end do
@@ -289,10 +298,11 @@ contains
     real(rp)                 , intent(in)    :: beta
     ! Locals
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (par_block_array_t)
+       assert(op2%state == blocks_container_created)
        assert ( op1%nblocks == op2%nblocks )
        do ib=1,op1%nblocks
           call op1%blocks(ib)%axpby(alpha,op2%blocks(ib),beta)
@@ -309,7 +319,7 @@ contains
     implicit none
     class(par_block_array_t), intent(in) :: op
     real(rp) :: alpha
-
+    assert(op%state == blocks_container_created)
     call op%GuardTemp()
     alpha = op%dot(op)
     alpha = sqrt(alpha)
@@ -321,17 +331,17 @@ contains
     implicit none
     ! Parameters
     class(par_block_array_t)    , intent(inout) :: op1
-    class(vector_t), target, intent(in)    :: op2
+    class(vector_t), intent(in)    :: op2
 
     ! Locals
     integer(ip) :: ib
-
+    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (par_block_array_t)
-       op1%nblocks = op2%nblocks
-       if(allocated(op1%blocks)) deallocate ( op1%blocks )
-       allocate(op1%blocks(op1%nblocks))
+       assert(op2%state == blocks_container_created)
+       call op1%free()
+       call op1%create(op2%nblocks)
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
@@ -349,7 +359,7 @@ contains
 
     ! Locals
     integer(ip) :: ib
-
+    assert(op%state == blocks_container_created)
     do ib=1,op%nblocks
        call op%blocks(ib)%comm()
     end do
@@ -361,16 +371,26 @@ contains
     class(par_block_array_t), intent(inout) :: this
     integer(ip)             , intent(in)    :: action
 
-    integer(ip)  :: ib
+    integer(ip)  :: ib, istat
 
-    do ib=1, this%nblocks
-       call this%blocks(ib)%free_in_stages(action)
-    end do
-
-    if ( action == free_clean ) then
-       this%nblocks = 0
-       deallocate( this%blocks )
+   if ( this%state == blocks_container_created ) then
+      do ib=1, this%nblocks
+         call this%blocks(ib)%free_in_stages(action)
+      end do
     end if
+    
+    if ( action == free_clean ) then
+      ! if ( this%state == not_created ) Do NOTHING
+      if ( this%state == blocks_container_created ) then
+        this%nblocks = 0
+        deallocate( this%blocks, stat=istat )
+        check(istat==0)
+        this%state = not_created
+      end if
+    end if
+    ! else if ( action == free_values ) then
+    !   DO NOTHING
+    ! end if
   end subroutine par_block_array_free_in_stages
   
  function par_block_array_same_vector_space(this,vector)
@@ -381,8 +401,10 @@ contains
    integer(ip) :: iblk
    
    par_block_array_same_vector_space = .false.
+   assert ( this%state == blocks_container_created )
    select type(vector)
    class is (par_block_array_t)
+     assert ( vector%state == blocks_container_created )
      par_block_array_same_vector_space = (this%nblocks == vector%nblocks)
      if ( par_block_array_same_vector_space ) then
        do iblk=1, this%nblocks

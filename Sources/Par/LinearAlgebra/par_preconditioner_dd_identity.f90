@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_preconditioner_dd_identity_names
   ! Serial modules
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use serial_scalar_array_names
   use preconditioner_names, only: invert_diagonal, apply_diagonal, extract_diagonal
 
@@ -75,14 +75,10 @@ use psb_penv_mod_names
     ! Parameters
     type(par_scalar_matrix_t)             , target, intent(in)  :: p_matrix
     type(par_preconditioner_dd_identity_t)        , intent(out) :: p_prec_dd_identity
-
-    
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
     assert ( associated(p_matrix%dof_dist_domain) )
-
     p_prec_dd_identity%p_mat    => p_matrix
-
   end subroutine par_preconditioner_dd_identity_create
 
   !=============================================================================
@@ -91,33 +87,17 @@ use psb_penv_mod_names
     ! Parameters
     type(par_scalar_matrix_t)             , target, intent(in)    :: p_matrix
     type(par_preconditioner_dd_identity_t)        , intent(inout) :: p_prec_dd_identity
-
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
     assert ( associated(p_matrix%dof_dist_domain) )
-
     p_prec_dd_identity%p_mat    => p_matrix
-
   end subroutine par_preconditioner_dd_identity_ass_struct
 
   !=============================================================================
   subroutine par_preconditioner_dd_identity_fill_val (p_prec_dd_identity)
     implicit none
     ! Parameters
-    type(par_preconditioner_dd_identity_t), target, intent(inout) :: p_prec_dd_identity
-
-    ! Locals
-    type(par_scalar_matrix_t), pointer :: p_matrix
-    integer(ip)       :: neq
-    type (par_scalar_array_t) :: p_vec
-
-    p_matrix  => p_prec_dd_identity%p_mat
-
-    assert ( associated(p_matrix%p_env) )
-    assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist_domain) )
-
-
+    type(par_preconditioner_dd_identity_t), intent(inout) :: p_prec_dd_identity
   end subroutine par_preconditioner_dd_identity_fill_val
 
   !=============================================================================

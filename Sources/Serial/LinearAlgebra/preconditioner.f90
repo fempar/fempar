@@ -171,27 +171,9 @@ module preconditioner_names
   ! Functions
   public :: preconditioner_create, preconditioner_free, preconditioner_symbolic, &
        &    preconditioner_numeric, preconditioner_apply, preconditioner_log_info, &
-       &    preconditioner_bcast, preconditioner_fine_task,  extract_diagonal, &
-            invert_diagonal, apply_diagonal
+       &    extract_diagonal, invert_diagonal, apply_diagonal
 
 contains
-
-  !=============================================================================
-  ! Dummy method required to specialize Krylov subspace methods
-  subroutine preconditioner_bcast(prec,conv)
-    implicit none
-    type(preconditioner_t) , intent(in)      :: prec
-    logical           , intent( inout ) :: conv
-  end subroutine preconditioner_bcast
-
-  ! Dummy method required to specialize Krylov subspace methods
-  ! Needs to be filled with the abs operator machinery.
-  function preconditioner_fine_task(prec)
-    implicit none
-    type(preconditioner_t) , intent(in) :: prec
-    logical                        :: preconditioner_fine_task
-    preconditioner_fine_task = .true. 
-  end function preconditioner_fine_task
 
   !=============================================================================
   subroutine  preconditioner_log_info (prec)

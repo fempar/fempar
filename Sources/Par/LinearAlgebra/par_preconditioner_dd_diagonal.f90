@@ -138,9 +138,8 @@ module par_preconditioner_dd_diagonal_names
     ! violates principles of OO design, but at least it works
     p_vec%dof_dist      => p_prec_dd_diagonal%p_mat%dof_dist_domain
     p_vec%p_env         => p_prec_dd_diagonal%p_mat%p_env
-    p_vec%serial_scalar_array%size  = neq
-    p_vec%serial_scalar_array%mode = reference  
-    p_vec%serial_scalar_array%b    => p_prec_dd_diagonal%d
+    call p_vec%serial_scalar_array%create(neq)
+    call p_vec%serial_scalar_array%set_view_entries(p_prec_dd_diagonal%d)
 
     ! Communicate
     call p_vec%comm()

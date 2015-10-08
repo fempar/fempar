@@ -36,22 +36,46 @@ module serial_scalar_array_names
 
   implicit none
 # include "debug.i90"
-
-  integer(ip), parameter :: not_created = 0 ! vector%b points to null
-  integer(ip), parameter :: allocated   = 1 ! vector%b has been allocated
-  integer(ip), parameter :: reference   = 2 ! vector%b references external memory
+  
+  integer(ip), parameter :: not_created   = 0 ! Initial state
+  integer(ip), parameter :: created       = 1 ! size/state/is_a_view already set
+  integer(ip), parameter :: entries_ready = 2 ! entries ready
 
   private
-
+  
+  ! State transition diagram for type(serial_scalar_array_t)
+  ! -------------------------------------------------
+  ! Input State | Action               | Output State 
+  ! -------------------------------------------------
+  ! not_created | free_values          | not_created
+  ! not_created | free_clean           | not_created
+  ! not_created | free                 | not_created
+  ! not_created | create               | created
+  ! not_created | create_and_allocate  | entries_ready
+  ! not_created | clone                | same status as cloned source
+  ! not_created | create_view          | entries_ready
+  
+  ! created     | free_clean           | not_created
+  ! created     | free_values          | created 
+  ! created     | allocate             | entries_ready
+  ! created     | free                 | not_created
+  ! created     | set_view_entries     | entries_ready
+  ! created     | clone                | same status as cloned source
+  
+  ! entries_ready | clone              | entries_ready
+  ! entries_ready | free_values        | created
+  ! entries_ready | free               | not_created
   type, extends(array_t) :: serial_scalar_array_t
-     integer(ip)                :: size = 0                       
-     integer(ip)                :: mode = not_created           
+     integer(ip)                :: size  = 0
+     integer(ip)                :: state = not_created 
+     logical                    :: is_a_view  = .false.
      real(rp), pointer          :: b(:) => NULL()
    contains
      procedure :: create_and_allocate => serial_scalar_array_create_and_allocate
      procedure :: create              => serial_scalar_array_create
      procedure :: allocate            => serial_scalar_array_allocate
      procedure :: create_view         => serial_scalar_array_create_view
+     procedure :: set_view_entries    => serial_scalar_array_set_view_entries
      procedure :: print               => serial_scalar_array_print
      procedure :: print_matrix_market => serial_scalar_array_print_matrix_market
 
@@ -62,7 +86,6 @@ module serial_scalar_array_names
      procedure :: axpby => serial_scalar_array_axpby
      procedure :: nrm2 => serial_scalar_array_nrm2
      procedure :: clone => serial_scalar_array_clone
-     procedure :: comm  => serial_scalar_array_comm
      procedure :: same_vector_space => serial_scalar_array_same_vector_space
      procedure :: free_in_stages  => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
@@ -71,9 +94,6 @@ module serial_scalar_array_names
   ! Types
   public :: serial_scalar_array_t
 
-  ! Constants 
-  public :: reference
-
 contains
 
   !=============================================================================
@@ -81,7 +101,8 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     this%size  = 0
-    this%mode = not_created
+    this%state = not_created 
+    this%is_a_view  = .false.
     nullify(this%b)
     call this%NullifyTemporary()
   end subroutine serial_scalar_array_default_init
@@ -100,38 +121,52 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: size
-    assert ( this%mode == not_created )
-    this%size  = size  
-    this%mode = allocated
+    assert ( this%state == not_created )
+    this%size = size  
+    this%state = created
   end subroutine serial_scalar_array_create
 
   !=============================================================================
   subroutine serial_scalar_array_allocate(this)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
+    assert ( this%state == created )
     call memallocp(this%size,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp
+    this%state = entries_ready
+    this%is_a_view = .false.
   end subroutine serial_scalar_array_allocate
 
   subroutine serial_scalar_array_create_view (this, start, end, tvec)
     implicit none
     class(serial_scalar_array_t), intent(in), target  :: this
-    integer(ip)     , intent(in)          :: start
-    integer(ip)     , intent(in)          :: end
-    type(serial_scalar_array_t), intent(inout)       :: tvec
-
-    assert ( tvec%mode == not_created )
-
+    integer(ip)     , intent(in)                      :: start
+    integer(ip)     , intent(in)                      :: end
+    type(serial_scalar_array_t), intent(inout)        :: tvec
+    
+    assert ( this%state == entries_ready )
+    assert ( tvec%state == not_created )
     tvec%size =  end-start+1 ! Number of equations
     tvec%b => this%b(start:end)
-    tvec%mode =  reference
+    tvec%is_a_view = .true.
+    tvec%state = entries_ready
   end subroutine serial_scalar_array_create_view
-
+  
+  subroutine serial_scalar_array_set_view_entries ( this, entries ) 
+    implicit none
+    class(serial_scalar_array_t), intent(inout) ::  this
+    real(rp)            , target, intent(in)    ::  entries(:)
+    assert ( this%state == created .or. (this%state == entries_ready .and. this%is_a_view) )
+    this%b         => entries
+    this%is_a_view = .true.
+    this%state     = entries_ready
+  end subroutine serial_scalar_array_set_view_entries
+  
   subroutine serial_scalar_array_print (this, luout)
     implicit none
     class(serial_scalar_array_t), intent(in) :: this
     integer(ip)                , intent(in) :: luout
-
+    assert ( this%state == entries_ready )
     write (luout, '(a)')     '*** begin serial_scalar_array data structure ***'
     write(luout,'(a,i10)') 'size', this%size
     write (luout,'(e25.16)') this%b
@@ -143,6 +178,7 @@ contains
     class(serial_scalar_array_t), intent(in) :: this
     integer(ip)                , intent(in) :: luout
     integer (ip) :: i
+    assert ( this%state == entries_ready )
     write (luout,'(a)') '%%MatrixMarket matrix array real general'
     write (luout,*) this%size , 1
     do i=1,this%size 
@@ -156,11 +192,13 @@ contains
     class(serial_scalar_array_t), intent(in)    :: op1
     class(vector_t), intent(in)  :: op2
     real(rp) :: alpha
-
+    assert ( op1%state == entries_ready )
+    
     call op1%GuardTemp()
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
+       assert ( op2%state == entries_ready )
        assert ( op1%size == op2%size )
 #ifdef ENABLE_BLAS
        alpha = ddot( op1%size, op1%b, 1, op2%b, 1 )
@@ -180,10 +218,11 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: op1
     class(vector_t), intent(in)  :: op2
-
+    assert ( op1%state == entries_ready )
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
+       assert ( op2%state == entries_ready )
        assert ( op2%size == op1%size )
 #ifdef ENABLE_BLAS
        call dcopy ( op2%size, op2%b, 1, op1%b, 1 ) 
@@ -203,10 +242,12 @@ contains
     class(serial_scalar_array_t), intent(inout) :: op1
     real(rp), intent(in) :: alpha
     class(vector_t), intent(in) :: op2
-
+    assert ( op1%state == entries_ready )
+    
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
+       assert ( op2%state == entries_ready )
        assert ( op2%size == op1%size )
 #ifdef ENABLE_BLAS
        call dcopy ( op2%size, op2%b, 1, op1%b, 1)
@@ -225,6 +266,7 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: op
     real(rp), intent(in) :: alpha
+    assert ( op%state == entries_ready )
     op%b=alpha
   end subroutine serial_scalar_array_init
 
@@ -236,10 +278,12 @@ contains
     class(vector_t), intent(in) :: op2
     real(rp), intent(in) :: beta
 
+    assert ( op1%state == entries_ready )
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
        assert ( op2%size == op1%size )
+       assert ( op2%state == entries_ready )
        if ( beta == 0.0_rp ) then
           call op1%scal(alpha, op2)
        else if ( beta == 1.0_rp ) then
@@ -271,7 +315,7 @@ contains
     class(serial_scalar_array_t), intent(in)  :: op
     real(rp) :: alpha
     call op%GuardTemp()
-
+    assert ( op%state == entries_ready )
 #ifdef ENABLE_BLAS
     alpha = dnrm2( op%size, op%b, 1 )
 #else
@@ -285,42 +329,50 @@ contains
   ! op1 <- clone(op2) 
   subroutine serial_scalar_array_clone(op1,op2)
     implicit none
-    class(serial_scalar_array_t)           ,intent(inout) :: op1
-    class(vector_t), target ,intent(in)    :: op2
-
+    class(serial_scalar_array_t),intent(inout) :: op1
+    class(vector_t), intent(in)                :: op2
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
-       if (op1%mode == allocated) call memfreep(op1%b,__FILE__,__LINE__)
-       op1%size     =  op2%size
-       call memallocp(op1%size,op1%b,__FILE__,__LINE__)
-       op1%mode = allocated
+       assert ( op2%state == created .or. op2%state == entries_ready )
+       call op1%free()  
+       call op1%create(op2%size)
+       if ( op2%state == entries_ready) then
+          call op1%allocate()
+       end if
        class default
        write(0,'(a)') 'serial_scalar_array_t%clone: unsupported op2 class'
-       check(1==0)
+       check(.false.)
     end select
     call op2%CleanTemp()
   end subroutine serial_scalar_array_clone
-
-  ! op <- comm(op)
-  subroutine serial_scalar_array_comm(op)
-    implicit none
-    class(serial_scalar_array_t), intent(inout) :: op
-  end subroutine serial_scalar_array_comm
 
   subroutine serial_scalar_array_free_in_stages(this,action)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: action
     assert ( action == free_clean .or. action == free_struct .or. action == free_values )
+    
     if ( action == free_clean ) then
        ! Undo create
-       this%size = 0
-       this%mode = not_created
+       assert ( .not. this%state == entries_ready )
+       if ( this%state == created ) then
+         this%size = 0
+         this%state = not_created
+         this%is_a_view = .false.
+       end if
     else if ( action == free_values ) then
        ! Undo allocate
-       if (this%mode == allocated) call memfreep(this%b,__FILE__,__LINE__)
-       nullify(this%b)
+       if ( this%state == entries_ready ) then
+          if ( this%is_a_view ) then
+            this%is_a_view = .false.
+            nullify(this%b)
+          else 
+            call memfreep(this%b,__FILE__,__LINE__)  
+            nullify(this%b)
+          end if
+          this%state = created
+       end if
     end if
   end subroutine serial_scalar_array_free_in_stages
   
@@ -330,6 +382,7 @@ contains
    class(vector_t)             , intent(in) :: vector
    logical :: serial_scalar_array_same_vector_space
    serial_scalar_array_same_vector_space = .false.
+   assert (this%state == created .or. this%state == entries_ready)
    select type(vector)
    class is (serial_scalar_array_t)
      serial_scalar_array_same_vector_space = (this%size == vector%size)

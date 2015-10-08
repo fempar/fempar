@@ -69,6 +69,7 @@ module par_scalar_array_names
      procedure :: create              => par_scalar_array_create
      procedure :: allocate            => par_scalar_array_allocate
      procedure :: create_view         => par_scalar_array_create_view
+     procedure :: set_view_entries    => par_scalar_array_set_view_entries
      procedure :: weight              => par_scalar_array_weight
      procedure :: print               => par_scalar_array_print
      procedure :: print_market_market => par_scalar_array_print_matrix_market
@@ -174,22 +175,30 @@ contains
     integer(ip)     , intent(in)         :: start
     integer(ip)     , intent(in)         :: end
     type(par_scalar_array_t), intent(out)        :: t_p_vec
-
     ! The routine requires the partition/context info
     assert ( associated( this%dof_dist ) )
     assert ( associated( this%p_env%p_context ) )
     assert ( this%p_env%p_context%created .eqv. .true.)
-
     ! Associate dof distribution and parallel environment 
     t_p_vec%dof_dist => this%dof_dist
     t_p_vec%p_env    => this%p_env
-
     if(this%p_env%p_context%iam<0) return
-
     ! Call vector_create_view
     call this%serial_scalar_array%create_view (start, end, t_p_vec%serial_scalar_array) 
-
   end subroutine par_scalar_array_create_view
+  
+  subroutine par_scalar_array_set_view_entries ( this, entries ) 
+    implicit none
+    class(par_scalar_array_t), intent(inout) ::  this
+    real(rp)        , target, intent(in)     ::  entries(:)
+    ! The routine requires the partition/context info
+    assert ( associated( this%dof_dist ) )
+    assert ( associated( this%p_env%p_context ) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
+    if(this%p_env%p_context%iam<0) return
+    ! Call vector_set_view
+    call this%serial_scalar_array%set_view_entries (entries) 
+  end subroutine par_scalar_array_set_view_entries
 
   !=============================================================================
   ! VERY IMPORTANT: comm_interface is well-defined if and only if p_vec is a 
@@ -635,8 +644,8 @@ contains
   ! op1 <- clone(op2) 
   subroutine par_scalar_array_clone(op1,op2)
     implicit none
-    class(par_scalar_array_t)          , intent(inout) :: op1
-    class(vector_t), target, intent(in)    :: op2
+    class(par_scalar_array_t), intent(inout) :: op1
+    class(vector_t),  intent(in)    :: op2
 
     call op2%GuardTemp()
     select type(op2)
@@ -645,8 +654,8 @@ contains
        assert ( associated(op2%dof_dist) )
        assert ( associated(op2%p_env%p_context) )
        assert ( op2%p_env%p_context%created )
-       op1%dof_dist => op2%dof_dist
-       op1%p_env    => op2%p_env
+       call op1%free()
+       call op1%create(op2%dof_dist,op2%p_env)
        if(op2%p_env%p_context%iam<0) return
        call op1%serial_scalar_array%clone ( op2%serial_scalar_array )
        class default
@@ -680,26 +689,25 @@ contains
     class(par_scalar_array_t), intent(inout) :: this
     integer(ip)              , intent(in)    :: action
 
-    ! The routine requires the partition/context info
-    assert ( associated( this%dof_dist ) )
-    assert ( associated( this%p_env%p_context ) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
     assert ( action == free_clean .or. action == free_struct .or. action == free_values )	 
 
-    if(this%p_env%p_context%iam<0) then 
-       if ( action == free_clean ) then
-          nullify ( this%dof_dist )
-          nullify ( this%p_env )
-       end if
-       return
+    if ( associated ( this%p_env ) ) then
+      if(this%p_env%p_context%iam<0) then 
+         if ( action == free_clean ) then
+            nullify ( this%dof_dist )
+            nullify ( this%p_env )
+         end if
+         return
+      end if
     end if
 
     ! Free local part
     call this%serial_scalar_array%free_in_stages(action)
-
-    if ( action == free_clean ) then
-       nullify ( this%dof_dist )
-       nullify ( this%p_env )
+    if ( associated ( this%p_env ) ) then
+      if ( action == free_clean ) then
+         nullify ( this%dof_dist )
+         nullify ( this%p_env )
+      end if
     end if
   end subroutine par_scalar_array_free_in_stages
   

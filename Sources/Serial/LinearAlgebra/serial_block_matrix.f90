@@ -170,8 +170,8 @@ contains
     end do
     
     ! Create and set domain and range vector spaces
-    call range_vector%create_and_allocate(this%nblocks, size_of_blocks_range)
-    call domain_vector%create_and_allocate(this%nblocks, size_of_blocks_domain)
+    call range_vector%create(this%nblocks, size_of_blocks_range)
+    call domain_vector%create(this%nblocks, size_of_blocks_domain)
     
     range_vector_space => this%get_range_vector_space()
     call range_vector_space%create(range_vector)

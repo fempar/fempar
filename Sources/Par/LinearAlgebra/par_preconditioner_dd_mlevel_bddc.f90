@@ -8599,15 +8599,11 @@ use mpi
     type(serial_scalar_array_t)         :: vector_x
     type(serial_environment_t) :: senv
 
-    ! fill vector_b members
-    vector_b%size     =  A%graph%nv
-    vector_b%mode    =  reference
-    vector_b%b => b   
-
-    ! fill vector_x members
-    vector_x%size     = A%graph%nv 
-    vector_x%mode    = reference 
-    vector_x%b       => x 
+    call vector_b%create(A%graph%nv)
+    call vector_b%set_view_entries(b)
+    
+    call vector_x%create(A%graph%nv)
+    call vector_x%set_view_entries(x) 
 
     call abstract_solve (A, M, vector_b, vector_x, pars, senv)
 
@@ -8632,20 +8628,13 @@ use mpi
 !!$    if (pars%method == direct) then
 !!$       call preconditioner_apply (A, M, pars%nrhs, vector_b, ldb, vector_x, ldx)
 !!$    else
+    call vector_b%create(A%graph%nv)
+    call vector_x%create(A%graph%nv)
     tot_its = 0 
     do k=1, pars%nrhs
-       ! fill b members
-       vector_b%size     =  A%graph%nv
-       vector_b%mode    =  reference
-       vector_b%b       => b(:,k)
-       
-       ! fill vector_x members
-       vector_x%size     =  A%graph%nv
-       vector_x%mode    =  reference 
-       vector_x%b       => x(:,k)
-
+       call vector_b%set_view_entries(b(:,k))
+       call vector_x%set_view_entries(x(:,k))
        call abstract_solve (A, M, vector_b, vector_x, pars, senv)
-       
        tot_its = tot_its + pars%it
     end do
     pars%it = tot_its
