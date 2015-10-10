@@ -34,13 +34,14 @@ module vector_names
   
   type, abstract, extends(memory_guard_t) :: vector_t
    contains
-     procedure (dot_interface) , deferred  :: dot
-     procedure (copy_interface), deferred  :: copy
-     procedure (init_interface), deferred  :: init
-     procedure (scal_interface), deferred  :: scal
-     procedure (axpby_interface), deferred :: axpby ! y <- a*x + b*y
-     procedure (nrm2_interface), deferred  :: nrm2
-     procedure (clone_interface), deferred :: clone
+     procedure (allocate_interface), deferred :: allocate
+     procedure (dot_interface) , deferred     :: dot
+     procedure (copy_interface), deferred     :: copy
+     procedure (init_interface), deferred     :: init
+     procedure (scal_interface), deferred     :: scal
+     procedure (axpby_interface), deferred    :: axpby ! y <- a*x + b*y
+     procedure (nrm2_interface), deferred     :: nrm2
+     procedure (clone_interface), deferred    :: clone
      procedure (same_vector_space_interface), deferred :: same_vector_space
 
      procedure :: sum_vector
@@ -57,6 +58,11 @@ module vector_names
   end type vector_t
 
   abstract interface
+     subroutine allocate_interface(this)
+       import :: vector_t
+       implicit none
+       class(vector_t)         ,intent(inout) :: this 
+     end subroutine allocate_interface
      ! alpha <- op1^T * op2
      function dot_interface(op1,op2) result(alpha)
        import :: vector_t, rp

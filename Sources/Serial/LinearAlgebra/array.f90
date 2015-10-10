@@ -35,41 +35,32 @@ module array_names
 
   type, abstract, extends(vector_t) :: array_t
   contains
-  	  procedure (allocate_interface), deferred :: allocate
-	  procedure (free_in_stages_interface), deferred :: free_in_stages
-	  ! This subroutine is an instance of the Template Method pattern with
-	  ! free_in_stages being the primitive method. According to this pattern,
-	  ! template methods cannot be overrided by subclasses
-  	  procedure :: free => array_free_template_method
+    procedure (free_in_stages_interface), deferred :: free_in_stages
+    ! This subroutine is an instance of the Template Method pattern with
+    ! free_in_stages being the primitive method. According to this pattern,
+    ! template methods cannot be overrided by subclasses
+    procedure :: free => array_free_template_method
   end type
   
-    abstract interface
-     ! Allocates the entries of the array_t once it has been created
-     subroutine allocate_interface(this) 
-	   import :: array_t
-	   implicit none
-       class(array_t), intent(inout) :: this
-     end subroutine allocate_interface
-	 ! Progressively free an array_t instance in three stages: action={free_numeric,free_symbolic,free_clean}
-     subroutine free_in_stages_interface(this,action) 
-	   import :: array_t, ip
-	   implicit none
-       class(array_t), intent(inout) :: this
-	   integer(ip)   , intent(in)    :: action
-     end subroutine free_in_stages_interface
+  abstract interface
+    ! Progressively free an array_t instance in three stages: action={free_numeric,free_symbolic,free_clean}
+    subroutine free_in_stages_interface(this,action) 
+     import :: array_t, ip
+     implicit none
+     class(array_t), intent(inout) :: this
+     integer(ip)   , intent(in)    :: action
+    end subroutine free_in_stages_interface
   end interface
   
   ! Data types
   public :: array_t
   
 contains
-
    subroutine array_free_template_method ( this )
      implicit none
-	 class(array_t), intent(inout) :: this
-	 call this%free_in_stages(free_values)
-	 call this%free_in_stages(free_struct)
-	 call this%free_in_stages(free_clean)
+     class(array_t), intent(inout) :: this
+     call this%free_in_stages(free_values)
+     call this%free_in_stages(free_struct)
+     call this%free_in_stages(free_clean)
    end subroutine array_free_template_method
-
 end module array_names

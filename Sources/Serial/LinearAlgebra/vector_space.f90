@@ -83,6 +83,7 @@ contains
        class(vector_t)      , allocatable, intent(out) :: vector
        allocate(vector, mold=this%vector)
        call vector%clone(this%vector)
+       call vector%allocate()
      end subroutine vector_space_create_vector
 	
      ! Determines the dynamic type of the pointer result to match that of this 
