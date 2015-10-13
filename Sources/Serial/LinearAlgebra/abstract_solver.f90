@@ -31,7 +31,8 @@ module abstract_solver_names
   use memor_names
   use operator_names
   use vector_names
-  use abstract_environment_names
+  use multivector_names
+  use environment_names
 
 # include "debug.i90"
 
@@ -157,7 +158,7 @@ contains
     class(vector_t) , intent(in)        :: b        ! RHS
     class(vector_t) , intent(inout)     :: x        ! Approximate solution
     type(solver_control_t), intent(inout)     :: ctrl     ! Solver parameters
-    class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+    class(environment_t), intent(in) :: env      ! Serial/parallel environment 
     
     call A%GuardTemp()
     call M%GuardTemp()
@@ -210,7 +211,7 @@ contains
     class(vector_t)  , intent(in)       :: b     ! RHS
     class(vector_t)  , intent(inout)    :: x     ! Approximate solution
     type(solver_control_t) , intent(inout)    :: ctrl  ! Control data
-    class(abstract_environment_t), intent(in) :: env   ! Serial/parallel environment 
+    class(environment_t), intent(in) :: env   ! Serial/parallel environment 
 
 
     ! Locals
@@ -468,7 +469,7 @@ subroutine abstract_ipcg( A, M, b, x, ctrl, env )
   class(vector_t) , intent(in)    :: b        ! RHS
   class(vector_t) , intent(inout) :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl     ! Control data
-  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+  class(environment_t), intent(in) :: env      ! Serial/parallel environment 
 
   ! Locals
   real(rp)           :: r_nrm_M      ! |r|_inv(M) 
@@ -650,7 +651,7 @@ end subroutine abstract_ipcg
     ! This routine performs plgmres iterations on Ax=b with preconditioner M. 
     !--------------------------------------------------------------------
 #ifdef ENABLE_BLAS       
-use blas77_interfaces_names
+    use blas77_interfaces_names
 #endif
     implicit none
     ! Parameters
@@ -659,7 +660,7 @@ use blas77_interfaces_names
     class(vector_t)   , intent(inout) :: x ! Solution
     class(vector_t)   , intent(in)    :: b ! RHS
     type(solver_control_t), intent(inout) :: ctrl
-    class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+    class(environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
     integer(ip)                    :: ierrc
@@ -671,7 +672,8 @@ use blas77_interfaces_names
     logical                        :: exit_loop
 
     class(vector_t), allocatable  :: r, z     ! Working vector_ts
-    class(vector_t), allocatable  :: bkry(:)  ! Krylov basis
+    class(vector_t), pointer :: bkryv
+    type(multivector_t) :: bkry  ! Krylov basis
 
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs.or.ctrl%stopc==res_nrmgiven_res_nrmgiven.or.ctrl%stopc==res_nrmgiven_rhs_nrmgiven)
 
@@ -685,7 +687,7 @@ use blas77_interfaces_names
     call r%clone(b)
     call z%clone(x)
 
-    allocate(bkry(ctrl%dkrymax+1), mold=x)
+    call bkry%create(env,ctrl%dkrymax+1,mold=x)
 
     ! Allocate working vectors
     call memalloc(ctrl%dkrymax+1,ctrl%dkrymax+1,hh,__FILE__,__LINE__)
@@ -760,9 +762,10 @@ use blas77_interfaces_names
        end if
 
        ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
-       call bkry(1)%default_initialization()
-       call bkry(1)%clone(x)
-       if (res_norm /= 0.0_rp) call bkry(1)%scal(1.0_rp/res_norm, z)
+       bkryv => bkry%get(1)
+       call bkryv%default_initialization()
+       call bkryv%clone(x)
+       if (res_norm /= 0.0_rp) call bkryv%scal(1.0_rp/res_norm, z)
 
        ! residual in the krylov basis
        g(1)            = res_norm
@@ -778,12 +781,13 @@ use blas77_interfaces_names
           ctrl%it = ctrl%it + 1
 
           ! Generate new basis vector
-          call A%apply( bkry(kloc), r )
-          call bkry(kloc+1)%default_initialization()
-          call bkry(kloc+1)%clone(x)
-          call M%apply(r, bkry(kloc+1) )
-
-
+          bkryv => bkry%get(kloc)
+          call A%apply(bkryv,r)
+          bkryv => bkry%get(kloc+1)
+          call bkryv%default_initialization()
+          call bkryv%clone(x)
+          call M%apply(r, bkryv)
+          
           if ( env%am_i_fine_task() ) then ! Am I a fine task ?
              ! Orthogonalize
              select case( ctrl%orto )
@@ -868,11 +872,8 @@ use blas77_interfaces_names
                    call z%copy(x)
 
                    ! z <-z +  g_aux_1 * v_1 + g_aux_2 * v_2 + ... + g_aux_kloc_aux * v_kloc_aux
-                   ! call generic_krylov_basis_multiaxpy ( kloc_aux, 1.0_rp, bkry, g_aux, z )
-                   do i=1, kloc_aux
-                      call z%axpby(g_aux(i),bkry(i),1.0_rp)
-                   end do
-
+                   call bkry%multiaxpy(kloc_aux, z, 1.0_rp, g_aux )
+                   
                    ! r = Az
                    call A%apply(z,r)
 
@@ -946,10 +947,8 @@ use blas77_interfaces_names
                 call z%init(0.0_rp)
 
                 ! z <- z +  g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
-                do i=1, kloc
-                   call z%axpby(g(i),bkry(i),1.0_rp)
-                end do
-
+                call bkry%multiaxpy(kloc, z, 1.0_rp, g)
+                
                 ! x <- x + z 
                 call x%axpby(1.0_rp,z,1.0_rp)
              endif
@@ -974,10 +973,7 @@ use blas77_interfaces_names
     deallocate(z)
 
     ! Deallocate Krylov basis
-    do i=1, ctrl%dkrymax+1
-       call bkry(i)%free()
-    end do
-    deallocate ( bkry )
+    call bkry%free()
 
     ! Deallocate working vectors
     call memfree(hh,__FILE__,__LINE__)
@@ -1044,7 +1040,7 @@ use blas77_interfaces_names
   class(vector_t)    , intent(inout) :: x              ! Solution
   class(vector_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)   , intent(inout) :: ctrl
-  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+  class(environment_t), intent(in) :: env      ! Serial/parallel environment 
       
 
   integer(ip)                :: ierrc
@@ -1055,8 +1051,10 @@ use blas77_interfaces_names
   integer                    :: me, np
   logical                    :: exit_loop
 
-  class(vector_t), allocatable  :: r, z       ! Working vector_ts
-  class(vector_t), allocatable  :: bkry(:)    ! Krylov basis
+  class(vector_t), allocatable  :: r, z ! Working vector_ts
+  class(vector_t), pointer :: bkryv
+  type(multivector_t) :: bkry  ! Krylov basis
+    
 
     assert(ctrl%stopc==res_nrmgiven_rhs_nrmgiven.or.ctrl%stopc==res_nrmgiven_res_nrmgiven)
 
@@ -1071,7 +1069,7 @@ use blas77_interfaces_names
     call r%clone(b)
     call z%clone(x)
 
-    allocate(bkry(ctrl%dkrymax+1), mold=x)
+    call bkry%create(env,ctrl%dkrymax+1,mold=x)
 
     ! Allocate working vectors
     call memalloc(ctrl%dkrymax+1,ctrl%dkrymax+1,hh,__FILE__,__LINE__)
@@ -1125,11 +1123,12 @@ use blas77_interfaces_names
         end if
 
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
-        call bkry(1)%default_initialization()
-        call bkry(1)%clone(x)
+        bkryv => bkry%get(1)
+        call bkryv%default_initialization()
+        call bkryv%clone(x)
         if ( env%am_i_fine_task() ) then 
           if (res_norm /= 0.0_rp) then
-            call bkry(1)%scal(1.0_rp/res_norm, r)
+            call bkryv%scal(1.0_rp/res_norm, r)
           end if
         end if
          ! residual in the krylov basis
@@ -1145,10 +1144,12 @@ use blas77_interfaces_names
             ctrl%it = ctrl%it + 1
 
             ! Generate new basis vector
-            call M%apply( bkry(kloc), z )
-            call bkry(kloc+1)%default_initialization()
-            call bkry(kloc+1)%clone(x)
-            call A%apply(z, bkry(kloc+1))
+            bkryv => bkry%get(kloc)
+            call M%apply( bkryv, z )
+            bkryv => bkry%get(kloc+1)
+            call bkryv%default_initialization()
+            call bkryv%clone(x)
+            call A%apply(z, bkryv)
 
             if ( env%am_i_fine_task() ) then
                 ! Orthogonalize
@@ -1251,10 +1252,8 @@ use blas77_interfaces_names
             call r%init(0.0_rp)
 
             ! r <- g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
-            do i=1, kloc
-                call r%axpby(g(i),bkry(i),1.0_rp)
-            end do
-
+            call bkry%multiaxpy(kloc, r, 1.0_rp, g)
+            
             ! Solve Mz = r
             call M%apply(r,z)
 
@@ -1282,10 +1281,7 @@ use blas77_interfaces_names
     deallocate(z)
 
     ! Deallocate Krylov basis
-    do i=1, ctrl%dkrymax+1
-       call bkry(i)%free()
-    end do
-    deallocate ( bkry )
+    call bkry%free()
 
     if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
@@ -1314,7 +1310,7 @@ use blas77_interfaces_names
   class(vector_t)    , intent(inout) :: x              ! Solution
   class(vector_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
-  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+  class(environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   integer(ip)                :: ierrc
@@ -1325,10 +1321,11 @@ use blas77_interfaces_names
   integer                    :: me, np
   logical                    :: exit_loop
 
-  class(vector_t), allocatable :: r, z    ! Working vector_ts
-  class(vector_t), allocatable :: bkry(:)    ! Krylov basis
-  class(vector_t), allocatable :: bkryz(:)   ! (Right-)Preconditioned Krylov basis
-
+  class(vector_t), allocatable :: r, z  ! Working vector_ts
+  class(vector_t), pointer     :: bkryv, bkryzv 
+  type(multivector_t)          :: bkry  ! Krylov basis
+  type(multivector_t)          :: bkryz ! (Right-)Preconditioned Krylov basis
+  
     assert(ctrl%stopc==res_nrmgiven_rhs_nrmgiven.or.ctrl%stopc==res_nrmgiven_res_nrmgiven)
 
     call A%GuardTemp()
@@ -1340,9 +1337,9 @@ use blas77_interfaces_names
     allocate(z, mold=x); call z%default_initialization()
     call r%clone(b)
     call z%clone(x)
-
-    allocate(bkry(ctrl%dkrymax+1), mold=x)
-    allocate(bkryz(ctrl%dkrymax), mold=x)
+    
+    call bkry%create(env,ctrl%dkrymax+1,mold=x)
+    call bkryz%create(env,ctrl%dkrymax,mold=x)
 
     ! Allocate working vectors
     call memalloc(ctrl%dkrymax+1,ctrl%dkrymax+1,hh,__FILE__,__LINE__)
@@ -1395,9 +1392,10 @@ use blas77_interfaces_names
         end if
 
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
-        call bkry(1)%default_initialization()
-        call bkry(1)%clone(x)
-        if (res_norm /= 0.0_rp) call bkry(1)%scal(1.0_rp/res_norm, r)
+        bkryv => bkry%get(1)
+        call bkryv%default_initialization()
+        call bkryv%clone(x)
+        if (res_norm /= 0.0_rp) call bkryv%scal(1.0_rp/res_norm, r)
 
         ! residual in the krylov basis
         g(1) = res_norm
@@ -1412,12 +1410,15 @@ use blas77_interfaces_names
             ctrl%it = ctrl%it + 1
 
             ! Generate new basis vector
-            call bkryz(kloc)%default_initialization()
-            call bkryz(kloc)%clone(x)
-            call M%apply(bkry(kloc),bkryz(kloc))
-            call bkry(kloc+1)%default_initialization()
-            call bkry(kloc+1)%clone(x)
-            call A%apply(bkryz(kloc),bkry(kloc+1))
+            bkryv  => bkry%get(kloc)
+            bkryzv => bkryz%get(kloc)
+            call bkryzv%default_initialization()
+            call bkryzv%clone(x)
+            call M%apply(bkryv,bkryzv)
+            bkryv  => bkry%get(kloc+1)
+            call bkryv%default_initialization()
+            call bkryv%clone(x)
+            call A%apply(bkryzv,bkryv)
         
             if ( env%am_i_fine_task() ) then
                 ! Orthogonalize
@@ -1520,10 +1521,8 @@ use blas77_interfaces_names
             call z%init(0.0_rp)
 
             ! z <- g_1 * M_1^-1v_1 + g_2 *  M_2^-1v_2  + ... + g_kloc *  M_kloc^-1v_kloc
-            do j=1, kloc
-                call z%axpby(g(j),bkryz(j),1.0_rp)
-            enddo
-
+            call bkryz%multiaxpy(kloc, z, 1.0_rp, g )
+            
             ! x <- x + z
             call x%axpby(1.0_rp,z,1.0_rp)
         
@@ -1548,13 +1547,8 @@ use blas77_interfaces_names
     call z%free()
 
     ! Deallocate Krylov basis
-    do i=1, ctrl%dkrymax
-       call bkry(i)%free()
-       call bkryz(i)%free()
-    end do
-    call bkry(ctrl%dkrymax+1)%free()
-    deallocate ( bkry )
-    deallocate ( bkryz )
+    call bkry%free()
+    call bkryz%free()
 
     if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_end(ctrl)
@@ -1585,7 +1579,7 @@ subroutine abstract_prichard (A, M, b, x, ctrl, env )
   class(vector_t)    , intent(inout) :: x              ! Solution
   class(vector_t)    , intent(in)    :: b              ! RHS
   type(solver_control_t)  , intent(inout) :: ctrl
-  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+  class(environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   integer                          :: me, np
@@ -1687,7 +1681,7 @@ use lapack77_interfaces_names
   class(vector_t),  intent(inout)  :: x      ! Solution
   class(vector_t),  intent(in)     :: b      ! RHS
   type(solver_control_t), intent(inout) :: ctrl
-  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+  class(environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   integer(ip)                    :: ierrc
@@ -1699,8 +1693,9 @@ use lapack77_interfaces_names
   integer                        :: me, np, info
   logical                        :: exit_loop
 
-  class(vector_t), allocatable :: r, z        ! Working vector_ts
-  class(vector_t), allocatable :: bkry(:)     ! Krylov basis
+  class(vector_t), allocatable :: r, z  ! Working vector_ts
+  class(vector_t), pointer     :: bkryv
+  type(multivector_t)          :: bkry  ! Krylov basis
  
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs)
 
@@ -1715,8 +1710,8 @@ use lapack77_interfaces_names
     allocate(z, mold=x); call z%default_initialization()
     call r%clone(b)
     call z%clone(x)
-
-    allocate(bkry(ctrl%dkrymax+1), mold=x)
+    
+    call bkry%create(env,ctrl%dkrymax+1,mold=x)
 
     ! Allocate working vectors
     call memalloc(ctrl%dkrymax+1, ctrl%dkrymax+1,hh, __FILE__,__LINE__)
@@ -1781,9 +1776,10 @@ use lapack77_interfaces_names
         end if
 
         ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
-        call bkry(1)%default_initialization()
-        call bkry(1)%clone(x)
-        if (res_norm/=0.0_rp) call bkry(1)%scal(1.0_rp/res_norm,z)
+        bkryv => bkry%get(1)
+        call bkryv%default_initialization()
+        call bkryv%clone(x)
+        if (res_norm /= 0.0_rp) call bkryv%scal(1.0_rp/res_norm, z)
 
         ! start iterations
         kloc = 0
@@ -1794,11 +1790,13 @@ use lapack77_interfaces_names
             ctrl%it = ctrl%it + 1
 
             ! Generate new basis vector
-            call A%apply(bkry(kloc), r)
-            call bkry(kloc+1)%default_initialization()
-            call bkry(kloc+1)%clone(x)
-            call M%apply(r,bkry(kloc+1))
-
+            bkryv => bkry%get(kloc)
+            call A%apply(bkryv,r)
+            bkryv => bkry%get(kloc+1)
+            call bkryv%default_initialization()
+            call bkryv%clone(x)
+            call M%apply(r, bkryv)
+            
             if ( env%am_i_fine_task() ) then ! Am I a fine task ?
                 ! Orthogonalize
                 select case( ctrl%orto )
@@ -1856,9 +1854,7 @@ use lapack77_interfaces_names
                     call z%copy(x)
 
                     ! z <-z +  g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
-                    do j=1, kloc
-                        call z%axpby(g(j),bkry(j),1.0_rp)
-                    enddo
+                    call bkry%multiaxpy(kloc, z, 1.0_rp, g )
     
                     ! r = A(z+x)
                     call A%apply(z, r)
@@ -1908,11 +1904,8 @@ use lapack77_interfaces_names
 
     call r%free()
     call z%free()
-
-    do j=1,ctrl%dkrymax+1
-        call bkry(j)%free()
-    enddo
-    deallocate(bkry)
+    
+    call bkry%free()
 
     call memfree(hh,__FILE__,__LINE__)
     call memfree(lu,__FILE__,__LINE__)
@@ -2188,7 +2181,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
   class(vector_t),  intent(in)    :: b        ! RHS
   class(vector_t), intent(inout)  :: x        ! Approximate solution
   type(solver_control_t), intent(inout) :: ctrl
-  class(abstract_environment_t), intent(in) :: env      ! Serial/parallel environment 
+  class(environment_t), intent(in) :: env      ! Serial/parallel environment 
 
 
   !     Local arrays and variables
@@ -2595,10 +2588,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
     call M%CleanTemp()
     call b%CleanTemp()
 end subroutine abstract_pminres
-
-
-
-
+  
   !=============================================================================
   !
   ! Modified GS with re-orthogonalization
@@ -2613,18 +2603,20 @@ end subroutine abstract_pminres
     ! Parameters
     integer(ip)               , intent(in)    :: luout
     integer(ip)               , intent(in)    :: m
-    class(vector_t)       , intent(inout) :: bkry(m)
+    class(multivector_t)      , intent(inout) :: bkry
     real(rp)                  , intent(inout) :: hh(m)
     integer(ip)               , intent(out)   :: ierrc  
 
     ! Locals
-    integer(ip)           :: i
-    real(rp)              :: norm, thr, fct
-    real(rp), parameter   :: reorth = 0.98, rzero = 0.0_rp, rone = 1.0_rp
+    integer(ip)              :: i
+    real(rp)                 :: norm, thr, fct
+    real(rp), parameter      :: reorth = 0.98, rzero = 0.0_rp, rone = 1.0_rp
+    class(vector_t), pointer :: bkrym, bkryi
 
-
+    bkrym => bkry%get(m) 
+    
     ! The last vector is orthogonalized against the others
-    norm = bkry(m)%dot(bkry(m))
+    norm = bkrym%dot(bkrym)
 
     if (norm <= rzero) then
        ierrc = -1
@@ -2642,14 +2634,15 @@ end subroutine abstract_pminres
 
     ! Orthogonalize against all the others 
     do i = 1,m-1
-       fct =  bkry(m)%dot(bkry(i))
+       bkryi => bkry%get(i)
+       fct =  bkrym%dot(bkryi)
        hh(i) = fct
-       call bkry(m)%axpby(-fct,bkry(i),rone)
+       call bkrym%axpby(-fct,bkryi,rone)
        ! Reorthogonalization if it is 'too parallel' to the previous vector
        if (fct*fct > thr) then
-          fct = bkry(m)%dot(bkry(i))
+          fct = bkrym%dot(bkryi)
           hh(i) = hh(i) + fct
-          call bkry(m)%axpby(-fct,bkry(i),rone)
+          call bkrym%axpby(-fct,bkryi,rone)
        endif
        norm = norm - hh(i)*hh(i)
        if (norm < rzero) norm = rzero
@@ -2657,9 +2650,7 @@ end subroutine abstract_pminres
     enddo
 
     ! Normalize
-    hh(m) = bkry(m)%nrm2() ! bkry(m)%dot(w)
-    ! hh(m) = sqrt(hh(m))
-
+    hh(m) = bkrym%nrm2()
 
     if ( hh(m) <= rzero ) then
        write (luout,*) '** Warning: mgsro: input vector is a linear combination of previous vectors'
@@ -2667,7 +2658,7 @@ end subroutine abstract_pminres
        return
     end if
 
-    call bkry(m)%scal(rone/hh(m),bkry(m))
+    call bkrym%scal(rone/hh(m),bkrym)
   end subroutine mgsro
 
   !=============================================================================
@@ -2695,26 +2686,25 @@ end subroutine abstract_pminres
     ! Parameters  
     integer(ip), intent(in)                   :: luout
     integer(ip)               , intent(in)    :: k
-    class(vector_t)       , intent(inout) :: Q(k)
+    class(multivector_t)      , intent(inout) :: Q
     real(rp)                  , intent(inout) :: s(k)
     integer(ip)               , intent(out)   :: ierrc  
 
 
     ! Locals 
     real(rp), parameter              :: alpha = 0.5_rp, rone = 1.0_rp, rzero = 0.0_rp
-    logical, parameter           :: debug = .false.
+    logical, parameter               :: debug = .false.
     integer(ip)                      :: i, j, m
     real(rp)                         :: p(k-1)
     real(rp)                         :: delta_i, delta_i_mone, beta_i
-
+    class(vector_t), pointer         :: q_k
 
     s = 0.0_rp
     i = 1 
 
-!    call generic_krylov_basis_extract_view ( k, Q, q_k )
-!    Q(k)
 
-    delta_i_mone = Q(k)%nrm2()
+    q_k => Q%get(k)
+    delta_i_mone = q_k%nrm2()
 
     if (delta_i_mone <= rzero) then
        ierrc = -1	
@@ -2729,15 +2719,11 @@ end subroutine abstract_pminres
     endif
 
     loop_icgs: do
-
-
-       do j=1, k-1
-           ! p <- Q_k^T * Q(k), with Q_k = (Q(1), Q(2), .. Q(k-1))  
-           p(j) = Q(k)%dot(Q(j))
-           ! q_k <- q_k - Q_k * p 
-           call Q(k)%axpby(-p(j),Q(j),1.0_rp)
-       enddo
-
+       ! p <- Q_k^T * Q(k), with Q_k = (Q(1), Q(2), .. Q(k-1))  
+       call Q%multidot(k-1,q_k,p)
+       
+       ! q_k <- q_k - Q_k * p 
+       call Q%multiaxpy(k-1,q_k,-1.0_rp,p)
 
        s(1:k-1) = s(1:k-1) + p(1:k-1)
 
@@ -2752,7 +2738,7 @@ end subroutine abstract_pminres
 
        ! OPTION 2: calculate ||q_k^{i+1}||
        ! write (*,*) i, k, 'xxx', aux,  delta_i      ! DBG:
-       delta_i = Q(k)%nrm2()
+       delta_i = q_k%nrm2()
 
        if ( delta_i > delta_i_mone * alpha .or. delta_i == rzero ) exit loop_icgs
        i = i + 1
@@ -2766,7 +2752,6 @@ end subroutine abstract_pminres
     if (i>2)   write(luout,*) '** Warning: icgsro: required more than two iterations!'
 
     ! Normalize
-    ! call generic_nrm2 ( q_k, s(k) )
     s(k) = delta_i 
     if ( s(k) <= rzero ) then
        write (luout,*) '** Warning: icgsro: input vector is a linear combination of previous vectors'
@@ -2774,8 +2759,8 @@ end subroutine abstract_pminres
        return
     end if
 
-    call Q(k)%scal(rone/s(k),Q(k))
-
+    call q_k%scal(rone/s(k),q_k)
+    
   end subroutine icgsro
 
   subroutine solver_control_allocate_conv_his( ctrl )

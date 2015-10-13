@@ -299,7 +299,7 @@ program test_serial_preconditioners_and_solvers
   call b%free()
   call x%free()
   call exact_solution%free()
-
+  call memstatus
 contains
 
   ! *****************************************************************************!

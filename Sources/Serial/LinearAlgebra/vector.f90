@@ -36,6 +36,7 @@ module vector_names
    contains
      procedure (allocate_interface), deferred :: allocate
      procedure (dot_interface) , deferred     :: dot
+     procedure (dot_interface) , deferred     :: local_dot
      procedure (copy_interface), deferred     :: copy
      procedure (init_interface), deferred     :: init
      procedure (scal_interface), deferred     :: scal
@@ -70,6 +71,13 @@ module vector_names
        class(vector_t), intent(in)  :: op1,op2
        real(rp) :: alpha
      end function dot_interface
+     ! alpha <- op1^T * op2 without final allreduce
+     function local_dot_interface(op1,op2) result(alpha)
+       import :: vector_t, rp
+       implicit none
+       class(vector_t), intent(in)  :: op1,op2
+       real(rp) :: alpha
+     end function local_dot_interface
      ! op1 <- op2 
      subroutine copy_interface(op1,op2)
        import :: vector_t

@@ -27,17 +27,19 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module serial_environment_names
 use types_names
-  use abstract_environment_names
+  use environment_names
   implicit none
   
   private
   ! Abstract environment
-  type, extends(abstract_environment_t) :: serial_environment_t
+  type, extends(environment_t) :: serial_environment_t
    contains
-     procedure :: info                => serial_environment_info
-     procedure :: am_i_fine_task      => serial_environment_am_i_fine_task
-     procedure :: bcast               => serial_environment_bcast
-     procedure :: first_level_barrier => serial_environment_first_level_barrier
+     procedure :: info                        => serial_environment_info
+     procedure :: am_i_fine_task              => serial_environment_am_i_fine_task
+     procedure :: bcast                       => serial_environment_bcast
+     procedure :: first_level_barrier         => serial_environment_first_level_barrier
+     procedure :: first_level_sum_real_scalar => serial_environment_first_level_sum_real_scalar
+     procedure :: first_level_sum_real_vector => serial_environment_first_level_sum_real_vector
   end type serial_environment_t
   
   public :: serial_environment_t
@@ -70,5 +72,17 @@ contains
     class(serial_environment_t) ,intent(in)    :: env
     logical                   ,intent(inout) :: condition
   end subroutine serial_environment_bcast
+  
+  subroutine serial_environment_first_level_sum_real_scalar (env,alpha)
+    implicit none
+    class(serial_environment_t) , intent(in)    :: env
+    real(rp)             , intent(inout) :: alpha
+  end subroutine serial_environment_first_level_sum_real_scalar
+     
+ subroutine serial_environment_first_level_sum_real_vector(env,alpha)
+    implicit none
+    class(serial_environment_t) , intent(in)    :: env
+    real(rp)             , intent(inout) :: alpha(:) 
+ end subroutine serial_environment_first_level_sum_real_vector
   
 end module serial_environment_names

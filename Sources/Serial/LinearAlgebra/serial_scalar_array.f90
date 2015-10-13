@@ -79,7 +79,8 @@ module serial_scalar_array_names
      procedure :: print               => serial_scalar_array_print
      procedure :: print_matrix_market => serial_scalar_array_print_matrix_market
 
-     procedure :: dot  => serial_scalar_array_dot
+     procedure :: dot => serial_scalar_array_dot
+     procedure :: local_dot  => serial_scalar_array_dot
      procedure :: copy => serial_scalar_array_copy
      procedure :: init => serial_scalar_array_init
      procedure :: scal => serial_scalar_array_scal

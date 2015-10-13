@@ -76,7 +76,7 @@ module block_vector_names
   ! type(block_vector_t) instances as views, e.g., of the components of a
   ! type(block_array_t) or type(par_block_array_t).
 
-  ! block_operand
+  ! block_vector
   type, extends(vector_t) :: block_vector_t
      integer(ip)                   :: state = not_created
      integer(ip)                   :: nblocks
@@ -91,6 +91,7 @@ module block_vector_names
      procedure :: free_in_stages => block_vector_free_in_stages
 
      procedure :: dot  => block_vector_dot
+     procedure :: local_dot  => block_vector_local_dot
      procedure :: copy => block_vector_copy
      procedure :: init => block_vector_init
      procedure :: scal => block_vector_scal
@@ -229,12 +230,42 @@ contains
          alpha = alpha + op1%blocks(iblk)%vector%dot(op2%blocks(iblk)%vector) 
       end do
    class default
-      write(0,'(a)') 'block_operand_t%dot: unsupported op2 class'
+      write(0,'(a)') 'block_vector_t%dot: unsupported op2 class'
       check(1==0)
    end select
    call op1%CleanTemp()
    call op2%CleanTemp()
  end function block_vector_dot
+ 
+ ! alpha <- op1^T * op2 without allreduce on each block
+ function block_vector_local_dot(op1,op2) result(alpha)
+   implicit none
+   class(block_vector_t), intent(in) :: op1
+   class(vector_t) , intent(in) :: op2
+   real(rp) :: alpha
+   ! Locals
+   integer(ip) :: iblk
+
+   assert(op1%state==assembled)
+   call op1%GuardTemp()
+   call op2%GuardTemp()
+   select type(op2)
+   class is (block_vector_t)
+      assert(op2%state==assembled)
+      assert ( op1%nblocks == op2%nblocks )
+      alpha = 0.0_rp
+      do iblk=1, op1%nblocks
+         assert(associated(op1%blocks(iblk)%vector))
+         assert(associated(op2%blocks(iblk)%vector))   
+         alpha = alpha + op1%blocks(iblk)%vector%local_dot(op2%blocks(iblk)%vector) 
+      end do
+   class default
+      write(0,'(a)') 'block_vector_t%local_dot: unsupported op2 class'
+      check(1==0)
+   end select
+   call op1%CleanTemp()
+   call op2%CleanTemp()
+ end function block_vector_local_dot
 
  ! op1 <- op2 
  subroutine block_vector_copy(op1,op2)
@@ -256,7 +287,7 @@ contains
         call op1%blocks(iblk)%vector%copy(op2%blocks(iblk)%vector) 
       end do
    class default
-      write(0,'(a)') 'block_operand_t%copy: unsupported op2 class'
+      write(0,'(a)') 'block_vector_t%copy: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -282,7 +313,7 @@ contains
         call op1%blocks(iblk)%vector%scal(alpha,op2%blocks(iblk)%vector) 
       end do
    class default
-      write(0,'(a)') 'block_operand_t%scal: unsupported op2 class'
+      write(0,'(a)') 'block_vector_t%scal: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -318,7 +349,7 @@ contains
         call op1%blocks(iblk)%vector%axpby(alpha, op2%blocks(iblk)%vector, beta) 
      end do
    class default
-      write(0,'(a)') 'block_operand_t%axpby: unsupported op2 class'
+      write(0,'(a)') 'block_vector_t%axpby: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()
@@ -357,7 +388,7 @@ contains
        call op1%blocks(iblk)%vector%clone(op2%blocks(iblk)%vector) 
      end do
    class default
-      write(0,'(a)') 'block_operand_t%clone: unsupported op2 class'
+      write(0,'(a)') 'block_vector_t%clone: unsupported op2 class'
       check(1==0)
    end select
    call op2%CleanTemp()

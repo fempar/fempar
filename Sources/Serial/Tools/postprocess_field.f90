@@ -31,7 +31,7 @@ module postprocess_field_names
   use types_names
   use memor_names
   use serial_fe_space_names
-  use abstract_environment_names
+  use environment_names
   implicit none
 # include "debug.i90"
   private
@@ -54,7 +54,7 @@ module postprocess_field_names
      integer(ip)                   :: nvars                 ! Number of variables 
      character(len=:), allocatable :: name                  ! Name of the postprocess field
      type(serial_fe_space_t), pointer     :: fe_space => NULL()  ! Points to fe_space_t
-     class(abstract_environment_t), pointer :: env => NULL() ! Points to environment
+     class(environment_t), pointer :: env => NULL() ! Points to environment
      type(fe_postprocess_field_t), allocatable :: fe_postprocess_field(:)
    contains
      generic      :: create       => postprocess_field_create
@@ -88,7 +88,7 @@ contains
     type(serial_fe_space_t),  target,  intent(in)     :: fe_space 
     integer(ip),                intent(in)     :: interpolation_order_mode
     integer(ip),   optional,    intent(in)     :: variable_identifier
-    class(abstract_environment_t), target, intent(in) :: env
+    class(environment_t), target, intent(in) :: env
     ! Locals
     integer(ip)      :: ndime, ielem
 

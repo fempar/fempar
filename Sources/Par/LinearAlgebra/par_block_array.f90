@@ -65,6 +65,7 @@ module par_block_array_names
      procedure :: get_nblocks => par_block_array_get_nblocks
 
      procedure :: dot   => par_block_array_dot
+     procedure :: local_dot   => par_block_array_local_dot
      procedure :: copy  => par_block_array_copy
      procedure :: init  => par_block_array_init
      procedure :: scal  => par_block_array_scal
@@ -215,9 +216,10 @@ contains
        assert(op2%state == blocks_container_created)
        alpha = 0.0_rp
        do ib=1,op1%nblocks
-          aux = op1%blocks(ib)%dot(op2%blocks(ib))
+          aux = op1%blocks(ib)%local_dot(op2%blocks(ib))
           alpha = alpha + aux
        end do
+       call op1%blocks(1)%p_env%first_level_sum(alpha)
        class default
        write(0,'(a)') 'par_block_array_t%dot: unsupported op2 class'
        check(1==0)
@@ -225,6 +227,37 @@ contains
     call op1%CleanTemp()
     call op2%CleanTemp()
   end function par_block_array_dot
+  
+    ! alpha <- op1^T * op2
+  function par_block_array_local_dot(op1,op2) result(alpha)
+    implicit none
+    ! Parameters
+    class(par_block_array_t), intent(in)  :: op1
+    class(vector_t)    , intent(in)  :: op2
+    real(rp) :: alpha
+
+    ! Locals
+    real(rp)    :: aux
+    integer(ip) :: ib
+    assert(op1%state == blocks_container_created)
+    call op1%GuardTemp()
+    call op2%GuardTemp()
+    select type(op2)
+       class is (par_block_array_t)
+       assert ( op1%nblocks == op2%nblocks )
+       assert(op2%state == blocks_container_created)
+       alpha = 0.0_rp
+       do ib=1,op1%nblocks
+          aux = op1%blocks(ib)%local_dot(op2%blocks(ib))
+          alpha = alpha + aux
+       end do
+       class default
+       write(0,'(a)') 'par_block_array_t%local_dot: unsupported op2 class'
+       check(1==0)
+    end select
+    call op1%CleanTemp()
+    call op2%CleanTemp()
+  end function par_block_array_local_dot
 
   ! op1 <- op2 
   subroutine par_block_array_copy(op1,op2)

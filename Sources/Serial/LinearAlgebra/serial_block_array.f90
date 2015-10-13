@@ -59,6 +59,7 @@ module serial_block_array_names
      procedure :: get_nblocks => serial_block_array_get_nblocks
      
      procedure :: dot  => serial_block_array_dot
+     procedure :: local_dot => serial_block_array_dot
      procedure :: copy => serial_block_array_copy
      procedure :: init => serial_block_array_init
      procedure :: scal => serial_block_array_scal

@@ -75,7 +75,8 @@ module par_scalar_array_names
      procedure :: print_market_market => par_scalar_array_print_matrix_market
 
      ! Provide type bound procedures (tbp) implementors
-     procedure :: dot  => par_scalar_array_dot
+     procedure :: dot        => par_scalar_array_dot
+     procedure :: local_dot  => par_scalar_array_local_dot
      procedure :: copy => par_scalar_array_copy
      procedure :: init => par_scalar_array_init
      procedure :: scal => par_scalar_array_scal
@@ -520,7 +521,58 @@ contains
     call op1%CleanTemp()
     call op2%CleanTemp()
   end function par_scalar_array_dot
+  
+    ! alpha <- op1^T * op2 without final allreduce
+  function par_scalar_array_local_dot(op1,op2) result(alpha)
+    implicit none
+    class(par_scalar_array_t), intent(in)    :: op1
+    class(vector_t), intent(in)  :: op2
+    real(rp) :: alpha
 
+    ! Locals 
+    integer(ip)                   :: ni 
+    type(par_scalar_array_t)      :: x_I, x_G, y_I, y_G
+    real(rp)                      :: s
+
+    ! Alpha should be defined in all tasks (not only in coarse-grid ones)
+    alpha = 0.0_rp
+
+    call op1%GuardTemp()
+    call op2%GuardTemp()
+    select type(op2)
+       class is (par_scalar_array_t)
+          ! Pointer to part/context object is required
+       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%p_env%p_context) )
+       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%p_env%p_context) )
+       assert ( op1%p_env%p_context%created .eqv. .true.)
+       if(op1%p_env%p_context%iam<0) return
+
+       ni = op1%serial_scalar_array%size - op1%dof_dist%nb
+       if ( ni > 0 ) then
+          call op1%create_view (1, ni, x_I)
+          call op2%create_view (1, ni, y_I)
+          alpha = x_I%serial_scalar_array%dot ( y_I%serial_scalar_array )
+       else
+          alpha = 0.0_rp
+       end if
+
+       call op1%create_view(ni+1, op1%serial_scalar_array%size, x_G )
+       call op2%create_view(ni+1, op2%serial_scalar_array%size, y_G )
+       call dot_interface          ( x_G, y_G, s )
+
+       alpha = alpha + s
+       
+       class default
+       write(0,'(a)') 'par_scalar_array_t%dot: unsupported op2 class'
+       check(1==0)
+    end select
+    call op1%CleanTemp()
+    call op2%CleanTemp()
+  end function par_scalar_array_local_dot
+  
+  
   ! op1 <- op2 
   subroutine par_scalar_array_copy(op1,op2)
     implicit none

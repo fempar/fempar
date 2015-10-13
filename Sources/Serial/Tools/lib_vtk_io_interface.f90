@@ -39,7 +39,7 @@ module lib_vtk_io_interface_names
   use serial_fe_space_names
   use problem_names
   use interpolation_tools_names
-  use abstract_environment_names
+  use environment_names
   use Lib_VTK_IO
   use ISO_C_BINDING
   use postprocess_field_names
@@ -102,7 +102,7 @@ module lib_vtk_io_interface_names
      type(vtk_mesh_t), allocatable :: mesh(:)         ! VTK mesh data and field_t descriptors
      type(serial_fe_space_t), pointer     :: fe_space => NULL()  ! Poins to fe_space_t
      class(physical_problem_t), pointer     :: p_phys_prob => NULL()  ! Poins to physical_problem_t
-     class(abstract_environment_t), pointer      :: env => NULL()  ! Poins to fe_space_t
+     class(environment_t), pointer      :: env => NULL()  ! Poins to fe_space_t
      real(rp), allocatable         :: steps(:)        ! Array of parameters (time, eigenvalues,etc.)
      integer(ip)                   :: steps_counter=0 ! time steps counter
      integer(ip)                   :: num_meshes = 0  ! Number of VTK meshes stored
@@ -163,7 +163,7 @@ contains
     type(triangulation_t), intent(IN)      :: f_trian
     type(serial_fe_space_t), target, intent(INOUT) :: fe_space
     class(physical_problem_t), target, intent(IN)  :: phys_prob
-    class(abstract_environment_t), target, intent(IN)    :: env
+    class(environment_t), target, intent(IN)    :: env
     character(len=*),        intent(IN)    :: dir_path
     character(len=*),        intent(IN)    :: prefix  
     integer(ip), optional,   intent(IN)    :: root_proc

@@ -29,8 +29,9 @@ module par_environment_names
   ! Serial modules
   use types_names
   use memor_names
-  use map_names
-  use abstract_environment_names
+  
+  ! Abstract modules
+  use environment_names
 
   ! Parallel modules
   use psb_penv_mod_names
@@ -45,7 +46,7 @@ module par_environment_names
   implicit none
   private
 
-  type, extends(abstract_environment_t) ::  par_environment_t
+  type, extends(environment_t) ::  par_environment_t
      logical                        :: created             ! Has the parallel environment been created?
      type (par_context_t), pointer  :: p_context => NULL() ! Fine process
      type (par_context_t), pointer  :: q_context => NULL() ! Available (unused) processes 
@@ -73,6 +74,8 @@ module par_environment_names
      procedure :: am_i_fine_task      => par_environment_am_i_fine_task
      procedure :: bcast               => par_environment_bcast_logical
      procedure :: first_level_barrier => par_environment_first_level_barrier
+     procedure :: first_level_sum_real_scalar => par_environment_first_level_sum_real_scalar
+     procedure :: first_level_sum_real_vector => par_environment_first_level_sum_real_vector
   end type par_environment_t
   
 
@@ -134,7 +137,7 @@ contains
 
   subroutine par_environment_bcast_logical(env,condition)
 #ifdef MPI_MOD
-use mpi
+    use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -263,5 +266,23 @@ use mpi
 
     p_env%created = .false. 
   end subroutine par_environment_free
+  
+  subroutine par_environment_first_level_sum_real_scalar (env,alpha)
+    implicit none
+    class(par_environment_t) , intent(in)    :: env
+    real(rp)                 , intent(inout) :: alpha
+    if ( env%am_i_fine_task() ) then
+      call psb_sum(env%p_context%icontxt, alpha)
+    end if
+  end subroutine par_environment_first_level_sum_real_scalar
+     
+ subroutine par_environment_first_level_sum_real_vector(env,alpha)
+    implicit none
+    class(par_environment_t) , intent(in)    :: env
+    real(rp)                 , intent(inout) :: alpha(:) 
+    if ( env%am_i_fine_task() ) then
+      call psb_sum(env%p_context%icontxt, alpha)
+    end if
+ end subroutine par_environment_first_level_sum_real_vector
 
 end module par_environment_names

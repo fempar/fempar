@@ -30,7 +30,7 @@ module inverse_operator_names
   use operator_names
   use vector_names
   use abstract_solver_names
-  use abstract_environment_names
+  use environment_names
   implicit none
 # include "debug.i90"
   private
@@ -39,7 +39,7 @@ module inverse_operator_names
      class(operator_t)       , pointer :: A => NULL()     ! System operator
      class(operator_t)       , pointer :: M => NULL()     ! Preconditioner operator
      type(solver_control_t)       , pointer :: sctrl => NULL() ! Solver parameters
-     class(abstract_environment_t), pointer :: env => NULL()   ! Serial/parallel environment 
+     class(environment_t), pointer :: env => NULL()   ! Serial/parallel environment 
    contains
      procedure :: create      => inverse_operator_create     
      procedure :: apply       => inverse_operator_apply      
@@ -59,7 +59,7 @@ contains
     class(operator_t)       , target, intent(in)    :: A
     class(operator_t)       , target, intent(in)    :: M
     type(solver_control_t)       , target, intent(in)    :: sctrl
-    class(abstract_environment_t), target, intent(in)    :: env
+    class(environment_t), target, intent(in)    :: env
 
     ! Assign pointers
     op%A     => A
