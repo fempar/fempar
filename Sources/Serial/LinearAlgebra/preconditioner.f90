@@ -41,6 +41,7 @@ module preconditioner_names
 
   ! Abstract modules
   use vector_names
+  use vector_space_names
   use operator_names
 
 # include "debug.i90"
@@ -127,9 +128,8 @@ module preconditioner_names
      type(serial_scalar_matrix_t), pointer :: mat
 
    contains
-     procedure :: apply => preconditioner_apply_tbp
-     procedure :: apply_fun => preconditioner_apply_fun_tbp
-     procedure :: free => preconditioner_free_tbp
+     procedure :: apply => preconditioner_apply
+     procedure :: free => preconditioner_free
   end type preconditioner_t
 
   type preconditioner_params_t
@@ -169,7 +169,7 @@ module preconditioner_names
   public :: preconditioner_t, preconditioner_params_t
 
   ! Functions
-  public :: preconditioner_create, preconditioner_free, preconditioner_symbolic, &
+  public :: preconditioner_create, preconditioner_free_in_stages, preconditioner_symbolic, &
        &    preconditioner_numeric, preconditioner_apply, preconditioner_log_info, &
        &    extract_diagonal, invert_diagonal, apply_diagonal
 
@@ -282,7 +282,7 @@ contains
   end subroutine preconditioner_create
 
   !=============================================================================
-  subroutine preconditioner_free ( action, prec )
+  subroutine preconditioner_free_in_stages ( prec, action )
     implicit none
 
     ! Parameters
@@ -295,6 +295,10 @@ contains
 
     if ( action == preconditioner_free_clean ) then
        nullify(prec%mat)
+    end if
+    
+    if ( action == preconditioner_free_values ) then
+       call prec%free_vector_spaces()
     end if
 
     if(prec%type==pardiso_mkl_prec) then
@@ -384,7 +388,7 @@ contains
        check(1==0)
     end if
 
-  end subroutine preconditioner_free
+  end subroutine preconditioner_free_in_stages
 
   !=============================================================================
   subroutine preconditioner_symbolic(mat, prec)
@@ -440,8 +444,11 @@ contains
     integer(ip)       :: ilev, n, nnz
     integer(ip)       :: i, j
     real(rp)          :: diag
+    type(vector_space_t), pointer :: mat_domain_vector_space
+    type(vector_space_t), pointer :: mat_range_vector_space
+    type(vector_space_t), pointer :: prec_domain_vector_space
+    type(vector_space_t), pointer :: prec_range_vector_space
     
-    !prec%mat => mat
     mat => prec%mat
 
     if(prec%type==pardiso_mkl_prec) then
@@ -501,6 +508,12 @@ contains
        check(1==0)
     end if
     
+    mat_domain_vector_space => mat%get_domain_vector_space()
+    mat_range_vector_space => mat%get_range_vector_space()
+    prec_domain_vector_space => prec%get_domain_vector_space()
+    prec_range_vector_space => prec%get_range_vector_space()
+    call mat_domain_vector_space%clone(prec_domain_vector_space)
+    call mat_range_vector_space%clone(prec_range_vector_space)
   end subroutine preconditioner_numeric
 
   !=============================================================================
@@ -702,17 +715,17 @@ contains
   end subroutine extract_diagonal
 
   !=============================================================================
-  subroutine preconditioner_apply_tbp (op, x, y)
+  subroutine preconditioner_apply (op, x, y)
     implicit none
     ! Parameters
     class(preconditioner_t)    , intent(in)    :: op
     class(vector_t)   , intent(in)    :: x
     class(vector_t)   , intent(inout) :: y
     
-    assert (associated(op%mat))
-
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call x%GuardTemp()
-
     select type(x)
     class is (serial_scalar_array_t)
        select type(y)
@@ -739,50 +752,17 @@ contains
              write (0,*) 'Error: preconditioner type not supported'
              check(1==0)
           end if
-       class default
-          write(0,'(a)') 'matrix_t%apply: unsupported y class'
-          check(1==0)
        end select
-    class default
-       write(0,'(a)') 'preconditioner_t%apply: unsupported x class'
-       check(1==0)
     end select
-
     call x%CleanTemp()
-  end subroutine preconditioner_apply_tbp
+  end subroutine preconditioner_apply
 
-  !=============================================================================
-  function preconditioner_apply_fun_tbp (op, x) result(y)
-    implicit none
-    ! Parameters
-    class(preconditioner_t), intent(in)   :: op
-    class(vector_t), intent(in)  :: x
-    class(vector_t), allocatable :: y
-    type(serial_scalar_array_t), allocatable :: local_y
-
-    
-    assert (associated(op%mat))
-
-    call x%GuardTemp()
-
-    select type(x)
-    class is (serial_scalar_array_t)
-       allocate(local_y)
-       call local_y%create_and_allocate (op%mat%graph%nv)
-       call op%apply(x, local_y)
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-    class default
-       write(0,'(a)') 'preconditioner_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-
-    call x%CleanTemp()
-  end function preconditioner_apply_fun_tbp
-
-  subroutine preconditioner_free_tbp(this)
+  subroutine preconditioner_free(this)
     implicit none
     class(preconditioner_t), intent(inout) :: this
-  end subroutine preconditioner_free_tbp
+    call preconditioner_free_in_stages(this,preconditioner_free_values)
+    call preconditioner_free_in_stages(this,preconditioner_free_struct)
+    call preconditioner_free_in_stages(this,preconditioner_free_clean)
+  end subroutine preconditioner_free
 
 end module preconditioner_names

@@ -46,12 +46,13 @@ module operator_names
      type(vector_space_t) :: domain_vector_space
      type(vector_space_t) :: range_vector_space
    contains
-     procedure (apply_interface)         , deferred :: apply
-     procedure (apply_fun_interface)     , deferred :: apply_fun
-
-     procedure :: free_vector_spaces
-     procedure :: get_domain_vector_space
-     procedure :: get_range_vector_space
+     procedure (apply_interface), deferred :: apply
+     procedure :: free_vector_spaces                      => operator_free_vector_spaces
+     procedure :: get_domain_vector_space                 => operator_get_domain_vector_space
+     procedure :: get_range_vector_space                  => operator_get_range_vector_space
+     procedure :: abort_if_not_in_range                   => operator_abort_if_not_in_range
+     procedure :: abort_if_not_in_domain                  => operator_abort_if_not_in_domain
+     procedure :: apply_fun                               => operator_apply_fun
 
      procedure  :: sum       => sum_operator_constructor
      procedure  :: sub       => sub_operator_constructor
@@ -79,7 +80,6 @@ module operator_names
    contains
      procedure :: default_initialization => binary_operator_default_init
      procedure :: free    => binary_operator_destructor
-     procedure :: assign  => binary_operator_copy
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
@@ -97,7 +97,6 @@ module operator_names
    contains
      procedure  :: default_initialization => dynamic_state_operator_default_init
      procedure  :: apply     => dynamic_state_operator_apply
-     procedure  :: apply_fun => dynamic_state_operator_apply_fun
      procedure  :: free  => dynamic_state_operator_destructor
      procedure  :: assign => dynamic_state_operator_constructor
      generic    :: assignment(=) => assign
@@ -106,32 +105,33 @@ module operator_names
   type, extends(binary_operator_t) :: sum_operator_t
    contains
      procedure  :: apply => sum_operator_apply
-     procedure  :: apply_fun => sum_operator_apply_fun 
+     procedure  :: assign => sum_operator_copy
   end type sum_operator_t
 
   type, extends(binary_operator_t) :: sub_operator_t
    contains
      procedure  :: apply => sub_operator_apply
-     procedure  :: apply_fun => sub_operator_apply_fun 
+     procedure  :: assign => sub_operator_copy
   end type sub_operator_t
 
   type, extends(binary_operator_t) :: mult_operator_t
    contains
      procedure  :: apply => mult_operator_apply
-     procedure  :: apply_fun => mult_operator_apply_fun 
+     procedure  :: assign => mult_operator_copy
   end type mult_operator_t
 
   type, extends(unary_operator_t) :: scal_operator_t
      real(rp) :: alpha
    contains
      procedure  :: apply => scal_operator_apply
-     procedure  :: apply_fun => scal_operator_apply_fun
+     ! scal_operator must overwrite assign for unary_operator_t
+     ! as it adds a new member variable "alpha" to unary_operator_t
+     procedure  :: assign => scal_operator_copy
   end type scal_operator_t
 
   type, extends(unary_operator_t) :: minus_operator_t
    contains
      procedure  :: apply => minus_operator_apply
-     procedure  :: apply_fun => minus_operator_apply_fun
   end type minus_operator_t
 
   abstract interface
@@ -145,16 +145,6 @@ module operator_names
        class(vector_t) , intent(inout) :: y 
      end subroutine apply_interface
 
-     ! op%apply(x)
-     ! Allocates room for (temporary) y
-     function apply_fun_interface(op,x) result(y)
-       import :: operator_t, vector_t
-       implicit none
-       class(operator_t), intent(in)  :: op
-       class(vector_t) , intent(in)  :: x
-       class(vector_t) , allocatable :: y 
-     end function apply_fun_interface
-
      subroutine expression_operator_assign_interface(op1,op2)
        import :: operator_t, expression_operator_t
        implicit none
@@ -167,27 +157,61 @@ module operator_names
 
 contains
 
-  function get_domain_vector_space ( this )
+  function operator_get_domain_vector_space ( this )
     implicit none
     class(operator_t), target, intent(in) :: this
-    type(vector_space_t), pointer :: get_domain_vector_space
-    get_domain_vector_space => this%domain_vector_space
-  end function get_domain_vector_space
+    type(vector_space_t), pointer :: operator_get_domain_vector_space
+    operator_get_domain_vector_space => this%domain_vector_space
+  end function operator_get_domain_vector_space
 
-  function get_range_vector_space ( this )
+  function operator_get_range_vector_space ( this )
     implicit none
     class(operator_t), target, intent(in) :: this
-    type(vector_space_t), pointer :: get_range_vector_space
-    get_range_vector_space => this%range_vector_space
-  end function get_range_vector_space
+    type(vector_space_t), pointer :: operator_get_range_vector_space
+    operator_get_range_vector_space => this%range_vector_space
+  end function operator_get_range_vector_space
 
-  subroutine free_vector_spaces ( this )
+  subroutine operator_free_vector_spaces ( this )
     implicit none
     class(operator_t), intent(inout) :: this
     call this%domain_vector_space%free()
     call this%range_vector_space%free()
-  end subroutine free_vector_spaces
-
+  end subroutine operator_free_vector_spaces
+  
+  function  operator_apply_fun(op,x) result(y)
+    implicit none
+    class(operator_t), intent(in)       :: op
+    class(vector_t)     , intent(in)  :: x
+    class(vector_t)     , allocatable :: y 
+    call op%GuardTemp()
+    call x%GuardTemp()
+    call op%range_vector_space%create_vector(y)
+    call op%apply(x,y)
+    call x%CleanTemp()
+    call y%SetTemp()
+    call op%CleanTemp()
+  end function operator_apply_fun
+  
+  subroutine operator_abort_if_not_in_domain ( this, vector )
+    implicit none
+    class(operator_t), intent(in)  :: this
+    class(vector_t)  , intent(in)  :: vector
+    if ( .not. this%domain_vector_space%belongs_to(vector) ) then
+       write(0,'(a)') 'operator_t%abort_if_not_in_domain: input vector does not belong to domain vector space' 
+       check(.false.)
+    end if
+  end subroutine operator_abort_if_not_in_domain
+  
+  subroutine operator_abort_if_not_in_range ( this, vector )
+    implicit none
+    class(operator_t), intent(in) :: this
+    class(vector_t)  , intent(in) :: vector
+    if ( .not. this%range_vector_space%belongs_to(vector) ) then
+       write(0,'(a)') 'operator_t%abort_if_not_in_range: input vector does not belong to range vector space'
+       check(.false.)
+    end if
+  end subroutine operator_abort_if_not_in_range
+  
   subroutine binary_operator_default_init(this)
     implicit none
     class(binary_operator_t), intent(inout) :: this
@@ -219,20 +243,8 @@ contains
        check(1==0)
     end select
     deallocate(this%op2)
+    call this%free_vector_spaces()
   end subroutine binary_operator_destructor
-
-  subroutine binary_operator_copy(op1,op2)
-    implicit none
-    class(operator_t)  , intent(in)    :: op2
-    class(binary_operator_t), intent(inout) :: op1
-
-    select type(op2)
-       class is(binary_operator_t)
-       call binary_operator_constructor(op2%op1,op2%op2,op1)
-       class default
-       check(1==0)
-    end select
-  end subroutine binary_operator_copy
 
   subroutine binary_operator_constructor(op1,op2,res) 
     implicit none
@@ -302,6 +314,7 @@ contains
        check(1==0)
     end select
     deallocate(this%op)
+    call this%free_vector_spaces()
   end subroutine unary_operator_destructor
 
   subroutine unary_operator_copy(op1,op2)
@@ -311,6 +324,8 @@ contains
 
     select type(op2)
        class is(unary_operator_t)
+       call op2%op%domain_vector_space%clone(op1%domain_vector_space)
+       call op2%op%range_vector_space%clone(op1%range_vector_space)
        call unary_operator_constructor(op2%op,op1)
        class default
        check(1==0)
@@ -359,9 +374,8 @@ contains
     implicit none
     class(dynamic_state_operator_t) , intent(inout) :: op1
     class(operator_t), intent(in), target  :: op2
-
+    
     call op1%free()
-
     call op2%GuardTemp()
     select type(op2)
        class is(dynamic_state_operator_t) ! Can be temporary (or not)
@@ -396,6 +410,17 @@ contains
        call op1%op%GuardTemp()
     end select
     call op2%CleanTemp()
+    
+    if ( associated(op1%op) ) then
+      call op1%op%domain_vector_space%clone(op1%domain_vector_space)
+      call op1%op%range_vector_space%clone(op1%range_vector_space)
+    else if ( associated(op1%op_stored) ) then
+      call op1%op_stored%domain_vector_space%clone(op1%domain_vector_space)
+      call op1%op_stored%range_vector_space%clone(op1%range_vector_space)
+    else
+      check(.false.)
+    end if
+    
   end subroutine dynamic_state_operator_constructor
 
   subroutine dynamic_state_operator_destructor(this)
@@ -406,10 +431,12 @@ contains
        assert(.not.associated(this%op_stored))
        ! Nothing to free, the pointer points to permanent data
        this%op => null()
+       call this%free_vector_spaces()
     else if(associated(this%op_stored)) then
        assert(.not.associated(this%op))
        call this%op_stored%CleanTemp()
        deallocate(this%op_stored)
+       call this%free_vector_spaces()
     end if
   end subroutine dynamic_state_operator_destructor
 
@@ -417,7 +444,20 @@ contains
     implicit none
     class(operator_t)    , intent(in)  :: op
     type(minus_operator_t) :: res
+    ! Pointers to domain vector spaces
+    type(vector_space_t), pointer :: domain_op
+    type(vector_space_t), pointer :: domain_res
+    ! Pointers to range vector spaces
+    type(vector_space_t), pointer :: range_op
+    type(vector_space_t), pointer :: range_res
+    
+    domain_op => op%get_domain_vector_space()
+    domain_res => res%get_domain_vector_space()
+    range_op => op%get_range_vector_space()
+    range_res => res%get_range_vector_space()
     call unary_operator_constructor(op,res)
+    call range_op%clone(range_res)
+    call domain_op%clone(domain_res)
   end function minus_operator_constructor
 
 !!$  !--------------------------------------------------------------------!
@@ -428,30 +468,166 @@ contains
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(sum_operator_t)  :: res
+    
+    ! Pointers to domain vector spaces
+    type(vector_space_t), pointer :: domain_op1
+    type(vector_space_t), pointer :: domain_op2
+    type(vector_space_t), pointer :: domain_res
+    
+    ! Pointers to range vector spaces
+    type(vector_space_t), pointer :: range_op1
+    type(vector_space_t), pointer :: range_op2
+    type(vector_space_t), pointer :: range_res
+        
+    domain_op1 => op1%get_domain_vector_space()
+    domain_op2 => op2%get_domain_vector_space()
+    domain_res => res%get_domain_vector_space()
+
+    range_op1 => op1%get_range_vector_space()
+    range_op2 => op2%get_range_vector_space()
+    range_res => res%get_range_vector_space()
+    
+    if ( .not. domain_op1%equal_to(domain_op2) ) then
+       write(0,'(a)') 'sum_operator_t%constructor: domain(op1)/=domain(op2)'
+       check(.false.)
+    end if
+        
+    if ( .not. range_op1%equal_to(range_op2) ) then
+       write(0,'(a)') 'sum_operator_t%constructor: range(op1)/=range(op2)'
+       check(.false.)
+    end if
+     
     call binary_operator_constructor(op1,op2,res) 
+    
+    call range_op1%clone(range_res)
+    call domain_op1%clone(domain_res)
   end function sum_operator_constructor
+  
+  subroutine sum_operator_copy(op1,op2)
+    implicit none
+    class(sum_operator_t), intent(inout) :: op1
+    class(operator_t)  , intent(in)    :: op2 
+    select type(op2)
+       class is(sum_operator_t)
+       call op2%op1%domain_vector_space%clone(op1%domain_vector_space)
+       call op2%op1%range_vector_space%clone(op1%range_vector_space)
+       call binary_operator_constructor(op2%op1,op2%op2,op1)
+       class default
+       check(1==0)
+    end select
+  end subroutine sum_operator_copy
 
   function sub_operator_constructor(op1,op2) result (res)
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(sub_operator_t)  :: res
-    call binary_operator_constructor(op1,op2,res) 
+    ! Pointers to domain vector spaces
+    type(vector_space_t), pointer :: domain_op1
+    type(vector_space_t), pointer :: domain_op2
+    type(vector_space_t), pointer :: domain_res
+    ! Pointers to range vector spaces
+    type(vector_space_t), pointer :: range_op1
+    type(vector_space_t), pointer :: range_op2
+    type(vector_space_t), pointer :: range_res
+    
+    domain_op1 => op1%get_domain_vector_space()
+    domain_op2 => op2%get_domain_vector_space()
+    domain_res => res%get_domain_vector_space()
+    range_op1 => op1%get_range_vector_space()
+    range_op2 => op2%get_range_vector_space()
+    range_res => res%get_range_vector_space()
+    if ( .not. domain_op1%equal_to(domain_op2) ) then
+       write(0,'(a)') 'sub_operator_t%constructor: domain(op1)/=domain(op2)'
+       check(.false.)
+    end if
+        
+    if ( .not. range_op1%equal_to(range_op2) ) then
+       write(0,'(a)') 'sub_operator_t%constructor: range(op1)/=range(op2)'
+       check(.false.)
+    end if
+    call binary_operator_constructor(op1,op2,res)
+    call range_op1%clone(range_res)
+    call domain_op1%clone(domain_res)
   end function sub_operator_constructor
 
+  subroutine sub_operator_copy(op1,op2)
+    implicit none
+    class(sub_operator_t), intent(inout) :: op1
+    class(operator_t)  , intent(in)    :: op2 
+    select type(op2)
+       class is(sub_operator_t)
+       call op2%op1%domain_vector_space%clone(op1%domain_vector_space)
+       call op2%op1%range_vector_space%clone(op1%range_vector_space)
+       call binary_operator_constructor(op2%op1,op2%op2,op1)
+       class default
+       check(1==0)
+    end select
+  end subroutine sub_operator_copy
+  
   function mult_operator_constructor(op1,op2) result (res)
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(mult_operator_t) :: res
+    ! Pointers to domain vector spaces
+    type(vector_space_t), pointer :: domain_op1
+    type(vector_space_t), pointer :: domain_op2
+    type(vector_space_t), pointer :: domain_res
+    ! Pointers to range vector spaces
+    type(vector_space_t), pointer :: range_op1
+    type(vector_space_t), pointer :: range_op2
+    type(vector_space_t), pointer :: range_res
+    
+    domain_op1 => op1%get_domain_vector_space()
+    domain_op2 => op2%get_domain_vector_space()
+    domain_res => res%get_domain_vector_space()
+    range_op1 => op1%get_range_vector_space()
+    range_op2 => op2%get_range_vector_space()
+    range_res => res%get_range_vector_space()
+    if ( .not. domain_op1%equal_to(range_op2) ) then
+       write(0,'(a)') 'mult_operator_t%constructor: domain(op1)/=range(op2)'
+       check(.false.)
+    end if
     call binary_operator_constructor(op1,op2,res)
+    call range_op1%clone(range_res)
+    call domain_op2%clone(domain_res)
   end function mult_operator_constructor
+  
+   subroutine mult_operator_copy(op1,op2)
+    implicit none
+    class(mult_operator_t), intent(inout) :: op1
+    class(operator_t)     , intent(in)    :: op2 
+    select type(op2)
+       class is(mult_operator_t)
+       call op2%op1%range_vector_space%clone(op1%range_vector_space)
+       call op2%op2%domain_vector_space%clone(op1%domain_vector_space)
+       call binary_operator_constructor(op2%op1,op2%op2,op1)
+       class default
+       check(1==0)
+    end select
+  end subroutine mult_operator_copy
 
   function scal_left_operator_constructor(alpha, op_left) result (res)
     implicit none
     class(operator_t)    , intent(in)  :: op_left
     real(rp)             , intent(in)  :: alpha
     type(scal_operator_t)              :: res
+    
+    ! Pointers to domain vector spaces
+    type(vector_space_t), pointer :: domain_op_left
+    type(vector_space_t), pointer :: domain_res
+    
+    ! Pointers to range vector spaces
+    type(vector_space_t), pointer :: range_op_left
+    type(vector_space_t), pointer :: range_res
+    
+    domain_op_left => op_left%get_domain_vector_space()
+    domain_res => res%get_domain_vector_space()
+    range_op_left => op_left%get_range_vector_space()
+    range_res => res%get_range_vector_space()
     res%alpha=alpha
     call unary_operator_constructor(op_left,res)
+    call range_op_left%clone(range_res)
+    call domain_op_left%clone(domain_res)
   end function scal_left_operator_constructor
 
   function scal_right_operator_constructor(op_right, alpha) result (res)
@@ -459,120 +635,117 @@ contains
     class(operator_t)       , intent(in)  :: op_right
     real(rp)                , intent(in)  :: alpha
     type(scal_operator_t)                 :: res
+    ! Pointers to domain vector spaces
+    type(vector_space_t), pointer :: domain_op_right
+    type(vector_space_t), pointer :: domain_res
+    ! Pointers to range vector spaces
+    type(vector_space_t), pointer :: range_op_right
+    type(vector_space_t), pointer :: range_res
+    
+    domain_op_right => op_right%get_domain_vector_space()
+    domain_res => res%get_domain_vector_space()
+    range_op_right => op_right%get_range_vector_space()
+    range_res => res%get_range_vector_space()    
     res%alpha=alpha
     call unary_operator_constructor(op_right,res)
+    call range_op_right%clone(range_res)
+    call domain_op_right%clone(domain_res)
   end function scal_right_operator_constructor
-
-  !-------------------------------------!
-  ! apply_fun and apply implementations !
-  !-------------------------------------!
-  function sum_operator_apply_fun(op,x) result(y)
+  
+    subroutine scal_operator_copy(op1,op2)
     implicit none
-    class(sum_operator_t), intent(in)       :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y 
-    call op%GuardTemp()
-    call x%GuardTemp()
-    allocate(y, mold=x); call y%default_initialization()
-    y = op%op2 * x
-    call y%axpby( 1.0, op%op1*x, 1.0 )
-    call x%CleanTemp()
-    call op%CleanTemp()
-    call y%SetTemp()
-  end function sum_operator_apply_fun
+    class(scal_operator_t), intent(inout) :: op1
+    class(operator_t)       , intent(in)    :: op2
 
+    select type(op2)
+       class is(scal_operator_t)
+       op1%alpha = op2%alpha
+       call op2%op%domain_vector_space%clone(op1%domain_vector_space)
+       call op2%op%range_vector_space%clone(op1%range_vector_space)
+       call unary_operator_constructor(op2%op,op1)
+       class default
+       check(1==0)
+    end select
+  end subroutine scal_operator_copy
+
+
+  !-------------------------------------!
+  ! apply implementations               !
+  !-------------------------------------!
   subroutine sum_operator_apply(op,x,y)
     implicit none
     class(sum_operator_t), intent(in)    :: op
     class(vector_t), intent(in)    :: x
-    class(vector_t), intent(inout) :: y 
+    class(vector_t), intent(inout) :: y
+    class(vector_t), allocatable :: w
+
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call op%GuardTemp()
     call x%GuardTemp()
     ! y <- op2*x
     call op%op2%apply(x,y)
+    call op%op1%range_vector_space%create_vector(w)
+    call op%op1%apply(x,w)
     ! y <- 1.0 * op1*x + 1.0*y
-    call y%axpby( 1.0, op%op1*x, 1.0 )
+    call y%axpby( 1.0, w, 1.0 )
     call x%CleanTemp()
     call op%CleanTemp()
+    call w%free()
+    deallocate(w)
   end subroutine sum_operator_apply
-
-
-  function sub_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(sub_operator_t), intent(in)       :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y 
-    call op%GuardTemp()
-    call x%GuardTemp()
-    allocate(y, mold=x); call y%default_initialization()
-    y = op%op2 * x
-    call y%axpby( 1.0, op%op1*x, -1.0 )
-    call x%CleanTemp()
-    call op%CleanTemp()
-    call y%SetTemp()
-  end function sub_operator_apply_fun
 
   subroutine sub_operator_apply(op,x,y)
     implicit none
     class(sub_operator_t), intent(in)    :: op
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
+    class(vector_t), allocatable :: w
+    
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call op%GuardTemp()
     call x%GuardTemp()
     ! y <- op2*x
     call op%op2%apply(x,y)
+    call op%op1%range_vector_space%create_vector(w)
+    call op%op1%apply(x,w)
     ! y <- 1.0 * op1*x - 1.0*y
-    call y%axpby( 1.0, op%op1*x, -1.0 )
+    call y%axpby( 1.0, w, -1.0 )
     call x%CleanTemp()
     call op%CleanTemp()
+    call w%free()
+    deallocate(w)
   end subroutine sub_operator_apply
-
-  function mult_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(mult_operator_t), intent(in)       :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y 
-    call op%GuardTemp()
-    call x%GuardTemp()
-    allocate(y, mold=x); call y%default_initialization()
-    y = op%op1 * ( op%op2 * x )
-    call x%CleanTemp()
-    call op%CleanTemp()
-    call y%SetTemp()
-  end function mult_operator_apply_fun
-
+  
   subroutine mult_operator_apply(op,x,y)
     implicit none
     class(mult_operator_t), intent(in)    :: op
     class(vector_t), intent(in)    :: x
-    class(vector_t), intent(inout) :: y 
+    class(vector_t), intent(inout) :: y
+    class(vector_t), allocatable :: w
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
     call op%GuardTemp()
     call x%GuardTemp()
-    call op%op2%apply ( op%op1*x, y )
+    call op%op1%range_vector_space%create_vector(w)
+    call op%op1%apply(x,w)
+    call op%op2%apply(w, y )
     call x%CleanTemp()
     call op%CleanTemp()
+    call w%free()
+    deallocate(w)
   end subroutine mult_operator_apply
-
-  function  scal_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(scal_operator_t), intent(in)      :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y 
-    call op%GuardTemp()
-    call x%GuardTemp()
-    allocate(y, mold=x); call y%default_initialization()
-    y =  op%op * x
-    call y%scal ( op%alpha, y)
-    call x%CleanTemp()
-    call op%CleanTemp()
-    call y%SetTemp()
-  end function scal_operator_apply_fun
 
   subroutine scal_operator_apply(op,x,y)
     implicit none
     class(scal_operator_t), intent(in)   :: op
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
     call op%GuardTemp()
     call x%GuardTemp()
     call op%op%apply(x,y)
@@ -580,21 +753,6 @@ contains
     call x%CleanTemp()
     call op%CleanTemp()
   end subroutine scal_operator_apply
-
-  function  minus_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(minus_operator_t), intent(in)       :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y 
-    call op%GuardTemp()
-    call x%GuardTemp()
-    allocate(y, mold=x); call y%default_initialization()
-    y = op%op*x
-    call y%scal( -1.0, y )
-    call x%CleanTemp()
-    call y%SetTemp()
-    call op%CleanTemp()
-  end function minus_operator_apply_fun
 
   subroutine minus_operator_apply(op,x,y)
     implicit none
@@ -609,38 +767,18 @@ contains
     call op%CleanTemp()
   end subroutine minus_operator_apply
 
-  function  dynamic_state_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(dynamic_state_operator_t), intent(in)       :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y 
-    call op%GuardTemp()
-    call x%GuardTemp()
-    allocate(y, mold=x); call y%default_initialization()
-
-    if(associated(op%op_stored)) then
-       assert(.not.associated(op%op))
-       y = op%op_stored*x
-    else if(associated(op%op)) then
-       assert(.not.associated(op%op_stored))
-       y = op%op*x
-    else
-       check(1==0)
-    end if
-
-    call x%CleanTemp()
-    call op%CleanTemp()
-    call y%SetTemp()
-  end function dynamic_state_operator_apply_fun
 
   subroutine dynamic_state_operator_apply(op,x,y)
     implicit none
     class(dynamic_state_operator_t), intent(in)    :: op
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
+    
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call op%GuardTemp()
     call x%GuardTemp()
-
     if(associated(op%op_stored)) then
        assert(.not.associated(op%op))
        call op%op_stored%apply(x,y)
@@ -650,7 +788,6 @@ contains
     else
        check(1==0)
     end if
-
     call x%CleanTemp()
     call op%CleanTemp()
   end subroutine dynamic_state_operator_apply

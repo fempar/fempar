@@ -146,9 +146,9 @@ program test_serial_preconditioners_and_solvers
      t2 = wtime() 
      write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
 
-     call preconditioner_free ( preconditioner_free_values, feprec)
-     call preconditioner_free ( preconditioner_free_struct, feprec)
-     call preconditioner_free ( preconditioner_free_clean, feprec)
+     call preconditioner_free_in_stages ( feprec, preconditioner_free_values )
+     call preconditioner_free_in_stages ( feprec, preconditioner_free_struct )
+     call preconditioner_free_in_stages ( feprec, preconditioner_free_clean )
 
   else
 
@@ -273,9 +273,9 @@ program test_serial_preconditioners_and_solvers
                     t2 = wtime() 
                     write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
         
-                    call preconditioner_free ( preconditioner_free_values, feprec)
-                    call preconditioner_free ( preconditioner_free_struct, feprec)
-                    call preconditioner_free ( preconditioner_free_clean, feprec)
+                    call preconditioner_free_in_stages ( feprec, preconditioner_free_values )
+                    call preconditioner_free_in_stages ( feprec, preconditioner_free_struct )
+                    call preconditioner_free_in_stages ( feprec, preconditioner_free_clean )
         
                     x_base = x_base-exact_solution_base
                     if (x%nrm2()/exact_solution%nrm2() > 1.e-06 ) then

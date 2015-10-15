@@ -541,9 +541,7 @@ program par_test_mlbddc_poisson_problem
      end if
 
      ! Free bddc inverse
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_values)
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_struct)
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc, free_clean)
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc )
   end do
 
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )

@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module block_preconditioner_l_names
   use types_names
   use memor_names
@@ -39,6 +38,7 @@ use iso_c_binding
 
   implicit none
   private
+# include "debug.i90"
 
   ! Pointer to operator
   type p_abs_operator_t
@@ -54,12 +54,9 @@ use iso_c_binding
      procedure  :: create             => block_preconditioner_l_create
      procedure  :: set_block          => block_preconditioner_l_set_block
      procedure  :: set_block_to_zero  => block_preconditioner_l_set_block_to_zero
-     procedure  :: destroy            => block_preconditioner_l_destroy
+     procedure  :: free               => block_preconditioner_l_free
      procedure  :: get_block          => block_preconditioner_l_get_block
-
      procedure  :: apply          => block_preconditioner_l_apply
-     procedure  :: apply_fun      => block_preconditioner_l_apply_fun
-     procedure  :: free           => block_preconditioner_l_free_tbp
   end type block_preconditioner_l_t
 
 
@@ -83,8 +80,10 @@ contains
     integer(ip) :: iblk, jblk
     class(vector_t), allocatable :: aux1, aux2
 
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call x%GuardTemp()
-
     select type(x)
     class is (block_vector_t)
        select type(y)
@@ -106,70 +105,10 @@ contains
              call aux2%free()
           end do
           deallocate(aux1, aux2)
-       class default
-          write(0,'(a)') 'block_preconditioner_l_t%apply: unsupported y class'
-          check(1==0)
        end select
-    class default
-       write(0,'(a)') 'block_preconditioner_l_t%apply: unsupported x class'
-       check(1==0)
     end select
-
     call x%CleanTemp()
-
   end subroutine block_preconditioner_l_apply
-
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function block_preconditioner_l_apply_fun(op,x) result(y)
-    implicit none
-    class(block_preconditioner_l_t), intent(in)  :: op
-    class(vector_t) , intent(in)   :: x
-    class(vector_t) , allocatable  :: y
-
-    type(block_vector_t), allocatable :: local_y
-    class(vector_t), allocatable :: aux1, aux2
-    integer(ip)                      :: iblk, jblk
-    
-    call x%GuardTemp()
-    select type(x)
-    class is (block_vector_t)
-       allocate(local_y)
-       call local_y%create(op%nblocks)
-       allocate(aux1, mold=x%blocks(1)%vector); call aux1%default_initialization()
-       allocate(aux2, mold=x%blocks(1)%vector); call aux2%default_initialization()
-       do iblk=1, op%nblocks
-          call aux1%clone(x%blocks(iblk)%vector)
-          call aux1%copy(x%blocks(iblk)%vector)
-          call aux2%clone(x%blocks(iblk)%vector)
-          do jblk=1, iblk-1
-             if (associated(op%blocks(iblk,jblk)%p_op)) then
-                call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux2)
-                call aux1%axpby(-1.0,aux2,1.0)
-             end if
-          end do
-          allocate(local_y%blocks(iblk)%vector, mold=aux1); call local_y%blocks(iblk)%vector%default_initialization()
-          local_y%blocks(iblk)%allocated = .true.
-          local_y%blocks(iblk)%vector = op%blocks(iblk,iblk)%p_op*aux1
-          call aux1%free()
-          call aux2%free()
-       end do
-       deallocate(aux1, aux2)
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-    class default
-       write(0,'(a)') 'block_operand_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-
-    call x%CleanTemp()
-  end function block_preconditioner_l_apply_fun
-
-
-  subroutine block_preconditioner_l_free_tbp(this)
-    implicit none
-    class(block_preconditioner_l_t), intent(inout) :: this
-  end subroutine block_preconditioner_l_free_tbp
 
   subroutine block_preconditioner_l_create (bop, nblocks)
     implicit none
@@ -180,7 +119,7 @@ contains
     ! Locals
     integer(ip) :: iblk, jblk
 
-    call bop%destroy()
+    call bop%free()
 
     bop%nblocks = nblocks
     allocate ( bop%blocks(nblocks,nblocks) )
@@ -228,24 +167,24 @@ contains
   end subroutine block_preconditioner_l_set_block_to_zero
 
 
-  subroutine block_preconditioner_l_destroy (bop)
+  subroutine block_preconditioner_l_free (this)
     implicit none
-    class(block_preconditioner_l_t), intent(inout) :: bop
+    class(block_preconditioner_l_t), intent(inout) :: this
 
     ! Locals
     integer(ip) :: iblk, jblk
 
-    do iblk=1, bop%nblocks
+    do iblk=1, this%nblocks
        do jblk=1, iblk
-          if (associated(bop%blocks(iblk,jblk)%p_op)) then
-             call bop%blocks(iblk,jblk)%p_op%free()
-             deallocate(bop%blocks(iblk,jblk)%p_op)
+          if (associated(this%blocks(iblk,jblk)%p_op)) then
+             call this%blocks(iblk,jblk)%p_op%free()
+             deallocate(this%blocks(iblk,jblk)%p_op)
           end if
        end do
     end do
-    bop%nblocks = 0
-    if(allocated( bop%blocks)) deallocate ( bop%blocks )
-  end subroutine block_preconditioner_l_destroy
+    this%nblocks = 0
+    if(allocated( this%blocks)) deallocate ( this%blocks )
+  end subroutine block_preconditioner_l_free
 
   function block_preconditioner_l_get_block (bop,ib,jb)
     implicit none

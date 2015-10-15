@@ -54,7 +54,6 @@ module fe_affine_operator_names
      procedure :: symbolic_setup  => fe_affine_operator_symbolic_setup
      procedure :: numerical_setup => fe_affine_operator_numerical_setup
      procedure :: apply           => fe_affine_operator_apply
-     procedure :: apply_fun       => fe_affine_operator_apply_fun
      procedure :: get_matrix      => fe_affine_operator_get_matrix
      procedure :: get_array       => fe_affine_operator_get_array
      procedure :: free_in_stages  => fe_affine_operator_free_in_stages
@@ -151,28 +150,12 @@ contains
     class(vector_t) , intent(inout) :: y 
     class(matrix_t) , pointer       :: matrix
     class(array_t)  , pointer       :: array
-
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
     call x%GuardTemp()
     matrix => op%matrix_array_assembler%get_matrix()
     call matrix%apply(x,y)
     call x%CleanTemp()
   end subroutine fe_affine_operator_apply
-  
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function fe_affine_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(fe_affine_operator_t), intent(in)  :: op
-    class(vector_t) , intent(in)  :: x
-    class(vector_t) , allocatable :: y 
-    class(matrix_t), pointer :: matrix
-
-    call x%GuardTemp()
-    matrix => op%matrix_array_assembler%get_matrix()
-    allocate(y, mold=x); call y%default_initialization()
-    y = matrix%apply_fun(x) 
-    call x%CleanTemp()
-    call y%SetTemp()
-  end function fe_affine_operator_apply_fun
   
 end module fe_affine_operator_names

@@ -79,6 +79,7 @@ module serial_names
   use abstract_solver_names
   use fe_affine_operator_names
   use operator_names
+  use vector_space_names
   use vector_names
   use matrix_names
   use array_names
@@ -87,7 +88,6 @@ module serial_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_vector_names
-  use inverse_operator_names
 
   
   ! Integration 

@@ -74,7 +74,6 @@ module par_scalar_matrix_names
      procedure  :: print_matrix_market => par_scalar_matrix_print_matrix_market						 
      procedure  :: init      => par_scalar_matrix_init
      procedure  :: apply     => par_scalar_matrix_apply
-     procedure  :: apply_fun => par_scalar_matrix_apply_fun
      procedure  :: free_in_stages => par_scalar_matrix_free_in_stages
   end type par_scalar_matrix_t
 
@@ -300,48 +299,18 @@ contains
     class(vector_t) , intent(in)    :: x
     class(vector_t) , intent(inout) :: y 
 
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call x%GuardTemp()
-
     select type(x)
        class is (par_scalar_array_t)
        select type(y)
           class is(par_scalar_array_t)
           call par_scalar_matrix_apply_concrete(op, x, y)
-          ! call vector_print(6,y)
-          class default
-          write(0,'(a)') 'par_scalar_matrix_t%apply: unsupported y class'
-          check(1==0)
        end select
-       class default
-       write(0,'(a)') 'par_scalar_matrix_t%apply: unsupported x class'
-       check(1==0)
     end select
-
     call x%CleanTemp()
   end subroutine par_scalar_matrix_apply
-
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function par_scalar_matrix_apply_fun(op,x) result(y)
-    implicit none
-    class(par_scalar_matrix_t), intent(in)  :: op
-    class(vector_t) , intent(in)  :: x
-    class(vector_t) , allocatable :: y 
-
-    type(par_scalar_array_t), allocatable :: local_y
-
-    select type(x)
-       class is (par_scalar_array_t)
-       allocate(local_y)
-       call local_y%create_and_allocate (op%dof_dist_domain, x%p_env)
-       call par_scalar_matrix_apply(op, x, local_y)
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-       class default
-       write(0,'(a)') 'par_scalar_matrix_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-  end function par_scalar_matrix_apply_fun
-
 
 end module par_scalar_matrix_names

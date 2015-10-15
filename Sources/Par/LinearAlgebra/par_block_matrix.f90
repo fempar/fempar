@@ -75,7 +75,6 @@ module par_block_matrix_names
      procedure :: get_block               => par_block_matrix_get_block
      procedure :: get_nblocks             => par_block_matrix_get_nblocks
      procedure :: apply                   => par_block_matrix_apply
-     procedure :: apply_fun               => par_block_matrix_apply_fun
   end type par_block_matrix_t
 
   ! Types
@@ -262,8 +261,10 @@ contains
     integer(ip)        :: ib,jb
     type(par_scalar_array_t) :: aux
 
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call x%GuardTemp()
-
     call y%init(0.0_rp)
     select type(x)
     class is (par_block_array_t)
@@ -281,52 +282,10 @@ contains
              end do
              call aux%free()
           end do
-       class default
-          write(0,'(a)') 'par_block_matrix_t%apply: unsupported y class'
-          check(1==0)
-       end select
-    class default
-       write(0,'(a)') 'par_block_matrix_t%apply: unsupported x class'
-       check(1==0)
+       end select   
     end select
-
     call x%CleanTemp()
-
   end subroutine par_block_matrix_apply
-
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function par_block_matrix_apply_fun(op,x) result(y)
-    implicit none
-    class(par_block_matrix_t), intent(in)  :: op
-    class(vector_t)    , intent(in)  :: x
-    class(vector_t)    , allocatable :: y 
-    ! Locals
-    integer(ip) :: ib,jb
-    type(par_block_array_t), allocatable :: local_y
-    type(par_scalar_array_t) :: aux
-
-    select type(x)
-       class is (par_block_array_t)
-       allocate(local_y)
-       call local_y%create(op%nblocks)
-       do ib=1,op%nblocks
-          call aux%clone(local_y%blocks(ib))
-          do jb=1,op%nblocks
-             ! aux <- A(ib,jb) * x(jb)
-             call op%blocks(ib,jb)%par_scalar_matrix%apply(x%blocks(jb),aux)
-             ! y(ib) <- y(ib) + aux
-             call local_y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
-          end do
-          call aux%free()
-       end do
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-       class default
-       write(0,'(a)') 'par_block_matrix_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-  end function par_block_matrix_apply_fun
   
   subroutine par_block_matrix_free_in_stages(this,action)
     implicit none

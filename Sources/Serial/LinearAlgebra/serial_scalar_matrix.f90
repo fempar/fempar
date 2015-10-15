@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module serial_scalar_matrix_names
   use types_names
   use memor_names
@@ -46,7 +45,10 @@ module serial_scalar_matrix_names
 
   implicit none
   private
+  
+# include "debug.i90"
 
+  
   ! Constants:
   ! Matrix sign
   integer(ip), parameter :: positive_definite     = 0
@@ -74,7 +76,6 @@ module serial_scalar_matrix_names
      procedure  :: transpose                       => serial_scalar_matrix_transpose
      procedure  :: init                            => serial_scalar_matrix_init
      procedure  :: apply                           => serial_scalar_matrix_apply
-     procedure  :: apply_fun                       => serial_scalar_matrix_apply_fun
      procedure  :: free_in_stages                  => serial_scalar_matrix_free_in_stages
      procedure  :: default_initialization          => serial_scalar_matrix_default_init
   end type serial_scalar_matrix_t
@@ -445,55 +446,19 @@ contains
     class(vector_t) , intent(in)    :: x
     class(vector_t) , intent(inout) :: y 
 
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call x%GuardTemp()
-
     select type(x)
        class is (serial_scalar_array_t)
        select type(y)
           class is(serial_scalar_array_t)
           call serial_scalar_matrix_matvec(op, x, y)
-          ! call vector_print(6,y)
-          class default
-          write(0,'(a)') 'serial_scalar_matrix_t%apply: unsupported y class'
-          check(1==0)
        end select
-       class default
-       write(0,'(a)') 'serial_scalar_matrix_t%apply: unsupported x class'
-       check(1==0)
     end select
-
     call x%CleanTemp()
   end subroutine serial_scalar_matrix_apply
-
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function serial_scalar_matrix_apply_fun(op,x) result(y)
-    implicit none
-    class(serial_scalar_matrix_t), intent(in)  :: op
-    class(vector_t) , intent(in)  :: x
-    class(vector_t) , allocatable :: y 
-
-    type(serial_scalar_array_t), allocatable :: local_y
-
-    call x%GuardTemp()
-    select type(x)
-       class is (serial_scalar_array_t)
-       allocate(local_y)
-       call local_y%create_and_allocate(op%graph%nv)
-       call op%apply(x, local_y)
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-       class default
-       write(0,'(a)') 'serial_scalar_matrix_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-    call x%CleanTemp()
-  end function serial_scalar_matrix_apply_fun
-
-  subroutine serial_scalar_matrix_free_tbp(this)
-    implicit none
-    class(serial_scalar_matrix_t), intent(inout) :: this
-  end subroutine serial_scalar_matrix_free_tbp
 
   ! Debugged
   subroutine matvec (nv,nv2,ia,ja,a,x,y)

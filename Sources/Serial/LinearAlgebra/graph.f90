@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module graph_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   implicit none
 # include "debug.i90"
 
@@ -36,22 +36,22 @@ use memor_names
   ! Graph (CSR format, may exploit symmetry if desired)
   type graph_t
      integer(ip)                :: &
-        nv,                        &    ! Number of vertices  (rows)
-        nv2                             ! Number of vertices2 (columns)
-		
-	 logical :: symmetric_storage       ! .True.   Implicitly assumes that G=(V,E) is such that 
-	                                    !          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
-	                                    !          Only edges (i,j) with j>=i are stored.
-									    ! .False.  All (i,j) \belongs E are stored.  
-        
+          nv,                      &    ! Number of vertices  (rows)
+          nv2                           ! Number of vertices2 (columns)
+
+     logical :: symmetric_storage       ! .True.   Implicitly assumes that G=(V,E) is such that 
+                                        !          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
+                                        !          Only edges (i,j) with j>=i are stored.
+                                        ! .False.  All (i,j) \belongs E are stored.  
+
      integer(ip), allocatable   :: &
-        ia(:),                     &    ! Indices to adjacencies        
-        ja(:)                           ! Adjacencies
-    contains
-	   procedure :: create => graph_create
-	   procedure :: print  => graph_print
-	   procedure :: copy   => graph_copy
-	   procedure :: free   => graph_free
+          ia(:),                     &    ! Indices to adjacencies        
+          ja(:)                           ! Adjacencies
+   contains
+     procedure :: create => graph_create
+     procedure :: print  => graph_print
+     procedure :: copy   => graph_copy
+     procedure :: free   => graph_free
   end type graph_t
 
   ! Types
@@ -64,8 +64,8 @@ contains
   subroutine graph_create (this,symmetric_storage)
     implicit none
     class(graph_t), intent(out) :: this
-	logical      , intent(in)  :: symmetric_storage
-	this%symmetric_storage = symmetric_storage
+    logical      , intent(in)  :: symmetric_storage
+    this%symmetric_storage = symmetric_storage
   end subroutine graph_create
 
   !=============================================================================
@@ -73,7 +73,7 @@ contains
     implicit none
     class(graph_t), intent(in)    :: igraph
     type(graph_t), intent(out) :: ograph
-	ograph%symmetric_storage = igraph%symmetric_storage
+    ograph%symmetric_storage = igraph%symmetric_storage
     ograph%nv   = igraph%nv
     ograph%nv2  = igraph%nv2
     ! Alloc/copy ia array
@@ -95,7 +95,7 @@ contains
   !=============================================================================
   subroutine graph_print(graph,lunou)
     implicit none
-	class(graph_t),  intent(in) :: graph
+    class(graph_t),  intent(in) :: graph
     integer(ip)    ,  intent(in) :: lunou
 
     ! Local variables
@@ -113,7 +113,6 @@ contains
        write(lunou,'(10i10)') i, graph%ja(graph%ia(i):graph%ia(i+1)-1)
     end do
     write (lunou, '(a)')     '*** end graph data structure ***'
-
   end subroutine graph_print
 
 end module graph_names

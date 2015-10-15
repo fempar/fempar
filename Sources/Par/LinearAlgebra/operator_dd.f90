@@ -203,7 +203,7 @@ contains
     integer(ip)       , intent(in)     :: mode 
 
     if ( mode == free_clean ) then
-       call preconditioner_free ( preconditioner_free_clean, f_operator%M_II )
+       call preconditioner_free_in_stages ( f_operator%M_II, preconditioner_free_clean )
        call f_operator%A_II%free_in_stages(free_clean)
        call f_operator%A_IG%free_in_stages(free_clean)
        call f_operator%A_GG%free_in_stages(free_clean)
@@ -223,7 +223,7 @@ contains
           nullify(f_operator%spars)
        end if
     else if ( mode == free_struct  ) then
-       call preconditioner_free ( preconditioner_free_struct , f_operator%M_II )
+       call preconditioner_free_in_stages ( f_operator%M_II, preconditioner_free_struct )
        call f_operator%A_II%free_in_stages(free_struct)
        call f_operator%A_IG%free_in_stages(free_struct)
        call f_operator%A_GG%free_in_stages(free_struct)
@@ -231,7 +231,7 @@ contains
           call f_operator%A_GI%free_in_stages(free_struct) 
        end if
     else if ( mode == free_values ) then
-       call preconditioner_free ( preconditioner_free_values , f_operator%M_II )
+       call preconditioner_free_in_stages ( f_operator%M_II, preconditioner_free_values )
        call f_operator%A_II%free_in_stages(free_values)
        call f_operator%A_IG%free_in_stages(free_values)
        call f_operator%A_GG%free_in_stages(free_values)

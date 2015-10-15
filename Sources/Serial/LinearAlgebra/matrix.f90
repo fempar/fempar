@@ -30,46 +30,43 @@ module matrix_names
   use operator_names
 
   implicit none
-# include "debug.i90"
   private
 
   type, abstract, extends(operator_t) :: matrix_t
-    contains
-	  procedure (allocate_interface)      , deferred :: allocate
-	  procedure (free_in_stages_interface), deferred :: free_in_stages
-	  ! This subroutine is an instance of the Template Method pattern with
-	  ! free_in_stages being the primitive method. According to this pattern,
-	  ! template methods cannot be overrided by subclasses
-  	  procedure :: free => matrix_free_template_method
-  end type
+  contains
+     procedure (allocate_interface)      , deferred :: allocate
+     procedure (free_in_stages_interface), deferred :: free_in_stages
+     ! This subroutine is an instance of the Template Method pattern with
+     ! free_in_stages being the primitive method. According to this pattern,
+     ! template methods cannot be overrided by subclasses
+     procedure :: free => matrix_free_template_method
+  end type matrix_t
   
   abstract interface
      ! Allocates the entries of the matrix once it has been created and symbolically set-up
      subroutine allocate_interface(this) 
-	   import :: matrix_t
-	   implicit none
+       import :: matrix_t
+       implicit none
        class(matrix_t)       , intent(inout) :: this
      end subroutine allocate_interface
-	 ! Progressively free a matrix_t in three stages: action={free_numeric,free_symbolic,free_clean}
-	 subroutine free_in_stages_interface(this,action) 
+     ! Progressively free a matrix_t in three stages: action={free_numeric,free_symbolic,free_clean}
+     subroutine free_in_stages_interface(this,action) 
        import :: matrix_t, ip
        implicit none
        class(matrix_t)       , intent(inout) :: this
-	   integer(ip)           , intent(in)    :: action
+       integer(ip)           , intent(in)    :: action
      end subroutine free_in_stages_interface
   end interface
 	 
   ! Data types
   public :: matrix_t
 
-contains  
-  
-   subroutine matrix_free_template_method ( this )
-     implicit none
-	 class(matrix_t), intent(inout) :: this
-	 call this%free_in_stages(free_values)
-	 call this%free_in_stages(free_struct)
-	 call this%free_in_stages(free_clean)
-   end subroutine matrix_free_template_method  
-  
+contains
+  subroutine matrix_free_template_method ( this )
+    implicit none
+    class(matrix_t), intent(inout) :: this
+    call this%free_in_stages(free_values)
+    call this%free_in_stages(free_struct)
+    call this%free_in_stages(free_clean)
+  end subroutine matrix_free_template_method
 end module matrix_names

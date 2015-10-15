@@ -54,9 +54,8 @@ use psb_penv_mod_names
      type( par_scalar_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal
    contains
-     procedure :: apply     => par_preconditioner_dd_identity_apply_tbp
-     procedure :: apply_fun => par_preconditioner_dd_identity_apply_fun_tbp
-     procedure :: free      => par_preconditioner_dd_identity_free_tbp
+     procedure :: apply     => par_preconditioner_dd_identity_apply
+     procedure :: free      => par_preconditioner_dd_identity_free
   end type par_preconditioner_dd_identity_t
   
   ! Types
@@ -116,7 +115,7 @@ use psb_penv_mod_names
   end subroutine par_preconditioner_dd_identity_apply_all_unk
 
   !=============================================================================
-  subroutine  par_preconditioner_dd_identity_free (p_prec_dd_identity, mode)
+  subroutine  par_preconditioner_dd_identity_free_in_stages (p_prec_dd_identity, mode)
     implicit none
     ! Parameters
     type(par_preconditioner_dd_identity_t),  intent(inout) :: p_prec_dd_identity
@@ -131,65 +130,33 @@ use psb_penv_mod_names
        nullify ( p_prec_dd_identity%p_mat )
     end if
 
-  end subroutine par_preconditioner_dd_identity_free
+  end subroutine par_preconditioner_dd_identity_free_in_stages
 
   !=============================================================================
-  subroutine par_preconditioner_dd_identity_apply_tbp (op, x, y)
+  subroutine par_preconditioner_dd_identity_apply (op, x, y)
     implicit none
     ! Parameters
     class(par_preconditioner_dd_identity_t)    , intent(in)    :: op
     class(vector_t)   , intent(in)    :: x
     class(vector_t)   , intent(inout) :: y
         
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
     call x%GuardTemp()
-    
     select type(x)
     class is (par_scalar_array_t)
        select type(y)
        class is(par_scalar_array_t)
           call par_preconditioner_dd_identity_apply_all_unk ( op, x, y )
-       class default
-          write(0,'(a)') 'matrix_t%apply: unsupported y class'
-          check(1==0)
        end select
-    class default
-       write(0,'(a)') 'par_preconditioner_dd_identity_t%apply: unsupported x class'
-       check(1==0)
     end select
-    
     call x%CleanTemp()
-  end subroutine par_preconditioner_dd_identity_apply_tbp
+  end subroutine par_preconditioner_dd_identity_apply
   
-  
-  !=============================================================================
-  function par_preconditioner_dd_identity_apply_fun_tbp (op, x) result(y)
-    implicit none
-    ! Parameters
-    class(par_preconditioner_dd_identity_t), intent(in)   :: op
-    class(vector_t), intent(in)  :: x
-    class(vector_t), allocatable :: y
-    type(par_scalar_array_t), allocatable :: local_y
-    
-    call x%GuardTemp()
-    
-    select type(x)
-    class is (par_scalar_array_t)
-       allocate(local_y)
-       call local_y%create_and_allocate ( x%dof_dist, x%p_env )
-       call par_preconditioner_dd_identity_apply_all_unk ( op, x, local_y )
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-    class default
-       write(0,'(a)') 'par_preconditioner_dd_identity_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-    
-    call x%CleanTemp()
-  end function par_preconditioner_dd_identity_apply_fun_tbp
-  
-  subroutine par_preconditioner_dd_identity_free_tbp(this)
+  subroutine par_preconditioner_dd_identity_free(this)
     implicit none
     class(par_preconditioner_dd_identity_t), intent(inout) :: this
-  end subroutine par_preconditioner_dd_identity_free_tbp
+    call par_preconditioner_dd_identity_free_in_stages(this,free_clean)
+  end subroutine par_preconditioner_dd_identity_free
   
 end module par_preconditioner_dd_identity_names

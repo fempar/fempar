@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module block_operator_names
   use types_names
   use memor_names
@@ -38,6 +37,8 @@ use iso_c_binding
 #endif
 
   implicit none
+# include "debug.i90"
+  
   private
 
   ! Added type(block_operator_t) as a new implementation of class(abstract_operator_t).
@@ -64,12 +65,9 @@ use iso_c_binding
      procedure  :: create             => block_operator_create
      procedure  :: set_block          => block_operator_set_block
      procedure  :: set_block_to_zero  => block_operator_set_block_to_zero
-     procedure  :: destroy            => block_operator_destroy
+     procedure  :: free               => block_operator_free
      procedure  :: get_block          => block_operator_get_block
-
      procedure  :: apply          => block_operator_apply
-     procedure  :: apply_fun      => block_operator_apply_fun
-     procedure  :: free           => block_operator_free_tbp
   end type block_operator_t
 
 
@@ -93,8 +91,10 @@ contains
     integer(ip) :: iblk, jblk
     class(vector_t), allocatable :: aux
 
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call x%GuardTemp()
-
     select type(x)
     class is (block_vector_t)
        select type(y)
@@ -112,73 +112,10 @@ contains
              call aux%free()
           end do
           deallocate(aux)
-       class default
-          write(0,'(a)') 'block_operator_t%apply: unsupported y class'
-          check(1==0)
        end select
-    class default
-       write(0,'(a)') 'block_operator_t%apply: unsupported x class'
-       check(1==0)
     end select
-
     call x%CleanTemp()
-
   end subroutine block_operator_apply
-
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function block_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(block_operator_t), intent(in)  :: op
-    class(vector_t) , intent(in)   :: x
-    class(vector_t) , allocatable  :: y
-
-    type(block_vector_t), allocatable :: local_y
-    class(vector_t), allocatable :: aux
-    integer(ip)                      :: iblk, jblk, first_block_in_row
-
-    call x%GuardTemp()
-
-    select type(x)
-    class is (block_vector_t)
-       allocate(local_y)
-       call local_y%create(op%mblocks)
-       allocate(aux, mold=x%blocks(1)%vector); call aux%default_initialization()
-       do iblk=1, op%mblocks
-          first_block_in_row = 1
-          do jblk=1, op%nblocks
-             if (associated(op%blocks(iblk,jblk)%p_op)) then
-                if ( first_block_in_row == 1 ) then
-                   aux = op%blocks(iblk,jblk)%p_op * x%blocks(jblk)%vector
-                   allocate(local_y%blocks(iblk)%vector, mold=aux); call local_y%blocks(iblk)%vector%default_initialization()
-                   local_y%blocks(iblk)%allocated = .true.
-                   call local_y%blocks(iblk)%vector%clone(aux)
-                   call local_y%blocks(iblk)%vector%copy(aux)
-                   first_block_in_row = 0
-                else
-                   call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux)
-                   call local_y%blocks(iblk)%vector%axpby(1.0,aux,1.0)
-                end if
-             end if
-          end do
-          call aux%free()
-       end do
-       deallocate(aux)
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-    class default
-       write(0,'(a)') 'block_operator_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-
-    call x%CleanTemp()
-
-  end function block_operator_apply_fun
-
-  subroutine block_operator_free_tbp(this)
-    implicit none
-    class(block_operator_t), intent(inout) :: this
-  end subroutine block_operator_free_tbp
 
   subroutine block_operator_create (bop, mblocks, nblocks)
     implicit none
@@ -190,7 +127,7 @@ contains
     ! Locals
     integer(ip) :: iblk, jblk
 
-    call bop%destroy()
+    call bop%free()
 
     bop%nblocks = nblocks
     bop%mblocks = mblocks
@@ -234,25 +171,25 @@ contains
   end subroutine block_operator_set_block_to_zero
 
 
-  subroutine block_operator_destroy (bop)
+  subroutine block_operator_free (this)
     implicit none
-    class(block_operator_t), intent(inout) :: bop
+    class(block_operator_t), intent(inout) :: this
 
     ! Locals
     integer(ip) :: iblk, jblk
     
-    do jblk=1, bop%nblocks
-       do iblk=1, bop%mblocks
-          if (associated(bop%blocks(iblk,jblk)%p_op)) then
-             call bop%blocks(iblk,jblk)%p_op%free()
-             deallocate(bop%blocks(iblk,jblk)%p_op)
+    do jblk=1, this%nblocks
+       do iblk=1, this%mblocks
+          if (associated(this%blocks(iblk,jblk)%p_op)) then
+             call this%blocks(iblk,jblk)%p_op%free()
+             deallocate(this%blocks(iblk,jblk)%p_op)
           end if
        end do
     end do
-    bop%nblocks = 0
-    bop%mblocks = 0
-    if(allocated(bop%blocks)) deallocate ( bop%blocks )
-  end subroutine block_operator_destroy
+    this%nblocks = 0
+    this%mblocks = 0
+    if(allocated(this%blocks)) deallocate ( this%blocks )
+  end subroutine block_operator_free
 
   function block_operator_get_block (bop,ib,jb)
     implicit none

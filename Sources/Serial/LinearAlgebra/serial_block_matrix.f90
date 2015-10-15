@@ -68,7 +68,6 @@ module serial_block_matrix_names
      procedure :: get_block          => serial_block_matrix_get_block
      procedure :: get_nblocks        => serial_block_matrix_get_nblocks
      procedure :: apply              => serial_block_matrix_apply
-     procedure :: apply_fun          => serial_block_matrix_apply_fun
   end type serial_block_matrix_t
 
   ! Types
@@ -226,13 +225,15 @@ contains
     implicit none
     class(serial_block_matrix_t), intent(in)    :: op
     class(vector_t), intent(in)    :: x
-    class(vector_t), intent(inouT) :: y
+    class(vector_t), intent(inout) :: y
     ! Locals
     integer(ip) :: ib,jb
     type(serial_scalar_array_t) :: aux
 
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    
     call x%GuardTemp()
-
     call y%init(0.0_rp)
     select type(x)
        class is (serial_block_array_t)
@@ -250,52 +251,10 @@ contains
              end do
              call aux%free()
           end do
-          class default
-          write(0,'(a)') 'serial_block_matrix_t%apply: unsupported y class'
-          check(1==0)
        end select
-       class default
-       write(0,'(a)') 'serial_block_matrix_t%apply: unsupported x class'
-       check(1==0)
     end select
-
     call x%CleanTemp()
-
   end subroutine serial_block_matrix_apply
-
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function serial_block_matrix_apply_fun(op,x) result(y)
-    implicit none
-    class(serial_block_matrix_t), intent(in)  :: op
-    class(vector_t), intent(in)  :: x
-    class(vector_t), allocatable :: y 
-    ! Locals
-    integer(ip) :: ib,jb
-    type(serial_block_array_t), allocatable :: local_y
-    type(serial_scalar_array_t) :: aux
-
-    select type(x)
-       class is (serial_block_array_t)
-       allocate(local_y)
-       call local_y%create(op%nblocks)
-       do ib=1,op%nblocks
-          call aux%clone(local_y%blocks(ib))
-          do jb=1,op%nblocks
-             ! aux <- A(ib,jb) * x(jb)
-             call op%blocks(ib,jb)%serial_scalar_matrix%apply(x%blocks(jb),aux)
-             ! y(ib) <- y(ib) + aux
-             call local_y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
-          end do
-          call aux%free()
-       end do
-       call move_alloc(local_y, y)
-       call y%SetTemp()
-       class default
-       write(0,'(a)') 'serial_block_matrix_t%apply_fun: unsupported x class'
-       check(1==0)
-    end select
-  end function serial_block_matrix_apply_fun
 
   subroutine serial_block_matrix_free_in_stages(this,action)
     implicit none

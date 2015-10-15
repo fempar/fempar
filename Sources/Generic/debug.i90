@@ -32,7 +32,7 @@
 #ifdef DEBUG 
 # define assert(test) \
    if (.not.(test)) then ; \
-      write(*,*) "Assertion failed in file ", __FILE__,", at line number", __LINE__  ; \
+      write(0,'(a,a,a,i10)') "Assertion failed in file ", __FILE__,", at line number", __LINE__  ; \
       call runend ; \
    endif 
 #else
@@ -42,7 +42,7 @@
 ! Tests to be performed always (basic error control).
 # define check(test) \
    if (.not.(test)) then ; \
-      write(*,*) "Check failed in file ", __FILE__,", at line number", __LINE__  ; \
+      write(0,'(a,a,a,i10)') "Check failed in file ", __FILE__,", at line number", __LINE__  ; \
       call runend ; \
    endif 
 !

@@ -69,6 +69,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   ! Abstract modules
   use vector_names
+  use vector_space_names
   use operator_names
 
 # include "debug.i90"
@@ -332,9 +333,8 @@ module par_preconditioner_dd_mlevel_bddc_names
 
      integer(ip) :: harm_its_agg         = 0 
    contains
-     procedure :: apply => par_preconditioner_dd_mlevel_bddc_apply_tbp
-     procedure :: apply_fun => par_preconditioner_dd_mlevel_bddc_apply_fun_tbp
-     procedure :: free => par_preconditioner_dd_mlevel_bddc_free_tbp
+     procedure :: apply => par_preconditioner_dd_mlevel_bddc_apply
+     procedure :: free => par_preconditioner_dd_mlevel_bddc_free
   end type par_preconditioner_dd_mlevel_bddc_t
 
   ! public :: default_kind_coarse_dofs, default_co_sys_sol_strat, default_ndime
@@ -344,7 +344,7 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   ! Functions
   public :: par_preconditioner_dd_mlevel_bddc_create, par_preconditioner_dd_mlevel_bddc_ass_struct, &
-            par_preconditioner_dd_mlevel_bddc_fill_val, par_preconditioner_dd_mlevel_bddc_free, &
+            par_preconditioner_dd_mlevel_bddc_fill_val, par_preconditioner_dd_mlevel_bddc_free, par_preconditioner_dd_mlevel_bddc_free_in_stages, &
             par_preconditioner_dd_mlevel_bddc_apply_all_unk, &
             par_preconditioner_dd_mlevel_bddc_static_condensation, &
             par_preconditioner_dd_mlevel_bddc_report, &
@@ -714,8 +714,7 @@ use mpi
   end subroutine par_preconditioner_dd_mlevel_bddc_create
 
   !=================================================================================================
-
-  recursive subroutine par_preconditioner_dd_mlevel_bddc_free ( mlbddc, mode )
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_free_in_stages ( mlbddc, mode )
     implicit none
     ! Parameters
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
@@ -758,10 +757,10 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_free (preconditioner_free_clean, mlbddc%M_rr)
+             call preconditioner_free_in_stages (mlbddc%M_rr,preconditioner_free_clean)
 			 call mlbddc%A_rr%free_in_stages(free_clean)
              if (mlbddc%projection == petrov_galerkin )  then 
-                call preconditioner_free ( preconditioner_free_clean, mlbddc%M_rr_trans ) 
+                call preconditioner_free_in_stages ( mlbddc%M_rr_trans,preconditioner_free_clean ) 
 				call mlbddc%A_rr_trans%free_in_stages(free_clean)
              end if
           else
@@ -779,7 +778,7 @@ use mpi
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           if(mlbddc%co_sys_sol_strat == serial_gather) then
              if ( i_am_coarse_task ) then
-               call preconditioner_free(preconditioner_free_clean, mlbddc%M_c)
+               call preconditioner_free_in_stages(mlbddc%M_c,preconditioner_free_clean)
 			   call mlbddc%A_c%free_in_stages(free_clean)
              end if
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
@@ -787,7 +786,7 @@ use mpi
              
              if ( i_am_coarse_task .or. i_am_higher_level_task ) then
                 ! Recursively call bddc_free
-                call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_clean)
+                call par_preconditioner_dd_mlevel_bddc_free_in_stages(mlbddc%p_M_c, free_clean)
                 
                 ! These lines should be uncommented when the structures are actually filled
                 ! In fact we should add flags to indicate that in each free routine
@@ -858,9 +857,9 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_free ( preconditioner_free_struct, mlbddc%M_rr )
+             call preconditioner_free_in_stages (  mlbddc%M_rr, preconditioner_free_struct )
             if ( mlbddc%projection == petrov_galerkin ) then 
-             call preconditioner_free ( preconditioner_free_struct, mlbddc%M_rr_trans )
+             call preconditioner_free_in_stages (  mlbddc%M_rr_trans, preconditioner_free_struct )
             end if
           end if
 
@@ -889,7 +888,7 @@ use mpi
 
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call preconditioner_free ( preconditioner_free_struct, mlbddc%M_c )
+                call preconditioner_free_in_stages ( mlbddc%M_c, preconditioner_free_struct )
              end if
              call mlbddc%A_c%free_in_stages(free_struct)
              call mesh_free ( mlbddc%f_mesh_c )
@@ -903,7 +902,7 @@ use mpi
           
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_struct )
+             call par_preconditioner_dd_mlevel_bddc_free_in_stages(mlbddc%p_M_c, free_struct )
              
              if ( i_am_coarse_task ) then
                 call renumbering_free ( mlbddc%erenumbering_c )
@@ -927,13 +926,13 @@ use mpi
        ! END COARSE-GRID PROBLEM DUTIES
 
     else if ( mode == free_values ) then
-
+       call mlbddc%free_vector_spaces()
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_free ( preconditioner_free_values  , mlbddc%M_rr )
+             call preconditioner_free_in_stages ( mlbddc%M_rr, preconditioner_free_values )
              if (mlbddc%projection == petrov_galerkin )  then 
-                call preconditioner_free ( preconditioner_free_values  , mlbddc%M_rr_trans )
+                call preconditioner_free_in_stages ( mlbddc%M_rr_trans, preconditioner_free_values )
              end if
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
@@ -999,7 +998,7 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call preconditioner_free ( preconditioner_free_values, mlbddc%M_c )
+                call preconditioner_free_in_stages ( mlbddc%M_c, preconditioner_free_values )
              end if
              call mlbddc%A_c%free_in_stages(free_values)
           end if
@@ -1007,7 +1006,7 @@ use mpi
           assert(mlbddc%p_mat%p_env%num_levels>2) 
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free(mlbddc%p_M_c, free_values )
+             call par_preconditioner_dd_mlevel_bddc_free_in_stages(mlbddc%p_M_c, free_values )
 
              ! Free coarse matrix
              call mlbddc%p_mat_c%free_in_stages(free_values)
@@ -1016,7 +1015,7 @@ use mpi
 
     end if
 
-  end subroutine par_preconditioner_dd_mlevel_bddc_free
+  end subroutine par_preconditioner_dd_mlevel_bddc_free_in_stages
 
   !=================================================================================================
   recursive subroutine par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, mlbddc ) 
@@ -2958,6 +2957,10 @@ use mpi
     ! Locals
     type(par_scalar_matrix_t), pointer :: p_mat
     logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
+    type(vector_space_t), pointer :: pmat_domain_vector_space
+    type(vector_space_t), pointer :: pmat_range_vector_space
+    type(vector_space_t), pointer :: mlbddc_domain_vector_space
+    type(vector_space_t), pointer :: mlbddc_range_vector_space
 
     p_mat => mlbddc%p_mat
 
@@ -2977,7 +2980,13 @@ use mpi
           call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_M_c ) 
        end if
     end if
-
+    
+    pmat_domain_vector_space => p_mat%get_domain_vector_space()
+    pmat_range_vector_space => p_mat%get_range_vector_space()
+    mlbddc_domain_vector_space => mlbddc%get_domain_vector_space()
+    mlbddc_range_vector_space => mlbddc%get_range_vector_space()
+    call pmat_domain_vector_space%clone(mlbddc_domain_vector_space)
+    call pmat_range_vector_space%clone(mlbddc_range_vector_space)
   end subroutine par_preconditioner_dd_mlevel_bddc_fill_val
 
   !=================================================================================================
@@ -8510,66 +8519,32 @@ use mpi
      end subroutine list_primal_graph_csr_scal
 
      !=============================================================================
-     subroutine par_preconditioner_dd_mlevel_bddc_apply_tbp (op, x, y)
+     subroutine par_preconditioner_dd_mlevel_bddc_apply (op, x, y)
        implicit none
        ! Parameters
        class(par_preconditioner_dd_mlevel_bddc_t)    , intent(in)    :: op
        class(vector_t)   , intent(in)    :: x
        class(vector_t)   , intent(inout) :: y
-
-!!$       assert (associated(op%mat))
-
+       !call op%abort_if_not_in_domain(x)
+       !call op%abort_if_not_in_range(y)
        call x%GuardTemp()
-
        select type(x)
           class is (par_scalar_array_t)
           select type(y)
              class is(par_scalar_array_t)
              call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, y )
-             class default
-             write(0,'(a)') 'matrix_t%apply: unsupported y class'
-             check(1==0)
           end select
-          class default
-          write(0,'(a)') 'par_preconditioner_dd_mlevel_bddc_t%apply: unsupported x class'
-          check(1==0)
        end select
-
        call x%CleanTemp()
-     end subroutine par_preconditioner_dd_mlevel_bddc_apply_tbp
+     end subroutine par_preconditioner_dd_mlevel_bddc_apply
 
-
-     !=============================================================================
-     function par_preconditioner_dd_mlevel_bddc_apply_fun_tbp (op, x) result(y)
-       implicit none
-       ! Parameters
-       class(par_preconditioner_dd_mlevel_bddc_t), intent(in)   :: op
-       class(vector_t), intent(in)  :: x
-       class(vector_t), allocatable :: y
-       type(par_scalar_array_t), allocatable :: local_y
-
-       call x%GuardTemp()
-
-       select type(x)
-          class is (par_scalar_array_t)
-          allocate(local_y)
-          call local_y%create_and_allocate ( x%dof_dist, x%p_env )
-          call par_preconditioner_dd_mlevel_bddc_apply_all_unk ( op, x, local_y )
-          call move_alloc(local_y, y)
-          call y%SetTemp()
-          class default
-          write(0,'(a)') 'par_preconditioner_dd_mlevel_bddc_t%apply_fun: unsupported x class'
-          check(1==0)
-       end select
-
-       call x%CleanTemp()
-     end function par_preconditioner_dd_mlevel_bddc_apply_fun_tbp
-
-
-        subroutine par_preconditioner_dd_mlevel_bddc_free_tbp(this)
-          implicit none
-          class(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: this
-        end subroutine par_preconditioner_dd_mlevel_bddc_free_tbp
+ subroutine par_preconditioner_dd_mlevel_bddc_free(this)
+   implicit none
+   class(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: this
+   call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_values)
+   call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_struct)
+   call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_clean)
+  end subroutine par_preconditioner_dd_mlevel_bddc_free
 
   subroutine matrix_preconditioner_vector_solve (A,M,b,x,pars)
     implicit none

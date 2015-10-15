@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module block_preconditioner_lu_names
   use types_names
   use memor_names
   use operator_names
   use vector_names
+  use vector_space_names
   use block_vector_names
   use block_preconditioner_l_names
   use block_preconditioner_u_names
@@ -41,6 +41,9 @@ use iso_c_binding
 
   implicit none
   private
+  
+# include "debug.i90"
+
 
   ! Pointer to operator
   type p_abs_operator_t
@@ -56,11 +59,8 @@ use iso_c_binding
      procedure  :: create             => block_preconditioner_lu_create
      procedure  :: set_block          => block_preconditioner_lu_set_block
      procedure  :: set_block_to_zero  => block_preconditioner_lu_set_block_to_zero
-     procedure  :: destroy            => block_preconditioner_lu_destroy
-
-     procedure  :: apply          => block_preconditioner_lu_apply
-     procedure  :: apply_fun      => block_preconditioner_lu_apply_fun
-     procedure  :: free           => block_preconditioner_lu_free_tbp
+     procedure  :: free               => block_preconditioner_lu_free
+     procedure  :: apply              => block_preconditioner_lu_apply
   end type block_preconditioner_lu_t
 
   integer(ip), parameter :: lower = 0
@@ -82,8 +82,11 @@ contains
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
     class(vector_t), allocatable :: z
-    allocate(z, mold=y); call z%default_initialization()
-    call z%clone(y)
+    class(vector_space_t), pointer :: range_vector_space_L
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    range_vector_space_L => op%L%get_range_vector_space()
+    call range_vector_space_L%create_vector(z)
     call x%GuardTemp()
     call op%L%apply(x,z)
     call op%U%apply(z,y)
@@ -92,36 +95,13 @@ contains
     deallocate(z)
   end subroutine block_preconditioner_lu_apply
 
-  ! op%apply(x)
-  ! Allocates room for (temporary) y
-  function block_preconditioner_lu_apply_fun(op,x) result(y)
-    implicit none
-    class(block_preconditioner_lu_t), intent(in)  :: op
-    class(vector_t) , intent(in)   :: x
-    class(vector_t) , allocatable  :: y
-    class(vector_t), allocatable :: z
-
-    allocate(z, mold=x); call z%default_initialization()
-    call x%GuardTemp()
-    z = op%L * x
-    call op%U%apply(z,y)
-    call x%CleanTemp()
-    call z%free()
-    deallocate(z)
-  end function block_preconditioner_lu_apply_fun
-
-  subroutine block_preconditioner_lu_free_tbp(this)
-    implicit none
-    class(block_preconditioner_lu_t), intent(inout) :: this
-  end subroutine block_preconditioner_lu_free_tbp
-
   subroutine block_preconditioner_lu_create (bop, nblocks)
     implicit none
     ! Parameters
     class(block_preconditioner_lu_t)   , intent(inout) :: bop
     integer(ip)               , intent(in)    :: nblocks
 
-    call bop%destroy()
+    call bop%free()
     call bop%L%create(nblocks)
     call bop%U%create(nblocks)
   end subroutine block_preconditioner_lu_create
@@ -159,15 +139,15 @@ contains
   end subroutine block_preconditioner_lu_set_block_to_zero
 
 
-  subroutine block_preconditioner_lu_destroy (bop)
+  subroutine block_preconditioner_lu_free (this)
     implicit none
-    class(block_preconditioner_lu_t), intent(inout) :: bop
+    class(block_preconditioner_lu_t), intent(inout) :: this
 
     ! Locals
     integer(ip) :: iblk, jblk
 
-    call bop%L%destroy()
-    call bop%U%destroy()
-  end subroutine block_preconditioner_lu_destroy
+    call this%L%free()
+    call this%U%free()
+  end subroutine block_preconditioner_lu_free
 
 end module block_preconditioner_lu_names

@@ -370,9 +370,9 @@ program par_test_nsi_iss
   call postprocess_pre%free
   
   ! Free preconditioner
-  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_values)
-  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_struct)
-  call par_preconditioner_dd_mlevel_bddc_free(p_mlevel_bddc,free_clean)
+  call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_values)
+  call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_struct)
+  call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_clean)
 
   ! Deallocate
   call memfree(id_parts , __FILE__, __LINE__)
