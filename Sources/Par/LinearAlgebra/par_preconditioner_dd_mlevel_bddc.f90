@@ -8600,20 +8600,20 @@ use mpi
     integer(ip)              :: k
     integer(ip)              :: tot_its
 
-!!$    if (pars%method == direct) then
-!!$       call preconditioner_apply (A, M, pars%nrhs, vector_b, ldb, vector_x, ldx)
-!!$    else
-    call vector_b%create(A%graph%nv)
-    call vector_x%create(A%graph%nv)
-    tot_its = 0 
-    do k=1, pars%nrhs
-       call vector_b%set_view_entries(b(:,k))
-       call vector_x%set_view_entries(x(:,k))
-       call abstract_solve (A, M, vector_b, vector_x, pars, senv)
-       tot_its = tot_its + pars%it
-    end do
-    pars%it = tot_its
-!!$    end if
+    if (pars%method == direct) then
+       call preconditioner_apply_r2 (A, M, pars%nrhs, b, ldb, x, ldx)
+    else
+       call vector_b%create(A%graph%nv)
+       call vector_x%create(A%graph%nv)
+       tot_its = 0 
+       do k=1, pars%nrhs
+         call vector_b%set_view_entries(b(:,k))
+         call vector_x%set_view_entries(x(:,k))
+         call abstract_solve (A, M, vector_b, vector_x, pars, senv)
+         tot_its = tot_its + pars%it
+       end do
+       pars%it = tot_its
+    end if
   end subroutine matrix_preconditioner_r2_solve
 
   subroutine mesh_distribution_allocate_void ( mesh_distribution)

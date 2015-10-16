@@ -155,10 +155,6 @@ module preconditioner_names
 
   end type preconditioner_params_t
 
-  interface preconditioner_apply
-     module procedure preconditioner_apply_vector, preconditioner_apply_r2, preconditioner_apply_r1
-  end interface preconditioner_apply
-
   ! Constants
   public :: no_prec, diag_prec, pardiso_mkl_prec, wsmp_prec, hsl_mi20_prec, hsl_ma87_prec, umfpack_prec
   public :: preconditioner_free_values
@@ -170,7 +166,7 @@ module preconditioner_names
 
   ! Functions
   public :: preconditioner_create, preconditioner_free_in_stages, preconditioner_symbolic, &
-       &    preconditioner_numeric, preconditioner_apply, preconditioner_log_info, &
+       &    preconditioner_numeric, preconditioner_apply_r2, preconditioner_log_info, &
        &    extract_diagonal, invert_diagonal, apply_diagonal
 
 contains
@@ -517,52 +513,11 @@ contains
   end subroutine preconditioner_numeric
 
   !=============================================================================
-  subroutine preconditioner_apply_vector (mat, prec, x, y)
-    implicit none
-    ! Parameters
-    type(serial_scalar_matrix_t)      , intent(in)    :: mat
-    type(preconditioner_t)     , intent(inout) :: prec
-    type(serial_scalar_array_t)      , intent(in)    :: x
-    type(serial_scalar_array_t)      , intent(inout) :: y
-    ! Locals
-    type (serial_scalar_array_t) :: vdum 
-    type (serial_scalar_array_t) :: E_r
-    real (rp)         :: alpha, beta
-    integer(ip)       :: j 
-
-    ! write(*,*) 'Applying precond'
-
-    if(prec%type==pardiso_mkl_prec) then
-       call pardiso_mkl ( pardiso_mkl_solve, prec%pardiso_mkl_ctxt,  &
-            &             mat, x, y, prec%pardiso_mkl_iparm )
-    else if(prec%type==wsmp_prec) then
-       call wsmp ( wsmp_solve, prec%wsmp_ctxt, mat, x, y, &
-            &      prec%wsmp_iparm, prec%wsmp_rparm )
-    else if(prec%type==no_prec) then
-       call y%copy(x)
-    else if ( prec%type==diag_prec ) then
-       call apply_diagonal  ( mat%graph%nv, prec%d, x%b, y%b )
-    else if (prec%type==hsl_mi20_prec) then
-          call hsl_mi20 ( hsl_mi20_solve, prec%hsl_mi20_ctxt, mat, x, y, &
-               &       prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-    else if (prec%type==hsl_ma87_prec) then
-      call hsl_ma87 ( hsl_ma87_solve, prec%hsl_ma87_ctxt, mat, x, y, &
-            &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
-    else if (prec%type==umfpack_prec) then
-      call umfpack ( umfpack_solve, prec%umfpack_ctxt, mat, x, y )
-    else
-       write (0,*) 'Error: preconditioner type not supported'
-       check(1==0)
-    end if
-    
-  end subroutine preconditioner_apply_vector
-
-  !=============================================================================
   subroutine preconditioner_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t)      , intent(in)    :: mat
-    type(preconditioner_t)     , intent(inout) :: prec
+    type(preconditioner_t)     , intent(in) :: prec
     integer(ip)       , intent(in)        :: nrhs, ldx, ldy
     real(rp)          , intent(in)        :: x (ldx, nrhs)
     real(rp)          , intent(inout)     :: y (ldy, nrhs)
@@ -570,7 +525,6 @@ contains
     ! Locals
     type (serial_scalar_array_t)      :: vdum
     integer(ip)            :: i, j 
-    real(rp) , allocatable :: E_r(:,:) 
     real (rp), allocatable :: alpha(:), beta(:)
 
     if(prec%type==pardiso_mkl_prec) then
@@ -601,7 +555,7 @@ contains
     else if (prec%type==umfpack_prec) then
        call umfpack ( umfpack_solve, prec%umfpack_ctxt, mat, nrhs, x, ldx, y, ldy)
     else
-       write (0,*) 'Error: precondtioner type not supported'
+       write (0,*) 'Error: preconditioner type not supported'
        check(1==0)
     end if
 
