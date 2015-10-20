@@ -34,6 +34,8 @@ program test_operators
   type(serial_scalar_array_t)     :: Vec1
   type(serial_scalar_array_t)     :: Vec2
   type(dynamic_state_operator_t)  :: Op
+  type(serial_environment_t)      :: environment
+  type(linear_solver_t)           :: linear_solver
   
   call meminit
   
@@ -76,7 +78,14 @@ program test_operators
   Op = Mat*3.0 
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
-  
+ 
+  call linear_solver%create(environment)
+  call linear_solver%set_type_from_pl()
+  call linear_solver%set_parameters_from_pl()
+  call linear_solver%set_operators(Mat,Mat)
+  call linear_solver%solve(Vec1,Vec2)
+  call linear_solver%free()
+ 
   call Mat%free()
   call Vec1%free()
   call Vec2%free()

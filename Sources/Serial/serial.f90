@@ -26,7 +26,6 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module serial_names
-
   ! Tools
   use types_names
   use memor_names
@@ -71,6 +70,7 @@ module serial_names
   use migratory_element_names
 
   ! Linear Algebra
+  use linear_solver_names
   use serial_scalar_matrix_names
   use serial_scalar_array_names
   use serial_block_matrix_names
@@ -88,7 +88,6 @@ module serial_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_vector_names
-
   
   ! Integration 
   use serial_fe_space_names
@@ -100,7 +99,6 @@ module serial_names
   use femap_names
   use femap_interp_names
   use create_global_dof_info_names
-  !use element_gather_tools
   use problem_names
   use serial_scalar_names
   use time_integration_names

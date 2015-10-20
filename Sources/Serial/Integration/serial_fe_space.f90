@@ -114,17 +114,16 @@ module serial_fe_space_names
 
    contains
      procedure :: create => serial_fe_space_create
-	 procedure :: free => serial_fe_space_free
-	 procedure :: print => serial_fe_space_print
+     procedure :: free => serial_fe_space_free
+     procedure :: print => serial_fe_space_print
      procedure :: set_analytical_code => serial_fe_space_set_analytical_code
-	 procedure, private :: serial_fe_space_create_make_serial_scalar_coefficient_matrix
+     procedure, private :: serial_fe_space_create_make_serial_scalar_coefficient_matrix
      procedure, private :: serial_fe_space_create_make_serial_block_coefficient_matrix
-	 generic :: make_coefficient_matrix => serial_fe_space_create_make_serial_scalar_coefficient_matrix, &
-	                                       serial_fe_space_create_make_serial_block_coefficient_matrix
-	
-	 procedure :: create_matrix_array_assembler         => serial_fe_space_create_matrix_array_assembler
-	 procedure :: symbolic_setup_matrix_array_assembler => serial_fe_space_symbolic_setup_matrix_array_assembler
-	 procedure :: volume_integral                       => serial_fe_space_volume_integral 
+     generic :: make_coefficient_matrix => serial_fe_space_create_make_serial_scalar_coefficient_matrix, &
+                                           serial_fe_space_create_make_serial_block_coefficient_matrix
+     procedure :: create_matrix_array_assembler         => serial_fe_space_create_matrix_array_assembler
+     procedure :: symbolic_setup_matrix_array_assembler => serial_fe_space_symbolic_setup_matrix_array_assembler
+     procedure :: volume_integral                       => serial_fe_space_volume_integral 
   end type serial_fe_space_t
 
   ! Types
@@ -137,121 +136,119 @@ module serial_fe_space_names
 contains
 
   function serial_fe_space_create_matrix_array_assembler(this,& 
-											             diagonal_blocks_symmetric_storage,&
-											             diagonal_blocks_symmetric,&
-											             diagonal_blocks_sign)
+                                                         diagonal_blocks_symmetric_storage,&
+                                                         diagonal_blocks_symmetric,&
+                                                         diagonal_blocks_sign)
     implicit none
-	class(serial_fe_space_t)       , intent(in) :: this
-	logical                        , intent(in) :: diagonal_blocks_symmetric_storage(:)
+    class(serial_fe_space_t)       , intent(in) :: this
+    logical                        , intent(in) :: diagonal_blocks_symmetric_storage(:)
     logical                        , intent(in) :: diagonal_blocks_symmetric(:)
-	integer(ip)                    , intent(in) :: diagonal_blocks_sign(:)
-	class(matrix_array_assembler_t), pointer    :: serial_fe_space_create_matrix_array_assembler
-	
-	class(matrix_t), pointer :: matrix
-	class(array_t) , pointer :: array
-	
-	assert ( size(diagonal_blocks_symmetric_storage) == this%dof_descriptor%nblocks )
-	assert ( size(diagonal_blocks_symmetric) == this%dof_descriptor%nblocks )
-	assert ( size(diagonal_blocks_sign) == this%dof_descriptor%nblocks )
-	
-	! 1. Select dynamically the type of class(matrix_array_assembler_t), class(matrix_t) and class(vector_t)
-	! 2. Create class(matrix_t) and class(vector_t) accordingly to their dynamic type
-	if (this%dof_descriptor%nblocks == 1) then
-	  allocate ( serial_scalar_matrix_array_assembler_t :: serial_fe_space_create_matrix_array_assembler )
-	  allocate ( serial_scalar_matrix_t :: matrix )
-	  allocate ( serial_scalar_array_t  :: array )
-	  select type(matrix)
-        class is(serial_scalar_matrix_t)
-	      call matrix%create(diagonal_blocks_symmetric_storage(1),diagonal_blocks_symmetric(1),diagonal_blocks_sign(1))
-	    class default
+    integer(ip)                    , intent(in) :: diagonal_blocks_sign(:)
+    class(matrix_array_assembler_t), pointer    :: serial_fe_space_create_matrix_array_assembler
+
+    class(matrix_t), pointer :: matrix
+    class(array_t) , pointer :: array
+
+    assert ( size(diagonal_blocks_symmetric_storage) == this%dof_descriptor%nblocks )
+    assert ( size(diagonal_blocks_symmetric) == this%dof_descriptor%nblocks )
+    assert ( size(diagonal_blocks_sign) == this%dof_descriptor%nblocks )
+
+    ! 1. Select dynamically the type of class(matrix_array_assembler_t), class(matrix_t) and class(vector_t)
+    ! 2. Create class(matrix_t) and class(vector_t) accordingly to their dynamic type
+    if (this%dof_descriptor%nblocks == 1) then
+       allocate ( serial_scalar_matrix_array_assembler_t :: serial_fe_space_create_matrix_array_assembler )
+       allocate ( serial_scalar_matrix_t :: matrix )
+       allocate ( serial_scalar_array_t  :: array )
+       select type(matrix)
+          class is(serial_scalar_matrix_t)
+          call matrix%create(diagonal_blocks_symmetric_storage(1),diagonal_blocks_symmetric(1),diagonal_blocks_sign(1))
+          class default
           check(.false.)
-        end select 
-	  select type(array)
-        class is(serial_scalar_array_t)
-	      call array%create(this%ndofs(1))
-	    class default
-         check(.false.)
-      end select 
-	else
-	  ! allocate ( serial_block_matrix_array_assembler_t :: serial_fe_space_create_matrix_array_assembler )
-	  allocate ( serial_block_matrix_t :: matrix )
-	  allocate ( serial_block_array_t  :: array )
-	  check(.false.)
-	end if
-	call serial_fe_space_create_matrix_array_assembler%set_matrix(matrix)
-	call serial_fe_space_create_matrix_array_assembler%set_array(array)
+       end select
+       select type(array)
+          class is(serial_scalar_array_t)
+          call array%create(this%ndofs(1))
+          class default
+          check(.false.)
+       end select
+    else
+       ! allocate ( serial_block_matrix_array_assembler_t :: serial_fe_space_create_matrix_array_assembler )
+       allocate ( serial_block_matrix_t :: matrix )
+       allocate ( serial_block_array_t  :: array )
+       check(.false.)
+    end if
+    call serial_fe_space_create_matrix_array_assembler%set_matrix(matrix)
+    call serial_fe_space_create_matrix_array_assembler%set_array(array)
   end function serial_fe_space_create_matrix_array_assembler
   
   subroutine serial_fe_space_symbolic_setup_matrix_array_assembler(this,matrix_array_assembler)
-	implicit none
-	class(serial_fe_space_t)        , intent(in)    :: this
-	class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
-	
+    implicit none
+    class(serial_fe_space_t)        , intent(in)    :: this
+    class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+
     ! Polymorphic matrix 
-	class(matrix_t), pointer :: matrix
-	
-	matrix => matrix_array_assembler%get_matrix()
+    class(matrix_t), pointer :: matrix
+
+    matrix => matrix_array_assembler%get_matrix()
     select type(matrix)
-      class is(serial_scalar_matrix_t)
-         call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, matrix%graph )
-	  class is(serial_block_matrix_t)
-	  class default
-         check(.false.)
+       class is(serial_scalar_matrix_t)
+       call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, matrix%graph )
+       class is(serial_block_matrix_t)
+       class default
+       check(.false.)
     end select
-	
+
   end subroutine serial_fe_space_symbolic_setup_matrix_array_assembler
 
   subroutine serial_fe_space_volume_integral(this,approximations,assembler)
-	implicit none
-	class(serial_fe_space_t)       , intent(in)    :: this
-	class(p_discrete_integration_t), intent(in)    :: approximations(:) 
-	class(assembler_t)             , intent(inout) :: assembler
-	
-	integer(ip) :: ielem, iapprox, ivar
-	
-	do iapprox=1,size(approximations)
-	  do ielem=1,this%g_trian%num_elems
-         if(associated(approximations(iapprox)%discrete_integration%domain)) then
+    implicit none
+    class(serial_fe_space_t)       , intent(in)    :: this
+    class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+    class(assembler_t)             , intent(inout) :: assembler
+
+    integer(ip) :: ielem, iapprox, ivar
+
+    do iapprox=1,size(approximations)
+       do ielem=1,this%g_trian%num_elems
+          if(associated(approximations(iapprox)%discrete_integration%domain)) then
              if(approximations(iapprox)%discrete_integration%domain(ielem)==0) cycle
-         end if
-         ! Compute integration tools on ielem for each ivar (they all share the quadrature inside integ)
-         do ivar=1,this%finite_elements(ielem)%num_vars
-           call volume_integrator_update(this%finite_elements(ielem)%integ(ivar)%p,this%g_trian%elems(ielem)%coordinates)
-         end do
-         call approximations(iapprox)%discrete_integration%compute(this%finite_elements(ielem))
-         call assembler%assembly(this%dof_descriptor,this%finite_elements(ielem)) 
-      end do
-	end do
+          end if
+          ! Compute integration tools on ielem for each ivar (they all share the quadrature inside integ)
+          do ivar=1,this%finite_elements(ielem)%num_vars
+             call volume_integrator_update(this%finite_elements(ielem)%integ(ivar)%p,this%g_trian%elems(ielem)%coordinates)
+          end do
+          call approximations(iapprox)%discrete_integration%compute(this%finite_elements(ielem))
+          call assembler%assembly(this%dof_descriptor,this%finite_elements(ielem)) 
+       end do
+    end do
   end subroutine serial_fe_space_volume_integral
   
 
   subroutine serial_fe_space_create_make_serial_scalar_coefficient_matrix(this,symmetric_storage,is_symmetric,sign,serial_scalar_matrix)
     implicit none
-	class(serial_fe_space_t)     , intent(in)  :: this
+    class(serial_fe_space_t)     , intent(in)  :: this
     logical                      , intent(in)  :: symmetric_storage
     logical                      , intent(in)  :: is_symmetric
-	integer(ip)                  , intent(in)  :: sign
+    integer(ip)                  , intent(in)  :: sign
     type(serial_scalar_matrix_t) , intent(out) :: serial_scalar_matrix
-	
-	assert ( this%dof_descriptor%nblocks == 1 ) 
-	call serial_scalar_matrix%create(symmetric_storage,is_symmetric,sign)
-	call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, serial_scalar_matrix%graph )
-	call serial_scalar_matrix%allocate()
+
+    assert ( this%dof_descriptor%nblocks == 1 ) 
+    call serial_scalar_matrix%create(symmetric_storage,is_symmetric,sign)
+    call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, serial_scalar_matrix%graph )
+    call serial_scalar_matrix%allocate()
   end subroutine serial_fe_space_create_make_serial_scalar_coefficient_matrix
   
   subroutine serial_fe_space_create_make_serial_block_coefficient_matrix(this, & 
-												  diagonal_blocks_symmetric_storage, & 
-												  diagonal_blocks_symmetric, &
-												  diagonal_blocks_sign,& 
-												  serial_block_matrix)
+                                                                         diagonal_blocks_symmetric_storage, & 
+                                                                         diagonal_blocks_symmetric, &
+                                                                         diagonal_blocks_sign,& 
+                                                                         serial_block_matrix)
     implicit none
     class(serial_fe_space_t)    , intent(in)  :: this
-	logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(this%dof_descriptor%nblocks)
+    logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(this%dof_descriptor%nblocks)
     logical                     , intent(in)  :: diagonal_blocks_symmetric(this%dof_descriptor%nblocks)
     integer(ip)                 , intent(in)  :: diagonal_blocks_sign(this%dof_descriptor%nblocks)
-	type(serial_block_matrix_t) , intent(out) :: serial_block_matrix
-	
-	
+    type(serial_block_matrix_t) , intent(out) :: serial_block_matrix
   end subroutine serial_fe_space_create_make_serial_block_coefficient_matrix
 
 
