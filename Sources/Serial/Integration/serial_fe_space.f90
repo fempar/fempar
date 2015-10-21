@@ -281,7 +281,7 @@ contains
 
     call serial_fe_space_fe_list_create ( this, problem, continuity, enable_face_integration, order, material, bcond )
 		
-		call serial_fe_space_integration_faces_list( this )
+    call serial_fe_space_integration_faces_list( this )
 	
   end subroutine serial_fe_space_create
 
