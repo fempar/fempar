@@ -64,12 +64,14 @@ module linear_solver_names
     integer(ip)                           :: state = not_created
   contains
     ! Concrete TBPs
-    procedure :: create                 => linear_solver_create
-    procedure :: free                   => linear_solver_free
-    procedure :: solve                  => linear_solver_solve
-    procedure :: set_type_from_pl       => linear_solver_set_type_from_pl
-    procedure :: set_parameters_from_pl => linear_solver_set_parameters_from_pl
-    procedure :: set_operators          => linear_solver_set_operators
+    procedure :: create                          => linear_solver_create
+    procedure :: free                            => linear_solver_free
+    procedure :: solve                           => linear_solver_solve
+    procedure :: set_type_from_pl                => linear_solver_set_type_from_pl
+    procedure :: set_parameters_from_pl          => linear_solver_set_parameters_from_pl
+    procedure :: set_type_and_parameters_from_pl => linear_solver_set_type_and_parameters_from_pl
+    procedure :: set_operators                   => linear_solver_set_operators
+    procedure :: set_initial_solution            => linear_solver_set_initial_solution
   end type
   
   ! Data types
@@ -113,6 +115,7 @@ contains
      assert ( this%state == environment_set .or. this%state == solver_type_set )
      
      if ( this%state == solver_type_set ) then
+       ! PENDING: ONLY FREE IF THE TYPE SELECTED DOES NOT MATCH THE EXISTING ONE
        call this%base_linear_solver%free()
        deallocate ( this%base_linear_solver )
      end if
@@ -120,6 +123,7 @@ contains
      ! PENDING
      ! 1. Get val associated to key="linear_solver_type" from type(ParameterList)
      ! 2. Select Factory Method associated to val from "global" (and dynamically built) dictionary of Factory Methods
+     ! 3. Only create if this%state == environment_set or if base_linear_solver was freed in the block of code above
      this%base_linear_solver => create_richardson(this%environment)
      assert ( this%base_linear_solver%get_state() == start )
      this%state = solver_type_set
@@ -133,11 +137,27 @@ contains
      call this%base_linear_solver%set_parameters_from_pl()
    end subroutine linear_solver_set_parameters_from_pl
    
+   subroutine linear_solver_set_type_and_parameters_from_pl ( this )
+     implicit none
+     class(linear_solver_t), intent(inout) :: this
+     call this%set_type_from_pl()
+     call this%set_parameters_from_pl()
+   end subroutine linear_solver_set_type_and_parameters_from_pl
+   
    subroutine linear_solver_set_operators ( this, A, M )
      implicit none
      class(linear_solver_t), intent(inout) :: this
      class(operator_t)     , intent(in)    :: A, M
+     assert ( this%state == solver_type_set )
      call this%base_linear_solver%set_operators(A,M)
    end subroutine linear_solver_set_operators
+   
+   subroutine linear_solver_set_initial_solution( this, initial_solution )
+     implicit none
+     class(linear_solver_t), intent(inout) :: this
+     class(vector_t)       , intent(in)    :: initial_solution
+     assert ( this%state == solver_type_set )
+     call this%base_linear_solver%set_initial_solution(initial_solution)
+   end subroutine linear_solver_set_initial_solution
    
 end module linear_solver_names

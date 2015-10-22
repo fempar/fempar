@@ -71,15 +71,12 @@ contains
     type(vector_space_t), pointer :: range
     class(dynamic_state_operator_t), pointer :: A, M
     
-    ! Only allocate workspace if actually needed
-    if ( this%get_state() == operators_set ) then
-      A => this%get_A()
-      range  => A%get_range_vector_space()
-      call range%create_vector(this%r)
-      M => this%get_M()
-      range  => M%get_range_vector_space()
-      call range%create_vector(this%z)
-    end if  
+    A => this%get_A()
+    range  => A%get_range_vector_space()
+    call range%create_vector(this%r)
+    M => this%get_M()
+    range  => M%get_range_vector_space()
+    call range%create_vector(this%z)
   end subroutine richardson_allocate_workspace
   
   subroutine richardson_free_workspace(this)
@@ -109,6 +106,7 @@ contains
     ! Local variables to store a copy/reference of the corresponding member variables of base class
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
+    class(vector_t)     , pointer :: initial_solution
     integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
@@ -122,6 +120,7 @@ contains
     environment               => this%get_environment()
     A                         => this%get_A()
     M                         => this%get_M()
+    initial_solution          => this%get_initial_solution()
     luout                     =  this%get_luout()
     stopping_criteria         =  this%get_stopping_criteria()
     max_num_iterations        =  this%get_max_num_iterations()
@@ -148,6 +147,7 @@ contains
         if ((me == 0).and.(output_frequency/=0)) call this%print_convergence_history_header(luout)
     end if
 
+    call x%copy(initial_solution)
     num_iterations = 0
     loop_prichard: do while( (.not.did_converge) .and. (num_iterations < max_num_iterations))
         ! r = Ax
@@ -214,16 +214,27 @@ contains
     implicit none
     class(environment_t), intent(in) :: environment
     class(base_linear_solver_t), pointer :: create_richardson
-    allocate ( richardson_t :: create_richardson )
+    class(richardson_t), pointer :: tmp_richardson
     
-    call create_richardson%set_environment(environment)
-    call create_richardson%set_name(richardson_name)
-    call create_richardson%set_defaults()
-    select type ( create_richardson )
-    class is ( richardson_t )
-    create_richardson%relaxation = default_richardson_relaxation
-    end select
-    call create_richardson%set_state(start)
+    ! Option 1: Does not require RTTI
+    allocate(tmp_richardson)
+    call tmp_richardson%set_environment(environment)
+    call tmp_richardson%set_name(richardson_name)
+    call tmp_richardson%set_defaults()
+    tmp_richardson%relaxation = default_richardson_relaxation
+    call tmp_richardson%set_state(start)
+    create_richardson => tmp_richardson
+    
+    ! Option 2: Requires RTTI
+    !allocate ( richardson_t :: create_richardson )
+    !call create_richardson%set_environment(environment)
+    !call create_richardson%set_name(richardson_name)
+    !call create_richardson%set_defaults()
+    !select type ( create_richardson )
+    !class is ( richardson_t )
+    !create_richardson%relaxation = default_richardson_relaxation
+    !end select
+    !call create_richardson%set_state(start)
   end function create_richardson
   
 end module richardson_names

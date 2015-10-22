@@ -57,7 +57,7 @@ module base_linear_solver_names
   real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
   real    (rp), parameter :: default_atol                       = 0.0_rp
   integer (ip), parameter :: default_output_frequency           = 1 
-  integer (ip), parameter :: default_max_num_iterations         = 1000
+  integer (ip), parameter :: default_max_num_iterations         = 100
   logical     , parameter :: default_track_convergence_history  = .false.
   
   integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set
@@ -104,6 +104,9 @@ module base_linear_solver_names
     ! Matrix and preconditioner
     type(dynamic_state_operator_t) :: A 
     type(dynamic_state_operator_t) :: M 
+    
+    ! Initial solution
+    class(vector_t), allocatable :: initial_solution
   
     ! Parameters
     real(rp)      :: luout                     ! Logical Unit Output
@@ -130,6 +133,8 @@ module base_linear_solver_names
     procedure :: set_state
     procedure :: get_state
     procedure :: set_operators
+    procedure :: set_initial_solution
+    procedure :: get_initial_solution
     procedure :: get_A
     procedure :: get_M
     
@@ -174,6 +179,7 @@ module base_linear_solver_names
     procedure, private :: allocate_convergence_history
     procedure, private :: free_convergence_history
     procedure, private :: unset_operators
+    procedure, private :: free_initial_solution
     
     ! "Private" TBPs to be called from data types which extend class(base_linear_solver_t)
     procedure           :: base_linear_solver_set_parameters_from_pl
@@ -288,29 +294,62 @@ contains
      type(vector_space_t), pointer :: M_domain, M_range
      
      assert(this%state == start .or. this%state == operators_set)
-     
      call A%GuardTemp()
      call M%GuardTemp()
-     
      A_domain => A%get_domain_vector_space()
      A_range  => A%get_range_vector_space()
      M_domain => M%get_domain_vector_space()
      M_range  => M%get_range_vector_space()
      if ( .not. A_domain%equal_to(M_domain) ) then
-       write(0,'(a)') 'base_linear_solver_t%set_operators :: domain(A)/=domain(M)' 
-       check(.false.)
-     end if
-     if ( .not. A_range%equal_to(M_range) ) then
+       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: domain(A)/=domain(M)' 
+       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: operators could not be set'  
+     else if ( .not. A_range%equal_to(M_range) ) then
        write(0,'(a)') 'base_linear_solver_t%set_operators :: range(A)/=range(M)' 
-       check(.false.)
+       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: operators could not be set' 
+     else
+       this%A = A
+       this%M = M
+       if ( this%state == start ) then
+         call A_range%create_vector(this%initial_solution)
+         call this%initial_solution%init(0.0_rp)
+       else if ( this%state == operators_set ) then
+         if (.not. A_range%belongs_to(this%initial_solution)) then
+           call this%free_initial_solution()
+           call A_range%create_vector(this%initial_solution)
+           call this%initial_solution%init(0.0_rp)
+           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: Initial solution re-set such that it now belongs to range(A)'
+           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: you have to (re-)call %set_initial_solution to select an initial solution different from zero'
+         end if
+       end if
+       this%state = operators_set
      end if
-     this%A = A
-     this%M = M 
-     this%state = operators_set
-     
      call A%CleanTemp()
-     call M%CleanTemp()
+     call M%CleanTemp() 
     end subroutine set_operators
+    
+    subroutine set_initial_solution(this,initial_solution)
+     implicit none
+     class(base_linear_solver_t) , intent(inout) :: this
+     class(vector_t)             , intent(in)    :: initial_solution     
+     type(vector_space_t)        , pointer       :: A_range     
+     
+     assert(this%state == operators_set .or. this%state == workspace_allocated)
+     call initial_solution%GuardTemp()
+     A_range  => this%A%get_range_vector_space()
+     if (.not. A_range%belongs_to(initial_solution)) then
+       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: Ignoring initial solution; it does not belong to range(A)'
+     else
+       call this%initial_solution%copy(initial_solution)
+     end if  
+     call initial_solution%CleanTemp()
+    end subroutine set_initial_solution
+    
+    function get_initial_solution(this)
+     implicit none
+     class(base_linear_solver_t), target, intent(in) :: this
+     class(vector_t)            , pointer :: get_initial_solution
+     get_initial_solution => this%initial_solution
+    end function get_initial_solution
     
     function get_A(this)
       implicit none
@@ -388,6 +427,13 @@ contains
      call this%A%free()
      call this%M%free() 
     end subroutine unset_operators
+    
+    subroutine free_initial_solution(this)
+      implicit none
+      class(base_linear_solver_t), intent(inout) :: this
+      call this%initial_solution%free()
+      deallocate(this%initial_solution)
+    end subroutine free_initial_solution
     
     function converged(this)
       implicit none
@@ -668,8 +714,10 @@ contains
       class(base_linear_solver_t), intent(inout) :: this
       if ( this%state == operators_set ) then
         call this%unset_operators()
+        call this%free_initial_solution()
       else if ( this%state == workspace_allocated ) then
         call this%unset_operators()
+        call this%free_initial_solution()
         call this%free_workspace()
         call this%free_convergence_history()
       end if
@@ -682,9 +730,10 @@ contains
       class(vector_t)            , intent(in)    :: x
       class(vector_t)            , intent(inout) :: y
       assert ( this%state == operators_set .or. this%state == workspace_allocated )
-      ! Allocate (re-allocate if needed) convergence history and workspace
       call this%allocate_convergence_history()
-      call this%allocate_workspace()
+      if ( this%get_state() == operators_set ) then
+         call this%allocate_workspace()
+      end if   
       call x%GuardTemp()
       call this%solve_body(x,y)
       call x%CleanTemp()

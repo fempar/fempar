@@ -39,11 +39,11 @@ module par_environment_names
 #ifdef MPI_MOD
   use mpi
 #endif
+  implicit none
 #ifdef MPI_H
   include 'mpif.h'
 #endif
 # include "debug.i90"
-  implicit none
   private
 
   type, extends(environment_t) ::  par_environment_t
