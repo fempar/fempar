@@ -62,7 +62,8 @@ module operator_names
      procedure, pass(op_right) :: scal_right => scal_right_operator_constructor
      generic    :: operator(+) => sum
      generic    :: operator(*) => mult, scal_right, scal_left, apply_fun
-     generic    :: operator(-) => minus, sub
+     generic    :: operator(-) => sub
+     generic    :: operator(.minus.) => minus
   end type operator_t
 
   ! Son class expression_operator_t. These operators are always temporary

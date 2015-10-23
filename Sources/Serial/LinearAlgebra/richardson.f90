@@ -214,16 +214,16 @@ contains
     implicit none
     class(environment_t), intent(in) :: environment
     class(base_linear_solver_t), pointer :: create_richardson
-    class(richardson_t), pointer :: tmp_richardson
+    class(richardson_t), pointer :: richardson
     
     ! Option 1: Does not require RTTI
-    allocate(tmp_richardson)
-    call tmp_richardson%set_environment(environment)
-    call tmp_richardson%set_name(richardson_name)
-    call tmp_richardson%set_defaults()
-    tmp_richardson%relaxation = default_richardson_relaxation
-    call tmp_richardson%set_state(start)
-    create_richardson => tmp_richardson
+    allocate(richardson)
+    call richardson%set_environment(environment)
+    call richardson%set_name(richardson_name)
+    call richardson%set_defaults()
+    richardson%relaxation = default_richardson_relaxation
+    call richardson%set_state(start)
+    create_richardson => richardson
     
     ! Option 2: Requires RTTI
     !allocate ( richardson_t :: create_richardson )

@@ -29,13 +29,12 @@ program test_operators
   use serial_names
   implicit none
 #include "debug.i90"
-  
-  type(serial_scalar_matrix_t)    :: Mat
-  type(serial_scalar_array_t)     :: Vec1
-  type(serial_scalar_array_t)     :: Vec2
-  type(dynamic_state_operator_t)  :: Op
-  type(serial_environment_t)      :: environment
-  type(linear_solver_t)           :: linear_solver
+  type(serial_scalar_matrix_t)            :: Mat
+  type(serial_scalar_array_t)             :: Vec1
+  type(serial_scalar_array_t)             :: Vec2
+  type(dynamic_state_operator_t)          :: Op
+  type(serial_environment_t)              :: environment
+  type(linear_solver_t)                   :: linear_solver
   
   call meminit
   
@@ -54,7 +53,9 @@ program test_operators
   call Vec1%create_and_allocate(Mat%graph%nv)
   call Vec2%create_and_allocate(Mat%graph%nv)
   call Vec1%init(1.0_rp)
-    
+  
+  Op = Mat
+  
   Op = Mat + Mat
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
@@ -67,7 +68,7 @@ program test_operators
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
   
-  Op = -Mat
+  Op = .minus. Mat
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
 
