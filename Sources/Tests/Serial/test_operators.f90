@@ -53,9 +53,7 @@ program test_operators
   call Vec1%create_and_allocate(Mat%graph%nv)
   call Vec2%create_and_allocate(Mat%graph%nv)
   call Vec1%init(1.0_rp)
-  
-  Op = Mat
-  
+    
   Op = Mat + Mat
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
