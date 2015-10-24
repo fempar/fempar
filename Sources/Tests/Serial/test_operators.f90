@@ -78,7 +78,7 @@ program test_operators
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
 
-  Vec2 = Mat*Vec1
+  call Mat%apply(Vec1,Vec2)
  
   call linear_solver%create(environment)
   call linear_solver%set_type_from_pl()
