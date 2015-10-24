@@ -573,24 +573,30 @@ contains
       character(len=*), parameter   :: fmt1='(a18,1x,i4,3(2x,es16.9))'
       character(len=*), parameter   :: fmt2='(a18,1x,i4,3(2x,es16.9),3(2x,es16.9))'
       character(len=:), allocatable :: outname
+      integer(ip)                   :: me, np
+    
+      call this%environment%info(me,np) 
+      if ( this%environment%am_i_fine_task() ) then
+        if ( ((me == 0).and.(this%output_frequency/=0)) ) then
+          outname = this%name // ':' // '  '
+          if ( (mod(this%num_iterations,this%output_frequency) == 0).or.this%did_converge.or.(this%num_iterations>=this%max_num_iterations)) then
+             outname = this%name // ':' // '  '
+             select case(this%stopping_criteria)
+             case ( delta_rhs, delta_delta, res_res, res_rhs, &
+                  & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
+               write(luout,fmt1) adjustl(outname), this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test
+             case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, &
+                  & delta_delta_and_res_res, delta_delta_and_res_rhs )
+               write(luout,fmt2) adjustl(outname), this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test, &
+                  &  this%error_estimate_extra_convergence_test, this%rhs_extra_convergence_test
+             case default
+               ! Write an error message and stop ?
+             end select
+          end if
+        endif
+     end if
 
-      outname = this%name // ':' // '  '
-      if ( (mod(this%num_iterations,this%output_frequency) == 0).or.this%did_converge.or.(this%num_iterations>=this%max_num_iterations)) then
-         outname = this%name // ':' // '  '
-         select case(this%stopping_criteria)
-         case ( delta_rhs, delta_delta, res_res, res_rhs, &
-              & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
-            write(luout,fmt1) adjustl(outname), this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test
-         case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, &
-              & delta_delta_and_res_res, delta_delta_and_res_rhs )
-            write(luout,fmt2) adjustl(outname), this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test, &
-                 &  this%error_estimate_extra_convergence_test, this%rhs_extra_convergence_test
-         case default
-          ! Write an error message and stop ?
-       end select
-      endif
     end subroutine print_convergence_history_new_line 
-
 
     subroutine print_convergence_history_header( this, luout )
       implicit none
@@ -602,19 +608,25 @@ contains
       character(len=*), parameter    :: fmt1='(a18,1x,a4,3(2x,a15))'
       character(len=*), parameter    :: fmt2='(a18,1x,a4,3(2x,a15),3(2x,a15))'
       character(len=:), allocatable  :: outname
+      integer(ip)                    :: me, np
 
-      outname = this%name // ':' // '  '
-      select case(this%stopping_criteria)
-      case ( delta_rhs, delta_delta, res_res, res_rhs, res_nrmgiven_rhs_nrmgiven, &
-           & res_nrmgiven_res_nrmgiven )
-         write(luout,fmt1) adjustl(outname),'Iteration','Error Estimate','Tolerance'
-      case ( delta_rhs_and_res_res, delta_rhs_and_res_rhs,  &
-            delta_delta_and_res_res, delta_delta_and_res_rhs )
-         write(luout,fmt2) adjustl(outname), 'Iteration', 'Error Estimate', 'Tolerance', &
-                                           & 'Error Estimate', 'Tolerance'
-      case default
-         ! Write an error message and stop ?      
-      end select
+      call this%environment%info(me,np) 
+      if ( this%environment%am_i_fine_task() ) then
+        if ( ((me == 0).and.(this%output_frequency/=0)) ) then
+          outname = this%name // ':' // '  '
+          select case(this%stopping_criteria)
+          case ( delta_rhs, delta_delta, res_res, res_rhs, res_nrmgiven_rhs_nrmgiven, &
+               & res_nrmgiven_res_nrmgiven )
+             write(luout,fmt1) adjustl(outname),'Iteration','Error Estimate','Tolerance'
+          case ( delta_rhs_and_res_res, delta_rhs_and_res_rhs,  &
+                delta_delta_and_res_res, delta_delta_and_res_rhs )
+             write(luout,fmt2) adjustl(outname), 'Iteration', 'Error Estimate', 'Tolerance', &
+                                               & 'Error Estimate', 'Tolerance'
+          case default
+             ! Write an error message and stop ?      
+          end select
+        endif
+      end if
     end subroutine print_convergence_history_header 
 
     subroutine print_convergence_history_footer ( this, luout )
@@ -622,39 +634,43 @@ contains
       ! Parameters
       class(base_linear_solver_t), intent(in) :: this
       integer(ip)                , intent(in) :: luout 
-
       character(len=*), parameter  :: fmt11='(a,2x,es16.9,1x,a,1x,i4,1x,a)'
       character(len=*), parameter  :: fmt12='(a,3(2x,es16.9))'
-
       character(len=*), parameter  :: fmt21='(a,2x,es16.9,1x,es16.9,1x,a,1x,i4,1x,a)'
       character(len=*), parameter  :: fmt22='(a,3(2x,es16.9),3(2x,es16.9))'
-
-      select case( this%stopping_criteria )
-      case ( delta_rhs,delta_delta,res_res,res_rhs,&
-           & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven)
-         if ( this%did_converge ) then
-            write(luout,fmt11) this%name //' converged to ', &
-                 & this%rhs_convergence_test,' in ',this%num_iterations,' iterations. '
-            write(luout,fmt12) 'Last iteration error estimate: ', this%error_estimate_convergence_test
-         else
-            write(luout,fmt11) this%name //' failed to converge to ', &
-                 & this%rhs_convergence_test,' in ',this%num_iterations,' iterations. '
-            write(luout,fmt12) 'Last iteration error estimate: ', this%error_estimate_convergence_test
+      integer(ip)                             :: me, np
+      
+      call this%environment%info(me,np) 
+      if ( this%environment%am_i_fine_task() ) then
+        if ( ((me == 0).and.(this%output_frequency/=0)) ) then
+           select case( this%stopping_criteria )
+           case ( delta_rhs,delta_delta,res_res,res_rhs,&
+                & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven)
+             if ( this%did_converge ) then
+                write(luout,fmt11) this%name //' converged to ', &
+                     & this%rhs_convergence_test,' in ',this%num_iterations,' iterations. '
+                write(luout,fmt12) 'Last iteration error estimate: ', this%error_estimate_convergence_test
+             else
+                write(luout,fmt11) this%name //' failed to converge to ', &
+                          & this%rhs_convergence_test,' in ',this%num_iterations,' iterations. '
+                 write(luout,fmt12) 'Last iteration error estimate: ', this%error_estimate_convergence_test
+             end if
+           case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, &
+                & delta_delta_and_res_res, delta_delta_and_res_rhs )
+             if ( this%did_converge ) then
+               write(luout,fmt21) this%name //' converged to ', &
+                                & this%rhs_convergence_test, this%rhs_extra_convergence_test, ' in ', this%num_iterations ,' iterations. '
+               write(luout,fmt22) 'Last iteration error estimates: ', this%error_estimate_convergence_test, this%error_estimate_extra_convergence_test
+             else
+               write(luout,fmt21) this%name //' failed to converge to ', &
+                                & this%rhs_convergence_test, this%rhs_extra_convergence_test, ' in ', this%num_iterations ,' iterations. '
+               write(luout,fmt22) 'Last iteration error estimates: ', this%error_estimate_convergence_test, this%error_estimate_extra_convergence_test
+             end if
+           case default
+             ! Write an error message and stop ?      
+           end select
          end if
-      case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, &
-           & delta_delta_and_res_res, delta_delta_and_res_rhs )
-         if ( this%did_converge ) then
-            write(luout,fmt21) this%name //' converged to ', &
-                & this%rhs_convergence_test, this%rhs_extra_convergence_test, ' in ', this%num_iterations ,' iterations. '
-            write(luout,fmt22) 'Last iteration error estimates: ', this%error_estimate_convergence_test, this%error_estimate_extra_convergence_test
-         else
-            write(luout,fmt21) this%name //' failed to converge to ', &
-                & this%rhs_convergence_test, this%rhs_extra_convergence_test, ' in ', this%num_iterations ,' iterations. '
-            write(luout,fmt22) 'Last iteration error estimates: ', this%error_estimate_convergence_test, this%error_estimate_extra_convergence_test
-         end if
-      case default
-         ! Write an error message and stop ?      
-      end select
+      end if
     end subroutine print_convergence_history_footer 
     
     subroutine allocate_convergence_history (this)
