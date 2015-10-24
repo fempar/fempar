@@ -43,12 +43,12 @@ program test_operators
   Mat%graph%nv  = 3
   Mat%graph%nv2 = 3
   call memalloc ( Mat%graph%nv+1, Mat%graph%ia, __FILE__, __LINE__)
-  Mat%graph%ia = (/1,3,5,7/)
+  Mat%graph%ia = (/1,3,4,6/)
   call memalloc ( Mat%graph%ia(Mat%graph%nv+1)-1, Mat%graph%ja, __FILE__, __LINE__)
-  Mat%graph%ja = (/1,3,1,2,1,3/)
+  Mat%graph%ja = (/1,3,2,1,3/)
   ! End External Process which creates the graph of Mat
   call Mat%allocate()
-  Mat%a = (/1.0,3.0,1.0,2.0,1.0,3.0/)
+  Mat%a = (/7.0,3.0,2.0,3.0,3.0/)
   
   call Vec1%create_and_allocate(Mat%graph%nv)
   call Vec2%create_and_allocate(Mat%graph%nv)
@@ -77,16 +77,17 @@ program test_operators
   Op = Mat*3.0 
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
+
+  Vec2 = Mat*Vec1
  
   call linear_solver%create(environment)
   call linear_solver%set_type_from_pl()
   call linear_solver%set_parameters_from_pl()
   call linear_solver%set_operators(Mat,Mat)
-  call linear_solver%set_initial_solution(Vec2)
-  call linear_solver%solve(Vec1,Vec2)
-  call linear_solver%set_initial_solution(Vec2)
-  call linear_solver%solve(Vec1,Vec2)
+  call linear_solver%solve(Vec2,Vec1)
   call linear_solver%free()
+
+  call Vec1%print(6)
  
   call Mat%free()
   call Vec1%free()

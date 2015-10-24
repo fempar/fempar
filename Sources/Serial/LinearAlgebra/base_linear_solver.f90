@@ -541,8 +541,8 @@ contains
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
-      character(len=*), parameter   :: fmt1='(a18,1x,i4,3(2x,es16.9))'
-      character(len=*), parameter   :: fmt2='(a18,1x,i4,3(2x,es16.9),3(2x,es16.9))'
+      character(len=*), parameter   :: fmt1='(a,1x,i4,3(2x,es16.9))'
+      character(len=*), parameter   :: fmt2='(a,1x,i4,3(2x,es16.9),3(2x,es16.9))'
       character(len=:), allocatable :: outname
       integer(ip)                   :: i
 
@@ -551,13 +551,13 @@ contains
       case ( delta_rhs, delta_delta, res_res, res_rhs, & 
            & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
          do i=1,this%num_iterations
-            write(luout,fmt1) adjustl(outname), i, this%error_estimate_history_convergence_test(i), this%rhs_convergence_test
+            write(luout,fmt1) outname, i, this%error_estimate_history_convergence_test(i), this%rhs_convergence_test
          end do
       case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, & 
            & delta_delta_and_res_res, delta_delta_and_res_rhs )
          do i=1,this%num_iterations
-            write(luout,fmt2) adjustl(outname), i, this%error_estimate_history_convergence_test(i), this%rhs_convergence_test, &
-                 &                                 this%error_estimate_history_extra_convergence_test(i), this%rhs_extra_convergence_test 
+            write(luout,fmt2) outname, i, this%error_estimate_history_convergence_test(i), this%rhs_convergence_test, &
+                 &                        this%error_estimate_history_extra_convergence_test(i), this%rhs_extra_convergence_test 
          end do
       end select
     end subroutine print_convergence_history_body
@@ -570,8 +570,8 @@ contains
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
-      character(len=*), parameter   :: fmt1='(a18,1x,i4,3(2x,es16.9))'
-      character(len=*), parameter   :: fmt2='(a18,1x,i4,3(2x,es16.9),3(2x,es16.9))'
+      character(len=*), parameter   :: fmt1='(a,1x,i4,3(2x,es16.9))'
+      character(len=*), parameter   :: fmt2='(a,1x,i4,3(2x,es16.9),3(2x,es16.9))'
       character(len=:), allocatable :: outname
       integer(ip)                   :: me, np
     
@@ -584,10 +584,10 @@ contains
              select case(this%stopping_criteria)
              case ( delta_rhs, delta_delta, res_res, res_rhs, &
                   & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
-               write(luout,fmt1) adjustl(outname), this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test
+               write(luout,fmt1) outname, this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test
              case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, &
                   & delta_delta_and_res_res, delta_delta_and_res_rhs )
-               write(luout,fmt2) adjustl(outname), this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test, &
+               write(luout,fmt2) outname, this%num_iterations, this%error_estimate_convergence_test, this%rhs_convergence_test, &
                   &  this%error_estimate_extra_convergence_test, this%rhs_extra_convergence_test
              case default
                ! Write an error message and stop ?
@@ -605,8 +605,8 @@ contains
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
-      character(len=*), parameter    :: fmt1='(a18,1x,a4,3(2x,a15))'
-      character(len=*), parameter    :: fmt2='(a18,1x,a4,3(2x,a15),3(2x,a15))'
+      character(len=*), parameter    :: fmt1='(a,1x,a4,3(2x,a15))'
+      character(len=*), parameter    :: fmt2='(a,1x,a4,3(2x,a15),3(2x,a15))'
       character(len=:), allocatable  :: outname
       integer(ip)                    :: me, np
 
@@ -617,11 +617,11 @@ contains
           select case(this%stopping_criteria)
           case ( delta_rhs, delta_delta, res_res, res_rhs, res_nrmgiven_rhs_nrmgiven, &
                & res_nrmgiven_res_nrmgiven )
-             write(luout,fmt1) adjustl(outname),'Iteration','Error Estimate','Tolerance'
+             write(luout,fmt1) outname,'Iteration','Error Estimate','Tolerance'
           case ( delta_rhs_and_res_res, delta_rhs_and_res_rhs,  &
                 delta_delta_and_res_res, delta_delta_and_res_rhs )
-             write(luout,fmt2) adjustl(outname), 'Iteration', 'Error Estimate', 'Tolerance', &
-                                               & 'Error Estimate', 'Tolerance'
+             write(luout,fmt2) outname, 'Iteration', 'Error Estimate', 'Tolerance', &
+                                     & 'Error Estimate', 'Tolerance'
           case default
              ! Write an error message and stop ?      
           end select
