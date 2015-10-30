@@ -298,9 +298,9 @@ program par_test_mlbddc_poisson_problem
   type(solver_control_t)            :: sctrl
   type(dof_descriptor_t)            :: dof_descriptor
   type(par_conditions_t)            :: p_cond
-  type(cdr_problem_t)               :: my_problem
-  type(cdr_discrete_t)              :: my_discrete
-  type(cdr_nonlinear_t), target     :: my_approximation
+  type(poisson_problem_t)           :: my_problem
+  type(poisson_discrete_t)          :: my_discrete
+  type(poisson_nonlinear_t), target :: my_approximation
   type(par_scalar_t)                :: enorm
   type(error_norm_t)   , target     :: error_compute
   type(p_discrete_integration_t)  :: approximations(1)

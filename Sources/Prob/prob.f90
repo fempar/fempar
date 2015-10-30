@@ -28,10 +28,12 @@
 module prob_names  
 
   ! Physical problems
+  use poisson_names
   use cdr_names
   use nsi_names
   
   ! Discrete problems
+  use poisson_continuous_Galerkin_names
   use cdr_stabilized_continuous_Galerkin_names
   use nsi_cg_asgs_names
   use nsi_cg_iss_names
