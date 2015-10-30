@@ -80,9 +80,9 @@ contains
     params%default_dir_path_out = 'output'
 
     ! Problem parameters
-    params%default_kfl_conv            = '1' ! Enabling advection
+    params%default_kfl_conv            = '0' ! Enabling advection
     params%default_kfl_tder            = '0' ! Time derivative not computed 
-    params%default_kfl_react           = '0'! Non analytical reaction
+    params%default_kfl_react           = '0' ! Non analytical reaction
     params%default_react               = '0.0'  ! Reaction
     params%default_diffu               = '1.0'  ! Diffusion
     params%default_space_solution_flag = '3'
@@ -207,7 +207,7 @@ contains
     type(test_cdr_params_t), intent(inout) :: params
 
     ! Names
-    params%default_kfl_conv            = '1'    ! Enabling advection
+    params%default_kfl_conv            = '0'    ! Enabling advection
     params%default_kfl_tder            = '0'    ! Time derivative not computed 
     params%default_kfl_react           = '0'    ! Non analytical reaction
     params%default_react               = '0.0'  ! Reaction
@@ -338,8 +338,8 @@ program test_cdr
   call create_dof_info( fe_space )
 
   ! Create the operator
-  diagonal_blocks_symmetric_storage = (/.true./)
-  diagonal_blocks_symmetric         = (/.true./)
+  diagonal_blocks_symmetric_storage = (/(my_problem%kfl_conv == 0)/)
+  diagonal_blocks_symmetric         = (/(my_problem%kfl_conv == 0)/)
   diagonal_blocks_sign              = (/positive_definite/) 
   call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
        diagonal_blocks_sign, fe_space, approximations)
@@ -354,6 +354,7 @@ program test_cdr
      class default
      check(.false.)
   end select
+  call my_matrix%print(6)
 
   array => fe_affine_operator%get_array()
   select type(array)
@@ -398,7 +399,7 @@ program test_cdr
   call my_array%print(6)
   call my_matrix%print(6)
 
-  write(*,*) 'XXX error solver norm XXX',  sqrt(enorm%get_value()) !feunk%nrm2()
+  write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value()) !feunk%nrm2()
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( enable_face_integration, __FILE__, __LINE__)

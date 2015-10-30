@@ -47,12 +47,15 @@ module cdr_names
      real(rp) ::         &
           react,         & ! Reaction
           diffu            ! Diffusion
+     real(rp), allocatable :: &
+          convect(:)       ! Convection
+     
    contains
      procedure :: create => cdr_create
      procedure :: free => cdr_free
   end type cdr_problem_t
 
-  public :: cdr_problem_t, cdr_analytical_force, cdr_analytical_reaction
+  public :: cdr_problem_t, cdr_analytical_force, cdr_analytical_reaction,  cdr_analytical_convection
 
 contains
 
@@ -77,13 +80,15 @@ contains
     prob%vars_of_unk(1) = 1
 
     ! Flags
-    prob%kfl_conv = 1 ! Enabling advection
+    prob%kfl_conv = 0 ! Enabling advection
     prob%kfl_tder = 0 ! Time derivative not computed 
     prob%kfl_react = 0 ! Non analytical reaction
 
     ! Problem variables
     prob%react  = 0.0_rp  ! Reaction
     prob%diffu  = 1.0_rp  ! Diffusion
+    call memalloc(ndime,prob%convect,__FILE__,__LINE__)
+    prob%convect = 0
 
     ! Analytical field variables
     prob%case_space   = 0      ! Exact solution (in space)
@@ -100,6 +105,7 @@ contains
     class(cdr_problem_t), intent(inout) :: prob
 
     call memfree ( prob%vars_of_unk,__FILE__,__LINE__)
+    call memfree ( prob%convect,    __FILE__,__LINE__)
 
   end subroutine cdr_free
 
@@ -136,21 +142,29 @@ contains
                &                       params(1,1),physics%kfl_react,physics%react)
        end if
 
+       ! Compute analytical convection
+       if (physics%kfl_conv>0) then
+          call cdr_analytical_convection(physics%ndime,                                             &
+               &                         finite_element%integ(1)%p%femap%clocs(:,igaus),            &
+               &                         physics%kfl_conv,ctime,physics%convect)
+       end if
+          
        ! Evaluate force
-       call cdr_force(physics%ndime,physics%diffu,physics%react,params,force%a(igaus))
+       call cdr_force(physics%ndime,physics%diffu,physics%react,physics%convect,params,force%a(igaus))
 
     end do
-
+    write(*,*) __FILE__,__LINE__,force%a
   end subroutine cdr_analytical_force
 
   !==================================================================================================
-  subroutine  cdr_force(ndime,diffu,react,params,force)
+  subroutine  cdr_force(ndime,diffu,react,convect,params,force)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine evaluates the elemental force needed to impose an analytical solution       !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     integer(ip), intent(in)    :: ndime
     real(rp)   , intent(in)    :: diffu,react,params(11,1)
+    real(rp)   , intent(in)    :: convect(ndime)
     real(rp)   , intent(inout) :: force
 
     real(rp)    :: u,d2udx,d2udy,d2udz,d2udxy,d2udxz,d2udyz
@@ -173,7 +187,10 @@ contains
     d2udxz = params(9,1)
     d2udyz = params(10,1)
 
-    force =  dudt - diffu*(d2udx+d2udy+d2udz) + react*u
+    force =  dudt - diffu*(d2udx+d2udy+d2udz) + react*u 
+    force = force + convect(1)*dudx + convect(2)*dudy
+    if (ndime == 3) force = force + convect(3)*dudz
+   
 
   end subroutine cdr_force
 
@@ -199,6 +216,115 @@ contains
 
   end subroutine cdr_analytical_reaction
 
+ !===================================================================================================
+  subroutine cdr_analytical_convection(ndime,coord,kfl_conv,ctime,convect, divergence_convect)
+    !----------------------------------------------------------------------------------------
+    ! This subroutine gives the value of the convection on coord depending on the kfl_conv
+    !----------------------------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)            :: kfl_conv,ndime
+    real(rp)   , intent(in)            :: ctime
+    real(rp)   , intent(in)            :: coord(ndime)
+    real(rp)   , intent(out)           :: convect(ndime)
+    real(rp)   , intent(out), optional :: divergence_convect
+
+    real(rp)                 :: x,y,pi=3.14159265, divfi
+
+    convect=0.0_rp
+    divfi = 0.0_rp
+    if(kfl_conv== 1) then
+       ! b = (0,1)
+       convect(1)= 0.0_rp 
+       convect(2)= 1.0_rp
+       divfi = 0.0_rp
+    else if(kfl_conv== 3) then
+       x = coord(1)-0.5
+       y = coord(2)-0.5
+       convect(1)=  2*pi*y
+       convect(2)= -2*pi*x 
+       divfi = 0.0_rp 
+    else if(kfl_conv== 4) then
+       x = coord(1)-0.5
+       y = coord(2)-0.5
+       convect(1)= -2*pi*y
+       convect(2)= 2*pi*x 
+       divfi = 0.0_rp 
+    else if(kfl_conv== 5) then
+       convect(1)= 0.0
+       convect(2)= 0.0
+       convect(3) = 1.0
+       divfi = 0.0_rp 
+    else if(kfl_conv== 6) then
+       x = coord(1)
+       y = coord(2)
+       convect(1)= -2*pi*y
+       convect(2)= 2*pi*x 
+       divfi = 0.0_rp 
+    else if(kfl_conv== 7) then
+       convect(1)= -cos(55.0_rp/360.0_rp*2_rp*pi)
+       convect(2)=   -sin(55.0_rp/360.0_rp*2_rp*pi)
+    else if(kfl_conv== 8) then
+       convect(1)= cos(-pi/3.0_rp)
+       convect(2)= sin(-pi/3.0_rp)
+       divfi = 0.0_rp 
+    else if(kfl_conv== 9) then
+       convect(1)= sin(pi/3.0_rp)
+       convect(2)= cos(pi/3.0_rp)
+       divfi = 0.0_rp 
+    else if (kfl_conv == 10) then
+       ! b = (1,0)
+       convect(1)= 1.0_rp 
+       convect(2)= 0.0_rp
+       divfi = 0.0_rp
+    else if(kfl_conv== 11) then
+       ! b = (1,1)
+       convect(1)= 1.0_rp 
+       convect(2)= 1.0_rp
+       divfi = 0.0_rp 
+    else if(kfl_conv== 12) then
+       ! b = 1/sqrt(5)*(1,-2)
+       convect(1)= 1.0_rp/sqrt(5.0_rp) 
+       convect(2)= -2.0_rp/sqrt(5.0_rp) 
+       divfi = 0.0_rp 
+    else if(kfl_conv== 13) then
+       convect(1)= cos(pi/3.0_rp)
+       convect(2)= sin(pi/3.0_rp)
+       divfi = 0.0_rp 
+    else if(kfl_conv== 14) then
+       convect(1)= cos(7.0_rp*pi/20.0_rp)
+       convect(2)= sin(7.0_rp*pi/20.0_rp)
+       divfi = 0.0_rp 
+    else if(kfl_conv== 15) then
+       convect(1)= cos(pi/60.0_rp)
+       convect(2)= sin(pi/60.0_rp)
+       divfi = 0.0_rp 
+    else if(kfl_conv== 16) then
+       x = coord(1)
+       y = coord(2)
+       convect(1)= y
+       convect(2)= -x 
+       divfi = 0.0_rp 
+    else if(kfl_conv== 17) then
+       x = coord(1)
+       y = coord(2)
+       convect(1)= sin(pi*x)
+       convect(2)= sin(pi*y) 
+       divfi = pi*(cos(pi*x)+cos(pi*y)) 
+    else if(kfl_conv== 18) then
+       x = coord(1)
+       y = coord(2)
+       convect(1) = 2.0_rp*y*(1.0_rp-x**2)
+       convect(2) = -2.0_rp*x*(1.0_rp-y**2)
+       divfi = 0.0_rp
+    else if(kfl_conv== 100) then
+       ! b = (10,0)
+       convect(1)= 10.0_rp 
+       convect(2)= 0.0_rp
+       divfi = 0.0_rp 
+    end if
+
+    if (present( divergence_convect))  divergence_convect = divfi
+  end subroutine cdr_analytical_convection
 
 end module cdr_names
 

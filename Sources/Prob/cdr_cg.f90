@@ -290,6 +290,14 @@ contains
           call cdr_analytical_reaction(approx%physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
                &                       gpunk%a(igaus),approx%physics%kfl_react,approx%physics%react)
        end if
+
+       ! Compute analytical convection
+       if (approx%physics%kfl_conv>0) then
+          call cdr_analytical_convection(approx%physics%ndime,                                      &
+               &                         finite_element%integ(1)%p%femap%clocs(:,igaus),            &
+               &                         approx%physics%kfl_conv,approx%discret%ctime,              &
+               &                         approx%physics%convect)
+       end if
        
        do inode = 1, nnode
           do jnode = 1, nnode
@@ -298,6 +306,11 @@ contains
                 finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
                      & factor * approx%physics%diffu * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
+                ! (b·grad u, v)
+                finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
+                     & factor * approx%physics%convect(idime) * &
+                     & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
              end do
              ! react ( u, v)
@@ -312,7 +325,7 @@ contains
                   & finite_element%integ(1)%p%uint_phy%shape(inode,igaus)
        end do
     end do
-
+    write(*,*) __FILE__,__LINE__, finite_element%p_mat%a
     call memfree(force%a,__FILE__,__LINE__)
     if(approx%physics%kfl_react>0) call memfree(gpunk%a,__FILE__,__LINE__)
 
