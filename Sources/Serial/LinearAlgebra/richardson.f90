@@ -101,7 +101,6 @@ contains
     
     ! Locals
     real(rp)                      :: res_norm, rhs_norm
-    integer(ip)                   :: me, np   
  
     ! Local variables to store a copy/reference of the corresponding member variables of base class
     class(environment_t), pointer :: environment
@@ -135,21 +134,47 @@ contains
     error_estimate_convergence_test         => this%get_pointer_error_estimate_convergence_test()
     error_estimate_history_convergence_test => this%get_pointer_error_estimate_history_convergence_test()
 
-    call environment%info(me,np)
-   
     ! Evaluate ||b||_2 if required
     if ( stopping_criteria == res_rhs ) then
         rhs_norm = b%nrm2()
     endif
  
-    did_converge = .false.
-    if ( environment%am_i_fine_task() ) then
-        if ((me == 0).and.(output_frequency/=0)) call this%print_convergence_history_header(luout)
-    end if
+    call this%print_convergence_history_header(luout)
 
     call x%copy(initial_solution)
+
+    ! r = Ax
+    call A%apply(x,this%r)
+
+    ! r = b-(r=Ax)
+    call this%r%axpby(1.0_rp,b,-1.0_rp)
+
+    ! Evaluate ||r||_L2
+    res_norm = this%r%nrm2()
+
+    ! Set upper bound (only in 1st iteration)
+    if ( stopping_criteria == res_rhs ) then
+       rhs_convergence_test = rtol * rhs_norm + atol 
+    else if ( stopping_criteria == res_res ) then
+       rhs_convergence_test = rtol * res_norm + atol
+    end if
+
+    error_estimate_convergence_test = res_norm
+    did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
+
+    ! Send converged to coarse-grid tasks
+    call environment%bcast(did_converge)
+
     num_iterations = 0
     loop_prichard: do while( (.not.did_converge) .and. (num_iterations < max_num_iterations))
+        ! z = inv(M) r
+        call M%apply(this%r, this%z)
+
+        ! x <- x + relax * z	
+        call x%axpby(this%relaxation,this%z,1.0_rp)
+
+        num_iterations = num_iterations + 1
+        
         ! r = Ax
         call A%apply(x,this%r)
 
@@ -159,39 +184,16 @@ contains
         ! Evaluate ||r||_L2
         res_norm = this%r%nrm2()
 
-        ! Set upper bound (only in 1st iteration)
-        if ( num_iterations == 1 ) then
-            if ( stopping_criteria == res_rhs ) then
-                rhs_convergence_test = rtol * rhs_norm + atol 
-            else if ( stopping_criteria == res_res ) then
-                rhs_convergence_test = rtol * res_norm + atol
-            end if
-        end if
         error_estimate_convergence_test = res_norm
-        if (num_iterations > 0 .and. track_convergence_history) then 
+        if (track_convergence_history) then 
           error_estimate_history_convergence_test(num_iterations) = error_estimate_convergence_test
         end if
+        call this%print_convergence_history_new_line(luout)
+
         did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
-
-        ! Send converged to coarse-grid tasks
-        call environment%bcast(did_converge)
-
-        if ( environment%am_i_fine_task() ) then
-            if ((num_iterations > 0).and.(me == 0).and.(output_frequency/=0)) call this%print_convergence_history_new_line(luout)
-        end if
-
-        ! z = inv(M) r
-        call M%apply(this%r, this%z)
-
-        ! x <- x + relax * z	
-        call x%axpby(this%relaxation,this%z,1.0_rp)
-
-        num_iterations = num_iterations + 1
     end do loop_prichard
 
-    if ( environment%am_i_fine_task() ) then
-        if ((me == 0).and.(output_frequency/=0)) call this%print_convergence_history_footer(luout)
-    end if
+    call this%print_convergence_history_footer(luout)
   end subroutine richardson_solve_body
 
   function richardson_supports_stopping_criteria(this,stopping_criteria)
@@ -209,32 +211,18 @@ contains
     richardson_get_default_stopping_criteria = default_richardson_stopping_criteria
   end function richardson_get_default_stopping_criteria
   
-  
   function create_richardson(environment)
     implicit none
     class(environment_t), intent(in) :: environment
     class(base_linear_solver_t), pointer :: create_richardson
-    class(richardson_t), pointer :: tmp_richardson
-    
-    ! Option 1: Does not require RTTI
-    allocate(tmp_richardson)
-    call tmp_richardson%set_environment(environment)
-    call tmp_richardson%set_name(richardson_name)
-    call tmp_richardson%set_defaults()
-    tmp_richardson%relaxation = default_richardson_relaxation
-    call tmp_richardson%set_state(start)
-    create_richardson => tmp_richardson
-    
-    ! Option 2: Requires RTTI
-    !allocate ( richardson_t :: create_richardson )
-    !call create_richardson%set_environment(environment)
-    !call create_richardson%set_name(richardson_name)
-    !call create_richardson%set_defaults()
-    !select type ( create_richardson )
-    !class is ( richardson_t )
-    !create_richardson%relaxation = default_richardson_relaxation
-    !end select
-    !call create_richardson%set_state(start)
+    class(richardson_t), pointer :: richardson
+    allocate(richardson)
+    call richardson%set_environment(environment)
+    call richardson%set_name(richardson_name)
+    call richardson%set_defaults()
+    richardson%relaxation = default_richardson_relaxation
+    call richardson%set_state(start)
+    create_richardson => richardson
   end function create_richardson
   
 end module richardson_names
