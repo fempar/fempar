@@ -354,7 +354,6 @@ program test_cdr
      class default
      check(.false.)
   end select
-  call my_matrix%print(6)
 
   array => fe_affine_operator%get_array()
   select type(array)
@@ -395,9 +394,9 @@ program test_cdr
   A => my_matrix
   x => my_array
   y => feunk
-  call feunk%print(6)
-  call my_array%print(6)
-  call my_matrix%print(6)
+  !call feunk%print(6)
+  !call my_array%print(6)
+  !call my_matrix%print(6)
 
   write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value()) !feunk%nrm2()
 

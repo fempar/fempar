@@ -325,7 +325,6 @@ contains
                   & finite_element%integ(1)%p%uint_phy%shape(inode,igaus)
        end do
     end do
-    write(*,*) __FILE__,__LINE__, finite_element%p_mat%a
     call memfree(force%a,__FILE__,__LINE__)
     if(approx%physics%kfl_react>0) call memfree(gpunk%a,__FILE__,__LINE__)
 

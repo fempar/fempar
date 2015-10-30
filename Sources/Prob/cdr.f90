@@ -153,7 +153,6 @@ contains
        call cdr_force(physics%ndime,physics%diffu,physics%react,physics%convect,params,force%a(igaus))
 
     end do
-    write(*,*) __FILE__,__LINE__,force%a
   end subroutine cdr_analytical_force
 
   !==================================================================================================
