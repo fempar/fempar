@@ -8,9 +8,9 @@ PROJECT(FEMPAR Fortran C)
 
 SET(${PROJECT_NAME}_VERSION 0.0.1)
 SET(${PROJECT_NAME}_SOVERSION 1)
-SET(SERIAL_LIB fem)   # SERIAL library
-SET(PROB_LIB prob) # PROB library
-SET(PAR_LIB par)   # PAR library
+SET(SERIAL_LIB serial)   # SERIAL library
+SET(PROB_LIB prob)       # PROB library
+SET(PAR_LIB par)         # PAR library
 SET(${PROJECT_NAME}_USER "" CACHE STRING "")
 
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
