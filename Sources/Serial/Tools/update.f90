@@ -35,14 +35,15 @@ module update_names
   use analytical_function_names
   use interpolation_tools_names
   use vector_names
+  use time_integration_names
   implicit none
 # include "debug.i90"
   private     
 
   ! Functions
-  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution, &
-       &    update_solution_mono, update_nonlinear_solution, update_analytical_initial, &
-       &    update_initialize, update_initialize_mono
+  public :: update_strong_dirichlet_bcond, update_analytical_bcond, update_solution,                &
+       &    update_solution_mono, update_nonlinear_solution, update_analytical_initial,             &
+       &    update_initialize, update_initialize_mono, update_transient_solution
  
 contains
   
@@ -330,6 +331,46 @@ contains
     end do
     
   end subroutine update_nonlinear_solution
+
+  !==================================================================================================
+  subroutine update_transient_solution(fe_space,working_vars,origin,destiny,time_integ)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the previous nonlinear solution.                                     !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(serial_fe_space_t)  , intent(inout) :: fe_space
+    integer(ip)              , intent(in)    :: working_vars(:)
+    integer(ip)    , optional, intent(in)    :: origin,destiny
+    class(time_integration_t), intent(in)    :: time_integ
+    ! Locals
+    integer(ip) :: ielem,ivar,origin_,destiny_,nvars,gvar
+
+    nvars = size(working_vars,1)
+
+    ! Set stored steps
+    if(present(origin)) then
+       origin_ = origin
+    else
+       origin_ = 1
+    end if
+    if(present(destiny)) then
+       destiny_ = destiny
+    else
+       destiny_ = 3
+    end if
+    
+    ! Update unkno
+    do ielem = 1, fe_space%g_trian%num_elems
+       do ivar = 1,nvars
+          !fe_space%finite_elements(ielem)%unkno(:,working_vars(ivar),destiny_) = &
+           !    &    fe_space%finite_elements(ielem)%unkno(:,working_vars(ivar),origin_)
+          gvar = working_vars(ivar)
+          call time_integ%update_solution(fe_space%finite_elements(ielem)%unkno(:,gvar,origin_),    &
+               &                          fe_space%finite_elements(ielem)%unkno(:,gvar,destiny_))
+       end do
+    end do
+    
+  end subroutine update_transient_solution
 
   !==================================================================================================
   subroutine update_initialize(vec,fe_space)

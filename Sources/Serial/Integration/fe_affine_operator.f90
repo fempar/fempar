@@ -91,6 +91,7 @@ contains
     assert ( associated(this%fe_space) )
     assert ( associated(this%matrix_array_assembler) )
     call this%fe_space%symbolic_setup_matrix_array_assembler(this%matrix_array_assembler)
+    call this%matrix_array_assembler%allocate()
   end subroutine fe_affine_operator_symbolic_setup
   
   subroutine fe_affine_operator_numerical_setup (this)
@@ -98,7 +99,7 @@ contains
     class(fe_affine_operator_t), intent(inout) :: this
     assert ( associated(this%fe_space) )
     assert ( associated(this%matrix_array_assembler) )
-    call this%matrix_array_assembler%allocate()
+    !call this%matrix_array_assembler%allocate()
     call this%fe_space%volume_integral(this%approximations,this%matrix_array_assembler)
   end subroutine fe_affine_operator_numerical_setup
  

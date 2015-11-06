@@ -33,24 +33,23 @@ module cdr_stabilized_continuous_Galerkin_names
   use element_fields_names
   use element_tools_names
   use finite_element_names
+  use time_integration_names
+  use theta_method_names
   implicit none
 # include "debug.i90"
   private 
 
   type, extends(discrete_problem_t) :: cdr_discrete_t
     integer(ip) ::   & 
-         kfl_thet,   & ! Flag for theta-method (0=BE, 1=CN)
-         kfl_lump,   & ! Flag for lumped mass submatrix
-         kfl_stab,   & ! Flag for stabilization of the convective term (Off=0; OSS=2)
-         kfl_proj,   & ! Flag for Projections weighted with tau's (On=1, Off=0)
-         tdimv         ! Number of temporal steps stored
-    real(rp) ::      &
-         dtinv,      & ! Inverse of time step
-         ctime,      & ! Current time 
-         k1tau,      & ! C1 constant on stabilization parameter 
-         k2tau         ! C2 constant on stabilization parameter 
+         kfl_stab    ! Flag for stabilization of the convective term (Off=0; SUPG = 1)
+    !real(rp) ::      &
+    !     ctime       ! Current time 
+
     contains
-      procedure :: create => cdr_create_discrete
+      procedure :: create        => cdr_create_discrete
+      procedure :: get_prev_step => cdr_get_prev_step
+      procedure :: get_prev_iter => cdr_get_prev_iter
+      procedure :: get_current   => cdr_get_current
    end type cdr_discrete_t
 
    type, extends(discrete_integration_t) :: cdr_approximation_t
@@ -71,13 +70,23 @@ module cdr_stabilized_continuous_Galerkin_names
       procedure :: free    => cdr_nonlinear_free
    end type cdr_nonlinear_t
 
+   type, extends(discrete_integration_t) :: cdr_transient_t
+      type(cdr_discrete_t), pointer :: discret
+      type(cdr_problem_t) , pointer :: physics
+      type(theta_method_t), pointer :: time_integ
+    contains
+      procedure :: create  => cdr_transient_create
+      procedure :: compute => cdr_transient
+      procedure :: free    => cdr_transient_free
+   end type cdr_transient_t
+
   ! Unkno components parameter definition
   integer(ip), parameter :: current   = 1
   integer(ip), parameter :: prev_iter = 2
   integer(ip), parameter :: prev_step = 3
 
 
- public :: cdr_approximation_t, cdr_discrete_t, cdr_nonlinear_t
+ public :: cdr_approximation_t, cdr_discrete_t, cdr_nonlinear_t,  cdr_transient_t
 
 contains
 
@@ -95,18 +104,7 @@ contains
     integer(ip) :: i
 
     ! Flags
-    discret%kfl_thet = 0 ! Theta-method time integration (BE=0, CN=0)
-    discret%kfl_stab = 0 ! Stabilization of convective term (0: Off, 2: OSS)
-    discret%kfl_proj = 0 ! Projections weighted with tau's (On=1, Off=0)
-
-    ! Problem variables
-    discret%k1tau  = 4.0_rp  ! C1 constant on stabilization parameter
-    discret%k2tau  = 2.0_rp  ! C2 constant on stabilization parameter
-
-    ! Time integration variables
-    discret%dtinv  = 1.0_rp ! Inverse of time step
-    discret%ctime  = 0.0_rp ! Current time
-    discret%tdimv  =  2     ! Number of temporal steps stored
+    discret%kfl_stab = 0 ! Stabilization of convective term (0: Off, 1: SUPG)
 
     discret%nvars = 1
     call memalloc(discret%nvars,discret%l2g_var,__FILE__,__LINE__)
@@ -120,6 +118,39 @@ contains
     end if
     
   end subroutine cdr_create_discrete
+
+  !=================================================================================================
+  integer function cdr_get_current(discret)
+    !---------------------------------------------------------------------------!
+    !   Give the value of the storing position of the current solution          !
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(cdr_discrete_t)    , intent(in) :: discret
+    
+    cdr_get_current = current
+  end function cdr_get_current
+
+  !=================================================================================================
+  integer function cdr_get_prev_iter(discret)
+    !---------------------------------------------------------------------------!
+    ! Give the value of the storing position of the previous nonlinear iteration!
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(cdr_discrete_t)    , intent(in) :: discret
+    
+    cdr_get_prev_iter = prev_iter
+  end function cdr_get_prev_iter
+
+  !=================================================================================================
+  integer function cdr_get_prev_step(discret)
+    !---------------------------------------------------------------------------!
+    !   Give the value of the storing position of the previous time step        !
+    !---------------------------------------------------------------------------!
+    implicit none
+    class(cdr_discrete_t)    , intent(in) :: discret
+    
+    cdr_get_prev_step = prev_step
+  end function cdr_get_prev_step
 
   !=================================================================================================
   subroutine cdr_matvec_create( this, physics, discret )
@@ -178,6 +209,35 @@ contains
   end subroutine cdr_nonlinear_create
 
   !=================================================================================================
+  subroutine cdr_transient_create( this, physics, discret)
+    implicit none
+    class(cdr_transient_t)           , intent(inout) :: this
+    class(physical_problem_t), target, intent(in)    :: physics
+    class(discrete_problem_t), target, intent(in)    :: discret
+
+    select type (physics)
+    type is(cdr_problem_t)
+       this%physics => physics
+    class default
+       check(.false.)
+    end select 
+    select type (discret)
+    type is(cdr_discrete_t)
+       this%discret => discret
+    class default
+       check(.false.)
+    end select
+
+    ! Allocate working variables
+    call memalloc(1,this%working_vars,__FILE__,__LINE__)
+    this%working_vars(1) = 1
+
+    this%domain_dimension = 3 
+
+    
+  end subroutine cdr_transient_create
+
+  !=================================================================================================
   subroutine cdr_matvec_free(this)
     implicit none
     class(cdr_approximation_t)  , intent(inout) :: this
@@ -202,6 +262,19 @@ contains
     call memfree(this%working_vars,__FILE__,__LINE__)
 
   end subroutine cdr_nonlinear_free
+
+  !=================================================================================================
+  subroutine cdr_transient_free(this)
+    implicit none
+    class(cdr_transient_t)  , intent(inout) :: this
+
+    this%physics => null()
+    this%discret => null()
+
+    ! Deallocate working variables
+    call memfree(this%working_vars,__FILE__,__LINE__)
+
+  end subroutine cdr_transient_free
 
   !=================================================================================================
   subroutine cdr_matvec(this,finite_element)
@@ -288,15 +361,14 @@ contains
        ! Compute analytical reaction
        if(this%physics%kfl_react>0) then
           call cdr_analytical_reaction(this%physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
-               &                       gpunk%a(igaus),this%physics%kfl_react,this%physics%react)
+               &                       gpunk%a(igaus),this%physics%kfl_react,this%physics%reaction)
        end if
 
        ! Compute analytical convection
        if (this%physics%kfl_conv>0) then
-          call cdr_analytical_convection(this%physics%ndime,                                      &
+          call cdr_analytical_convection(this%physics%ndime,                                        &
                &                         finite_element%integ(1)%p%femap%clocs(:,igaus),            &
-               &                         this%physics%kfl_conv,this%discret%ctime,              &
-               &                         this%physics%convect)
+               &                         this%physics%kfl_conv,0.0_rp,this%physics%convection)
        end if
        
        do inode = 1, nnode
@@ -304,18 +376,18 @@ contains
              do idime = 1,ndime
                 ! nu (grad u, grad v)
                 finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
-                     & factor * this%physics%diffu * &
+                     & factor * this%physics%diffusion * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
                 ! (b·grad u, v)
                 finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
-                     & factor * this%physics%convect(idime) * &
+                     & factor * this%physics%convection(idime) * &
                      & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
              end do
              ! react ( u, v)
              finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
-                  & factor * this%physics%react * &
+                  & factor * this%physics%reaction * &
                   & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
                   & finite_element%integ(1)%p%uint_phy%shape(jnode,igaus)
           end do
@@ -332,5 +404,97 @@ contains
     call impose_strong_dirichlet_data(finite_element) 
 
   end subroutine cdr_nonlinear
+
+ !=================================================================================================
+  subroutine cdr_transient(this,finite_element)
+    implicit none
+    class(cdr_transient_t), intent(inout) :: this
+    type(finite_element_t), intent(inout) :: finite_element
+    ! Locals
+    type(scalar_t) :: force,gpunk, prev_unkno
+    integer(ip)    :: idime,igaus,inode,jnode,ngaus,nnode,ndime
+    real(rp)       :: factor,work(4)
+
+    work = 0.0_rp
+    finite_element%p_mat%a = 0.0_rp
+    finite_element%p_vec%a = 0.0_rp
+    ndime = this%physics%ndime
+    nnode = finite_element%integ(1)%p%uint_phy%nnode
+    ngaus = finite_element%integ(1)%p%uint_phy%nlocs
+
+    ! Set force term
+    call create_scalar(this%physics,1,finite_element%integ,force)
+    force%a=0.0_rp
+    ! Impose analytical solution
+    if(finite_element%p_analytical_code%a(1,1)>0) then 
+       call cdr_analytical_force(this%physics,finite_element,this%time_integ%ctime,force)
+    end if
+
+    ! Unknown interpolation
+    if(this%physics%kfl_react>0) then
+       call create_scalar(this%physics,1,finite_element%integ,gpunk)
+       call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpunk)
+    end if
+
+    ! Previous step unkno interpolation
+    call create_scalar(this%physics,1,finite_element%integ,prev_unkno)
+    if (this%time_integ%dtinv > 0.0_rp) then
+       call interpolation(finite_element%unkno,1,prev_step,finite_element%integ,prev_unkno)
+    end if
+    
+    do igaus = 1,ngaus
+       factor = finite_element%integ(1)%p%femap%detjm(igaus) *                                      &
+            &   finite_element%integ(1)%p%quad%weight(igaus)
+
+       ! Compute analytical reaction
+       if(this%physics%kfl_react>0) then
+          call cdr_analytical_reaction(this%physics%ndime,                                          &
+               &                       finite_element%integ(1)%p%femap%clocs(:,igaus),              &
+               &                       gpunk%a(igaus),this%physics%kfl_react,this%physics%reaction)
+       end if
+
+       ! Compute analytical convection
+       if (this%physics%kfl_conv>0) then
+          call cdr_analytical_convection(this%physics%ndime,                                        &
+               &                         finite_element%integ(1)%p%femap%clocs(:,igaus),            &
+               &                         this%physics%kfl_conv,this%time_integ%ctime,               &
+               &                         this%physics%convection)
+       end if
+       
+       do inode = 1, nnode
+          do jnode = 1, nnode
+             do idime = 1,ndime
+                ! nu (grad u, grad v)
+                finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +         &
+                     & factor * this%physics%diffusion *                                            &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus) *                &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
+                ! (b·grad u, v)
+                finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +         &
+                     & factor * this%physics%convection(idime) *                                    &
+                     & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) *                      &
+                     & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
+             end do
+             ! (react + 1/dt) ( u, v)
+             finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +            &
+                  & factor * (this%physics%reaction + this%time_integ%dtinv) *                      &
+                  & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) *                         &
+                  & finite_element%integ(1)%p%uint_phy%shape(jnode,igaus)
+          end do
+          ! Force term (f,v)
+          finite_element%p_vec%a(inode) = finite_element%p_vec%a(inode) +                           &
+                  & factor * (force%a(igaus) + prev_unkno%a(igaus)*this%time_integ%dtinv) *         &
+                  & finite_element%integ(1)%p%uint_phy%shape(inode,igaus)
+       end do
+    end do
+
+    call memfree(force%a,__FILE__,__LINE__)
+    if(this%physics%kfl_react>0) call memfree(gpunk%a,__FILE__,__LINE__)
+    call memfree(prev_unkno%a,__FILE__,__LINE__)
+
+    ! Apply boundary conditions
+    call impose_strong_dirichlet_data(finite_element) 
+
+  end subroutine cdr_transient
 
 end module cdr_stabilized_continuous_Galerkin_names
