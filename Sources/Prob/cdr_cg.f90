@@ -122,91 +122,91 @@ contains
   end subroutine cdr_create_discrete
 
   !=================================================================================================
-  subroutine cdr_matvec_create( approx, physics, discret )
+  subroutine cdr_matvec_create( this, physics, discret )
     implicit none
-    class(cdr_approximation_t)       , intent(inout) :: approx
+    class(cdr_approximation_t)       , intent(inout) :: this
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
 
     select type (physics)
     type is(cdr_problem_t)
-       approx%physics => physics
+       this%physics => physics
     class default
        check(.false.)
     end select 
     select type (discret)
     type is(cdr_discrete_t)
-       approx%discret => discret
+       this%discret => discret
     class default
        check(.false.)
     end select
 
     ! Allocate working variables
-    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
-    approx%working_vars(1) = 1
+    call memalloc(1,this%working_vars,__FILE__,__LINE__)
+    this%working_vars(1) = 1
 
-    approx%domain_dimension = 3 
+    this%domain_dimension = 3 
 
   end subroutine cdr_matvec_create
 
   !=================================================================================================
-  subroutine cdr_nonlinear_create( approx, physics, discret )
+  subroutine cdr_nonlinear_create( this, physics, discret )
     implicit none
-    class(cdr_nonlinear_t)       , intent(inout) :: approx
+    class(cdr_nonlinear_t)       , intent(inout) :: this
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
 
     select type (physics)
     type is(cdr_problem_t)
-       approx%physics => physics
+       this%physics => physics
     class default
        check(.false.)
     end select 
     select type (discret)
     type is(cdr_discrete_t)
-       approx%discret => discret
+       this%discret => discret
     class default
        check(.false.)
     end select
 
     ! Allocate working variables
-    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
-    approx%working_vars(1) = 1
+    call memalloc(1,this%working_vars,__FILE__,__LINE__)
+    this%working_vars(1) = 1
 
-    approx%domain_dimension = 3 
+    this%domain_dimension = 3 
 
   end subroutine cdr_nonlinear_create
 
   !=================================================================================================
-  subroutine cdr_matvec_free(approx)
+  subroutine cdr_matvec_free(this)
     implicit none
-    class(cdr_approximation_t)  , intent(inout) :: approx
+    class(cdr_approximation_t)  , intent(inout) :: this
 
-    approx%physics => null()
-    approx%discret => null()
+    this%physics => null()
+    this%discret => null()
 
     ! Deallocate working variables
-    call memfree(approx%working_vars,__FILE__,__LINE__)
+    call memfree(this%working_vars,__FILE__,__LINE__)
 
   end subroutine cdr_matvec_free
 
   !=================================================================================================
-  subroutine cdr_nonlinear_free(approx)
+  subroutine cdr_nonlinear_free(this)
     implicit none
-    class(cdr_nonlinear_t)  , intent(inout) :: approx
+    class(cdr_nonlinear_t)  , intent(inout) :: this
 
-    approx%physics => null()
-    approx%discret => null()
+    this%physics => null()
+    this%discret => null()
 
     ! Deallocate working variables
-    call memfree(approx%working_vars,__FILE__,__LINE__)
+    call memfree(this%working_vars,__FILE__,__LINE__)
 
   end subroutine cdr_nonlinear_free
 
   !=================================================================================================
-  subroutine cdr_matvec(approx,finite_element)
+  subroutine cdr_matvec(this,finite_element)
     implicit none
-    class(cdr_approximation_t), intent(inout) :: approx
+    class(cdr_approximation_t), intent(inout) :: this
     type(finite_element_t)    , intent(inout) :: finite_element
 
     type(basis_function_t) :: u ! Trial
@@ -227,7 +227,7 @@ contains
 
     finite_element%p_mat%a = 0.0_rp
     finite_element%p_vec%a = 0.0_rp
-    ndime = approx%physics%ndime
+    ndime = this%physics%ndime
 
 
     nnode = finite_element%integ(1)%p%uint_phy%nnode
@@ -252,9 +252,9 @@ contains
   end subroutine cdr_matvec
 
   !=================================================================================================
-  subroutine cdr_nonlinear(approx,finite_element)
+  subroutine cdr_nonlinear(this,finite_element)
     implicit none
-    class(cdr_nonlinear_t), intent(inout) :: approx
+    class(cdr_nonlinear_t), intent(inout) :: this
     type(finite_element_t)    , intent(inout) :: finite_element
     ! Locals
     type(scalar_t) :: force,gpunk
@@ -264,21 +264,21 @@ contains
     work = 0.0_rp
     finite_element%p_mat%a = 0.0_rp
     finite_element%p_vec%a = 0.0_rp
-    ndime = approx%physics%ndime
+    ndime = this%physics%ndime
     nnode = finite_element%integ(1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%uint_phy%nlocs
 
     ! Set force term
-    call create_scalar(approx%physics,1,finite_element%integ,force)
+    call create_scalar(this%physics,1,finite_element%integ,force)
     force%a=0.0_rp
     ! Impose analytical solution
     if(finite_element%p_analytical_code%a(1,1)>0) then 
-       call cdr_analytical_force(approx%physics,finite_element,0.0_rp,force)
+       call cdr_analytical_force(this%physics,finite_element,0.0_rp,force)
     end if
 
     ! Unknown interpolation
-    if(approx%physics%kfl_react>0) then
-       call create_scalar(approx%physics,1,finite_element%integ,gpunk)
+    if(this%physics%kfl_react>0) then
+       call create_scalar(this%physics,1,finite_element%integ,gpunk)
        call interpolation(finite_element%unkno,1,prev_iter,finite_element%integ,gpunk)
     end if
     
@@ -286,17 +286,17 @@ contains
        factor = finite_element%integ(1)%p%femap%detjm(igaus) * finite_element%integ(1)%p%quad%weight(igaus)
 
        ! Compute analytical reaction
-       if(approx%physics%kfl_react>0) then
-          call cdr_analytical_reaction(approx%physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
-               &                       gpunk%a(igaus),approx%physics%kfl_react,approx%physics%react)
+       if(this%physics%kfl_react>0) then
+          call cdr_analytical_reaction(this%physics%ndime,finite_element%integ(1)%p%femap%clocs(:,igaus), &
+               &                       gpunk%a(igaus),this%physics%kfl_react,this%physics%react)
        end if
 
        ! Compute analytical convection
-       if (approx%physics%kfl_conv>0) then
-          call cdr_analytical_convection(approx%physics%ndime,                                      &
+       if (this%physics%kfl_conv>0) then
+          call cdr_analytical_convection(this%physics%ndime,                                      &
                &                         finite_element%integ(1)%p%femap%clocs(:,igaus),            &
-               &                         approx%physics%kfl_conv,approx%discret%ctime,              &
-               &                         approx%physics%convect)
+               &                         this%physics%kfl_conv,this%discret%ctime,              &
+               &                         this%physics%convect)
        end if
        
        do inode = 1, nnode
@@ -304,18 +304,18 @@ contains
              do idime = 1,ndime
                 ! nu (grad u, grad v)
                 finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
-                     & factor * approx%physics%diffu * &
+                     & factor * this%physics%diffu * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus) * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
                 ! (b·grad u, v)
                 finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
-                     & factor * approx%physics%convect(idime) * &
+                     & factor * this%physics%convect(idime) * &
                      & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
              end do
              ! react ( u, v)
              finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +  &
-                  & factor * approx%physics%react * &
+                  & factor * this%physics%react * &
                   & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) * &
                   & finite_element%integ(1)%p%uint_phy%shape(jnode,igaus)
           end do
@@ -326,7 +326,7 @@ contains
        end do
     end do
     call memfree(force%a,__FILE__,__LINE__)
-    if(approx%physics%kfl_react>0) call memfree(gpunk%a,__FILE__,__LINE__)
+    if(this%physics%kfl_react>0) call memfree(gpunk%a,__FILE__,__LINE__)
 
     ! Apply boundary conditions
     call impose_strong_dirichlet_data(finite_element) 

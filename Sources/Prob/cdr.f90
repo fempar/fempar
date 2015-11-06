@@ -62,7 +62,7 @@ contains
   !=================================================================================================
   subroutine cdr_create( prob, ndime)
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine contains definitions of the Navier-Stokes problem                          !
+    !   This subroutine contains definitions of the Convection-Diffusion-Reaction problem          !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(cdr_problem_t), intent(inout) :: prob
@@ -99,7 +99,7 @@ contains
   !=================================================================================================
   subroutine cdr_free( prob )
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine contains definitions of the Navier-Stokes problem                          !
+    !   This subroutine contains definitions of the  Convection-Diffusion-Reaction problem         !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(cdr_problem_t), intent(inout) :: prob

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_continuous_Galerkin_names
+module poisson_continuous_galerkin_names
   use types_names
   use memor_names
   use problem_names
@@ -39,28 +39,27 @@ module poisson_continuous_Galerkin_names
 
   type, extends(discrete_problem_t) :: poisson_discrete_t
      contains
-      procedure :: create => poisson_create_discrete
+      procedure :: create => poisson_discrete_create
    end type poisson_discrete_t
 
-   type, extends(discrete_integration_t) :: poisson_nonlinear_t
+   type, extends(discrete_integration_t) :: poisson_integration_t
       type(poisson_discrete_t), pointer :: discret
       type(poisson_problem_t) , pointer :: physics
     contains
-      procedure :: create  => poisson_nonlinear_create
-      procedure :: compute => poisson_nonlinear
-      procedure :: free    => poisson_nonlinear_free
-   end type poisson_nonlinear_t
+      procedure :: create  => poisson_integration_create
+      procedure :: compute => poisson_integration_compute
+      procedure :: free    => poisson_integration_free
+   end type poisson_integration_t
 
- public :: poisson_discrete_t, poisson_nonlinear_t
+ public :: poisson_discrete_t, poisson_integration_t
 
 contains
 
   !=================================================================================================
-  subroutine poisson_create_discrete(discret,physics,l2g)
-    !---------------------------------------------------------------------------!
-    !   This subroutine contains definitions of the poisson problem approximed by   !
-    !   a stabilised finite element formulation with inf-sup stable elemets.    !
-    !---------------------------------------------------------------------------!
+  subroutine poisson_discrete_create(discret,physics,l2g)
+    !----------------------------------------------------------------------------------------------!
+    !This subroutine contains definitions of the poisson problem approximed by continuous Galerkin.!
+    !----------------------------------------------------------------------------------------------!
     implicit none
     class(poisson_discrete_t)    , intent(out) :: discret
     class(physical_problem_t), intent(in)  :: physics
@@ -79,53 +78,53 @@ contains
        end do
     end if
     
-  end subroutine poisson_create_discrete
+  end subroutine poisson_discrete_create
 
   !=================================================================================================
-  subroutine poisson_nonlinear_create( approx, physics, discret )
+  subroutine poisson_integration_create( this, physics, discret )
     implicit none
-    class(poisson_nonlinear_t)       , intent(inout) :: approx
+    class(poisson_integration_t)     , intent(inout) :: this
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
 
     select type (physics)
     type is(poisson_problem_t)
-       approx%physics => physics
+       this%physics => physics
     class default
        check(.false.)
     end select 
     select type (discret)
     type is(poisson_discrete_t)
-       approx%discret => discret
+       this%discret => discret
     class default
        check(.false.)
     end select
 
     ! Allocate working variables
-    call memalloc(1,approx%working_vars,__FILE__,__LINE__)
-    approx%working_vars(1) = 1
+    call memalloc(1,this%working_vars,__FILE__,__LINE__)
+    this%working_vars(1) = 1
 
-    approx%domain_dimension = 3 
+    this%domain_dimension = 3 
 
-  end subroutine poisson_nonlinear_create
+  end subroutine poisson_integration_create
 
   !=================================================================================================
-  subroutine poisson_nonlinear_free(approx)
+  subroutine poisson_integration_free(this)
     implicit none
-    class(poisson_nonlinear_t)  , intent(inout) :: approx
+    class(poisson_integration_t)  , intent(inout) :: this
 
-    approx%physics => null()
-    approx%discret => null()
+    this%physics => null()
+    this%discret => null()
 
     ! Deallocate working variables
-    call memfree(approx%working_vars,__FILE__,__LINE__)
+    call memfree(this%working_vars,__FILE__,__LINE__)
 
-  end subroutine poisson_nonlinear_free
+  end subroutine poisson_integration_free
 
   !=================================================================================================
-  subroutine poisson_nonlinear(approx,finite_element)
+  subroutine poisson_integration_compute(this,finite_element)
     implicit none
-    class(poisson_nonlinear_t), intent(inout) :: approx
+    class(poisson_integration_t), intent(inout) :: this
     type(finite_element_t)    , intent(inout) :: finite_element
     ! Locals
     type(scalar_t) :: force
@@ -134,16 +133,16 @@ contains
 
     finite_element%p_mat%a = 0.0_rp
     finite_element%p_vec%a = 0.0_rp
-    ndime = approx%physics%ndime
+    ndime = this%physics%ndime
     nnode = finite_element%integ(1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%uint_phy%nlocs
 
     ! Set force term
-    call create_scalar(approx%physics,1,finite_element%integ,force)
+    call create_scalar(this%physics,1,finite_element%integ,force)
     force%a=0.0_rp
     ! Impose analytical solution
     if(finite_element%p_analytical_code%a(1,1)>0) then 
-       call poisson_analytical_force(approx%physics,finite_element,0.0_rp,force)
+       call poisson_analytical_force(this%physics,finite_element,0.0_rp,force)
     end if
 
     do igaus = 1,ngaus
@@ -155,7 +154,7 @@ contains
              do idime = 1,ndime
                 ! nu (grad u, grad v)
                 finite_element%p_mat%a(inode,jnode) = finite_element%p_mat%a(inode,jnode) +         &
-                     & factor * approx%physics%diffu *                                              &
+                     & factor * this%physics%diffu *                                                &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,inode,igaus) *                &
                      & finite_element%integ(1)%p%uint_phy%deriv(idime,jnode,igaus)
              end do
@@ -172,6 +171,6 @@ contains
     ! Apply boundary conditions
     call impose_strong_dirichlet_data(finite_element) 
 
-  end subroutine poisson_nonlinear
+  end subroutine poisson_integration_compute
 
-end module poisson_continuous_Galerkin_names
+end module poisson_continuous_galerkin_names

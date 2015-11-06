@@ -438,7 +438,7 @@ contains
          &        authors     = '',                                                                 & 
          &        license     = '',                                                                 &
          &        description =                                                                     &
-         &    'Parallel FEMPAR driver to solve transient CDR problems using Continuous-Galerkin .', &
+         &    'Serial FEMPAR driver to solve transient CDR problems using Continuous-Galerkin .',   &
          &        examples    = ['test_cdr -h         ', 'test_cdr analytical -h ' ])
 
     ! Set Command Line Arguments Groups, i.e. commands

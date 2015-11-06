@@ -56,7 +56,7 @@ contains
   !=================================================================================================
   subroutine poisson_create( prob, ndime)
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine contains definitions of the Navier-Stokes problem                          !
+    !   This subroutine contains definitions of the Poisson problem                                !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(poisson_problem_t), intent(inout) :: prob
@@ -85,7 +85,7 @@ contains
   !=================================================================================================
   subroutine poisson_free( prob )
     !----------------------------------------------------------------------------------------------!
-    !   This subroutine contains definitions of the Navier-Stokes problem                          !
+    !   This subroutine contains definitions of the Poisson problem                                !
     !----------------------------------------------------------------------------------------------!
     implicit none
     class(poisson_problem_t), intent(inout) :: prob
