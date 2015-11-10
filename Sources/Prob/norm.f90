@@ -55,52 +55,52 @@ module norm_names
 contains
 
   !==================================================================================================
-  subroutine error_norm_create(approx,physics,discret)
+  subroutine error_norm_create(this,physics,discret)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine creates the pointers needed for the discrete integration type              !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(error_norm_t)              , intent(inout) :: approx
+    class(error_norm_t)              , intent(inout) :: this
     class(physical_problem_t), target, intent(in)    :: physics
     class(discrete_problem_t), target, intent(in)    :: discret
 
-    approx%physics => physics
-    approx%discret => discret
-    approx%unknown_id = 0
-    approx%ctime = 0.0_rp
-    approx%alpha = 0.0_rp
-    approx%beta  = 0.0_rp
-    approx%gamma = 0.0_rp
+    this%physics => physics
+    this%discret => discret
+    this%unknown_id = 0
+    this%ctime = 0.0_rp
+    this%alpha = 0.0_rp
+    this%beta  = 0.0_rp
+    this%gamma = 0.0_rp
 
-    approx%domain_dimension = 3
+    this%domain_dimension = 3
     
   end subroutine error_norm_create
 
   !=================================================================================================
-  subroutine error_norm_free(approx)
+  subroutine error_norm_free(this)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine deallocates the pointers needed for the discrete integration type          !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(error_norm_t), intent(inout) :: approx
+    class(error_norm_t), intent(inout) :: this
 
-    approx%physics => null()
-    approx%discret => null()
-    approx%unknown_id = 0
-    approx%ctime = 0.0_rp
-    approx%alpha = 0.0_rp
-    approx%beta  = 0.0_rp
-    approx%gamma = 0.0_rp
+    this%physics => null()
+    this%discret => null()
+    this%unknown_id = 0
+    this%ctime = 0.0_rp
+    this%alpha = 0.0_rp
+    this%beta  = 0.0_rp
+    this%gamma = 0.0_rp
 
   end subroutine error_norm_free
 
   !=================================================================================================
-  subroutine error_norm_compute(approx,finite_element)
+  subroutine error_norm_compute(this,finite_element)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine performs the elemental error norm integration.                             !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(error_norm_t)   , intent(inout) :: approx
+    class(error_norm_t)   , intent(inout) :: this
     type(finite_element_t), intent(inout) :: finite_element
     ! Locals
     integer(ip)    :: initial_unknown,final_unknown,iunkn,ivar,jvar,igaus
@@ -108,12 +108,12 @@ contains
     type(vector_t) :: gpvector
     type(scalar_t) :: gpscalar
 
-    if(approx%unknown_id == 0) then
+    if(this%unknown_id == 0) then
        initial_unknown = 1
-       final_unknown = approx%physics%nunks
+       final_unknown = this%physics%nunks
     else
-       initial_unknown = approx%unknown_id
-       final_unknown   = approx%unknown_id
+       initial_unknown = this%unknown_id
+       final_unknown   = this%unknown_id
     end if
 
     ! Initialize scalar
@@ -122,27 +122,27 @@ contains
     do iunkn = initial_unknown,final_unknown
 
        ivar = 1
-       if(iunkn>1) ivar = sum(approx%physics%vars_of_unk(1:iunkn))
+       if(iunkn>1) ivar = sum(this%physics%vars_of_unk(1:iunkn))
        
        ! Vector unknown
-       if(approx%physics%vars_of_unk(iunkn)>1) then
+       if(this%physics%vars_of_unk(iunkn)>1) then
 
           ! Interpolation operations
-          call create_vector(approx%physics,iunkn,finite_element%integ,gpvector)
+          call create_vector(this%physics,iunkn,finite_element%integ,gpvector)
           call interpolation(finite_element%unkno, ivar, 1, finite_element%integ, gpvector)
 
           ! Loop over Gauss points
           do igaus=1,finite_element%integ(1)%p%quad%ngaus
              dvolu=finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
 
-             do ivar=1,approx%physics%vars_of_unk(iunkn)
-                jvar = ivar + sum(approx%physics%vars_of_unk(1:iunkn-1))
+             do ivar=1,this%physics%vars_of_unk(iunkn)
+                jvar = ivar + sum(this%physics%vars_of_unk(1:iunkn-1))
 
                 ! Evaluate analytical unknown
                 call evaluate_analytical(finite_element%p_analytical_code%a(jvar,1),                      &
-                     &                   finite_element%p_analytical_code%a(jvar,2),approx%physics%ndime, &
+                     &                   finite_element%p_analytical_code%a(jvar,2),this%physics%ndime,   &
                      &                   finite_element%integ(1)%p%femap%clocs(:,igaus),                  &
-                     &                   approx%ctime,exact_values)
+                     &                   this%ctime,exact_values)
 
                 ! Error computation
                 finite_element%scalar = finite_element%scalar + &
@@ -157,23 +157,23 @@ contains
        end if
 
        ! Scalar unknown
-       if(approx%physics%vars_of_unk(iunkn)==1) then
+       if(this%physics%vars_of_unk(iunkn)==1) then
 
           ! Interpolation operations
-          call create_scalar(approx%physics,iunkn,finite_element%integ,gpscalar)
+          call create_scalar(this%physics,iunkn,finite_element%integ,gpscalar)
           call interpolation(finite_element%unkno, ivar, 1, finite_element%integ, gpscalar)
 
           ! Loop over Gauss points
           do igaus=1,finite_element%integ(1)%p%quad%ngaus
              dvolu=finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
 
-             jvar = 1 + sum(approx%physics%vars_of_unk(1:iunkn-1))
+             jvar = 1 + sum(this%physics%vars_of_unk(1:iunkn-1))
 
              ! Evaluate analytical unknown
              call evaluate_analytical(finite_element%p_analytical_code%a(jvar,1),                      &
-                  &                   finite_element%p_analytical_code%a(jvar,2),approx%physics%ndime, &
+                  &                   finite_element%p_analytical_code%a(jvar,2),this%physics%ndime,   &
                   &                   finite_element%integ(1)%p%femap%clocs(:,igaus),                  &
-                  &                   approx%ctime,exact_values)
+                  &                   this%ctime,exact_values)
 
              ! Error computation
              finite_element%scalar = finite_element%scalar + &

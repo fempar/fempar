@@ -111,42 +111,42 @@ contains
   end subroutine nsi_create_discrete
 
   !=================================================================================================
-  subroutine nsi_matvec_create( approx, physics, discret )
+  subroutine nsi_matvec_create( this, physics, discret )
     implicit none
-    class(nsi_cg_asgs_approximation_t), intent(inout) :: approx
+    class(nsi_cg_asgs_approximation_t), intent(inout) :: this
     class(physical_problem_t), target , intent(in)    :: physics
     class(discrete_problem_t), target , intent(in)    :: discret
 
     select type (physics)
     type is(nsi_problem_t)
-       approx%physics => physics
+       this%physics => physics
        class default
        check(.false.)
     end select
     select type (discret)
     type is(nsi_cg_asgs_discrete_t)
-       approx%discret => discret
+       this%discret => discret
        class default
        check(.false.)
     end select
 
-	approx%domain_dimension = 3
+	this%domain_dimension = 3
   end subroutine nsi_matvec_create
 
   !=================================================================================================
-  subroutine nsi_matvec_free(approx)
+  subroutine nsi_matvec_free(this)
     implicit none
-    class(nsi_cg_asgs_approximation_t)  , intent(inout) :: approx
+    class(nsi_cg_asgs_approximation_t)  , intent(inout) :: this
 
-    approx%physics => null()
-    approx%discret => null()
+    this%physics => null()
+    this%discret => null()
 
   end subroutine nsi_matvec_free
 
   !=================================================================================================
-  subroutine nsi_matvec(approx,finite_element)
+  subroutine nsi_matvec(this,finite_element)
     implicit none
-    class(nsi_cg_asgs_approximation_t), intent(inout) :: approx
+    class(nsi_cg_asgs_approximation_t), intent(inout) :: this
     type(finite_element_t)            , intent(inout) :: finite_element
 
     type(basis_function_t) :: u ! Trial
@@ -161,12 +161,12 @@ contains
     integer(ip)  :: ndime
     real(rp)     :: dtinv, c1, c2, mu
 
-    ndime = approx%physics%ndime
+    ndime = this%physics%ndime
        
-    u = basis_function_t(approx%physics,1,finite_element%start%a,finite_element%integ)
-    p = basis_function_t(approx%physics,2,finite_element%start%a,finite_element%integ)
-    v = basis_function_t(approx%physics,1,finite_element%start%a,finite_element%integ) 
-    q = basis_function_t(approx%physics,2,finite_element%start%a,finite_element%integ)
+    u = basis_function_t(this%physics,1,finite_element%start%a,finite_element%integ)
+    p = basis_function_t(this%physics,2,finite_element%start%a,finite_element%integ)
+    v = basis_function_t(this%physics,1,finite_element%start%a,finite_element%integ) 
+    q = basis_function_t(this%physics,2,finite_element%start%a,finite_element%integ)
 
     ! With a_h declared as given_function we could do:
     ! a_h   = given_function(approx,1,1,finite_element%integ)
@@ -180,8 +180,8 @@ contains
     ! The fields can be created once and reused on each element
     ! To do that we require an initial loop over elements and
     ! an initialization call.
-    call create_vector (approx%physics, 1, finite_element%integ, a)
-    call create_vector (approx%physics, 1, finite_element%integ, u_n)
+    call create_vector (this%physics, 1, finite_element%integ, a)
+    call create_vector (this%physics, 1, finite_element%integ, u_n)
     ! Then for each element fill values
     call interpolation (finite_element%unkno, 1, 1, finite_element%integ, a)
     call interpolation (finite_element%unkno, 1, 3, finite_element%integ, u_n)
@@ -191,11 +191,11 @@ contains
     h%a=finite_element%integ(1)%p%femap%hleng(ndime,:) ! min
 
     
-    mu = approx%physics%diffu
+    mu = this%physics%diffu
 
-    dtinv  = approx%discret%dtinv
-    c1 = approx%discret%k1tau
-    c2 = approx%discret%k1tau
+    dtinv  = this%discret%dtinv
+    c1 = this%discret%k1tau
+    c2 = this%discret%k1tau
 
     ! tau = c1*mu*inv(h*h) + c2*norm(a)*inv(h)
     tau = inv(tau)

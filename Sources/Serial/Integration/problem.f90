@@ -93,23 +93,23 @@ module problem_names
        class(physical_problem_t), intent(in)  :: physics
        integer(ip), optional  , intent(in)  :: l2g(:)
      end subroutine create_problem_interface
-     subroutine create_integration_interface( approx, physics, discret )
+     subroutine create_integration_interface( this, physics, discret )
        import :: discrete_integration_t, discrete_problem_t, physical_problem_t
        implicit none
-       class(discrete_integration_t)   , intent(inout) :: approx
+       class(discrete_integration_t)   , intent(inout) :: this
        class(physical_problem_t), target, intent(in)    :: physics
        class(discrete_problem_t), target, intent(in)    :: discret
      end subroutine create_integration_interface
-     subroutine compute_integration_interface(approx,finite_element)
+     subroutine compute_integration_interface(this,finite_element)
        import :: discrete_integration_t, finite_element_t
        implicit none
-       class(discrete_integration_t), intent(inout) :: approx
+       class(discrete_integration_t), intent(inout) :: this
        type(finite_element_t)       , intent(inout) :: finite_element
      end subroutine compute_integration_interface
-     subroutine free_integration_interface(approx)
+     subroutine free_integration_interface(this)
        import :: discrete_integration_t
        implicit none
-       class(discrete_integration_t), intent(inout) :: approx
+       class(discrete_integration_t), intent(inout) :: this
      end subroutine free_integration_interface
   end interface
 
@@ -125,9 +125,9 @@ contains
     if(allocated(prob%l2g_var)) call memfree( prob%l2g_var, __FILE__, __LINE__ )
   end subroutine discrete_problem_free
 
-  subroutine compute_face(approx,fe_face)
+  subroutine compute_face(this,fe_face)
     implicit none
-    class(discrete_integration_t), intent(inout) :: approx
+    class(discrete_integration_t), intent(inout) :: this
     type(fe_face_t)              , intent(inout) :: fe_face
     write(*,*) 'Error: face integration not defined!!'
     check(.false.)

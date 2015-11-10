@@ -119,53 +119,53 @@ contains
   end subroutine nsi_create_discrete
 
   !=================================================================================================
-  subroutine nsi_matvec_create( approx, physics, discret )
+  subroutine nsi_matvec_create( this, physics, discret )
     !----------------------------------------------------------------------------------------------!
     !   This subroutine creates the pointers needed for the discrete integration type              !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec_t)        , intent(inout) :: approx
+    class(nsi_cg_iss_matvec_t)        , intent(inout) :: this
     class(physical_problem_t), target , intent(in)    :: physics
     class(discrete_problem_t), target , intent(in)    :: discret
 
     select type (physics)
     type is(nsi_problem_t)
-       approx%physics => physics
+       this%physics => physics
        class default
        check(.false.)
     end select
     select type (discret)
     type is(nsi_cg_iss_discrete_t)
-       approx%discret => discret
+       this%discret => discret
        class default
        check(.false.)
     end select
 	
-    approx%domain_dimension = 3
+    this%domain_dimension = 3
 
 
   end subroutine nsi_matvec_create
 
   !=================================================================================================
-  subroutine nsi_matvec_free(approx)
+  subroutine nsi_matvec_free(this)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine deallocates the pointers needed for the discrete integration type          !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec_t), intent(inout) :: approx
+    class(nsi_cg_iss_matvec_t), intent(inout) :: this
 
-    approx%physics => null()
-    approx%discret => null()
+    this%physics => null()
+    this%discret => null()
 
   end subroutine nsi_matvec_free
 
   !=================================================================================================
-  subroutine nsi_matvec(approx,finite_element)
+  subroutine nsi_matvec(this,finite_element)
     !----------------------------------------------------------------------------------------------!
     !   This subroutine performs the elemental matrix-vector integration selection.                !
     !----------------------------------------------------------------------------------------------!
     implicit none
-    class(nsi_cg_iss_matvec_t), intent(inout) :: approx
+    class(nsi_cg_iss_matvec_t), intent(inout) :: this
     type(finite_element_t)    , intent(inout) :: finite_element
     ! Locals
     real(rp), allocatable :: elmat_vu(:,:,:,:)
@@ -181,9 +181,9 @@ contains
     type(vector_t)          :: gpvel, gpveln, force
 
     ! Checks
-    !check(finite_element%reference_element_vars(1)%p%order > finite_element%reference_element_vars(approx%physics%ndime+1)%p%order)
-    check(finite_element%integ(1)%p%quad%ngaus == finite_element%integ(approx%physics%ndime+1)%p%quad%ngaus)
-    do idime=2,approx%physics%ndime
+    !check(finite_element%reference_element_vars(1)%p%order > finite_element%reference_element_vars(this%physics%ndime+1)%p%order)
+    check(finite_element%integ(1)%p%quad%ngaus == finite_element%integ(this%physics%ndime+1)%p%quad%ngaus)
+    do idime=2,this%physics%ndime
        check(finite_element%integ(1)%p%uint_phy%nnode == finite_element%integ(idime)%p%uint_phy%nnode)
     end do
 
@@ -192,13 +192,13 @@ contains
     finite_element%p_vec%a = 0.0_rp
 
     ! Unpack variables
-    ndime = approx%physics%ndime
+    ndime = this%physics%ndime
     nnodu = finite_element%integ(1)%p%uint_phy%nnode
     nnodp = finite_element%integ(ndime+1)%p%uint_phy%nnode
     ngaus = finite_element%integ(1)%p%quad%ngaus
-    diffu = approx%physics%diffu
-    react = approx%physics%react
-    dtinv = approx%discret%dtinv
+    diffu = this%physics%diffu
+    react = this%physics%react
+    dtinv = this%discret%dtinv
 
     ! Allocate auxiliar matrices and vectors
     call memalloc(ndime,ndime,nnodu,nnodu,elmat_vu,__FILE__,__LINE__)
@@ -215,8 +215,8 @@ contains
     elvec_u       = 0.0_rp
 
     ! Interpolation operations for velocity
-    call create_vector (approx%physics, 1, finite_element%integ, gpvel)
-    call create_vector (approx%physics, 1, finite_element%integ, gpveln)
+    call create_vector (this%physics, 1, finite_element%integ, gpvel)
+    call create_vector (this%physics, 1, finite_element%integ, gpveln)
     call interpolation (finite_element%unkno, 1, prev_iter, finite_element%integ, gpvel)
     gpvel%a=0.0_rp
     if(dtinv == 0.0_rp) then
@@ -226,18 +226,18 @@ contains
     end if
 
     ! Set real time
-    if(approx%discret%kfl_thet==0) then        ! BE
-       ctime = approx%discret%ctime
-    elseif(approx%discret%kfl_thet==1) then    ! CN
-       ctime = approx%discret%ctime - 1.0_rp/dtinv
+    if(this%discret%kfl_thet==0) then        ! BE
+       ctime = this%discret%ctime
+    elseif(this%discret%kfl_thet==1) then    ! CN
+       ctime = this%discret%ctime - 1.0_rp/dtinv
     end if
 
     ! Set force term
-    call create_vector(approx%physics,1,finite_element%integ,force)
+    call create_vector(this%physics,1,finite_element%integ,force)
     force%a=0.0_rp
     ! Impose analytical solution
     if(finite_element%p_analytical_code%a(1,1)>0.and.finite_element%p_analytical_code%a(ndime+1,1)>0) then 
-       call nsi_analytical_force(approx%physics,finite_element,ctime,gpvel,force)
+       call nsi_analytical_force(this%physics,finite_element,ctime,gpvel,force)
     end if
     
     ! Initializations
@@ -249,7 +249,7 @@ contains
        dvolu = finite_element%integ(1)%p%quad%weight(igaus)*finite_element%integ(1)%p%femap%detjm(igaus)
 
        ! Auxiliar variables
-       if(approx%physics%kfl_conv.ne.0) then
+       if(this%physics%kfl_conv.ne.0) then
           do inode = 1,nnodu
              agran(inode) = 0.0_rp
              do idime = 1,ndime
@@ -260,8 +260,8 @@ contains
        end if
 
        ! Add external force term
-       do idime=1,approx%physics%ndime    
-          force%a(idime,igaus) = force%a(idime,igaus) + approx%physics%gravi(idime)
+       do idime=1,this%physics%ndime    
+          force%a(idime,igaus) = force%a(idime,igaus) + this%physics%gravi(idime)
        end do
 
        ! Computation of elemental terms
@@ -272,15 +272,15 @@ contains
             &          work)
 
        ! Add cross terms for symmetric grad
-       if(approx%physics%kfl_symg==1) then
+       if(this%physics%kfl_symg==1) then
           call elmvis_gal_sym(dvolu,diffu,finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),ndime,nnodu, &
                &              elmat_vu,work)
        end if
-       if(approx%physics%kfl_skew==0) then
+       if(this%physics%kfl_skew==0) then
           ! (v, a·grad u) + s*(v,u) + (v, u/dt)
           call elmbuv_gal(dvolu,react,dtinv,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
                &          elmat_vu_diag,work)
-       elseif(approx%physics%kfl_skew==1) then
+       elseif(this%physics%kfl_skew==1) then
           ! 1/2(v, a·grad u) - 1/2(u,a·grad v) + s*(v,u) + (v, u/dt)
           call elmbuv_gal_skew1(dvolu,react,dtinv,finite_element%integ(1)%p%uint_phy%shape(:,igaus),agran,nnodu, &
                &                elmat_vu_diag,work)

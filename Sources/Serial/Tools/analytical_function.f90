@@ -209,6 +209,14 @@ contains
        d2udy  = c*pi*pi*sin(pi*y)*sin(d*x)*cos(e*z)
        d2udyz = e*c*pi*cos(pi*y)*sin(d*x)*sin(e*z)
        d2udz  = e*e*c*sin(pi*y)*sin(d*x)*cos(e*z)
+
+    case(12)                ! u = x^2*y
+       u = x*(1.0_rp-x)*y*(1.0_rp-y)
+       dudx = (1.0_rp-x)*y*(1.0_rp-y) - x*y*(1.0_rp-y)
+       dudy = x*(1.0_rp-x)*(1.0_rp-y) - x*(1.0_rp-x)*y
+       d2udx = -y*(1.0_rp-y) - y*(1.0_rp-y)
+       d2udy = -x*(1.0_rp-x) - x*(1.0_rp-x)
+       d2udxy = (1.0_rp-x)*(1.0_rp-y) -x*(1.0_rp-y)- (1.0_rp-x)*y + x*y
     end select
     
     ! Component assignment
