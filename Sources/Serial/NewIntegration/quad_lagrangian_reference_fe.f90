@@ -1,6 +1,7 @@
 module quad_lagrangian_reference_fe_names
   use reference_fe_names
-  use quadrature_names
+  use SB_quadrature_names
+  use SB_interpolation_names
   use allocatable_array_ip1_names
   use types_names
   use memor_names
@@ -41,24 +42,53 @@ end subroutine create
 subroutine set_integration_rule ( this , quadrature, interpolation )
  implicit none 
  class(quad_lagrangian_reference_fe_t), intent(in) :: this
- class(quadrature_t), intent(in) :: quadrature
- class(interpolation_t), intent(out) :: interpolation
+ class(SB_quadrature_t), intent(in) :: quadrature
+ class(SB_interpolation_t), intent(out) :: interpolation
 
  ! Here we should put all the things in interpolation.f90
 end subroutine set_integration_rule
 
-subroutine create_interpolation ( this, quadrature, interpolation )
- implicit none 
- class(quad_lagrangian_reference_fe_t), intent(in) :: this 
- class(quadrature_t), intent(in) :: quadrature
- type(interpolation_t), intent(out) :: interpolation
+subroutine create_interpolation ( this, quadrature, interpolation, compute_hessian )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  class(SB_quadrature_t), intent(in) :: quadrature
+  type(SB_interpolation_t), intent(out) :: interpolation
+  logical, optional, intent(in) :: compute_hessian
+
+  integer(ip) :: nlocs
+
+  write(*,*) 'this%get_number_dimensions()',this%get_number_dimensions()
+  write(*,*) 'this%get_number_nodes()',this%get_number_nodes()
+  write(*,*) 'quadrature%get_number_integration_points()',quadrature%get_number_integration_points()
+  call interpolation%create( this%get_number_dimensions(), this%get_number_nodes(), &
+       quadrature%get_number_integration_points() )
+
+  nlocs = int(real(quadrature%get_number_integration_points())**(1.0_rp/real(this%get_number_dimensions())))
+  call fill_interpolation( interpolation, this%get_order(), this%get_number_dimensions(), &
+       nlocs, quadrature%get_pointer_coordinates(), compute_hessian )
+
 end subroutine create_interpolation
 
 subroutine create_quadrature ( this, quadrature, max_order )
  implicit none 
  class(quad_lagrangian_reference_fe_t), intent(in) :: this        
  integer(ip), optional, intent(in) :: max_order
- class(quadrature_t), intent(out) :: quadrature
+ class(SB_quadrature_t), intent(out) :: quadrature
+ integer(ip) :: ngaus, order
+
+
+ order = this%get_order()
+ if ( present(max_order) ) then
+    order = max_order
+ else
+    order = this%get_order()
+ end if
+
+ ngaus = (order + 1)**this%get_number_dimensions()
+
+ call quadrature%create( this%get_number_dimensions(), ngaus )
+ call fill_quadrature( quadrature )
+
 end subroutine create_quadrature
 
 subroutine fill (this)
@@ -82,7 +112,7 @@ subroutine fill (this)
  integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
 
  integer(ip), allocatable  :: aux(:),idm(:),fdm(:),ijk(:),ijk_g(:)
- 
+
  integer(ip), pointer :: number_vefs, number_nodes, number_vefs_dimension(:)
  type(allocatable_array_ip1_t), pointer ::  orientation
  type(list_t), pointer :: interior_nodes_vef, nodes_vef, corners_vef, vefs_vef
@@ -600,6 +630,792 @@ integer(ip) function fc(i)
     fc = fc*k
  end do
 end function fc
+
+
+!-----------------------------------------------------------------------
+subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
+  !-----------------------------------------------------------------------
+  !
+  !     This routine sets up the integration constants of open
+  !     integration rules for brick elements:
+  ! 
+  !          NDIME = 1             NDIME = 2             NDIME = 3
+  ! 
+  !      NGAUS  EXACT POL.     NGAUS  EXACT POL.     NGAUS  EXACT POL. 
+  !      -----  ----------     -----  ----------     -----  ----------
+  !        1      q1           1 x 1     q1          1x1x1     q1	
+  !        2      q3           2 x 2     q3          2x2x2     q3   
+  !        3      q5           3 x 3     q5          3x3x3     q5
+  !        4      q7           4 x 4     q7          4x4x4     q7
+  !        5      q9           5 x 5     q9          5x5x5     q9
+  !        6      q11          6 x 6     q11         6x6x6     q11
+  !        7      q13          7 x 7     q13         7x7x7     q13
+  !        8      q15          8 x 8     q15         8x8x8     q15
+  !       16      q31         16 x 16    q31        16x16x16   q31
+  ! 
+  !-----------------------------------------------------------------------
+ implicit none
+ type(SB_quadrature_t), intent(inout)  :: quadrature
+ real(rp)                 :: posgl(20),weigl(20)
+ integer(ip)              :: nlocs,igaus,ilocs,jlocs,klocs,ndime,ngaus
+
+ type(list_t), pointer :: interior_nodes_vef, nodes_vef, corners_vef, vefs_vef
+
+ real(rp), pointer :: coordinates(:,:), weight(:)
+
+ coordinates => quadrature%get_pointer_coordinates()
+ weight => quadrature%get_pointer_weight()
+ ndime = quadrature%get_number_dimensions()
+ ngaus = quadrature%get_number_integration_points()
+
+ if(ndime==1) then
+    nlocs=ngaus
+ else if(ndime==2) then
+    nlocs=nint(sqrt(real(ngaus,rp)))
+ else
+    nlocs=nint(real(ngaus,rp)**(1.0_rp/3.0_rp))
+ end if
+
+ if(nlocs==1) then
+    posgl(1)=0.0_rp
+    weigl(1)=2.0_rp
+ else if(nlocs==2) then
+    posgl(1)=-0.577350269189626_rp
+    posgl(2)= 0.577350269189626_rp
+    weigl(1)= 1.0_rp
+    weigl(2)= 1.0_rp
+ else if(nlocs==3) then
+    posgl(1)=-0.774596669241483_rp
+    posgl(2)= 0.0_rp
+    posgl(3)= 0.774596669241483_rp
+    weigl(1)= 0.555555555555556_rp
+    weigl(2)= 0.888888888888889_rp
+    weigl(3)= 0.555555555555556_rp
+ else if(nlocs==4)  then
+    posgl(1)=-0.861136311594053_rp
+    posgl(2)=-0.339981043584856_rp
+    posgl(3)= 0.339981043584856_rp
+    posgl(4)= 0.861136311594053_rp
+    weigl(1)= 0.347854845137454_rp
+    weigl(2)= 0.652145154862546_rp
+    weigl(3)= 0.652145154862546_rp
+    weigl(4)= 0.347854845137454_rp
+ else if(nlocs==5)  then
+    posgl(1) = -0.906179845938664_rp
+    posgl(2) = -0.538469310105683_rp
+    posgl(3) =  0.0_rp
+    posgl(4) =  0.538469310105683_rp
+    posgl(5) =  0.906179845938664_rp
+    weigl(1) =  0.236926885056189_rp
+    weigl(2) =  0.478628670499366_rp
+    weigl(3) =  0.568888888888889_rp
+    weigl(4) =  0.478628670499366_rp
+    weigl(5) =  0.236926885056189_rp
+ else if(nlocs==6)  then
+    posgl(1) = -0.932469514203152_rp
+    posgl(2) = -0.661209386466265_rp
+    posgl(3) = -0.238619186083197_rp
+    posgl(4) =  0.238619186083197_rp
+    posgl(5) =  0.661209386466265_rp
+    posgl(6) =  0.932469514203152_rp
+    weigl(1) =  0.171324492379170_rp
+    weigl(2) =  0.360761573048139_rp
+    weigl(3) =  0.467913934572691_rp
+    weigl(4) =  0.467913934572691_rp
+    weigl(5) =  0.360761573048139_rp
+    weigl(6) =  0.171324492379170_rp
+ else if(nlocs==7)  then
+    posgl(1) = -0.949107912342759_rp
+    posgl(2) = -0.741531185599394_rp
+    posgl(3) = -0.405845151377397_rp
+    posgl(4) =  0.0_rp
+    posgl(5) =  0.405845151377397_rp
+    posgl(6) =  0.741531185599394_rp
+    posgl(7) =  0.949107912342759_rp
+    weigl(1) =  0.129484966168870_rp
+    weigl(2) =  0.279705391489277_rp
+    weigl(3) =  0.381830050505119_rp
+    weigl(4) =  0.417959183673469_rp
+    weigl(5) =  0.381830050505119_rp
+    weigl(6) =  0.279705391489277_rp
+    weigl(7) =  0.129484966168870_rp
+ else if(nlocs==8)  then
+    posgl(1) = -0.960289856497536_rp
+    posgl(2) = -0.796666477413627_rp
+    posgl(3) = -0.525532409916329_rp
+    posgl(4) = -0.183434642495650_rp
+    posgl(5) =  0.183434642495650_rp
+    posgl(6) =  0.525532409916329_rp
+    posgl(7) =  0.796666477413627_rp
+    posgl(8) =  0.960289856497536_rp
+
+    weigl(1) =  0.101228536290376_rp
+    weigl(2) =  0.222381034453374_rp
+    weigl(3) =  0.313706645877887_rp
+    weigl(4) =  0.362683783378362_rp
+    weigl(5) =  0.362683783378362_rp
+    weigl(6) =  0.313706645877887_rp
+    weigl(7) =  0.222381034453374_rp
+    weigl(8) =  0.101228536290376_rp
+ else if(nlocs== 9 )  then 
+    posgl( 1 ) = 0.968160239507626_rp 
+    posgl( 2 ) = 0.836031107326636_rp 
+    posgl( 3 ) = 0.613371432700590_rp 
+    posgl( 4 ) = 0.324253423403809_rp 
+    posgl( 5 ) = 0.000000000000000_rp 
+    posgl( 6 ) = -0.324253423403809_rp 
+    posgl( 7 ) = -0.613371432700590_rp 
+    posgl( 8 ) = -0.836031107326636_rp 
+    posgl( 9 ) = -0.968160239507626_rp 
+
+    weigl( 1 ) = 0.081274388361575_rp 
+    weigl( 2 ) = 0.180648160694857_rp 
+    weigl( 3 ) = 0.260610696402936_rp 
+    weigl( 4 ) = 0.312347077040003_rp 
+    weigl( 5 ) = 0.330239355001260_rp 
+    weigl( 6 ) = 0.312347077040003_rp 
+    weigl( 7 ) = 0.260610696402936_rp 
+    weigl( 8 ) = 0.180648160694857_rp 
+    weigl( 9 ) = 0.081274388361575_rp 
+ else if(nlocs== 10 )  then 
+    posgl( 1 ) = 0.973906528517172_rp 
+    posgl( 2 ) = 0.865063366688985_rp 
+    posgl( 3 ) = 0.679409568299024_rp 
+    posgl( 4 ) = 0.433395394129247_rp 
+    posgl( 5 ) = 0.148874338981631_rp 
+    posgl( 6 ) = -0.148874338981631_rp 
+    posgl( 7 ) = -0.433395394129247_rp 
+    posgl( 8 ) = -0.679409568299024_rp 
+    posgl( 9 ) = -0.865063366688985_rp 
+    posgl( 10 ) = -0.973906528517172_rp 
+
+    weigl( 1 ) = 0.066671344308688_rp 
+    weigl( 2 ) = 0.149451349150581_rp 
+    weigl( 3 ) = 0.219086362515982_rp 
+    weigl( 4 ) = 0.269266719309996_rp 
+    weigl( 5 ) = 0.295524224714753_rp 
+    weigl( 6 ) = 0.295524224714753_rp 
+    weigl( 7 ) = 0.269266719309996_rp 
+    weigl( 8 ) = 0.219086362515982_rp 
+    weigl( 9 ) = 0.149451349150581_rp 
+    weigl( 10 ) = 0.066671344308688_rp 
+ else if(nlocs== 11 )  then 
+    posgl( 1 ) = 0.978228658146057_rp 
+    posgl( 2 ) = 0.887062599768095_rp 
+    posgl( 3 ) = 0.730152005574049_rp 
+    posgl( 4 ) = 0.519096129206812_rp 
+    posgl( 5 ) = 0.269543155952345_rp 
+    posgl( 6 ) = 0.000000000000000_rp 
+    posgl( 7 ) = -0.269543155952345_rp 
+    posgl( 8 ) = -0.519096129206812_rp 
+    posgl( 9 ) = -0.730152005574049_rp 
+    posgl( 10 ) = -0.887062599768095_rp 
+    posgl( 11 ) = -0.978228658146057_rp 
+
+    weigl( 1 ) = 0.055668567116174_rp 
+    weigl( 2 ) = 0.125580369464904_rp 
+    weigl( 3 ) = 0.186290210927734_rp 
+    weigl( 4 ) = 0.233193764591990_rp 
+    weigl( 5 ) = 0.262804544510247_rp 
+    weigl( 6 ) = 0.272925086777901_rp 
+    weigl( 7 ) = 0.262804544510247_rp 
+    weigl( 8 ) = 0.233193764591990_rp 
+    weigl( 9 ) = 0.186290210927734_rp 
+    weigl( 10 ) = 0.125580369464904_rp 
+    weigl( 11 ) = 0.055668567116174_rp 
+ else if(nlocs== 12 )  then 
+    posgl( 1 ) = 0.981560634246719_rp 
+    posgl( 2 ) = 0.904117256370475_rp 
+    posgl( 3 ) = 0.769902674194305_rp 
+    posgl( 4 ) = 0.587317954286617_rp 
+    posgl( 5 ) = 0.367831498998180_rp 
+    posgl( 6 ) = 0.125233408511469_rp 
+    posgl( 7 ) = -0.125233408511469_rp 
+    posgl( 8 ) = -0.367831498998180_rp 
+    posgl( 9 ) = -0.587317954286617_rp 
+    posgl( 10 ) = -0.769902674194305_rp 
+    posgl( 11 ) = -0.904117256370475_rp 
+    posgl( 12 ) = -0.981560634246719_rp 
+
+    weigl( 1 ) = 0.047175336386512_rp 
+    weigl( 2 ) = 0.106939325995318_rp 
+    weigl( 3 ) = 0.160078328543346_rp 
+    weigl( 4 ) = 0.203167426723066_rp 
+    weigl( 5 ) = 0.233492536538355_rp 
+    weigl( 6 ) = 0.249147045813403_rp 
+    weigl( 7 ) = 0.249147045813403_rp 
+    weigl( 8 ) = 0.233492536538355_rp 
+    weigl( 9 ) = 0.203167426723066_rp 
+    weigl( 10 ) = 0.160078328543346_rp 
+    weigl( 11 ) = 0.106939325995318_rp 
+    weigl( 12 ) = 0.047175336386512_rp 
+ else if(nlocs== 13 )  then 
+    posgl( 1 ) = 0.984183054718588_rp 
+    posgl( 2 ) = 0.917598399222978_rp 
+    posgl( 3 ) = 0.801578090733310_rp 
+    posgl( 4 ) = 0.642349339440340_rp 
+    posgl( 5 ) = 0.448492751036447_rp 
+    posgl( 6 ) = 0.230458315955135_rp 
+    posgl( 7 ) = 0.000000000000000_rp 
+    posgl( 8 ) = -0.230458315955135_rp 
+    posgl( 9 ) = -0.448492751036447_rp 
+    posgl( 10 ) = -0.642349339440340_rp 
+    posgl( 11 ) = -0.801578090733310_rp 
+    posgl( 12 ) = -0.917598399222978_rp 
+    posgl( 13 ) = -0.984183054718588_rp 
+
+    weigl( 1 ) = 0.040484004765316_rp 
+    weigl( 2 ) = 0.092121499837728_rp 
+    weigl( 3 ) = 0.138873510219787_rp 
+    weigl( 4 ) = 0.178145980761946_rp 
+    weigl( 5 ) = 0.207816047536888_rp 
+    weigl( 6 ) = 0.226283180262897_rp 
+    weigl( 7 ) = 0.232551553230874_rp 
+    weigl( 8 ) = 0.226283180262897_rp 
+    weigl( 9 ) = 0.207816047536888_rp 
+    weigl( 10 ) = 0.178145980761946_rp 
+    weigl( 11 ) = 0.138873510219787_rp 
+    weigl( 12 ) = 0.092121499837728_rp 
+    weigl( 13 ) = 0.040484004765316_rp 
+ else if(nlocs== 14 )  then 
+    posgl( 1 ) = 0.986283808696812_rp 
+    posgl( 2 ) = 0.928434883663574_rp 
+    posgl( 3 ) = 0.827201315069765_rp 
+    posgl( 4 ) = 0.687292904811685_rp 
+    posgl( 5 ) = 0.515248636358154_rp 
+    posgl( 6 ) = 0.319112368927890_rp 
+    posgl( 7 ) = 0.108054948707344_rp 
+    posgl( 8 ) = -0.108054948707344_rp 
+    posgl( 9 ) = -0.319112368927890_rp 
+    posgl( 10 ) = -0.515248636358154_rp 
+    posgl( 11 ) = -0.687292904811685_rp 
+    posgl( 12 ) = -0.827201315069765_rp 
+    posgl( 13 ) = -0.928434883663574_rp 
+    posgl( 14 ) = -0.986283808696812_rp 
+
+    weigl( 1 ) = 0.035119460331752_rp 
+    weigl( 2 ) = 0.080158087159760_rp 
+    weigl( 3 ) = 0.121518570687903_rp 
+    weigl( 4 ) = 0.157203167158194_rp 
+    weigl( 5 ) = 0.185538397477938_rp 
+    weigl( 6 ) = 0.205198463721296_rp 
+    weigl( 7 ) = 0.215263853463158_rp 
+    weigl( 8 ) = 0.215263853463158_rp 
+    weigl( 9 ) = 0.205198463721296_rp 
+    weigl( 10 ) = 0.185538397477938_rp 
+    weigl( 11 ) = 0.157203167158194_rp 
+    weigl( 12 ) = 0.121518570687903_rp 
+    weigl( 13 ) = 0.080158087159760_rp 
+    weigl( 14 ) = 0.035119460331752_rp 
+ else if(nlocs== 15 )  then 
+    posgl( 1 ) = 0.987992518020485_rp 
+    posgl( 2 ) = 0.937273392400706_rp 
+    posgl( 3 ) = 0.848206583410427_rp 
+    posgl( 4 ) = 0.724417731360170_rp 
+    posgl( 5 ) = 0.570972172608539_rp 
+    posgl( 6 ) = 0.394151347077563_rp 
+    posgl( 7 ) = 0.201194093997435_rp 
+    posgl( 8 ) = 0.000000000000000_rp 
+    posgl( 9 ) = -0.201194093997435_rp 
+    posgl( 10 ) = -0.394151347077563_rp 
+    posgl( 11 ) = -0.570972172608539_rp 
+    posgl( 12 ) = -0.724417731360170_rp 
+    posgl( 13 ) = -0.848206583410427_rp 
+    posgl( 14 ) = -0.937273392400706_rp 
+    posgl( 15 ) = -0.987992518020485_rp 
+
+    weigl( 1 ) = 0.030753241996117_rp 
+    weigl( 2 ) = 0.070366047488108_rp 
+    weigl( 3 ) = 0.107159220467172_rp 
+    weigl( 4 ) = 0.139570677926154_rp 
+    weigl( 5 ) = 0.166269205816994_rp 
+    weigl( 6 ) = 0.186161000015562_rp 
+    weigl( 7 ) = 0.198431485327112_rp 
+    weigl( 8 ) = 0.202578241925561_rp 
+    weigl( 9 ) = 0.198431485327112_rp 
+    weigl( 10 ) = 0.186161000015562_rp 
+    weigl( 11 ) = 0.166269205816994_rp 
+    weigl( 12 ) = 0.139570677926154_rp 
+    weigl( 13 ) = 0.107159220467172_rp 
+    weigl( 14 ) = 0.070366047488108_rp 
+    weigl( 15 ) = 0.030753241996117_rp 
+ else if(nlocs==16)  then
+    posgl( 1) =-0.98940093499165_rp
+    posgl( 2) =-0.94457502307323_rp
+    posgl( 3) =-0.86563120238783_rp
+    posgl( 4) =-0.75540440835500_rp
+    posgl( 5) =-0.61787624440264_rp
+    posgl( 6) =-0.45801677765723_rp
+    posgl( 7) =-0.28160355077926_rp
+    posgl( 8) =-0.09501250983764_rp
+    posgl( 9) = 0.09501250983764_rp
+    posgl(10) = 0.28160355077926_rp
+    posgl(11) = 0.45801677765723_rp
+    posgl(12) = 0.61787624440264_rp
+    posgl(13) = 0.75540440835500_rp
+    posgl(14) = 0.86563120238783_rp
+    posgl(15) = 0.94457502307323_rp
+    posgl(16) = 0.98940093499165_rp
+
+    weigl( 1) =  0.02715245941175_rp
+    weigl( 2) =  0.06225352393865_rp
+    weigl( 3) =  0.09515851168249_rp
+    weigl( 4) =  0.12462897125553_rp
+    weigl( 5) =  0.14959598881658_rp
+    weigl( 6) =  0.16915651939500_rp
+    weigl( 7) =  0.18260341504492_rp
+    weigl( 8) =  0.18945061045507_rp
+    weigl( 9) =  0.18945061045507_rp
+    weigl(10) =  0.18260341504492_rp
+    weigl(11) =  0.16915651939500_rp
+    weigl(12) =  0.14959598881658_rp
+    weigl(13) =  0.12462897125553_rp
+    weigl(14) =  0.09515851168249_rp
+    weigl(15) =  0.06225352393865_rp
+    weigl(16) =  0.02715245941175_rp
+ else if(nlocs== 17 )  then 
+    posgl( 1 ) = 0.990575475314417_rp 
+    posgl( 2 ) = 0.950675521768768_rp 
+    posgl( 3 ) = 0.880239153726986_rp 
+    posgl( 4 ) = 0.781514003896801_rp 
+    posgl( 5 ) = 0.657671159216691_rp 
+    posgl( 6 ) = 0.512690537086477_rp 
+    posgl( 7 ) = 0.351231763453876_rp 
+    posgl( 8 ) = 0.178484181495848_rp 
+    posgl( 9 ) = 0.000000000000000_rp 
+    posgl( 10 ) = -0.178484181495848_rp 
+    posgl( 11 ) = -0.351231763453876_rp 
+    posgl( 12 ) = -0.512690537086477_rp 
+    posgl( 13 ) = -0.657671159216691_rp 
+    posgl( 14 ) = -0.781514003896801_rp 
+    posgl( 15 ) = -0.880239153726986_rp 
+    posgl( 16 ) = -0.950675521768768_rp 
+    posgl( 17 ) = -0.990575475314417_rp 
+
+    weigl( 1 ) = 0.024148302868548_rp 
+    weigl( 2 ) = 0.055459529373987_rp 
+    weigl( 3 ) = 0.085036148317179_rp 
+    weigl( 4 ) = 0.111883847193404_rp 
+    weigl( 5 ) = 0.135136368468525_rp 
+    weigl( 6 ) = 0.154045761076810_rp 
+    weigl( 7 ) = 0.168004102156450_rp 
+    weigl( 8 ) = 0.176562705366993_rp 
+    weigl( 9 ) = 0.179446470356207_rp 
+    weigl( 10 ) = 0.176562705366993_rp 
+    weigl( 11 ) = 0.168004102156450_rp 
+    weigl( 12 ) = 0.154045761076810_rp 
+    weigl( 13 ) = 0.135136368468525_rp 
+    weigl( 14 ) = 0.111883847193404_rp 
+    weigl( 15 ) = 0.085036148317179_rp 
+    weigl( 16 ) = 0.055459529373987_rp 
+    weigl( 17 ) = 0.024148302868548_rp 
+ else if(nlocs== 18 )  then 
+    posgl( 1 ) = 0.991565168420931_rp 
+    posgl( 2 ) = 0.955823949571398_rp 
+    posgl( 3 ) = 0.892602466497556_rp 
+    posgl( 4 ) = 0.803704958972523_rp 
+    posgl( 5 ) = 0.691687043060353_rp 
+    posgl( 6 ) = 0.559770831073948_rp 
+    posgl( 7 ) = 0.411751161462843_rp 
+    posgl( 8 ) = 0.251886225691506_rp 
+    posgl( 9 ) = 0.084775013041735_rp 
+    posgl( 10 ) = -0.084775013041735_rp 
+    posgl( 11 ) = -0.251886225691506_rp 
+    posgl( 12 ) = -0.411751161462843_rp 
+    posgl( 13 ) = -0.559770831073948_rp 
+    posgl( 14 ) = -0.691687043060353_rp 
+    posgl( 15 ) = -0.803704958972523_rp 
+    posgl( 16 ) = -0.892602466497556_rp 
+    posgl( 17 ) = -0.955823949571398_rp 
+    posgl( 18 ) = -0.991565168420931_rp 
+
+    weigl( 1 ) = 0.021616013526483_rp 
+    weigl( 2 ) = 0.049714548894969_rp 
+    weigl( 3 ) = 0.076425730254889_rp 
+    weigl( 4 ) = 0.100942044106287_rp 
+    weigl( 5 ) = 0.122555206711478_rp 
+    weigl( 6 ) = 0.140642914670651_rp 
+    weigl( 7 ) = 0.154684675126265_rp 
+    weigl( 8 ) = 0.164276483745833_rp 
+    weigl( 9 ) = 0.169142382963144_rp 
+    weigl( 10 ) = 0.169142382963144_rp 
+    weigl( 11 ) = 0.164276483745833_rp 
+    weigl( 12 ) = 0.154684675126265_rp 
+    weigl( 13 ) = 0.140642914670651_rp 
+    weigl( 14 ) = 0.122555206711478_rp 
+    weigl( 15 ) = 0.100942044106287_rp 
+    weigl( 16 ) = 0.076425730254889_rp 
+    weigl( 17 ) = 0.049714548894969_rp 
+    weigl( 18 ) = 0.021616013526483_rp 
+ else if(nlocs== 19 )  then 
+    posgl( 1 ) = 0.992406843843584_rp 
+    posgl( 2 ) = 0.960208152134830_rp 
+    posgl( 3 ) = 0.903155903614818_rp 
+    posgl( 4 ) = 0.822714656537143_rp 
+    posgl( 5 ) = 0.720966177335229_rp 
+    posgl( 6 ) = 0.600545304661681_rp 
+    posgl( 7 ) = 0.464570741375961_rp 
+    posgl( 8 ) = 0.316564099963630_rp 
+    posgl( 9 ) = 0.160358645640225_rp 
+    posgl( 10 ) = 0.000000000000000_rp 
+    posgl( 11 ) = -0.160358645640225_rp 
+    posgl( 12 ) = -0.316564099963630_rp 
+    posgl( 13 ) = -0.464570741375961_rp 
+    posgl( 14 ) = -0.600545304661681_rp 
+    posgl( 15 ) = -0.720966177335229_rp 
+    posgl( 16 ) = -0.822714656537143_rp 
+    posgl( 17 ) = -0.903155903614818_rp 
+    posgl( 18 ) = -0.960208152134830_rp 
+    posgl( 19 ) = -0.992406843843584_rp 
+
+    weigl( 1 ) = 0.019461788229726_rp 
+    weigl( 2 ) = 0.044814226765699_rp 
+    weigl( 3 ) = 0.069044542737641_rp 
+    weigl( 4 ) = 0.091490021622450_rp 
+    weigl( 5 ) = 0.111566645547334_rp 
+    weigl( 6 ) = 0.128753962539336_rp 
+    weigl( 7 ) = 0.142606702173607_rp 
+    weigl( 8 ) = 0.152766042065860_rp 
+    weigl( 9 ) = 0.158968843393954_rp 
+    weigl( 10 ) = 0.161054449848784_rp 
+    weigl( 11 ) = 0.158968843393954_rp 
+    weigl( 12 ) = 0.152766042065860_rp 
+    weigl( 13 ) = 0.142606702173607_rp 
+    weigl( 14 ) = 0.128753962539336_rp 
+    weigl( 15 ) = 0.111566645547334_rp 
+    weigl( 16 ) = 0.091490021622450_rp 
+    weigl( 17 ) = 0.069044542737641_rp 
+    weigl( 18 ) = 0.044814226765699_rp 
+    weigl( 19 ) = 0.019461788229726_rp 
+ else if(nlocs== 20 )  then 
+    posgl( 1 ) = 0.993128599185095_rp 
+    posgl( 2 ) = 0.963971927277914_rp 
+    posgl( 3 ) = 0.912234428251326_rp 
+    posgl( 4 ) = 0.839116971822219_rp 
+    posgl( 5 ) = 0.746331906460151_rp 
+    posgl( 6 ) = 0.636053680726515_rp 
+    posgl( 7 ) = 0.510867001950827_rp 
+    posgl( 8 ) = 0.373706088715420_rp 
+    posgl( 9 ) = 0.227785851141645_rp 
+    posgl( 10 ) = 0.076526521133497_rp 
+    posgl( 11 ) = -0.076526521133497_rp 
+    posgl( 12 ) = -0.227785851141645_rp 
+    posgl( 13 ) = -0.373706088715420_rp 
+    posgl( 14 ) = -0.510867001950827_rp 
+    posgl( 15 ) = -0.636053680726515_rp 
+    posgl( 16 ) = -0.746331906460151_rp 
+    posgl( 17 ) = -0.839116971822219_rp 
+    posgl( 18 ) = -0.912234428251326_rp 
+    posgl( 19 ) = -0.963971927277914_rp 
+    posgl( 20 ) = -0.993128599185095_rp 
+
+    weigl( 1 ) = 0.017614007139152_rp 
+    weigl( 2 ) = 0.040601429800387_rp 
+    weigl( 3 ) = 0.062672048334109_rp 
+    weigl( 4 ) = 0.083276741576705_rp 
+    weigl( 5 ) = 0.101930119817240_rp 
+    weigl( 6 ) = 0.118194531961518_rp 
+    weigl( 7 ) = 0.131688638449177_rp 
+    weigl( 8 ) = 0.142096109318382_rp 
+    weigl( 9 ) = 0.149172986472604_rp 
+    weigl( 10 ) = 0.152753387130726_rp 
+    weigl( 11 ) = 0.152753387130726_rp 
+    weigl( 12 ) = 0.149172986472604_rp 
+    weigl( 13 ) = 0.142096109318382_rp 
+    weigl( 14 ) = 0.131688638449177_rp 
+    weigl( 15 ) = 0.118194531961518_rp 
+    weigl( 16 ) = 0.101930119817240_rp 
+    weigl( 17 ) = 0.083276741576705_rp 
+    weigl( 18 ) = 0.062672048334109_rp 
+    weigl( 19 ) = 0.040601429800387_rp 
+    weigl( 20 ) = 0.017614007139152_rp 
+ else
+    write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',nlocs
+    stop
+ end if
+
+ if(ndime==1) then
+    igaus=0
+    do ilocs=1,nlocs
+       igaus=igaus+1
+       weight(  igaus)=weigl(ilocs)
+       coordinates(1,igaus)=posgl(ilocs)
+    end do
+ else if(ndime==2) then
+    igaus=0
+    do jlocs=1,nlocs
+       do ilocs=1,nlocs
+          igaus=igaus+1
+          weight(  igaus)=weigl(ilocs)*weigl(jlocs)
+          coordinates(1,igaus)=posgl(ilocs)
+          coordinates(2,igaus)=posgl(jlocs)
+       end do
+    end do
+ else if(ndime==3) then
+    igaus=0
+    do klocs=1,nlocs
+       do jlocs=1,nlocs
+          do ilocs=1,nlocs
+             igaus=igaus+1
+             weight(  igaus)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
+             coordinates(1,igaus)=posgl(ilocs)
+             coordinates(2,igaus)=posgl(jlocs)
+             coordinates(3,igaus)=posgl(klocs)
+          end do
+       end do
+    end do
+ end if
+
+end subroutine fill_quadrature
+
+subroutine fill_interpolation ( interpolation, order, ndime, nlocs, coord_ip, khes ) !ndime,ngaus,posgp,weigp)
+  implicit none 
+  type(SB_interpolation_t), intent(inout) :: interpolation
+  integer(ip), intent(in) :: order, ndime, nlocs
+  real(rp), target, intent(in) :: coord_ip(:,:)
+  logical, optional, intent(in) :: khes
+
+  integer(ip) :: ntens
+  real(rp), pointer :: shape_functions(:,:), shape_derivatives(:,:,:), hessian(:,:,:)
+  real(rp)    :: coord(order+1),shpe1(order+1,nlocs),shpd1(order+1,nlocs),shph1(order+1,nlocs)
+
+  shape_functions => interpolation%get_pointer_shape_functions()
+  shape_derivatives => interpolation%get_pointer_shape_derivatives()
+  hessian => interpolation%get_pointer_hessian()
+
+  ! Set the coordenades of the nodal points
+  call Q_coord_1d(coord,order+1)
+
+  write(*,*) 'coord: ',coord
+
+  ! Compute the 1d shape function on the gauss points
+  call shape1(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
+
+  if(ndime==1) then
+     ntens=1
+  elseif(ndime==2) then
+     ntens=3
+  else if(ndime==3) then
+     ntens=6
+  end if
+
+  write(*,*) 'shpe1',shpe1
+  write(*,*) 'size',size(shpe1)
+!  write(*,*) ' shape_functions =>', interpolation%get_pointer_shape_derivatives()
+  
+  write(*,*) 'ntens',ntens
+
+  !if (int%khes == 1) then
+  call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes,hessian)
+  !else
+  !   call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,nd,order,ngaus,int%ntens,1)!int%khes)
+  !end if
+end subroutine fill_interpolation
+
+subroutine Q_coord_1d (x,n)
+ implicit none
+ ! Parameters
+ integer(ip), intent(in)  :: n
+ real(rp)   , intent(out) :: x(n)
+
+ ! Local variables
+ integer(ip)              :: i
+
+ do i = 0,n-1
+    x(i+1) = 2*real(i)/(real(n)-1)-1
+ end do
+end subroutine Q_coord_1d
+
+! ===================================================================================================
+! Compute the shape function and its derivative
+subroutine shape1(xg,p,ng,xn,shpe1,shpd1,shph1,khes_o)
+ implicit none
+ integer(ip), intent(in)  :: p,ng
+ logical, optional, intent(in)      :: khes_o
+ real(rp),    intent(in)  :: xn(p+1),xg(ng)
+ real(rp),    intent(out) :: shpe1(p+1,ng),shpd1(p+1,ng),shph1(p+1,ng)
+ integer(ip)              :: i,j,k,m,ig
+ real(rp)                 :: aux, aux2, aux3, auxv(ng),auxv2(ng),auxv3(ng)
+ logical :: khes
+
+ if( present(khes_o)) then
+    khes = khes_o
+ else
+    khes = .false.
+ end if
+
+ shpe1 = 1.0_rp
+ shpd1 = 0.0_rp
+ shph1 = 0.0_rp
+ do i = 1,p+1
+    do j = 1,p+1
+       if (j /= i) then
+          aux = 1/(xn(i)-xn(j)) 
+          auxv = 1/(xn(i)-xn(j))
+          if (khes ) auxv3 = 0
+          do k = 1,p+1
+             if (k /= j .and. k /= i) then
+                aux2 = 1/(xn(i)-xn(k))
+                if (khes ) auxv2 = 1/(xn(i)-xn(k))
+                do ig = 1,ng
+                   auxv(ig) = auxv(ig)*(xg(ig)-xn(k))*aux2
+                end do
+                if (khes ) then
+                   do m = 1, p+1
+                      if (m/=k .and. m/= j .and. m /= i) then
+                         aux3 = 1/(xn(i)-xn(m))
+                         do ig = 1,ng
+                            auxv2(ig) = auxv2(ig)*(xg(ig)-xn(m))*aux3
+                         end do
+                      end if
+                   end do
+                end if
+                auxv3 = auxv3+auxv2
+             end if
+          end do
+          do ig = 1,ng
+             shpe1(i,ig) = shpe1(i,ig)*(xg(ig)-xn(j))*aux
+             shpd1(i,ig) = shpd1(i,ig) + auxv(ig)
+             shph1(i,ig) = shph1(i,ig) + auxv3(ig)*aux
+          end do
+       end if
+    end do
+ end do
+end subroutine shape1
+
+  
+  !==================================================================================================
+  subroutine shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
+    implicit none
+    ! Parameters
+    integer(ip)       , intent(in)  :: nd,p,ng,nt
+    logical, intent(in)      :: khes
+    real(rp)          , intent(in)  :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
+    real(rp)          , intent(out) :: shape((p+1)**nd,ng**nd)
+    real(rp)          , intent(out) :: deriv(nd,(p+1)**nd,ng**nd)
+    real(rp), optional, intent(out) :: hessi(nt,(p+1)**nd,ng**nd)
+
+
+    ! Local variables
+    integer(ip)              :: i,ig,d,d2,d3,it
+    integer(ip)              :: ijk(nd),ijkg(nd),permu(nt)
+
+    ! The presumed order of the varibles in the hessian is not the one obtained by generation
+    if (nd == 2) then
+       permu = (/ 1, 3, 2 /)
+    elseif (nd == 3) then
+       permu = (/ 1, 4, 5, 2, 6, 3/)
+    end if
+
+    ! Initialize values
+    shape = 0.0_rp
+    deriv = 0.0_rp
+    !write(*,*) 'khes',khes
+    !if ( khes ) hessi = 0.0_rp
+    !write(*,*) 'khes',khes
+
+    ! Initialize nodal coordinates vector
+    ijk = 0; ijk(1) = -1
+    do i = 1,(p+1)**nd
+
+       ! Set coordinates of node i 
+       call Q_ijkg(ijk,i,nd,p)
+
+       ! Initialize Gauss point coordinates vector
+       ijkg = 0; ijkg(1) = -1
+       do ig = 1,ng**nd
+
+          ! Set coordinates of Gauss point ig 
+          call Q_ijkg(ijkg,ig,nd,ng-1)
+
+          ! Initialize shape
+          shape(i,ig) = 1.0_rp
+          it = 0
+          do d = 1,nd
+             ! Shape is the tensor product 1d shape: s_ijk(x,y,z) = s_i(x)*s_j(y)*s_k(z)
+             shape(i,ig) = shape(i,ig)*s1(ijk(d)+1,ijkg(d)+1)
+
+             ! Initialize deriv and hessi
+             deriv(d,i,ig) = 1.0_rp
+             it = it+1
+             !if (khes ) hessi(permu(it),i,ig)= 1.0_rp
+
+             ! Deriv: d(s_ijk)/dx (x,y,z) = s'_i(x)*s_j(y)*s_k(z)
+             ! Hessi: d2(s_ijk)/dx2 (x,y,z) = s''_i(x)*s_j(y)*s_k(z)
+             do d2 = 1,nd
+                if (d2 /= d) then
+                   deriv( d,i,ig) = deriv( d,i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
+                    !if ( khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
+                else
+                   deriv( d,i,ig) = deriv( d,i,ig)* sd1(ijk(d)+1,ijkg(d)+1)  
+                   !if (khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*sdd1(ijk(d)+1,ijkg(d)+1)             
+                end if
+             end do
+
+             ! if ( khes ) then
+             !    ! Hessi: d2(s_ijk)/dxdy (x,y,z) = s'_i(x)*s'_j(y)*s_k(z)
+             !    do d2 = d+1,nd
+             !       it = it+1
+             !       hessi(permu(it),i,ig) = 1.0_rp
+             !       do d3 = 1,nd
+             !          if (d3 /= d .and. d3 /= d2) then
+             !             hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*s1(ijk(d3)+1,ijkg(d3)+1)
+             !          else
+             !             hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*sd1(ijk(d3)+1,ijkg(d3)+1)             
+             !          end if
+             !       end do
+             !    end do
+             ! end if
+
+          end do
+       end do
+    end do
+  end subroutine shapen
+
+  !==================================================================================================
+  ! Q_IJKG(i,g,nd,p) returns coordinates of the g-th node in an elem(nd,p)
+  subroutine Q_ijkg(i,g,nd,p)
+    implicit none
+    integer(ip), intent(in)  :: nd,g,p
+    integer(ip), intent(out) :: i(nd)
+
+    integer(ip)              :: k,g2
+
+    g2 = g-1
+    do k=1,nd
+       i(k) = int(mod(g2,(p+1)**k)/(p+1)**(k-1))
+       g2 = g2 - i(k)*(p+1)**(k-1)
+    end do
+  end subroutine Q_ijkg
+
+  !   ! ==================================================================================================
+  !   subroutine interpolation_local_tp(clocs,int,nd,order,ngaus)
+  !     implicit none
+  !     ! Parameters
+  !     type(interpolation_t), intent(inout) :: int
+  !     integer(ip)        , intent(in)    :: nd, order, ngaus
+  !     real(rp)           , intent(in)    :: clocs(ngaus)
+
+  !     real(rp)    :: coord(order+1),shpe1(order+1,ngaus),shpd1(order+1,ngaus),shph1(order+1,ngaus)
+  !     integer(ip) :: iloc,aux(ngaus)
+
+  !     ! Set the coordenades of the nodal points
+  !     call Q_coord_1d(coord,order+1)
+
+  !     ! Compute the 1d shape function on the gauss points
+  !     call shape1(clocs,order,ngaus,coord,shpe1,shpd1,shph1,int%khes)
+
+  !     ! Compute the tensorial product
+  !     if (int%khes == 1) then
+  !        call shapen(int%shape,int%deriv,shpe1,shpd1,shph1,nd,order,ngaus,int%ntens,int%khes,int%hessi)
+  !     else
+  !        call shapen(int%shape,int%deriv,shpe1,shpd1,shph1,nd,order,ngaus,int%ntens,int%khes)
+  !     end if
+  !   end subroutine interpolation_local_tp
+
+  ! end subroutine fill_interpolation
+
+
 
 end module quad_lagrangian_reference_fe_names
 
