@@ -36,150 +36,9 @@
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
 !***********************************************************************
-module allocatable_array_ip1_names
-  use types_names
-  use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
-  implicit none
-# include "debug.i90"
-  private
-  type allocatable_array_ip1_t
-     !private alert.SB : It should be private
-     integer(ip)               :: nd1
-     integer(ip), allocatable  :: a(:)
-   contains
-     procedure :: create
-  end type allocatable_array_ip1_t
 
-  public :: allocatable_array_ip1_t
-# define var_type type(allocatable_array_ip1_t)
-# define var_size 52
-# define bound_kind ip
-# include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
-contains
-  subroutine create(this, nd1)	
-    implicit none
-    integer(ip)    , intent(in)  :: nd1
-    class(allocatable_array_ip1_t), intent(out) :: this
-    this%nd1 = nd1
-    call memalloc(nd1,this%a,__FILE__,__LINE__)
-    this%a = 0
-  end subroutine create
-# include "mem_body.i90"
-end module allocatable_array_ip1_names
 !=============================================================================
-module allocatable_array_ip2_names
-  use types_names
-  use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
-  implicit none
-# include "debug.i90"
-  private
-  type allocatable_array_ip2_t
-     integer(ip)               :: nd1, nd2
-     integer(ip), allocatable  :: a(:,:)
-  end type allocatable_array_ip2_t
-  public :: allocatable_array_ip2_t
-# define var_type type(allocatable_array_ip2_t)
-# define var_size 52
-# define bound_kind ip
-# include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
-contains
-# include "mem_body.i90"
-end module allocatable_array_ip2_names
-!=============================================================================
-module allocatable_array_rp1_names
-  use types_names
-  use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
-  implicit none
-# include "debug.i90"
-  private
-  type allocatable_array_rp1_t
-     integer(ip)               :: nd1
-     real(rp)    , allocatable :: a(:) ! Simple real 2D array
-  end type allocatable_array_rp1_t
-  public :: allocatable_array_rp1_t
-# define var_type type(allocatable_array_rp1_t)
-# define var_size 52
-# define bound_kind ip
-# include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
-contains
-# include "mem_body.i90"
-end module allocatable_array_rp1_names
-!=============================================================================
-module allocatable_array_rp2_names
-  use types_names
-  use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
-  implicit none
-# include "debug.i90"
-  private
-  type allocatable_array_rp2_t
-     integer(ip)               :: nd1, nd2
-     real(rp)    , allocatable :: a(:,:) ! Simple real 2D array
-   contains
-     procedure :: sum => sum_allocatable_array_rp2_array_rp2
-     generic   :: operator(+) => sum
-  end type allocatable_array_rp2_t
-  public :: allocatable_array_rp2_t
-# define var_type type(allocatable_array_rp2_t)
-# define var_size 52
-# define bound_kind ip
-# include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
-contains
-# include "mem_body.i90"
-  function sum_allocatable_array_rp2_array_rp2(x,y) result(z)
-    implicit none
-    class(allocatable_array_rp2_t), intent(in) :: x
-    type(allocatable_array_rp2_t), intent(in) :: y
-    type(allocatable_array_rp2_t) :: z
-    !call x%GuardTemp()
-    !call y%GuardTemp()
-    !call z%SetTemp()
-    assert(size(x%a,1)==size(y%a,1))
-    assert(size(x%a,2)==size(y%a,2))
-    call memalloc(size(x%a,1),size(x%a,2),z%a,__FILE__,__LINE__)
-    z%a = x%a + y%a
-    !call x%CleanTemp()
-    !call y%CleanTemp()
-  end function sum_allocatable_array_rp2_array_rp2
-end module allocatable_array_rp2_names
-!=============================================================================
-module allocatable_array_rp3_names
-  use types_names
-  use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
-  implicit none
-# include "debug.i90"
-  private
-  type allocatable_array_rp3_t
-     integer(ip)               :: nd1, nd2,nd3
-     real(rp)    , allocatable :: a(:,:,:) ! Simple real 2D array
-  end type allocatable_array_rp3_t
-  public :: allocatable_array_rp3_t
-# define var_type type(allocatable_array_rp3_t)
-# define var_size 52
-# define bound_kind ip
-# include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
-contains
-# include "mem_body.i90"
-end module allocatable_array_rp3_names
+! module allocatable_array_names
 !=============================================================================
 
 module allocatable_array_names
@@ -220,129 +79,289 @@ module allocatable_array_names
   ! Types
   public :: p_allocatable_array_ip1_t, p_allocatable_array_ip2_t, p_allocatable_array_rp1_t, &
        &    p_allocatable_array_rp2_t, p_allocatable_array_rp3_t
-
-  interface allocatable_array_create
-     module procedure allocatable_array_ip1_create, allocatable_array_ip2_create, allocatable_array_rp1_create
-     module procedure allocatable_array_rp2_create, allocatable_array_rp3_create
-  end interface allocatable_array_create
-
-  interface allocatable_array_free
-     module procedure allocatable_array_ip1_free, allocatable_array_ip2_free
-     module procedure allocatable_array_rp1_free, allocatable_array_rp2_free, allocatable_array_rp3_free
-  end interface allocatable_array_free
+  public :: allocatable_array_ip1_t, allocatable_array_ip2_t, allocatable_array_rp1_t, &
+		     &    allocatable_array_rp2_t, allocatable_array_rp3_t
 
   ! Functions
-  public :: allocatable_array_create, allocatable_array_free, memalloc, memrealloc, memfree, memmovealloc
-  public :: allocatable_array_ip1_t, allocatable_array_ip2_t, allocatable_array_rp1_t, allocatable_array_rp2_t, allocatable_array_rp3_t
+  public :: memalloc, memrealloc, memfree, memmovealloc
 
-contains 
-
-  !=============================================================================
-  subroutine allocatable_array_ip1_create(nd1,array)
-    implicit none
-    integer(ip)    , intent(in)  :: nd1
-    type(allocatable_array_ip1_t), intent(out) :: array
-
-    array%nd1 = nd1
-
-    call memalloc(nd1,array%a,__FILE__,__LINE__)
-    array%a = 0
-  end subroutine allocatable_array_ip1_create
-
-  !=============================================================================
-  subroutine allocatable_array_ip2_create(nd1,nd2,array)
-    implicit none
-    integer(ip)    , intent(in)  :: nd1, nd2
-    type(allocatable_array_ip2_t), intent(out) :: array
-
-    array%nd1 = nd1
-    array%nd2 = nd2
-
-    call memalloc(nd1,nd2,array%a,__FILE__,__LINE__)
-    array%a = 0
-  end subroutine allocatable_array_ip2_create
-
-  !=============================================================================
-  subroutine allocatable_array_rp1_create(nd1,array)
-    implicit none
-    integer(ip)    , intent(in)  :: nd1
-    type(allocatable_array_rp1_t), intent(out) :: array
-
-    array%nd1 = nd1
-
-    call memalloc(nd1,array%a,__FILE__,__LINE__)
-    array%a = 0.0_rp
-  end subroutine allocatable_array_rp1_create
-
-  !=============================================================================
-  subroutine allocatable_array_rp2_create(nd1,nd2,array)
-    implicit none
-    integer(ip)    , intent(in)  :: nd1, nd2
-    type(allocatable_array_rp2_t), intent(out) :: array
-
-    array%nd1 = nd1
-    array%nd2 = nd2
-
-    call memalloc(nd1,nd2,array%a,__FILE__,__LINE__)
-    array%a = 0.0_rp
-  end subroutine allocatable_array_rp2_create
-
-  !=============================================================================
-  subroutine allocatable_array_rp3_create(nd1,nd2,nd3,array)
-    implicit none
-    integer(ip)    , intent(in)  :: nd1, nd2, nd3
-    type(allocatable_array_rp3_t), intent(out) :: array
-
-    array%nd1 = nd1
-    array%nd2 = nd2
-    array%nd3 = nd3
-
-    call memalloc(nd1,nd2,nd3,array%a,__FILE__,__LINE__)
-    array%a = 0.0_rp
-  end subroutine allocatable_array_rp3_create
-
-  !=============================================================================
-  subroutine allocatable_array_ip1_free(array)
-    implicit none
-    type(allocatable_array_ip1_t), intent(inout) :: array
-    array%nd1 = 0
-    call memfree(array%a,__FILE__,__LINE__)
-  end subroutine allocatable_array_ip1_free
-
-  !=============================================================================
-  subroutine allocatable_array_ip2_free(array)
-    implicit none
-    type(allocatable_array_ip2_t), intent(inout) :: array
-    array%nd1 = 0
-    array%nd2 = 0
-    call memfree(array%a,__FILE__,__LINE__)
-  end subroutine allocatable_array_ip2_free
-
-  !=============================================================================
-  subroutine allocatable_array_rp1_free(array)
-    implicit none
-    type(allocatable_array_rp1_t), intent(inout) :: array
-    array%nd1 = 0
-    call memfree(array%a,__FILE__,__LINE__)
-  end subroutine allocatable_array_rp1_free
-
-  !=============================================================================
-  subroutine allocatable_array_rp2_free(array)
-    implicit none
-    type(allocatable_array_rp2_t), intent(inout) :: array
-    array%nd1 = 0
-    array%nd2 = 0
-    call memfree(array%a,__FILE__,__LINE__)
-  end subroutine allocatable_array_rp2_free
-
-  !=============================================================================
-  subroutine allocatable_array_rp3_free(array)
-    implicit none
-    type(allocatable_array_rp3_t), intent(inout) :: array
-    array%nd1 = 0
-    array%nd2 = 0
-    array%nd3 = 0
-    call memfree(array%a,__FILE__,__LINE__)
-  end subroutine allocatable_array_rp3_free
 
 end module allocatable_array_names
+
+!=============================================================================
+! module allocatable_array_ip1_names
+!=============================================================================
+
+module allocatable_array_ip1_names
+  use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type allocatable_array_ip1_t
+     !private alert.SB : It should be private
+     integer(ip)               :: nd1
+     integer(ip), allocatable  :: a(:)
+   contains
+     procedure :: create => allocatable_array_ip1_create
+     procedure :: free   => allocatable_array_ip1_free
+  end type allocatable_array_ip1_t
+
+  public :: allocatable_array_ip1_t
+# define var_type type(allocatable_array_ip1_t)
+# define var_size 52
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+  subroutine allocatable_array_ip1_create(this, nd1)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1
+    class(allocatable_array_ip1_t), intent(out) :: this
+    this%nd1 = nd1
+    call memalloc(nd1,this%a,__FILE__,__LINE__)
+    this%a = 0
+  end subroutine allocatable_array_ip1_create
+
+  subroutine allocatable_array_ip1_free(this)	
+    implicit none
+    class(allocatable_array_ip1_t), intent(out) :: this
+    this%nd1 = 0
+    call memfree(this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_ip1_free
+
+# include "mem_body.i90"
+
+end module allocatable_array_ip1_names
+
+!=============================================================================
+! module allocatable_array_ip2_names
+!=============================================================================
+
+module allocatable_array_ip2_names
+  use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type allocatable_array_ip2_t
+     integer(ip)               :: nd1, nd2
+     integer(ip), allocatable  :: a(:,:)
+   contains
+     procedure :: create => allocatable_array_ip2_create
+     procedure :: free   => allocatable_array_ip2_free
+  end type allocatable_array_ip2_t
+  public :: allocatable_array_ip2_t
+# define var_type type(allocatable_array_ip2_t)
+# define var_size 52
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+  subroutine allocatable_array_ip2_create(this, nd1, nd2)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1, nd2
+    class(allocatable_array_ip2_t), intent(out) :: this
+    this%nd1 = nd1
+    this%nd2 = nd2
+    call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
+    this%a = 0
+  end subroutine allocatable_array_ip2_create
+
+  subroutine allocatable_array_ip2_free(this)	
+    implicit none
+    class(allocatable_array_ip2_t), intent(out) :: this
+    this%nd1 = 0
+    this%nd2 = 0
+    call memfree(this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_ip2_free
+
+# include "mem_body.i90"
+
+end module allocatable_array_ip2_names
+
+!=============================================================================
+! module allocatable_array_rp1_names
+!=============================================================================
+
+module allocatable_array_rp1_names
+  use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type allocatable_array_rp1_t
+     integer(ip)               :: nd1
+     real(rp)    , allocatable :: a(:) ! Simple real 2D array
+   contains
+     procedure :: create => allocatable_array_rp1_create
+     procedure :: free   => allocatable_array_rp1_free
+  end type allocatable_array_rp1_t
+  public :: allocatable_array_rp1_t
+# define var_type type(allocatable_array_rp1_t)
+# define var_size 52
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+  subroutine allocatable_array_rp1_create(this, nd1)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1
+    class(allocatable_array_rp1_t), intent(out) :: this
+    this%nd1 = nd1
+    call memalloc(nd1,this%a,__FILE__,__LINE__)
+    this%a = 0
+  end subroutine allocatable_array_rp1_create
+
+  subroutine allocatable_array_rp1_free(this)	
+    implicit none
+    class(allocatable_array_rp1_t), intent(out) :: this
+    this%nd1 = 0
+    call memfree(this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_rp1_free
+
+# include "mem_body.i90"
+
+end module allocatable_array_rp1_names
+
+!=============================================================================
+! module allocatable_array_rp2_names
+!=============================================================================
+
+module allocatable_array_rp2_names
+  use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type allocatable_array_rp2_t
+     integer(ip)               :: nd1, nd2
+     real(rp)    , allocatable :: a(:,:) ! Simple real 2D array
+   contains
+     procedure :: create => allocatable_array_rp2_create
+     procedure :: free   => allocatable_array_rp2_free
+     procedure, private :: sum => sum_allocatable_array_rp2_array_rp2
+     generic   :: operator(+) => sum
+  end type allocatable_array_rp2_t
+  public :: allocatable_array_rp2_t
+# define var_type type(allocatable_array_rp2_t)
+# define var_size 52
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+  subroutine allocatable_array_rp2_create(this, nd1, nd2)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1, nd2
+    class(allocatable_array_rp2_t), intent(out) :: this
+    this%nd1 = nd1
+    this%nd2 = nd2
+    call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
+    this%a = 0
+  end subroutine allocatable_array_rp2_create
+
+  subroutine allocatable_array_rp2_free(this)	
+    implicit none
+    class(allocatable_array_rp2_t), intent(out) :: this
+    this%nd1 = 0
+    this%nd2 = 0
+    call memfree(this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_rp2_free
+
+  function sum_allocatable_array_rp2_array_rp2(x,y) result(z)
+    implicit none
+    class(allocatable_array_rp2_t), intent(in) :: x
+    type(allocatable_array_rp2_t), intent(in) :: y
+    type(allocatable_array_rp2_t) :: z
+    !call x%GuardTemp()
+    !call y%GuardTemp()
+    !call z%SetTemp()
+    assert(size(x%a,1)==size(y%a,1))
+    assert(size(x%a,2)==size(y%a,2))
+    call memalloc(size(x%a,1),size(x%a,2),z%a,__FILE__,__LINE__)
+    z%a = x%a + y%a
+    !call x%CleanTemp()
+    !call y%CleanTemp()
+  end function sum_allocatable_array_rp2_array_rp2
+
+# include "mem_body.i90"
+
+end module allocatable_array_rp2_names
+
+!=============================================================================
+! module allocatable_array_rp3_names
+!=============================================================================
+
+module allocatable_array_rp3_names
+  use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type allocatable_array_rp3_t
+     integer(ip)               :: nd1, nd2,nd3
+     real(rp)    , allocatable :: a(:,:,:) ! Simple real 2D array
+   contains
+     procedure :: create => allocatable_array_rp3_create
+     procedure :: free   => allocatable_array_rp3_free
+  end type allocatable_array_rp3_t
+  public :: allocatable_array_rp3_t
+# define var_type type(allocatable_array_rp3_t)
+# define var_size 52
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+  subroutine allocatable_array_rp3_create(this, nd1, nd2, nd3)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1, nd2, nd3
+    class(allocatable_array_rp3_t), intent(out) :: this
+    this%nd1 = nd1
+    this%nd2 = nd2
+    this%nd2 = nd3
+    call memalloc(nd1,nd2,nd3,this%a,__FILE__,__LINE__)
+    this%a = 0
+  end subroutine allocatable_array_rp3_create
+
+  subroutine allocatable_array_rp3_free(this)	
+    implicit none
+    class(allocatable_array_rp3_t), intent(out) :: this
+    this%nd1 = 0
+    this%nd2 = 0
+    this%nd2 = 0
+    call memfree(this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_rp3_free
+
+# include "mem_body.i90"
+
+end module allocatable_array_rp3_names
