@@ -38,57 +38,6 @@
 !***********************************************************************
 
 !=============================================================================
-! module allocatable_array_names
-!=============================================================================
-
-module allocatable_array_names
-  use types_names
-  use memor_names
-  use allocatable_array_ip1_names
-  use allocatable_array_ip2_names
-  use allocatable_array_rp1_names
-  use allocatable_array_rp2_names
-  use allocatable_array_rp3_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
-  implicit none
-# include "debug.i90"
-  private
-
-  type p_allocatable_array_ip1_t
-     type(allocatable_array_ip1_t)          , pointer :: p => NULL()
-  end type p_allocatable_array_ip1_t
-
-  type p_allocatable_array_ip2_t
-     type(allocatable_array_ip2_t)          , pointer :: p => NULL()
-  end type p_allocatable_array_ip2_t
-
-  type p_allocatable_array_rp1_t
-     type(allocatable_array_rp1_t)          , pointer :: p => NULL()
-  end type p_allocatable_array_rp1_t
-
-  type p_allocatable_array_rp2_t
-     type(allocatable_array_rp2_t)          , pointer :: p => NULL()
-  end type p_allocatable_array_rp2_t
-
-  type p_allocatable_array_rp3_t
-     type(allocatable_array_rp3_t)          , pointer :: p => NULL()
-  end type p_allocatable_array_rp3_t
-
-  ! Types
-  public :: p_allocatable_array_ip1_t, p_allocatable_array_ip2_t, p_allocatable_array_rp1_t, &
-       &    p_allocatable_array_rp2_t, p_allocatable_array_rp3_t
-  public :: allocatable_array_ip1_t, allocatable_array_ip2_t, allocatable_array_rp1_t, &
-		     &    allocatable_array_rp2_t, allocatable_array_rp3_t
-
-  ! Functions
-  public :: memalloc, memrealloc, memfree, memmovealloc
-
-
-end module allocatable_array_names
-
-!=============================================================================
 ! module allocatable_array_ip1_names
 !=============================================================================
 
@@ -365,3 +314,55 @@ contains
 # include "mem_body.i90"
 
 end module allocatable_array_rp3_names
+
+!=============================================================================
+! module allocatable_array_names
+!=============================================================================
+
+module allocatable_array_names
+  use types_names
+  use memor_names
+  use allocatable_array_ip1_names
+  use allocatable_array_ip2_names
+  use allocatable_array_rp1_names
+  use allocatable_array_rp2_names
+  use allocatable_array_rp3_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type p_allocatable_array_ip1_t
+     type(allocatable_array_ip1_t)          , pointer :: p => NULL()
+  end type p_allocatable_array_ip1_t
+
+  type p_allocatable_array_ip2_t
+     type(allocatable_array_ip2_t)          , pointer :: p => NULL()
+  end type p_allocatable_array_ip2_t
+
+  type p_allocatable_array_rp1_t
+     type(allocatable_array_rp1_t)          , pointer :: p => NULL()
+  end type p_allocatable_array_rp1_t
+
+  type p_allocatable_array_rp2_t
+     type(allocatable_array_rp2_t)          , pointer :: p => NULL()
+  end type p_allocatable_array_rp2_t
+
+  type p_allocatable_array_rp3_t
+     type(allocatable_array_rp3_t)          , pointer :: p => NULL()
+  end type p_allocatable_array_rp3_t
+
+  ! Types
+  public :: p_allocatable_array_ip1_t, p_allocatable_array_ip2_t, p_allocatable_array_rp1_t, &
+       &    p_allocatable_array_rp2_t, p_allocatable_array_rp3_t
+  public :: allocatable_array_ip1_t, allocatable_array_ip2_t, allocatable_array_rp1_t, &
+		     &    allocatable_array_rp2_t, allocatable_array_rp3_t
+
+  ! Functions
+  public :: memalloc, memrealloc, memfree, memmovealloc
+
+
+end module allocatable_array_names
+
