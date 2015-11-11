@@ -57,7 +57,7 @@ module volume_integration_tools_names
      type(interpolation_t)      :: uint_phy    ! Unknown interpolation_t in the physical element domain
      type(interpolation_t)      :: gint_ref    ! Geometry interpolation_t in the reference element domain
      type(interpolation_t)      :: gint_phy    ! Geometry interpolation_t in the physical element domain
-     type(femap_t)              :: femap       ! FE map_tping
+     type(femap_t)              :: femap       ! FE mapping
   end type volume_integrator_t
   type volume_integrator_pointer_t
      type(volume_integrator_t)          , pointer :: p => NULL() 
@@ -224,7 +224,7 @@ module face_integration_tools_names
      type(face_quadrature_t)    :: fquad        ! Quadrature points on the faces of the element
      type(interpolation_t)      :: gint_ref     ! Geometry interpolation_t in the reference face domain
      type(bomap_t)              :: bomap        ! Boundary face map_tping
-     type(femap_t)              :: femap        ! FE map_tping
+     type(femap_t)              :: femap        ! FE mapping
      type(face_interpolation_t) :: ufint_ref    ! Unknown interpolation_t in the reference face domain
      type(face_interpolation_t) :: ufint_phy    ! Unknown interpolation_t in the physical face domain
      type(face_interpolation_t) :: gfint_ref    ! Geometry interpolation_t in the reference face domain

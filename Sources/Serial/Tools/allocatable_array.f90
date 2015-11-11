@@ -37,18 +37,22 @@
 # define generic_memmovealloc_interface  memmovealloc
 !***********************************************************************
 module allocatable_array_ip1_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
   private
   type allocatable_array_ip1_t
+     !private alert.SB : It should be private
      integer(ip)               :: nd1
      integer(ip), allocatable  :: a(:)
+   contains
+     procedure :: create
   end type allocatable_array_ip1_t
+
   public :: allocatable_array_ip1_t
 # define var_type type(allocatable_array_ip1_t)
 # define var_size 52
@@ -56,14 +60,22 @@ use iso_c_binding
 # include "mem_header.i90"
   public :: memalloc,  memrealloc,  memfree, memmovealloc
 contains
+  subroutine create(this, nd1)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1
+    class(allocatable_array_ip1_t), intent(out) :: this
+    this%nd1 = nd1
+    call memalloc(nd1,this%a,__FILE__,__LINE__)
+    this%a = 0
+  end subroutine create
 # include "mem_body.i90"
 end module allocatable_array_ip1_names
 !=============================================================================
 module allocatable_array_ip2_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -83,10 +95,10 @@ contains
 end module allocatable_array_ip2_names
 !=============================================================================
 module allocatable_array_rp1_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -106,10 +118,10 @@ contains
 end module allocatable_array_rp1_names
 !=============================================================================
 module allocatable_array_rp2_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -117,9 +129,9 @@ use iso_c_binding
   type allocatable_array_rp2_t
      integer(ip)               :: nd1, nd2
      real(rp)    , allocatable :: a(:,:) ! Simple real 2D array
-     contains
-       procedure :: sum => sum_allocatable_array_rp2_array_rp2
-       generic   :: operator(+) => sum
+   contains
+     procedure :: sum => sum_allocatable_array_rp2_array_rp2
+     generic   :: operator(+) => sum
   end type allocatable_array_rp2_t
   public :: allocatable_array_rp2_t
 # define var_type type(allocatable_array_rp2_t)
@@ -147,10 +159,10 @@ contains
 end module allocatable_array_rp2_names
 !=============================================================================
 module allocatable_array_rp3_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
@@ -171,15 +183,15 @@ end module allocatable_array_rp3_names
 !=============================================================================
 
 module allocatable_array_names
-use types_names
-use memor_names
+  use types_names
+  use memor_names
   use allocatable_array_ip1_names
   use allocatable_array_ip2_names
   use allocatable_array_rp1_names
   use allocatable_array_rp2_names
   use allocatable_array_rp3_names
 #ifdef memcheck
-use iso_c_binding
+  use iso_c_binding
 #endif
   implicit none
 # include "debug.i90"
