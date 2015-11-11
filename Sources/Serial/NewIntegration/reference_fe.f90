@@ -37,7 +37,7 @@ module reference_fe_names
 
      ! TBPs
      procedure (create_interface), deferred :: create 
-     !procedure :: free
+     procedure :: free => reference_fe_free
      procedure :: print
 
      ! procedure :: get_topology
@@ -293,5 +293,48 @@ contains
     type(list_t), pointer :: get_pointer_vefs_vef
     get_pointer_vefs_vef => this%vefs_vef
   end function get_pointer_vefs_vef
+
+  subroutine reference_fe_free( this )
+    implicit none
+    class(reference_fe_t), intent(inout) :: this
+
+    if(allocated(this%topology))              deallocate(this%topology)
+    if(allocated(this%fe_type))               deallocate(this%fe_type)
+
+    if(allocated(this%interior_nodes_vef%p)) & 
+        call memfree(this%interior_nodes_vef%p,__FILE__,__LINE__)
+    if(allocated(this%interior_nodes_vef%l)) & 
+        call memfree(this%interior_nodes_vef%l,__FILE__,__LINE__)
+    this%interior_nodes_vef%n = 0
+
+    if(allocated(this%nodes_vef%p)) & 
+        call memfree(this%nodes_vef%p,__FILE__,__LINE__)
+    if(allocated(this%nodes_vef%l)) & 
+        call memfree(this%nodes_vef%l,__FILE__,__LINE__)
+    this%nodes_vef%n = 0
+
+    if(allocated(this%corners_vef%p)) & 
+        call memfree(this%corners_vef%p,__FILE__,__LINE__)
+    if(allocated(this%corners_vef%l)) & 
+        call memfree(this%corners_vef%l,__FILE__,__LINE__)
+    this%corners_vef%n = 0
+
+    if(allocated(this%vefs_vef%p)) & 
+        call memfree(this%vefs_vef%p,__FILE__,__LINE__)
+    if(allocated(this%vefs_vef%l)) & 
+        call memfree(this%vefs_vef%l,__FILE__,__LINE__)
+    this%vefs_vef%n = 0
+
+    call this%orientation%free()
+
+    this%number_dimensions  = 0
+    this%order       = 0
+    this%number_vefs        = 0
+    this%number_nodes       = 0
+    this%number_vefs_dimension  = 0
+    this%continuity         = .true.
+  end subroutine reference_fe_free
+
+
 
 end module reference_fe_names
