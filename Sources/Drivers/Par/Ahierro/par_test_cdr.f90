@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module command_line_parameters_names
+module par_command_line_parameters_names
   use types_names
   use Data_Type_Command_Line_Interface
 # include "debug.i90"
@@ -33,7 +33,7 @@ module command_line_parameters_names
   implicit none
   private
 
-  type test_cdr_params_t
+  type par_test_cdr_params_t
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
@@ -55,21 +55,53 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_continuity
      character(len=:), allocatable :: default_enable_face_integration
      character(len=:), allocatable :: default_order
-     
-  end type test_cdr_params_t
+
+  end type par_test_cdr_params_t
+
+  type par_test_cdr_parallel_params_t
+     ! Input problem number of dimensions
+     integer(ip)                   :: ndime
+
+     ! Number of parts in which the problem was split
+     integer(ip)                   :: nparts
+
+     ! Graph Storage and Matrix properties
+     character(len=:), allocatable :: default_symmetric_storage
+     character(len=:), allocatable :: default_is_symmetric
+     character(len=:), allocatable :: default_sign
+     logical                       :: symmetric_storage(1)
+     logical                       :: is_symmetric(1)
+     integer(ip)                   :: sign(1)
+
+     ! BDDC parameters
+     character(len=:), allocatable :: default_projection
+     character(len=:), allocatable :: default_nn_sys_sol_strat
+     character(len=:), allocatable :: default_pad_collectives
+     character(len=:), allocatable :: default_schur_edge_lag_mult
+     character(len=:), allocatable :: default_subd_elmat_calc
+
+     integer(ip)                   :: projection
+     integer(ip)                   :: nn_sys_sol_strat
+     integer(ip)                   :: pad_collectives
+     integer(ip)                   :: schur_edge_lag_mult
+     integer(ip)                   :: subd_elmat_calc
+
+   contains
+     procedure :: set_par_default_params => par_test_cdr_parallel_params_set_par_default_params
+  end type par_test_cdr_parallel_params_t
 
   ! Types
-  public :: test_cdr_params_t
+  public :: par_test_cdr_params_t, par_test_cdr_parallel_params_t
 
   ! Functions
-  public :: set_default_params,cli_add_params,set_default_params_analytical
-  public :: set_default_params_transient
+  public :: set_par_default_params,cli_add_par_params,set_par_default_params_analytical
+  public :: set_par_default_params_transient
 
 contains
 
-  subroutine set_default_params(params)
+  subroutine set_par_default_params(params)
     implicit none
-    type(test_cdr_params_t), intent(inout) :: params
+    type(par_test_cdr_params_t), intent(inout) :: params
 
     ! IO parameters
     params%default_dir_path     = 'data'
@@ -98,14 +130,43 @@ contains
     params%default_continuity              = '1'
     params%default_enable_face_integration = '.false.'
     params%default_order                   = '1'
-  end subroutine set_default_params
-  !==================================================================================================
+  end subroutine set_par_default_params
 
-  subroutine cli_add_params(cli,params,group)
+ !==================================================================================================
+  subroutine par_test_cdr_parallel_params_set_par_default_params(params)
+    use serial_names
     implicit none
-    type(Type_Command_Line_Interface)            , intent(inout) :: cli
-    type(test_cdr_params_t)                      , intent(in)    :: params
-    character(*)                                 , intent(in)    :: group
+    class(par_test_cdr_parallel_params_t), intent(inout) :: params
+
+    !Input problem number of dimensions
+     params%ndime                      = 2
+
+     ! Number of parts in which the problem was split
+     params%nparts                     = 1
+    
+    ! Graph Storage and Matrix properties
+    params%default_symmetric_storage   = '.true.'
+    params%default_is_symmetric        = '.true.'
+    params%default_sign                = 'positive_definite'
+    params%symmetric_storage           = (/.false./)
+    params%is_symmetric                = (/.false./)
+    params%sign                        = (/positive_definite/) 
+
+    params%default_projection          = 'galerkin'
+    params%default_nn_sys_sol_strat    = 'corners_rest_part_solve_expl_schur'
+    params%default_pad_collectives     = '.false.'
+    params%default_schur_edge_lag_mult = 'reuse_from_phis'
+    params%default_subd_elmat_calc     = 'phit_minus_c_i_t_lambda'
+
+  end subroutine par_test_cdr_parallel_params_set_par_default_params
+
+  !==================================================================================================
+  subroutine cli_add_par_params(cli,params,par_params,group)
+    implicit none
+    type(Type_Command_Line_Interface)    , intent(inout) :: cli
+    type(par_test_cdr_params_t)          , intent(in)    :: params
+    character(*)                         , intent(in)    :: group
+    class(par_test_cdr_parallel_params_t), intent(inout) :: par_params
     ! Locals
     integer(ip) :: error
 
@@ -181,12 +242,41 @@ contains
          &       help='Initial order of the approximation',required=.false.,act='store',            &
          &       def=trim(params%default_order),error=error)
     check(error==0)
-  end subroutine cli_add_params
-  !==================================================================================================
 
-  subroutine set_default_params_analytical(params)
+    ! Solver
+    call cli%add(switch='--projection',switch_ab='-projection',                                     &
+         &              help='Coarse-grid projection strategy.',required=.false.,                   &
+         &              def=par_params%default_projection,choices='galerkin,petrov_galerkin',       &
+         &              act='store', error=error)
+    check(error==0)
+    call cli%add(switch='--nn-sys-sol-strat',switch_ab='-nn-sys-sol-strat',                         &
+         &       help='Strategy followed to solve the constrained Neumann problem',required=.false.,&
+         &       def=par_params%default_nn_sys_sol_strat,                                           & 
+         &       choices='corners_rest_part_solve_expl_schur,direct_solve_constrained_problem',     &
+         &       act='store', error=error)
+    check(error==0)
+    call cli%add(switch='--pad-collectives',switch_ab='-pad-collectives',                           &
+         &       help='Apply padding to inter-level collectives?',required=.false.,                 &
+         &       def=par_params%default_pad_collectives,act='store', error=error)
+    check(error==0)
+    call cli%add(switch='--schur-edge-lag-mult',switch_ab='-schur-edge-lag-mult',                   &
+         &       help='Are the data resulting from computation of the edge Schur complement         &
+         &       resulting from numerical set-up going to be re-used during application or computed &
+         &       from scratch?',required=.false., def=par_params%default_schur_edge_lag_mult,       &
+         &       choices='reuse_from_phis,compute_from_scratch', act='store', error=error)
+    check(error==0)
+    call cli%add(switch='--subd-elmat-calc',switch_ab='-subd-elmat-calc',                           &
+         &       help='Controls the way the subdomain coarse-grid matrix is computed.',             &
+         &       required=.false., def=par_params%default_subd_elmat_calc,                          &
+         &       choices='phit_minus_c_i_t_lambda,phit_a_i_phi', act='store', error=error)
+    check(error==0)
+
+  end subroutine cli_add_par_params
+
+  !==================================================================================================
+  subroutine set_par_default_params_analytical(params)
     implicit none
-    type(test_cdr_params_t), intent(inout) :: params
+    type(par_test_cdr_params_t), intent(inout) :: params
 
     ! Names
     params%default_kfl_conv            = '0'    ! Enabling advection
@@ -197,12 +287,12 @@ contains
     params%default_space_solution_flag = '4'
     params%default_tempo_solution_flag = '0'
     
-  end subroutine set_default_params_analytical
-  !==================================================================================================
+  end subroutine set_par_default_params_analytical
 
-  subroutine set_default_params_transient(params)
+  !==================================================================================================
+  subroutine set_par_default_params_transient(params)
     implicit none
-    type(test_cdr_params_t), intent(inout) :: params
+    type(par_test_cdr_params_t), intent(inout) :: params
 
     ! Problem
     params%default_kfl_conv            = '11'   ! Enabling advection
@@ -219,55 +309,64 @@ contains
     params%default_theta           = '1.0'
     params%default_time_step       = '0.1'
 
-    
-  end subroutine set_default_params_transient
+  end subroutine set_par_default_params_transient
 
-end module command_line_parameters_names
+end module par_command_line_parameters_names
 
 !****************************************************************************************************
 !****************************************************************************************************
 
-program test_cdr
+program par_test_cdr
   use serial_names
+  use par_names
   use prob_names
   use lib_vtk_io_interface_names
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   use time_integration_names
   use theta_method_names
+  use par_command_line_parameters_names
+
   implicit none
 #include "debug.i90"
 
   ! Our data
-  type(mesh_t)                          :: f_mesh
-  type(triangulation_t)                 :: f_trian
-  type(conditions_t)                    :: f_cond
+  type(par_context_t)                   :: w_context, p_context, q_context, b_context
+  type(par_environment_t)               :: p_env
+  type(par_mesh_t)                      :: p_mesh
+  type(par_triangulation_t)             :: p_trian
+  type(par_conditions_t)                :: p_cond
   type(dof_descriptor_t)                :: dof_descriptor
-  type(serial_fe_space_t)               :: fe_space
+  type(par_fe_space_t)                  :: p_fe_space
+
   type(cdr_problem_t)                   :: my_problem
   type(cdr_discrete_t)                  :: my_discrete
   type(theta_method_t)                  :: theta_integ
-  type(cdr_transient_t)       , target  :: cdr_matvec
-  type(error_norm_t)          , target  :: compute_error
-  type(serial_scalar_t)                 :: enorm
+  type(cdr_transient_t)        , target :: cdr_matvec
+  type(error_norm_t)           , target :: compute_error
+  type(par_scalar_t)                    :: enorm
   type(vtk_t)                           :: fevtk
   integer(ip)                           :: num_approximations
   type(p_discrete_integration_t)        :: approximations(1)
   class(matrix_t)             , pointer :: matrix
-  type(serial_scalar_matrix_t), pointer :: my_matrix
+  type(par_scalar_matrix_t)   , pointer :: p_my_matrix
   class(array_t)              , pointer :: array
-  type(serial_scalar_array_t) , pointer :: my_array
-  type(serial_scalar_array_t) , target  :: feunk
+  type(par_scalar_array_t)    , pointer :: p_my_array
+  type(par_scalar_array_t)    , target  :: p_feunk
   type(fe_affine_operator_t)            :: fe_affine_operator
   type(fe_affine_operator_t)            :: fe_affine_operator_error
 
-  type(preconditioner_t)                :: feprec
-  type(preconditioner_params_t)         :: ppars
   type(solver_control_t)                :: sctrl
-  type(serial_environment_t)            :: senv
+  integer(ip)                           :: num_levels
+  integer(ip), allocatable              :: id_parts(:), num_parts(:)
 
-  type(Type_Command_Line_Interface)     :: cli 
-  character(len=:)        , allocatable :: group
+  type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
+  type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
+  type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
+  type(par_test_cdr_parallel_params_t)                      :: test_params
+  integer(ip)                                 , allocatable :: kind_coarse_dofs(:)
+ ! type(preconditioner_t)        :: feprec
+  !type(preconditioner_params_t) :: ppars
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -284,12 +383,18 @@ program test_cdr
   logical                  :: diagonal_blocks_symmetric(1)
   integer(ip)              :: diagonal_blocks_sign(1)
 
-  integer(ip)              :: lunio, istat
+  integer(ip) :: lunio, istat
+
+  type(Type_Command_Line_Interface):: cli 
+  character(len=:), allocatable :: group
 
   call meminit
 
+  ! Start parallel execution
+  call par_context_create (w_context)
+
   ! Read IO parameters
-  call read_flap_cli_test_cdr(cli)
+  call read_flap_cli_par_test_cdr(cli,test_params)
   call cli%parse(error=istat)
   if(cli%run_command('analytical')) then
      group = 'analytical'
@@ -298,18 +403,41 @@ program test_cdr
   else
      group = 'analytical'
   end if
-  call cli%get(group=trim(group),switch='-d',val=dir_path,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-pr',val=prefix,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-out',val=dir_path_out,error=istat); check(istat==0)
+  
+  ! This test only works with two levels.
+  num_levels = 2
+  call memalloc(num_levels, id_parts , __FILE__, __LINE__)
+  call memalloc(num_levels, num_parts, __FILE__, __LINE__)
+  num_parts = (/test_params%nparts, 1/)
+  id_parts = (/w_context%iam+1, 1/)
+
+ ! Create p_context and q_context splitting w_context
+  if(w_context%iam < num_parts(1)) then
+     call par_context_create ( 1, p_context, q_context, w_context )
+  else
+     call par_context_create ( 2, q_context, p_context, w_context )
+  end if
+  assert ( (p_context%iam >=0 .and. q_context%iam < 0) .or.                                         &
+       &   (p_context%iam < 0 .and. q_context%iam >= 0))
+  
+  ! Create b_context as an intercommunicator among p_context <=> q_context 
+  call par_context_create ( w_context, p_context, q_context, b_context )
+
+  ! Create parallel environment
+  call par_environment_create( p_env,w_context,p_context,q_context,b_context,num_levels,            &
+       &                       id_parts,num_parts )
 
   ! Read mesh
-  call mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
+  call cli%get(group=trim(group),switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-out',val=dir_path_out,error=istat); check(istat==0)
+  call par_mesh_read (dir_path, prefix, p_env, p_mesh)
 
   ! Read conditions 
-  call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
+  call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
 
   ! Construc triangulation
-  call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
+  call par_mesh_to_triangulation ( p_mesh, p_trian, p_cond )
 
   ! Assign the DOFs
   vars_prob = 1
@@ -317,58 +445,56 @@ program test_cdr
   call dof_descriptor%create( 1, 1, 1 )
 
   ! Create the physical problem
-  call physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
+  call physical_cdr_problem_create(my_problem,p_trian,cli,space_solution_flag,tempo_solution_flag)
 
   ! Create the discrete method associated the problem
   call discrete_cdr_problem_create(my_discrete,cli)
 
   ! Define the method to solve the proble
-  call approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli, f_trian,order,     &
-       &                                continuity,enable_face_integration,material,problem)
+  call approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli,          &
+       &                                p_trian%f_trian,order,continuity,enable_face_integration,   &
+       &                                material,problem)
 
   ! Create FE Space
-  call fe_space%create ( f_trian, dof_descriptor, problem, f_cond, continuity,                      &
-       &                 enable_face_integration, order, material, time_steps_to_store = 3,         &
-       &                 hierarchical_basis = .false., static_condensation = .false.,               &
-       &                 num_continuity = 1 )
+  call p_fe_space%create( p_trian, dof_descriptor, problem, p_cond, continuity,                     &
+       &                  enable_face_integration, order, material, time_steps_to_store = 3,        &
+       &                  hierarchical_basis = .false., static_condensation = .false.,              &
+       &                  num_continuity = 1 )
+  call par_create_distributed_dof_info ( p_fe_space )
 
   ! Initialize VTK output
-  call fevtk%initialize(f_trian,fe_space,my_problem,senv,dir_path_out,prefix, linear_order=.false.)
+  call fevtk%initialize(p_trian%f_trian,p_fe_space%serial_fe_space,my_problem,p_env,dir_path_out,   &
+       &                prefix,linear_order=.false.)
   
   ! Assign analytical solution
-  call fe_space%set_analytical_code(space_solution_flag,tempo_solution_flag)
+  call p_fe_space%set_analytical_code(space_solution_flag,tempo_solution_flag)
 
   !Initialize time parameters
   call cdr_matvec%time_integ%initialize()
 
   ! Initialize solution
   if (theta_integ%dtinv .ne. 0.0_rp) then
-     call update_analytical_initial(vars_prob,theta_integ%itime,fe_space)
+     call par_update_analytical_initial(vars_prob,theta_integ%itime,p_fe_space)
      istat = fevtk%write_VTK(t_step = theta_integ%real_time)
      call theta_integ%update()
      ! Store the solution in the previous time step
-     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
+     call par_update_transient_solution(p_fe_space,vars_prob,my_discrete%get_current(),             &
           &                          my_discrete%get_prev_step(),theta_integ)
   end if
 
- 
-
   ! Create vef2dof array
-  call create_dof_info( fe_space )
+  call par_create_distributed_dof_info( p_fe_space )
 
   ! Create the operator
-  diagonal_blocks_symmetric_storage = (/(my_problem%kfl_conv == 0)/)
-  diagonal_blocks_symmetric         = (/(my_problem%kfl_conv == 0)/)
-  diagonal_blocks_sign              = (/positive_definite/) 
-  call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
-       diagonal_blocks_sign, fe_space, approximations)
+  call fe_affine_operator%create (test_params%symmetric_storage , test_params%is_symmetric,         &
+       test_params%sign, p_fe_space%serial_fe_space, approximations)
   call fe_affine_operator%symbolic_setup()
    
   ! Create the matrix
   matrix => fe_affine_operator%get_matrix()
   select type(matrix)
-     class is(serial_scalar_matrix_t)
-     my_matrix => matrix
+     class is(par_scalar_matrix_t)
+     p_my_matrix => matrix
      class default
      check(.false.)
   end select
@@ -376,20 +502,68 @@ program test_cdr
   ! Create array 
   array => fe_affine_operator%get_array()
   select type(array)
-     class is(serial_scalar_array_t)
-     my_array => array
+     class is(par_scalar_array_t)
+     p_my_array => array
      class default
      check(.false.)
   end select
 
- ! Create preconditioners
-  ppars%type = pardiso_mkl_prec
-  call preconditioner_create(my_matrix,feprec,ppars)
-  call preconditioner_symbolic(my_matrix,feprec)
+  ! Define (recursive) parameters
+  point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+  do i=1, num_levels-1
+     point_to_p_mlevel_bddc_pars%ndime                = test_params%ndime
+     point_to_p_mlevel_bddc_pars%unknowns             = all_unknowns
+     point_to_p_mlevel_bddc_pars%pad_collectives      = test_params%pad_collectives
+     point_to_p_mlevel_bddc_pars%projection           = test_params%projection
+     point_to_p_mlevel_bddc_pars%schur_edge_lag_mult  = test_params%schur_edge_lag_mult
+     point_to_p_mlevel_bddc_pars%subd_elmat_calc      = test_params%subd_elmat_calc             
+     point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric              
+     point_to_p_mlevel_bddc_pars%nn_sys_sol_strat     = test_params%nn_sys_sol_strat  
+
+     if ( i < num_levels-1 ) then
+        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = recursive_bddc
+        point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec  
+        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec 
+        
+        if ( i == 1 ) then
+           point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
+           point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
+           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-08
+           point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
+           point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric
+        end if
+        allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = ierror)
+        check(ierror==0)
+        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+     else
+        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = serial_gather
+        point_to_p_mlevel_bddc_pars%ppars_harm%type          =pardiso_mkl_prec  
+        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type     =pardiso_mkl_prec   
+        point_to_p_mlevel_bddc_pars%ppars_coarse_serial%type =pardiso_mkl_prec  
+        nullify ( point_to_p_mlevel_bddc_pars%ppars_coarse_bddc )
+     end if
+  end do
+  ! call preconditioner_create(p_my_matrix,feprec,ppars)
+ ! call preconditioner_symbolic(p_my_matrix,feprec)
 
   ! Create the computation of the error
   call compute_error%create(my_problem,my_discrete)
+  call enorm%create(p_env)
+  
+  call memalloc ( test_params%ndime, kind_coarse_dofs, __FILE__, __LINE__ )
+  kind_coarse_dofs(1) = corners
+  kind_coarse_dofs(2) = corners_and_edges
+  if ( test_params%ndime == 3 ) then
+     kind_coarse_dofs(3) = corners_edges_and_faces
+  end if
 
+  sctrl%method  = cg
+  sctrl%trace   = 1
+  sctrl%itmax   = 800
+  sctrl%dkrymax = 800
+  sctrl%stopc   = res_res
+  sctrl%orto    = icgs
+  sctrl%rtol    = 1.0e-08
 
   do while (.not. theta_integ%finished) 
 
@@ -397,47 +571,57 @@ program test_cdr
      call theta_integ%print(6)
 
      ! Update boundary conditions
-     call update_strong_dirichlet_bcond( fe_space, f_cond )
-     call update_analytical_bcond(vars_prob,theta_integ%ctime,fe_space)
+     call par_update_strong_dirichlet_bcond( p_fe_space, p_cond )
+     call par_update_analytical_bcond(vars_prob,theta_integ%ctime,p_fe_space)
 
      ! Initialize the matrix and vector
-     call my_matrix%init(0.0_rp)
-     call my_array%init(0.0_rp)
+     call p_my_matrix%init(0.0_rp)
+     call p_my_array%init(0.0_rp) 
+     ! Create the unknown vector
+     call p_feunk%clone(p_my_array) 
 
      ! Compute the matrix an vector of the problem
      approximations(1)%discrete_integration => cdr_matvec
      call fe_affine_operator%numerical_setup()
 
-     ! Create the vector
-     call feunk%clone(my_array) 
+     ! Preconditioner setting
+     point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
+     do i=1, num_levels-1
+        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
+        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+     end do
+     ! Create multilevel bddc inverse 
+     call par_preconditioner_dd_mlevel_bddc_create( p_my_matrix, p_mlevel_bddc, p_mlevel_bddc_pars )
+     ! Ass struct
+     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_my_matrix, p_mlevel_bddc )
+     ! Fill val
+     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
 
      ! Update the preconditioner
-     call preconditioner_numeric(feprec)
+     !call preconditioner_numeric(feprec)
      !call preconditioner_log_info(feprec)
      
-
      ! Solve the matrix-vector problem
-     call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
+     call abstract_solve(p_my_matrix,p_mlevel_bddc,p_my_array,p_feunk,sctrl,p_env)
 
      ! Store the solution in FE space
-     call update_solution(feunk, fe_space)
-
-     !write(*,*) __FILE__,__LINE__, feunk%b
-     !write(*,*) fe_space%finite_elements(1)%unkno
+     call par_update_solution(p_feunk, p_fe_space)
 
      ! Store the solution in the previous time step
-     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
-          &                          my_discrete%get_prev_step(),theta_integ)
+     call par_update_transient_solution(p_fe_space,vars_prob,my_discrete%get_current(),             &
+          &                             my_discrete%get_prev_step(),theta_integ)
 
      ! Compute Error Norm
      approximations(1)%discrete_integration => compute_error
      compute_error%ctime = theta_integ%real_time
-     call enorm%create()
+     call enorm%create(p_env)
      call enorm%init(0.0_rp)
-     call fe_space%volume_integral(approximations,enorm)
+     call p_fe_space%volume_integral(approximations,enorm)
      call enorm%reduce()
      write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value())
 
+     ! Free bddc inverse
+     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc )
      call solver_control_free_conv_his(sctrl)
 
      ! Print solution to VTK file
@@ -456,9 +640,13 @@ program test_cdr
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
 
-  call feunk%free()
+  call memfree(id_parts , __FILE__, __LINE__)
+  call memfree(num_parts, __FILE__, __LINE__)
+
+  call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
+  call p_feunk%free()
   call fe_affine_operator%free()
-  call fe_space%free()
+  call p_fe_space%free()
   call my_problem%free
   call my_discrete%free
   call cdr_matvec%free
@@ -466,57 +654,76 @@ program test_cdr
   call compute_error%free
   call dof_descriptor_free ( dof_descriptor )
   call fevtk%free
-  call triangulation_free ( f_trian )
-  call conditions_free ( f_cond )
-  call mesh_free (f_mesh)
+  call par_triangulation_free ( p_trian )
+  call par_conditions_free ( p_cond )
+  call par_mesh_free (p_mesh)
   call memstatus
 contains
-  !==================================================================================================
 
-  subroutine read_flap_cli_test_cdr(cli)
+  !==================================================================================================
+  subroutine read_flap_cli_par_test_cdr(cli,test_params)
     implicit none
-    type(Type_Command_Line_Interface), intent(out) :: cli
+    type(Type_Command_Line_Interface)   , intent(out)   :: cli
+    type(par_test_cdr_parallel_params_t), intent(inout) :: test_params
+    
     ! Locals
-    type(test_cdr_params_t) :: analytical_params,transient_params
+    type(par_test_cdr_params_t) :: analytical_params,transient_params
     logical     :: authors_print
     integer(ip) :: error
 
     authors_print = .false.
 
     ! Initialize Command Line Interface
-    call cli%init(progname    = 'test_cdr',                                                         &
+    call cli%init(progname    = 'par_test_cdr',                                                     &
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 & 
          &        license     = '',                                                                 &
          &        description =                                                                     &
          &    'Serial FEMPAR driver to solve transient CDR problems using Continuous-Galerkin .',   &
-         &        examples    = ['test_cdr -h         ', 'test_cdr analytical -h ' ])
+         &        examples    = ['par_test_cdr -h         ', 'par_test_cdr analytical -h ' ])
 
     ! Set Command Line Arguments Groups, i.e. commands
     call cli%add_group(group='analytical',description='Solve a problem with an analytical solution')
     call cli%add_group(group='transient',description='Solve a problem with an transient solution')
 
+    ! Set Parallel parameters
+    call test_params%set_par_default_params()
+
     ! Set Command Line Arguments for each group
-    call set_default_params(analytical_params)
-    call set_default_params_analytical(analytical_params)
-    call cli_add_params(cli,analytical_params,'analytical') 
+    call set_par_default_params(analytical_params)
+    call set_par_default_params_analytical(analytical_params)
+    call cli_add_par_params(cli,analytical_params,test_params,'analytical') 
 
-    call set_default_params(transient_params)
-    call set_default_params_transient(transient_params)
-    call cli_add_params(cli,transient_params,'transient')
+    call set_par_default_params(transient_params)
+    call set_par_default_params_transient(transient_params)
+    call cli_add_par_params(cli,transient_params,test_params,'transient')
 
-  end subroutine read_flap_cli_test_cdr
+    ! Solver
+    call cli%get(switch='-projection'         ,val=test_params%projection         ,error=error)
+    check(error==0)
+    call cli%get(switch='-nn-sys-sol-strat'   ,val=test_params%nn_sys_sol_strat   ,error=error) 
+    check(error==0)
+    call cli%get(switch='-pad-collectives'    ,val=test_params%pad_collectives    ,error=error) 
+    check(error==0)
+    call cli%get(switch='-subd-elmat-calc'    ,val=test_params%subd_elmat_calc    ,error=error)
+    check(error==0)
+    call cli%get(switch='-schur-edge-lag-mult',val=test_params%schur_edge_lag_mult,error=error)
+    check(error==0)
+
+  end subroutine read_flap_cli_par_test_cdr
+
   !==================================================================================================
-
-  subroutine physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
+  subroutine physical_cdr_problem_create(my_problem,p_trian,cli,space_solution_flag,                &
+       &                                 tempo_solution_flag)
     implicit none
     type(cdr_problem_t)              , intent(inout) :: my_problem
+    type(par_triangulation_t)        , intent(in)    :: p_trian
     type(Type_Command_Line_Interface), intent(inout) :: cli
     integer(ip)                      , intent(inout) :: space_solution_flag(1)
     integer(ip)                      , intent(inout) :: tempo_solution_flag(1)
 
     !Create the problem to solve 
-    call my_problem%create( f_trian%num_dims )
+    call my_problem%create( p_trian%f_trian%num_dims )
     call cli%get(group=trim(group),switch='-kconv',val=my_problem%kfl_conv ,error=istat)
     check(istat==0)
     call cli%get(group=trim(group),switch='-kreac',val=my_problem%kfl_react,error=istat)
@@ -532,8 +739,8 @@ contains
     call cli%get(group=trim(group),switch='-tsol' ,val=tempo_solution_flag ,error=istat)
     check(istat==0)
   end subroutine physical_cdr_problem_create
-  !==================================================================================================
 
+  !==================================================================================================
   subroutine discrete_cdr_problem_create(my_discrete,cli)
     implicit none
     type(cdr_discrete_t)             , intent(inout) :: my_discrete
@@ -545,8 +752,8 @@ contains
     call cli%get(group=trim(group),switch='-kst' ,val=my_discrete%kfl_stab,error=istat)
     check(istat==0)
   end subroutine discrete_cdr_problem_create
-  !==================================================================================================
 
+  !==================================================================================================
   subroutine approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli,          &
        &                                      f_trian,order,continuity,enable_face_integration,     &
        &                                      material, problem)
@@ -608,4 +815,4 @@ contains
   end subroutine approximation_cdr_problem_create
 
 
-end program test_cdr
+end program par_test_cdr

@@ -333,17 +333,17 @@ contains
   end subroutine update_nonlinear_solution
 
   !==================================================================================================
-  subroutine update_transient_solution(fe_space,working_vars,origin,destiny,time_integ)
+  subroutine update_transient_solution(fe_space,working_vars,origin,destination,time_integ)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine stores the previous nonlinear solution.                                     !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(serial_fe_space_t)  , intent(inout) :: fe_space
     integer(ip)              , intent(in)    :: working_vars(:)
-    integer(ip)    , optional, intent(in)    :: origin,destiny
+    integer(ip)    , optional, intent(in)    :: origin,destination
     class(time_integration_t), intent(in)    :: time_integ
     ! Locals
-    integer(ip) :: ielem,ivar,origin_,destiny_,nvars,gvar
+    integer(ip) :: ielem,ivar,origin_,destination_,nvars,gvar
 
     nvars = size(working_vars,1)
 
@@ -353,20 +353,20 @@ contains
     else
        origin_ = 1
     end if
-    if(present(destiny)) then
-       destiny_ = destiny
+    if(present(destination)) then
+       destination_ = destination
     else
-       destiny_ = 3
+       destination_ = 3
     end if
     
     ! Update unkno
     do ielem = 1, fe_space%g_trian%num_elems
        do ivar = 1,nvars
-          !fe_space%finite_elements(ielem)%unkno(:,working_vars(ivar),destiny_) = &
+          !fe_space%finite_elements(ielem)%unkno(:,working_vars(ivar),destination_) = &
            !    &    fe_space%finite_elements(ielem)%unkno(:,working_vars(ivar),origin_)
           gvar = working_vars(ivar)
           call time_integ%update_solution(fe_space%finite_elements(ielem)%unkno(:,gvar,origin_),    &
-               &                          fe_space%finite_elements(ielem)%unkno(:,gvar,destiny_))
+               &                          fe_space%finite_elements(ielem)%unkno(:,gvar,destination_))
        end do
     end do
     
