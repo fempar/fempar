@@ -69,7 +69,7 @@ module triangulation_names
   end type triangulation_t
 
   ! Types
-  public :: triangulation_t
+  public :: triangulation_t, elem_topology_t
 
   ! Main Subroutines 
   public :: triangulation_create, triangulation_free, triangulation_to_dual, triangulation_print

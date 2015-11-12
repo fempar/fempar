@@ -1,5 +1,6 @@
 module reference_fe_names
-  use quadrature_names 
+  use SB_quadrature_names 
+  use SB_interpolation_names
   use allocatable_array_ip1_names
   use types_names
   implicit none
@@ -49,11 +50,14 @@ module reference_fe_names
      procedure :: get_order
      procedure :: get_continuity
 
-
-     ! procedure :: get_interior_nodes_vef ! returns ndxob
-     ! procedure :: get_nodes_vef          ! returns ntxob
-     ! procedure :: get_corners_vef        ! returns crxob
-     ! procedure :: get_vefs_vef           ! returns obxob
+     procedure :: get_number_vefs
+     procedure :: get_number_nodes
+     procedure :: get_number_vefs_dimension
+     procedure :: get_orientation
+     procedure :: get_interior_nodes_vef ! returns ndxob
+     procedure :: get_nodes_vef          ! returns ntxob
+     procedure :: get_corners_vef        ! returns crxob
+     procedure :: get_vefs_vef           ! returns obxob
 
      procedure :: get_pointer_number_vefs
      procedure :: get_pointer_number_nodes
@@ -78,27 +82,7 @@ module reference_fe_names
      class(reference_fe_t), pointer :: p => NULL()      
   end type p_reference_fe_t
 
-  type interpolation_t
-     private
-     integer(ip)                ::  &
-          nlocs                     ! Number of interpolation locs 
-     ! (usually integration points)
 
-     real(rp), allocatable      ::  &
-          shape_functions(:,:),     &   ! Shape functions
-          shape_derivatives(:,:,:), &   ! Derivatives
-          hessian(:,:,:)                ! Hessian
-
-   contains
-
-     !procedure :: free
-     !procedure :: print
-
-     !procedure :: get_shape_functions
-     !procedure :: get_shape_derivatives
-     !procedure :: get_hessian     
-
-  end type interpolation_t
 
   abstract interface
      subroutine create_interface ( this, number_dimensions, order, continuity )
@@ -113,12 +97,13 @@ module reference_fe_names
      ! Here we create the interpolation object, i.e., the value of the shape functions of the
      ! reference element on the quadrature points. 
      ! It is the new version of the shape1_hessi in interpolation.f90
-     subroutine create_interpolation_interface ( this, quadrature, interpolation )
-       import :: reference_fe_t, interpolation_t, quadrature_t
+     subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
+       import :: reference_fe_t, SB_interpolation_t, SB_quadrature_t
        implicit none 
        class(reference_fe_t), intent(in) :: this 
-       class(quadrature_t), intent(in) :: quadrature
-       type(interpolation_t), intent(out) :: interpolation
+       class(SB_quadrature_t), intent(in) :: quadrature
+       type(SB_interpolation_t), intent(out) :: interpolation
+       logical, optional, intent(in) :: compute_hessian
      end subroutine create_interpolation_interface
   end interface
   ! Here all the concrete functions
@@ -131,18 +116,18 @@ module reference_fe_names
      ! In the new version, I would call the quadrature_create here. Further, quadrature can be 
      ! abstract with different version based on geometrical topology only.
      subroutine create_quadrature_interface ( this, quadrature, max_order )
-       import :: reference_fe_t, quadrature_t, ip
+       import :: reference_fe_t, SB_quadrature_t, ip
        implicit none 
        class(reference_fe_t), intent(in) :: this        
        integer(ip), optional, intent(in) :: max_order
-       class(quadrature_t), intent(out) :: quadrature
+       class(SB_quadrature_t), intent(out) :: quadrature
      end subroutine create_quadrature_interface
   end interface
   ! Here all the concrete functions
   ! ...
 
 
-  public :: reference_fe_t, interpolation_t
+  public :: reference_fe_t, p_reference_fe_t
 contains
   ! Here we create the interpolation object, i.e., the value of the shape functions of the
   ! reference element on the quadrature points. 
@@ -237,6 +222,62 @@ contains
     logical :: get_continuity
     get_continuity = this%continuity
   end function get_continuity
+
+  function get_number_vefs ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)                 :: get_number_vefs
+    get_number_vefs = this%number_vefs
+  end function get_number_vefs
+
+  function get_number_nodes ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)                 :: get_number_nodes
+    get_number_nodes = this%number_nodes
+  end function get_number_nodes
+
+  function get_number_vefs_dimension ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)                 :: get_number_vefs_dimension(5)
+    get_number_vefs_dimension = this%number_vefs_dimension
+  end function get_number_vefs_dimension
+
+  function get_orientation ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    type(allocatable_array_ip1_t) :: get_orientation
+    get_orientation = this%orientation
+  end function get_orientation
+
+  function get_interior_nodes_vef ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    type(list_t) :: get_interior_nodes_vef
+    get_interior_nodes_vef = this%interior_nodes_vef
+  end function get_interior_nodes_vef
+
+  function get_nodes_vef ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    type(list_t) :: get_nodes_vef
+    get_nodes_vef = this%nodes_vef
+  end function get_nodes_vef
+
+  function get_corners_vef ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    type(list_t) :: get_corners_vef
+    get_corners_vef = this%corners_vef
+  end function get_corners_vef
+
+  function get_vefs_vef ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    type(list_t) :: get_vefs_vef
+    get_vefs_vef = this%vefs_vef
+  end function get_vefs_vef
 
   function get_pointer_number_vefs ( this )
     implicit none
