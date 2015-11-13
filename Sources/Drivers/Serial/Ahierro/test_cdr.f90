@@ -490,7 +490,7 @@ contains
          &        license     = '',                                                                 &
          &        description =                                                                     &
          &    'Serial FEMPAR driver to solve transient CDR problems using Continuous-Galerkin .',   &
-         &        examples    = ['test_cdr -h         ', 'test_cdr analytical -h ' ])
+         &        examples    = ['test_cdr -h            ', 'test_cdr analytical -h ' ])
 
     ! Set Command Line Arguments Groups, i.e. commands
     call cli%add_group(group='analytical',description='Solve a problem with an analytical solution')

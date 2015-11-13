@@ -104,7 +104,7 @@ contains
     type(par_test_cdr_params_t), intent(inout) :: params
 
     ! IO parameters
-    params%default_dir_path     = 'data'
+    params%default_dir_path     = 'data/'
     params%default_prefix       = 'square_4x4'
     params%default_dir_path_out = 'output'
 
@@ -244,28 +244,28 @@ contains
     check(error==0)
 
     ! Solver
-    call cli%add(switch='--projection',switch_ab='-projection',                                     &
-         &              help='Coarse-grid projection strategy.',required=.false.,                   &
-         &              def=par_params%default_projection,choices='galerkin,petrov_galerkin',       &
+    call cli%add(group=trim(group),switch='--projection',switch_ab='-projection',                   &
+         &       help='Coarse-grid projection strategy.',required=.false.,                          &
+         &       def=par_params%default_projection,choices='galerkin,petrov_galerkin',              &
          &              act='store', error=error)
     check(error==0)
-    call cli%add(switch='--nn-sys-sol-strat',switch_ab='-nn-sys-sol-strat',                         &
+    call cli%add(group=trim(group),switch='--nn-sys-sol-strat',switch_ab='-nn-sys-sol-strat',                         &
          &       help='Strategy followed to solve the constrained Neumann problem',required=.false.,&
          &       def=par_params%default_nn_sys_sol_strat,                                           & 
          &       choices='corners_rest_part_solve_expl_schur,direct_solve_constrained_problem',     &
          &       act='store', error=error)
     check(error==0)
-    call cli%add(switch='--pad-collectives',switch_ab='-pad-collectives',                           &
+    call cli%add(group=trim(group),switch='--pad-collectives',switch_ab='-pad-collectives',         &
          &       help='Apply padding to inter-level collectives?',required=.false.,                 &
          &       def=par_params%default_pad_collectives,act='store', error=error)
     check(error==0)
-    call cli%add(switch='--schur-edge-lag-mult',switch_ab='-schur-edge-lag-mult',                   &
+    call cli%add(group=trim(group),switch='--schur-edge-lag-mult',switch_ab='-schur-edge-lag-mult', &
          &       help='Are the data resulting from computation of the edge Schur complement         &
          &       resulting from numerical set-up going to be re-used during application or computed &
          &       from scratch?',required=.false., def=par_params%default_schur_edge_lag_mult,       &
          &       choices='reuse_from_phis,compute_from_scratch', act='store', error=error)
     check(error==0)
-    call cli%add(switch='--subd-elmat-calc',switch_ab='-subd-elmat-calc',                           &
+    call cli%add(group=trim(group),switch='--subd-elmat-calc',switch_ab='-subd-elmat-calc',                           &
          &       help='Controls the way the subdomain coarse-grid matrix is computed.',             &
          &       required=.false., def=par_params%default_subd_elmat_calc,                          &
          &       choices='phit_minus_c_i_t_lambda,phit_a_i_phi', act='store', error=error)
@@ -329,7 +329,6 @@ program par_test_cdr
 
   implicit none
 #include "debug.i90"
-
   ! Our data
   type(par_context_t)                   :: w_context, p_context, q_context, b_context
   type(par_environment_t)               :: p_env
@@ -373,7 +372,6 @@ program par_test_cdr
   character(len=256)       :: prefix, filename
   integer(ip)              :: i, j, vars_prob(1) = 1, ierror, iblock
   integer(ip)              :: space_solution_flag(1), tempo_solution_flag(1)
-
   integer(ip), allocatable :: order(:,:), material(:), problem(:)
 
   integer(ip), allocatable :: continuity(:,:)
@@ -434,6 +432,7 @@ program par_test_cdr
   call par_mesh_read (dir_path, prefix, p_env, p_mesh)
 
   ! Read conditions 
+  write(*,*) __FILE__,__LINE__,trim(dir_path), trim(prefix), p_mesh%f_mesh%npoin
   call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
 
   ! Construc triangulation
@@ -445,15 +444,17 @@ program par_test_cdr
   call dof_descriptor%create( 1, 1, 1 )
 
   ! Create the physical problem
-  call physical_cdr_problem_create(my_problem,p_trian,cli,space_solution_flag,tempo_solution_flag)
+  call physical_cdr_problem_create(my_problem,p_trian,cli,space_solution_flag,tempo_solution_flag,  &
+       &                           group)
 
   ! Create the discrete method associated the problem
-  call discrete_cdr_problem_create(my_discrete,cli)
+  call discrete_cdr_problem_create(my_discrete,my_problem,cli,group)
 
   ! Define the method to solve the proble
-  call approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli,          &
-       &                                p_trian%f_trian,order,continuity,enable_face_integration,   &
-       &                                material,problem)
+  call approximation_cdr_problem_create(approximations,my_problem,my_discrete,theta_integ,          &
+       &                                cdr_matvec,cli,p_trian%f_trian,order,continuity,            &
+       &                                enable_face_integration,                                    &
+       &                                material,problem,group,dof_descriptor)
 
   ! Create FE Space
   call p_fe_space%create( p_trian, dof_descriptor, problem, p_cond, continuity,                     &
@@ -621,7 +622,7 @@ program par_test_cdr
      write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value())
 
      ! Free bddc inverse
-     call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc )
+     call  p_mlevel_bddc%free()!par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc )
      call solver_control_free_conv_his(sctrl)
 
      ! Print solution to VTK file
@@ -659,9 +660,11 @@ program par_test_cdr
   call par_mesh_free (p_mesh)
   call memstatus
 contains
-
   !==================================================================================================
   subroutine read_flap_cli_par_test_cdr(cli,test_params)
+    use Data_Type_Command_Line_Interface
+    use par_command_line_parameters_names
+    use serial_names
     implicit none
     type(Type_Command_Line_Interface)   , intent(out)   :: cli
     type(par_test_cdr_parallel_params_t), intent(inout) :: test_params
@@ -669,7 +672,7 @@ contains
     ! Locals
     type(par_test_cdr_params_t) :: analytical_params,transient_params
     logical     :: authors_print
-    integer(ip) :: error
+    integer(ip) :: istat
 
     authors_print = .false.
 
@@ -699,29 +702,36 @@ contains
     call cli_add_par_params(cli,transient_params,test_params,'transient')
 
     ! Solver
-    call cli%get(switch='-projection'         ,val=test_params%projection         ,error=error)
-    check(error==0)
-    call cli%get(switch='-nn-sys-sol-strat'   ,val=test_params%nn_sys_sol_strat   ,error=error) 
-    check(error==0)
-    call cli%get(switch='-pad-collectives'    ,val=test_params%pad_collectives    ,error=error) 
-    check(error==0)
-    call cli%get(switch='-subd-elmat-calc'    ,val=test_params%subd_elmat_calc    ,error=error)
-    check(error==0)
-    call cli%get(switch='-schur-edge-lag-mult',val=test_params%schur_edge_lag_mult,error=error)
-    check(error==0)
+    call cli%get(switch='-projection'         ,val=test_params%projection         ,error=istat)
+    check(istat==0)
+    call cli%get(switch='-nn-sys-sol-strat'   ,val=test_params%nn_sys_sol_strat   ,error=istat) 
+    check(istat==0)
+    call cli%get(switch='-pad-collectives'    ,val=test_params%pad_collectives    ,error=istat) 
+    check(istat==0)
+    call cli%get(switch='-subd-elmat-calc'    ,val=test_params%subd_elmat_calc    ,error=istat)
+    check(istat==0)
+    call cli%get(switch='-schur-edge-lag-mult',val=test_params%schur_edge_lag_mult,error=istat)
+    check(istat==0)
 
   end subroutine read_flap_cli_par_test_cdr
 
   !==================================================================================================
   subroutine physical_cdr_problem_create(my_problem,p_trian,cli,space_solution_flag,                &
-       &                                 tempo_solution_flag)
+       &                                 tempo_solution_flag,group)
+    use serial_names
+    use par_names
+    use prob_names
+    use Data_Type_Command_Line_Interface
     implicit none
     type(cdr_problem_t)              , intent(inout) :: my_problem
     type(par_triangulation_t)        , intent(in)    :: p_trian
     type(Type_Command_Line_Interface), intent(inout) :: cli
     integer(ip)                      , intent(inout) :: space_solution_flag(1)
     integer(ip)                      , intent(inout) :: tempo_solution_flag(1)
+    character(len=:),allocatable     , intent(in)    :: group
 
+    integer(ip) :: istat
+ 
     !Create the problem to solve 
     call my_problem%create( p_trian%f_trian%num_dims )
     call cli%get(group=trim(group),switch='-kconv',val=my_problem%kfl_conv ,error=istat)
@@ -741,12 +751,18 @@ contains
   end subroutine physical_cdr_problem_create
 
   !==================================================================================================
-  subroutine discrete_cdr_problem_create(my_discrete,cli)
+  subroutine discrete_cdr_problem_create(my_discrete,my_problem,cli,group)
+    use serial_names
+    use prob_names
+    use Data_Type_Command_Line_Interface
     implicit none
     type(cdr_discrete_t)             , intent(inout) :: my_discrete
+    type(cdr_problem_t)              , intent(inout) :: my_problem
     type(Type_Command_Line_Interface), intent(inout) :: cli
+    character(len=:),allocatable     , intent(in)    :: group
 
-    real(rp) :: time_step
+    real(rp)    :: time_step
+    integer(ip) :: istat
 
     call my_discrete%create( my_problem)
     call cli%get(group=trim(group),switch='-kst' ,val=my_discrete%kfl_stab,error=istat)
@@ -754,10 +770,16 @@ contains
   end subroutine discrete_cdr_problem_create
 
   !==================================================================================================
-  subroutine approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli,          &
-       &                                      f_trian,order,continuity,enable_face_integration,     &
-       &                                      material, problem)
+  subroutine approximation_cdr_problem_create(approximations, my_problem,my_discrete,theta_integ,   &
+       &                                      cdr_matvec,cli,f_trian,order,continuity,              &
+       &                                      enable_face_integration,material, problem,group,      &
+       &                                      dof_descriptor)
+    use serial_names
+    use prob_names
+    use theta_method_names
+    use Data_Type_Command_Line_Interface
     implicit none
+    type(p_discrete_integration_t)   , intent(inout)         :: approximations(1)
     type(cdr_problem_t)              , intent(in)            :: my_problem
     type(cdr_discrete_t)             , intent(in)            :: my_discrete
     type(theta_method_t)             , intent(in)   , target :: theta_integ
@@ -767,8 +789,10 @@ contains
     integer(ip)         , allocatable, intent(inout)         :: order(:,:),continuity(:,:)
     logical             , allocatable, intent(inout)         :: enable_face_integration(:,:)
     integer(ip)         , allocatable, intent(inout)         :: material(:),problem(:)
+    character(len=:),allocatable     , intent(in)            :: group
+    type(dof_descriptor_t)           , intent(inout)         :: dof_descriptor
 
-    integer(ip) :: continuity_flag,face_int_flag, order_flag
+    integer(ip) :: continuity_flag,face_int_flag, order_flag, istat, num_approximations
     real(rp)    :: time_step
 
     ! Create the solver type
