@@ -126,7 +126,7 @@ contains
     type(serial_scalar_matrix_t), pointer :: serial_scalar_matrix
 
     ! Auxiliar local start array to store start(2)
-    call allocatable_array_create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1,start_aux)
+    call start_aux%create(dof_descriptor%problems(finite_element(2)%p%problem)%p%nvars+1)
     start_aux%a = finite_element(2)%p%start%a
 
     finite_element(2)%p%start%a = finite_element(2)%p%start%a + finite_element(1)%p%start%a(dof_descriptor%problems(finite_element(1)%p%problem)%p%nvars+1) - 1

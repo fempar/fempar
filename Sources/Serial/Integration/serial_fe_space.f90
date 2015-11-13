@@ -472,8 +472,8 @@ contains
        ! Assign pointer to p_mat and p_vec in ielem
        call fe_space%pos_elmatvec%get(key=lndof,val=pos_elmatvec,stat=istat)
        if ( istat == new_index ) then
-          call allocatable_array_create ( lndof, lndof, fe_space%lelmat(pos_elmatvec) )
-          call allocatable_array_create ( lndof, fe_space%lelvec(pos_elmatvec) )
+          call fe_space%lelmat(pos_elmatvec)%create(lndof,lndof)
+          call fe_space%lelvec(pos_elmatvec)%create(lndof)
        end if
        fe_space%finite_elements(ielem)%p_mat => fe_space%lelmat(pos_elmatvec)
        fe_space%finite_elements(ielem)%p_vec => fe_space%lelvec(pos_elmatvec)
@@ -518,7 +518,7 @@ contains
        call fe_space%pos_start%get(key=nvars, val=pos_voint, stat = istat)
        if ( istat == new_index ) then
           call pointer_variable(fe_space%finite_elements(ielem),fe_space%dof_descriptor,fe_space%lstart(pos_voint))
-          call allocatable_array_create(nvars,2,fe_space%l_analytical_code(pos_voint))
+          call fe_space%l_analytical_code(pos_voint)%create(nvars,2)
        end if
        fe_space%finite_elements(ielem)%start             => fe_space%lstart(pos_voint)
        fe_space%finite_elements(ielem)%p_analytical_code => fe_space%l_analytical_code(pos_voint)
@@ -617,8 +617,8 @@ contains
     nullify ( this%finite_elements )
 
     do i = 1,this%pos_elmatvec%last()
-       call allocatable_array_free( this%lelmat(i) )
-       call allocatable_array_free( this%lelvec(i) )
+       call this%lelmat(i)%free()
+       call this%lelvec(i)%free()
     end do
     call this%pos_elmatvec%free
     call this%pos_elmatvec%free
@@ -635,8 +635,8 @@ contains
     call this%pos_elem_info%free
 
     do i = 1,this%pos_start%last()
-       call allocatable_array_free( this%lstart(i) )
-       call allocatable_array_free( this%l_analytical_code(i) )
+       call this%lstart(i)%free()
+       call this%l_analytical_code(i)%free()
     end do
     call this%pos_start%free
 
@@ -755,7 +755,7 @@ contains
 
     integer(ip) :: ivar
 
-    call allocatable_array_create(dof_descriptor%problems(finite_element%problem)%p%nvars+1,start)
+    call start%create(dof_descriptor%problems(finite_element%problem)%p%nvars+1)
 
     do ivar = 1,dof_descriptor%problems(finite_element%problem)%p%nvars
        start%a(ivar+1) = finite_element%reference_element_vars(ivar)%p%nnode
