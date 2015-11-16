@@ -25,18 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!***********************************************************************
-! All allocatable arrays
-!***********************************************************************
-# define var_attr allocatable, target
-# define point(a,b) call move_alloc(a,b)
-# define generic_status_test             allocated
-# define generic_memalloc_interface      memalloc
-# define generic_memrealloc_interface    memrealloc
-# define generic_memfree_interface       memfree
-# define generic_memmovealloc_interface  memmovealloc
-# include "debug.i90"
-!***********************************************************************
 module volume_integration_tools_names
   use types_names
   use memor_names
@@ -50,6 +38,7 @@ module volume_integration_tools_names
   use fe_space_types_names
   implicit none
   private
+# include "debug.i90"
 
   type volume_integrator_t
      type(quadrature_t)         :: quad        ! Quadrature rules for elements
@@ -65,6 +54,17 @@ module volume_integration_tools_names
 
   public :: volume_integrator_t, volume_integrator_pointer_t
 
+!***********************************************************************
+! All allocatable arrays
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+!***********************************************************************
 # define var_type type(volume_integrator_pointer_t)
 # define var_size 8
 # define bound_kind ip
@@ -79,7 +79,6 @@ contains
 
   ! =================================================================================================
 # include "mem_body.i90"
-
   !==================================================================================================
   subroutine volume_integrator_create(gtype,utype,ndime,g_ord,u_ord,integ,khie,mnode)
     implicit none
@@ -203,9 +202,6 @@ end module volume_integration_tools_names
 module face_integration_tools_names
   use types_names
   use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
   use quadrature_names
   use quadrature_faces_names
   use interpolation_names
@@ -214,6 +210,9 @@ module face_integration_tools_names
   use bomap_names
   use fe_space_types_names 
   use volume_integration_tools_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
 
   implicit none
   private

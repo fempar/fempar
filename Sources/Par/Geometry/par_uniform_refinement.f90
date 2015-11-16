@@ -30,7 +30,7 @@ module par_uniform_refinement_names
   use types_names
   use memor_names
   use migratory_element_names
-  use triangulation_names
+  use serial_triangulation_names
   use hash_table_names
   use fe_space_types_names
   use map_names

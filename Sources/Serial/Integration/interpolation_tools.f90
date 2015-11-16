@@ -25,18 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!***********************************************************************
-! All allocatable arrays
-!***********************************************************************
-# define var_attr allocatable, target
-# define point(a,b) call move_alloc(a,b)
-# define generic_status_test             allocated
-# define generic_memalloc_interface      memalloc
-# define generic_memrealloc_interface    memrealloc
-# define generic_memfree_interface       memfree
-# define generic_memmovealloc_interface  memmovealloc
-# include "debug.i90"
-!***********************************************************************
 module interpolation_tools_names
   use types_names
   use memor_names
@@ -48,6 +36,7 @@ module interpolation_tools_names
   use allocatable_array_names
   implicit none
   private
+# include "debug.i90"
 
   type interpolator_pointer_t
      type(allocatable_array_rp2_t), pointer :: p => NULL()
@@ -56,6 +45,17 @@ module interpolation_tools_names
   ! Types
   public :: interpolator_pointer_t
 
+!***********************************************************************
+! All allocatable arrays
+!***********************************************************************
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+!***********************************************************************
 # define var_type type(interpolator_pointer_t)
 # define var_size 8
 # define bound_kind ip

@@ -31,7 +31,7 @@ module par_triangulation_names
   use memor_names
   use sort_names
   use migratory_element_names
-  use triangulation_names
+  use serial_triangulation_names
   use element_import_names
   use hash_table_names
 
@@ -82,18 +82,18 @@ module par_triangulation_names
 
   type :: par_triangulation_t
      integer(ip)                             :: state = par_triangulation_not_created  
-     type(triangulation_t)                 :: f_trian             ! Data common with a centralized (serial) triangulation
+     type(serial_triangulation_t)            :: f_trian             ! Data common with a centralized (serial) triangulation
      integer(ip)                             :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
      integer(ip)                             :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
-     class(migratory_element_t), allocatable   :: mig_elems(:)        ! Migratory elements list_t
-     type(par_elem_topology_t),   pointer      :: elems(:) => NULL()  ! Array of elements in the mesh
-     type(par_vef_topology_t), allocatable  :: vefs(:)          ! array of vefs in the mesh
+     class(migratory_element_t), allocatable :: mig_elems(:)        ! Migratory elements list_t
+     type(par_elem_topology_t) , pointer     :: elems(:) => NULL()  ! Array of elements in the mesh
+     type(par_vef_topology_t)  , allocatable :: vefs(:)             ! array of vefs in the mesh
      integer(ip)                             :: num_itfc_vefs = -1  ! Number of vefs in the interface among subdomains
      integer(ip), allocatable                :: lst_itfc_vefs(:)    ! List of vefs local IDs in the interface among subdomains 
      integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
      integer(ip), allocatable                :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
-     type(par_environment_t),   pointer        :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
-     type(element_import_t)                :: f_el_import         ! Vef describing the layout in distributed-memory of the dual graph
+     type(par_environment_t), pointer        :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
+     type(element_import_t)                  :: f_el_import         ! Vef describing the layout in distributed-memory of the dual graph
                                                                     ! (It is required for nearest neighbour comms on this graph)
      integer(ip)                             :: max_nparts          ! Maximum number of parts around any vef communication vef
      integer(ip)                             :: nobjs               ! Number of local vef communication vefs

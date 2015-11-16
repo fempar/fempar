@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module element_tools_names
   use types_names
   use memor_names
@@ -38,6 +37,7 @@ module element_tools_names
   use problem_names
   implicit none
   private
+# include "debug.i90"
 
   type, extends(memory_guard_t) :: function_t
      integer(ip)  :: ivar=1

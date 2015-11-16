@@ -29,6 +29,7 @@ module migratory_element_names
 use types_names
   implicit none
   private
+# include "debug.i90"
 
   type, abstract :: migratory_element_t
    contains
@@ -65,5 +66,62 @@ use types_names
   end interface
 
   public :: migratory_element_t
-  
+
+#define  template_element_t          migratory_element_t
+#define  template_element_set_t      migratory_element_set_t
+#define  template_element_iterator_t migratory_element_iterator_t
+#include "element_set.i90"
+  public :: migratory_element_set_t, migratory_element_iterator_t
+
+#define  plain_template_element_set_t      plain_migratory_element_set_t
+#define  plain_template_element_iterator_t plain_migratory_element_iterator_t
+#include "plain_element_set_header.i90"
+  public :: plain_migratory_element_set_t, plain_migratory_element_iterator_t
+
+contains
+
+#include "plain_element_set_body.i90"
+
+  ! type, abstract :: migratory_element_iterator_t
+  !    private
+  !  contains
+  !    procedure(next_interface)    , deferred :: next
+  !    procedure(has_next_interface), deferred :: has_next
+  ! end type migratory_element_iterator_t
+  ! abstract interface
+  !    function next_interface (this) result(p)
+  !      import :: migratory_element_iterator_t, migratory_element_t
+  !      implicit none
+  !      class(migratory_element_iterator_t), intent(inout)  :: this
+  !      class(migratory_element_t)         , pointer        :: p
+  !    end function next_interface
+  !    function has_next_interface(this) result(res)
+  !      import :: migratory_element_iterator_t
+  !      implicit none
+  !      class(migratory_element_iterator_t), intent(inout) :: this
+  !      logical :: res
+  !    end function has_next_interface	
+  ! end interface
+
+  ! type, abstract :: migratory_element_set_t
+  !  contains
+  !    procedure(create_migratory_element_iterator_interface), deferred :: create_migratory_element_iterator
+  !    procedure(free_migratory_element_iterator_interface)  , deferred :: free_migratory_element_iterator
+  ! end type migratory_element_set_t
+  ! ! Abstract interfaces
+  ! abstract interface
+  !     subroutine create_migratory_element_iterator_interface(this,iterator)
+  !      import :: migratory_element_set_t, migratory_element_iterator_t
+  !      implicit none
+  !      class(migratory_element_set_t), target, intent(in)  :: this
+  !      class(migratory_element_iterator_t)   , intent(out) :: iterator
+  !    end subroutine create_migratory_element_iterator_interface
+  !     subroutine free_migratory_element_iterator_interface(this,iterator)
+  !      import :: migratory_element_set_t, migratory_element_iterator_t
+  !      implicit none
+  !      class(migratory_element_set_t)     , intent(in)    :: this
+  !      class(migratory_element_iterator_t), intent(inout) :: iterator
+  !    end subroutine free_migratory_element_iterator_interface
+  ! end interface
+
 end module migratory_element_names

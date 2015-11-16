@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module finite_element_names
   ! Modules
   use types_names
@@ -38,12 +37,12 @@ module finite_element_names
   !use dof_descriptor_names
   use migratory_element_names
   !use conditions_names
-
 #ifdef memcheck
   use iso_c_binding
 #endif
   implicit none
   private
+# include "debug.i90"
 
   ! Information of each element of the FE space
   type, extends(migratory_element_t) :: finite_element_t

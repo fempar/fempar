@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module stdio_names
   ! This module contains functions to manage io. It was 
   ! created by C. Labra (clabra@cimne.upc.edu) and slightly
@@ -40,6 +39,7 @@ module stdio_names
 
   ! private module
   private
+# include "debug.i90"
 
   integer, parameter :: IOSTAT_OK = 0  ! extra parameter for iso_fortran_env
 
