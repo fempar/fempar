@@ -142,7 +142,7 @@ contains
      params%ndime                      = 2
 
      ! Number of parts in which the problem was split
-     params%nparts                     = 1
+     params%nparts                     = 3
     
     ! Graph Storage and Matrix properties
     params%default_symmetric_storage   = '.true.'
@@ -169,6 +169,7 @@ contains
     class(par_test_cdr_parallel_params_t), intent(inout) :: par_params
     ! Locals
     integer(ip) :: error
+    character   :: aux_string
 
     ! Set Command Line Arguments
     ! IO parameters
@@ -247,9 +248,10 @@ contains
     call cli%add(group=trim(group),switch='--projection',switch_ab='-projection',                   &
          &       help='Coarse-grid projection strategy.',required=.false.,                          &
          &       def=par_params%default_projection,choices='galerkin,petrov_galerkin',              &
-         &              act='store', error=error)
+         &       act='store', error=error)
     check(error==0)
-    call cli%add(group=trim(group),switch='--nn-sys-sol-strat',switch_ab='-nn-sys-sol-strat',                         &
+    aux_string = ''
+    call cli%add(group=trim(group),switch='--nn-sys-sol-strat',switch_ab='-nn-sys-sol-strat',       &
          &       help='Strategy followed to solve the constrained Neumann problem',required=.false.,&
          &       def=par_params%default_nn_sys_sol_strat,                                           & 
          &       choices='corners_rest_part_solve_expl_schur,direct_solve_constrained_problem',     &
@@ -265,12 +267,12 @@ contains
          &       from scratch?',required=.false., def=par_params%default_schur_edge_lag_mult,       &
          &       choices='reuse_from_phis,compute_from_scratch', act='store', error=error)
     check(error==0)
-    call cli%add(group=trim(group),switch='--subd-elmat-calc',switch_ab='-subd-elmat-calc',                           &
+    call cli%add(group=trim(group),switch='--subd-elmat-calc',switch_ab='-subd-elmat-calc',         &
          &       help='Controls the way the subdomain coarse-grid matrix is computed.',             &
          &       required=.false., def=par_params%default_subd_elmat_calc,                          &
          &       choices='phit_minus_c_i_t_lambda,phit_a_i_phi', act='store', error=error)
     check(error==0)
-
+    
   end subroutine cli_add_par_params
 
   !==================================================================================================
@@ -384,8 +386,8 @@ program par_test_cdr
   integer(ip) :: lunio, istat
 
   type(Type_Command_Line_Interface):: cli 
-  character(len=:), allocatable :: group
-
+  character(len=:)   , allocatable :: group
+ 
   call meminit
 
   ! Start parallel execution
@@ -406,7 +408,7 @@ program par_test_cdr
   num_levels = 2
   call memalloc(num_levels, id_parts , __FILE__, __LINE__)
   call memalloc(num_levels, num_parts, __FILE__, __LINE__)
-  num_parts = (/test_params%nparts, 1/)
+  num_parts = (/w_context%np-1, 1/)
   id_parts = (/w_context%iam+1, 1/)
 
  ! Create p_context and q_context splitting w_context
@@ -432,7 +434,6 @@ program par_test_cdr
   call par_mesh_read (dir_path, prefix, p_env, p_mesh)
 
   ! Read conditions 
-  write(*,*) __FILE__,__LINE__,trim(dir_path), trim(prefix), p_mesh%f_mesh%npoin
   call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
 
   ! Construc triangulation
@@ -455,6 +456,8 @@ program par_test_cdr
        &                                cdr_matvec,cli,p_trian%f_trian,order,continuity,            &
        &                                enable_face_integration,                                    &
        &                                material,problem,group,dof_descriptor)
+
+  call par_params_fill(test_params,cli,group)
 
   ! Create FE Space
   call p_fe_space%create( p_trian, dof_descriptor, problem, p_cond, continuity,                     &
@@ -483,12 +486,9 @@ program par_test_cdr
           &                          my_discrete%get_prev_step(),theta_integ)
   end if
 
-  ! Create vef2dof array
-  call par_create_distributed_dof_info( p_fe_space )
-
   ! Create the operator
   call fe_affine_operator%create (test_params%symmetric_storage , test_params%is_symmetric,         &
-       test_params%sign, p_fe_space%serial_fe_space, approximations)
+       test_params%sign, p_fe_space, approximations)
   call fe_affine_operator%symbolic_setup()
    
   ! Create the matrix
@@ -518,9 +518,9 @@ program par_test_cdr
      point_to_p_mlevel_bddc_pars%projection           = test_params%projection
      point_to_p_mlevel_bddc_pars%schur_edge_lag_mult  = test_params%schur_edge_lag_mult
      point_to_p_mlevel_bddc_pars%subd_elmat_calc      = test_params%subd_elmat_calc             
-     point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric              
+     point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric    
      point_to_p_mlevel_bddc_pars%nn_sys_sol_strat     = test_params%nn_sys_sol_strat  
-
+     
      if ( i < num_levels-1 ) then
         point_to_p_mlevel_bddc_pars%co_sys_sol_strat = recursive_bddc
         point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec  
@@ -529,7 +529,7 @@ program par_test_cdr
         if ( i == 1 ) then
            point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
            point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
-           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-08
+           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-14
            point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
            point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric
         end if
@@ -564,10 +564,9 @@ program par_test_cdr
   sctrl%dkrymax = 800
   sctrl%stopc   = res_res
   sctrl%orto    = icgs
-  sctrl%rtol    = 1.0e-08
+  sctrl%rtol    = 1.0e-14
 
   do while (.not. theta_integ%finished) 
-
      ! Print the time step
      call theta_integ%print(6)
 
@@ -588,7 +587,7 @@ program par_test_cdr
      ! Preconditioner setting
      point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
      do i=1, num_levels-1
-        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
+        point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(1)
         point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
      end do
      ! Create multilevel bddc inverse 
@@ -601,7 +600,7 @@ program par_test_cdr
      ! Update the preconditioner
      !call preconditioner_numeric(feprec)
      !call preconditioner_log_info(feprec)
-     
+
      ! Solve the matrix-vector problem
      call abstract_solve(p_my_matrix,p_mlevel_bddc,p_my_array,p_feunk,sctrl,p_env)
 
@@ -658,6 +657,12 @@ program par_test_cdr
   call par_triangulation_free ( p_trian )
   call par_conditions_free ( p_cond )
   call par_mesh_free (p_mesh)
+
+  call par_environment_free (p_env)
+  call par_context_free ( b_context, .false. )
+  call par_context_free ( p_context, .false. )
+  call par_context_free ( q_context, .false. )
+  call par_context_free ( w_context )
   call memstatus
 contains
   !==================================================================================================
@@ -671,9 +676,8 @@ contains
     
     ! Locals
     type(par_test_cdr_params_t) :: analytical_params,transient_params
-    logical     :: authors_print
-    integer(ip) :: istat
-
+    logical                     :: authors_print, aux_logical
+    integer(ip)                 :: istat
     authors_print = .false.
 
     ! Initialize Command Line Interface
@@ -702,17 +706,8 @@ contains
     call cli_add_par_params(cli,transient_params,test_params,'transient')
 
     ! Solver
-    call cli%get(switch='-projection'         ,val=test_params%projection         ,error=istat)
-    check(istat==0)
-    call cli%get(switch='-nn-sys-sol-strat'   ,val=test_params%nn_sys_sol_strat   ,error=istat) 
-    check(istat==0)
-    call cli%get(switch='-pad-collectives'    ,val=test_params%pad_collectives    ,error=istat) 
-    check(istat==0)
-    call cli%get(switch='-subd-elmat-calc'    ,val=test_params%subd_elmat_calc    ,error=istat)
-    check(istat==0)
-    call cli%get(switch='-schur-edge-lag-mult',val=test_params%schur_edge_lag_mult,error=istat)
-    check(istat==0)
-
+    !call set_parallel_parameters()
+    
   end subroutine read_flap_cli_par_test_cdr
 
   !==================================================================================================
@@ -838,5 +833,70 @@ contains
 
   end subroutine approximation_cdr_problem_create
 
+  !==================================================================================================
+  subroutine par_params_fill(test_params,cli,group)
+    use serial_names
+    use prob_names
+    use Data_Type_Command_Line_Interface
+    implicit none
+    type(par_test_cdr_parallel_params_t), intent(inout) :: test_params
+    type(Type_Command_Line_Interface)   , intent(inout) :: cli
+    character(len=:),allocatable        , intent(in)    :: group
 
-end program par_test_cdr
+    integer(ip)        :: istat
+    character(len=256) :: aux_string
+    logical            :: aux_logical
+    
+    
+    aux_string(:)=' '
+    call cli%get(group=trim(group),switch='-projection',val=aux_string,error=istat)
+    check(istat==0)
+    if (trim(adjustl(aux_string)) .eq. 'galerkin') then
+       test_params%projection = galerkin
+    else if ( trim(adjustl(aux_string)) .eq. 'petrov_galerkin') then
+       test_params%projection = petrov_galerkin
+    else
+       write(*,*) __FILE__,__LINE__,'ERROR:: projection NOT identified'
+    end if
+
+    call cli%get(group=trim(group),switch='-nn-sys-sol-strat',val=aux_string,error=istat) 
+    check(istat==0)
+    if (trim(adjustl(aux_string)) .eq. 'corners_rest_part_solve_expl_schur') then
+       test_params%nn_sys_sol_strat = corners_rest_part_solve_expl_schur
+    else if ( trim(adjustl(aux_string)) .eq. 'direct_solve_constrained_problem') then
+       test_params%nn_sys_sol_strat = direct_solve_constrained_problem
+    else
+       write(*,*) __FILE__,__LINE__,'ERROR:: System Solver NOT identified'
+    end if
+
+    call cli%get(group=trim(group),switch='-pad-collectives',val=aux_logical,error=istat) 
+    check(istat==0)
+    if (aux_logical) then
+       test_params%pad_collectives = pad
+    else 
+       test_params%pad_collectives = nopad
+    end if
+
+    call cli%get(group=trim(group),switch='-subd-elmat-calc',val=aux_string,error=istat)
+    check(istat==0)
+    if (trim(adjustl(aux_string)) .eq. 'phit_minus_c_i_t_lambda') then
+       test_params%subd_elmat_calc = phit_minus_c_i_t_lambda
+    else if ( trim(adjustl(aux_string)) .eq. 'phit_a_i_phi') then
+       test_params%subd_elmat_calc = phit_a_i_phi
+    else
+       write(*,*) __FILE__,__LINE__,'ERROR:: Elemental Matrix Calculation NOT identified'
+    end if
+
+    call cli%get(group=trim(group),switch='-schur-edge-lag-mult',val=aux_string,error=istat)
+    check(istat==0)
+    if (trim(adjustl(aux_string)) .eq. 'reuse_from_phis') then
+       test_params%schur_edge_lag_mult = reuse_from_phis 
+    else if ( trim(adjustl(aux_string)) .eq. 'compute_from_scratch') then
+       test_params%schur_edge_lag_mult = compute_from_scratch
+    else
+       write(*,*) __FILE__,__LINE__,'ERROR:: Schur edge NOT identified'
+    end if
+    check(istat==0)
+
+  end subroutine par_params_fill
+end program
