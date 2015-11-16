@@ -194,7 +194,7 @@ contains
              count = count + 1 
           end if
        end do
-       call allocatable_array_create( count, dof_descriptor%prob_block(iblock,iprob))
+       call dof_descriptor%prob_block(iblock,iprob)%create(count)
        count = 0 
        do l_var = 1, dof_descriptor%problems(iprob)%p%nvars
           if ( dof_descriptor%vars_block(dof_descriptor%problems(iprob)%p%l2g_var(l_var)) == iblock ) then

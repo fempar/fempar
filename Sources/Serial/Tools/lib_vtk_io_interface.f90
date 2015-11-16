@@ -1,3 +1,4 @@
+
 ! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
 !
 ! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
@@ -378,11 +379,11 @@ contains
        geo_nnode = Q_nnods(ndime,1)
 
        ! Construct the matrix of the coordinates of the node in the reference element
-       call allocatable_array_create(ndime,nnode,coords(order))
+       call coords(order)%create(ndime,nnode)
 
        ! Construct the mapping of the nodes of the subelems
        num_subelems = Q_nnods(ndime,order-1)
-       call allocatable_array_create(geo_nnode,num_subelems,f_vtk%mesh(f_vtk%num_meshes)%nodes_subelem(order))
+       call f_vtk%mesh(f_vtk%num_meshes)%nodes_subelem(order)%create(geo_nnode,num_subelems)
        do subelem = 1, num_subelems
           call Q_ijkg(first_coord,subelem,ndime,order-1)
           do lnode = 1, geo_nnode
@@ -470,7 +471,7 @@ contains
      
      ! Free memory
      do order = 1, max_order
-        call allocatable_array_free(coords(order))
+        call coords(order)%free()
      end do
 
   end subroutine fill_mesh_superlinear_order
@@ -2025,7 +2026,7 @@ contains
                 call memfree(f_vtk%mesh(i)%ctype, __FILE__,__LINE__)
                 if (.not. f_vtk%mesh(i)%linear_order) then
                     do j=1, max_order
-                        call allocatable_array_free(f_vtk%mesh(i)%nodes_subelem(j))
+                        call f_vtk%mesh(i)%nodes_subelem(j)%free()
                     enddo
                 endif
                 if(allocated(f_vtk%mesh(i)%unknowns)) then

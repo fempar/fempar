@@ -106,7 +106,7 @@ contains
     end if
 
     ! Store shape
-    call allocatable_array_create(gnode,unode,int_array)
+    call int_array%create(gnode,unode)
     int_array%a = inter%shape
 
     ! Deallocate
@@ -120,7 +120,7 @@ contains
     implicit none
     type(allocatable_array_rp2_t), intent(inout) :: int_array
 
-    call allocatable_array_free(int_array)
+    call int_array%free()
 
   end subroutine interpolator_free
 
