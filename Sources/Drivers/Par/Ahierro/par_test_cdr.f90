@@ -132,27 +132,27 @@ contains
     params%default_order                   = '1'
   end subroutine set_par_default_params
 
- !==================================================================================================
+  !==================================================================================================
   subroutine par_test_cdr_parallel_params_set_par_default_params(params)
     use serial_names
     implicit none
     class(par_test_cdr_parallel_params_t), intent(inout) :: params
 
     !Input problem number of dimensions
-     params%ndime                      = 2
+    params%ndime                      = 2
 
-     ! Number of parts in which the problem was split
-     params%nparts                     = 3
-    
+    ! Number of parts in which the problem was split
+    params%nparts                     = 3
+
     ! Graph Storage and Matrix properties
-    params%default_symmetric_storage   = '.true.'
-    params%default_is_symmetric        = '.true.'
+    params%default_symmetric_storage   = '.false.'
+    params%default_is_symmetric        = '.false.'
     params%default_sign                = 'positive_definite'
     params%symmetric_storage           = (/.false./)
     params%is_symmetric                = (/.false./)
     params%sign                        = (/positive_definite/) 
 
-    params%default_projection          = 'galerkin'
+    params%default_projection          = 'petrov_galerkin'
     params%default_nn_sys_sol_strat    = 'corners_rest_part_solve_expl_schur'
     params%default_pad_collectives     = '.false.'
     params%default_schur_edge_lag_mult = 'reuse_from_phis'
@@ -281,12 +281,12 @@ contains
     type(par_test_cdr_params_t), intent(inout) :: params
 
     ! Names
-    params%default_kfl_conv            = '0'    ! Enabling advection
+    params%default_kfl_conv            = '1'    ! Enabling advection
     params%default_kfl_tder            = '0'    ! Time derivative not computed 
     params%default_kfl_react           = '0'    ! Non analytical reaction
     params%default_react               = '0.0'  ! Reaction
-    params%default_diffu               = '1.0'  ! Diffusion
-    params%default_space_solution_flag = '4'
+    params%default_diffu               = '1.0e-03'  ! Diffusion
+    params%default_space_solution_flag = '3'
     params%default_tempo_solution_flag = '0'
     
   end subroutine set_par_default_params_analytical
@@ -529,7 +529,7 @@ program par_test_cdr
         if ( i == 1 ) then
            point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
            point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
-           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-14
+           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-12
            point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
            point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric
         end if
@@ -558,13 +558,13 @@ program par_test_cdr
      kind_coarse_dofs(3) = corners_edges_and_faces
   end if
 
-  sctrl%method  = cg
+  sctrl%method  = lgmres
   sctrl%trace   = 1
   sctrl%itmax   = 800
   sctrl%dkrymax = 800
   sctrl%stopc   = res_res
   sctrl%orto    = icgs
-  sctrl%rtol    = 1.0e-14
+  sctrl%rtol    = 1.0e-12
 
   do while (.not. theta_integ%finished) 
      ! Print the time step

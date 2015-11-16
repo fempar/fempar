@@ -58,7 +58,7 @@ program partitioner
   call read_mesh_part_pars_cl(nparts,dir_path,prefix,dir_path_out)
   
   ! Read mesh
-  call mesh_read(dir_path, prefix, gmesh, permute_c2z=.true.)
+  call mesh_read(dir_path, prefix, gmesh, permute_c2z=.false.)
 
   ! Read conditions
   call conditions_read(dir_path, prefix, gmesh%npoin, gnodes)

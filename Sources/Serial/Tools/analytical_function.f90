@@ -75,7 +75,7 @@ contains
     real(rp)         , intent(in)    :: coord(ndime)
     real(rp),optional, intent(in)    :: alpha,beta
     ! Local variables
-    real(rp)    :: pi,a,b,c,d,e
+    real(rp)    :: pi,a,b,c,d,e,r
     real(rp)    :: x,y,z,u,dudx,dudy,dudz
     real(rp)    :: d2udx,d2udy,d2udz,d2udxy,d2udxz,d2udyz
 
@@ -217,6 +217,20 @@ contains
        d2udx = -y*(1.0_rp-y) - y*(1.0_rp-y)
        d2udy = -x*(1.0_rp-x) - x*(1.0_rp-x)
        d2udxy = (1.0_rp-x)*(1.0_rp-y) -x*(1.0_rp-y)- (1.0_rp-x)*y + x*y
+
+    case(13)
+      r = x*sin(-pi/3.0_rp) - (y-0.7_rp)*cos(-pi/3.0_rp)
+      if (abs(y) < 1.0e-8_rp) then
+         u =0.0_rp
+      elseif (abs(x-1.0_rp) <  1.0e-8_rp) then
+         u = 0.0_rp
+      elseif (abs(r) < 10e-9_rp) then
+         u = 0.5_rp
+      elseif (r > 0) then
+         u = 0.0_rp
+      else
+         u = 1.0_rp
+      end if
     end select
     
     ! Component assignment
