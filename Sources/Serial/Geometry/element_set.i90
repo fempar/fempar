@@ -1,0 +1,49 @@
+! Templated implementation of an abstract element set and its iterator. 
+! Templates are not natively supported by fortran.
+! They are emulated using the preprocessor by including this file after a definition of:
+!
+! template_element_t
+! template_element_set_t
+! template_element_iterator_t
+!
+  type, abstract :: template_element_iterator_t
+     private
+   contains
+     procedure(next_interface)    , deferred :: next
+     procedure(has_next_interface), deferred :: has_next
+  end type template_element_iterator_t
+  abstract interface
+     function next_interface (this) result(p)
+       import :: template_element_iterator_t, template_element_t
+       implicit none
+       class(template_element_iterator_t), intent(inout)  :: this
+       class(template_element_t)         , pointer        :: p
+     end function next_interface
+     function has_next_interface(this) result(res)
+       import :: template_element_iterator_t
+       implicit none
+       class(template_element_iterator_t), intent(inout) :: this
+       logical :: res
+     end function has_next_interface	
+  end interface
+
+  type, abstract :: template_element_set_t
+   contains
+     procedure(create_template_element_iterator_interface), deferred :: create_template_element_iterator
+     procedure(free_template_element_iterator_interface)  , deferred :: free_template_element_iterator
+  end type template_element_set_t
+  ! Abstract interfaces
+  abstract interface
+      subroutine create_template_element_iterator_interface(this,iterator)
+       import :: template_element_set_t, template_element_iterator_t
+       implicit none
+       class(template_element_set_t), target, intent(in)  :: this
+       class(template_element_iterator_t)   , intent(out) :: iterator
+     end subroutine create_template_element_iterator_interface
+      subroutine free_template_element_iterator_interface(this,iterator)
+       import :: template_element_set_t, template_element_iterator_t
+       implicit none
+       class(template_element_set_t)     , intent(in)    :: this
+       class(template_element_iterator_t), intent(inout) :: iterator
+     end subroutine free_template_element_iterator_interface
+  end interface

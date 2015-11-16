@@ -1,0 +1,27 @@
+! Templated implementation of a plain element set and its iterator. 
+! Templates are not natively supported by fortran.
+! They are emulated using the preprocessor by including this file in a module 
+! BEFORE the contains statement and after a definition of:
+!
+! template_element_t
+! plain_template_element_set_t
+! plain_template_element_iterator_t
+!
+  type, extends(template_element_iterator_t) :: plain_template_element_iterator_t
+     private
+     integer(ip)                                 :: ielem=0
+     type(plain_template_element_set_t), pointer :: plain_template_element_set
+   contains
+     procedure :: next     => plain_template_element_iterator_next
+     procedure :: has_next => plain_template_element_iterator_has_next
+  end type plain_template_element_iterator_t
+
+  type, extends(template_element_set_t) :: plain_template_element_set_t
+     private
+     integer(ip)                            :: num_elements       = -1  ! Number of elements in the set
+     integer(ip)                            :: elements_array_len = -1  ! length that the template_elements array is allocated for. 
+     class(template_element_t), allocatable :: elements(:)              ! array of template_elements
+   contains
+     procedure :: create_template_element_iterator
+     procedure :: free_template_element_iterator
+  end type plain_template_element_set_t
