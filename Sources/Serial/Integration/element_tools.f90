@@ -993,7 +993,7 @@ contains
 
     ! Allocate mat with mold=p_mat
     assert(v%ndof==u%ndof)
-    call allocatable_array_create(v%ndof,u%ndof,mat)
+    call mat%create(v%ndof,u%ndof)
 
     ! Now perform operations according to left_factor TODO
     if(allocated(v%left_factor)) then
@@ -1069,7 +1069,7 @@ contains
 
     ! Allocate mat with mold=p_mat
     assert(gv%ndof==gu%ndof)
-    call allocatable_array_create(gv%ndof,gu%ndof,mat)
+    call mat%create(gv%ndof,gu%ndof)
 
     ! Now perform operations according to left_factor TODO
     if(allocated(gv%left_factor)) then
