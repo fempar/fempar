@@ -37,8 +37,8 @@ module fe_space_faces_names
   use triangulation_names
   use allocatable_array_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
 
   private
   integer(ip), parameter :: max_subfaces = 4

@@ -35,7 +35,6 @@
 # define generic_memrealloc_interface    memrealloc
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
-# include "debug.i90"
 !***********************************************************************
 module interpolation_tools_names
   use types_names
@@ -47,6 +46,7 @@ module interpolation_tools_names
   use interpolation_names
   use allocatable_array_names
   implicit none
+# include "debug.i90"
   private
 
   type interpolator_pointer_t

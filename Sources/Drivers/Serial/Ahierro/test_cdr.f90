@@ -343,8 +343,6 @@ program test_cdr
   diagonal_blocks_sign              = (/positive_definite/) 
   call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
        diagonal_blocks_sign, fe_space, approximations)
-  call fe_affine_operator%symbolic_setup()
-  call fe_affine_operator%numerical_setup()
 
   ! Create the matrix
   matrix => fe_affine_operator%get_matrix()
@@ -368,9 +366,9 @@ program test_cdr
 
   ! Create preconditioners
   ppars%type = pardiso_mkl_prec
-  call preconditioner_create(my_matrix,feprec,ppars)
-  call preconditioner_symbolic(my_matrix,feprec)
-  call preconditioner_numeric(feprec)
+  call preconditioner_create(fe_affine_operator,feprec,ppars)
+  call preconditioner_symbolic_setup(feprec)
+  call preconditioner_numerical_setup(feprec)
   call preconditioner_log_info(feprec)
 
   call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
@@ -535,7 +533,7 @@ contains
     call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, enable_face_integration,         &
          &        __FILE__, __LINE__)
     call cli%get(group=trim(group),switch='-fi', val=face_int_flag, error=istat); check(istat==0)
-    enable_face_integration = face_int_flag ! (cG/ No face integration)
+    enable_face_integration = (face_int_flag==1) ! (cG/ No face integration)
 
     ! Order set up
     call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)

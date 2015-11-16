@@ -37,9 +37,10 @@ module wsmp_names
   use serial_scalar_matrix_names
   use serial_scalar_array_names 
 
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
+
   private
 
   ! Type definition for wsmp args

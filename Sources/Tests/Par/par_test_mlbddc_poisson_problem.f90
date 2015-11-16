@@ -275,35 +275,31 @@ program par_test_mlbddc_poisson_problem
 #include "debug.i90" 
 
   ! Our data
-  type(par_context_t)       :: w_context, p_context, q_context, b_context
-  type(par_environment_t)   :: p_env
-  type(par_mesh_t)          :: p_mesh
-  type(par_triangulation_t) :: p_trian
-  type(par_fe_space_t)      :: p_fe_space
-
-  type(par_scalar_matrix_t), pointer  :: p_mat
-  class(matrix_t)          , pointer  :: matrix
-  type(par_scalar_array_t) , pointer  :: p_vec
-  class(array_t)           , pointer  :: array
-  type(par_scalar_array_t)            :: p_unk
-  type(fe_affine_operator_t)          :: fe_affine_operator
+  type(par_context_t)                             :: w_context, p_context, q_context, b_context
+  type(par_environment_t)                         :: p_env
+  type(par_mesh_t)                                :: p_mesh
+  type(par_triangulation_t)                       :: p_trian
+  type(par_fe_space_t)                            :: p_fe_space
+  type(fe_affine_operator_t)                      :: fe_affine_operator
+  type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
+  class(vector_t)         , allocatable, target   :: vector
+  type(par_scalar_array_t), pointer               :: p_unk
+  type(linear_solver_t)                           :: linear_solver
   
   ! Preconditioner-related data structures
-  type(par_preconditioner_dd_mlevel_bddc_t), target :: p_mlevel_bddc
+  type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
   type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
-  integer(ip), allocatable :: kind_coarse_dofs(:)
+  integer(ip)                                 , allocatable :: kind_coarse_dofs(:)
 
-  
-  type(solver_control_t)              :: sctrl
-  type(dof_descriptor_t)              :: dof_descriptor
-  type(par_conditions_t)              :: p_cond
-  type(poisson_problem_t)             :: my_problem
-  type(poisson_discrete_t)            :: my_discrete
-  type(poisson_integration_t), target :: my_approximation
-  type(par_scalar_t)                  :: enorm
-  type(error_norm_t)   , target       :: error_compute
-  type(p_discrete_integration_t)      :: approximations(1)
+  type(dof_descriptor_t)            :: dof_descriptor
+  type(par_conditions_t)            :: p_cond
+  type(cdr_problem_t)               :: my_problem
+  type(cdr_discrete_t)              :: my_discrete
+  type(cdr_nonlinear_t), target     :: my_approximation
+  type(par_scalar_t)                :: enorm
+  type(error_norm_t)   , target     :: error_compute
+  type(p_discrete_integration_t)    :: approximations(1)
 
   integer(ip)              :: num_levels
   integer(ip), allocatable :: id_parts(:), num_parts(:)
@@ -317,7 +313,6 @@ program par_test_mlbddc_poisson_problem
   integer(ip), allocatable :: order(:,:), material(:), problem(:)
   integer(ip), allocatable :: continuity(:,:)
   logical    , allocatable :: enable_face_integration(:,:)
-
 
   type(par_test_mlbddc_poisson_problem_parameters_t) :: test_params
 
@@ -378,7 +373,7 @@ program par_test_mlbddc_poisson_problem
      call par_timer_stop (par_mesh_to_triangulation_timer)   
      call par_timer_report (par_mesh_to_triangulation_timer)   
 
-     call par_mesh_free(p_mesh)
+     call par_mesh_free(p_mesh) 
 
      call par_timer_init (par_uniform_refinement_timer)
      call par_timer_start (par_uniform_refinement_timer) 
@@ -433,28 +428,7 @@ program par_test_mlbddc_poisson_problem
 								                           (/test_params%sign/), &
 								                           p_fe_space, &
 								                           approximations)
-  
-  call fe_affine_operator%symbolic_setup()
-  call fe_affine_operator%numerical_setup()
-
-  matrix => fe_affine_operator%get_matrix()
-  select type(matrix)
-  class is(par_scalar_matrix_t)
-    p_mat => matrix
-  class default
-     check(.false.)
-  end select 
-
-  array => fe_affine_operator%get_array()
-  select type(array)
-  class is(par_scalar_array_t)
-    p_vec => array
-  class default
-    check(.false.)
-  end select 
-  
-  call p_unk%clone(p_vec)
- 
+   
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
   do i=1, num_levels-1
@@ -492,7 +466,6 @@ program par_test_mlbddc_poisson_problem
   end do
 
 
-  ! Compute error norm
   call error_compute%create(my_problem,my_discrete)
   approximations(1)%discrete_integration => error_compute
   call enorm%create(p_env)
@@ -503,32 +476,36 @@ program par_test_mlbddc_poisson_problem
   if ( test_params%ndime == 3 ) then
      kind_coarse_dofs(3) = corners_edges_and_faces
   end if
-
-  sctrl%method=cg
-  sctrl%trace=1
-  sctrl%itmax=800
-  sctrl%dkrymax=800
-  sctrl%stopc=res_res
-  sctrl%orto=icgs
-  sctrl%rtol=1.0e-08
-
+  
+  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+  call fe_affine_operator_range_vector_space%create_vector(vector)
+  select type(vector)
+  class is(par_scalar_array_t)
+    p_unk => vector
+  class default
+    check(.false.)
+  end select 
+  
   do j=1,test_params%ndime
      point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
      do i=1, num_levels-1
         point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(j)
         point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
      end do
-     call p_unk%init(0.0_rp)
+     
      ! Create multilevel bddc inverse 
-     call par_preconditioner_dd_mlevel_bddc_create( p_mat, p_mlevel_bddc, p_mlevel_bddc_pars )
+     call par_preconditioner_dd_mlevel_bddc_create( fe_affine_operator, p_mlevel_bddc, p_mlevel_bddc_pars )
      ! Ass struct
-     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mlevel_bddc )
      ! Fill val
      call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
-     
-     ! call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
-     
-     call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
+          
+     ! Create linear solver, set operators and solve linear system
+     call linear_solver%create(p_env)
+     call linear_solver%set_type_and_parameters_from_pl()
+     call linear_solver%set_operators(fe_affine_operator,p_mlevel_bddc)
+     call linear_solver%solve(p_unk)
+     call linear_solver%free() 
 
      call par_update_solution(p_unk,p_fe_space)
 
@@ -536,18 +513,18 @@ program par_test_mlbddc_poisson_problem
      call p_fe_space%volume_integral(approximations,enorm)
      call enorm%reduce()
      if(w_context%iam==0) then
-	    write(*,*) sqrt(enorm%get_value())
-        check ( sqrt(enorm%get_value()) < 1.0e-06 )
+	      write(*,*) sqrt(enorm%get_value())
+       check ( sqrt(enorm%get_value()) < 1.0e-06 )
      end if
 
      ! Free bddc inverse
      call par_preconditioner_dd_mlevel_bddc_free( p_mlevel_bddc )
   end do
-
+  
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
-
   call fe_affine_operator%free()
-  call p_unk%free()
+  call vector%free()
+  deallocate(vector)
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( enable_face_integration, __FILE__, __LINE__)

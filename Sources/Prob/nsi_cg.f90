@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module nsi_cg_asgs_names
  use types_names
  use memor_names
@@ -35,6 +34,8 @@ module nsi_cg_asgs_names
  use element_tools_names
  use finite_element_names
  implicit none
+# include "debug.i90"
+
  private 
 
  type, extends(discrete_problem_t) :: nsi_cg_asgs_discrete_t

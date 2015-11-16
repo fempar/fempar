@@ -43,10 +43,9 @@ module operator_dd_names
   
   ! Parallel modules
   use dof_distribution_names
-
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
   private
 
   ! Interface to Intel MKL mkl_dcsrmm 
@@ -264,7 +263,7 @@ contains
             G_GG=f_operator%A_GG%graph )
     end if
 
-    call preconditioner_symbolic(f_operator%A_II, f_operator%M_II)
+    call preconditioner_symbolic_setup(f_operator%M_II)
   end subroutine operator_dd_ass_struct
 
   !=============================================================================
@@ -290,7 +289,7 @@ contains
             A_GG=f_operator%A_GG )
     end if
 
-    call preconditioner_numeric(f_operator%M_II)
+    call preconditioner_numerical_setup(f_operator%M_II)
   end subroutine operator_dd_fill_val
   
   ! Computes y_I <- A_II^-1 * x_I

@@ -38,8 +38,9 @@ module par_conditions_names
   use par_environment_names
   use par_io_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
+
   private
 
   type par_conditions_t

@@ -32,8 +32,8 @@ use types_names
   ! Parallel modules
 use psb_penv_mod_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
   ! Parallel context

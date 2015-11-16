@@ -203,7 +203,7 @@ contains
   subroutine serial_fe_space_volume_integral(this,approximations,assembler)
     implicit none
     class(serial_fe_space_t)       , intent(in)    :: this
-    class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+    type(p_discrete_integration_t) , intent(in)    :: approximations(:) 
     class(assembler_t)             , intent(inout) :: assembler
 
     integer(ip) :: ielem, iapprox, ivar

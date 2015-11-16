@@ -40,13 +40,16 @@ module preconditioner_names
   use umfpack_names
 
   ! Abstract modules
+  use matrix_names
   use vector_names
   use vector_space_names
   use operator_names
+  use fe_affine_operator_names
 
-# include "debug.i90"
 
   implicit none
+# include "debug.i90"
+  
   private
 
   ! Preconditioner type
@@ -128,8 +131,9 @@ module preconditioner_names
      type(serial_scalar_matrix_t), pointer :: mat
 
    contains
-     procedure :: apply => preconditioner_apply
-     procedure :: free => preconditioner_free
+     procedure :: apply     => preconditioner_apply
+     procedure :: is_linear => preconditioner_is_linear
+     procedure :: free      => preconditioner_free
   end type preconditioner_t
 
   type preconditioner_params_t
@@ -163,43 +167,21 @@ module preconditioner_names
 
   ! Types
   public :: preconditioner_t, preconditioner_params_t
+  
+  interface preconditioner_create
+    module procedure preconditioner_create_w_serial_matrix, preconditioner_create_w_fe_affine_operator
+  end interface  
 
   ! Functions
-  public :: preconditioner_create, preconditioner_free_in_stages, preconditioner_symbolic, &
-       &    preconditioner_numeric, preconditioner_apply_r2, preconditioner_log_info, &
+  public :: preconditioner_create, preconditioner_free_in_stages, preconditioner_symbolic_setup, &
+       &    preconditioner_numerical_setup, preconditioner_apply_r2, preconditioner_log_info, &
        &    extract_diagonal, invert_diagonal, apply_diagonal
 
 contains
 
-  !=============================================================================
-  subroutine  preconditioner_log_info (prec)
-    implicit none
-    ! Parameters
-    type(preconditioner_t)       , intent(in)          :: prec
 
-    if(prec%type==pardiso_mkl_prec  .or. prec%type==wsmp_prec .or. prec%type==umfpack_prec ) then
-       write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', prec%mem_peak_symb
-       write (*,'(a,i10)') 'Permanent mem. in KBytes (symb fact) = ', prec%mem_perm_symb
-       write (*,'(a,i10)') 'Peak mem.      in KBytes (num fact)  = ', prec%mem_peak_num 
-       write (*,'(a,i10)') 'Size of factors (thousands)          = ', prec%nz_factors   
-       write (*,'(a,f10.2)') 'MFlops for factorization             = ', prec%Mflops        
-    else if (prec%type==hsl_mi20_prec) then
-       write (*,'(a,f10.3)') 'Average stencil size (cS) = ', prec%cs
-       write (*,'(a,f10.3)') 'Grid complexity      (cG) = ', prec%cg
-       write (*,'(a,f10.3)') 'Operator complexity  (cA) = ', prec%ca
-       write (*,'(a,i10)')   'Number of AMG levels      = ', prec%lev  
-    else if (prec%type==hsl_ma87_prec) then
-#ifdef ENABLE_HSL_MA87 
-       write (*,'(a,f10.2)')   'Size of factors (thousands)          = ', & 
-            real(prec%hsl_ma87_info%info%num_factor,rp)/1.0e+03   
-       write (*,'(a,f10.2)') 'Number of Flops (millions)         = '  , &
-            real(prec%hsl_ma87_info%info%num_flops,rp)/1.0e+06 
-#endif
-    end if
-    
-  end subroutine preconditioner_log_info
   !=============================================================================
-  subroutine  preconditioner_create (mat, prec, pars)
+  subroutine  preconditioner_create_w_serial_matrix (mat, prec, pars)
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t)        , target, intent(in)           :: mat
@@ -275,7 +257,29 @@ contains
        write (0,*) 'Error: preconditioner type not supported'
        check(1==0)
     end if
-  end subroutine preconditioner_create
+  end subroutine preconditioner_create_w_serial_matrix
+  
+  !=============================================================================
+  subroutine preconditioner_create_w_fe_affine_operator (fe_affine_operator, prec, pars)
+    implicit none
+    ! Parameters
+    type(fe_affine_operator_t)     , target, intent(in)           :: fe_affine_operator
+    type(preconditioner_t)                 , intent(inout)        :: prec
+    type(preconditioner_params_t)          , intent(in), optional :: pars
+    
+     ! Local variables
+     class(matrix_t)             , pointer :: matrix
+     type(serial_scalar_matrix_t), pointer :: serial_scalar_matrix
+  
+     matrix => fe_affine_operator%get_matrix()
+     select type(matrix)
+     class is(serial_scalar_matrix_t)
+       serial_scalar_matrix => matrix
+     class default
+       check(.false.)
+     end select 
+     call preconditioner_create_w_serial_matrix ( serial_scalar_matrix, prec, pars )
+  end subroutine preconditioner_create_w_fe_affine_operator
 
   !=============================================================================
   subroutine preconditioner_free_in_stages ( prec, action )
@@ -387,37 +391,34 @@ contains
   end subroutine preconditioner_free_in_stages
 
   !=============================================================================
-  subroutine preconditioner_symbolic(mat, prec)
+  subroutine preconditioner_symbolic_setup(prec)
     implicit none
     ! Parameters
-    type(serial_scalar_matrix_t)      , intent(in), target    :: mat
     type(preconditioner_t)     , intent(inout) :: prec
     ! Locals
     type (serial_scalar_array_t) :: vdum 
 
-    prec%mat => mat
-
     if(prec%type==pardiso_mkl_prec) then
        call pardiso_mkl ( pardiso_mkl_compute_symb, prec%pardiso_mkl_ctxt, &
-            &             mat, vdum, vdum, prec%pardiso_mkl_iparm )
+            &             prec%mat, vdum, vdum, prec%pardiso_mkl_iparm )
        prec%mem_peak_symb = prec%pardiso_mkl_iparm(15)
        prec%mem_perm_symb = prec%pardiso_mkl_iparm(16)
        prec%nz_factors    = prec%pardiso_mkl_iparm(18)/1e3
     else if(prec%type==wsmp_prec) then
-       call wsmp ( wsmp_compute_symb, prec%wsmp_ctxt, mat, vdum, &
+       call wsmp ( wsmp_compute_symb, prec%wsmp_ctxt, prec%mat, vdum, &
             &      vdum, prec%wsmp_iparm, prec%wsmp_rparm )
        prec%mem_peak_symb = 8*prec%wsmp_iparm(23)
        prec%nz_factors    = prec%wsmp_iparm(24)
        !write(*,*) prec%wsmp_iparm(23)
        !write(*,*) prec%wsmp_iparm(24)
     else if (prec%type==hsl_mi20_prec) then
-       call hsl_mi20 ( hsl_mi20_compute_symb, prec%hsl_mi20_ctxt, mat, vdum, vdum, &
+       call hsl_mi20 ( hsl_mi20_compute_symb, prec%hsl_mi20_ctxt, prec%mat, vdum, vdum, &
             &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
     else if (prec%type==hsl_ma87_prec) then
-       call hsl_ma87 ( hsl_ma87_compute_symb, prec%hsl_ma87_ctxt, mat, vdum, vdum, &
+       call hsl_ma87 ( hsl_ma87_compute_symb, prec%hsl_ma87_ctxt, prec%mat, vdum, vdum, &
             &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )   
     else if (prec%type==umfpack_prec) then
-       call umfpack ( umfpack_compute_symb, prec%umfpack_ctxt, mat, vdum, vdum)
+       call umfpack ( umfpack_compute_symb, prec%umfpack_ctxt, prec%mat, vdum, vdum)
 #ifdef ENABLE_UMFPACK 
        prec%mem_peak_symb = (prec%umfpack_ctxt%Info(UMFPACK_SYMBOLIC_PEAK_MEMORY)*prec%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
        prec%mem_perm_symb = (prec%umfpack_ctxt%Info(UMFPACK_SYMBOLIC_SIZE)*prec%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
@@ -427,10 +428,10 @@ contains
        check(1==0)
     end if
 
-  end subroutine preconditioner_symbolic
+  end subroutine preconditioner_symbolic_setup
 
   !=============================================================================
-  subroutine preconditioner_numeric( prec)
+  subroutine preconditioner_numerical_setup( prec)
     implicit none
     ! Parameters
     type(preconditioner_t), target, intent(inout) :: prec
@@ -510,7 +511,7 @@ contains
     prec_range_vector_space => prec%get_range_vector_space()
     call mat_domain_vector_space%clone(prec_domain_vector_space)
     call mat_range_vector_space%clone(prec_range_vector_space)
-  end subroutine preconditioner_numeric
+  end subroutine preconditioner_numerical_setup
 
   !=============================================================================
   subroutine preconditioner_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
@@ -600,6 +601,34 @@ contains
     end if
 
   end subroutine preconditioner_apply_r1
+  
+  !=============================================================================
+  subroutine  preconditioner_log_info (prec)
+    implicit none
+    ! Parameters
+    type(preconditioner_t)       , intent(in)          :: prec
+
+    if(prec%type==pardiso_mkl_prec  .or. prec%type==wsmp_prec .or. prec%type==umfpack_prec ) then
+       write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', prec%mem_peak_symb
+       write (*,'(a,i10)') 'Permanent mem. in KBytes (symb fact) = ', prec%mem_perm_symb
+       write (*,'(a,i10)') 'Peak mem.      in KBytes (num fact)  = ', prec%mem_peak_num 
+       write (*,'(a,i10)') 'Size of factors (thousands)          = ', prec%nz_factors   
+       write (*,'(a,f10.2)') 'MFlops for factorization             = ', prec%Mflops        
+    else if (prec%type==hsl_mi20_prec) then
+       write (*,'(a,f10.3)') 'Average stencil size (cS) = ', prec%cs
+       write (*,'(a,f10.3)') 'Grid complexity      (cG) = ', prec%cg
+       write (*,'(a,f10.3)') 'Operator complexity  (cA) = ', prec%ca
+       write (*,'(a,i10)')   'Number of AMG levels      = ', prec%lev  
+    else if (prec%type==hsl_ma87_prec) then
+#ifdef ENABLE_HSL_MA87 
+       write (*,'(a,f10.2)')   'Size of factors (thousands)          = ', & 
+            real(prec%hsl_ma87_info%info%num_factor,rp)/1.0e+03   
+       write (*,'(a,f10.2)') 'Number of Flops (millions)         = '  , &
+            real(prec%hsl_ma87_info%info%num_flops,rp)/1.0e+06 
+#endif
+    end if
+    
+  end subroutine preconditioner_log_info
 
     ! Auxiliary routines
   subroutine invert_diagonal (n, d)
@@ -710,6 +739,13 @@ contains
     end select
     call x%CleanTemp()
   end subroutine preconditioner_apply
+  
+  function preconditioner_is_linear(op)
+    implicit none
+    class(preconditioner_t), intent(in) :: op
+    logical :: preconditioner_is_linear
+    preconditioner_is_linear = .false.
+  end function preconditioner_is_linear
 
   subroutine preconditioner_free(this)
     implicit none

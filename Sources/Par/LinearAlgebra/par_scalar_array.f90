@@ -51,9 +51,9 @@ module par_scalar_array_names
   ! Abstract types
   use vector_names
 
-# include "debug.i90"
 
   implicit none
+# include "debug.i90"
   private
 
   ! Distributed Vector

@@ -44,9 +44,9 @@ module serial_scalar_matrix_names
 #endif
 
   implicit none
+# include "debug.i90"
   private
   
-# include "debug.i90"
 
   
   ! Constants:

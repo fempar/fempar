@@ -35,7 +35,6 @@
 # define generic_memrealloc_interface    memrealloc
 # define generic_memfree_interface       memfree
 # define generic_memmovealloc_interface  memmovealloc
-# include "debug.i90"
 !***********************************************************************
 module volume_integration_tools_names
   use types_names
@@ -49,6 +48,7 @@ module volume_integration_tools_names
   use femap_interp_names
   use fe_space_types_names
   implicit none
+# include "debug.i90"
   private
 
   type volume_integrator_t

@@ -31,6 +31,7 @@ use types_names
 use memor_names
 
    implicit none
+#include "debug.i90"
    private
 
   !=============================================
@@ -38,7 +39,6 @@ use memor_names
   !       (already DONE!!!)
   !=============================================
 
-#include "debug.i90"
 
    ! Alternative implementations of sparse all to all
    integer(ip), parameter :: sp_all_to_all_all_to_all    = 0

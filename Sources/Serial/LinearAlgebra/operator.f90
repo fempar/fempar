@@ -46,7 +46,12 @@ module operator_names
      type(vector_space_t) :: domain_vector_space
      type(vector_space_t) :: range_vector_space
    contains
-     procedure (apply_interface), deferred :: apply
+     ! Deferred methods
+     procedure (apply_interface)    , deferred :: apply
+     procedure (is_linear_interface), deferred :: is_linear 
+     
+     procedure :: get_tangent                             => operator_get_tangent
+     procedure :: get_translation                         => operator_get_translation
      procedure :: free_vector_spaces                      => operator_free_vector_spaces
      procedure :: get_domain_vector_space                 => operator_get_domain_vector_space
      procedure :: get_range_vector_space                  => operator_get_range_vector_space
@@ -73,7 +78,7 @@ module operator_names
   type, abstract, extends(operator_t) :: expression_operator_t 
    contains
      procedure (expression_operator_assign_interface), deferred :: assign
-     generic  :: assignment(=) => assign
+     generic                                                    :: assignment(=) => assign
   end type expression_operator_t
 
   type, abstract, extends(expression_operator_t) :: binary_operator_t
@@ -98,6 +103,7 @@ module operator_names
    contains
      procedure  :: default_initialization => dynamic_state_operator_default_init
      procedure  :: apply     => dynamic_state_operator_apply
+     procedure  :: is_linear => dynamic_state_operator_is_linear
      procedure  :: free  => dynamic_state_operator_destructor
      procedure  :: assign => dynamic_state_operator_constructor
      generic    :: assignment(=) => assign
@@ -105,19 +111,22 @@ module operator_names
 
   type, extends(binary_operator_t) :: sum_operator_t
    contains
-     procedure  :: apply => sum_operator_apply
+     procedure  :: apply     => sum_operator_apply
+     procedure  :: is_linear => sum_operator_is_linear
      procedure  :: assign => sum_operator_copy
   end type sum_operator_t
 
   type, extends(binary_operator_t) :: sub_operator_t
    contains
      procedure  :: apply => sub_operator_apply
+     procedure  :: is_linear => sub_operator_is_linear
      procedure  :: assign => sub_operator_copy
   end type sub_operator_t
 
   type, extends(binary_operator_t) :: mult_operator_t
    contains
      procedure  :: apply => mult_operator_apply
+     procedure  :: is_linear => mult_operator_is_linear
      procedure  :: assign => mult_operator_copy
   end type mult_operator_t
 
@@ -125,6 +134,7 @@ module operator_names
      real(rp) :: alpha
    contains
      procedure  :: apply => scal_operator_apply
+     procedure  :: is_linear => scal_operator_is_linear
      ! scal_operator must overwrite assign for unary_operator_t
      ! as it adds a new member variable "alpha" to unary_operator_t
      procedure  :: assign => scal_operator_copy
@@ -133,6 +143,7 @@ module operator_names
   type, extends(unary_operator_t) :: minus_operator_t
    contains
      procedure  :: apply => minus_operator_apply
+     procedure  :: is_linear => minus_operator_is_linear
   end type minus_operator_t
 
   abstract interface
@@ -144,7 +155,7 @@ module operator_names
        class(operator_t), intent(in)    :: op
        class(vector_t) , intent(in)    :: x
        class(vector_t) , intent(inout) :: y 
-     end subroutine apply_interface
+     end subroutine apply_interface 
 
      subroutine expression_operator_assign_interface(op1,op2)
        import :: operator_t, expression_operator_t
@@ -152,9 +163,18 @@ module operator_names
        class(operator_t)      , intent(in)    :: op2
        class(expression_operator_t), intent(inout) :: op1
      end subroutine expression_operator_assign_interface
+     
+     function is_linear_interface(op) 
+       import :: operator_t
+       implicit none
+       class(operator_t), intent(in)    :: op
+       logical                          :: is_linear_interface
+     end function is_linear_interface
   end interface
 
-  public :: dynamic_state_operator_t, operator_t, sum_operator_t, scal_operator_t
+  public :: dynamic_state_operator_t, operator_t !, sum_operator_t, scal_operator_t
+  public :: operator_get_domain_vector_space, operator_get_range_vector_space, &
+            operator_abort_if_not_in_domain, operator_abort_if_not_in_range
 
 contains
 
@@ -212,6 +232,37 @@ contains
        check(.false.)
     end if
   end subroutine operator_abort_if_not_in_range
+  
+  function operator_get_tangent(op,x) result(tangent)
+    implicit none
+    class(operator_t)          , intent(in) :: op
+    class(vector_t)  , optional, intent(in) :: x
+    type(dynamic_state_operator_t)          :: tangent 
+    
+    if (op%is_linear()) then
+      tangent = op
+      call tangent%SetTemp()
+    else
+      write(0,'(a)') 'Error: operator_t%get_tangent(x) :: tangent unknown, your MUST override operator_t%get_tangent(x)'
+      check(.false.)
+    end if
+  end function operator_get_tangent
+  
+  function operator_get_translation(op) result(translation)
+    implicit none
+    class(operator_t) , intent(in) :: op
+    class(vector_t)   , pointer    :: translation
+    
+    if (op%is_linear()) then
+      ! Linear operators do not have any translation
+      ! This situation is signaled by returning a nullified pointer to the caller
+      ! The caller should be aware that this TBP may return a nullified pointer
+      nullify(translation)
+    else
+      write(0,'(a)') 'Error: operator_t%get_translation() :: translation unknown, your MUST override operator_t%get_translation()'
+      check(.false.)
+    end if
+  end function operator_get_translation
   
   subroutine binary_operator_default_init(this)
     implicit none
@@ -792,5 +843,50 @@ contains
     call x%CleanTemp()
     call op%CleanTemp()
   end subroutine dynamic_state_operator_apply
+  
+  !-------------------------------------!
+  ! is_linear implementations           !
+  !-------------------------------------!
+  function sum_operator_is_linear(op)
+    implicit none
+    class(sum_operator_t), intent(in)    :: op
+    logical :: sum_operator_is_linear
+    sum_operator_is_linear = .false.
+  end function sum_operator_is_linear
 
+  function sub_operator_is_linear(op)
+    implicit none
+    class(sub_operator_t), intent(in)    :: op
+    logical :: sub_operator_is_linear
+    sub_operator_is_linear = .false.
+  end function sub_operator_is_linear
+  
+  function mult_operator_is_linear(op)
+    implicit none
+    class(mult_operator_t), intent(in)    :: op
+    logical :: mult_operator_is_linear
+    mult_operator_is_linear = .false.
+  end function mult_operator_is_linear
+
+  function scal_operator_is_linear(op)
+    implicit none
+    class(scal_operator_t), intent(in)   :: op
+    logical :: scal_operator_is_linear
+    scal_operator_is_linear = .false.
+  end function scal_operator_is_linear
+
+  function minus_operator_is_linear(op)
+    implicit none
+    class(minus_operator_t), intent(in)  :: op
+    logical :: minus_operator_is_linear
+    minus_operator_is_linear = .false.
+  end function minus_operator_is_linear
+
+  function dynamic_state_operator_is_linear(op)
+    implicit none
+    class(dynamic_state_operator_t), intent(in) :: op
+    logical :: dynamic_state_operator_is_linear
+    dynamic_state_operator_is_linear = .false.
+  end function dynamic_state_operator_is_linear
+  
 end module operator_names

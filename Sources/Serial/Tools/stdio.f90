@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module stdio_names
   ! This module contains functions to manage io. It was 
   ! created by C. Labra (clabra@cimne.upc.edu) and slightly
@@ -37,6 +36,8 @@ module stdio_names
   use, intrinsic :: iso_fortran_env, only: ERROR_UNIT, INPUT_UNIT, &
        &                                   OUTPUT_UNIT, IOSTAT_END, IOSTAT_EOR
   implicit none
+# include "debug.i90"
+
 
   ! private module
   private

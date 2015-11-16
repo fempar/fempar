@@ -41,12 +41,14 @@ module par_preconditioner_dd_diagonal_names
   use psb_penv_mod_names
 
   ! Abstract modules
+  use matrix_names
   use vector_names
   use operator_names
-
-# include "debug.i90"
+  use fe_affine_operator_names
   
   implicit none
+# include "debug.i90"
+
   private
 
   type, extends(operator_t) :: par_preconditioner_dd_diagonal_t
@@ -54,54 +56,72 @@ module par_preconditioner_dd_diagonal_names
      type( par_scalar_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal
    contains
+     procedure :: is_linear => par_preconditioner_dd_diagonal_is_linear
      procedure :: apply     => par_preconditioner_dd_diagonal_apply
      procedure :: free      => par_preconditioner_dd_diagonal_free
   end type par_preconditioner_dd_diagonal_t
+  
+  interface par_preconditioner_dd_diagonal_create
+    module procedure par_preconditioner_dd_diagonal_create_w_par_matrix, par_preconditioner_dd_diagonal_create_w_fe_affine_operator
+  end interface
+  
   
   ! Types
   public :: par_preconditioner_dd_diagonal_t
 
   ! Functions
   public :: par_preconditioner_dd_diagonal_create, par_preconditioner_dd_diagonal_free, &
-            par_preconditioner_dd_diagonal_ass_struct, par_preconditioner_dd_diagonal_fill_val, &
+            par_preconditioner_dd_diagonal_symbolic_setup, par_preconditioner_dd_diagonal_numerical_setup, &
             par_preconditioner_dd_diagonal_apply_all_unk
 
   contains
 
 
   !=============================================================================
-  subroutine par_preconditioner_dd_diagonal_create (p_matrix, p_prec_dd_diagonal)
+  subroutine par_preconditioner_dd_diagonal_create_w_par_matrix (p_matrix, p_prec_dd_diagonal)
     implicit none
     ! Parameters
     type(par_scalar_matrix_t)             , target, intent(in)  :: p_matrix
     type(par_preconditioner_dd_diagonal_t)        , intent(out) :: p_prec_dd_diagonal
 
-    
     assert ( associated(p_matrix%p_env) )
     assert ( p_matrix%p_env%created )
     assert ( associated(p_matrix%dof_dist_domain) )
 
     p_prec_dd_diagonal%p_mat    => p_matrix
-
-  end subroutine par_preconditioner_dd_diagonal_create
-
+  end subroutine par_preconditioner_dd_diagonal_create_w_par_matrix
+  
   !=============================================================================
-  subroutine par_preconditioner_dd_diagonal_ass_struct (p_matrix, p_prec_dd_diagonal)
+  subroutine par_preconditioner_dd_diagonal_create_w_fe_affine_operator (fe_affine_operator, p_prec_dd_diagonal)
     implicit none
     ! Parameters
-    type(par_scalar_matrix_t)             , target, intent(in)    :: p_matrix
-    type(par_preconditioner_dd_diagonal_t)        , intent(inout) :: p_prec_dd_diagonal
+    type(fe_affine_operator_t)            , intent(in)  :: fe_affine_operator
+    type(par_preconditioner_dd_diagonal_t), intent(out) :: p_prec_dd_diagonal
+    
+    ! Local variables
+     class(matrix_t)          , pointer :: matrix
+     type(par_scalar_matrix_t), pointer :: p_mat
+  
+     matrix => fe_affine_operator%get_matrix()
+     select type(matrix)
+     class is(par_scalar_matrix_t)
+       p_mat => matrix
+     class default
+       check(.false.)
+     end select 
 
-    assert ( associated(p_matrix%p_env) )
-    assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist_domain) )
-
-    p_prec_dd_diagonal%p_mat    => p_matrix
-
-  end subroutine par_preconditioner_dd_diagonal_ass_struct
+    call par_preconditioner_dd_diagonal_create_w_par_matrix ( p_mat, p_prec_dd_diagonal )
+  end subroutine par_preconditioner_dd_diagonal_create_w_fe_affine_operator
 
   !=============================================================================
-  subroutine par_preconditioner_dd_diagonal_fill_val ( p_prec_dd_diagonal)
+  subroutine par_preconditioner_dd_diagonal_symbolic_setup (p_prec_dd_diagonal)
+    implicit none
+    ! Parameters
+    type(par_preconditioner_dd_diagonal_t)        , intent(inout) :: p_prec_dd_diagonal
+  end subroutine par_preconditioner_dd_diagonal_symbolic_setup
+
+  !=============================================================================
+  subroutine par_preconditioner_dd_diagonal_numerical_setup ( p_prec_dd_diagonal)
     implicit none
     ! Parameters
     type(par_preconditioner_dd_diagonal_t), target, intent(inout) :: p_prec_dd_diagonal
@@ -146,7 +166,7 @@ module par_preconditioner_dd_diagonal_names
     ! Invert diagonal
     call invert_diagonal  ( neq, p_prec_dd_diagonal%d )
 
-  end subroutine par_preconditioner_dd_diagonal_fill_val
+  end subroutine par_preconditioner_dd_diagonal_numerical_setup
 
   !=============================================================================
   subroutine par_preconditioner_dd_diagonal_apply_all_unk (p_prec_dd_diagonal, x, y)
@@ -211,6 +231,13 @@ module par_preconditioner_dd_diagonal_names
     end select
     call x%CleanTemp()
   end subroutine par_preconditioner_dd_diagonal_apply
+  
+  function par_preconditioner_dd_diagonal_is_linear(op)
+    implicit none
+    class(par_preconditioner_dd_diagonal_t), intent(in) :: op
+    logical :: par_preconditioner_dd_diagonal_is_linear
+    par_preconditioner_dd_diagonal_is_linear = .true.
+  end function par_preconditioner_dd_diagonal_is_linear
   
   subroutine par_preconditioner_dd_diagonal_free(this)
     implicit none

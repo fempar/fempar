@@ -46,6 +46,8 @@ module par_preconditioner_dd_mlevel_bddc_names
 #endif
 
   use abstract_solver_names
+  use fe_affine_operator_names
+  use matrix_names
   use mesh_names
   use serial_scalar_matrix_names
   use preconditioner_names
@@ -72,8 +74,9 @@ module par_preconditioner_dd_mlevel_bddc_names
   use vector_space_names
   use operator_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
+
   private
 
   integer (ip), parameter :: default_unknowns            = interface_unknowns
@@ -333,12 +336,19 @@ module par_preconditioner_dd_mlevel_bddc_names
 
      integer(ip) :: harm_its_agg         = 0 
    contains
-     procedure :: apply => par_preconditioner_dd_mlevel_bddc_apply
-     procedure :: free => par_preconditioner_dd_mlevel_bddc_free
+     procedure :: is_linear => par_preconditioner_dd_mlevel_bddc_is_linear
+     procedure :: apply     => par_preconditioner_dd_mlevel_bddc_apply
+     procedure :: free      => par_preconditioner_dd_mlevel_bddc_free
   end type par_preconditioner_dd_mlevel_bddc_t
 
   ! public :: default_kind_coarse_dofs, default_co_sys_sol_strat, default_ndime
 
+  interface par_preconditioner_dd_mlevel_bddc_create
+    module procedure par_preconditioner_dd_mlevel_bddc_create_w_fe_affine_operator, & 
+                     par_preconditioner_dd_mlevel_bddc_create_w_par_matrix
+  end interface  
+  
+  
   ! Types
   public :: par_preconditioner_dd_mlevel_bddc_t, par_preconditioner_dd_mlevel_bddc_params_t
 
@@ -355,15 +365,36 @@ module par_preconditioner_dd_mlevel_bddc_names
 
   logical, parameter :: debug_verbose_level_1 = .false. 
   logical, parameter :: debug_verbose_level_2 = .false.
-  logical, parameter :: debug_verbose_level_3 = .false.  ! Prints harmonic extensions 
+  logical, parameter :: debug_verbose_level_3 = .true.  ! Prints harmonic extensions 
                                                          ! to gid files, and coarse grid system 
                                                          ! coefficient matrix to matrix market 
 
 contains
 
-  recursive subroutine par_preconditioner_dd_mlevel_bddc_create( p_mat, mlbddc, mlbddc_params )
+  subroutine par_preconditioner_dd_mlevel_bddc_create_w_fe_affine_operator(fe_affine_operator, mlbddc, mlbddc_params )
+     implicit none
+     type(fe_affine_operator_t)                      , intent(in)  :: fe_affine_operator
+     type(par_preconditioner_dd_mlevel_bddc_t)       , intent(out) :: mlbddc
+     type(par_preconditioner_dd_mlevel_bddc_params_t), intent(in)  :: mlbddc_params
+     
+     ! Local variables
+     class(matrix_t)          , pointer :: matrix
+     type(par_scalar_matrix_t), pointer :: p_mat
+  
+     matrix => fe_affine_operator%get_matrix()
+     select type(matrix)
+     class is(par_scalar_matrix_t)
+       p_mat => matrix
+     class default
+       check(.false.)
+     end select 
+     call par_preconditioner_dd_mlevel_bddc_create_w_par_matrix ( p_mat, mlbddc, mlbddc_params )
+     
+  end subroutine par_preconditioner_dd_mlevel_bddc_create_w_fe_affine_operator
+
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_create_w_par_matrix( p_mat, mlbddc, mlbddc_params )
 #ifdef MPI_MOD
-use mpi
+    use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -711,7 +742,7 @@ use mpi
        ! END COARSE-GRID PROBLEM DUTIES    
     end if
 
-  end subroutine par_preconditioner_dd_mlevel_bddc_create
+  end subroutine par_preconditioner_dd_mlevel_bddc_create_w_par_matrix
 
   !=================================================================================================
   recursive subroutine par_preconditioner_dd_mlevel_bddc_free_in_stages ( mlbddc, mode )
@@ -1018,22 +1049,19 @@ use mpi
   end subroutine par_preconditioner_dd_mlevel_bddc_free_in_stages
 
   !=================================================================================================
-  recursive subroutine par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, mlbddc ) 
-use mpi
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_ass_struct ( mlbddc ) 
     implicit none
 
     ! Parameters 
-    type(par_scalar_matrix_t)                , target, intent(in)    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
  
     type (mesh_t)  :: c_mesh
-    logical          :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
-    !integer(ip)      :: iam
+    logical        :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
 
     ! The routine requires the partition/context info
-    assert ( associated(p_mat%p_env) )
-    assert ( p_mat%p_env%created )
-    assert ( p_mat%p_env%num_levels > 1 ) 
+    assert ( associated(mlbddc%p_mat%p_env) )
+    assert ( mlbddc%p_mat%p_env%created )
+    assert ( mlbddc%p_mat%p_env%num_levels > 1 ) 
 
     assert ( associated(mlbddc%p_mat%p_env%w_context) )
     assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
@@ -1049,8 +1077,6 @@ use mpi
     assert ( mlbddc%g_context%created .eqv. .true. )
     assert ( associated(mlbddc%p_mat%p_env%b_context) )
     assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
-
-    mlbddc%p_mat => p_mat
     
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
@@ -1106,21 +1132,21 @@ use mpi
 
        ! BEG. FINE-GRID PROBLEM DUTIES
        if (mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then 
-          call extract_graph_A_rr (p_mat, mlbddc)
+          call extract_graph_A_rr (mlbddc%p_mat, mlbddc)
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-          call augment_graph_with_constraints ( p_mat, mlbddc )
+          call augment_graph_with_constraints ( mlbddc%p_mat, mlbddc )
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          call preconditioner_symbolic( mlbddc%A_rr , mlbddc%M_rr )
+          call preconditioner_symbolic_setup( mlbddc%M_rr )
           if (mlbddc%projection == petrov_galerkin) then
 		     call mlbddc%A_rr%graph%copy(mlbddc%A_rr_trans%graph)
-             call preconditioner_symbolic( mlbddc%A_rr_trans, mlbddc%M_rr_trans )
+             call preconditioner_symbolic_setup( mlbddc%M_rr_trans )
           end if
        end if
 
        if ( mlbddc%unknowns == all_unknowns ) then
-          call operator_dd_ass_struct (p_mat%serial_scalar_matrix, mlbddc%A_II_inv ) 
+          call operator_dd_ass_struct (mlbddc%p_mat%serial_scalar_matrix, mlbddc%A_II_inv ) 
        end if
        ! END FINE-GRID PROBLEM DUTIES
 
@@ -1133,12 +1159,12 @@ use mpi
        ! BEG. COARSE-GRID PROBLEM DUTIES
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_symbolic( mlbddc%A_c , mlbddc%M_c )
+             call preconditioner_symbolic_setup( mlbddc%M_c )
           end if
        else if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
           ! Assign coarse matrix graph (the partition)
           ! call par_matrix_graph ( mlbddc%p_graph_c, mlbddc%p_mat_c)
-          call par_preconditioner_dd_mlevel_bddc_ass_struct ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
+          call par_preconditioner_dd_mlevel_bddc_ass_struct ( mlbddc%p_M_c ) 
        end if
        ! END COARSE-GRID PROBLEM DUTIES
     end if
@@ -3148,10 +3174,10 @@ use mpi
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          call preconditioner_numeric( mlbddc%M_rr )
+          call preconditioner_numerical_setup( mlbddc%M_rr )
           
           if (mlbddc%projection == petrov_galerkin ) then 
-             call preconditioner_numeric( mlbddc%M_rr_trans ) 
+             call preconditioner_numerical_setup( mlbddc%M_rr_trans ) 
           end if
 
        else
@@ -3461,7 +3487,7 @@ use mpi
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              ! call preconditioner_numeric( mlbddc%A_c , mlbddc%M_c )
-             call preconditioner_numeric( mlbddc%M_c )
+             call preconditioner_numerical_setup( mlbddc%M_c )
           else
              check(.false.)
 !!$             call operator_mat_create (mlbddc%A_c, mlbddc%A_c_mat_op )
@@ -8537,6 +8563,14 @@ use mpi
        end select
        call x%CleanTemp()
      end subroutine par_preconditioner_dd_mlevel_bddc_apply
+     
+  function par_preconditioner_dd_mlevel_bddc_is_linear(op)
+    implicit none
+    class(par_preconditioner_dd_mlevel_bddc_t), intent(in) :: op
+    logical :: par_preconditioner_dd_mlevel_bddc_is_linear
+    par_preconditioner_dd_mlevel_bddc_is_linear = .true.
+  end function par_preconditioner_dd_mlevel_bddc_is_linear
+     
 
  subroutine par_preconditioner_dd_mlevel_bddc_free(this)
    implicit none

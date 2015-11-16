@@ -28,8 +28,9 @@
 module postprocess_field_nsi_names
   use serial_names
   use prob_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
+  
   private
 
   type, extends(postprocess_field_t) :: postprocess_field_velocity_t
@@ -250,9 +251,6 @@ program par_test_nsi_iss
 								   (/indefinite/), &
 								   p_fe_space, &
 								   approx)
-  
-  call fe_affine_operator%symbolic_setup()
-  call fe_affine_operator%numerical_setup()
 
   matrix => fe_affine_operator%get_matrix()
   select type(matrix)
@@ -265,7 +263,7 @@ program par_test_nsi_iss
   array => fe_affine_operator%get_array()
   select type(array)
   class is(par_scalar_array_t)
-    p_vec => array
+    p_vec => array 
   class default
     check(.false.)
   end select 
@@ -326,21 +324,9 @@ program par_test_nsi_iss
   sctrl%rtol=1.0e-14_rp
 
   ! Create Preconditioner 
-  call par_preconditioner_dd_mlevel_bddc_create(p_mat,p_mlevel_bddc,p_mlevel_bddc_pars)
-  call par_preconditioner_dd_mlevel_bddc_ass_struct(p_mat,p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_create(fe_affine_operator,p_mlevel_bddc,p_mlevel_bddc_pars)
+  call par_preconditioner_dd_mlevel_bddc_ass_struct(p_mlevel_bddc)
   call par_preconditioner_dd_mlevel_bddc_fill_val(p_mlevel_bddc)
-
-!!$  call par_preconditioner_dd_identity_create ( p_mat, p_prec_dd_diag )
-!!$  call par_preconditioner_dd_identity_ass_struct ( p_mat, p_prec_dd_diag )
-!!$  call par_preconditioner_dd_identity_fill_val ( p_mat, p_prec_dd_diag )
-!!$
-!!$  !call par_vector_print(6,p_vec)
-!!$  call abstract_solve(p_mat,p_prec_dd_diag,p_vec,p_unk,sctrl,p_env)
-!!$  call par_vector_print(6,p_unk)
-!!$
-!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_values )
-!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_struct )
-!!$  call par_preconditioner_dd_identity_free ( p_prec_dd_diag, free_clean )
 
   ! Solve
   call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)

@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module finite_element_names
   ! Modules
   use types_names
@@ -43,7 +42,10 @@ module finite_element_names
   use iso_c_binding
 #endif
   implicit none
+# include "debug.i90"
+
   private
+
 
   ! Information of each element of the FE space
   type, extends(migratory_element_t) :: finite_element_t

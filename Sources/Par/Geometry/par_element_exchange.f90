@@ -33,10 +33,9 @@ module par_element_exchange_names
    use migratory_element_names
 
    implicit none
+#include "debug.i90"
    private
 
-#include "debug.i90"
-   
    ! Subroutines
    public :: ghost_elements_exchange
 contains

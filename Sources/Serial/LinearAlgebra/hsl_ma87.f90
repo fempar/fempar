@@ -44,9 +44,9 @@ module hsl_ma87_names
 use hsl_ma87_double
 #endif
 
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
   private
 
   ! Possible states of hsl_ma87_context

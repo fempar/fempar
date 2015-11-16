@@ -40,9 +40,10 @@ use iso_c_binding
 #endif
 
   implicit none
+# include "debug.i90"
+
   private
   
-# include "debug.i90"
 
 
   ! Pointer to operator
@@ -61,6 +62,7 @@ use iso_c_binding
      procedure  :: set_block_to_zero  => block_preconditioner_lu_set_block_to_zero
      procedure  :: free               => block_preconditioner_lu_free
      procedure  :: apply              => block_preconditioner_lu_apply
+     procedure  :: is_linear          => block_preconditioner_lu_is_linear
   end type block_preconditioner_lu_t
 
   integer(ip), parameter :: lower = 0
@@ -73,6 +75,14 @@ use iso_c_binding
   ! public :: 
 
 contains
+
+  function block_preconditioner_lu_is_linear(op)
+    implicit none
+    class(block_preconditioner_lu_t), intent(in) :: op
+    logical :: block_preconditioner_lu_is_linear
+    block_preconditioner_lu_is_linear = .false.
+  end function block_preconditioner_lu_is_linear
+
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
