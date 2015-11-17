@@ -37,8 +37,8 @@ module par_mesh_names
   use par_io_names
   use par_environment_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
   ! Distributed mesh

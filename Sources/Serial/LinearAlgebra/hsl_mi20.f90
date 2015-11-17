@@ -42,9 +42,10 @@ module hsl_mi20_names
   use hsl_mi20_double
 #endif
 
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
+
   private
 
   ! Possible states of hsl_mi20_context

@@ -38,8 +38,8 @@ module par_generate_uniform_triangulation_names
   use par_triangulation_names
   use par_conditions_names
   use par_element_exchange_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
   public :: par_generate_uniform_triangulation

@@ -84,8 +84,9 @@ program test_operators
   call linear_solver%set_type_from_pl()
   call linear_solver%set_parameters_from_pl()
   call linear_solver%set_operators(Mat,Mat)
-  call linear_solver%solve(Vec2,Vec1)
-  call linear_solver%free()
+  call linear_solver%set_rhs(Vec2)
+  call linear_solver%solve(Vec1)
+  call linear_solver%free() 
 
   call Vec1%print(6)
  

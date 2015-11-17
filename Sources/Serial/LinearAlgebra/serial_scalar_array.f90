@@ -62,7 +62,7 @@ module serial_scalar_array_names
   ! created     | set_view_entries     | entries_ready
   ! created     | clone                | same status as cloned source
   
-  ! entries_ready | clone              | entries_ready
+  ! entries_ready | clone              | same status as cloned source 
   ! entries_ready | free_values        | created
   ! entries_ready | free               | not_created
   type, extends(array_t) :: serial_scalar_array_t

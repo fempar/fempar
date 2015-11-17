@@ -32,8 +32,8 @@ module mesh_names
   use stdio_names
   use iso_fortran_env, only : output_unit
   !use conditions_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
   type mesh_t

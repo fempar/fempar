@@ -340,7 +340,7 @@ program par_test_cdr_unstructured
         call par_timer_start (total_time) 
 
         ! Ass struct
-        call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+        call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mlevel_bddc )
 
         ! Fill val
         call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )

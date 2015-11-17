@@ -285,6 +285,9 @@ program test_cdr
   integer(ip)              :: diagonal_blocks_sign(1)
 
   integer(ip)              :: lunio, istat
+  
+  class(vector_t) , pointer :: x, y
+  class(operator_t), pointer :: A
 
   call meminit
 
@@ -364,66 +367,65 @@ program test_cdr
        diagonal_blocks_sign, fe_space, approximations)
   call fe_affine_operator%symbolic_setup()
    
-  ! Create the matrix
-  matrix => fe_affine_operator%get_matrix()
-  select type(matrix)
-     class is(serial_scalar_matrix_t)
-     my_matrix => matrix
-     class default
-     check(.false.)
-  end select
-
-  ! Create array 
-  array => fe_affine_operator%get_array()
-  select type(array)
-     class is(serial_scalar_array_t)
-     my_array => array
-     class default
-     check(.false.)
-  end select
 
  ! Create preconditioners
   ppars%type = pardiso_mkl_prec
-  call preconditioner_create(my_matrix,feprec,ppars)
-  call preconditioner_symbolic(my_matrix,feprec)
+  call preconditioner_create(fe_affine_operator,feprec,ppars)
+  call preconditioner_symbolic_setup(feprec)
 
   ! Create the computation of the error
   call compute_error%create(my_problem,my_discrete)
 
+ ! The get_matrix/vector allocates and computes the matrix
+  call fe_affine_operator%free_in_stages(free_values)
 
   do while (.not. theta_integ%finished) 
 
      ! Print the time step
      call theta_integ%print(6)
-
      ! Update boundary conditions
      call update_strong_dirichlet_bcond( fe_space, f_cond )
      call update_analytical_bcond(vars_prob,theta_integ%ctime,fe_space)
 
      ! Initialize the matrix and vector
-     call my_matrix%init(0.0_rp)
-     call my_array%init(0.0_rp)
+     !call my_matrix%init(0.0_rp)
+     !call my_array%init(0.0_rp)
 
      ! Compute the matrix an vector of the problem
      approximations(1)%discrete_integration => cdr_matvec
      call fe_affine_operator%numerical_setup()
+     
+     ! Create the matrix
+     matrix => fe_affine_operator%get_matrix()
+     select type(matrix)
+        class is(serial_scalar_matrix_t)
+        my_matrix => matrix
+        class default
+        check(.false.)
+     end select
+     
+     ! Create array 
+     array => fe_affine_operator%get_array()
+     select type(array)
+        class is(serial_scalar_array_t)
+        my_array => array
+        class default
+        check(.false.)
+     end select
 
      ! Create the vector
      call feunk%clone(my_array) 
 
      ! Update the preconditioner
-     call preconditioner_numeric(feprec)
+     call preconditioner_numerical_setup(feprec)
      !call preconditioner_log_info(feprec)
      
-
      ! Solve the matrix-vector problem
      call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
-
+     call solver_control_free_conv_his(sctrl)
+     
      ! Store the solution in FE space
      call update_solution(feunk, fe_space)
-
-     !write(*,*) __FILE__,__LINE__, feunk%b
-     !write(*,*) fe_space%finite_elements(1)%unkno
 
      ! Store the solution in the previous time step
      call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
@@ -437,13 +439,11 @@ program test_cdr
      call fe_space%volume_integral(approximations,enorm)
      call enorm%reduce()
      write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value())
-
-     call solver_control_free_conv_his(sctrl)
-
      ! Print solution to VTK file
      istat = fevtk%write_VTK(t_step = theta_integ%real_time)
      istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
  
+     call fe_affine_operator%free_in_stages(free_values)
      ! Update the time integration variables
      call theta_integ%update()
   end do
@@ -580,7 +580,7 @@ contains
     call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, enable_face_integration,         &
          &        __FILE__, __LINE__)
     call cli%get(group=trim(group),switch='-fi', val=face_int_flag, error=istat); check(istat==0)
-    enable_face_integration = face_int_flag ! (cG/ No face integration)
+    enable_face_integration = (face_int_flag==1) ! (cG/ No face integration)
 
     ! Order set up
     call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)

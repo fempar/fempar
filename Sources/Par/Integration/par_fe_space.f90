@@ -162,7 +162,7 @@ contains
   subroutine par_fe_space_volume_integral(this,approximations,assembler)
     implicit none
     class(par_fe_space_t)          , intent(in)    :: this
-    class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+    type(p_discrete_integration_t) , intent(in)    :: approximations(:) 
     class(assembler_t)             , intent(inout) :: assembler
     class(array_t)                 , pointer :: array
     

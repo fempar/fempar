@@ -107,6 +107,9 @@ module base_linear_solver_names
     
     ! Initial solution
     class(vector_t), allocatable :: initial_solution
+    
+    ! Right hand side
+    class(vector_t), allocatable :: b 
   
     ! Parameters
     real(rp)      :: luout                     ! Logical Unit Output
@@ -135,6 +138,8 @@ module base_linear_solver_names
     procedure :: set_operators
     procedure :: set_initial_solution
     procedure :: get_initial_solution
+    procedure :: set_rhs
+    procedure :: get_rhs
     procedure :: get_A
     procedure :: get_M
     
@@ -180,6 +185,7 @@ module base_linear_solver_names
     procedure, private :: free_convergence_history
     procedure, private :: unset_operators
     procedure, private :: free_initial_solution
+    procedure, private :: free_rhs
     
     ! "Private" TBPs to be called from data types which extend class(base_linear_solver_t)
     procedure           :: base_linear_solver_set_parameters_from_pl
@@ -213,11 +219,10 @@ module base_linear_solver_names
      class(base_linear_solver_t), intent(inout) :: this
     end subroutine set_parameters_from_pl_interface
     
-    subroutine solve_body_interface(this,b,x)
+    subroutine solve_body_interface(this,x)
      import :: base_linear_solver_t, vector_t
      implicit none
      class(base_linear_solver_t), intent(inout) :: this
-     class(vector_t)            , intent(in)    :: b 
      class(vector_t)            , intent(inout) :: x 
     end subroutine solve_body_interface
     
@@ -292,8 +297,10 @@ contains
      class(operator_t)           , intent(in)    :: M     
      type(vector_space_t), pointer :: A_domain, A_range
      type(vector_space_t), pointer :: M_domain, M_range
-     
+     class(vector_t), pointer :: b
+          
      assert(this%state == start .or. this%state == operators_set)
+     
      call A%GuardTemp()
      call M%GuardTemp()
      A_domain => A%get_domain_vector_space()
@@ -307,11 +314,18 @@ contains
        write(0,'(a)') 'base_linear_solver_t%set_operators :: range(A)/=range(M)' 
        write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: operators could not be set' 
      else
-       this%A = A
+       this%A = A%get_tangent()
        this%M = M
        if ( this%state == start ) then
          call A_range%create_vector(this%initial_solution)
          call this%initial_solution%init(0.0_rp)
+         call A_domain%create_vector(this%b)
+         b => A%get_translation()
+         if ( .not. associated(b) ) then
+           call this%b%init(0.0_rp)
+         else
+           call this%b%copy(b)
+         end if
        else if ( this%state == operators_set ) then
          if (.not. A_range%belongs_to(this%initial_solution)) then
            call this%free_initial_solution()
@@ -319,6 +333,18 @@ contains
            call this%initial_solution%init(0.0_rp)
            write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: Initial solution re-set such that it now belongs to range(A)'
            write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: you have to (re-)call %set_initial_solution to select an initial solution different from zero'
+         end if
+         if (.not. A_domain%belongs_to(this%b)) then
+           call this%free_rhs() 
+           call A_domain%create_vector(this%b)
+           b => A%get_translation()
+           if ( .not. associated(b) ) then
+             call this%b%init(0.0_rp)
+           else
+             call this%b%copy(b)
+           end if
+           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: rhs re-set such that it now belongs to domain(A)'
+           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: you have to (re-)call %set_rhs to select a rhs different from the default one'
          end if
        end if
        this%state = operators_set
@@ -337,7 +363,7 @@ contains
      call initial_solution%GuardTemp()
      A_range  => this%A%get_range_vector_space()
      if (.not. A_range%belongs_to(initial_solution)) then
-       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: Ignoring initial solution; it does not belong to range(A)'
+       write(0,'(a)') 'Warning: base_linear_solver_t%set_initial_solution :: Ignoring initial solution; it does not belong to range(A)'
      else
        call this%initial_solution%copy(initial_solution)
      end if  
@@ -350,6 +376,30 @@ contains
      class(vector_t)            , pointer :: get_initial_solution
      get_initial_solution => this%initial_solution
     end function get_initial_solution
+    
+    subroutine set_rhs(this,b)
+     implicit none
+     class(base_linear_solver_t) , intent(inout) :: this
+     class(vector_t)             , intent(in)    :: b     
+     type(vector_space_t)        , pointer       :: A_domain     
+     
+     assert(this%state == operators_set .or. this%state == workspace_allocated)
+     call b%GuardTemp()
+     A_domain  => this%A%get_domain_vector_space()
+     if (.not. A_domain%belongs_to(b)) then
+       write(0,'(a)') 'Warning: base_linear_solver_t%set_rhs :: Ignoring rhs; it does not belong to domain(A)'
+     else
+       call this%b%copy(b)
+     end if  
+     call b%CleanTemp()
+    end subroutine set_rhs
+    
+    function get_rhs(this)
+     implicit none
+     class(base_linear_solver_t), target, intent(in) :: this
+     class(vector_t)            , pointer :: get_rhs
+     get_rhs => this%b
+    end function get_rhs
     
     function get_A(this)
       implicit none
@@ -434,6 +484,13 @@ contains
       call this%initial_solution%free()
       deallocate(this%initial_solution)
     end subroutine free_initial_solution
+    
+    subroutine free_rhs(this)
+      implicit none
+      class(base_linear_solver_t), intent(inout) :: this
+      call this%b%free()
+      deallocate(this%b)
+    end subroutine free_rhs
     
     function converged(this)
       implicit none
@@ -731,27 +788,28 @@ contains
       if ( this%state == operators_set ) then
         call this%unset_operators()
         call this%free_initial_solution()
+        call this%free_rhs()
       else if ( this%state == workspace_allocated ) then
         call this%unset_operators()
         call this%free_initial_solution()
+        call this%free_rhs()
         call this%free_workspace()
         call this%free_convergence_history()
       end if
       this%state = start
     end subroutine base_linear_solver_free
     
-    subroutine base_linear_solver_solve(this,x,y)
+    subroutine base_linear_solver_solve(this,x)
       implicit none
       class(base_linear_solver_t), intent(inout) :: this
-      class(vector_t)            , intent(in)    :: x
-      class(vector_t)            , intent(inout) :: y
+      class(vector_t)            , intent(inout) :: x
       assert ( this%state == operators_set .or. this%state == workspace_allocated )
       call this%allocate_convergence_history()
       if ( this%get_state() == operators_set ) then
          call this%allocate_workspace()
       end if   
       call x%GuardTemp()
-      call this%solve_body(x,y)
+      call this%solve_body(x)
       call x%CleanTemp()
       this%state = workspace_allocated
     end subroutine base_linear_solver_solve

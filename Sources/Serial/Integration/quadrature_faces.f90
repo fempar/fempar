@@ -31,8 +31,8 @@ module quadrature_faces_names
   use fe_space_types_names
   use quadrature_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
   type face_quadrature_t

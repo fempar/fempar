@@ -29,8 +29,8 @@ module renumbering_names
   use types_names
   use memor_names
   use stdio_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
   type renumbering_t

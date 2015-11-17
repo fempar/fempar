@@ -73,6 +73,7 @@ module linear_solver_names
     procedure :: set_type_and_parameters_from_pl => linear_solver_set_type_and_parameters_from_pl
     procedure :: set_operators                   => linear_solver_set_operators
     procedure :: set_initial_solution            => linear_solver_set_initial_solution
+    procedure :: set_rhs                         => linear_solver_set_rhs
   end type
   
   ! Data types
@@ -99,13 +100,12 @@ contains
      this%state = not_created
    end subroutine linear_solver_free
    
-   subroutine linear_solver_solve ( this, x, y )
+   subroutine linear_solver_solve ( this, x )
      implicit none
      class(linear_solver_t), intent(inout) :: this
-     class(vector_t)       , intent(in)    :: x 
-     class(vector_t)       , intent(inout) :: y
+     class(vector_t)       , intent(inout) :: x 
      assert ( this%state == solver_type_set )
-     call this%base_linear_solver%solve(x,y)
+     call this%base_linear_solver%solve(x)
    end subroutine linear_solver_solve
 
    subroutine linear_solver_set_type_from_pl ( this )
@@ -153,6 +153,14 @@ contains
      assert ( this%state == solver_type_set )
      call this%base_linear_solver%set_operators(A,M)
    end subroutine linear_solver_set_operators
+   
+   subroutine linear_solver_set_rhs ( this, b )
+     implicit none
+     class(linear_solver_t), intent(inout) :: this
+     class(vector_t)       , intent(in)    :: b
+     assert ( this%state == solver_type_set )
+     call this%base_linear_solver%set_rhs(b)
+   end subroutine linear_solver_set_rhs
    
    subroutine linear_solver_set_initial_solution( this, initial_solution )
      implicit none

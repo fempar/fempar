@@ -38,9 +38,9 @@ use iso_c_binding
 #endif
 
   implicit none
-  private
 # include "debug.i90"
-
+  
+  private
 
   ! Pointer to operator
   type p_abs_operator_t
@@ -60,6 +60,7 @@ use iso_c_binding
      procedure  :: free               => block_preconditioner_u_free
      procedure  :: get_block          => block_preconditioner_u_get_block
      procedure  :: apply              => block_preconditioner_u_apply
+     procedure  :: is_linear          => block_preconditioner_u_is_linear
    end type block_preconditioner_u_t
 
 
@@ -111,6 +112,13 @@ contains
     end select
     call x%CleanTemp()
   end subroutine block_preconditioner_u_apply
+  
+  function block_preconditioner_u_is_linear(op)
+    implicit none
+    class(block_preconditioner_u_t), intent(in) :: op
+    logical :: block_preconditioner_u_is_linear
+    block_preconditioner_u_is_linear = .false.
+  end function block_preconditioner_u_is_linear
 
 
   subroutine block_preconditioner_u_create (bop, nblocks)

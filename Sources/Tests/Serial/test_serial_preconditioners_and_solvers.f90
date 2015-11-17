@@ -33,9 +33,10 @@ program test_serial_preconditioners_and_solvers
   !
   !-----------------------------------------------------------------------
   use serial_names
-# include "debug.i90"
 
   implicit none
+# include "debug.i90"
+
   ! Files
   type conv_t
     integer(ip), allocatable :: list(:)
@@ -131,9 +132,9 @@ program test_serial_preconditioners_and_solvers
 
      call preconditioner_create  (mmmat, feprec, ppars)
      t1 = wtime()
-     call preconditioner_symbolic(mmmat, feprec)
+     call preconditioner_symbolic_setup(feprec)
      !call preconditioner_numeric (mmmat, feprec)
-     call preconditioner_numeric (feprec)
+     call preconditioner_numerical_setup (feprec)
      t2 = wtime() 
 
      call preconditioner_log_info(feprec)
@@ -258,9 +259,9 @@ program test_serial_preconditioners_and_solvers
 
                     call preconditioner_create  (mmmat, feprec, ppars)
                     t1 = wtime()
-                    call preconditioner_symbolic(mmmat, feprec)
+                    call preconditioner_symbolic_setup(feprec)
                     !call preconditioner_numeric (mmmat, feprec)
-                    call preconditioner_numeric (feprec)
+                    call preconditioner_numerical_setup (feprec)
                     t2 = wtime() 
         
                     call preconditioner_log_info(feprec)

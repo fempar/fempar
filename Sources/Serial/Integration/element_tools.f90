@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module element_tools_names
   use types_names
   use memor_names
@@ -37,6 +36,7 @@ module element_tools_names
   use memory_guard_names
   use problem_names
   implicit none
+# include "debug.i90"
   private
 
   type, extends(memory_guard_t) :: function_t
@@ -993,7 +993,7 @@ contains
 
     ! Allocate mat with mold=p_mat
     assert(v%ndof==u%ndof)
-    call allocatable_array_create(v%ndof,u%ndof,mat)
+    call mat%create(v%ndof,u%ndof)
 
     ! Now perform operations according to left_factor TODO
     if(allocated(v%left_factor)) then
@@ -1069,7 +1069,7 @@ contains
 
     ! Allocate mat with mold=p_mat
     assert(gv%ndof==gu%ndof)
-    call allocatable_array_create(gv%ndof,gu%ndof,mat)
+    call mat%create(gv%ndof,gu%ndof)
 
     ! Now perform operations according to left_factor TODO
     if(allocated(gv%left_factor)) then

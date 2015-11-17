@@ -81,7 +81,7 @@ module fe_space_names
        import :: fe_space_t, p_discrete_integration_t,assembler_t
        implicit none
        class(fe_space_t)              , intent(in)    :: this
-       class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+       type(p_discrete_integration_t) , intent(in)    :: approximations(:) 
        class(assembler_t)             , intent(inout) :: assembler
      end subroutine volume_integral_interface
   end interface

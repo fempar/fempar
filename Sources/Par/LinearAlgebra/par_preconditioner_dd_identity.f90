@@ -38,15 +38,16 @@ module par_preconditioner_dd_identity_names
   use par_context_names
   use par_environment_names
   use dof_distribution_names
-use psb_penv_mod_names
 
   ! Abstract modules
+  use matrix_names
   use vector_names
   use operator_names
+  use fe_affine_operator_names 
 
-# include "debug.i90"
-  
   implicit none
+# include "debug.i90"
+
   private
 
   type, extends(operator_t) :: par_preconditioner_dd_identity_t
@@ -54,22 +55,27 @@ use psb_penv_mod_names
      type( par_scalar_matrix_t ), pointer     :: p_mat => NULL()   
      real(rp)          , allocatable :: d(:)            ! Inverse of main diagonal
    contains
+     procedure :: is_linear => par_preconditioner_dd_identity_is_linear
      procedure :: apply     => par_preconditioner_dd_identity_apply
      procedure :: free      => par_preconditioner_dd_identity_free
   end type par_preconditioner_dd_identity_t
+  
+  interface par_preconditioner_dd_identity_create
+    module procedure par_preconditioner_dd_identity_create_w_par_matrix, par_preconditioner_dd_identity_create_w_fe_affine_operator
+  end interface
   
   ! Types
   public :: par_preconditioner_dd_identity_t
 
   ! Functions
   public :: par_preconditioner_dd_identity_create, par_preconditioner_dd_identity_free, &
-            par_preconditioner_dd_identity_ass_struct, par_preconditioner_dd_identity_fill_val, &
+            par_preconditioner_dd_identity_symbolic_setup, par_preconditioner_dd_identity_numerical_setup, &
             par_preconditioner_dd_identity_apply_all_unk
 
   contains
 
   !=============================================================================
-  subroutine par_preconditioner_dd_identity_create (p_matrix, p_prec_dd_identity)
+  subroutine par_preconditioner_dd_identity_create_w_par_matrix (p_matrix, p_prec_dd_identity)
     implicit none
     ! Parameters
     type(par_scalar_matrix_t)             , target, intent(in)  :: p_matrix
@@ -78,26 +84,43 @@ use psb_penv_mod_names
     assert ( p_matrix%p_env%created )
     assert ( associated(p_matrix%dof_dist_domain) )
     p_prec_dd_identity%p_mat    => p_matrix
-  end subroutine par_preconditioner_dd_identity_create
-
+  end subroutine par_preconditioner_dd_identity_create_w_par_matrix
+  
   !=============================================================================
-  subroutine par_preconditioner_dd_identity_ass_struct (p_matrix, p_prec_dd_identity)
+  subroutine par_preconditioner_dd_identity_create_w_fe_affine_operator (fe_affine_operator, p_prec_dd_identity)
     implicit none
     ! Parameters
-    type(par_scalar_matrix_t)             , target, intent(in)    :: p_matrix
-    type(par_preconditioner_dd_identity_t)        , intent(inout) :: p_prec_dd_identity
-    assert ( associated(p_matrix%p_env) )
-    assert ( p_matrix%p_env%created )
-    assert ( associated(p_matrix%dof_dist_domain) )
-    p_prec_dd_identity%p_mat    => p_matrix
-  end subroutine par_preconditioner_dd_identity_ass_struct
+    type(fe_affine_operator_t)            , intent(in)  :: fe_affine_operator
+    type(par_preconditioner_dd_identity_t), intent(out) :: p_prec_dd_identity
+    
+    ! Local variables
+    class(matrix_t)          , pointer :: matrix
+    type(par_scalar_matrix_t), pointer :: p_mat
+  
+    matrix => fe_affine_operator%get_matrix()
+    select type(matrix)
+    class is(par_scalar_matrix_t)
+      p_mat => matrix
+    class default
+      check(.false.)
+    end select 
+
+    call par_preconditioner_dd_diagonal_create_w_par_matrix ( p_mat, p_prec_dd_identity )
+  end subroutine par_preconditioner_dd_identity_create_w_fe_affine_operator
 
   !=============================================================================
-  subroutine par_preconditioner_dd_identity_fill_val (p_prec_dd_identity)
+  subroutine par_preconditioner_dd_identity_symbolic_setup (p_prec_dd_identity)
     implicit none
     ! Parameters
     type(par_preconditioner_dd_identity_t), intent(inout) :: p_prec_dd_identity
-  end subroutine par_preconditioner_dd_identity_fill_val
+  end subroutine par_preconditioner_dd_identity_symbolic_setup
+
+  !=============================================================================
+  subroutine par_preconditioner_dd_identity_numerical_setup (p_prec_dd_identity)
+    implicit none
+    ! Parameters
+    type(par_preconditioner_dd_identity_t), intent(inout) :: p_prec_dd_identity
+  end subroutine par_preconditioner_dd_identity_numerical_setup
 
   !=============================================================================
   subroutine par_preconditioner_dd_identity_apply_all_unk (p_prec_dd_identity, x, y)
@@ -158,5 +181,12 @@ use psb_penv_mod_names
     class(par_preconditioner_dd_identity_t), intent(inout) :: this
     call par_preconditioner_dd_identity_free_in_stages(this,free_clean)
   end subroutine par_preconditioner_dd_identity_free
+  
+  function par_preconditioner_dd_identity_is_linear(op)
+    implicit none
+    class(par_preconditioner_dd_identity_t), intent(in) :: op
+    logical :: par_preconditioner_dd_identity_is_linear
+    par_preconditioner_dd_identity_is_linear = .true.
+  end function par_preconditioner_dd_identity_is_linear
   
 end module par_preconditioner_dd_identity_names

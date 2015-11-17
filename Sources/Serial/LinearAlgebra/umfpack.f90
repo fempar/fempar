@@ -41,9 +41,10 @@ use memor_names
   use graph_names
   use renumbering_names
 
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
+
   private
 
   ! Possible states of umfpack_context

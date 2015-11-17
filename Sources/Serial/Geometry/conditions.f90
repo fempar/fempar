@@ -26,12 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module conditions_names
-use types_names
-use memor_names
-use stdio_names
+  use types_names
+  use memor_names
+  use stdio_names
   use renumbering_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
+
   private
 
   type conditions_t

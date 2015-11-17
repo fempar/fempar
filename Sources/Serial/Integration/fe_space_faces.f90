@@ -37,8 +37,8 @@ module fe_space_faces_names
   use triangulation_names
   use allocatable_array_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
 
   private
   integer(ip), parameter :: max_subfaces = 4
@@ -86,8 +86,8 @@ contains
           ! Create elemental matrix and vectors
           call fe_space%pos_elmatvec%get(key=ndofs,val=pos_elmatvec,stat=istat)
           if ( istat == new_index ) then 
-             call allocatable_array_create ( ndofs, ndofs, fe_space%lelmat(pos_elmatvec) )
-             call allocatable_array_create ( ndofs, fe_space%lelvec(pos_elmatvec) )
+             call fe_space%lelmat(pos_elmatvec)%create(ndofs,ndofs)
+             call fe_space%lelvec(pos_elmatvec)%create(ndofs)
           end if
           fe_space%fe_faces(iface)%p_mat => fe_space%lelmat(pos_elmatvec)
           fe_space%fe_faces(iface)%p_vec => fe_space%lelvec(pos_elmatvec)

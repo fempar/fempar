@@ -134,11 +134,13 @@ contains
 
     real(rp) :: scale_prev, scale_current
 
-    scale_prev    = (this%theta-1.0_rp)/this%theta
-    scale_current = 1.0_rp/this%theta
-
-    prev_step_unkno = scale_prev * prev_step_unkno + scale_current * current_unkno
-    current_unkno   = prev_step_unkno
+    if (this%dtinv > 0.0_rp) then
+       scale_prev    = (this%theta-1.0_rp)/this%theta
+       scale_current = 1.0_rp/this%theta
+       
+       prev_step_unkno = scale_prev * prev_step_unkno + scale_current * current_unkno
+       current_unkno   = prev_step_unkno
+    end if
   end subroutine theta_method_update_solution
   
 end module theta_method_names

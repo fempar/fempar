@@ -47,10 +47,10 @@ module pardiso_mkl_names
 #endif
   ! Temporary solution for using more than one wrapper
   use mkl_names
-
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
+
   private
 
   ! Possible states of pardiso_mkl_instance

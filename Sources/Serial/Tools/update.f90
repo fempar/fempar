@@ -95,7 +95,6 @@ contains
 
     nvars = size(vars_of_unk,1)
     ndime = fe_space%g_trian%num_dims
-
     do ielem = 1, fe_space%g_trian%num_elems
        prob  = fe_space%finite_elements(ielem)%problem
        gnode = fe_space%finite_elements(ielem)%p_geo_reference_element%nnode
@@ -130,7 +129,6 @@ contains
                       call evaluate_analytical(fe_space%finite_elements(ielem)%p_analytical_code%a(ivar,1), &
                            &                   fe_space%finite_elements(ielem)%p_analytical_code%a(ivar,2), &
                            &                   ndime,coord(:,lnode),ctime,param,tvar=tvar)
-
                       fe_space%finite_elements(ielem)%unkno(lnode,ivar,1) = param(1)
 
                    end do
@@ -263,7 +261,6 @@ contains
              idof = fe_space%finite_elements(ielem)%elem2dof(inode,lvar)
              
              if(idof/=0) then
-
                 ! Update unkno
                 fe_space%finite_elements(ielem)%unkno(inode,lvar,1) = fevec%b(idof)
 

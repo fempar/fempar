@@ -31,8 +31,8 @@ module par_scalar_names
   use serial_scalar_names
   use par_environment_names
   use psb_penv_mod_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
   type, extends(scalar_t) :: par_scalar_t

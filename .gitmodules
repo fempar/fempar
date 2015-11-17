@@ -4,3 +4,6 @@
 [submodule "Sources/Serial/Tools/FLAP"]
 	path = Sources/Serial/Tools/FLAP
 	url = https://github.com/victorsndvg/FLAP.git
+[submodule "Sources/Serial/Tools/FPL"]
+	path = Sources/Serial/Tools/FPL
+	url = https://github.com/victorsndvg/FPL.git
