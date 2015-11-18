@@ -566,6 +566,9 @@ program par_test_cdr
   sctrl%orto    = icgs
   sctrl%rtol    = 1.0e-12
 
+  ! The get_matrix/vector allocates and computes the matrix
+  call fe_affine_operator%free_in_stages(free_values)
+
   do while (.not. theta_integ%finished) 
      ! Print the time step
      call theta_integ%print(6)
@@ -575,14 +578,14 @@ program par_test_cdr
      call par_update_analytical_bcond(vars_prob,theta_integ%ctime,p_fe_space)
 
      ! Initialize the matrix and vector
-     call p_my_matrix%init(0.0_rp)
-     call p_my_array%init(0.0_rp) 
+     !call p_my_matrix%init(0.0_rp)
+     !call p_my_array%init(0.0_rp) 
      ! Create the unknown vector
-     call p_feunk%clone(p_my_array) 
 
      ! Compute the matrix an vector of the problem
      approximations(1)%discrete_integration => cdr_matvec
      call fe_affine_operator%numerical_setup()
+     call p_feunk%clone(p_my_array) 
 
      ! Preconditioner setting
      point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
@@ -591,9 +594,9 @@ program par_test_cdr
         point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
      end do
      ! Create multilevel bddc inverse 
-     call par_preconditioner_dd_mlevel_bddc_create( p_my_matrix, p_mlevel_bddc, p_mlevel_bddc_pars )
+     call par_preconditioner_dd_mlevel_bddc_create(fe_affine_operator, p_mlevel_bddc, p_mlevel_bddc_pars )
      ! Ass struct
-     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_my_matrix, p_mlevel_bddc )
+     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mlevel_bddc )
      ! Fill val
      call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
 
@@ -627,7 +630,10 @@ program par_test_cdr
      ! Print solution to VTK file
      istat = fevtk%write_VTK(t_step = theta_integ%real_time)
      istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
- 
+
+     ! Deallocate Matrix and Vector
+     call fe_affine_operator%free_in_stages(free_values)
+
      ! Update the time integration variables
      call theta_integ%update()
   end do
