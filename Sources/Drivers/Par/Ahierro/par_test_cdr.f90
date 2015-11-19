@@ -355,7 +355,6 @@ program par_test_cdr
   type(par_scalar_array_t)    , pointer :: p_my_array
   type(par_scalar_array_t)    , target  :: p_feunk
   type(fe_affine_operator_t)            :: fe_affine_operator
-  type(fe_affine_operator_t)            :: fe_affine_operator_error
 
   type(solver_control_t)                :: sctrl
   integer(ip)                           :: num_levels
@@ -606,6 +605,11 @@ program par_test_cdr
 
      ! Solve the matrix-vector problem
      call abstract_solve(p_my_matrix,p_mlevel_bddc,p_my_array,p_feunk,sctrl,p_env)
+
+     ! printe the matrix and vector
+     !if (p_context%iam == 0) then
+     !   call p_my_matrix%serial_scalar_matrix%print(6)
+     !end if
 
      ! Store the solution in FE space
      call par_update_solution(p_feunk, p_fe_space)

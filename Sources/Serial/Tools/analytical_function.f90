@@ -210,7 +210,7 @@ contains
        d2udyz = e*c*pi*cos(pi*y)*sin(d*x)*sin(e*z)
        d2udz  = e*e*c*sin(pi*y)*sin(d*x)*cos(e*z)
 
-    case(12)                ! u = x^2*y
+    case(12)             !x(1-x)*y(1-y)
        u = x*(1.0_rp-x)*y*(1.0_rp-y)
        dudx = (1.0_rp-x)*y*(1.0_rp-y) - x*y*(1.0_rp-y)
        dudy = x*(1.0_rp-x)*(1.0_rp-y) - x*(1.0_rp-x)*y

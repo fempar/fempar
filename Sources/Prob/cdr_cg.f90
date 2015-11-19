@@ -405,7 +405,7 @@ contains
 
   end subroutine cdr_nonlinear
 
- !=================================================================================================
+  !==================================================================================================
   subroutine cdr_transient(this,finite_element)
     implicit none
     class(cdr_transient_t), intent(inout) :: this
@@ -413,7 +413,7 @@ contains
     ! Locals
     type(scalar_t) :: force,gpunk, prev_unkno
     integer(ip)    :: idime,igaus,inode,jnode,ngaus,nnode,ndime
-    real(rp)       :: factor,work(4)
+    real(rp)       :: factor,work(4),tau
 
     work = 0.0_rp
     finite_element%p_mat%a = 0.0_rp
@@ -460,6 +460,12 @@ contains
                &                         this%physics%kfl_conv,this%time_integ%ctime,               &
                &                         this%physics%convection)
        end if
+
+       if (this%discret%kfl_stab == 1) then
+          call cdr_cg_tau_supg_compute(this%physics,finite_element,tau,igaus)
+       else
+          tau = 0.0_rp
+       end if
        
        do inode = 1, nnode
           do jnode = 1, nnode
@@ -480,11 +486,25 @@ contains
                   & factor * (this%physics%reaction + this%time_integ%dtinv) *                      &
                   & finite_element%integ(1)%p%uint_phy%shape(inode,igaus) *                         &
                   & finite_element%integ(1)%p%uint_phy%shape(jnode,igaus)
+             ! SUPG tabilization term
+             if (this%discret%kfl_stab == 1) then
+                call cdr_cg_supg_matrix_term_compute(finite_element%p_mat%a,inode,jnode,            &
+                     & this%physics%convection,this%physics%diffusion,this%physics%reaction,        &
+                     & this%time_integ%dtinv,finite_element%integ(1)%p%uint_phy%shape(:,igaus),     &
+                     & finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),                         &
+                     & finite_element%integ(1)%p%uint_phy%hessi,igaus,tau,factor)
+             end if
           end do
           ! Force term (f,v)
           finite_element%p_vec%a(inode) = finite_element%p_vec%a(inode) +                           &
                   & factor * (force%a(igaus) + prev_unkno%a(igaus)*this%time_integ%dtinv) *         &
                   & finite_element%integ(1)%p%uint_phy%shape(inode,igaus)
+          ! RHS SUPG tabilization term
+          if (this%discret%kfl_stab == 1) then
+             call cdr_cg_supg_rhs_term_compute(finite_element%p_vec%a,inode,prev_unkno%a(igaus),    &
+                  & force%a(igaus),this%physics%convection,this%time_integ%dtinv,                   &
+                     & finite_element%integ(1)%p%uint_phy%deriv(:,:,igaus),tau,factor)
+             end if
        end do
     end do
 
@@ -496,5 +516,96 @@ contains
     call impose_strong_dirichlet_data(finite_element) 
 
   end subroutine cdr_transient
+
+  !==================================================================================================
+  subroutine cdr_cg_supg_matrix_term_compute(matrix,inode,jnode,convection,diffusion,reaction,      &
+       &                                     dtinv,shape,deriv,hessi,igaus,tau,factor)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine fills the matrix with the terms corresponding to SUPG stabilization        !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    real(rp)             , intent(inout) :: matrix(:,:)
+    integer(ip)          , intent(in)    :: inode,jnode,igaus
+    real(rp)             , intent(in)    :: convection(:),diffusion,reaction,dtinv
+    real(rp)             , intent(in)    :: shape(:), deriv(:,:)
+    real(rp), allocatable, intent(in)    :: hessi(:,:,:)
+    real(rp)             , intent(in)    :: tau,factor
+
+    real(rp) :: upwinded_gradient,CDR_operator,laplacian
+
+    ! Compute the upwinded gradient
+    upwinded_gradient = dot_product(convection,deriv(:,inode))
+
+    ! Compute the laplacian
+    if (allocated(hessi)) then
+       laplacian = sum(hessi(:,jnode,igaus))
+    else
+       laplacian = 0.0_rp
+    end if
+
+    ! Compute the operator
+    CDR_operator = dot_product(convection,deriv(:,jnode)) - diffusion*laplacian +                   &
+         &         (reaction+dtinv)*shape(jnode) 
+
+    matrix(inode,jnode) = matrix(inode,jnode) + factor * tau * CDR_operator * upwinded_gradient
+    
+  end subroutine cdr_cg_supg_matrix_term_compute
+
+  !==================================================================================================
+  subroutine cdr_cg_supg_rhs_term_compute(vector,inode,prev_unkno,force,convection,dtinv,deriv,  &
+       &                                     tau,factor)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine fills the matrix with the terms corresponding to SUPG stabilization        !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    real(rp)   , intent(inout) :: vector(:)
+    integer(ip), intent(in)    :: inode
+    real(rp)   , intent(in)    :: prev_unkno,force
+    real(rp)   , intent(in)    :: convection(:),dtinv
+    real(rp)   , intent(in)    :: deriv(:,:)
+    real(rp)   , intent(in)    :: tau,factor
+
+    real(rp) :: upwinded_gradient
+
+    upwinded_gradient = dot_product(convection,deriv(:,inode))
+
+    vector(inode) = vector(inode) + factor * tau * (force + dtinv*prev_unkno) * upwinded_gradient
+    
+  end subroutine cdr_cg_supg_rhs_term_compute
+
+ !=================================================================================================
+  subroutine cdr_cg_tau_supg_compute(physics,FE,tau,igaus)
+    !----------------------------------------------------------------------------------------------!
+    !   This subroutine computes the tau parameter for SUPG.                                       !
+    !----------------------------------------------------------------------------------------------!
+    implicit none
+    type(cdr_problem_t)   , intent(in)    :: physics
+    type(finite_element_t), intent(in)    :: FE
+    real(rp)              , intent(inout) :: tau
+    integer(ip)           , intent(in)    :: igaus
+
+    integer(ip) :: ndime
+    real(rp)    :: convection_norm,inverse_tau, h_length
+    real(rp)    :: convection(physics%ndime), diffusion, reaction
+
+    ndime    = physics%ndime
+    h_length = FE%integ(1)%p%femap%hleng(1,igaus)
+
+    convection = physics%convection
+    diffusion  = physics%diffusion
+    reaction   = physics%reaction
+
+    ! Compute the norm of the convection
+    convection_norm = sqrt(dot_product(convection,convection))
+
+    inverse_tau = 4.0_rp*diffusion/h_length**2.0_rp + 2.0_rp*convection_norm/h_length + reaction
+
+    if (inverse_tau > 1.0e-8) then
+       tau = 1.0_rp/inverse_tau      
+    else
+       tau = 0.0_rp
+    end if
+  
+  end subroutine cdr_cg_tau_supg_compute
 
 end module cdr_stabilized_continuous_Galerkin_names
