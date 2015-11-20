@@ -90,6 +90,7 @@ module serial_scalar_array_names
      procedure :: same_vector_space => serial_scalar_array_same_vector_space
      procedure :: free_in_stages  => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
+					procedure :: get_number_blocks
   end type serial_scalar_array_t
 
   ! Types
@@ -389,5 +390,12 @@ contains
      serial_scalar_array_same_vector_space = (this%size == vector%size)
    end select
  end function serial_scalar_array_same_vector_space
+	
+ function get_number_blocks(this) result(res)
+   implicit none 
+   class(serial_scalar_array_t), intent(in)   :: this
+   integer(ip) :: res
+   res = 1
+ end function get_number_blocks
 
 end module serial_scalar_array_names

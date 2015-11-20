@@ -44,8 +44,9 @@ module vector_names
      procedure (nrm2_interface), deferred     :: nrm2
      procedure (clone_interface), deferred    :: clone
      procedure (same_vector_space_interface), deferred :: same_vector_space
-
-     procedure :: sum_vector
+					procedure (get_number_blocks_interface), deferred :: get_number_blocks
+     
+					procedure :: sum_vector
      procedure :: sub_vector
      procedure :: minus_vector
      procedure, pass(left)  :: scal_left_vector
@@ -132,6 +133,13 @@ module vector_names
        class(vector_t), intent(in) :: vector
        logical :: same_vector_space_interface
      end function
+					! Provide the number of blocks of the vector
+     function get_number_blocks_interface(this) result (res)
+       import :: vector_t, ip
+       implicit none 
+       class(vector_t), intent(in)   :: this
+       integer(ip) :: res
+     end function get_number_blocks_interface
   end interface
 
   public :: vector_t
@@ -240,4 +248,5 @@ contains
     
     call op2%CleanTemp()
   end subroutine assign_vector
+				
 end module vector_names

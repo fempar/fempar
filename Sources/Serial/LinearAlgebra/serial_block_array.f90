@@ -68,6 +68,7 @@ module serial_block_array_names
      procedure :: clone => serial_block_array_clone
      procedure :: same_vector_space => serial_block_array_same_vector_space
      procedure :: free_in_stages  => serial_block_array_free_in_stages
+     procedure :: get_number_blocks
   end type serial_block_array_t
   
   ! Types
@@ -385,5 +386,12 @@ contains
      end if
    end select
  end function serial_block_array_same_vector_space
+	
+ function get_number_blocks(this) result(res)
+   implicit none 
+   class(serial_block_array_t), intent(in)   :: this
+   integer(ip) :: res
+   res = this%nblocks
+ end function get_number_blocks
 
 end module serial_block_array_names

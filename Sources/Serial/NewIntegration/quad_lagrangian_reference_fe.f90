@@ -15,11 +15,12 @@ module quad_lagrangian_reference_fe_names
 contains 
   procedure :: create
   procedure :: create_interpolation
-  procedure :: set_integration_rule
+!  procedure :: set_integration_rule
   procedure :: create_quadrature
   procedure :: fill
   !procedure :: local_to_ijk_node     
   !procedure :: ijk_to_local_node     
+  procedure :: permute_order_vef
 end type quad_lagrangian_reference_fe_t
 
 public :: quad_lagrangian_reference_fe_t
@@ -39,14 +40,14 @@ subroutine create ( this, number_dimensions, order, continuity )
 
 end subroutine create
 
-subroutine set_integration_rule ( this , quadrature, interpolation )
- implicit none 
- class(quad_lagrangian_reference_fe_t), intent(in) :: this
- class(SB_quadrature_t), intent(in) :: quadrature
- class(SB_interpolation_t), intent(out) :: interpolation
+! subroutine set_integration_rule ( this , quadrature, interpolation )
+!  implicit none 
+!  class(quad_lagrangian_reference_fe_t), intent(in) :: this
+!  class(SB_quadrature_t), intent(in) :: quadrature
+!  class(SB_interpolation_t), intent(out) :: interpolation
 
- ! Here we should put all the things in interpolation.f90
-end subroutine set_integration_rule
+!  ! Here we should put all the things in interpolation.f90
+! end subroutine set_integration_rule
 
 subroutine create_interpolation ( this, quadrature, interpolation, compute_hessian )
   implicit none 
@@ -55,17 +56,19 @@ subroutine create_interpolation ( this, quadrature, interpolation, compute_hessi
   type(SB_interpolation_t), intent(out) :: interpolation
   logical, optional, intent(in) :: compute_hessian
 
-  integer(ip) :: nlocs
+  integer(ip) :: nlocs, ntens, i
 
-  write(*,*) 'this%get_number_dimensions()',this%get_number_dimensions()
-  write(*,*) 'this%get_number_nodes()',this%get_number_nodes()
-  write(*,*) 'quadrature%get_number_integration_points()',quadrature%get_number_integration_points()
+  ntens = 0
+  do i = 1, this%get_number_dimensions()
+     ntens = ntens + i
+  end do
+
   call interpolation%create( this%get_number_dimensions(), this%get_number_nodes(), &
-       quadrature%get_number_integration_points() )
+       quadrature%get_number_integration_points(), ntens, compute_hessian )
 
   nlocs = int(real(quadrature%get_number_integration_points())**(1.0_rp/real(this%get_number_dimensions())))
   call fill_interpolation( interpolation, this%get_order(), this%get_number_dimensions(), &
-       nlocs, quadrature%get_pointer_coordinates(), compute_hessian )
+       nlocs, ntens, quadrature%get_pointer_coordinates() )
 
 end subroutine create_interpolation
 
@@ -473,6 +476,14 @@ subroutine fill (this)
  call memfree(obdla,__FILE__,__LINE__)
  call memfree(ob2node,__FILE__,__LINE__)
  call memfree(node2ob,__FILE__,__LINE__)
+
+
+ call memfree( aux, __FILE__, __LINE__ )
+ call memfree( idm, __FILE__, __LINE__ )
+ call memfree( fdm, __FILE__, __LINE__ )
+ call memfree( ijk, __FILE__, __LINE__ )
+ call memfree( ijk_g, __FILE__, __LINE__ )
+
 
  ! ! Create the face permutation of nodes
  ! if (nd>2) then call memalloc(2*2**2,nodes_vef(3),o2n,__FILE__,__LINE__)
@@ -1168,48 +1179,37 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
 
 end subroutine fill_quadrature
 
-subroutine fill_interpolation ( interpolation, order, ndime, nlocs, coord_ip, khes ) !ndime,ngaus,posgp,weigp)
+subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord_ip ) !ndime,ngaus,posgp,weigp)
   implicit none 
   type(SB_interpolation_t), intent(inout) :: interpolation
-  integer(ip), intent(in) :: order, ndime, nlocs
+  integer(ip), intent(in) :: order, ndime, nlocs, ntens
   real(rp), target, intent(in) :: coord_ip(:,:)
-  logical, optional, intent(in) :: khes
 
-  integer(ip) :: ntens
+  logical :: khes
   real(rp), pointer :: shape_functions(:,:), shape_derivatives(:,:,:), hessian(:,:,:)
   real(rp)    :: coord(order+1),shpe1(order+1,nlocs),shpd1(order+1,nlocs),shph1(order+1,nlocs)
 
   shape_functions => interpolation%get_pointer_shape_functions()
   shape_derivatives => interpolation%get_pointer_shape_derivatives()
   hessian => interpolation%get_pointer_hessian()
+  
+  khes = .false.
+  if ( associated( hessian ) ) then 
+     khes = .true.
+  end if
 
   ! Set the coordenades of the nodal points
   call Q_coord_1d(coord,order+1)
-
-  write(*,*) 'coord: ',coord
-
   ! Compute the 1d shape function on the gauss points
   call shape1(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
 
-  if(ndime==1) then
-     ntens=1
-  elseif(ndime==2) then
-     ntens=3
-  else if(ndime==3) then
-     ntens=6
-  end if
-
-  write(*,*) 'shpe1',shpe1
-  write(*,*) 'size',size(shpe1)
-!  write(*,*) ' shape_functions =>', interpolation%get_pointer_shape_derivatives()
-  
-  write(*,*) 'ntens',ntens
 
   !if (int%khes == 1) then
-  call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes,hessian)
-  !else
-  !   call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,nd,order,ngaus,int%ntens,1)!int%khes)
-  !end if
+  if ( associated(hessian) ) then 
+     call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes,hessian)
+  else
+     call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes)
+  end if
 end subroutine fill_interpolation
 
 subroutine Q_coord_1d (x,n)
@@ -1228,21 +1228,14 @@ end subroutine Q_coord_1d
 
 ! ===================================================================================================
 ! Compute the shape function and its derivative
-subroutine shape1(xg,p,ng,xn,shpe1,shpd1,shph1,khes_o)
+subroutine shape1(xg,p,ng,xn,shpe1,shpd1,shph1,khes)
  implicit none
  integer(ip), intent(in)  :: p,ng
- logical, optional, intent(in)      :: khes_o
+ logical, intent(in)      :: khes
  real(rp),    intent(in)  :: xn(p+1),xg(ng)
  real(rp),    intent(out) :: shpe1(p+1,ng),shpd1(p+1,ng),shph1(p+1,ng)
  integer(ip)              :: i,j,k,m,ig
  real(rp)                 :: aux, aux2, aux3, auxv(ng),auxv2(ng),auxv3(ng)
- logical :: khes
-
- if( present(khes_o)) then
-    khes = khes_o
- else
-    khes = .false.
- end if
 
  shpe1 = 1.0_rp
  shpd1 = 0.0_rp
@@ -1285,92 +1278,91 @@ end subroutine shape1
 
   
   !==================================================================================================
-  subroutine shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
-    implicit none
-    ! Parameters
-    integer(ip)       , intent(in)  :: nd,p,ng,nt
-    logical, intent(in)      :: khes
-    real(rp)          , intent(in)  :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
-    real(rp)          , intent(out) :: shape((p+1)**nd,ng**nd)
-    real(rp)          , intent(out) :: deriv(nd,(p+1)**nd,ng**nd)
-    real(rp), optional, intent(out) :: hessi(nt,(p+1)**nd,ng**nd)
+subroutine shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
+  implicit none
+  ! Parameters
+  integer(ip)       , intent(in)  :: nd,p,ng,nt
+  logical, intent(in)      :: khes
+  real(rp)          , intent(in)  :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
+  real(rp)          , intent(out) :: shape((p+1)**nd,ng**nd)
+  real(rp)          , intent(out) :: deriv(nd,(p+1)**nd,ng**nd)
+  real(rp), optional, intent(out) :: hessi(nt,(p+1)**nd,ng**nd)
 
 
-    ! Local variables
-    integer(ip)              :: i,ig,d,d2,d3,it
-    integer(ip)              :: ijk(nd),ijkg(nd),permu(nt)
+  ! Local variables
+  integer(ip)              :: i,ig,d,d2,d3,it
+  integer(ip)              :: ijk(nd),ijkg(nd),permu(nt)
 
-    ! The presumed order of the varibles in the hessian is not the one obtained by generation
-    if (nd == 2) then
-       permu = (/ 1, 3, 2 /)
-    elseif (nd == 3) then
-       permu = (/ 1, 4, 5, 2, 6, 3/)
-    end if
+  ! The presumed order of the varibles in the hessian is not the one obtained by generation
+  
+  if (nd == 2) then
+     permu = (/ 1, 3, 2 /)
+  elseif (nd == 3) then
+     permu = (/ 1, 4, 5, 2, 6, 3/)
+  end if
 
-    ! Initialize values
-    shape = 0.0_rp
-    deriv = 0.0_rp
-    !write(*,*) 'khes',khes
-    !if ( khes ) hessi = 0.0_rp
-    !write(*,*) 'khes',khes
+  ! Initialize values
+  shape = 0.0_rp
+  deriv = 0.0_rp
+  if ( khes ) hessi = 0.0_rp
 
-    ! Initialize nodal coordinates vector
-    ijk = 0; ijk(1) = -1
-    do i = 1,(p+1)**nd
+  ! Initialize nodal coordinates vector
+  ijk = 0; ijk(1) = -1
+  do i = 1,(p+1)**nd
 
-       ! Set coordinates of node i 
-       call Q_ijkg(ijk,i,nd,p)
+     ! Set coordinates of node i 
+     call Q_ijkg(ijk,i,nd,p)
 
-       ! Initialize Gauss point coordinates vector
-       ijkg = 0; ijkg(1) = -1
-       do ig = 1,ng**nd
+     ! Initialize Gauss point coordinates vector
+     ijkg = 0; ijkg(1) = -1
+     do ig = 1,ng**nd
 
-          ! Set coordinates of Gauss point ig 
-          call Q_ijkg(ijkg,ig,nd,ng-1)
+        ! Set coordinates of Gauss point ig 
+        call Q_ijkg(ijkg,ig,nd,ng-1)
 
-          ! Initialize shape
-          shape(i,ig) = 1.0_rp
-          it = 0
-          do d = 1,nd
-             ! Shape is the tensor product 1d shape: s_ijk(x,y,z) = s_i(x)*s_j(y)*s_k(z)
-             shape(i,ig) = shape(i,ig)*s1(ijk(d)+1,ijkg(d)+1)
+        ! Initialize shape
+        shape(i,ig) = 1.0_rp
+        it = 0
+        do d = 1,nd
+           ! Shape is the tensor product 1d shape: s_ijk(x,y,z) = s_i(x)*s_j(y)*s_k(z)
+           shape(i,ig) = shape(i,ig)*s1(ijk(d)+1,ijkg(d)+1)
 
-             ! Initialize deriv and hessi
-             deriv(d,i,ig) = 1.0_rp
-             it = it+1
-             !if (khes ) hessi(permu(it),i,ig)= 1.0_rp
+           ! Initialize deriv and hessi
+           deriv(d,i,ig) = 1.0_rp
+           it = it+1
+           if (khes ) hessi(permu(it),i,ig)= 1.0_rp
 
-             ! Deriv: d(s_ijk)/dx (x,y,z) = s'_i(x)*s_j(y)*s_k(z)
-             ! Hessi: d2(s_ijk)/dx2 (x,y,z) = s''_i(x)*s_j(y)*s_k(z)
-             do d2 = 1,nd
-                if (d2 /= d) then
-                   deriv( d,i,ig) = deriv( d,i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
-                    !if ( khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
-                else
-                   deriv( d,i,ig) = deriv( d,i,ig)* sd1(ijk(d)+1,ijkg(d)+1)  
-                   !if (khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*sdd1(ijk(d)+1,ijkg(d)+1)             
-                end if
-             end do
+           ! Deriv: d(s_ijk)/dx (x,y,z) = s'_i(x)*s_j(y)*s_k(z)
+           ! Hessi: d2(s_ijk)/dx2 (x,y,z) = s''_i(x)*s_j(y)*s_k(z)
+           do d2 = 1,nd
+              if (d2 /= d) then
+                 deriv( d,i,ig) = deriv( d,i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
+                 if ( khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
+              else
+                 deriv( d,i,ig) = deriv( d,i,ig)* sd1(ijk(d)+1,ijkg(d)+1)  
+                 if (khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*sdd1(ijk(d)+1,ijkg(d)+1)             
+              end if
+           end do
 
-             ! if ( khes ) then
-             !    ! Hessi: d2(s_ijk)/dxdy (x,y,z) = s'_i(x)*s'_j(y)*s_k(z)
-             !    do d2 = d+1,nd
-             !       it = it+1
-             !       hessi(permu(it),i,ig) = 1.0_rp
-             !       do d3 = 1,nd
-             !          if (d3 /= d .and. d3 /= d2) then
-             !             hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*s1(ijk(d3)+1,ijkg(d3)+1)
-             !          else
-             !             hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*sd1(ijk(d3)+1,ijkg(d3)+1)             
-             !          end if
-             !       end do
-             !    end do
-             ! end if
+           if ( khes ) then
+              ! Hessi: d2(s_ijk)/dxdy (x,y,z) = s'_i(x)*s'_j(y)*s_k(z)
+              do d2 = d+1,nd
+                 it = it+1
+                 hessi(permu(it),i,ig) = 1.0_rp
+                 do d3 = 1,nd
+                    if (d3 /= d .and. d3 /= d2) then
+                       hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*s1(ijk(d3)+1,ijkg(d3)+1)
+                    else
+                       hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*sd1(ijk(d3)+1,ijkg(d3)+1)             
+                    end if
+                 end do
+              end do
+           end if
 
-          end do
-       end do
-    end do
-  end subroutine shapen
+        end do
+     end do
+  end do
+end subroutine shapen
 
   !==================================================================================================
   ! Q_IJKG(i,g,nd,p) returns coordinates of the g-th node in an elem(nd,p)
@@ -1415,7 +1407,75 @@ end subroutine shape1
 
   ! end subroutine fill_interpolation
 
+  !=================================================================================================
+  ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
+  ! and a delay 'r' wrt to a refence element sharing the same vef.
+  subroutine  permute_order_vef( this,o2n,p,o,r,nd )
+    implicit none
+    class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+    integer(ip), intent(in)    :: p,o,r,nd
+    integer(ip), intent(inout) :: o2n(:)
 
+    if     (nd == 0) then
+       o2n(1) = 1
+    elseif (nd == 1) then
+       call permute_or_1d(o2n(1:p+1),p,r)
+    elseif (nd == 2) then
+       call permute_or_2d(o2n(1:int((p+1)**2)),p,o,r)
+    else
+       write(*,*) __FILE__,__LINE__,'WARNING! Permutations not given for nd>3'
+    end if
+  end subroutine permute_order_vef
+
+
+  !=================================================================================================
+  subroutine  permute_or_1d( o2n,p,r )
+    implicit none
+    integer(ip), intent(in)    :: p,r
+    integer(ip), intent(inout) :: o2n(p+1)
+
+    ! Local variables
+    integer(ip) :: i
+
+    ! Generic loop+rotation identifier  
+    if (r==1) then
+       o2n = (/(i,i=1,p+1)/)
+    elseif (r==2) then
+       o2n = (/(p+1-i,i=0,p)/)
+    else
+       write(*,*) __FILE__,__LINE__,'Q_permute_or_1d:: ERROR! Delay cannot be >1 for edges'
+    end if
+  end subroutine permute_or_1d
+
+  !==================================================================================================
+  subroutine permute_or_2d( o2n,p,o,r )
+    implicit none
+    integer(ip), intent(in)    :: p,o,r
+    integer(ip), intent(inout) :: o2n((p+1)**2)
+
+    ! Local variables
+    integer(ip) :: o_r,i,j,ij_q(4) ! ij_q = (i,j,p-i,p-j)
+    integer(ip) :: ij_n(2),go
+    integer(ip) :: ij_perm_quad(2,8) = reshape((/ 1, 2, 2, 3, 4, 1, 3, 4, 2, 1, 3, 2, 1, 4, 4, 3/), &
+         &                                     (/2,8/))
+
+    ! Generic loop+rotation identifier
+    o_r = 4*o+r
+    do j = 0,p
+       ij_q(2) = j
+       ij_q(4) = p-j
+       do i = 0,p
+          ij_q(1) = i
+          ij_q(3) = p-i
+          ! Get the global numbering of node (i,j)
+          go = Q_gijk(ij_q(1:2),2,p)
+          ! i,j coordinates for the o_r permutation
+          ij_n(1:2) = ij_q(ij_perm_quad(1:2,o_r)) 
+          ! Get the global numbering of node ij_n
+          o2n(go) = Q_gijk(ij_n,2,p)
+       end do
+    end do
+  end subroutine permute_or_2d
 
 end module quad_lagrangian_reference_fe_names
 

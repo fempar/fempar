@@ -99,6 +99,7 @@ module block_vector_names
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
      procedure :: same_vector_space => block_vector_same_vector_space
+					procedure :: get_number_blocks
   end type block_vector_t
 
   ! Types
@@ -418,5 +419,16 @@ contains
      end if
    end select
  end function block_vector_same_vector_space
+	
+ function get_number_blocks(this) result(res)
+   implicit none 
+   class(block_vector_t), intent(in) :: this
+   integer(ip) :: res
+   integer(ip) :: i
+   res = 0
+   do i=1,this%nblocks
+      res = res + this%blocks(i)%vector%get_number_blocks()
+   end do
+ end function get_number_blocks
  
 end module block_vector_names

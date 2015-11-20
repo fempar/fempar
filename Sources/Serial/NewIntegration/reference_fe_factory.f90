@@ -6,28 +6,28 @@ module reference_fe_factory_names
 # include "debug.i90"
   private
 
-  public :: create_reference_fe
+  public :: start_reference_fe
 
 contains
 
-  function create_reference_fe ( topology, fe_type, number_dimensions, order, continuity )
+  function start_reference_fe ( topology, fe_type, number_dimensions, order, continuity )
     implicit none 
     character(*), intent(in) :: topology, fe_type
     integer(ip), intent(in)  :: number_dimensions, order
     logical, optional, intent(in) :: continuity
-    class(reference_fe_t), pointer :: create_reference_fe
+    class(reference_fe_t), pointer :: start_reference_fe
 
     if ( topology == "quad" ) then
        if ( fe_type == "Lagrangian") then
-          allocate ( quad_lagrangian_reference_fe_t :: create_reference_fe )
+          allocate ( quad_lagrangian_reference_fe_t :: start_reference_fe )
        else
           write (*,*) 'ERROR: ELEMENT TYPE NOT SUPPORTED'
        end if
     end if
 
-    call create_reference_fe%create( number_dimensions, order, continuity ) 
+    call start_reference_fe%create( number_dimensions, order, continuity ) 
 
-  end function create_reference_fe
+  end function start_reference_fe
 
 end module reference_fe_factory_names
 

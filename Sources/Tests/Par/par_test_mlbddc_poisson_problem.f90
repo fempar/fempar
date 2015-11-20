@@ -423,11 +423,8 @@ program par_test_mlbddc_poisson_problem
   call par_timer_stop (par_fe_space_create_timer)
   call par_timer_report(par_fe_space_create_timer)
   
-  call fe_affine_operator%create ( (/test_params%symmetric_storage/), &
-								                           (/test_params%is_symmetric/), & 
-								                           (/test_params%sign/), &
-								                           p_fe_space, &
-								                           approximations)
+  call fe_affine_operator%create ( (/test_params%symmetric_storage/), (/test_params%is_symmetric/), &
+                                   (/test_params%sign/), p_fe_space, approximations )
    
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars

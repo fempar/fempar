@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module preconditioner_names
+module SB_preconditioner_names
   ! Serial modules
   use types_names
   use memor_names
@@ -44,7 +44,7 @@ module preconditioner_names
   use vector_names
   use vector_space_names
   use operator_names
-  use fe_affine_operator_names
+  use SB_fe_affine_operator_names
 
 
   implicit none
@@ -82,7 +82,7 @@ module preconditioner_names
   integer (ip), parameter  :: preconditioner_free_struct = 8
   integer (ip), parameter  :: preconditioner_free_clean  = 9
 
-  type, extends(operator_t) :: preconditioner_t
+  type, extends(operator_t) :: SB_preconditioner_t
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 
@@ -131,12 +131,12 @@ module preconditioner_names
      type(serial_scalar_matrix_t), pointer :: mat
 
    contains
-     procedure :: apply     => preconditioner_apply
-     procedure :: is_linear => preconditioner_is_linear
-     procedure :: free      => preconditioner_free
-  end type preconditioner_t
+     procedure :: apply     => SB_preconditioner_apply
+     procedure :: is_linear => SB_preconditioner_is_linear
+     procedure :: free      => SB_preconditioner_free
+  end type SB_preconditioner_t
 
-  type preconditioner_params_t
+  type SB_preconditioner_params_t
      ! The objective of this type is to define a generic 
      ! set of parameters and implement their "translation"
      ! to the specific parameter list of external libraries.
@@ -157,36 +157,36 @@ module preconditioner_names
      integer :: c_fail            = 1 
      real    :: damping           = 0.8       ! Damping factor for smoother==DJ
 
-  end type preconditioner_params_t
+  end type SB_preconditioner_params_t
 
   ! Constants
-  public :: no_prec, diag_prec, pardiso_mkl_prec, wsmp_prec, hsl_mi20_prec, hsl_ma87_prec, umfpack_prec
-  public :: preconditioner_free_values
-  public :: preconditioner_free_struct
-  public :: preconditioner_free_clean
+  !public :: no_prec, diag_prec, pardiso_mkl_prec, wsmp_prec, hsl_mi20_prec, hsl_ma87_prec, umfpack_prec
+  !public :: preconditioner_free_values
+  !public :: preconditioner_free_struct
+  !public :: preconditioner_free_clean
 
   ! Types
-  public :: preconditioner_t, preconditioner_params_t
+  public :: SB_preconditioner_t, SB_preconditioner_params_t
   
-  interface preconditioner_create
-    module procedure preconditioner_create_w_serial_matrix, preconditioner_create_w_fe_affine_operator
+  interface SB_preconditioner_create
+    module procedure SB_preconditioner_create_w_serial_matrix, SB_preconditioner_create_w_fe_affine_operator
   end interface  
 
   ! Functions
-  public :: preconditioner_create, preconditioner_free_in_stages, preconditioner_symbolic_setup, &
-       &    preconditioner_numerical_setup, preconditioner_apply_r2, preconditioner_log_info, &
+  public :: SB_preconditioner_create, SB_preconditioner_free_in_stages, SB_preconditioner_symbolic_setup, &
+       &    SB_preconditioner_numerical_setup, SB_preconditioner_apply_r2, SB_preconditioner_log_info, &
        &    extract_diagonal, invert_diagonal, apply_diagonal
 
 contains
 
 
   !=============================================================================
-  subroutine  preconditioner_create_w_serial_matrix (mat, prec, pars)
+  subroutine  SB_preconditioner_create_w_serial_matrix (mat, prec, pars)
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t)        , target, intent(in)           :: mat
-    type(preconditioner_t)       , intent(inout)        :: prec
-    type(preconditioner_params_t), intent(in), optional :: pars
+    type(SB_preconditioner_t)       , intent(inout)        :: prec
+    type(SB_preconditioner_params_t), intent(in), optional :: pars
 
     ! Locals
     type (serial_scalar_array_t) :: dum
@@ -254,18 +254,18 @@ contains
        allocate(prec%umfpack_ctxt)
        call umfpack ( umfpack_init, prec%umfpack_ctxt, mat, dum, dum)
     else if(prec%type/=no_prec .and. prec%type /= diag_prec) then
-       write (0,*) 'Error: preconditioner type not supported'
+       write (0,*) 'Error: SB_preconditioner type not supported'
        check(1==0)
     end if
-  end subroutine preconditioner_create_w_serial_matrix
+  end subroutine SB_preconditioner_create_w_serial_matrix
   
   !=============================================================================
-  subroutine preconditioner_create_w_fe_affine_operator (fe_affine_operator, prec, pars)
+  subroutine SB_preconditioner_create_w_fe_affine_operator (fe_affine_operator, prec, pars)
     implicit none
     ! Parameters
-    type(fe_affine_operator_t)     , target, intent(in)           :: fe_affine_operator
-    type(preconditioner_t)                 , intent(inout)        :: prec
-    type(preconditioner_params_t)          , intent(in), optional :: pars
+    type(SB_fe_affine_operator_t)     , target, intent(in)           :: fe_affine_operator
+    type(SB_preconditioner_t)                 , intent(inout)        :: prec
+    type(SB_preconditioner_params_t)          , intent(in), optional :: pars
     
      ! Local variables
      class(matrix_t)             , pointer :: matrix
@@ -278,15 +278,15 @@ contains
      class default
        check(.false.)
      end select 
-     call preconditioner_create_w_serial_matrix ( serial_scalar_matrix, prec, pars )
-  end subroutine preconditioner_create_w_fe_affine_operator
+     call SB_preconditioner_create_w_serial_matrix ( serial_scalar_matrix, prec, pars )
+  end subroutine SB_preconditioner_create_w_fe_affine_operator
 
   !=============================================================================
-  subroutine preconditioner_free_in_stages ( prec, action )
+  subroutine SB_preconditioner_free_in_stages ( prec, action )
     implicit none
 
     ! Parameters
-    type(preconditioner_t), intent(inout) :: prec
+    type(SB_preconditioner_t), intent(inout) :: prec
     integer(ip)      , intent(in)    :: action
 
     ! Locals
@@ -384,17 +384,17 @@ contains
           call memfree ( prec%d,__FILE__,__LINE__)
        end if
     else if(prec%type/=no_prec) then
-       write (0,*) 'Error: preconditioner type not supported'
+       write (0,*) 'Error: SB_preconditioner type not supported'
        check(1==0)
     end if
 
-  end subroutine preconditioner_free_in_stages
+  end subroutine SB_preconditioner_free_in_stages
 
   !=============================================================================
-  subroutine preconditioner_symbolic_setup(prec)
+  subroutine SB_preconditioner_symbolic_setup(prec)
     implicit none
     ! Parameters
-    type(preconditioner_t)     , intent(inout) :: prec
+    type(SB_preconditioner_t)     , intent(inout) :: prec
     ! Locals
     type (serial_scalar_array_t) :: vdum 
 
@@ -424,17 +424,17 @@ contains
        prec%mem_perm_symb = (prec%umfpack_ctxt%Info(UMFPACK_SYMBOLIC_SIZE)*prec%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
 #endif
     else if(prec%type/=no_prec .and. prec%type /= diag_prec) then
-       write (0,*) 'Error: preconditioner type not supported'
+       write (0,*) 'Error: SB_preconditioner type not supported'
        check(1==0)
     end if
 
-  end subroutine preconditioner_symbolic_setup
+  end subroutine SB_preconditioner_symbolic_setup
 
   !=============================================================================
-  subroutine preconditioner_numerical_setup( prec)
+  subroutine SB_preconditioner_numerical_setup( prec)
     implicit none
     ! Parameters
-    type(preconditioner_t), target, intent(inout) :: prec
+    type(SB_preconditioner_t), target, intent(inout) :: prec
     ! Locals
     type(serial_scalar_matrix_t), pointer :: mat
     type (serial_scalar_array_t) :: vdum 
@@ -501,7 +501,7 @@ contains
        ! Invert diagonal
        call invert_diagonal  ( mat%graph%nv, prec%d )
     else if(prec%type/=no_prec) then
-       write (0,*) 'Error: preconditioner type not supported'
+       write (0,*) 'Error: SB_preconditioner type not supported'
        check(1==0)
     end if
     
@@ -511,14 +511,14 @@ contains
     prec_range_vector_space => prec%get_range_vector_space()
     call mat_domain_vector_space%clone(prec_domain_vector_space)
     call mat_range_vector_space%clone(prec_range_vector_space)
-  end subroutine preconditioner_numerical_setup
+  end subroutine SB_preconditioner_numerical_setup
 
   !=============================================================================
-  subroutine preconditioner_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
+  subroutine SB_preconditioner_apply_r2 (mat, prec, nrhs, x, ldx, y, ldy)
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t)      , intent(in)    :: mat
-    type(preconditioner_t)     , intent(in) :: prec
+    type(SB_preconditioner_t)     , intent(in) :: prec
     integer(ip)       , intent(in)        :: nrhs, ldx, ldy
     real(rp)          , intent(in)        :: x (ldx, nrhs)
     real(rp)          , intent(inout)     :: y (ldy, nrhs)
@@ -556,18 +556,18 @@ contains
     else if (prec%type==umfpack_prec) then
        call umfpack ( umfpack_solve, prec%umfpack_ctxt, mat, nrhs, x, ldx, y, ldy)
     else
-       write (0,*) 'Error: preconditioner type not supported'
+       write (0,*) 'Error: SB_preconditioner type not supported'
        check(1==0)
     end if
 
-  end subroutine preconditioner_apply_r2
+  end subroutine SB_preconditioner_apply_r2
 
   !=============================================================================
-  subroutine preconditioner_apply_r1 (mat, prec, x, y)
+  subroutine SB_preconditioner_apply_r1 (mat, prec, x, y)
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t) , intent(in)    :: mat
-    type(preconditioner_t), intent(inout) :: prec
+    type(SB_preconditioner_t), intent(inout) :: prec
     real(rp)         , intent(in)    :: x (mat%graph%nv)
     real(rp)         , intent(inout) :: y (mat%graph%nv)
 
@@ -600,13 +600,13 @@ contains
        check(1==0)
     end if
 
-  end subroutine preconditioner_apply_r1
+  end subroutine SB_preconditioner_apply_r1
   
   !=============================================================================
-  subroutine  preconditioner_log_info (prec)
+  subroutine  SB_preconditioner_log_info (prec)
     implicit none
     ! Parameters
-    type(preconditioner_t)       , intent(in)          :: prec
+    type(SB_preconditioner_t)       , intent(in)          :: prec
 
     if(prec%type==pardiso_mkl_prec  .or. prec%type==wsmp_prec .or. prec%type==umfpack_prec ) then
        write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', prec%mem_peak_symb
@@ -628,7 +628,7 @@ contains
 #endif
     end if
     
-  end subroutine preconditioner_log_info
+  end subroutine SB_preconditioner_log_info
 
     ! Auxiliary routines
   subroutine invert_diagonal (n, d)
@@ -698,10 +698,10 @@ contains
   end subroutine extract_diagonal
 
   !=============================================================================
-  subroutine preconditioner_apply (op, x, y)
+  subroutine SB_preconditioner_apply (op, x, y)
     implicit none
     ! Parameters
-    class(preconditioner_t)    , intent(in)    :: op
+    class(SB_preconditioner_t)    , intent(in)    :: op
     class(vector_t)   , intent(in)    :: x
     class(vector_t)   , intent(inout) :: y
     
@@ -732,27 +732,27 @@ contains
           else if (op%type==umfpack_prec) then
              call umfpack ( umfpack_solve, op%umfpack_ctxt, op%mat, x, y )
           else
-             write (0,*) 'Error: preconditioner type not supported'
+             write (0,*) 'Error: SB_preconditioner type not supported'
              check(1==0)
           end if
        end select
     end select
     call x%CleanTemp()
-  end subroutine preconditioner_apply
+  end subroutine SB_preconditioner_apply
   
-  function preconditioner_is_linear(op)
+  function SB_preconditioner_is_linear(op)
     implicit none
-    class(preconditioner_t), intent(in) :: op
-    logical :: preconditioner_is_linear
-    preconditioner_is_linear = .false.
-  end function preconditioner_is_linear
+    class(SB_preconditioner_t), intent(in) :: op
+    logical :: SB_preconditioner_is_linear
+    SB_preconditioner_is_linear = .false.
+  end function SB_preconditioner_is_linear
 
-  subroutine preconditioner_free(this)
+  subroutine SB_preconditioner_free(this)
     implicit none
-    class(preconditioner_t), intent(inout) :: this
-    call preconditioner_free_in_stages(this,preconditioner_free_values)
-    call preconditioner_free_in_stages(this,preconditioner_free_struct)
-    call preconditioner_free_in_stages(this,preconditioner_free_clean)
-  end subroutine preconditioner_free
+    class(SB_preconditioner_t), intent(inout) :: this
+    call SB_preconditioner_free_in_stages(this,preconditioner_free_values)
+    call SB_preconditioner_free_in_stages(this,preconditioner_free_struct)
+    call SB_preconditioner_free_in_stages(this,preconditioner_free_clean)
+  end subroutine SB_preconditioner_free
 
-end module preconditioner_names
+end module SB_preconditioner_names

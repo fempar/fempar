@@ -87,6 +87,7 @@ module par_scalar_array_names
      procedure :: same_vector_space => par_scalar_array_same_vector_space
      procedure :: free_in_stages  => par_scalar_array_free_in_stages
      procedure :: default_initialization  => par_scalar_array_default_init
+					procedure :: get_number_blocks
   end type par_scalar_array_t
 
 
@@ -775,5 +776,11 @@ contains
    end select
  end function par_scalar_array_same_vector_space
   
-  
+ function get_number_blocks(this) result(res)
+   implicit none 
+   class(par_scalar_array_t), intent(in)   :: this
+   integer(ip) :: res
+   res = 1
+ end function get_number_blocks
+
 end module par_scalar_array_names
