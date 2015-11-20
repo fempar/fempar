@@ -475,60 +475,11 @@ program par_test_cdr
 
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-  do i=1, test_params%num_levels-1
-     point_to_p_mlevel_bddc_pars%ndime                = test_params%ndime
-     point_to_p_mlevel_bddc_pars%unknowns             = all_unknowns
-     point_to_p_mlevel_bddc_pars%pad_collectives      = test_params%pad_collectives
-     point_to_p_mlevel_bddc_pars%projection           = test_params%projection
-     point_to_p_mlevel_bddc_pars%schur_edge_lag_mult  = test_params%schur_edge_lag_mult
-     point_to_p_mlevel_bddc_pars%subd_elmat_calc      = test_params%subd_elmat_calc             
-     point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric    
-     point_to_p_mlevel_bddc_pars%nn_sys_sol_strat     = test_params%nn_sys_sol_strat  
-     
-     if ( i < test_params%num_levels-1 ) then
-        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = recursive_bddc
-        point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec  
-        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec 
-        
-        if ( i == 1 ) then
-           point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
-           point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
-           point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-12
-           point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
-           point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric
-        end if
-        allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = ierror)
-        check(ierror==0)
-        point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
-     else
-        point_to_p_mlevel_bddc_pars%co_sys_sol_strat = serial_gather
-        point_to_p_mlevel_bddc_pars%ppars_harm%type          =pardiso_mkl_prec  
-        point_to_p_mlevel_bddc_pars%ppars_dirichlet%type     =pardiso_mkl_prec   
-        point_to_p_mlevel_bddc_pars%ppars_coarse_serial%type =pardiso_mkl_prec  
-        nullify ( point_to_p_mlevel_bddc_pars%ppars_coarse_bddc )
-     end if
-  end do
-  ! call preconditioner_create(p_my_matrix,feprec,ppars)
- ! call preconditioner_symbolic(p_my_matrix,feprec)
+  call  define_mlevel_bddc_parameters(test_params,point_to_p_mlevel_bddc_pars, kind_coarse_dofs,sctrl)
 
   ! Create the computation of the error
   call compute_error%create(my_problem,my_discrete)
   call enorm%create(p_env)
-  
-  call memalloc ( test_params%ndime, kind_coarse_dofs, __FILE__, __LINE__ )
-  kind_coarse_dofs(1) = corners
-  kind_coarse_dofs(2) = corners_and_edges
-  if ( test_params%ndime == 3 ) then
-     kind_coarse_dofs(3) = corners_edges_and_faces
-  end if
-
-  sctrl%method  = lgmres
-  sctrl%trace   = 1
-  sctrl%itmax   = 800
-  sctrl%dkrymax = 800
-  sctrl%stopc   = res_res
-  sctrl%orto    = icgs
-  sctrl%rtol    = 1.0e-12
 
   ! The get_matrix/vector allocates and computes the matrix
   call fe_affine_operator%free_in_stages(free_values)
@@ -924,4 +875,63 @@ contains
     check(istat==0)
 
   end subroutine par_params_fill
+  !==================================================================================================
+  subroutine define_mlevel_bddc_parameters(test_params,p_mlevel_bddc_pars, kind_coarse_dofs,sctrl)
+    use serial_names
+    use prob_names
+    use Data_Type_Command_Line_Interface
+    implicit none
+    type(par_test_cdr_params_t)                     , intent(in)    :: test_params
+    type(par_preconditioner_dd_mlevel_bddc_params_t), intent(inout) :: p_mlevel_bddc_pars
+    integer(ip)                        , allocatable, intent(inout) :: kind_coarse_dofs(:)
+    type(solver_control_t)                          , intent(inout) :: sctrl
+    do i=1, test_params%num_levels-1
+       point_to_p_mlevel_bddc_pars%ndime                = test_params%ndime
+       point_to_p_mlevel_bddc_pars%unknowns             = all_unknowns
+       point_to_p_mlevel_bddc_pars%pad_collectives      = test_params%pad_collectives
+       point_to_p_mlevel_bddc_pars%projection           = test_params%projection
+       point_to_p_mlevel_bddc_pars%schur_edge_lag_mult  = test_params%schur_edge_lag_mult
+       point_to_p_mlevel_bddc_pars%subd_elmat_calc      = test_params%subd_elmat_calc             
+       point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric    
+       point_to_p_mlevel_bddc_pars%nn_sys_sol_strat     = test_params%nn_sys_sol_strat  
+
+       if ( i < test_params%num_levels-1 ) then
+          point_to_p_mlevel_bddc_pars%co_sys_sol_strat = recursive_bddc
+          point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec  
+          point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec 
+
+          if ( i == 1 ) then
+             point_to_p_mlevel_bddc_pars%spars_coarse%method = direct
+             point_to_p_mlevel_bddc_pars%spars_coarse%itmax  = 200
+             point_to_p_mlevel_bddc_pars%spars_coarse%rtol   = 1.0e-12
+             point_to_p_mlevel_bddc_pars%spars_coarse%trace  = 1
+             point_to_p_mlevel_bddc_pars%correction_mode  = additive_symmetric
+          end if
+          allocate(point_to_p_mlevel_bddc_pars%ppars_coarse_bddc, stat = ierror)
+          check(ierror==0)
+          point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
+       else
+          point_to_p_mlevel_bddc_pars%co_sys_sol_strat = serial_gather
+          point_to_p_mlevel_bddc_pars%ppars_harm%type          =pardiso_mkl_prec  
+          point_to_p_mlevel_bddc_pars%ppars_dirichlet%type     =pardiso_mkl_prec   
+          point_to_p_mlevel_bddc_pars%ppars_coarse_serial%type =pardiso_mkl_prec  
+          nullify ( point_to_p_mlevel_bddc_pars%ppars_coarse_bddc )
+       end if
+    end do
+
+    call memalloc ( test_params%ndime, kind_coarse_dofs, __FILE__, __LINE__ )
+    kind_coarse_dofs(1) = corners
+    kind_coarse_dofs(2) = corners_and_edges
+    if ( test_params%ndime == 3 ) then
+       kind_coarse_dofs(3) = corners_edges_and_faces
+    end if    
+    
+    sctrl%method  = lgmres
+    sctrl%trace   = 1
+    sctrl%itmax   = 800
+    sctrl%dkrymax = 800
+    sctrl%stopc   = res_res
+    sctrl%orto    = icgs
+    sctrl%rtol    = 1.0e-12
+  end subroutine define_mlevel_bddc_parameters
 end program
