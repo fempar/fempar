@@ -34,10 +34,13 @@ module par_command_line_parameters_names
   private
 
   type par_test_cdr_params_t
+
+     ! Default parameters
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
 
+     character(len=:), allocatable :: default_ndime
      character(len=:), allocatable :: default_kfl_conv 
      character(len=:), allocatable :: default_kfl_tder 
      character(len=:), allocatable :: default_kfl_react 
@@ -56,52 +59,50 @@ module par_command_line_parameters_names
      character(len=:), allocatable :: default_enable_face_integration
      character(len=:), allocatable :: default_order
 
-  end type par_test_cdr_params_t
-
-  type par_test_cdr_parallel_params_t
-     ! Input problem number of dimensions
-     integer(ip)                   :: ndime
-
-     ! Number of parts in which the problem was split
-     integer(ip)                   :: nparts
-
-     ! Graph Storage and Matrix properties
      character(len=:), allocatable :: default_symmetric_storage
      character(len=:), allocatable :: default_is_symmetric
      character(len=:), allocatable :: default_sign
-     logical                       :: symmetric_storage(1)
-     logical                       :: is_symmetric(1)
-     integer(ip)                   :: sign(1)
 
-     ! BDDC parameters
+     character(len=:), allocatable :: default_num_levels
      character(len=:), allocatable :: default_projection
      character(len=:), allocatable :: default_nn_sys_sol_strat
      character(len=:), allocatable :: default_pad_collectives
      character(len=:), allocatable :: default_schur_edge_lag_mult
      character(len=:), allocatable :: default_subd_elmat_calc
 
+     ! Actual parameters
+     integer(ip)                   :: ndime
+
+     ! Graph Storage and Matrix properties
+     logical                       :: symmetric_storage(1)
+     logical                       :: is_symmetric(1)
+     integer(ip)                   :: sign(1)
+
+     ! BDDC parameters
+     integer(ip)                   :: num_levels
      integer(ip)                   :: projection
      integer(ip)                   :: nn_sys_sol_strat
      integer(ip)                   :: pad_collectives
      integer(ip)                   :: schur_edge_lag_mult
      integer(ip)                   :: subd_elmat_calc
-
    contains
-     procedure :: set_par_default_params => par_test_cdr_parallel_params_set_par_default_params
-  end type par_test_cdr_parallel_params_t
+     procedure :: set_default_params => par_test_cdr_set_par_default_params
+
+  end type par_test_cdr_params_t
 
   ! Types
-  public :: par_test_cdr_params_t, par_test_cdr_parallel_params_t
+  public :: par_test_cdr_params_t
 
   ! Functions
-  public :: set_par_default_params,cli_add_par_params,set_par_default_params_analytical
+  public :: cli_add_par_params,set_par_default_params_analytical
   public :: set_par_default_params_transient
 
 contains
 
-  subroutine set_par_default_params(params)
+  subroutine par_test_cdr_set_par_default_params(params)
+    use serial_names
     implicit none
-    type(par_test_cdr_params_t), intent(inout) :: params
+    class(par_test_cdr_params_t), intent(inout) :: params
 
     ! IO parameters
     params%default_dir_path     = 'data/'
@@ -109,6 +110,7 @@ contains
     params%default_dir_path_out = 'output'
 
     ! Problem parameters
+    params%default_ndime               = '2'
     params%default_kfl_conv            = '0' ! Enabling advection
     params%default_kfl_tder            = '0' ! Time derivative not computed 
     params%default_kfl_react           = '0' ! Non analytical reaction
@@ -130,43 +132,28 @@ contains
     params%default_continuity              = '1'
     params%default_enable_face_integration = '.false.'
     params%default_order                   = '1'
-  end subroutine set_par_default_params
-
-  !==================================================================================================
-  subroutine par_test_cdr_parallel_params_set_par_default_params(params)
-    use serial_names
-    implicit none
-    class(par_test_cdr_parallel_params_t), intent(inout) :: params
-
-    !Input problem number of dimensions
-    params%ndime                      = 2
-
-    ! Number of parts in which the problem was split
-    params%nparts                     = 3
 
     ! Graph Storage and Matrix properties
     params%default_symmetric_storage   = '.false.'
     params%default_is_symmetric        = '.false.'
     params%default_sign                = 'positive_definite'
-    params%symmetric_storage           = (/.false./)
-    params%is_symmetric                = (/.false./)
-    params%sign                        = (/positive_definite/) 
 
+    ! Preconditioner parameters
+    params%default_num_levels          = '2'
     params%default_projection          = 'petrov_galerkin'
     params%default_nn_sys_sol_strat    = 'corners_rest_part_solve_expl_schur'
     params%default_pad_collectives     = '.false.'
     params%default_schur_edge_lag_mult = 'reuse_from_phis'
     params%default_subd_elmat_calc     = 'phit_minus_c_i_t_lambda'
-
-  end subroutine par_test_cdr_parallel_params_set_par_default_params
+  end subroutine par_test_cdr_set_par_default_params
 
   !==================================================================================================
-  subroutine cli_add_par_params(cli,params,par_params,group)
+  subroutine cli_add_par_params(cli,params,group)
     implicit none
     type(Type_Command_Line_Interface)    , intent(inout) :: cli
     type(par_test_cdr_params_t)          , intent(in)    :: params
     character(*)                         , intent(in)    :: group
-    class(par_test_cdr_parallel_params_t), intent(inout) :: par_params
+    !class(par_test_cdr_parallel_params_t), intent(inout) :: par_params
     ! Locals
     integer(ip) :: error
     character   :: aux_string
@@ -185,6 +172,10 @@ contains
     check(error==0)
 
     ! Problem parameters
+    call cli%add(group=trim(group),switch='--num_dimensions',switch_ab='-nd',                       &
+         &       help='Dimensions of the problem.',required=.false.,                                &
+         &       def=params%default_ndime,act='store', error=error)
+    check(error==0)
     call cli%add(group=trim(group),switch='--kfl_conv',switch_ab='-kconv',help='Convection flag',   &
          &       required=.false.,act='store',def=trim(params%default_kfl_conv),error=error)
     check(error==0)
@@ -245,31 +236,35 @@ contains
     check(error==0)
 
     ! Solver
+    call cli%add(group=trim(group),switch='--num_levels',switch_ab='-nlevels',                      &
+         &       help='Number of BDDC levels.',required=.false.,def=params%default_num_levels,      &
+         &       act='store', error=error)
+    check(error==0)
     call cli%add(group=trim(group),switch='--projection',switch_ab='-projection',                   &
          &       help='Coarse-grid projection strategy.',required=.false.,                          &
-         &       def=par_params%default_projection,choices='galerkin,petrov_galerkin',              &
+         &       def=params%default_projection,choices='galerkin,petrov_galerkin',                  &
          &       act='store', error=error)
     check(error==0)
     aux_string = ''
     call cli%add(group=trim(group),switch='--nn-sys-sol-strat',switch_ab='-nn-sys-sol-strat',       &
          &       help='Strategy followed to solve the constrained Neumann problem',required=.false.,&
-         &       def=par_params%default_nn_sys_sol_strat,                                           & 
+         &       def=params%default_nn_sys_sol_strat,                                               & 
          &       choices='corners_rest_part_solve_expl_schur,direct_solve_constrained_problem',     &
          &       act='store', error=error)
     check(error==0)
     call cli%add(group=trim(group),switch='--pad-collectives',switch_ab='-pad-collectives',         &
          &       help='Apply padding to inter-level collectives?',required=.false.,                 &
-         &       def=par_params%default_pad_collectives,act='store', error=error)
+         &       def=params%default_pad_collectives,act='store', error=error)
     check(error==0)
     call cli%add(group=trim(group),switch='--schur-edge-lag-mult',switch_ab='-schur-edge-lag-mult', &
          &       help='Are the data resulting from computation of the edge Schur complement         &
          &       resulting from numerical set-up going to be re-used during application or computed &
-         &       from scratch?',required=.false., def=par_params%default_schur_edge_lag_mult,       &
+         &       from scratch?',required=.false., def=params%default_schur_edge_lag_mult,           &
          &       choices='reuse_from_phis,compute_from_scratch', act='store', error=error)
     check(error==0)
     call cli%add(group=trim(group),switch='--subd-elmat-calc',switch_ab='-subd-elmat-calc',         &
          &       help='Controls the way the subdomain coarse-grid matrix is computed.',             &
-         &       required=.false., def=par_params%default_subd_elmat_calc,                          &
+         &       required=.false., def=params%default_subd_elmat_calc,                              &
          &       choices='phit_minus_c_i_t_lambda,phit_a_i_phi', act='store', error=error)
     check(error==0)
     
@@ -357,13 +352,11 @@ program par_test_cdr
   type(fe_affine_operator_t)            :: fe_affine_operator
 
   type(solver_control_t)                :: sctrl
-  integer(ip)                           :: num_levels
-  integer(ip), allocatable              :: id_parts(:), num_parts(:)
 
   type(par_preconditioner_dd_mlevel_bddc_t)       , target  :: p_mlevel_bddc
   type(par_preconditioner_dd_mlevel_bddc_params_t), target  :: p_mlevel_bddc_pars
   type(par_preconditioner_dd_mlevel_bddc_params_t), pointer :: point_to_p_mlevel_bddc_pars
-  type(par_test_cdr_parallel_params_t)                      :: test_params
+  type(par_test_cdr_params_t)                               :: test_params
   integer(ip)                                 , allocatable :: kind_coarse_dofs(:)
  ! type(preconditioner_t)        :: feprec
   !type(preconditioner_params_t) :: ppars
@@ -393,38 +386,10 @@ program par_test_cdr
   call par_context_create (w_context)
 
   ! Read IO parameters
-  call read_flap_cli_par_test_cdr(cli,test_params)
-  call cli%parse(error=istat)
-  if(cli%run_command('analytical')) then
-     group = 'analytical'
-  elseif(cli%run_command('transient')) then
-     group = 'transient'
-  else
-     group = 'analytical'
-  end if
-  
-  ! This test only works with two levels.
-  num_levels = 2
-  call memalloc(num_levels, id_parts , __FILE__, __LINE__)
-  call memalloc(num_levels, num_parts, __FILE__, __LINE__)
-  num_parts = (/w_context%np-1, 1/)
-  id_parts = (/w_context%iam+1, 1/)
-
- ! Create p_context and q_context splitting w_context
-  if(w_context%iam < num_parts(1)) then
-     call par_context_create ( 1, p_context, q_context, w_context )
-  else
-     call par_context_create ( 2, q_context, p_context, w_context )
-  end if
-  assert ( (p_context%iam >=0 .and. q_context%iam < 0) .or.                                         &
-       &   (p_context%iam < 0 .and. q_context%iam >= 0))
-  
-  ! Create b_context as an intercommunicator among p_context <=> q_context 
-  call par_context_create ( w_context, p_context, q_context, b_context )
-
-  ! Create parallel environment
-  call par_environment_create( p_env,w_context,p_context,q_context,b_context,num_levels,            &
-       &                       id_parts,num_parts )
+  call read_flap_cli_par_test_cdr(cli,test_params,group)
+ 
+  call par_test_cdr_par_enviroment_create(cli,test_params,group,w_context,p_context,q_context,      &
+       &                                  b_context,p_env)
 
   ! Read mesh
   call cli%get(group=trim(group),switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
@@ -510,7 +475,7 @@ program par_test_cdr
 
   ! Define (recursive) parameters
   point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-  do i=1, num_levels-1
+  do i=1, test_params%num_levels-1
      point_to_p_mlevel_bddc_pars%ndime                = test_params%ndime
      point_to_p_mlevel_bddc_pars%unknowns             = all_unknowns
      point_to_p_mlevel_bddc_pars%pad_collectives      = test_params%pad_collectives
@@ -520,7 +485,7 @@ program par_test_cdr
      point_to_p_mlevel_bddc_pars%correction_mode      = additive_symmetric    
      point_to_p_mlevel_bddc_pars%nn_sys_sol_strat     = test_params%nn_sys_sol_strat  
      
-     if ( i < num_levels-1 ) then
+     if ( i < test_params%num_levels-1 ) then
         point_to_p_mlevel_bddc_pars%co_sys_sol_strat = recursive_bddc
         point_to_p_mlevel_bddc_pars%ppars_harm%type      = pardiso_mkl_prec  
         point_to_p_mlevel_bddc_pars%ppars_dirichlet%type = pardiso_mkl_prec 
@@ -588,7 +553,7 @@ program par_test_cdr
 
      ! Preconditioner setting
      point_to_p_mlevel_bddc_pars => p_mlevel_bddc_pars
-     do i=1, num_levels-1
+     do i=1, test_params%num_levels-1
         point_to_p_mlevel_bddc_pars%kind_coarse_dofs = kind_coarse_dofs(1)
         point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
      end do
@@ -650,9 +615,6 @@ program par_test_cdr
   call memfree( material, __FILE__, __LINE__)
   call memfree( problem, __FILE__, __LINE__)
 
-  call memfree(id_parts , __FILE__, __LINE__)
-  call memfree(num_parts, __FILE__, __LINE__)
-
   call memfree ( kind_coarse_dofs, __FILE__, __LINE__ )
   call p_feunk%free()
   call fe_affine_operator%free()
@@ -676,19 +638,61 @@ program par_test_cdr
   call memstatus
 contains
   !==================================================================================================
-  subroutine read_flap_cli_par_test_cdr(cli,test_params)
+  subroutine par_test_cdr_par_enviroment_create(cli,test_params,group,w_context,p_context,          &
+       &                                        q_context, b_context,p_env)
     use Data_Type_Command_Line_Interface
     use par_command_line_parameters_names
     use serial_names
     implicit none
-    type(Type_Command_Line_Interface)   , intent(out)   :: cli
-    type(par_test_cdr_parallel_params_t), intent(inout) :: test_params
+    type(Type_Command_Line_Interface), intent(inout) :: cli
+    type(par_test_cdr_params_t)      , intent(inout) :: test_params
+    character(len=:)   , allocatable , intent(in)    :: group
+    type(par_context_t)              , intent(in)    :: w_context
+    type(par_context_t)              , intent(inout) :: p_context, q_context, b_context
+    type(par_environment_t)          , intent(inout) :: p_env
+
+    integer(ip), allocatable              :: id_parts(:), num_parts(:)
+
+    ! This test only works with two levels.
+    call cli%get(group=trim(group),switch='-nlevels',val=test_params%num_levels,error=istat) 
+    call memalloc(test_params%num_levels, id_parts , __FILE__, __LINE__)
+    call memalloc(test_params%num_levels, num_parts, __FILE__, __LINE__)
+    num_parts = (/w_context%np-1, 1/)
+    id_parts = (/w_context%iam+1, 1/)
+
+    ! Create p_context and q_context splitting w_context
+    if(w_context%iam < num_parts(1)) then
+       call par_context_create ( 1, p_context, q_context, w_context )
+    else
+       call par_context_create ( 2, q_context, p_context, w_context )
+    end if
+    assert ( (p_context%iam >=0 .and. q_context%iam < 0) .or.                                         &
+         &   (p_context%iam < 0 .and. q_context%iam >= 0))
+
+    ! Create b_context as an intercommunicator among p_context <=> q_context 
+    call par_context_create ( w_context, p_context, q_context, b_context )
+
+    ! Create parallel environment
+    call par_environment_create( p_env,w_context,p_context,q_context,b_context,test_params%num_levels,&
+         &                       id_parts,num_parts )
+
+    ! Free the arrays
+    call memfree(id_parts , __FILE__, __LINE__)
+    call memfree(num_parts, __FILE__, __LINE__)
+  end subroutine par_test_cdr_par_enviroment_create
+
+  !==================================================================================================
+  subroutine read_flap_cli_par_test_cdr(cli,test_params,group)
+    use Data_Type_Command_Line_Interface
+    use par_command_line_parameters_names
+    use serial_names
+    implicit none
+    type(Type_Command_Line_Interface), intent(out)   :: cli
+    type(par_test_cdr_params_t)      , intent(inout) :: test_params
+    character(len=:)   , allocatable , intent(inout) :: group
     
     ! Locals
-    type(par_test_cdr_params_t) :: analytical_params,transient_params
-    logical                     :: authors_print, aux_logical
     integer(ip)                 :: istat
-    authors_print = .false.
 
     ! Initialize Command Line Interface
     call cli%init(progname    = 'par_test_cdr',                                                     &
@@ -696,7 +700,7 @@ contains
          &        authors     = '',                                                                 & 
          &        license     = '',                                                                 &
          &        description =                                                                     &
-         &    'Serial FEMPAR driver to solve transient CDR problems using Continuous-Galerkin .',   &
+         &    'Parallel FEMPAR driver to solve transient CDR problems using Continuous-Galerkin .', &
          &        examples    = ['par_test_cdr -h         ', 'par_test_cdr analytical -h ' ])
 
     ! Set Command Line Arguments Groups, i.e. commands
@@ -704,19 +708,26 @@ contains
     call cli%add_group(group='transient',description='Solve a problem with an transient solution')
 
     ! Set Parallel parameters
-    call test_params%set_par_default_params()
+    call test_params%set_default_params()
 
     ! Set Command Line Arguments for each group
-    call set_par_default_params(analytical_params)
-    call set_par_default_params_analytical(analytical_params)
-    call cli_add_par_params(cli,analytical_params,test_params,'analytical') 
+    ! Analytical
+    call set_par_default_params_analytical(test_params)
+    call cli_add_par_params(cli,test_params,'analytical') 
 
-    call set_par_default_params(transient_params)
-    call set_par_default_params_transient(transient_params)
-    call cli_add_par_params(cli,transient_params,test_params,'transient')
-
-    ! Solver
-    !call set_parallel_parameters()
+    ! Transient
+    call set_par_default_params_transient(test_params)
+    call cli_add_par_params(cli,test_params,'transient')
+    
+    call cli%parse(error=istat)
+    check(istat == 0)
+    if(cli%run_command('analytical')) then
+       group = 'analytical'
+    elseif(cli%run_command('transient')) then
+       group = 'transient'
+    else
+       group = 'analytical'
+    end if
     
   end subroutine read_flap_cli_par_test_cdr
 
@@ -849,9 +860,9 @@ contains
     use prob_names
     use Data_Type_Command_Line_Interface
     implicit none
-    type(par_test_cdr_parallel_params_t), intent(inout) :: test_params
-    type(Type_Command_Line_Interface)   , intent(inout) :: cli
-    character(len=:),allocatable        , intent(in)    :: group
+    type(par_test_cdr_params_t)      , intent(inout) :: test_params
+    type(Type_Command_Line_Interface), intent(inout) :: cli
+    character(len=:),allocatable     , intent(in)    :: group
 
     integer(ip)        :: istat
     character(len=256) :: aux_string
@@ -859,6 +870,10 @@ contains
     
     
     aux_string(:)=' '
+
+    call cli%get(group=trim(group),switch='-nd',val=test_params%ndime ,error=istat)
+    check(istat==0)
+
     call cli%get(group=trim(group),switch='-projection',val=aux_string,error=istat)
     check(istat==0)
     if (trim(adjustl(aux_string)) .eq. 'galerkin') then
