@@ -148,11 +148,11 @@ subroutine create_fe_space( this, triangulation, topology, fe_type, number_dimen
  allocate( this%fe_array(triangulation%num_elems), stat=istat )
 
  this%reference_fe_phy_list(1)%p => &
-      create_reference_fe ( topology, fe_type, number_dimensions, order , continuity )
+      start_reference_fe ( topology, fe_type, number_dimensions, order , continuity )
 
  ! Order 1 for geometri SB.alert
  this%reference_fe_geo_list(1)%p => &
-      create_reference_fe ( topology, fe_type, number_dimensions, 1 , continuity )
+      start_reference_fe ( topology, fe_type, number_dimensions, 1 , continuity )
 
  allocate( this%volume_integrator(1)%p )
  call this%volume_integrator(1)%p%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p )

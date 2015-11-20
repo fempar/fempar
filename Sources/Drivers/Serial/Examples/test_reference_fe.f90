@@ -268,8 +268,8 @@ program test_cdr
 
   type(linear_solver_t)                           :: linear_solver
   type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
-  type(preconditioner_t)        :: feprec
-  type(preconditioner_params_t) :: ppars
+  type(SB_preconditioner_t)        :: feprec
+  type(SB_preconditioner_params_t) :: ppars
   type(solver_control_t)        :: sctrl
   type(serial_environment_t)    :: senv
 
@@ -329,7 +329,7 @@ program test_cdr
   !call triangulation_print(6,f_trian)
 
   ! UNIT TEST * reference_fe.f90 *
-  !reference_fe => create_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
   !     order = 1, continuity = .true. )
   !call reference_fe%print()
 
@@ -373,14 +373,14 @@ program test_cdr
   write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   call fe_affine_operator%numerical_setup()
   write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-  !call memstatus
+  !call memstatus 
 
 
   ppars%type = pardiso_mkl_prec
-  call preconditioner_create(fe_affine_operator,feprec,ppars)
-  call preconditioner_symbolic_setup(feprec)
-  call preconditioner_numerical_setup(feprec)
-  call preconditioner_log_info(feprec)
+  call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
+  call SB_preconditioner_symbolic_setup(feprec)
+  call SB_preconditioner_numerical_setup(feprec)
+  call SB_preconditioner_log_info(feprec)
 
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
   call fe_affine_operator_range_vector_space%create_vector(vector)
