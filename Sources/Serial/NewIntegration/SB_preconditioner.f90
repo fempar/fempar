@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module preconditioner_names
+module SB_preconditioner_names
   ! Serial modules
   use types_names
   use memor_names
@@ -44,7 +44,7 @@ module preconditioner_names
   use vector_names
   use vector_space_names
   use operator_names
-  use fe_affine_operator_names
+  use SB_fe_affine_operator_names
 
 
   implicit none
@@ -82,7 +82,7 @@ module preconditioner_names
   integer (ip), parameter  :: preconditioner_free_struct = 8
   integer (ip), parameter  :: preconditioner_free_clean  = 9
 
-  type, extends(operator_t) :: preconditioner_t
+  type, extends(operator_t) :: SB_preconditioner_t
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
 
@@ -134,9 +134,9 @@ module preconditioner_names
      procedure :: apply     => preconditioner_apply
      procedure :: is_linear => preconditioner_is_linear
      procedure :: free      => preconditioner_free
-  end type preconditioner_t
+  end type SB_preconditioner_t
 
-  type preconditioner_params_t
+  type SB_preconditioner_params_t
      ! The objective of this type is to define a generic 
      ! set of parameters and implement their "translation"
      ! to the specific parameter list of external libraries.
@@ -157,7 +157,7 @@ module preconditioner_names
      integer :: c_fail            = 1 
      real    :: damping           = 0.8       ! Damping factor for smoother==DJ
 
-  end type preconditioner_params_t
+  end type SB_preconditioner_params_t
 
   ! Constants
   public :: no_prec, diag_prec, pardiso_mkl_prec, wsmp_prec, hsl_mi20_prec, hsl_ma87_prec, umfpack_prec
@@ -166,7 +166,7 @@ module preconditioner_names
   public :: preconditioner_free_clean
 
   ! Types
-  public :: preconditioner_t, preconditioner_params_t
+  public :: SB_preconditioner_t, SB_preconditioner_params_t
   
   interface preconditioner_create
     module procedure preconditioner_create_w_serial_matrix, preconditioner_create_w_fe_affine_operator
@@ -185,8 +185,8 @@ contains
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t)        , target, intent(in)           :: mat
-    type(preconditioner_t)       , intent(inout)        :: prec
-    type(preconditioner_params_t), intent(in), optional :: pars
+    type(SB_preconditioner_t)       , intent(inout)        :: prec
+    type(SB_preconditioner_params_t), intent(in), optional :: pars
 
     ! Locals
     type (serial_scalar_array_t) :: dum
@@ -263,9 +263,9 @@ contains
   subroutine preconditioner_create_w_fe_affine_operator (fe_affine_operator, prec, pars)
     implicit none
     ! Parameters
-    type(fe_affine_operator_t)     , target, intent(in)           :: fe_affine_operator
-    type(preconditioner_t)                 , intent(inout)        :: prec
-    type(preconditioner_params_t)          , intent(in), optional :: pars
+    type(SB_fe_affine_operator_t)     , target, intent(in)           :: fe_affine_operator
+    type(SB_preconditioner_t)                 , intent(inout)        :: prec
+    type(SB_preconditioner_params_t)          , intent(in), optional :: pars
     
      ! Local variables
      class(matrix_t)             , pointer :: matrix
@@ -286,7 +286,7 @@ contains
     implicit none
 
     ! Parameters
-    type(preconditioner_t), intent(inout) :: prec
+    type(SB_preconditioner_t), intent(inout) :: prec
     integer(ip)      , intent(in)    :: action
 
     ! Locals
@@ -394,7 +394,7 @@ contains
   subroutine preconditioner_symbolic_setup(prec)
     implicit none
     ! Parameters
-    type(preconditioner_t)     , intent(inout) :: prec
+    type(SB_preconditioner_t)     , intent(inout) :: prec
     ! Locals
     type (serial_scalar_array_t) :: vdum 
 
@@ -434,7 +434,7 @@ contains
   subroutine preconditioner_numerical_setup( prec)
     implicit none
     ! Parameters
-    type(preconditioner_t), target, intent(inout) :: prec
+    type(SB_preconditioner_t), target, intent(inout) :: prec
     ! Locals
     type(serial_scalar_matrix_t), pointer :: mat
     type (serial_scalar_array_t) :: vdum 
@@ -518,7 +518,7 @@ contains
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t)      , intent(in)    :: mat
-    type(preconditioner_t)     , intent(in) :: prec
+    type(SB_preconditioner_t)     , intent(in) :: prec
     integer(ip)       , intent(in)        :: nrhs, ldx, ldy
     real(rp)          , intent(in)        :: x (ldx, nrhs)
     real(rp)          , intent(inout)     :: y (ldy, nrhs)
@@ -567,7 +567,7 @@ contains
     implicit none
     ! Parameters
     type(serial_scalar_matrix_t) , intent(in)    :: mat
-    type(preconditioner_t), intent(inout) :: prec
+    type(SB_preconditioner_t), intent(inout) :: prec
     real(rp)         , intent(in)    :: x (mat%graph%nv)
     real(rp)         , intent(inout) :: y (mat%graph%nv)
 
@@ -606,7 +606,7 @@ contains
   subroutine  preconditioner_log_info (prec)
     implicit none
     ! Parameters
-    type(preconditioner_t)       , intent(in)          :: prec
+    type(SB_preconditioner_t)       , intent(in)          :: prec
 
     if(prec%type==pardiso_mkl_prec  .or. prec%type==wsmp_prec .or. prec%type==umfpack_prec ) then
        write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', prec%mem_peak_symb
@@ -701,7 +701,7 @@ contains
   subroutine preconditioner_apply (op, x, y)
     implicit none
     ! Parameters
-    class(preconditioner_t)    , intent(in)    :: op
+    class(SB_preconditioner_t)    , intent(in)    :: op
     class(vector_t)   , intent(in)    :: x
     class(vector_t)   , intent(inout) :: y
     
@@ -742,17 +742,17 @@ contains
   
   function preconditioner_is_linear(op)
     implicit none
-    class(preconditioner_t), intent(in) :: op
+    class(SB_preconditioner_t), intent(in) :: op
     logical :: preconditioner_is_linear
     preconditioner_is_linear = .false.
   end function preconditioner_is_linear
 
   subroutine preconditioner_free(this)
     implicit none
-    class(preconditioner_t), intent(inout) :: this
+    class(SB_preconditioner_t), intent(inout) :: this
     call preconditioner_free_in_stages(this,preconditioner_free_values)
     call preconditioner_free_in_stages(this,preconditioner_free_struct)
     call preconditioner_free_in_stages(this,preconditioner_free_clean)
   end subroutine preconditioner_free
 
-end module preconditioner_names
+end module SB_preconditioner_names

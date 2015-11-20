@@ -41,8 +41,8 @@ module reference_fe_names
      procedure :: free => reference_fe_free
      procedure :: print
 
-     ! procedure :: get_topology
-     ! procedure :: get_fe_type
+     !procedure :: get_topology
+     !procedure :: get_fe_type
      procedure :: set_common_data
      procedure :: set_topology
      procedure :: set_fe_type
@@ -56,8 +56,12 @@ module reference_fe_names
      procedure :: get_orientation
      procedure :: get_interior_nodes_vef ! returns ndxob
      procedure :: get_nodes_vef          ! returns ntxob
+     procedure :: get_node_vef
+     procedure :: get_interior_node_vef
      procedure :: get_corners_vef        ! returns crxob
      procedure :: get_vefs_vef           ! returns obxob
+     procedure :: get_number_nodes_vef
+     procedure :: get_number_interior_nodes_vef
 
      procedure :: get_pointer_number_vefs
      procedure :: get_pointer_number_nodes
@@ -67,6 +71,10 @@ module reference_fe_names
      procedure :: get_pointer_nodes_vef          ! returns ntxob
      procedure :: get_pointer_corners_vef        ! returns crxob
      procedure :: get_pointer_vefs_vef           ! returns obxob
+
+     procedure :: permute_nodes_per_vef
+
+     procedure (permute_order_vef_interface), deferred :: permute_order_vef
 
      procedure (create_interpolation_interface), deferred :: create_interpolation 
      procedure (create_quadrature_interface), deferred :: create_quadrature
@@ -105,6 +113,17 @@ module reference_fe_names
        type(SB_interpolation_t), intent(out) :: interpolation
        logical, optional, intent(in) :: compute_hessian
      end subroutine create_interpolation_interface
+  end interface
+  abstract interface
+     ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
+     ! and a delay 'r' wrt to a refence element sharing the same vef.
+     subroutine permute_order_vef_interface( this, o2n,p,o,r,nd )
+       import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this 
+       integer(ip), intent(in)    :: p,o,r,nd
+       integer(ip), intent(inout) :: o2n(:)
+     end subroutine permute_order_vef_interface
   end interface
   ! Here all the concrete functions
   ! ...
@@ -265,6 +284,38 @@ contains
     get_nodes_vef = this%nodes_vef
   end function get_nodes_vef
 
+  function get_number_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: i
+    integer(ip) :: get_number_nodes_vef
+    get_number_nodes_vef = this%nodes_vef%p(i+1)-this%nodes_vef%p(i)
+  end function get_number_nodes_vef
+
+  function get_number_interior_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: i
+    integer(ip) :: get_number_interior_nodes_vef
+    get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
+  end function get_number_interior_nodes_vef
+
+  function get_node_vef ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: i, j
+    integer(ip) :: get_node_vef
+    get_node_vef = this%nodes_vef%l(this%nodes_vef%p(j) + i -1)
+  end function get_node_vef
+
+  function get_interior_node_vef ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: i, j
+    integer(ip) :: get_interior_node_vef
+    get_interior_node_vef = this%interior_nodes_vef%l(this%interior_nodes_vef%p(j) + i -1)
+  end function get_interior_node_vef
+
   function get_corners_vef ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
@@ -343,27 +394,27 @@ contains
     if(allocated(this%fe_type))               deallocate(this%fe_type)
 
     if(allocated(this%interior_nodes_vef%p)) & 
-        call memfree(this%interior_nodes_vef%p,__FILE__,__LINE__)
+         call memfree(this%interior_nodes_vef%p,__FILE__,__LINE__)
     if(allocated(this%interior_nodes_vef%l)) & 
-        call memfree(this%interior_nodes_vef%l,__FILE__,__LINE__)
+         call memfree(this%interior_nodes_vef%l,__FILE__,__LINE__)
     this%interior_nodes_vef%n = 0
 
     if(allocated(this%nodes_vef%p)) & 
-        call memfree(this%nodes_vef%p,__FILE__,__LINE__)
+         call memfree(this%nodes_vef%p,__FILE__,__LINE__)
     if(allocated(this%nodes_vef%l)) & 
-        call memfree(this%nodes_vef%l,__FILE__,__LINE__)
+         call memfree(this%nodes_vef%l,__FILE__,__LINE__)
     this%nodes_vef%n = 0
 
     if(allocated(this%corners_vef%p)) & 
-        call memfree(this%corners_vef%p,__FILE__,__LINE__)
+         call memfree(this%corners_vef%p,__FILE__,__LINE__)
     if(allocated(this%corners_vef%l)) & 
-        call memfree(this%corners_vef%l,__FILE__,__LINE__)
+         call memfree(this%corners_vef%l,__FILE__,__LINE__)
     this%corners_vef%n = 0
 
     if(allocated(this%vefs_vef%p)) & 
-        call memfree(this%vefs_vef%p,__FILE__,__LINE__)
+         call memfree(this%vefs_vef%p,__FILE__,__LINE__)
     if(allocated(this%vefs_vef%l)) & 
-        call memfree(this%vefs_vef%l,__FILE__,__LINE__)
+         call memfree(this%vefs_vef%l,__FILE__,__LINE__)
     this%vefs_vef%n = 0
 
     call this%orientation%free()
@@ -376,6 +427,60 @@ contains
     this%continuity         = .true.
   end subroutine reference_fe_free
 
+  subroutine permute_nodes_per_vef(reference_element2,reference_element1,permu,o1,o2,ln1,ln2,od,q,subface1,subface2)
+    implicit none
+    ! Parameters
+    class(reference_fe_t), intent(in)   :: reference_element1, reference_element2   ! Info of the elements
+    integer(ip)         , intent(out)  :: permu(:) ! Permutation vector
+    integer(ip)         , intent(in)   :: o1,o2    ! Local identifier of the vef in each element
+    integer(ip)         , intent(in)   :: ln1(reference_element1%number_vefs), ln2(reference_element2%number_vefs) ! lnods of each vef
+    integer(ip)         , intent(in)   :: od       ! Dimension of the vef
+    integer(ip)         , intent(in)   :: q  
+    integer(ip), optional, intent(in)  :: subface1,subface2
 
+    ! Local variables
+    integer(ip) :: i,c1,r, o=0, r0, num_corners
+
+    ! TODO: CHECK THE R0 implementation, it is probably worng
+
+
+    if (present(subface1)) then
+       if (subface1 == 0) then
+          r0=0
+       else
+          r0 = subface1 -1
+       end if
+       assert (subface2 == 0) 
+    else
+       r0 = 0
+    end if
+
+    permu = 1
+
+    c1 = ln1(reference_element1%corners_vef%l(reference_element1%corners_vef%p(o1)+r0))  ! Global identifier of the vef of the first corner
+    r = 1
+    do i = reference_element2%corners_vef%p(o2),reference_element2%corners_vef%p(o2+1)-1
+       if ( ln2(reference_element2%corners_vef%l(i)) == c1 ) exit
+       r = r+1
+    end do
+    check ( ln2(reference_element2%corners_vef%l(i)) == c1 )
+
+    if (r0>0) then
+       r = r-r0
+       if (r < 1) then
+          num_corners = reference_element2%corners_vef%p(o2+1)- reference_element2%corners_vef%p(o2)
+          r = r + num_corners 
+       end if
+    end if
+
+    if (od == 2) then
+       o = modulo(reference_element1%orientation%a(o1)+reference_element1%orientation%a(o2)+1,2)
+    else
+       o = 0
+    end if
+
+    call reference_element2%permute_order_vef( permu,q,o,r,od )
+
+  end subroutine permute_nodes_per_vef
 
 end module reference_fe_names

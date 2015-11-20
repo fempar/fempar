@@ -23,6 +23,8 @@ module SB_quadrature_names
 
      procedure :: get_pointer_coordinates
      procedure :: get_pointer_weight
+
+     procedure :: get_weight
   end type SB_quadrature_t
 
   ! Types
@@ -69,6 +71,14 @@ contains
     real(rp), pointer :: get_pointer_weight(:)
     get_pointer_weight => this%weight
   end function get_pointer_weight
+
+  function get_weight ( this, i )
+    implicit none
+    class(SB_quadrature_t), target, intent(in) :: this
+    integer(ip) :: i
+    real(rp) :: get_weight
+    get_weight = this%weight(i)
+  end function get_weight
 
   subroutine print ( this )
     implicit none
