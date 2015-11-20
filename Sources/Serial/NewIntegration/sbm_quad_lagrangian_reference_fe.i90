@@ -1,31 +1,3 @@
-module quad_lagrangian_reference_fe_names
-  use reference_fe_names
-  use SB_quadrature_names
-  use SB_interpolation_names
-  use allocatable_array_ip1_names
-  use types_names
-  use memor_names
-  implicit none
-# include "debug.i90"
-
-  private
-
-  type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
-  private
-contains 
-  procedure :: create
-  procedure :: create_interpolation
-!  procedure :: set_integration_rule
-  procedure :: create_quadrature
-  procedure :: fill
-  !procedure :: local_to_ijk_node     
-  !procedure :: ijk_to_local_node     
-  procedure :: permute_order_vef
-end type quad_lagrangian_reference_fe_t
-
-public :: quad_lagrangian_reference_fe_t
-
-contains 
 
 subroutine create ( this, number_dimensions, order, continuity )
  implicit none 
@@ -59,16 +31,16 @@ subroutine create_interpolation ( this, quadrature, interpolation, compute_hessi
   integer(ip) :: nlocs, ntens, i
 
   ntens = 0
-  do i = 1, this%get_number_dimensions()
+  do i = 1, this%number_dimensions
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%get_number_dimensions(), this%get_number_nodes(), &
-       quadrature%get_number_integration_points(), ntens, compute_hessian )
+  call interpolation%create( this%number_dimensions, this%number_nodes, &
+       quadrature%number_integration_points, ntens, compute_hessian )
 
-  nlocs = int(real(quadrature%get_number_integration_points())**(1.0_rp/real(this%get_number_dimensions())))
-  call fill_interpolation( interpolation, this%get_order(), this%get_number_dimensions(), &
-       nlocs, ntens, quadrature%get_pointer_coordinates() )
+  nlocs = int(real(quadrature%number_integration_points)**(1.0_rp/real(this%number_dimensions)))
+  call fill_interpolation( interpolation, this%order, this%number_dimensions, &
+       nlocs, ntens, quadrature%coordinates )
 
 end subroutine create_interpolation
 
@@ -80,16 +52,16 @@ subroutine create_quadrature ( this, quadrature, max_order )
  integer(ip) :: ngaus, order
 
 
- order = this%get_order()
+ order = this%order
  if ( present(max_order) ) then
     order = max_order
  else
-    order = this%get_order()
+    order = this%order
  end if
 
- ngaus = (order + 1)**this%get_number_dimensions()
+ ngaus = (order + 1)**this%number_dimensions
 
- call quadrature%create( this%get_number_dimensions(), ngaus )
+ call quadrature%create( this%number_dimensions, ngaus )
  call fill_quadrature( quadrature )
 
 end subroutine create_quadrature
@@ -97,7 +69,7 @@ end subroutine create_quadrature
 subroutine fill (this)
  implicit none
  ! Parameters
- class(quad_lagrangian_reference_fe_t), intent(inout) :: this
+ class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
 
  ! Local variables
  integer(ip)               :: nd,p
@@ -115,24 +87,10 @@ subroutine fill (this)
  integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
 
  integer(ip), allocatable  :: aux(:),idm(:),fdm(:),ijk(:),ijk_g(:)
-
- integer(ip), pointer :: number_vefs, number_nodes, number_vefs_dimension(:)
- type(allocatable_array_ip1_t), pointer ::  orientation
- type(list_t), pointer :: interior_nodes_vef, nodes_vef, corners_vef, vefs_vef
-
- number_vefs => this%get_pointer_number_vefs()
- number_nodes => this%get_pointer_number_nodes()
- number_vefs_dimension => this%get_pointer_number_vefs_dimension()
- orientation => this%get_pointer_orientation()
- interior_nodes_vef => this%get_pointer_interior_nodes_vef()
- interior_nodes_vef => this%get_pointer_interior_nodes_vef()
- nodes_vef => this%get_pointer_nodes_vef()
- corners_vef => this%get_pointer_corners_vef()
- vefs_vef => this%get_pointer_vefs_vef()
-
+ 
  !  ! Initilize values
- nd = this%get_number_dimensions()
- p  = this%get_order()
+ nd = this%number_dimensions
+ p  = this%order
 
  call memalloc( nd, aux, __FILE__, __LINE__ )
  call memalloc( nd, idm, __FILE__, __LINE__ )
@@ -150,8 +108,8 @@ subroutine fill (this)
  ! Initialize nvef_dim, nodes_vef
  !call memalloc(nd+2,nvef_dim,__FILE__,__LINE__)
  !call memalloc(nd+1,nodes_vef,__FILE__,__LINE__)
- number_vefs_dimension = 0
- number_vefs_dimension(1) = 1
+ this%number_vefs_dimension = 0
+ this%number_vefs_dimension(1) = 1
 
  do k = 0,nd
     i = int(2**(nd-k)*bnm(nd,k)) ! #vefs of dimension k
@@ -162,43 +120,43 @@ subroutine fill (this)
     nc = nc + int(i*2**k)        ! corners delimiting vefs of dimension k
     nod = nod + bnm(nd,k)        ! #nodes/{displacement} (2^n = sum(bnm(n,k)), k=0,..,n)
     ! Pointer to obj id by dim. Local obj of dim k are nvef_dim(k):nvef_dim(k+1)
-    number_vefs_dimension(k+2) = number_vefs_dimension(k+1) + i 
+    this%number_vefs_dimension(k+2) = this%number_vefs_dimension(k+1) + i 
     ! #nodes in vefs of dimension k 
  end do
 
  ! Set constant values of reference_element
- number_vefs = no-1
- number_nodes = int((p+1)**nd) 
+ this%number_vefs = no-1
+ this%number_nodes = int((p+1)**nd) 
 
  ! Allocate arrays
- call orientation%create(no)
- call memalloc(no+1,interior_nodes_vef%p,__FILE__,__LINE__)  !Pointer to interior_nodes_vef%l for each vef
- call memalloc(nn,  interior_nodes_vef%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
- call memalloc(no+1,nodes_vef%p,__FILE__,__LINE__)  !Pointer to nodes_vef%l for each vef
- call memalloc(nt,  nodes_vef%l,__FILE__,__LINE__)  !Array of all nodes of each vef
- call memalloc(no+1,vefs_vef%p,__FILE__,__LINE__)  !Pointer to vefs_vef%l for each vef
- call memalloc(nt2,  vefs_vef%l,__FILE__,__LINE__)  !Array of all vefs of each vef
- call memalloc(no+1,corners_vef%p,__FILE__,__LINE__)  !Pointer to corners_vef%l for each vef
- call memalloc(nc,  corners_vef%l,__FILE__,__LINE__)  !Array of corners for each vef
+ call this%orientation%create(no)
+ call memalloc(no+1,this%interior_nodes_vef%p,__FILE__,__LINE__)  !Pointer to this%interior_nodes_vef%l for each vef
+ call memalloc(nn,  this%interior_nodes_vef%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
+ call memalloc(no+1,this%nodes_vef%p,__FILE__,__LINE__)  !Pointer to nodes_vef%l for each vef
+ call memalloc(nt,  this%nodes_vef%l,__FILE__,__LINE__)  !Array of all nodes of each vef
+ call memalloc(no+1,this%vefs_vef%p,__FILE__,__LINE__)  !Pointer to this%vefs_vef%l for each vef
+ call memalloc(nt2,  this%vefs_vef%l,__FILE__,__LINE__)  !Array of all vefs of each vef
+ call memalloc(no+1,this%corners_vef%p,__FILE__,__LINE__)  !Pointer to this%corners_vef%l for each vef
+ call memalloc(nc,  this%corners_vef%l,__FILE__,__LINE__)  !Array of corners for each vef
  call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
  call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
  call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
 
- interior_nodes_vef%p=0   !Pointer to ndxob%l for each vef
- interior_nodes_vef%l=0   !Array of interior nodes of each vef
- nodes_vef%p=0   !Pointer to ntxob%l for each vef
- vefs_vef%l=0   !Array of all nodes of each vef
- vefs_vef%p=0   !Pointer to obxob%l for each vef
- nodes_vef%l=0   !Array of all nodes of each vef
- corners_vef%p=0   !Pointer to crxob%l for each vef
- corners_vef%l=0   !Array of corners for each vef
+ this%interior_nodes_vef%p=0   !Pointer to ndxob%l for each vef
+ this%interior_nodes_vef%l=0   !Array of interior nodes of each vef
+ this%nodes_vef%p=0   !Pointer to ntxob%l for each vef
+ this%vefs_vef%l=0   !Array of all nodes of each vef
+ this%vefs_vef%p=0   !Pointer to obxob%l for each vef
+ this%nodes_vef%l=0   !Array of all nodes of each vef
+ this%corners_vef%p=0   !Pointer to crxob%l for each vef
+ this%corners_vef%l=0   !Array of corners for each vef
 
 
  !Initialize pointers
- interior_nodes_vef%p(1) = 1
- nodes_vef%p(1) = 1
- vefs_vef%p(1) = 1
- corners_vef%p(1) = 1
+ this%interior_nodes_vef%p(1) = 1
+ this%nodes_vef%p(1) = 1
+ this%vefs_vef%p(1) = 1
+ this%corners_vef%p(1) = 1
 
  !Loop over dimensions
  do k = 0,nd
@@ -208,11 +166,11 @@ subroutine fill (this)
     aux4 = int((3**k)) ! Corners for an vef of dim k (idem p=2)
 
     ! Loop over vefs of dimension k
-    do i = number_vefs_dimension(k+1),number_vefs_dimension(k+2)-1 
-       interior_nodes_vef%p(i+1) = interior_nodes_vef%p(i) + aux1 ! assign pointers
-       nodes_vef%p(i+1) = nodes_vef%p(i) + aux3 ! assign pointers
-       corners_vef%p(i+1) = corners_vef%p(i) + aux2 ! assign pointers
-       vefs_vef%p(i+1) = vefs_vef%p(i) + aux4 ! assign pointers 
+    do i = this%number_vefs_dimension(k+1),this%number_vefs_dimension(k+2)-1 
+       this%interior_nodes_vef%p(i+1) = this%interior_nodes_vef%p(i) + aux1 ! assign pointers
+       this%nodes_vef%p(i+1) = this%nodes_vef%p(i) + aux3 ! assign pointers
+       this%corners_vef%p(i+1) = this%corners_vef%p(i) + aux2 ! assign pointers
+       this%vefs_vef%p(i+1) = this%vefs_vef%p(i) + aux4 ! assign pointers 
     end do
  end do
 
@@ -339,7 +297,7 @@ subroutine fill (this)
 
           ! Set orientation of the vef
           co = co +1
-          call Q_orientation_vef(orientation%a(co),fdm(1:nd-od),od,nd,l)
+          call Q_orientation_vef(this%orientation%a(co),fdm(1:nd-od),od,nd,l)
 
           !ijk_g(jdm) will contain the translations from one vef to another
           !ijk_g(idm) will contain the variations inside the vef
@@ -353,7 +311,7 @@ subroutine fill (this)
                 ijk_g(idm(k)+1) = auxt2(k,m)
              end do
              c2 = c2+1
-             corners_vef%l(c2) = Q_gijk(ijk_g,nd,1) !store the vef numbering of the corner 
+             this%corners_vef%l(c2) = Q_gijk(ijk_g,nd,1) !store the vef numbering of the corner 
           end do
        end do
 
@@ -372,7 +330,7 @@ subroutine fill (this)
                 ijk_g(idm(k)+1) = auxt3(k,m)
              end do
              c3 = c3+1
-             interior_nodes_vef%l(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ndxob%l
+             this%interior_nodes_vef%l(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ndxob%l
           end do
        end do
 
@@ -391,7 +349,7 @@ subroutine fill (this)
                 ijk_g(idm(k)+1) = auxt4(k,m)
              end do
              c4 = c4+1
-             nodes_vef%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
+             this%nodes_vef%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
           end do
        end do
 
@@ -430,7 +388,7 @@ subroutine fill (this)
                 ijk_g(idm(k)+1) = auxt5(k,m)
              end do
              c5 = c5 +1
-             vefs_vef%l(c5) = Q_gijk(ijk_g,nd,2)
+             this%vefs_vef%l(c5) = Q_gijk(ijk_g,nd,2)
           end do
 
           ! Define ijk_g for the node in the center of the vef
@@ -464,7 +422,7 @@ subroutine fill (this)
 
  ! Modify the identifiers of the nodes by the ids of the vef in obxob
  do c5 = 1, nt2
-    vefs_vef%l(c5) = node2ob(vefs_vef%l(c5))
+    this%vefs_vef%l(c5) = node2ob(this%vefs_vef%l(c5))
  end do
 
  ! Sort the array 
@@ -486,7 +444,7 @@ subroutine fill (this)
 
 
  ! ! Create the face permutation of nodes
- ! if (nd>2) then call memalloc(2*2**2,nodes_vef(3),o2n,__FILE__,__LINE__)
+ ! if (nd>2) then call memalloc(2*2**2,this%nodes_vef(3),o2n,__FILE__,__LINE__)
 
  ! write(*,*) 'orientation vefs'
  ! do od = 1,nd
@@ -670,14 +628,8 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
  real(rp)                 :: posgl(20),weigl(20)
  integer(ip)              :: nlocs,igaus,ilocs,jlocs,klocs,ndime,ngaus
 
- type(list_t), pointer :: interior_nodes_vef, nodes_vef, corners_vef, vefs_vef
-
- real(rp), pointer :: coordinates(:,:), weight(:)
-
- coordinates => quadrature%get_pointer_coordinates()
- weight => quadrature%get_pointer_weight()
- ndime = quadrature%get_number_dimensions()
- ngaus = quadrature%get_number_integration_points()
+ ndime = quadrature%number_dimensions
+ ngaus = quadrature%number_integration_points
 
  if(ndime==1) then
     nlocs=ngaus
@@ -1149,17 +1101,17 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
     igaus=0
     do ilocs=1,nlocs
        igaus=igaus+1
-       weight(  igaus)=weigl(ilocs)
-       coordinates(1,igaus)=posgl(ilocs)
+       quadrature%weight(  igaus)=weigl(ilocs)
+       quadrature%coordinates(1,igaus)=posgl(ilocs)
     end do
  else if(ndime==2) then
     igaus=0
     do jlocs=1,nlocs
        do ilocs=1,nlocs
           igaus=igaus+1
-          weight(  igaus)=weigl(ilocs)*weigl(jlocs)
-          coordinates(1,igaus)=posgl(ilocs)
-          coordinates(2,igaus)=posgl(jlocs)
+          quadrature%weight(  igaus)=weigl(ilocs)*weigl(jlocs)
+          quadrature%coordinates(1,igaus)=posgl(ilocs)
+          quadrature%coordinates(2,igaus)=posgl(jlocs)
        end do
     end do
  else if(ndime==3) then
@@ -1168,10 +1120,10 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
        do jlocs=1,nlocs
           do ilocs=1,nlocs
              igaus=igaus+1
-             weight(  igaus)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
-             coordinates(1,igaus)=posgl(ilocs)
-             coordinates(2,igaus)=posgl(jlocs)
-             coordinates(3,igaus)=posgl(klocs)
+             quadrature%weight(  igaus)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
+             quadrature%coordinates(1,igaus)=posgl(ilocs)
+             quadrature%coordinates(2,igaus)=posgl(jlocs)
+             quadrature%coordinates(3,igaus)=posgl(klocs)
           end do
        end do
     end do
@@ -1186,15 +1138,10 @@ subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord
   real(rp), target, intent(in) :: coord_ip(:,:)
 
   logical :: khes
-  real(rp), pointer :: shape_functions(:,:), shape_derivatives(:,:,:), hessian(:,:,:)
   real(rp)    :: coord(order+1),shpe1(order+1,nlocs),shpd1(order+1,nlocs),shph1(order+1,nlocs)
-
-  shape_functions => interpolation%get_pointer_shape_functions()
-  shape_derivatives => interpolation%get_pointer_shape_derivatives()
-  hessian => interpolation%get_pointer_hessian()
   
   khes = .false.
-  if ( associated( hessian ) ) then 
+  if ( allocated( interpolation%hessian ) ) then 
      khes = .true.
   end if
 
@@ -1205,10 +1152,10 @@ subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord
 
 
   !if (int%khes == 1) then
-  if ( associated(hessian) ) then 
-     call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes,hessian)
+  if ( allocated( interpolation%hessian ) )  then 
+     call shapen(interpolation%shape_functions,interpolation%shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes,interpolation%hessian)
   else
-     call shapen(shape_functions,shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes)
+     call shapen(interpolation%shape_functions,interpolation%shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes)
   end if
 end subroutine fill_interpolation
 
@@ -1476,6 +1423,3 @@ end subroutine shapen
        end do
     end do
   end subroutine permute_or_2d
-
-end module quad_lagrangian_reference_fe_names
-

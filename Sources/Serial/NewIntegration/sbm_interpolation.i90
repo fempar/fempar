@@ -1,61 +1,10 @@
-module SB_interpolation_names
-  use SB_quadrature_names
-  use types_names
-  use memor_names
-  implicit none
-# include "debug.i90"
-  private
 
-  type SB_interpolation_t
-     private
-
-     integer(ip)                ::  &
-          number_dimensions,        &      
-          number_shape_functions,   &      
-          number_evaluation_points, &      
-          number_entries_symmetric_tensor
-     ! (usually integration points)
-
-     real(rp), allocatable      ::  &
-          shape_functions(:,:),     &   ! Shape functions
-          shape_derivatives(:,:,:), &   ! Derivatives
-          hessian(:,:,:)                ! Hessian
-
-   contains
-
-     procedure :: create
-     !procedure :: free
-     procedure :: print
-
-     procedure :: get_number_dimensions
-     procedure :: get_number_shape_functions
-     procedure :: get_number_evaluation_points
-     procedure :: get_number_entries_symmetric_tensor
-
-     procedure :: get_shape_function
-     procedure :: get_shape_derivative
-     procedure :: get_hessian 
-
-     !procedure :: get_shape_functions
-     !procedure :: get_shape_derivatives
-     !procedure :: get_hessian 
-
-     procedure :: get_pointer_shape_functions
-     procedure :: get_pointer_shape_derivatives
-     procedure :: get_pointer_hessian
-
-  end type SB_interpolation_t
-
-  public :: SB_interpolation_t
-
-contains
-
-  function get_number_dimensions( this )
+  function interpolation_get_number_dimensions( this )
     implicit none
     class(SB_interpolation_t), intent(in) :: this
-    integer(ip) :: get_number_dimensions
-    get_number_dimensions = this%number_dimensions
-  end function get_number_dimensions
+    integer(ip) :: interpolation_get_number_dimensions
+    interpolation_get_number_dimensions = this%number_dimensions
+  end function interpolation_get_number_dimensions
 
   function get_number_shape_functions( this )
     implicit none
@@ -80,7 +29,7 @@ contains
     get_number_entries_symmetric_tensor = this%number_entries_symmetric_tensor
   end function get_number_entries_symmetric_tensor
 
-  subroutine create( this, ndime, nnode, ngaus, ntens, khes )
+  subroutine interpolation_create( this, ndime, nnode, ngaus, ntens, khes )
     implicit none
     class(SB_interpolation_t), intent(out) :: this
     integer(ip)          , intent(in)     :: nnode, ndime, ngaus
@@ -102,9 +51,9 @@ contains
        end if
     end if
 
-  end subroutine create
+  end subroutine interpolation_create
 
-  subroutine print ( this )
+  subroutine interpolation_print ( this )
     implicit none
     class(SB_interpolation_t), intent(in) :: this
     write(*,*) 'number_dimensions: ', this%number_dimensions
@@ -118,7 +67,7 @@ contains
     else
        write(*,*) 'hessian not computed '
     end if
-  end subroutine print
+  end subroutine interpolation_print
 
   function get_pointer_shape_functions ( this )
     implicit none
@@ -174,5 +123,3 @@ contains
     get_hessian = this%hessian(i,j,k)
 
   end function get_hessian
-
-end module SB_interpolation_names

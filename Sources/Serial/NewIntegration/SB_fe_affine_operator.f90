@@ -36,7 +36,6 @@ module SB_fe_affine_operator_names
   use dof_descriptor_names
   use reference_fe_names
   use SB_fe_space_names
-  use integrator_names
   use operator_names
   use vector_names
   use SB_assembler_names

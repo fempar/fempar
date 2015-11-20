@@ -231,9 +231,6 @@ program test_cdr
   ! SB
   use reference_fe_names
   use reference_fe_factory_names
-  use SB_quadrature_names
-  use SB_interpolation_names
-  use integrator_names
   use SB_fe_space_names
   use SB_discrete_integration_names
   use poisson_discrete_integration_names
@@ -398,7 +395,7 @@ program test_cdr
      !p_unk => vector
      call vector%print( 6 )
   class default
-     check(.false.)
+     check(.false.) 
   end select
 
 contains

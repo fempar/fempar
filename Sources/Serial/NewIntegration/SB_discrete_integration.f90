@@ -1,5 +1,5 @@
 module SB_discrete_integration_names
-  use integrator_names
+  use reference_fe_names
   use types_names
 
   implicit none
@@ -41,10 +41,7 @@ end module SB_discrete_integration_names
 
 module poisson_discrete_integration_names
   use SB_discrete_integration_names
-  use integrator_names
   use reference_fe_names
-  use SB_interpolation_names
-  use SB_quadrature_names
   use types_names
   implicit none
 # include "debug.i90"

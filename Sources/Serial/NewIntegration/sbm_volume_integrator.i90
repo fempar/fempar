@@ -1,120 +1,5 @@
-! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
-!
-! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
-!
-! FEMPAR is free software: you can redistribute it and/or modify
-! it under the terms of the GNU General Public License as published by
-! the Free Software Foundation, either version 3 of the License, or
-! (at your option) any later version.
-!
-! FEMPAR is distributed in the hope that it will be useful,
-! but WITHOUT ANY WARRANTY; without even the implied warranty of
-! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-! GNU General Public License for more details.
-!
-! You should have received a copy of the GNU General Public License
-! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
-!
-! Additional permission under GNU GPL version 3 section 7
-!
-! If you modify this Program, or any covered work, by linking or combining it 
-! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
-! and/or the HSL Mathematical Software Library (or a modified version of them), 
-! containing parts covered by the terms of their respective licenses, the
-! licensors of this Program grant you additional permission to convey the 
-! resulting work. 
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!***********************************************************************
-! All allocatable arrays
-!***********************************************************************
-# define var_attr allocatable, target
-# define point(a,b) call move_alloc(a,b)
-# define generic_status_test             allocated
-# define generic_memalloc_interface      memalloc
-# define generic_memrealloc_interface    memrealloc
-# define generic_memfree_interface       memfree
-# define generic_memmovealloc_interface  memmovealloc
-# include "debug.i90"
-!***********************************************************************
-module integrator_names
-  use types_names
-  use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
-  use reference_fe_names
-  use SB_quadrature_names
-  use SB_interpolation_names
-  implicit none
-  private
 
-  type fe_map_t
-
-     real(rp), allocatable  :: jacobian(:,:,:)     ! Map Jacobian         (ndime,ndime,nlocs)
-     real(rp), allocatable  :: inv_jacobian(:,:,:) ! Map Jacobian inverse (ndime,ndime,nlocs)
-     real(rp), allocatable  :: det_jacobian(:)     ! Map Jacobian det     (nlocs)
-     real(rp), allocatable  :: d2sdx(:,:,:,:) ! 2nd derivatives (ndime,ndime,ndime,nlocs)
-     real(rp), allocatable  :: coordinates_points(:,:)     ! Coordinates of evaluation points (ndime,nlocs)
-
-     contains
-
-       procedure :: get_det_jacobian
-
-  end type fe_map_t
-
-  type SB_volume_integrator_t 
-
-     type(SB_quadrature_t) :: quadrature ! Quadrature rules for elements
-     class(reference_fe_t), pointer :: reference_fe
-     type(SB_interpolation_t) :: interpolation ! Unknown interpolation_t in the reference element domain
-     class(reference_fe_t), pointer :: reference_fe_geometry
-     type(SB_interpolation_t) :: interpolation_geometry ! Geometry interpolation_t in the reference element domain
-
-     ! Working arrays
-     type(SB_interpolation_t) :: interpolation_o_map ! Unknown interpolation_t in the physical element domain
-
-     ! FE map
-     type(fe_map_t) :: fe_map
-
-   contains
-
-     procedure :: create
-     !procedure :: free
-     procedure :: print
-     procedure :: update
-     procedure :: set_integration
-
-     procedure :: get_reference_fe
-     procedure :: get_quadrature
-     procedure :: get_interpolation
-     procedure :: get_fe_map
-
-  end type SB_volume_integrator_t
-
-  type SB_p_volume_integrator_t
-     type(SB_volume_integrator_t)          , pointer :: p => NULL() 
-  end type SB_p_volume_integrator_t
-
-  public :: SB_volume_integrator_t, SB_p_volume_integrator_t, fe_map_t
-
-# define var_type type(SB_p_volume_integrator_t)
-# define var_size 8
-# define bound_kind ip
-# include "mem_header.i90"
-
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
-
-  !public :: volume_integrator_create, volume_integrator_free, volume_integrator_update, set_integ
-
-contains
-
-  ! =================================================================================================
-# include "mem_body.i90"
-
-  !==================================================================================================
-
-  subroutine create( this, reference_fe, reference_fe_geometry, max_order )
+  subroutine volume_integrator_create( this, reference_fe, reference_fe_geometry, max_order )
     implicit none
     ! Parameters
     class(SB_volume_integrator_t), intent(out) :: this
@@ -127,7 +12,7 @@ contains
     this%reference_fe => reference_fe
     this%reference_fe_geometry => reference_fe_geometry
 
-  end subroutine create
+  end subroutine volume_integrator_create
 
   subroutine set_integration( this, max_order )
     implicit none
@@ -146,8 +31,8 @@ contains
 
     this%interpolation_o_map = this%interpolation
 
-    ndime = this%reference_fe%get_number_dimensions()
-    ngaus = this%interpolation%get_number_evaluation_points()
+    ndime = this%reference_fe%number_dimensions
+    ngaus = this%interpolation%number_evaluation_points
 
     call memalloc(ndime,ndime,ngaus,this%fe_map%jacobian,__FILE__,__LINE__)
     call memalloc(ndime,ndime,ngaus,this%fe_map%inv_jacobian,__FILE__,__LINE__)
@@ -155,8 +40,8 @@ contains
     call memalloc(ndime,ngaus,this%fe_map%coordinates_points,__FILE__,__LINE__)
 
 
-    if( associated( this%interpolation%get_pointer_hessian() ) ) then
-       call memalloc(ndime,ndime,ndime,this%interpolation%get_number_evaluation_points(), &
+    if( allocated( this%interpolation%hessian ) ) then
+       call memalloc(ndime,ndime,ndime,this%interpolation%number_evaluation_points, &
             & this%fe_map%d2sdx,  __FILE__,__LINE__)
     end if
 
@@ -196,7 +81,7 @@ contains
   end subroutine update
   !==================================================================================================
 
-  subroutine print( this )
+  subroutine volume_integrator_print( this )
     implicit none
     class(SB_volume_integrator_t), intent(inout) :: this
 
@@ -217,12 +102,12 @@ contains
     write(*,*) '%%%%%%%%%%%%%%%% jacobian: %%%%%%%%%%%%%%%%', this%fe_map%jacobian
     write(*,*) '%%%%%%%%%%%%%%%% inverse jacobian: %%%%%%%%%%%%%%%%',this%fe_map%inv_jacobian
     write(*,*) '%%%%%%%%%%%%%%%% determinant jacobian: %%%%%%%%%%%%%%%%',this%fe_map%det_jacobian
-    if ( associated( this%interpolation%get_pointer_hessian() ) ) then 
+    if ( allocated( this%interpolation%hessian ) ) then 
        write(*,*) '%%%%%%%%%%%%%%%% second derivatives: %%%%%%%%%%%%%%%%',this%fe_map%d2sdx
     end if
     write(*,*) '%%%%%%%%%%%%%%%% coordinates points: %%%%%%%%%%%%%%%%',this%fe_map%coordinates_points
 
-  end subroutine print
+  end subroutine volume_integrator_print
 
   function get_reference_fe ( this )
     implicit none
@@ -280,15 +165,15 @@ contains
     logical :: khes
 
     khes = .false.
-    if ( associated( int%get_pointer_hessian() ) ) then 
+    if ( allocated( int%hessian ) ) then 
        khes = .true.
     end if
 
     ! ! Check and get data from int
     ! assert(int%kder==1)
-     ndime = int%get_number_dimensions()
-     nnode = int%get_number_shape_functions()
-     nlocs = int%get_number_evaluation_points()
+     ndime = int%number_dimensions
+     nnode = int%number_shape_functions
+     nlocs = int%number_evaluation_points
 
     ! ! Check elcod
     ! assert(ndime==size(elcod,dim=1))
@@ -310,7 +195,7 @@ contains
           do jdime=1,ndime
              do idime=1,ndime
                 map%jacobian(idime,jdime,ilocs) = map%jacobian(idime,jdime,ilocs) &
-                     + elcod(idime,inode)*int%get_shape_derivative(jdime,inode,ilocs)
+                     + elcod(idime,inode)*int%shape_derivatives(jdime,inode,ilocs)
              end do
           end do
        end do
@@ -324,7 +209,7 @@ contains
        do inode=1,nnode
           do idime=1,ndime
              map%coordinates_points(idime,ilocs) = map%coordinates_points(idime,ilocs) &
-                  + elcod(idime,inode)*int%get_shape_function(inode,ilocs)
+                  + elcod(idime,inode)*int%shape_functions(inode,ilocs)
           end do
        end do
     end do
@@ -332,7 +217,7 @@ contains
     ! ! Second derivatives of the map
     if( khes ) then
 
-       ntens=int%get_number_entries_symmetric_tensor()
+       ntens=int%number_entries_symmetric_tensor
        ! Check that second derivativesof the map have been allocated.
        assert(ndime==size(map%d2sdx,dim=1))
        assert(nlocs==size(map%d2sdx,dim=4))
@@ -347,7 +232,7 @@ contains
           ! Transforms the array HESSI to a symmetric matrix WMAT1
           do inode=1,nnode
              do itens = 1, ntens
-                wvec1(itens) = int%get_hessian(itens,inode,ilocs)
+                wvec1(itens) = int%hessian(itens,inode,ilocs)
              end do
              call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
           end do
@@ -608,37 +493,30 @@ contains
     integer(ip) :: ndime,nnode,nlocs,ntens
     integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
     logical :: khes
-    real(rp), pointer :: ref_shape_derivatives(:,:,:), ref_hessian(:,:,:)
-    real(rp), pointer :: phy_shape_derivatives(:,:,:), phy_hessian(:,:,:)
 
-    ref_shape_derivatives => ref%get_pointer_shape_derivatives()
-    ref_hessian => ref%get_pointer_hessian()
-
-    phy_shape_derivatives => phy%get_pointer_shape_derivatives()
-    phy_hessian => phy%get_pointer_hessian()
 
     khes = .false.
-    if ( associated( ref_hessian ) ) then 
+    if ( allocated( ref%hessian ) ) then 
        khes = .true.
     end if
 
-    ndime = ref%get_number_dimensions()
-    ntens = ref%get_number_entries_symmetric_tensor()
-    nlocs = ref%get_number_evaluation_points()
-    nnode = ref%get_number_shape_functions()
+    ndime = ref%number_dimensions
+    ntens = ref%number_entries_symmetric_tensor
+    nlocs = ref%number_evaluation_points
+    nnode = ref%number_shape_functions
 
     ! Shape functions do not change
     ! phy%shape = ref%shape ! SB. not needed
 
     ! First derivatives do
     !if(phy%kder==1) then
-    phy_shape_derivatives=0.0_rp
-    do ilocs=1,phy%get_number_evaluation_points()
-       do inode=1,phy%get_number_shape_functions()
+    phy%shape_derivatives=0.0_rp
+    do ilocs=1,phy%number_evaluation_points
+       do inode=1,phy%number_shape_functions
           do idime=1,ndime
              do jdime=1,ndime
-                phy_shape_derivatives(idime,inode,ilocs) = phy_shape_derivatives(idime,inode,ilocs) &
-                     + map%inv_jacobian(jdime,idime,ilocs)*ref_shape_derivatives(jdime,inode,ilocs)
+                phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
+                     + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(jdime,inode,ilocs)
              end do
           end do
        end do
@@ -662,7 +540,7 @@ contains
              ! Transforms the array HESSI to a symmetric matrix WMAT1
              do inode=1,nnode
                 do itens = 1, ntens
-                   wvec1(itens) = ref%get_hessian(itens,inode,ilocs)
+                   wvec1(itens) = ref%hessian(itens,inode,ilocs)
                 end do
                 call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
              end do
@@ -681,7 +559,7 @@ contains
                    do jdime=1,ndime
                       do kdime=1,ndime
                          wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                              & + ref_shape_derivatives(kdime,inode,ilocs) &
+                              & + ref%shape_derivatives(kdime,inode,ilocs) &
                               &   * map%d2sdx(kdime,idime,jdime,ilocs)
                       end do
                    end do
@@ -692,7 +570,7 @@ contains
           ! Writes the Hessian matrix as an array
           do inode=1,nnode
              do itens = 1, ntens
-                wvec1(itens) = phy%get_hessian(itens,inode,ilocs)
+                wvec1(itens) = phy%hessian(itens,inode,ilocs)
              end do
              call matove(wmat2(1,1,inode),wvec1,ndime,ntens)
           end do
@@ -734,5 +612,3 @@ contains
 
   end subroutine matove
 
-
-end module integrator_names

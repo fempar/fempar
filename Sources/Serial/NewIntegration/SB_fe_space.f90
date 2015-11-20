@@ -38,7 +38,6 @@ module SB_fe_space_names
   use reference_fe_names
   use triangulation_names
   use reference_fe_factory_names
-  use integrator_names
   use integration_tools_names
   use migratory_element_names
   use conditions_names
