@@ -474,8 +474,8 @@ contains
        prec%cg  = 0.0        
        prec%ca  = 0.0
        do ilev=1, prec%lev
-          n   = prec%hsl_mi20_data%coarse_data(ilev)%A_prec%mat%m
-          nnz = prec%hsl_mi20_data%coarse_data(ilev)%A_prec%mat%ptr(n+1)-1
+          n   = prec%hsl_mi20_data%coarse_data(ilev)%A_mat%m
+          nnz = prec%hsl_mi20_data%coarse_data(ilev)%A_mat%ptr(n+1)-1
           ! write (*,*) 'XXX', ilev, n, nnz, prec%mat%graph%nv, prec%mat%graph%ia(prec%mat%graph%nv+1)-1
           prec%cs = prec%cs + dble(nnz)/dble(n)
           prec%cg = prec%cg + dble(n)
