@@ -113,7 +113,7 @@ program par_test_cdr_unstructured
   type(par_scalar_array_t) , pointer  :: p_vec
   type(fe_affine_operator_t)          :: fe_affine_operator
   class(vector_t) , pointer           :: x, y
-  class(operator_t), pointer  :: A
+  class(operator_t), pointer          :: A
 
   ! Preconditioner-related data structures
   type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag

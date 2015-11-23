@@ -171,7 +171,6 @@ contains
       call this%fe_space%symbolic_setup_matrix_array_assembler(this%matrix_array_assembler)
       this%state = symbolically_setup
     end if
-
   end subroutine fe_affine_operator_symbolic_setup
   
   subroutine fe_affine_operator_numerical_setup (this)
