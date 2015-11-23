@@ -1,238 +1,237 @@
+subroutine reference_fe_set_common_data( this, number_dimensions, order, continuity )
+  implicit none 
+  class(reference_fe_t), intent(out) :: this 
+  integer(ip), intent(in)  :: number_dimensions, order
+  logical, optional, intent(in) :: continuity
 
-  subroutine set_common_data( this, number_dimensions, order, continuity )
-    implicit none 
-    class(reference_fe_t), intent(out) :: this 
-    integer(ip), intent(in)  :: number_dimensions, order
-    logical, optional, intent(in) :: continuity
+  this%number_dimensions = number_dimensions
+  this%order = order
+  if ( present( continuity) ) then
+     this%continuity = continuity
+  else 
+     this%continuity = .true.
+  end if
 
-    this%number_dimensions = number_dimensions
-    this%order = order
-    if ( present( continuity) ) then
-       this%continuity = continuity
-    else 
-       this%continuity = .true.
-    end if
+end subroutine reference_fe_set_common_data
 
-  end subroutine set_common_data
+subroutine reference_fe_set_topology( this, topology)
+  implicit none
+  class(reference_fe_t), intent(inout) :: this 
+  character(*), intent(in) :: topology
+  this%topology = topology
+end subroutine reference_fe_set_topology
 
-  subroutine set_topology( this, topology)
-    implicit none
-    class(reference_fe_t), intent(inout) :: this 
-    character(*), intent(in) :: topology
-    this%topology = topology
-  end subroutine set_topology
+subroutine reference_fe_set_fe_type( this, fe_type)
+  implicit none
+  class(reference_fe_t), intent(inout) :: this 
+  character(*), intent(in) :: fe_type
+  this%fe_type = fe_type
+end subroutine reference_fe_set_fe_type
 
-  subroutine set_fe_type( this, fe_type)
-    implicit none
-    class(reference_fe_t), intent(inout) :: this 
-    character(*), intent(in) :: fe_type
-    this%fe_type = fe_type
-  end subroutine set_fe_type
+subroutine reference_fe_print ( reference_fe )
+  implicit none
+  !     Parameters
+  class(reference_fe_t),  intent(in) :: reference_fe
 
-  subroutine reference_fe_print ( reference_fe )
-    implicit none
-    ! Parameters
-    class(reference_fe_t),  intent(in) :: reference_fe
+  integer(ip) :: i
 
-    integer(ip) :: i
+  write(*,*) 'topology: ', reference_fe%topology
+  write(*,*) 'fe_type: ', reference_fe%fe_type
+  write(*,*) 'number_dimensions: ', reference_fe%number_dimensions
+  write(*,*) 'order: ', reference_fe%order
+  write(*,*) 'continuity: ',reference_fe%continuity
+  write(*,*) 'number_vefs', reference_fe%number_vefs
+  write(*,*) 'number_nodes', reference_fe%number_nodes
+  write(*,*) 'number_vefs_dimension', reference_fe%number_vefs_dimension
 
-    write(*,*) 'topology: ', reference_fe%topology
-    write(*,*) 'fe_type: ', reference_fe%fe_type
-    write(*,*) 'number_dimensions: ', reference_fe%number_dimensions
-    write(*,*) 'order: ', reference_fe%order
-    write(*,*) 'continuity: ',reference_fe%continuity
-    write(*,*) 'number_vefs', reference_fe%number_vefs
-    write(*,*) 'number_nodes', reference_fe%number_nodes
-    write(*,*) 'number_vefs_dimension', reference_fe%number_vefs_dimension
+  write(*,*) 'orientation', reference_fe%orientation%a
 
-    write(*,*) 'orientation', reference_fe%orientation%a
+  write(*,*) 'interior_nodes_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%interior_nodes_vef%l(reference_fe%interior_nodes_vef%p(i):reference_fe%interior_nodes_vef%p(i+1)-1)
+  end do
 
-    write(*,*) 'interior_nodes_vef'
-    do i=1,reference_fe%number_vefs+1
-       write(*,*) reference_fe%interior_nodes_vef%l(reference_fe%interior_nodes_vef%p(i):reference_fe%interior_nodes_vef%p(i+1)-1)
-    end do
+  write(*,*) 'nodes_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%nodes_vef%l(reference_fe%nodes_vef%p(i):reference_fe%nodes_vef%p(i+1)-1)
+  end do
 
-    write(*,*) 'nodes_vef'
-    do i=1,reference_fe%number_vefs+1
-       write(*,*) reference_fe%nodes_vef%l(reference_fe%nodes_vef%p(i):reference_fe%nodes_vef%p(i+1)-1)
-    end do
+  write(*,*) 'corners_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%corners_vef%l(reference_fe%corners_vef%p(i):reference_fe%corners_vef%p(i+1)-1)
+  end do
 
-    write(*,*) 'corners_vef'
-    do i=1,reference_fe%number_vefs+1
-       write(*,*) reference_fe%corners_vef%l(reference_fe%corners_vef%p(i):reference_fe%corners_vef%p(i+1)-1)
-    end do
+  write(*,*) 'vefs_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%vefs_vef%l(reference_fe%vefs_vef%p(i):reference_fe%vefs_vef%p(i+1)-1)
+  end do
 
-    write(*,*) 'vefs_vef'
-    do i=1,reference_fe%number_vefs+1
-       write(*,*) reference_fe%vefs_vef%l(reference_fe%vefs_vef%p(i):reference_fe%vefs_vef%p(i+1)-1)
-    end do
+end subroutine reference_fe_print
 
-  end subroutine reference_fe_print
+function reference_fe_get_number_dimensions( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip) :: reference_fe_get_number_dimensions
+  reference_fe_get_number_dimensions = this%number_dimensions
+end function reference_fe_get_number_dimensions
 
-  function get_number_dimensions( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: get_number_dimensions
-    get_number_dimensions = this%number_dimensions
-  end function get_number_dimensions
+function reference_fe_get_order( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip) :: reference_fe_get_order
+  reference_fe_get_order = this%order
+end function reference_fe_get_order
 
-  function get_order( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: get_order
-    get_order = this%order
-  end function get_order
+function reference_fe_get_continuity( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  logical :: reference_fe_get_continuity
+  reference_fe_get_continuity = this%continuity
+end function reference_fe_get_continuity
 
-  function get_continuity( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    logical :: get_continuity
-    get_continuity = this%continuity
-  end function get_continuity
-
-  function get_number_vefs ( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip)                 :: get_number_vefs
-    get_number_vefs = this%number_vefs
-  end function get_number_vefs
-
-  function get_number_nodes ( this )
+  function reference_fe_get_number_vefs ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip)                 :: get_number_nodes
-    get_number_nodes = this%number_nodes
-  end function get_number_nodes
+    integer(ip)                 :: reference_fe_get_number_vefs
+    reference_fe_get_number_vefs = this%number_vefs
+  end function reference_fe_get_number_vefs
 
-  function get_number_vefs_dimension ( this )
+  function reference_fe_get_number_nodes ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip)                 :: get_number_vefs_dimension(5)
-    get_number_vefs_dimension = this%number_vefs_dimension
-  end function get_number_vefs_dimension
+    integer(ip)                 :: reference_fe_get_number_nodes
+    reference_fe_get_number_nodes = this%number_nodes
+  end function reference_fe_get_number_nodes
 
-  function get_orientation ( this )
+  function reference_fe_get_number_vefs_dimension ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    type(allocatable_array_ip1_t) :: get_orientation
-    get_orientation = this%orientation
-  end function get_orientation
+    integer(ip)                 :: reference_fe_get_number_vefs_dimension(5)
+    reference_fe_get_number_vefs_dimension = this%number_vefs_dimension
+  end function reference_fe_get_number_vefs_dimension
 
-  function get_interior_nodes_vef ( this )
+  function reference_fe_get_orientation ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    type(list_t) :: get_interior_nodes_vef
-    get_interior_nodes_vef = this%interior_nodes_vef
-  end function get_interior_nodes_vef
+    type(allocatable_array_ip1_t) :: reference_fe_get_orientation
+    reference_fe_get_orientation = this%orientation
+  end function reference_fe_get_orientation
 
-  function get_nodes_vef ( this )
+  function reference_fe_get_interior_nodes_vef ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    type(list_t) :: get_nodes_vef
-    get_nodes_vef = this%nodes_vef
-  end function get_nodes_vef
+    type(list_t) :: reference_fe_get_interior_nodes_vef
+    reference_fe_get_interior_nodes_vef = this%interior_nodes_vef
+  end function reference_fe_get_interior_nodes_vef
 
-  function get_number_nodes_vef ( this, i )
+  function reference_fe_get_nodes_vef ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip) :: i
-    integer(ip) :: get_number_nodes_vef
-    get_number_nodes_vef = this%nodes_vef%p(i+1)-this%nodes_vef%p(i)
-  end function get_number_nodes_vef
+    type(list_t) :: reference_fe_get_nodes_vef
+    reference_fe_get_nodes_vef = this%nodes_vef
+  end function reference_fe_get_nodes_vef
 
-  function get_number_interior_nodes_vef ( this, i )
+  function reference_fe_get_number_nodes_vef ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: i
-    integer(ip) :: get_number_interior_nodes_vef
-    get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
-  end function get_number_interior_nodes_vef
+    integer(ip) :: reference_fe_get_number_nodes_vef
+    reference_fe_get_number_nodes_vef = this%nodes_vef%p(i+1)-this%nodes_vef%p(i)
+  end function reference_fe_get_number_nodes_vef
 
-  function get_node_vef ( this, i, j )
+  function reference_fe_get_number_interior_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: i
+    integer(ip) :: reference_fe_get_number_interior_nodes_vef
+    reference_fe_get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
+  end function reference_fe_get_number_interior_nodes_vef
+
+  function reference_fe_get_node_vef ( this, i, j )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: i, j
-    integer(ip) :: get_node_vef
-    get_node_vef = this%nodes_vef%l(this%nodes_vef%p(j) + i -1)
-  end function get_node_vef
+    integer(ip) :: reference_fe_get_node_vef
+    reference_fe_get_node_vef = this%nodes_vef%l(this%nodes_vef%p(j) + i -1)
+  end function reference_fe_get_node_vef
 
-  function get_interior_node_vef ( this, i, j )
+  function reference_fe_get_interior_node_vef ( this, i, j )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: i, j
-    integer(ip) :: get_interior_node_vef
-    get_interior_node_vef = this%interior_nodes_vef%l(this%interior_nodes_vef%p(j) + i -1)
-  end function get_interior_node_vef
+    integer(ip) :: reference_fe_get_interior_node_vef
+    reference_fe_get_interior_node_vef = this%interior_nodes_vef%l(this%interior_nodes_vef%p(j) + i -1)
+  end function reference_fe_get_interior_node_vef
 
-  function get_corners_vef ( this )
+  function reference_fe_get_corners_vef ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    type(list_t) :: get_corners_vef
-    get_corners_vef = this%corners_vef
-  end function get_corners_vef
+    type(list_t) :: reference_fe_get_corners_vef
+    reference_fe_get_corners_vef = this%corners_vef
+  end function reference_fe_get_corners_vef
 
-  function get_vefs_vef ( this )
+  function reference_fe_get_vefs_vef ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    type(list_t) :: get_vefs_vef
-    get_vefs_vef = this%vefs_vef
-  end function get_vefs_vef
+    type(list_t) :: reference_fe_get_vefs_vef
+    reference_fe_get_vefs_vef = this%vefs_vef
+  end function reference_fe_get_vefs_vef
 
-  function get_pointer_number_vefs ( this )
+  function reference_fe_get_pointer_number_vefs ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    integer(ip)                , pointer :: get_pointer_number_vefs
-    get_pointer_number_vefs => this%number_vefs
-  end function get_pointer_number_vefs
+    integer(ip)                , pointer :: reference_fe_get_pointer_number_vefs
+    reference_fe_get_pointer_number_vefs => this%number_vefs
+  end function reference_fe_get_pointer_number_vefs
 
-  function get_pointer_number_nodes ( this )
+  function reference_fe_get_pointer_number_nodes ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    integer(ip)                , pointer :: get_pointer_number_nodes
-    get_pointer_number_nodes => this%number_nodes
-  end function get_pointer_number_nodes
+    integer(ip)                , pointer :: reference_fe_get_pointer_number_nodes
+    reference_fe_get_pointer_number_nodes => this%number_nodes
+  end function reference_fe_get_pointer_number_nodes
 
-  function get_pointer_number_vefs_dimension ( this )
+  function reference_fe_get_pointer_number_vefs_dimension ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    integer(ip)                , pointer :: get_pointer_number_vefs_dimension(:)
-    get_pointer_number_vefs_dimension => this%number_vefs_dimension
-  end function get_pointer_number_vefs_dimension
+    integer(ip)                , pointer :: reference_fe_get_pointer_number_vefs_dimension(:)
+    reference_fe_get_pointer_number_vefs_dimension => this%number_vefs_dimension
+  end function reference_fe_get_pointer_number_vefs_dimension
 
-  function get_pointer_orientation ( this )
+  function reference_fe_get_pointer_orientation ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(allocatable_array_ip1_t), pointer :: get_pointer_orientation
-    get_pointer_orientation => this%orientation
-  end function get_pointer_orientation
+    type(allocatable_array_ip1_t), pointer :: reference_fe_get_pointer_orientation
+    reference_fe_get_pointer_orientation => this%orientation
+  end function reference_fe_get_pointer_orientation
 
-  function get_pointer_interior_nodes_vef ( this )
+  function reference_fe_get_pointer_interior_nodes_vef ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: get_pointer_interior_nodes_vef
-    get_pointer_interior_nodes_vef => this%interior_nodes_vef
-  end function get_pointer_interior_nodes_vef
+    type(list_t), pointer :: reference_fe_get_pointer_interior_nodes_vef
+    reference_fe_get_pointer_interior_nodes_vef => this%interior_nodes_vef
+  end function reference_fe_get_pointer_interior_nodes_vef
 
-  function get_pointer_nodes_vef ( this )
+  function reference_fe_get_pointer_nodes_vef ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: get_pointer_nodes_vef
-    get_pointer_nodes_vef => this%nodes_vef
-  end function get_pointer_nodes_vef
+    type(list_t), pointer :: reference_fe_get_pointer_nodes_vef
+    reference_fe_get_pointer_nodes_vef => this%nodes_vef
+  end function reference_fe_get_pointer_nodes_vef
 
-  function get_pointer_corners_vef ( this )
+  function reference_fe_get_pointer_corners_vef ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: get_pointer_corners_vef
-    get_pointer_corners_vef => this%corners_vef
-  end function get_pointer_corners_vef
+    type(list_t), pointer :: reference_fe_get_pointer_corners_vef
+    reference_fe_get_pointer_corners_vef => this%corners_vef
+  end function reference_fe_get_pointer_corners_vef
 
-  function get_pointer_vefs_vef ( this )
+  function reference_fe_get_pointer_vefs_vef ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: get_pointer_vefs_vef
-    get_pointer_vefs_vef => this%vefs_vef
-  end function get_pointer_vefs_vef
+    type(list_t), pointer :: reference_fe_get_pointer_vefs_vef
+    reference_fe_get_pointer_vefs_vef => this%vefs_vef
+  end function reference_fe_get_pointer_vefs_vef
 
   subroutine reference_fe_free( this )
     implicit none

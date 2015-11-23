@@ -1,57 +1,56 @@
+subroutine quadrature_create ( this, ndime, ngaus )
+  implicit none       
+  integer(ip), intent(in) :: ndime, ngaus
+  class(SB_quadrature_t), intent(out) :: this
+  this%number_dimensions = ndime
+  this%number_integration_points = ngaus
+  call memalloc(ndime,ngaus,this%coordinates,__FILE__,__LINE__)
+  call memalloc(ngaus,this%weight,__FILE__,__LINE__)
+  this%coordinates=0.0_rp
+  this%weight=0.0_rp
+end subroutine quadrature_create
 
-  subroutine quadrature_create ( this, ndime, ngaus )
-    implicit none       
-    integer(ip), intent(in) :: ndime, ngaus
-    class(SB_quadrature_t), intent(out) :: this
-    this%number_dimensions = ndime
-    this%number_integration_points = ngaus
-    call memalloc(ndime,ngaus,this%coordinates,__FILE__,__LINE__)
-    call memalloc(ngaus,this%weight,__FILE__,__LINE__)
-    this%coordinates=0.0_rp
-    this%weight=0.0_rp
-  end subroutine quadrature_create
+function quadrature_get_number_dimensions ( this )
+  implicit none
+  class(SB_quadrature_t), intent(in) :: this
+  integer(ip) :: quadrature_get_number_dimensions
+  quadrature_get_number_dimensions = this%number_dimensions
+end function quadrature_get_number_dimensions
 
-  function quadrature_get_number_dimensions ( this )
-    implicit none
-    class(SB_quadrature_t), intent(in) :: this
-    integer(ip) :: quadrature_get_number_dimensions
-    quadrature_get_number_dimensions = this%number_dimensions
-  end function quadrature_get_number_dimensions
+function quadrature_get_number_integration_points ( this )
+  implicit none
+  class(SB_quadrature_t), intent(in) :: this
+  integer(ip) :: quadrature_get_number_integration_points
+  quadrature_get_number_integration_points = this%number_integration_points
+end function quadrature_get_number_integration_points
 
-  function get_number_integration_points ( this )
-    implicit none
-    class(SB_quadrature_t), intent(in) :: this
-    integer(ip) :: get_number_integration_points
-    get_number_integration_points = this%number_integration_points
-  end function get_number_integration_points
+function quadrature_get_weight ( this, i )
+  implicit none
+  class(SB_quadrature_t), target, intent(in) :: this
+  integer(ip) :: i
+  real(rp) :: quadrature_get_weight
+  quadrature_get_weight = this%weight(i)
+end function quadrature_get_weight
 
-  function get_pointer_coordinates ( this )
-    implicit none
-    class(SB_quadrature_t), target, intent(in) :: this
-    real(rp), pointer :: get_pointer_coordinates(:,:)
-    get_pointer_coordinates => this%coordinates
-  end function get_pointer_coordinates
+subroutine quadrature_print ( this )
+  implicit none
+  class(SB_quadrature_t), target, intent(in) :: this
+  write(*,*) 'number_dimensions: ', this%number_dimensions
+  write(*,*) 'number_integration_points: ', this%number_integration_points
+  write(*,*) 'coordinates: ', this%coordinates
+  write(*,*) 'weight: ', this%weight
+end subroutine quadrature_print
 
-  function get_pointer_weight ( this )
-    implicit none
-    class(SB_quadrature_t), target, intent(in) :: this
-    real(rp), pointer :: get_pointer_weight(:)
-    get_pointer_weight => this%weight
-  end function get_pointer_weight
+! function quadrature_get_pointer_coordinates ( this )
+!   implicit none
+!   class(SB_quadrature_t), target, intent(in) :: this
+!   real(rp), pointer :: quadrature_get_pointer_coordinates(:,:)
+!   quadrature_get_pointer_coordinates => this%coordinates
+! end function quadrature_get_pointer_coordinates
 
-  function get_weight ( this, i )
-    implicit none
-    class(SB_quadrature_t), target, intent(in) :: this
-    integer(ip) :: i
-    real(rp) :: get_weight
-    get_weight = this%weight(i)
-  end function get_weight
-
-  subroutine quadrature_print ( this )
-    implicit none
-    class(SB_quadrature_t), target, intent(in) :: this
-    write(*,*) 'number_dimensions: ', this%number_dimensions
-    write(*,*) 'number_integration_points: ', this%number_integration_points
-    write(*,*) 'coordinates: ', this%coordinates
-    write(*,*) 'weight: ', this%weight
-  end subroutine quadrature_print
+! function quadrature_get_pointer_weight ( this )
+!   implicit none
+!   class(SB_quadrature_t), target, intent(in) :: this
+!   real(rp), pointer :: quadrature_get_pointer_weight(:)
+!   quadrature_get_pointer_weight => this%weight
+! end function quadrature_get_pointer_weight

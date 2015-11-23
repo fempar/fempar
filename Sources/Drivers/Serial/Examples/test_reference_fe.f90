@@ -296,7 +296,7 @@ program test_cdr
   type(SB_interpolation_t) :: interpolation
   type(SB_finite_element_t) :: finite_element
   type(SB_volume_integrator_t) :: volume_integrator
-  type(SB_fe_space_t) :: fe_space
+  type(SB_serial_fe_space_t) :: fe_space
   type(poisson_discrete_integration_t), target :: poisson_integration
   type(SB_p_discrete_integration_t) :: approximations(1) 
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
@@ -368,7 +368,7 @@ program test_cdr
   approximations(1)%p => poisson_integration  
   call fe_affine_operator%create ( (/.true./), (/.true./), (/1/), f_trian, fe_space, approximations )
   write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-  call fe_affine_operator%numerical_setup()
+  !call fe_affine_operator%numerical_setup()
   write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   !call memstatus 
 
