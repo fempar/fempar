@@ -69,7 +69,7 @@ contains
 
     ! Parameters
     type(par_mesh_t), intent(inout)  :: p_mesh
-    call par_mesh_free_progressively(p_mesh, free_struct)
+    call par_mesh_free_progressively(p_mesh, free_symbolic_setup)
     call par_mesh_free_progressively(p_mesh, free_clean)
   end subroutine par_mesh_free_one_shot
 
@@ -85,7 +85,7 @@ contains
     type(par_mesh_t), intent(inout)  :: p_mesh
     integer(ip)   , intent(in)     :: mode
 
-    assert ( mode == free_clean .or. mode == free_struct )
+    assert ( mode == free_clean .or. mode == free_symbolic_setup )
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_mesh%p_env) )
@@ -95,7 +95,7 @@ contains
 
     if ( mode == free_clean ) then
        nullify (p_mesh%p_env)
-    else if ( mode == free_struct ) then
+    else if ( mode == free_symbolic_setup ) then
        call mesh_free ( p_mesh%f_mesh )
        call mesh_distribution_free ( p_mesh%f_mesh_dist )
     end if

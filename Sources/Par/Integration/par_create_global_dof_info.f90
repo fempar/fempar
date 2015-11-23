@@ -71,7 +71,7 @@ contains
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_fe_space%p_trian) )
-	assert ( associated(p_fe_space%dof_descriptor) )
+	   assert ( associated(p_fe_space%dof_descriptor) )
     assert ( p_fe_space%p_trian%p_env%created )
 
     if( p_fe_space%p_trian%p_env%p_context%iam >= 0 ) then

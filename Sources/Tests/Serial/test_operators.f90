@@ -38,10 +38,7 @@ program test_operators
   
   call meminit
   
-  call Mat%create(symmetric_storage=.false., is_symmetric=.false., sign=unknown)
-  ! Begin External Process which creates the graph of Mat
-  Mat%graph%nv  = 3
-  Mat%graph%nv2 = 3
+  call Mat%create(num_rows_and_cols=3, symmetric_storage=.false., is_symmetric=.false., sign=unknown)
   call memalloc ( Mat%graph%nv+1, Mat%graph%ia, __FILE__, __LINE__)
   Mat%graph%ia = (/1,3,4,6/)
   call memalloc ( Mat%graph%ia(Mat%graph%nv+1)-1, Mat%graph%ja, __FILE__, __LINE__)

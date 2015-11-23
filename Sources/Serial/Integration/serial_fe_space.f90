@@ -113,14 +113,10 @@ module serial_fe_space_names
      type(allocatable_array_ip2_t)       :: l_analytical_code(max_number_problems)
 
    contains
-     procedure :: create => serial_fe_space_create
-     procedure :: free => serial_fe_space_free
-     procedure :: print => serial_fe_space_print
-     procedure :: set_analytical_code => serial_fe_space_set_analytical_code
-     procedure, private :: serial_fe_space_create_make_serial_scalar_coefficient_matrix
-     procedure, private :: serial_fe_space_create_make_serial_block_coefficient_matrix
-     generic :: make_coefficient_matrix => serial_fe_space_create_make_serial_scalar_coefficient_matrix, &
-                                           serial_fe_space_create_make_serial_block_coefficient_matrix
+     procedure :: create                                => serial_fe_space_create
+     procedure :: free                                  => serial_fe_space_free
+     procedure :: print                                 => serial_fe_space_print
+     procedure :: set_analytical_code                   => serial_fe_space_set_analytical_code
      procedure :: create_matrix_array_assembler         => serial_fe_space_create_matrix_array_assembler
      procedure :: symbolic_setup_matrix_array_assembler => serial_fe_space_symbolic_setup_matrix_array_assembler
      procedure :: volume_integral                       => serial_fe_space_volume_integral 
@@ -131,7 +127,7 @@ module serial_fe_space_names
 
   ! Methods
   public :: serial_fe_space_integration_faces_list, serial_fe_space_allocate_structures, &
-       &    serial_fe_space_fe_list_create, setup_dof_graph_from_block_row_col_identifiers
+       &    serial_fe_space_fe_list_create, setup_serial_scalar_matrix_graph_from_block_row_col_identifiers
 
 contains
 
@@ -161,7 +157,10 @@ contains
        allocate ( serial_scalar_array_t  :: array )
        select type(matrix)
           class is(serial_scalar_matrix_t)
-          call matrix%create(diagonal_blocks_symmetric_storage(1),diagonal_blocks_symmetric(1),diagonal_blocks_sign(1))
+          call matrix%create(this%ndofs(1), &
+                             diagonal_blocks_symmetric_storage(1),&
+                             diagonal_blocks_symmetric(1),&
+                             diagonal_blocks_sign(1))
           class default
           check(.false.)
        end select
@@ -192,7 +191,7 @@ contains
     matrix => matrix_array_assembler%get_matrix()
     select type(matrix)
        class is(serial_scalar_matrix_t)
-       call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, matrix%graph )
+       call setup_serial_scalar_matrix_graph_from_block_row_col_identifiers ( 1, 1, this, matrix )
        class is(serial_block_matrix_t)
        class default
        check(.false.)
@@ -223,42 +222,13 @@ contains
     end do
   end subroutine serial_fe_space_volume_integral
   
-
-  subroutine serial_fe_space_create_make_serial_scalar_coefficient_matrix(this,symmetric_storage,is_symmetric,sign,serial_scalar_matrix)
-    implicit none
-    class(serial_fe_space_t)     , intent(in)  :: this
-    logical                      , intent(in)  :: symmetric_storage
-    logical                      , intent(in)  :: is_symmetric
-    integer(ip)                  , intent(in)  :: sign
-    type(serial_scalar_matrix_t) , intent(out) :: serial_scalar_matrix
-
-    assert ( this%dof_descriptor%nblocks == 1 ) 
-    call serial_scalar_matrix%create(symmetric_storage,is_symmetric,sign)
-    call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this, serial_scalar_matrix%graph )
-    call serial_scalar_matrix%allocate()
-  end subroutine serial_fe_space_create_make_serial_scalar_coefficient_matrix
-  
-  subroutine serial_fe_space_create_make_serial_block_coefficient_matrix(this, & 
-                                                                         diagonal_blocks_symmetric_storage, & 
-                                                                         diagonal_blocks_symmetric, &
-                                                                         diagonal_blocks_sign,& 
-                                                                         serial_block_matrix)
-    implicit none
-    class(serial_fe_space_t)    , intent(in)  :: this
-    logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(this%dof_descriptor%nblocks)
-    logical                     , intent(in)  :: diagonal_blocks_symmetric(this%dof_descriptor%nblocks)
-    integer(ip)                 , intent(in)  :: diagonal_blocks_sign(this%dof_descriptor%nblocks)
-    type(serial_block_matrix_t) , intent(out) :: serial_block_matrix
-  end subroutine serial_fe_space_create_make_serial_block_coefficient_matrix
-
-
   !==================================================================================================
   ! Allocation of variables in fe_space according to the values in g_trian
   subroutine serial_fe_space_create( this, g_trian, dof_descriptor, problem, bcond, continuity, enable_face_integration, & 
                                      order, material, time_steps_to_store, hierarchical_basis,       & 
                                      static_condensation, num_continuity, num_ghosts )
     implicit none
-	class(serial_fe_space_t)        , target, intent(inout) :: this
+	   class(serial_fe_space_t)        , target, intent(inout) :: this
     type(triangulation_t), target, intent(in)    :: g_trian   
     type(dof_descriptor_t)       ,intent(in)    :: dof_descriptor
     integer(ip)                    , intent(in)    :: problem(:)
@@ -803,29 +773,25 @@ contains
   !    elements) (see explanation of the subroutine below and *ghost_dofs_by_integration*
   !    in *par_create_global_dof_info_names* for more insight)
   !*********************************************************************************
-  subroutine setup_dof_graph_from_block_row_col_identifiers( iblock, jblock, fe_space, dof_graph ) 
+  subroutine setup_serial_scalar_matrix_graph_from_block_row_col_identifiers( iblock, jblock, fe_space, serial_scalar_matrix ) 
     implicit none
     ! Parameters
-    integer(ip)            , intent(in)     :: iblock, jblock
-    type(serial_fe_space_t)       , intent(in)     :: fe_space 
-    type(graph_t)          , intent(inout)  :: dof_graph
+    integer(ip)                 , intent(in)     :: iblock, jblock
+    type(serial_fe_space_t)     , intent(in)     :: fe_space 
+    type(serial_scalar_matrix_t), intent(inout)  :: serial_scalar_matrix
 
     ! Local variables
     integer(ip) :: iprob, l_var, count, iobje, ielem, jelem, nvapb, ivars, g_var, inter, inode, l_node
-    integer(ip) :: idof, jdof, int_i, int_j, istat, jnode, job_g, jobje, jvars, k_var , touch
+    integer(ip) :: idof, jdof, int_i, int_j, istat, jnode, job_g, jobje, jvars, k_var
     integer(ip) :: l_dof, m_dof, m_node, m_var, posi, posf, l_mat, m_mat, knode
-
     integer(ip) :: nvapbi, nvapbj, nnode, i, iface, jprob, l_faci, l_facj, ic
-
-
     integer(ip), allocatable :: aux_ia(:)
     type(hash_table_ip_ip_t) :: visited
+    type(graph_t), pointer   :: dof_graph
 	
-    touch = 1
-
-    ! Initialize
-    dof_graph%nv  = fe_space%ndofs(iblock)
-    dof_graph%nv2 = fe_space%ndofs(jblock)
+    dof_graph => serial_scalar_matrix%get_graph()
+    
+    ! Allocate and initialize dof_graph%ia
     call memalloc( dof_graph%nv+1, dof_graph%ia, __FILE__,__LINE__ )
     dof_graph%ia = 0
 
@@ -834,7 +800,6 @@ contains
     call count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( iblock, jblock, fe_space%dof_descriptor, fe_space%g_trian, fe_space, dof_graph ) 
     call count_nnz_all_dofs_vs_all_dofs_by_face_integration( iblock, jblock, fe_space%dof_descriptor, fe_space%g_trian, fe_space, dof_graph )  
 
-    !
     dof_graph%ia(1) = 1
     do idof = 2, fe_space%ndofs(iblock)+1
        dof_graph%ia(idof) = dof_graph%ia(idof) + dof_graph%ia(idof-1)
@@ -860,8 +825,10 @@ contains
     end do
 
     call memfree (aux_ia,__FILE__,__LINE__)
-
-  end subroutine setup_dof_graph_from_block_row_col_identifiers
+    
+    call serial_scalar_matrix%return_graph(dof_graph)
+    
+  end subroutine setup_serial_scalar_matrix_graph_from_block_row_col_identifiers
 
   !*********************************************************************************
   ! Count NNZ (number of nonzero entries) for DOFs on the interface (VEFs) of elements against

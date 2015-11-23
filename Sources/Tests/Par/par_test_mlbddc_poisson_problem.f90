@@ -493,9 +493,9 @@ program par_test_mlbddc_poisson_problem
      ! Create multilevel bddc inverse 
      call par_preconditioner_dd_mlevel_bddc_create( fe_affine_operator, p_mlevel_bddc, p_mlevel_bddc_pars )
      ! Ass struct
-     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mlevel_bddc )
+     call par_preconditioner_dd_mlevel_bddc_symbolic_setup ( p_mlevel_bddc )
      ! Fill val
-     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
+     call par_preconditioner_dd_mlevel_bddc_numerical_setup ( p_mlevel_bddc )
           
      ! Create linear solver, set operators and solve linear system
      call linear_solver%create(p_env)

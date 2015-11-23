@@ -31,6 +31,7 @@ module par_scalar_matrix_names
   use memor_names
   use serial_scalar_matrix_names
   use stdio_names
+  use graph_names
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -53,7 +54,15 @@ module par_scalar_matrix_names
 
   private
 
+  integer(ip), parameter :: start           = 0
+  integer(ip), parameter :: properties_set  = 1
+  integer(ip), parameter :: environment_set = 2
+  integer(ip), parameter :: created         = 3
+  
+  
   type, extends(matrix_t) :: par_scalar_matrix_t
+     integer(ip) :: state = start
+  
      type( serial_scalar_matrix_t ) :: serial_scalar_matrix
 
      type(dof_distribution_t), pointer :: &
@@ -65,16 +74,34 @@ module par_scalar_matrix_names
      type(par_environment_t), pointer :: &
           p_env => NULL()
    contains
+   
      generic  :: create   => par_scalar_matrix_create_square, &
-          par_scalar_matrix_create_rectangular
+                             par_scalar_matrix_create_rectangular
      procedure, private :: par_scalar_matrix_create_square
      procedure, private :: par_scalar_matrix_create_rectangular
-
-     procedure  :: allocate => par_scalar_matrix_allocate
+   
+     generic :: set_properties => par_scalar_matrix_set_properties_square, &
+                                  par_scalar_matrix_set_properties_rectangular
+     procedure, private :: par_scalar_matrix_set_properties_square
+     procedure, private :: par_scalar_matrix_set_properties_rectangular
+                           
+     procedure :: set_environment => par_scalar_matrix_set_environment
+   
+     generic  :: set_dof_distribution   => par_scalar_matrix_set_dof_distribution_square, &
+                             par_scalar_matrix_set_dof_distribution_rectangular
+     procedure, private :: par_scalar_matrix_set_dof_distribution_square
+     procedure, private :: par_scalar_matrix_set_dof_distribution_rectangular
+     
+     procedure  :: get_graph    => par_scalar_matrix_get_graph
+     procedure  :: return_graph => par_scalar_matrix_return_graph 
+     
+     procedure  :: allocate            => par_scalar_matrix_allocate
      procedure  :: print_matrix_market => par_scalar_matrix_print_matrix_market						 
-     procedure  :: init      => par_scalar_matrix_init
-     procedure  :: apply     => par_scalar_matrix_apply
-     procedure  :: free_in_stages => par_scalar_matrix_free_in_stages
+     procedure  :: init                => par_scalar_matrix_init
+     procedure  :: apply               => par_scalar_matrix_apply
+     procedure  :: free_in_stages      => par_scalar_matrix_free_in_stages
+     
+     procedure, private :: create_vector_spaces => par_scalar_matrix_create_vector_spaces
   end type par_scalar_matrix_t
 
   ! Types
@@ -106,34 +133,107 @@ contains
   !=============================================================================
   subroutine par_scalar_matrix_create_square(this,symmetric_storage,is_symmetric,sign,dof_dist,p_env)
     implicit none
-    class(par_scalar_matrix_t)          ,intent(out) :: this
-    logical                             ,intent(in)  :: symmetric_storage
-    logical                             ,intent(in)  :: is_symmetric
-    integer(ip)                         ,intent(in)  :: sign
-    type(dof_distribution_t), target    ,intent(in)  :: dof_dist
-    type(par_environment_t) , target    ,intent(in)  :: p_env
+    class(par_scalar_matrix_t)          ,intent(inout) :: this
+    logical                             ,intent(in)    :: symmetric_storage
+    logical                             ,intent(in)    :: is_symmetric
+    integer(ip)                         ,intent(in)    :: sign
+    type(dof_distribution_t), target    ,intent(in)    :: dof_dist
+    type(par_environment_t) , target    ,intent(in)    :: p_env
 
-    call this%serial_scalar_matrix%create(symmetric_storage,is_symmetric,sign)
+    assert ( this%state == start )
     this%dof_dist_domain      => dof_dist 
-    this%dof_dist_range => dof_dist
-    this%p_env => p_env
+    this%dof_dist_range       => dof_dist
+    this%p_env                => p_env
+    if(this%p_env%p_context%iam>=0) then
+      call this%serial_scalar_matrix%create(dof_dist%nl,symmetric_storage,is_symmetric,sign)
+    end if  
+    call this%create_vector_spaces()
+    this%state = created
   end subroutine par_scalar_matrix_create_square
   
   !=============================================================================
   subroutine par_scalar_matrix_create_rectangular(this,dof_dist_domain,dof_dist_range,p_env)
     implicit none
-    class(par_scalar_matrix_t)          ,intent(out) :: this
-    type(dof_distribution_t), target    ,intent(in)  :: dof_dist_domain
-    type(dof_distribution_t), target    ,intent(in)  :: dof_dist_range
-    type(par_environment_t) , target    ,intent(in)  :: p_env
+    class(par_scalar_matrix_t)          ,intent(inout) :: this
+    type(dof_distribution_t), target    ,intent(in)    :: dof_dist_domain
+    type(dof_distribution_t), target    ,intent(in)    :: dof_dist_range
+    type(par_environment_t) , target    ,intent(in)    :: p_env
 
-    call this%serial_scalar_matrix%create()
+    assert ( this%state == start )
     this%dof_dist_domain => dof_dist_domain 
-    this%dof_dist_range => dof_dist_range
-    this%p_env => p_env
+    this%dof_dist_range  => dof_dist_range
+    this%p_env           => p_env
+    if(this%p_env%p_context%iam>=0) then
+      call this%serial_scalar_matrix%create(dof_dist_domain%nl,dof_dist_range%nl)
+    end if
+    call this%create_vector_spaces()
+    this%state = created
   end subroutine par_scalar_matrix_create_rectangular
   
-  subroutine par_scalar_matrix_allocate(this)
+  !=============================================================================
+  subroutine par_scalar_matrix_set_properties_square(this,symmetric_storage,is_symmetric,sign)
+    implicit none
+    class(par_scalar_matrix_t)          ,intent(inout) :: this
+    logical                             ,intent(in)    :: symmetric_storage
+    logical                             ,intent(in)    :: is_symmetric
+    integer(ip)                         ,intent(in)    :: sign
+    
+    assert ( this%state == start )
+    if(this%p_env%p_context%iam>=0) then
+      call this%serial_scalar_matrix%set_properties(symmetric_storage,is_symmetric,sign)
+    end if  
+    this%state = properties_set
+  end subroutine par_scalar_matrix_set_properties_square
+  
+  !=============================================================================
+  subroutine par_scalar_matrix_set_properties_rectangular(this)
+    implicit none
+    class(par_scalar_matrix_t), intent(inout) :: this  
+    assert ( this%state == start )
+    if(this%p_env%p_context%iam>=0) then
+      call this%serial_scalar_matrix%set_properties()
+    end if  
+    this%state = properties_set
+  end subroutine par_scalar_matrix_set_properties_rectangular
+  
+  !=============================================================================
+  subroutine par_scalar_matrix_set_environment(this,p_env)
+    implicit none
+    class(par_scalar_matrix_t)        , intent(inout) :: this
+    class(par_environment_t)  , target, intent(in)    :: p_env
+    assert ( this%state == properties_set )
+    this%p_env => p_env
+    this%state = environment_set
+  end subroutine par_scalar_matrix_set_environment
+  
+  !=============================================================================
+  subroutine par_scalar_matrix_set_dof_distribution_square(this,dof_dist)
+    implicit none
+    class(par_scalar_matrix_t)          ,intent(inout) :: this
+    type(dof_distribution_t), target    ,intent(in)    :: dof_dist
+
+    assert ( this%state == environment_set )
+    this%dof_dist_domain      => dof_dist 
+    this%dof_dist_range       => dof_dist
+    call this%create_vector_spaces()
+    this%state = created
+  end subroutine par_scalar_matrix_set_dof_distribution_square
+  
+  !=============================================================================
+  subroutine par_scalar_matrix_set_dof_distribution_rectangular(this,dof_dist_domain,dof_dist_range)
+    implicit none
+    class(par_scalar_matrix_t)          ,intent(inout) :: this
+    type(dof_distribution_t), target    ,intent(in)    :: dof_dist_domain
+    type(dof_distribution_t), target    ,intent(in)    :: dof_dist_range
+
+    assert ( this%state == environment_set )
+    this%dof_dist_domain => dof_dist_domain 
+    this%dof_dist_range  => dof_dist_range
+    call this%create_vector_spaces()
+    this%state = created
+  end subroutine par_scalar_matrix_set_dof_distribution_rectangular
+  
+  subroutine par_scalar_matrix_create_vector_spaces (this)
     implicit none
     class(par_scalar_matrix_t), intent(inout) :: this
     type(par_scalar_array_t) :: range_vector
@@ -141,22 +241,48 @@ contains
     type(vector_space_t), pointer :: range_vector_space
     type(vector_space_t), pointer :: domain_vector_space
     
-    if(this%p_env%p_context%iam>=0) then
-       call this%serial_scalar_matrix%allocate()
-    end if
-    
     call range_vector%create(this%dof_dist_range,this%p_env)
     call domain_vector%create(this%dof_dist_domain,this%p_env)
-
     range_vector_space => this%get_range_vector_space()
     call range_vector_space%create(range_vector)
-    
     domain_vector_space => this%get_domain_vector_space()
     call domain_vector_space%create(domain_vector)
     
     call range_vector%free()
     call domain_vector%free()
+  end subroutine par_scalar_matrix_create_vector_spaces
+  
+  subroutine par_scalar_matrix_allocate(this)
+    implicit none
+    class(par_scalar_matrix_t), intent(inout) :: this
+    assert ( this%state == created )
+    if(this%p_env%p_context%iam>=0) then
+       call this%serial_scalar_matrix%allocate()
+    end if
   end subroutine par_scalar_matrix_allocate
+  
+  !=============================================================================
+  function par_scalar_matrix_get_graph (this)
+    implicit none
+    class(par_scalar_matrix_t), target, intent(inout) :: this
+    type(graph_t), pointer                            :: par_scalar_matrix_get_graph
+    assert ( this%state == created )
+    if(this%p_env%p_context%iam>=0) then
+      par_scalar_matrix_get_graph =>  this%serial_scalar_matrix%get_graph()
+    else
+      nullify(par_scalar_matrix_get_graph)
+    end if  
+  end function par_scalar_matrix_get_graph
+  
+  !=============================================================================
+  subroutine par_scalar_matrix_return_graph (this,graph)
+    implicit none
+    class(par_scalar_matrix_t), intent(inout) :: this
+    type(graph_t), pointer, intent(inout)        :: graph
+    if(this%p_env%p_context%iam>=0) then
+      call this%serial_scalar_matrix%return_graph(graph)
+    end if  
+  end subroutine par_scalar_matrix_return_graph
 
   !=============================================================================
   subroutine par_scalar_matrix_free_in_stages(this, action)
@@ -164,27 +290,29 @@ contains
     class(par_scalar_matrix_t), intent(inout) :: this
     integer(ip)               , intent(in)    :: action
 
-    ! The routine requires the partition/context info
-    assert ( associated(this%dof_dist_domain) )
-    assert ( associated(this%dof_dist_range) )
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    assert ( action == free_clean .or. action == free_struct .or. action == free_values )
-
-    if(this%p_env%p_context%iam<0) return
+    if ( this%state == start .or. this%state == properties_set ) return
 
     if ( action == free_clean ) then
-       nullify ( this%dof_dist_domain )
-       nullify ( this%dof_dist_range )
-       nullify ( this%p_env )
-       call this%serial_scalar_matrix%free_in_stages(action)
-    else if ( action == free_struct ) then
-       call this%serial_scalar_matrix%free_in_stages(action)
-    else if ( action == free_values ) then
-       call this%serial_scalar_matrix%free_in_stages(action)
-       call this%free_vector_spaces()
+       if ( this%state == created ) then
+          if(this%p_env%p_context%iam>=0) then
+            call this%serial_scalar_matrix%free_in_stages(action)
+          end if  
+          nullify ( this%dof_dist_domain )
+          nullify ( this%dof_dist_range )
+          nullify ( this%p_env )
+          call this%free_vector_spaces()
+          this%state = start
+       end if   
+    else if ( action == free_symbolic_setup ) then
+        if(this%p_env%p_context%iam>=0) then
+          call this%serial_scalar_matrix%free_in_stages(action)
+        end if 
+    else if ( action == free_numerical_setup ) then
+        if(this%p_env%p_context%iam>=0) then
+          call this%serial_scalar_matrix%free_in_stages(action)
+        end if     
     end if
-
+    
   end subroutine par_scalar_matrix_free_in_stages
   
 
@@ -198,11 +326,10 @@ contains
     character(256)  :: name 
     character(256)  :: zeros
     character(256)  :: part_id
-
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
+    
+    assert ( this%state == created )
+    
     if(this%p_env%p_context%iam<0) return
-
 
     name = trim(prefix) // '.par_matrix' // '.mtx'
 
@@ -249,19 +376,14 @@ contains
     end do
   end function count_digits_par_matrix
 
-  subroutine par_scalar_matrix_init (p_matrix, alpha)
+  subroutine par_scalar_matrix_init (this, alpha)
     implicit none
     ! Parameters 
-    class(par_scalar_matrix_t), intent(inout) :: p_matrix
-    real(rp)                  , intent(in)    :: alpha    
-
-    ! p_env%p_context is required within this subroutine
-    assert ( associated(p_matrix%p_env%p_context) )
-    assert ( p_matrix%p_env%p_context%created .eqv. .true.)
-
-    if(p_matrix%p_env%p_context%iam<0) return
-
-    call p_matrix%serial_scalar_matrix%init(alpha)
+    class(par_scalar_matrix_t), intent(inout) :: this
+    real(rp)                  , intent(in)    :: alpha
+    assert ( this%state == created )
+    if(this%p_env%p_context%iam<0) return
+    call this%serial_scalar_matrix%init(alpha)
   end subroutine par_scalar_matrix_init
 
   subroutine par_scalar_matrix_apply_concrete(a,x,y)
@@ -270,23 +392,7 @@ contains
     type(par_scalar_matrix_t) , intent(in)    :: a
     type(par_scalar_array_t) , intent(in)    :: x
     type(par_scalar_array_t) , intent(inout) :: y
-    ! Locals
-    !integer(c_int)                   :: ierrc
-    real :: aux
-
-    ! This routine requires the partition/context info
-    assert ( associated(a%p_env) )
-    assert ( associated(a%p_env%p_context) )
-
-    assert ( a%p_env%p_context%created .eqv. .true.)
     if(a%p_env%p_context%iam<0) return
-
-    assert ( associated(x%p_env) )
-    assert ( associated(x%p_env%p_context) )
-
-    assert ( associated(y%p_env) )
-    assert ( associated(y%p_env%p_context) )
-
     call a%serial_scalar_matrix%apply(x%serial_scalar_array, y%serial_scalar_array)
     call y%comm()
   end subroutine par_scalar_matrix_apply_concrete
@@ -299,6 +405,8 @@ contains
     class(vector_t) , intent(in)    :: x
     class(vector_t) , intent(inout) :: y 
 
+    assert ( op%state == created )
+    
     call op%abort_if_not_in_domain(x)
     call op%abort_if_not_in_range(y)
     

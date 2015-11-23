@@ -77,11 +77,6 @@ module SB_preconditioner_names
   integer(ip), parameter :: no_verbose = 0
   integer(ip), parameter :: verbose = 1
 
-  ! Release level
-  integer (ip), parameter  :: preconditioner_free_values = 7
-  integer (ip), parameter  :: preconditioner_free_struct = 8
-  integer (ip), parameter  :: preconditioner_free_clean  = 9
-
   type, extends(operator_t) :: SB_preconditioner_t
      ! Preconditioner type (none, diagonal, ILU, etc.)
      integer(ip)          :: type = -1 ! Undefined
@@ -134,6 +129,7 @@ module SB_preconditioner_names
      procedure :: apply     => SB_preconditioner_apply
      procedure :: is_linear => SB_preconditioner_is_linear
      procedure :: free      => SB_preconditioner_free
+     procedure, private :: create_vector_spaces  => SB_preconditioner_create_vector_spaces
   end type SB_preconditioner_t
 
   type SB_preconditioner_params_t
@@ -158,12 +154,6 @@ module SB_preconditioner_names
      real    :: damping           = 0.8       ! Damping factor for smoother==DJ
 
   end type SB_preconditioner_params_t
-
-  ! Constants
-  !public :: no_prec, diag_prec, pardiso_mkl_prec, wsmp_prec, hsl_mi20_prec, hsl_ma87_prec, umfpack_prec
-  !public :: preconditioner_free_values
-  !public :: preconditioner_free_struct
-  !public :: preconditioner_free_clean
 
   ! Types
   public :: SB_preconditioner_t, SB_preconditioner_params_t
@@ -280,6 +270,22 @@ contains
      end select 
      call SB_preconditioner_create_w_serial_matrix ( serial_scalar_matrix, prec, pars )
   end subroutine SB_preconditioner_create_w_fe_affine_operator
+  
+  
+ subroutine SB_preconditioner_create_vector_spaces ( prec ) 
+    implicit none
+    class(SB_preconditioner_t), intent(inout) :: prec
+    type(vector_space_t), pointer :: mat_domain_vector_space
+    type(vector_space_t), pointer :: mat_range_vector_space
+    type(vector_space_t), pointer :: prec_domain_vector_space
+    type(vector_space_t), pointer :: prec_range_vector_space
+    mat_domain_vector_space => prec%mat%get_domain_vector_space()
+    mat_range_vector_space => prec%mat%get_range_vector_space()
+    prec_domain_vector_space => prec%get_domain_vector_space()
+    prec_range_vector_space => prec%get_range_vector_space()
+    call mat_domain_vector_space%clone(prec_domain_vector_space)
+    call mat_range_vector_space%clone(prec_range_vector_space)
+  end subroutine SB_preconditioner_create_vector_spaces
 
   !=============================================================================
   subroutine SB_preconditioner_free_in_stages ( prec, action )
@@ -293,51 +299,51 @@ contains
     type (serial_scalar_matrix_t) :: adum 
     type (serial_scalar_array_t) :: vdum 
 
-    if ( action == preconditioner_free_clean ) then
+    if ( action == free_clean ) then
        nullify(prec%mat)
     end if
     
-    if ( action == preconditioner_free_values ) then
+    if ( action == free_symbolic_setup ) then
        call prec%free_vector_spaces()
     end if
 
     if(prec%type==pardiso_mkl_prec) then
-       if ( action == preconditioner_free_clean ) then
-          call pardiso_mkl ( pardiso_mkl_free_clean, prec%pardiso_mkl_ctxt, &
-               &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
+       if ( action == free_clean ) then
+          call pardiso_mkl ( free_clean, prec%pardiso_mkl_ctxt, &
+               &             adum, vdum, vdum, prec%pardiso_mkl_iparm)
           deallocate(prec%pardiso_mkl_ctxt)
           deallocate(prec%pardiso_mkl_iparm)
           return  
        end if
-       if ( action == preconditioner_free_struct  ) then
-          call pardiso_mkl ( pardiso_mkl_free_struct, prec%pardiso_mkl_ctxt, &
-               &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
-       else if ( action == preconditioner_free_values ) then
-          call pardiso_mkl ( pardiso_mkl_free_values, prec%pardiso_mkl_ctxt, &
-               &                   adum, vdum, vdum, prec%pardiso_mkl_iparm)
+       if ( action == free_symbolic_setup  ) then
+          call pardiso_mkl ( free_symbolic_setup, prec%pardiso_mkl_ctxt, &
+               &             adum, vdum, vdum, prec%pardiso_mkl_iparm)
+       else if ( action == free_numerical_setup ) then
+          call pardiso_mkl ( free_numerical_setup, prec%pardiso_mkl_ctxt, &
+               &             adum, vdum, vdum, prec%pardiso_mkl_iparm)
        end if
 
     else if(prec%type==wsmp_prec) then
-       if ( action == preconditioner_free_clean ) then
-          call wsmp ( wsmp_free_clean, prec%wsmp_ctxt, adum, vdum, &
-               &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
+       if ( action == free_clean ) then
+          call wsmp ( free_clean, prec%wsmp_ctxt, adum, vdum, &
+               &      vdum, prec%wsmp_iparm, prec%wsmp_rparm)
           deallocate(prec%wsmp_ctxt)
           deallocate(prec%wsmp_iparm)
           deallocate(prec%wsmp_rparm)
           return  
        end if
-       if ( action == preconditioner_free_struct  ) then
-          call wsmp ( wsmp_free_struct, prec%wsmp_ctxt, adum, vdum, &
-               &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
+       if ( action == free_symbolic_setup  ) then
+          call wsmp ( free_symbolic_setup, prec%wsmp_ctxt, adum, vdum, &
+               &      vdum, prec%wsmp_iparm, prec%wsmp_rparm)
 
-       else if ( action == preconditioner_free_values ) then
-          call wsmp ( wsmp_free_values, prec%wsmp_ctxt, adum, vdum, &
-               &            vdum, prec%wsmp_iparm, prec%wsmp_rparm)
+       else if ( action == free_numerical_setup ) then
+          call wsmp ( free_numerical_setup, prec%wsmp_ctxt, adum, vdum, &
+               &      vdum, prec%wsmp_iparm, prec%wsmp_rparm)
        end if
 
     else if(prec%type==hsl_mi20_prec) then
-       if ( action == preconditioner_free_clean ) then
-          call hsl_mi20 ( hsl_mi20_free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
+       if ( action == free_clean ) then
+          call hsl_mi20 ( free_clean, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
           deallocate(prec%hsl_mi20_ctxt)
           deallocate(prec%hsl_mi20_data)
@@ -345,42 +351,42 @@ contains
           deallocate(prec%hsl_mi20_info)
           return  
        end if
-       if ( action == preconditioner_free_struct  ) then
-          call hsl_mi20 ( hsl_mi20_free_struct, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
+       if ( action == free_symbolic_setup  ) then
+          call hsl_mi20 ( free_symbolic_setup, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
-       else if ( action == preconditioner_free_values ) then
-          call hsl_mi20 ( hsl_mi20_free_values, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
+       else if ( action == free_numerical_setup ) then
+          call hsl_mi20 ( free_numerical_setup, prec%hsl_mi20_ctxt, adum, vdum, vdum, &
                &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
        end if
     else if(prec%type==hsl_ma87_prec) then
-       if ( action == preconditioner_free_clean ) then
-          call hsl_ma87 ( hsl_ma87_free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
+       if ( action == free_clean ) then
+          call hsl_ma87 ( free_clean, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
                &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
           deallocate(prec%hsl_ma87_ctxt)
           deallocate(prec%hsl_ma87_ctrl)
           deallocate(prec%hsl_ma87_info)
           return  
        end if
-       if ( action == preconditioner_free_struct  ) then
-          call hsl_ma87 ( hsl_ma87_free_struct, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
+       if ( action == free_symbolic_setup  ) then
+          call hsl_ma87 ( free_symbolic_setup, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
                &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
-       else if ( action == preconditioner_free_values ) then
-          call hsl_ma87 ( hsl_ma87_free_values, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
+       else if ( action == free_numerical_setup ) then
+          call hsl_ma87 ( free_numerical_setup, prec%hsl_ma87_ctxt, adum, vdum, vdum, &
                &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
        end if
     else if(prec%type==umfpack_prec) then
-       if ( action == preconditioner_free_clean ) then
-          call umfpack ( umfpack_free_clean, prec%umfpack_ctxt, adum, vdum, vdum )
+       if ( action == free_clean ) then
+          call umfpack ( free_clean, prec%umfpack_ctxt, adum, vdum, vdum )
           deallocate(prec%umfpack_ctxt)
           return  
        end if
-       if ( action == preconditioner_free_struct  ) then
-          call umfpack ( umfpack_free_struct, prec%umfpack_ctxt, adum, vdum, vdum )
-       else if ( action == preconditioner_free_values ) then
-          call umfpack ( umfpack_free_values, prec%umfpack_ctxt, adum, vdum, vdum )
+       if ( action == free_symbolic_setup  ) then
+          call umfpack ( free_symbolic_setup, prec%umfpack_ctxt, adum, vdum, vdum )
+       else if ( action == free_numerical_setup ) then
+          call umfpack ( free_numerical_setup, prec%umfpack_ctxt, adum, vdum, vdum )
        end if
     else if ( prec%type == diag_prec ) then
-       if ( action == preconditioner_free_values ) then
+       if ( action == free_numerical_setup ) then
           call memfree ( prec%d,__FILE__,__LINE__)
        end if
     else if(prec%type/=no_prec) then
@@ -398,6 +404,8 @@ contains
     ! Locals
     type (serial_scalar_array_t) :: vdum 
 
+    call prec%create_vector_spaces()
+    
     if(prec%type==pardiso_mkl_prec) then
        call pardiso_mkl ( pardiso_mkl_compute_symb, prec%pardiso_mkl_ctxt, &
             &             prec%mat, vdum, vdum, prec%pardiso_mkl_iparm )
@@ -436,32 +444,25 @@ contains
     ! Parameters
     type(SB_preconditioner_t), target, intent(inout) :: prec
     ! Locals
-    type(serial_scalar_matrix_t), pointer :: mat
     type (serial_scalar_array_t) :: vdum 
     integer(ip)       :: ilev, n, nnz
     integer(ip)       :: i, j
     real(rp)          :: diag
-    type(vector_space_t), pointer :: mat_domain_vector_space
-    type(vector_space_t), pointer :: mat_range_vector_space
-    type(vector_space_t), pointer :: prec_domain_vector_space
-    type(vector_space_t), pointer :: prec_range_vector_space
     
-    mat => prec%mat
-
     if(prec%type==pardiso_mkl_prec) then
        call pardiso_mkl ( pardiso_mkl_compute_num, prec%pardiso_mkl_ctxt, &
-            mat, vdum, vdum, prec%pardiso_mkl_iparm )
+            prec%mat, vdum, vdum, prec%pardiso_mkl_iparm )
        prec%mem_peak_num = prec%pardiso_mkl_iparm(16)+prec%pardiso_mkl_iparm(17)
        prec%Mflops       = real(prec%pardiso_mkl_iparm(19))/1.0e3_rp
     else if(prec%type==wsmp_prec) then
-       call wsmp ( wsmp_compute_num, prec%wsmp_ctxt, mat, vdum, &
+       call wsmp ( wsmp_compute_num, prec%wsmp_ctxt, prec%mat, vdum, &
             &      vdum, prec%wsmp_iparm, prec%wsmp_rparm )
        prec%mem_peak_num = 8*prec%wsmp_iparm(23)
        prec%Mflops       = real(prec%wsmp_rparm(23))/1.0e9_rp
        !write(*,*) prec%wsmp_iparm(23)
        !write(*,*) prec%wsmp_rparm(23)
     else if (prec%type==hsl_mi20_prec) then
-       call hsl_mi20 ( hsl_mi20_compute_num, prec%hsl_mi20_ctxt, mat, vdum, vdum, &
+       call hsl_mi20 ( hsl_mi20_compute_num, prec%hsl_mi20_ctxt, prec%mat, vdum, vdum, &
             &          prec%hsl_mi20_data, prec%hsl_mi20_ctrl, prec%hsl_mi20_info )
 
 #ifdef ENABLE_HSL_MI20 
@@ -473,22 +474,22 @@ contains
        prec%cg  = 0.0        
        prec%ca  = 0.0
        do ilev=1, prec%lev
-          n   = prec%hsl_mi20_data%coarse_data(ilev)%A_mat%m
-          nnz = prec%hsl_mi20_data%coarse_data(ilev)%A_mat%ptr(n+1)-1
-          ! write (*,*) 'XXX', ilev, n, nnz, mat%graph%nv, mat%graph%ia(mat%graph%nv+1)-1
+          n   = prec%hsl_mi20_data%coarse_data(ilev)%A_prec%mat%m
+          nnz = prec%hsl_mi20_data%coarse_data(ilev)%A_prec%mat%ptr(n+1)-1
+          ! write (*,*) 'XXX', ilev, n, nnz, prec%mat%graph%nv, prec%mat%graph%ia(prec%mat%graph%nv+1)-1
           prec%cs = prec%cs + dble(nnz)/dble(n)
           prec%cg = prec%cg + dble(n)
           prec%ca = prec%ca + dble(nnz)
        end do
        prec%cs = prec%cs/dble(prec%lev)
-       prec%cg = prec%cg/dble(mat%graph%nv)
-       prec%ca = prec%ca/dble(mat%graph%ia(mat%graph%nv+1)-1)
+       prec%cg = prec%cg/dble(prec%mat%graph%nv)
+       prec%ca = prec%ca/dble(prec%mat%graph%ia(prec%mat%graph%nv+1)-1)
 #endif
     else if (prec%type==hsl_ma87_prec) then
-       call hsl_ma87 ( hsl_ma87_compute_num, prec%hsl_ma87_ctxt, mat, vdum, vdum, &
+       call hsl_ma87 ( hsl_ma87_compute_num, prec%hsl_ma87_ctxt, prec%mat, vdum, vdum, &
             &          prec%hsl_ma87_ctrl, prec%hsl_ma87_info )
     else if (prec%type==umfpack_prec) then
-       call umfpack ( umfpack_compute_num, prec%umfpack_ctxt, mat, vdum, vdum)
+       call umfpack ( umfpack_compute_num, prec%umfpack_ctxt, prec%mat, vdum, vdum)
 #ifdef ENABLE_UMFPACK
        prec%mem_peak_num = (prec%umfpack_ctxt%Info(UMFPACK_PEAK_MEMORY)*prec%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
        prec%Mflops       = prec%umfpack_ctxt%Info(UMFPACK_FLOPS)/(1.0e+06_rp * prec%umfpack_ctxt%Info(UMFPACK_NUMERIC_TIME))
@@ -496,21 +497,14 @@ contains
 #endif
     else if (prec%type==diag_prec) then
        ! Allocate + extract
-       call memalloc ( mat%graph%nv, prec%d, __FILE__,__LINE__)
-       call extract_diagonal(mat%graph%symmetric_storage,mat%graph%nv,mat%graph%ia,mat%graph%ja,mat%a,mat%graph%nv,prec%d)
+       call memalloc ( prec%mat%graph%nv, prec%d, __FILE__,__LINE__)
+       call extract_diagonal(prec%mat%graph%symmetric_storage,prec%mat%graph%nv,prec%mat%graph%ia,prec%mat%graph%ja,prec%mat%a,prec%mat%graph%nv,prec%d)
        ! Invert diagonal
-       call invert_diagonal  ( mat%graph%nv, prec%d )
+       call invert_diagonal  ( prec%mat%graph%nv, prec%d )
     else if(prec%type/=no_prec) then
        write (0,*) 'Error: SB_preconditioner type not supported'
        check(1==0)
     end if
-    
-    mat_domain_vector_space => mat%get_domain_vector_space()
-    mat_range_vector_space => mat%get_range_vector_space()
-    prec_domain_vector_space => prec%get_domain_vector_space()
-    prec_range_vector_space => prec%get_range_vector_space()
-    call mat_domain_vector_space%clone(prec_domain_vector_space)
-    call mat_range_vector_space%clone(prec_range_vector_space)
   end subroutine SB_preconditioner_numerical_setup
 
   !=============================================================================
@@ -750,9 +744,9 @@ contains
   subroutine SB_preconditioner_free(this)
     implicit none
     class(SB_preconditioner_t), intent(inout) :: this
-    call SB_preconditioner_free_in_stages(this,preconditioner_free_values)
-    call SB_preconditioner_free_in_stages(this,preconditioner_free_struct)
-    call SB_preconditioner_free_in_stages(this,preconditioner_free_clean)
+    call SB_preconditioner_free_in_stages(this,free_numerical_setup)
+    call SB_preconditioner_free_in_stages(this,free_symbolic_setup)
+    call SB_preconditioner_free_in_stages(this,free_clean)
   end subroutine SB_preconditioner_free
 
 end module SB_preconditioner_names

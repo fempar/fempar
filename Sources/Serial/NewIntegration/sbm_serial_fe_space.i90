@@ -68,15 +68,16 @@ function serial_fe_space_create_assembler(this, diagonal_blocks_symmetric_storag
   allocate ( serial_scalar_array_t  :: array )
   select type(matrix)
      class is(serial_scalar_matrix_t)
-     call matrix%create( diagonal_blocks_symmetric_storage(1),& 
-          diagonal_blocks_symmetric(1),& 
-          diagonal_blocks_sign(1) )
+     call matrix%create( this%number_dofs, &
+                         diagonal_blocks_symmetric_storage(1),& 
+                         diagonal_blocks_symmetric(1),& 
+                         diagonal_blocks_sign(1) )
      class default
      check(.false.)
   end select
   select type(array)
      class is(serial_scalar_array_t)
-     call array%create(this%number_dofs)
+       call array%create(this%number_dofs)
      class default
      check(.false.)
   end select
