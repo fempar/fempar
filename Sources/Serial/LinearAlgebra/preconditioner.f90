@@ -423,8 +423,8 @@ contains
     else if (this%type==umfpack_prec) then
        call umfpack ( umfpack_compute_symb, this%umfpack_ctxt, this%mat, vdum, vdum)
 #ifdef ENABLE_UMFPACK 
-       this%mem_peak_symb = (prec%umfpack_ctxt%Info(UMFPACK_SYMBOLIC_PEAK_MEMORY)*prec%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
-       this%mem_perm_symb = (prec%umfpack_ctxt%Info(UMFPACK_SYMBOLIC_SIZE)*prec%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
+       this%mem_peak_symb = (this%umfpack_ctxt%Info(UMFPACK_SYMBOLIC_PEAK_MEMORY)*this%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
+       this%mem_perm_symb = (this%umfpack_ctxt%Info(UMFPACK_SYMBOLIC_SIZE)*this%umfpack_ctxt%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp
 #endif
     else if(this%type/=no_prec .and. this%type /= diag_prec) then
        write (0,*) 'Error: preconditioner type not supported'
