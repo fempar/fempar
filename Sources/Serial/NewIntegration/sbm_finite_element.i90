@@ -28,9 +28,9 @@ subroutine fe_print( this )
  write(*,*) '********************CELL********************'
  call element_print( 6, this%cell )
  write(*,*) '********************ELEMENT 2 DOF********************'
- write(*,*), this%elem2dof
+ write(*,*) this%elem2dof
  write(*,*) '********************BC CODE********************'
- write(*,*), this%bc_code
+ write(*,*) this%bc_code
 
 
 end subroutine fe_print

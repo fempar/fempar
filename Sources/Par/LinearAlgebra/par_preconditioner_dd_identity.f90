@@ -105,7 +105,7 @@ module par_preconditioner_dd_identity_names
       check(.false.)
     end select 
 
-    call par_preconditioner_dd_diagonal_create_w_par_matrix ( p_mat, p_prec_dd_identity )
+    call par_preconditioner_dd_identity_create_w_par_matrix ( p_mat, p_prec_dd_identity )
   end subroutine par_preconditioner_dd_identity_create_w_fe_affine_operator
 
   !=============================================================================

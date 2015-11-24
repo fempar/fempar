@@ -34,6 +34,22 @@ subroutine volume_integrator_create( this, reference_fe, reference_fe_geometry, 
 
 end subroutine volume_integrator_create
 
+subroutine volume_integrator_free( this )
+  implicit none
+  ! Parameters
+  class(SB_volume_integrator_t), intent(out) :: this
+
+  call this%quadrature%free()
+  call this%interpolation%free()
+  call this%interpolation_geometry%free()
+  call this%interpolation_o_map%free()
+!  call this%fe_map%free()
+
+  nullify(this%reference_fe)
+  nullify(this%reference_fe_geometry)
+
+end subroutine volume_integrator_free
+
 subroutine volume_integrator_set_integration( this, max_order )
   implicit none
   ! Parameters
@@ -70,28 +86,6 @@ subroutine volume_integrator_set_integration( this, max_order )
 
 end subroutine volume_integrator_set_integration
 
-! =================================================================================================
-subroutine volume_integrator_free(integ)
-  implicit none
-  type(SB_volume_integrator_t), intent(inout) :: integ    
-
-  !   ! Destruct quadratures
-  !   call quadrature_free(integ%quad)
-
-  !   ! Destruct interpolations
-  !   call interpolation_free(integ%gint_ref)
-  !   call interpolation_free(integ%gint_phy)
-  !   call interpolation_free(integ%uint_ref)
-  !   call interpolation_free(integ%uint_phy)
-
-  !   ! Destruct fe map
-  !   call memfree(map%jacobian,__FILE__,__LINE__)
-  !   call memfree(map%inv_jacobian,__FILE__,__LINE__)
-  !   call memfree(map%det_jacobian,__FILE__,__LINE__)
-
-end subroutine volume_integrator_free
-
-!==================================================================================================
 subroutine volume_integrator_update(this, coordinates)
   implicit none
   ! Parameters
@@ -159,6 +153,28 @@ function volume_integrator_get_fe_map ( this )
   type(fe_map_t), pointer :: volume_integrator_get_fe_map
   volume_integrator_get_fe_map => this%fe_map
 end function volume_integrator_get_fe_map
+
+subroutine fe_map_free( this )
+  implicit none
+  class(fe_map_t), intent(inout) :: this
+
+! How is allocation managed?
+! Memfree case
+!  if(allocated(this%jacobian)) call memfree(this%jacobian,__FILE__,__LINE__)
+!  if(allocated(this%jacobian)) call memfree(this%inv_jacobian,__FILE__,__LINE__)
+!  if(allocated(this%jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
+!  if(allocated(this%jacobian)) call memfree(this%d2sdx,__FILE__,__LINE__)
+!  if(allocated(this%jacobian)) call memfree(this%coodinates_points,__FILE__,__LINE__)
+
+! Deallocate case
+!  if(allocated(this%jacobian)) call deallocate(this%jacobian)
+!  if(allocated(this%jacobian)) call deallocate(this%inv_jacobian)
+!  if(allocated(this%jacobian)) call deallocate(this%det_jacobian)
+!  if(allocated(this%jacobian)) call deallocate(this%d2sdx)
+!  if(allocated(this%jacobian)) call deallocate(this%coodinates_points)
+
+end subroutine fe_map_free
+
 
 function fe_map_get_det_jacobian ( this, i )
   implicit none

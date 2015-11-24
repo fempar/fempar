@@ -86,10 +86,7 @@ use hsl_ma87_double
   integer(ip), parameter :: hsl_ma87_finalize          = 2  ! Destruct  solve_hsl_ma87_state     
   integer(ip), parameter :: hsl_ma87_compute_symb      = 3  ! Compute symb. fact.  
   integer(ip), parameter :: hsl_ma87_compute_num       = 4  ! Compute numerical fact. 
-  integer(ip), parameter :: hsl_ma87_solve             = 6  ! Fwd./Bck. substitution 
-  integer(ip), parameter :: hsl_ma87_free_values       = 7
-  integer(ip), parameter :: hsl_ma87_free_struct       = 8
-  integer(ip), parameter :: hsl_ma87_free_clean        = 9
+  integer(ip), parameter :: hsl_ma87_solve             = 5  ! Fwd./Bck. substitution 
 
   interface hsl_ma87
      module procedure hsl_ma87_vector, hsl_ma87_r2, hsl_ma87_r1
@@ -100,10 +97,7 @@ use hsl_ma87_double
        &    hsl_ma87_finalize, &
        &    hsl_ma87_compute_symb, & 
        &    hsl_ma87_compute_num, &
-       &    hsl_ma87_solve, &
-       &    hsl_ma87_free_values,&
-       &    hsl_ma87_free_struct, &
-       &    hsl_ma87_free_clean
+       &    hsl_ma87_solve
 
   ! Functions
   public :: hsl_ma87
@@ -156,14 +150,14 @@ contains
        assert ( context%state /= not_created )
        select case (context%state)
        case (created)
-          call  hsl_ma87_free ( hsl_ma87_free_clean , context, ctrl )
+          call  hsl_ma87_free ( free_clean , context, ctrl )
        case (symb_computed)
-          call  hsl_ma87_free ( hsl_ma87_free_struct, context, ctrl )
-          call  hsl_ma87_free ( hsl_ma87_free_clean , context, ctrl )
+          call  hsl_ma87_free ( free_symbolic_setup, context, ctrl )
+          call  hsl_ma87_free ( free_clean , context, ctrl )
        case (num_computed)
-          call  hsl_ma87_free ( hsl_ma87_free_values, context, ctrl )
-          call  hsl_ma87_free ( hsl_ma87_free_struct, context, ctrl )
-          call  hsl_ma87_free ( hsl_ma87_free_clean , context, ctrl )
+          call  hsl_ma87_free ( free_numerical_setup, context, ctrl )
+          call  hsl_ma87_free ( free_symbolic_setup, context, ctrl )
+          call  hsl_ma87_free ( free_clean , context, ctrl )
        end select
        ! State transition 
        context%state = not_created
@@ -191,19 +185,19 @@ contains
        assert ( context%state ==  num_computed )
        call hsl_ma87_solution ( context, A, b, x, ctrl, info )
 
-    case ( hsl_ma87_free_values )
+    case ( free_numerical_setup )
 
-       call  hsl_ma87_free ( hsl_ma87_free_values, context, ctrl )
+       call  hsl_ma87_free ( free_numerical_setup, context, ctrl )
        context%state=symb_computed
 
-    case ( hsl_ma87_free_struct )
+    case ( free_symbolic_setup )
 
-       call  hsl_ma87_free ( hsl_ma87_free_struct, context, ctrl )
+       call  hsl_ma87_free ( free_symbolic_setup, context, ctrl )
        context%state=created
 
-    case ( hsl_ma87_free_clean )
+    case ( free_clean )
 
-       call  hsl_ma87_free ( hsl_ma87_free_clean, context, ctrl )
+       call  hsl_ma87_free ( free_clean, context, ctrl )
        context%state=not_created
 
     case default
@@ -294,7 +288,6 @@ contains
     type(serial_scalar_matrix_t)      , intent(in)            :: matrix
 
 #ifdef ENABLE_HSL_MA87
-
 #else
     call enable_hsl_ma87_error_message
 #endif
@@ -310,11 +303,9 @@ contains
 
 #ifdef ENABLE_HSL_MA87
     ! Free hsl_ma87_context structures
-    if ( mode == hsl_ma87_free_clean ) then
-
-    else if ( mode == hsl_ma87_free_struct  ) then
-
-    else if ( mode == hsl_ma87_free_values ) then
+    if ( mode == free_clean ) then
+    else if ( mode == free_symbolic_setup  ) then
+    else if ( mode == free_numerical_setup ) then
        ! ** IMPORTANT NOTE: for non-linear iterations/transient problems
        !    it may have more sense to call
        !    ma87_finalize on the free_clean
@@ -325,7 +316,6 @@ contains
 #else
     call enable_hsl_ma87_error_message
 #endif
-
   end subroutine hsl_ma87_free
 
   !=============================================================================
@@ -342,8 +332,8 @@ use graph_renumbering_names
 
     ! Locals (required for the call to graph_nd_renumbering)
     type (graph_t)                  :: aux_graph
-    type(partitioning_params_t)             :: prt_parts
-    integer(ip)                   :: i
+    type(partitioning_params_t)     :: prt_parts
+    integer(ip)                     :: i
 
     assert ( matrix%graph%symmetric_storage )
 
@@ -382,8 +372,6 @@ use graph_renumbering_names
 #else
     call enable_hsl_ma87_error_message
 #endif
-
-
   end subroutine hsl_ma87_analysis
 
 

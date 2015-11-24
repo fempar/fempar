@@ -60,21 +60,24 @@ module par_block_matrix_names
    contains
      procedure, private :: par_block_matrix_create_only_blocks_container
      procedure, private :: par_block_matrix_create_blocks_container_and_all_blocks
-     generic :: create  => par_block_matrix_create_only_blocks_container, &
-                           par_block_matrix_create_blocks_container_and_all_blocks
-
-     procedure, private :: par_block_matrix_create_diagonal_block
-     procedure, private :: par_block_matrix_create_offdiagonal_block
-     generic :: create_block => par_block_matrix_create_diagonal_block, &
-          par_block_matrix_create_offdiagonal_block
-
-     procedure  :: allocate => par_block_matrix_allocate
-
-     procedure :: set_block_to_zero       => par_block_matrix_set_block_to_zero
-     procedure :: free_in_stages          => par_block_matrix_free_in_stages
-     procedure :: get_block               => par_block_matrix_get_block
-     procedure :: get_nblocks             => par_block_matrix_get_nblocks
-     procedure :: apply                   => par_block_matrix_apply
+     ! generic :: create  => par_block_matrix_create_only_blocks_container, &
+     !                       par_block_matrix_create_blocks_container_and_all_blocks                     
+     generic :: create  => par_block_matrix_create_blocks_container_and_all_blocks
+                           
+     ! This set of methods should be re-thought/developed in the future whenever we have a clearer
+     ! idea of which services these objects should provide and how they should behave
+     ! (i.e., once we know how to precisely define their state transition diagram)                      
+     ! procedure, private :: par_block_matrix_create_diagonal_block
+     ! procedure, private :: par_block_matrix_create_offdiagonal_block
+     ! generic :: create_block => par_block_matrix_create_diagonal_block, &
+     !                            par_block_matrix_create_offdiagonal_block
+     ! procedure :: set_block_to_zero => par_block_matrix_set_block_to_zero
+     procedure :: allocate                      => par_block_matrix_allocate
+     procedure :: free_in_stages                => par_block_matrix_free_in_stages
+     procedure :: get_block                     => par_block_matrix_get_block
+     procedure :: get_nblocks                   => par_block_matrix_get_nblocks
+     procedure :: apply                         => par_block_matrix_apply
+     procedure, private :: create_vector_spaces => par_block_matrix_create_vector_spaces
   end type par_block_matrix_t
 
   ! Types
@@ -97,7 +100,7 @@ contains
 
     integer(ip) :: ib,jb,istat
 
-    call this%create(blocks_dof_distribution%nblocks)
+    call this%par_block_matrix_create_only_blocks_container(blocks_dof_distribution%nblocks)
     do ib=1, this%nblocks 
        do jb=1, this%nblocks
           allocate ( this%blocks(ib,jb)%par_scalar_matrix )
@@ -114,6 +117,7 @@ contains
           end if
        end do
     end do
+    call this%create_vector_spaces()
   end subroutine par_block_matrix_create_blocks_container_and_all_blocks
   
   !=============================================================================
@@ -129,85 +133,38 @@ contains
   end subroutine par_block_matrix_create_only_blocks_container
   
   !=============================================================================
-  subroutine par_block_matrix_create_diagonal_block(this, & 
-                                                    ib, &
-                                                    dof_distribution, &
-                                                    p_env, &
-                                                    symmetric_storage, & 
-                                                    is_symmetric,& 
-                                                    sign)
-    implicit none
-    class(par_block_matrix_t)      , intent(out) :: this
-    integer(ip)                    , intent(in)  :: ib
-    type(dof_distribution_t)       , intent(in)  :: dof_distribution
-    type(par_environment_t)        , intent(in)  :: p_env
-    logical                        , intent(in)  :: symmetric_storage
-    logical                        , intent(in)  :: is_symmetric
-    integer(ip)                    , intent(in)  :: sign
-    
-    integer(ip) :: istat
-    
-    assert ( associated ( this%blocks(ib,ib)%par_scalar_matrix ) )
-    allocate ( this%blocks(ib,ib)%par_scalar_matrix, stat=istat )
-    check ( istat==0 )
-    
-    call this%blocks(ib,ib)%par_scalar_matrix%create( symmetric_storage, & 
-                                           	          is_symmetric, & 
-                                                      sign, &
-                                                      dof_distribution,&
-                                                      p_env )
-  end subroutine par_block_matrix_create_diagonal_block
-	
-  !=============================================================================
-  subroutine par_block_matrix_create_offdiagonal_block(this, & 
-                                                       ib, &
-						                                                 dof_distribution, &
-						                                                 dof_distribution_cols, &
-                                                       p_env )
-    implicit none
-    class(par_block_matrix_t)      , intent(out) :: this
-    integer(ip)                    , intent(in)  :: ib
-    type(dof_distribution_t)       , intent(in)  :: dof_distribution
-    type(dof_distribution_t)       , intent(in)  :: dof_distribution_cols
-    type(par_environment_t)        , intent(in)  :: p_env
-    
-    integer(ip) :: istat
-    
-    assert ( associated ( this%blocks(ib,ib)%par_scalar_matrix ) )
-    allocate ( this%blocks(ib,ib)%par_scalar_matrix, stat=istat )
-    check ( istat==0 )
-    
-    call this%blocks(ib,ib)%par_scalar_matrix%create( dof_distribution,&
-                                                      dof_distribution_cols,&
-                                                      p_env )
-  end subroutine par_block_matrix_create_offdiagonal_block
-  
-  !=============================================================================
   subroutine par_block_matrix_allocate(this)
     implicit none
     class(par_block_matrix_t), intent(inout) :: this
     integer(ip) :: ib,jb
+    do ib=1, this%nblocks
+       do jb=1, this%nblocks
+          if ( associated( this%blocks(ib,jb)%par_scalar_matrix ) ) then
+             call this%blocks(ib,jb)%par_scalar_matrix%allocate()
+          end if
+       end do
+    end do
+  end subroutine par_block_matrix_allocate
+  
+  subroutine par_block_matrix_create_vector_spaces(this)
+    implicit none
+    class(par_block_matrix_t), intent(inout) :: this
     type(par_block_array_t) :: range_vector
     type(par_block_array_t) :: domain_vector
     type(par_scalar_array_t), pointer :: range_vector_block
     type(par_scalar_array_t), pointer :: domain_vector_block
     type(vector_space_t), pointer :: range_vector_space
     type(vector_space_t), pointer :: domain_vector_space
-    
+    integer(ip) :: ib,jb
     call range_vector%create(this%nblocks)
     call domain_vector%create(this%nblocks)
     do ib=1, this%nblocks
-       do jb=1, this%nblocks
-          if ( associated( this%blocks(ib,jb)%par_scalar_matrix ) ) then
-             call this%blocks(ib,jb)%par_scalar_matrix%allocate()
-          end if
-          if ( ib == jb ) then
-            range_vector_block  => range_vector%get_block(ib) 
-            domain_vector_block => domain_vector%get_block(ib) 
-            call range_vector_block%create(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_range,this%blocks(ib,jb)%par_scalar_matrix%p_env)
-            call domain_vector_block%create(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_domain,this%blocks(ib,jb)%par_scalar_matrix%p_env)
-          end if
-       end do
+      range_vector_block  => range_vector%get_block(ib) 
+      domain_vector_block => domain_vector%get_block(ib) 
+      call range_vector_block%create(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_range,&
+                                     this%blocks(ib,jb)%par_scalar_matrix%p_env)
+      call domain_vector_block%create(this%blocks(ib,ib)%par_scalar_matrix%dof_dist_domain,&
+                                      this%blocks(ib,jb)%par_scalar_matrix%p_env)
     end do
     range_vector_space => this%get_range_vector_space()
     call range_vector_space%create(range_vector)
@@ -215,21 +172,7 @@ contains
     call domain_vector_space%create(domain_vector)
     call range_vector%free()
     call domain_vector%free()
-  end subroutine par_block_matrix_allocate
-  
-  !=============================================================================
-  subroutine par_block_matrix_set_block_to_zero (this,ib,jb)
-    implicit none
-    ! Parameters
-    class(par_block_matrix_t), intent(inout) :: this
-    integer(ip)           , intent(in)  :: ib,jb
-    
-    if ( associated(this%blocks(ib,jb)%par_scalar_matrix) ) then
-       call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_clean)
-       deallocate (this%blocks(ib,jb)%par_scalar_matrix)
-       nullify ( this%blocks(ib,jb)%par_scalar_matrix )
-    end if
-  end subroutine par_block_matrix_set_block_to_zero
+  end subroutine par_block_matrix_create_vector_spaces
 
   function par_block_matrix_get_block (bmat,ib,jb)
     implicit none
@@ -300,11 +243,11 @@ contains
                 call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_clean)
                 deallocate (this%blocks(ib,jb)%par_scalar_matrix, stat=istat)
                 check(istat==0)
-             else if ( action == free_struct ) then 
-                call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_struct)
-             else if ( action == free_values ) then
-                call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_values)
                 call this%free_vector_spaces()
+             else if ( action == free_symbolic_setup ) then 
+                call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_symbolic_setup)
+             else if ( action == free_numerical_setup ) then
+                call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_numerical_setup)
              end if
           end if
        end do
@@ -315,5 +258,75 @@ contains
        check(istat==0)
     end if
   end subroutine par_block_matrix_free_in_stages
+  
+  
+  !!=============================================================================
+  !subroutine par_block_matrix_create_diagonal_block(this, & 
+  !                                                  ib, &
+  !                                                  dof_distribution, &
+  !                                                  p_env, &
+  !                                                  symmetric_storage, & 
+  !                                                  is_symmetric,& 
+  !                                                  sign)
+  !  implicit none
+  !  class(par_block_matrix_t)      , intent(out) :: this
+  !  integer(ip)                    , intent(in)  :: ib
+  !  type(dof_distribution_t)       , intent(in)  :: dof_distribution
+  !  type(par_environment_t)        , intent(in)  :: p_env
+  !  logical                        , intent(in)  :: symmetric_storage
+  !  logical                        , intent(in)  :: is_symmetric
+  !  integer(ip)                    , intent(in)  :: sign
+  !  
+  !  integer(ip) :: istat
+  !  
+  !  assert ( associated ( this%blocks(ib,ib)%par_scalar_matrix ) )
+  !  allocate ( this%blocks(ib,ib)%par_scalar_matrix, stat=istat )
+  !  check ( istat==0 )
+  !  
+  !  call this%blocks(ib,ib)%par_scalar_matrix%create( symmetric_storage, & 
+  !                                         	          is_symmetric, & 
+  !                                                    sign, &
+  !                                                    dof_distribution,&
+  !                                                    p_env )
+  !end subroutine par_block_matrix_create_diagonal_block
+	
+  !!=============================================================================
+  !subroutine par_block_matrix_create_offdiagonal_block(this, & 
+  !                                                     ib, &
+		!				                                                 dof_distribution, &
+		!				                                                 dof_distribution_cols, &
+  !                                                     p_env )
+  !  implicit none
+  !  class(par_block_matrix_t)      , intent(out) :: this
+  !  integer(ip)                    , intent(in)  :: ib
+  !  type(dof_distribution_t)       , intent(in)  :: dof_distribution
+  !  type(dof_distribution_t)       , intent(in)  :: dof_distribution_cols
+  !  type(par_environment_t)        , intent(in)  :: p_env
+  !  
+  !  integer(ip) :: istat
+  !  
+  !  assert ( associated ( this%blocks(ib,ib)%par_scalar_matrix ) )
+  !  allocate ( this%blocks(ib,ib)%par_scalar_matrix, stat=istat )
+  !  check ( istat==0 )
+  !  
+  !  call this%blocks(ib,ib)%par_scalar_matrix%create( dof_distribution,&
+  !                                                    dof_distribution_cols,&
+  !                                                    p_env )
+  !end subroutine par_block_matrix_create_offdiagonal_block
+  
+  !!=============================================================================
+  !subroutine par_block_matrix_set_block_to_zero (this,ib,jb)
+  !  implicit none
+  !  ! Parameters
+  !  class(par_block_matrix_t), intent(inout) :: this
+  !  integer(ip)           , intent(in)  :: ib,jb
+  !  
+  !  if ( associated(this%blocks(ib,jb)%par_scalar_matrix) ) then
+  !     call this%blocks(ib,jb)%par_scalar_matrix%free_in_stages(free_clean)
+  !     deallocate (this%blocks(ib,jb)%par_scalar_matrix)
+  !     nullify ( this%blocks(ib,jb)%par_scalar_matrix )
+  !  end if
+  !end subroutine par_block_matrix_set_block_to_zero
+  
 
 end module par_block_matrix_names

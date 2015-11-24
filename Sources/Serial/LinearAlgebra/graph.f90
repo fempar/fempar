@@ -48,10 +48,21 @@ module graph_names
           ia(:),                     &    ! Indices to adjacencies        
           ja(:)                           ! Adjacencies
    contains
-     procedure :: create => graph_create
-     procedure :: print  => graph_print
-     procedure :: copy   => graph_copy
-     procedure :: free   => graph_free
+     procedure          :: set_symmetric_storage => graph_set_symmetric_storage
+     procedure, private :: graph_set_size_square
+     procedure, private :: graph_set_size_rectangular
+     generic            :: set_size => graph_set_size_square, &
+                                       graph_set_size_rectangular
+     procedure, private :: graph_create_square
+     procedure, private :: graph_create_rectangular
+     generic            :: create => graph_create_square, & 
+                                     graph_create_rectangular          
+     procedure :: print             => graph_print
+     procedure :: copy              => graph_copy
+     procedure :: free              => graph_free
+     procedure :: get_nv            => graph_get_nv
+     procedure :: get_nv2           => graph_get_nv2
+     procedure :: get_symmetric_storage => graph_get_symmetric_storage
   end type graph_t
 
   ! Types
@@ -61,13 +72,48 @@ module graph_names
 contains
   
   !=============================================================================
-  subroutine graph_create (this,symmetric_storage)
+  subroutine graph_set_symmetric_storage (this,symmetric_storage)
     implicit none
-    class(graph_t), intent(out) :: this
-    logical      , intent(in)  :: symmetric_storage
+    class(graph_t), intent(inout) :: this
+    logical       , intent(in)    :: symmetric_storage
     this%symmetric_storage = symmetric_storage
-  end subroutine graph_create
+  end subroutine graph_set_symmetric_storage
+  
+  !=============================================================================
+  subroutine graph_set_size_square (this,nv)
+    implicit none
+    class(graph_t), intent(inout) :: this
+    integer(ip)   , intent(in)    :: nv
+    this%nv  = nv
+    this%nv2 = nv
+  end subroutine graph_set_size_square
+  
+  !=============================================================================
+  subroutine graph_set_size_rectangular (this,nv,nv2)
+    implicit none
+    class(graph_t), intent(inout) :: this
+    integer(ip)   , intent(in)    :: nv, nv2
+    this%nv  = nv
+    this%nv2 = nv2
+  end subroutine graph_set_size_rectangular
 
+  subroutine graph_create_square (this,nv,symmetric_storage)
+    implicit none
+    class(graph_t), intent(inout) :: this
+    integer(ip)   , intent(in)    :: nv
+    logical       , intent(in)    :: symmetric_storage
+    call this%set_symmetric_storage(symmetric_storage)
+    call this%set_size(nv)
+  end subroutine graph_create_square
+  
+  subroutine graph_create_rectangular (this,nv,nv2)
+    implicit none
+    class(graph_t), intent(inout) :: this
+    integer(ip)   , intent(in)    :: nv, nv2
+    call this%set_symmetric_storage(.false.)
+    call this%set_size(nv,nv2)
+  end subroutine graph_create_rectangular
+  
   !=============================================================================
   subroutine graph_copy (igraph, ograph)
     implicit none
@@ -114,5 +160,29 @@ contains
     end do
     write (lunou, '(a)')     '*** end graph data structure ***'
   end subroutine graph_print
+  
+  !=============================================================================
+  pure function graph_get_nv (this)
+    implicit none
+    class(graph_t), intent(in) :: this
+    integer(ip)                :: graph_get_nv
+    graph_get_nv = this%nv
+  end function graph_get_nv
+  
+  !=============================================================================
+  pure function graph_get_nv2 (this)
+    implicit none
+    class(graph_t), intent(in) :: this
+    integer(ip)                :: graph_get_nv2
+    graph_get_nv2 = this%nv2
+  end function graph_get_nv2
+  
+  !=============================================================================
+  function graph_get_symmetric_storage (this)
+    implicit none
+    class(graph_t), intent(in) :: this
+    logical                    :: graph_get_symmetric_storage
+    graph_get_symmetric_storage = this%symmetric_storage
+  end function graph_get_symmetric_storage
 
 end module graph_names

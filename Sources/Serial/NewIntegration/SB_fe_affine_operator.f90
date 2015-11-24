@@ -60,8 +60,8 @@ module SB_fe_affine_operator_names
   ! Input State | Action               | Output State 
   ! -------------------------------------------------
   ! start       | create               | created
-  ! start       | free_values          | start
-  ! start       | free_struct          | start
+  ! start       | free_numerical_setup          | start
+  ! start       | free_symbolic_setup  | start
   ! start       | free_clean           | start 
   ! start       | free                 | start 
 
@@ -73,15 +73,15 @@ module SB_fe_affine_operator_names
   !               get_range_vector_space+        "
   !               abort_if_not_in_range+         "
   !               abort_if_not_in_domain         "
-  ! created     | free_values          | created
-  ! created     | free_struct          | created
+  ! created     | free_numerical_setup          | created
+  ! created     | free_symbolic_setup          | created
   ! created     | free_clean           | start
   ! created     | free                 | start
 
   ! symbolically_setup    | symbolic_setup       | symbolically_setup
   ! symbolically_setup    | numerical_setup      | numerically_setup
-  ! symbolically_setup    | free_values          | symbolically_setup
-  ! symbolically_setup    | free_struct          | created
+  ! symbolically_setup    | free_numerical_setup          | symbolically_setup
+  ! symbolically_setup    | free_symbolic_setup          | created
   ! symbolically_setup    | free_clean           | start
   ! symbolically_setup    | free                 | start
   ! symbolically_setup    | get_tangent+         | numerically_setup
@@ -93,8 +93,8 @@ module SB_fe_affine_operator_names
 
   ! numerically_setup    | symbolic_setup       | numerically_setup
   ! numerically_setup    | numerical_setup      | numerically_setup
-  ! numerically_setup    | free_values          | symbolically_setup
-  ! numerically_setup    | free_struct          | created
+  ! numerically_setup    | free_numerical_setup          | symbolically_setup
+  ! numerically_setup    | free_symbolic_setup  | created
   ! numerically_setup    | free                 | start
   ! numerically_setup    | free_clean           |  
   ! numerically_setup    | get_tangent+         | numerically_setup
@@ -134,11 +134,12 @@ contains
   procedure          :: get_range_vector_space      => fe_affine_operator_get_range_vector_space
   procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
   procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
-  procedure, private :: fe_affine_operator_free_values
-  procedure, private :: fe_affine_operator_free_struct
+  procedure, private :: fe_affine_operator_free_numerical_setup
+  procedure, private :: fe_affine_operator_free_symbolic_setup
   procedure, private :: fe_affine_operator_free_clean
   procedure, private :: fe_affine_operator_setup
   procedure, private :: fe_affine_operator_fill_values
+  procedure, private :: create_vector_spaces        => fe_affine_operator_create_vector_spaces
   ! New things by SB in the process of restructuring of the FE machinery
   !procedure (volume_integral_interface) :: volume_integral(:)
   !procedure (symbolic_setup_matrix_array_assembler_interface) :: symbolic_setup_matrix_array_assembler
@@ -175,10 +176,29 @@ subroutine fe_affine_operator_create (this, &
     this%approximations(iapprox)%p => approximations(iapprox)%p
  end do
  this%assembler => fe_space%create_assembler(diagonal_blocks_symmetric_storage, &
-      diagonal_blocks_symmetric, &
-      diagonal_blocks_sign)
+                                             diagonal_blocks_symmetric, &
+                                             diagonal_blocks_sign)
+ call this%create_vector_spaces()
  this%state = created
 end subroutine fe_affine_operator_create
+
+  subroutine fe_affine_operator_create_vector_spaces(this)
+    implicit none
+    class(SB_fe_affine_operator_t), intent(inout) :: this
+    type(vector_space_t), pointer                 :: fe_affine_operator_domain_vector_space
+    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
+    type(vector_space_t), pointer                 :: matrix_domain_vector_space
+    type(vector_space_t), pointer                 :: matrix_range_vector_space
+    class(matrix_t)     , pointer :: matrix
+    matrix => this%assembler%get_matrix()
+    matrix_domain_vector_space => matrix%get_domain_vector_space()
+    matrix_range_vector_space => matrix%get_range_vector_space()
+    fe_affine_operator_domain_vector_space => operator_get_domain_vector_space(this)
+    fe_affine_operator_range_vector_space => operator_get_range_vector_space(this)
+    call matrix_domain_vector_space%clone(fe_affine_operator_domain_vector_space)
+    call matrix_range_vector_space%clone(fe_affine_operator_range_vector_space)
+  end subroutine fe_affine_operator_create_vector_spaces
+
 
 subroutine fe_affine_operator_symbolic_setup (this)
  implicit none
@@ -196,12 +216,6 @@ end subroutine fe_affine_operator_symbolic_setup
 subroutine fe_affine_operator_numerical_setup (this)
  implicit none
  class(SB_fe_affine_operator_t), intent(inout) :: this
- class(matrix_t), pointer :: matrix
-
- type(vector_space_t), pointer :: fe_affine_operator_domain_vector_space
- type(vector_space_t), pointer :: fe_affine_operator_range_vector_space
- type(vector_space_t), pointer :: matrix_domain_vector_space
- type(vector_space_t), pointer :: matrix_range_vector_space
 
  assert ( .not. this%state == start )
 
@@ -212,30 +226,22 @@ subroutine fe_affine_operator_numerical_setup (this)
  if ( this%state == symbolically_setup ) then
     call this%assembler%allocate()
     call this%fe_affine_operator_fill_values()
-    matrix => this%assembler%get_matrix()
-    matrix_domain_vector_space => matrix%get_domain_vector_space()
-    matrix_range_vector_space => matrix%get_range_vector_space()
-    fe_affine_operator_domain_vector_space => operator_get_domain_vector_space(this)
-    fe_affine_operator_range_vector_space => operator_get_range_vector_space(this)
-    call matrix_domain_vector_space%clone(fe_affine_operator_domain_vector_space)
-    call matrix_range_vector_space%clone(fe_affine_operator_range_vector_space)
     this%state = numerically_setup
  end if
 
 end subroutine fe_affine_operator_numerical_setup
 
-subroutine fe_affine_operator_free_values(this)
+subroutine fe_affine_operator_free_numerical_setup(this)
  implicit none
  class(SB_fe_affine_operator_t), intent(inout) :: this
- call this%assembler%free_in_stages(free_values)
- call this%free_vector_spaces()
-end subroutine fe_affine_operator_free_values
+ call this%assembler%free_in_stages(free_numerical_setup)
+end subroutine fe_affine_operator_free_numerical_setup
 
-subroutine fe_affine_operator_free_struct(this)
+subroutine fe_affine_operator_free_symbolic_setup(this)
  implicit none
  class(SB_fe_affine_operator_t), intent(inout) :: this
- call this%assembler%free_in_stages(free_struct)
-end subroutine fe_affine_operator_free_struct
+ call this%assembler%free_in_stages(free_symbolic_setup)
+end subroutine fe_affine_operator_free_symbolic_setup
 
 subroutine fe_affine_operator_free_clean(this)
  implicit none
@@ -248,6 +254,7 @@ subroutine fe_affine_operator_free_clean(this)
  nullify(this%fe_space)
  deallocate(this%approximations, stat=istat)
  check(istat==0)
+ call this%free_vector_spaces()
 end subroutine fe_affine_operator_free_clean
 
 subroutine fe_affine_operator_free_in_stages(this,action)
@@ -264,25 +271,25 @@ subroutine fe_affine_operator_free_in_stages(this,action)
        this%state = start
     end if
  else if ( this%state == symbolically_setup ) then
-    if ( action == free_struct ) then
-       call this%fe_affine_operator_free_struct()
+    if ( action == free_symbolic_setup ) then
+       call this%fe_affine_operator_free_symbolic_setup()
        this%state = created
     else if ( action == free_clean ) then
-       call this%fe_affine_operator_free_struct()
+       call this%fe_affine_operator_free_symbolic_setup()
        call this%fe_affine_operator_free_clean()
        this%state=start
     end if
  else if ( this%state == numerically_setup ) then
-    if ( action == free_values ) then
-       call this%fe_affine_operator_free_values()
+    if ( action == free_numerical_setup ) then
+       call this%fe_affine_operator_free_numerical_setup()
        this%state = symbolically_setup
-    else if ( action == free_struct ) then
-       call this%fe_affine_operator_free_values()
-       call this%fe_affine_operator_free_struct()
+    else if ( action == free_symbolic_setup ) then
+       call this%fe_affine_operator_free_numerical_setup()
+       call this%fe_affine_operator_free_symbolic_setup()
        this%state = created
     else if ( action == free_clean ) then
-       call this%fe_affine_operator_free_values()
-       call this%fe_affine_operator_free_struct()
+       call this%fe_affine_operator_free_numerical_setup()
+       call this%fe_affine_operator_free_symbolic_setup()
        call this%fe_affine_operator_free_clean()
        this%state=start
     end if
@@ -293,8 +300,8 @@ end subroutine fe_affine_operator_free_in_stages
 subroutine fe_affine_operator_free(this)
  implicit none
  class(SB_fe_affine_operator_t), intent(inout) :: this
- call this%free_in_stages(free_values)
- call this%free_in_stages(free_struct)
+ call this%free_in_stages(free_numerical_setup)
+ call this%free_in_stages(free_symbolic_setup)
  call this%free_in_stages(free_clean)
 end subroutine fe_affine_operator_free
 
@@ -363,7 +370,7 @@ subroutine fe_affine_operator_abort_if_not_in_domain ( this, vector )
  implicit none
  class(SB_fe_affine_operator_t), intent(in)  :: this
  class(vector_t)            , intent(in)  :: vector
- call this%fe_affine_operator_setup()
+ assert ( .not. this%state == start )
  call operator_abort_if_not_in_domain(this,vector)
 end subroutine fe_affine_operator_abort_if_not_in_domain
 
@@ -371,7 +378,7 @@ subroutine fe_affine_operator_abort_if_not_in_range ( this, vector )
  implicit none
  class(SB_fe_affine_operator_t), intent(in) :: this
  class(vector_t)            , intent(in) :: vector
- call this%fe_affine_operator_setup()
+ assert ( .not. this%state == start )
  call operator_abort_if_not_in_range(this,vector)
 end subroutine fe_affine_operator_abort_if_not_in_range
 
@@ -379,7 +386,7 @@ function fe_affine_operator_get_domain_vector_space ( this )
  implicit none
  class(SB_fe_affine_operator_t), target, intent(in) :: this
  type(vector_space_t)               , pointer    :: fe_affine_operator_get_domain_vector_space
- call this%fe_affine_operator_setup()
+ assert ( .not. this%state == start )
  fe_affine_operator_get_domain_vector_space => operator_get_domain_vector_space(this)
 end function fe_affine_operator_get_domain_vector_space
 
@@ -387,7 +394,7 @@ function fe_affine_operator_get_range_vector_space ( this )
  implicit none
  class(SB_fe_affine_operator_t), target, intent(in) :: this
  type(vector_space_t)                  , pointer :: fe_affine_operator_get_range_vector_space
- call this%fe_affine_operator_setup()
+ assert ( .not. this%state == start )
  fe_affine_operator_get_range_vector_space => operator_get_range_vector_space(this)
 end function fe_affine_operator_get_range_vector_space
 

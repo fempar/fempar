@@ -257,8 +257,8 @@ program test_nsi_iss
   !call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,femat,feprec,fevec,feunk)
 
   ! Free preconditioner
-  call preconditioner_free_in_stages(feprec, preconditioner_free_struct)
-  call preconditioner_free_in_stages(feprec, preconditioner_free_clean)
+  call preconditioner_free_in_stages(feprec, free_symbolic_setup)
+  call preconditioner_free_in_stages(feprec, free_clean)
 
   ! Compute postprocess field
   call postprocess_vel%create('velocity',gdata%ndime,fe_space,senv,                                 &

@@ -369,7 +369,6 @@ program test_cdr
   !call finite_element%create( reference_fe, reference_fe, volume_integrator, f_trian%elems(1), 1 )
   !call finite_element%print()
 
-
   ! ! UNIT TEST * integrator.f90 *
   ! !write(*,*) 'CALL FE SPACE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   ! call fe_space%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
@@ -415,6 +414,8 @@ program test_cdr
   ! class default
   !    check(.false.) 
   ! end select
+		
+		call memstatus 
 
 contains
   !==================================================================================================

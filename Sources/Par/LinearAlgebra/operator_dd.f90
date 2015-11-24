@@ -102,7 +102,7 @@ module operator_dd_names
 
 
   public :: operator_dd_create, operator_dd_free,             &  
-            operator_dd_ass_struct, operator_dd_fill_val,     & 
+            operator_dd_symbolic_setup, operator_dd_numerical_setup, & 
             operator_dd_solve_A_II,        &
             operator_dd_apply_A_IG, operator_dd_apply_A_GI,   &
             operator_dd_apply_A_GG, &
@@ -184,11 +184,11 @@ contains
 
     f_operator%A_GI_allocated = (.not. symmetric_storage_ )
 
-    call f_operator%A_II%create(symmetric_storage_, is_symmetric_, sign_)
-    call f_operator%A_IG%create()
-    call f_operator%A_GG%create(symmetric_storage_, is_symmetric_, sign_)
+    call f_operator%A_II%set_properties(symmetric_storage_, is_symmetric_, sign_)
+    call f_operator%A_IG%set_properties()
+    call f_operator%A_GG%set_properties(symmetric_storage_, is_symmetric_, sign_)
     if ( .not. symmetric_storage_ ) then
-       call f_operator%A_GI%create()
+       call f_operator%A_GI%set_properties()
     end if
 
     call preconditioner_create( f_operator%A_II, f_operator%M_II, f_operator%ppars)
@@ -202,7 +202,7 @@ contains
     integer(ip)       , intent(in)     :: mode 
 
     if ( mode == free_clean ) then
-       call preconditioner_free_in_stages ( f_operator%M_II, preconditioner_free_clean )
+       call preconditioner_free_in_stages ( f_operator%M_II, free_clean )
        call f_operator%A_II%free_in_stages(free_clean)
        call f_operator%A_IG%free_in_stages(free_clean)
        call f_operator%A_GG%free_in_stages(free_clean)
@@ -221,28 +221,28 @@ contains
        else
           nullify(f_operator%spars)
        end if
-    else if ( mode == free_struct  ) then
-       call preconditioner_free_in_stages ( f_operator%M_II, preconditioner_free_struct )
-       call f_operator%A_II%free_in_stages(free_struct)
-       call f_operator%A_IG%free_in_stages(free_struct)
-       call f_operator%A_GG%free_in_stages(free_struct)
+    else if ( mode == free_symbolic_setup  ) then
+       call preconditioner_free_in_stages ( f_operator%M_II, free_symbolic_setup )
+       call f_operator%A_II%free_in_stages(free_symbolic_setup)
+       call f_operator%A_IG%free_in_stages(free_symbolic_setup)
+       call f_operator%A_GG%free_in_stages(free_symbolic_setup)
        if ( f_operator%A_GI_allocated ) then
-          call f_operator%A_GI%free_in_stages(free_struct) 
+          call f_operator%A_GI%free_in_stages(free_symbolic_setup) 
        end if
-    else if ( mode == free_values ) then
-       call preconditioner_free_in_stages ( f_operator%M_II, preconditioner_free_values )
-       call f_operator%A_II%free_in_stages(free_values)
-       call f_operator%A_IG%free_in_stages(free_values)
-       call f_operator%A_GG%free_in_stages(free_values)
+    else if ( mode == free_numerical_setup ) then
+       call preconditioner_free_in_stages ( f_operator%M_II, free_numerical_setup )
+       call f_operator%A_II%free_in_stages(free_numerical_setup)
+       call f_operator%A_IG%free_in_stages(free_numerical_setup)
+       call f_operator%A_GG%free_in_stages(free_numerical_setup)
        if ( f_operator%A_GI_allocated ) then
-          call f_operator%A_GI%free_in_stages(free_values)
+          call f_operator%A_GI%free_in_stages(free_numerical_setup)
        end if
     end if
 
   end subroutine operator_dd_free
 
   !=============================================================================
-  subroutine operator_dd_ass_struct ( serial_scalar_matrix, f_operator )
+  subroutine operator_dd_symbolic_setup ( serial_scalar_matrix, f_operator )
     implicit none
 
     ! Parameters 
@@ -250,24 +250,24 @@ contains
     type(operator_dd_t)           , intent(inout)   :: f_operator
 
     ! Split graph of local process into 2x2 block partitioning
-    if ( .not. f_operator%A_II%graph%symmetric_storage  ) then
-       call split_graph_I_G ( serial_scalar_matrix%graph, & 
-            f_operator%dof_dist, & 
-            G_II=f_operator%A_II%graph, G_IG=f_operator%A_IG%graph, &
-            G_GI=f_operator%A_GI%graph, G_GG=f_operator%A_GG%graph  )
+    if ( .not. f_operator%A_II%graph%get_symmetric_storage()  ) then
+       call split_graph_I_G ( serial_scalar_matrix, & 
+                              f_operator%dof_dist,  & 
+                              A_II=f_operator%A_II, A_IG=f_operator%A_IG, &
+                              A_GI=f_operator%A_GI, A_GG=f_operator%A_GG  )
     else 
-       call split_graph_I_G_symm ( serial_scalar_matrix%graph, & 
-            f_operator%dof_dist, & 
-            G_II=f_operator%A_II%graph, & 
-            G_IG=f_operator%A_IG%graph, &
-            G_GG=f_operator%A_GG%graph )
+       call split_graph_I_G_symm ( serial_scalar_matrix, & 
+                                   f_operator%dof_dist,  & 
+                                   A_II=f_operator%A_II, & 
+                                   A_IG=f_operator%A_IG, &
+                                   A_GG=f_operator%A_GG )
     end if
 
     call preconditioner_symbolic_setup(f_operator%M_II)
-  end subroutine operator_dd_ass_struct
+  end subroutine operator_dd_symbolic_setup
 
   !=============================================================================
-  subroutine operator_dd_fill_val ( serial_scalar_matrix, f_operator ) 
+  subroutine operator_dd_numerical_setup ( serial_scalar_matrix, f_operator ) 
     use stdio_names
     implicit none
 
@@ -290,7 +290,7 @@ contains
     end if
 
     call preconditioner_numerical_setup(f_operator%M_II)
-  end subroutine operator_dd_fill_val
+  end subroutine operator_dd_numerical_setup
   
   ! Computes y_I <- A_II^-1 * x_I
   subroutine operator_dd_solve_A_II ( f_operator, x_I, y_I )
@@ -322,8 +322,8 @@ contains
 
 #ifdef ENABLE_MKL
     call mkl_dcsrmv ( 'N', & 
-         f_operator%A_IG%graph%nv, &
-         f_operator%A_IG%graph%nv2, &
+         f_operator%A_IG%graph%get_nv(), &
+         f_operator%A_IG%graph%get_nv2(), &
          1.0, &
          'GXXF', & 
          f_operator%A_IG%a, &
@@ -334,8 +334,8 @@ contains
          0.0,   &
          y_I%b)
 #else
-    call matvec ( f_operator%A_IG%graph%nv, &
-         & f_operator%A_IG%graph%nv2,&
+    call matvec ( f_operator%A_IG%graph%get_nv(), &
+         & f_operator%A_IG%graph%get_nv2(),&
          & f_operator%A_IG%graph%ia, &
          & f_operator%A_IG%graph%ja, &
          & f_operator%A_IG%a,     &
@@ -357,8 +357,8 @@ contains
     if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-            f_operator%A_GI%graph%nv, &
-            f_operator%A_GI%graph%nv2, &
+            f_operator%A_GI%graph%get_nv(), &
+            f_operator%A_GI%graph%get_nv2(), &
             1.0, &
             'GXXF', & 
             f_operator%A_GI%a, &
@@ -369,8 +369,8 @@ contains
             0.0,    &
             y_G%b) 
 #else
-       call matvec ( f_operator%A_GI%graph%nv, &
-            f_operator%A_GI%graph%nv2,&
+       call matvec ( f_operator%A_GI%graph%get_nv(), &
+            f_operator%A_GI%graph%get_nv2(),&
             f_operator%A_GI%graph%ia, &
             f_operator%A_GI%graph%ja, &
             f_operator%A_GI%a,     &
@@ -380,8 +380,8 @@ contains
     else 
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'T', & 
-            f_operator%A_IG%graph%nv, &
-            f_operator%A_IG%graph%nv2, &
+            f_operator%A_IG%graph%get_nv(), &
+            f_operator%A_IG%graph%get_nv2(), &
             1.0, &
             'GXXF', & 
             f_operator%A_IG%a, &
@@ -392,8 +392,8 @@ contains
             0.0,   &
             y_G%b)
 #else
-       call matvec_trans ( f_operator%A_IG%graph%nv, &
-            &          f_operator%A_IG%graph%nv2,&
+       call matvec_trans ( f_operator%A_IG%graph%get_nv(), &
+            &          f_operator%A_IG%graph%get_nv2(),&
             &          f_operator%A_IG%graph%ia, &
             &          f_operator%A_IG%graph%ja, &
             &          f_operator%A_IG%a,     &
@@ -414,14 +414,14 @@ contains
     type(serial_scalar_array_t)     , intent(inout)  :: y_G
     type(serial_scalar_array_t)                      :: x_I, x_G
 
-    call x%create_view(1, f_operator%A_II%graph%nv, x_I )
-    call x%create_view(f_operator%A_II%graph%nv+1, f_operator%A_II%graph%nv+f_operator%A_GG%graph%nv, x_G )
+    call x%create_view(1, f_operator%A_II%graph%get_nv(), x_I )
+    call x%create_view(f_operator%A_II%graph%get_nv()+1, f_operator%A_II%graph%get_nv()+f_operator%A_GG%graph%get_nv(), x_G )
 
     if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-            f_operator%A_GI%graph%nv, &
-            f_operator%A_GI%graph%nv2, &
+            f_operator%A_GI%graph%get_nv(), &
+            f_operator%A_GI%graph%get_nv2(), &
             1.0, &
             'GXXF', & 
             f_operator%A_GI%a, &
@@ -432,8 +432,8 @@ contains
             0.0, &
             y_G%b)
 #else
-       call matvec ( f_operator%A_GI%graph%nv, &
-            f_operator%A_GI%graph%nv2,&
+       call matvec ( f_operator%A_GI%graph%get_nv(), &
+            f_operator%A_GI%graph%get_nv2(),&
             f_operator%A_GI%graph%ia, &
             f_operator%A_GI%graph%ja, &
             f_operator%A_GI%a,     &
@@ -443,8 +443,8 @@ contains
     else 
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'T', & 
-            f_operator%A_IG%graph%nv, &
-            f_operator%A_IG%graph%nv2, &
+            f_operator%A_IG%graph%get_nv(), &
+            f_operator%A_IG%graph%get_nv2(), &
             1.0, &
             'GXXF', & 
             f_operator%A_IG%a, &
@@ -455,8 +455,8 @@ contains
             0.0,   &
             y_G%b)
 #else
-       call matvec ( f_operator%A_IG%graph%nv, &
-            &    f_operator%A_IG%graph%nv2,&
+       call matvec ( f_operator%A_IG%graph%get_nv(), &
+            &    f_operator%A_IG%graph%get_nv2(),&
             &    f_operator%A_IG%graph%ia, &
             &    f_operator%A_IG%graph%ja, &
             &    f_operator%A_IG%a,     &
@@ -468,8 +468,8 @@ contains
     if ( .not. f_operator%A_GG%graph%symmetric_storage ) then
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-            f_operator%A_GG%graph%nv, &
-            f_operator%A_GG%graph%nv2, &
+            f_operator%A_GG%graph%get_nv(), &
+            f_operator%A_GG%graph%get_nv2(), &
             1.0, &
             'GXXF', & 
             f_operator%A_GG%a, &
@@ -483,8 +483,8 @@ contains
        check(1==0)
 !!$           call matvec_scal ( f_operator%A_GG%nd1,    &    
 !!$                          &       f_operator%A_GG%nd2,    &
-!!$                          &       f_operator%A_GG%graph%nv,  &
-!!$                          &       f_operator%A_GG%graph%nv2, &
+!!$                          &       f_operator%A_GG%graph%get_nv(),  &
+!!$                          &       f_operator%A_GG%graph%get_nv2(), &
 !!$                          &       f_operator%A_GG%graph%ia,  &
 !!$                          &       f_operator%A_GG%graph%ja,  &
 !!$                          &       f_operator%A_GG%a,      &
@@ -495,8 +495,8 @@ contains
     else 
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-            f_operator%A_GG%graph%nv, &
-            f_operator%A_GG%graph%nv2, &
+            f_operator%A_GG%graph%get_nv(), &
+            f_operator%A_GG%graph%get_nv2(), &
             1.0, &
             'SUNF', & 
             f_operator%A_GG%a, &
@@ -525,8 +525,8 @@ contains
     if ( .not. f_operator%A_GG%graph%symmetric_storage  ) then
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-            f_operator%A_GG%graph%nv, &
-            f_operator%A_GG%graph%nv2, &
+            f_operator%A_GG%graph%get_nv(), &
+            f_operator%A_GG%graph%get_nv2(), &
             1.0, &
             'GXXF', & 
             f_operator%A_GG%a, &
@@ -537,8 +537,8 @@ contains
             0.0,   &
             y_G%b)
 #else
-       call matvec ( f_operator%A_GG%graph%nv,  &
-            f_operator%A_GG%graph%nv2, &
+       call matvec ( f_operator%A_GG%graph%get_nv(),  &
+            f_operator%A_GG%graph%get_nv2(), &
             f_operator%A_GG%graph%ia,  &
             f_operator%A_GG%graph%ja,  &
             f_operator%A_GG%a,      &
@@ -549,8 +549,8 @@ contains
     else 
 #ifdef ENABLE_MKL
        call mkl_dcsrmv ( 'N', & 
-            f_operator%A_GG%graph%nv, &
-            f_operator%A_GG%graph%nv2, &
+            f_operator%A_GG%graph%get_nv(), &
+            f_operator%A_GG%graph%get_nv2(), &
             1.0, &
             'SUNF', & 
             f_operator%A_GG%a, &
@@ -561,8 +561,8 @@ contains
             0.0,   &
             y_G%b)
 #else
-       call matvec_symmetric_storage ( f_operator%A_GG%graph%nv,  &
-            f_operator%A_GG%graph%nv2, &
+       call matvec_symmetric_storage ( f_operator%A_GG%graph%get_nv(),  &
+            f_operator%A_GG%graph%get_nv2(), &
             f_operator%A_GG%graph%ia,  &
             f_operator%A_GG%graph%ja,  &
             f_operator%A_GG%a,      &
@@ -583,58 +583,58 @@ contains
     ! Parameters  
     type(operator_dd_t) , intent(in)            :: f_operator
     integer (ip)          , intent(in)            :: n
-    real (rp)             , intent(in)            :: u (f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, n) 
+    real (rp)             , intent(in)            :: u (f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), n) 
     real (rp)             , intent(out)           :: v (n,n)
-    real (rp)             , optional, intent(out) :: opu (f_operator%A_GG%graph%nv,  n) 
+    real (rp)             , optional, intent(out) :: opu (f_operator%A_GG%graph%get_nv(),  n) 
 
     ! Locals
     real(rp), allocatable :: work(:,:)
 
-    call memalloc ( f_operator%A_GG%graph%nv, n, work, __FILE__,__LINE__ )
+    call memalloc ( f_operator%A_GG%graph%get_nv(), n, work, __FILE__,__LINE__ )
 
 #ifdef ENABLE_MKL
     ! work <- 0.0*work + 1.0 * A_GG * u_G
     work = 0.0_rp
     if (f_operator%A_GG%graph%symmetric_storage) then
        call mkl_dcsrmm ('N', & 
-            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%get_nv(), &
             n, &
-            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%get_nv(), &
             1.0, &
             'SUNF', & 
             f_operator%A_GG%a, &
             f_operator%A_GG%graph%ja, & 
             f_operator%A_GG%graph%ia(1), & 
             f_operator%A_GG%graph%ia(2), & 
-            u(f_operator%A_II%graph%nv+1,1), &
-            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            u(f_operator%A_II%graph%get_nv()+1,1), &
+            f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &  
             0.0, & 
             work, & 
-            f_operator%A_GG%graph%nv)
+            f_operator%A_GG%graph%get_nv())
 
     else 
        call mkl_dcsrmm ( 'N', & 
-            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%get_nv(), &
             n, &
-            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%get_nv(), &
             1.0, &
             'GXXF', &  
             f_operator%A_GG%a, &
             f_operator%A_GG%graph%ja, & 
             f_operator%A_GG%graph%ia(1), & 
             f_operator%A_GG%graph%ia(2), & 
-            u(f_operator%A_II%graph%nv+1,1), &
-            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            u(f_operator%A_II%graph%get_nv()+1,1), &
+            f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &  
             0.0, & 
             work, & 
-            f_operator%A_GG%graph%nv)
+            f_operator%A_GG%graph%get_nv())
     end if
 
 #else
     call f_operator%A_GG%apply_to_dense_matrix (n, & 
-         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
-         u(f_operator%A_II%graph%nv+1,1), & 
-         f_operator%A_GG%graph%nv, &
+         f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &  
+         u(f_operator%A_II%graph%get_nv()+1,1), & 
+         f_operator%A_GG%graph%get_nv(), &
          work )
 #endif
 
@@ -646,12 +646,12 @@ contains
          'N', &
          n, &
          n, &
-         f_operator%A_GG%graph%nv, &
+         f_operator%A_GG%graph%get_nv(), &
          1.0, &
-         u(f_operator%A_II%graph%nv+1,1), &
-         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &
+         u(f_operator%A_II%graph%get_nv()+1,1), &
+         f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &
          work, &
-         f_operator%A_GG%graph%nv, &
+         f_operator%A_GG%graph%get_nv(), &
          0.0, &
          v, &
          n)
@@ -666,9 +666,9 @@ contains
     work = 0.0_rp
     if (f_operator%A_II%graph%symmetric_storage) then
        call mkl_dcsrmm ( 'T', & 
-            f_operator%A_IG%graph%nv, &
+            f_operator%A_IG%graph%get_nv(), &
             n, &
-            f_operator%A_IG%graph%nv2, &
+            f_operator%A_IG%graph%get_nv2(), &
             1.0, &
             'GXXF', & 
             f_operator%A_IG%a, &
@@ -676,15 +676,15 @@ contains
             f_operator%A_IG%graph%ia(1), & 
             f_operator%A_IG%graph%ia(2), & 
             u, &
-            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &  
             0.0, & 
             work, & 
-            f_operator%A_GG%graph%nv)
+            f_operator%A_GG%graph%get_nv())
     else 
        call mkl_dcsrmm ( 'N', & 
-            f_operator%A_GI%graph%nv, &
+            f_operator%A_GI%graph%get_nv(), &
             n, &
-            f_operator%A_GI%graph%nv2, &
+            f_operator%A_GI%graph%get_nv2(), &
             1.0, &
             'GXXF', &  
             f_operator%A_GI%a, &
@@ -692,24 +692,24 @@ contains
             f_operator%A_GI%graph%ia(1), & 
             f_operator%A_GI%graph%ia(2), & 
             u, &
-            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &  
             0.0, & 
             work, & 
-            f_operator%A_GG%graph%nv)
+            f_operator%A_GG%graph%get_nv())
     end if
 
 #else
     if (f_operator%A_II%graph%symmetric_storage) then
        call f_operator%A_IG%apply_transpose_to_dense_matrix ( n, & 
-            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &  
             u, & 
-            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%get_nv(), &
             work )
     else 
        call f_operator%A_GI%apply_to_dense_matrix ( n, & 
-            f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &  
+            f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &  
             u, & 
-            f_operator%A_GG%graph%nv, &
+            f_operator%A_GG%graph%get_nv(), &
             work )
     end if
 #endif
@@ -721,12 +721,12 @@ contains
          'N', &
          n, &
          n, &
-         f_operator%A_GG%graph%nv, &
+         f_operator%A_GG%graph%get_nv(), &
          1.0, &
-         u(f_operator%A_II%graph%nv+1,1), &
-         f_operator%A_II%graph%nv + f_operator%A_GG%graph%nv, &
+         u(f_operator%A_II%graph%get_nv()+1,1), &
+         f_operator%A_II%graph%get_nv() + f_operator%A_GG%graph%get_nv(), &
          work, &
-         f_operator%A_GG%graph%nv, &
+         f_operator%A_GG%graph%get_nv(), &
          1.0, &
          v, &
          n)
@@ -752,9 +752,9 @@ contains
 
 #ifdef ENABLE_MKL
     call mkl_dcsrmm ( 'N', & 
-         f_operator%A_IG%graph%nv, &
+         f_operator%A_IG%graph%get_nv(), &
          nrhs, &
-         f_operator%A_IG%graph%nv2, &
+         f_operator%A_IG%graph%get_nv2(), &
          alpha, &
          'GXXF', &  
          f_operator%A_IG%a, &
@@ -779,7 +779,7 @@ contains
          X, & 
          ldY, &
          Y ) 
-    Y(1:f_operator%A_IG%graph%nv,:) = alpha*Y(1:f_operator%A_IG%graph%nv,:)
+    Y(1:f_operator%A_IG%graph%get_nv(),:) = alpha*Y(1:f_operator%A_IG%graph%get_nv(),:)
 #endif
 
   end subroutine operator_dd_apply_A_IG_several_rhs
@@ -895,7 +895,7 @@ contains
 
   end subroutine split_matrix_I_G
 
-  subroutine split_graph_I_G ( grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
+  subroutine split_graph_I_G ( A, dof_dist, A_II, A_IG, A_GI, A_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
     ! "dof_dist" input parameter: 
@@ -912,37 +912,36 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    type(graph_t)            , intent(in) :: grph
-    type(dof_distribution_t) , intent(in) :: dof_dist 
-    type(graph_t)     , intent(inout), optional   :: G_II
-    type(graph_t)     , intent(inout), optional   :: G_IG
-    type(graph_t)     , intent(inout), optional   :: G_GI
-    type(graph_t)     , intent(inout), optional   :: G_GG
+    type(serial_scalar_matrix_t), intent(in)                :: A
+    type(dof_distribution_t)    , intent(in)                :: dof_dist 
+    type(serial_scalar_matrix_t), intent(inout), optional   :: A_II
+    type(serial_scalar_matrix_t), intent(inout), optional   :: A_IG
+    type(serial_scalar_matrix_t), intent(inout), optional   :: A_GI
+    type(serial_scalar_matrix_t), intent(inout), optional   :: A_GG
 
-    assert ( (.not. present(G_GI)) .or. (.not. G_II%symmetric_storage) )
+    assert ( (.not. present(A_GI)) .or. (.not. A_II%graph%get_symmetric_storage()) )
 
     ! If any output graph is present, we are done !
-    if ( .not. G_II%symmetric_storage ) then 
-       if ( .not. (present(G_II) .or. present(G_IG) & 
-            & .or. present(G_GI) .or. present(G_GG) ) ) return
+    if ( .not. A_II%graph%get_symmetric_storage() ) then 
+       if ( .not. (present(A_II) .or. present(A_IG) & 
+            & .or. present(A_GI) .or. present(A_GG) ) ) return
     else 
-       if ( .not. (present(G_II) .or. present(G_IG) .or. present(G_GG) ) ) return
+       if ( .not. (present(A_II) .or. present(A_IG) .or. present(A_GG) ) ) return
     end if
 
-    call split_graph_I_G_count_list ( grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GI=G_GI, G_GG=G_GG  )
+    call split_graph_I_G_count_list ( A, dof_dist, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG  )
 
   end subroutine split_graph_I_G
 
-  subroutine split_graph_I_G_count_list ( grph, dof_dist, G_II, G_IG, G_GI, G_GG  )
+  subroutine split_graph_I_G_count_list ( A, dof_dist, A_II, A_IG, A_GI, A_GG  )
     implicit none
     ! Parameters
-    type(graph_t)            , intent(in)  :: grph
-    type(dof_distribution_t) , intent(in)  :: dof_dist 
-
-    type(graph_t)     , intent(inout), optional   :: G_II
-    type(graph_t)     , intent(inout), optional   :: G_IG
-    type(graph_t)     , intent(inout), optional   :: G_GI
-    type(graph_t)     , intent(inout), optional   :: G_GG
+    type(serial_scalar_matrix_t), target  , intent(in)    :: A
+    type(dof_distribution_t)              , intent(in)    :: dof_dist 
+    type(serial_scalar_matrix_t), optional, intent(inout) :: A_II
+    type(serial_scalar_matrix_t), optional, intent(inout) :: A_IG
+    type(serial_scalar_matrix_t), optional, intent(inout) :: A_GI
+    type(serial_scalar_matrix_t), optional, intent(inout) :: A_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
@@ -950,44 +949,51 @@ contains
     integer(ip) :: ipoing, ipoing_neig, pos_neig
 
     logical     :: present_g_ii, present_g_ig, & 
-         & present_g_gi, present_g_gg
-
-
+                &  present_g_gi, present_g_gg
+    
+    type(graph_t), pointer :: graph          
+    type(graph_t), pointer :: G_II
+    type(graph_t), pointer :: G_IG
+    type(graph_t), pointer :: G_GI
+    type(graph_t), pointer :: G_GG
+    
+    graph => A%graph
+    
     ni_rows = dof_dist%ni 
     nb_rows = dof_dist%nb 
     ni_cols = dof_dist%ni  
     nb_cols = dof_dist%nb  
 
-    present_g_ii = present( G_II )
-    present_g_ig = present( G_IG )
-    present_g_gi = present( G_GI )
-    present_g_gg = present( G_GG )
+    present_g_ii = present( A_II )
+    present_g_ig = present( A_IG )
+    present_g_gi = present( A_GI )
+    present_g_gg = present( A_GG )
 
     if ( present_g_ii ) then
-       G_II%nv           = ni_rows
-       G_II%nv2          = ni_cols
-       call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
+       call A_II%set_size(ni_rows)
+       G_II => A_II%get_graph()
+       call memalloc ( G_II%get_nv()+1, G_II%ia,__FILE__,__LINE__)
        G_II%ia(1) = 1
     end if
 
     if ( present_g_ig ) then
-       G_IG%nv           = ni_rows
-       G_IG%nv2          = nb_cols
-       call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
+       call A_IG%set_size(ni_rows,nb_cols)
+       G_IG => A_IG%get_graph()
+       call memalloc ( G_IG%get_nv()+1, G_IG%ia, __FILE__,__LINE__ )
        G_IG%ia(1) = 1
     end if
 
     if ( present_g_gi ) then
-       G_GI%nv   = nb_rows
-       G_GI%nv2  = ni_cols
-       call memalloc ( G_GI%nv+1, G_GI%ia,__FILE__,__LINE__ )
+       call A_GI%set_size(nb_rows,ni_cols)
+       G_GI => A_GI%get_graph()
+       call memalloc ( G_GI%get_nv()+1, G_GI%ia,__FILE__,__LINE__ )
        G_GI%ia(1) = 1
     end if
 
     if ( present_g_gg ) then
-       G_GG%nv   = nb_rows
-       G_GG%nv2  = nb_cols
-       call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
+       call A_GG%set_size(nb_rows)
+       G_GG => A_GG%get_graph()
+       call memalloc ( G_GG%get_nv()+1, G_GG%ia,__FILE__,__LINE__ )
        G_GG%ia(1) = 1
     end if
 
@@ -999,18 +1005,18 @@ contains
     ! List number of nonzeros on each row of G_II/G_IG
     if ( present_g_ii .or. present_g_ig ) then
        do ipoing=1, ni_rows
-          if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          if ( graph%get_symmetric_storage() .eqv. G_II%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
                    nz_ii = nz_ii + 1
                 else 
                    nz_ig = nz_ig + 1 
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          else if ( (.not. graph%get_symmetric_storage()) .and. G_II%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
 
                 if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
                    nz_ii = nz_ii + 1
@@ -1018,7 +1024,7 @@ contains
                    nz_ig = nz_ig + 1 
                 end if
              end do
-          else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
+          else if ( graph%get_symmetric_storage() .and. (.not. G_II%get_symmetric_storage()) ) then
              ! Not implemented yet. Trigger an assertion.
              check ( .false. )
           end if
@@ -1037,18 +1043,18 @@ contains
     if ( present_g_gi .or. present_g_gg ) then  
        ! List number of nonzeros on each row of G_GI/G_GG)
        do ipoing=ni_rows+1, ni_rows + nb_rows
-          if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          if ( graph%get_symmetric_storage() .eqv. G_GG%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
                    nz_gi = nz_gi + 1
                 else
                    nz_gg = nz_gg + 1
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          else if ( (.not. graph%get_symmetric_storage()) .and. G_GG%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
                    nz_gi = nz_gi + 1
                 else if ( ipoing_neig >= ipoing ) then
@@ -1056,7 +1062,7 @@ contains
                 end if
              end do
 
-          else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage) ) then
+          else if ( graph%get_symmetric_storage() .and. (.not. G_GG%get_symmetric_storage()) ) then
              ! Not implemented yet.
              check ( .false. )
           end if
@@ -1097,9 +1103,9 @@ contains
     ! List nonzeros on each row of G_II/G_IG
     if ( present_g_ii .or. present_g_ig ) then
        do ipoing=1, ni_rows
-          if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          if ( graph%get_symmetric_storage() .eqv. G_II%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
                    if ( present_g_ii ) then
                       G_II%ja(nz_ii) = ipoing_neig
@@ -1112,9 +1118,9 @@ contains
                    end if
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          else if ( (.not. graph%get_symmetric_storage()) .and. G_II%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
                 if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
                    if ( present_g_ii ) then
                       G_II%ja(nz_ii) = ipoing_neig
@@ -1127,7 +1133,7 @@ contains
                    end if
                 end if
              end do
-          else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
+          else if ( graph%get_symmetric_storage() .and. (.not. G_II%get_symmetric_storage()) ) then
              ! Not implemented yet.
              check ( .false. )
           end if
@@ -1138,9 +1144,9 @@ contains
     ! List number of nonzeros on each row of G_GI/G_GG
     if ( present_g_gi .or. present_g_gg ) then 
        do ipoing=ni_rows+1, ni_rows + nb_rows
-          if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          if ( graph%get_symmetric_storage() .eqv. G_GG%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols .and. present_g_gi ) then
                    G_GI%ja( nz_gi ) = ipoing_neig 
                    nz_gi = nz_gi + 1
@@ -1151,9 +1157,9 @@ contains
                    end if
                 end if
              end do
-          else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage ) then
-             do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-                ipoing_neig = grph%ja(pos_neig)
+          else if ( (.not. graph%get_symmetric_storage()) .and. G_GG%get_symmetric_storage() ) then
+             do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+                ipoing_neig = graph%ja(pos_neig)
                 if ( ipoing_neig <= ni_cols ) then
                    if ( present_g_gi ) then
                       G_GI%ja( nz_gi ) = ipoing_neig 
@@ -1166,16 +1172,32 @@ contains
                    end if
                 end if
              end do
-          else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage ) ) then
+          else if ( graph%get_symmetric_storage() .and. (.not. G_GG%get_symmetric_storage() ) ) then
              ! Not implemented yet.
              check ( .false. )
           end if
        end do
     end if
+    
+    if ( present_g_ii ) then
+       call A_II%return_graph(G_II)
+    end if
 
+    if ( present_g_ig ) then
+       call A_IG%return_graph(G_IG)
+    end if
+
+    if ( present_g_gi ) then
+       call A_GI%return_graph(G_GI)
+    end if
+
+    if ( present_g_gg ) then
+       call A_GG%return_graph(G_GG)
+    end if
+    
   end subroutine split_graph_I_G_count_list
 
-  subroutine split_graph_I_G_symm ( grph, dof_dist, G_II, G_IG, G_GG  )
+  subroutine split_graph_I_G_symm ( A, dof_dist, A_II, A_IG, A_GG  )
     !-----------------------------------------------------------------------
     ! Given a 2x2 interior/interface block partitioning described by the
     ! "dof_dist" input parameter: 
@@ -1192,49 +1214,52 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    type(graph_t)            , intent(in)  :: grph
-    type(dof_distribution_t) , intent(in)  :: dof_dist 
+    type(serial_scalar_matrix_t) , intent(in)    :: A
+    type(dof_distribution_t)     , intent(in)    :: dof_dist 
+    type(serial_scalar_matrix_t) , intent(inout) :: A_II
+    type(serial_scalar_matrix_t) , intent(inout) :: A_IG
+    type(serial_scalar_matrix_t) , intent(inout) :: A_GG
 
-    type(graph_t)     , intent(inout) :: G_II
-    type(graph_t)     , intent(inout) :: G_IG
-    type(graph_t)     , intent(inout) :: G_GG
-
-    call split_graph_I_G_count_list_symm ( grph, dof_dist, G_II=G_II, G_IG=G_IG, G_GG=G_GG  )
-
+    call split_graph_I_G_count_list_symm (A, dof_dist, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
   end subroutine split_graph_I_G_symm
 
-  subroutine split_graph_I_G_count_list_symm ( grph, dof_dist, G_II, G_IG, G_GG  )
+  subroutine split_graph_I_G_count_list_symm (A, dof_dist, A_II, A_IG, A_GG)
     implicit none
     ! Parameters
-    type(graph_t)            , intent(in) :: grph
-    type(dof_distribution_t) , intent(in) :: dof_dist 
-
-    type(graph_t)     , intent(inout)   :: G_II
-    type(graph_t)     , intent(inout)   :: G_IG
-    type(graph_t)     , intent(inout)   :: G_GG
+    type(serial_scalar_matrix_t), target, intent(in)      :: A
+    type(dof_distribution_t)            , intent(in)      :: dof_dist 
+    type(serial_scalar_matrix_t)        , intent(inout)   :: A_II
+    type(serial_scalar_matrix_t)        , intent(inout)   :: A_IG
+    type(serial_scalar_matrix_t)        , intent(inout)   :: A_GG
 
     integer(ip) :: nz_ii, nz_ig, nz_gi, nz_gg
     integer(ip) :: ni_rows, nb_rows, ni_cols, nb_cols
     integer(ip) :: ipoing, ipoing_neig, pos_neig
-
+    
+    type(graph_t), pointer   :: graph
+    type(graph_t), pointer   :: G_II
+    type(graph_t), pointer   :: G_IG
+    type(graph_t), pointer   :: G_GG
+    
+    graph   => A%graph
     ni_rows = dof_dist%ni 
     nb_rows = dof_dist%nb 
     ni_cols = dof_dist%ni 
     nb_cols = dof_dist%nb 
 
-    G_II%nv   = ni_rows
-    G_II%nv2  = ni_cols
-    call memalloc ( G_II%nv+1, G_II%ia,__FILE__,__LINE__)
+    call A_II%set_size(ni_rows)
+    G_II => A_II%get_graph()
+    call memalloc ( G_II%get_nv()+1, G_II%ia,__FILE__,__LINE__)
     G_II%ia(1) = 1
 
-    G_IG%nv   = ni_rows
-    G_IG%nv2  = nb_cols
-    call memalloc ( G_IG%nv+1, G_IG%ia, __FILE__,__LINE__ )
+    call A_IG%set_size(ni_rows,nb_cols)
+    G_IG => A_IG%get_graph()
+    call memalloc ( G_IG%get_nv()+1, G_IG%ia, __FILE__,__LINE__ )
     G_IG%ia(1) = 1
 
-    G_GG%nv   = nb_rows
-    G_GG%nv2  = nb_cols
-    call memalloc ( G_GG%nv+1, G_GG%ia,__FILE__,__LINE__ )
+    call A_GG%set_size(nb_rows)
+    G_GG => A_GG%get_graph()
+    call memalloc ( G_GG%get_nv()+1, G_GG%ia,__FILE__,__LINE__ )
     G_GG%ia(1) = 1
 
     nz_ii = 1
@@ -1244,26 +1269,25 @@ contains
 
     ! List number of nonzeros on each row of G_II/G_IG
     do ipoing=1, ni_rows
-       if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
-
+       if ( graph%get_symmetric_storage() .eqv. G_II%get_symmetric_storage() ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig <= ni_cols ) then
                 nz_ii = nz_ii + 1
              else 
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
+       else if ( (.not. graph%get_symmetric_storage()) .and. G_II%get_symmetric_storage() ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
                 nz_ii = nz_ii + 1
              else if ( ipoing_neig > ni_cols ) then
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
+       else if ( graph%get_symmetric_storage() .and. (.not. G_II%get_symmetric_storage()) ) then
           ! Not implemented yet.
           check ( .false. )
        end if
@@ -1273,18 +1297,18 @@ contains
 
     ! List number of nonzeros on each row of G_GI/G_GG)
     do ipoing=ni_rows+1, ni_rows + nb_rows
-       if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
+       if ( graph%get_symmetric_storage() .eqv. G_GG%get_symmetric_storage() ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig <= ni_cols ) then
                 nz_gi = nz_gi + 1
              else
                 nz_gg = nz_gg + 1
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
+       else if ( (.not. graph%get_symmetric_storage()) .and. G_GG%get_symmetric_storage() ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig <= ni_cols ) then
                 nz_gi = nz_gi + 1
              else if ( ipoing_neig >= ipoing ) then
@@ -1292,7 +1316,7 @@ contains
              end if
           end do
 
-       else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage) ) then
+       else if ( graph%get_symmetric_storage() .and. (.not. G_GG%get_symmetric_storage()) ) then
           ! Not implemented yet.
           check ( .false. )
        end if
@@ -1310,9 +1334,9 @@ contains
 
     ! List nonzeros on each row of G_II/G_IG
     do ipoing=1, ni_rows
-       if ( grph%symmetric_storage .eqv. G_II%symmetric_storage ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
+       if ( graph%get_symmetric_storage() .eqv. G_II%get_symmetric_storage() ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig <= ni_cols ) then
                 G_II%ja(nz_ii) = ipoing_neig
                 nz_ii = nz_ii + 1 
@@ -1321,9 +1345,9 @@ contains
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. G_II%symmetric_storage ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
+       else if ( (.not. graph%get_symmetric_storage()) .and. G_II%get_symmetric_storage() ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig >= ipoing .and. ipoing_neig <= ni_cols ) then
                 G_II%ja(nz_ii) = ipoing_neig
                 nz_ii = nz_ii + 1 
@@ -1332,7 +1356,7 @@ contains
                 nz_ig = nz_ig + 1 
              end if
           end do
-       else if ( grph%symmetric_storage .and. (.not. G_II%symmetric_storage) ) then
+       else if ( graph%get_symmetric_storage() .and. (.not. G_II%get_symmetric_storage()) ) then
           ! Not implemented yet.
           check ( .false. )
        end if
@@ -1341,26 +1365,30 @@ contains
 
     ! List number of nonzeros on each row of G_GI/G_GG
     do ipoing=ni_rows+1, ni_rows + nb_rows
-       if ( grph%symmetric_storage .eqv. G_GG%symmetric_storage ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
+       if ( graph%get_symmetric_storage() .eqv. G_GG%get_symmetric_storage() ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig > ni_cols ) then
                 G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
                 nz_gg = nz_gg + 1
              end if
           end do
-       else if ( (.not. grph%symmetric_storage) .and. G_GG%symmetric_storage  ) then
-          do pos_neig=grph%ia(ipoing), grph%ia(ipoing+1)-1
-             ipoing_neig = grph%ja(pos_neig)
+       else if ( (.not. graph%get_symmetric_storage()) .and. G_GG%get_symmetric_storage()  ) then
+          do pos_neig=graph%ia(ipoing), graph%ia(ipoing+1)-1
+             ipoing_neig = graph%ja(pos_neig)
              if ( ipoing_neig >= ipoing ) then
                 G_GG%ja( nz_gg ) = ipoing_neig - ni_cols  
                 nz_gg = nz_gg + 1
              end if
           end do
-       else if ( grph%symmetric_storage .and. (.not. G_GG%symmetric_storage ) ) then
+       else if ( graph%get_symmetric_storage() .and. (.not. G_GG%get_symmetric_storage() ) ) then
           ! Not implemented yet.
           check ( .false. )
        end if
     end do
+    
+    call A_II%return_graph(G_II)
+    call A_IG%return_graph(G_IG)
+    call A_GG%return_graph(G_GG)
   end subroutine split_graph_I_G_count_list_symm
 end module operator_dd_names
