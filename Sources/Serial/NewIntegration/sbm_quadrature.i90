@@ -10,6 +10,15 @@ subroutine quadrature_create ( this, ndime, ngaus )
   this%weight=0.0_rp
 end subroutine quadrature_create
 
+subroutine quadrature_free ( this)
+  implicit none       
+  class(SB_quadrature_t), intent(inout) :: this
+  this%number_dimensions = 0
+  this%number_integration_points = 0
+  if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
+  if(allocated(this%weight)) call memfree(this%weight,__FILE__,__LINE__)
+end subroutine quadrature_free
+
 function quadrature_get_number_dimensions ( this )
   implicit none
   class(SB_quadrature_t), intent(in) :: this

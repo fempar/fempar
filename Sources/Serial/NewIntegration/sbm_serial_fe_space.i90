@@ -350,7 +350,7 @@ subroutine create_vef2dof ( fe_space )
                 if ( fe_space%fe_array(jelem)%bc_code(1,obje_l) == 0 ) then
                    do inode = 1, fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(obje_l)
                       !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l), &
-                      &     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
+                      !&     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
                            l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,obje_l)
                       !fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
                       count = count + 1
