@@ -277,15 +277,15 @@ type SB_volume_integrator_t
 contains
 
   procedure :: create => volume_integrator_create
-  !procedure :: free
-  procedure :: print => volume_integrator_print
+  procedure :: free   => volume_integrator_free
+  procedure :: print  => volume_integrator_print
   procedure :: update => volume_integrator_update
   procedure :: set_integration => volume_integrator_set_integration
 
-  procedure :: get_reference_fe => volume_integrator_get_reference_fe
-  procedure :: get_quadrature => volume_integrator_get_quadrature
+  procedure :: get_reference_fe  => volume_integrator_get_reference_fe
+  procedure :: get_quadrature    => volume_integrator_get_quadrature
   procedure :: get_interpolation => volume_integrator_get_interpolation
-  procedure :: get_fe_map => volume_integrator_get_fe_map
+  procedure :: get_fe_map        => volume_integrator_get_fe_map
 
 end type SB_volume_integrator_t
 

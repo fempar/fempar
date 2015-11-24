@@ -291,11 +291,11 @@ program test_cdr
   character(len=:), allocatable :: group
 
   ! SB
-  class(reference_fe_t), pointer :: reference_fe
-  type(SB_quadrature_t) :: quadrature
-  type(SB_interpolation_t) :: interpolation
-  type(SB_finite_element_t) :: finite_element
-  type(SB_volume_integrator_t) :: volume_integrator
+!  class(reference_fe_t), pointer :: reference_fe
+!  type(SB_quadrature_t) :: quadrature
+!  type(SB_interpolation_t) :: interpolation
+!  type(SB_finite_element_t) :: finite_element
+!  type(SB_volume_integrator_t) :: volume_integrator
   type(SB_serial_fe_space_t) :: fe_space
   type(poisson_discrete_integration_t), target :: poisson_integration
   type(SB_p_discrete_integration_t) :: approximations(1) 
@@ -395,8 +395,18 @@ program test_cdr
   class default
      check(.false.) 
   end select
+
+
+  call vector%free()
+  call fe_affine_operator%free()
+  call feprec%free()
+  call fe_space%free()
+  call triangulation_free(f_trian)
+  call conditions_free ( f_cond )
+  call mesh_free (f_mesh)
+
 		
-		call memstatus 
+  call memstatus 
 
 
 contains
