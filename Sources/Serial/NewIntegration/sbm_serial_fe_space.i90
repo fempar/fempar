@@ -351,7 +351,7 @@ subroutine create_vef2dof ( fe_space )
                 if ( fe_space%fe_array(jelem)%bc_code(1,obje_l) == 0 ) then
                    do inode = 1, fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(obje_l)
                       !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l), &
-                      &     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
+                      !&     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
                            l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,obje_l)
                       !fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
                       count = count + 1
@@ -471,7 +471,7 @@ subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   matrix => matrix_array_assembler%get_matrix()
   select type(matrix)
      class is(serial_scalar_matrix_t)
-     call setup_dof_graph_from_block_row_col_identifiers ( this, matrix%graph )
+     call setup_dof_graph_from_block_row_col_identifiers ( this, matrix )
      class default
      check(.false.)
   end select
@@ -493,29 +493,26 @@ end subroutine serial_fe_space_symbolic_setup_assembler
 !    elements) (see explanation of the subroutine below and *ghost_dofs_by_integration*
 !    in *par_create_global_dof_info_names* for more insight)
 !*********************************************************************************
-subroutine setup_dof_graph_from_block_row_col_identifiers(  fe_space, dof_graph ) 
+subroutine setup_dof_graph_from_block_row_col_identifiers(  fe_space, matrix ) 
   implicit none
   ! Parameters
-  class(SB_serial_fe_space_t)       , intent(in)     :: fe_space 
-  type(graph_t)          , intent(inout)  :: dof_graph
+  class(SB_serial_fe_space_t) , intent(in)     :: fe_space 
+  type(serial_scalar_matrix_t), intent(inout)  :: matrix
 
   ! Local variables
   integer(ip) :: iprob, count, iobje, ielem, jelem, nvapb, inter, inode, l_node
-  integer(ip) :: idof, jdof, int_i, int_j, istat, jnode, job_g, jobje, touch
+  integer(ip) :: idof, jdof, int_i, int_j, istat, jnode, job_g, jobje
   integer(ip) :: l_dof, m_dof, m_node, posi, posf, l_mat, m_mat, knode
 
   integer(ip) :: nvapbi, nvapbj, nnode, i, iface, jprob, l_faci, l_facj, ic
 
-
   integer(ip), allocatable :: aux_ia(:)
   type(hash_table_ip_ip_t) :: visited
-
-  touch = 1
+		type(graph_t), pointer :: dof_graph
 
   ! Initialize
-  dof_graph%nv  = fe_space%number_dofs
-  dof_graph%nv2 = fe_space%number_dofs
-  call memalloc( dof_graph%nv+1, dof_graph%ia, __FILE__,__LINE__ )
+  dof_graph => matrix%get_graph()
+  call memalloc( dof_graph%get_nv()+1, dof_graph%ia, __FILE__,__LINE__ )
   dof_graph%ia = 0
 
   ! COUNT PART
@@ -530,14 +527,11 @@ subroutine setup_dof_graph_from_block_row_col_identifiers(  fe_space, dof_graph 
   call memalloc ( dof_graph%ia(fe_space%number_dofs+1)-1, dof_graph%ja, __FILE__, __LINE__ )
 
   ! LIST PART
-  call memalloc( dof_graph%nv+1, aux_ia, __FILE__,__LINE__ )
+  call memalloc( dof_graph%get_nv()+1, aux_ia, __FILE__,__LINE__ )
   aux_ia = dof_graph%ia
   !
-
-
   call list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( fe_space%triangulation, fe_space, dof_graph, aux_ia ) 
   !call list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( fe_space%triangulation, fe_space, dof_graph, aux_ia )
-
 
   do idof = 1, fe_space%number_dofs
      ! Order increasingly column identifiers of current row 
@@ -547,8 +541,9 @@ subroutine setup_dof_graph_from_block_row_col_identifiers(  fe_space, dof_graph 
      call sort(posf-posi+1,dof_graph%ja(posi:posf))
   end do
   call dof_graph%print( 6)
-
   call memfree (aux_ia,__FILE__,__LINE__)
+		
+		call matrix%return_graph(dof_graph)
 
 end subroutine setup_dof_graph_from_block_row_col_identifiers
 

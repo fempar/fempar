@@ -39,8 +39,8 @@ module reference_fe_names
           weight(:)                  ! Quadrature points weight
    contains
      procedure :: create => quadrature_create
-     !procedure :: free
-     procedure :: print => quadrature_print
+     procedure :: free   => quadrature_free
+     procedure :: print  => quadrature_print
 
      procedure :: get_number_dimensions => quadrature_get_number_dimensions
      procedure :: get_number_integration_points => quadrature_get_number_integration_points
@@ -71,8 +71,8 @@ module reference_fe_names
    contains
 
      procedure :: create => interpolation_create
-     !procedure :: free
-     procedure :: print => interpolation_print
+     procedure :: free   => interpolation_free
+     procedure :: print  => interpolation_print
 
      procedure :: get_number_dimensions => interpolation_get_number_dimensions
      procedure :: get_number_shape_functions => interpolation_get_number_shape_functions
@@ -250,6 +250,7 @@ type fe_map_t
 contains
 
   procedure :: get_det_jacobian => fe_map_get_det_jacobian
+  procedure :: free             => fe_map_free
 
 end type fe_map_t
 

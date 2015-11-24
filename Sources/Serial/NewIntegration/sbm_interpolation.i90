@@ -53,6 +53,20 @@ subroutine interpolation_create( this, ndime, nnode, ngaus, ntens, khes )
 
 end subroutine interpolation_create
 
+subroutine interpolation_free( this)
+  implicit none
+  class(SB_interpolation_t), intent(out) :: this
+
+  this%number_dimensions = 0
+  this%number_shape_functions = 0
+  this%number_evaluation_points = 0
+  this%number_entries_symmetric_tensor = 0
+  if(allocated(this%shape_functions)) call memfree(this%shape_functions,__FILE__,__LINE__)
+  if(allocated(this%shape_derivatives)) call memfree(this%shape_derivatives,   __FILE__,__LINE__)
+  if(allocated(this%hessian)) call memfree(this%hessian,   __FILE__,__LINE__) 
+
+end subroutine interpolation_free
+
 subroutine interpolation_print ( this )
   implicit none
   class(SB_interpolation_t), intent(in) :: this
