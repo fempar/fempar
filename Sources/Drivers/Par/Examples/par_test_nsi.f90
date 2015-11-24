@@ -325,8 +325,8 @@ program par_test_nsi_iss
 
   ! Create Preconditioner 
   call par_preconditioner_dd_mlevel_bddc_create(fe_affine_operator,p_mlevel_bddc,p_mlevel_bddc_pars)
-  call par_preconditioner_dd_mlevel_bddc_ass_struct(p_mlevel_bddc)
-  call par_preconditioner_dd_mlevel_bddc_fill_val(p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_symbolic_setup(p_mlevel_bddc)
+  call par_preconditioner_dd_mlevel_bddc_numerical_setup(p_mlevel_bddc)
 
   ! Solve
   call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
@@ -356,8 +356,8 @@ program par_test_nsi_iss
   call postprocess_pre%free
   
   ! Free preconditioner
-  call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_values)
-  call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_struct)
+  call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_numerical_setup)
+  call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_symbolic_setup)
   call par_preconditioner_dd_mlevel_bddc_free_in_stages(p_mlevel_bddc,free_clean)
 
   ! Deallocate

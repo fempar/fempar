@@ -75,8 +75,8 @@ contains
   subroutine matrix_free_template_method ( this )
     implicit none
     class(matrix_t), intent(inout) :: this
-    call this%free_in_stages(free_values)
-    call this%free_in_stages(free_struct)
+    call this%free_in_stages(free_numerical_setup)
+    call this%free_in_stages(free_symbolic_setup)
     call this%free_in_stages(free_clean)
   end subroutine matrix_free_template_method
 end module matrix_names

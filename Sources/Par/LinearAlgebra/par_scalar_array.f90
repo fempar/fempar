@@ -742,7 +742,7 @@ contains
     class(par_scalar_array_t), intent(inout) :: this
     integer(ip)              , intent(in)    :: action
 
-    assert ( action == free_clean .or. action == free_struct .or. action == free_values )	 
+    assert ( action == free_clean .or. action == free_symbolic_setup .or. action == free_numerical_setup )	 
 
     if ( associated ( this%p_env ) ) then
       if(this%p_env%p_context%iam<0) then 

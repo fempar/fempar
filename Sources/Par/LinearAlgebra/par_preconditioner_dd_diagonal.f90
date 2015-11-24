@@ -205,7 +205,7 @@ module par_preconditioner_dd_diagonal_names
     
     if (mode == free_clean) then
        nullify(p_prec_dd_diagonal%p_mat)
-    else if (mode == free_values) then
+    else if (mode == free_numerical_setup) then
        call memfree ( p_prec_dd_diagonal%d,__FILE__,__LINE__)
     end if
 
@@ -242,7 +242,7 @@ module par_preconditioner_dd_diagonal_names
   subroutine par_preconditioner_dd_diagonal_free(this)
     implicit none
     class(par_preconditioner_dd_diagonal_t), intent(inout) :: this
-    call par_preconditioner_dd_diagonal_free_in_stages(this,free_values)
+    call par_preconditioner_dd_diagonal_free_in_stages(this,free_numerical_setup)
     call par_preconditioner_dd_diagonal_free_in_stages(this,free_clean)
   end subroutine par_preconditioner_dd_diagonal_free
   

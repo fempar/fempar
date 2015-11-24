@@ -32,14 +32,13 @@ module umfpack_names
   ! be performed here.
 
   ! Serial modules
-use iso_c_binding
-use umfpack_interface_names
-use types_names
-use memor_names
+  use iso_c_binding
+  use umfpack_interface_names
+  use types_names
+  use memor_names
   use serial_scalar_matrix_names
   use serial_scalar_array_names 
-  use graph_names
-  use renumbering_names
+  use graph_names 
 
   
   implicit none
@@ -74,9 +73,6 @@ use memor_names
   integer(ip), parameter :: umfpack_compute_symb      = 3  ! Compute symb. fact.  
   integer(ip), parameter :: umfpack_compute_num       = 4  ! Compute numerical fact. 
   integer(ip), parameter :: umfpack_solve             = 6  ! Fwd./Bck. substitution 
-  integer(ip), parameter :: umfpack_free_values       = 7
-  integer(ip), parameter :: umfpack_free_struct       = 8
-  integer(ip), parameter :: umfpack_free_clean        = 9
 
   interface umfpack
      module procedure umfpack_vector, umfpack_r2, umfpack_r1
@@ -87,10 +83,7 @@ use memor_names
        &    umfpack_finalize, &
        &    umfpack_compute_symb, & 
        &    umfpack_compute_num, &
-       &    umfpack_solve, &
-       &    umfpack_free_values,&
-       &    umfpack_free_struct, &
-       &    umfpack_free_clean
+       &    umfpack_solve
 
   ! Functions
   public :: umfpack
@@ -121,14 +114,14 @@ contains
        assert ( context%state /= not_created )
        select case (context%state)
        case (created)
-          call  umfpack_free ( umfpack_free_clean , context )
+          call  umfpack_free ( free_clean , context )
        case (symb_computed)
-          call  umfpack_free ( umfpack_free_struct, context )
-          call  umfpack_free ( umfpack_free_clean , context )
+          call  umfpack_free ( free_symbolic_setup, context )
+          call  umfpack_free ( free_clean , context )
        case (num_computed)
-          call  umfpack_free ( umfpack_free_values, context )
-          call  umfpack_free ( umfpack_free_struct, context )
-          call  umfpack_free ( umfpack_free_clean , context )
+          call  umfpack_free ( free_numerical_setup, context )
+          call  umfpack_free ( free_symbolic_setup, context )
+          call  umfpack_free ( free_clean , context )
        end select
        ! State transition 
        context%state = not_created
@@ -156,19 +149,19 @@ contains
        assert ( context%state ==  num_computed )
        call umfpack_solution ( context, A, b, x )
 
-    case ( umfpack_free_values )
+    case ( free_numerical_setup )
 
-       call  umfpack_free ( umfpack_free_values, context )
+       call  umfpack_free ( free_numerical_setup, context )
        context%state=symb_computed
 
-    case ( umfpack_free_struct )
+    case ( free_symbolic_setup )
 
-       call  umfpack_free ( umfpack_free_struct, context )
+       call  umfpack_free ( free_symbolic_setup, context )
        context%state=created
 
-    case ( umfpack_free_clean )
+    case ( free_clean )
 
-       call  umfpack_free ( umfpack_free_clean, context )
+       call  umfpack_free ( free_clean, context )
        context%state=not_created
 
     case default
@@ -273,14 +266,13 @@ contains
 
 #ifdef ENABLE_UMFPACK
     ! Free umfpack_context structures
-    if ( mode == umfpack_free_clean ) then
-      
-    else if ( mode == umfpack_free_struct  ) then
+    if ( mode == free_clean ) then
+    else if ( mode == free_symbolic_setup  ) then
       !
       !  Free the memory associated with the symbolic factorization.
       !
       call umfpack_di_free_symbolic ( context%Symbolic )
-    else if ( mode == umfpack_free_values ) then
+    else if ( mode == free_numerical_setup ) then
       !
       !  Free the memory associated with the numeric factorization.
       !
@@ -308,8 +300,6 @@ contains
 
   !=============================================================================
   subroutine umfpack_analysis ( context, matrix )
-use partitioning_params_names
-use graph_renumbering_names
     implicit none
 
     ! Parameters 
@@ -343,8 +333,6 @@ use graph_renumbering_names
 #else
     call enable_umfpack_error_message
 #endif
-
-
   end subroutine umfpack_analysis
 
   !=============================================================================

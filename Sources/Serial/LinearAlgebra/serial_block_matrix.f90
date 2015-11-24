@@ -54,20 +54,25 @@ module serial_block_matrix_names
    contains
      procedure, private :: serial_block_matrix_create_only_blocks_container
      procedure, private :: serial_block_matrix_create_blocks_container_and_all_blocks
-     generic :: create  => serial_block_matrix_create_only_blocks_container, &
-          serial_block_matrix_create_blocks_container_and_all_blocks
-
-     procedure, private :: serial_block_matrix_create_diagonal_block
-     procedure, private :: serial_block_matrix_create_offdiagonal_block
-     generic :: create_block => serial_block_matrix_create_diagonal_block, &
-          serial_block_matrix_create_offdiagonal_block
-
-     procedure :: allocate           => serial_block_matrix_allocate
-     procedure :: free_in_stages     => serial_block_matrix_free_in_stages
-     procedure :: set_block_to_zero  => serial_block_matrix_set_block_to_zero
-     procedure :: get_block          => serial_block_matrix_get_block
-     procedure :: get_nblocks        => serial_block_matrix_get_nblocks
-     procedure :: apply              => serial_block_matrix_apply
+     !generic :: create  => serial_block_matrix_create_only_blocks_container, &
+     !                      serial_block_matrix_create_blocks_container_and_all_blocks
+     generic :: create => serial_block_matrix_create_blocks_container_and_all_blocks
+     
+     ! This set of methods should be re-thought/developed in the future whenever we have a clearer
+     ! idea of which services these objects should provide and how they should behave
+     ! (i.e., once we know how to precisely define their state transition diagram)
+     ! procedure, private :: serial_block_matrix_create_diagonal_block
+     ! procedure, private :: serial_block_matrix_create_offdiagonal_block
+     ! generic :: create_block => serial_block_matrix_create_diagonal_block, &
+     !                            serial_block_matrix_create_offdiagonal_block
+     ! procedure :: set_block_to_zero => serial_block_matrix_set_block_to_zero                     
+                           
+     procedure :: allocate                      => serial_block_matrix_allocate
+     procedure :: free_in_stages                => serial_block_matrix_free_in_stages
+     procedure :: get_block                     => serial_block_matrix_get_block
+     procedure :: get_nblocks                   => serial_block_matrix_get_nblocks
+     procedure :: apply                         => serial_block_matrix_apply
+     procedure, private :: create_vector_spaces => serial_block_matrix_create_vector_spaces
   end type serial_block_matrix_t
 
   ! Types
@@ -76,75 +81,73 @@ module serial_block_matrix_names
 contains
 
   !=============================================================================
-  subroutine serial_block_matrix_create_blocks_container_and_all_blocks(bmat,nblocks,diagonal_blocks_symmetric_storage,diagonal_blocks_symmetric,diagonal_blocks_sign)
+  subroutine serial_block_matrix_create_blocks_container_and_all_blocks(this, & 
+                                                                        nblocks, & 
+                                                                        diagonal_blocks_num_rows, &
+                                                                        diagonal_blocks_num_cols, &
+                                                                        diagonal_blocks_symmetric_storage,&
+                                                                        diagonal_blocks_symmetric,& 
+                                                                        diagonal_blocks_sign)
     implicit none
-    class(serial_block_matrix_t), intent(out) :: bmat
-    integer(ip)                 , intent(in)  :: nblocks
-    logical                     , intent(in)  :: diagonal_blocks_symmetric_storage(nblocks)
-    logical                     , intent(in)  :: diagonal_blocks_symmetric(nblocks)
-    integer(ip)                 , intent(in)  :: diagonal_blocks_sign(nblocks)
+    class(serial_block_matrix_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: nblocks
+    integer(ip)                 , intent(in)    :: diagonal_blocks_num_rows(nblocks)
+    integer(ip)                 , intent(in)    :: diagonal_blocks_num_cols(nblocks)
+    logical                     , intent(in)    :: diagonal_blocks_symmetric_storage(nblocks)
+    logical                     , intent(in)    :: diagonal_blocks_symmetric(nblocks)
+    integer(ip)                 , intent(in)    :: diagonal_blocks_sign(nblocks)
 
     integer(ip) :: ib,jb,istat
 
-    call bmat%create(nblocks)
-    do ib=1, bmat%nblocks 
-       do jb=1, bmat%nblocks
-          allocate ( bmat%blocks(ib,jb)%serial_scalar_matrix )
+    call this%serial_block_matrix_create_only_blocks_container(nblocks)
+    do ib=1, this%nblocks 
+       do jb=1, this%nblocks
+          allocate ( this%blocks(ib,jb)%serial_scalar_matrix )
           if ( ib == jb ) then
-             call bmat%blocks(ib,jb)%serial_scalar_matrix%create (diagonal_blocks_symmetric_storage(ib), diagonal_blocks_symmetric(ib), diagonal_blocks_sign(ib) )
+             assert ( diagonal_blocks_num_rows(ib) == diagonal_blocks_num_cols(ib) )
+             call this%blocks(ib,jb)%serial_scalar_matrix%create ( diagonal_blocks_num_rows(ib), &
+                                                                   diagonal_blocks_symmetric_storage(ib), &
+                                                                   diagonal_blocks_symmetric(ib), &
+                                                                   diagonal_blocks_sign(ib) )
           else
-             call bmat%blocks(ib,jb)%serial_scalar_matrix%create()
+             call this%blocks(ib,jb)%serial_scalar_matrix%create( diagonal_blocks_num_rows(ib), &
+                                                                  diagonal_blocks_num_cols(ib) )
           end if
        end do
     end do
+    call this%create_vector_spaces()
   end subroutine serial_block_matrix_create_blocks_container_and_all_blocks
-  
+
   !=============================================================================
-  subroutine serial_block_matrix_create_only_blocks_container(bmat,nblocks)
+  subroutine serial_block_matrix_create_only_blocks_container(this,nblocks)
     implicit none
     ! Parameters
-    class(serial_block_matrix_t), intent(out) :: bmat
-    integer(ip)                 , intent(in)  :: nblocks
+    class(serial_block_matrix_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: nblocks
     integer(ip) :: istat
-    bmat%nblocks = nblocks
-    allocate ( bmat%blocks(bmat%nblocks,bmat%nblocks), stat=istat )
+    this%nblocks = nblocks
+    allocate ( this%blocks(this%nblocks,this%nblocks), stat=istat )
     check (istat==0)
   end subroutine serial_block_matrix_create_only_blocks_container
-
-  subroutine serial_block_matrix_create_diagonal_block (bmat,ib,diagonal_block_symmetric_storage,diagonal_block_symmetric,diagonal_block_sign)
-    implicit none
-    ! Parameters
-    class(serial_block_matrix_t)   , intent(inout) :: bmat
-    integer(ip)                    , intent(in)    :: ib
-    logical                        , intent(in)    :: diagonal_block_symmetric_storage
-    logical                        , intent(in)    :: diagonal_block_symmetric
-    integer(ip)                    , intent(in)    :: diagonal_block_sign
-    integer(ip) :: istat
-
-    assert ( .not. associated ( bmat%blocks(ib,ib)%serial_scalar_matrix ) )
-    allocate ( bmat%blocks(ib,ib)%serial_scalar_matrix, stat=istat )
-    check ( istat==0 )
-    call bmat%blocks(ib,ib)%serial_scalar_matrix%create ( diagonal_block_symmetric_storage, diagonal_block_symmetric, diagonal_block_sign )
-  end subroutine serial_block_matrix_create_diagonal_block
-
-  subroutine serial_block_matrix_create_offdiagonal_block (bmat,ib,jb)
-    implicit none
-    ! Parameters
-    class(serial_block_matrix_t)   , intent(inout) :: bmat
-    integer(ip)                    , intent(in)    :: ib,jb
-    integer(ip) :: istat
-    assert ( ib /= jb ) 
-    assert ( .not. associated(bmat%blocks(ib,jb)%serial_scalar_matrix ))
-    allocate ( bmat%blocks(ib,ib)%serial_scalar_matrix, stat=istat )
-    check ( istat==0 )
-    call bmat%blocks(ib,jb)%serial_scalar_matrix%create ()
-  end subroutine serial_block_matrix_create_offdiagonal_block
   
   !=============================================================================
   subroutine serial_block_matrix_allocate(this)
     implicit none
     class(serial_block_matrix_t), intent(inout) :: this
     integer(ip) :: ib,jb
+    do ib=1, this%nblocks
+       do jb=1, this%nblocks
+          if ( associated( this%blocks(ib,jb)%serial_scalar_matrix ) ) then
+            call this%blocks(ib,jb)%serial_scalar_matrix%allocate()
+          end if
+       end do
+    end do
+  end subroutine serial_block_matrix_allocate
+  
+  subroutine serial_block_matrix_create_vector_spaces(this)
+    implicit none
+    class(serial_block_matrix_t), intent(inout) :: this
+    integer(ip) :: ib
     
     integer(ip), allocatable :: size_of_blocks_domain(:)
     integer(ip), allocatable :: size_of_blocks_range(:)
@@ -157,15 +160,8 @@ contains
     call memalloc(this%nblocks,size_of_blocks_range,__FILE__,__LINE__)
     
     do ib=1, this%nblocks
-       do jb=1, this%nblocks
-          if ( associated( this%blocks(ib,jb)%serial_scalar_matrix ) ) then
-            call this%blocks(ib,jb)%serial_scalar_matrix%allocate()
-          end if
-          if ( ib == jb ) then
-            size_of_blocks_domain(ib) = this%blocks(ib,ib)%serial_scalar_matrix%graph%nv2
-            size_of_blocks_range(ib) = this%blocks(ib,ib)%serial_scalar_matrix%graph%nv
-          end if
-       end do
+        size_of_blocks_domain(ib) = this%blocks(ib,ib)%serial_scalar_matrix%graph%get_nv2()
+        size_of_blocks_range(ib) = this%blocks(ib,ib)%serial_scalar_matrix%graph%get_nv()
     end do
     
     ! Create and set domain and range vector spaces
@@ -183,23 +179,8 @@ contains
     
     call memfree(size_of_blocks_domain,__FILE__,__LINE__)
     call memfree(size_of_blocks_range,__FILE__,__LINE__)
-  end subroutine serial_block_matrix_allocate
-
-  subroutine serial_block_matrix_set_block_to_zero (bmat,ib,jb)
-    implicit none
-    ! Parameters
-    class(serial_block_matrix_t), intent(inout) :: bmat
-    integer(ip)                 , intent(in)    :: ib,jb
-    integer(ip) :: istat
-
-    if ( associated(bmat%blocks(ib,jb)%serial_scalar_matrix) ) then
-       ! Undo create
-       call bmat%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_clean)
-       deallocate (bmat%blocks(ib,jb)%serial_scalar_matrix,stat=istat)
-       check(istat==0)
-       nullify ( bmat%blocks(ib,jb)%serial_scalar_matrix )
-    end if
-  end subroutine serial_block_matrix_set_block_to_zero
+  end subroutine serial_block_matrix_create_vector_spaces
+  
 
   function serial_block_matrix_get_block (bmat,ib,jb)
     implicit none
@@ -217,7 +198,6 @@ contains
     integer(ip)                                :: serial_block_matrix_get_nblocks
     serial_block_matrix_get_nblocks = this%nblocks
   end function serial_block_matrix_get_nblocks
-
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
@@ -269,11 +249,11 @@ contains
                 call this%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_clean)
                 deallocate (this%blocks(ib,jb)%serial_scalar_matrix, stat=istat)
                 check(istat==0)
-             else if ( action == free_struct ) then 
-                call this%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_struct)
-             else if ( action == free_values ) then
-                call this%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_values)
                 call this%free_vector_spaces()
+             else if ( action == free_symbolic_setup ) then 
+                call this%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_symbolic_setup)
+             else if ( action == free_numerical_setup ) then
+                call this%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_numerical_setup)
              end if
           end if
        end do
@@ -284,5 +264,52 @@ contains
        check(istat==0)
     end if
   end subroutine serial_block_matrix_free_in_stages
+  
+  !subroutine serial_block_matrix_create_diagonal_block (bmat,ib,diagonal_block_num_rows_and_cols,diagonal_block_symmetric_storage,diagonal_block_symmetric,diagonal_block_sign)
+  !  implicit none
+  !  ! Parameters
+  !  class(serial_block_matrix_t)   , intent(inout) :: bmat
+  !  integer(ip)                    , intent(in)    :: ib
+  !  integer(ip)                    , intent(in)    :: diagonal_block_num_rows_and_cols
+  !  logical                        , intent(in)    :: diagonal_block_symmetric_storage
+  !  logical                        , intent(in)    :: diagonal_block_symmetric
+  !  integer(ip)                    , intent(in)    :: diagonal_block_sign
+  !  integer(ip) :: istat
+
+  !  assert ( .not. associated ( bmat%blocks(ib,ib)%serial_scalar_matrix ) )
+  !  allocate ( bmat%blocks(ib,ib)%serial_scalar_matrix, stat=istat )
+  !  check ( istat==0 )
+  !  call bmat%blocks(ib,ib)%serial_scalar_matrix%create ( diagonal_block_num_rows_and_cols, diagonal_block_symmetric_storage, diagonal_block_symmetric, diagonal_block_sign )
+  !end subroutine serial_block_matrix_create_diagonal_block
+
+  !subroutine serial_block_matrix_create_offdiagonal_block (bmat,ib,jb,num_rows,num_cols)
+  !  implicit none
+  !  ! Parameters
+  !  class(serial_block_matrix_t)   , intent(inout) :: bmat
+  !  integer(ip)                    , intent(in)    :: ib,jb
+  !  integer(ip)                    , intent(in)    :: num_rows, num_cols
+  !  integer(ip) :: istat
+  !  assert ( ib /= jb ) 
+  !  assert ( .not. associated(bmat%blocks(ib,jb)%serial_scalar_matrix ))
+  !  allocate ( bmat%blocks(ib,ib)%serial_scalar_matrix, stat=istat )
+  !  check ( istat==0 )
+  !  call bmat%blocks(ib,jb)%serial_scalar_matrix%create (num_rows,num_cols)
+  !end subroutine serial_block_matrix_create_offdiagonal_block
+  
+  !subroutine serial_block_matrix_set_block_to_zero (bmat,ib,jb)
+  !  implicit none
+  !  ! Parameters
+  !  class(serial_block_matrix_t), intent(inout) :: bmat
+  !  integer(ip)                 , intent(in)    :: ib,jb
+  !  integer(ip) :: istat
+
+  !  if ( associated(bmat%blocks(ib,jb)%serial_scalar_matrix) ) then
+  !     ! Undo create
+  !     call bmat%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_clean)
+  !     deallocate (bmat%blocks(ib,jb)%serial_scalar_matrix,stat=istat)
+  !     check(istat==0)
+  !     nullify ( bmat%blocks(ib,jb)%serial_scalar_matrix )
+  !  end if
+  !end subroutine serial_block_matrix_set_block_to_zero
 
 end module serial_block_matrix_names
