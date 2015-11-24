@@ -1,11 +1,12 @@
-subroutine reference_fe_set_common_data( this, number_dimensions, order, continuity )
+subroutine reference_fe_set_common_data( this, number_dimensions, order, field_components, continuity )
   implicit none 
   class(reference_fe_t), intent(out) :: this 
-  integer(ip), intent(in)  :: number_dimensions, order
+  integer(ip), intent(in)  :: number_dimensions, order, field_components
   logical, optional, intent(in) :: continuity
 
   this%number_dimensions = number_dimensions
   this%order = order
+  this%field_components = field_components
   if ( present( continuity) ) then
      this%continuity = continuity
   else 
@@ -102,6 +103,13 @@ end function reference_fe_get_continuity
     integer(ip)                 :: reference_fe_get_number_nodes
     reference_fe_get_number_nodes = this%number_nodes
   end function reference_fe_get_number_nodes
+
+  function reference_fe_get_number_field_components ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)                 :: reference_fe_get_number_field_components
+    reference_fe_get_number_field_components = this%field_components
+  end function reference_fe_get_number_field_components
 
   function reference_fe_get_number_vefs_dimension ( this )
     implicit none

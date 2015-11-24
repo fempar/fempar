@@ -33,7 +33,7 @@ module reference_fe_names
      private
      integer(ip)           :: &
           number_dimensions,    &
-          number_integration_points                      ! Number of integration points
+          number_integration_points                    ! Number of integration points
      real(rp), allocatable :: &
           coordinates(:,:),             &    ! Quadrature points position
           weight(:)                  ! Quadrature points weight
@@ -66,7 +66,7 @@ module reference_fe_names
      real(rp), allocatable      ::  &
           shape_functions(:,:),     &   ! Shape functions
           shape_derivatives(:,:,:), &   ! Derivatives
-          hessian(:,:,:)                ! Hessian
+          hessian(:,:,:)                ! Hessian       
 
    contains
 
@@ -74,18 +74,14 @@ module reference_fe_names
      !procedure :: free
      procedure :: print => interpolation_print
 
-     procedure :: get_number_dimensions => interpolation_get_number_dimensions
-     procedure :: get_number_shape_functions => interpolation_get_number_shape_functions
-     procedure :: get_number_evaluation_points => interpolation_get_number_evaluation_points
-     procedure :: get_number_entries_symmetric_tensor => interpolation_get_number_entries_symmetric_tensor
+     !procedure :: get_number_dimensions => interpolation_get_number_dimensions
+     !procedure :: get_number_shape_functions => interpolation_get_number_shape_functions
+     !procedure :: get_number_evaluation_points => interpolation_get_number_evaluation_points
+     !procedure :: get_number_entries_symmetric_tensor => interpolation_get_number_entries_symmetric_tensor
 
-     procedure :: get_shape_function => interpolation_get_shape_function
+     !procedure :: get_shape_function => interpolation_get_shape_function
      procedure :: get_shape_derivative => interpolation_get_shape_derivative
-     procedure :: get_hessian  => interpolation_get_hessian
-
-     !procedure :: get_shape_functions
-     !procedure :: get_shape_derivatives
-     !procedure :: get_hessian 
+     !procedure :: get_hessian  => interpolation_get_hessian
 
   end type SB_interpolation_t
 
@@ -103,7 +99,8 @@ module reference_fe_names
 
      integer(ip)              ::    &        
           number_dimensions,        &        ! ndime
-          order                              ! FE order
+          order,                    &        ! FE order
+          field_components
 
      logical                  ::    &
           continuity                         ! CG/DG case (changes ndxob)
@@ -138,6 +135,7 @@ module reference_fe_names
      procedure :: get_number_dimensions => reference_fe_get_number_dimensions
      procedure :: get_order => reference_fe_get_order
      procedure :: get_continuity => reference_fe_get_continuity
+     procedure :: get_number_field_components => reference_fe_get_number_field_components
      !procedure :: get_topology
      !procedure :: get_fe_type
 
@@ -157,7 +155,6 @@ module reference_fe_names
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
 
-
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (permute_order_vef_interface), deferred :: permute_order_vef
@@ -170,6 +167,10 @@ module reference_fe_names
      ! TBP to create a quadrature for a reference_fe_t
      procedure (create_quadrature_interface), deferred :: create_quadrature
 
+     procedure(reference_fe_get_value_interface), deferred :: get_value
+     procedure(reference_fe_get_gradient_interface), deferred :: get_gradient
+
+
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -177,11 +178,11 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, number_dimensions, order, continuity )
+     subroutine create_interface ( this, number_dimensions, order, field_components, continuity )
        import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t), intent(out) :: this 
-       integer(ip), intent(in)  :: number_dimensions, order
+       integer(ip), intent(in)  :: number_dimensions, order, field_components
        logical, optional, intent(in) :: continuity
      end subroutine create_interface
   end interface
@@ -213,16 +214,34 @@ module reference_fe_names
        class(SB_quadrature_t), intent(out) :: quadrature
      end subroutine create_quadrature_interface
   end interface
-
+  abstract interface
+     subroutine reference_fe_get_value_interface( this, shp, int, node, gp )
+     import :: reference_fe_t, SB_interpolation_t, rp, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this 
+       type(SB_interpolation_t), intent(in) :: int 
+       integer(ip), intent(in)  :: node, gp
+       real(rp), intent(inout) :: shp(:)
+     end subroutine reference_fe_get_value_interface
+  end interface
+  abstract interface
+     subroutine reference_fe_get_gradient_interface( this, shg, int, node, gp )
+     import :: reference_fe_t, SB_interpolation_t, rp, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this 
+       type(SB_interpolation_t), intent(in) :: int 
+       integer(ip), intent(in)  :: node, gp
+       real(rp), intent(inout) :: shg(:,:)
+     end subroutine reference_fe_get_gradient_interface
+  end interface
   public :: reference_fe_t, p_reference_fe_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-
-
   type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
   private
+  integer(ip) :: number_nodes_scalar
+  integer(ip), allocatable :: node_component_array(:,:)
 contains 
   procedure :: create => quad_lagrangian_reference_fe_create
   procedure :: create_interpolation => quad_lagrangian_reference_fe_create_interpolation
@@ -232,6 +251,9 @@ contains
   !procedure :: local_to_ijk_node     
   !procedure :: ijk_to_local_node     
   procedure :: permute_order_vef => quad_lagrangian_reference_fe_permute_order_vef
+  procedure :: get_value => quad_lagrangian_reference_fe_get_value
+  procedure :: get_gradient => quad_lagrangian_reference_fe_get_gradient
+
 end type quad_lagrangian_reference_fe_t
 
 public :: quad_lagrangian_reference_fe_t
@@ -285,6 +307,9 @@ contains
   procedure :: get_quadrature => volume_integrator_get_quadrature
   procedure :: get_interpolation => volume_integrator_get_interpolation
   procedure :: get_fe_map => volume_integrator_get_fe_map
+
+  procedure :: get_gradient => volume_integrator_get_gradient
+  procedure :: get_value => volume_integrator_get_value
 
 end type SB_volume_integrator_t
 

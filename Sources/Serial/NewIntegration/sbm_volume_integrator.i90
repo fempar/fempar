@@ -1,3 +1,24 @@
+
+subroutine volume_integrator_get_value( this, shp, node, gp )
+  implicit none
+  class(SB_volume_integrator_t), intent(in) :: this
+  integer(ip), intent(in)  :: node, gp
+  real(rp), intent(inout) :: shp(:)
+
+  call this%reference_fe%get_value( shp, this%interpolation_o_map, node, gp )
+
+end subroutine volume_integrator_get_value
+
+subroutine volume_integrator_get_gradient( this, shg, node, gp )
+  implicit none
+  class(SB_volume_integrator_t), intent(in) :: this 
+  integer(ip), intent(in)  :: node, gp
+  real(rp), intent(inout) :: shg(:,:)
+
+  call this%reference_fe%get_gradient( shg, this%interpolation_o_map, node, gp )
+
+end subroutine volume_integrator_get_gradient
+
 subroutine volume_integrator_create( this, reference_fe, reference_fe_geometry, max_order )
   implicit none
   ! Parameters
@@ -43,6 +64,9 @@ subroutine volume_integrator_set_integration( this, max_order )
      call memalloc(ndime,ndime,ndime,this%interpolation%number_evaluation_points, &
           & this%fe_map%d2sdx,  __FILE__,__LINE__)
   end if
+
+  !call memalloc(ndime,this%shape_value,__FILE__,__LINE__)
+  !call memalloc(ndime,this%reference_fe%field_components,this%shape_gradient,__FILE__,__LINE__)
 
 end subroutine volume_integrator_set_integration
 
@@ -171,7 +195,8 @@ subroutine create_femap(int,elcod,map )
   ! ! Check and get data from int
   ! assert(int%kder==1)
   ndime = int%number_dimensions
-  nnode = int%number_shape_functions
+  !nnode = int%number_shape_functions
+  nnode = size(int%shape_functions,1)
   nlocs = int%number_evaluation_points
 
   ! ! Check elcod
@@ -502,7 +527,8 @@ subroutine femap_apply_to_interp(map,ref,phy)
   ndime = ref%number_dimensions
   ntens = ref%number_entries_symmetric_tensor
   nlocs = ref%number_evaluation_points
-  nnode = ref%number_shape_functions
+  !nnode = ref%number_shape_functions
+  nnode = size(ref%shape_functions,1)
 
   ! Shape functions do not change
   ! phy%shape = ref%shape ! SB. not needed
@@ -511,7 +537,7 @@ subroutine femap_apply_to_interp(map,ref,phy)
   !if(phy%kder==1) then
   phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_evaluation_points
-     do inode=1,phy%number_shape_functions
+     do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
         do idime=1,ndime
            do jdime=1,ndime
               phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
@@ -610,4 +636,3 @@ subroutine matove(xmatr,vecto,ndime,ntens)
   end if
 
 end subroutine matove
-
