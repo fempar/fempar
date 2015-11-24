@@ -370,8 +370,6 @@ program test_cdr
   write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   !call fe_affine_operator%numerical_setup()
   write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-  !call memstatus 
-
 
   ppars%type = pardiso_mkl_prec
   call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
@@ -397,6 +395,9 @@ program test_cdr
   class default
      check(.false.) 
   end select
+		
+		call memstatus 
+
 
 contains
   !==================================================================================================
