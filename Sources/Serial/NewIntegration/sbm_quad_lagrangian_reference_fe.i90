@@ -44,34 +44,14 @@ subroutine quad_lagrangian_reference_fe_free ( this )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
   
-		! Common in reference_fe_t
-		  if(allocated(this%topology))              deallocate(this%topology)
+    ! Common in reference_fe_t
+    if(allocated(this%topology))              deallocate(this%topology)
     if(allocated(this%fe_type))               deallocate(this%fe_type)
 
-    if(allocated(this%interior_nodes_vef%p)) & 
-         call memfree(this%interior_nodes_vef%p,__FILE__,__LINE__)
-    if(allocated(this%interior_nodes_vef%l)) & 
-         call memfree(this%interior_nodes_vef%l,__FILE__,__LINE__)
-    this%interior_nodes_vef%n = 0
-
-    if(allocated(this%nodes_vef%p)) & 
-         call memfree(this%nodes_vef%p,__FILE__,__LINE__)
-    if(allocated(this%nodes_vef%l)) & 
-         call memfree(this%nodes_vef%l,__FILE__,__LINE__)
-    this%nodes_vef%n = 0
-
-    if(allocated(this%corners_vef%p)) & 
-         call memfree(this%corners_vef%p,__FILE__,__LINE__)
-    if(allocated(this%corners_vef%l)) & 
-         call memfree(this%corners_vef%l,__FILE__,__LINE__)
-    this%corners_vef%n = 0
-
-    if(allocated(this%vefs_vef%p)) & 
-         call memfree(this%vefs_vef%p,__FILE__,__LINE__)
-    if(allocated(this%vefs_vef%l)) & 
-         call memfree(this%vefs_vef%l,__FILE__,__LINE__)
-    this%vefs_vef%n = 0
-
+    call this%interior_nodes_vef%free()
+    call this%nodes_vef%free()
+    call this%corners_vef%free()
+    call this%vefs_vef%free()
     call this%orientation%free()
 
     this%number_dimensions  = 0
@@ -117,9 +97,6 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
   integer(ip), optional, intent(in) :: max_order
   class(SB_quadrature_t), intent(out) :: quadrature
   integer(ip) :: ngaus, order
-  type(list_t) :: aux
-
-
 
   order = this%order
   if ( present(max_order) ) then
@@ -168,10 +145,10 @@ subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   !this%number_nodes = this%number_nodes_1d * field_components
 
   call extend_list_components( this, this%nodes_vef)
-  call print_list ( 6, this%nodes_vef)
+  call this%nodes_vef%print( 6 )
 
   call extend_list_components( this, this%interior_nodes_vef)
-  call print_list ( 6, this%interior_nodes_vef)
+  call this%interior_nodes_vef%print( 6 )
   
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%field_components
@@ -187,17 +164,15 @@ subroutine extend_list_components( this, list_1d)
 
   integer(ip) :: ngaus, order, i, j, k, c, node_1d, aux_1, aux_2
 
-  list%n = this%number_vefs+1
-  call memalloc( this%number_vefs+2, list%p, __FILE__, __LINE__ )
+  call list%create(this%number_vefs+1)
 
   list%p(1) = 1
   do i = 2,this%number_vefs+2
      list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%field_components
   end do
 
-  call memalloc( list%p(this%number_vefs+2)-1, list%l, __FILE__, __LINE__ )
+  call list%allocate_list_from_pointer()
 
-  list%l = 0
   aux_1 = this%number_nodes
   do i = 1,this%number_vefs+1
      c = list%p(i)
@@ -211,10 +186,10 @@ subroutine extend_list_components( this, list_1d)
      end do
   end do
 		
-		call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
-		call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
+  call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
+  call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
   list_1d%p(:) = list%p(:)
-		list_1d%l(:) = list%l(:)
+  list_1d%l(:) = list%l(:)
   call memfree ( list%p, __FILE__, __LINE__ )
   call memfree ( list%l, __FILE__, __LINE__ )
 
@@ -284,31 +259,13 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
   ! Allocate arrays
   call this%orientation%create(no)
-  this%nodes_vef%n = no
-  this%interior_nodes_vef%n = no
-  this%vefs_vef%n = no
-  this%corners_vef%n = no
-  call memalloc(no+1,this%interior_nodes_vef%p,__FILE__,__LINE__)  !Pointer to this%interior_nodes_vef%l for each vef
-  call memalloc(nn,  this%interior_nodes_vef%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
-  call memalloc(no+1,this%nodes_vef%p,__FILE__,__LINE__)  !Pointer to nodes_vef%l for each vef
-  call memalloc(nt,  this%nodes_vef%l,__FILE__,__LINE__)  !Array of all nodes of each vef
-  call memalloc(no+1,this%vefs_vef%p,__FILE__,__LINE__)  !Pointer to this%vefs_vef%l for each vef
-  call memalloc(nt2,  this%vefs_vef%l,__FILE__,__LINE__)  !Array of all vefs of each vef
-  call memalloc(no+1,this%corners_vef%p,__FILE__,__LINE__)  !Pointer to this%corners_vef%l for each vef
-  call memalloc(nc,  this%corners_vef%l,__FILE__,__LINE__)  !Array of corners for each vef
+  call this%interior_nodes_vef%create(n=no)
+  call this%nodes_vef%create(n=no)
+  call this%vefs_vef%create(n=no)
+  call this%corners_vef%create(n=no)
   call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
   call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
   call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
-
-  this%interior_nodes_vef%p=0   !Pointer to ndxob%l for each vef
-  this%interior_nodes_vef%l=0   !Array of interior nodes of each vef
-  this%nodes_vef%p=0   !Pointer to ntxob%l for each vef
-  this%vefs_vef%l=0   !Array of all nodes of each vef
-  this%vefs_vef%p=0   !Pointer to obxob%l for each vef
-  this%nodes_vef%l=0   !Array of all nodes of each vef
-  this%corners_vef%p=0   !Pointer to crxob%l for each vef
-  this%corners_vef%l=0   !Array of corners for each vef
-
 
   !Initialize pointers
   this%interior_nodes_vef%p(1) = 1
@@ -331,6 +288,11 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         this%vefs_vef%p(i+1) = this%vefs_vef%p(i) + aux4 ! assign pointers 
      end do
   end do
+
+  call this%interior_nodes_vef%allocate_list_from_pointer()
+  call this%nodes_vef%allocate_list_from_pointer()
+  call this%vefs_vef%allocate_list_from_pointer()
+  call this%corners_vef%allocate_list_from_pointer()
 
   ! Initialize auxiliar values
   k = 0
