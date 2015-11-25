@@ -233,12 +233,12 @@ module reference_fe_names
      end subroutine create_quadrature_interface
   end interface
   abstract interface
-     subroutine create_face_quadrature_interface ( this, face_quadrature, face_order )
-       import :: reference_fe_t, face_quadrature_t, ip
+     subroutine create_face_quadrature_interface ( this, face_quadrature, local_quadrature)
+       import :: reference_fe_t, face_quadrature_t,  SB_quadrature_t 
        implicit none 
        class(reference_fe_t)   , intent(in)  :: this        
-       integer(ip)             , intent(in)  :: face_order
        class(face_quadrature_t), intent(out) :: face_quadrature
+       class(SB_quadrature_t)  , intent(in)  :: local_quadrature
      end subroutine create_face_quadrature_interface
   end interface
   abstract interface
@@ -363,12 +363,12 @@ contains
 
 #include "sbm_quad_lagrangian_reference_fe.i90"
 
-#include "sbm_quad_lagrangian_reference_face.i90"
-
 #include "sbm_quadrature.i90"
 
 #include "sbm_interpolation.i90"
 
 #include "sbm_volume_integrator.i90"
+
+#include "sbm_quad_lagrangian_reference_face.i90"
 
 end module reference_fe_names
