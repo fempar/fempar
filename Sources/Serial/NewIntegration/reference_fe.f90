@@ -1,5 +1,6 @@
 module reference_fe_names
   use allocatable_array_ip1_names
+  use shape_values_names
   use types_names
   use memor_names
   implicit none
@@ -96,7 +97,8 @@ module reference_fe_names
      private
      character(:), allocatable :: &
           topology,               &    ! type of element, 'tet', 'quad', 'prism'...
-          fe_type                      ! 'Lagrangian', 'RT', ...
+          fe_type,                &    ! 'Lagrangian', 'RT', ...
+          field_type
 
      integer(ip)              ::    &        
           number_dimensions,        &        ! ndime
@@ -179,11 +181,12 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, number_dimensions, order, field_components, continuity )
+     subroutine create_interface ( this, number_dimensions, order, field_type, continuity )
        import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t), intent(out) :: this 
-       integer(ip), intent(in)  :: number_dimensions, order, field_components
+       character(*), intent(in) :: field_type
+       integer(ip), intent(in)  :: number_dimensions, order
        logical, optional, intent(in) :: continuity
      end subroutine create_interface
   end interface
@@ -222,7 +225,7 @@ module reference_fe_names
        class(reference_fe_t), intent(in) :: this 
        type(SB_interpolation_t), intent(in) :: int 
        integer(ip), intent(in)  :: node, gp
-       real(rp), intent(inout) :: shp(:)
+       real(rp), intent(inout) :: shp(:,:)
      end subroutine reference_fe_get_value_interface
   end interface
   abstract interface
@@ -247,7 +250,7 @@ contains
   procedure :: create => quad_lagrangian_reference_fe_create
   procedure :: free   => quad_lagrangian_reference_fe_free
   procedure :: create_interpolation => quad_lagrangian_reference_fe_create_interpolation
-  !  procedure :: set_integration_rule
+  !procedure :: set_integration_rule
   procedure :: create_quadrature => quad_lagrangian_reference_fe_create_quadrature
   procedure :: fill => quad_lagrangian_reference_fe_fill
   !procedure :: local_to_ijk_node     
@@ -297,6 +300,9 @@ type SB_volume_integrator_t
 
   ! FE map
   type(fe_map_t) :: fe_map
+		
+  type(shape_values_t) :: shape_value_test, shape_gradient_test
+  type(shape_values_t) :: shape_value_trial, shape_gradient_trial
 
 contains
 
@@ -309,10 +315,18 @@ contains
   procedure :: get_reference_fe  => volume_integrator_get_reference_fe
   procedure :: get_quadrature    => volume_integrator_get_quadrature
   procedure :: get_interpolation => volume_integrator_get_interpolation
-  procedure :: get_fe_map        => volume_integrator_get_fe_map
 
-  procedure :: get_gradient => volume_integrator_get_gradient
-  procedure :: get_value => volume_integrator_get_value
+  procedure :: get_fe_map => volume_integrator_get_fe_map
+ 
+  procedure :: compute_gradient_test => volume_integrator_compute_gradient_test
+  procedure :: compute_value_test => volume_integrator_compute_value_test
+  procedure :: get_gradients => volume_integrator_get_gradients
+  procedure :: get_values => volume_integrator_get_values
+
+  !procedure :: compute_gradient_trial => volume_integrator_compute_gradient_trial
+  !procedure :: compute_value_trial => volume_integrator_compute_value_trial
+  !procedure :: get_gradient_trial => volume_integrator_get_gradient_trial
+  !procedure :: get_value_trial => volume_integrator_get_value_trial
 
 end type SB_volume_integrator_t
 
