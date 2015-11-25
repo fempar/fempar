@@ -460,6 +460,7 @@ subroutine fe_affine_operator_fill_values(this)
  call memfree ( elvec, __FILE__, __LINE__ )
 	
  write(*,*) ' ASSEMBLY FINISHED'
+
  !   do iapprox=1,size(this%approximations)
  !      do ielem=1,size(this%approximations%domain)
  !            call this%trial_fe_space%volume_integrator_update( triangulation%elems(ielem)%coordinates )

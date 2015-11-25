@@ -1,12 +1,41 @@
-subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, continuity )
+
+subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  type(SB_interpolation_t), intent(in) :: int 
+  integer(ip), intent(in)  :: node, gp
+  real(rp), intent(inout) :: shp(:)
+
+  !write(*,*) 'this%node_component_array',this%node_component_array
+  shp = 0
+  shp( this%node_component_array(node,2) ) = &
+       int%shape_functions( this%node_component_array(node,1), gp )
+
+end subroutine quad_lagrangian_reference_fe_get_value
+
+subroutine quad_lagrangian_reference_fe_get_gradient( this, shg, int, node, gp )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  type(SB_interpolation_t), intent(in) :: int 
+  integer(ip), intent(in)  :: node, gp
+  real(rp), intent(inout) :: shg(:,:)
+
+  shg = 0
+  shg(:,this%node_component_array(node,2)) = &
+       int%shape_derivatives(:,this%node_component_array(node,1),gp)
+
+end subroutine quad_lagrangian_reference_fe_get_gradient
+
+
+subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, field_components, continuity )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(out) :: this 
-  integer(ip), intent(in)  :: number_dimensions, order
+  integer(ip), intent(in)  :: number_dimensions, order, field_components
   logical, optional, intent(in) :: continuity
 
-  call this%set_common_data ( number_dimensions, order, continuity )
-  call this%set_topology( "tet" )
-  call this%set_fe_type( "Lagrangian" )
+  call this%set_common_data ( number_dimensions, order, field_components, continuity )
+  call this%set_topology ( "tet" )
+  call this%set_fe_type ( "Lagrangian" )
   call this%fill( )
 
 end subroutine quad_lagrangian_reference_fe_create
@@ -25,7 +54,7 @@ subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature,
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%number_dimensions, this%number_nodes, &
+  call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
        quadrature%number_integration_points, ntens, compute_hessian )
 
   nlocs = int(real(quadrature%number_integration_points)**(1.0_rp/real(this%number_dimensions)))
@@ -40,6 +69,8 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
   integer(ip), optional, intent(in) :: max_order
   class(SB_quadrature_t), intent(out) :: quadrature
   integer(ip) :: ngaus, order
+  type(list_t) :: aux
+
 
 
   order = this%order
@@ -57,6 +88,93 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
 end subroutine quad_lagrangian_reference_fe_create_quadrature
 
 subroutine quad_lagrangian_reference_fe_fill (this)
+  implicit none
+  ! Parameters
+  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
+  integer(ip) :: c, i, j
+
+  call quad_lagrangian_reference_fe_fill_scalar (this)
+  if ( this%field_components /= 1 ) call quad_lagrangian_reference_fe_fill_field_components( this )
+
+  call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
+
+  c = 1
+  do i = 1, this%field_components
+     do j = 1, this%number_nodes_scalar
+        this%node_component_array(c,1) = j
+        this%node_component_array(c,2) = i   
+        c = c+1
+     end do
+  end do
+
+  write (*,*) 'this%node_component_array', this%node_component_array
+
+end subroutine quad_lagrangian_reference_fe_fill
+
+subroutine quad_lagrangian_reference_fe_fill_field_components (this)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
+
+  type(list_t) :: aux_list
+
+  !this%number_nodes_1d = this%number_nodes
+
+  !this%number_nodes = this%number_nodes_1d * field_components
+
+  call extend_list_components( this, this%nodes_vef, aux_list )
+  this%nodes_vef = aux_list
+  call memfree ( aux_list%p, __FILE__, __LINE__ )
+  call memfree ( aux_list%l, __FILE__, __LINE__ )
+  call print_list ( 6, this%nodes_vef)
+  !call memfree( aux_list, __FILE__, __LINE__ )
+
+  call extend_list_components( this, this%interior_nodes_vef, aux_list )
+  this%interior_nodes_vef = aux_list
+  call memfree ( aux_list%p,  __FILE__, __LINE__ )
+  call memfree ( aux_list%l,  __FILE__, __LINE__ )
+  call print_list ( 6, this%interior_nodes_vef)
+  !call memfree( aux_list, __FILE__, __LINE__ )
+  this%number_nodes_scalar = this%number_nodes
+  this%number_nodes = this%number_nodes_scalar * this%field_components
+
+end subroutine quad_lagrangian_reference_fe_fill_field_components
+
+subroutine extend_list_components( this, list_1d, list )
+  implicit none
+  ! Parameters
+  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
+  type(list_t), intent(in) :: list_1d
+  type(list_t), intent(inout) :: list
+
+  integer(ip) :: ngaus, order, i, j, k, c, node_1d, aux_1, aux_2
+
+  list%n = this%number_vefs+1
+  call memalloc( this%number_vefs+2, list%p, __FILE__, __LINE__ )
+
+  list%p(1) = 1
+  do i = 2,this%number_vefs+2
+     list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%field_components
+  end do
+
+  call memalloc( list%p(this%number_vefs+2)-1, list%l, __FILE__, __LINE__ )
+
+  list%l = 0
+  aux_1 = this%number_nodes
+  do i = 1,this%number_vefs+1
+     c = list%p(i)
+     do k = 1,this%field_components
+        aux_2 = aux_1*(k-1)
+        do j = list_1d%p(i),list_1d%p(i+1)-1
+           node_1d = list_1d%l(j)
+           list%l(c) = node_1d + aux_2
+           c = c + 1
+        end do
+     end do
+  end do
+
+end subroutine extend_list_components
+
+subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   implicit none
   ! Parameters
   class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
@@ -120,6 +238,10 @@ subroutine quad_lagrangian_reference_fe_fill (this)
 
   ! Allocate arrays
   call this%orientation%create(no)
+  this%nodes_vef%n = no
+  this%interior_nodes_vef%n = no
+  this%vefs_vef%n = no
+  this%corners_vef%n = no
   call memalloc(no+1,this%interior_nodes_vef%p,__FILE__,__LINE__)  !Pointer to this%interior_nodes_vef%l for each vef
   call memalloc(nn,  this%interior_nodes_vef%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
   call memalloc(no+1,this%nodes_vef%p,__FILE__,__LINE__)  !Pointer to nodes_vef%l for each vef
@@ -467,7 +589,7 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   ! do od = 1,nc
   !    write(*,*) crxob%l(od), ', &'
   ! end do
-end subroutine quad_lagrangian_reference_fe_fill
+end subroutine quad_lagrangian_reference_fe_fill_scalar
 
 
 !=================================================================================================

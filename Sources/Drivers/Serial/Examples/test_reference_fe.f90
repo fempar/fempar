@@ -291,15 +291,17 @@ program test_cdr
   character(len=:), allocatable :: group
 
   ! SB
-!  class(reference_fe_t), pointer :: reference_fe
-!  type(SB_quadrature_t) :: quadrature
-!  type(SB_interpolation_t) :: interpolation
-!  type(SB_finite_element_t) :: finite_element
-!  type(SB_volume_integrator_t) :: volume_integrator
+  class(reference_fe_t), pointer :: reference_fe
+  type(SB_quadrature_t) :: quadrature
+  type(SB_interpolation_t) :: interpolation
+  type(SB_finite_element_t) :: finite_element
+  type(SB_volume_integrator_t) :: volume_integrator
   type(SB_serial_fe_space_t) :: fe_space
   type(poisson_discrete_integration_t), target :: poisson_integration
   type(SB_p_discrete_integration_t) :: approximations(1) 
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
+
+  real(rp), allocatable :: shape_function(:), shape_gradient(:,:)
 
   call meminit
 
@@ -326,12 +328,12 @@ program test_cdr
   !call triangulation_print(6,f_trian)
 
   ! UNIT TEST * reference_fe.f90 *
-  !reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-  !     order = 1, continuity = .true. )
+  reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+       order = 1, field_type = "vector", continuity = .true. )
   !call reference_fe%print()
 
   ! UNIT TEST * SB_quadrature.f90 *
-  !call reference_fe%create_quadrature( quadrature )
+  call reference_fe%create_quadrature( quadrature )
   !call quadrature%print()
 
   ! UNIT TEST * SB_interpolation.f90 *
@@ -342,27 +344,50 @@ program test_cdr
   !call triangulation_print( 6, f_trian ) 
 
   ! UNIT TEST * integrator.f90 *
-  !call volume_integrator%create( reference_fe, reference_fe  ) 
-  !call volume_integrator%set_integration()
-  !call volume_integrator%update( f_trian%elems(1)%coordinates )
-  !call volume_integrator%print() 
+  call volume_integrator%create( reference_fe, reference_fe  ) 
+  call volume_integrator%set_integration()
+  call volume_integrator%update( f_trian%elems(1)%coordinates )
+  call volume_integrator%print()
+
+
+  call memalloc ( reference_fe%get_number_field_components(),  shape_function, __FILE__, __LINE__ )
+  do i = 1,reference_fe%get_number_nodes()
+     write (*,*) 'volume_integrator%get_value( i, 1 )',i
+      call volume_integrator%get_value( shape_function, i, 1 )
+      write (*,*) 'shape function', shape_function
+  end do
+
+  call memalloc ( reference_fe%get_number_dimensions(), reference_fe%get_number_field_components(),  &
+       shape_gradient, __FILE__, __LINE__ )
+  do i = 1,reference_fe%get_number_nodes()
+     write (*,*) 'volume_integrator%get_value( i, 1 )',i
+      call volume_integrator%get_gradient( shape_gradient, i, 1 )
+      write (*,*) 'shape gradient', shape_gradient
+  end do
 
   ! UNIT TEST * SB_finite_element.f90 *
   !call finite_element%create( reference_fe, reference_fe, volume_integrator, f_trian%elems(1), 1 )
   !call finite_element%print()
 
+  ! ! UNIT TEST * integrator.f90 *
+  ! !write(*,*) 'CALL FE SPACE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+  ! call fe_space%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !      order = 1, field_unknowns = 1 ,boundary_conditions = f_cond, continuity = .true. )
+  ! call fe_space%fill_dof_info()
+  ! !call fe_space%print()
 
-  ! UNIT TEST * integrator.f90 *
-  !write(*,*) 'CALL FE SPACE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-  call fe_space%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, field_unknowns = 1 ,boundary_conditions = f_cond, continuity = .true. )
-  call fe_space%fill_dof_info()
-  !call fe_space%print()
+  ! !call my_problem%create( p_trian%f_trian%num_dims )
+  ! !call my_discrete%create( my_problem )
+  ! !call my_approximation%create(my_problem,my_discrete)
+  ! !approximations(1)%discrete_integration => my_approximation
 
-  !call my_problem%create( p_trian%f_trian%num_dims )
-  !call my_discrete%create( my_problem )
-  !call my_approximation%create(my_problem,my_discrete)
-  !approximations(1)%discrete_integration => my_approximation
+  ! !create approximation
+  ! approximations(1)%p => poisson_integration  
+  ! call fe_affine_operator%create ( (/.true./), (/.true./), (/1/), f_trian, fe_space, approximations )
+  ! write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+  ! !call fe_affine_operator%numerical_setup()
+  ! write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+  ! !call memstatus 
 
   !create approximation
   approximations(1)%p => poisson_integration  
@@ -371,30 +396,30 @@ program test_cdr
   !call fe_affine_operator%numerical_setup()
   write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 
-  ppars%type = pardiso_mkl_prec
-  call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
-  call SB_preconditioner_symbolic_setup(feprec)
-  call SB_preconditioner_numerical_setup(feprec)
-  call SB_preconditioner_log_info(feprec)
+  ! ppars%type = pardiso_mkl_prec
+  ! call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
+  ! call SB_preconditioner_symbolic_setup(feprec)
+  ! call SB_preconditioner_numerical_setup(feprec)
+  ! call SB_preconditioner_log_info(feprec)
 
-  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  call fe_affine_operator_range_vector_space%create_vector(vector)
+  ! fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+  ! call fe_affine_operator_range_vector_space%create_vector(vector)
   
 
-  ! Create linear solver, set operators and solve linear system
-  call linear_solver%create(senv)
-  call linear_solver%set_type_and_parameters_from_pl()
-  call linear_solver%set_operators(fe_affine_operator,feprec)
-  call linear_solver%solve(vector)
-  call linear_solver%free() 
+  ! ! Create linear solver, set operators and solve linear system
+  ! call linear_solver%create(senv)
+  ! call linear_solver%set_type_and_parameters_from_pl()
+  ! call linear_solver%set_operators(fe_affine_operator,feprec)
+  ! call linear_solver%solve(vector)
+  ! call linear_solver%free() 
 
-  select type(vector)
-  class is(serial_scalar_array_t)
-     !p_unk => vector
-     call vector%print( 6 )
-  class default
-     check(.false.) 
-  end select
+!  select type(vector)
+!  class is(serial_scalar_array_t)
+!     !p_unk => vector
+!     call vector%print( 6 )
+!  class default
+!     check(.false.) 
+!  end select
 
 
   call vector%free()
@@ -406,7 +431,7 @@ program test_cdr
   call mesh_free (f_mesh)
 
 		
-  call memstatus 
+		call memstatus 
 
 
 contains

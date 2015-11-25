@@ -1,9 +1,10 @@
-subroutine serial_fe_space_create( this, triangulation, topology, fe_type, number_dimensions, order, field_unknowns, boundary_conditions, continuity )
+subroutine serial_fe_space_create( this, triangulation, topology, fe_type, number_dimensions, order, boundary_conditions, field_type, continuity )
   implicit none
   class(SB_serial_fe_space_t), intent(out) :: this
   character(*), intent(in) :: topology, fe_type
   type(triangulation_t), target, intent(in) :: triangulation
-  integer(ip), intent(in)  :: number_dimensions, order, field_unknowns
+  integer(ip), intent(in)  :: number_dimensions, order
+  character(*), optional, intent(in) :: field_type
   logical, optional, intent(in) :: continuity
   type(conditions_t), intent(in)  :: boundary_conditions
 
@@ -20,11 +21,13 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
   allocate( this%fe_array(triangulation%num_elems), stat=istat )
 
   this%reference_fe_phy_list(1)%p => &
-       start_reference_fe ( topology, fe_type, number_dimensions, order , continuity )
+       start_reference_fe ( topology = topology, fe_type = fe_type, number_dimensions = number_dimensions, &
+                            order =  order , field_type = field_type, continuity = continuity )
 
-  ! Order 1 for geometri SB.alert
+  ! Order 1 for geometry SB.alert
   this%reference_fe_geo_list(1)%p => &
-       start_reference_fe ( topology, fe_type, number_dimensions, 1 , continuity )
+       start_reference_fe ( topology = topology, fe_type = fe_type, number_dimensions = number_dimensions, &
+                            order =  1 , field_type = "vector", continuity = .true. )
 
   allocate( this%volume_integrator(1)%p )
   call this%volume_integrator(1)%p%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p )
@@ -34,7 +37,7 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
 
      ! Create FEs
      call this%fe_array(i)%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p, &
-          this%volume_integrator(1)%p, triangulation%elems(i), field_unknowns)
+          this%volume_integrator(1)%p, triangulation%elems(i))!, field_unknowns)
 
   end do
 
