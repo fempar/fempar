@@ -125,23 +125,6 @@ module types_names
      real(rp),    pointer :: a(:,:,:) => NULL()
   end type r3p_t
 
-  type list_t
-     integer(ip) :: n
-     integer(ip), allocatable :: p(:) 
-     integer(ip), allocatable :: l(:) 
-  end type list_t
-
-  type list_2d_t
-     integer(ip) :: n1
-     integer(ip) :: n2
-     integer(ip), allocatable :: p(:) 
-     integer(ip), allocatable :: l(:,:) 
-  end type list_2d_t
-
-  type list_pointer_t
-     type(list_t)          , pointer :: p => NULL()
-  end type list_pointer_t
-
   ! Frequently used mathematical constants:
   real(rp),    parameter :: pi    = 3.141592653589793238462643383279502884197_rp
   real(rp),    parameter :: pio2  = 1.570796326794896619231321691639751442099_rp
@@ -167,9 +150,31 @@ module types_names
      end subroutine runend
   end interface
 
-  ! Functions
-  public :: print_list, print_list_2d
+end module types_names
+		
+module list_types_names
 
+use types_names, only: ip
+
+  type list_t
+     integer(ip) :: n
+     integer(ip), allocatable :: p(:) 
+     integer(ip), allocatable :: l(:) 
+  end type list_t
+
+  type list_2d_t
+     integer(ip) :: n1
+     integer(ip) :: n2
+     integer(ip), allocatable :: p(:) 
+     integer(ip), allocatable :: l(:,:) 
+  end type list_2d_t
+
+  type list_pointer_t
+     type(list_t)          , pointer :: p => NULL()
+  end type list_pointer_t
+		
+		! Functions
+  public :: print_list, print_list_2d
 contains
 
   subroutine print_list( lunou, list )
@@ -207,4 +212,4 @@ contains
 
   end subroutine print_list_2d
 
-end module types_names
+end module list_types_names

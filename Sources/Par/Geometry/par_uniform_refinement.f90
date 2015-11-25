@@ -28,6 +28,7 @@
 module par_uniform_refinement_names
   ! Serial modules
   use types_names
+  use list_types_names
   use memor_names
   use migratory_element_names
   use triangulation_names

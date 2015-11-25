@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fe_space_types_names
   use types_names
+  use list_types_names
   use memor_names
   use sort_names
 #ifdef memcheck

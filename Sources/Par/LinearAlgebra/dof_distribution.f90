@@ -28,6 +28,7 @@
 module dof_distribution_names
   ! Serial modules
   use types_names
+  use list_types_names
   use memor_names
   use map_names
   use dof_import_names
