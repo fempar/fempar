@@ -101,7 +101,7 @@ program test_nsi_iss
   type(uniform_mesh_descriptor_t)       :: gdata
   type(uniform_conditions_descriptor_t) :: bdata
   type(reference_element_t)             :: geo_reference_element
-  type(serial_triangulation_t)                 :: f_trian
+  type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
   type(dof_descriptor_t)                :: dof_descriptor
   type(serial_fe_space_t)               :: fe_space  

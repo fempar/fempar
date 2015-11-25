@@ -32,7 +32,7 @@ module par_create_global_dof_info_names
   use memor_names
   use sort_names
   use dof_descriptor_names
-  use serial_triangulation_names
+  use triangulation_names
   use graph_names
   use create_global_dof_info_names
   use serial_fe_space_names

@@ -30,7 +30,7 @@ module par_uniform_refinement_names
   use types_names
   use memor_names
   use migratory_element_names
-  use serial_triangulation_names
+  use triangulation_names
   use hash_table_names
   use fe_space_types_names
   use map_names
@@ -59,6 +59,8 @@ module par_uniform_refinement_names
      procedure :: size   => subelems_GIDs_size
      procedure :: pack   => subelems_GIDs_pack
      procedure :: unpack => subelems_GIDs_unpack
+     procedure :: free   => subelems_GIDs_free
+     procedure :: assign => subelems_GIDs_assignment
   end type subelems_GIDs_t
 
   public :: par_uniform_refinement
@@ -612,4 +614,25 @@ contains
     my%subelems_GIDs = transfer(buffer(start:end), my%subelems_GIDs)
 
   end subroutine subelems_GIDs_unpack 
+
+
+  subroutine subelems_GIDs_free(my)
+    implicit none
+    class(subelems_GIDs_t), intent(inout) :: my
+  end subroutine subelems_GIDs_free
+
+  subroutine subelems_GIDs_assignment(this,that)
+    implicit none
+    class(subelems_GIDs_t)   , intent(inout) :: this
+    class(migratory_element_t), intent(in)    :: that
+    select type(that)
+    class is(subelems_GIDs_t)
+       this=that
+    class default
+       write(*,*) 'Error calling subelems_GIDs_t assignment'
+       write(*,*) 'cannot assign object of another class'
+       check(.false.)
+    end select
+  end subroutine subelems_GIDs_assignment
+
 end module par_uniform_refinement_names

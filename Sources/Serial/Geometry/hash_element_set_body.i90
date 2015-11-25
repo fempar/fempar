@@ -1,0 +1,322 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!***********************************************************************
+!***********************************************************************
+! Templated implementation of a hash table based element set, extension of 
+! the abstract element_set defined in element_set.i90. The code is similar 
+! but has some differences with respect to standard hash_tables used elsewhere
+! in FEMPAR. An iterator over the table is also defined.
+!
+! Templates are not natively supported by fortran.
+! They are emulated using the preprocessor by including this file in a module 
+! AFTER the contains statement and after a definition of:
+!
+! template_element_t
+! hash_template_element_set_t
+! hash_template_element_iterator_t
+!  
+!====================================================================
+! node functions
+!
+recursive subroutine put_hash_node(list,key,mold,stat)
+  class(hash_node), target , intent(inout) :: list
+  class(element_id_t)      , intent(in)    :: key
+  class(template_element_t), intent(in)    :: mold
+  integer(ip)              , intent(out)   :: stat
+  class(hash_node)         , pointer       :: newel => null()
+
+  if( key%is_greater_than(list%key) ) then
+     if(associated(list%child) ) then
+        ! Keep going
+        call put_hash_node(list%child,key,mold,stat)
+     else
+        ! We are at the end of the list
+        ! Allocate a new child
+        allocate(list%child)
+        list%child%parent => list
+        list%child%key = list%key ! the default value
+        ! Fill the value 
+        list%key = key
+        allocate(list%val, mold=mold)
+     end if
+  else if( key%is_equal_to(list%key) ) then
+     ! Already stored
+     stat = was_stored
+  else if( key%is_smaller_than(list%key) ) then
+     ! ! Insert an element just behind
+     !
+     ! Insert an element just after this one,
+     ! copy list keyval and store keyval in list.
+     ! allocate(newel)
+     ! newel%child => list%child
+     ! newel%parent => list
+     ! newel%key = list%key
+     ! newel%val = list%val
+     ! if(associated(list%child)) list%child%parent => newel
+     ! list%child => newel
+     ! list%key = key
+     ! list%val = val
+     ! stat = now_stored
+     !
+     newel => list%child        ! keep the reference to old child
+     allocate(list%child)       ! Allocate a new child
+     list%child%key = list%key  ! New child fields (copy list keyval)
+     ! WARNING: we need assignment working!
+     list%child%val = list%val
+     list%child%parent => list
+     list%child%child => newel
+     list%child%child%parent => list%child ! Regenerate link
+     list%key = key                        ! Store keyval in list
+     allocate(list%val, mold=mold)
+     stat = now_stored
+  end if
+end subroutine put_hash_node
+
+recursive subroutine del_hash_node(list,key,stat)
+  class(hash_node)   , target, intent(inout) :: list
+  class(element_id_t)        , intent(in)    :: key
+  integer(ip)                , intent(out)   :: stat
+  class(hash_node)           , pointer       :: tmp => null()
+
+  if(key%is_equal_to(list%key)) then
+     !if(associated(list%parent)) then ! this is not the first element
+     !   tmp => list
+     !   list%parent%child => list%child
+     !   list%child%parent => list%parent
+     !else                             ! this is the first element (copy and dealloc the second)
+     !   tmp => list%child
+     if(.not.associated(list%child)) then
+        write(*,*) 'Error in migratory_element hash table'
+        stat = error
+        return
+     end if
+     list%key = list%child%key
+     ! WARNING: we need assignment working!
+     list%val = list%child%val
+     if(associated(list%child%child)) list%child%child%parent => list
+     tmp => list%child%child
+     call list%child%val%free()
+     deallocate(list%child)
+     list%child => tmp
+     stat = deleted
+  else if(associated(list%child)) then ! keep going
+     call del_hash_node(list%child,key,stat)
+  else
+     stat = key_not_found
+  end if
+  return
+
+end subroutine del_hash_node
+
+recursive subroutine get_hash_node(list,key,val,stat)
+  class(hash_node)     , target     , intent(in)    :: list
+  class(element_id_t)               , intent(in)    :: key
+  class(template_element_t), pointer, intent(out)   :: val
+  integer(ip)                       , intent(inout) :: stat
+
+  if (key%is_equal_to(list%key)) then
+     val => list%val
+     stat = key_found
+  else if(associated(list%child)) then ! keep going
+     call get_hash_node(list%child,key,val,stat)
+  else
+     stat = key_not_found
+  end if
+  return
+
+end subroutine get_hash_node
+
+recursive subroutine free_hash_node(list)
+  implicit none
+  class(hash_node), intent(inout) :: list
+  if (associated(list%child)) then
+     call free_hash_node(list%child)
+     deallocate(list%child)
+  end if
+  call list%val%free()
+  list%child => null()
+end subroutine free_hash_node
+
+recursive subroutine get_next_key_hash_node(list,key,next,stat)
+  class(hash_node)                  , intent(in)    :: list
+  class(element_id_t)               , intent(in)    :: key
+  class(element_id_t)               , intent(out)   :: next
+  integer(ip)                       , intent(inout) :: stat
+
+  if (key%is_equal_to(list%key)) then
+     if(associated(list%child)) then
+        next = list%child%key
+        stat = key_found
+     else
+        stat = key_not_found
+     end if
+  else if(associated(list%child)) then
+     call get_next_key_hash_node(list%child,key,next,stat)
+  else
+        stat = key_not_found
+  end if
+
+end subroutine get_next_key_hash_node
+
+! To get the key of the first element in the list
+subroutine get_key_hash_node(list,key,stat)
+  class(hash_node)                  , intent(in)    :: list
+  class(element_id_t)               , intent(out)   :: key
+  integer(ip)                       , intent(inout) :: stat
+
+  if(associated(list%child)) then
+     key = list%key
+     stat = key_found
+  else
+     stat = key_not_found
+  end if
+
+end subroutine get_key_hash_node
+
+!====================================================================
+! tbl functions
+!
+subroutine create_hash_template_element_set_t(this,size,mold)
+  class(hash_template_element_set_t), intent(inout) :: this
+  integer(ip)                       , intent(in)    :: size
+  class(template_element_t)         , intent(in)    :: mold
+  this%vec_len = size
+  if (allocated(this%vec)) deallocate(this%vec)
+  !allocate(this%vec(this%vec_len),mold=mold)
+  allocate(this%vec(this%vec_len))
+end subroutine create_hash_template_element_set_t
+
+subroutine put_hash_template_element_set_t(tbl,key,mold,stat)
+  class(template_element_t)           , intent(in)    :: mold
+  class(hash_template_element_set_t)  , intent(inout) :: tbl
+  class(element_id_t)                 , intent(in)    :: key
+  integer(ip)                         , intent(out)   :: stat
+  integer(ip)                        :: hash
+  hash = mod(key%to_int(),tbl%vec_len)
+  assert ( (hash>=1).and.(hash<=tbl%vec_len))
+!$OMP CRITICAL (hash_template_element_set_t_lock)
+  call tbl%vec(hash)%put(key=key,mold=mold,stat=stat)
+!$OMP END CRITICAL (hash_template_element_set_t_lock)
+end subroutine put_hash_template_element_set_t
+
+subroutine get_hash_template_element_set_t(tbl,key,val,stat)
+  class(hash_template_element_set_t)  , intent(in)    :: tbl
+  class(element_id_t)                 , intent(in)    :: key
+  class(template_element_t), pointer  , intent(out)   :: val
+  integer(ip)                         , intent(out)   :: stat
+  integer(ip)                                         :: hash
+  hash = mod(key%to_int(),tbl%vec_len)
+  assert ( (hash>=1).and.(hash<=tbl%vec_len))
+  call tbl%vec(hash)%get(key=key,val=val,stat=stat)
+end subroutine get_hash_template_element_set_t
+
+subroutine get_next_key_hash_template_element_set_t(tbl,key,next,stat)
+  class(hash_template_element_set_t)  , intent(in)  :: tbl
+  class(element_id_t)                 , intent(in)  :: key
+  class(element_id_t)                 , intent(out) :: next
+  integer(ip)                         , intent(out) :: stat
+  integer(ip)                                       :: hash
+  hash = mod(key%to_int(),tbl%vec_len)
+  assert ( (hash>=1).and.(hash<=tbl%vec_len))
+  call tbl%vec(hash)%get_next_key(key,next,stat)
+  do while(hash<=tbl%vec_len .and. stat == key_not_found )
+     hash=hash+1
+     call tbl%vec(hash)%get_key(next,stat)
+  end do
+end subroutine get_next_key_hash_template_element_set_t
+
+subroutine del_hash_template_element_set_t(tbl,key,stat)
+  class(hash_template_element_set_t)  , intent(inout) :: tbl
+  class(element_id_t)           , intent(in)    :: key
+  integer(ip)        , intent(out)   :: stat
+  integer(ip)                        :: hash
+
+  hash = mod(key%to_int(),tbl%vec_len)
+  assert ( (hash>=1).and.(hash<=tbl%vec_len))
+!$OMP CRITICAL (hash_template_element_set_t_lock)
+  call tbl%vec(hash)%del(key=key,stat=stat)
+!$OMP END CRITICAL (hash_template_element_set_t_lock)
+end subroutine del_hash_template_element_set_t
+
+subroutine free_hash_template_element_set_t(this)
+  class(hash_template_element_set_t), intent(inout) :: this    
+  integer(ip) :: i
+  if (allocated(this%vec)) then
+     do i=1,this%vec_len
+        call this%vec(i)%free()
+     end do
+     deallocate(this%vec)
+  end if
+  this%is_init = .false.
+end subroutine free_hash_template_element_set_t
+
+!=============================================================================
+! Simplest iterator
+  subroutine create_hash_template_element_iterator(this,iterator)
+    implicit none
+    class(hash_template_element_set_t), target      , intent(in)  :: this
+    class(template_element_iterator_t) , allocatable, intent(out) :: iterator
+    integer(ip) :: istat
+    allocate(hash_template_element_iterator_t :: iterator, stat=istat)
+    check(istat==0)
+    select type(iterator)
+    class is(hash_template_element_iterator_t)
+       iterator%hash_template_element_set => this
+    end select
+  end subroutine create_hash_template_element_iterator
+
+  !=============================================================================
+  subroutine free_hash_template_element_iterator(this,iterator)
+    implicit none
+    class(hash_template_element_set_t)            , intent(in)    :: this
+    class(template_element_iterator_t), allocatable, intent(inout) :: iterator
+    ! No internal memory for this simple iterator.
+    deallocate(iterator)
+  end subroutine free_hash_template_element_iterator
+
+  !=============================================================================
+  function hash_template_element_iterator_next (this) result(p)
+    implicit none
+    class(hash_template_element_iterator_t), intent(inout) :: this
+    class(template_element_t)              , pointer       :: p
+    integer(ip)  :: stat
+    call this%hash_template_element_set%get( this%next_key, p, stat)
+    assert(stat==key_found)
+    this%current_key = this%next_key
+  end function hash_template_element_iterator_next
+
+  !=============================================================================
+  function hash_template_element_iterator_has_next(this) result(res)
+    implicit none
+    class(hash_template_element_iterator_t), intent(inout) :: this
+    logical :: res
+    integer(ip)  :: stat
+    call this%hash_template_element_set%get_next_key( this%current_key, this%next_key, stat)
+    res = (stat==key_found)
+    !if(.not.res) ! Reset iterator for the next loop to be done using default element_id
+  end function hash_template_element_iterator_has_next

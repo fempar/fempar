@@ -1,4 +1,3 @@
-# include "debug.i90"
 module SB_finite_element_names
   ! Modules
   use types_names
@@ -7,14 +6,14 @@ module SB_finite_element_names
   use integration_tools_names
   use reference_fe_names
   use migratory_element_names
-		use triangulation_names
-
+  use triangulation_names
 #ifdef memcheck
   use iso_c_binding
 #endif
   implicit none
   private
- 
+# include "debug.i90"
+
   ! Information of each element of the FE space
   type, extends(migratory_element_t) :: finite_element_t 
      ! Reference element info          
@@ -34,33 +33,53 @@ module SB_finite_element_names
      procedure :: size   => finite_element_size
      procedure :: pack   => finite_element_pack
      procedure :: unpack => finite_element_unpack
+     procedure :: free   => finite_element_free
+     procedure :: assign => finite_element_assignment
+
   end type finite_element_t
-		
+  
   ! Types
   public :: finite_element_t
-		
-		contains
-		  subroutine finite_element_size (my, n)
+
+contains
+  subroutine finite_element_size (my, n)
     implicit none
     class(finite_element_t), intent(in)  :: my
     integer(ip)            , intent(out) :: n
-
   end subroutine finite_element_size
-
+  
   subroutine finite_element_pack (my, n, buffer)
     implicit none
     class(finite_element_t), intent(in)  :: my
     integer(ip)            , intent(in)   :: n
     integer(ieep)            , intent(out)  :: buffer(n)
-
   end subroutine finite_element_pack
-
+  
   subroutine finite_element_unpack(my, n, buffer)
     implicit none
     class(finite_element_t), intent(inout) :: my
     integer(ip)            , intent(in)     :: n
     integer(ieep)            , intent(in)     :: buffer(n)
-    
   end subroutine finite_element_unpack
-		
+  
+
+  subroutine finite_element_free(my)
+    implicit none
+    class(finite_element_t), intent(inout) :: my
+  end subroutine finite_element_free
+
+  subroutine finite_element_assignment(this,that)
+    implicit none
+    class(finite_element_t)   , intent(inout) :: this
+    class(migratory_element_t), intent(in)    :: that
+    select type(that)
+    class is(finite_element_t)
+       this=that
+    class default
+       write(*,*) 'Error calling finite_element_t assignment'
+       write(*,*) 'cannot assign object of another class'
+       check(.false.)
+    end select
+  end subroutine finite_element_assignment
+
 end module SB_finite_element_names

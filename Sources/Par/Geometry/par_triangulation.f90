@@ -31,7 +31,7 @@ module par_triangulation_names
   use memor_names
   use sort_names
   use migratory_element_names
-  use serial_triangulation_names
+  use triangulation_names
   use element_import_names
   use hash_table_names
 
@@ -78,11 +78,14 @@ module par_triangulation_names
      procedure :: size   => par_elem_topology_size
      procedure :: pack   => par_elem_topology_pack
      procedure :: unpack => par_elem_topology_unpack
+     procedure :: free   => par_elem_topology_free
+     procedure :: assign => par_elem_topology_assignment
+
   end type par_elem_topology_t
 
   type :: par_triangulation_t
      integer(ip)                             :: state = par_triangulation_not_created  
-     type(serial_triangulation_t)            :: f_trian             ! Data common with a centralized (serial) triangulation
+     type(triangulation_t)            :: f_trian             ! Data common with a centralized (serial) triangulation
      integer(ip)                             :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
      integer(ip)                             :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
      class(migratory_element_t), allocatable :: mig_elems(:)        ! Migratory elements list_t
@@ -536,5 +539,23 @@ contains
 
   end subroutine par_elem_topology_unpack
 
+  subroutine par_elem_topology_free(my)
+    implicit none
+    class(par_elem_topology_t), intent(inout) :: my
+  end subroutine par_elem_topology_free
+
+  subroutine par_elem_topology_assignment(this,that)
+    implicit none
+    class(par_elem_topology_t)   , intent(inout) :: this
+    class(migratory_element_t), intent(in)    :: that
+    select type(that)
+    class is(par_elem_topology_t)
+       this=that
+    class default
+       write(*,*) 'Error calling par_elem_topology_t assignment'
+       write(*,*) 'cannot assign object of another class'
+       check(.false.)
+    end select
+  end subroutine par_elem_topology_assignment
 
 end module par_triangulation_names

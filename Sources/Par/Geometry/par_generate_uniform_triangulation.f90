@@ -29,7 +29,7 @@ module par_generate_uniform_triangulation_names
   use types_names
   use memor_names
   use fe_space_types_names
-  use serial_triangulation_names
+  use triangulation_names
   use generate_uniform_triangulation_names
   use mesh_distribution_names
   use element_import_create_names

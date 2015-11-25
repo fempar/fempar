@@ -30,7 +30,7 @@ module serial_fe_space_names
   use types_names
   use memor_names
   use allocatable_array_names
-  use serial_triangulation_names
+  use triangulation_names
   use hash_table_names
   use problem_names
   use integration_tools_names
@@ -76,7 +76,7 @@ module serial_fe_space_names
      type(finite_element_t)    , pointer     :: finite_elements(:)             ! List of FEs
      type(fe_face_t)           , allocatable :: fe_faces(:)             ! List of active faces
 
-     type(serial_triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
+     type(triangulation_t)  , pointer :: g_trian => NULL() ! Triangulation
 
      ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
      type(position_hash_table_t)          :: pos_elmatvec
@@ -259,7 +259,7 @@ contains
                                      static_condensation, num_continuity, num_ghosts )
     implicit none
 	class(serial_fe_space_t)        , target, intent(inout) :: this
-    type(serial_triangulation_t), target, intent(in)    :: g_trian   
+    type(triangulation_t), target, intent(in)    :: g_trian   
     type(dof_descriptor_t)       ,intent(in)    :: dof_descriptor
     integer(ip)                    , intent(in)    :: problem(:)
     type(conditions_t)           , intent(in)    :: bcond
@@ -291,7 +291,7 @@ contains
        & hierarchical_basis, static_condensation, num_continuity, num_ghosts )
     implicit none
     type(serial_fe_space_t)   ,  target, intent(inout) :: fe_space
-    type(serial_triangulation_t)   , intent(in), target   :: g_trian   
+    type(triangulation_t)   , intent(in), target   :: g_trian   
     type(dof_descriptor_t) , intent(in), target    :: dof_descriptor  
     integer(ip), optional, intent(in) :: time_steps_to_store
     logical, optional, intent(in) :: hierarchical_basis
@@ -660,7 +660,7 @@ contains
   subroutine get_p_faces ( fe_space, trian )
     implicit none
     type(serial_fe_space_t), intent(in)  :: fe_space
-    type(serial_triangulation_t), intent(inout)    :: trian
+    type(triangulation_t), intent(inout)    :: trian
 
   end subroutine get_p_faces
 
@@ -872,7 +872,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)                :: dof_graph
 
@@ -963,7 +963,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)                :: dof_graph
     integer(ip), intent(inout)                :: aux_ia(:)
@@ -1063,7 +1063,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)                :: dof_graph
 
@@ -1151,7 +1151,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 
@@ -1256,7 +1256,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)              :: dof_graph
 
@@ -1378,7 +1378,7 @@ contains
     ! Parameters
     integer(ip), intent(in)                     :: iblock, jblock
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(in)                 :: fe_space 
     type(graph_t), intent(inout)              :: dof_graph
     integer(ip), intent(inout)                  :: aux_ia(:) 

@@ -44,10 +44,10 @@ module serial_names
   ! Geometry
   use map_names
   use map_apply_names
-  use serial_triangulation_names
+  use triangulation_names
   use mesh_to_triangulation_names
 
-  use serial_triangulation_names
+  use triangulation_names
   use mesh_to_triangulation_names
   use mesh_distribution_names
   use create_mesh_distribution_names

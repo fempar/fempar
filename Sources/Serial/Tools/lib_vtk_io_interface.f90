@@ -30,7 +30,7 @@
 module lib_vtk_io_interface_names
 
   use mesh_names
-  use serial_triangulation_names
+  use triangulation_names
   use types_names
   use memor_names
   use stdio_names
@@ -161,7 +161,7 @@ contains
   ! Subroutine to initialize vtk_t derived type
   subroutine initialize(f_vtk, f_trian, fe_space, phys_prob, env, dir_path, prefix, root_proc, nparts, nsteps, nmesh, linear_order)
     class(vtk_t),          intent(INOUT)   :: f_vtk
-    type(serial_triangulation_t), intent(IN)      :: f_trian
+    type(triangulation_t), intent(IN)      :: f_trian
     type(serial_fe_space_t), target, intent(INOUT) :: fe_space
     class(physical_problem_t), target, intent(IN)  :: phys_prob
     class(environment_t), target, intent(IN)    :: env
@@ -235,7 +235,7 @@ contains
   subroutine initialize_linear_order(f_vtk, f_trian, fe_space, phys_prob, dir_path, prefix, nmesh)
   ! ----------------------------------------------------------------------------------
     class(vtk_t),          intent(INOUT)   :: f_vtk
-    type(serial_triangulation_t), intent(IN)      :: f_trian
+    type(triangulation_t), intent(IN)      :: f_trian
     type(serial_fe_space_t), target, intent(IN)   :: fe_space
     class(physical_problem_t), intent(IN)  :: phys_prob
     character(len=*),        intent(IN)    :: dir_path
@@ -278,7 +278,7 @@ contains
   ! ----------------------------------------------------------------------------------
     implicit none
     class(vtk_t),          intent(INOUT) :: f_vtk
-    type(serial_triangulation_t), intent(IN)    :: f_trian
+    type(triangulation_t), intent(IN)    :: f_trian
     integer(ip), optional,   intent(OUT)   :: nmesh
     type(vtk_mesh_t), allocatable            :: f_vtk_tmp(:)
     integer(ip) :: i, j, tnnod, counter

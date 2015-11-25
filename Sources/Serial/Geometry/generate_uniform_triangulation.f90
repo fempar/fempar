@@ -28,7 +28,7 @@
 module generate_uniform_triangulation_names
   use types_names
   use conditions_names
-  use serial_triangulation_names
+  use triangulation_names
   use mesh_distribution_names
   use materials_names
   use fe_space_types_names
@@ -537,7 +537,7 @@ contains
     type(uniform_mesh_descriptor_t)                      , intent(in)  :: gdata
     type(uniform_conditions_descriptor_t)                     , intent(in)  :: bdata
     type(reference_element_t)                 , intent(in)  :: geo_reference_element
-    type(serial_triangulation_t)              , intent(out) :: trian
+    type(triangulation_t)              , intent(out) :: trian
     type(conditions_t)                 , intent(out) :: bcond
     integer(ip), allocatable             , intent(out) :: mater(:)
     type(mesh_distribution_t), optional, intent(out) :: mdist
@@ -615,7 +615,7 @@ contains
     type(geom_size_t)                    , intent(in)    :: gsize
     type(topo_size_t)                    , intent(in)    :: tsize
     type(reference_element_t)               , intent(in)    :: geo_reference_element
-    type(serial_triangulation_t)            , intent(inout) :: trian
+    type(triangulation_t)            , intent(inout) :: trian
     type(conditions_t)               , intent(in)    :: poin,line,surf
     type(conditions_t)               , intent(out)   :: nodes
     integer(ip), allocatable           , intent(out)   :: mater(:)
@@ -2136,7 +2136,7 @@ contains
     type(topo_size_t)         , intent(in)    :: tsize
     type(uniform_mesh_descriptor_t)         , intent(in)    :: gdata
     integer(igp)            , intent(out)   :: l2ge(:),l2gp(:)
-    type(serial_triangulation_t) , intent(inout) :: trian
+    type(triangulation_t) , intent(inout) :: trian
     real(rp)                , intent(in)    :: coord(:,:)
     integer(ip)             , intent(inout) :: mater(:)
 

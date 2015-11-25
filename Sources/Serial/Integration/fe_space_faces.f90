@@ -34,7 +34,7 @@ module fe_space_faces_names
   !  use mesh_faces
   use serial_fe_space_names
   use fe_space_types_names
-  use serial_triangulation_names
+  use triangulation_names
   use allocatable_array_names
 
 # include "debug.i90"
@@ -52,7 +52,7 @@ contains
     implicit none
     ! Parameters
     type(serial_fe_space_t)      , intent(inout),target  :: fe_space
-    type(serial_triangulation_t)   , intent(in), target   :: trian   
+    type(triangulation_t)   , intent(in), target   :: trian   
 
     ! Local variables
     integer(ip) :: iface, iobje, max_order, ielem, nvars, ivars, ndofs, pos_elmatvec

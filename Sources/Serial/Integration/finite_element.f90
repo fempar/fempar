@@ -88,6 +88,8 @@ module finite_element_names
      procedure :: size   => finite_element_size
      procedure :: pack   => finite_element_pack
      procedure :: unpack => finite_element_unpack
+     procedure :: free   => finite_element_free_unpacked
+     procedure :: assign => finite_element_assign
   end type finite_element_t
 
   type finite_element_pointer_t
@@ -263,15 +265,33 @@ contains
     
   end subroutine finite_element_unpack
 
-  subroutine finite_element_free_unpacked(finite_element)
+  subroutine finite_element_free_unpacked(my)
     implicit none
-    type(finite_element_t), intent(inout) :: finite_element
+    class(finite_element_t), intent(inout) :: my
 
-    call memfree( finite_element%order, __FILE__, __LINE__ )
-    call memfree( finite_element%continuity, __FILE__, __LINE__ )
-    call memfree( finite_element%enable_face_integration, __FILE__, __LINE__ )
+    call memfree( my%order, __FILE__, __LINE__ )
+    call memfree( my%continuity, __FILE__, __LINE__ )
+    call memfree( my%enable_face_integration, __FILE__, __LINE__ )
     
   end subroutine finite_element_free_unpacked
+
+
+  subroutine finite_element_assign(this, that)
+    implicit none
+    class(finite_element_t), intent(inout) :: this
+    class(migratory_element_t), intent(in)    :: that
+
+    select type(that)
+    class is(finite_element_t)
+       this = that
+    class default
+       write(*,*) 'Error calling finite_element_t assignment'
+       write(*,*) 'cannot assign object of another class'
+       check(.false.)
+    end select
+
+  end subroutine finite_element_assign
+
 
  !=============================================================================
   subroutine impose_strong_dirichlet_data (finite_element) 

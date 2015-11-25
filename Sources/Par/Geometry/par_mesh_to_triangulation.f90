@@ -29,7 +29,7 @@ module par_mesh_to_triangulation_names
   ! Serial modules
   use types_names
   use memor_names
-  use serial_triangulation_names
+  use triangulation_names
   use element_import_names
   use element_import_create_names
   use hash_table_names

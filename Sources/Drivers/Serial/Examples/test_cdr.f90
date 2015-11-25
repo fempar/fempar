@@ -32,7 +32,7 @@ program test_cdr
 #include "debug.i90"
   ! Our data
   type(mesh_t)           :: f_mesh
-  type(serial_triangulation_t)  :: f_trian
+  type(triangulation_t)  :: f_trian
   type(conditions_t)     :: f_cond
   type(dof_descriptor_t) :: dof_descriptor
   type(serial_fe_space_t) :: fe_space

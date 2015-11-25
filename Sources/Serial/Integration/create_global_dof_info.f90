@@ -28,7 +28,7 @@
 module create_global_dof_info_names
   use types_names
   use memor_names
-  use serial_triangulation_names
+  use triangulation_names
   use serial_fe_space_names
   use dof_descriptor_names
   use fe_space_types_names
@@ -291,7 +291,7 @@ contains
     implicit none
     ! Parameters
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(inout)              :: fe_space 
     integer(ip), intent(inout)                  :: count
     integer(ip), intent(in)                     :: g_var, jelem, l_var, obje_l
@@ -317,7 +317,7 @@ contains
     implicit none
     ! Parameters
     type(dof_descriptor_t), intent(in)               :: dof_descriptor
-    type(serial_triangulation_t), intent(in)         :: trian 
+    type(triangulation_t), intent(in)         :: trian 
     type(serial_fe_space_t), intent(inout)              :: fe_space
     integer(ip), intent(in)                     :: touch(:,:,:), mater, g_var, iobje, jelem, l_var, obje_l
     integer(ip), intent(out)                    :: o2n(:)

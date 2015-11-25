@@ -29,21 +29,35 @@
 
   type, abstract :: template_element_set_t
    contains
-     procedure(create_template_element_iterator_interface), deferred :: create_template_element_iterator
-     procedure(free_template_element_iterator_interface)  , deferred :: free_template_element_iterator
+     procedure(create_set_interface)         , deferred :: create
+     procedure(free_set_interface)           , deferred :: free
+     procedure(create_iterator_interface), deferred :: create_iterator
+     procedure(free_iterator_interface)  , deferred :: free_iterator
   end type template_element_set_t
   ! Abstract interfaces
   abstract interface
-      subroutine create_template_element_iterator_interface(this,iterator)
+     subroutine create_set_interface(this,size,mold)
+       import :: template_element_set_t, ip, template_element_t
+       implicit none
+       class(template_element_set_t), intent(inout) :: this
+       integer(ip)                  , intent(in)    :: size
+       class(template_element_t)    , intent(in)    :: mold
+     end subroutine create_set_interface
+     subroutine free_set_interface(this)
+       import :: template_element_set_t
+       implicit none
+       class(template_element_set_t), intent(inout) :: this
+     end subroutine free_set_interface
+     subroutine create_iterator_interface(this,iterator)
        import :: template_element_set_t, template_element_iterator_t
        implicit none
        class(template_element_set_t), target, intent(in)  :: this
        class(template_element_iterator_t)   , intent(out) :: iterator
-     end subroutine create_template_element_iterator_interface
-      subroutine free_template_element_iterator_interface(this,iterator)
+     end subroutine create_iterator_interface
+     subroutine free_iterator_interface(this,iterator)
        import :: template_element_set_t, template_element_iterator_t
        implicit none
        class(template_element_set_t)     , intent(in)    :: this
        class(template_element_iterator_t), intent(inout) :: iterator
-     end subroutine free_template_element_iterator_interface
+     end subroutine free_iterator_interface
   end interface

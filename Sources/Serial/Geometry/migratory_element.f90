@@ -26,19 +26,24 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module migratory_element_names
-use types_names
+  use types_names
+  use hash_table_names
+  use element_id_names
   implicit none
   private
 # include "debug.i90"
 
   type, abstract :: migratory_element_t
+     class(element_id_t), allocatable :: id
    contains
      procedure (size_interface)  , deferred :: size
      procedure (pack_interface)  , deferred :: pack
      procedure (unpack_interface), deferred :: unpack
+     procedure (free_interface)  , deferred :: free
+     procedure (assignment_interface), deferred :: assign
+     generic :: assignment(=) => assign
   end type migratory_element_t
 
-  ! Abstract interfaces
   abstract interface
      subroutine size_interface(my,n)
        import :: migratory_element_t, ip
@@ -63,9 +68,26 @@ use types_names
        integer(ieep)           , intent(in)    :: buffer(n)
      end subroutine unpack_interface
 
+     subroutine free_interface(my)
+       import :: migratory_element_t
+       implicit none
+       class(migratory_element_t), intent(inout) :: my
+     end subroutine free_interface
+
+     subroutine assignment_interface(this,that)
+       import :: migratory_element_t
+       implicit none
+       class(migratory_element_t), intent(inout) :: this
+       class(migratory_element_t), intent(in)    :: that
+     end subroutine assignment_interface
+
   end interface
 
-  public :: migratory_element_t
+  type, abstract :: migratory_element_pointer_t
+     class(migratory_element_t), pointer :: p
+  end type migratory_element_pointer_t
+
+  public :: migratory_element_t, migratory_element_pointer_t
 
 #define  template_element_t          migratory_element_t
 #define  template_element_set_t      migratory_element_set_t
@@ -78,50 +100,14 @@ use types_names
 #include "plain_element_set_header.i90"
   public :: plain_migratory_element_set_t, plain_migratory_element_iterator_t
 
+#define  hash_template_element_set_t      hash_migratory_element_set_t
+#define  hash_template_element_iterator_t hash_migratory_element_iterator_t
+#include "hash_element_set_header.i90"
+  public :: hash_migratory_element_set_t, hash_migratory_element_iterator_t
+
 contains
 
 #include "plain_element_set_body.i90"
-
-  ! type, abstract :: migratory_element_iterator_t
-  !    private
-  !  contains
-  !    procedure(next_interface)    , deferred :: next
-  !    procedure(has_next_interface), deferred :: has_next
-  ! end type migratory_element_iterator_t
-  ! abstract interface
-  !    function next_interface (this) result(p)
-  !      import :: migratory_element_iterator_t, migratory_element_t
-  !      implicit none
-  !      class(migratory_element_iterator_t), intent(inout)  :: this
-  !      class(migratory_element_t)         , pointer        :: p
-  !    end function next_interface
-  !    function has_next_interface(this) result(res)
-  !      import :: migratory_element_iterator_t
-  !      implicit none
-  !      class(migratory_element_iterator_t), intent(inout) :: this
-  !      logical :: res
-  !    end function has_next_interface	
-  ! end interface
-
-  ! type, abstract :: migratory_element_set_t
-  !  contains
-  !    procedure(create_migratory_element_iterator_interface), deferred :: create_migratory_element_iterator
-  !    procedure(free_migratory_element_iterator_interface)  , deferred :: free_migratory_element_iterator
-  ! end type migratory_element_set_t
-  ! ! Abstract interfaces
-  ! abstract interface
-  !     subroutine create_migratory_element_iterator_interface(this,iterator)
-  !      import :: migratory_element_set_t, migratory_element_iterator_t
-  !      implicit none
-  !      class(migratory_element_set_t), target, intent(in)  :: this
-  !      class(migratory_element_iterator_t)   , intent(out) :: iterator
-  !    end subroutine create_migratory_element_iterator_interface
-  !     subroutine free_migratory_element_iterator_interface(this,iterator)
-  !      import :: migratory_element_set_t, migratory_element_iterator_t
-  !      implicit none
-  !      class(migratory_element_set_t)     , intent(in)    :: this
-  !      class(migratory_element_iterator_t), intent(inout) :: iterator
-  !    end subroutine free_migratory_element_iterator_interface
-  ! end interface
+#include "hash_element_set_body.i90"
 
 end module migratory_element_names

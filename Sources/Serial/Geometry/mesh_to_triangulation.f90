@@ -29,7 +29,7 @@ module mesh_to_triangulation_names
   use types_names
   use memor_names
   use mesh_names
-  use serial_triangulation_names
+  use triangulation_names
   use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
@@ -56,7 +56,7 @@ contains
     implicit none
     ! Parameters
     type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
-    type(serial_triangulation_t), intent(inout)           :: trian 
+    type(triangulation_t), intent(inout)           :: trian 
     type(conditions_t), optional, intent(inout)    :: gcond
 
     call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond )
@@ -68,7 +68,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     implicit none
     ! Parameters
     type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
-    type(serial_triangulation_t), intent(inout)           :: trian 
+    type(triangulation_t), intent(inout)           :: trian 
     integer(ip), optional, intent(in)                :: length_trian
     type(conditions_t), optional, intent(inout)    :: gcond
 

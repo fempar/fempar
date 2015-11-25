@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# include "debug.i90"
 module triangulation_names
   use types_names
   use memor_names
@@ -33,6 +32,7 @@ module triangulation_names
   use hash_table_names  
   implicit none
   private
+# include "debug.i90"
 
   integer(ip), parameter :: triangulation_not_created  = 0 ! Initial state
   integer(ip), parameter :: triangulation_filled       = 1 ! Elems + Vefs arrays allocated and filled 
