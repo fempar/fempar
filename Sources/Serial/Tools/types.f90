@@ -153,8 +153,8 @@ module types_names
   integer(ip), parameter :: five=5,six=6,seven=7,eight=8,nine=9
 
   ! Actions related to free routines
-  integer (ip), parameter  :: free_values = 7
-  integer (ip), parameter  :: free_struct = 8
+  integer (ip), parameter  :: free_numerical_setup = 7
+  integer (ip), parameter  :: free_symbolic_setup = 8
   integer (ip), parameter  :: free_clean  = 9
 
   ! Action related to integration routines
@@ -168,9 +168,25 @@ module types_names
   end interface
 
   ! Functions
-  public :: print_list_2d
+  public :: print_list, print_list_2d
 
 contains
+
+  subroutine print_list( lunou, list )
+    implicit none
+    integer(ip)      , intent(in) :: lunou
+    type(list_t)    , intent(in) :: list
+
+    integer(ip) :: i
+
+    write(lunou,*) '****PRINT LIST****'
+    write(lunou,*) 'size total list:',list%n
+    do i = 1,list%n
+       write(lunou,*) 'l(',i,')',list%l(list%p(i):list%p(i+1)-1)
+    end do
+    write(lunou,*) '****END PRINT LIST****'
+
+  end subroutine print_list
 
   subroutine print_list_2d( lunou, list2 )
     implicit none

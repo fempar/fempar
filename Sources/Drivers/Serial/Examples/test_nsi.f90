@@ -115,7 +115,7 @@ program test_nsi_iss
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: fevec
   type(serial_scalar_array_t)           :: feunk
-  type(fe_affine_operator_t)          :: fe_affine_operator
+  type(fe_affine_operator_t)            :: fe_affine_operator
 
   
   type(preconditioner_t)                :: feprec
@@ -225,9 +225,6 @@ program test_nsi_iss
 								   fe_space, &
 								   approx)
   
-  call fe_affine_operator%symbolic_setup()
-  call fe_affine_operator%numerical_setup()
-  
   matrix => fe_affine_operator%get_matrix()
   select type(matrix)
   class is(serial_scalar_matrix_t)
@@ -253,15 +250,15 @@ program test_nsi_iss
   ! Construct preconditioner
   ppars%type   = pardiso_mkl_prec
   call preconditioner_create(femat,feprec,ppars)
-  call preconditioner_symbolic(femat,feprec)
+  call preconditioner_symbolic_setup(feprec)
   call preconditioner_log_info(feprec)
 
   ! Do nonlinear iterations
   !call nonlinear_iteration(sctrl,1.0e-10_rp,10,senv,approx,fe_space,femat,feprec,fevec,feunk)
 
   ! Free preconditioner
-  call preconditioner_free_in_stages(feprec, preconditioner_free_struct)
-  call preconditioner_free_in_stages(feprec, preconditioner_free_clean)
+  call preconditioner_free_in_stages(feprec, free_symbolic_setup)
+  call preconditioner_free_in_stages(feprec, free_clean)
 
   ! Compute postprocess field
   call postprocess_vel%create('velocity',gdata%ndime,fe_space,senv,                                 &

@@ -42,9 +42,10 @@ module hsl_mi20_names
   use hsl_mi20_double
 #endif
 
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
+
   private
 
   ! Possible states of hsl_mi20_context
@@ -86,14 +87,11 @@ module hsl_mi20_names
   public :: hsl_mi20_context_t, hsl_mi20_control_t, hsl_mi20_info_t, hsl_mi20_data_t
 
   ! Possible actions that can be perfomed by solve_hsl_mi20
-  integer(ip), parameter :: hsl_mi20_init              = 1  ! Construct solve_hsl_mi20_state
-  integer(ip), parameter :: hsl_mi20_finalize          = 2  ! Destruct  solve_hsl_mi20_state     
-  integer(ip), parameter :: hsl_mi20_compute_symb      = 3  ! Compute symb. fact.  
-  integer(ip), parameter :: hsl_mi20_compute_num       = 4  ! Compute numerical fact. 
-  integer(ip), parameter :: hsl_mi20_solve             = 6  ! Fwd./Bck. substitution 
-  integer(ip), parameter :: hsl_mi20_free_values       = 7
-  integer(ip), parameter :: hsl_mi20_free_struct       = 8
-  integer(ip), parameter :: hsl_mi20_free_clean        = 9
+  integer(ip), parameter :: hsl_mi20_init                 = 1  ! Construct solve_hsl_mi20_state
+  integer(ip), parameter :: hsl_mi20_finalize             = 2  ! Destruct  solve_hsl_mi20_state     
+  integer(ip), parameter :: hsl_mi20_compute_symb         = 3  ! Compute symb. fact.  
+  integer(ip), parameter :: hsl_mi20_compute_num          = 4  ! Compute numerical fact. 
+  integer(ip), parameter :: hsl_mi20_solve                = 5  ! Fwd./Bck. substitution 
 
   interface hsl_mi20
      module procedure hsl_mi20_vector, hsl_mi20_r2, hsl_mi20_r1
@@ -104,11 +102,7 @@ module hsl_mi20_names
        &    hsl_mi20_finalize, &
        &    hsl_mi20_compute_symb, & 
        &    hsl_mi20_compute_num, &
-       &    hsl_mi20_solve, &
-       &    hsl_mi20_free_values,&
-       &    hsl_mi20_free_struct, &
-       &    hsl_mi20_free_clean
-
+       &    hsl_mi20_solve
   ! Functions
   public :: hsl_mi20
 
@@ -162,14 +156,14 @@ contains
        assert ( context%state /= not_created )
        select case (context%state)
        case (created)
-          call  hsl_mi20_free ( hsl_mi20_free_clean , context, data, ctrl, info )
+          call  hsl_mi20_free ( free_clean , context, data, ctrl, info )
        case (symb_computed)
-          call  hsl_mi20_free ( hsl_mi20_free_struct, context, data, ctrl, info )
-          call  hsl_mi20_free ( hsl_mi20_free_clean , context, data, ctrl, info )
+          call  hsl_mi20_free ( free_symbolic_setup, context, data, ctrl, info )
+          call  hsl_mi20_free ( free_clean , context, data, ctrl, info )
        case (num_computed)
-          call  hsl_mi20_free ( hsl_mi20_free_values, context, data, ctrl, info )
-          call  hsl_mi20_free ( hsl_mi20_free_struct, context, data, ctrl, info )
-          call  hsl_mi20_free ( hsl_mi20_free_clean , context, data, ctrl, info )
+          call  hsl_mi20_free ( free_numerical_setup, context, data, ctrl, info )
+          call  hsl_mi20_free ( free_symbolic_setup, context, data, ctrl, info )
+          call  hsl_mi20_free ( free_clean , context, data, ctrl, info )
        end select
        ! State transition 
        context%state = not_created
@@ -197,19 +191,19 @@ contains
        assert ( context%state ==  num_computed )
        call hsl_mi20_solution ( context, A, b, x, data, ctrl, info )
 
-    case ( hsl_mi20_free_values )
+    case ( free_numerical_setup )
 
-       call  hsl_mi20_free ( hsl_mi20_free_values, context, data, ctrl, info )
+       call  hsl_mi20_free ( free_numerical_setup, context, data, ctrl, info )
        context%state=symb_computed
 
-    case ( hsl_mi20_free_struct )
+    case ( free_symbolic_setup )
 
-       call  hsl_mi20_free ( hsl_mi20_free_struct, context, data, ctrl, info )
+       call  hsl_mi20_free ( free_symbolic_setup, context, data, ctrl, info )
        context%state=created
 
-    case ( hsl_mi20_free_clean )
+    case ( free_clean )
 
-       call  hsl_mi20_free ( hsl_mi20_free_clean, context, data, ctrl, info )
+       call  hsl_mi20_free ( free_clean, context, data, ctrl, info )
        context%state=not_created
 
     case default
@@ -311,7 +305,7 @@ contains
   subroutine hsl_mi20_free ( mode, context, data, ctrl, info )
     implicit none
     ! Parameters
-    integer(ip)            , intent(in)    :: mode
+    integer(ip)              , intent(in)    :: mode
     type(hsl_mi20_context_t) , intent(inout) :: context
     type(hsl_mi20_data_t)    , intent(inout) :: data
     type(hsl_mi20_control_t) , intent(in)    :: ctrl
@@ -319,17 +313,12 @@ contains
 
 #ifdef ENABLE_HSL_MI20
     ! Free hsl_mi20_context structures
-    if ( mode == hsl_mi20_free_clean ) then
-
-    else if ( mode == hsl_mi20_free_struct  ) then
-
-    else if ( mode == hsl_mi20_free_values ) then
+    if ( mode == free_clean ) then
+    else if ( mode == free_symbolic_setup  ) then
+    else if ( mode == free_numerical_setup ) then
        call memfree( context%zd11_mat%ptr,__FILE__,__LINE__)
-
        call memfree( context%zd11_mat%col,__FILE__,__LINE__)
-       
-       call memfree( context%zd11_mat%val,__FILE__,__LINE__)
-
+       call memfree( context%zd11_mat%val,__FILE__,__LINE__ )
        call mi20_finalize( data%coarse_data, & 
                            context%keep, & 
                            ctrl%control, & 

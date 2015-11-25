@@ -26,11 +26,12 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module materials_names
-use types_names
-use memor_names
-use stdio_names
-# include "debug.i90"
+  use types_names
+  use memor_names
+  use stdio_names
   implicit none
+# include "debug.i90"
+  
   private
 
   type materials_t

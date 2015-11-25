@@ -32,6 +32,8 @@ module element_fields_names
   use memory_guard_names
   use problem_names
   implicit none
+#include "debug.i90"
+
   private
 # include "debug.i90"
 

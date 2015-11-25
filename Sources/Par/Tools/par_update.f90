@@ -31,6 +31,7 @@ module par_update_names
   use memor_names
   use update_names
   use vector_names
+  use time_integration_names
 
   ! Parallel modules
   use par_fe_space_names
@@ -44,7 +45,8 @@ module par_update_names
 
   ! Functions
   public :: par_update_strong_dirichlet_bcond, par_update_analytical_bcond, par_update_solution, &
-       &    par_update_nonlinear_solution, par_update_analytical_initial, par_update_initialize
+       &    par_update_nonlinear_solution, par_update_analytical_initial, par_update_initialize, &
+       &    par_update_transient_solution
   
 contains
 
@@ -204,6 +206,29 @@ contains
     end if
 
   end subroutine par_update_nonlinear_solution
+
+  !==================================================================================================
+  subroutine par_update_transient_solution(p_fe_space,working_vars,origin,destination,time_integ)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine stores the previous nonlinear solution.                                     !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    type(par_fe_space_t)     , intent(inout) :: p_fe_space
+    integer(ip)              , intent(in)    :: working_vars(:)
+    integer(ip)    , optional, intent(in)    :: origin,destination
+    class(time_integration_t), intent(in)    :: time_integ
+
+    ! Parallel environment MUST BE already created
+    assert ( associated(p_fe_space%p_trian) )
+    assert ( p_fe_space%p_trian%p_env%created )
+
+    ! If fine task call serial subroutine
+    if( p_fe_space%p_trian%p_env%am_i_fine_task() ) then
+       call update_transient_solution(p_fe_space%serial_fe_space,working_vars,origin,destination,   &
+            &                         time_integ)
+    end if
+
+  end subroutine par_update_transient_solution
 
   !==================================================================================================
   subroutine par_update_initialize(vec,p_fe_space)

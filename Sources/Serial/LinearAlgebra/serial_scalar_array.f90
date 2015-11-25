@@ -47,7 +47,7 @@ module serial_scalar_array_names
   ! -------------------------------------------------
   ! Input State | Action               | Output State 
   ! -------------------------------------------------
-  ! not_created | free_values          | not_created
+  ! not_created | free_numerical_setup | not_created
   ! not_created | free_clean           | not_created
   ! not_created | free                 | not_created
   ! not_created | create               | created
@@ -56,15 +56,15 @@ module serial_scalar_array_names
   ! not_created | create_view          | entries_ready
   
   ! created     | free_clean           | not_created
-  ! created     | free_values          | created 
+  ! created     | free_numerical_setup | created 
   ! created     | allocate             | entries_ready
   ! created     | free                 | not_created
   ! created     | set_view_entries     | entries_ready
   ! created     | clone                | same status as cloned source
   
-  ! entries_ready | clone              | entries_ready
-  ! entries_ready | free_values        | created
-  ! entries_ready | free               | not_created
+  ! entries_ready | clone                | same status as cloned source 
+  ! entries_ready | free_numerical_setup | created
+  ! entries_ready | free                 | not_created
   type, extends(array_t) :: serial_scalar_array_t
      integer(ip)                :: size  = 0
      integer(ip)                :: state = not_created 
@@ -90,6 +90,7 @@ module serial_scalar_array_names
      procedure :: same_vector_space => serial_scalar_array_same_vector_space
      procedure :: free_in_stages  => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
+					procedure :: get_number_blocks
   end type serial_scalar_array_t
 
   ! Types
@@ -352,7 +353,7 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: action
-    assert ( action == free_clean .or. action == free_struct .or. action == free_values )
+    assert ( action == free_clean .or. action == free_symbolic_setup .or. action == free_numerical_setup )
     
     if ( action == free_clean ) then
        ! Undo create
@@ -362,7 +363,7 @@ contains
          this%state = not_created
          this%is_a_view = .false.
        end if
-    else if ( action == free_values ) then
+    else if ( action == free_numerical_setup ) then
        ! Undo allocate
        if ( this%state == entries_ready ) then
           if ( this%is_a_view ) then
@@ -389,5 +390,12 @@ contains
      serial_scalar_array_same_vector_space = (this%size == vector%size)
    end select
  end function serial_scalar_array_same_vector_space
+	
+ function get_number_blocks(this) result(res)
+   implicit none 
+   class(serial_scalar_array_t), intent(in)   :: this
+   integer(ip) :: res
+   res = 1
+ end function get_number_blocks
 
 end module serial_scalar_array_names

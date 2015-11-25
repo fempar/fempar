@@ -37,9 +37,10 @@ module wsmp_names
   use serial_scalar_matrix_names
   use serial_scalar_array_names 
 
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
+
   private
 
   ! Type definition for wsmp args
@@ -121,10 +122,7 @@ module wsmp_names
   integer(ip), parameter :: wsmp_finalize          = 2  ! Destruct  solve_wsmp_state     
   integer(ip), parameter :: wsmp_compute_symb      = 3  ! Compute symb. fact.  
   integer(ip), parameter :: wsmp_compute_num       = 4  ! Compute numerical fact. 
-  integer(ip), parameter :: wsmp_solve             = 6  ! Fwd./Bck. substitution 
-  integer(ip), parameter :: wsmp_free_values       = 7
-  integer(ip), parameter :: wsmp_free_struct       = 8
-  integer(ip), parameter :: wsmp_free_clean        = 9
+  integer(ip), parameter :: wsmp_solve             = 5  ! Fwd./Bck. substitution 
 
   interface wsmp
      module procedure wsmp_vector, wsmp_r2, wsmp_r1
@@ -135,10 +133,7 @@ module wsmp_names
        &    wsmp_finalize, &
        &    wsmp_compute_symb, & 
        &    wsmp_compute_num, &
-       &    wsmp_solve, &
-       &    wsmp_free_values,&
-       &    wsmp_free_struct, &
-       &    wsmp_free_clean
+       &    wsmp_solve
 
   ! Functions
   public :: wsmp ! , wsmp_solution_several_rhs
@@ -201,14 +196,14 @@ contains
        assert ( context%state /= not_created )
        select case (context%state)
        case (created)
-          call  wsmp_free ( wsmp_free_clean , context )
+          call  wsmp_free ( free_clean , context )
        case (symb_computed)
-          call  wsmp_free ( wsmp_free_struct, context )
-          call  wsmp_free ( wsmp_free_clean , context )
+          call  wsmp_free ( free_symbolic_setup, context )
+          call  wsmp_free ( free_clean , context )
        case (num_computed)
-          call  wsmp_free ( wsmp_free_values, context )
-          call  wsmp_free ( wsmp_free_struct, context )
-          call  wsmp_free ( wsmp_free_clean , context )
+          call  wsmp_free ( free_numerical_setup, context )
+          call  wsmp_free ( free_symbolic_setup, context )
+          call  wsmp_free ( free_clean , context )
        end select
        ! State transition 
        context%state = not_created
@@ -237,19 +232,19 @@ contains
        assert ( context%state ==  num_computed )
        call wsmp_solution ( context, A, b, x, iparm, dparm, perm, iperm, rmisc )
 
-    case ( wsmp_free_values )
+    case ( free_numerical_setup )
 
-       call  wsmp_free ( wsmp_free_values, context )
+       call  wsmp_free ( free_numerical_setup, context )
        context%state=symb_computed
 
-    case ( wsmp_free_struct )
+    case ( free_symbolic_setup )
 
-       call  wsmp_free ( wsmp_free_struct, context )
+       call  wsmp_free ( free_symbolic_setup, context )
        context%state=created
 
-    case ( wsmp_free_clean )
+    case ( free_clean )
 
-       call  wsmp_free ( wsmp_free_clean, context )
+       call  wsmp_free ( free_clean, context )
        context%state=not_created
 
     case default
@@ -458,7 +453,7 @@ contains
 
 #ifdef ENABLE_WSMP
     ! Free wsmp_context structures
-    if ( mode == wsmp_free_clean ) then
+    if ( mode == free_clean ) then
        context_status(context%id+1) = 0
        num_contexts_symm = num_contexts_symm - 1
        ! Recall context
@@ -477,7 +472,7 @@ contains
        return
     end if
 
-    if ( mode == wsmp_free_struct  ) then
+    if ( mode == free_symbolic_setup  ) then
        if(context%symmetric_storage .and. context%is_symmetric) then
           ! Recall context
           call wrecallmat (context%id, info)
@@ -497,7 +492,7 @@ contains
           !if(num_contexts_unsy==0) call wgsfree()
           call wgsfree()
        end if
-    else if ( mode == wsmp_free_values ) then
+    else if ( mode == free_numerical_setup ) then
        ! Release internal memory only for L and U factors of current context
        if(context%symmetric_storage .and. context%is_symmetric) then
           ! Recall context

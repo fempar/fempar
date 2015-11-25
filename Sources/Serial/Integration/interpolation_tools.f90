@@ -28,12 +28,12 @@
 module interpolation_tools_names
   use types_names
   use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
   use fe_space_types_names
   use interpolation_names
   use allocatable_array_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
   implicit none
   private
 # include "debug.i90"

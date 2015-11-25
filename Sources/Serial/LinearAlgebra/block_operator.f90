@@ -67,7 +67,8 @@ use iso_c_binding
      procedure  :: set_block_to_zero  => block_operator_set_block_to_zero
      procedure  :: free               => block_operator_free
      procedure  :: get_block          => block_operator_get_block
-     procedure  :: apply          => block_operator_apply
+     procedure  :: apply              => block_operator_apply
+     procedure  :: is_linear          => block_operator_is_linear
   end type block_operator_t
 
 
@@ -116,6 +117,13 @@ contains
     end select
     call x%CleanTemp()
   end subroutine block_operator_apply
+  
+  function block_operator_is_linear(op)
+    implicit none
+    class(block_operator_t), intent(in) :: op
+    logical :: block_operator_is_linear
+    block_operator_is_linear = .false.
+  end function block_operator_is_linear
 
   subroutine block_operator_create (bop, mblocks, nblocks)
     implicit none

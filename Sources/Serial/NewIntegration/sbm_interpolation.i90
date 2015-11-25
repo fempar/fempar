@@ -1,0 +1,139 @@
+
+function interpolation_get_number_dimensions( this )
+  implicit none
+  class(SB_interpolation_t), intent(in) :: this
+  integer(ip) :: interpolation_get_number_dimensions
+  interpolation_get_number_dimensions = this%number_dimensions
+end function interpolation_get_number_dimensions
+
+function interpolation_get_number_shape_functions( this )
+  implicit none
+  class(SB_interpolation_t), intent(in) :: this
+  integer(ip) :: interpolation_get_number_shape_functions
+  interpolation_get_number_shape_functions = this%number_shape_functions
+end function interpolation_get_number_shape_functions
+
+
+function interpolation_get_number_evaluation_points( this )
+  implicit none
+  class(SB_interpolation_t), intent(in) :: this
+  integer(ip) :: interpolation_get_number_evaluation_points
+  interpolation_get_number_evaluation_points = this%number_evaluation_points
+end function interpolation_get_number_evaluation_points
+
+
+function interpolation_get_number_entries_symmetric_tensor( this )
+  implicit none
+  class(SB_interpolation_t), intent(in) :: this
+  integer(ip) :: interpolation_get_number_entries_symmetric_tensor
+  interpolation_get_number_entries_symmetric_tensor = this%number_entries_symmetric_tensor
+end function interpolation_get_number_entries_symmetric_tensor
+
+subroutine interpolation_create( this, ndime, nnode, ngaus, ntens, khes )
+  implicit none
+  class(SB_interpolation_t), intent(out) :: this
+  integer(ip)          , intent(in)     :: nnode, ndime, ngaus
+  integer(ip) :: iloc,ntens
+  logical, optional :: khes
+
+  this%number_dimensions = ndime
+  this%number_shape_functions = nnode
+  this%number_evaluation_points = ngaus
+  this%number_entries_symmetric_tensor = ntens
+  call memalloc(nnode,ngaus,this%shape_functions,__FILE__,__LINE__)
+  call memalloc(ndime,nnode,ngaus,this%shape_derivatives,   __FILE__,__LINE__)
+  this%shape_functions = 0.0_rp
+  this%shape_derivatives = 0.0_rp
+  if ( present(khes) ) then
+     if ( khes ) then 
+        call memalloc(ntens,nnode,ngaus,this%hessian,   __FILE__,__LINE__) 
+        this%hessian = 0.0_rp
+     end if
+  end if
+
+end subroutine interpolation_create
+
+subroutine interpolation_free( this)
+  implicit none
+  class(SB_interpolation_t), intent(out) :: this
+
+  this%number_dimensions = 0
+  this%number_shape_functions = 0
+  this%number_evaluation_points = 0
+  this%number_entries_symmetric_tensor = 0
+  if(allocated(this%shape_functions)) call memfree(this%shape_functions,__FILE__,__LINE__)
+  if(allocated(this%shape_derivatives)) call memfree(this%shape_derivatives,   __FILE__,__LINE__)
+  if(allocated(this%hessian)) call memfree(this%hessian,   __FILE__,__LINE__) 
+
+end subroutine interpolation_free
+
+subroutine interpolation_print ( this )
+  implicit none
+  class(SB_interpolation_t), intent(in) :: this
+  write(*,*) 'number_dimensions: ', this%number_dimensions
+  write(*,*) 'number_shape_functions: ', this%number_shape_functions
+  write(*,*) 'number_evaluation_points: ', this%number_evaluation_points
+  write(*,*) 'number_entries_symmetric_tensor: ', this%number_entries_symmetric_tensor
+  write(*,*) 'shape_functions: ', this%shape_functions
+  write(*,*) 'shape_derivatives: ', this%shape_derivatives
+  if ( allocated( this%hessian ) ) then
+     write(*,*) 'hessian: ', this%hessian
+  else
+     write(*,*) 'hessian not computed '
+  end if
+end subroutine interpolation_print
+
+function interpolation_get_shape_function ( this, i, j )
+  implicit none
+  class(SB_interpolation_t), target, intent(in) :: this
+  real(rp) :: interpolation_get_shape_function
+  integer(ip) :: i, j
+
+  interpolation_get_shape_function = this%shape_functions(i,j)
+
+end function interpolation_get_shape_function
+
+function interpolation_get_shape_derivative ( this, i, j, k )
+  implicit none
+  class(SB_interpolation_t), target, intent(in) :: this
+  real(rp) :: interpolation_get_shape_derivative
+  integer(ip) :: i, j, k
+
+  interpolation_get_shape_derivative = this%shape_derivatives(i,j,k)
+
+end function interpolation_get_shape_derivative
+
+function interpolation_get_hessian ( this, i, j, k )
+  implicit none
+  class(SB_interpolation_t), target, intent(in) :: this
+  real(rp) :: interpolation_get_hessian
+  integer(ip) :: i, j, k
+
+  interpolation_get_hessian = this%hessian(i,j,k)
+
+end function interpolation_get_hessian
+
+! function interpolation_get_pointer_shape_functions ( this )
+!   implicit none
+!   class(SB_interpolation_t), target, intent(in) :: this
+!   real(rp), pointer :: interpolation_get_pointer_shape_functions(:,:)
+!   interpolation_get_pointer_shape_functions => this%shape_functions
+! end function interpolation_get_pointer_shape_functions
+
+! function interpolation_get_pointer_shape_derivatives ( this )
+!   implicit none
+!   class(SB_interpolation_t), target, intent(in) :: this
+!   real(rp), pointer :: interpolation_get_pointer_shape_derivatives(:,:,:)
+!   interpolation_get_pointer_shape_derivatives => this%shape_derivatives
+! end function interpolation_get_pointer_shape_derivatives
+
+! function interpolation_get_pointer_hessian ( this )
+!   implicit none
+!   class(SB_interpolation_t), target, intent(in) :: this
+!   real(rp), pointer :: interpolation_get_pointer_hessian(:,:,:)
+!   if ( allocated( this%hessian ) ) then
+!      interpolation_get_pointer_hessian => this%hessian
+!   else
+!      nullify(get_pointer_hessian)
+!   end if
+! end function interpolation_get_pointer_hessian

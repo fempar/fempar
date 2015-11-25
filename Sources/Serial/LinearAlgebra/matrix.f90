@@ -36,6 +36,9 @@ module matrix_names
   contains
      procedure (allocate_interface)      , deferred :: allocate
      procedure (free_in_stages_interface), deferred :: free_in_stages
+     
+     
+     procedure :: is_linear => matrix_is_linear
      ! This subroutine is an instance of the Template Method pattern with
      ! free_in_stages being the primitive method. According to this pattern,
      ! template methods cannot be overrided by subclasses
@@ -62,11 +65,18 @@ module matrix_names
   public :: matrix_t
 
 contains
+  function matrix_is_linear ( op )
+    implicit none
+    class(matrix_t), intent(in) :: op
+    logical :: matrix_is_linear
+    matrix_is_linear = .true. 
+  end function matrix_is_linear
+
   subroutine matrix_free_template_method ( this )
     implicit none
     class(matrix_t), intent(inout) :: this
-    call this%free_in_stages(free_values)
-    call this%free_in_stages(free_struct)
+    call this%free_in_stages(free_numerical_setup)
+    call this%free_in_stages(free_symbolic_setup)
     call this%free_in_stages(free_clean)
   end subroutine matrix_free_template_method
 end module matrix_names

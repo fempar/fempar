@@ -50,6 +50,7 @@ module vector_space_names
      procedure :: equal_to      => vector_space_equal_to
      procedure :: clone         => vector_space_clone 
      procedure :: free          => vector_space_free
+					procedure :: get_number_blocks
   end type vector_space_t
 
   public :: vector_space_t
@@ -123,5 +124,12 @@ contains
        call this%vector%free()
        deallocate(this%vector)
      end subroutine vector_space_free
+					
+			function get_number_blocks(this) result(res)
+     implicit none 
+     class(vector_space_t), intent(in) :: this
+     integer(ip) :: res
+			  res = this%vector%get_number_blocks()
+   end function get_number_blocks
      
 end module vector_space_names

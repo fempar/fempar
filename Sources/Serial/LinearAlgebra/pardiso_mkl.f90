@@ -47,10 +47,10 @@ module pardiso_mkl_names
 #endif
   ! Temporary solution for using more than one wrapper
   use mkl_names
-
-# include "debug.i90"
   
   implicit none
+# include "debug.i90"
+
   private
 
   ! Possible states of pardiso_mkl_instance
@@ -97,9 +97,6 @@ module pardiso_mkl_names
   integer(ip), parameter :: pardiso_mkl_compute_num       = 4  ! Compute numerical fact. 
   integer(ip), parameter :: pardiso_mkl_compute_symb_num  = 5  ! Compute symb.+num. fact.
   integer(ip), parameter :: pardiso_mkl_solve             = 6  ! Fwd./Bck. substitution 
-  integer(ip), parameter :: pardiso_mkl_free_values       = 7
-  integer(ip), parameter :: pardiso_mkl_free_struct       = 8
-  integer(ip), parameter :: pardiso_mkl_free_clean        = 9
 
   interface pardiso_mkl
      module procedure pardiso_mkl_vector, pardiso_mkl_r2, pardiso_mkl_r1
@@ -116,10 +113,7 @@ module pardiso_mkl_names
        &    pardiso_mkl_compute_symb, & 
        &    pardiso_mkl_compute_num, &
        &    pardiso_mkl_compute_symb_num, &
-       &    pardiso_mkl_solve, &
-       &    pardiso_mkl_free_values, &
-       &    pardiso_mkl_free_struct, &
-       &    pardiso_mkl_free_clean
+       &    pardiso_mkl_solve
 
   ! Functions
   public :: pardiso_mkl ! , pardiso_mkl_solution_several_rhs
@@ -150,36 +144,30 @@ contains
 !    integer         , intent(in), target, optional :: perm(A%graph%nv)
 
     select case(action)
-
     case ( pardiso_mkl_initialize )
-
        ! Check pre-conditions
        assert ( context%state == not_created )
        ! Create a context and fill default parameters in iparm (if present)
        call pardiso_mkl_init ( context, A, iparm)
        ! State transition 
        context%state = created
-
     case ( pardiso_mkl_finalize )
-
        ! Check pre-conditions
        assert ( context%state /= not_created )
        select case (context%state)
        case (created)
-          call  pardiso_mkl_free ( pardiso_mkl_free_clean , context, iparm, msglvl )
+          call  pardiso_mkl_free ( free_clean , context, iparm, msglvl )
        case (symb_computed)
-          call  pardiso_mkl_free ( pardiso_mkl_free_struct, context, iparm, msglvl )
-          call  pardiso_mkl_free ( pardiso_mkl_free_clean , context, iparm, msglvl )
+          call  pardiso_mkl_free ( free_symbolic_setup, context, iparm, msglvl )
+          call  pardiso_mkl_free ( free_clean , context, iparm, msglvl )
        case (num_computed)
-          call  pardiso_mkl_free ( pardiso_mkl_free_values, context, iparm, msglvl )
-          call  pardiso_mkl_free ( pardiso_mkl_free_struct, context, iparm, msglvl )
-          call  pardiso_mkl_free ( pardiso_mkl_free_clean , context, iparm, msglvl )
+          call  pardiso_mkl_free ( free_numerical_setup, context, iparm, msglvl )
+          call  pardiso_mkl_free ( free_symbolic_setup, context, iparm, msglvl )
+          call  pardiso_mkl_free ( free_clean , context, iparm, msglvl )
        end select
        ! State transition 
        context%state = not_created
-
     case ( pardiso_mkl_compute_symb )
-
        ! Check pre-conditions
        assert (context%state==created.or.context%state==symb_computed.or.context%state==num_computed)
        ! Create sparsity pattern of LU sparse direct factorization
@@ -187,18 +175,16 @@ contains
        case (created)       ! Compute symbolic info
           call pardiso_mkl_analysis ( context, A, iparm, msglvl, perm)
        case (symb_computed) ! Recompute symbolic info
-          call pardiso_mkl_free     ( pardiso_mkl_free_struct, context, iparm, msglvl )
+          call pardiso_mkl_free     ( free_symbolic_setup, context, iparm, msglvl )
           call pardiso_mkl_analysis ( context, A, iparm, msglvl, perm)
        case (num_computed)  ! Recompute symbolic info
-          call pardiso_mkl_free     ( pardiso_mkl_free_values, context, iparm, msglvl )
-          call pardiso_mkl_free     ( pardiso_mkl_free_struct, context, iparm, msglvl )
+          call pardiso_mkl_free     ( free_numerical_setup, context, iparm, msglvl )
+          call pardiso_mkl_free     ( free_symbolic_setup, context, iparm, msglvl )
           call pardiso_mkl_analysis ( context, A, iparm, msglvl, perm)
        end select
        ! State transition 
        context%state = symb_computed
-
     case ( pardiso_mkl_compute_num )
-
        ! Check pre-conditions
        assert (context%state==symb_computed.or.context%state==num_computed)
        ! Compute LU sparse direct factorization
@@ -206,14 +192,12 @@ contains
        case (symb_computed) ! Compute numerical info
           call pardiso_mkl_factorization ( context, A, iparm, msglvl)             
        case (num_computed)  ! Recompute numerical info
-          call pardiso_mkl_free          ( pardiso_mkl_free_values, context, iparm, msglvl )
+          call pardiso_mkl_free          ( free_numerical_setup, context, iparm, msglvl )
           call pardiso_mkl_factorization ( context, A, iparm, msglvl)
        end select
        ! State transition 
        context%state = num_computed
-
     case ( pardiso_mkl_compute_symb_num )
-
        ! Check pre-conditions
        assert (context%state==created.or.context%state==symb_computed.or.context%state==num_computed)
        select case (context%state)
@@ -221,45 +205,33 @@ contains
           call pardiso_mkl_analysis      ( context, A, iparm, msglvl, perm)
           call pardiso_mkl_factorization ( context, A, iparm, msglvl )
        case (symb_computed) ! Recompute symbolic info
-          call pardiso_mkl_free          ( pardiso_mkl_free_struct, context, iparm, msglvl)
+          call pardiso_mkl_free          ( free_symbolic_setup, context, iparm, msglvl)
           call pardiso_mkl_analysis      ( context, A, iparm, msglvl, perm)
           call pardiso_mkl_factorization ( context, A, iparm, msglvl )
        case (num_computed)  ! Recompute symbolic info
-          call pardiso_mkl_free          ( pardiso_mkl_free_values, context, iparm, msglvl )
-          call pardiso_mkl_free          ( pardiso_mkl_free_struct, context, iparm, msglvl )
+          call pardiso_mkl_free          ( free_numerical_setup, context, iparm, msglvl )
+          call pardiso_mkl_free          ( free_symbolic_setup, context, iparm, msglvl )
           call pardiso_mkl_analysis      ( context, A, iparm, msglvl, perm )
           call pardiso_mkl_factorization ( context, A, iparm, msglvl )
        end select
        ! State transition 
        context%state = num_computed
-
     case ( pardiso_mkl_solve )
-
        ! Check pre-conditions
        assert ( context%state ==  num_computed )
        call pardiso_mkl_solution ( context, A, b, x, iparm, msglvl )
-
-    case ( pardiso_mkl_free_values )
-
-       call  pardiso_mkl_free ( pardiso_mkl_free_values, context, iparm, msglvl )
+    case ( free_numerical_setup )
+       call  pardiso_mkl_free ( free_numerical_setup, context, iparm, msglvl )
        context%state=symb_computed
-
-    case ( pardiso_mkl_free_struct )
-
-       call  pardiso_mkl_free ( pardiso_mkl_free_struct, context, iparm, msglvl )
+    case ( free_symbolic_setup )
+       call  pardiso_mkl_free ( free_symbolic_setup, context, iparm, msglvl )
        context%state=created
-
-    case ( pardiso_mkl_free_clean )
-
-       call  pardiso_mkl_free ( pardiso_mkl_free_clean, context, iparm, msglvl )
+    case ( free_clean )
+       call  pardiso_mkl_free ( free_clean, context, iparm, msglvl )
        context%state=not_created
-
     case default
-
-       ! Write an error message and stop ?      
-
+       ! Write an error message and stop ?
     end select
-
   end subroutine pardiso_mkl_vector
   !=============================================================================
   subroutine pardiso_mkl_r2 ( action, context, A, nrhs, b, ldb, x, ldx, iparm, msglvl, perm )
@@ -413,7 +385,7 @@ contains
 #ifdef ENABLE_MKL
     ! Free PARDISO internal state allocatable
 
-    if ( mode == pardiso_mkl_free_clean ) then
+    if ( mode == free_clean ) then
          deallocate ( context%pt     )
          context%n      = -1
          context%mtype  = -1500
@@ -438,7 +410,7 @@ contains
        end do
     end if
 
-    if ( mode == pardiso_mkl_free_struct  ) then
+    if ( mode == free_symbolic_setup  ) then
        ! Termination and release of memory
        phase = -1 ! release internal memory
        if (context%n>1) then
@@ -451,7 +423,7 @@ contains
              stop
           end if
        end if
-    else if ( mode == pardiso_mkl_free_values ) then
+    else if ( mode == free_numerical_setup ) then
        ! Release internal memory only for L and U factors
        phase = 0
        if (context%n>1) then

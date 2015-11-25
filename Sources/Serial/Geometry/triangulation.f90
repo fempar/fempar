@@ -31,6 +31,8 @@ module triangulation_names
   use fe_space_types_names
   use hash_table_names  
   implicit none
+# include "debug.i90"
+
   private
 # include "debug.i90"
 
@@ -41,11 +43,15 @@ module triangulation_names
      integer(ip)               :: num_vefs = -1    ! Number of vefs
      integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
      type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
-     
+
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
 
   end type elem_topology_t
+
+  type p_elem_topology_t
+     type(elem_topology_t), pointer :: p => NULL()      
+  end type p_elem_topology_t
 
   type vef_topology_t
      integer(ip)               :: border     = -1       ! Border local id of this vef (only for faces)
@@ -69,10 +75,10 @@ module triangulation_names
   end type triangulation_t
 
   ! Types
-  public :: triangulation_t, elem_topology_t
+  public :: triangulation_t, elem_topology_t, p_elem_topology_t
 
   ! Main Subroutines 
-  public :: triangulation_create, triangulation_free, triangulation_to_dual, triangulation_print
+  public :: triangulation_create, triangulation_free, triangulation_to_dual, triangulation_print, element_print
 
   ! Auxiliary Subroutines (should only be used by modules that have control over type(triangulation_t))
   public :: free_elem_topology, free_vef_topology, put_topology_element_triangulation, local_id_from_vertices
@@ -144,7 +150,7 @@ contains
     implicit none
     type(triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
-    
+
     if ( trian%state == triangulation_filled ) then
        do iobj=1, trian%num_vefs 
           call free_vef_topology(trian%vefs(iobj)) 
@@ -159,7 +165,7 @@ contains
     implicit none
     type(triangulation_t), intent(inout) :: trian
     integer(ip) :: istat,ielem, iobj
-    
+
     if ( trian%state == triangulation_filled ) then
        do ielem=1, trian%elem_array_len 
           call free_elem_topology(trian%elems(ielem)) 
@@ -221,7 +227,7 @@ contains
     integer(ip)              :: ielem, iobj, jobj, istat, idime, touch,  length_trian_
     type(hash_table_ip_ip_t)   :: visited
     integer(ip), allocatable :: elems_around_pos(:)
-    
+
     if (present(length_trian)) then
        length_trian_ = length_trian
     else
@@ -435,8 +441,21 @@ contains
        write (lunou,*) '****END PRINT VEF ',iobje,' INFO****'
     end do
 
-    
+
     write (lunou,*) '****END PRINT TOPOLOGY****'
   end subroutine triangulation_print
+
+  subroutine element_print ( lunou,  elem ) ! (SBmod)
+    implicit none
+    ! Parameters
+    integer(ip)            , intent(in) :: lunou
+    type(elem_topology_t), intent(in) :: elem
+
+    write (lunou,*) 'num_vefs:', elem%num_vefs
+    write (lunou,*) 'vefs:', elem%vefs
+    write (lunou,*) 'coordinates:', elem%coordinates
+    write (lunou,*) 'order:', elem%order
+
+  end subroutine element_print
 
 end module triangulation_names

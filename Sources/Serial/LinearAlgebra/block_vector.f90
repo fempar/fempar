@@ -36,7 +36,7 @@ module block_vector_names
   private
 
 
-  integer(ip), parameter :: not_created              = 0
+  integer(ip), parameter :: start              = 0
   integer(ip), parameter :: blocks_container_created = 1
   integer(ip), parameter :: blocks_being_built       = 2 
   integer(ip), parameter :: assembled                = 3
@@ -45,12 +45,12 @@ module block_vector_names
   ! -------------------------------------------------
   ! Input State | Action               | Output State 
   ! -------------------------------------------------
-  ! not_created | free_values              | not_created
-  ! not_created | free_clean               | not_created
-  ! not_created | free                     | not_created
-  ! not_created | create                   | blocks_container_created 
+  ! start | free_values              | start
+  ! start | free_clean               | start
+  ! start | free                     | start
+  ! start | create                   | blocks_container_created 
 
-  ! blocks_container_created | free_clean  | not_created
+  ! blocks_container_created | free_clean  | start
   ! blocks_container_created | free_values | blocks_container_created
   ! blocks_container_created | set_block   | blocks_being_built 
 
@@ -78,7 +78,7 @@ module block_vector_names
 
   ! block_vector
   type, extends(vector_t) :: block_vector_t
-     integer(ip)                   :: state = not_created
+     integer(ip)                   :: state = start
      integer(ip)                   :: nblocks
      type(p_vector_t), allocatable :: blocks(:)
    contains     
@@ -99,6 +99,7 @@ module block_vector_names
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
      procedure :: same_vector_space => block_vector_same_vector_space
+					procedure :: get_number_blocks
   end type block_vector_t
 
   ! Types
@@ -113,7 +114,7 @@ contains
     integer(ip)             , intent(in)    :: nblocks
     ! Locals
     integer(ip) :: iblk
-    assert(bop%state == not_created)
+    assert(bop%state == start)
     bop%nblocks = nblocks
     allocate ( bop%blocks(nblocks) )
     do iblk=1, nblocks
@@ -148,8 +149,8 @@ contains
 
     ! Locals
     integer(ip) :: iblk
-    call this%free_in_stages(free_values)
-    call this%free_in_stages(free_struct)
+    call this%free_in_stages(free_numerical_setup)
+    call this%free_in_stages(free_symbolic_setup)
     call this%free_in_stages(free_clean)
   end subroutine block_vector_free
 
@@ -184,8 +185,8 @@ contains
     ! Locals
     integer(ip) :: iblk
 
-    assert ( action==free_values.or.action==free_struct.or.action==free_clean) 
-    if  ( action == free_values ) then
+    assert ( action==free_numerical_setup.or.action==free_symbolic_setup.or.action==free_clean) 
+    if  ( action == free_numerical_setup ) then
       if ( this%state == assembled .or. this%state == blocks_being_built ) then
         do iblk=1, this%nblocks
            if ( this%blocks(iblk)%allocated ) then
@@ -198,11 +199,11 @@ contains
         this%state = blocks_container_created
       end if
     else if ( action == free_clean ) then
-       assert ( this%state == not_created .or. this%state == blocks_container_created)
+       assert ( this%state == start .or. this%state == blocks_container_created)
        if ( this%state == blocks_container_created ) then
          this%nblocks = 0
          deallocate( this%blocks )
-         this%state = not_created
+         this%state = start
        end if
     end if
   end subroutine block_vector_free_in_stages
@@ -418,5 +419,16 @@ contains
      end if
    end select
  end function block_vector_same_vector_space
+	
+ function get_number_blocks(this) result(res)
+   implicit none 
+   class(block_vector_t), intent(in) :: this
+   integer(ip) :: res
+   integer(ip) :: i
+   res = 0
+   do i=1,this%nblocks
+      res = res + this%blocks(i)%vector%get_number_blocks()
+   end do
+ end function get_number_blocks
  
 end module block_vector_names

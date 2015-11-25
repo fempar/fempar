@@ -32,13 +32,28 @@ module time_integration_names
   private
   
   type :: time_integration_t
-     real(rp) :: ctime = 0.0_rp  ! Current time
-     real(rp) :: ftime = 0.0_rp  ! Final time
-     real(rp) :: itime = 0.0_rp  ! Initial time
-     real(rp) :: dtinv = 0.0_rp  ! Final time
+     real(rp)    :: ctime = 0.0_rp  ! Current time
+     real(rp)    :: ftime = 0.0_rp  ! Final time
+     real(rp)    :: itime = 0.0_rp  ! Initial time
+     real(rp)    :: dtinv = 0.0_rp  ! Inverse of the time step
+     integer(ip) :: istep = 1       ! Step id
+   contains
+     procedure :: update_solution => time_integration_update_solution
   end type time_integration_t
-
+  
   ! Types
   public :: time_integration_t
-     
+
+contains
+
+  !=================================================================================================
+  subroutine  time_integration_update_solution(this,current_unkno,prev_step_unkno)
+    implicit none
+    class(time_integration_t), intent(in)    :: this
+    real(rp)                 , intent(inout) :: current_unkno(:)
+    real(rp)                 , intent(inout) :: prev_step_unkno(:)
+
+    prev_step_unkno = current_unkno
+  end subroutine time_integration_update_solution
+
 end module time_integration_names

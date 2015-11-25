@@ -35,21 +35,25 @@ program test_operators
   type(dynamic_state_operator_t)          :: Op
   type(serial_environment_t)              :: environment
   type(linear_solver_t)                   :: linear_solver
+  type(graph_t), pointer                  :: Mat_graph
   
   call meminit
   
-  call Mat%create(symmetric_storage=.false., is_symmetric=.false., sign=unknown)
-  ! Begin External Process which creates the graph of Mat
-  Mat%graph%nv  = 3
-  Mat%graph%nv2 = 3
-  call memalloc ( Mat%graph%nv+1, Mat%graph%ia, __FILE__, __LINE__)
+  call Mat%create(num_rows_and_cols=3, symmetric_storage=.false., is_symmetric=.false., sign=unknown)
+  
+  Mat_graph => Mat%get_graph()
+  
+  call memalloc ( Mat%graph%get_nv()+1, Mat%graph%ia, __FILE__, __LINE__)
   Mat%graph%ia = (/1,3,4,6/)
-  call memalloc ( Mat%graph%ia(Mat%graph%nv+1)-1, Mat%graph%ja, __FILE__, __LINE__)
+  call memalloc ( Mat%graph%ia(Mat%graph%get_nv()+1)-1, Mat%graph%ja, __FILE__, __LINE__)
   Mat%graph%ja = (/1,3,2,1,3/)
+  
+  call Mat%return_graph(Mat_graph)
+  
   ! End External Process which creates the graph of Mat
   call Mat%allocate()
   Mat%a = (/7.0,3.0,2.0,3.0,3.0/)
-  
+
   call Vec1%create_and_allocate(Mat%graph%nv)
   call Vec2%create_and_allocate(Mat%graph%nv)
   call Vec1%init(1.0_rp)
@@ -57,6 +61,7 @@ program test_operators
   Op = Mat + Mat
   call Op%apply(Vec1,Vec2)
   call Vec2%print(6)
+  
 
   Op = Mat - Mat
   call Op%apply(Vec1,Vec2)
@@ -84,8 +89,9 @@ program test_operators
   call linear_solver%set_type_from_pl()
   call linear_solver%set_parameters_from_pl()
   call linear_solver%set_operators(Mat,Mat)
-  call linear_solver%solve(Vec2,Vec1)
-  call linear_solver%free()
+  call linear_solver%set_rhs(Vec2)
+  call linear_solver%solve(Vec1)
+  call linear_solver%free() 
 
   call Vec1%print(6)
  

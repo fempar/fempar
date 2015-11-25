@@ -151,7 +151,7 @@ contains
     select type(matrix)
        class is(par_scalar_matrix_t)
        if ( matrix%p_env%am_i_fine_task() ) then
-          call setup_dof_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, matrix%serial_scalar_matrix%graph )
+          call setup_serial_scalar_matrix_graph_from_block_row_col_identifiers ( 1, 1, this%serial_fe_space, matrix%serial_scalar_matrix )
        end if
        class is(par_block_matrix_t)
        class default
@@ -162,7 +162,7 @@ contains
   subroutine par_fe_space_volume_integral(this,approximations,assembler)
     implicit none
     class(par_fe_space_t)          , intent(in)    :: this
-    class(p_discrete_integration_t), intent(in)    :: approximations(:) 
+    type(p_discrete_integration_t) , intent(in)    :: approximations(:) 
     class(assembler_t)             , intent(inout) :: assembler
     class(array_t)                 , pointer :: array
     

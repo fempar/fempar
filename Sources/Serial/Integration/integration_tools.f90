@@ -28,14 +28,14 @@
 module volume_integration_tools_names
   use types_names
   use memor_names
-#ifdef memcheck
-  use iso_c_binding
-#endif
   use quadrature_names
   use interpolation_names
   use femap_names
   use femap_interp_names
   use fe_space_types_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
   implicit none
   private
 # include "debug.i90"

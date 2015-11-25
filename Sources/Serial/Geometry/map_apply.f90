@@ -32,8 +32,9 @@ module map_apply_names
   use renumbering_names
   use mesh_names
   use hash_table_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
+
   private
 
   integer(ip), parameter :: l2g_add=0

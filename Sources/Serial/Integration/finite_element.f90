@@ -41,8 +41,11 @@ module finite_element_names
   use iso_c_binding
 #endif
   implicit none
+# include "debug.i90"
+
   private
 # include "debug.i90"
+
 
   ! Information of each element of the FE space
   type, extends(migratory_element_t) :: finite_element_t

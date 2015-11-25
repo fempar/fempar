@@ -36,6 +36,8 @@ module stdio_names
   use, intrinsic :: iso_fortran_env, only: ERROR_UNIT, INPUT_UNIT, &
        &                                   OUTPUT_UNIT, IOSTAT_END, IOSTAT_EOR
   implicit none
+# include "debug.i90"
+
 
   ! private module
   private

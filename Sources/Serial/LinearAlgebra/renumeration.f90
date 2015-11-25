@@ -30,6 +30,7 @@ module renumbering_names
   use memor_names
   use stdio_names
   implicit none
+# include "debug.i90"
   private
 # include "debug.i90"
 

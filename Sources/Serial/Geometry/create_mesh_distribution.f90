@@ -36,8 +36,8 @@ module create_mesh_distribution_names
   use mesh_names
   use partitioning_params_names
   use hash_table_names
-# include "debug.i90"
   implicit none
+# include "debug.i90"
   private
 
    ! Functions
@@ -559,7 +559,7 @@ contains
     ! Allocate space for ia on the primal graph
     primal_graph%nv                = primal_mesh%npoin
     primal_graph%nv2               = primal_mesh%npoin
-	primal_graph%symmetric_storage = .false.
+	   primal_graph%symmetric_storage = .false.
     call memalloc (primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__)
 
     ! Allocate working space for count_primal_graph and list_primal_graph routines

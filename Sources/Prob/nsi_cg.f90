@@ -34,6 +34,8 @@ module nsi_cg_asgs_names
  use element_tools_names
  use finite_element_names
  implicit none
+# include "debug.i90"
+
  private 
 # include "debug.i90"
 

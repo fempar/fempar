@@ -44,10 +44,51 @@ module serial_scalar_matrix_names
 #endif
 
   implicit none
+# include "debug.i90"
   private
   
-# include "debug.i90"
+  ! State transition diagram for type(serial_scalar_matrix_t)
+  ! ------------------------------------------------------------------------------------
+  ! Input State                       | Action                            | Output State 
+  ! ------------------------------------------------------------------------------------
+  ! start                             | set_properties                    | properties_set
+  ! start                             | create                            | created
+  ! start                             | free*                             | start
+  
+  ! properties_set                    | set_properties                    | properties_set 
+  ! properties_set                    | set_size                          | created
+  ! properties_set                    | free_clean/free                   | start
+  ! properties_set                    | free_struct/free_values           | properties_set
+  ! properties_set                    | set_size                          | created
+  
+  ! created                           | set_size                          | created
+  ! created                           | free_clean/free                   | start
+  ! created                           | free_struct/free_values           | created
+  ! created                           | get_graph                         | graph_on_client
+  
+  ! graph_on_client                   | return_graph                      | graph_setup
 
+  ! graph_setup                       | get_graph                         | graph_on_client
+  ! graph_setup                       | free_clean/free                   | start
+  ! graph_setup                       | free_struct                       | created
+  ! graph_setup                       | free_clean                        | start
+  ! graph_setup                       | free                              | start
+  ! graph_setup                       | free_values                       | graph_setup
+  ! graph_setup                       | allocate                          | entries_ready
+  
+  ! entries_ready                     | allocate                          | entries_ready
+  ! entries_ready                     | free_values                       | graph_setup
+  ! entries_ready                     | free_struct                       | created
+  ! entries_ready                     | free_clean                        | start
+  ! entries_ready                     | free                              | start
+  
+  ! States
+  integer(ip), parameter :: start               = 0 
+  integer(ip), parameter :: properties_set      = 1 
+  integer(ip), parameter :: created             = 2  
+  integer(ip), parameter :: graph_on_client     = 3 
+  integer(ip), parameter :: graph_setup         = 4
+  integer(ip), parameter :: entries_ready       = 5
   
   ! Constants:
   ! Matrix sign
@@ -57,16 +98,32 @@ module serial_scalar_matrix_names
   integer(ip), parameter :: unknown               = 3 ! No info
   
   type, extends(matrix_t) :: serial_scalar_matrix_t
+     integer(ip)                :: state = start
      logical                    :: is_symmetric    
      integer(ip)                :: sign            
      real(rp)     , allocatable :: a(:)            
-     type(graph_t), pointer     :: graph => NULL() 
+     type(graph_t)              :: graph 
    contains
+     procedure, private :: serial_scalar_matrix_set_properties_square
+     procedure, private :: serial_scalar_matrix_set_properties_rectangular
+     generic :: set_properties => serial_scalar_matrix_set_properties_square, &
+                                  serial_scalar_matrix_set_properties_rectangular
+                                  
+     procedure, private :: serial_scalar_matrix_set_size_square
+     procedure, private :: serial_scalar_matrix_set_size_rectangular
+     generic :: set_size => serial_scalar_matrix_set_size_square, &
+                            serial_scalar_matrix_set_size_rectangular                             
+   
      procedure, private :: serial_scalar_matrix_create_square
      procedure, private :: serial_scalar_matrix_create_rectangular
      generic  :: create => serial_scalar_matrix_create_square, &
-          & serial_scalar_matrix_create_rectangular
-
+                           serial_scalar_matrix_create_rectangular
+                           
+     procedure  :: get_graph    => serial_scalar_matrix_get_graph
+     procedure  :: return_graph => serial_scalar_matrix_return_graph 
+                           
+     procedure, private :: create_vector_spaces => serial_scalar_matrix_create_vector_spaces                     
+                           
      procedure  :: allocate                        => serial_scalar_matrix_allocate
      procedure  :: print                           => serial_scalar_matrix_print
      procedure  :: print_matrix_market             => serial_scalar_matrix_print_matrix_market
@@ -78,6 +135,13 @@ module serial_scalar_matrix_names
      procedure  :: apply                           => serial_scalar_matrix_apply
      procedure  :: free_in_stages                  => serial_scalar_matrix_free_in_stages
      procedure  :: default_initialization          => serial_scalar_matrix_default_init
+     procedure  :: get_num_rows                    => serial_scalar_matrix_get_num_rows
+     procedure  :: get_num_cols                    => serial_scalar_matrix_get_num_cols
+     
+     procedure, private :: serial_scalar_matrix_free_values
+     procedure, private :: serial_scalar_matrix_free_struct
+     procedure, private :: serial_scalar_matrix_free_clean
+     
   end type serial_scalar_matrix_t
 
   ! Constants
@@ -108,59 +172,131 @@ contains
 
 # include "mem_body.i90"
 
-  !=============================================================================
-  subroutine serial_scalar_matrix_create_square(this,symmetric_storage,is_symmetric,sign)
+ !=============================================================================
+  subroutine serial_scalar_matrix_set_properties_square(this,symmetric_storage,is_symmetric,sign)
     implicit none
-    class(serial_scalar_matrix_t), intent(out) :: this
-    logical                     , intent(in)  :: symmetric_storage
-    logical                     , intent(in)  :: is_symmetric
-    integer(ip)                 , intent(in)  :: sign
-
-    integer(ip) :: istat
-
-    allocate( this%graph, stat=istat )
-    check ( istat == 0 )
-    call this%graph%create ( symmetric_storage )	
-
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    logical                      , intent(in)    :: symmetric_storage
+    logical                      , intent(in)    :: is_symmetric
+    integer(ip)                  , intent(in)    :: sign
+    assert ( this%state == start .or. this%state == properties_set )
     assert ( sign == positive_definite .or. sign == positive_semidefinite  .or. sign == indefinite .or. sign == unknown )
+    call this%graph%set_symmetric_storage ( symmetric_storage )	
     this%is_symmetric = is_symmetric
-    this%sign = sign
-  end subroutine serial_scalar_matrix_create_square
-
+    this%sign = sign    
+    this%state = properties_set
+  end subroutine serial_scalar_matrix_set_properties_square
+  
   !=============================================================================
-  subroutine serial_scalar_matrix_create_rectangular(this)
+  subroutine serial_scalar_matrix_set_properties_rectangular(this)
     implicit none
-    class(serial_scalar_matrix_t), intent(out) :: this
-    integer(ip) :: istat
-    allocate( this%graph, stat=istat )
-    check ( istat == 0 )
-    call this%graph%create ( symmetric_storage=.false. )	
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    assert ( this%state == start .or. this%state == properties_set )
+    call this%graph%set_symmetric_storage ( .false. )	
     this%is_symmetric = .false.
     this%sign = unknown
+    this%state = properties_set
+  end subroutine serial_scalar_matrix_set_properties_rectangular
+  
+   !=============================================================================
+  subroutine serial_scalar_matrix_set_size_square(this,num_rows_and_cols)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: num_rows_and_cols
+    assert ( this%state == properties_set .or. this%state == created )
+    call this%graph%set_size (num_rows_and_cols)
+    if ( this%state == created ) call this%free_vector_spaces()
+    call this%create_vector_spaces()
+    this%state = created
+  end subroutine serial_scalar_matrix_set_size_square
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_set_size_rectangular(this,num_rows,num_cols)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: num_rows
+    integer(ip)                  , intent(in)    :: num_cols
+    assert ( this%state == properties_set .or. this%state == created )
+    call this%graph%set_size(num_rows,num_cols)
+    if ( this%state == created ) call this%free_vector_spaces()
+    call this%create_vector_spaces()
+    this%state = created
+  end subroutine serial_scalar_matrix_set_size_rectangular
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_create_square(this,num_rows_and_cols,symmetric_storage,is_symmetric,sign)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: num_rows_and_cols
+    logical                      , intent(in)    :: symmetric_storage
+    logical                      , intent(in)    :: is_symmetric
+    integer(ip)                  , intent(in)    :: sign
+    assert ( this%state == start )
+    call this%set_properties(symmetric_storage,is_symmetric,sign)
+    call this%set_size(num_rows_and_cols)
+  end subroutine serial_scalar_matrix_create_square
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_create_rectangular(this,num_rows,num_cols)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: num_rows, num_cols
+    assert ( this%state == start )
+    call this%set_properties()
+    call this%set_size(num_rows,num_cols)
   end subroutine serial_scalar_matrix_create_rectangular
-
-  subroutine serial_scalar_matrix_allocate(this)
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_create_vector_spaces(this)
     implicit none
     class(serial_scalar_matrix_t), intent(inout) :: this
     type(serial_scalar_array_t) :: range_vector
     type(serial_scalar_array_t) :: domain_vector
     type(vector_space_t), pointer :: range_vector_space
     type(vector_space_t), pointer :: domain_vector_space
-
-    call memalloc(this%graph%ia(this%graph%nv+1)-1,this%a,__FILE__,__LINE__)
-    this%a = 0.0_rp
-    
     call range_vector%create(this%graph%nv)
     call domain_vector%create(this%graph%nv2)
-
     range_vector_space => this%get_range_vector_space()
     call range_vector_space%create(range_vector)
-    
     domain_vector_space => this%get_domain_vector_space()
     call domain_vector_space%create(domain_vector)
-    
     call range_vector%free()
     call domain_vector%free()
+  end subroutine serial_scalar_matrix_create_vector_spaces
+  
+  !=============================================================================
+  function serial_scalar_matrix_get_graph (this)
+    implicit none
+    class(serial_scalar_matrix_t), target, intent(inout) :: this
+    type(graph_t), pointer                               :: serial_scalar_matrix_get_graph
+    
+    assert ( this%state == created .or. this%state == graph_setup )
+    serial_scalar_matrix_get_graph => this%graph
+    this%state = graph_on_client
+  end function serial_scalar_matrix_get_graph
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_return_graph (this,graph)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    type(graph_t), pointer, intent(inout)        :: graph
+    
+    assert ( this%state == graph_on_client )
+    nullify(graph)
+    this%state = graph_setup
+  end subroutine serial_scalar_matrix_return_graph
+  
+  subroutine serial_scalar_matrix_allocate(this)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    
+    assert ( this%state == graph_setup .or. this%state == entries_ready )
+    
+    if ( this%state == graph_setup ) then
+      call memalloc(this%graph%ia(this%graph%nv+1)-1,this%a,__FILE__,__LINE__)
+      this%a = 0.0_rp
+      this%state = entries_ready
+    end if  
   end subroutine serial_scalar_matrix_allocate
 
   !=============================================================================
@@ -169,34 +305,87 @@ contains
     class(serial_scalar_matrix_t), intent(inout) :: this
     integer(ip)                  , intent(in)    :: action
     integer(ip) :: istat
-    if ( action == free_clean ) then
-       deallocate( this%graph, stat=istat )
-       check ( istat == 0 )
-    else if ( action == free_struct ) then
-       call this%graph%free() 
-    else if ( action == free_values ) then
-       call memfree( this%a,__FILE__,__LINE__)
-       call this%free_vector_spaces()
+    
+    assert ( .not. this%state == graph_on_client ) 
+    
+    if ( this%state == start .or. this%state == properties_set ) then
+       this%state = start
+    else if ( this%state == created ) then
+       if ( action == free_clean ) then
+          call this%free_vector_spaces()
+          this%state = start
+       end if
+    else if ( this%state == graph_setup ) then
+       if ( action == free_clean ) then
+          call this%serial_scalar_matrix_free_struct() 
+          call this%serial_scalar_matrix_free_clean()
+          this%state = start
+       else if ( action == free_symbolic_setup ) then
+          call this%serial_scalar_matrix_free_struct()
+          this%state = created
+       end if
+    else if ( this%state == entries_ready ) then
+         if ( action == free_clean ) then
+            call this%serial_scalar_matrix_free_values() 
+            call this%serial_scalar_matrix_free_struct() 
+            call this%serial_scalar_matrix_free_clean()
+            this%state = start
+         else if ( action == free_symbolic_setup ) then
+            call this%serial_scalar_matrix_free_values()
+            call this%serial_scalar_matrix_free_struct()
+            this%state = created
+         else if ( action == free_numerical_setup ) then
+            call this%serial_scalar_matrix_free_values()
+            this%state = graph_setup            
+         end if   
     end if
-  end subroutine serial_scalar_matrix_free_in_stages
 
-  !=============================================================================
+  end subroutine serial_scalar_matrix_free_in_stages
+  
+    !=============================================================================
   subroutine serial_scalar_matrix_default_init (this)
     implicit none
     class(serial_scalar_matrix_t), intent(inout) :: this
+    this%state = start
     this%is_symmetric = .false.
     this%sign = unknown
-    nullify(this%graph)
+    call this%graph%set_symmetric_storage(.false.)
     call this%NullifyTemporary()
   end subroutine serial_scalar_matrix_default_init
-
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_free_clean (this)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    call this%free_vector_spaces()
+    this%is_symmetric = .false.
+    this%sign = unknown
+    call this%graph%set_symmetric_storage(.false.)
+  end subroutine serial_scalar_matrix_free_clean
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_free_struct (this)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    call this%graph%free()
+  end subroutine serial_scalar_matrix_free_struct
+  
+  !=============================================================================
+  subroutine serial_scalar_matrix_free_values (this)
+    implicit none
+    class(serial_scalar_matrix_t), intent(inout) :: this
+    call memfree(this%a,__FILE__,__LINE__)
+  end subroutine serial_scalar_matrix_free_values
+ 
   !=============================================================================
   subroutine serial_scalar_matrix_print(this,lunou)
     implicit none
     class(serial_scalar_matrix_t), intent(in)    :: this
     integer(ip)     , intent(in)    :: lunou
     integer(ip)                     :: i
-    assert ( associated(this%graph) )
+    
+    assert ( this%state == entries_ready )
+    
     call this%graph%print (lunou)
     write (lunou, '(a)')     '*** begin matrix data structure ***'
     do i=1,this%graph%nv
@@ -214,7 +403,8 @@ contains
     integer(ip) :: i, j
     integer(ip) :: nv1_, nv2_, nl_
 
-
+    assert ( this%state == entries_ready )
+    
     if ( present(ng) ) then 
        nv1_ = ng
        nv2_ = ng
@@ -266,17 +456,18 @@ contains
     logical                      , intent(in)      :: symmetric_storage
     logical                      , intent(in)      :: is_symmetric
     integer(ip)                  , intent(in)      :: sign
-
+    
     integer(ip) :: i, j, iw1(2),iw2(2)
     integer(ip) :: nv, nw, nz
-
     integer(ip), allocatable :: ija_work(:,:), ija_index(:)
     real(rp)   , allocatable :: a_work(:)
+    type(graph_t), pointer :: graph
 
-    call this%create(symmetric_storage, is_symmetric, sign)
 
     read (lunou,*) 
     read (lunou,*) nv,nw,nz
+    
+    call this%create(nv, symmetric_storage, is_symmetric, sign)
 
     if(nv/=nw) then 
        write (0,*) 'Error: only square matrices are allowed in fempar when reading from matrix market'
@@ -306,27 +497,29 @@ contains
     ! Sort by ia and ja
     call intsort(2,2,nz,ija_work,ija_index,iw1,iw2)
 
+    graph => this%get_graph()
+    
     ! Allocate graph 
-    this%graph%nv   = nv
-    this%graph%nv2  = nv
-    call memalloc ( nv+1 , this%graph%ia, __FILE__,__LINE__ )
-    call memalloc ( nz , this%graph%ja, __FILE__,__LINE__ )
+    call memalloc ( graph%get_nv()+1 , graph%ia, __FILE__,__LINE__ )
+    call memalloc ( nz , graph%ja, __FILE__,__LINE__ )
 
     ! Count columns on each row
-    this%graph%ia = 0
+    graph%ia = 0
     do i=1,nz
-       this%graph%ia(ija_work(1,i)+1) = this%graph%ia(ija_work(1,i)+1) + 1
+       graph%ia(ija_work(1,i)+1) = graph%ia(ija_work(1,i)+1) + 1
     end do
     ! Compress
-    this%graph%ia(1)=1
+    graph%ia(1)=1
     do i=1,nv
-       this%graph%ia(i+1) = this%graph%ia(i+1) +this%graph%ia(i)
+       graph%ia(i+1) = graph%ia(i+1) +graph%ia(i)
     end do
-    write(*,*) this%graph%ia(nv+1)
+    write(*,*) graph%ia(nv+1)
     ! Copy ja
-    this%graph%ja = ija_work(2,:)
+    graph%ja = ija_work(2,:)
     call memfree(ija_work,__FILE__,__LINE__)
 
+    call this%return_graph(graph) 
+    
     ! Reorder a
     call this%allocate()
     do i=1,nz
@@ -347,34 +540,44 @@ contains
     implicit none
     class(serial_scalar_matrix_t), intent(inout) :: this
     real(rp)                     , intent(in)    :: alpha
+    assert ( this%state == entries_ready )
     this%a = alpha
   end subroutine serial_scalar_matrix_init
 
   subroutine serial_scalar_matrix_transpose(this, A_t)
-    class(serial_scalar_matrix_t), intent(in)     :: this    ! Input matrix
-    type(serial_scalar_matrix_t), intent(inout)  :: A_t  ! Output matrix
+    implicit none
+    class(serial_scalar_matrix_t), intent(in)    :: this ! Input matrix
+    type(serial_scalar_matrix_t) , intent(inout) :: A_t  ! Output matrix
 
     ! Locals 
-    type(graph_t) :: aux_graph
-    integer :: k,i,j
-
-    assert ( this%graph%symmetric_storage .eqv. A_t%graph%symmetric_storage )
-    call this%graph%copy(A_t%graph)
+    integer(ip)              :: i,j,k
+    integer(ip), allocatable :: work(:)
+    type(graph_t), pointer   :: A_t_graph
+    
+    assert ( this%graph%get_symmetric_storage() .eqv. A_t%graph%get_symmetric_storage() )
+    assert ( this%graph%get_nv() == A_t%graph%get_nv() )
+    assert ( this%graph%get_nv2() == A_t%graph%get_nv2() )
+    
+    A_t_graph => A_t%get_graph()
+    call this%graph%copy(A_t_graph)
+    call A_t%return_graph(A_t_graph)
+    
     call A_t%allocate()
 
-    if (this%graph%symmetric_storage) then 
+    if (this%graph%get_symmetric_storage()) then 
        A_t%a(:) = this%a(:)
     else
-       call this%graph%copy(aux_graph )
+       call memalloc ( this%graph%get_nv()+1, work, __FILE__,__LINE__)
+       work = this%graph%ia
        k = 0    
-       do i = 1, A_t%graph%nv
-          do j=1, (A_t%graph%ia(i+1) - A_t%graph%ia(i) )
+       do i = 1, this%graph%get_nv()
+          do j=1, ( A_t%graph%ia(i+1) - A_t%graph%ia(i) )
              k = k+1
-             A_t%a(k) = this%a(aux_graph%ia( A_t%graph%ja(k) ) )
-             aux_graph%ia(A_t%graph%ja(k)) = aux_graph%ia(A_t%graph%ja(k)) + 1
+             A_t%a(k) = this%a(work(A_t%graph%ja(k)))
+             work(A_t%graph%ja(k)) = work(A_t%graph%ja(k)) + 1
           end do
        end do
-       call aux_graph%free()
+       call memfree ( work, __FILE__, __LINE__ )
     end if
   end subroutine serial_scalar_matrix_transpose
 
@@ -383,8 +586,7 @@ contains
     type(serial_scalar_matrix_t) , intent(in)    :: a
     type(serial_scalar_array_t) , intent(in)    :: x
     type(serial_scalar_array_t) , intent(inout) :: y
-    real(rp) :: aux
-
+    
     if (.not. a%graph%symmetric_storage) then
        call matvec(a%graph%nv,a%graph%nv2,a%graph%ia,a%graph%ja,a%a,x%b,y%b)
     else 
@@ -405,6 +607,7 @@ contains
     ! Locals 
     integer (ip) :: i
 
+    assert ( this%state == entries_ready )   
     do i=1,n
        if (.not. this%graph%symmetric_storage) then
           call matvec(this%graph%nv,this%graph%nv2,this%graph%ia,this%graph%ja,this%a,x(1:this%graph%nv2,i),y(1:this%graph%nv,i))
@@ -428,6 +631,8 @@ contains
     ! Locals 
     integer (ip) :: i
 
+    assert ( this%state == entries_ready )
+
     do i=1,n
        if (.not. this%graph%symmetric_storage) then
           call matvec_trans(this%graph%nv,this%graph%nv2,this%graph%ia,this%graph%ja,this%a,x(1:this%graph%nv2,i),y(1:this%graph%nv,i) )
@@ -442,10 +647,12 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine serial_scalar_matrix_apply(op,x,y) 
     implicit none
-    class(serial_scalar_matrix_t), intent(in)    :: op
+    class(serial_scalar_matrix_t), intent(in) :: op
     class(vector_t) , intent(in)    :: x
     class(vector_t) , intent(inout) :: y 
 
+    assert ( op%state == entries_ready )
+    
     call op%abort_if_not_in_domain(x)
     call op%abort_if_not_in_range(y)
     
@@ -459,6 +666,24 @@ contains
     end select
     call x%CleanTemp()
   end subroutine serial_scalar_matrix_apply
+  
+  !=============================================================================
+  function serial_scalar_matrix_get_num_rows (this)
+    implicit none
+    class(serial_scalar_matrix_t), intent(in) :: this
+    integer(ip)                               :: serial_scalar_matrix_get_num_rows
+    assert ( .not. this%state == created .and. .not. this%state == properties_set  )
+    serial_scalar_matrix_get_num_rows = this%graph%get_nv()
+  end function serial_scalar_matrix_get_num_rows
+  
+  !=============================================================================
+  function serial_scalar_matrix_get_num_cols (this)
+    implicit none
+    class(serial_scalar_matrix_t), intent(in) :: this
+    integer(ip)                               :: serial_scalar_matrix_get_num_cols
+    assert ( .not. this%state == created .and. .not. this%state == properties_set  )
+    serial_scalar_matrix_get_num_cols = this%graph%get_nv2()
+  end function serial_scalar_matrix_get_num_cols
 
   ! Debugged
   subroutine matvec (nv,nv2,ia,ja,a,x,y)

@@ -33,8 +33,8 @@ module graph_renumbering_names
   use metis_interface_names
   use partitioning_params_names
   use rcm_renumbering_names
-#include "debug.i90"
   implicit none
+#include "debug.i90"
   private
   
   ! Functions

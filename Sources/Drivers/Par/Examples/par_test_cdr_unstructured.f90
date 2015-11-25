@@ -113,7 +113,7 @@ program par_test_cdr_unstructured
   type(par_scalar_array_t) , pointer  :: p_vec
   type(fe_affine_operator_t)          :: fe_affine_operator
   class(vector_t) , pointer           :: x, y
-  class(operator_t), pointer  :: A
+  class(operator_t), pointer          :: A
 
   ! Preconditioner-related data structures
   type(par_preconditioner_dd_diagonal_t)           :: p_prec_dd_diag
@@ -340,10 +340,10 @@ program par_test_cdr_unstructured
         call par_timer_start (total_time) 
 
         ! Ass struct
-        call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, p_mlevel_bddc )
+        call par_preconditioner_dd_mlevel_bddc_symbolic_setup ( p_mlevel_bddc )
 
         ! Fill val
-        call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
+        call par_preconditioner_dd_mlevel_bddc_numerical_setup ( p_mlevel_bddc )
         call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
 
         call abstract_solve(p_mat,p_mlevel_bddc,p_vec,p_unk,sctrl,p_env)
@@ -356,8 +356,8 @@ program par_test_cdr_unstructured
         end if
 
         ! Free bddc inverse
-        call par_preconditioner_dd_mlevel_bddc_free_in_stages( p_mlevel_bddc, free_values)
-        call par_preconditioner_dd_mlevel_bddc_free_in_stages( p_mlevel_bddc, free_struct)
+        call par_preconditioner_dd_mlevel_bddc_free_in_stages( p_mlevel_bddc, free_numerical_setup)
+        call par_preconditioner_dd_mlevel_bddc_free_in_stages( p_mlevel_bddc, free_symbolic_setup)
         call par_preconditioner_dd_mlevel_bddc_free_in_stages( p_mlevel_bddc, free_clean)
 
      end do

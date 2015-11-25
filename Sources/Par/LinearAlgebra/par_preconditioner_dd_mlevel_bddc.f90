@@ -46,6 +46,8 @@ module par_preconditioner_dd_mlevel_bddc_names
 #endif
 
   use abstract_solver_names
+  use fe_affine_operator_names
+  use matrix_names
   use mesh_names
   use serial_scalar_matrix_names
   use preconditioner_names
@@ -72,8 +74,9 @@ module par_preconditioner_dd_mlevel_bddc_names
   use vector_space_names
   use operator_names
 
-# include "debug.i90"
   implicit none
+# include "debug.i90"
+
   private
 
   integer (ip), parameter :: default_unknowns            = interface_unknowns
@@ -333,37 +336,67 @@ module par_preconditioner_dd_mlevel_bddc_names
 
      integer(ip) :: harm_its_agg         = 0 
    contains
-     procedure :: apply => par_preconditioner_dd_mlevel_bddc_apply
-     procedure :: free => par_preconditioner_dd_mlevel_bddc_free
+     procedure, private :: create_vector_spaces => par_preconditioner_dd_mlevel_bddc_create_vector_spaces
+     procedure          :: is_linear            => par_preconditioner_dd_mlevel_bddc_is_linear
+     procedure          :: apply                => par_preconditioner_dd_mlevel_bddc_apply
+     procedure          :: free                 => par_preconditioner_dd_mlevel_bddc_free
   end type par_preconditioner_dd_mlevel_bddc_t
 
   ! public :: default_kind_coarse_dofs, default_co_sys_sol_strat, default_ndime
 
+  interface par_preconditioner_dd_mlevel_bddc_create
+    module procedure par_preconditioner_dd_mlevel_bddc_create_w_fe_affine_operator, & 
+                     par_preconditioner_dd_mlevel_bddc_create_w_par_matrix
+  end interface  
+  
+  
   ! Types
   public :: par_preconditioner_dd_mlevel_bddc_t, par_preconditioner_dd_mlevel_bddc_params_t
 
   ! Functions
-  public :: par_preconditioner_dd_mlevel_bddc_create, par_preconditioner_dd_mlevel_bddc_ass_struct, &
-            par_preconditioner_dd_mlevel_bddc_fill_val, par_preconditioner_dd_mlevel_bddc_free, par_preconditioner_dd_mlevel_bddc_free_in_stages, &
+  public :: par_preconditioner_dd_mlevel_bddc_create, par_preconditioner_dd_mlevel_bddc_symbolic_setup, &
+            par_preconditioner_dd_mlevel_bddc_numerical_setup, &
+            par_preconditioner_dd_mlevel_bddc_free, par_preconditioner_dd_mlevel_bddc_free_in_stages, &
             par_preconditioner_dd_mlevel_bddc_apply_all_unk, &
             par_preconditioner_dd_mlevel_bddc_static_condensation, &
             par_preconditioner_dd_mlevel_bddc_report, &
             par_preconditioner_dd_mlevel_bddc_time_report, &
-            par_preconditioner_dd_mlevel_bddc_fill_val_phase_1, &
-            par_preconditioner_dd_mlevel_bddc_fill_val_phase_2, &
+            par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_1, &
+            par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_2, &
             assemble_A_c
 
   logical, parameter :: debug_verbose_level_1 = .false. 
   logical, parameter :: debug_verbose_level_2 = .false.
-  logical, parameter :: debug_verbose_level_3 = .false.  ! Prints harmonic extensions 
+  logical, parameter :: debug_verbose_level_3 = .true.  ! Prints harmonic extensions 
                                                          ! to gid files, and coarse grid system 
                                                          ! coefficient matrix to matrix market 
 
 contains
 
-  recursive subroutine par_preconditioner_dd_mlevel_bddc_create( p_mat, mlbddc, mlbddc_params )
+  subroutine par_preconditioner_dd_mlevel_bddc_create_w_fe_affine_operator(fe_affine_operator, mlbddc, mlbddc_params )
+     implicit none
+     type(fe_affine_operator_t)                      , intent(in)  :: fe_affine_operator
+     type(par_preconditioner_dd_mlevel_bddc_t)       , intent(out) :: mlbddc
+     type(par_preconditioner_dd_mlevel_bddc_params_t), intent(in)  :: mlbddc_params
+     
+     ! Local variables
+     class(matrix_t)          , pointer :: matrix
+     type(par_scalar_matrix_t), pointer :: p_mat
+  
+     matrix => fe_affine_operator%get_matrix()
+     select type(matrix)
+     class is(par_scalar_matrix_t)
+       p_mat => matrix
+     class default
+       check(.false.)
+     end select 
+     call par_preconditioner_dd_mlevel_bddc_create_w_par_matrix ( p_mat, mlbddc, mlbddc_params )
+     
+  end subroutine par_preconditioner_dd_mlevel_bddc_create_w_fe_affine_operator
+
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_create_w_par_matrix( p_mat, mlbddc, mlbddc_params )
 #ifdef MPI_MOD
-use mpi
+    use mpi
 #endif
     implicit none 
 #ifdef MPI_H
@@ -469,21 +502,6 @@ use mpi
        nullify(mlbddc%weight)
     end if
 
-    ! Now create c_context (the coarse context) and d_context (the set of unused tasks) by spliting q_context
-    ! allocate(mlbddc%p_mat%dof_dist_domain%c_context, stat = istat)
-    ! assert(istat==0)
-    ! allocate(mlbddc%p_mat%dof_dist_domain%d_context, stat = istat)
-    ! assert(istat==0)
-    ! if(mlbddc%p_mat%dof_dist_domain%q_context%iam >= 0) then
-    !    if(mlbddc%p_mat%dof_dist_domain%q_context%iam < mlbddc%p_mat%dof_dist_domain%num_parts(2)) then
-    !       call par_context_create ( inhouse, 1, mlbddc%p_mat%dof_dist_domain%c_context, mlbddc%p_mat%dof_dist_domain%d_context, mlbddc%p_mat%dof_dist_domain%w_context )
-    !    else
-    !       call par_context_create ( inhouse, 2, mlbddc%p_mat%dof_dist_domain%d_context, mlbddc%p_mat%dof_dist_domain%c_context, mlbddc%p_mat%dof_dist_domain%w_context )
-    !    end if
-    ! else
-    !    call par_context_create ( inhouse, -1, mlbddc%p_mat%dof_dist_domain%c_context, mlbddc%p_mat%dof_dist_domain%d_context, mlbddc%p_mat%dof_dist_domain%w_context )
-    ! end if
-    ! write(*,*) 'c_context and d_context created'
     if(mlbddc%p_mat%p_env%q_context%iam >= 0) then
        if(mlbddc%p_mat%p_env%q_context%iam < mlbddc%p_mat%p_env%num_parts(2)) then
           call par_context_create ( 1, mlbddc%c_context, mlbddc%d_context, mlbddc%p_mat%p_env%q_context )
@@ -621,35 +639,41 @@ use mpi
 
        ! BEG. FINE-GRID PROBLEM DUTIES
        if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
-          call mlbddc%A_rr%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign)
+          call mlbddc%A_rr%set_properties(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign)
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call mlbddc%A_rr_trans%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign) 
+             call mlbddc%A_rr_trans%set_properties(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign) 
           end if
-
-          if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
-             if ( mlbddc%projection == petrov_galerkin ) then 
-                call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
-             end if
-          else
-             check(.false.)
-          end if
-
+          !if ( mlbddc%internal_problems == handled_by_bddc_module) then
+          !   call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
+          !   if ( mlbddc%projection == petrov_galerkin ) then 
+          !      call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
+          !   end if
+          !else
+          !   check(.false.)
+          !end if
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then 
-          call mlbddc%A_rr%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite) 
+          call mlbddc%A_rr%set_properties(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite) 
           if ( mlbddc%projection == petrov_galerkin ) then 
-            call mlbddc%A_rr_trans%create(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite)
-	      end if
-          if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
-             if ( mlbddc%projection==petrov_galerkin ) then 
-                call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
-             end if
-          else
-             check(.false.)
+            call mlbddc%A_rr_trans%set_properties(p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite)
           end if
+          !if ( mlbddc%internal_problems == handled_by_bddc_module) then
+          !   call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
+          !   if ( mlbddc%projection==petrov_galerkin ) then 
+          !      call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
+          !   end if
+          !else
+          !   check(.false.)
+          !end if
        end if
-
+       
+       if ( mlbddc%internal_problems == handled_by_bddc_module) then
+          call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr, mlbddc%ppars_harm)
+          if ( mlbddc%projection==petrov_galerkin ) then 
+             call preconditioner_create( mlbddc%A_rr, mlbddc%M_rr_trans, mlbddc%ppars_harm)
+          end if
+       else
+          check(.false.)
+       end if
 
        if ( mlbddc%unknowns == all_unknowns ) then
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
@@ -669,7 +693,7 @@ use mpi
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           ! BEG. COARSE-GRID PROBLEM DUTIES
           if(mlbddc%co_sys_sol_strat == serial_gather) then ! There are only coarse tasks
-             call mlbddc%A_c%create( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign )
+             call mlbddc%A_c%set_properties( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign )
              call preconditioner_create ( mlbddc%A_c, mlbddc%M_c, mlbddc%ppars_coarse_serial )
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
              assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level serial
@@ -691,12 +715,12 @@ use mpi
              ! Create coarse mesh
              call par_mesh_create ( mlbddc%p_env_c, mlbddc%p_mesh_c )
 
-             ! Create coarse matrix
-             call mlbddc%p_mat_c%create( p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
-										 p_mat%serial_scalar_matrix%is_symmetric, &
-										 p_mat%serial_scalar_matrix%sign, &
-                                         mlbddc%dof_dist_c, &
-                                         mlbddc%p_env_c )
+             ! Set properties and parallel enviroment for coarse matrix
+             call mlbddc%p_mat_c%set_properties( p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
+										                                       p_mat%serial_scalar_matrix%is_symmetric, &
+										                                       p_mat%serial_scalar_matrix%sign )
+             
+             call mlbddc%p_mat_c%set_environment (mlbddc%p_env_c)
 
              ! Allocate inverse
              allocate(mlbddc%p_M_c, stat=istat)
@@ -711,7 +735,7 @@ use mpi
        ! END COARSE-GRID PROBLEM DUTIES    
     end if
 
-  end subroutine par_preconditioner_dd_mlevel_bddc_create
+  end subroutine par_preconditioner_dd_mlevel_bddc_create_w_par_matrix
 
   !=================================================================================================
   recursive subroutine par_preconditioner_dd_mlevel_bddc_free_in_stages ( mlbddc, mode )
@@ -725,26 +749,6 @@ use mpi
     integer           :: iam, istat
     logical           :: i_am_fine_task, i_am_coarse_task, i_am_higher_level_task
 
-    ! The routine requires the partition/context info
-    assert ( associated(mlbddc%p_mat%p_env) )
-    assert ( mlbddc%p_mat%p_env%created )
-    assert ( mlbddc%p_mat%p_env%num_levels > 1 ) 
-
-    assert ( associated(mlbddc%p_mat%p_env%w_context) )
-    assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_mat%p_env%p_context) )
-    assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_mat%p_env%q_context) )
-    assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
-    ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
-    assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
-    assert ( mlbddc%c_context%created .eqv. .true. )
-    assert ( mlbddc%d_context%created .eqv. .true. )
-    assert ( mlbddc%g_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_mat%p_env%b_context) )
-    assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
-
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
@@ -757,11 +761,11 @@ use mpi
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_free_in_stages (mlbddc%M_rr,preconditioner_free_clean)
-			 call mlbddc%A_rr%free_in_stages(free_clean)
+             call preconditioner_free_in_stages (mlbddc%M_rr,free_clean)
+             call mlbddc%A_rr%free_in_stages(free_clean)
              if (mlbddc%projection == petrov_galerkin )  then 
-                call preconditioner_free_in_stages ( mlbddc%M_rr_trans,preconditioner_free_clean ) 
-				call mlbddc%A_rr_trans%free_in_stages(free_clean)
+                call preconditioner_free_in_stages ( mlbddc%M_rr_trans,free_clean ) 
+                call mlbddc%A_rr_trans%free_in_stages(free_clean)
              end if
           else
              check(.false.)
@@ -778,8 +782,8 @@ use mpi
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
           if(mlbddc%co_sys_sol_strat == serial_gather) then
              if ( i_am_coarse_task ) then
-               call preconditioner_free_in_stages(mlbddc%M_c,preconditioner_free_clean)
-			   call mlbddc%A_c%free_in_stages(free_clean)
+               call preconditioner_free_in_stages(mlbddc%M_c,free_clean)
+               call mlbddc%A_c%free_in_stages(free_clean)
              end if
           else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
              assert(mlbddc%p_mat%p_env%num_levels>2) ! Assuming last level direct
@@ -809,12 +813,10 @@ use mpi
                 deallocate(mlbddc%p_M_c, stat=istat)
                 assert(istat==0)
              end if
-             
              ! deallocate(mlbddc%p_mat%p_env%c_context, stat = istat)
              ! assert(istat==0)
              ! deallocate(mlbddc%d_context, stat = istat)
              ! assert(istat==0)
-             
           end if
        else
           check(.false.)
@@ -853,56 +855,47 @@ use mpi
     end if
 
     ! TODO: code below needs to be modified after structures are filled...
-    if ( mode == free_struct  ) then
+    if ( mode == free_symbolic_setup  ) then
+       call mlbddc%free_vector_spaces()
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_free_in_stages (  mlbddc%M_rr, preconditioner_free_struct )
-            if ( mlbddc%projection == petrov_galerkin ) then 
-             call preconditioner_free_in_stages (  mlbddc%M_rr_trans, preconditioner_free_struct )
-            end if
+             call preconditioner_free_in_stages (  mlbddc%M_rr, free_symbolic_setup )
+             if ( mlbddc%projection == petrov_galerkin ) then 
+               call preconditioner_free_in_stages (  mlbddc%M_rr_trans, free_symbolic_setup )
+             end if
           end if
-
           if ( mlbddc%unknowns == all_unknowns ) then
-             call operator_dd_free ( mlbddc%A_II_inv, free_struct )
+             call operator_dd_free ( mlbddc%A_II_inv, free_symbolic_setup )
           end if
-
-          call mlbddc%A_rr%free_in_stages(free_struct)
- 
+          call mlbddc%A_rr%free_in_stages(free_symbolic_setup)
           if ( mlbddc%projection == petrov_galerkin ) then 
-             call mlbddc%A_rr_trans%free_in_stages(free_struct)
+             call mlbddc%A_rr_trans%free_in_stages(free_symbolic_setup)
           end if
-   
           call memfree ( mlbddc%coarse_dofs,__FILE__,__LINE__)
-
           if (  mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
              call memfree ( mlbddc%perm,__FILE__,__LINE__)
              call memfree ( mlbddc%iperm,__FILE__,__LINE__)
           end if
-
           ! END FINE-GRID PROBLEM DUTIES
        end if
        
        ! BEG. COARSE-GRID PROBLEM DUTIES
        if(mlbddc%co_sys_sol_strat == serial_gather) then
-
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call preconditioner_free_in_stages ( mlbddc%M_c, preconditioner_free_struct )
+                call preconditioner_free_in_stages ( mlbddc%M_c, free_symbolic_setup )
              end if
-             call mlbddc%A_c%free_in_stages(free_struct)
+             call mlbddc%A_c%free_in_stages(free_symbolic_setup)
              call mesh_free ( mlbddc%f_mesh_c )
              call memfree ( mlbddc%vars, __FILE__, __LINE__)
              call memfree ( mlbddc%ptr_coarse_dofs, __FILE__, __LINE__)
           end if
-
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
-
           assert(mlbddc%p_mat%p_env%num_levels>2) 
-          
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free_in_stages(mlbddc%p_M_c, free_struct )
+             call par_preconditioner_dd_mlevel_bddc_free_in_stages(mlbddc%p_M_c, free_symbolic_setup )
              
              if ( i_am_coarse_task ) then
                 call renumbering_free ( mlbddc%erenumbering_c )
@@ -916,37 +909,35 @@ use mpi
              end if
              
              ! Free coarse mesh
-             call par_mesh_free ( mlbddc%p_mesh_c, free_struct )
+             call par_mesh_free ( mlbddc%p_mesh_c, free_symbolic_setup )
              
              ! Free coarse matrix
-             call mlbddc%p_mat_c%free_in_stages(free_struct)
+             call mlbddc%p_mat_c%free_in_stages(free_symbolic_setup)
           end if
           
        end if
        ! END COARSE-GRID PROBLEM DUTIES
-
-    else if ( mode == free_values ) then
-       call mlbddc%free_vector_spaces()
+    else if ( mode == free_numerical_setup ) then
        if ( i_am_fine_task ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_free_in_stages ( mlbddc%M_rr, preconditioner_free_values )
+             call preconditioner_free_in_stages ( mlbddc%M_rr, free_numerical_setup )
              if (mlbddc%projection == petrov_galerkin )  then 
-                call preconditioner_free_in_stages ( mlbddc%M_rr_trans, preconditioner_free_values )
+                call preconditioner_free_in_stages ( mlbddc%M_rr_trans, free_numerical_setup )
              end if
           end if
           if ( mlbddc%unknowns == all_unknowns ) then
-             call operator_dd_free ( mlbddc%A_II_inv, free_values )
+             call operator_dd_free ( mlbddc%A_II_inv, free_numerical_setup )
           end if
 
-          call mlbddc%A_rr%free_in_stages ( free_values )
+          call mlbddc%A_rr%free_in_stages ( free_numerical_setup )
 
           call memfree ( mlbddc%rPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%lPhi,__FILE__,__LINE__)
           call memfree ( mlbddc%blk_lag_mul,__FILE__,__LINE__) 
 
           if (mlbddc%projection == petrov_galerkin )  then 
-             call mlbddc%A_rr_trans%free_in_stages(free_values)
+             call mlbddc%A_rr_trans%free_in_stages(free_numerical_setup)
           end if
 
           if ( mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then
@@ -998,18 +989,18 @@ use mpi
        if(mlbddc%co_sys_sol_strat == serial_gather) then
           if ( i_am_coarse_task ) then
              if ( mlbddc%internal_problems == handled_by_bddc_module) then
-                call preconditioner_free_in_stages ( mlbddc%M_c, preconditioner_free_values )
+                call preconditioner_free_in_stages ( mlbddc%M_c, free_numerical_setup )
              end if
-             call mlbddc%A_c%free_in_stages(free_values)
+             call mlbddc%A_c%free_in_stages(free_numerical_setup)
           end if
        else if(mlbddc%co_sys_sol_strat == recursive_bddc) then
           assert(mlbddc%p_mat%p_env%num_levels>2) 
           if ( i_am_coarse_task .or. i_am_higher_level_task ) then
              ! Recursively call bddc_free
-             call par_preconditioner_dd_mlevel_bddc_free_in_stages(mlbddc%p_M_c, free_values )
+             call par_preconditioner_dd_mlevel_bddc_free_in_stages(mlbddc%p_M_c, free_numerical_setup )
 
              ! Free coarse matrix
-             call mlbddc%p_mat_c%free_in_stages(free_values)
+             call mlbddc%p_mat_c%free_in_stages(free_numerical_setup)
           end if
        end if
 
@@ -1018,48 +1009,21 @@ use mpi
   end subroutine par_preconditioner_dd_mlevel_bddc_free_in_stages
 
   !=================================================================================================
-  recursive subroutine par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mat, mlbddc ) 
-use mpi
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_symbolic_setup ( mlbddc ) 
     implicit none
-
     ! Parameters 
-    type(par_scalar_matrix_t)                , target, intent(in)    :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
- 
-    type (mesh_t)  :: c_mesh
-    logical          :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
-    !integer(ip)      :: iam
-
-    ! The routine requires the partition/context info
-    assert ( associated(p_mat%p_env) )
-    assert ( p_mat%p_env%created )
-    assert ( p_mat%p_env%num_levels > 1 ) 
-
-    assert ( associated(mlbddc%p_mat%p_env%w_context) )
-    assert ( mlbddc%p_mat%p_env%w_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_mat%p_env%p_context) )
-    assert ( mlbddc%p_mat%p_env%p_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_mat%p_env%q_context) )
-    assert ( mlbddc%p_mat%p_env%q_context%created .eqv. .true. )
-    ! Check appropriate assignment to context: 1) I'm in w_context and 2) I'm in p_context OR in q_context but not in both
-    assert ( mlbddc%p_mat%p_env%w_context%iam >= 0)
-    assert ( (mlbddc%p_mat%p_env%p_context%iam >=0 .and. mlbddc%p_mat%p_env%q_context%iam < 0) .or. (mlbddc%p_mat%p_env%p_context%iam < 0 .and. mlbddc%p_mat%p_env%q_context%iam >= 0))
-    assert ( mlbddc%c_context%created .eqv. .true. )
-    assert ( mlbddc%d_context%created .eqv. .true. )
-    assert ( mlbddc%g_context%created .eqv. .true. )
-    assert ( associated(mlbddc%p_mat%p_env%b_context) )
-    assert ( mlbddc%p_mat%p_env%b_context%created .eqv. .true. )
-
-    mlbddc%p_mat => p_mat
+    type (mesh_t) :: c_mesh
+    logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
+    type(graph_t), pointer :: graph_A_rr_trans          
     
     ! Which duties I have?
     i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
-    ! if(i_am_fine_task) iam = mlbddc%p_mat%p_env%p_context%iam
-    ! if(i_am_coarse_task) iam = mlbddc%c_context%iam
-    ! if(i_am_higher_level_task) iam = mlbddc%d_context%iam
 
+    call mlbddc%create_vector_spaces()
+    
     if ( i_am_fine_task ) then
        ! BEG. FINE-GRID PROBLEM DUTIES
        ! Local Computations (no communication at all)
@@ -1106,21 +1070,24 @@ use mpi
 
        ! BEG. FINE-GRID PROBLEM DUTIES
        if (mlbddc%nn_sys_sol_strat == corners_rest_part_solve_expl_schur ) then 
-          call extract_graph_A_rr (p_mat, mlbddc)
+          call extract_graph_A_rr (mlbddc%p_mat, mlbddc)
        else if (  mlbddc%nn_sys_sol_strat == direct_solve_constrained_problem ) then
-          call augment_graph_with_constraints ( p_mat, mlbddc )
+          call augment_graph_with_constraints ( mlbddc%p_mat, mlbddc )
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          call preconditioner_symbolic( mlbddc%A_rr , mlbddc%M_rr )
+          call preconditioner_symbolic_setup( mlbddc%M_rr )
           if (mlbddc%projection == petrov_galerkin) then
-		     call mlbddc%A_rr%graph%copy(mlbddc%A_rr_trans%graph)
-             call preconditioner_symbolic( mlbddc%A_rr_trans, mlbddc%M_rr_trans )
+             call mlbddc%A_rr_trans%set_size ( mlbddc%A_rr%graph%nv )
+             graph_A_rr_trans => mlbddc%A_rr_trans%get_graph()
+             call mlbddc%A_rr%graph%copy(graph_A_rr_trans)
+             call mlbddc%A_rr_trans%return_graph(graph_A_rr_trans)
+             call preconditioner_symbolic_setup( mlbddc%M_rr_trans )
           end if
        end if
 
        if ( mlbddc%unknowns == all_unknowns ) then
-          call operator_dd_ass_struct (p_mat%serial_scalar_matrix, mlbddc%A_II_inv ) 
+          call operator_dd_symbolic_setup (mlbddc%p_mat%serial_scalar_matrix, mlbddc%A_II_inv ) 
        end if
        ! END FINE-GRID PROBLEM DUTIES
 
@@ -1133,64 +1100,81 @@ use mpi
        ! BEG. COARSE-GRID PROBLEM DUTIES
        if (  mlbddc%co_sys_sol_strat == serial_gather ) then  ! There are only coarse tasks
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
-             call preconditioner_symbolic( mlbddc%A_c , mlbddc%M_c )
+             call preconditioner_symbolic_setup( mlbddc%M_c )
           end if
        else if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
           ! Assign coarse matrix graph (the partition)
           ! call par_matrix_graph ( mlbddc%p_graph_c, mlbddc%p_mat_c)
-          call par_preconditioner_dd_mlevel_bddc_ass_struct ( mlbddc%p_mat_c, mlbddc%p_M_c ) 
+          call par_preconditioner_dd_mlevel_bddc_symbolic_setup ( mlbddc%p_M_c ) 
        end if
        ! END COARSE-GRID PROBLEM DUTIES
     end if
 
-  end subroutine par_preconditioner_dd_mlevel_bddc_ass_struct
+  end subroutine par_preconditioner_dd_mlevel_bddc_symbolic_setup
+  
+  subroutine par_preconditioner_dd_mlevel_bddc_create_vector_spaces (mlbddc)
+    implicit none
+    class(par_preconditioner_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
+    type(vector_space_t), pointer :: pmat_domain_vector_space
+    type(vector_space_t), pointer :: pmat_range_vector_space
+    type(vector_space_t), pointer :: mlbddc_domain_vector_space
+    type(vector_space_t), pointer :: mlbddc_range_vector_space
+    pmat_domain_vector_space => mlbddc%p_mat%get_domain_vector_space()
+    pmat_range_vector_space => mlbddc%p_mat%get_range_vector_space()
+    mlbddc_domain_vector_space => mlbddc%get_domain_vector_space()
+    mlbddc_range_vector_space => mlbddc%get_range_vector_space()
+    call pmat_domain_vector_space%clone(mlbddc_domain_vector_space)
+    call pmat_range_vector_space%clone(mlbddc_range_vector_space)
+  end subroutine par_preconditioner_dd_mlevel_bddc_create_vector_spaces
+  
 
   subroutine augment_graph_with_constraints (p_mat, mlbddc)
     implicit none
-
     ! Parameters 
-    type(par_scalar_matrix_t)         , intent(in)     :: p_mat
+    type(par_scalar_matrix_t)                , intent(in)     :: p_mat
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)  :: mlbddc
 
-    integer :: info
+    ! Locals
+    type(graph_t), pointer :: graph_A_rr
+    
+    call mlbddc%A_rr%set_size( mlbddc%p_mat%dof_dist_domain%nl + mlbddc%nl_corners + mlbddc%nl_edges, &
+                               mlbddc%p_mat%dof_dist_domain%nl + mlbddc%nl_corners + mlbddc%nl_edges )
+    
+    graph_A_rr => mlbddc%A_rr%get_graph()
 
-    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist_domain%nl  + &
-                                 & mlbddc%nl_corners             + &
-                                 & mlbddc%nl_edges              
- 
-    mlbddc%A_rr%graph%nv2   = mlbddc%A_rr%graph%nv
-
-    call memalloc ( mlbddc%A_rr%graph%nv+1, mlbddc%A_rr%graph%ia, __FILE__,__LINE__ )
+    call memalloc ( graph_A_rr%get_nv()+1, graph_A_rr%ia, __FILE__,__LINE__ )
 
     ! Count neighbours
     call count_graph_augment_graph_with_constraints ( p_mat%serial_scalar_matrix%graph%symmetric_storage ,  & 
                                                       p_mat%serial_scalar_matrix%graph%nv   ,  & 
                                                       p_mat%serial_scalar_matrix%graph%ia   ,  & 
-                                                      mlbddc%A_rr%graph%nv  , &
+                                                      graph_A_rr%get_nv(), &
                                                       mlbddc%p_mat%dof_dist_domain%nl, &
                                                       mlbddc%nl_coarse, &
                                                       mlbddc%coarse_dofs, &
                                                       mlbddc%p_mat%dof_dist_domain%max_nparts, &
                                                       mlbddc%p_mat%dof_dist_domain%omap%nl, &
                                                       mlbddc%p_mat%dof_dist_domain%lobjs, &
-                                                      mlbddc%A_rr%graph%ia  )
+                                                      graph_A_rr%ia  )
 
-    call memalloc ( mlbddc%A_rr%graph%ia(mlbddc%A_rr%graph%nv+1)-1, mlbddc%A_rr%graph%ja,  __FILE__,__LINE__ )
+    call memalloc ( graph_A_rr%ia(graph_A_rr%get_nv()+1)-1, graph_A_rr%ja,  __FILE__,__LINE__ )
 
     ! List neighbours 
-    call list_graph_augment_graph_with_constraints ( p_mat%serial_scalar_matrix%graph%symmetric_storage    , & 
-                                                     p_mat%serial_scalar_matrix%graph%nv      , & 
-                                                     p_mat%serial_scalar_matrix%graph%ia      , & 
-                                                     p_mat%serial_scalar_matrix%graph%ja      , &
-                                                     mlbddc%A_rr%graph%nv     , & 
-                                                     mlbddc%A_rr%graph%ia     , &
+    call list_graph_augment_graph_with_constraints ( p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
+                                                     p_mat%serial_scalar_matrix%graph%nv, & 
+                                                     p_mat%serial_scalar_matrix%graph%ia, & 
+                                                     p_mat%serial_scalar_matrix%graph%ja, &
+                                                     graph_A_rr%get_nv(), & 
+                                                     graph_A_rr%ia, &
                                                      mlbddc%p_mat%dof_dist_domain%nl, &
                                                      mlbddc%nl_coarse, &
                                                      mlbddc%coarse_dofs, &
                                                      mlbddc%p_mat%dof_dist_domain%max_nparts, &
                                                      mlbddc%p_mat%dof_dist_domain%omap%nl, &
                                                      mlbddc%p_mat%dof_dist_domain%lobjs, &
-                                                     mlbddc%A_rr%graph%ja  )
+                                                     graph_A_rr%ja  )
+    
+    call mlbddc%A_rr%return_graph(graph_A_rr)
 
 !!$    if ( debug_verbose_level_2 ) then
 !!$       call graph_print (6, p_mat%serial_scalar_matrix%%graph )
@@ -1204,7 +1188,7 @@ use mpi
                                                           arr_ia )
     implicit none
     ! Parameters
-	logical     , intent(in)  :: symmetric_storage
+	   logical     , intent(in)  :: symmetric_storage
     integer (ip), intent(in)  :: anv, arr_nv
     integer (ip), intent(in)  :: aia (anv+1)
     integer (ip), intent(in)  :: nl
@@ -1281,7 +1265,7 @@ use mpi
                                                          arr_ja )
     implicit none
     ! Parameters
-	logical      , intent(in)    :: symmetric_storage
+	   logical      , intent(in)    :: symmetric_storage
     integer (ip) , intent(in)    :: anv, arr_nv
     integer (ip) , intent(in)    :: aia (anv+1)
     integer (ip) , intent(inout) :: arr_ia(arr_nv+1)
@@ -1637,13 +1621,18 @@ use mpi
     implicit none
 
     ! Parameters 
-    type(par_scalar_matrix_t)         , intent(in)                    :: p_mat
-    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout)                 :: mlbddc
+    type(par_scalar_matrix_t)                , intent(in)    :: p_mat
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
-    mlbddc%A_rr%graph%nv    = mlbddc%p_mat%dof_dist_domain%nl - mlbddc%nl_corners_dofs
-    mlbddc%A_rr%graph%nv2   = mlbddc%A_rr%graph%nv
+    ! Locals
+    type(graph_t), pointer :: graph_A_rr
+    
+    call mlbddc%A_rr%set_size( mlbddc%p_mat%dof_dist_domain%nl - mlbddc%nl_corners_dofs, &
+                               mlbddc%p_mat%dof_dist_domain%nl - mlbddc%nl_corners_dofs )
+    
+    graph_A_rr => mlbddc%A_rr%get_graph()
 
-    call memalloc ( mlbddc%A_rr%graph%nv+1, mlbddc%A_rr%graph%ia,  __FILE__,__LINE__ )
+    call memalloc ( graph_A_rr%nv+1, graph_A_rr%ia,  __FILE__,__LINE__ )
 
     ! Count neighbours
     call count_graph_A_rr ( mlbddc%nl_corners_dofs, &
@@ -1651,12 +1640,12 @@ use mpi
          p_mat%serial_scalar_matrix%graph%nv       , & 
          p_mat%serial_scalar_matrix%graph%ia       , & 
          p_mat%serial_scalar_matrix%graph%ja       , &
-         mlbddc%A_rr%graph%nv     , & 
+         graph_A_rr%nv     , & 
          mlbddc%perm           , &
          mlbddc%iperm          , &   
-         mlbddc%A_rr%graph%ia  )
+         graph_A_rr%ia  )
 
-    call memalloc ( mlbddc%A_rr%graph%ia(mlbddc%A_rr%graph%nv+1)-1, mlbddc%A_rr%graph%ja,  __FILE__,__LINE__ )
+    call memalloc ( graph_A_rr%ia(graph_A_rr%nv+1)-1, graph_A_rr%ja,  __FILE__,__LINE__ )
 
     ! List neighbours 
     call list_graph_A_rr  ( mlbddc%nl_corners_dofs, & 
@@ -1664,17 +1653,19 @@ use mpi
          p_mat%serial_scalar_matrix%graph%nv       , & 
          p_mat%serial_scalar_matrix%graph%ia       , & 
          p_mat%serial_scalar_matrix%graph%ja       , &
-         mlbddc%A_rr%graph%nv     , & 
-         mlbddc%A_rr%graph%ia     , & 
+         graph_A_rr%nv     , & 
+         graph_A_rr%ia     , & 
          mlbddc%perm           , &
          mlbddc%iperm          , &       
-         mlbddc%A_rr%graph%ja  )
+         graph_A_rr%ja  )
 
 !!$    if ( debug_verbose_level_2 ) then
 !!$       ! call graph_print (6, p_mat%serial_scalar_matrix%graph )
 !!$       call graph_print (6, mlbddc%A_rr_gr)
 !!$    end if
 
+    call mlbddc%A_rr%return_graph(graph_A_rr)
+    
   end subroutine extract_graph_A_rr
 
   subroutine count_graph_A_rr ( nl_corners_dofs, symmetric_storage, anv, aia, aja, arrnv, perm, iperm, arria )
@@ -2405,24 +2396,14 @@ use mpi
 
   subroutine generate_coarse_graph (mlbddc)
     implicit none
-    ! Parameters 
-    ! On input , mlbddc%f_mesh_c%pnods in C-based indexing
-    ! On output, mlbddc%f_mesh_c%pnods in F-based indexing 
     type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
-
-    ! Locals
-    logical    :: symmetric_storage
-    
-    call mesh_to_graph_matrix ( mlbddc%f_mesh_c, mlbddc%A_c%graph )
-
+    call mesh_to_graph_matrix ( mlbddc%f_mesh_c, mlbddc%A_c )
     if ( debug_verbose_level_2 ) then 
        call mlbddc%A_c%graph%print (6)
     end if
-
   end subroutine generate_coarse_graph
 
   subroutine generate_coarse_partition_and_graph (c_mesh, mlbddc)
-use mpi
     implicit none
     ! Parameters 
     type(mesh_t), intent(inout) :: c_mesh
@@ -2457,7 +2438,7 @@ use mpi
     if(mlbddc%co_sys_sol_strat == recursive_bddc) then
 
        if ( i_am_coarse_task ) then
-          ! TODO: all rcv_ rounties are wrong because ptr_coarse_dofs starts from 0.
+          ! TODO: all rcv_ routines are wrong because ptr_coarse_dofs starts from 0.
           ! DONE: we now keep mlbddc%ptr_coarse_dofs  & c_mesh%lnods separately
           call rcv_subdomains_surrounding_coarse_dofs ( mlbddc%g_context%icontxt, &
                                                         mlbddc%g_context%iam,     &
@@ -2470,9 +2451,6 @@ use mpi
                                                         c_mesh%lnods,    &
                                                         dual_f_mesh, &
                                                         dual_parts )
-
-          
-
 
           if ( debug_verbose_level_2 ) then
              write (*,*)  'dual_f_mesh%pnods:', dual_f_mesh%pnods
@@ -2526,9 +2504,6 @@ use mpi
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
-
-
-
           call dof_distribution_coarse_create ( mlbddc%c_context%icontxt, & ! Communication context
                                                 mlbddc%c_context%iam    , &
                                                 mlbddc%c_context%np     , &
@@ -2556,7 +2531,9 @@ use mpi
              call psb_barrier ( mlbddc%c_context%icontxt )
           end if
 
-          call mesh_to_graph_matrix ( mlbddc%p_mesh_c%f_mesh, mlbddc%p_mat_c%serial_scalar_matrix%graph)
+          call mlbddc%p_mat_c%set_dof_distribution( mlbddc%dof_dist_c )
+          
+          call mesh_to_graph_matrix ( mlbddc%p_mesh_c%f_mesh, mlbddc%p_mat_c%serial_scalar_matrix )
 
           if ( debug_verbose_level_2 ) then 
              call mlbddc%p_mat_c%serial_scalar_matrix%graph%print (6)
@@ -2948,49 +2925,35 @@ use mpi
  end subroutine rcv_subdomains_surrounding_coarse_dofs
 
   !=================================================================================================
-  recursive subroutine par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc )
-                                           
+  recursive subroutine par_preconditioner_dd_mlevel_bddc_numerical_setup ( mlbddc )
     implicit none
     ! Parameters 
-    type(par_preconditioner_dd_mlevel_bddc_t), target, intent(inout) :: mlbddc
+    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: mlbddc
 
     ! Locals
-    type(par_scalar_matrix_t), pointer :: p_mat
     logical :: i_am_coarse_task, i_am_fine_task, i_am_higher_level_task
-    type(vector_space_t), pointer :: pmat_domain_vector_space
-    type(vector_space_t), pointer :: pmat_range_vector_space
-    type(vector_space_t), pointer :: mlbddc_domain_vector_space
-    type(vector_space_t), pointer :: mlbddc_range_vector_space
-
-    p_mat => mlbddc%p_mat
-
+    
     ! Which duties do I have?
     i_am_fine_task = (mlbddc%p_mat%p_env%p_context%iam >= 0)
     i_am_coarse_task = (mlbddc%c_context%iam >= 0)
     i_am_higher_level_task = (mlbddc%d_context%iam >= 0)
 
     ! "Numerical factorization" of Neumann internal problem at the end of phase1
-    call par_preconditioner_dd_mlevel_bddc_fill_val_phase_1 (p_mat, mlbddc)
+    call par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_1 (mlbddc%p_mat, mlbddc)
 
     ! "Numerical factorization of Coarse/Dirichlet internal problems at the end of phase 2
-    call par_preconditioner_dd_mlevel_bddc_fill_val_phase_2 (p_mat, mlbddc) 
+    call par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_2 (mlbddc%p_mat, mlbddc) 
 
     if ( i_am_coarse_task .or. i_am_higher_level_task ) then
        if (  mlbddc%co_sys_sol_strat == recursive_bddc ) then
-          call par_preconditioner_dd_mlevel_bddc_fill_val ( mlbddc%p_M_c ) 
+          call par_preconditioner_dd_mlevel_bddc_numerical_setup ( mlbddc%p_M_c ) 
        end if
     end if
     
-    pmat_domain_vector_space => p_mat%get_domain_vector_space()
-    pmat_range_vector_space => p_mat%get_range_vector_space()
-    mlbddc_domain_vector_space => mlbddc%get_domain_vector_space()
-    mlbddc_range_vector_space => mlbddc%get_range_vector_space()
-    call pmat_domain_vector_space%clone(mlbddc_domain_vector_space)
-    call pmat_range_vector_space%clone(mlbddc_range_vector_space)
-  end subroutine par_preconditioner_dd_mlevel_bddc_fill_val
+  end subroutine par_preconditioner_dd_mlevel_bddc_numerical_setup
 
   !=================================================================================================
-  subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_1 ( p_mat, mlbddc )
+  subroutine par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_1 ( p_mat, mlbddc )
                                            
     implicit none
     ! Parameters 
@@ -3057,36 +3020,39 @@ use mpi
        
           ! Extract a_rc/a_cr/a_rr/a_cc 
           call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
-                                                     p_mat%serial_scalar_matrix%graph%symmetric_storage   , & 
-                                                     p_mat%serial_scalar_matrix%graph%nv     , & 
-                                                     p_mat%serial_scalar_matrix%graph%ia     , & 
-                                                     p_mat%serial_scalar_matrix%graph%ja     , &
-                                                     p_mat%serial_scalar_matrix%a         , &
-                                                     mlbddc%A_rr%graph%nv   , & 
-                                                     mlbddc%A_rr%graph%ia   , &
-                                                     mlbddc%A_rr%graph%ja   , &
-                                                     mlbddc%perm         , &
-                                                     mlbddc%iperm        , &       
-                                                     mlbddc%A_rr%a       , &
+                                                     p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
+                                                     p_mat%serial_scalar_matrix%graph%nv, & 
+                                                     p_mat%serial_scalar_matrix%graph%ia, & 
+                                                     p_mat%serial_scalar_matrix%graph%ja, &
+                                                     p_mat%serial_scalar_matrix%a, &
+                                                     mlbddc%A_rr%graph%nv, & 
+                                                     mlbddc%A_rr%graph%ia, &
+                                                     mlbddc%A_rr%graph%ja, &
+                                                     mlbddc%perm, &
+                                                     mlbddc%iperm, &       
+                                                     mlbddc%A_rr%a, &
                                                      mlbddc%A_cr, & 
                                                      mlbddc%A_rc, &              
                                                      mlbddc%A_cc )
 
           if ( mlbddc%projection == petrov_galerkin ) then 
-		     call mat_trans%create ( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, p_mat%serial_scalar_matrix%sign)
-			 call p_mat%serial_scalar_matrix%transpose(mat_trans) 
+             call mat_trans%create ( p_mat%serial_scalar_matrix%graph%nv, & 
+                                     p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
+                                     p_mat%serial_scalar_matrix%is_symmetric, & 
+                                     p_mat%serial_scalar_matrix%sign)
+             call p_mat%serial_scalar_matrix%transpose(mat_trans) 
              call extract_values_A_rr_A_cr_A_rc_A_cc  ( mlbddc%nl_corners_dofs, & 
                                                         mat_trans%graph%symmetric_storage, & 
-                                                        mat_trans%graph%nv     , & 
-                                                        mat_trans%graph%ia     , & 
-                                                        mat_trans%graph%ja     , &
-                                                        mat_trans%a         , &
-                                                        mlbddc%A_rr%graph%nv   , & 
-                                                        mlbddc%A_rr%graph%ia   , &
-                                                        mlbddc%A_rr%graph%ja   , &
-                                                        mlbddc%perm         , &
-                                                        mlbddc%iperm        , &       
-                                                        mlbddc%A_rr_trans%a       , &
+                                                        mat_trans%graph%nv, & 
+                                                        mat_trans%graph%ia, & 
+                                                        mat_trans%graph%ja, &
+                                                        mat_trans%a, &
+                                                        mlbddc%A_rr%graph%nv, & 
+                                                        mlbddc%A_rr%graph%ia, &
+                                                        mlbddc%A_rr%graph%ja, &
+                                                        mlbddc%perm, &
+                                                        mlbddc%iperm, &       
+                                                        mlbddc%A_rr_trans%a, &
                                                         mlbddc%A_rc_trans, & 
                                                         mlbddc%A_cr_trans, &              
                                                         mlbddc%A_cc_trans )
@@ -3114,9 +3080,12 @@ use mpi
                                                  mlbddc%p_mat%dof_dist_domain%nb, &
                                                  mlbddc%C_weights )
          if (mlbddc%projection == petrov_galerkin ) then 
-		   call mat_trans%create ( p_mat%serial_scalar_matrix%graph%symmetric_storage, p_mat%serial_scalar_matrix%is_symmetric, indefinite)
-		   call p_mat%serial_scalar_matrix%transpose(mat_trans) 
-		   call augment_matrix_with_constraints ( mat_trans%graph%symmetric_storage, & 
+           call mat_trans%create ( p_mat%serial_scalar_matrix%graph%nv, &
+                                   p_mat%serial_scalar_matrix%graph%symmetric_storage, & 
+                                   p_mat%serial_scalar_matrix%is_symmetric, &
+                                   indefinite)
+           call p_mat%serial_scalar_matrix%transpose(mat_trans) 
+           call augment_matrix_with_constraints ( mat_trans%graph%symmetric_storage, & 
                                                   mat_trans%graph%nv   , & 
                                                   mat_trans%graph%ia    , & 
                                                   mat_trans%graph%ja    , &
@@ -3148,10 +3117,10 @@ use mpi
        end if
 
        if ( mlbddc%internal_problems == handled_by_bddc_module) then
-          call preconditioner_numeric( mlbddc%M_rr )
+          call preconditioner_numerical_setup( mlbddc%M_rr )
           
           if (mlbddc%projection == petrov_galerkin ) then 
-             call preconditioner_numeric( mlbddc%M_rr_trans ) 
+             call preconditioner_numerical_setup( mlbddc%M_rr_trans ) 
           end if
 
        else
@@ -3160,10 +3129,10 @@ use mpi
     end if
 
 
-  end subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_1
+  end subroutine par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_1
 
   !=================================================================================================
-  subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_2 ( p_mat, mlbddc, realloc_harm_extensions )
+  subroutine par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_2 ( p_mat, mlbddc, realloc_harm_extensions )
                                            
     implicit none
     ! Parameters 
@@ -3461,7 +3430,7 @@ use mpi
           end if
           if ( mlbddc%internal_problems == handled_by_bddc_module) then
              ! call preconditioner_numeric( mlbddc%A_c , mlbddc%M_c )
-             call preconditioner_numeric( mlbddc%M_c )
+             call preconditioner_numerical_setup( mlbddc%M_c )
           else
              check(.false.)
 !!$             call operator_mat_create (mlbddc%A_c, mlbddc%A_c_mat_op )
@@ -3480,7 +3449,7 @@ use mpi
        
        if ( mlbddc%unknowns == all_unknowns ) then
           ! BEG. FINE-GRID PROBLEM DUTIES
-          call operator_dd_fill_val (p_mat%serial_scalar_matrix, mlbddc%A_II_inv) 
+          call operator_dd_numerical_setup (p_mat%serial_scalar_matrix, mlbddc%A_II_inv) 
           ! END. FINE-GRID PROBLEM DUTIES 
           
           if ( debug_verbose_level_3 ) then
@@ -3497,7 +3466,7 @@ use mpi
 
     end if
 
-  end subroutine par_preconditioner_dd_mlevel_bddc_fill_val_phase_2
+  end subroutine par_preconditioner_dd_mlevel_bddc_numerical_setup_phase_2
 
 
   subroutine extract_values_A_rr_A_cr_A_rc_A_cc ( nl_corners_dofs, symmetric_storage,  & 
@@ -7471,26 +7440,7 @@ use mpi
        call memalloc ( sum, C_weights_i_gathered, __FILE__,__LINE__ )
     end if
  
-    if ( i_am_fine_task ) then
-       ! BEGIN FINE-GRID RELATED DUTIES
-       ! if (allocated(mlbddc%C_weights) ) then 
-       !    !First of all compute local CORNER DOF over next level edge value 
-       !    nid = mlbddc%p_mat%dof_dist_domain%nl -  mlbddc%p_mat%dof_dist_domain%nb
-       !    do i=1, mlbddc%nl_coarse 
-       !       iobj  = mlbddc%coarse_dofs (i)
-       !       ! Each COARSE DOF is given its size
-       !       j1 = mlbddc%p_mat%dof_dist_domain%lobjs(2,iobj)
-       !       j2 = mlbddc%p_mat%dof_dist_domain%lobjs(3,iobj)
-
-       !       do jd = j1, j2         
-       !          if (j2-j1 .eq. 0) then 
-       !             ! Dividing into 2 we are substracting the interior edge contribution 
-       !             mlbddc%C_weights(jd-nid) = mlbddc%C_weights(jd-nid)/2
-       !          end if
-       !       end do
-       !    end do
-       ! end if
-    
+    if ( i_am_fine_task ) then    
        call memalloc ( mlbddc%nl_coarse, C_weights_i, __FILE__,__LINE__ )
        C_weights_i = 0.0_rp
 
@@ -8317,24 +8267,26 @@ use mpi
   end subroutine ass_csr_mat_scal
 
   !============================================================================================
-  subroutine mesh_to_graph_matrix ( primal_mesh, primal_graph )
+  subroutine mesh_to_graph_matrix ( primal_mesh, matrix )
     implicit none
 
     ! Parameters
-    type(mesh_t)       , intent(in)     :: primal_mesh
-    type(graph_t)      , intent(inout)  :: primal_graph
-
+    type(mesh_t)                , intent(in)     :: primal_mesh
+    type(serial_scalar_matrix_t), intent(inout)  :: matrix
 
     ! Local variables
     type (mesh_t)                          :: dual_mesh
     integer(ip), allocatable               :: iwork(:)       ! Integer ip working array
     integer(ip)                            :: pwork(3)       ! Pointers to work space
-
+    type(graph_t), pointer                 :: primal_graph
+    
+    
     ! Compute dual_mesh
     call mesh_to_dual ( primal_mesh, dual_mesh )
 
-    primal_graph%nv  = primal_mesh%npoin
-    primal_graph%nv2 = primal_mesh%npoin
+    call matrix%set_size( primal_mesh%npoin, primal_mesh%npoin )
+    primal_graph => matrix%get_graph()
+    
     call memalloc ( primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__ )
        
     ! Allocate working space for count_primal_graph and list_primal_graph routines
@@ -8355,6 +8307,8 @@ use mpi
     call list_primal_graph_csr_scal  ( primal_graph%symmetric_storage, primal_mesh, dual_mesh, primal_graph, &
                                        iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)) )
     
+    call matrix%return_graph(primal_graph)
+   
     ! Free dual_mesh
     call mesh_free ( dual_mesh )
     call memfree ( iwork,__FILE__,__LINE__)
@@ -8537,12 +8491,20 @@ use mpi
        end select
        call x%CleanTemp()
      end subroutine par_preconditioner_dd_mlevel_bddc_apply
+     
+  function par_preconditioner_dd_mlevel_bddc_is_linear(op)
+    implicit none
+    class(par_preconditioner_dd_mlevel_bddc_t), intent(in) :: op
+    logical :: par_preconditioner_dd_mlevel_bddc_is_linear
+    par_preconditioner_dd_mlevel_bddc_is_linear = .true.
+  end function par_preconditioner_dd_mlevel_bddc_is_linear
+     
 
  subroutine par_preconditioner_dd_mlevel_bddc_free(this)
    implicit none
    class(par_preconditioner_dd_mlevel_bddc_t), intent(inout) :: this
-   call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_values)
-   call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_struct)
+   call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_numerical_setup)
+   call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_symbolic_setup)
    call par_preconditioner_dd_mlevel_bddc_free_in_stages(this,free_clean)
   end subroutine par_preconditioner_dd_mlevel_bddc_free
 

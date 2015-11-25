@@ -33,9 +33,10 @@ program test_serial_preconditioners_and_solvers
   !
   !-----------------------------------------------------------------------
   use serial_names
-# include "debug.i90"
 
   implicit none
+# include "debug.i90"
+
   ! Files
   type conv_t
     integer(ip), allocatable :: list(:)
@@ -131,9 +132,9 @@ program test_serial_preconditioners_and_solvers
 
      call preconditioner_create  (mmmat, feprec, ppars)
      t1 = wtime()
-     call preconditioner_symbolic(mmmat, feprec)
+     call preconditioner_symbolic_setup(feprec)
      !call preconditioner_numeric (mmmat, feprec)
-     call preconditioner_numeric (feprec)
+     call preconditioner_numerical_setup (feprec)
      t2 = wtime() 
 
      call preconditioner_log_info(feprec)
@@ -146,9 +147,9 @@ program test_serial_preconditioners_and_solvers
      t2 = wtime() 
      write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
 
-     call preconditioner_free_in_stages ( feprec, preconditioner_free_values )
-     call preconditioner_free_in_stages ( feprec, preconditioner_free_struct )
-     call preconditioner_free_in_stages ( feprec, preconditioner_free_clean )
+     call preconditioner_free_in_stages ( feprec, free_numerical_setup )
+     call preconditioner_free_in_stages ( feprec, free_symbolic_setup )
+     call preconditioner_free_in_stages ( feprec, free_clean )
 
   else
 
@@ -258,9 +259,9 @@ program test_serial_preconditioners_and_solvers
 
                     call preconditioner_create  (mmmat, feprec, ppars)
                     t1 = wtime()
-                    call preconditioner_symbolic(mmmat, feprec)
+                    call preconditioner_symbolic_setup(feprec)
                     !call preconditioner_numeric (mmmat, feprec)
-                    call preconditioner_numeric (feprec)
+                    call preconditioner_numerical_setup (feprec)
                     t2 = wtime() 
         
                     call preconditioner_log_info(feprec)
@@ -273,9 +274,9 @@ program test_serial_preconditioners_and_solvers
                     t2 = wtime() 
                     write(*,'(a,e15.7)') 'Abstract Iterative solution time (secs.):', t2-t1 
         
-                    call preconditioner_free_in_stages ( feprec, preconditioner_free_values )
-                    call preconditioner_free_in_stages ( feprec, preconditioner_free_struct )
-                    call preconditioner_free_in_stages ( feprec, preconditioner_free_clean )
+                    call preconditioner_free_in_stages ( feprec, free_numerical_setup )
+                    call preconditioner_free_in_stages ( feprec, free_symbolic_setup )
+                    call preconditioner_free_in_stages ( feprec, free_clean )
         
                     x_base = x_base-exact_solution_base
                     if (x%nrm2()/exact_solution%nrm2() > 1.e-06 ) then

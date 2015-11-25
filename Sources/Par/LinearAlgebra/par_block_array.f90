@@ -75,6 +75,7 @@ module par_block_array_names
      procedure :: comm  => par_block_array_comm
      procedure :: same_vector_space => par_block_array_same_vector_space
      procedure :: free_in_stages  => par_block_array_free_in_stages
+					procedure :: get_number_blocks
   end type par_block_array_t
 
   ! Types
@@ -449,5 +450,12 @@ contains
      end if
    end select
  end function par_block_array_same_vector_space
+	
+ function get_number_blocks(this) result(res)
+   implicit none 
+   class(par_block_array_t), intent(in)   :: this
+   integer(ip) :: res
+   res = this%nblocks
+ end function get_number_blocks
 
 end module par_block_array_names
