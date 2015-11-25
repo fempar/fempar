@@ -71,6 +71,7 @@ module reference_fe_names
    contains
 
      procedure :: create => interpolation_create
+     procedure :: copy   => interpolation_copy
      procedure :: free   => interpolation_free
      procedure :: print  => interpolation_print
 
@@ -244,6 +245,7 @@ module reference_fe_names
   integer(ip), allocatable :: node_component_array(:,:)
 contains 
   procedure :: create => quad_lagrangian_reference_fe_create
+  procedure :: free   => quad_lagrangian_reference_fe_free
   procedure :: create_interpolation => quad_lagrangian_reference_fe_create_interpolation
   !  procedure :: set_integration_rule
   procedure :: create_quadrature => quad_lagrangian_reference_fe_create_quadrature

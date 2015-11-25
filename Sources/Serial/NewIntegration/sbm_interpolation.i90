@@ -53,9 +53,33 @@ subroutine interpolation_create( this, ndime, nnode, ngaus, ntens, khes )
 
 end subroutine interpolation_create
 
+subroutine interpolation_copy( this, from)
+  implicit none
+  class(SB_interpolation_t), intent(inout) :: this
+		class(SB_interpolation_t), intent(in) :: from
+
+		call this%free()
+  this%number_dimensions = from%number_dimensions
+  this%number_shape_functions = from%number_shape_functions
+  this%number_evaluation_points = from%number_evaluation_points
+  this%number_entries_symmetric_tensor = from%number_entries_symmetric_tensor
+  call memalloc(this%number_shape_functions,this%number_evaluation_points, &
+																this%shape_functions,__FILE__,__LINE__)
+  call memalloc(this%number_dimensions,this%number_shape_functions,&
+																this%number_evaluation_points,this%shape_derivatives,   __FILE__,__LINE__)
+  this%shape_functions(:,:) = from%shape_functions(:,:)
+  this%shape_derivatives(:,:,:) = from%shape_derivatives(:,:,:)
+  if ( allocated(from%hessian) ) then
+    call memalloc(this%number_entries_symmetric_tensor,this%number_shape_functions,&
+																		this%number_evaluation_points,this%hessian,   __FILE__,__LINE__) 
+				this%hessian(:,:,:) = from%hessian(:,:,:)
+  end if
+
+end subroutine interpolation_copy
+
 subroutine interpolation_free( this)
   implicit none
-  class(SB_interpolation_t), intent(out) :: this
+  class(SB_interpolation_t), intent(inout) :: this
 
   this%number_dimensions = 0
   this%number_shape_functions = 0

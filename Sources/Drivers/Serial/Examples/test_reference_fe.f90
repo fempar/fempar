@@ -422,17 +422,18 @@ program test_cdr
 !  end select
 
 
-  call vector%free()
-  call fe_affine_operator%free()
-  call feprec%free()
+  call memfree ( shape_function, __FILE__, __LINE__ )
+  call memfree ( shape_gradient, __FILE__, __LINE__ )
+		call fe_affine_operator%free()
+  call volume_integrator%free()
+  call reference_fe%free()
+  call quadrature%free()
   call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
 
-		
 		call memstatus 
-
 
 contains
   !==================================================================================================
