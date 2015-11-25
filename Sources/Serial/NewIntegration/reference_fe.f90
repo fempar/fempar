@@ -71,6 +71,7 @@ module reference_fe_names
    contains
 
      procedure :: create => interpolation_create
+     procedure :: copy   => interpolation_copy
      procedure :: free   => interpolation_free
      procedure :: print  => interpolation_print
 
@@ -244,6 +245,7 @@ module reference_fe_names
   integer(ip), allocatable :: node_component_array(:,:)
 contains 
   procedure :: create => quad_lagrangian_reference_fe_create
+  procedure :: free   => quad_lagrangian_reference_fe_free
   procedure :: create_interpolation => quad_lagrangian_reference_fe_create_interpolation
   !  procedure :: set_integration_rule
   procedure :: create_quadrature => quad_lagrangian_reference_fe_create_quadrature
@@ -299,15 +301,15 @@ type SB_volume_integrator_t
 contains
 
   procedure :: create => volume_integrator_create
-  !procedure :: free
-  procedure :: print => volume_integrator_print
+  procedure :: free   => volume_integrator_free
+  procedure :: print  => volume_integrator_print
   procedure :: update => volume_integrator_update
   procedure :: set_integration => volume_integrator_set_integration
 
-  procedure :: get_reference_fe => volume_integrator_get_reference_fe
-  procedure :: get_quadrature => volume_integrator_get_quadrature
+  procedure :: get_reference_fe  => volume_integrator_get_reference_fe
+  procedure :: get_quadrature    => volume_integrator_get_quadrature
   procedure :: get_interpolation => volume_integrator_get_interpolation
-  procedure :: get_fe_map => volume_integrator_get_fe_map
+  procedure :: get_fe_map        => volume_integrator_get_fe_map
 
   procedure :: get_gradient => volume_integrator_get_gradient
   procedure :: get_value => volume_integrator_get_value

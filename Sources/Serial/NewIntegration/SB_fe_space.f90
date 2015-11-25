@@ -79,8 +79,8 @@ module SB_fe_space_names
 
 contains
   procedure :: create => fe_create
-  ! procedure :: free
-  procedure :: print => fe_print
+  procedure :: free   => fe_free
+  procedure :: print  => fe_print
 
   procedure :: get_reference_fe => fe_get_reference_fe
   procedure :: get_volume_integrator => fe_get_volume_integrator
@@ -175,8 +175,8 @@ contains
 
   ! TBPs
 procedure :: create => serial_fe_space_create
-!procedure :: free
-procedure :: print => serial_fe_space_print
+procedure :: free   => serial_fe_space_free
+procedure :: print  => serial_fe_space_print
 
 procedure :: get_fe => serial_fe_space_get_fe
 procedure :: initialize_volume_integrator  => serial_fe_space_initialize_volume_integrator
