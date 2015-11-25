@@ -229,6 +229,7 @@ program test_cdr
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   ! SB
+  !use reference_face_names
   use reference_fe_names
   use reference_fe_factory_names
   use SB_fe_space_names
@@ -301,6 +302,7 @@ program test_cdr
   type(SB_p_discrete_integration_t) :: approximations(1) 
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
 
+  type(face_quadrature_t) :: face_quadrature
   real(rp), allocatable :: shape_function(:), shape_gradient(:,:)
 
   call meminit
@@ -415,6 +417,10 @@ program test_cdr
   !    check(.false.) 
   ! end select
 		
+  call reference_fe%create_face_quadrature(face_quadrature,3)
+  call face_quadrature%print(6)
+  call face_quadrature%free()
+
 		call memstatus 
 
 contains
