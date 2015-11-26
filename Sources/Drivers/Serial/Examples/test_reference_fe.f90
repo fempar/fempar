@@ -425,13 +425,14 @@ program test_cdr
   !call volume_integrator%free()
   !call reference_fe%free()
   !call quadrature%free()
+  call vector%free()
   call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
 
 		
-!		call memstatus 
+		call memstatus 
 
 contains
   !==================================================================================================
