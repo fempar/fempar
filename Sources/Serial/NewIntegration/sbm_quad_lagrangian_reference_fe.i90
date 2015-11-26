@@ -1350,6 +1350,29 @@ subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord
   end if
 end subroutine fill_interpolation
 
+!==================================================================================================
+subroutine quad_lagrangian_reference_fe_reference_coordinates(coordinates, num_dimensions,        &
+     &                                                        order, number_nodes)
+  implicit none
+  ! Parameters
+  integer(ip), intent(in)    :: num_dimensions,order,number_nodes
+  real(rp),    intent(inout) :: coordinates(num_dimensions,number_nodes)
+  ! Local variables
+  integer(ip) :: ijk(num_dimensions),i,d
+  real(rp)    :: c1d(order+1)
+
+  call Q_coord_1d(c1d,order+1)
+
+  do i=1,number_nodes
+
+     call Q_ijkg(ijk,i,num_dimensions,order)
+     do d=1,num_dimensions
+        coordinates(d,i) = c1d(ijk(d)+1)
+     end do
+  end do
+end subroutine quad_lagrangian_reference_fe_reference_coordinates
+
+!==================================================================================================
 subroutine Q_coord_1d (x,n)
   implicit none
   ! Parameters

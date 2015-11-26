@@ -55,7 +55,7 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_continuity
      character(len=:), allocatable :: default_enable_face_integration
      character(len=:), allocatable :: default_order
-     
+
   end type test_cdr_params_t
 
   ! Types
@@ -196,7 +196,7 @@ contains
     params%default_diffu               = '1.0'  ! Diffusion
     params%default_space_solution_flag = '4'
     params%default_tempo_solution_flag = '0'
-    
+
   end subroutine set_default_params_analytical
   !==================================================================================================
 
@@ -219,7 +219,7 @@ contains
     params%default_theta           = '1.0'
     params%default_time_step       = '0.1'
 
-    
+
   end subroutine set_default_params_transient
 
 end module command_line_parameters_names
@@ -285,7 +285,7 @@ program test_cdr
   integer(ip)              :: diagonal_blocks_sign(1)
 
   integer(ip)              :: lunio, istat
-  
+
   class(vector_t) , pointer :: x, y
   class(operator_t), pointer :: A
 
@@ -337,7 +337,7 @@ program test_cdr
 
   ! Initialize VTK output
   call fevtk%initialize(f_trian,fe_space,my_problem,senv,dir_path_out,prefix, linear_order=.false.)
-  
+
   ! Assign analytical solution
   call fe_space%set_analytical_code(space_solution_flag,tempo_solution_flag)
 
@@ -354,7 +354,7 @@ program test_cdr
           &                          my_discrete%get_prev_step(),theta_integ)
   end if
 
- 
+
 
   ! Create vef2dof array
   call create_dof_info( fe_space )
@@ -366,9 +366,9 @@ program test_cdr
   call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
        diagonal_blocks_sign, fe_space, approximations)
   call fe_affine_operator%symbolic_setup()
-   
 
- ! Create preconditioners
+
+  ! Create preconditioners
   ppars%type = pardiso_mkl_prec
   call preconditioner_create(fe_affine_operator,feprec,ppars)
   call preconditioner_symbolic_setup(feprec)
@@ -376,8 +376,8 @@ program test_cdr
   ! Create the computation of the error
   call compute_error%create(my_problem,my_discrete)
 
- ! The get_matrix/vector allocates and computes the matrix
-  call fe_affine_operator%free_in_stages(free_values)
+  ! The get_matrix/vector allocates and computes the matrix
+  call fe_affine_operator%free_in_stages(free_numerical_setup)
 
   do while (.not. theta_integ%finished) 
 
@@ -394,7 +394,7 @@ program test_cdr
      ! Compute the matrix an vector of the problem
      approximations(1)%discrete_integration => cdr_matvec
      call fe_affine_operator%numerical_setup()
-     
+
      ! Create the matrix
      matrix => fe_affine_operator%get_matrix()
      select type(matrix)
@@ -403,7 +403,7 @@ program test_cdr
         class default
         check(.false.)
      end select
-     
+
      ! Create array 
      array => fe_affine_operator%get_array()
      select type(array)
@@ -419,11 +419,11 @@ program test_cdr
      ! Update the preconditioner
      call preconditioner_numerical_setup(feprec)
      !call preconditioner_log_info(feprec)
-     
+
      ! Solve the matrix-vector problem
      call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
      call solver_control_free_conv_his(sctrl)
-     
+
      ! Store the solution in FE space
      call update_solution(feunk, fe_space)
 
@@ -442,13 +442,16 @@ program test_cdr
      ! Print solution to VTK file
      istat = fevtk%write_VTK(t_step = theta_integ%real_time)
      istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
- 
-     call fe_affine_operator%free_in_stages(free_values)
+
+     call fe_affine_operator%free_in_stages(free_numerical_setup)
      ! Update the time integration variables
      call theta_integ%update()
   end do
 
-   istat = fevtk%write_PVD()
+  istat = fevtk%write_PVD()
+
+  ! To be erased
+  call test_reference_face_stuff()
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( enable_face_integration, __FILE__, __LINE__)
@@ -472,7 +475,41 @@ program test_cdr
   call memstatus
 contains
   !==================================================================================================
+  subroutine  test_reference_face_stuff()
+    use reference_fe_names
+    use reference_fe_factory_names
+    use SB_fe_space_names
+    use SB_discrete_integration_names
+    use poisson_discrete_integration_names
+    use SB_fe_affine_operator_names
+    use SB_preconditioner_names
+    implicit none
 
+    class(reference_fe_t), pointer :: reference_fe
+    type(SB_quadrature_t)          :: quadrature
+    type(face_quadrature_t)       :: face_quadrature
+
+    ! UNIT TEST * reference_fe.f90 *
+    reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+         order = 3, field_type = "vector", continuity = .true. )
+    !call reference_fe%print()
+
+    ! UNIT TEST * SB_quadrature.f90 *
+    call reference_fe%create_quadrature( quadrature )
+
+    call reference_fe%free()
+
+    reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
+         order = 3, field_type = "vector", continuity = .true. )
+
+    call reference_fe%create_face_quadrature(face_quadrature,quadrature)
+    call face_quadrature%print(6)
+    call face_quadrature%free()
+    call quadrature%free()
+    call reference_fe%free()
+  end subroutine test_reference_face_stuff
+
+  !==================================================================================================
   subroutine read_flap_cli_test_cdr(cli)
     implicit none
     type(Type_Command_Line_Interface), intent(out) :: cli

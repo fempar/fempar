@@ -482,7 +482,7 @@ program par_test_cdr
   call enorm%create(p_env)
 
   ! The get_matrix/vector allocates and computes the matrix
-  call fe_affine_operator%free_in_stages(free_values)
+  call fe_affine_operator%free_in_stages(free_numerical_setup)
 
   do while (.not. theta_integ%finished) 
      ! Print the time step
@@ -509,12 +509,13 @@ program par_test_cdr
         point_to_p_mlevel_bddc_pars => point_to_p_mlevel_bddc_pars%ppars_coarse_bddc
      end do
      ! Create multilevel bddc inverse 
-     call par_preconditioner_dd_mlevel_bddc_create(fe_affine_operator, p_mlevel_bddc, p_mlevel_bddc_pars )
+     call par_preconditioner_dd_mlevel_bddc_create(fe_affine_operator, p_mlevel_bddc,               &
+          &                                        p_mlevel_bddc_pars )
      ! Ass struct
-     call par_preconditioner_dd_mlevel_bddc_ass_struct ( p_mlevel_bddc )
-     ! Fill val
-     call par_preconditioner_dd_mlevel_bddc_fill_val ( p_mlevel_bddc )
-
+     call par_preconditioner_dd_mlevel_bddc_symbolic_setup ( p_mlevel_bddc )
+     ! Fill the values
+     call par_preconditioner_dd_mlevel_bddc_numerical_setup ( p_mlevel_bddc )
+     !call par_preconditioner_dd_mlevel_bddc_static_condensation (p_mat, p_mlevel_bddc, p_vec, p_unk)
      ! Update the preconditioner
      !call preconditioner_numeric(feprec)
      !call preconditioner_log_info(feprec)
@@ -552,7 +553,7 @@ program par_test_cdr
      istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
 
      ! Deallocate Matrix and Vector
-     call fe_affine_operator%free_in_stages(free_values)
+     call fe_affine_operator%free_in_stages(free_numerical_setup)
 
      ! Update the time integration variables
      call theta_integ%update()
