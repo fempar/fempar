@@ -339,7 +339,7 @@ program test_cdr
   !call quadrature%print()
 
   ! UNIT TEST * SB_interpolation.f90 *
-  call reference_fe%create_interpolation( quadrature, interpolation, compute_hessian = .false. )
+  !call reference_fe%create_interpolation( quadrature, interpolation, compute_hessian = .false. )
   !write (*,*) 'HERE AFTER'
   !call interpolation%print()
 
@@ -391,6 +391,12 @@ program test_cdr
   ! write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   ! !call memstatus 
 
+  !create approximation
+  approximations(1)%p => poisson_integration  
+  call fe_affine_operator%create ( (/.true./), (/.true./), (/1/), f_trian, fe_space, approximations )
+  write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+  !call fe_affine_operator%numerical_setup()
+  write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 
   ! ppars%type = pardiso_mkl_prec
   ! call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
@@ -409,14 +415,7 @@ program test_cdr
   ! call linear_solver%solve(vector)
   ! call linear_solver%free() 
 
-  ! select type(vector)
-  ! class is(serial_scalar_array_t)
-  !    !p_unk => vector
-  !    call vector%print( 6 )
-  ! class default
-  !    check(.false.) 
-  ! end select
-	
+
   ! UNIT TEST * reference_fe.f90 *
   reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
        order = 3, field_type = "vector", continuity = .true. )
@@ -432,6 +431,16 @@ program test_cdr
   call face_quadrature%print(6)
   call face_quadrature%free()
 
+  call memfree ( shape_function, __FILE__, __LINE__ )
+  call memfree ( shape_gradient, __FILE__, __LINE__ )
+		call fe_affine_operator%free()
+  call volume_integrator%free()
+  call reference_fe%free()
+  call quadrature%free()
+  call fe_space%free()
+  call triangulation_free(f_trian)
+  call conditions_free ( f_cond )
+  call mesh_free (f_mesh)
 		call memstatus 
 
 contains

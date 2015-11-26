@@ -51,6 +51,47 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
 
 end subroutine serial_fe_space_create
 
+subroutine serial_fe_space_free( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(inout) :: this
+  integer(ip) :: i
+
+  nullify( this%triangulation )
+
+  if(allocated(this%reference_fe_phy_list)) then
+      do i = 1, size(this%reference_fe_phy_list, dim=1)
+        call this%reference_fe_phy_list(i)%p%free()
+      enddo
+    deallocate(this%reference_fe_phy_list)
+  endif
+
+  if(allocated(this%reference_fe_geo_list)) then
+		      do i = 1, size(this%reference_fe_geo_list, dim=1)
+        call this%reference_fe_geo_list(i)%p%free()
+      enddo
+    deallocate(this%reference_fe_geo_list)
+  endif
+    
+  if(allocated(this%volume_integrator)) then
+      do i = 1, size(this%volume_integrator, dim=1)
+        call this%volume_integrator(i)%p%free()
+      enddo
+    deallocate(this%volume_integrator)
+  endif
+
+  if(allocated(this%fe_array)) then
+      do i = 1, size(this%fe_array, dim=1)
+        call this%fe_array(i)%free()
+      enddo
+    deallocate(this%fe_array)
+  endif
+
+  if(allocated(this%vef2dof%l)) call memfree(this%vef2dof%l, __FILE__, __LINE__)
+		if(allocated(this%vef2dof%p)) call memfree(this%vef2dof%p, __FILE__, __LINE__)
+		this%number_dofs = 0
+
+end subroutine serial_fe_space_free
+
 function serial_fe_space_create_assembler(this, diagonal_blocks_symmetric_storage,&
      diagonal_blocks_symmetric, diagonal_blocks_sign)
   implicit none
@@ -271,7 +312,8 @@ subroutine create_element_to_dof_and_ndofs( fe_space )
  ! Part 3: Assign total number of dofs created to fem space object
  fe_space%number_dofs = count
 
-
+ call memfree ( o2n, __FILE__, __LINE__ )
+	
 end subroutine create_element_to_dof_and_ndofs
 
 
