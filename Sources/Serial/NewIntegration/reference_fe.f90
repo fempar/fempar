@@ -1,5 +1,6 @@
 module reference_fe_names
   use allocatable_array_ip1_names
+  use shape_values_names
   use types_names
   use memor_names
   implicit none
@@ -51,6 +52,22 @@ module reference_fe_names
   ! Types
   public :: SB_quadrature_t
 
+  type face_quadrature_t
+     private
+     integer(ip)           :: number_dimensions                ! Space dimension of the element
+     integer(ip)           :: number_integration_points_x_face ! Gauss points in each face
+     integer(ip)           :: number_faces_x_element           ! #faces in each element
+      
+     real(rp), allocatable :: coordinates(:,:,:)               ! coordinates of the integration pnts
+   contains
+     ! Check sbm_face_quadrature for the definition of the subroutines
+     procedure :: create => face_quadrature_create
+     procedure :: free   => face_quadrature_free
+     procedure :: print  => face_quadrature_print
+  end type face_quadrature_t
+
+  public :: face_quadrature_t
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   type SB_interpolation_t
@@ -71,6 +88,7 @@ module reference_fe_names
    contains
 
      procedure :: create => interpolation_create
+     procedure :: copy   => interpolation_copy
      procedure :: free   => interpolation_free
      procedure :: print  => interpolation_print
 
@@ -95,7 +113,8 @@ module reference_fe_names
      private
      character(:), allocatable :: &
           topology,               &    ! type of element, 'tet', 'quad', 'prism'...
-          fe_type                      ! 'Lagrangian', 'RT', ...
+          fe_type,                &    ! 'Lagrangian', 'RT', ...
+          field_type
 
      integer(ip)              ::    &        
           number_dimensions,        &        ! ndime
@@ -166,9 +185,12 @@ module reference_fe_names
      procedure (create_interpolation_interface), deferred :: create_interpolation 
      ! TBP to create a quadrature for a reference_fe_t
      procedure (create_quadrature_interface), deferred :: create_quadrature
+     procedure ( create_face_quadrature_interface), deferred :: create_face_quadrature
 
      procedure(reference_fe_get_value_interface), deferred :: get_value
      procedure(reference_fe_get_gradient_interface), deferred :: get_gradient
+
+     procedure(reference_fe_get_bc_code_interface), deferred :: get_bc_code
 
 
   end type reference_fe_t
@@ -178,11 +200,12 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, number_dimensions, order, field_components, continuity )
+     subroutine create_interface ( this, number_dimensions, order, field_type, continuity )
        import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t), intent(out) :: this 
-       integer(ip), intent(in)  :: number_dimensions, order, field_components
+       character(*), intent(in) :: field_type
+       integer(ip), intent(in)  :: number_dimensions, order
        logical, optional, intent(in) :: continuity
      end subroutine create_interface
   end interface
@@ -215,18 +238,27 @@ module reference_fe_names
      end subroutine create_quadrature_interface
   end interface
   abstract interface
+     subroutine create_face_quadrature_interface ( this, face_quadrature, local_quadrature)
+       import :: reference_fe_t, face_quadrature_t,  SB_quadrature_t 
+       implicit none 
+       class(reference_fe_t)   , intent(in)  :: this        
+       class(face_quadrature_t), intent(out) :: face_quadrature
+       class(SB_quadrature_t)  , intent(in)  :: local_quadrature
+     end subroutine create_face_quadrature_interface
+  end interface
+  abstract interface
      subroutine reference_fe_get_value_interface( this, shp, int, node, gp )
-     import :: reference_fe_t, SB_interpolation_t, rp, ip
+       import :: reference_fe_t, SB_interpolation_t, rp, ip
        implicit none
        class(reference_fe_t), intent(in) :: this 
        type(SB_interpolation_t), intent(in) :: int 
        integer(ip), intent(in)  :: node, gp
-       real(rp), intent(inout) :: shp(:)
+       real(rp), intent(inout) :: shp(:,:)
      end subroutine reference_fe_get_value_interface
   end interface
   abstract interface
      subroutine reference_fe_get_gradient_interface( this, shg, int, node, gp )
-     import :: reference_fe_t, SB_interpolation_t, rp, ip
+       import :: reference_fe_t, SB_interpolation_t, rp, ip
        implicit none
        class(reference_fe_t), intent(in) :: this 
        type(SB_interpolation_t), intent(in) :: int 
@@ -234,6 +266,17 @@ module reference_fe_names
        real(rp), intent(inout) :: shg(:,:)
      end subroutine reference_fe_get_gradient_interface
   end interface
+  abstract interface
+     function reference_fe_get_bc_code_interface( this, cond, node )
+       import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this 
+       integer(ip), intent(in) :: cond(:), node
+       integer(ip) :: reference_fe_get_bc_code_interface
+     end function reference_fe_get_bc_code_interface
+  end interface
+
+
   public :: reference_fe_t, p_reference_fe_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -244,15 +287,18 @@ module reference_fe_names
   integer(ip), allocatable :: node_component_array(:,:)
 contains 
   procedure :: create => quad_lagrangian_reference_fe_create
+  procedure :: free   => quad_lagrangian_reference_fe_free
   procedure :: create_interpolation => quad_lagrangian_reference_fe_create_interpolation
-  !  procedure :: set_integration_rule
+  !procedure :: set_integration_rule
   procedure :: create_quadrature => quad_lagrangian_reference_fe_create_quadrature
+  procedure :: create_face_quadrature => quad_lagrangian_reference_fe_create_face_quadrature
   procedure :: fill => quad_lagrangian_reference_fe_fill
   !procedure :: local_to_ijk_node     
   !procedure :: ijk_to_local_node     
   procedure :: permute_order_vef => quad_lagrangian_reference_fe_permute_order_vef
   procedure :: get_value => quad_lagrangian_reference_fe_get_value
   procedure :: get_gradient => quad_lagrangian_reference_fe_get_gradient
+  procedure :: get_bc_code => quad_lagrangian_reference_fe_get_bc_code
 
 end type quad_lagrangian_reference_fe_t
 
@@ -296,21 +342,32 @@ type SB_volume_integrator_t
   ! FE map
   type(fe_map_t) :: fe_map
 
+  type(shape_values_t) :: shape_value_test, shape_gradient_test
+  type(shape_values_t) :: shape_value_trial, shape_gradient_trial
+
 contains
 
   procedure :: create => volume_integrator_create
-  !procedure :: free
-  procedure :: print => volume_integrator_print
+  procedure :: free   => volume_integrator_free
+  procedure :: print  => volume_integrator_print
   procedure :: update => volume_integrator_update
   procedure :: set_integration => volume_integrator_set_integration
 
-  procedure :: get_reference_fe => volume_integrator_get_reference_fe
-  procedure :: get_quadrature => volume_integrator_get_quadrature
+  procedure :: get_reference_fe  => volume_integrator_get_reference_fe
+  procedure :: get_quadrature    => volume_integrator_get_quadrature
   procedure :: get_interpolation => volume_integrator_get_interpolation
+
   procedure :: get_fe_map => volume_integrator_get_fe_map
 
-  procedure :: get_gradient => volume_integrator_get_gradient
-  procedure :: get_value => volume_integrator_get_value
+  procedure :: compute_gradient_test => volume_integrator_compute_gradient_test
+  procedure :: compute_value_test => volume_integrator_compute_value_test
+  procedure :: get_gradients => volume_integrator_get_gradients
+  procedure :: get_values => volume_integrator_get_values
+
+  !procedure :: compute_gradient_trial => volume_integrator_compute_gradient_trial
+  !procedure :: compute_value_trial => volume_integrator_compute_value_trial
+  !procedure :: get_gradient_trial => volume_integrator_get_gradient_trial
+  !procedure :: get_value_trial => volume_integrator_get_value_trial
 
 end type SB_volume_integrator_t
 
@@ -331,6 +388,8 @@ contains
 
 #include "sbm_reference_fe.i90"
 
+#include "sbm_face_quadrature.i90"
+
 #include "sbm_quad_lagrangian_reference_fe.i90"
 
 #include "sbm_quadrature.i90"
@@ -338,5 +397,7 @@ contains
 #include "sbm_interpolation.i90"
 
 #include "sbm_volume_integrator.i90"
+
+#include "sbm_quad_lagrangian_reference_face.i90"
 
 end module reference_fe_names

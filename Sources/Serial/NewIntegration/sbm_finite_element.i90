@@ -17,6 +17,21 @@ subroutine fe_create( this, reference_fe_unk, reference_fe_geo, volume_integrato
 
 end subroutine fe_create
 
+subroutine fe_free( this)
+ implicit none
+ class(SB_finite_element_t), intent(inout)  :: this
+
+ nullify(this%reference_fe)
+ nullify(this%geometry_reference_fe)
+ nullify(this%volume_integrator)
+ nullify(this%cell)
+
+ if(allocated(this%elem2dof)) call memfree(this%elem2dof, __FILE__, __LINE__)
+ if(allocated(this%bc_code)) call memfree(this%bc_code, __FILE__, __LINE__)
+
+
+end subroutine fe_free
+
 subroutine fe_print( this )
  implicit none
  class(SB_finite_element_t), intent(in)  :: this

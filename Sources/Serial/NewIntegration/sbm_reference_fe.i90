@@ -1,18 +1,40 @@
-subroutine reference_fe_set_common_data( this, number_dimensions, order, field_components, continuity )
+subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, continuity )
   implicit none 
-  class(reference_fe_t), intent(out) :: this 
-  integer(ip), intent(in)  :: number_dimensions, order, field_components
+  class(reference_fe_t), intent(out) :: this  
+  character(*), intent(in) :: field_type
+  integer(ip), intent(in)  :: number_dimensions, order
   logical, optional, intent(in) :: continuity
+  integer(ip) :: field_components,i
 
   this%number_dimensions = number_dimensions
   this%order = order
-  this%field_components = field_components
   if ( present( continuity) ) then
      this%continuity = continuity
   else 
      this%continuity = .true.
   end if
 
+  this%field_type = field_type
+
+  field_components = 1
+
+  if ( field_type == "vector" ) then
+     field_components = number_dimensions
+  else if( field_type == "scalar" ) then
+     field_components = 1
+  else if ( field_type == "tensor" ) then
+     field_components = number_dimensions**2
+  else if ( field_type == "symmetric_tensor" ) then
+     field_components = 0
+     do i = 1, number_dimensions
+        field_components = field_components + i
+     end do
+  else
+     write (*,*) 'ERROR: field type not defined'
+     assert ( 0 == 1)
+  end if
+
+  this%field_components = field_components
 end subroutine reference_fe_set_common_data
 
 subroutine reference_fe_set_topology( this, topology)
@@ -38,6 +60,8 @@ subroutine reference_fe_print ( reference_fe )
 
   write(*,*) 'topology: ', reference_fe%topology
   write(*,*) 'fe_type: ', reference_fe%fe_type
+  write(*,*) 'fe_type: ', reference_fe%field_type
+  write(*,*) 'fe_type: ', reference_fe%field_components
   write(*,*) 'number_dimensions: ', reference_fe%number_dimensions
   write(*,*) 'order: ', reference_fe%order
   write(*,*) 'continuity: ',reference_fe%continuity
