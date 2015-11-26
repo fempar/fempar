@@ -101,7 +101,7 @@ contains
     integer(ip),      intent(in)  :: n1
     integer(ip),      intent(in)  :: n2
     this%n1 = n1
-    this%n1 = n2
+    this%n2 = n2
     call memalloc(this%n1+1, this%p, __FILE__, __LINE__)
     this%p = 0
   end subroutine list_2d_create  
