@@ -461,6 +461,7 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
  prob_ext = 1
  !write (*,*) '****EXTRACT DOF**** (object)', iobje, ' FROM: (elem,obj_l) ',elem_ext,obje_ext, ' TO  : (elem,obj_l)', jelem,obje_l
  nnode = fe_space%fe_array(elem_ext)%reference_fe%get_number_interior_nodes_vef(obje_ext)
+ 
  !fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext+1) &
  !     &  -fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext) 
  !write(*,*) 'jelem',jelem
@@ -468,14 +469,14 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
  if ( nnode > 0) then  
     order = fe_space%fe_array(elem_ext)%reference_fe%get_order()
     !write(*,*) 'order',order
-    if ( trian%vefs(iobje)%dimension == trian%num_dims .and. &
-         & nnode ==  (order+1)**trian%num_dims ) then
-       order = order    ! hdG case
-    elseif ( nnode ==  (order-1)**trian%vefs(iobje)%dimension ) then
-       order = order -2 ! cG case
-    else
-       assert ( 0 == 1) ! SB.alert : Other situations possible when dG_continuity, cdG, hp-adaptivity ?
-    end if
+    !if ( trian%vefs(iobje)%dimension == trian%num_dims .and. &
+    !     & nnode ==  (order+1)**trian%num_dims ) then
+    !   order = order    ! hdG case
+    !elseif ( nnode ==  (order-1)**trian%vefs(iobje)%dimension ) then
+       order = order -2 ! cG case SB.alert
+    !else
+    !   assert ( 0 == 1) ! SB.alert : Other situations possible when dG_continuity, cdG, hp-adaptivity ?
+    !end if
     call fe_space%fe_array(jelem)%reference_fe%permute_nodes_per_vef( &
          & fe_space%fe_array(elem_ext)%reference_fe,                  &
          & o2n,obje_ext,obje_l,                                                     &

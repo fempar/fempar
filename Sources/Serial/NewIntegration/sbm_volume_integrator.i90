@@ -1,23 +1,55 @@
 
-subroutine volume_integrator_get_value( this, shp, node, gp )
+! subroutine volume_integrator_compute_value_trial( this, node, gp )
+!   implicit none
+!   class(SB_volume_integrator_t), intent(inout) :: this
+!   integer(ip), intent(in)  :: node, gp
+
+!   call this%reference_fe%get_value( this%shape_value_trial, this%interpolation_o_map, node, gp )
+
+! end subroutine volume_integrator_compute_value_trial
+
+! subroutine volume_integrator_compute_gradient_trial( this, node, gp )
+!   implicit none
+!   class(SB_volume_integrator_t), intent(inout) :: this 
+!   integer(ip), intent(in)  :: node, gp
+
+!   call this%reference_fe%get_gradient( this%shape_gradient_trial, this%interpolation_o_map, node, gp )
+
+! end subroutine volume_integrator_compute_gradient_trial
+
+subroutine volume_integrator_compute_value_test( this )
   implicit none
-  class(SB_volume_integrator_t), intent(in) :: this
-  integer(ip), intent(in)  :: node, gp
-  real(rp), intent(inout) :: shp(:)
+  class(SB_volume_integrator_t), intent(inout) :: this
+  class(field_type_t), pointer :: array_entry
+  integer(ip) :: inode, igp
+  real(rp), pointer :: value(:,:)
+  
+  do inode = 1, this%reference_fe%number_nodes
+     do igp = 1, this%quadrature%number_integration_points
+        value => this%shape_value_test%get_value(inode,igp)
+        call this%reference_fe%get_value( value, this%interpolation_o_map, inode, igp )
+     end do
+  end do
+  call this%shape_value_test%print()
 
-  call this%reference_fe%get_value( shp, this%interpolation_o_map, node, gp )
+end subroutine volume_integrator_compute_value_test
 
-end subroutine volume_integrator_get_value
-
-subroutine volume_integrator_get_gradient( this, shg, node, gp )
+subroutine volume_integrator_compute_gradient_test( this )
   implicit none
-  class(SB_volume_integrator_t), intent(in) :: this 
-  integer(ip), intent(in)  :: node, gp
-  real(rp), intent(inout) :: shg(:,:)
+  class(SB_volume_integrator_t), intent(inout) :: this 
+  class(field_type_t), pointer :: array_entry
+  integer(ip) :: inode, igp
+  real(rp), pointer :: value(:,:)
 
-  call this%reference_fe%get_gradient( shg, this%interpolation_o_map, node, gp )
+  do inode = 1, this%reference_fe%number_nodes
+     do igp = 1, this%quadrature%number_integration_points
+        value => this%shape_gradient_test%get_value(inode,igp)
+        call this%reference_fe%get_gradient( value, this%interpolation_o_map, inode, igp )
+     end do
+  end do
+  call this%shape_gradient_test%print()
 
-end subroutine volume_integrator_get_gradient
+end subroutine volume_integrator_compute_gradient_test
 
 subroutine volume_integrator_create( this, reference_fe, reference_fe_geometry, max_order )
   implicit none
@@ -81,8 +113,23 @@ subroutine volume_integrator_set_integration( this, max_order )
           & this%fe_map%d2sdx,  __FILE__,__LINE__)
   end if
 
-  !call memalloc(ndime,this%shape_value,__FILE__,__LINE__)
-  !call memalloc(ndime,this%reference_fe%field_components,this%shape_gradient,__FILE__,__LINE__)
+
+  call this%shape_value_test%start( this%reference_fe%field_type, this%reference_fe%field_components, &
+       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
+  call this%shape_value_trial%start( this%reference_fe%field_type, this%reference_fe%field_components, &
+       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
+  
+  call this%shape_gradient_test%start( gradient_field_type(this%reference_fe%field_type), &
+       this%reference_fe%field_components, &
+       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
+  call this%shape_gradient_trial%start( gradient_field_type(this%reference_fe%field_type), &
+       this%reference_fe%field_components, &
+       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
+
+  call this%compute_value_test()
+  call this%shape_value_test%print()
+  call this%compute_gradient_test()
+  call this%shape_gradient_test%print()
 
 end subroutine volume_integrator_set_integration
 
@@ -95,6 +142,8 @@ subroutine volume_integrator_update(this, coordinates)
   call create_femap( this%interpolation_geometry, coordinates, this%fe_map )
   ! Obtain physical interpolation
   call femap_apply_to_interp( this%fe_map, this%interpolation, this%interpolation_o_map )
+
+  call this%compute_gradient_test()
 end subroutine volume_integrator_update
 !==================================================================================================
 
@@ -115,6 +164,10 @@ subroutine volume_integrator_print( this )
   call this%interpolation_geometry%print()
   write(*,*) '%%%%%%%%%%%%%%%% interpolation_o_map: %%%%%%%%%%%%%%%%'
   call this%interpolation_o_map%print()
+  write(*,*) '%%%%%%%%%%%%%%%% shape functions: %%%%%%%%%%%%%%%%'
+  call this%shape_value_test%print()
+  write(*,*) '%%%%%%%%%%%%%%%% shape functions: %%%%%%%%%%%%%%%%'
+  call this%shape_gradient_test%print()
 
   write(*,*) '%%%%%%%%%%%%%%%% jacobian: %%%%%%%%%%%%%%%%', this%fe_map%jacobian
   write(*,*) '%%%%%%%%%%%%%%%% inverse jacobian: %%%%%%%%%%%%%%%%',this%fe_map%inv_jacobian
@@ -153,6 +206,21 @@ function volume_integrator_get_fe_map ( this )
   type(fe_map_t), pointer :: volume_integrator_get_fe_map
   volume_integrator_get_fe_map => this%fe_map
 end function volume_integrator_get_fe_map
+
+function volume_integrator_get_gradients ( this )
+  implicit none
+  class(SB_volume_integrator_t), target, intent(in) :: this
+  type(shape_values_t), pointer :: volume_integrator_get_gradients
+  volume_integrator_get_gradients => this%shape_gradient_test
+end function volume_integrator_get_gradients
+
+function volume_integrator_get_values ( this )
+  implicit none
+  class(SB_volume_integrator_t), target, intent(in) :: this
+  type(shape_values_t), pointer :: volume_integrator_get_values
+  volume_integrator_get_values => this%shape_value_test
+end function volume_integrator_get_values
+
 
 subroutine fe_map_free( this )
   implicit none
