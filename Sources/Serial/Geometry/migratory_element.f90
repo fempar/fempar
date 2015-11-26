@@ -34,6 +34,7 @@ module migratory_element_names
 # include "debug.i90"
 
   type, abstract :: migratory_element_t
+     private
      class(element_id_t), allocatable :: id
    contains
      procedure (size_interface)  , deferred :: size
@@ -41,7 +42,9 @@ module migratory_element_names
      procedure (unpack_interface), deferred :: unpack
      procedure (free_interface)  , deferred :: free
      procedure (assignment_interface), deferred :: assign
-     generic :: assignment(=) => assign
+     procedure :: get_id    => get_migratory_element_id
+     procedure :: create_id => create_migratory_element_id
+     generic   :: assignment(=) => assign
   end type migratory_element_t
 
   abstract interface
@@ -106,6 +109,20 @@ module migratory_element_names
   public :: hash_migratory_element_set_t, hash_migratory_element_iterator_t
 
 contains
+
+  function get_migratory_element_id(my) result(id)
+    implicit none
+    class(migratory_element_t), target, intent(in) :: my
+    class(element_id_t)       , pointer    :: id
+    id => my%id
+  end function get_migratory_element_id
+  subroutine create_migratory_element_id(my,id)
+    implicit none
+    class(migratory_element_t), intent(inout) :: my
+    class(element_id_t)                       :: id
+    if(allocated(my%id)) deallocate(my%id)
+    allocate(my%id, mold=id)
+  end subroutine create_migratory_element_id
 
 #include "plain_element_set_body.i90"
 #include "hash_element_set_body.i90"

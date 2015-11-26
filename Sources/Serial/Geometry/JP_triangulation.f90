@@ -109,7 +109,7 @@ module JP_triangulation_names
   public :: JP_triangulation_to_dual,  JP_triangulation_create, JP_triangulation_free, JP_triangulation_print
 
   ! Auxiliary Subroutines (should only be used by modules that have control over type(JP_triangulation_t))
-  public :: put_topology_element_JP_triangulation, local_id_from_vertices
+  public :: downcast_to_element_topology, put_topology_element_JP_triangulation, local_id_from_vertices
 
   ! Constants (should only be used by modules that have control over type(JP_triangulation_t))
   public :: JP_triangulation_not_created, JP_triangulation_filled
@@ -118,10 +118,12 @@ module JP_triangulation_names
 contains
 
   !=============================================================================
-  subroutine JP_triangulation_create(trian,len)
+  subroutine JP_triangulation_create(trian,size,id_mold)
     implicit none
-    integer(ip)              , intent(in)    :: len
+    integer(ip)              , intent(in)    :: size
     class(JP_triangulation_t), intent(inout) :: trian
+    class(element_id_t)       :: id_mold
+
     integer(ip) :: istat,ielem
     class(JP_element_topology_t), pointer :: elem
 
@@ -135,6 +137,7 @@ contains
     ! Initialize all of the element structs (using the iterator)
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
+       call elem%create_id(id_mold)
        call initialize_elem_topology( elem )
     end do
 
@@ -335,10 +338,10 @@ contains
              if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
                 trian%vefs(jobj)%dimension = idime-1
                 if (elems_around_pos(jobj) == 1) then
-                   allocate( trian%vefs(jobj)%elems_around (trian%vefs(jobj)%num_elems_around), mold=elem%id )
+                   allocate( trian%vefs(jobj)%elems_around (trian%vefs(jobj)%num_elems_around), mold=elem%get_id() )
                    !call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
                 end if
-                trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = elem%id ! ielem
+                trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = elem%get_id() ! ielem
                 elems_around_pos(jobj) = elems_around_pos(jobj) + 1 
              end if
           end do
@@ -461,12 +464,12 @@ contains
   subroutine JP_triangulation_print ( lunou,  trian ) ! (SBmod)
     implicit none
     ! Parameters
-    integer(ip)                  , intent(in)    :: lunou
-    class(JP_triangulation_t), intent(inout) :: trian
+    integer(ip)                , intent(in)    :: lunou
+    class(JP_triangulation_t)  , intent(inout) :: trian
     ! Locals
-    class(JP_element_topology_t)    , pointer       :: elem
-    !type(element_id_t)                          :: elem_id
-    integer(ip)                                  :: iobje, ielem
+    class(JP_element_topology_t), pointer      :: elem
+    class(element_id_t)         , pointer      :: elem_id
+    integer(ip)                                :: iobje, ielem
 
     assert(trian%state == JP_triangulation_filled) 
 
@@ -481,7 +484,8 @@ contains
        !elem_id = trian%element_iterator%next()
        !elem => trian%get_element_topology_pointer( elem_id )
        write (lunou,*) '****PRINT ELEMENT INFO****'
-       call elem%id%print(lunou)
+       elem_id => elem%get_id()
+       call elem_id%print(lunou)
        write (lunou,*) 'num_vefs:'   , elem%num_vefs
        write (lunou,*) 'vefs:'       , elem%vefs
        write (lunou,*) 'coordinates:', elem%coordinates

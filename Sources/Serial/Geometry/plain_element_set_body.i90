@@ -10,10 +10,11 @@
   !=============================================================================
   subroutine create_plain_set(this,size,mold)
     implicit none
-    class(plain_template_element_set_t), intent(inout)  :: this
+    class(plain_template_element_set_t), intent(inout) :: this
     integer(ip)                        , intent(in)    :: size
     class(template_element_t)          , intent(in)    :: mold
     integer(ip) :: istat
+    ! Create set
     this%num_elements = size
     allocate(this%elements(this%num_elements), mold=mold, stat=istat)
     check(istat==0)

@@ -70,31 +70,34 @@ contains
   !=============================================================================
   !=============================================================================
   !=============================================================================
-  subroutine serial_triangulation_create(trian,len)
+  subroutine serial_triangulation_create(this,size)
     implicit none
-    class(serial_triangulation_t), intent(inout) :: trian
-    integer(ip)                  , intent(in)    :: len
-    type(JP_element_topology_t) :: mold
+    class(serial_triangulation_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: size
+    ! Concrete types to select element and element_id in the set
+    type(JP_element_topology_t) :: element_mold
+    type(ip_element_id_t)       :: element_id_mold
 
-    allocate(plain_migratory_element_set_t :: trian%element_set)
-    call trian%element_set%create(len,mold)
+    ! Allocate and create element_set
+    allocate(plain_migratory_element_set_t :: this%element_set)
+    call this%element_set%create(size,element_mold)
 
     ! Mother class function (not type bounded by standard restriction)
-    call JP_triangulation_create(trian,len)
+    call JP_triangulation_create(this,size,element_id_mold)
 
   end subroutine serial_triangulation_create
 
   !=============================================================================
-  subroutine serial_triangulation_free(trian)
+  subroutine serial_triangulation_free(this)
     implicit none
-    class(serial_triangulation_t), intent(inout) :: trian
-    integer(ip) :: istat
+    class(serial_triangulation_t), intent(inout) :: this
 
     ! Mother class function (not type bounded by standard restriction)
-    call JP_triangulation_free(trian)
+    call JP_triangulation_free(this)
 
     ! Deallocate the element structure array 
-    call trian%element_set%free()
+    call this%element_set%free()
+
   end subroutine serial_triangulation_free
 
   !=============================================================================

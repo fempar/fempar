@@ -38,6 +38,7 @@ module element_id_names
   ! Abstract identifier of elements, used to acces information in element based structures.
   ! It is used to acces the hash_element data structure defined in has_element_set_*.i90
   type, abstract :: element_id_t
+     private
    contains
      procedure(comparison_interface), deferred :: is_smaller_than
      procedure(comparison_interface), deferred :: is_greater_than
@@ -45,6 +46,7 @@ module element_id_names
      procedure(to_int_interface)    , deferred :: to_int
      procedure(print_interface)     , deferred :: print
      procedure(assignment_interface), deferred :: assign
+     procedure(set_index_interface) , deferred :: set_index
      generic :: assignment(=) => assign
   end type element_id_t
 
@@ -74,32 +76,45 @@ module element_id_names
        class(element_id_t), intent(inout) :: this
        class(element_id_t), intent(in)    :: that
      end subroutine assignment_interface
+     subroutine set_index_interface(this,id)
+       import :: element_id_t, ip
+       implicit none
+       class(element_id_t), intent(inout) :: this
+       integer(ip)        , intent(in)    :: id
+     end subroutine set_index_interface
   end interface
 
-  ! Define memalloc and memfree for element_id_t allocatable
-! # define var_attr allocatable, target
-! # define point(a,b) call move_alloc(a,b)
-! # define generic_status_test             allocated
-! # define generic_memalloc_interface      memalloc
-! # define generic_memrealloc_interface    memrealloc
-! # define generic_memfree_interface       memfree
-! # define generic_memmovealloc_interface  memmovealloc
-! # define var_type type(element_id_t)
-! # define var_size 12
-! # define bound_kind ip
-! # include "mem_header.i90"
-!   public :: memalloc,  memrealloc,  memfree, memmovealloc
+  ! Integer identifier
+  type, extends(element_id_t) :: ip_element_id_t
+     private
+     integer(ip) :: ielem  = 0
+   contains
+     procedure  :: get_index       => ip_element_id_get_index
+     procedure  :: set_index       => ip_element_id_set_index
+     procedure  :: is_smaller_than => ip_element_id_is_smaller_than
+     procedure  :: is_greater_than => ip_element_id_is_greater_than
+     procedure  :: is_equal_to     => ip_element_id_is_equal_to
+     procedure  :: to_int          => ip_element_id_to_int
+     procedure  :: print           => ip_element_id_print
+     procedure  :: assign          => ip_element_id_assign
+  end type ip_element_id_t
+
 
   ! Unique identifier of elements in a forest of element trees
+  ! I implemented an ordering given by (level, tree, morton)
+  ! which permits to uniformly fill the hash table (under uniform refinement).
   type, extends(element_id_t) :: forest_element_id_t
-     integer(ip)  :: tree   = 0
+     private
      integer(ip)  :: level  = 0
+     integer(ip)  :: tree   = 0
      integer(igp) :: morton = 0
    contains
-     procedure  :: get_tree
-     procedure  :: get_morton
-     procedure  :: set_tree
-     procedure  :: set_morton
+     procedure  :: get_index       => forest_element_id_get_index
+     procedure  :: get_morton      => forest_element_id_get_morton
+     procedure  :: get_leveln      => forest_element_id_get_level
+     procedure  :: set_index       => forest_element_id_set_index
+     procedure  :: set_morton      => forest_element_id_set_morton
+     procedure  :: set_leveln      => forest_element_id_set_level
      procedure  :: is_smaller_than => forest_element_id_is_smaller_than
      procedure  :: is_greater_than => forest_element_id_is_greater_than
      procedure  :: is_equal_to     => forest_element_id_is_equal_to
@@ -109,41 +124,144 @@ module element_id_names
   end type forest_element_id_t
 
   ! This constant is used to define a to_int function:
-  ! with the constraint estimated_forest_size*estimated_tree_size < 2**31
   integer(ip), parameter :: estimated_forest_size = 1e5
-  integer(ip), parameter :: estimated_tree_size = 2e4
 
-  public :: element_id_t, forest_element_id_t
+  public :: element_id_t, ip_element_id_t, forest_element_id_t
 
 contains
 
 !# include "mem_body.i90"
 
-  function get_tree(this) result(id)
+  !=============================================================================
+  function ip_element_id_get_index(this) result(id)
+    implicit none
+    class(ip_element_id_t), intent(in) :: this
+    integer(igp) :: id
+    id = this%ielem
+  end function ip_element_id_get_index
+
+  subroutine ip_element_id_set_index(this,id)
+    implicit none
+    class(ip_element_id_t), intent(inout) :: this
+    integer(ip)           , intent(in)    :: id
+    this%ielem = id 
+  end subroutine ip_element_id_set_index
+
+  function ip_element_id_is_smaller_than(this,that) result(flag)
+    implicit none
+    class(ip_element_id_t), intent(in) :: this
+    class(element_id_t), intent(in)    :: that
+    logical :: flag
+    select type(that)
+    class is(ip_element_id_t)
+       flag = .false.
+       if(this%ielem<that%ielem) flag = .true.
+    class default
+       write(*,*) 'Error calling ip_element_id_t comparison:'
+       write(*,*) 'cannot compare against objects of another class'
+       check(.false.)
+    end select
+  end function ip_element_id_is_smaller_than
+
+  function ip_element_id_is_greater_than(this,that) result(flag)
+    implicit none
+    class(ip_element_id_t), intent(in) :: this
+    class(element_id_t), intent(in) :: that
+    logical :: flag
+    select type(that)
+    class is(ip_element_id_t)
+       flag = .false.
+       if(this%ielem>that%ielem) flag = .true.
+    class default
+       write(*,*) 'Error calling ip_element_id_t comparison:'
+       write(*,*) 'cannot compare against objects of another class'
+       check(.false.)
+    end select
+  end function ip_element_id_is_greater_than
+
+  function ip_element_id_is_equal_to(this,that) result(flag)
+    implicit none
+    class(ip_element_id_t), intent(in) :: this
+    class(element_id_t), intent(in) :: that
+    logical :: flag
+    select type(that)
+    class is(ip_element_id_t)
+       flag = .false.
+       if(this%ielem==that%ielem) flag = .true.
+    class default
+       write(*,*) 'Error calling ip_element_id_t comparison:'
+       write(*,*) 'cannot compare against objects of another class'
+       check(.false.)
+    end select
+  end function ip_element_id_is_equal_to
+
+  function ip_element_id_to_int(this) result(key)
+    implicit none
+    class(ip_element_id_t), intent(in) :: this
+    integer(ip)                        :: key
+    key = this%ielem
+  end function ip_element_id_to_int
+
+  subroutine ip_element_id_print(this,unit)
+    implicit none
+    class(ip_element_id_t), intent(in) :: this
+    integer(ip), intent(in)            :: unit
+    write(unit,'(a,3(2x,i10))') 'ip element ID: ',this%ielem
+  end subroutine ip_element_id_print
+
+  subroutine ip_element_id_assign(this,that)
+    implicit none
+    class(ip_element_id_t), intent(inout) :: this
+    class(element_id_t)       , intent(in)    :: that
+    logical :: flag
+    select type(that)
+    class is(ip_element_id_t)
+       this%ielem=that%ielem
+    class default
+       write(*,*) 'Error calling ip_element_id_t comparison:'
+       write(*,*) 'cannot compare against objects of another class'
+       check(.false.)
+    end select
+  end subroutine ip_element_id_assign
+
+  !=============================================================================
+  function forest_element_id_get_index(this) result(id)
     implicit none
     class(forest_element_id_t), intent(in) :: this
     integer(ip) :: id
     id = this%tree
-  end function get_tree
-  function get_morton(this) result(id)
+  end function forest_element_id_get_index
+  function forest_element_id_get_morton(this) result(id)
     implicit none
     class(forest_element_id_t), intent(in) :: this
     integer(igp) :: id
     id = this%morton
-  end function get_morton
+  end function forest_element_id_get_morton
+  function forest_element_id_get_level(this) result(id)
+    implicit none
+    class(forest_element_id_t), intent(in) :: this
+    integer(igp) :: id
+    id = this%level
+  end function forest_element_id_get_level
 
-  subroutine set_tree(this,id)
+  subroutine forest_element_id_set_index(this,id)
     implicit none
     class(forest_element_id_t), intent(inout) :: this
     integer(ip)        , intent(in)    :: id
     this%tree = id
-  end subroutine set_tree
-  subroutine set_morton(this,id)
+  end subroutine forest_element_id_set_index
+  subroutine forest_element_id_set_morton(this,id)
     implicit none
     class(forest_element_id_t), intent(inout) :: this
     integer(igp)       , intent(in)    :: id
     this%morton = id
-  end subroutine set_morton
+  end subroutine forest_element_id_set_morton
+  subroutine forest_element_id_set_level(this,id)
+    implicit none
+    class(forest_element_id_t), intent(inout) :: this
+    integer(igp)       , intent(in)    :: id
+    this%level = id
+  end subroutine forest_element_id_set_level
 
   function forest_element_id_is_smaller_than(this,that) result(flag)
     implicit none
@@ -153,10 +271,14 @@ contains
     select type(that)
     class is(forest_element_id_t)
        flag = .false.
-       if(this%tree<that%tree) then
+       if(this%level<that%level) then
           flag = .true.
-       else if(this%tree==that%tree) then
-          if(this%morton<that%morton) flag = .true.
+       else if(this%level==that%level) then
+          if(this%tree<that%tree) then
+             flag = .true.
+          else if(this%tree==that%tree) then
+             if(this%morton<that%morton) flag = .true.
+          end if
        end if
     class default
        write(*,*) 'Error calling forest_element_id_t comparison:'
@@ -173,10 +295,14 @@ contains
     select type(that)
     class is(forest_element_id_t)
        flag = .false.
-       if(this%tree>that%tree) then
+       if(this%level>that%level) then
           flag = .true.
-       else if(this%tree==that%tree) then
-          if(this%morton>that%morton) flag = .true.
+       else if(this%level==that%level) then
+          if(this%tree>that%tree) then
+             flag = .true.
+          else if(this%tree==that%tree) then
+             if(this%morton>that%morton) flag = .true.
+          end if
        end if
     class default
        write(*,*) 'Error calling forest_element_id_t comparison:'
@@ -192,7 +318,7 @@ contains
     logical :: flag
     select type(that)
     class is(forest_element_id_t)
-       if(this%tree==that%tree.and.this%morton==that%morton) then
+       if(this%level==that%level.and.this%tree==that%tree.and.this%morton==that%morton) then
           flag = .true.
        else 
           flag = .false.
@@ -208,8 +334,7 @@ contains
     implicit none
     class(forest_element_id_t), intent(in) :: this
     integer(ip)                     :: key
-    key =  1 + (this%tree-1) * estimated_forest_size + &
-         &  abs (int( this%morton - int(this%morton/estimated_tree_size) * estimated_tree_size ) )
+    key = (2**this%level - 1)*estimated_forest_size + (this%tree-1)*2**this%level + this%morton 
   end function forest_element_id_to_int
 
   subroutine forest_element_id_print(this,unit)
