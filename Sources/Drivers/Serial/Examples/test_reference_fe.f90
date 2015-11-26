@@ -328,9 +328,9 @@ program test_cdr
   !call triangulation_print(6,f_trian)
 
   ! UNIT TEST * reference_fe.f90 *
-  reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, field_type = "scalar", continuity = .true. )
-  call reference_fe%print()
+  !reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !     order = 1, field_type = "scalar", continuity = .true. )
+  !call reference_fe%print()
 
 
   ! UNIT TEST * SB_quadrature.f90 *
@@ -338,10 +338,9 @@ program test_cdr
   !call quadrature%print()
 
   ! UNIT TEST * SB_interpolation.f90 *
-<<<<<<< Updated upstream
-=======
+
   !write (*,*) 'HERE BEFORE'
->>>>>>> Stashed changes
+
   !call reference_fe%create_interpolation( quadrature, interpolation, compute_hessian = .false. )
   !write (*,*) 'HERE AFTER'
   !call interpolation%print()
@@ -420,12 +419,12 @@ program test_cdr
      check(.false.) 
   end select
 
-  call memfree ( shape_function, __FILE__, __LINE__ )
-  call memfree ( shape_gradient, __FILE__, __LINE__ )
-		call fe_affine_operator%free()
-  call volume_integrator%free()
-  call reference_fe%free()
-  call quadrature%free()
+  !call memfree ( shape_function, __FILE__, __LINE__ )
+  !call memfree ( shape_gradient, __FILE__, __LINE__ )
+  call fe_affine_operator%free()
+  !call volume_integrator%free()
+  !call reference_fe%free()
+  !call quadrature%free()
   call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
