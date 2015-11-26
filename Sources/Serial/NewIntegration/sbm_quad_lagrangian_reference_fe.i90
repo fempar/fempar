@@ -1,14 +1,13 @@
-
 subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
   type(SB_interpolation_t), intent(in) :: int 
   integer(ip), intent(in)  :: node, gp
-  real(rp), intent(inout) :: shp(:)
+  real(rp), intent(inout) :: shp(:,:)
 
   !write(*,*) 'this%node_component_array',this%node_component_array
   shp = 0
-  shp( this%node_component_array(node,2) ) = &
+  shp( this%node_component_array(node,2) , 1 ) = &
        int%shape_functions( this%node_component_array(node,1), gp )
 
 end subroutine quad_lagrangian_reference_fe_get_value
@@ -27,13 +26,14 @@ subroutine quad_lagrangian_reference_fe_get_gradient( this, shg, int, node, gp )
 end subroutine quad_lagrangian_reference_fe_get_gradient
 
 
-subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, field_components, continuity )
+subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, field_type, continuity )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(out) :: this 
-  integer(ip), intent(in)  :: number_dimensions, order, field_components
+  character(*), intent(in) :: field_type
+  integer(ip), intent(in)  :: number_dimensions, order
   logical, optional, intent(in) :: continuity
 
-  call this%set_common_data ( number_dimensions, order, field_components, continuity )
+  call this%set_common_data ( number_dimensions, order, field_type, continuity )
   call this%set_topology ( "tet" )
   call this%set_fe_type ( "Lagrangian" )
   call this%fill( )
@@ -119,7 +119,11 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   integer(ip) :: c, i, j
 
   call quad_lagrangian_reference_fe_fill_scalar (this)
-  if ( this%field_components /= 1 ) call quad_lagrangian_reference_fe_fill_field_components( this )
+  if ( this%field_components /= 1 ) then
+     call quad_lagrangian_reference_fe_fill_field_components( this )
+  else
+     this%number_nodes_scalar = this%number_nodes
+  end if
 
   call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
 
@@ -132,6 +136,8 @@ subroutine quad_lagrangian_reference_fe_fill (this)
      end do
   end do
 
+  write (*,*) 'this%field_components',this%field_components
+  write (*,*) 'this%number_nodes_scalar',this%number_nodes_scalar
   write (*,*) 'this%node_component_array', this%node_component_array
 
 end subroutine quad_lagrangian_reference_fe_fill
