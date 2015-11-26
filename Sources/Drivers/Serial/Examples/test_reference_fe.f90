@@ -323,9 +323,15 @@ program test_cdr
   ! Read conditions 
   call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
 
+  
+
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
   !call triangulation_print(6,f_trian)
+
+  !write (*,*) 'Boundary conditions ncode,ncond: ', f_cond%ncode,f_cond%ncond
+  !write (*,*) 'Boundary conditions code: ', f_cond%code
+  !write (*,*) 'Boundary conditions values: ', f_cond%valu
 
   ! UNIT TEST * reference_fe.f90 *
   !reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
@@ -381,7 +387,9 @@ program test_cdr
        order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
   call fe_space%fill_dof_info()
   !call fe_space%print()
-
+  
+  !check( 0 == 1)
+  
   !call my_problem%create( p_trian%f_trian%num_dims )
   !call my_discrete%create( my_problem )
   !call my_approximation%create(my_problem,my_discrete)

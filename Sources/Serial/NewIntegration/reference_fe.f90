@@ -173,6 +173,8 @@ module reference_fe_names
      procedure(reference_fe_get_value_interface), deferred :: get_value
      procedure(reference_fe_get_gradient_interface), deferred :: get_gradient
 
+     procedure(reference_fe_get_bc_code_interface), deferred :: get_bc_code
+
 
   end type reference_fe_t
 
@@ -220,7 +222,7 @@ module reference_fe_names
   end interface
   abstract interface
      subroutine reference_fe_get_value_interface( this, shp, int, node, gp )
-     import :: reference_fe_t, SB_interpolation_t, rp, ip
+       import :: reference_fe_t, SB_interpolation_t, rp, ip
        implicit none
        class(reference_fe_t), intent(in) :: this 
        type(SB_interpolation_t), intent(in) :: int 
@@ -230,7 +232,7 @@ module reference_fe_names
   end interface
   abstract interface
      subroutine reference_fe_get_gradient_interface( this, shg, int, node, gp )
-     import :: reference_fe_t, SB_interpolation_t, rp, ip
+       import :: reference_fe_t, SB_interpolation_t, rp, ip
        implicit none
        class(reference_fe_t), intent(in) :: this 
        type(SB_interpolation_t), intent(in) :: int 
@@ -238,6 +240,17 @@ module reference_fe_names
        real(rp), intent(inout) :: shg(:,:)
      end subroutine reference_fe_get_gradient_interface
   end interface
+  abstract interface
+     function reference_fe_get_bc_code_interface( this, cond, node )
+       import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this 
+       integer(ip), intent(in) :: cond(:), node
+       integer(ip) :: reference_fe_get_bc_code_interface
+     end function reference_fe_get_bc_code_interface
+  end interface
+
+
   public :: reference_fe_t, p_reference_fe_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -258,6 +271,7 @@ contains
   procedure :: permute_order_vef => quad_lagrangian_reference_fe_permute_order_vef
   procedure :: get_value => quad_lagrangian_reference_fe_get_value
   procedure :: get_gradient => quad_lagrangian_reference_fe_get_gradient
+  procedure :: get_bc_code => quad_lagrangian_reference_fe_get_bc_code
 
 end type quad_lagrangian_reference_fe_t
 
@@ -300,7 +314,7 @@ type SB_volume_integrator_t
 
   ! FE map
   type(fe_map_t) :: fe_map
-		
+
   type(shape_values_t) :: shape_value_test, shape_gradient_test
   type(shape_values_t) :: shape_value_trial, shape_gradient_trial
 
@@ -317,7 +331,7 @@ contains
   procedure :: get_interpolation => volume_integrator_get_interpolation
 
   procedure :: get_fe_map => volume_integrator_get_fe_map
- 
+
   procedure :: compute_gradient_test => volume_integrator_compute_gradient_test
   procedure :: compute_value_test => volume_integrator_compute_value_test
   procedure :: get_gradients => volume_integrator_get_gradients

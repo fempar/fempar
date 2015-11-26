@@ -75,7 +75,7 @@ module SB_fe_space_names
 
   ! Boundary conditions
   ! In finite_element? I think it should go to the fe_space SB.alert
-  integer(ip), allocatable :: bc_code(:,:)   ! Boundary Condition values
+  integer(ip), allocatable :: bc_code(:)   ! Boundary Condition values
 
 contains
   procedure :: create => fe_create

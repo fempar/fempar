@@ -1,3 +1,11 @@
+function quad_lagrangian_reference_fe_get_bc_code( this, cond, node )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  integer(ip), intent(in) :: cond(:), node
+  integer(ip) :: quad_lagrangian_reference_fe_get_bc_code
+  quad_lagrangian_reference_fe_get_bc_code = cond(this%node_component_array(node,2))
+end function quad_lagrangian_reference_fe_get_bc_code
+
 subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
@@ -43,49 +51,49 @@ end subroutine quad_lagrangian_reference_fe_create
 subroutine quad_lagrangian_reference_fe_free ( this )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
-  
-		! Common in reference_fe_t
-		  if(allocated(this%topology))              deallocate(this%topology)
-    if(allocated(this%fe_type))               deallocate(this%fe_type)
 
-    if(allocated(this%interior_nodes_vef%p)) & 
-         call memfree(this%interior_nodes_vef%p,__FILE__,__LINE__)
-    if(allocated(this%interior_nodes_vef%l)) & 
-         call memfree(this%interior_nodes_vef%l,__FILE__,__LINE__)
-    this%interior_nodes_vef%n = 0
+  ! Common in reference_fe_t
+  if(allocated(this%topology))              deallocate(this%topology)
+  if(allocated(this%fe_type))               deallocate(this%fe_type)
 
-    if(allocated(this%nodes_vef%p)) & 
-         call memfree(this%nodes_vef%p,__FILE__,__LINE__)
-    if(allocated(this%nodes_vef%l)) & 
-         call memfree(this%nodes_vef%l,__FILE__,__LINE__)
-    this%nodes_vef%n = 0
+  if(allocated(this%interior_nodes_vef%p)) & 
+       call memfree(this%interior_nodes_vef%p,__FILE__,__LINE__)
+  if(allocated(this%interior_nodes_vef%l)) & 
+       call memfree(this%interior_nodes_vef%l,__FILE__,__LINE__)
+  this%interior_nodes_vef%n = 0
 
-    if(allocated(this%corners_vef%p)) & 
-         call memfree(this%corners_vef%p,__FILE__,__LINE__)
-    if(allocated(this%corners_vef%l)) & 
-         call memfree(this%corners_vef%l,__FILE__,__LINE__)
-    this%corners_vef%n = 0
+  if(allocated(this%nodes_vef%p)) & 
+       call memfree(this%nodes_vef%p,__FILE__,__LINE__)
+  if(allocated(this%nodes_vef%l)) & 
+       call memfree(this%nodes_vef%l,__FILE__,__LINE__)
+  this%nodes_vef%n = 0
 
-    if(allocated(this%vefs_vef%p)) & 
-         call memfree(this%vefs_vef%p,__FILE__,__LINE__)
-    if(allocated(this%vefs_vef%l)) & 
-         call memfree(this%vefs_vef%l,__FILE__,__LINE__)
-    this%vefs_vef%n = 0
+  if(allocated(this%corners_vef%p)) & 
+       call memfree(this%corners_vef%p,__FILE__,__LINE__)
+  if(allocated(this%corners_vef%l)) & 
+       call memfree(this%corners_vef%l,__FILE__,__LINE__)
+  this%corners_vef%n = 0
 
-    call this%orientation%free()
+  if(allocated(this%vefs_vef%p)) & 
+       call memfree(this%vefs_vef%p,__FILE__,__LINE__)
+  if(allocated(this%vefs_vef%l)) & 
+       call memfree(this%vefs_vef%l,__FILE__,__LINE__)
+  this%vefs_vef%n = 0
 
-    this%number_dimensions  = 0
-    this%order       = 0
-    this%number_vefs        = 0
-    this%number_nodes       = 0
-    this%number_vefs_dimension  = 0
-    this%continuity         = .true.
-				
-    ! quad_lagrangian_reference_fe_t variables
-    if(allocated(this%node_component_array)) & 
-         call memfree(this%node_component_array,__FILE__,__LINE__)
-    this%number_nodes_scalar = 0
-    
+  call this%orientation%free()
+
+  this%number_dimensions  = 0
+  this%order       = 0
+  this%number_vefs        = 0
+  this%number_nodes       = 0
+  this%number_vefs_dimension  = 0
+  this%continuity         = .true.
+
+  ! quad_lagrangian_reference_fe_t variables
+  if(allocated(this%node_component_array)) & 
+       call memfree(this%node_component_array,__FILE__,__LINE__)
+  this%number_nodes_scalar = 0
+
 end subroutine quad_lagrangian_reference_fe_free
 
 subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
@@ -178,7 +186,7 @@ subroutine quad_lagrangian_reference_fe_fill_field_components (this)
 
   call extend_list_components( this, this%interior_nodes_vef)
   call print_list ( 6, this%interior_nodes_vef)
-  
+
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%field_components
 
@@ -216,11 +224,11 @@ subroutine extend_list_components( this, list_1d)
         end do
      end do
   end do
-		
-		call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
-		call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
+
+  call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
+  call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
   list_1d%p(:) = list%p(:)
-		list_1d%l(:) = list%l(:)
+  list_1d%l(:) = list%l(:)
   call memfree ( list%p, __FILE__, __LINE__ )
   call memfree ( list%l, __FILE__, __LINE__ )
 

@@ -102,7 +102,7 @@ contains
           grad_trial => shape_gradient_trial%get_value(inode,igaus)
           do jnode = 1, nnode
              grad_test => shape_gradient_test%get_value(jnode,igaus)
-
+             ! elmat = elmat + grad_trial*grad_test
              do a = 1,size(shape_gradient_test%get_value(inode,igaus),1)
                 do b= 1,size(shape_gradient_test%get_value(inode,igaus),2)
                    elmat(inode,jnode) = elmat(inode,jnode) &
