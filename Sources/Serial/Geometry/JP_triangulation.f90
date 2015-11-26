@@ -523,9 +523,9 @@ contains
  !=============================================================================
  !=============================================================================
 
-  subroutine element_topology_size (my, n)
+  subroutine element_topology_size (this, n)
     implicit none
-    class(JP_element_topology_t), intent(in)  :: my
+    class(JP_element_topology_t), intent(in)  :: this
     integer(ip)            , intent(out) :: n
     
     ! Locals
@@ -534,13 +534,13 @@ contains
 
     size_of_ip   = size(transfer(1_ip ,mold))
     size_of_rp   = size(transfer(1.0_rp ,mold))
-    n = 2*size_of_ip + size(my%coordinates)*size_of_rp
+    n = 2*size_of_ip + size(this%coordinates)*size_of_rp
 
   end subroutine element_topology_size
 
-  subroutine element_topology_pack (my, n, buffer)
+  subroutine element_topology_pack (this, n, buffer)
     implicit none
-    class(JP_element_topology_t), intent(in)  :: my
+    class(JP_element_topology_t), intent(in)  :: this
     integer(ip)              , intent(in)   :: n
     integer(ieep)            , intent(out)  :: buffer(n)
     
@@ -554,21 +554,21 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
-    buffer(start:end) = transfer(size(my%coordinates,1),mold)
+    buffer(start:end) = transfer(size(this%coordinates,1),mold)
 
     start = end + 1
     end   = start + size_of_ip -1
-    buffer(start:end) = transfer(my%num_vefs,mold)
+    buffer(start:end) = transfer(this%num_vefs,mold)
 
     !start = end + 1
-    !end   = start + size_of_rp*size(my%coordinates) - 1
-    !buffer(start:end) = transfer(my%coordinates,mold)
+    !end   = start + size_of_rp*size(this%coordinates) - 1
+    !buffer(start:end) = transfer(this%coordinates,mold)
 
   end subroutine element_topology_pack
 
-  subroutine element_topology_unpack(my, n, buffer)
+  subroutine element_topology_unpack(this, n, buffer)
     implicit none
-    class(JP_element_topology_t), intent(inout)  :: my
+    class(JP_element_topology_t), intent(inout)  :: this
     integer(ip)              , intent(in)     :: n
     integer(ieep)            , intent(in)     :: buffer(n)
 
@@ -583,37 +583,37 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
-    my%num_vefs  = transfer(buffer(start:end), my%num_vefs)
+    this%num_vefs  = transfer(buffer(start:end), this%num_vefs)
 
     start = end + 1
     end   = start + size_of_ip - 1
     num_dims  = transfer(buffer(start:end), num_dims)
 
-   ! call memalloc( num_dims, my%num_vefs, my%coordinates, __FILE__, __LINE__ )
+   ! call memalloc( num_dims, this%num_vefs, this%coordinates, __FILE__, __LINE__ )
    ! start = end + 1
-   ! end   = start + size_of_rp*size(my%coordinates) - 1
-   ! my%coordinates  = transfer(buffer(start:end), my%coordinates)
+   ! end   = start + size_of_rp*size(this%coordinates) - 1
+   ! this%coordinates  = transfer(buffer(start:end), this%coordinates)
     
   end subroutine element_topology_unpack
 
-  function downcast_to_element_topology(parent) result(my)
+  function downcast_to_element_topology(parent) result(this)
     implicit none
     class(migratory_element_t), pointer, intent(in) :: parent
-    class(JP_element_topology_t) , pointer             :: my
+    class(JP_element_topology_t) , pointer             :: this
     select type(parent)
     class is(JP_element_topology_t)
-       my => parent
+       this => parent
     class default
        write(*,*) 'Cannot downcast to element_topology'
        check(.false.)
     end select
   end function downcast_to_element_topology
 
-  subroutine element_topology_free_unpacked(my)
+  subroutine element_topology_free_unpacked(this)
     implicit none
-    class(JP_element_topology_t), intent(inout) :: my
-    call memfree( my%vefs, __FILE__, __LINE__ )
-    call memfree( my%coordinates, __FILE__, __LINE__ )
+    class(JP_element_topology_t), intent(inout) :: this
+    call memfree( this%vefs, __FILE__, __LINE__ )
+    call memfree( this%coordinates, __FILE__, __LINE__ )
   end subroutine element_topology_free_unpacked
 
   subroutine element_topology_assign(this, that)

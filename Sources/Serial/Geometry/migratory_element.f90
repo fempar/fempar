@@ -48,33 +48,33 @@ module migratory_element_names
   end type migratory_element_t
 
   abstract interface
-     subroutine size_interface(my,n)
+     subroutine size_interface(this,n)
        import :: migratory_element_t, ip
        implicit none
-       class(migratory_element_t), intent(in)  :: my
+       class(migratory_element_t), intent(in)  :: this
        integer(ip)           , intent(out) :: n
      end subroutine size_interface
 
-     subroutine pack_interface(my,n,buffer)
+     subroutine pack_interface(this,n,buffer)
        import :: migratory_element_t, ip, ieep
        implicit none
-       class(migratory_element_t), intent(in)  :: my
+       class(migratory_element_t), intent(in)  :: this
        integer(ip)             , intent(in)  :: n
        integer(ieep)           , intent(out) :: buffer(n)
      end subroutine pack_interface
 
-     subroutine unpack_interface(my,n,buffer)
+     subroutine unpack_interface(this,n,buffer)
        import :: migratory_element_t, ip, ieep
        implicit none
-       class(migratory_element_t), intent(inout) :: my
+       class(migratory_element_t), intent(inout) :: this
        integer(ip)             , intent(in)    :: n
        integer(ieep)           , intent(in)    :: buffer(n)
      end subroutine unpack_interface
 
-     subroutine free_interface(my)
+     subroutine free_interface(this)
        import :: migratory_element_t
        implicit none
-       class(migratory_element_t), intent(inout) :: my
+       class(migratory_element_t), intent(inout) :: this
      end subroutine free_interface
 
      subroutine assignment_interface(this,that)
@@ -110,18 +110,18 @@ module migratory_element_names
 
 contains
 
-  function get_migratory_element_id(my) result(id)
+  function get_migratory_element_id(this) result(id)
     implicit none
-    class(migratory_element_t), target, intent(in) :: my
+    class(migratory_element_t), target, intent(in) :: this
     class(element_id_t)       , pointer    :: id
-    id => my%id
+    id => this%id
   end function get_migratory_element_id
-  subroutine create_migratory_element_id(my,id)
+  subroutine create_migratory_element_id(this,id)
     implicit none
-    class(migratory_element_t), intent(inout) :: my
+    class(migratory_element_t), intent(inout) :: this
     class(element_id_t)                       :: id
-    if(allocated(my%id)) deallocate(my%id)
-    allocate(my%id, mold=id)
+    if(allocated(this%id)) deallocate(this%id)
+    allocate(this%id, mold=id)
   end subroutine create_migratory_element_id
 
 #include "plain_element_set_body.i90"

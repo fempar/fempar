@@ -91,7 +91,6 @@ contains
   procedure :: size   => finite_element_size
   procedure :: pack   => finite_element_pack
   procedure :: unpack => finite_element_unpack
-  procedure :: free   => finite_element_free
   procedure :: assign => finite_element_assignment
 end type SB_finite_element_t
 

@@ -71,33 +71,28 @@ function fe_get_elem2dof ( this )
  fe_get_elem2dof => this%elem2dof
 end function fe_get_elem2dof
 
-subroutine finite_element_size (my, n)
+subroutine finite_element_size (this, n)
  implicit none
- class(SB_finite_element_t), intent(in)  :: my
+ class(SB_finite_element_t), intent(in)  :: this
  integer(ip)            , intent(out) :: n
 
 end subroutine finite_element_size
 
-subroutine finite_element_pack (my, n, buffer)
+subroutine finite_element_pack (this, n, buffer)
  implicit none
- class(SB_finite_element_t), intent(in)  :: my
+ class(SB_finite_element_t), intent(in)  :: this
  integer(ip)            , intent(in)   :: n
  integer(ieep)            , intent(out)  :: buffer(n)
 
 end subroutine finite_element_pack
 
-subroutine finite_element_unpack(my, n, buffer)
+subroutine finite_element_unpack(this, n, buffer)
  implicit none
- class(SB_finite_element_t), intent(inout) :: my
+ class(SB_finite_element_t), intent(inout) :: this
  integer(ip)            , intent(in)     :: n
  integer(ieep)            , intent(in)     :: buffer(n)
 
 end subroutine finite_element_unpack
-
-subroutine finite_element_free(my)
-  implicit none
-  class(SB_finite_element_t), intent(inout) :: my
-end subroutine finite_element_free
 
 subroutine finite_element_assignment(this,that)
   implicit none

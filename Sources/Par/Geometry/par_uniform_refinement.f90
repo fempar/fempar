@@ -551,9 +551,9 @@ contains
   end subroutine generate_data_subelems
 
 
-  subroutine subelems_GIDs_size (my, n)
+  subroutine subelems_GIDs_size (this, n)
     implicit none
-    class(subelems_GIDs_t), intent(in)  :: my
+    class(subelems_GIDs_t), intent(in)  :: this
     integer(ip)    , intent(out) :: n
     ! Locals
     integer(ieep) :: mold(1)
@@ -563,13 +563,13 @@ contains
     size_of_igp  = size(transfer(1_igp,mold))
 
     n  = size_of_ip + & 
-         size_of_igp * my%num_subelems 
+         size_of_igp * this%num_subelems 
 
   end subroutine subelems_GIDs_size
   
-  subroutine subelems_GIDs_pack (my, n, buffer)
+  subroutine subelems_GIDs_pack (this, n, buffer)
     implicit none
-    class(subelems_GIDs_t), intent(in)   :: my
+    class(subelems_GIDs_t), intent(in)   :: this
     integer(ip)    , intent(in)   :: n
     integer(ieep)  , intent(out)  :: buffer(n)
     
@@ -583,16 +583,16 @@ contains
         
     start = 1
     end   = start + size_of_ip -1
-    buffer(start:end) = transfer(my%num_subelems,mold)
+    buffer(start:end) = transfer(this%num_subelems,mold)
 
     start = end + 1
-    end   = start + size(my%subelems_GIDs)*size_of_igp - 1
-    buffer(start:end) = transfer(my%subelems_GIDs,mold)
+    end   = start + size(this%subelems_GIDs)*size_of_igp - 1
+    buffer(start:end) = transfer(this%subelems_GIDs,mold)
   end subroutine subelems_GIDs_pack
     
-  subroutine subelems_GIDs_unpack(my, n, buffer)
+  subroutine subelems_GIDs_unpack(this, n, buffer)
     implicit none
-    class(subelems_GIDs_t) , intent(inout)  :: my
+    class(subelems_GIDs_t) , intent(inout)  :: this
     integer(ip)     , intent(in)     :: n
     integer(ieep)   , intent(in)     :: buffer(n)
         
@@ -606,19 +606,19 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
-    my%num_subelems = transfer(buffer(start:end), my%num_subelems)
+    this%num_subelems = transfer(buffer(start:end), this%num_subelems)
 
-    call memalloc ( my%num_subelems, my%subelems_GIDs, __FILE__, __LINE__ )
+    call memalloc ( this%num_subelems, this%subelems_GIDs, __FILE__, __LINE__ )
     start = end + 1
-    end   = start + size(my%subelems_GIDs)*size_of_igp - 1
-    my%subelems_GIDs = transfer(buffer(start:end), my%subelems_GIDs)
+    end   = start + size(this%subelems_GIDs)*size_of_igp - 1
+    this%subelems_GIDs = transfer(buffer(start:end), this%subelems_GIDs)
 
   end subroutine subelems_GIDs_unpack 
 
 
-  subroutine subelems_GIDs_free(my)
+  subroutine subelems_GIDs_free(this)
     implicit none
-    class(subelems_GIDs_t), intent(inout) :: my
+    class(subelems_GIDs_t), intent(inout) :: this
   end subroutine subelems_GIDs_free
 
   subroutine subelems_GIDs_assignment(this,that)

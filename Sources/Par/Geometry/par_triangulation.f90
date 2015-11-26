@@ -449,9 +449,9 @@ contains
     element%num_vefs = -1
   end subroutine initialize_par_elem_topology
 
-  subroutine par_elem_topology_size (my, n)
+  subroutine par_elem_topology_size (this, n)
     implicit none
-    class(par_elem_topology_t), intent(in)  :: my
+    class(par_elem_topology_t), intent(in)  :: this
     integer(ip)            , intent(out) :: n
     
     ! Locals
@@ -461,13 +461,13 @@ contains
     size_of_ip   = size(transfer(1_ip ,mold))
     size_of_igp  = size(transfer(1_igp,mold))
 
-    n = size_of_ip*3 + size_of_igp*(my%num_vefs+1)
+    n = size_of_ip*3 + size_of_igp*(this%num_vefs+1)
 
   end subroutine par_elem_topology_size
 
-  subroutine par_elem_topology_pack (my, n, buffer)
+  subroutine par_elem_topology_pack (this, n, buffer)
     implicit none
-    class(par_elem_topology_t), intent(in)  :: my
+    class(par_elem_topology_t), intent(in)  :: this
     integer(ip)            , intent(in)   :: n
     integer(ieep)            , intent(out)  :: buffer(n)
     
@@ -481,29 +481,29 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
-    buffer(start:end) = transfer(my%mypart,mold)
+    buffer(start:end) = transfer(this%mypart,mold)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    buffer(start:end) = transfer(my%interface,mold)
+    buffer(start:end) = transfer(this%interface,mold)
 
     start = end + 1
     end   = start + size_of_igp - 1 
-    buffer(start:end) = transfer(my%globalID,mold)
+    buffer(start:end) = transfer(this%globalID,mold)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    buffer(start:end) = transfer(my%num_vefs,mold)
+    buffer(start:end) = transfer(this%num_vefs,mold)
 
     start = end + 1
-    end   = start + my%num_vefs*size_of_igp - 1
-    buffer(start:end) = transfer(my%vefs_GIDs,mold)
+    end   = start + this%num_vefs*size_of_igp - 1
+    buffer(start:end) = transfer(this%vefs_GIDs,mold)
 
   end subroutine par_elem_topology_pack
 
-  subroutine par_elem_topology_unpack(my, n, buffer)
+  subroutine par_elem_topology_unpack(this, n, buffer)
     implicit none
-    class(par_elem_topology_t), intent(inout) :: my
+    class(par_elem_topology_t), intent(inout) :: this
     integer(ip)            , intent(in)     :: n
     integer(ieep)            , intent(in)     :: buffer(n)
 
@@ -517,31 +517,31 @@ contains
     
     start = 1
     end   = start + size_of_ip -1
-    my%mypart  = transfer(buffer(start:end), my%mypart)
+    this%mypart  = transfer(buffer(start:end), this%mypart)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    my%interface  = transfer(buffer(start:end), my%interface)
+    this%interface  = transfer(buffer(start:end), this%interface)
 
     start = end + 1
     end   = start + size_of_igp - 1 
-    my%globalID = transfer(buffer(start:end), my%globalID)
+    this%globalID = transfer(buffer(start:end), this%globalID)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    my%num_vefs = transfer(buffer(start:end), my%num_vefs)
+    this%num_vefs = transfer(buffer(start:end), this%num_vefs)
 
-    call memalloc( my%num_vefs, my%vefs_GIDs, __FILE__, __LINE__ )
+    call memalloc( this%num_vefs, this%vefs_GIDs, __FILE__, __LINE__ )
 
     start = end + 1
-    end   = start + my%num_vefs*size_of_igp - 1
-    my%vefs_GIDs = transfer(buffer(start:end), my%vefs_GIDs)
+    end   = start + this%num_vefs*size_of_igp - 1
+    this%vefs_GIDs = transfer(buffer(start:end), this%vefs_GIDs)
 
   end subroutine par_elem_topology_unpack
 
-  subroutine par_elem_topology_free(my)
+  subroutine par_elem_topology_free(this)
     implicit none
-    class(par_elem_topology_t), intent(inout) :: my
+    class(par_elem_topology_t), intent(inout) :: this
   end subroutine par_elem_topology_free
 
   subroutine par_elem_topology_assignment(this,that)

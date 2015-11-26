@@ -165,9 +165,9 @@ contains
 
    ! SB.alert : to be thought now
 
-  subroutine finite_element_size (my, n)
+  subroutine finite_element_size (this, n)
     implicit none
-    class(finite_element_t), intent(in)  :: my
+    class(finite_element_t), intent(in)  :: this
     integer(ip)            , intent(out) :: n
     
     ! Locals
@@ -177,13 +177,13 @@ contains
     size_of_ip   = size(transfer(1_ip ,mold))
     size_of_logical = size(transfer(.true.,mold))
 
-    n = size_of_ip*3 + 2*size_of_ip*(my%num_vars) + size_of_logical*(my%num_vars)
+    n = size_of_ip*3 + 2*size_of_ip*(this%num_vars) + size_of_logical*(this%num_vars)
 
   end subroutine finite_element_size
 
-  subroutine finite_element_pack (my, n, buffer)
+  subroutine finite_element_pack (this, n, buffer)
     implicit none
-    class(finite_element_t), intent(in)  :: my
+    class(finite_element_t), intent(in)  :: this
     integer(ip)            , intent(in)   :: n
     integer(ieep)            , intent(out)  :: buffer(n)
     
@@ -198,33 +198,33 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
-    buffer(start:end) = transfer(my%num_vars,mold)
+    buffer(start:end) = transfer(this%num_vars,mold)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    buffer(start:end) = transfer(my%problem,mold)
+    buffer(start:end) = transfer(this%problem,mold)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    buffer(start:end) = transfer(my%material,mold)
+    buffer(start:end) = transfer(this%material,mold)
 
     start = end + 1
-    end   = start + my%num_vars*size_of_ip - 1
-    buffer(start:end) = transfer(my%order,mold)
+    end   = start + this%num_vars*size_of_ip - 1
+    buffer(start:end) = transfer(this%order,mold)
 
     start = end + 1
-    end   = start + my%num_vars*size_of_ip - 1
-    buffer(start:end) = transfer(my%continuity,mold)
+    end   = start + this%num_vars*size_of_ip - 1
+    buffer(start:end) = transfer(this%continuity,mold)
 
     start = end + 1
-    end   = start + my%num_vars*size_of_logical - 1
-    buffer(start:end) = transfer(my%enable_face_integration,mold)
+    end   = start + this%num_vars*size_of_logical - 1
+    buffer(start:end) = transfer(this%enable_face_integration,mold)
 
   end subroutine finite_element_pack
 
-  subroutine finite_element_unpack(my, n, buffer)
+  subroutine finite_element_unpack(this, n, buffer)
     implicit none
-    class(finite_element_t), intent(inout) :: my
+    class(finite_element_t), intent(inout) :: this
     integer(ip)            , intent(in)     :: n
     integer(ieep)            , intent(in)     :: buffer(n)
 
@@ -238,43 +238,43 @@ contains
 
     start = 1
     end   = start + size_of_ip -1
-    my%num_vars  = transfer(buffer(start:end), my%num_vars)
+    this%num_vars  = transfer(buffer(start:end), this%num_vars)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    my%problem  = transfer(buffer(start:end), my%problem)
+    this%problem  = transfer(buffer(start:end), this%problem)
 
     start = end + 1
     end   = start + size_of_ip - 1
-    my%material  = transfer(buffer(start:end), my%material)
+    this%material  = transfer(buffer(start:end), this%material)
 
-    call memalloc( my%num_vars, my%order, __FILE__, __LINE__ )
+    call memalloc( this%num_vars, this%order, __FILE__, __LINE__ )
 
     start = end + 1
-    end   = start + my%num_vars*size_of_ip - 1
-    my%order = transfer(buffer(start:end), my%order)
+    end   = start + this%num_vars*size_of_ip - 1
+    this%order = transfer(buffer(start:end), this%order)
     
-    call memalloc( my%num_vars, my%continuity, __FILE__, __LINE__ )
+    call memalloc( this%num_vars, this%continuity, __FILE__, __LINE__ )
      
     start = end + 1
-    end   = start + my%num_vars*size_of_ip - 1
-    my%continuity = transfer(buffer(start:end), my%continuity)
+    end   = start + this%num_vars*size_of_ip - 1
+    this%continuity = transfer(buffer(start:end), this%continuity)
     
-    call memalloc( my%num_vars, my%enable_face_integration, __FILE__, __LINE__ )
+    call memalloc( this%num_vars, this%enable_face_integration, __FILE__, __LINE__ )
      
     start = end + 1
-    end   = start + my%num_vars*size_of_logical - 1
-    my%enable_face_integration = transfer(buffer(start:end), my%enable_face_integration)
+    end   = start + this%num_vars*size_of_logical - 1
+    this%enable_face_integration = transfer(buffer(start:end), this%enable_face_integration)
     
   end subroutine finite_element_unpack
 
-  subroutine finite_element_free_unpacked(my)
+  subroutine finite_element_free_unpacked(this)
     implicit none
-    class(finite_element_t), intent(inout) :: my
+    class(finite_element_t), intent(inout) :: this
 
-    call memfree( my%order, __FILE__, __LINE__ )
-    call memfree( my%continuity, __FILE__, __LINE__ )
-    call memfree( my%enable_face_integration, __FILE__, __LINE__ )
+    call memfree( this%order, __FILE__, __LINE__ )
+    call memfree( this%continuity, __FILE__, __LINE__ )
+    call memfree( this%enable_face_integration, __FILE__, __LINE__ )
     
   end subroutine finite_element_free_unpacked
 
