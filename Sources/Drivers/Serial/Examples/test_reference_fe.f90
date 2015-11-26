@@ -229,6 +229,7 @@ program test_cdr
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   ! SB
+  !use reference_face_names
   use reference_fe_names
   use reference_fe_factory_names
   use SB_fe_space_names
@@ -301,6 +302,7 @@ program test_cdr
   type(SB_p_discrete_integration_t) :: approximations(1) 
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
 
+  type(face_quadrature_t) :: face_quadrature
   real(rp), allocatable :: shape_function(:), shape_gradient(:,:)
 
   call meminit
@@ -404,6 +406,28 @@ program test_cdr
   call fe_affine_operator_range_vector_space%create_vector(vector)
   
 
+  ! UNIT TEST * reference_fe.f90 *
+  reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+       order = 3, field_type = "vector", continuity = .true. )
+  !call reference_fe%print()
+
+  ! UNIT TEST * SB_quadrature.f90 *
+  call reference_fe%create_quadrature( quadrature )
+
+  reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
+       order = 3, field_type = "vector", continuity = .true. )
+
+  call reference_fe%create_face_quadrature(face_quadrature,quadrature)
+  call face_quadrature%print(6)
+  call face_quadrature%free()
+
+  call memfree ( shape_function, __FILE__, __LINE__ )
+  call memfree ( shape_gradient, __FILE__, __LINE__ )
+		call fe_affine_operator%free()
+  call volume_integrator%free()
+  call reference_fe%free()
+  call quadrature%free()
+
   ! Create linear solver, set operators and solve linear system
   call linear_solver%create(senv)
   call linear_solver%set_type_and_parameters_from_pl()
@@ -425,13 +449,13 @@ program test_cdr
   !call volume_integrator%free()
   !call reference_fe%free()
   !call quadrature%free()
+
   call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
 
-		
-!		call memstatus 
+		call memstatus 
 
 contains
   !==================================================================================================

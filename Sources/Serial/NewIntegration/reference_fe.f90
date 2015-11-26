@@ -52,6 +52,22 @@ module reference_fe_names
   ! Types
   public :: SB_quadrature_t
 
+  type face_quadrature_t
+     private
+     integer(ip)           :: number_dimensions                ! Space dimension of the element
+     integer(ip)           :: number_integration_points_x_face ! Gauss points in each face
+     integer(ip)           :: number_faces_x_element           ! #faces in each element
+      
+     real(rp), allocatable :: coordinates(:,:,:)               ! coordinates of the integration pnts
+   contains
+     ! Check sbm_face_quadrature for the definition of the subroutines
+     procedure :: create => face_quadrature_create
+     procedure :: free   => face_quadrature_free
+     procedure :: print  => face_quadrature_print
+  end type face_quadrature_t
+
+  public :: face_quadrature_t
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   type SB_interpolation_t
@@ -169,6 +185,7 @@ module reference_fe_names
      procedure (create_interpolation_interface), deferred :: create_interpolation 
      ! TBP to create a quadrature for a reference_fe_t
      procedure (create_quadrature_interface), deferred :: create_quadrature
+     procedure ( create_face_quadrature_interface), deferred :: create_face_quadrature
 
      procedure(reference_fe_get_value_interface), deferred :: get_value
      procedure(reference_fe_get_gradient_interface), deferred :: get_gradient
@@ -219,6 +236,15 @@ module reference_fe_names
      end subroutine create_quadrature_interface
   end interface
   abstract interface
+     subroutine create_face_quadrature_interface ( this, face_quadrature, local_quadrature)
+       import :: reference_fe_t, face_quadrature_t,  SB_quadrature_t 
+       implicit none 
+       class(reference_fe_t)   , intent(in)  :: this        
+       class(face_quadrature_t), intent(out) :: face_quadrature
+       class(SB_quadrature_t)  , intent(in)  :: local_quadrature
+     end subroutine create_face_quadrature_interface
+  end interface
+  abstract interface
      subroutine reference_fe_get_value_interface( this, shp, int, node, gp )
      import :: reference_fe_t, SB_interpolation_t, rp, ip
        implicit none
@@ -252,6 +278,7 @@ contains
   procedure :: create_interpolation => quad_lagrangian_reference_fe_create_interpolation
   !procedure :: set_integration_rule
   procedure :: create_quadrature => quad_lagrangian_reference_fe_create_quadrature
+  procedure :: create_face_quadrature => quad_lagrangian_reference_fe_create_face_quadrature
   procedure :: fill => quad_lagrangian_reference_fe_fill
   !procedure :: local_to_ijk_node     
   !procedure :: ijk_to_local_node     
@@ -347,6 +374,8 @@ contains
 
 #include "sbm_reference_fe.i90"
 
+#include "sbm_face_quadrature.i90"
+
 #include "sbm_quad_lagrangian_reference_fe.i90"
 
 #include "sbm_quadrature.i90"
@@ -354,5 +383,7 @@ contains
 #include "sbm_interpolation.i90"
 
 #include "sbm_volume_integrator.i90"
+
+#include "sbm_quad_lagrangian_reference_face.i90"
 
 end module reference_fe_names
