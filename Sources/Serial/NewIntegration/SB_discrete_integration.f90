@@ -114,8 +114,8 @@ contains
        end do
     end do
 
- write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
- write (*,*) elmat
+ !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
+ !write (*,*) elmat
 
 
  ! Apply boundary conditions

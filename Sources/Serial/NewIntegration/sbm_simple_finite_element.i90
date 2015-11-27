@@ -1,0 +1,163 @@
+
+  function simple_fe_get_number_nodes ( this )
+    implicit none
+    class(SB_simple_finite_element_t), intent(in) :: this
+    integer(ip)                 :: simple_fe_get_number_nodes
+    simple_fe_get_number_nodes = this%reference_fe%get_number_nodes()
+  end function simple_fe_get_number_nodes
+
+     subroutine simple_fe_get_elem2dof ( this, elem2dof, n )
+       implicit none
+       class(SB_simple_finite_element_t), target, intent(in)  :: this
+       integer(ip), intent(in) :: n
+       type(p_array_ip1_t), intent(inout) :: elem2dof(:)
+       elem2dof(1)%p => this%elem2dof
+     end subroutine simple_fe_get_elem2dof
+
+     subroutine simple_fe_get_bc_code ( this, bc_code, n )
+       implicit none
+       class(SB_simple_finite_element_t), target, intent(in)  :: this
+       integer(ip), intent(in) :: n
+       type(p_array_ip1_t), intent(inout) :: bc_code(:)
+       bc_code(1)%p => this%bc_code
+     end subroutine simple_fe_get_bc_code
+
+
+     subroutine simple_fe_get_bc_value ( this, bc_value, n )
+       implicit none
+       class(SB_simple_finite_element_t), target, intent(in)  :: this
+       integer(ip), intent(in) :: n
+       type(p_array_ip1_t), intent(inout) :: bc_value(:)
+       bc_value(1)%p => this%bc_value
+     end subroutine simple_fe_get_bc_value
+
+
+     subroutine simple_fe_get_volume_integrator ( this, volume_integrator, n )
+       implicit none
+       class(SB_simple_finite_element_t), target, intent(in)  :: this
+       integer(ip), intent(in) :: n
+       type(SB_p_volume_integrator_t), intent(inout) :: volume_integrator(:)
+       volume_integrator(1)%p => this%volume_integrator
+     end subroutine simple_fe_get_volume_integrator
+
+
+
+
+subroutine simple_fe_create( this, reference_fe_unk, reference_fe_geo, volume_integrator, cell)!, field_unknowns )
+  implicit none
+  class(SB_simple_finite_element_t), intent(inout)  :: this
+  class(reference_fe_t), target, intent(in) :: reference_fe_unk, reference_fe_geo
+  type(SB_volume_integrator_t), target, intent(in) :: volume_integrator
+  type(elem_topology_t), target, intent(in) :: cell
+  !integer(ip), intent(in) :: field_unknowns
+
+  this%reference_fe => reference_fe_unk
+  this%geometry_reference_fe => reference_fe_geo
+  this%volume_integrator => volume_integrator
+  this%cell => cell  
+
+  call memalloc( reference_fe_unk%get_number_nodes(), this%elem2dof, __FILE__, __LINE__)
+  this%elem2dof = 0
+
+end subroutine simple_fe_create
+
+subroutine simple_fe_free( this)
+  implicit none
+  class(SB_simple_finite_element_t), intent(inout)  :: this
+
+  nullify(this%reference_fe)
+  nullify(this%geometry_reference_fe)
+  nullify(this%volume_integrator)
+  nullify(this%cell)
+
+  if(allocated(this%elem2dof)) call memfree(this%elem2dof, __FILE__, __LINE__)
+  if(allocated(this%bc_code)) call memfree(this%bc_code, __FILE__, __LINE__)
+  if(allocated(this%bc_value)) call memfree(this%bc_value, __FILE__, __LINE__)
+
+
+end subroutine simple_fe_free
+
+subroutine simple_fe_print( this )
+  implicit none
+  class(SB_simple_finite_element_t), intent(in)  :: this
+
+  write(*,*) '********************REFERENCE FE UNK********************'
+  call this%reference_fe%print()
+  write(*,*) '********************REFERENCE FE UNK********************'
+  call this%geometry_reference_fe%print()
+  write(*,*) '********************CELL********************'
+  call element_print( 6, this%cell )
+  write(*,*) '********************ELEMENT 2 DOF********************'
+  write(*,*) this%elem2dof
+  write(*,*) '********************BC CODE********************'
+  write(*,*) this%bc_code
+  write(*,*) '********************BC VALUE********************'
+  write(*,*) this%bc_value
+
+
+end subroutine simple_fe_print
+
+function simple_fe_get_reference_fe ( this )
+  implicit none
+  class(SB_simple_finite_element_t), target, intent(in)  :: this
+  class(reference_fe_t), pointer :: simple_fe_get_reference_fe
+  simple_fe_get_reference_fe => this%reference_fe
+end function simple_fe_get_reference_fe
+
+! function fe_get_volume_integrator ( this )
+!   implicit none
+!   class(SB_simple_nite_element_t), target, intent(in)  :: this
+!   type(SB_volume_integrator_t), pointer :: fe_get_volume_integrator
+!   fe_get_volume_integrator => this%volume_integrator
+! end function fe_get_volume_integrator
+
+! function fe_get_elem2dof ( this )
+!   implicit none
+!   class(SB_simple_nite_element_t), target, intent(in)  :: this
+!   integer(ip), pointer :: fe_get_elem2dof(:)
+!   fe_get_elem2dof => this%elem2dof
+! end function fe_get_elem2dof
+
+! function fe_get_bc_code ( this )
+!   implicit none
+!   class(SB_simple_nite_element_t), target, intent(in)  :: this
+!   integer(ip), pointer :: fe_get_bc_code(:)
+!   fe_get_bc_code => this%bc_code
+! end function fe_get_bc_code
+
+! function fe_get_bc_value ( this )
+!   implicit none
+!   class(SB_simple_nite_element_t), target, intent(in)  :: this
+!   real(rp), pointer :: fe_get_bc_value(:)
+!   fe_get_bc_value => this%bc_value
+! end function fe_get_bc_value
+
+! function simple_fe_get_number_nodes ( this )
+!   implicit none
+!   class(SB_simple_nite_element_t), intent(in) :: this
+!   integer(ip)                 :: simple_fe_get_number_nodes
+!   fe_get_number_nodes = this%reference_fe%get_number_nodes()
+! end function simple_fe_get_number_nodes
+
+! subroutine finite_element_size (my, n)
+!   implicit none
+!   class(SB_simple_nite_element_t), intent(in)  :: my
+!   integer(ip)            , intent(out) :: n
+
+! end subroutine finite_element_size
+
+! subroutine finite_element_pack (my, n, buffer)
+!   implicit none
+!   class(SB_simple_nite_element_t), intent(in)  :: my
+!   integer(ip)            , intent(in)   :: n
+!   integer(ieep)            , intent(out)  :: buffer(n)
+
+! end subroutine finite_element_pack
+
+! subroutine finite_element_unpack(my, n, buffer)
+!   implicit none
+!   class(SB_simple_nite_element_t), intent(inout) :: my
+!   integer(ip)            , intent(in)     :: n
+!   integer(ieep)            , intent(in)     :: buffer(n)
+
+! end subroutine finite_element_unpack
