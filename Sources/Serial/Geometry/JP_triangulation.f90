@@ -30,6 +30,7 @@ module JP_triangulation_names
   use memor_names
   use fe_space_types_names
   use element_id_names
+  use JP_element_topology_names
   use migratory_element_names
   use hash_table_names  
   implicit none
@@ -38,20 +39,6 @@ module JP_triangulation_names
 
   integer(ip), parameter :: JP_triangulation_not_created  = 0 ! Initial state
   integer(ip), parameter :: JP_triangulation_filled       = 1 ! Elems + Vefs arrays allocated and filled 
-
-  type, extends(migratory_element_t) :: JP_element_topology_t
-     integer(ip)               :: num_vefs = -1    ! Number of vefs
-     integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
-     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
-     real(rp), allocatable     :: coordinates(:,:)
-     integer(ip)               :: order
-   contains
-     procedure :: size   => element_topology_size
-     procedure :: pack   => element_topology_pack
-     procedure :: unpack => element_topology_unpack
-     procedure :: free   => element_topology_free_unpacked
-     procedure :: assign => element_topology_assign
-  end type JP_element_topology_t
 
   type vef_topology_t
      integer(ip)               :: border     = -1       ! Border local id of this vef (only for faces)
@@ -103,17 +90,14 @@ module JP_triangulation_names
   end interface
    
   ! Types
-  public :: JP_triangulation_t , JP_element_topology_t !, element_iterator_t
+  public :: JP_triangulation_t , JP_element_topology_t
   
   ! Main Subroutines 
   public :: JP_triangulation_to_dual,  JP_triangulation_create, JP_triangulation_free, JP_triangulation_print
+  public :: create_reference_elements
 
-  ! Auxiliary Subroutines (should only be used by modules that have control over type(JP_triangulation_t))
-  public :: downcast_to_element_topology, put_topology_element_JP_triangulation, local_id_from_vertices
-
-  ! Constants (should only be used by modules that have control over type(JP_triangulation_t))
+  ! Constants
   public :: JP_triangulation_not_created, JP_triangulation_filled
-  !public :: JP_triangulation_free_elems_data, JP_triangulation_free_objs_data
 
 contains
 
@@ -122,7 +106,7 @@ contains
     implicit none
     integer(ip)              , intent(in)    :: size
     class(JP_triangulation_t), intent(inout) :: trian
-    class(element_id_t)       :: id_mold
+    class(element_id_t)      , intent(in)    :: id_mold
 
     integer(ip) :: istat,ielem
     class(JP_element_topology_t), pointer :: elem
@@ -137,8 +121,7 @@ contains
     ! Initialize all of the element structs (using the iterator)
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
-       call elem%create_id(id_mold)
-       call initialize_elem_topology( elem )
+       call elem%create(id_mold)
     end do
 
     ! Initialize all of the element structs (hard coded, old stuff)
@@ -162,7 +145,7 @@ contains
 
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
-       call free_elem_topology( elem )
+       call elem%free()
     end do
     ! Free iterator using the virtual function
     call trian%free_element_iterator(trian%element_iterator)
@@ -221,30 +204,6 @@ contains
     vef%num_elems_around = -1
   end subroutine free_vef_topology
 
-  subroutine free_elem_topology(element)
-    implicit none
-    type(JP_element_topology_t), intent(inout) :: element
-
-    if (allocated(element%vefs)) then
-       call memfree(element%vefs, __FILE__, __LINE__)
-    end if
-
-    if (allocated(element%coordinates)) then
-       call memfree(element%coordinates, __FILE__, __LINE__)
-    end if
-
-    element%num_vefs = -1
-    nullify( element%geo_reference_element )
-  end subroutine free_elem_topology
-
-  subroutine initialize_elem_topology(element)
-    implicit none
-    type(JP_element_topology_t), intent(inout) :: element
-
-    assert(.not. allocated(element%vefs))
-    element%num_vefs = -1
-  end subroutine initialize_elem_topology
-
   !=============================================================================
   subroutine JP_triangulation_to_dual(trian, length_trian)  
     implicit none
@@ -271,8 +230,6 @@ contains
     touch = 1
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
-       !elem_id = trian%element_iterator%next()
-       !elem => trian%get_element_topology_pointer( elem_id )
        do iobj=1, elem%num_vefs
           jobj = elem%vefs(iobj)
           if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
@@ -304,8 +261,6 @@ contains
     ! Count elements around each vef
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
-       !elem_id = trian%element_iterator%next()
-       !elem => trian%get_element_topology_pointer( elem_id )
        do iobj=1, elem%num_vefs
           jobj = elem%vefs(iobj)
           if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
@@ -329,8 +284,6 @@ contains
     ! List elements and add vef dimension
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
-       !elem_id = trian%element_iterator%next()
-       !elem => trian%get_element_topology_pointer( elem_id )
        do idime =1, trian%num_dims
           do iobj = elem%geo_reference_element%nvef_dim(idime), &
                     elem%geo_reference_element%nvef_dim(idime+1)-1 
@@ -392,74 +345,52 @@ contains
 
   end subroutine JP_triangulation_to_dual
 
-  subroutine put_topology_element_JP_triangulation( elem, trian )
+  ! This function replaces put_topology_element_triangulation
+  ! and it performs the element loop internally (not to be called
+  ! inside an element loop as the previous one.
+  subroutine create_reference_elements(trian)
     implicit none
-    type(JP_element_topology_t)    , intent(inout)         :: elem
     class(JP_triangulation_t), intent(inout), target :: trian
     ! Locals
+    class(JP_element_topology_t), pointer :: elem
     integer(ip) :: nvef, v_key, ndime, etype, pos_elinf, istat
-    logical :: created
     integer(ip) :: aux_val
-    nvef  = elem%num_vefs 
-    ndime = trian%num_dims
-    ! Variable values depending of the element ndime
-    etype = 0
-    if(ndime == 2) then       ! 2D
-       if(nvef == 6) then     ! Linear triangles (P1)
-          etype = P_type_id
-       elseif(nvef == 8) then ! Linear quads (Q1)
-          etype = Q_type_id
-       end if
-    elseif(ndime == 3) then    ! 3D
-       if(nvef == 14) then     ! Linear tetrahedra (P1)
-          etype = P_type_id
-       elseif(nvef == 26) then ! Linear hexahedra (Q1)
-          etype = Q_type_id
-       end if
-    end if
-    assert( etype /= 0 )
 
-    ! Assign pointer to topological information
-    v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
-    call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-    if ( istat == new_index) then
-       ! Create fixed info if not constructed
-       call reference_element_create(trian%reference_elements(pos_elinf),etype,1,ndime)
-    end if
-    elem%geo_reference_element => trian%reference_elements(pos_elinf)
-  end subroutine put_topology_element_JP_triangulation
+    do while(trian%element_iterator%has_next())
+       elem => downcast_to_element_topology( trian%element_iterator%next() )
 
-  subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
-    implicit none
-    type(JP_element_topology_t), intent(in) :: e
-    integer(ip), intent(in)  :: nd, list(:), no
-    integer(ip), intent(out) :: lid
-    ! Locals
-    integer(ip)              :: first, last, io, iv, jv, ivl, c
-    lid = -1
+       ! Legacy code
+       nvef  = elem%num_vefs 
+       ndime = trian%num_dims
 
-    do io = e%geo_reference_element%nvef_dim(nd), e%geo_reference_element%nvef_dim(nd+1)-1
-       first =  e%geo_reference_element%crxob%p(io)
-       last = e%geo_reference_element%crxob%p(io+1) -1
-       if ( last - first + 1  == no ) then 
-          do iv = first,last
-             ivl = e%vefs(e%geo_reference_element%crxob%l(iv)) ! LID of vertices of the ef
-             c = 0
-             do jv = 1,no
-                if ( ivl ==  list(jv) ) then
-                   c  = 1 ! vertex in the external ef
-                   exit
-                end if
-             end do
-             if (c == 0) exit
-          end do
-          if (c == 1) then ! vef in the external element
-             lid = e%vefs(io)
-             exit
+       ! Variable values depending of the element ndime
+       etype = 0
+       if(ndime == 2) then       ! 2D
+          if(nvef == 6) then     ! Linear triangles (P1)
+             etype = P_type_id
+          elseif(nvef == 8) then ! Linear quads (Q1)
+             etype = Q_type_id
+          end if
+       elseif(ndime == 3) then    ! 3D
+          if(nvef == 14) then     ! Linear tetrahedra (P1)
+             etype = P_type_id
+          elseif(nvef == 26) then ! Linear hexahedra (Q1)
+             etype = Q_type_id
           end if
        end if
+       assert( etype /= 0 )
+
+       ! Assign pointer to topological information
+       v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
+       call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
+       if ( istat == new_index) then
+          ! Create fixed info if not constructed
+          call reference_element_create(trian%reference_elements(pos_elinf),etype,1,ndime)
+       end if
+       elem%geo_reference_element => trian%reference_elements(pos_elinf)
     end do
-  end subroutine local_id_from_vertices
+
+  end subroutine create_reference_elements
 
   subroutine JP_triangulation_print ( lunou,  trian ) ! (SBmod)
     implicit none
@@ -517,121 +448,6 @@ contains
 
     write (lunou,*) '****END PRINT TOPOLOGY****'
   end subroutine JP_triangulation_print
-
-
- !=============================================================================
- !=============================================================================
- !=============================================================================
-
-  subroutine element_topology_size (this, n)
-    implicit none
-    class(JP_element_topology_t), intent(in)  :: this
-    integer(ip)            , intent(out) :: n
-    
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip, size_of_rp
-
-    size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_rp   = size(transfer(1.0_rp ,mold))
-    n = 2*size_of_ip + size(this%coordinates)*size_of_rp
-
-  end subroutine element_topology_size
-
-  subroutine element_topology_pack (this, n, buffer)
-    implicit none
-    class(JP_element_topology_t), intent(in)  :: this
-    integer(ip)              , intent(in)   :: n
-    integer(ieep)            , intent(out)  :: buffer(n)
-    
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip,size_of_rp
-    integer(ip)   :: start, end
-
-    size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_rp   = size(transfer(1.0_rp ,mold))
-
-    start = 1
-    end   = start + size_of_ip -1
-    buffer(start:end) = transfer(size(this%coordinates,1),mold)
-
-    start = end + 1
-    end   = start + size_of_ip -1
-    buffer(start:end) = transfer(this%num_vefs,mold)
-
-    !start = end + 1
-    !end   = start + size_of_rp*size(this%coordinates) - 1
-    !buffer(start:end) = transfer(this%coordinates,mold)
-
-  end subroutine element_topology_pack
-
-  subroutine element_topology_unpack(this, n, buffer)
-    implicit none
-    class(JP_element_topology_t), intent(inout)  :: this
-    integer(ip)              , intent(in)     :: n
-    integer(ieep)            , intent(in)     :: buffer(n)
-
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip,size_of_rp
-    integer(ip)   :: start, end
-    integer(ip)   :: num_dims
-    
-    size_of_ip = size(transfer(1_ip ,mold))
-    size_of_rp = size(transfer(1_rp,mold))
-
-    start = 1
-    end   = start + size_of_ip -1
-    this%num_vefs  = transfer(buffer(start:end), this%num_vefs)
-
-    start = end + 1
-    end   = start + size_of_ip - 1
-    num_dims  = transfer(buffer(start:end), num_dims)
-
-   ! call memalloc( num_dims, this%num_vefs, this%coordinates, __FILE__, __LINE__ )
-   ! start = end + 1
-   ! end   = start + size_of_rp*size(this%coordinates) - 1
-   ! this%coordinates  = transfer(buffer(start:end), this%coordinates)
-    
-  end subroutine element_topology_unpack
-
-  function downcast_to_element_topology(parent) result(this)
-    implicit none
-    class(migratory_element_t), pointer, intent(in) :: parent
-    class(JP_element_topology_t) , pointer             :: this
-    select type(parent)
-    class is(JP_element_topology_t)
-       this => parent
-    class default
-       write(*,*) 'Cannot downcast to element_topology'
-       check(.false.)
-    end select
-  end function downcast_to_element_topology
-
-  subroutine element_topology_free_unpacked(this)
-    implicit none
-    class(JP_element_topology_t), intent(inout) :: this
-    call memfree( this%vefs, __FILE__, __LINE__ )
-    call memfree( this%coordinates, __FILE__, __LINE__ )
-  end subroutine element_topology_free_unpacked
-
-  subroutine element_topology_assign(this, that)
-    implicit none
-    class(JP_element_topology_t), intent(inout) :: this
-    class(migratory_element_t), intent(in)    :: that
-
-    select type(that)
-    class is(JP_element_topology_t)
-       this = that
-    class default
-       write(*,*) 'Error calling JP_element_topology_t assignment'
-       write(*,*) 'cannot assign object of another class'
-       check(.false.)
-    end select
-
-  end subroutine element_topology_assign
-
  !=============================================================================
  !=============================================================================
  !=============================================================================

@@ -334,7 +334,7 @@ contains
     implicit none
     class(forest_element_id_t), intent(in) :: this
     integer(ip)                     :: key
-    key = (2**this%level - 1)*estimated_forest_size + (this%tree-1)*2**this%level + this%morton 
+    key = (2**this%level - 1)*estimated_forest_size + (this%tree-1)*2**this%level + this%morton + 1
   end function forest_element_id_to_int
 
   subroutine forest_element_id_print(this,unit)
