@@ -1,0 +1,57 @@
+subroutine composite_fe_space_create( this, XXX )
+
+  this%number_fe_spaces = number_fe_spaces
+  call memalloc ( number_fe_spaces, this%fe_space_array, __FILE__, __LINE__)
+  
+  do i = 1, this%number_fe_spaces
+     fe_space_array(i) => XXX
+     do ielem = 1, nelem
+        this%fe_array(ielem)%field_fe(i) => fe_space_array(i)%fe_array(ielem)
+  end do
+
+  
+end subroutine composite_fe_space_create
+
+function serial_fe_space_get_fe( this, i )
+  implicit none
+  class(SB_composite_fe_space_t), target, intent(in) :: this
+  integer(ip) :: i
+  type(SB_finite_element_t), pointer :: serial_fe_space_get_fe
+  serial_fe_space_get_fe => this%fe_array(i)
+end function serial_fe_space_get_fe
+
+
+subroutine composite_fe_initialize_volume_integrator( this, max_order )
+  
+  do i = 1, this%number_fe_spaces
+     fe_space_array(i)%initialize_volume_integrator( max_order )
+  end do
+    
+end subroutine composite_fe_initialize_volume_integrator
+
+
+function composite_fe_space_get_max_number_nodes( this)
+  implicit none
+  class(SB_composite_fe_space_t), intent(in) :: this 
+  integer(ip) :: composite_fe_space_get_max_number_nodes
+  composite_fe_space_get_max_number_nodes = 100 ! SB.alert 
+end function composite_fe_space_get_max_number_nodes
+
+
+subroutine composite_fe_fill_dof_info( this )
+  implicit none
+  class(SB_composite_fe_space_t), intent(in) :: this 
+  
+  
+  do i = 1, this%number_fe_spaces
+     ! Here we should be able to provide an initial value based on an offset
+     ! and considering the field_block
+     fe_space_array(i)%fill_dof_info()
+  end do
+  
+end subroutine composite_fe_fill_dof_info
+
+create_assembler IDEM changing number_dofs
+
+! symbolic_setup_assembler SHOWSTOPPER => IT REQUIRES A FULL GRAPH WITH ALL ENTRIES, HERE IS THE PROBLEM !!!
+! BUT IT CAN BE SOLVED WITH THE UNCOMPRESSED GRAPH

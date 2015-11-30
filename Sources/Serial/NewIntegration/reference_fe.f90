@@ -57,7 +57,7 @@ module reference_fe_names
      integer(ip)           :: number_dimensions                ! Space dimension of the element
      integer(ip)           :: number_integration_points_x_face ! Gauss points in each face
      integer(ip)           :: number_faces_x_element           ! #faces in each element
-      
+
      real(rp), allocatable :: coordinates(:,:,:)               ! coordinates of the integration pnts
    contains
      ! Check sbm_face_quadrature for the definition of the subroutines
@@ -190,7 +190,7 @@ module reference_fe_names
      procedure(reference_fe_get_value_interface), deferred :: get_value
      procedure(reference_fe_get_gradient_interface), deferred :: get_gradient
 
-     procedure(reference_fe_get_bc_code_interface), deferred :: get_bc_code
+     procedure(reference_fe_get_bc_component_node_interface), deferred :: get_bc_component_node
 
 
   end type reference_fe_t
@@ -267,13 +267,13 @@ module reference_fe_names
      end subroutine reference_fe_get_gradient_interface
   end interface
   abstract interface
-     function reference_fe_get_bc_code_interface( this, cond, node )
+     function reference_fe_get_bc_component_node_interface( this, node )
        import :: reference_fe_t, ip
        implicit none
        class(reference_fe_t), intent(in) :: this 
-       integer(ip), intent(in) :: cond(:), node
-       integer(ip) :: reference_fe_get_bc_code_interface
-     end function reference_fe_get_bc_code_interface
+       integer(ip), intent(in) :: node
+       integer(ip) :: reference_fe_get_bc_component_node_interface
+     end function reference_fe_get_bc_component_node_interface
   end interface
 
 
@@ -298,8 +298,7 @@ contains
   procedure :: permute_order_vef => quad_lagrangian_reference_fe_permute_order_vef
   procedure :: get_value => quad_lagrangian_reference_fe_get_value
   procedure :: get_gradient => quad_lagrangian_reference_fe_get_gradient
-  procedure :: get_bc_code => quad_lagrangian_reference_fe_get_bc_code
-
+  procedure :: get_bc_component_node => quad_lagrangian_reference_fe_get_bc_component_node
 end type quad_lagrangian_reference_fe_t
 
 public :: quad_lagrangian_reference_fe_t

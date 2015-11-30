@@ -422,9 +422,9 @@ subroutine fe_affine_operator_fill_values(this)
  class(SB_fe_affine_operator_t), intent(inout) :: this
  integer(ip) :: ielem, iapprox, nnodes
  type(triangulation_t), pointer :: p_trian
- type(SB_finite_element_t), pointer :: fe
- type(SB_volume_integrator_t), pointer :: vol_int
- class(reference_fe_t), pointer :: ref_fe
+ class(SB_finite_element_t), pointer :: fe
+ type(SB_p_volume_integrator_t), allocatable :: vol_int(:)
+ 
  real(rp), allocatable :: elmat(:,:),elvec(:)
  ! This is just to check ideas, but it is clear that the domain of integration
  ! should be somehow in the discrete_integration, as it is now... But in the 
@@ -435,24 +435,37 @@ subroutine fe_affine_operator_fill_values(this)
 
  ! TEMPORARY
  fe => this%fe_space%get_fe(1)
- ref_fe => fe%get_reference_fe()
- nnodes = ref_fe%get_number_nodes()
+ nnodes = fe%get_number_nodes()
 
  call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
  call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
+
+ allocate( vol_int(1) )
 
 
  call this%fe_space%initialize_volume_integrator()
  do iapprox = 1, size(this%approximations)
     do ielem = 1, this%triangulation%num_elems
        fe => this%fe_space%get_fe(ielem)
-       vol_int => fe%get_volume_integrator()
-       call vol_int%update( this%triangulation%elems(ielem)%coordinates )
-       call this%approximations(iapprox)%p%integrate( vol_int, elmat, elvec )
+       nnodes = fe%get_number_nodes()
+       call fe%get_volume_integrator( vol_int, 1 )
+       call vol_int(1)%p%update( this%triangulation%elems(ielem)%coordinates )
+       call this%approximations(iapprox)%p%integrate( vol_int(1)%p, elmat, elvec )
        fe => this%fe_space%get_fe(ielem)
-       write (*,*) 'XXXXXXXXX EL2DOF XXXXXXXXX'
-       write (*,*) fe%get_elem2dof()       
-       call this%assembler%assembly(fe%get_elem2dof(), elmat, elvec )
+       !write (*,*) 'XXXXXXXXX EL2DOF XXXXXXXXX'
+       !write (*,*) fe%get_elem2dof()   
+       !write(*,*) 'fe%get_bc_code()',fe%get_bc_code()
+       !write(*,*) 'fe%get_bc_value()',fe%get_bc_value()
+       !write(*,*) 'elmat',elmat
+       !write(*,*) 'elvec',elvec
+       
+       !call impose_strong_dirichlet_data( elmat, elvec, fe%get_bc_code(), fe%get_bc_value(), nnodes )
+       
+       !write(*,*) 'elvec',elvec
+       !check( 0 == 1)
+       
+       !call this%assembler%assembly(fe%get_elem2dof(), elmat, elvec )
+    
     end do
  end do
 
@@ -471,5 +484,22 @@ subroutine fe_affine_operator_fill_values(this)
  !   end do
 
 end subroutine fe_affine_operator_fill_values
+
+subroutine impose_strong_dirichlet_data ( elmat, elvec, code, valu, nnode )
+  real(rp), intent(in) :: elmat(:,:), valu(:)
+  real(rp), intent(inout) :: elvec(:)  
+  integer(ip), intent(in) :: code(:), nnode
+  integer(ip) :: i
+  do i = 1,nnode
+     if ( code(i) /= 0 ) then
+        !write(*,*) 'NEW COND',i
+        !write(*,*) 'value',valu(i)
+        !write(*,*) 'elmat',elmat(:,i)
+        elvec = elvec + elmat(:,i)*valu(i)
+        !write(*,*) 'elvec',elvec
+     end if
+  end do
+
+end subroutine impose_strong_dirichlet_data
 
 end module SB_fe_affine_operator_names
