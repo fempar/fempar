@@ -40,10 +40,10 @@ module element_id_names
   type, abstract :: element_id_t
      private
    contains
-     procedure(comparison_interface), deferred :: is_smaller_than
-     procedure(comparison_interface), deferred :: is_greater_than
-     procedure(comparison_interface), deferred :: is_equal_to
-     procedure(to_int_interface)    , deferred :: to_int
+     !procedure(comparison_interface), deferred :: is_smaller_than
+     !procedure(comparison_interface), deferred :: is_greater_than
+     !procedure(comparison_interface), deferred :: is_equal_to
+     !procedure(to_int_interface)    , deferred :: to_int
      procedure(print_interface)     , deferred :: print
      procedure(assignment_interface), deferred :: assign
      procedure(set_index_interface) , deferred :: set_index
@@ -91,10 +91,10 @@ module element_id_names
    contains
      procedure  :: get_index       => ip_element_id_get_index
      procedure  :: set_index       => ip_element_id_set_index
-     procedure  :: is_smaller_than => ip_element_id_is_smaller_than
-     procedure  :: is_greater_than => ip_element_id_is_greater_than
-     procedure  :: is_equal_to     => ip_element_id_is_equal_to
-     procedure  :: to_int          => ip_element_id_to_int
+     !procedure  :: is_smaller_than => ip_element_id_is_smaller_than
+     !procedure  :: is_greater_than => ip_element_id_is_greater_than
+     !procedure  :: is_equal_to     => ip_element_id_is_equal_to
+     !procedure  :: to_int          => ip_element_id_to_int
      procedure  :: print           => ip_element_id_print
      procedure  :: assign          => ip_element_id_assign
   end type ip_element_id_t
@@ -104,7 +104,7 @@ module element_id_names
   ! I implemented an ordering given by (level, tree, morton)
   ! which permits to uniformly fill the hash table (under uniform refinement).
   type, extends(element_id_t) :: forest_element_id_t
-     private
+     !private
      integer(ip)  :: level  = 0
      integer(ip)  :: tree   = 0
      integer(igp) :: morton = 0
@@ -115,10 +115,10 @@ module element_id_names
      procedure  :: set_index       => forest_element_id_set_index
      procedure  :: set_morton      => forest_element_id_set_morton
      procedure  :: set_leveln      => forest_element_id_set_level
-     procedure  :: is_smaller_than => forest_element_id_is_smaller_than
-     procedure  :: is_greater_than => forest_element_id_is_greater_than
-     procedure  :: is_equal_to     => forest_element_id_is_equal_to
-     procedure  :: to_int          => forest_element_id_to_int
+     !procedure  :: is_smaller_than => forest_element_id_is_smaller_than
+     !procedure  :: is_greater_than => forest_element_id_is_greater_than
+     !procedure  :: is_equal_to     => forest_element_id_is_equal_to
+     !procedure  :: to_int          => forest_element_id_to_int
      procedure  :: print           => forest_element_id_print
      procedure  :: assign          => forest_element_id_assign
   end type forest_element_id_t
@@ -127,6 +127,8 @@ module element_id_names
   integer(ip), parameter :: estimated_forest_size = 1e5
 
   public :: element_id_t, ip_element_id_t, forest_element_id_t
+
+  public :: estimated_forest_size
 
 contains
 

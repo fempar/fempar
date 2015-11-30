@@ -70,3 +70,14 @@
     res = ( this%ielem < this%plain_template_element_set%num_elements )
     if(.not.res) this%ielem=0 ! Reset iterator for the next loop
   end function plain_iterator_has_next
+
+  !=============================================================================
+  subroutine plain_iterator_current_id(this,res)
+    implicit none
+    class(plain_template_element_iterator_t), intent(in)    :: this
+    class(element_id_t)        , allocatable, intent(inout) :: res
+    if(allocated(res)) deallocate(res)
+    allocate(ip_element_id_t :: res)
+    call res%set_index(this%ielem)
+  end subroutine plain_iterator_current_id
+

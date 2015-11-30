@@ -9,8 +9,9 @@
   type, abstract :: template_element_iterator_t
      private
    contains
-     procedure(next_interface)    , deferred :: next
-     procedure(has_next_interface), deferred :: has_next
+     procedure(next_interface)      , deferred :: next
+     procedure(has_next_interface)  , deferred :: has_next
+     procedure(current_id_interface), deferred :: current_id
   end type template_element_iterator_t
   abstract interface
      function next_interface (this) result(p)
@@ -24,13 +25,19 @@
        implicit none
        class(template_element_iterator_t), intent(inout) :: this
        logical :: res
-     end function has_next_interface	
+     end function has_next_interface
+     subroutine current_id_interface(this,res)
+       import :: template_element_iterator_t, element_id_t
+       implicit none
+       class(template_element_iterator_t), intent(in)    :: this
+       class(element_id_t)  , allocatable, intent(inout) :: res
+     end subroutine current_id_interface
   end interface
 
   type, abstract :: template_element_set_t
    contains
-     procedure(create_set_interface)         , deferred :: create
-     procedure(free_set_interface)           , deferred :: free
+     procedure(create_set_interface)     , deferred :: create
+     procedure(free_set_interface)       , deferred :: free
      procedure(create_iterator_interface), deferred :: create_iterator
      procedure(free_iterator_interface)  , deferred :: free_iterator
   end type template_element_set_t

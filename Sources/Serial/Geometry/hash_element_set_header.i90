@@ -43,19 +43,20 @@
 !
   type, extends(template_element_iterator_t) :: hash_template_element_iterator_t
      private
-     class(element_id_t), allocatable  :: current_key
-     class(element_id_t), allocatable  :: next_key
+     type(template_key_t), allocatable  :: current_key
+     type(template_key_t), allocatable  :: next_key
      type(hash_template_element_set_t), pointer :: hash_template_element_set
    contains
-     procedure :: next     => hash_template_element_iterator_next
-     procedure :: has_next => hash_template_element_iterator_has_next
+     procedure :: next       => hash_template_element_iterator_next
+     procedure :: has_next   => hash_template_element_iterator_has_next
+     procedure :: current_id => hash_template_element_iterator_current_id
   end type hash_template_element_iterator_t
 
   type hash_node
      private
      class(hash_node), pointer :: child => null()
      class(hash_node), pointer :: parent => null()
-     class(element_id_t)      , allocatable :: key
+     type (template_key_t)     :: key
      class(template_element_t), allocatable :: val
    contains
      procedure :: put  => put_hash_node

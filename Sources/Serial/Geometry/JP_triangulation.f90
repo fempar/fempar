@@ -121,7 +121,7 @@ contains
     ! Initialize all of the element structs (using the iterator)
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
-       call elem%create(id_mold)
+       call elem%create ! (id_mold)
     end do
 
     ! Initialize all of the element structs (hard coded, old stuff)
@@ -216,6 +216,7 @@ contains
     type(hash_table_ip_ip_t) :: visited
     integer(ip), allocatable :: elems_around_pos(:)
     class(JP_element_topology_t), pointer :: elem
+    class(element_id_t)         , allocatable  :: elem_id
     !type(element_id_t)                 :: elem_id
 
     if (present(length_trian)) then
@@ -230,6 +231,7 @@ contains
     touch = 1
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
+       !elem => trian%element_iterator%next_element_topology()
        do iobj=1, elem%num_vefs
           jobj = elem%vefs(iobj)
           if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
@@ -284,6 +286,7 @@ contains
     ! List elements and add vef dimension
     do while(trian%element_iterator%has_next())
        elem => downcast_to_element_topology( trian%element_iterator%next() )
+       call trian%element_iterator%current_id(elem_id)
        do idime =1, trian%num_dims
           do iobj = elem%geo_reference_element%nvef_dim(idime), &
                     elem%geo_reference_element%nvef_dim(idime+1)-1 
@@ -291,10 +294,10 @@ contains
              if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
                 trian%vefs(jobj)%dimension = idime-1
                 if (elems_around_pos(jobj) == 1) then
-                   allocate( trian%vefs(jobj)%elems_around (trian%vefs(jobj)%num_elems_around), mold=elem%get_id() )
+                   allocate( trian%vefs(jobj)%elems_around (trian%vefs(jobj)%num_elems_around), mold=elem_id )
                    !call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
                 end if
-                trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = elem%get_id() ! ielem
+                trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = elem_id ! elem%get_id() ! ielem
                 elems_around_pos(jobj) = elems_around_pos(jobj) + 1 
              end if
           end do
@@ -399,7 +402,7 @@ contains
     class(JP_triangulation_t)  , intent(inout) :: trian
     ! Locals
     class(JP_element_topology_t), pointer      :: elem
-    class(element_id_t)         , pointer      :: elem_id
+    class(element_id_t)         , allocatable  :: elem_id
     integer(ip)                                :: iobje, ielem
 
     assert(trian%state == JP_triangulation_filled) 
@@ -415,7 +418,8 @@ contains
        !elem_id = trian%element_iterator%next()
        !elem => trian%get_element_topology_pointer( elem_id )
        write (lunou,*) '****PRINT ELEMENT INFO****'
-       elem_id => elem%get_id()
+       !elem_id => elem%get_id() 
+       call trian%element_iterator%current_id(elem_id)
        call elem_id%print(lunou)
        write (lunou,*) 'num_vefs:'   , elem%num_vefs
        write (lunou,*) 'vefs:'       , elem%vefs
