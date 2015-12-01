@@ -1,3 +1,11 @@
+function quad_lagrangian_reference_fe_get_bc_code( this, cond, node )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  integer(ip), intent(in) :: cond(:), node
+  integer(ip) :: quad_lagrangian_reference_fe_get_bc_code
+  quad_lagrangian_reference_fe_get_bc_code = cond(this%node_component_array(node,2))
+end function quad_lagrangian_reference_fe_get_bc_code
+
 subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
@@ -54,18 +62,19 @@ subroutine quad_lagrangian_reference_fe_free ( this )
     call this%vefs_vef%free()
     call this%orientation%free()
 
-    this%number_dimensions  = 0
-    this%order       = 0
-    this%number_vefs        = 0
-    this%number_nodes       = 0
-    this%number_vefs_dimension  = 0
-    this%continuity         = .true.
-				
-    ! quad_lagrangian_reference_fe_t variables
-    if(allocated(this%node_component_array)) & 
-         call memfree(this%node_component_array,__FILE__,__LINE__)
-    this%number_nodes_scalar = 0
-    
+
+  this%number_dimensions  = 0
+  this%order       = 0
+  this%number_vefs        = 0
+  this%number_nodes       = 0
+  this%number_vefs_dimension  = 0
+  this%continuity         = .true.
+
+  ! quad_lagrangian_reference_fe_t variables
+  if(allocated(this%node_component_array)) & 
+       call memfree(this%node_component_array,__FILE__,__LINE__)
+  this%number_nodes_scalar = 0
+
 end subroutine quad_lagrangian_reference_fe_free
 
 subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
@@ -97,6 +106,9 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
   integer(ip), optional, intent(in) :: max_order
   class(SB_quadrature_t), intent(out) :: quadrature
   integer(ip) :: ngaus, order
+  type(list_t) :: aux
+
+
 
   order = this%order
   if ( present(max_order) ) then
@@ -191,7 +203,7 @@ subroutine extend_list_components( this, list_1d)
         end do
      end do
   end do
-		
+
   call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
   call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
   list_1d%p(:) = list%p(:)
@@ -1304,6 +1316,29 @@ subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord
   end if
 end subroutine fill_interpolation
 
+!==================================================================================================
+subroutine quad_lagrangian_reference_fe_reference_coordinates(coordinates, num_dimensions,        &
+     &                                                        order, number_nodes)
+  implicit none
+  ! Parameters
+  integer(ip), intent(in)    :: num_dimensions,order,number_nodes
+  real(rp),    intent(inout) :: coordinates(num_dimensions,number_nodes)
+  ! Local variables
+  integer(ip) :: ijk(num_dimensions),i,d
+  real(rp)    :: c1d(order+1)
+
+  call Q_coord_1d(c1d,order+1)
+
+  do i=1,number_nodes
+
+     call Q_ijkg(ijk,i,num_dimensions,order)
+     do d=1,num_dimensions
+        coordinates(d,i) = c1d(ijk(d)+1)
+     end do
+  end do
+end subroutine quad_lagrangian_reference_fe_reference_coordinates
+
+!==================================================================================================
 subroutine Q_coord_1d (x,n)
   implicit none
   ! Parameters

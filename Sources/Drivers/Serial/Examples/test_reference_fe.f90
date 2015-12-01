@@ -229,6 +229,7 @@ program test_cdr
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   ! SB
+  !use reference_face_names
   use reference_fe_names
   use reference_fe_factory_names
   use SB_fe_space_names
@@ -301,6 +302,7 @@ program test_cdr
   type(SB_p_discrete_integration_t) :: approximations(1) 
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
 
+  type(face_quadrature_t) :: face_quadrature
   real(rp), allocatable :: shape_function(:), shape_gradient(:,:)
 
   call meminit
@@ -323,9 +325,15 @@ program test_cdr
   ! Read conditions 
   call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
 
+  
+
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
   !call triangulation_print(6,f_trian)
+
+  !write (*,*) 'Boundary conditions ncode,ncond: ', f_cond%ncode,f_cond%ncond
+  !write (*,*) 'Boundary conditions code: ', f_cond%code
+  !write (*,*) 'Boundary conditions values: ', f_cond%valu
 
   ! UNIT TEST * reference_fe.f90 *
   !reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
@@ -381,7 +389,9 @@ program test_cdr
        order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
   call fe_space%fill_dof_info()
   !call fe_space%print()
-
+  
+  !check( 0 == 1)
+  
   !call my_problem%create( p_trian%f_trian%num_dims )
   !call my_discrete%create( my_problem )
   !call my_approximation%create(my_problem,my_discrete)
@@ -403,6 +413,28 @@ program test_cdr
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
   call fe_affine_operator_range_vector_space%create_vector(vector)
   
+
+  ! UNIT TEST * reference_fe.f90 *
+  reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+       order = 3, field_type = "vector", continuity = .true. )
+  !call reference_fe%print()
+
+  ! UNIT TEST * SB_quadrature.f90 *
+  call reference_fe%create_quadrature( quadrature )
+
+  reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
+       order = 3, field_type = "vector", continuity = .true. )
+
+  call reference_fe%create_face_quadrature(face_quadrature,quadrature)
+  call face_quadrature%print(6)
+  call face_quadrature%free()
+
+  call memfree ( shape_function, __FILE__, __LINE__ )
+  call memfree ( shape_gradient, __FILE__, __LINE__ )
+		call fe_affine_operator%free()
+  call volume_integrator%free()
+  call reference_fe%free()
+  call quadrature%free()
 
   ! Create linear solver, set operators and solve linear system
   call linear_solver%create(senv)
@@ -431,7 +463,6 @@ program test_cdr
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
 
-		
 		call memstatus 
 
 contains
