@@ -1,33 +1,63 @@
-subroutine composite_fe_space_create( this, XXX )
 
-  this%number_fe_spaces = number_fe_spaces
-  call memalloc ( number_fe_spaces, this%fe_space_array, __FILE__, __LINE__)
-  
-  do i = 1, this%number_fe_spaces
-     fe_space_array(i) => XXX
-     do ielem = 1, nelem
-        this%fe_array(ielem)%field_fe(i) => fe_space_array(i)%fe_array(ielem)
+function composite_fe_space_get_blocks( this )
+ implicit none
+ class(SB_composite_fe_space_t), target, intent(in) :: this
+ integer(ip), pointer :: composite_fe_space_get_blocks(:)
+ composite_fe_space_get_blocks => this%field_blocks
+end function composite_fe_space_get_blocks
+
+
+subroutine composite_fe_space_create( this, fe_space_array, blocks )
+  implicit none
+  class(SB_composite_fe_space_t), intent(inout) :: this
+  type(SB_p_serial_fe_space_t), target, intent(in) :: fe_space_array(:)
+  integer(ip), intent(in) :: blocks(:)
+  integer(ip) :: i, j, number_nodes
+
+  this%number_fe_spaces = size(this%fe_array,1)
+  allocate ( this%fe_space_array(this%number_fe_spaces))
+  do i  = 1, this%number_fe_spaces
+     this%fe_space_array(i)%p => fe_space_array(i)%p
+  end do
+  assert( this%number_fe_spaces == size(this%field_blocks,1) )
+  call memalloc( this%number_fe_spaces, this%field_blocks, __FILE__, __LINE__)
+  this%number_blocks = maxval(blocks)
+  this%field_blocks = blocks
+
+  this%triangulation => fe_space_array(1)%p%triangulation
+  allocate(this%fe_array(this%triangulation%num_elems))
+  do i = 1, this%triangulation%num_elems
+     number_nodes = 0
+     do j = 1, this%number_fe_spaces
+        this%fe_array(i)%field_fe(j)%p => fe_space_array(j)%p%fe_array(i)
+        number_nodes = number_nodes + fe_space_array(j)%p%fe_array(i)%reference_fe%get_number_nodes()
+     end do
+     this%fe_array(i)%number_nodes = number_nodes
   end do
 
-  
 end subroutine composite_fe_space_create
 
-function serial_fe_space_get_fe( this, i )
+function composite_fe_space_get_fe( this, i )
   implicit none
   class(SB_composite_fe_space_t), target, intent(in) :: this
   integer(ip) :: i
-  type(SB_finite_element_t), pointer :: serial_fe_space_get_fe
-  serial_fe_space_get_fe => this%fe_array(i)
-end function serial_fe_space_get_fe
+  class(SB_finite_element_t), pointer :: composite_fe_space_get_fe
+  composite_fe_space_get_fe => this%fe_array(i)
+end function composite_fe_space_get_fe
 
 
-subroutine composite_fe_initialize_volume_integrator( this, max_order )
+subroutine composite_fe_space_initialize_volume_integrator( this, max_order )
+  implicit none
+  class(SB_composite_fe_space_t), intent(inout) :: this
+  integer(ip), optional, intent(in) :: max_order
+  integer(ip) :: i
   
   do i = 1, this%number_fe_spaces
-     fe_space_array(i)%initialize_volume_integrator( max_order )
+     call this%fe_space_array(i)%p%initialize_volume_integrator( max_order )
   end do
     
-end subroutine composite_fe_initialize_volume_integrator
+end subroutine composite_fe_space_initialize_volume_integrator
+
 
 
 function composite_fe_space_get_max_number_nodes( this)
@@ -38,20 +68,107 @@ function composite_fe_space_get_max_number_nodes( this)
 end function composite_fe_space_get_max_number_nodes
 
 
-subroutine composite_fe_fill_dof_info( this )
+
+function composite_fe_space_get_number_blocks( this)
   implicit none
   class(SB_composite_fe_space_t), intent(in) :: this 
-  
-  
-  do i = 1, this%number_fe_spaces
-     ! Here we should be able to provide an initial value based on an offset
-     ! and considering the field_block
-     fe_space_array(i)%fill_dof_info()
+  integer(ip) :: composite_fe_space_get_number_blocks
+  composite_fe_space_get_number_blocks = this%number_blocks ! SB.alert 
+end function composite_fe_space_get_number_blocks
+
+function composite_fe_space_get_number_fe_spaces( this)
+  implicit none
+  class(SB_composite_fe_space_t), intent(inout) :: this 
+  integer(ip) :: composite_fe_space_get_number_fe_spaces
+  composite_fe_space_get_number_fe_spaces = this%number_fe_spaces ! SB.alert 
+end function composite_fe_space_get_number_fe_spaces
+
+subroutine composite_fe_space_fill_dof_info( this )
+  implicit none
+  class(SB_composite_fe_space_t), intent(inout) :: this 
+  integer(ip) :: iblock, c, i
+
+  call memalloc( this%number_blocks, this%number_dofs, __FILE__, __LINE__ )
+
+  do iblock = 1, this%number_blocks
+     c = 0
+     do i = 1, this%number_fe_spaces
+        if ( this%field_blocks(i) == iblock ) then 
+           ! Here we should be able to provide an initial value based on an offset
+           ! and considering the field_block
+           call this%fe_space_array(i)%p%fill_dof_info(c)
+           c = c + this%fe_space_array(i)%p%number_dofs
+           this%number_dofs(iblock) = c
+        end if
+     end do
   end do
-  
-end subroutine composite_fe_fill_dof_info
 
-create_assembler IDEM changing number_dofs
+end subroutine composite_fe_space_fill_dof_info
 
-! symbolic_setup_assembler SHOWSTOPPER => IT REQUIRES A FULL GRAPH WITH ALL ENTRIES, HERE IS THE PROBLEM !!!
-! BUT IT CAN BE SOLVED WITH THE UNCOMPRESSED GRAPH
+function composite_fe_space_create_assembler(this, diagonal_blocks_symmetric_storage,&
+     diagonal_blocks_symmetric, diagonal_blocks_sign)
+  implicit none
+  class(SB_composite_fe_space_t)          , intent(in) :: this
+  class(SB_matrix_array_assembler_t), pointer :: composite_fe_space_create_assembler
+  logical                        , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                        , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                    , intent(in) :: diagonal_blocks_sign(:)
+
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+
+  if (this%number_blocks == 1) then
+     allocate ( SB_serial_scalar_matrix_array_assembler_t :: composite_fe_space_create_assembler )
+     allocate ( serial_scalar_matrix_t :: matrix )
+     allocate ( serial_scalar_array_t  :: array )
+     select type(matrix)
+        class is(serial_scalar_matrix_t)
+        call matrix%create(this%number_dofs(1), &
+             diagonal_blocks_symmetric_storage(1),&
+             diagonal_blocks_symmetric(1),&
+             diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_scalar_array_t)
+        call array%create(this%number_dofs(1))
+        class default
+        check(.false.)
+     end select
+  else
+     ! allocate ( serial_block_matrix_array_assembler_t :: serial_fe_space_create_matrix_array_assembler )
+     !if ( this%number_blocks == 1 ) then
+     !   do i = 1, this%number_blocks
+     !   end do
+     ! SB.alert TO BE DONE
+     !allocate ( serial_block_matrix_t :: matrix )
+     !allocate ( serial_block_array_t  :: array )
+     !check(.false.)
+  end if
+  call composite_fe_space_create_assembler%set_matrix(matrix)
+  call composite_fe_space_create_assembler%set_array(array)
+
+end function composite_fe_space_create_assembler
+
+subroutine composite_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
+  implicit none
+  class(SB_composite_fe_space_t)        , intent(in)    :: this
+  class(SB_matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+
+  ! Polymorphic matrix 
+  class(matrix_t), pointer :: matrix
+
+  matrix => matrix_array_assembler%get_matrix()
+  select type(matrix)
+     class is(serial_scalar_matrix_t)
+
+        ! symbolic_setup_assembler SHOWSTOPPER => IT REQUIRES A FULL GRAPH WITH ALL ENTRIES, HERE IS THE PROBLEM !!!
+        ! BUT IT CAN BE SOLVED WITH THE UNCOMPRESSED GRAPH
+
+        !call setup_dof_graph_from_block_row_col_identifiers ( this, matrix )
+     class default
+     check(.false.)
+  end select
+
+end subroutine composite_fe_space_symbolic_setup_assembler

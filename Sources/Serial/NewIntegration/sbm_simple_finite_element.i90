@@ -1,47 +1,49 @@
+function simple_fe_get_number_nodes ( this )
+  implicit none
+  class(SB_simple_finite_element_t), intent(in) :: this
+  integer(ip)                 :: simple_fe_get_number_nodes
+  simple_fe_get_number_nodes = this%reference_fe%get_number_nodes()
+end function simple_fe_get_number_nodes
 
-  function simple_fe_get_number_nodes ( this )
-    implicit none
-    class(SB_simple_finite_element_t), intent(in) :: this
-    integer(ip)                 :: simple_fe_get_number_nodes
-    simple_fe_get_number_nodes = this%reference_fe%get_number_nodes()
-  end function simple_fe_get_number_nodes
+subroutine simple_fe_get_number_nodes_field ( this, number_nodes, n )
+  implicit none
+  class(SB_simple_finite_element_t), intent(in) :: this
+  integer(ip), intent(in)                :: n
+  integer(ip), intent(inout)                :: number_nodes(:)
+  number_nodes(1) = this%reference_fe%get_number_nodes()
+end subroutine simple_fe_get_number_nodes_field
 
-     subroutine simple_fe_get_elem2dof ( this, elem2dof, n )
-       implicit none
-       class(SB_simple_finite_element_t), target, intent(in)  :: this
-       integer(ip), intent(in) :: n
-       type(p_array_ip1_t), intent(inout) :: elem2dof(:)
-       elem2dof(1)%p => this%elem2dof
-     end subroutine simple_fe_get_elem2dof
+subroutine simple_fe_get_elem2dof ( this, elem2dof, n )
+  implicit none
+  class(SB_simple_finite_element_t), target, intent(in)  :: this
+  integer(ip), intent(in) :: n
+  type(i1p_t), intent(inout) :: elem2dof(:)
+  elem2dof(1)%l => this%elem2dof
+end subroutine simple_fe_get_elem2dof
 
-     subroutine simple_fe_get_bc_code ( this, bc_code, n )
-       implicit none
-       class(SB_simple_finite_element_t), target, intent(in)  :: this
-       integer(ip), intent(in) :: n
-       type(p_array_ip1_t), intent(inout) :: bc_code(:)
-       bc_code(1)%p => this%bc_code
-     end subroutine simple_fe_get_bc_code
+subroutine simple_fe_get_bc_code ( this, bc_code, n )
+  implicit none
+  class(SB_simple_finite_element_t), target, intent(in)  :: this
+  integer(ip), intent(in) :: n
+  type(i1p_t), intent(inout) :: bc_code(:)
+  bc_code(1)%l => this%bc_code
+end subroutine simple_fe_get_bc_code
 
+subroutine simple_fe_get_bc_value ( this, bc_value, n )
+  implicit none
+  class(SB_simple_finite_element_t), target, intent(in)  :: this
+  integer(ip), intent(in) :: n
+  type(r1p_t), intent(inout) :: bc_value(:)
+  bc_value(1)%a => this%bc_value
+end subroutine simple_fe_get_bc_value
 
-     subroutine simple_fe_get_bc_value ( this, bc_value, n )
-       implicit none
-       class(SB_simple_finite_element_t), target, intent(in)  :: this
-       integer(ip), intent(in) :: n
-       type(p_array_ip1_t), intent(inout) :: bc_value(:)
-       bc_value(1)%p => this%bc_value
-     end subroutine simple_fe_get_bc_value
-
-
-     subroutine simple_fe_get_volume_integrator ( this, volume_integrator, n )
-       implicit none
-       class(SB_simple_finite_element_t), target, intent(in)  :: this
-       integer(ip), intent(in) :: n
-       type(SB_p_volume_integrator_t), intent(inout) :: volume_integrator(:)
-       volume_integrator(1)%p => this%volume_integrator
-     end subroutine simple_fe_get_volume_integrator
-
-
-
+subroutine simple_fe_get_volume_integrator ( this, volume_integrator, n )
+  implicit none
+  class(SB_simple_finite_element_t), target, intent(in)  :: this
+  integer(ip), intent(in) :: n
+  type(SB_p_volume_integrator_t), intent(inout) :: volume_integrator(:)
+  volume_integrator(1)%p => this%volume_integrator
+end subroutine simple_fe_get_volume_integrator
 
 subroutine simple_fe_create( this, reference_fe_unk, reference_fe_geo, volume_integrator, cell)!, field_unknowns )
   implicit none
@@ -74,7 +76,6 @@ subroutine simple_fe_free( this)
   if(allocated(this%bc_code)) call memfree(this%bc_code, __FILE__, __LINE__)
   if(allocated(this%bc_value)) call memfree(this%bc_value, __FILE__, __LINE__)
 
-
 end subroutine simple_fe_free
 
 subroutine simple_fe_print( this )
@@ -93,7 +94,6 @@ subroutine simple_fe_print( this )
   write(*,*) this%bc_code
   write(*,*) '********************BC VALUE********************'
   write(*,*) this%bc_value
-
 
 end subroutine simple_fe_print
 

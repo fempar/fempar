@@ -1,3 +1,12 @@
+
+function serial_fe_space_get_blocks( this )
+ implicit none
+ class(SB_serial_fe_space_t), target, intent(in) :: this
+ integer(ip), pointer :: serial_fe_space_get_blocks(:)
+ integer(ip), save, target :: aux(1) = (/1/)
+ serial_fe_space_get_blocks => aux
+end function serial_fe_space_get_blocks
+
 subroutine serial_fe_space_create( this, triangulation, topology, fe_type, number_dimensions, order, boundary_conditions, field_type, continuity )
   implicit none
   class(SB_serial_fe_space_t), intent(out) :: this
@@ -43,10 +52,8 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
 
   ! BCs
   do i = 1, triangulation%num_elems
-
-
-  call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_code,__FILE__,__LINE__)
-  call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_value,__FILE__,__LINE__)
+     call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_code,__FILE__,__LINE__)
+     call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_value,__FILE__,__LINE__)
      do iobje = 1,this%fe_array(i)%reference_fe%get_number_vefs()
 
         obje_g = triangulation%elems(i)%vefs(iobje)
@@ -67,8 +74,8 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
 
      end do
 
-     
-  !check( 0 == 1 )
+
+     !check( 0 == 1 )
 
   end do
 
@@ -219,11 +226,12 @@ end function serial_fe_space_get_fe
 ! the only thing is that *ielem* <=  *num_elems* always, so it never goes to the
 ! ghost element part.
 !*********************************************************************************
-subroutine serial_fe_space_fill_dof_info ( fe_space )
+subroutine serial_fe_space_fill_dof_info ( fe_space, init_dof )
   implicit none
   class(SB_serial_fe_space_t), intent(inout) :: fe_space 
+  integer(ip), optional, intent(in) :: init_dof
   !write(*,*) '********create_element_to_dof_and_ndofs********'
-  call create_element_to_dof_and_ndofs( fe_space )
+  call create_element_to_dof_and_ndofs( fe_space, init_dof )
   call create_vef2dof( fe_space )
 end subroutine serial_fe_space_fill_dof_info
 
@@ -243,10 +251,11 @@ end function serial_fe_space_get_max_number_nodes
 ! defined at the dof_descriptor. A global dof numbering is not needed in the code, 
 ! when blocks are being used.
 !*********************************************************************************
-subroutine create_element_to_dof_and_ndofs( fe_space ) 
+subroutine create_element_to_dof_and_ndofs( fe_space, init_dof ) 
   implicit none
   ! Parameters
   class(SB_serial_fe_space_t)     , intent(inout) :: fe_space 
+  integer(ip), optional, intent(in) :: init_dof
 
   ! Local variables
   integer(ip) :: iprob, count, iobje, ielem, jelem, nvapb
@@ -256,7 +265,7 @@ subroutine create_element_to_dof_and_ndofs( fe_space )
 
   integer(ip), allocatable :: o2n(:)
 
-  count = 0
+  count = init_dof
 
   mater = 1
 
