@@ -30,7 +30,7 @@ subroutine volume_integrator_compute_value_test( this )
         call this%reference_fe%get_value( value, this%interpolation_o_map, inode, igp )
      end do
   end do
-  call this%shape_value_test%print()
+  !call this%shape_value_test%print()
 
 end subroutine volume_integrator_compute_value_test
 
@@ -47,7 +47,7 @@ subroutine volume_integrator_compute_gradient_test( this )
         call this%reference_fe%get_gradient( value, this%interpolation_o_map, inode, igp )
      end do
   end do
-  call this%shape_gradient_test%print()
+  !call this%shape_gradient_test%print()
 
 end subroutine volume_integrator_compute_gradient_test
 
@@ -127,9 +127,9 @@ subroutine volume_integrator_set_integration( this, max_order )
        this%quadrature%number_integration_points, this%reference_fe%number_nodes )
 
   call this%compute_value_test()
-  call this%shape_value_test%print()
+  !call this%shape_value_test%print()
   call this%compute_gradient_test()
-  call this%shape_gradient_test%print()
+  !call this%shape_gradient_test%print()
 
 end subroutine volume_integrator_set_integration
 

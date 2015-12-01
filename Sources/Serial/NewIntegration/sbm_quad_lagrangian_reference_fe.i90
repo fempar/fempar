@@ -1,10 +1,10 @@
-function quad_lagrangian_reference_fe_get_bc_code( this, cond, node )
+function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  integer(ip), intent(in) :: cond(:), node
-  integer(ip) :: quad_lagrangian_reference_fe_get_bc_code
-  quad_lagrangian_reference_fe_get_bc_code = cond(this%node_component_array(node,2))
-end function quad_lagrangian_reference_fe_get_bc_code
+  integer(ip), intent(in) :: node
+  integer(ip) :: quad_lagrangian_reference_fe_get_bc_component_node
+  quad_lagrangian_reference_fe_get_bc_component_node = this%node_component_array(node,2)
+end function quad_lagrangian_reference_fe_get_bc_component_node
 
 subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
   implicit none
@@ -148,9 +148,9 @@ subroutine quad_lagrangian_reference_fe_fill (this)
      end do
   end do
 
-  write (*,*) 'this%field_components',this%field_components
-  write (*,*) 'this%number_nodes_scalar',this%number_nodes_scalar
-  write (*,*) 'this%node_component_array', this%node_component_array
+  !write (*,*) 'this%field_components',this%field_components
+  !write (*,*) 'this%number_nodes_scalar',this%number_nodes_scalar
+  !write (*,*) 'this%node_component_array', this%node_component_array
 
 end subroutine quad_lagrangian_reference_fe_fill
 
