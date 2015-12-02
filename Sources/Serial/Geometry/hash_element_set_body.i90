@@ -163,41 +163,33 @@ recursive subroutine free_hash_node(list)
   list%child => null()
 end subroutine free_hash_node
 
-recursive subroutine get_next_key_hash_node(list,key,next,stat)
-  class(hash_node)                  , intent(in)    :: list
-  type(template_key_t)              , intent(in)    :: key
-  type(template_key_t)              , intent(out)   :: next
-  integer(ip)                       , intent(inout) :: stat
-
-  if( equal(key,list%key) ) then
-     if(associated(list%child)) then
-        next = list%child%key
-        stat = key_found
-     else
-        stat = key_not_found
-     end if
-  else if(associated(list%child)) then
-     call get_next_key_hash_node(list%child,key,next,stat)
+! To get the next node in the list
+subroutine get_next_hash_node(list,next,stat)
+  class(hash_node)        , intent(in)    :: list
+  type(hash_node), pointer, intent(out)   :: next
+  integer(ip)             , intent(inout) :: stat
+  if(associated(list%child)) then
+     next => list%child
+     stat = key_found
   else
-        stat = key_not_found
+     stat = key_not_found
   end if
+end subroutine get_next_hash_node
 
-end subroutine get_next_key_hash_node
-
-! To get the key of the first element in the list
-subroutine get_key_hash_node(list,key,stat)
-  class(hash_node)                  , intent(in)    :: list
-  type(template_key_t)              , intent(out)   :: key
-  integer(ip)                       , intent(inout) :: stat
+! To get the first element in the list
+subroutine get_first_hash_node(list,first,stat)
+  class(hash_node), target, intent(in)    :: list
+  type(hash_node), pointer, intent(out)   :: first
+  integer(ip)             , intent(inout) :: stat
 
   if(associated(list%child)) then
-     key = list%key
+     first => list
      stat = key_found
   else
      stat = key_not_found
   end if
 
-end subroutine get_key_hash_node
+end subroutine get_first_hash_node
 
 !====================================================================
 ! tbl functions
@@ -236,20 +228,23 @@ subroutine get_hash_template_element_set_t(tbl,key,val,stat)
   call tbl%vec(hash)%get(key=key,val=val,stat=stat)
 end subroutine get_hash_template_element_set_t
 
-subroutine get_next_key_hash_template_element_set_t(tbl,key,next,stat)
+subroutine get_next_hash_template_element_set_t(tbl,current,next,stat)
   class(hash_template_element_set_t)  , intent(in)  :: tbl
-  type(template_key_t)                , intent(in)  :: key
-  type(template_key_t)                , intent(out) :: next
+  type(hash_node)                     , intent(in)  :: current
+  type(hash_node)            ,pointer , intent(out) :: next
   integer(ip)                         , intent(out) :: stat
   integer(ip)                                       :: hash
-  hash = mod( convert_to_int(key) ,tbl%vec_len)
-  assert ( (hash>=1).and.(hash<=tbl%vec_len))
-  call tbl%vec(hash)%get_next_key(key,next,stat)
-  do while(hash<=tbl%vec_len .and. stat == key_not_found )
-     hash=hash+1
-     call tbl%vec(hash)%get_key(next,stat)
-  end do
-end subroutine get_next_key_hash_template_element_set_t
+  next => null()
+  call current%get_next(next,stat)
+  if(stat == key_not_found ) then
+     hash = mod( convert_to_int(current%key),tbl%vec_len)
+     assert ( (hash>=1).and.(hash<=tbl%vec_len))
+     do while(hash<=tbl%vec_len .and. stat == key_not_found )
+        hash=hash+1
+        call tbl%vec(hash)%get_first(next,stat)
+     end do
+  end if
+end subroutine get_next_hash_template_element_set_t
 
 subroutine del_hash_template_element_set_t(tbl,key,stat)
   class(hash_template_element_set_t), intent(inout) :: tbl
@@ -301,33 +296,61 @@ end subroutine free_hash_template_element_set_t
   end subroutine free_hash_template_element_iterator
 
   !=============================================================================
-  function hash_template_element_iterator_next (this) result(p)
+  !=============================================================================
+  subroutine hash_template_element_iterator_begin (this)
     implicit none
     class(hash_template_element_iterator_t), intent(inout) :: this
-    class(template_element_t)              , pointer       :: p
-    integer(ip)  :: stat
-    call this%hash_template_element_set%get( this%next_key, p, stat)
-    assert(stat==key_found)
-    this%current_key = this%next_key
-  end function hash_template_element_iterator_next
+    type(hash_node), pointer :: first 
+    integer(ip) :: stat
+    first => this%hash_template_element_set%vec(1)
+    call this%hash_template_element_set%get_next(first,this%current_node,stat)
+    call this%hash_template_element_set%get_next(this%current_node,this%next_node,stat)
+  end subroutine hash_template_element_iterator_begin
 
   !=============================================================================
-  function hash_template_element_iterator_has_next(this) result(res)
+  function hash_template_element_iterator_finished(this) result(res)
     implicit none
     class(hash_template_element_iterator_t), intent(inout) :: this
     logical :: res
-    integer(ip)  :: stat
-    call this%hash_template_element_set%get_next_key( this%current_key, this%next_key, stat)
-    res = (stat==key_found)
-    !if(.not.res) ! Reset iterator for the next loop to be done using default element_id
-  end function hash_template_element_iterator_has_next
+    res = associated(this%next_node)
+  end function hash_template_element_iterator_finished
 
   !=============================================================================
-  subroutine hash_template_element_iterator_current_id(this,res)
+  subroutine hash_template_element_iterator_next (this)
+    implicit none
+    class(hash_template_element_iterator_t), intent(inout) :: this
+    integer(ip) :: stat
+    this%current_node => this%next_node
+    call this%hash_template_element_set%get_next(this%current_node,this%next_node,stat)
+  end subroutine hash_template_element_iterator_next
+
+  !=============================================================================
+  function hash_template_element_iterator_current (this) result(p)
+    implicit none
+    class(hash_template_element_iterator_t), intent(inout) :: this
+    class(template_element_t)              , pointer       :: p
+    p => this%current_node%val
+  end function hash_template_element_iterator_current
+
+  !=============================================================================
+  subroutine hash_template_element_iterator_create_id(this,res)
     implicit none
     class(hash_template_element_iterator_t), intent(in)    :: this
     class(element_id_t)       , allocatable, intent(inout) :: res
     if(allocated(res)) deallocate(res)
     allocate(forest_element_id_t :: res)
-    res = this%current_key
+  end subroutine hash_template_element_iterator_create_id
+  !=============================================================================
+  subroutine hash_template_element_iterator_free_id(this,res)
+    implicit none
+    class(hash_template_element_iterator_t), intent(in)    :: this
+    class(element_id_t)       , allocatable, intent(inout) :: res
+    if(allocated(res)) deallocate(res)
+  end subroutine hash_template_element_iterator_free_id
+  !=============================================================================
+  subroutine hash_template_element_iterator_current_id(this,res)
+    implicit none
+    class(hash_template_element_iterator_t), intent(in)    :: this
+    class(element_id_t)                    , intent(inout) :: res
+    res = this%current_node%key
   end subroutine hash_template_element_iterator_current_id

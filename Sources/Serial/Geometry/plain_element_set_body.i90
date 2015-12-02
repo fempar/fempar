@@ -8,6 +8,9 @@
 ! plain_template_element_iterator_t
 !
   !=============================================================================
+  !=============================================================================
+  !=============================================================================
+  !=============================================================================
   subroutine create_plain_set(this,size,mold)
     implicit none
     class(plain_template_element_set_t), intent(inout) :: this
@@ -31,6 +34,9 @@
   end subroutine free_plain_set
 
   !=============================================================================
+  !=============================================================================
+  !=============================================================================
+  !=============================================================================
   subroutine create_plain_iterator(this,iterator)
     implicit none
     class(plain_template_element_set_t), target     , intent(in)  :: this
@@ -53,31 +59,55 @@
   end subroutine free_plain_iterator
 
   !=============================================================================
-  function plain_iterator_next (this) result(p)
+  !=============================================================================
+  !=============================================================================
+  !=============================================================================
+  subroutine plain_iterator_begin(this)
     implicit none
     class(plain_template_element_iterator_t), intent(inout) :: this
-    class(template_element_t)               , pointer       :: p
-    this%ielem = this%ielem + 1
-    assert( this%ielem <= this%plain_template_element_set%num_elements )
-    p => this%plain_template_element_set%elements(this%ielem)
-  end function plain_iterator_next
-
+    this%ielem=1
+  end subroutine plain_iterator_begin
   !=============================================================================
-  function plain_iterator_has_next(this) result(res)
+  function plain_iterator_finished(this) result(res)
     implicit none
     class(plain_template_element_iterator_t), intent(inout) :: this
     logical :: res
-    res = ( this%ielem < this%plain_template_element_set%num_elements )
-    if(.not.res) this%ielem=0 ! Reset iterator for the next loop
-  end function plain_iterator_has_next
+    res = ( this%ielem > this%plain_template_element_set%num_elements )
+  end function plain_iterator_finished
+  !=============================================================================
+  subroutine plain_iterator_next(this)
+    implicit none
+    class(plain_template_element_iterator_t), intent(inout) :: this
+    this%ielem = this%ielem + 1
+  end subroutine plain_iterator_next
+  !=============================================================================
+  function plain_iterator_current (this) result(p)
+    implicit none
+    class(plain_template_element_iterator_t), intent(inout) :: this
+    class(template_element_t)               , pointer       :: p
+    assert( this%ielem <= this%plain_template_element_set%num_elements )
+    p => this%plain_template_element_set%elements(this%ielem)
+  end function plain_iterator_current
 
   !=============================================================================
-  subroutine plain_iterator_current_id(this,res)
+  subroutine plain_iterator_create_id(this,res)
     implicit none
     class(plain_template_element_iterator_t), intent(in)    :: this
     class(element_id_t)        , allocatable, intent(inout) :: res
     if(allocated(res)) deallocate(res)
     allocate(ip_element_id_t :: res)
+  end subroutine plain_iterator_create_id
+  !=============================================================================
+  subroutine plain_iterator_free_id(this,res)
+    implicit none
+    class(plain_template_element_iterator_t), intent(in)    :: this
+    class(element_id_t)        , allocatable, intent(inout) :: res
+    if(allocated(res)) deallocate(res)
+  end subroutine plain_iterator_free_id
+  !=============================================================================
+  subroutine plain_iterator_current_id(this,res)
+    implicit none
+    class(plain_template_element_iterator_t), intent(in)    :: this
+    class(element_id_t)                     , intent(inout) :: res
     call res%set_index(this%ielem)
   end subroutine plain_iterator_current_id
-

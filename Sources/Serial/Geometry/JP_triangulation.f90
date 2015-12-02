@@ -102,11 +102,10 @@ module JP_triangulation_names
 contains
 
   !=============================================================================
-  subroutine JP_triangulation_create(trian,size,id_mold)
+  subroutine JP_triangulation_create(trian,size)
     implicit none
     integer(ip)              , intent(in)    :: size
     class(JP_triangulation_t), intent(inout) :: trian
-    class(element_id_t)      , intent(in)    :: id_mold
 
     integer(ip) :: istat,ielem
     class(JP_element_topology_t), pointer :: elem
@@ -119,9 +118,11 @@ contains
     call trian%create_element_iterator(trian%element_iterator)
 
     ! Initialize all of the element structs (using the iterator)
-    do while(trian%element_iterator%has_next())
-       elem => downcast_to_element_topology( trian%element_iterator%next() )
+    call trian%element_iterator%begin()
+    do while(.not.trian%element_iterator%finished())
+       elem => downcast_to_element_topology( trian%element_iterator%current() )
        call elem%create ! (id_mold)
+       call trian%element_iterator%next()
     end do
 
     ! Initialize all of the element structs (hard coded, old stuff)
@@ -143,10 +144,13 @@ contains
 
     assert(trian%state == JP_triangulation_filled) 
 
-    do while(trian%element_iterator%has_next())
-       elem => downcast_to_element_topology( trian%element_iterator%next() )
+    call trian%element_iterator%begin()
+    do while(.not.trian%element_iterator%finished())
+       elem => downcast_to_element_topology( trian%element_iterator%current() )
        call elem%free()
+       call trian%element_iterator%next()
     end do
+
     ! Free iterator using the virtual function
     call trian%free_element_iterator(trian%element_iterator)
 
@@ -215,23 +219,25 @@ contains
     integer(ip)              :: ielem, iobj, jobj, istat, idime, touch,  length_trian_
     type(hash_table_ip_ip_t) :: visited
     integer(ip), allocatable :: elems_around_pos(:)
-    class(JP_element_topology_t), pointer :: elem
-    class(element_id_t)         , allocatable  :: elem_id
-    !type(element_id_t)                 :: elem_id
+    class(JP_element_topology_t)       , pointer     :: elem
+    class(element_id_t)                , allocatable :: elem_id
 
     if (present(length_trian)) then
        length_trian_ = length_trian
     else
-       length_trian_ = trian%num_elems 
+       length_trian_ = trian%num_elems
     endif
 
-    ! Count vefs
+    associate( element_iterator =>  trian%element_iterator)
+
+      ! Count vefs
     call visited%init(max(5,int(real(length_trian_,rp)*0.2_rp,ip))) 
     trian%num_vefs = 0
     touch = 1
-    do while(trian%element_iterator%has_next())
-       elem => downcast_to_element_topology( trian%element_iterator%next() )
-       !elem => trian%element_iterator%next_element_topology()
+    call element_iterator%begin()
+    do while(.not.element_iterator%finished())
+       elem => downcast_to_element_topology( element_iterator%current() )
+       !elem => element_iterator%next_element_topology()
        do iobj=1, elem%num_vefs
           jobj = elem%vefs(iobj)
           if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
@@ -240,17 +246,8 @@ contains
              if (istat == now_stored) trian%num_vefs = trian%num_vefs + 1
           end if
        end do
+       call element_iterator%next()
     end do
-    ! do ielem=1, length_trian_
-    !    do iobj=1, trian%elems(ielem)%num_vefs
-    !       jobj = trian%elems(ielem)%vefs(iobj)
-    !       if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
-    !          !call visited%put(key=jobj, val=1, stat=istat)
-    !          call visited%put(key=jobj, val=touch, stat=istat)
-    !          if (istat == now_stored) trian%num_vefs = trian%num_vefs + 1
-    !       end if
-    !    end do
-    ! end do
     call visited%free
 
     ! Allocate the vef structure array 
@@ -261,35 +258,31 @@ contains
     end do
 
     ! Count elements around each vef
-    do while(trian%element_iterator%has_next())
-       elem => downcast_to_element_topology( trian%element_iterator%next() )
+    call element_iterator%begin()
+    do while(.not.element_iterator%finished())
+       elem => downcast_to_element_topology( element_iterator%current() )
        do iobj=1, elem%num_vefs
           jobj = elem%vefs(iobj)
           if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
              trian%vefs(jobj)%num_elems_around = trian%vefs(jobj)%num_elems_around + 1 
           end if
        end do
+       call element_iterator%next()
     end do
-    ! do ielem=1, length_trian_
-    !    do iobj=1, trian%elems(ielem)%num_vefs
-    !       jobj = trian%elems(ielem)%vefs(iobj)
-    !       if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
-    !          trian%vefs(jobj)%num_elems_around = trian%vefs(jobj)%num_elems_around + 1 
-    !       end if
-    !    end do
-    ! end do
     call memalloc ( trian%num_vefs, elems_around_pos, __FILE__, __LINE__ )
     elems_around_pos = 1
 
     !call JP_triangulation_print( 6, trian, length_trian_ )
 
     ! List elements and add vef dimension
-    do while(trian%element_iterator%has_next())
-       elem => downcast_to_element_topology( trian%element_iterator%next() )
-       call trian%element_iterator%current_id(elem_id)
+    call element_iterator%create_id(elem_id)
+    call element_iterator%begin()
+    do while(.not.element_iterator%finished())
+       elem => downcast_to_element_topology( element_iterator%current() )
+       call element_iterator%current_id(elem_id)
        do idime =1, trian%num_dims
           do iobj = elem%geo_reference_element%nvef_dim(idime), &
-                    elem%geo_reference_element%nvef_dim(idime+1)-1 
+               elem%geo_reference_element%nvef_dim(idime+1)-1 
              jobj = elem%vefs(iobj)
              if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
                 trian%vefs(jobj)%dimension = idime-1
@@ -302,51 +295,38 @@ contains
              end if
           end do
        end do
+       call element_iterator%next()
     end do
-    ! do ielem=1, length_trian_
-    !    do idime =1, trian%num_dims    ! (SBmod)
-    !       do iobj = trian%elems(ielem)%geo_reference_element%nvef_dim(idime), &
-    !            trian%elems(ielem)%geo_reference_element%nvef_dim(idime+1)-1 
-    !          !do iobj=1, trian%elems(ielem)%num_vefs
-    !          jobj = trian%elems(ielem)%vefs(iobj)
-    !          if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
-    !             trian%vefs(jobj)%dimension = idime-1
-    !             if (elems_around_pos(jobj) == 1) then
-    !                call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
-    !             end if
-    !             trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = ielem
-    !             elems_around_pos(jobj) = elems_around_pos(jobj) + 1 
-    !          end if
-    !       end do
-    !    end do
-    ! end do
+    call element_iterator%free_id(elem_id)
 
-    ! Assign border and count boundary faces
-    trian%num_boundary_faces = 0
-    do iobj = 1, trian%num_vefs
-       if ( trian%vefs(iobj)%dimension == trian%num_dims -1 ) then
-          if ( trian%vefs(iobj)%num_elems_around == 1 ) then 
-             trian%num_boundary_faces = trian%num_boundary_faces + 1
-             trian%vefs(iobj)%border = trian%num_boundary_faces
-          end if
-       end if
-    end do
+  end associate
 
-    ! List boundary faces
-    call memalloc (  trian%num_boundary_faces, trian%lst_boundary_faces,  __FILE__, __LINE__ )
-    do iobj = 1, trian%num_vefs
-       if ( trian%vefs(iobj)%dimension == trian%num_dims -1 ) then
-          if ( trian%vefs(iobj)%num_elems_around == 1 ) then 
-             trian%lst_boundary_faces(trian%vefs(iobj)%border) = iobj
-          end if
-       end if
-    end do
+  ! Assign border and count boundary faces
+  trian%num_boundary_faces = 0
+  do iobj = 1, trian%num_vefs
+     if ( trian%vefs(iobj)%dimension == trian%num_dims -1 ) then
+        if ( trian%vefs(iobj)%num_elems_around == 1 ) then 
+           trian%num_boundary_faces = trian%num_boundary_faces + 1
+           trian%vefs(iobj)%border = trian%num_boundary_faces
+        end if
+     end if
+  end do
 
-    call memfree ( elems_around_pos, __FILE__, __LINE__ )
+  ! List boundary faces
+  call memalloc (  trian%num_boundary_faces, trian%lst_boundary_faces,  __FILE__, __LINE__ )
+  do iobj = 1, trian%num_vefs
+     if ( trian%vefs(iobj)%dimension == trian%num_dims -1 ) then
+        if ( trian%vefs(iobj)%num_elems_around == 1 ) then 
+           trian%lst_boundary_faces(trian%vefs(iobj)%border) = iobj
+        end if
+     end if
+  end do
 
-    trian%state = JP_triangulation_filled
+  call memfree ( elems_around_pos, __FILE__, __LINE__ )
 
-  end subroutine JP_triangulation_to_dual
+  trian%state = JP_triangulation_filled
+
+end subroutine JP_triangulation_to_dual
 
   ! This function replaces put_topology_element_triangulation
   ! and it performs the element loop internally (not to be called
@@ -359,8 +339,9 @@ contains
     integer(ip) :: nvef, v_key, ndime, etype, pos_elinf, istat
     integer(ip) :: aux_val
 
-    do while(trian%element_iterator%has_next())
-       elem => downcast_to_element_topology( trian%element_iterator%next() )
+    call trian%element_iterator%begin()
+    do while(.not.trian%element_iterator%finished())
+       elem => downcast_to_element_topology( trian%element_iterator%current() )
 
        ! Legacy code
        nvef  = elem%num_vefs 
@@ -391,6 +372,7 @@ contains
           call reference_element_create(trian%reference_elements(pos_elinf),etype,1,ndime)
        end if
        elem%geo_reference_element => trian%reference_elements(pos_elinf)
+       call trian%element_iterator%next()
     end do
 
   end subroutine create_reference_elements
@@ -413,12 +395,11 @@ contains
     write (lunou,*) 'num_elems:'     , trian%num_elems
     write (lunou,*) 'num_dims:'      , trian%num_dims
 
-    do while(trian%element_iterator%has_next())
-       elem => downcast_to_element_topology( trian%element_iterator%next() )
-       !elem_id = trian%element_iterator%next()
-       !elem => trian%get_element_topology_pointer( elem_id )
+    call trian%element_iterator%create_id(elem_id)
+    call trian%element_iterator%begin()
+    do while(.not.trian%element_iterator%finished())
+       elem => downcast_to_element_topology( trian%element_iterator%current() )
        write (lunou,*) '****PRINT ELEMENT INFO****'
-       !elem_id => elem%get_id() 
        call trian%element_iterator%current_id(elem_id)
        call elem_id%print(lunou)
        write (lunou,*) 'num_vefs:'   , elem%num_vefs
@@ -427,16 +408,9 @@ contains
        write (lunou,*) 'order:'      , elem%order
        !call reference_element_write ( elem%geo_reference_element )
        write (lunou,*) '****END PRINT ELEMENT INFO****'
+       call trian%element_iterator%next()
     end do
-    ! do ielem = 1, length_trian_
-    !    write (lunou,*) '****PRINT ELEMENT ',ielem,' INFO****'
-    !    write (lunou,*) 'num_vefs:', trian%elems(ielem)%num_vefs
-    !    write (lunou,*) 'vefs:', trian%elems(ielem)%vefs
-    !    write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
-    !    write (lunou,*) 'order:', trian%elems(ielem)%order
-    !    !call reference_element_write ( trian%elems(ielem)%geo_reference_element )
-    !    write (lunou,*) '****END PRINT ELEMENT ',ielem,' INFO****'
-    ! end do
+    call trian%element_iterator%free_id(elem_id)
 
     do iobje = 1, trian%num_vefs
        write (lunou,*) '****PRINT VEF ',iobje,' INFO****'

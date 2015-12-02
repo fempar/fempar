@@ -76,14 +76,13 @@ contains
     integer(ip)                  , intent(in)    :: size
     ! Concrete types to select element and element_id in the set
     type(JP_element_topology_t) :: element_mold
-    type(ip_element_id_t)       :: element_id_mold
 
     ! Allocate and create element_set
     allocate(plain_migratory_element_set_t :: this%element_set)
     call this%element_set%create(size,element_mold)
 
     ! Mother class function (not type bounded by standard restriction)
-    call JP_triangulation_create(this,size,element_id_mold)
+    call JP_triangulation_create(this,size)
 
   end subroutine serial_triangulation_create
 

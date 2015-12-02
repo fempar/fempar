@@ -12,8 +12,12 @@
      integer(ip)                                 :: ielem=0
      type(plain_template_element_set_t), pointer :: plain_template_element_set
    contains
+     procedure :: begin      => plain_iterator_begin
+     procedure :: finished   => plain_iterator_finished
      procedure :: next       => plain_iterator_next
-     procedure :: has_next   => plain_iterator_has_next
+     procedure :: current    => plain_iterator_current
+     procedure :: create_id  => plain_iterator_create_id
+     procedure :: free_id    => plain_iterator_free_id
      procedure :: current_id => plain_iterator_current_id
   end type plain_template_element_iterator_t
 
