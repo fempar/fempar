@@ -32,8 +32,11 @@ module SB_fe_space_names
   use array_names
   use serial_scalar_matrix_names
   use serial_scalar_array_names
+  use serial_block_matrix_names
+  use serial_block_array_names
   use SB_matrix_array_assembler_names
   use SB_serial_scalar_matrix_array_assembler_names
+  use SB_serial_block_matrix_array_assembler_names
   use types_names
   use reference_fe_names
   use triangulation_names
@@ -308,10 +311,10 @@ procedure :: symbolic_setup_assembler => serial_fe_space_symbolic_setup_assemble
 end type SB_serial_fe_space_t
 
 type :: SB_p_serial_fe_space_t
-class(SB_serial_fe_space_t), pointer :: p => NULL ()
+type(SB_serial_fe_space_t), pointer :: p => NULL ()
 end type SB_p_serial_fe_space_t
 
-public :: SB_serial_fe_space_t
+public :: SB_serial_fe_space_t, SB_p_serial_fe_space_t
 
 type, extends(SB_fe_space_t) :: SB_composite_fe_space_t  
 
@@ -320,6 +323,7 @@ integer(ip) :: number_fe_spaces
 class(SB_p_serial_fe_space_t), allocatable :: fe_space_array(:)  
 integer(ip), allocatable :: field_blocks(:)
 integer(ip) :: number_blocks
+logical, allocatable :: fields_coupling(:,:)
 integer(ip), allocatable :: number_dofs(:)
 
 contains
@@ -335,7 +339,7 @@ procedure :: get_fe => composite_fe_space_get_fe
 procedure :: initialize_volume_integrator  => composite_fe_space_initialize_volume_integrator
 procedure :: get_max_number_nodes => composite_fe_space_get_max_number_nodes
 procedure :: get_blocks => composite_fe_space_get_blocks
-
+procedure :: get_fields_coupling => composite_fe_space_get_fields_coupling
 procedure :: fill_dof_info => composite_fe_space_fill_dof_info
 procedure :: create_assembler => composite_fe_space_create_assembler
 

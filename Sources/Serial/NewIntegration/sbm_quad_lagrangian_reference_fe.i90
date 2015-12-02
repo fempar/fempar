@@ -182,10 +182,10 @@ subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   !this%number_nodes = this%number_nodes_1d * field_components
 
   call extend_list_components( this, this%nodes_vef)
-  call print_list ( 6, this%nodes_vef)
+  !call print_list ( 6, this%nodes_vef)
 
   call extend_list_components( this, this%interior_nodes_vef)
-  call print_list ( 6, this%interior_nodes_vef)
+  !call print_list ( 6, this%interior_nodes_vef)
 
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%field_components

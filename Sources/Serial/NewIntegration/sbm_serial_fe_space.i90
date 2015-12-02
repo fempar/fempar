@@ -20,7 +20,7 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
   integer(ip) :: i, istat,iobje, inode, jnode, obje_g
   ! Point triangulation
   ! Create reference FE (now only one)
-
+  
   this%triangulation => triangulation
 
   ! Assuming only one reference FE for the moment  SB.alert
@@ -37,17 +37,14 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
   this%reference_fe_geo_list(1)%p => &
        start_reference_fe ( topology = topology, fe_type = fe_type, number_dimensions = number_dimensions, &
        order =  1 , field_type = "vector", continuity = .true. )
-
   allocate( this%volume_integrator(1)%p )
   call this%volume_integrator(1)%p%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p )
 
   ! Do triangulation
   do i = 1, triangulation%num_elems
-
      ! Create FEs
      call this%fe_array(i)%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p, &
           this%volume_integrator(1)%p, triangulation%elems(i))!, field_unknowns)
-
   end do
 
   ! BCs
@@ -55,13 +52,11 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
      call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_code,__FILE__,__LINE__)
      call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_value,__FILE__,__LINE__)
      do iobje = 1,this%fe_array(i)%reference_fe%get_number_vefs()
-
         obje_g = triangulation%elems(i)%vefs(iobje)
         !write(*,*) 'ielem',i
         !write(*,*) 'iobje',iobje
         !write(*,*) 'obje_g',obje_g
         !write(*,*) 'bc_cond_intro',boundary_conditions%code(:,obje_g)
-
         do inode = 1, this%fe_array(i)%reference_fe%get_number_interior_nodes_vef(iobje)
            jnode = this%fe_array(i)%reference_fe%get_interior_node_vef(inode,iobje)
            this%fe_array(i)%bc_code(jnode) = &
@@ -69,16 +64,10 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
            this%fe_array(i)%bc_value(jnode) = &
                 boundary_conditions%valu(this%fe_array(i)%reference_fe%get_bc_component_node(jnode),obje_g)
         end do
-
         !write(*,*) 'bc_code_fe:',this%fe_array(i)%bc_code
-
      end do
-
-
      !check( 0 == 1 )
-
   end do
-
 
 end subroutine serial_fe_space_create
 
@@ -651,7 +640,7 @@ subroutine setup_dof_graph_from_block_row_col_identifiers(  fe_space, matrix )
      posf = dof_graph%ia(idof+1)-1
      call sort(posf-posi+1,dof_graph%ja(posi:posf))
   end do
-  call dof_graph%print( 6)
+  !call dof_graph%print( 6)
   call memfree (aux_ia,__FILE__,__LINE__)
 
   call matrix%return_graph(dof_graph)

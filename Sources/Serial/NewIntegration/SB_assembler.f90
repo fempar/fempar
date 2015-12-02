@@ -39,13 +39,15 @@ module SB_assembler_names
   end type
   
   abstract interface
-     subroutine assembly_interface( this, el2dof, elmat, elvec, number_fe_spaces, blocks, nodes )
+     subroutine assembly_interface( this, el2dof, elmat, elvec, number_fe_spaces, blocks, &
+                                    nodes, blocks_coupling )
        import :: SB_assembler_t, rp, ip, i1p_t
        implicit none
        class(SB_assembler_t)       , intent(inout) :: this
        real(rp), intent(in) :: elmat(:,:), elvec(:)
        type(i1p_t), intent(in) :: el2dof(:)
        integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
+       logical, intent(in) :: blocks_coupling(:,:)
      end subroutine assembly_interface
   end interface
 	 

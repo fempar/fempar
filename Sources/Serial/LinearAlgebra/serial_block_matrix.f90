@@ -65,7 +65,7 @@ module serial_block_matrix_names
      ! procedure, private :: serial_block_matrix_create_offdiagonal_block
      ! generic :: create_block => serial_block_matrix_create_diagonal_block, &
      !                            serial_block_matrix_create_offdiagonal_block
-     ! procedure :: set_block_to_zero => serial_block_matrix_set_block_to_zero                     
+     procedure :: set_block_to_zero => serial_block_matrix_set_block_to_zero                     
                            
      procedure :: allocate                      => serial_block_matrix_allocate
      procedure :: free_in_stages                => serial_block_matrix_free_in_stages
@@ -296,20 +296,20 @@ contains
   !  call bmat%blocks(ib,jb)%serial_scalar_matrix%create (num_rows,num_cols)
   !end subroutine serial_block_matrix_create_offdiagonal_block
   
-  !subroutine serial_block_matrix_set_block_to_zero (bmat,ib,jb)
-  !  implicit none
-  !  ! Parameters
-  !  class(serial_block_matrix_t), intent(inout) :: bmat
-  !  integer(ip)                 , intent(in)    :: ib,jb
-  !  integer(ip) :: istat
+  subroutine serial_block_matrix_set_block_to_zero (bmat,ib,jb)
+   implicit none
+   ! Parameters
+   class(serial_block_matrix_t), intent(inout) :: bmat
+   integer(ip)                 , intent(in)    :: ib,jb
+   integer(ip) :: istat
 
-  !  if ( associated(bmat%blocks(ib,jb)%serial_scalar_matrix) ) then
-  !     ! Undo create
-  !     call bmat%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_clean)
-  !     deallocate (bmat%blocks(ib,jb)%serial_scalar_matrix,stat=istat)
-  !     check(istat==0)
-  !     nullify ( bmat%blocks(ib,jb)%serial_scalar_matrix )
-  !  end if
-  !end subroutine serial_block_matrix_set_block_to_zero
+   if ( associated(bmat%blocks(ib,jb)%serial_scalar_matrix) ) then
+      ! Undo create
+      call bmat%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_clean)
+      deallocate (bmat%blocks(ib,jb)%serial_scalar_matrix,stat=istat)
+      check(istat==0)
+      nullify ( bmat%blocks(ib,jb)%serial_scalar_matrix )
+   end if
+  end subroutine serial_block_matrix_set_block_to_zero
 
 end module serial_block_matrix_names

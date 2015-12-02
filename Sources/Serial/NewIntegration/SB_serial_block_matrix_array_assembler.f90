@@ -55,12 +55,13 @@ public :: SB_serial_block_matrix_array_assembler_t
 
 contains
 subroutine serial_block_matrix_array_assembler_assembly( this, el2dof, elmat, elvec, &
-                                                         number_fe_spaces, blocks, nodes ) 
+                                                         number_fe_spaces, blocks, nodes, blocks_coupling ) 
  implicit none
  class(SB_serial_block_matrix_array_assembler_t), intent(inout) :: this
  real(rp), intent(in) :: elmat(:,:), elvec(:) 
  type(i1p_t), intent(in) :: el2dof(:)
  integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
+ logical, intent(in) :: blocks_coupling(:,:)
 
  class(matrix_t), pointer :: matrix
  class(array_t) , pointer :: array
@@ -70,69 +71,82 @@ subroutine serial_block_matrix_array_assembler_assembly( this, el2dof, elmat, el
 
  select type(matrix)
     class is(serial_block_matrix_t)
-    call element_serial_block_matrix_assembly( matrix,  el2dof,  elmat, number_fe_spaces, blocks, nodes )
+    call element_serial_block_matrix_assembly( matrix,  el2dof,  elmat, number_fe_spaces, blocks, nodes, blocks_coupling )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_block_array_t)
-    call element_serial_block_array_assembly( array,  el2dof,  elvec, number_fe_spaces, blocks, nodes )
+    call element_serial_block_array_assembly( array,  el2dof,  elvec, number_fe_spaces, blocks, nodes, blocks_coupling )
     class default
     check(.false.)
  end select
 end subroutine serial_block_matrix_array_assembler_assembly
 
-subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spaces, blocks, nodes )
+subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spaces, &
+     blocks, nodes, blocks_coupling )
   implicit none
   ! Parameters
-  type(serial_block_matrix_t)         , intent(inout) :: a
+  type(serial_block_matrix_t), intent(inout) :: a
   real(rp), intent(in) :: elmat(:,:) 
   type(i1p_t), intent(in) :: el2dof(:)
   integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
+  logical, intent(in) :: blocks_coupling(:,:)
 
   integer(ip) :: c_i, ifem, iblock, inode, idof
   integer(ip) :: c_j, jfem, jblock, jnode, jdof, k
+  type(serial_scalar_matrix_t), pointer :: mat
 
   c_i = 0
-  c_j = 0
   do ifem = 1, number_fe_spaces
      iblock = blocks(ifem)
      do inode = 1, nodes(ifem)
         idof = el2dof(ifem)%l(inode)
         c_i = c_i + 1
-        do jfem = 1,number_fe_spaces
-           jblock = blocks(jfem)
-           do jnode = 1, nodes(jfem)
-              jdof = el2dof(jfem)%l(jnode)
-              c_j = c_j + 1
-              if (  (.not. a%blocks(iblock,jblock)%serial_scalar_matrix%graph%symmetric_storage) .and. jdof > 0 ) then
-                 do k = a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ia(idof),a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ia(idof+1)-1
-                    if ( a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ja(k) == jdof ) exit
+        if ( idof > 0 ) then
+           c_j = 0
+           do jfem = 1,number_fe_spaces
+              jblock = blocks(jfem)
+              if ( blocks_coupling(iblock,jblock) ) then
+                 mat => a%get_block(iblock,jblock)
+                 do jnode = 1, nodes(jfem)
+                    jdof = el2dof(jfem)%l(jnode)
+                    c_j = c_j + 1
+                    !write(*,*) 'ifem,iblock,inode,idof',ifem,iblock,inode,idof
+                    !write(*,*) 'jfem,jblock,jnode,jdof',jfem,jblock,jnode,jdof
+                    if (  (.not.mat%graph%symmetric_storage) .and. jdof > 0 ) then
+                       do k = mat%graph%ia(idof),mat%graph%ia(idof+1)-1
+                          if ( mat%graph%ja(k) == jdof ) exit
+                       end do
+                       assert ( k < mat%graph%ia(idof+1) )
+                       mat%a(k) = mat%a(k) + elmat(c_i,c_j)
+                    else if ( jdof >= idof ) then 
+                       do k = mat%graph%ia(idof),mat%graph%ia(idof+1)-1
+                          if ( mat%graph%ja(k) == jdof ) exit
+                       end do
+                       assert ( k < mat%graph%ia(idof+1) )
+                       mat%a(k) = mat%a(k) + elmat(c_i,c_j)
+                    end if
                  end do
-                 assert ( k < a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ia(idof+1) )
-                 a%blocks(iblock,jblock)%serial_scalar_matrix%a(k) = a%blocks(iblock,jblock)%serial_scalar_matrix%a(k) + elmat(c_i,c_j)
-              else if ( jdof >= idof ) then 
-                 do k = a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ia(idof),a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ia(idof+1)-1
-                    if ( a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ja(k) == jdof ) exit
-                 end do
-                 assert ( k < a%blocks(iblock,jblock)%serial_scalar_matrix%graph%ia(idof+1) )
-                 a%blocks(iblock,jblock)%serial_scalar_matrix%a(k) = a%blocks(iblock,jblock)%serial_scalar_matrix%a(k) + elmat(c_i,c_j)
+              else
+                 c_j = c_j + nodes(jfem)
               end if
            end do
-        end do
+        end if
      end do
   end do
 
 end subroutine element_serial_block_matrix_assembly
 
-subroutine element_serial_block_array_assembly(  a, el2dof, elvec, number_fe_spaces, blocks, nodes )
+subroutine element_serial_block_array_assembly( a, el2dof, elvec, number_fe_spaces, blocks, nodes, blocks_coupling )
   implicit none
   ! Parameters
   type(serial_block_array_t), intent(inout) :: a
   real(rp), intent(in) :: elvec(:)
   integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
   type(i1p_t), intent(in) :: el2dof(:)
+  logical, intent(in) :: blocks_coupling(:,:)
 
   integer(ip) :: c_i, ifem, iblock, inode, idof
 
