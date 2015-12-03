@@ -53,13 +53,14 @@ public :: SB_serial_scalar_matrix_array_assembler_t
 public :: element_serial_scalar_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
-subroutine serial_scalar_matrix_array_assembler_assembly(this, el2dof, elmat, elvec, &
-                                                         number_fe_spaces, blocks, nodes ) 
+subroutine serial_scalar_matrix_array_assembler_assembly( this, el2dof, elmat, elvec, &
+                                                          number_fe_spaces, blocks, nodes, blocks_coupling ) 
  implicit none
  class(SB_serial_scalar_matrix_array_assembler_t), intent(inout) :: this
  real(rp), intent(in) :: elmat(:,:), elvec(:) 
  type(i1p_t), intent(in) :: el2dof(:)
  integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
+ logical, intent(in) :: blocks_coupling(:,:)
 
  class(matrix_t), pointer :: matrix
  class(array_t) , pointer :: array

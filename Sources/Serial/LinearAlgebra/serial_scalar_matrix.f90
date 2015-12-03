@@ -289,7 +289,7 @@ contains
   subroutine serial_scalar_matrix_allocate(this)
     implicit none
     class(serial_scalar_matrix_t), intent(inout) :: this
-    
+
     assert ( this%state == graph_setup .or. this%state == entries_ready )
     
     if ( this%state == graph_setup ) then

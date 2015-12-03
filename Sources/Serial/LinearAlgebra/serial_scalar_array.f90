@@ -90,7 +90,7 @@ module serial_scalar_array_names
      procedure :: same_vector_space => serial_scalar_array_same_vector_space
      procedure :: free_in_stages  => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
-					procedure :: get_number_blocks
+     procedure :: get_number_blocks
   end type serial_scalar_array_t
 
   ! Types
@@ -133,6 +133,7 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     assert ( this%state == created )
+    !write(*,*) 1/0.0_rp
     call memallocp(this%size,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp
     this%state = entries_ready
