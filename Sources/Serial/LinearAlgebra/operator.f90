@@ -65,12 +65,14 @@ module operator_names
      procedure  :: minus     => minus_operator_constructor
      procedure, pass(op_left)  :: scal_left => scal_left_operator_constructor
      procedure, pass(op_right) :: scal_right => scal_right_operator_constructor
-     generic    :: operator(+) => sum
-     generic    :: operator(*) => mult, scal_right, scal_left, apply_fun
-     generic    :: operator(-) => sub
-     generic    :: operator(.minus.) => minus
+     procedure  :: identity => identity_operator_constructor
+     generic    :: operator(+)          => sum
+     generic    :: operator(*)          => mult, scal_right, scal_left, apply_fun
+     generic    :: operator(-)          => sub
+     generic    :: operator(.minus.)    => minus
+     generic    :: operator(.identity.) => identity
   end type operator_t
-
+    
   ! Son class expression_operator_t. These operators are always temporary
   ! and therefore an assignment is needed to make copies. The gfortran
   ! compiler only supports A=B when A and B are polymorphic if the assignment 
@@ -96,7 +98,6 @@ module operator_names
      procedure :: assign  => unary_operator_copy
   end type unary_operator_t
 
-
   type, extends(operator_t) :: dynamic_state_operator_t
      class(operator_t), pointer :: op_stored => null()
      class(operator_t), pointer :: op        => null()
@@ -108,7 +109,7 @@ module operator_names
      procedure  :: assign => dynamic_state_operator_constructor
      generic    :: assignment(=) => assign
   end type dynamic_state_operator_t
-
+  
   type, extends(binary_operator_t) :: sum_operator_t
    contains
      procedure  :: apply     => sum_operator_apply
@@ -139,12 +140,18 @@ module operator_names
      ! as it adds a new member variable "alpha" to unary_operator_t
      procedure  :: assign => scal_operator_copy
   end type scal_operator_t
-
+  
   type, extends(unary_operator_t) :: minus_operator_t
    contains
      procedure  :: apply => minus_operator_apply
      procedure  :: is_linear => minus_operator_is_linear
   end type minus_operator_t
+    
+  type, extends(unary_operator_t) :: identity_operator_t
+  contains
+     procedure :: apply     => identity_operator_apply
+     procedure :: is_linear => identity_operator_is_linear
+  end type
 
   abstract interface
      ! op%apply(x,y) <=> y <- op*x
@@ -263,6 +270,7 @@ contains
       check(.false.)
     end if
   end function operator_get_translation
+    
   
   subroutine binary_operator_default_init(this)
     implicit none
@@ -511,6 +519,26 @@ contains
     call range_op%clone(range_res)
     call domain_op%clone(domain_res)
   end function minus_operator_constructor
+  
+  function identity_operator_constructor(op) result (res)
+    implicit none
+    class(operator_t)    , intent(in)  :: op
+    type(identity_operator_t) :: res
+    ! Pointers to domain vector spaces
+    type(vector_space_t), pointer :: domain_op
+    type(vector_space_t), pointer :: domain_res
+    ! Pointers to range vector spaces
+    type(vector_space_t), pointer :: range_op
+    type(vector_space_t), pointer :: range_res
+    
+    domain_op => op%get_domain_vector_space()
+    domain_res => res%get_domain_vector_space()
+    range_op => op%get_range_vector_space()
+    range_res => res%get_range_vector_space()
+    call unary_operator_constructor(op,res)
+    call range_op%clone(range_res)
+    call domain_op%clone(domain_res)
+  end function identity_operator_constructor
 
 !!$  !--------------------------------------------------------------------!
 !!$  ! Construction and deallocation functions/subroutines of the nodes of! 
@@ -724,6 +752,21 @@ contains
   !-------------------------------------!
   ! apply implementations               !
   !-------------------------------------!
+  subroutine identity_operator_apply(op,x,y)
+    implicit none
+    class(identity_operator_t), intent(in) :: op
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y
+
+    call op%abort_if_not_in_domain(x)
+    call op%abort_if_not_in_range(y)
+    call op%GuardTemp()
+    call x%GuardTemp()
+    call y%copy(x)
+    call x%CleanTemp()
+    call op%CleanTemp()
+  end subroutine identity_operator_apply
+  
   subroutine sum_operator_apply(op,x,y)
     implicit none
     class(sum_operator_t), intent(in)    :: op
@@ -847,6 +890,13 @@ contains
   !-------------------------------------!
   ! is_linear implementations           !
   !-------------------------------------!
+  function identity_operator_is_linear(op)
+    implicit none
+    class(identity_operator_t), intent(in)    :: op
+    logical :: identity_operator_is_linear
+    identity_operator_is_linear = .false.
+  end function identity_operator_is_linear
+  
   function sum_operator_is_linear(op)
     implicit none
     class(sum_operator_t), intent(in)    :: op

@@ -419,14 +419,11 @@ program test_cdr
   call fe_affine_operator_range_vector_space%create_vector(vector)
 
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  call fe_affine_operator_range_vector_space%create_vector(initial_solution)
-  call initial_solution%init(1.0_rp)
 
   ! Create linear solver, set operators and solve linear system
   call linear_solver%create(senv)
   call linear_solver%set_type_and_parameters_from_pl()
-  call linear_solver%set_operators(fe_affine_operator,fe_affine_operator)
-  call linear_solver%set_initial_solution(initial_solution)
+  call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   call linear_solver%solve(vector)
   call linear_solver%free() 
 

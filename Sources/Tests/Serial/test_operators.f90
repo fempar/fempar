@@ -88,7 +88,7 @@ program test_operators
   call linear_solver%create(environment)
   call linear_solver%set_type_from_pl()
   call linear_solver%set_parameters_from_pl()
-  call linear_solver%set_operators(Mat,Mat)
+  call linear_solver%set_operators(Mat,.identity. Mat)
   call linear_solver%set_rhs(Vec2)
   call linear_solver%solve(Vec1)
   call linear_solver%free() 
