@@ -37,9 +37,12 @@ module migratory_element_names
      !private
      !class(element_id_t), allocatable :: id
    contains
-     procedure (size_interface)  , deferred :: size
-     procedure (pack_interface)  , deferred :: pack
-     procedure (unpack_interface), deferred :: unpack
+     !procedure (size_interface)  , deferred :: size
+     !procedure (pack_interface)  , deferred :: pack
+     !procedure (unpack_interface), deferred :: unpack
+     procedure  :: size
+     procedure  :: pack
+     procedure  :: unpack
      procedure (free_interface)  , deferred :: free
      procedure (assignment_interface), deferred :: assign
      !procedure :: get_id    => get_migratory_element_id
@@ -48,42 +51,17 @@ module migratory_element_names
   end type migratory_element_t
 
   abstract interface
-     subroutine size_interface(this,n)
-       import :: migratory_element_t, ip
-       implicit none
-       class(migratory_element_t), intent(in)  :: this
-       integer(ip)           , intent(out) :: n
-     end subroutine size_interface
-
-     subroutine pack_interface(this,n,buffer)
-       import :: migratory_element_t, ip, ieep
-       implicit none
-       class(migratory_element_t), intent(in)  :: this
-       integer(ip)             , intent(in)  :: n
-       integer(ieep)           , intent(out) :: buffer(n)
-     end subroutine pack_interface
-
-     subroutine unpack_interface(this,n,buffer)
-       import :: migratory_element_t, ip, ieep
-       implicit none
-       class(migratory_element_t), intent(inout) :: this
-       integer(ip)             , intent(in)    :: n
-       integer(ieep)           , intent(in)    :: buffer(n)
-     end subroutine unpack_interface
-
      subroutine free_interface(this)
        import :: migratory_element_t
        implicit none
        class(migratory_element_t), intent(inout) :: this
      end subroutine free_interface
-
      subroutine assignment_interface(this,that)
        import :: migratory_element_t
        implicit none
        class(migratory_element_t), intent(inout) :: this
        class(migratory_element_t), intent(in)    :: that
      end subroutine assignment_interface
-
   end interface
 
   type, abstract :: migratory_element_pointer_t
@@ -124,6 +102,37 @@ module migratory_element_names
 contains
   !=============================================================================
   !=============================================================================
+  subroutine size(this,n)
+    implicit none
+    class(migratory_element_t), intent(in)  :: this
+    integer(ip)               , intent(out) :: n
+    n=0
+    write(*,*) 'Function size() of migratory_element_t is not implemented'
+    write(*,*) 'It must be implemented in any derived class that invokes it'
+    check(.false.)
+  end subroutine size
+  
+  subroutine pack(this,n,buffer)
+    implicit none
+    class(migratory_element_t), intent(in)  :: this
+    integer(ip)               , intent(in)  :: n
+    integer(ieep)             , intent(out) :: buffer(n)
+    buffer(1) = 0
+    write(*,*) 'Function pack() of migratory_element_t is not implemented'
+    write(*,*) 'It must be implemented in any derived class that invokes it'
+    check(.false.)
+  end subroutine pack
+  
+  subroutine unpack(this,n,buffer)
+    implicit none
+    class(migratory_element_t), intent(inout) :: this
+    integer(ip)               , intent(in)    :: n
+    integer(ieep)             , intent(in)    :: buffer(n)
+    write(*,*) 'Function unpack() of migratory_element_t is not implemented'
+    write(*,*) 'It must be implemented in any derived class that invokes it'
+    check(.false.)
+  end subroutine unpack
+  
   !=============================================================================
   !=============================================================================
   ! function get_migratory_element_id(this) result(id)
@@ -156,7 +165,7 @@ contains
 #define greater(a,b) (a%level>b%level).or.(a%level==b%level.and.a%tree>b%tree) .or. (a%level==b%level.and.a%tree==b%tree.and.a%morton>b%morton)
 #define smaller(a,b) (a%level<b%level).or.(a%level==b%level.and.a%tree<b%tree) .or. (a%level==b%level.and.a%tree==b%tree.and.a%morton==b%morton)
 #define equal(a,b) (a%level==b%level.and.a%tree==b%tree.and.a%morton==b%morton)
-#define convert_to_int(key) (2**key%level - 1)*estimated_forest_size + (key%tree-1)*2**key%level + key%morton + 1
+#define convert_to_int(key) (2**key%level - 1)*estimated_forest_size + (key%tree-1)*2**key%level + int(key%morton,ip) + 1
 #include "hash_element_set_body.i90"
 
 end module migratory_element_names

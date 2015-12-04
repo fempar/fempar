@@ -221,7 +221,7 @@ subroutine get_hash_template_element_set_t(tbl,key,val,stat)
   class(hash_template_element_set_t)  , intent(in)    :: tbl
   type(template_key_t)                , intent(in)    :: key
   class(template_element_t), pointer  , intent(out)   :: val
-  integer(ip)                         , intent(out)   :: stat
+  integer(ip)             , optional  , intent(out)   :: stat
   integer(ip)                                         :: hash
   hash = mod( convert_to_int(key) ,tbl%vec_len)
   assert ( (hash>=1).and.(hash<=tbl%vec_len))
@@ -275,7 +275,7 @@ end subroutine free_hash_template_element_set_t
 ! Simplest iterator
   subroutine create_hash_template_element_iterator(this,iterator)
     implicit none
-    class(hash_template_element_set_t), target      , intent(in)  :: this
+    class(hash_template_element_set_t) , target     , intent(in)  :: this
     class(template_element_iterator_t) , allocatable, intent(out) :: iterator
     integer(ip) :: istat
     allocate(hash_template_element_iterator_t :: iterator, stat=istat)
@@ -289,7 +289,7 @@ end subroutine free_hash_template_element_set_t
   !=============================================================================
   subroutine free_hash_template_element_iterator(this,iterator)
     implicit none
-    class(hash_template_element_set_t)            , intent(in)    :: this
+    class(hash_template_element_set_t)             , intent(in)    :: this
     class(template_element_iterator_t), allocatable, intent(inout) :: iterator
     ! No internal memory for this simple iterator.
     deallocate(iterator)
@@ -323,7 +323,6 @@ end subroutine free_hash_template_element_set_t
     this%current_node => this%next_node
     call this%hash_template_element_set%get_next(this%current_node,this%next_node,stat)
   end subroutine hash_template_element_iterator_next
-
   !=============================================================================
   function hash_template_element_iterator_current (this) result(p)
     implicit none
@@ -348,9 +347,37 @@ end subroutine free_hash_template_element_set_t
     if(allocated(res)) deallocate(res)
   end subroutine hash_template_element_iterator_free_id
   !=============================================================================
-  subroutine hash_template_element_iterator_current_id(this,res)
+  subroutine hash_template_element_iterator_get_id(this,res)
     implicit none
     class(hash_template_element_iterator_t), intent(in)    :: this
     class(element_id_t)                    , intent(inout) :: res
-    res = this%current_node%key
-  end subroutine hash_template_element_iterator_current_id
+    ! The following line gives an error using IFC 16. For this
+    ! reason it is substituted by the select type below, even though
+    ! the assignment of the abstract type is correct.
+    !res = this%current_node%key
+    select type(res)
+    class is(forest_element_id_t)
+       res = this%current_node%key
+    class default
+       write(*,*) 'Error calling hash_element_set%get_id'
+       write(*,*) 'the id must be of type forest_element_id_t'
+       check(.false.)
+    end select
+  end subroutine hash_template_element_iterator_get_id
+  !=============================================================================
+  function hash_template_element_iterator_get (this,id) result(p)
+    implicit none
+    class(hash_template_element_iterator_t), intent(in) :: this
+    class(element_id_t)                    , intent(in) :: id
+    class(template_element_t)              , pointer    :: p
+    integer(ip) :: stat
+    select type(id)
+    class is(forest_element_id_t)
+       call this%hash_template_element_set%get(id,p,stat)
+       assert(stat==key_found)
+    class default
+       write(*,*) 'Error calling hash_element_iterator%get'
+       write(*,*) 'the id must be of type forest_element_id_t'
+       check(.false.)
+    end select
+  end function hash_template_element_iterator_get

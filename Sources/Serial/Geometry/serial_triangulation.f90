@@ -32,6 +32,7 @@ module serial_triangulation_names
   use migratory_element_names
   use fe_space_types_names
   use hash_table_names  
+  use JP_element_topology_names
   use JP_triangulation_names
   implicit none
   private
@@ -42,9 +43,8 @@ module serial_triangulation_names
    contains
      procedure :: create => serial_triangulation_create
      procedure :: free   => serial_triangulation_free
-     procedure :: create_element_iterator
-     procedure :: free_element_iterator
-     !procedure :: get_element_topology_pointer
+     !procedure :: create_element_iterator
+     !procedure :: free_element_iterator
   end type serial_triangulation_t
 
   ! Types
@@ -53,52 +53,56 @@ module serial_triangulation_names
 contains
 
   !=============================================================================
-  subroutine create_element_iterator(this,iterator)
+  subroutine serial_triangulation_create(trian,size)
     implicit none
-    class(serial_triangulation_t), target     , intent(in)  :: this
-    class(migratory_element_iterator_t)    , allocatable, intent(out) :: iterator
-    call this%element_set%create_iterator(iterator)
-  end subroutine create_element_iterator
-  !=============================================================================
-  subroutine free_element_iterator(this,iterator)
-    implicit none
-    class(serial_triangulation_t)   , intent(in)    :: this
-    class(migratory_element_iterator_t), allocatable, intent(inout) :: iterator
-    call this%element_set%free_iterator(iterator)
-  end subroutine free_element_iterator
-
-  !=============================================================================
-  !=============================================================================
-  !=============================================================================
-  subroutine serial_triangulation_create(this,size)
-    implicit none
-    class(serial_triangulation_t), intent(inout) :: this
+    class(serial_triangulation_t), intent(inout) :: trian
     integer(ip)                  , intent(in)    :: size
     ! Concrete types to select element and element_id in the set
     type(JP_element_topology_t) :: element_mold
 
     ! Allocate and create element_set
-    allocate(plain_migratory_element_set_t :: this%element_set)
-    call this%element_set%create(size,element_mold)
+    allocate(plain_migratory_element_set_t :: trian%element_set)
+    call trian%element_set%create(size,element_mold)
 
     ! Mother class function (not type bounded by standard restriction)
-    call JP_triangulation_create(this,size)
+    !call JP_triangulation_create(trian,size)
+    call trian%JP_triangulation_t%create(size)
 
   end subroutine serial_triangulation_create
 
   !=============================================================================
-  subroutine serial_triangulation_free(this)
+  subroutine serial_triangulation_free(trian)
     implicit none
-    class(serial_triangulation_t), intent(inout) :: this
+    class(serial_triangulation_t), intent(inout) :: trian
 
     ! Mother class function (not type bounded by standard restriction)
-    call JP_triangulation_free(this)
+    !call JP_triangulation_free(trian)
+    call trian%JP_triangulation_t%free()
 
     ! Deallocate the element structure array 
-    call this%element_set%free()
+    call trian%element_set%free()
 
   end subroutine serial_triangulation_free
 
   !=============================================================================
+  subroutine serial_triangulation_to_dual(trian)
+    implicit none
+    class(serial_triangulation_t), intent(inout) :: trian
+    integer(ip) :: iobj,istat
+
+    assert( trian%state == JP_triangulation_elements_filled )
+
+    ! Allocate the vef structure array 
+    allocate(vef_topology_t :: trian%vefs(trian%num_vefs), stat=istat)
+    check(istat==0)
+    do iobj=1, trian%num_vefs
+       !call initialize_vef_topology(trian%vefs(iobj))
+       call trian%vefs(iobj)%create()
+    end do
+
+    ! Invoke mother class function
+    call trian%JP_triangulation_t%to_dual()
+
+  end subroutine serial_triangulation_to_dual
 
 end module serial_triangulation_names

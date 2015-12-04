@@ -36,30 +36,52 @@ module JP_element_topology_names
   private
 # include "debug.i90"
 
+
+  ! Explicit control of element states is NOT implemented
+  ! for this class (because it requires an integer).
+  ! Conceptually we consider the following diagram
+  !
+  ! --------------------------------------------------------
+  ! Input State      | Action               | Output State 
+  ! --------------------------------------------------------
+  ! not_created      | create               | created 
+  ! not_created      | free                 | not_created
+  ! created          | free                 | not_created
+  ! created          | fill                 | filled
+  ! filled           | fill                 | filled
+  ! filled           | free                 | not_created
+
   type, extends(migratory_element_t) :: JP_element_topology_t
      integer(ip)               :: num_vefs = -1    ! Number of vefs
      integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
-     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
+     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
    contains
-     procedure :: size   => element_topology_size
-     procedure :: pack   => element_topology_pack
-     procedure :: unpack => element_topology_unpack
      procedure :: create => element_topology_create
      procedure :: free   => element_topology_free
      procedure :: assign => element_topology_assign
+     procedure :: print  => element_topology_print
   end type JP_element_topology_t
-
 
   ! Types
   public :: JP_element_topology_t
   
   ! Functions
-  public :: downcast_to_element_topology,local_id_from_vertices
+  public :: downcast_to_element_topology, local_id_from_vertices
 
 contains
 
+ !=============================================================================
+  subroutine element_topology_create(this)
+    implicit none
+    class(JP_element_topology_t), intent(inout) :: this
+    assert(.not. allocated(this%vefs))
+    assert(.not. allocated(this%coordinates))
+    this%num_vefs = -1
+ end subroutine element_topology_create
+
+ !=============================================================================
   subroutine element_topology_free(this)
     implicit none
     class(JP_element_topology_t), intent(inout) :: this
@@ -72,29 +94,22 @@ contains
     this%num_vefs = -1
     nullify( this%geo_reference_element )
   end subroutine element_topology_free
- !=============================================================================
-  subroutine element_topology_create(this)
-    implicit none
-    class(JP_element_topology_t), intent(inout) :: this
-    !class(element_id_t)         , intent(in)    :: id_mold
-    !call this%create_id(id_mold)
-    assert(.not. allocated(this%vefs))
-    this%num_vefs = -1
- end subroutine element_topology_create
 
  !=============================================================================
-  function downcast_to_element_topology(parent) result(this)
+  subroutine element_topology_fill(this, num_dims, num_vefs, num_nodes, vefs, coordinates)
     implicit none
-    class(migratory_element_t), pointer, intent(in) :: parent
-    class(JP_element_topology_t) , pointer             :: this
-    select type(parent)
-    class is(JP_element_topology_t)
-       this => parent
-    class default
-       write(*,*) 'Cannot downcast to element_topology'
-       check(.false.)
-    end select
-  end function downcast_to_element_topology
+    class(JP_element_topology_t), intent(inout) :: this
+    integer(ip), intent(in) :: num_vefs, num_dims, num_nodes
+    integer(ip), intent(in) :: vefs(num_vefs)
+    real(rp)   , intent(in) :: coordinates(num_dims,num_nodes)
+
+    this%num_vefs = num_vefs
+    call memalloc( this%num_vefs, this%vefs, __FILE__, __LINE__)
+    this%vefs = vefs
+    call memalloc( num_dims, num_nodes, this%coordinates, __FILE__, __LINE__ )
+    this%coordinates = coordinates
+
+  end subroutine element_topology_fill
 
  !=============================================================================
   subroutine element_topology_assign(this, that)
@@ -112,6 +127,32 @@ contains
     end select
 
   end subroutine element_topology_assign
+
+ !=============================================================================
+  subroutine element_topology_print(elem, lunou)
+    implicit none
+    class(JP_element_topology_t), intent(inout) :: elem
+    integer(ip)                 , intent(in)    :: lunou
+    write (lunou,*) 'num_vefs:'   , elem%num_vefs
+    write (lunou,*) 'vefs:'       , elem%vefs
+    write (lunou,*) 'coordinates:', elem%coordinates
+    write (lunou,*) 'order:'      , elem%order
+    !call reference_element_write ( elem%geo_reference_element )
+  end subroutine element_topology_print
+
+ !=============================================================================
+  function downcast_to_element_topology(parent) result(this)
+    implicit none
+    class(migratory_element_t), pointer, intent(in) :: parent
+    class(JP_element_topology_t) , pointer             :: this
+    select type(parent)
+    class is(JP_element_topology_t)
+       this => parent
+    class default
+       write(*,*) 'Cannot downcast to element_topology'
+       check(.false.)
+    end select
+  end function downcast_to_element_topology
 
  !=============================================================================
   subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
@@ -149,77 +190,77 @@ contains
  !=============================================================================
  ! To be eliminated
  !=============================================================================
-  subroutine element_topology_size (this, n)
-    implicit none
-    class(JP_element_topology_t), intent(in)  :: this
-    integer(ip)            , intent(out) :: n
+  ! subroutine element_topology_size (this, n)
+  !   implicit none
+  !   class(JP_element_topology_t), intent(in)  :: this
+  !   integer(ip)            , intent(out) :: n
     
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip, size_of_rp
+  !   ! Locals
+  !   integer(ieep) :: mold(1)
+  !   integer(ip)   :: size_of_ip, size_of_rp
 
-    size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_rp   = size(transfer(1.0_rp ,mold))
-    n = 2*size_of_ip + size(this%coordinates)*size_of_rp
+  !   size_of_ip   = size(transfer(1_ip ,mold))
+  !   size_of_rp   = size(transfer(1.0_rp ,mold))
+  !   n = 2*size_of_ip + size(this%coordinates)*size_of_rp
 
-  end subroutine element_topology_size
+  ! end subroutine element_topology_size
 
-  subroutine element_topology_pack (this, n, buffer)
-    implicit none
-    class(JP_element_topology_t), intent(in)  :: this
-    integer(ip)              , intent(in)   :: n
-    integer(ieep)            , intent(out)  :: buffer(n)
+  ! subroutine element_topology_pack (this, n, buffer)
+  !   implicit none
+  !   class(JP_element_topology_t), intent(in)  :: this
+  !   integer(ip)              , intent(in)   :: n
+  !   integer(ieep)            , intent(out)  :: buffer(n)
     
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip,size_of_rp
-    integer(ip)   :: start, end
+  !   ! Locals
+  !   integer(ieep) :: mold(1)
+  !   integer(ip)   :: size_of_ip,size_of_rp
+  !   integer(ip)   :: start, end
 
-    size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_rp   = size(transfer(1.0_rp ,mold))
+  !   size_of_ip   = size(transfer(1_ip ,mold))
+  !   size_of_rp   = size(transfer(1.0_rp ,mold))
 
-    start = 1
-    end   = start + size_of_ip -1
-    buffer(start:end) = transfer(size(this%coordinates,1),mold)
+  !   start = 1
+  !   end   = start + size_of_ip -1
+  !   buffer(start:end) = transfer(size(this%coordinates,1),mold)
 
-    start = end + 1
-    end   = start + size_of_ip -1
-    buffer(start:end) = transfer(this%num_vefs,mold)
+  !   start = end + 1
+  !   end   = start + size_of_ip -1
+  !   buffer(start:end) = transfer(this%num_vefs,mold)
 
-    !start = end + 1
-    !end   = start + size_of_rp*size(this%coordinates) - 1
-    !buffer(start:end) = transfer(this%coordinates,mold)
+  !   !start = end + 1
+  !   !end   = start + size_of_rp*size(this%coordinates) - 1
+  !   !buffer(start:end) = transfer(this%coordinates,mold)
 
-  end subroutine element_topology_pack
+  ! end subroutine element_topology_pack
 
-  subroutine element_topology_unpack(this, n, buffer)
-    implicit none
-    class(JP_element_topology_t), intent(inout)  :: this
-    integer(ip)              , intent(in)     :: n
-    integer(ieep)            , intent(in)     :: buffer(n)
+  ! subroutine element_topology_unpack(this, n, buffer)
+  !   implicit none
+  !   class(JP_element_topology_t), intent(inout)  :: this
+  !   integer(ip)              , intent(in)     :: n
+  !   integer(ieep)            , intent(in)     :: buffer(n)
 
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip)   :: size_of_ip,size_of_rp
-    integer(ip)   :: start, end
-    integer(ip)   :: num_dims
+  !   ! Locals
+  !   integer(ieep) :: mold(1)
+  !   integer(ip)   :: size_of_ip,size_of_rp
+  !   integer(ip)   :: start, end
+  !   integer(ip)   :: num_dims
     
-    size_of_ip = size(transfer(1_ip ,mold))
-    size_of_rp = size(transfer(1_rp,mold))
+  !   size_of_ip = size(transfer(1_ip ,mold))
+  !   size_of_rp = size(transfer(1_rp,mold))
 
-    start = 1
-    end   = start + size_of_ip -1
-    this%num_vefs  = transfer(buffer(start:end), this%num_vefs)
+  !   start = 1
+  !   end   = start + size_of_ip -1
+  !   this%num_vefs  = transfer(buffer(start:end), this%num_vefs)
 
-    start = end + 1
-    end   = start + size_of_ip - 1
-    num_dims  = transfer(buffer(start:end), num_dims)
+  !   start = end + 1
+  !   end   = start + size_of_ip - 1
+  !   num_dims  = transfer(buffer(start:end), num_dims)
 
-   ! call memalloc( num_dims, this%num_vefs, this%coordinates, __FILE__, __LINE__ )
-   ! start = end + 1
-   ! end   = start + size_of_rp*size(this%coordinates) - 1
-   ! this%coordinates  = transfer(buffer(start:end), this%coordinates)
+  !  ! call memalloc( num_dims, this%num_vefs, this%coordinates, __FILE__, __LINE__ )
+  !  ! start = end + 1
+  !  ! end   = start + size_of_rp*size(this%coordinates) - 1
+  !  ! this%coordinates  = transfer(buffer(start:end), this%coordinates)
     
-  end subroutine element_topology_unpack
+  ! end subroutine element_topology_unpack
 
 end module JP_element_topology_names

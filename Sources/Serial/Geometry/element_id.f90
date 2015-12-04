@@ -43,6 +43,7 @@ module element_id_names
      procedure(print_interface)     , deferred :: print
      procedure(assignment_interface), deferred :: assign
      procedure(set_index_interface) , deferred :: set_index
+     procedure(get_index_interface) , deferred :: get_index
      generic :: assignment(=) => assign
   end type element_id_t
 
@@ -65,6 +66,12 @@ module element_id_names
        class(element_id_t), intent(inout) :: this
        integer(ip)        , intent(in)    :: id
      end subroutine set_index_interface
+     function get_index_interface(this) result(id)
+       import :: element_id_t, ip
+       implicit none
+       class(element_id_t), intent(in) :: this
+       integer(ip) :: id
+     end function get_index_interface
   end interface
 
   ! Integer identifier
@@ -113,7 +120,7 @@ contains
   function ip_element_id_get_index(this) result(id)
     implicit none
     class(ip_element_id_t), intent(in) :: this
-    integer(igp) :: id
+    integer(ip) :: id
     id = this%ielem
   end function ip_element_id_get_index
 

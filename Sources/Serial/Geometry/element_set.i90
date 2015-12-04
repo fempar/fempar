@@ -9,13 +9,14 @@
   type, abstract :: template_element_iterator_t
      private
    contains
-     procedure(begin_interface)     , deferred :: begin
-     procedure(finished_interface)  , deferred :: finished
-     procedure(current_interface)   , deferred :: current
-     procedure(next_interface)      , deferred :: next
-     procedure(create_id_interface) , deferred :: create_id
-     procedure(free_id_interface)   , deferred :: free_id
-     procedure(current_id_interface), deferred :: current_id
+     procedure(begin_interface)    , deferred :: begin
+     procedure(finished_interface) , deferred :: finished
+     procedure(current_interface)  , deferred :: current
+     procedure(next_interface)     , deferred :: next
+     procedure(create_id_interface), deferred :: create_id
+     procedure(free_id_interface)  , deferred :: free_id
+     procedure(get_id_interface)   , deferred :: get_id
+     procedure(get_interface)      , deferred :: get
   end type template_element_iterator_t
 
   abstract interface
@@ -55,12 +56,19 @@
        class(template_element_iterator_t), intent(in)    :: this
        class(element_id_t)  , allocatable, intent(inout) :: res
      end subroutine free_id_interface
-     subroutine current_id_interface(this,res)
+     subroutine get_id_interface(this,res)
        import :: template_element_iterator_t, element_id_t
        implicit none
        class(template_element_iterator_t), intent(in)    :: this
        class(element_id_t)               , intent(inout) :: res
-     end subroutine current_id_interface
+     end subroutine get_id_interface
+     function get_interface (this,id) result(p)
+       import :: template_element_iterator_t, element_id_t, template_element_t
+       implicit none
+       class(template_element_iterator_t), intent(in) :: this
+       class(element_id_t)               , intent(in) :: id
+       class(template_element_t)         , pointer    :: p
+     end function get_interface
   end interface
 
   type, abstract :: template_element_set_t
@@ -88,13 +96,13 @@
      subroutine create_iterator_interface(this,iterator)
        import :: template_element_set_t, template_element_iterator_t
        implicit none
-       class(template_element_set_t), target, intent(in)  :: this
-       class(template_element_iterator_t)   , intent(out) :: iterator
+       class(template_element_set_t)     , target     , intent(in)  :: this
+       class(template_element_iterator_t), allocatable, intent(out) :: iterator
      end subroutine create_iterator_interface
      subroutine free_iterator_interface(this,iterator)
        import :: template_element_set_t, template_element_iterator_t
        implicit none
-       class(template_element_set_t)     , intent(in)    :: this
-       class(template_element_iterator_t), intent(inout) :: iterator
+       class(template_element_set_t)                  , intent(in)    :: this
+       class(template_element_iterator_t), allocatable, intent(inout) :: iterator
      end subroutine free_iterator_interface
   end interface

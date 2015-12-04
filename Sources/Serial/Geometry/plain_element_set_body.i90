@@ -47,6 +47,8 @@
     select type(iterator)
     class is(plain_template_element_iterator_t)
        iterator%plain_template_element_set => this
+       iterator%first=1
+       iterator%last=this%num_elements
     end select
   end subroutine create_plain_iterator
   !=============================================================================
@@ -61,6 +63,22 @@
   !=============================================================================
   !=============================================================================
   !=============================================================================
+  !=============================================================================
+  subroutine plain_iterator_set_first(this, first)
+    implicit none
+    class(plain_template_element_iterator_t), intent(inout) :: this
+    integer(ip)                             , intent(in)    :: first
+    this%first=first
+  end subroutine plain_iterator_set_first
+
+  !=============================================================================
+  subroutine plain_iterator_set_last(this, last)
+    implicit none
+    class(plain_template_element_iterator_t), intent(inout) :: this
+    integer(ip)                             , intent(in)    :: last
+    this%last=last
+  end subroutine plain_iterator_set_last
+
   !=============================================================================
   subroutine plain_iterator_begin(this)
     implicit none
@@ -105,9 +123,18 @@
     if(allocated(res)) deallocate(res)
   end subroutine plain_iterator_free_id
   !=============================================================================
-  subroutine plain_iterator_current_id(this,res)
+  subroutine plain_iterator_get_id(this,res)
     implicit none
     class(plain_template_element_iterator_t), intent(in)    :: this
     class(element_id_t)                     , intent(inout) :: res
     call res%set_index(this%ielem)
-  end subroutine plain_iterator_current_id
+  end subroutine plain_iterator_get_id
+  !=============================================================================
+  function plain_iterator_get (this,id) result(p)
+    implicit none
+    class(plain_template_element_iterator_t), intent(in) :: this
+    class(element_id_t)                     , intent(in) :: id
+    class(template_element_t)               , pointer    :: p
+    assert( id%get_index() <= this%plain_template_element_set%num_elements )
+    p => this%plain_template_element_set%elements(id%get_index())
+  end function plain_iterator_get

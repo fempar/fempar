@@ -55,7 +55,8 @@
      procedure :: current    => hash_template_element_iterator_current
      procedure :: create_id  => hash_template_element_iterator_create_id
      procedure :: free_id    => hash_template_element_iterator_free_id
-     procedure :: current_id => hash_template_element_iterator_current_id
+     procedure :: get_id     => hash_template_element_iterator_get_id
+     procedure :: get        => hash_template_element_iterator_get
   end type hash_template_element_iterator_t
 
   type hash_node
