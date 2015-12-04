@@ -466,7 +466,7 @@ subroutine fe_affine_operator_fill_values(this)
   number_blocks = 1
   number_fe_spaces = 1
   select type( f_space => this%fe_space )
-     class is( SB_serial_fe_space_t )
+     !class is( SB_serial_fe_space_t )
      class is( SB_composite_fe_space_t )
      number_blocks = f_space%get_number_blocks()
      number_fe_spaces = f_space%get_number_fe_spaces()
@@ -485,9 +485,9 @@ subroutine fe_affine_operator_fill_values(this)
      class is (SB_composite_fe_space_t)
      blocks => fe_space%get_blocks()
      blocks_coupling => fe_space%get_fields_coupling()
-     class is (SB_serial_fe_space_t)
-     blocks => one_1d
-     blocks_coupling => true_2d
+     !class is (SB_serial_fe_space_t)
+     !blocks => one_1d
+     !blocks_coupling => true_2d
      class default
      check(0==1)
   end select

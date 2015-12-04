@@ -67,26 +67,6 @@ end function simple_fe_get_bc_value
 !   bc_value(1)%a => this%bc_value
 ! end subroutine simple_fe_get_bc_value
 
-function get_quadrature ( this )
-  implicit none
-  class(SB_finite_element_t), target, intent(in)  :: this
-  type(SB_quadrature_t), pointer :: get_quadrature
-  get_quadrature => this%quadrature
-end function get_quadrature
-
-function get_volume_integrator ( this )
-  implicit none
-  class(SB_finite_element_t), target, intent(in)  :: this
-  type(SB_p_volume_integrator_t), pointer :: get_volume_integrator(:)
-  get_volume_integrator => this%volume_integrator
-end function get_volume_integrator
-
-function get_fe_map ( this )
-  implicit none
-  class(SB_finite_element_t), target, intent(in)  :: this
-  type(fe_map_t), pointer :: get_fe_map
-  get_fe_map => this%fe_map
-end function get_fe_map
 
 subroutine simple_fe_create( this, reference_fe_unk, reference_fe_geo, volume_integrator, fe_map, quadrature, cell)!, field_unknowns )
   implicit none

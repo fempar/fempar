@@ -296,15 +296,16 @@ program test_cdr
   class(reference_fe_t), pointer :: reference_fe
   type(SB_quadrature_t) :: quadrature
   type(SB_interpolation_t) :: interpolation
-  type(SB_simple_finite_element_t) :: finite_element
+  !type(SB_simple_finite_element_t) :: finite_element
   type(SB_volume_integrator_t) :: volume_integrator
   type(SB_composite_fe_space_t) :: fe_space
   !type(poisson_discrete_integration_t), target :: poisson_integration
   type(vector_laplacian_discrete_integration_t), target :: vector_laplacian_integration
   type(SB_p_discrete_integration_t) :: approximations(1) 
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
-  type(SB_serial_fe_space_t) :: fe_space_array(2)
-  type(SB_serial_fe_space_t) :: fe_space_serial
+  type(p_reference_fe_t) :: reference_fe_array(2)
+  !type(SB_serial_fe_space_t) :: fe_space_array(2)
+  !type(SB_serial_fe_space_t) :: fe_space_serial
 
   type(face_quadrature_t) :: face_quadrature
   real(rp), allocatable :: shape_function(:), shape_gradient(:,:)
@@ -387,13 +388,24 @@ program test_cdr
 
   ! UNIT TEST * integrator.f90 *
   !write(*,*) 'CALL FE SPACE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-  call fe_space_serial%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  call fe_space_array(1)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  call fe_space_array(2)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  call fe_space%create( fe_space_array, (/1,2/), reshape((/.true.,.false.,.false.,.true./),(/2,2/)), &
+  !call fe_space_serial%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
+  !call fe_space_array(1)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
+  !call fe_space_array(2)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
+
+
+  reference_fe_array(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+       order = 1, field_type = "vector", continuity = .true. )
+
+
+  reference_fe_array(2)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+       order = 1, field_type = "vector", continuity = .true. )
+
+  call fe_space%create( triangulation = f_trian, reference_fe_array = reference_fe_array, &
+       boundary_conditions = f_cond, blocks = (/1,2/), &
+       blocks_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)), &
        topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
 
   call fe_space%fill_dof_info()

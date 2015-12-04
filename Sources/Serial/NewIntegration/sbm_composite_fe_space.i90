@@ -1,3 +1,32 @@
+
+subroutine initialize_quadrature( this, max_order )
+  implicit none
+  ! Parameters
+  class(SB_fe_space_t), intent(inout) :: this  
+  integer(ip), optional, intent(in)  :: max_order
+  integer(ip) :: i
+
+  write(*,*) 'this%reference_fe_geo_list',size(this%reference_fe_geo_list)
+  do i = 1, size(this%reference_fe_geo_list)
+     write(*,*) 'call create quadrature'
+     call this%reference_fe_geo_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
+  end do
+
+end subroutine initialize_quadrature
+
+subroutine initialize_fe_map( this)!, max_order )
+  implicit none
+  ! Parameters
+  class(SB_fe_space_t), intent(inout) :: this  
+  !integer(ip), optional, intent(in)  :: max_order
+  integer(ip) :: i
+
+  do i = 1, size(this%fe_map)
+     call this%fe_map(i)%p%set( )!max_order )
+  end do
+
+end subroutine initialize_fe_map
+
 function composite_fe_space_get_blocks( this )
   implicit none
   class(SB_composite_fe_space_t), target, intent(in) :: this
@@ -12,17 +41,19 @@ function composite_fe_space_get_fields_coupling( this )
   composite_fe_space_get_fields_coupling => this%fields_coupling
 end function composite_fe_space_get_fields_coupling
 
-subroutine composite_fe_space_create( this, fe_space_array, blocks, blocks_coupling, topology, fe_type, number_dimensions )
+subroutine composite_fe_space_create( this, triangulation, reference_fe_array, boundary_conditions, blocks, blocks_coupling, topology, fe_type, number_dimensions )
   implicit none
   class(SB_composite_fe_space_t), target, intent(inout) :: this
+  class(triangulation_t), target, intent(inout) :: triangulation
   character(*), intent(in) :: topology, fe_type
   integer(ip), intent(in)  :: number_dimensions
-  type(SB_serial_fe_space_t), target, intent(in) :: fe_space_array(:)
+  type(p_reference_fe_t), target, intent(in) :: reference_fe_array(:)
   integer(ip), optional, intent(in) :: blocks(:)
   logical, optional, intent(in) :: blocks_coupling(:,:)
-  integer(ip) :: i, j, number_nodes, istat
+  type(conditions_t), intent(in)  :: boundary_conditions
+  integer(ip) :: i, j, number_nodes, istat, iobje, obje_g, inode, jnode
 
-  this%number_fe_spaces = size(fe_space_array)
+  this%number_fe_spaces = size(reference_fe_array)
   call memalloc( this%number_fe_spaces, this%field_blocks, __FILE__, __LINE__)
   call memalloc( this%number_fe_spaces, this%number_fe_spaces, this%fields_coupling, __FILE__, __LINE__)
   if ( present(blocks) ) then
@@ -37,11 +68,11 @@ subroutine composite_fe_space_create( this, fe_space_array, blocks, blocks_coupl
   end if
   this%number_blocks = maxval(this%field_blocks)
 
-!  allocate ( this%fe_space_array(this%number_fe_spaces) )
+!  allocate ( this%reference_fe_array(this%number_fe_spaces) )
 !  do i  = 1, this%number_fe_spaces
-!     this%fe_space_array(i)%p => fe_space_array(i)
+!     this%reference_fe_array(i)%p => reference_fe_array(i)
 !  end do
-  this%triangulation => fe_space_array(1)%triangulation
+  this%triangulation => triangulation
 
   ! Assuming only one reference FE for the moment  SB.alert
   allocate( this%reference_fe_geo_list(1), stat=istat )
@@ -58,22 +89,22 @@ subroutine composite_fe_space_create( this, fe_space_array, blocks, blocks_coupl
   allocate( this%fe_map(1)%p )
 
   do i  = 1, this%number_fe_spaces
-     this%reference_fe_phy_list(i)%p => fe_space_array(i)%reference_fe_phy_list(1)%p
+     this%reference_fe_phy_list(i)%p => reference_fe_array(i)%p
      allocate( this%volume_integrator(i)%p )
      call this%volume_integrator(i)%p%create( this%reference_fe_phy_list(i)%p, &
           this%quadrature(1)%p )
      !allocate( this%reference_fe(i)%p )
-     !this%reference_fe_phy_list(i)%p => fe_space_array(i)%p%reference_fe_phy_list(1)%p
+     !this%reference_fe_phy_list(i)%p => reference_fe_array(i)%p%reference_fe_phy_list(1)%p
   end do
   call this%fe_map(1)%p%create( this%reference_fe_geo_list(1)%p, this%quadrature(1)%p )
 
   allocate(this%fe_array(this%triangulation%num_elems))
   do i = 1, this%triangulation%num_elems
      number_nodes = 0
-     allocate( this%fe_array(i)%field_fe(this%number_fe_spaces) )
+     !allocate( this%fe_array(i)%field_fe(this%number_fe_spaces) )
      do j = 1, this%number_fe_spaces
-        this%fe_array(i)%field_fe(j)%p => fe_space_array(j)%fe_array(i)
-        number_nodes = number_nodes + fe_space_array(j)%fe_array(i)%reference_fe(1)%p%get_number_nodes()
+        !this%fe_array(i)%field_fe(j)%p => reference_fe_array(j)%fe_array(i)
+        number_nodes = number_nodes + reference_fe_array(j)%p%get_number_nodes()
      end do
      this%fe_array(i)%number_nodes = number_nodes
 
@@ -95,10 +126,24 @@ subroutine composite_fe_space_create( this, fe_space_array, blocks, blocks_coupl
         this%fe_array(i)%elem2dof(j)%l = 0
         allocate( this%fe_array(i)%bc_code(j)%l(number_nodes) )
         allocate( this%fe_array(i)%bc_value(j)%a(number_nodes) )
-        !this%fe_array(i)%elem2dof(j)%l => fe_space_array(j)%fe_array(i)%elem2dof
-        this%fe_array(i)%bc_code(j)%l => fe_space_array(j)%fe_array(i)%bc_code
-        this%fe_array(i)%bc_value(j)%a => fe_space_array(j)%fe_array(i)%bc_value
+        !this%fe_array(i)%elem2dof(j)%l => reference_fe_array(j)%fe_array(i)%elem2dof
+        !this%fe_array(i)%bc_code(j)%l => reference_fe_array(j)%fe_array(i)%bc_code
+        !this%fe_array(i)%bc_value(j)%a => reference_fe_array(j)%fe_array(i)%bc_value
+     !call memalloc(this%fe_array(i)%number_nodes,this%fe_array(i)%bc_code(j)%l,__FILE__,__LINE__)
+     !call memalloc(this%fe_array(i)%number_nodes,this%fe_array(i)%bc_value(j)%a,__FILE__,__LINE__)
+
+     do iobje = 1,this%fe_array(i)%reference_fe(j)%p%get_number_vefs()
+        obje_g = triangulation%elems(i)%vefs(iobje)
+        do inode = 1, this%fe_array(i)%reference_fe(j)%p%get_number_interior_nodes_vef(iobje)
+           jnode = this%fe_array(i)%reference_fe(j)%p%get_interior_node_vef(inode,iobje)
+           this%fe_array(i)%bc_code(j)%l(jnode) = &
+                boundary_conditions%code(this%fe_array(i)%reference_fe(j)%p%get_bc_component_node(jnode),obje_g)
+           this%fe_array(i)%bc_value(j)%a(jnode) = &
+                boundary_conditions%valu(this%fe_array(i)%reference_fe(j)%p%get_bc_component_node(jnode),obje_g)
+        end do
      end do
+     end do
+     
   end do
 end subroutine composite_fe_space_create
 
@@ -181,15 +226,15 @@ subroutine composite_fe_space_fill_dof_info( this )
            call composite_create_vef2dof( this, i )
   
            
-           !call this%fe_space_array(i)%p%fill_dof_info(c)
+           !call this%reference_fe_array(i)%p%fill_dof_info(c)
 !           write(*,*) ' ********************** VEF2DOF SERIAL**********************'
-!           call print_list_2d( 6, this%fe_space_array(i)%p%vef2dof ) 
+!           call print_list_2d( 6, this%reference_fe_array(i)%p%vef2dof ) 
            !check( 0 == 1)
            
            write(*,*) ' ********************** VEF2DOF COMPOSITE**********************'
            call print_list_2d( 6, this%vef2dof(i) ) 
 
-           !c = c + this%fe_space_array(i)%p%number_dofs
+           !c = c + this%reference_fe_array(i)%p%number_dofs
            c = c + this%number_dofs(i)
            this%number_dofs(iblock) = c
         end if
@@ -284,7 +329,7 @@ subroutine composite_fe_space_symbolic_setup_assembler(this,matrix_array_assembl
               call print_list_2d( 6, this%vef2dof(i) ) 
 
               call composite_setup_dof_graph_from_block_row_col_identifiers( this, serial_scalar_matrix, i )
-              !call setup_dof_graph_from_block_row_col_identifiers( this%fe_space_array(i)%p, serial_scalar_matrix, 1 )
+              !call setup_dof_graph_from_block_row_col_identifiers( this%reference_fe_array(i)%p, serial_scalar_matrix, 1 )
            else
               call matrix%set_block_to_zero(i,j)
            end if

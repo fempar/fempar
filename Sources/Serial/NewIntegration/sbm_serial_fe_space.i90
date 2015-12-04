@@ -183,20 +183,6 @@ subroutine create_dof_info ( fe_space )
   call create_vef2dof( fe_space )
 end subroutine create_dof_info
 
-subroutine initialize_quadrature( this, max_order )
-  implicit none
-  ! Parameters
-  class(SB_fe_space_t), intent(inout) :: this  
-  integer(ip), optional, intent(in)  :: max_order
-  integer(ip) :: i
-
-  write(*,*) 'this%reference_fe_geo_list',size(this%reference_fe_geo_list)
-  do i = 1, size(this%reference_fe_geo_list)
-     write(*,*) 'call create quadrature'
-     call this%reference_fe_geo_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
-  end do
-
-end subroutine initialize_quadrature
 
 subroutine serial_fe_space_initialize_volume_integrator( this )!, max_order )
   implicit none
@@ -211,18 +197,6 @@ subroutine serial_fe_space_initialize_volume_integrator( this )!, max_order )
 
 end subroutine serial_fe_space_initialize_volume_integrator
 
-subroutine initialize_fe_map( this)!, max_order )
-  implicit none
-  ! Parameters
-  class(SB_fe_space_t), intent(inout) :: this  
-  !integer(ip), optional, intent(in)  :: max_order
-  integer(ip) :: i
-
-  do i = 1, size(this%fe_map)
-     call this%fe_map(i)%p%set( )!max_order )
-  end do
-
-end subroutine initialize_fe_map
 
 
 subroutine serial_fe_space_print ( this )

@@ -1,3 +1,25 @@
+
+function get_quadrature ( this )
+  implicit none
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(SB_quadrature_t), pointer :: get_quadrature
+  get_quadrature => this%quadrature
+end function get_quadrature
+
+function get_volume_integrator ( this )
+  implicit none
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(SB_p_volume_integrator_t), pointer :: get_volume_integrator(:)
+  get_volume_integrator => this%volume_integrator
+end function get_volume_integrator
+
+function get_fe_map ( this )
+  implicit none
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(fe_map_t), pointer :: get_fe_map
+  get_fe_map => this%fe_map
+end function get_fe_map
+
 subroutine composite_fe_get_number_nodes_field ( this, number_nodes, n )
   implicit none
   class(SB_composite_finite_element_t), intent(in) :: this
