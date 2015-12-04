@@ -298,7 +298,7 @@ program test_cdr
   type(SB_interpolation_t) :: interpolation
   !type(SB_simple_finite_element_t) :: finite_element
   type(SB_volume_integrator_t) :: volume_integrator
-  type(SB_composite_fe_space_t) :: fe_space
+  type(SB_serial_fe_space_t) :: fe_space
   !type(poisson_discrete_integration_t), target :: poisson_integration
   type(vector_laplacian_discrete_integration_t), target :: vector_laplacian_integration
   type(SB_p_discrete_integration_t) :: approximations(1) 

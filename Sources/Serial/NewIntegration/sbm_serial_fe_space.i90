@@ -1,142 +1,205 @@
 
-function serial_fe_space_get_blocks( this )
- implicit none
- class(SB_serial_fe_space_t), target, intent(in) :: this
- integer(ip), pointer :: serial_fe_space_get_blocks(:)
- integer(ip), save, target :: aux(1) = (/1/)
- serial_fe_space_get_blocks => aux
-end function serial_fe_space_get_blocks
-
-subroutine serial_fe_space_create( this, triangulation, topology, fe_type, number_dimensions, order, boundary_conditions, field_type, continuity )
+subroutine initialize_quadrature( this, max_order )
   implicit none
-  class(SB_serial_fe_space_t), intent(out) :: this
-  character(*), intent(in) :: topology, fe_type
-  type(triangulation_t), target, intent(in) :: triangulation
-  integer(ip), intent(in)  :: number_dimensions, order
-  character(*), optional, intent(in) :: field_type
-  logical, optional, intent(in) :: continuity
-  type(conditions_t), intent(in)  :: boundary_conditions
+  ! Parameters
+  class(SB_serial_fe_space_t), intent(inout) :: this  
+  integer(ip), optional, intent(in)  :: max_order
+  integer(ip) :: i
 
-  integer(ip) :: i, istat,iobje, inode, jnode, obje_g
-  ! Point triangulation
-  ! Create reference FE (now only one)
+  write(*,*) 'this%reference_fe_geo_list',size(this%reference_fe_geo_list)
+  do i = 1, size(this%reference_fe_geo_list)
+     write(*,*) 'call create quadrature'
+     call this%reference_fe_geo_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
+  end do
+
+end subroutine initialize_quadrature
+
+subroutine initialize_fe_map( this)!, max_order )
+  implicit none
+  ! Parameters
+  class(SB_serial_fe_space_t), intent(inout) :: this  
+  !integer(ip), optional, intent(in)  :: max_order
+  integer(ip) :: i
+
+  do i = 1, size(this%fe_map)
+     call this%fe_map(i)%p%set( )!max_order )
+  end do
+
+end subroutine initialize_fe_map
+
+function get_blocks( this )
+  implicit none
+  class(SB_serial_fe_space_t), target, intent(in) :: this
+  integer(ip), pointer :: get_blocks(:)
+  get_blocks => this%field_blocks
+end function get_blocks
+
+function get_fields_coupling( this )
+  implicit none
+  class(SB_serial_fe_space_t), target, intent(in) :: this
+  logical, pointer :: get_fields_coupling(:,:)
+  get_fields_coupling => this%fields_coupling
+end function get_fields_coupling
+
+subroutine create( this, triangulation, reference_fe_array, boundary_conditions, blocks, blocks_coupling, topology, fe_type, number_dimensions )
+  implicit none
+  class(SB_serial_fe_space_t), target, intent(inout) :: this
+  class(triangulation_t), target, intent(inout) :: triangulation
+  character(*), intent(in) :: topology, fe_type
+  integer(ip), intent(in)  :: number_dimensions
+  type(p_reference_fe_t), target, intent(in) :: reference_fe_array(:)
+  integer(ip), optional, intent(in) :: blocks(:)
+  logical, optional, intent(in) :: blocks_coupling(:,:)
+  type(conditions_t), intent(in)  :: boundary_conditions
+  integer(ip) :: i, j, number_nodes, istat, iobje, obje_g, inode, jnode
+
+  this%number_fe_spaces = size(reference_fe_array)
+  call memalloc( this%number_fe_spaces, this%field_blocks, __FILE__, __LINE__)
+  call memalloc( this%number_fe_spaces, this%number_fe_spaces, this%fields_coupling, __FILE__, __LINE__)
+  if ( present(blocks) ) then
+     assert( size(blocks,1) == this%number_fe_spaces )
+     assert( size(blocks_coupling,1) == this%number_fe_spaces )
+     assert( size(blocks_coupling,2) == this%number_fe_spaces )
+     this%field_blocks = blocks
+     this%fields_coupling = blocks_coupling
+  else
+     this%field_blocks = 1
+     this%fields_coupling = .true.
+  end if
+  this%number_blocks = maxval(this%field_blocks)
 
   this%triangulation => triangulation
 
   ! Assuming only one reference FE for the moment  SB.alert
-  allocate( this%reference_fe_phy_list(1), stat=istat )
   allocate( this%reference_fe_geo_list(1), stat=istat )
   allocate( this%quadrature(1), stat=istat )
   allocate( this%fe_map(1), stat=istat )
-  allocate( this%volume_integrator(1), stat=istat )
-  allocate( this%fe_array(triangulation%num_elems), stat=istat )
-
-  this%reference_fe_phy_list(1)%p => &
-       start_reference_fe ( topology = topology, fe_type = fe_type, number_dimensions = number_dimensions, &
-       order =  order , field_type = field_type, continuity = continuity )
+  allocate( this%volume_integrator(this%number_fe_spaces), stat=istat )
+  allocate( this%reference_fe_phy_list(this%number_fe_spaces), stat=istat )
 
   ! Order 1 for geometry SB.alert
   this%reference_fe_geo_list(1)%p => &
        start_reference_fe ( topology = topology, fe_type = fe_type, number_dimensions = number_dimensions, &
-       order =  1 , field_type = "vector", continuity = .true. )							
-  !call this%reference_fe_geo_list(1)%p%create_quadrature( this%quadrature(1)%p)!, max_order)			
+       order =  1 , field_type = "vector", continuity = .true. )						
   allocate( this%quadrature(1)%p )
-  allocate( this%volume_integrator(1)%p )
-  allocate( this%fe_map(1)%p )	
-  call this%volume_integrator(1)%p%create( this%reference_fe_phy_list(1)%p, this%quadrature(1)%p )
+  allocate( this%fe_map(1)%p )
+
+  do i  = 1, this%number_fe_spaces
+     this%reference_fe_phy_list(i)%p => reference_fe_array(i)%p
+     allocate( this%volume_integrator(i)%p )
+     call this%volume_integrator(i)%p%create( this%reference_fe_phy_list(i)%p, &
+          this%quadrature(1)%p )
+  end do
   call this%fe_map(1)%p%create( this%reference_fe_geo_list(1)%p, this%quadrature(1)%p )
 
-  ! Do triangulation
-  do i = 1, triangulation%num_elems
-     ! Create FEs
-     call this%fe_array(i)%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p, &
-          this%volume_integrator(1)%p, this%fe_map(1)%p, this%quadrature(1)%p, triangulation%elems(i))!, field_unknowns)
-  end do
-
-  ! BCs
-  do i = 1, triangulation%num_elems
-     call memalloc(this%fe_array(i)%reference_fe(1)%p%get_number_nodes(),this%fe_array(i)%bc_code,__FILE__,__LINE__)
-     call memalloc(this%fe_array(i)%reference_fe(1)%p%get_number_nodes(),this%fe_array(i)%bc_value,__FILE__,__LINE__)
-     do iobje = 1,this%fe_array(i)%reference_fe(1)%p%get_number_vefs()
-        obje_g = triangulation%elems(i)%vefs(iobje)
-        !write(*,*) 'ielem',i
-        !write(*,*) 'iobje',iobje
-        !write(*,*) 'obje_g',obje_g
-        !write(*,*) 'bc_cond_intro',boundary_conditions%code(:,obje_g)
-        do inode = 1, this%fe_array(i)%reference_fe(1)%p%get_number_interior_nodes_vef(iobje)
-           jnode = this%fe_array(i)%reference_fe(1)%p%get_interior_node_vef(inode,iobje)
-           this%fe_array(i)%bc_code(jnode) = &
-                boundary_conditions%code(this%fe_array(i)%reference_fe(1)%p%get_bc_component_node(jnode),obje_g)
-           this%fe_array(i)%bc_value(jnode) = &
-                boundary_conditions%valu(this%fe_array(i)%reference_fe(1)%p%get_bc_component_node(jnode),obje_g)
-        end do
-        !write(*,*) 'bc_code_fe:',this%fe_array(i)%bc_code
+  allocate(this%fe_array(this%triangulation%num_elems))
+  do i = 1, this%triangulation%num_elems
+     number_nodes = 0
+     do j = 1, this%number_fe_spaces
+        number_nodes = number_nodes + reference_fe_array(j)%p%get_number_nodes()
      end do
-     !check( 0 == 1 )
+     this%fe_array(i)%number_nodes = number_nodes
+
+     this%fe_array(i)%geometry_reference_fe => this%reference_fe_geo_list(1)%p
+     this%fe_array(i)%quadrature => this%quadrature(1)%p
+     this%fe_array(i)%fe_map => this%fe_map(1)%p
+
+     this%fe_array(i)%volume_integrator => this%volume_integrator
+     this%fe_array(i)%reference_fe => this%reference_fe_phy_list
+
+     allocate( this%fe_array(i)%elem2dof(this%number_fe_spaces) )
+     allocate( this%fe_array(i)%bc_code(this%number_fe_spaces) )
+     allocate( this%fe_array(i)%bc_value(this%number_fe_spaces) )
+     do j = 1, this%number_fe_spaces
+        number_nodes = this%reference_fe_phy_list(j)%p%get_number_nodes()
+        allocate( this%fe_array(i)%elem2dof(j)%l(number_nodes) )
+        this%fe_array(i)%elem2dof(j)%l = 0
+        allocate( this%fe_array(i)%bc_code(j)%l(number_nodes) )
+        allocate( this%fe_array(i)%bc_value(j)%a(number_nodes) )
+
+     do iobje = 1,this%fe_array(i)%reference_fe(j)%p%get_number_vefs()
+        obje_g = triangulation%elems(i)%vefs(iobje)
+        do inode = 1, this%fe_array(i)%reference_fe(j)%p%get_number_interior_nodes_vef(iobje)
+           jnode = this%fe_array(i)%reference_fe(j)%p%get_interior_node_vef(inode,iobje)
+           this%fe_array(i)%bc_code(j)%l(jnode) = &
+                boundary_conditions%code(this%fe_array(i)%reference_fe(j)%p%get_bc_component_node(jnode),obje_g)
+           this%fe_array(i)%bc_value(j)%a(jnode) = &
+                boundary_conditions%valu(this%fe_array(i)%reference_fe(j)%p%get_bc_component_node(jnode),obje_g)
+        end do
+     end do
+     end do
+     
   end do
+end subroutine create
 
-end subroutine serial_fe_space_create
+function get_fe( this, i )
+  implicit none
+  class(SB_serial_fe_space_t), target, intent(in) :: this
+  integer(ip) :: i
+  class(SB_finite_element_t), pointer :: get_fe
+  get_fe => this%fe_array(i)
+end function get_fe
 
-subroutine serial_fe_space_free( this )
+
+subroutine initialize_volume_integrator( this )!, max_order )
   implicit none
   class(SB_serial_fe_space_t), intent(inout) :: this
+  !integer(ip), optional, intent(in) :: max_order
   integer(ip) :: i
+  do i = 1, this%number_fe_spaces
+     call this%volume_integrator(i)%p%set_integration()!( max_order )
+  end do
+end subroutine initialize_volume_integrator
 
-  nullify( this%triangulation )
 
-  if(allocated(this%reference_fe_phy_list)) then
-     do i = 1, size(this%reference_fe_phy_list, dim=1)
-        call this%reference_fe_phy_list(i)%p%free()
-     enddo
-     deallocate(this%reference_fe_phy_list)
-  endif
+function get_max_number_nodes( this)
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: get_max_number_nodes
+  get_max_number_nodes = 100 ! SB.alert 
+end function get_max_number_nodes
 
-  if(allocated(this%reference_fe_geo_list)) then
-     do i = 1, size(this%reference_fe_geo_list, dim=1)
-        call this%reference_fe_geo_list(i)%p%free()
-     enddo
-     deallocate(this%reference_fe_geo_list)
-  endif
+function get_number_blocks( this)
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: get_number_blocks
+  get_number_blocks = this%number_blocks ! SB.alert 
+end function get_number_blocks
 
-  if(allocated(this%volume_integrator)) then
-     do i = 1, size(this%volume_integrator, dim=1)
-        call this%volume_integrator(i)%p%free()
-     enddo
-     deallocate(this%volume_integrator)
-  endif  
-		
-		if(allocated(this%quadrature)) then
-     do i = 1, size(this%quadrature, dim=1)
-        call this%quadrature(i)%p%free()
-     enddo
-     deallocate(this%quadrature)
-  endif
-		
-  if(allocated(this%fe_map)) then
-     do i = 1, size(this%fe_map, dim=1)
-        call this%fe_map(i)%p%free()
-     enddo
-     deallocate(this%fe_map)
-  endif
+function get_number_fe_spaces( this)
+  implicit none
+  class(SB_serial_fe_space_t), intent(inout) :: this 
+  integer(ip) :: get_number_fe_spaces
+  get_number_fe_spaces = this%number_fe_spaces ! SB.alert 
+end function get_number_fe_spaces
 
-  if(allocated(this%fe_array)) then
-     do i = 1, size(this%fe_array, dim=1)
-        call this%fe_array(i)%free()
-     enddo
-     deallocate(this%fe_array)
-  endif
+subroutine fill_dof_info( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(inout) :: this 
+  integer(ip) :: iblock, c, i
 
-  if(allocated(this%vef2dof%l)) call memfree(this%vef2dof%l, __FILE__, __LINE__)
-  if(allocated(this%vef2dof%p)) call memfree(this%vef2dof%p, __FILE__, __LINE__)
-  this%number_dofs = 0
+  call memalloc( this%number_blocks, this%number_dofs, __FILE__, __LINE__ )
+  allocate( this%vef2dof(this%number_fe_spaces) )
 
-end subroutine serial_fe_space_free
+  do iblock = 1, this%number_blocks
+     c = 0
+     do i = 1, this%number_fe_spaces
+        if ( this%field_blocks(i) == iblock ) then            
+           call create_element_to_dof_and_ndofs( this, c, i )
+           call create_vef2dof( this, i )
+           c = c + this%number_dofs(i)
+           this%number_dofs(iblock) = c
+        end if
+     end do
+  end do
 
-function serial_fe_space_create_assembler(this, diagonal_blocks_symmetric_storage,&
+end subroutine fill_dof_info
+
+function create_assembler(this, diagonal_blocks_symmetric_storage,&
      diagonal_blocks_symmetric, diagonal_blocks_sign)
   implicit none
   class(SB_serial_fe_space_t)          , intent(in) :: this
-  class(SB_matrix_array_assembler_t), pointer :: serial_fe_space_create_assembler
+  class(SB_matrix_array_assembler_t), pointer :: create_assembler
   logical                        , intent(in) :: diagonal_blocks_symmetric_storage(:)
   logical                        , intent(in) :: diagonal_blocks_symmetric(:)
   integer(ip)                    , intent(in) :: diagonal_blocks_sign(:)
@@ -144,116 +207,89 @@ function serial_fe_space_create_assembler(this, diagonal_blocks_symmetric_storag
   class(matrix_t), pointer :: matrix
   class(array_t) , pointer :: array
 
-  ! 1. Select dynamically the type of class(matrix_array_assembler_t), class(matrix_t) and class(vector_t)
-  ! 2. Create class(matrix_t) and class(vector_t) accordingly to their dynamic type
-  !    if (this%dof_descriptor%nblocks == 1) then
-  allocate ( SB_serial_scalar_matrix_array_assembler_t :: serial_fe_space_create_assembler )
-  allocate ( serial_scalar_matrix_t :: matrix )
-  allocate ( serial_scalar_array_t  :: array )
+  if (this%number_blocks == 1) then
+     allocate ( SB_serial_scalar_matrix_array_assembler_t :: create_assembler )
+     allocate ( serial_scalar_matrix_t :: matrix )
+     allocate ( serial_scalar_array_t  :: array )
+     select type(matrix)
+        class is(serial_scalar_matrix_t)
+        call matrix%create(this%number_dofs(1), &
+             diagonal_blocks_symmetric_storage(1),&
+             diagonal_blocks_symmetric(1),&
+             diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_scalar_array_t)
+        call array%create(this%number_dofs(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( SB_serial_block_matrix_array_assembler_t :: create_assembler )
+     allocate ( serial_block_matrix_t :: matrix )
+     allocate ( serial_block_array_t  :: array )
+     select type(matrix)
+        class is (serial_block_matrix_t)
+        call matrix%create(this%number_blocks,this%number_dofs,this%number_dofs,&
+             & diagonal_blocks_symmetric_storage,diagonal_blocks_symmetric,diagonal_blocks_sign)
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_block_array_t)
+        call array%create(this%number_blocks,this%number_dofs)
+        class default
+        check(.false.)
+     end select
+  end if
+
+  call create_assembler%set_matrix(matrix)
+  call create_assembler%set_array(array)
+
+end function create_assembler
+
+subroutine symbolic_setup_assembler(this,matrix_array_assembler)
+  implicit none
+  class(SB_serial_fe_space_t)        , intent(in)    :: this
+  class(SB_matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+
+  ! Polymorphic matrix 
+  class(matrix_t), pointer :: matrix
+  type(serial_scalar_matrix_t), pointer :: serial_scalar_matrix
+  integer(ip) :: i,j 
+
+  matrix => matrix_array_assembler%get_matrix()
   select type(matrix)
      class is(serial_scalar_matrix_t)
-     call matrix%create( this%number_dofs, &
-          diagonal_blocks_symmetric_storage(1),& 
-          diagonal_blocks_symmetric(1),& 
-          diagonal_blocks_sign(1) )
+
+        ! symbolic_setup_assembler SHOWSTOPPER => IT REQUIRES A FULL GRAPH WITH ALL ENTRIES, HERE IS THE PROBLEM !!!
+        ! BUT IT CAN BE SOLVED WITH THE UNCOMPRESSED GRAPH
+
+        !call setup_dof_graph_from_block_row_col_identifiers ( this, matrix )
+
+     class is(serial_block_matrix_t)
+     do i = 1, this%number_blocks
+        do j = 1, this%number_blocks
+           if ( i == j) then
+              serial_scalar_matrix => matrix%get_block(i,j)
+
+              write(*,*) ' ********************** VEF2DOF BEFORE CALLING**********************'
+              call print_list_2d( 6, this%vef2dof(i) ) 
+
+              call setup_dof_graph_from_block_row_col_identifiers( this, serial_scalar_matrix, i )
+              !call setup_dof_graph_from_block_row_col_identifiers( this%reference_fe_array(i)%p, serial_scalar_matrix, 1 )
+           else
+              call matrix%set_block_to_zero(i,j)
+           end if
+        end do
+     end do
      class default
      check(.false.)
   end select
-  select type(array)
-     class is(serial_scalar_array_t)
-     call array%create(this%number_dofs)
-     class default
-     check(.false.)
-  end select
-  !else
-  !   ! allocate ( par_block_matrix_array_assembler_t :: par_fe_space_create_matrix_array_assembler )
-  !   allocate ( par_block_matrix_t :: matrix )
-  !   allocate ( par_block_array_t  :: array )
-  !   check(.false.)
-  !   ! This itinerary still to be implemented ...
-  !end if
-  call serial_fe_space_create_assembler%set_matrix(matrix)
-  call serial_fe_space_create_assembler%set_array(array)
-end function serial_fe_space_create_assembler
 
-subroutine create_dof_info ( fe_space )
-  implicit none
-  class(SB_serial_fe_space_t), intent(inout) :: fe_space 
-  call create_element_to_dof_and_ndofs( fe_space )
-  call create_vef2dof( fe_space )
-end subroutine create_dof_info
-
-
-subroutine serial_fe_space_initialize_volume_integrator( this )!, max_order )
-  implicit none
-  ! Parameters
-  class(SB_serial_fe_space_t), intent(inout) :: this  
-  !integer(ip), optional, intent(in)  :: max_order
-  integer(ip) :: i
-
-  do i = 1, size(this%volume_integrator)
-     call this%volume_integrator(i)%p%set_integration( )!max_order )
-  end do
-
-end subroutine serial_fe_space_initialize_volume_integrator
-
-
-
-subroutine serial_fe_space_print ( this )
-  implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this
-  integer(ip) :: i
-
-  write(*,*) '******************** FINITE ELEMENT SPACE ********************'
-  do i = 1, this%triangulation%num_elems
-     write(*,*) '******************** FINITE ELEMENT (',i,') ********************'
-     call this%fe_array(i)%print()
-  end do
-  write(*,*) ' ********************** VEF2DOF **********************'
-  call print_list_2d( 6, this%vef2dof ) 
-
-end subroutine serial_fe_space_print
-
-function serial_fe_space_get_fe( this, i )
-  implicit none
-  class(SB_serial_fe_space_t), target, intent(in) :: this
-  integer(ip) :: i
-  class(SB_finite_element_t), pointer :: serial_fe_space_get_fe
-  serial_fe_space_get_fe => this%fe_array(i)
-end function serial_fe_space_get_fe
-
-!*********************************************************************************
-! This subroutine generates the following DOF-related data for serial runs.
-! 1) It generates DOF numbering and fills the elem2dof arrays (see explanation of 
-!    the subroutine below)
-! 2) It generates the vef2dof array ( see explanation of the subroutine below)
-! NOTE: In order to understand the following subroutines, it is useful to know that 
-! currently, the *par_fe_space* (parallel) has a pointer to a *fe_space*, which 
-! has not info about the distributed environment (since it is a serial object),
-! but it includes the *num_elems* local elements + *num_ghosts* ghost elements.
-! The ghost part is filled in *par_fe_space_create*. Thus, we know if we have a
-! local or ghost element below checking whether *ielem* <=  *num_elems* (local)
-! or not. We are using this trick below in some cases, to be able to use the same
-! subroutines for parallel runs, and fill properly ghost info. For serial runs, 
-! the only thing is that *ielem* <=  *num_elems* always, so it never goes to the
-! ghost element part.
-!*********************************************************************************
-subroutine serial_fe_space_fill_dof_info ( fe_space, init_dof )
-  implicit none
-  class(SB_serial_fe_space_t), intent(inout) :: fe_space 
-  integer(ip), optional, intent(in) :: init_dof
-  !write(*,*) '********create_element_to_dof_and_ndofs********'
-  call create_element_to_dof_and_ndofs( fe_space, init_dof, 1 )
-  call create_vef2dof( fe_space, 1 )
-end subroutine serial_fe_space_fill_dof_info
-
-function serial_fe_space_get_max_number_nodes( this)
-  implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_max_number_nodes
-  serial_fe_space_get_max_number_nodes = 100 ! SB.alert 
-end function serial_fe_space_get_max_number_nodes
-
+end subroutine symbolic_setup_assembler
 
 !*********************************************************************************
 ! This subroutine takes the triangulation and fills the element2dof structure at every 
@@ -373,17 +409,18 @@ subroutine create_vef2dof ( fe_space, var )
   implicit none
   ! Parameters
   class(SB_serial_fe_space_t), intent(inout) :: fe_space 
-  integer(ip), optional, intent(in) :: var
+  integer(ip), intent(in) :: var
 
   ! Local variables
   integer(ip) :: iprob, count, iobje, ielem, jelem, nvapb
   integer(ip) :: obje_l, inode, l_node, mater, istat
   integer(ip) :: touch!(1,fe_space%num_continuity)
 
-  ! Part 1: Count DOFs on VEFs, using the notion of continuity described above (in elem2dof)
-  fe_space%vef2dof%n1 = fe_space%triangulation%num_vefs
-  fe_space%vef2dof%n2 = 1
-  call memalloc ( fe_space%triangulation%num_vefs+1, fe_space%vef2dof%p, __FILE__, __LINE__, 0 )
+  associate( vef2dof => fe_space%vef2dof(var) )
+    ! Part 1: Count DOFs on VEFs, using the notion of continuity described above (in elem2dof)
+  vef2dof%n1 = fe_space%triangulation%num_vefs
+  vef2dof%n2 = 1
+  call memalloc ( fe_space%triangulation%num_vefs+1, vef2dof%p, __FILE__, __LINE__, 0 )
   do iobje = 1, fe_space%triangulation%num_vefs
      touch = 0
      do ielem = 1, fe_space%triangulation%vefs(iobje)%num_elems_around
@@ -403,14 +440,14 @@ subroutine create_vef2dof ( fe_space, var )
 
                  do inode = 1, fe_space%fe_array(jelem)%reference_fe(var)%p%get_number_interior_nodes_vef(obje_l)
                     l_node = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(inode,obje_l)
-                    if ( fe_space%fe_array(jelem)%bc_code(l_node) == 0 ) then
-                       fe_space%vef2dof%p(iobje+1) = fe_space%vef2dof%p(iobje+1) + 1
+                    if ( fe_space%fe_array(jelem)%bc_code(var)%l(l_node) == 0 ) then
+                       vef2dof%p(iobje+1) = vef2dof%p(iobje+1) + 1
                     end	if
                  end	do
 
 
                  !!if ( fe_space%fe_array(jelem)%bc_code(1,obje_l) == 0 ) then
-                 !   fe_space%vef2dof%p(iobje+1) = fe_space%vef2dof%p(iobje+1) + &
+                 !   vef2dof%p(iobje+1) = vef2dof%p(iobje+1) + &
                  !        fe_space%fe_array(jelem)%reference_fe(var)%p%get_number_interior_nodes_vef(obje_l)
                  !   !+ fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1) &
                  !   !     & - fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l)
@@ -424,12 +461,15 @@ subroutine create_vef2dof ( fe_space, var )
      end do
   end do
 
-  fe_space%vef2dof%p(var) = 1
+
+  vef2dof%p(1) = 1
   do iobje = 2, fe_space%triangulation%num_vefs+1
-     fe_space%vef2dof%p(iobje) = fe_space%vef2dof%p(iobje) + fe_space%vef2dof%p(iobje-1)
+     vef2dof%p(iobje) = vef2dof%p(iobje) + vef2dof%p(iobje-1)
   end do
 
-  call memalloc ( fe_space%vef2dof%p(fe_space%triangulation%num_vefs+1)-1, 3, fe_space%vef2dof%l, __FILE__, __LINE__ )
+  write(*,*) 'vef2dof%p,VAR',vef2dof%p,var
+
+  call memalloc ( vef2dof%p(fe_space%triangulation%num_vefs+1)-1, 3, vef2dof%l, __FILE__, __LINE__ )
 
   ! Part 2: List DOFs on VEFs, using the notion of continuity described above (in elem2dof)
   ! We note that the vef2dof%l(:,X) is defined for X = 1,2,3
@@ -457,12 +497,12 @@ subroutine create_vef2dof ( fe_space, var )
                     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l), &
                     !&     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
                     l_node = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(inode,obje_l)
-                    if ( fe_space%fe_array(jelem)%bc_code(l_node) == 0 ) then
+                    if ( fe_space%fe_array(jelem)%bc_code(var)%l(l_node) == 0 ) then
                        !fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
                        count = count + 1
-                       fe_space%vef2dof%l(count,1) = fe_space%fe_array(jelem)%elem2dof(l_node)
-                       !fe_space%vef2dof%l(count,2) = 1
-                       !fe_space%vef2dof%l(count,3) = mater
+                       vef2dof%l(count,1) = fe_space%fe_array(jelem)%elem2dof(var)%l(l_node)
+                       !vef2dof%l(count,2) = 1
+                       !vef2dof%l(count,3) = mater
                     end if
                  end do
                  !end if
@@ -471,6 +511,7 @@ subroutine create_vef2dof ( fe_space, var )
         end if
      end do
   end do
+end associate
 end subroutine create_vef2dof
 
 !*********************************************************************************
@@ -493,10 +534,10 @@ subroutine put_new_vefs_dofs_in_vef_of_element ( trian, fe_space, jelem, &
      !         &     fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
      l_node = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(inode,obje_l)
      !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
-     if ( fe_space%fe_array(jelem)%bc_code(l_node) == 0 ) then
+     if ( fe_space%fe_array(jelem)%bc_code(var)%l(l_node) == 0 ) then
         count = count + 1
         !write (*,*) '****PUT DOF**** (elem,obj_l,obj_g,node,idof) ',jelem,obje_l,l_node,count
-        fe_space%fe_array(jelem)%elem2dof(l_node) = count
+        fe_space%fe_array(jelem)%elem2dof(var)%l(l_node) = count
      end	if
   end do
 
@@ -522,7 +563,7 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
   obje_ext = touch(mater,2)
   !prob_ext = fe_space%fe_array(elem_ext)%problem
   prob_ext = 1
-  
+
   nnode = fe_space%fe_array(elem_ext)%reference_fe(var)%p%get_number_interior_nodes_vef(obje_ext)
 
   !fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext+1) &
@@ -554,7 +595,7 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
         !l_node = fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext) + inode - 1
         !inode_ext = fe_space%fe_array(elem_ext)%nodes_per_vef%p%l(l_node )
         !inode_l = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(o2n(inode),obje_l)
-        
+
 
         ! PRUEBA SB.alert
         ! I am not using the o2n because I assume that I have a first order FE space, only
@@ -565,12 +606,12 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
 
         !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l) + o2n(inode) - 1
         !inode_l = fe_space%fe_array(jelem)%nodes_per_vef%p%l(l_node)
-        if ( fe_space%fe_array(jelem)%bc_code(inode_l) == 0 ) then
+        if ( fe_space%fe_array(jelem)%bc_code(var)%l(inode_l) == 0 ) then
            !write (*,*) '****EXTRACT DOF**** (object)', iobje, ' FROM: (elem,obj_l) ',elem_ext,obje_ext, ' TO  : (elem,obj_l)', jelem,obje_l
            !write(*,*) 'We take value',fe_space%fe_array(elem_ext)%elem2dof(inode_ext),'from node',inode_ext
            !write(*,*) 'o2n',o2n
            !write(*,*) 'in position',inode_l
-           fe_space%fe_array(jelem)%elem2dof(inode_l) = fe_space%fe_array(elem_ext)%elem2dof(inode_ext)
+           fe_space%fe_array(jelem)%elem2dof(var)%l(inode_l) = fe_space%fe_array(elem_ext)%elem2dof(var)%l(inode_ext)
         end	if
      end do ! SB.alert : 1) face object for cG and hdG, where the face must have all their nodes
      !                   2) corner / edge only for cG
@@ -584,23 +625,23 @@ end subroutine put_existing_vefs_dofs_in_vef_of_element
 
 
 
-subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
-  implicit none
-  class(SB_serial_fe_space_t)        , intent(in)    :: this
-  class(SB_matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+! subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
+!   implicit none
+!   class(SB_serial_fe_space_t)        , intent(in)    :: this
+!   class(SB_matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
 
-  ! Polymorphic matrix 
-  class(matrix_t), pointer :: matrix
+!   ! Polymorphic matrix 
+!   class(matrix_t), pointer :: matrix
 
-  matrix => matrix_array_assembler%get_matrix()
-  select type(matrix)
-     class is(serial_scalar_matrix_t)
-     call setup_dof_graph_from_block_row_col_identifiers ( this, matrix, 1 )
-     class default
-     check(.false.)
-  end select
+!   matrix => matrix_array_assembler%get_matrix()
+!   select type(matrix)
+!      class is(serial_scalar_matrix_t)
+!      call setup_dof_graph_from_block_row_col_identifiers ( this, matrix, 1 )
+!      class default
+!      check(.false.)
+!   end select
 
-end subroutine serial_fe_space_symbolic_setup_assembler
+! end subroutine serial_fe_space_symbolic_setup_assembler
 
 
 
@@ -644,12 +685,12 @@ subroutine setup_dof_graph_from_block_row_col_identifiers(  fe_space, matrix, va
   call count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( fe_space%triangulation, fe_space, dof_graph, var )
   !call count_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( fe_space%triangulation, fe_space, dof_graph ) 
 
-  dof_graph%ia(var) = 1
-  do idof = 2, fe_space%number_dofs+1
+  dof_graph%ia(1) = 1
+  do idof = 2, fe_space%number_dofs(var)+1
      dof_graph%ia(idof) = dof_graph%ia(idof) + dof_graph%ia(idof-1)
   end do
 
-  call memalloc ( dof_graph%ia(fe_space%number_dofs+1)-1, dof_graph%ja, __FILE__, __LINE__ )
+  call memalloc ( dof_graph%ia(fe_space%number_dofs(var)+1)-1, dof_graph%ja, __FILE__, __LINE__ )
 
   ! LIST PART
   call memalloc( dof_graph%get_nv()+1, aux_ia, __FILE__,__LINE__ )
@@ -658,7 +699,7 @@ subroutine setup_dof_graph_from_block_row_col_identifiers(  fe_space, matrix, va
   call list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( fe_space%triangulation, fe_space, dof_graph, aux_ia, var ) 
   !call list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( fe_space%triangulation, fe_space, dof_graph, aux_ia )
 
-  do idof = 1, fe_space%number_dofs
+  do idof = 1, fe_space%number_dofs(var)
      ! Order increasingly column identifiers of current row 
      ! using heap sort algorithm
      posi = dof_graph%ia(idof)
@@ -692,8 +733,15 @@ subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity (  trian, fe_space
   integer(ip) :: jdof, jelem, job_g, jobje, l_dof, l_mat
   integer(ip) :: l_node,  m_dof, m_mat,  nvapb, touch
 
+    !write(*,*) ' ********************** VEF2DOF COMPOSITE INSIDEOUTSIEDE**********************'
+    !call print_list_2d( 6, fe_space%vef2dof(var) ) 
+
+  associate( vef2dof => fe_space%vef2dof(var) )
+    
+    !write(*,*) ' ********************** VEF2DOF COMPOSITE INSIDE**********************'
+    !call print_list_2d( 6, vef2dof ) 
   do iobje = 1, trian%num_vefs             
-     if ( fe_space%vef2dof%p(iobje+1)-fe_space%vef2dof%p(iobje) > 0) then
+     if ( vef2dof%p(iobje+1)-vef2dof%p(iobje) > 0) then
         call visited%init(100) 
         do ielem = 1, trian%vefs(iobje)%num_elems_around
            jelem = trian%vefs(iobje)%elems_around(ielem)
@@ -702,11 +750,11 @@ subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity (  trian, fe_space
                  job_g = trian%elems(jelem)%vefs(jobje)
                  call visited%put(key=job_g, val=touch, stat=istat)
                  if ( istat == now_stored ) then   ! interface-interface
-                    do idof = fe_space%vef2dof%p(iobje), fe_space%vef2dof%p(iobje+1)-1
-                       l_dof = fe_space%vef2dof%l(idof,1)
+                    do idof = vef2dof%p(iobje), vef2dof%p(iobje+1)-1
+                       l_dof = vef2dof%l(idof,1)
                        l_mat = 1
-                       do jdof = fe_space%vef2dof%p(job_g), fe_space%vef2dof%p(job_g+1)-1
-                          m_dof = fe_space%vef2dof%l(jdof,1)
+                       do jdof = vef2dof%p(job_g), vef2dof%p(job_g+1)-1
+                          m_dof = vef2dof%l(jdof,1)
                           m_mat = 1
                           if ( .not. dof_graph%symmetric_storage ) then
                              dof_graph%ia(l_dof+1) = &
@@ -724,9 +772,9 @@ subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity (  trian, fe_space
               !end do
               !if (.not.fe_space%static_condensation) then  ! interface-interior
               !iprob = fe_space%fe_array(jelem)%problem
-              do idof = fe_space%vef2dof%p(iobje), fe_space%vef2dof%p(iobje+1)-1
-                 l_dof = fe_space%vef2dof%l(idof,1)
-                 l_mat = fe_space%vef2dof%l(idof,3)
+              do idof = vef2dof%p(iobje), vef2dof%p(iobje+1)-1
+                 l_dof = vef2dof%l(idof,1)
+                 l_mat = vef2dof%l(idof,3)
                  m_mat = 1
                  if ( .not. dof_graph%symmetric_storage ) then
                     dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
@@ -739,7 +787,7 @@ subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity (  trian, fe_space
                        !  & fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje+1)-1
                        l_node = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(inode,jobje)
                        !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
-                       m_dof = fe_space%fe_array(jelem)%elem2dof(l_node)
+                       m_dof = fe_space%fe_array(jelem)%elem2dof(var)%l(l_node)
                        if ( m_dof >= l_dof ) then
                           dof_graph%ia(l_dof+1) = &
                                & dof_graph%ia(l_dof+1) + 1
@@ -752,6 +800,7 @@ subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity (  trian, fe_space
         call visited%free
      end if
   end do
+end associate
 end subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity
 
 !*********************************************************************************
@@ -773,9 +822,10 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
   integer(ip) :: jdof, jelem, job_g, jobje, l_dof, l_mat
   integer(ip) :: l_node, m_dof, m_mat, nvapb, touch, count, ic
 
+  associate( vef2dof => fe_space%vef2dof(var) )
   count = 0
   do iobje = 1, trian%num_vefs 
-     if ( fe_space%vef2dof%p(iobje+1)-fe_space%vef2dof%p(iobje) > 0) then
+     if ( vef2dof%p(iobje+1)-vef2dof%p(iobje) > 0) then
         call visited%init(100) 
         do ielem = 1, trian%vefs(iobje)%num_elems_around
            jelem = trian%vefs(iobje)%elems_around(ielem)
@@ -784,10 +834,10 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
                  job_g = trian%elems(jelem)%vefs(jobje)
                  call visited%put(key=job_g, val=touch, stat=istat)
                  if ( istat == now_stored ) then  ! interface-interface
-                    do idof = fe_space%vef2dof%p(iobje), fe_space%vef2dof%p(iobje+1)-1
-                       l_dof = fe_space%vef2dof%l(idof,1)
-                       do jdof = fe_space%vef2dof%p(job_g), fe_space%vef2dof%p(job_g+1)-1
-                          m_dof = fe_space%vef2dof%l(jdof,1)
+                    do idof = vef2dof%p(iobje), vef2dof%p(iobje+1)-1
+                       l_dof = vef2dof%l(idof,1)
+                       do jdof = vef2dof%p(job_g), vef2dof%p(job_g+1)-1
+                          m_dof = vef2dof%l(jdof,1)
                           if ( .not. dof_graph%symmetric_storage ) then
                              ic = aux_ia(l_dof)
                              dof_graph%ja(ic) = m_dof
@@ -806,9 +856,9 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
               !end do
               !if (.not.fe_space%static_condensation) then  ! interface-interior
               !   iprob = fe_space%fe_array(jelem)%problem
-              do idof = fe_space%vef2dof%p(iobje), fe_space%vef2dof%p(iobje+1)-1
-                 l_dof = fe_space%vef2dof%l(idof,1)
-                 l_mat = fe_space%vef2dof%l(idof,3)
+              do idof = vef2dof%p(iobje), vef2dof%p(iobje+1)-1
+                 l_dof = vef2dof%l(idof,1)
+                 l_mat = vef2dof%l(idof,3)
                  m_mat = 1
                  if ( .not. dof_graph%symmetric_storage ) then
                     do inode = 1, fe_space%fe_array(jelem)%reference_fe(var)%p%get_number_interior_nodes_vef(jobje)
@@ -816,7 +866,7 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
                        ! & fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje+1)-1
                        l_node = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(inode,jobje)
                        !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
-                       m_dof = fe_space%fe_array(jelem)%elem2dof(l_node)
+                       m_dof = fe_space%fe_array(jelem)%elem2dof(var)%l(l_node)
                        ic = aux_ia(l_dof)
                        dof_graph%ja(ic) = m_dof
                        aux_ia(l_dof) = aux_ia(l_dof)+1
@@ -827,7 +877,7 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
                        !  & fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje+1)-1
                        l_node = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(inode,jobje)
                        !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
-                       m_dof = fe_space%fe_array(jelem)%elem2dof(l_node)
+                       m_dof = fe_space%fe_array(jelem)%elem2dof(var)%l(l_node)
                        if ( m_dof >= l_dof ) then
                           ic = aux_ia(l_dof)
                           dof_graph%ja(ic) = m_dof
@@ -841,6 +891,7 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
         call visited%free
      end if
   end do
+end associate
 
 end subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity
 
@@ -896,9 +947,9 @@ end subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity
 !    ! Interior - interface 
 !   do jobje = 1, trian%elems(ielem)%num_vefs
 !      job_g = trian%elems(ielem)%vefs(jobje)
-!      do jdof = fe_space%vef2dof%p(job_g), fe_space%vef2dof%p(job_g+1)-1
-!         m_dof = fe_space%vef2dof%l(jdof,1)
-!         m_mat = fe_space%vef2dof%l(jdof,3)     
+!      do jdof = vef2dof%p(job_g), vef2dof%p(job_g+1)-1
+!         m_dof = vef2dof%l(jdof,1)
+!         m_mat = vef2dof%l(jdof,3)     
 !         do inode = fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje), &
 !              & fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje+1)-1
 !            l_node = fe_space%fe_array(ielem)%nodes_per_vef%p%l(inode)
@@ -975,8 +1026,8 @@ end subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity
 !    ! Interior - border (inside element)
 ! do jobje = 1, trian%elems(ielem)%num_vefs
 ! job_g = trian%elems(ielem)%vefs(jobje)
-! do jdof = fe_space%vef2dof%p(job_g), fe_space%vef2dof%p(job_g+1)-1
-!   m_dof = fe_space%vef2dof%l(jdof,1)    
+! do jdof = vef2dof%p(job_g), vef2dof%p(job_g+1)-1
+!   m_dof = vef2dof%l(jdof,1)    
 !   do inode = fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje), &
 !        & fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje+1)-1
 !      l_node = fe_space%fe_array(ielem)%nodes_per_vef%p%l(inode)
@@ -999,3 +1050,5 @@ end subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity
 ! end do
 ! end if
 ! end subroutine list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity
+
+

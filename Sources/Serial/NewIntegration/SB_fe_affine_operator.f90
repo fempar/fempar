@@ -113,8 +113,8 @@ module SB_fe_affine_operator_names
   private
   integer(ip)                                  :: state  = start
   type(triangulation_t), pointer :: triangulation
-  class(SB_fe_space_t), pointer :: fe_space         => NULL() ! trial_fe_space
-  class(SB_fe_space_t), pointer :: test_fe_space          => NULL() ! to be used in the future
+  class(SB_serial_fe_space_t), pointer :: fe_space         => NULL() ! trial_fe_space
+  class(SB_serial_fe_space_t), pointer :: test_fe_space          => NULL() ! to be used in the future
   type(SB_p_discrete_integration_t), allocatable :: approximations(:)
   class(SB_matrix_array_assembler_t), pointer     :: assembler => NULL()
   ! New things by SB in the process of restructuring of the FE machinery
@@ -162,7 +162,7 @@ subroutine fe_affine_operator_create (this, &
     approximations )
  implicit none
  class(SB_fe_affine_operator_t)    , intent(out) :: this
- class(SB_fe_space_t)              , target, intent(in) :: fe_space
+ class(SB_serial_fe_space_t)              , target, intent(in) :: fe_space
  type(triangulation_t)             , target, intent(in) :: triangulation
  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
  logical                                , intent(in)  :: diagonal_blocks_symmetric(:)
@@ -449,30 +449,23 @@ subroutine fe_affine_operator_fill_values(this)
 
 
   integer(ip) :: j
-  ! This is just to check ideas, but it is clear that the domain of integration
-  ! should be somehow in the discrete_integration, as it is now... But in the 
-  ! new version it should be some type of iterator
-  ! Here I would consider the approximation container in the discrete_integration 
-  ! with a set of domains / elmat_computation functions that are changing, by considering
-  ! the integrate TBP as a pointer to function and changing it via an iterator
 
-  ! TEMPORARY
   fe => this%fe_space%get_fe(1)
   nnodes = fe%get_number_nodes()
 
   call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
   call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
 
-  number_blocks = 1
-  number_fe_spaces = 1
-  select type( f_space => this%fe_space )
-     !class is( SB_serial_fe_space_t )
-     class is( SB_composite_fe_space_t )
-     number_blocks = f_space%get_number_blocks()
-     number_fe_spaces = f_space%get_number_fe_spaces()
-     class default
-     check(.false.)
-  end select
+  !number_blocks = 1
+  !number_fe_spaces = 1
+  !select type( f_space => this%fe_space )
+  !   !class is( SB_serial_fe_space_t )
+  !   class is( SB_composite_fe_space_t )
+     number_blocks = this%fe_space%get_number_blocks()
+     number_fe_spaces = this%fe_space%get_number_fe_spaces()
+  !   class default
+  !   check(.false.)
+  !end select
 
   allocate( elem2dof(number_fe_spaces) )
   allocate( bc_code(number_fe_spaces) )
@@ -481,16 +474,16 @@ subroutine fe_affine_operator_fill_values(this)
   allocate( blocks(number_fe_spaces) )
   allocate( blocks_coupling(number_fe_spaces,number_fe_spaces) )
 
-  select type( fe_space => this%fe_space )
-     class is (SB_composite_fe_space_t)
-     blocks => fe_space%get_blocks()
-     blocks_coupling => fe_space%get_fields_coupling()
-     !class is (SB_serial_fe_space_t)
+  !select type( fe_space => this%fe_space )
+  !   class is (SB_composite_fe_space_t)
+     blocks => this%fe_space%get_blocks()
+     blocks_coupling => this%fe_space%get_fields_coupling()
+  !   !class is (SB_serial_fe_space_t)
      !blocks => one_1d
      !blocks_coupling => true_2d
-     class default
-     check(0==1)
-  end select
+  !   class default
+  !   check(0==1)
+  !end select
 
   write(*,*) 'initialize quadrature'
   call this%fe_space%initialize_quadrature()
