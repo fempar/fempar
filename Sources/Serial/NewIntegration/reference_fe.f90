@@ -49,8 +49,12 @@ module reference_fe_names
      procedure :: get_weight => quadrature_get_weight
   end type SB_quadrature_t
 
+  type SB_p_quadrature_t
+     class(SB_quadrature_t), pointer :: p => NULL()      
+  end type SB_p_quadrature_t
+
   ! Types
-  public :: SB_quadrature_t
+  public :: SB_quadrature_t, SB_p_quadrature_t
 
   type face_quadrature_t
      private
@@ -314,26 +318,35 @@ type fe_map_t
   real(rp), allocatable  :: d2sdx(:,:,:,:) ! 2nd derivatives (ndime,ndime,ndime,nlocs)
   real(rp), allocatable  :: coordinates_points(:,:)     ! Coordinates of evaluation points (ndime,nlocs)
 
+  type(SB_quadrature_t), pointer :: quadrature ! Quadrature rules for elements
+  class(reference_fe_t), pointer :: reference_fe_geometry
+  type(SB_interpolation_t) :: interpolation_geometry ! Geometry interpolation_t in the reference element domain
+
 contains
 
   procedure :: get_det_jacobian => fe_map_get_det_jacobian
-  procedure :: free             => fe_map_free
-
+  procedure :: free   => fe_map_free
+  procedure :: create => fe_map_create
+  procedure :: set    => set_fe_map
+  procedure :: update => fe_map_update
 end type fe_map_t
 
 
-public :: fe_map_t
+type p_fe_map_t
+  class(fe_map_t), pointer :: p => NULL()      
+end type p_fe_map_t
 
+public :: fe_map_t, p_fe_map_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type SB_volume_integrator_t 
   private
-  type(SB_quadrature_t) :: quadrature ! Quadrature rules for elements
+  type(SB_quadrature_t), pointer :: quadrature ! Quadrature rules for elements
   class(reference_fe_t), pointer :: reference_fe
   type(SB_interpolation_t) :: interpolation ! Unknown interpolation_t in the reference element domain
-  class(reference_fe_t), pointer :: reference_fe_geometry
-  type(SB_interpolation_t) :: interpolation_geometry ! Geometry interpolation_t in the reference element domain
+  !class(reference_fe_t), pointer :: reference_fe_geometry
+  !type(SB_interpolation_t) :: interpolation_geometry ! Geometry interpolation_t in the reference element domain
 
   ! Working arrays
   type(SB_interpolation_t) :: interpolation_o_map ! Unknown interpolation_t in the physical element domain
@@ -352,16 +365,17 @@ contains
   procedure :: update => volume_integrator_update
   procedure :: set_integration => volume_integrator_set_integration
 
-  procedure :: get_reference_fe  => volume_integrator_get_reference_fe
+  !procedure :: get_reference_fe  => volume_integrator_get_reference_fe
   procedure :: get_quadrature    => volume_integrator_get_quadrature
-  procedure :: get_interpolation => volume_integrator_get_interpolation
+  !procedure :: get_interpolation => volume_integrator_get_interpolation
 
   procedure :: get_fe_map => volume_integrator_get_fe_map
 
-  procedure :: compute_gradient_test => volume_integrator_compute_gradient_test
-  procedure :: compute_value_test => volume_integrator_compute_value_test
   procedure :: get_gradients => volume_integrator_get_gradients
   procedure :: get_values => volume_integrator_get_values
+
+  procedure, private :: compute_gradient_test => volume_integrator_compute_gradient_test
+  procedure, private :: compute_value_test => volume_integrator_compute_value_test	
 
   !procedure :: compute_gradient_trial => volume_integrator_compute_gradient_trial
   !procedure :: compute_value_trial => volume_integrator_compute_value_trial

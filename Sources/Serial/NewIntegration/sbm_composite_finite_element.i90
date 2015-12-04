@@ -1,52 +1,95 @@
-
-
-subroutine get_elem2dof( this, elem2dof, n )
+subroutine composite_fe_get_number_nodes_field ( this, number_nodes, n )
   implicit none
-  class(SB_simple_finite_element_t) :: this
-  type(p_array_ip1_t), pointer :: elem2dof(:)
-  integer(ip) :: n
+  class(SB_composite_finite_element_t), intent(in) :: this
+  integer(ip), intent(in)                :: n
+  integer(ip), intent(inout)             :: number_nodes(:)
+  integer(ip) :: i
   
   do i = 1, n
-     elem2dof(i)%p => this%field_single_fe(i)%elem2dof
+     number_nodes(i) = this%reference_fe(i)%p%get_number_nodes()
+  end do
+end subroutine composite_fe_get_number_nodes_field
+
+function composite_fe_get_number_nodes ( this )
+  implicit none
+  class(SB_composite_finite_element_t), intent(in) :: this
+  integer(ip)                 :: composite_fe_get_number_nodes
+  composite_fe_get_number_nodes = this%number_nodes
+end function composite_fe_get_number_nodes
+
+subroutine composite_fe_get_elem2dof( this, elem2dof, n )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in) :: this
+  integer(ip), intent(in) :: n
+  type(i1p_t), intent(inout) :: elem2dof(:)
+  integer(ip) :: i
+  
+  do i = 1, n
+     elem2dof(i)%l => this%field_fe(i)%p%elem2dof
   end do
   
-end subroutine get_elem2dof
+end subroutine composite_fe_get_elem2dof
+
+subroutine composite_fe_get_bc_code( this, bc_code, n )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in) :: this
+  integer(ip), intent(in) :: n
+  type(i1p_t), intent(inout) :: bc_code(:)
+  integer(ip) :: i
+  
+  do i = 1, n
+       bc_code(i)%l => this%field_fe(i)%p%bc_code
+  end do
+  
+end subroutine composite_fe_get_bc_code
+
+subroutine composite_fe_get_bc_value( this, bc_value, n )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in) :: this
+  integer(ip), intent(in) :: n
+  type(r1p_t), intent(inout) :: bc_value(:)
+  integer(ip) :: i
+  
+  do i = 1, n
+     bc_value(i)%a => this%field_fe(i)%p%bc_value
+  end do
+  
+end subroutine composite_fe_get_bc_value
+
+
+subroutine composite_fe_get_volume_integrator ( this, volume_integrator, n )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in)  :: this
+  integer(ip), intent(in) :: n
+  type(SB_p_volume_integrator_t), intent(inout) :: volume_integrator(:)
+  integer(ip) :: i
+  
+  !volume_integrator => this%volume_integrator
+  do i = 1, n
+     volume_integrator(i)%p => this%volume_integrator(i)%p
+  end do
+end subroutine composite_fe_get_volume_integrator
+
+
+subroutine composite_fe_get_quadrature ( this, quadrature )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in)  :: this
+  type(SB_quadrature_t), pointer, intent(inout) :: quadrature
+  quadrature => this%quadrature
+end subroutine composite_fe_get_quadrature
+
+
+subroutine composite_fe_get_fe_map ( this, fe_map )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in)  :: this
+  type(fe_map_t), pointer, intent(inout) :: fe_map
+  fe_map => this%fe_map
+end subroutine composite_fe_get_fe_map
+
 
 !  procedure :: create => fe_create
 !  procedure :: free   => fe_free
 !  procedure :: print  => fe_print
 
-!  procedure :: get_reference_fe => fe_get_reference_fe
-subroutine get_volume_integrator => fe_get_volume_integrator
 
-!  The only thing is that it will provide an array of volume_integrator
-
-  do i = 1, number_fe_spaces
-     vol(i) => this%field_fe(i)%p%volume_integrator     
-  end do
-end subroutine get_volume_integrator
-
-subroutine get_elem2dof
-
-  ! Provide the pointers to all fe_fields  
-
-end subroutine get_elem2dof
-
-IDEM get_bc_code => fe_get_bc_code
-
-IDEM get_bc_value => fe_get_bc_value
-
-subroutine get_number_nodes 
-
-  do i = 1, number_fe_spaces
-     nnode = nnode + this%field_fe(i)%p%get_number_nodes()
-  end do
-
-end subroutine get_number_nodes
-
-
-* Problem (?): We need that both finite_element_t and composite_finite_element_t share the same 
-  prodedures, and both must extend an abstract finite element with all these procedures. As
-  a result, the one-physics fe must provide an array of index 1 for volume integrators, 
-  el2dof, bcs, etc.
 

@@ -44,6 +44,10 @@ module SB_fe_affine_operator_names
   use matrix_names
 
   use SB_discrete_integration_names
+  use serial_block_matrix_names
+  use serial_scalar_matrix_names
+  use serial_block_array_names
+  use serial_scalar_array_names
 
   implicit none
 # include "debug.i90"
@@ -222,11 +226,10 @@ subroutine fe_affine_operator_numerical_setup (this)
  if ( this%state == created ) then
     call this%symbolic_setup()
  end if
- write(*,*) 'CALL FE OPERATOR NUMERICAL SET UP XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
  if ( this%state == symbolically_setup ) then
+    this%state = numerically_setup
     call this%assembler%allocate()
     call this%fe_affine_operator_fill_values()
-    this%state = numerically_setup
  end if
 
 end subroutine fe_affine_operator_numerical_setup
@@ -418,87 +421,179 @@ subroutine fe_affine_operator_setup(this)
 end subroutine fe_affine_operator_setup
 
 subroutine fe_affine_operator_fill_values(this)
- implicit none
- class(SB_fe_affine_operator_t), intent(inout) :: this
- integer(ip) :: ielem, iapprox, nnodes
- type(triangulation_t), pointer :: p_trian
- class(SB_finite_element_t), pointer :: fe
- type(SB_p_volume_integrator_t), allocatable :: vol_int(:)
- 
- real(rp), allocatable :: elmat(:,:),elvec(:)
- ! This is just to check ideas, but it is clear that the domain of integration
- ! should be somehow in the discrete_integration, as it is now... But in the 
- ! new version it should be some type of iterator
- ! Here I would consider the approximation container in the discrete_integration 
- ! with a set of domains / elmat_computation functions that are changing, by considering
- ! the integrate TBP as a pointer to function and changing it via an iterator
+  implicit none
+  class(SB_fe_affine_operator_t), intent(inout) :: this
+  integer(ip) :: ielem, iapprox, nnodes
+  type(triangulation_t), pointer :: p_trian
+  class(SB_finite_element_t), pointer :: fe
+  type(SB_p_volume_integrator_t), pointer :: vol_int(:)
+  type(i1p_t), allocatable :: elem2dof(:), bc_code(:)
+  type(r1p_t), allocatable :: bc_value(:)
+  real(rp), allocatable :: elmat(:,:), elvec(:)
+  integer(ip), allocatable :: number_nodes(:)
+  integer(ip), pointer :: blocks(:)
+  logical, pointer :: blocks_coupling(:,:)
 
- ! TEMPORARY
- fe => this%fe_space%get_fe(1)
- nnodes = fe%get_number_nodes()
+  integer(ip) :: i, number_blocks, number_fe_spaces
+  integer(ip), save, target :: one_1d(1) = (/1/)
+  logical, save, target :: true_2d(1,1) = reshape((/.true./),(/1,1/))
+  type(fe_map_t), pointer :: fe_map
+  type(SB_quadrature_t), pointer :: quad
 
- call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
- call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
+  class(matrix_t), pointer :: matrix
+  type(serial_scalar_matrix_t), pointer :: my_matrix
 
- allocate( vol_int(1) )
+  class(array_t), pointer :: array
+  type(serial_scalar_array_t), pointer :: my_array
 
 
- call this%fe_space%initialize_volume_integrator()
- do iapprox = 1, size(this%approximations)
-    do ielem = 1, this%triangulation%num_elems
-       fe => this%fe_space%get_fe(ielem)
-       nnodes = fe%get_number_nodes()
-       call fe%get_volume_integrator( vol_int, 1 )
-       call vol_int(1)%p%update( this%triangulation%elems(ielem)%coordinates )
-       call this%approximations(iapprox)%p%integrate( vol_int(1)%p, elmat, elvec )
-       fe => this%fe_space%get_fe(ielem)
-       !write (*,*) 'XXXXXXXXX EL2DOF XXXXXXXXX'
-       !write (*,*) fe%get_elem2dof()   
-       !write(*,*) 'fe%get_bc_code()',fe%get_bc_code()
-       !write(*,*) 'fe%get_bc_value()',fe%get_bc_value()
-       !write(*,*) 'elmat',elmat
-       !write(*,*) 'elvec',elvec
-       
-       !call impose_strong_dirichlet_data( elmat, elvec, fe%get_bc_code(), fe%get_bc_value(), nnodes )
-       
-       !write(*,*) 'elvec',elvec
-       !check( 0 == 1)
-       
-       !call this%assembler%assembly(fe%get_elem2dof(), elmat, elvec )
-    
-    end do
- end do
+  integer(ip) :: j
+  ! This is just to check ideas, but it is clear that the domain of integration
+  ! should be somehow in the discrete_integration, as it is now... But in the 
+  ! new version it should be some type of iterator
+  ! Here I would consider the approximation container in the discrete_integration 
+  ! with a set of domains / elmat_computation functions that are changing, by considering
+  ! the integrate TBP as a pointer to function and changing it via an iterator
 
- call memfree ( elmat, __FILE__, __LINE__ )
- call memfree ( elvec, __FILE__, __LINE__ )
-	
- write(*,*) ' ASSEMBLY FINISHED'
+  ! TEMPORARY
+  fe => this%fe_space%get_fe(1)
+  nnodes = fe%get_number_nodes()
 
- !   do iapprox=1,size(this%approximations)
- !      do ielem=1,size(this%approximations%domain)
- !            call this%trial_fe_space%volume_integrator_update( triangulation%elems(ielem)%coordinates )
- !            ! In a future also for test functions if Petrov-Galerkin             
- !         call approximations(iapprox)%discrete_integration%compute(this%finite_elements(ielem))
- !         call assembler%assembly(this%dof_descriptor,this%finite_elements(ielem)) 
- !      end do
- !   end do
+  call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
+  call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
+
+  number_blocks = 1
+  number_fe_spaces = 1
+  select type( f_space => this%fe_space )
+     class is( SB_serial_fe_space_t )
+     class is( SB_composite_fe_space_t )
+     number_blocks = f_space%get_number_blocks()
+     number_fe_spaces = f_space%get_number_fe_spaces()
+     class default
+     check(.false.)
+  end select
+
+  allocate( elem2dof(number_fe_spaces) )
+  allocate( bc_code(number_fe_spaces) )
+  allocate( bc_value(number_fe_spaces) )
+  allocate( number_nodes(number_fe_spaces) )
+  allocate( blocks(number_fe_spaces) )
+  allocate( blocks_coupling(number_fe_spaces,number_fe_spaces) )
+
+  select type( fe_space => this%fe_space )
+     class is (SB_composite_fe_space_t)
+     blocks => fe_space%get_blocks()
+     blocks_coupling => fe_space%get_fields_coupling()
+     class is (SB_serial_fe_space_t)
+     blocks => one_1d
+     blocks_coupling => true_2d
+     class default
+     check(0==1)
+  end select
+
+  write(*,*) 'initialize quadrature'
+  call this%fe_space%initialize_quadrature()
+  fe => this%fe_space%get_fe(1)
+  quad => fe%get_quadrature()
+  call quad%print()
+
+  write(*,*) 'initialize volint'
+  call this%fe_space%initialize_volume_integrator()
+
+  write(*,*) 'initialize femap'
+  call this%fe_space%initialize_fe_map()
+
+  do iapprox = 1, size(this%approximations)
+     do ielem = 1, this%triangulation%num_elems
+
+        elmat = 0.0_rp
+        elvec = 0.0_rp
+
+        fe => this%fe_space%get_fe(ielem)
+        fe_map => fe%get_fe_map()
+        vol_int => fe%get_volume_integrator()
+        do i = 1, number_fe_spaces
+           call fe_map%update()
+           call vol_int(i)%p%update( this%triangulation%elems(ielem)%coordinates, fe_map )
+           !write(*,*) 'VOLUME INTEGRATOR',i
+           !call vol_int(i)%p%print()
+        end do
+
+        fe => this%fe_space%get_fe(ielem)
+
+
+        fe_map => fe%get_fe_map()
+
+        !write (*,*) 'XXXXXXXXX EL2DOF XXXXXXXXX'
+        !write (*,*) fe%get_elem2dof()   
+        !write(*,*) 'fe%get_bc_code()',fe%get_bc_code()
+        !write(*,*) 'fe%get_bc_value()',fe%get_bc_value()
+        !write(*,*) 'elmat',elmat
+        !write(*,*) 'elvec',elvec
+
+
+        !write(*,*) 'elvec',elvec
+        !check( 0 == 1)
+
+        call fe%get_number_nodes_field( number_nodes, number_fe_spaces )
+        call fe%get_elem2dof( elem2dof,number_fe_spaces)
+        call fe%get_bc_code( bc_code,number_fe_spaces)
+        call fe%get_bc_value( bc_value,number_fe_spaces)
+        call fe%get_number_nodes_field(number_nodes,number_fe_spaces)
+
+        write(*,*) 'ielem',ielem
+        !write(*,*) 'elem2dof',elem2dof(:)%l
+        !write(*,*) 'bc_code',bc_code(:)%l
+        !write(*,*) 'bc_value',bc_value(:)%a
+        write(*,*) 'number_fe_spaces',number_fe_spaces
+        write(*,*) 'blocks',blocks
+        write(*,*) 'number_nodes',number_nodes
+
+
+        quad => fe%get_quadrature()
+        call this%approximations(iapprox)%p%integrate( vol_int, elmat, elvec, quad, fe_map, number_nodes )
+
+        call impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes, number_fe_spaces )
+
+        call this%assembler%assembly( elem2dof, elmat, elvec, number_fe_spaces, &
+             & blocks, number_nodes, blocks_coupling )      
+     end do
+  end do
+
+  call memfree ( elmat, __FILE__, __LINE__ )
+  call memfree ( elvec, __FILE__, __LINE__ )
+
+  write(*,*) ' ASSEMBLY FINISHED'
+
+  !   do iapprox=1,size(this%approximations)
+  !      do ielem=1,size(this%approximations%domain)
+  !            call this%trial_fe_space%volume_integrator_update( triangulation%elems(ielem)%coordinates )
+  !            ! In a future also for test functions if Petrov-Galerkin             
+  !         call approximations(iapprox)%discrete_integration%compute(this%finite_elements(ielem))
+  !         call assembler%assembly(this%dof_descriptor,this%finite_elements(ielem)) 
+  !      end do
+  !   end do
 
 end subroutine fe_affine_operator_fill_values
 
-subroutine impose_strong_dirichlet_data ( elmat, elvec, code, valu, nnode )
-  real(rp), intent(in) :: elmat(:,:), valu(:)
+subroutine impose_strong_dirichlet_data ( elmat, elvec, code, value, nnode, num_fe_spaces )
+  implicit none
+  real(rp), intent(in) :: elmat(:,:)
   real(rp), intent(inout) :: elvec(:)  
-  integer(ip), intent(in) :: code(:), nnode
-  integer(ip) :: i
-  do i = 1,nnode
-     if ( code(i) /= 0 ) then
-        !write(*,*) 'NEW COND',i
-        !write(*,*) 'value',valu(i)
-        !write(*,*) 'elmat',elmat(:,i)
-        elvec = elvec + elmat(:,i)*valu(i)
-        !write(*,*) 'elvec',elvec
-     end if
+  type(i1p_t), intent(in) :: code(:)
+  type(r1p_t), intent(in) :: value(:)
+  integer(ip), intent(in) :: nnode(:), num_fe_spaces
+  integer(ip) :: i, c, ifes
+  
+  c = 0
+  do ifes = 1, num_fe_spaces
+     do i = 1, nnode(ifes)
+        c = c + 1
+        if ( code(ifes)%l(i) /= 0 ) then
+           elvec = elvec - elmat(:,c)*value(ifes)%a(i)
+        end if
   end do
+end do
 
 end subroutine impose_strong_dirichlet_data
 

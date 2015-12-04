@@ -53,11 +53,14 @@ public :: SB_serial_scalar_matrix_array_assembler_t
 public :: element_serial_scalar_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
-subroutine serial_scalar_matrix_array_assembler_assembly(this,el2dof,elmat,elvec) 
+subroutine serial_scalar_matrix_array_assembler_assembly( this, el2dof, elmat, elvec, &
+                                                          number_fe_spaces, blocks, nodes, blocks_coupling ) 
  implicit none
  class(SB_serial_scalar_matrix_array_assembler_t), intent(inout) :: this
- real(rp), intent(in) :: elmat(:,:), elvec(:)
- integer(ip), intent(in) :: el2dof(:)
+ real(rp), intent(in) :: elmat(:,:), elvec(:) 
+ type(i1p_t), intent(in) :: el2dof(:)
+ integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
+ logical, intent(in) :: blocks_coupling(:,:)
 
  class(matrix_t), pointer :: matrix
  class(array_t) , pointer :: array
@@ -67,45 +70,37 @@ subroutine serial_scalar_matrix_array_assembler_assembly(this,el2dof,elmat,elvec
 
  select type(matrix)
     class is(serial_scalar_matrix_t)
-    call element_serial_scalar_matrix_assembly( matrix,  el2dof,  elmat )
+    call element_serial_scalar_matrix_assembly( matrix,  el2dof(1)%l,  elmat, nodes(1) )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_scalar_array_t)
-    call element_serial_scalar_array_assembly( array,  el2dof,  elvec )
+    call element_serial_scalar_array_assembly( array,  el2dof(1)%l,  elvec, nodes(1) )
     class default
     check(.false.)
  end select
 end subroutine serial_scalar_matrix_array_assembler_assembly
 
-subroutine element_serial_scalar_matrix_assembly(   a, el2dof, elmat, iblock, jblock )
+subroutine element_serial_scalar_matrix_assembly(   a, el2dof, elmat, nodes )
  implicit none
  ! Parameters
  type(serial_scalar_matrix_t)         , intent(inout) :: a
  real(rp), intent(in) :: elmat(:,:)
- integer(ip), intent(in) :: el2dof(:)
- integer(ip), intent(in), optional      :: iblock, jblock
+ integer(ip), intent(in) :: el2dof(:), nodes
 
+ 
  integer(ip) :: iprob, ndof_i, idof, ndof_j, jdof 
- integer(ip) :: inode, jnode, k, iblock_, jblock_
-
- iblock_ = 1
- jblock_ = 1
- if ( present(iblock) ) iblock_ = iblock
- if ( present(jblock) ) jblock_ = jblock
+ integer(ip) :: inode, jnode, k
 
  !iprob = fe%problem
- iprob = 1
- ndof_i = size(elmat,1)
- ndof_j = size(elmat,2)
 
  !if( dof_descriptor%dof_coupl(g_var,k_var) == 1) then
- do inode = 1,ndof_i
+ do inode = 1,nodes
     idof = el2dof(inode)
     if ( idof  > 0 ) then
-       do jnode = 1,ndof_j
+       do jnode = 1,nodes
           jdof = el2dof(jnode)
           if (  (.not. a%graph%symmetric_storage) .and. jdof > 0 ) then
              do k = a%graph%ia(idof),a%graph%ia(idof+1)-1
@@ -126,24 +121,18 @@ subroutine element_serial_scalar_matrix_assembly(   a, el2dof, elmat, iblock, jb
 
 end subroutine element_serial_scalar_matrix_assembly
 
-subroutine element_serial_scalar_array_assembly(  a, el2dof, elvec, iblock )
+subroutine element_serial_scalar_array_assembly(  a, el2dof, elvec, nodes )
  implicit none
  ! Parameters
  type(serial_scalar_array_t), intent(inout) :: a
  real(rp), intent(in) :: elvec(:)
- integer(ip), intent(in) :: el2dof(:)
- integer(ip), intent(in), optional :: iblock
+ integer(ip), intent(in) :: el2dof(:), nodes
+ 
 
  integer(ip) :: iprob,ndof_i
  integer(ip) :: inode, idof, iblock_
 
- iblock_ = 1
- if ( present(iblock) ) iblock_ = iblock
- !iprob = fe%problem
- iprob = 1
-
- ndof_i = size(elvec,1)
- do inode = 1,ndof_i
+ do inode = 1,nodes
     idof = el2dof(inode)
     if ( idof  > 0 ) then
        a%b(idof) =  a%b(idof) + elvec(inode)
