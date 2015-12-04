@@ -300,8 +300,7 @@ program test_cdr
   type(SB_volume_integrator_t) :: volume_integrator
   type(SB_serial_fe_space_t) :: fe_space
   !type(poisson_discrete_integration_t), target :: poisson_integration
-  type(vector_laplacian_discrete_integration_t), target :: vector_laplacian_integration
-  type(SB_p_discrete_integration_t) :: approximations(1) 
+  type(vector_laplacian_discrete_integration_t) :: vector_laplacian_integration
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
   type(p_reference_fe_t) :: reference_fe_array(2)
   !type(SB_serial_fe_space_t) :: fe_space_array(2)
@@ -420,9 +419,8 @@ program test_cdr
   !call my_approximation%create(my_problem,my_discrete)
   !approximations(1)%discrete_integration => my_approximation
 
-  !create approximation
-  approximations(1)%p => vector_laplacian_integration!poisson_integration  
-  call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, approximations )
+  !create approximation  
+  call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, vector_laplacian_integration )
   write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   
   call fe_affine_operator%numerical_setup()

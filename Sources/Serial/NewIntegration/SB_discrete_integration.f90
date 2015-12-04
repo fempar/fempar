@@ -2,6 +2,9 @@ module SB_discrete_integration_names
   use shape_values_names
   use reference_fe_names
   use types_names
+  use SB_assembler_names
+  use SB_fe_space_names
+  use memor_names
 
   implicit none
 # include "debug.i90"
@@ -25,16 +28,12 @@ module SB_discrete_integration_names
   public :: SB_discrete_integration_t, SB_p_discrete_integration_t
 
   abstract interface
-     subroutine integrate_interface (this, vol_int, elmat, elvec, quad, fe_map, nnode )
-       import :: SB_discrete_integration_t, SB_p_volume_integrator_t, rp, fe_map_t, &
-                 SB_quadrature_t, ip
+     subroutine integrate_interface ( this, fe_space, assembler  )
+       import :: SB_discrete_integration_t, SB_serial_fe_space_t, SB_assembler_t
        implicit none
-       class(SB_discrete_integration_t), intent(inout) :: this
-       type(SB_p_volume_integrator_t)    , intent(in) :: vol_int(:)
-       real(rp), intent(inout) :: elmat(:,:), elvec(:)
-       type(fe_map_t), intent(in) :: fe_map
-       type(SB_quadrature_t), intent(in) :: quad
-       integer(ip), intent(in) :: nnode(:)
+       class(SB_discrete_integration_t) :: this
+       class(SB_serial_fe_space_t), intent(inout) :: fe_space
+       class(SB_assembler_t) :: assembler
      end subroutine integrate_interface
   end interface
 
@@ -134,9 +133,13 @@ end module SB_discrete_integration_names
 
 module vector_laplacian_discrete_integration_names
   use shape_values_names
+  use SB_assembler_names
+  use SB_fe_space_names
   use SB_discrete_integration_names
   use reference_fe_names
   use types_names
+  use memor_names
+
   implicit none
 # include "debug.i90"
   private
@@ -151,16 +154,20 @@ public :: vector_laplacian_discrete_integration_t
 
 contains
 
-  subroutine integrate (this, vol_int, elmat, elvec, quad, fe_map, nnode )
+  subroutine integrate ( this, fe_space, assembler )
     implicit none
-    class(vector_laplacian_discrete_integration_t), intent(inout) :: this
-    type(SB_p_volume_integrator_t)    , intent(in) :: vol_int(:)
-    real(rp), intent(inout) :: elmat(:,:), elvec(:)
-    type(fe_map_t), intent(in) :: fe_map
-    type(SB_quadrature_t), intent(in) :: quad
-    integer(ip), intent(in) :: nnode(:)
+    class(vector_laplacian_discrete_integration_t) :: this
+    class(SB_serial_fe_space_t), intent(inout) :: fe_space
+    class(SB_assembler_t) :: assembler
 
-    integer(ip)  :: ndime
+    class(SB_finite_element_t), pointer :: fe
+    type(SB_p_volume_integrator_t), pointer :: vol_int(:)
+    real(rp), allocatable :: elmat(:,:), elvec(:)
+    type(fe_map_t), pointer :: fe_map
+    type(SB_quadrature_t), pointer :: quad
+    integer(ip), allocatable :: number_nodes(:)
+
+    integer(ip)  :: ndime, num_elems
     real(rp)     :: dtinv, c1, c2, mu
 
     integer(ip)  :: idime,igaus,inode,jnode,ngaus
@@ -174,51 +181,99 @@ contains
     real(rp), pointer :: grad_test(:,:), grad_trial(:,:)
 
     integer(ip) :: a, b
+    integer(ip) :: i, number_blocks, number_fe_spaces
 
-    !quad => vol_int(1)%p%get_quadrature()
-    !fe_map => vol_int%get_fe_map()
+    integer(ip), pointer :: blocks(:)
+    logical, pointer :: blocks_coupling(:,:)
+
+    integer(ip) :: ielem, iapprox, nnodes
+    type(i1p_t), pointer :: elem2dof(:)
+    type(i1p_t), pointer :: bc_code(:)
+    type(r1p_t), pointer :: bc_value(:)
 
 
-    !nnode = !ref_fe%get_number_nodes()
-    ngaus = quad%get_number_integration_points()
+    number_blocks = fe_space%get_number_blocks()
+    number_fe_spaces = fe_space%get_number_fe_spaces()
+    blocks => fe_space%get_blocks()
+    blocks_coupling => fe_space%get_fields_coupling()
 
-    shape_gradient_test_u => vol_int(1)%p%get_gradients()
-    shape_gradient_trial_u => vol_int(1)%p%get_gradients()
-    shape_gradient_test_v => vol_int(2)%p%get_gradients()
-    shape_gradient_trial_v => vol_int(2)%p%get_gradients()
+    fe => fe_space%get_fe(1)
+    nnodes = fe%get_number_nodes()
+    call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
 
-    do igaus = 1,ngaus
-       factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-       do inode = 1, nnode(1)
-          grad_trial => shape_gradient_test_u%get_value(inode,igaus)
-          do jnode = 1, nnode(1)
-             grad_test => shape_gradient_trial_u%get_value(jnode,igaus)
-             ! elmat = elmat + grad_trial*grad_test
-             do a = 1,size(shape_gradient_test_u%get_value(inode,igaus),1)
-                do b= 1,size(shape_gradient_trial_u%get_value(inode,igaus),2)
-                   ! write(*,*) 'BLOCK 1',factor * grad_test(a,b) * grad_trial(a,b)
-                   elmat(inode,jnode) = elmat(inode,jnode) &
-                        + factor * grad_test(a,b) * grad_trial(a,b) 
+    allocate( number_nodes(number_fe_spaces) )
+
+
+    call fe_space%initialize_integration()
+
+    !do iapprox = 1, size(this%approximations)
+    do ielem = 1, fe_space%get_number_elements()
+
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_fe(ielem)
+       call fe%update_integration( number_fe_spaces )
+       fe_map => fe%get_fe_map()
+       vol_int => fe%get_volume_integrator()
+       call fe%get_number_nodes_field( number_nodes, number_fe_spaces )
+       elem2dof => fe%get_elem2dof()
+       bc_code =>  fe%get_bc_code()
+       bc_value => fe%get_bc_value()
+       call fe%get_number_nodes_field(number_nodes,number_fe_spaces)
+       quad => fe%get_quadrature()
+
+       !quad => vol_int(1)%p%get_quadrature()
+       !fe_map => vol_int%get_fe_map()
+
+
+       !number_nodes = !ref_fe%get_number_nodes()
+       ngaus = quad%get_number_integration_points()
+
+       shape_gradient_test_u => vol_int(1)%p%get_gradients()
+       shape_gradient_trial_u => vol_int(1)%p%get_gradients()
+       shape_gradient_test_v => vol_int(2)%p%get_gradients()
+       shape_gradient_trial_v => vol_int(2)%p%get_gradients()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do inode = 1, number_nodes(1)
+             grad_trial => shape_gradient_test_u%get_value(inode,igaus)
+             do jnode = 1, number_nodes(1)
+                grad_test => shape_gradient_trial_u%get_value(jnode,igaus)
+                ! elmat = elmat + grad_trial*grad_test
+                do a = 1,size(shape_gradient_test_u%get_value(inode,igaus),1)
+                   do b= 1,size(shape_gradient_trial_u%get_value(inode,igaus),2)
+                      ! write(*,*) 'BLOCK 1',factor * grad_test(a,b) * grad_trial(a,b)
+                      elmat(inode,jnode) = elmat(inode,jnode) &
+                           + factor * grad_test(a,b) * grad_trial(a,b) 
+                   end do
+                end do
+             end do
+          end do
+          do inode = 1, number_nodes(2)
+             grad_trial => shape_gradient_test_u%get_value(inode,igaus)
+             do jnode = 1, number_nodes(2)
+                grad_test => shape_gradient_trial_u%get_value(jnode,igaus)
+                ! elmat = elmat + grad_trial*grad_test
+                do a = 1,size(shape_gradient_test_v%get_value(inode,igaus),1)
+                   do b= 1,size(shape_gradient_trial_v%get_value(inode,igaus),2)
+                      ! write(*,*) 'BLOCK 2',factor * grad_test(a,b) * grad_trial(a,b)
+                      elmat(number_nodes(1)+inode,number_nodes(1)+jnode) = elmat(number_nodes(1)+inode,number_nodes(1)+jnode) &
+                           + factor * grad_test(a,b) * grad_trial(a,b) 
+                   end do
                 end do
              end do
           end do
        end do
-       do inode = 1, nnode(2)
-          grad_trial => shape_gradient_test_u%get_value(inode,igaus)
-          do jnode = 1, nnode(2)
-             grad_test => shape_gradient_trial_u%get_value(jnode,igaus)
-             ! elmat = elmat + grad_trial*grad_test
-             do a = 1,size(shape_gradient_test_v%get_value(inode,igaus),1)
-                do b= 1,size(shape_gradient_trial_v%get_value(inode,igaus),2)
-                   ! write(*,*) 'BLOCK 2',factor * grad_test(a,b) * grad_trial(a,b)
-                   elmat(nnode(1)+inode,nnode(1)+jnode) = elmat(nnode(1)+inode,nnode(1)+jnode) &
-                        + factor * grad_test(a,b) * grad_trial(a,b) 
-                end do
-             end do
-          end do
-       end do
+
+       call impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes, number_fe_spaces )
+
+       call assembler%assembly( elem2dof, elmat, elvec, number_fe_spaces, &
+            & blocks, number_nodes, blocks_coupling )      
     end do
-
+    !end do
     !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
     !write (*,*) elmat
 
@@ -226,7 +281,30 @@ contains
     ! Apply boundary conditions
     !call impose_strong_dirichlet_data(fe) 
 
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+
   end subroutine integrate
 
+subroutine impose_strong_dirichlet_data ( elmat, elvec, code, value, nnode, num_fe_spaces )
+  implicit none
+  real(rp), intent(in) :: elmat(:,:)
+  real(rp), intent(inout) :: elvec(:)  
+  type(i1p_t), intent(in) :: code(:)
+  type(r1p_t), intent(in) :: value(:)
+  integer(ip), intent(in) :: nnode(:), num_fe_spaces
+  integer(ip) :: i, c, ifes
+  
+  c = 0
+  do ifes = 1, num_fe_spaces
+     do i = 1, nnode(ifes)
+        c = c + 1
+        if ( code(ifes)%l(i) /= 0 ) then
+           elvec = elvec - elmat(:,c)*value(ifes)%a(i)
+        end if
+  end do
+end do
+
+end subroutine impose_strong_dirichlet_data
 
 end module vector_laplacian_discrete_integration_names

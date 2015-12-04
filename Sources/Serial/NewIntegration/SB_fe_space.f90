@@ -67,7 +67,8 @@ module SB_fe_space_names
   type :: SB_finite_element_t
      private   
      type(elem_topology_t), pointer :: cell 
-     class(reference_fe_t), pointer :: geometry_reference_fe  
+     class(reference_fe_t), pointer :: geometry_reference_fe 
+     type(p_reference_fe_t), pointer :: reference_fe(:) 
      type(SB_quadrature_t), pointer :: quadrature
      type(fe_map_t), pointer :: fe_map
      type(SB_p_volume_integrator_t), pointer :: volume_integrator(:)
@@ -75,11 +76,11 @@ module SB_fe_space_names
      type(i1p_t), pointer :: elem2dof(:)
      type(i1p_t), pointer :: bc_code(:)
      type(r1p_t), pointer :: bc_value(:)
-     type(p_reference_fe_t), pointer :: reference_fe(:)
    contains
      procedure :: get_volume_integrator
      procedure :: get_quadrature	
      procedure :: get_fe_map
+     procedure :: update_integration
 
      procedure :: get_elem2dof 
      procedure :: get_bc_code 
@@ -88,50 +89,43 @@ module SB_fe_space_names
      procedure :: get_number_nodes_field 
   end type SB_finite_element_t
 
-  !type :: SB_p_finite_element_t
-  !   class(SB_finite_element_t), pointer :: p => NULL ()
-  !end type SB_p_finite_element_t
+  public :: SB_finite_element_t
 
-public :: SB_finite_element_t
+  type :: SB_serial_fe_space_t
+     private
+     type(triangulation_t), pointer :: triangulation
+     type(p_reference_fe_t), allocatable :: reference_fe_geo_list(:)
+     type(p_reference_fe_t), allocatable :: reference_fe_phy_list(:)
+     type(SB_p_quadrature_t), allocatable :: quadrature(:)
+     type(p_fe_map_t), allocatable :: fe_map(:)
+     type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
+     type(SB_finite_element_t), allocatable :: fe_array(:)
+     integer(ip) :: number_fe_spaces   
+     integer(ip), allocatable :: field_blocks(:)
+     integer(ip) :: number_blocks
+     logical, allocatable :: fields_coupling(:,:)
+     integer(ip), allocatable :: number_dofs(:)
+     ! Acceleration arrays
+     type(list_2d_t), allocatable       :: vef2dof(:)
+   contains
+     procedure :: get_number_elements
+     procedure :: get_fe
+     procedure :: initialize_integration
+     procedure :: initialize_volume_integrator
+     procedure :: initialize_quadrature
+     procedure :: initialize_fe_map
+     procedure :: create_assembler
+     procedure :: symbolic_setup_assembler
+     procedure :: get_blocks
+     procedure :: get_max_number_nodes
+     procedure :: get_fields_coupling
+     procedure :: fill_dof_info
+     procedure :: get_number_blocks
+     procedure :: get_number_fe_spaces
+     procedure :: create
+  end type SB_serial_fe_space_t
 
-type :: SB_serial_fe_space_t
-type(triangulation_t), pointer :: triangulation
-type(p_reference_fe_t), allocatable :: reference_fe_geo_list(:)
-type(p_reference_fe_t), allocatable :: reference_fe_phy_list(:)
-type(SB_p_quadrature_t), allocatable :: quadrature(:)
-type(p_fe_map_t), allocatable :: fe_map(:)
-type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
-type(SB_finite_element_t), allocatable :: fe_array(:)
-integer(ip) :: number_fe_spaces   
-!class(SB_p_serial_fe_space_t), allocatable :: fe_space_array(:)  
-integer(ip), allocatable :: field_blocks(:)
-integer(ip) :: number_blocks
-logical, allocatable :: fields_coupling(:,:)
-integer(ip), allocatable :: number_dofs(:)
-! Acceleration arrays
-type(list_2d_t), allocatable       :: vef2dof(:)       ! An auxiliary array to accelerate some parts of the code
-	
-contains
-procedure :: get_fe
-procedure :: initialize_volume_integrator
-procedure :: initialize_quadrature
-procedure :: initialize_fe_map
-procedure :: create_assembler
-procedure :: symbolic_setup_assembler
-procedure :: get_blocks
-procedure :: get_max_number_nodes
-procedure :: get_fields_coupling
-procedure :: fill_dof_info
-procedure :: get_number_blocks
-procedure :: get_number_fe_spaces
-procedure :: create
-end type SB_serial_fe_space_t
-
-!type :: SB_p_fe_space_t
-!class(SB_serial_fe_space_t), pointer :: p => NULL ()
-!end type SB_p_fe_space_t
-
-public :: SB_serial_fe_space_t!, SB_p_fe_space_t
+  public :: SB_serial_fe_space_t
 
 contains
 

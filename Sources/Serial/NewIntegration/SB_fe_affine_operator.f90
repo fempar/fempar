@@ -115,7 +115,7 @@ module SB_fe_affine_operator_names
   type(triangulation_t), pointer :: triangulation
   class(SB_serial_fe_space_t), pointer :: fe_space         => NULL() ! trial_fe_space
   class(SB_serial_fe_space_t), pointer :: test_fe_space          => NULL() ! to be used in the future
-  type(SB_p_discrete_integration_t), allocatable :: approximations(:)
+  class(SB_discrete_integration_t), pointer :: discrete_integration
   class(SB_matrix_array_assembler_t), pointer     :: assembler => NULL()
   ! New things by SB in the process of restructuring of the FE machinery
   ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
@@ -159,7 +159,7 @@ subroutine fe_affine_operator_create (this, &
     diagonal_blocks_sign,&
     triangulation,&
     fe_space,&
-    approximations )
+    discrete_integration )
  implicit none
  class(SB_fe_affine_operator_t)    , intent(out) :: this
  class(SB_serial_fe_space_t)              , target, intent(in) :: fe_space
@@ -167,18 +167,14 @@ subroutine fe_affine_operator_create (this, &
  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
  logical                                , intent(in)  :: diagonal_blocks_symmetric(:)
  integer(ip)                            , intent(in)  :: diagonal_blocks_sign(:)
- type(SB_p_discrete_integration_t)         , intent(in)  :: approximations(:)
+ class(SB_discrete_integration_t), target    , intent(in)  :: discrete_integration
 
- integer(ip) :: iapprox
 
  assert(this%state == start)
 
  this%triangulation => triangulation
  this%fe_space               => fe_space
- allocate ( this%approximations(size(approximations)) )
- do iapprox=1, size(approximations)
-    this%approximations(iapprox)%p => approximations(iapprox)%p
- end do
+ this%discrete_integration => discrete_integration
  this%assembler => fe_space%create_assembler(diagonal_blocks_symmetric_storage, &
                                              diagonal_blocks_symmetric, &
                                              diagonal_blocks_sign)
@@ -255,7 +251,7 @@ subroutine fe_affine_operator_free_clean(this)
  check(istat==0)
  nullify(this%assembler)
  nullify(this%fe_space)
- deallocate(this%approximations, stat=istat)
+ nullify(this%discrete_integration)
  check(istat==0)
  call this%free_vector_spaces()
 end subroutine fe_affine_operator_free_clean
@@ -423,172 +419,12 @@ end subroutine fe_affine_operator_setup
 subroutine fe_affine_operator_fill_values(this)
   implicit none
   class(SB_fe_affine_operator_t), intent(inout) :: this
-  integer(ip) :: ielem, iapprox, nnodes
-  type(triangulation_t), pointer :: p_trian
-  class(SB_finite_element_t), pointer :: fe
-  type(SB_p_volume_integrator_t), pointer :: vol_int(:)
-  type(i1p_t), pointer :: elem2dof(:)
-  type(i1p_t), pointer :: bc_code(:)
-  type(r1p_t), pointer :: bc_value(:)
-  real(rp), allocatable :: elmat(:,:), elvec(:)
-  integer(ip), allocatable :: number_nodes(:)
-  integer(ip), pointer :: blocks(:)
-  logical, pointer :: blocks_coupling(:,:)
-
-  integer(ip) :: i, number_blocks, number_fe_spaces
-  integer(ip), save, target :: one_1d(1) = (/1/)
-  logical, save, target :: true_2d(1,1) = reshape((/.true./),(/1,1/))
-  type(fe_map_t), pointer :: fe_map
-  type(SB_quadrature_t), pointer :: quad
-
-  class(matrix_t), pointer :: matrix
-  type(serial_scalar_matrix_t), pointer :: my_matrix
-
-  class(array_t), pointer :: array
-  type(serial_scalar_array_t), pointer :: my_array
 
 
-  integer(ip) :: j
+  call this%discrete_integration%integrate( this%fe_space, this%assembler)
 
-  fe => this%fe_space%get_fe(1)
-  nnodes = fe%get_number_nodes()
-
-  call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
-  call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
-
-  !number_blocks = 1
-  !number_fe_spaces = 1
-  !select type( f_space => this%fe_space )
-  !   !class is( SB_serial_fe_space_t )
-  !   class is( SB_composite_fe_space_t )
-     number_blocks = this%fe_space%get_number_blocks()
-     number_fe_spaces = this%fe_space%get_number_fe_spaces()
-  !   class default
-  !   check(.false.)
-  !end select
-
-  allocate( elem2dof(number_fe_spaces) )
-  allocate( bc_code(number_fe_spaces) )
-  allocate( bc_value(number_fe_spaces) )
-  allocate( number_nodes(number_fe_spaces) )
-  allocate( blocks(number_fe_spaces) )
-  allocate( blocks_coupling(number_fe_spaces,number_fe_spaces) )
-
-  !select type( fe_space => this%fe_space )
-  !   class is (SB_composite_fe_space_t)
-     blocks => this%fe_space%get_blocks()
-     blocks_coupling => this%fe_space%get_fields_coupling()
-  !   !class is (SB_serial_fe_space_t)
-     !blocks => one_1d
-     !blocks_coupling => true_2d
-  !   class default
-  !   check(0==1)
-  !end select
-
-  write(*,*) 'initialize quadrature'
-  call this%fe_space%initialize_quadrature()
-  fe => this%fe_space%get_fe(1)
-  quad => fe%get_quadrature()
-  call quad%print()
-
-  write(*,*) 'initialize volint'
-  call this%fe_space%initialize_volume_integrator()
-
-  write(*,*) 'initialize femap'
-  call this%fe_space%initialize_fe_map()
-
-  do iapprox = 1, size(this%approximations)
-     do ielem = 1, this%triangulation%num_elems
-
-        elmat = 0.0_rp
-        elvec = 0.0_rp
-
-        fe => this%fe_space%get_fe(ielem)
-        fe_map => fe%get_fe_map()
-        vol_int => fe%get_volume_integrator()
-        do i = 1, number_fe_spaces
-           call fe_map%update()
-           call vol_int(i)%p%update( this%triangulation%elems(ielem)%coordinates, fe_map )
-           !write(*,*) 'VOLUME INTEGRATOR',i
-           !call vol_int(i)%p%print()
-        end do
-
-        fe => this%fe_space%get_fe(ielem)
-
-
-        fe_map => fe%get_fe_map()
-
-        !write (*,*) 'XXXXXXXXX EL2DOF XXXXXXXXX'
-        !write (*,*) fe%get_elem2dof()   
-        !write(*,*) 'fe%get_bc_code()',fe%get_bc_code()
-        !write(*,*) 'fe%get_bc_value()',fe%get_bc_value()
-        !write(*,*) 'elmat',elmat
-        !write(*,*) 'elvec',elvec
-
-
-        !write(*,*) 'elvec',elvec
-        !check( 0 == 1)
-
-        call fe%get_number_nodes_field( number_nodes, number_fe_spaces )
-        elem2dof => fe%get_elem2dof()
-        bc_code =>  fe%get_bc_code()
-        bc_value => fe%get_bc_value()
-        call fe%get_number_nodes_field(number_nodes,number_fe_spaces)
-
-        write(*,*) 'ielem',ielem
-        !write(*,*) 'elem2dof',elem2dof(:)%l
-        !write(*,*) 'bc_code',bc_code(:)%l
-        !write(*,*) 'bc_value',bc_value(:)%a
-        write(*,*) 'number_fe_spaces',number_fe_spaces
-        write(*,*) 'blocks',blocks
-        write(*,*) 'number_nodes',number_nodes
-
-
-        quad => fe%get_quadrature()
-        call this%approximations(iapprox)%p%integrate( vol_int, elmat, elvec, quad, fe_map, number_nodes )
-
-        call impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes, number_fe_spaces )
-
-        call this%assembler%assembly( elem2dof, elmat, elvec, number_fe_spaces, &
-             & blocks, number_nodes, blocks_coupling )      
-     end do
-  end do
-
-  call memfree ( elmat, __FILE__, __LINE__ )
-  call memfree ( elvec, __FILE__, __LINE__ )
-
-  write(*,*) ' ASSEMBLY FINISHED'
-
-  !   do iapprox=1,size(this%approximations)
-  !      do ielem=1,size(this%approximations%domain)
-  !            call this%trial_fe_space%volume_integrator_update( triangulation%elems(ielem)%coordinates )
-  !            ! In a future also for test functions if Petrov-Galerkin             
-  !         call approximations(iapprox)%discrete_integration%compute(this%finite_elements(ielem))
-  !         call assembler%assembly(this%dof_descriptor,this%finite_elements(ielem)) 
-  !      end do
-  !   end do
 
 end subroutine fe_affine_operator_fill_values
 
-subroutine impose_strong_dirichlet_data ( elmat, elvec, code, value, nnode, num_fe_spaces )
-  implicit none
-  real(rp), intent(in) :: elmat(:,:)
-  real(rp), intent(inout) :: elvec(:)  
-  type(i1p_t), intent(in) :: code(:)
-  type(r1p_t), intent(in) :: value(:)
-  integer(ip), intent(in) :: nnode(:), num_fe_spaces
-  integer(ip) :: i, c, ifes
-  
-  c = 0
-  do ifes = 1, num_fe_spaces
-     do i = 1, nnode(ifes)
-        c = c + 1
-        if ( code(ifes)%l(i) /= 0 ) then
-           elvec = elvec - elmat(:,c)*value(ifes)%a(i)
-        end if
-  end do
-end do
-
-end subroutine impose_strong_dirichlet_data
 
 end module SB_fe_affine_operator_names

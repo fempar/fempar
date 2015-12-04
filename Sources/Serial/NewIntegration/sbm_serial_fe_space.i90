@@ -1,4 +1,24 @@
 
+
+function get_number_elements ( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this
+  integer(ip)                 :: get_number_elements
+  get_number_elements = this%triangulation%num_elems
+end function get_number_elements
+
+subroutine initialize_integration( this, max_order )
+  implicit none
+  ! Parameters
+  class(SB_serial_fe_space_t), intent(inout) :: this  
+  integer(ip), optional, intent(in)  :: max_order
+  
+  call this%initialize_quadrature()
+  call this%initialize_volume_integrator()
+  call this%initialize_fe_map()
+
+end subroutine initialize_integration
+
 subroutine initialize_quadrature( this, max_order )
   implicit none
   ! Parameters
@@ -98,6 +118,7 @@ subroutine create( this, triangulation, reference_fe_array, boundary_conditions,
      do j = 1, this%number_fe_spaces
         number_nodes = number_nodes + reference_fe_array(j)%p%get_number_nodes()
      end do
+     this%fe_array(i)%cell => triangulation%elems(i)
      this%fe_array(i)%number_nodes = number_nodes
 
      this%fe_array(i)%geometry_reference_fe => this%reference_fe_geo_list(1)%p
