@@ -71,7 +71,6 @@ module SB_fe_space_names
   type(SB_quadrature_t), pointer :: quadrature
   type(fe_map_t), pointer :: fe_map
   type(SB_p_volume_integrator_t), pointer :: volume_integrator(:)
-  type(p_reference_fe_t), pointer :: reference_fe(:) 
 contains
   procedure :: get_volume_integrator
   procedure :: get_quadrature	
@@ -109,33 +108,37 @@ abstract interface
 end interface
 
 abstract interface
-  subroutine fe_get_elem2dof_interface ( this, elem2dof, n )
-    import :: SB_finite_element_t, i1p_t, ip
-    implicit none
-    class(SB_finite_element_t), target, intent(in)  :: this
-    integer(ip), intent(in) :: n
-    type(i1p_t), intent(inout) :: elem2dof(:)
-  end subroutine fe_get_elem2dof_interface
+function fe_get_volume_integrator_interface ( this )
+  import :: SB_finite_element_t, SB_p_volume_integrator_t
+  implicit none
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(SB_p_volume_integrator_t), pointer :: fe_get_volume_integrator_interface(:)
+end function fe_get_volume_integrator_interface
+function fe_get_elem2dof_interface( this )
+  import :: SB_finite_element_t, i1p_t
+  implicit none
+  class(SB_finite_element_t), target, intent(in) :: this
+  type(i1p_t), pointer :: fe_get_elem2dof_interface(:)
+  end function fe_get_elem2dof_interface
+end interface
+abstract interface
+function fe_get_bc_code_interface( this )
+  import :: SB_finite_element_t, i1p_t
+  implicit none
+  class(SB_finite_element_t), target, intent(in) :: this
+  type(i1p_t), pointer :: fe_get_bc_code_interface(:)
+  end function fe_get_bc_code_interface
+end interface
+abstract interface
+function fe_get_bc_value_interface( this )
+  import :: SB_finite_element_t, r1p_t
+  implicit none
+  class(SB_finite_element_t), target, intent(in) :: this
+  type(r1p_t), pointer :: fe_get_bc_value_interface(:)
+  end function fe_get_bc_value_interface
 end interface
 
 abstract interface
-  subroutine fe_get_bc_code_interface ( this, bc_code, n )
-    import :: SB_finite_element_t, i1p_t, ip
-    implicit none
-    class(SB_finite_element_t), target, intent(in)  :: this
-    integer(ip), intent(in) :: n
-    type(i1p_t), intent(inout) :: bc_code(:)
-  end subroutine fe_get_bc_code_interface
-end interface
-
-abstract interface
-  subroutine fe_get_bc_value_interface ( this, bc_value, n )
-    import :: SB_finite_element_t, r1p_t, ip
-    implicit none
-    class(SB_finite_element_t), target, intent(in)  :: this
-    integer(ip), intent(in) :: n
-    type(r1p_t), intent(inout) :: bc_value(:)
-  end subroutine fe_get_bc_value_interface
 end interface
 
 abstract interface
@@ -165,6 +168,9 @@ end type SB_p_finite_element_t
 
 type, extends(SB_finite_element_t) :: SB_simple_finite_element_t 
 private
+type(p_reference_fe_t), pointer :: reference_fe(:)
+!class(reference_fe_t), pointer :: reference_fe
+!type(SB_volume_integrator_t), pointer :: volume_integrator
 integer(ip)     , allocatable   :: elem2dof(:)
 integer(ip), allocatable :: bc_code(:)
 real(rp), allocatable :: bc_value(:)
@@ -173,6 +179,7 @@ procedure :: create => simple_fe_create
 procedure :: free   => simple_fe_free
 procedure :: print  => simple_fe_print
 
+!procedure :: get_volume_integrator => simple_fe_get_volume_integrator
 
 procedure :: get_elem2dof => simple_fe_get_elem2dof
 procedure :: get_bc_code => simple_fe_get_bc_code
@@ -194,13 +201,18 @@ public :: SB_finite_element_t, SB_simple_finite_element_t, SB_p_simple_finite_el
 
 type, extends(SB_finite_element_t) :: SB_composite_finite_element_t
    private
-   type(SB_p_simple_finite_element_t), allocatable :: field_fe(:)
+   type(SB_p_simple_finite_element_t), allocatable :: field_fe(:) 
    integer(ip) :: number_nodes
+  type(i1p_t), pointer :: elem2dof(:)
+  type(i1p_t), pointer :: bc_code(:)
+  type(r1p_t), pointer :: bc_value(:)
+  type(p_reference_fe_t), pointer :: reference_fe(:)
  contains
    !procedure :: create => composite_fe_create
    !procedure :: free   => composite_fe_free
    !procedure :: print  => composite_fe_print
 
+   !procedure :: get_volume_integrator => composite_fe_get_volume_integrator
 
    procedure :: get_elem2dof => composite_fe_get_elem2dof
    procedure :: get_bc_code => composite_fe_get_bc_code
@@ -217,10 +229,10 @@ end type SB_composite_finite_element_t
 type, abstract :: SB_fe_space_t
    type(triangulation_t), pointer :: triangulation
    type(p_reference_fe_t), allocatable :: reference_fe_geo_list(:)
-   type(SB_p_quadrature_t), allocatable :: quadrature(:)
-   type(p_fe_map_t), allocatable :: fe_map(:)
-   type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
    type(p_reference_fe_t), allocatable :: reference_fe_phy_list(:)
+   type(SB_p_quadrature_t), allocatable :: quadrature(:)
+   type(p_fe_map_t), allocatable :: fe_map(:)! Integrator
+   type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)	
 contains
 procedure (get_fe_interface), deferred :: get_fe
 procedure (initialize_volume_integrator_interface), deferred :: initialize_volume_integrator
@@ -333,11 +345,13 @@ type, extends(SB_fe_space_t) :: SB_composite_fe_space_t
 
 type(SB_composite_finite_element_t), allocatable :: fe_array(:)
 integer(ip) :: number_fe_spaces   
-class(SB_p_serial_fe_space_t), allocatable :: fe_space_array(:)  
+!class(SB_p_serial_fe_space_t), allocatable :: fe_space_array(:)  
 integer(ip), allocatable :: field_blocks(:)
 integer(ip) :: number_blocks
 logical, allocatable :: fields_coupling(:,:)
 integer(ip), allocatable :: number_dofs(:)
+! Acceleration arrays
+type(list_2d_t), allocatable       :: vef2dof(:)       ! An auxiliary array to accelerate some parts of the code
 
 contains
   ! TBPs

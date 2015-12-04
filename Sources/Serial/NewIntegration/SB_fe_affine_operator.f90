@@ -427,8 +427,9 @@ subroutine fe_affine_operator_fill_values(this)
   type(triangulation_t), pointer :: p_trian
   class(SB_finite_element_t), pointer :: fe
   type(SB_p_volume_integrator_t), pointer :: vol_int(:)
-  type(i1p_t), allocatable :: elem2dof(:), bc_code(:)
-  type(r1p_t), allocatable :: bc_value(:)
+  type(i1p_t), pointer :: elem2dof(:)
+  type(i1p_t), pointer :: bc_code(:)
+  type(r1p_t), pointer :: bc_value(:)
   real(rp), allocatable :: elmat(:,:), elvec(:)
   integer(ip), allocatable :: number_nodes(:)
   integer(ip), pointer :: blocks(:)
@@ -536,9 +537,9 @@ subroutine fe_affine_operator_fill_values(this)
         !check( 0 == 1)
 
         call fe%get_number_nodes_field( number_nodes, number_fe_spaces )
-        call fe%get_elem2dof( elem2dof,number_fe_spaces)
-        call fe%get_bc_code( bc_code,number_fe_spaces)
-        call fe%get_bc_value( bc_value,number_fe_spaces)
+        elem2dof => fe%get_elem2dof()
+        bc_code =>  fe%get_bc_code()
+        bc_value => fe%get_bc_value()
         call fe%get_number_nodes_field(number_nodes,number_fe_spaces)
 
         write(*,*) 'ielem',ielem

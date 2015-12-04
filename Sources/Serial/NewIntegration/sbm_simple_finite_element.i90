@@ -13,29 +13,59 @@ subroutine simple_fe_get_number_nodes_field ( this, number_nodes, n )
   number_nodes(1) = this%reference_fe(1)%p%get_number_nodes()
 end subroutine simple_fe_get_number_nodes_field
 
-subroutine simple_fe_get_elem2dof ( this, elem2dof, n )
+function simple_fe_get_elem2dof( this )
   implicit none
-  class(SB_simple_finite_element_t), target, intent(in)  :: this
-  integer(ip), intent(in) :: n
-  type(i1p_t), intent(inout) :: elem2dof(:)
-  elem2dof(1)%l => this%elem2dof
-end subroutine simple_fe_get_elem2dof
+  class(SB_simple_finite_element_t), target, intent(in) :: this
+  type(i1p_t), pointer :: simple_fe_get_elem2dof(:)
+  
+  allocate(simple_fe_get_elem2dof(1))
+  simple_fe_get_elem2dof(1)%l => this%elem2dof
+  
+end function simple_fe_get_elem2dof
 
-subroutine simple_fe_get_bc_code ( this, bc_code, n )
+function simple_fe_get_bc_code( this )
   implicit none
-  class(SB_simple_finite_element_t), target, intent(in)  :: this
-  integer(ip), intent(in) :: n
-  type(i1p_t), intent(inout) :: bc_code(:)
-  bc_code(1)%l => this%bc_code
-end subroutine simple_fe_get_bc_code
+  class(SB_simple_finite_element_t), target, intent(in) :: this
+  type(i1p_t), pointer :: simple_fe_get_bc_code(:)
+  
+  allocate(simple_fe_get_bc_code(1))
+  simple_fe_get_bc_code(1)%l => this%bc_code
+  
+end function simple_fe_get_bc_code
 
-subroutine simple_fe_get_bc_value ( this, bc_value, n )
+function simple_fe_get_bc_value( this )
   implicit none
-  class(SB_simple_finite_element_t), target, intent(in)  :: this
-  integer(ip), intent(in) :: n
-  type(r1p_t), intent(inout) :: bc_value(:)
-  bc_value(1)%a => this%bc_value
-end subroutine simple_fe_get_bc_value
+  class(SB_simple_finite_element_t), target, intent(in) :: this
+  type(r1p_t), pointer :: simple_fe_get_bc_value(:)
+  
+  allocate(simple_fe_get_bc_value(1))
+  simple_fe_get_bc_value(1)%a => this%bc_value
+  
+end function simple_fe_get_bc_value
+
+! subroutine simple_fe_get_elem2dof ( this, elem2dof, n )
+!   implicit none
+!   class(SB_simple_finite_element_t), target, intent(in)  :: this
+!   integer(ip), intent(in) :: n
+!   type(i1p_t), intent(inout) :: elem2dof(:)
+!   elem2dof(1)%l => this%elem2dof
+! end subroutine simple_fe_get_elem2dof
+
+! subroutine simple_fe_get_bc_code ( this, bc_code, n )
+!   implicit none
+!   class(SB_simple_finite_element_t), target, intent(in)  :: this
+!   integer(ip), intent(in) :: n
+!   type(i1p_t), intent(inout) :: bc_code(:)
+!   bc_code(1)%l => this%bc_code
+! end subroutine simple_fe_get_bc_code
+
+! subroutine simple_fe_get_bc_value ( this, bc_value, n )
+!   implicit none
+!   class(SB_simple_finite_element_t), target, intent(in)  :: this
+!   integer(ip), intent(in) :: n
+!   type(r1p_t), intent(inout) :: bc_value(:)
+!   bc_value(1)%a => this%bc_value
+! end subroutine simple_fe_get_bc_value
 
 function get_quadrature ( this )
   implicit none

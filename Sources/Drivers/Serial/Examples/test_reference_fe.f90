@@ -412,6 +412,7 @@ program test_cdr
   approximations(1)%p => vector_laplacian_integration!poisson_integration  
   call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, approximations )
   write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+  
   call fe_affine_operator%numerical_setup()
   write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 

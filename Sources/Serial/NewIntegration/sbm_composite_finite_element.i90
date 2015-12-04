@@ -17,44 +17,71 @@ function composite_fe_get_number_nodes ( this )
   composite_fe_get_number_nodes = this%number_nodes
 end function composite_fe_get_number_nodes
 
-subroutine composite_fe_get_elem2dof( this, elem2dof, n )
+function composite_fe_get_elem2dof( this )
   implicit none
   class(SB_composite_finite_element_t), target, intent(in) :: this
-  integer(ip), intent(in) :: n
-  type(i1p_t), intent(inout) :: elem2dof(:)
-  integer(ip) :: i
+  type(i1p_t), pointer :: composite_fe_get_elem2dof(:)
   
-  do i = 1, n
-     elem2dof(i)%l => this%field_fe(i)%p%elem2dof
-  end do
+  composite_fe_get_elem2dof => this%elem2dof
   
-end subroutine composite_fe_get_elem2dof
+end function composite_fe_get_elem2dof
 
-subroutine composite_fe_get_bc_code( this, bc_code, n )
+function composite_fe_get_bc_code( this )
   implicit none
   class(SB_composite_finite_element_t), target, intent(in) :: this
-  integer(ip), intent(in) :: n
-  type(i1p_t), intent(inout) :: bc_code(:)
-  integer(ip) :: i
+  type(i1p_t), pointer :: composite_fe_get_bc_code(:)
   
-  do i = 1, n
-       bc_code(i)%l => this%field_fe(i)%p%bc_code
-  end do
+  composite_fe_get_bc_code => this%bc_code
   
-end subroutine composite_fe_get_bc_code
+end function composite_fe_get_bc_code
 
-subroutine composite_fe_get_bc_value( this, bc_value, n )
+function composite_fe_get_bc_value( this )
   implicit none
   class(SB_composite_finite_element_t), target, intent(in) :: this
-  integer(ip), intent(in) :: n
-  type(r1p_t), intent(inout) :: bc_value(:)
-  integer(ip) :: i
+  type(r1p_t), pointer :: composite_fe_get_bc_value(:)
   
-  do i = 1, n
-     bc_value(i)%a => this%field_fe(i)%p%bc_value
-  end do
+  composite_fe_get_bc_value => this%bc_value
   
-end subroutine composite_fe_get_bc_value
+end function composite_fe_get_bc_value
+
+! subroutine composite_fe_get_elem2dof( this, elem2dof, n )
+!   implicit none
+!   class(SB_composite_finite_element_t), target, intent(in) :: this
+!   integer(ip), intent(in) :: n
+!   type(i1p_t), intent(inout) :: elem2dof(:)
+!   integer(ip) :: i
+  
+!   do i = 1, n
+!      elem2dof(i)%l => this%field_fe(i)%p%elem2dof
+!   end do
+  
+! end subroutine composite_fe_get_elem2dof
+
+! subroutine composite_fe_get_bc_code( this, bc_code, n )
+!   implicit none
+!   class(SB_composite_finite_element_t), target, intent(in) :: this
+!   integer(ip), intent(in) :: n
+!   type(i1p_t), intent(inout) :: bc_code(:)
+!   integer(ip) :: i
+  
+!   do i = 1, n
+!        bc_code(i)%l => this%field_fe(i)%p%bc_code
+!   end do
+  
+! end subroutine composite_fe_get_bc_code
+
+! subroutine composite_fe_get_bc_value( this, bc_value, n )
+!   implicit none
+!   class(SB_composite_finite_element_t), target, intent(in) :: this
+!   integer(ip), intent(in) :: n
+!   type(r1p_t), intent(inout) :: bc_value(:)
+!   integer(ip) :: i
+  
+!   do i = 1, n
+!      bc_value(i)%a => this%field_fe(i)%p%bc_value
+!   end do
+  
+! end subroutine composite_fe_get_bc_value
 
 
 subroutine composite_fe_get_volume_integrator ( this, volume_integrator, n )
