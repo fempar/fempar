@@ -23,7 +23,7 @@ subroutine volume_integrator_compute_value_test( this )
   class(field_type_t), pointer :: array_entry
   integer(ip) :: inode, igp
   real(rp), pointer :: value(:,:)
-  
+
   do inode = 1, this%reference_fe%number_nodes
      do igp = 1, this%quadrature%number_integration_points
         value => this%shape_value_test%get_value(inode,igp)
@@ -51,20 +51,48 @@ subroutine volume_integrator_compute_gradient_test( this )
 
 end subroutine volume_integrator_compute_gradient_test
 
-subroutine volume_integrator_create( this, reference_fe, reference_fe_geometry, max_order )
+! subroutine volume_integrator_create( this, reference_fe, reference_fe_geometry, max_order )
+!   implicit none
+!   ! Parameters
+!   class(SB_volume_integrator_t), intent(out) :: this
+!   class(reference_fe_t), target, intent(in) :: reference_fe
+!   class(reference_fe_t), target, intent(in) :: reference_fe_geometry    
+!   integer(ip), optional, intent(in)  :: max_order
+
+!   integer(ip) :: ndime,ngaus
+!   ! Create quadrature
+!   this%reference_fe => reference_fe
+!   this%fe_map%reference_fe_geometry => reference_fe_geometry
+
+! end subroutine volume_integrator_create
+
+subroutine volume_integrator_create( this, reference_fe, quadrature )
   implicit none
   ! Parameters
   class(SB_volume_integrator_t), intent(out) :: this
-  class(reference_fe_t), target, intent(in) :: reference_fe
-  class(reference_fe_t), target, intent(in) :: reference_fe_geometry    
-  integer(ip), optional, intent(in)  :: max_order
+  class(reference_fe_t), target, intent(in) :: reference_fe  
+  class(SB_quadrature_t), target, intent(in) :: quadrature
 
   integer(ip) :: ndime,ngaus
   ! Create quadrature
   this%reference_fe => reference_fe
-  this%reference_fe_geometry => reference_fe_geometry
+  this%quadrature => quadrature
 
 end subroutine volume_integrator_create
+
+subroutine fe_map_create( this, reference_fe_geometry, quadrature )
+  implicit none
+  ! Parameters
+  class(fe_map_t), intent(out) :: this
+  class(reference_fe_t), target, intent(in) :: reference_fe_geometry  
+  class(SB_quadrature_t), target, intent(in) :: quadrature  
+
+  integer(ip) :: ndime,ngaus
+  ! Create quadrature
+		this%quadrature => quadrature
+  this%reference_fe_geometry => reference_fe_geometry
+
+end subroutine fe_map_create
 
 subroutine volume_integrator_free( this )
   implicit none
@@ -73,40 +101,31 @@ subroutine volume_integrator_free( this )
 
   call this%quadrature%free()
   call this%interpolation%free()
-  call this%interpolation_geometry%free()
+  !call this%fe_map%interpolation_geometry%free()
   call this%interpolation_o_map%free()
-  call this%fe_map%free()
+  !call this%fe_map%free()
 
   nullify(this%reference_fe)
-  nullify(this%reference_fe_geometry)
+  !nullify(this%fe_map%reference_fe_geometry)
 
 end subroutine volume_integrator_free
 
-subroutine volume_integrator_set_integration( this, max_order )
+subroutine volume_integrator_set_integration( this )
   implicit none
   ! Parameters
   class(SB_volume_integrator_t), intent(inout) :: this   
-  integer(ip), optional, intent(in)  :: max_order
+  !integer(ip), optional, intent(in)  :: max_order
 
   integer(ip) :: ndime,ngaus
   ! Create quadrature
 
-  call this%reference_fe%create_quadrature( this%quadrature, max_order )
+  !call this%reference_fe%create_quadrature( this%quadrature, max_order )
 
   call this%reference_fe%create_interpolation( this%quadrature, this%interpolation )
-
-  call this%reference_fe%create_interpolation( this%quadrature, this%interpolation_geometry )
 
   call this%interpolation_o_map%copy(from = this%interpolation)
 
   ndime = this%reference_fe%number_dimensions
-  ngaus = this%interpolation%number_evaluation_points
-
-  call memalloc(ndime,ndime,ngaus,this%fe_map%jacobian,__FILE__,__LINE__)
-  call memalloc(ndime,ndime,ngaus,this%fe_map%inv_jacobian,__FILE__,__LINE__)
-  call memalloc(ngaus,this%fe_map%det_jacobian,__FILE__,__LINE__)   
-  call memalloc(ndime,ngaus,this%fe_map%coordinates_points,__FILE__,__LINE__)
-
 
   if( allocated( this%interpolation%hessian ) ) then
      call memalloc(ndime,ndime,ndime,this%interpolation%number_evaluation_points, &
@@ -133,15 +152,39 @@ subroutine volume_integrator_set_integration( this, max_order )
 
 end subroutine volume_integrator_set_integration
 
-subroutine volume_integrator_update(this, coordinates)
+subroutine set_fe_map( this )
+  implicit none
+  ! Parameters
+  class(fe_map_t), intent(inout) :: this   
+  !integer(ip), optional, intent(in)  :: max_order
+
+  integer(ip) :: ndime,ngaus
+  ! Create quadrature
+
+  !call this%reference_fe%create_quadrature( this%quadrature, max_order )
+
+  call this%reference_fe_geometry%create_interpolation( this%quadrature, this%interpolation_geometry )
+
+  ndime = this%reference_fe_geometry%number_dimensions
+  ngaus = this%quadrature%number_integration_points
+
+  call memalloc(ndime,ndime,ngaus,this%jacobian,__FILE__,__LINE__)
+  call memalloc(ndime,ndime,ngaus,this%inv_jacobian,__FILE__,__LINE__)
+  call memalloc(ngaus,this%det_jacobian,__FILE__,__LINE__)   
+  call memalloc(ndime,ngaus,this%coordinates_points,__FILE__,__LINE__)
+
+end subroutine set_fe_map
+
+subroutine volume_integrator_update(this, coordinates, fe_map)
   implicit none
   ! Parameters
   class(SB_volume_integrator_t), intent(inout) :: this
+  type(fe_map_t), intent(in) :: fe_map
   real(rp), intent(in) :: coordinates(:,:)
   ! Define fe map  by interpolation
-  call create_femap( this%interpolation_geometry, coordinates, this%fe_map )
+  !call fe_map%update( )
   ! Obtain physical interpolation
-  call femap_apply_to_interp( this%fe_map, this%interpolation, this%interpolation_o_map )
+  call femap_apply_to_interp( fe_map, this%interpolation, this%interpolation_o_map )
 
   call this%compute_gradient_test()
 end subroutine volume_integrator_update
@@ -159,9 +202,9 @@ subroutine volume_integrator_print( this )
   write(*,*) '%%%%%%%%%%%%%%%% interpolation: %%%%%%%%%%%%%%%%'
   call this%interpolation%print()
   write(*,*) '%%%%%%%%%%%%%%%% reference_fe_geometry: %%%%%%%%%%%%%%%%'
-  call this%reference_fe_geometry%print()
+  call this%fe_map%reference_fe_geometry%print()
   write(*,*) '%%%%%%%%%%%%%%%% interpolation_geometry: %%%%%%%%%%%%%%%%'
-  call this%interpolation_geometry%print()
+  call this%fe_map%interpolation_geometry%print()
   write(*,*) '%%%%%%%%%%%%%%%% interpolation_o_map: %%%%%%%%%%%%%%%%'
   call this%interpolation_o_map%print()
   write(*,*) '%%%%%%%%%%%%%%%% shape functions: %%%%%%%%%%%%%%%%'
@@ -253,15 +296,14 @@ function fe_map_get_det_jacobian ( this, i )
 end function fe_map_get_det_jacobian
 
 !==============================================================================
-subroutine create_femap(int,elcod,map )
+subroutine fe_map_update( this ) !int,elcod,map )
   !-----------------------------------------------------------------------
   ! A map obtained from the (usually isoparametric) interpolation of the geometry
   !-----------------------------------------------------------------------
   implicit none
-  type(SB_interpolation_t), intent(in)    :: int
+  !type(SB_interpolation_t), intent(in)    :: int
   !    real(rp)           , intent(inout) :: hnatu
-  real(rp)           , intent(in)    :: elcod(:,:)
-  type(fe_map_t)        , intent(inout) :: map
+  class(fe_map_t)        , intent(inout) :: this
   ! Locals
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
@@ -272,16 +314,16 @@ subroutine create_femap(int,elcod,map )
   logical :: khes
 
   khes = .false.
-  if ( allocated( int%hessian ) ) then 
+  if ( allocated( this%interpolation_geometry%hessian ) ) then 
      khes = .true.
   end if
 
   ! ! Check and get data from int
   ! assert(int%kder==1)
-  ndime = int%number_dimensions
+  ndime = this%interpolation_geometry%number_dimensions
   !nnode = int%number_shape_functions
-  nnode = size(int%shape_functions,1)
-  nlocs = int%number_evaluation_points
+  nnode = size(this%interpolation_geometry%shape_functions,1)
+  nlocs = this%interpolation_geometry%number_evaluation_points
 
   ! ! Check elcod
   ! assert(ndime==size(elcod,dim=1))
@@ -298,26 +340,26 @@ subroutine create_femap(int,elcod,map )
   do ilocs=1,nlocs
      ! Matmul is not thread safe
      !map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
-     map%jacobian(:,:,ilocs)=0.0_rp
+     this%jacobian(:,:,ilocs)=0.0_rp
      do inode=1,nnode
         do jdime=1,ndime
            do idime=1,ndime
-              map%jacobian(idime,jdime,ilocs) = map%jacobian(idime,jdime,ilocs) &
-                   + elcod(idime,inode)*int%shape_derivatives(jdime,inode,ilocs)
+              this%jacobian(idime,jdime,ilocs) = this%jacobian(idime,jdime,ilocs) &
+                   + this%quadrature%coordinates(idime,inode)*this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
            end do
         end do
      end do
      ! J^(-t)
-     call invmtx(map%jacobian(:,:,ilocs),map%inv_jacobian(:,:,ilocs),map%det_jacobian(ilocs),ndime)
+     call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
   end do
 
   ! Evaluation (Gauss) point coordinates
   do ilocs=1,nlocs
-     map%coordinates_points(:,ilocs)=0.0_rp
+     this%coordinates_points(:,ilocs)=0.0_rp
      do inode=1,nnode
         do idime=1,ndime
-           map%coordinates_points(idime,ilocs) = map%coordinates_points(idime,ilocs) &
-                + elcod(idime,inode)*int%shape_functions(inode,ilocs)
+           this%coordinates_points(idime,ilocs) = this%coordinates_points(idime,ilocs) &
+                + this%quadrature%coordinates(idime,inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
         end do
      end do
   end do
@@ -325,10 +367,10 @@ subroutine create_femap(int,elcod,map )
   ! ! Second derivatives of the map
   if( khes ) then
 
-     ntens=int%number_entries_symmetric_tensor
+     ntens=this%interpolation_geometry%number_entries_symmetric_tensor
      ! Check that second derivativesof the map have been allocated.
-     assert(ndime==size(map%d2sdx,dim=1))
-     assert(nlocs==size(map%d2sdx,dim=4))
+     assert(ndime==size(this%d2sdx,dim=1))
+     assert(nlocs==size(this%d2sdx,dim=4))
 
      call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
      call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
@@ -340,7 +382,7 @@ subroutine create_femap(int,elcod,map )
         ! Transforms the array HESSI to a symmetric matrix WMAT1
         do inode=1,nnode
            do itens = 1, ntens
-              wvec1(itens) = int%hessian(itens,inode,ilocs)
+              wvec1(itens) = this%interpolation_geometry%hessian(itens,inode,ilocs)
            end do
            call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
         end do
@@ -349,7 +391,7 @@ subroutine create_femap(int,elcod,map )
         ! each node
         do inode=1,nnode
            call btdbma(wmat2(1,1,inode),wmat1(1,1,inode), &
-                &        map%inv_jacobian(:,:,ilocs),ndime,ndime)
+                &        this%inv_jacobian(:,:,ilocs),ndime,ndime)
         end do
 
         ! Obtains (d^2 s_k / d x_i d x_j) as the solution of the system
@@ -359,13 +401,13 @@ subroutine create_femap(int,elcod,map )
         do kdime=1,ndime
            do idime=1,ndime
               do jdime=1,ndime
-                 map%d2sdx(kdime,idime,jdime,ilocs)=0.0_rp
+                 this%d2sdx(kdime,idime,jdime,ilocs)=0.0_rp
                  do ldime=1,ndime
                     do inode=1,nnode
-                       map%d2sdx(kdime,idime,jdime,ilocs) =    &
-                            & map%d2sdx(kdime,idime,jdime,ilocs) &
-                            & - map%inv_jacobian(kdime,ldime,ilocs)     &
-                            &   * wmat2(idime,jdime,inode) * elcod(ldime,inode)
+                       this%d2sdx(kdime,idime,jdime,ilocs) =    &
+                            & this%d2sdx(kdime,idime,jdime,ilocs) &
+                            & - this%inv_jacobian(kdime,ldime,ilocs)     &
+                            &   * wmat2(idime,jdime,inode) * this%quadrature%coordinates(ldime,inode)
                     end do
                  end do
               end do
@@ -380,7 +422,7 @@ subroutine create_femap(int,elcod,map )
   end if
 
 
-end subroutine create_femap
+end subroutine fe_map_update
 
 
 subroutine invmtx(a,b,deter,nsize)

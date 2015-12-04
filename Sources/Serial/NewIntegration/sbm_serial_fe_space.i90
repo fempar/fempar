@@ -20,12 +20,14 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
   integer(ip) :: i, istat,iobje, inode, jnode, obje_g
   ! Point triangulation
   ! Create reference FE (now only one)
-  
+
   this%triangulation => triangulation
 
   ! Assuming only one reference FE for the moment  SB.alert
   allocate( this%reference_fe_phy_list(1), stat=istat )
   allocate( this%reference_fe_geo_list(1), stat=istat )
+  allocate( this%quadrature(1), stat=istat )
+  allocate( this%fe_map(1), stat=istat )
   allocate( this%volume_integrator(1), stat=istat )
   allocate( this%fe_array(triangulation%num_elems), stat=istat )
 
@@ -36,33 +38,37 @@ subroutine serial_fe_space_create( this, triangulation, topology, fe_type, numbe
   ! Order 1 for geometry SB.alert
   this%reference_fe_geo_list(1)%p => &
        start_reference_fe ( topology = topology, fe_type = fe_type, number_dimensions = number_dimensions, &
-       order =  1 , field_type = "vector", continuity = .true. )
+       order =  1 , field_type = "vector", continuity = .true. )							
+  !call this%reference_fe_geo_list(1)%p%create_quadrature( this%quadrature(1)%p)!, max_order)			
+  allocate( this%quadrature(1)%p )
   allocate( this%volume_integrator(1)%p )
-  call this%volume_integrator(1)%p%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p )
+  allocate( this%fe_map(1)%p )	
+  call this%volume_integrator(1)%p%create( this%reference_fe_phy_list(1)%p, this%quadrature(1)%p )
+  call this%fe_map(1)%p%create( this%reference_fe_geo_list(1)%p, this%quadrature(1)%p )
 
   ! Do triangulation
   do i = 1, triangulation%num_elems
      ! Create FEs
      call this%fe_array(i)%create( this%reference_fe_phy_list(1)%p, this%reference_fe_geo_list(1)%p, &
-          this%volume_integrator(1)%p, triangulation%elems(i))!, field_unknowns)
+          this%volume_integrator(1)%p, this%fe_map(1)%p, this%quadrature(1)%p, triangulation%elems(i))!, field_unknowns)
   end do
 
   ! BCs
   do i = 1, triangulation%num_elems
-     call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_code,__FILE__,__LINE__)
-     call memalloc(this%fe_array(i)%reference_fe%get_number_nodes(),this%fe_array(i)%bc_value,__FILE__,__LINE__)
-     do iobje = 1,this%fe_array(i)%reference_fe%get_number_vefs()
+     call memalloc(this%fe_array(i)%reference_fe(1)%p%get_number_nodes(),this%fe_array(i)%bc_code,__FILE__,__LINE__)
+     call memalloc(this%fe_array(i)%reference_fe(1)%p%get_number_nodes(),this%fe_array(i)%bc_value,__FILE__,__LINE__)
+     do iobje = 1,this%fe_array(i)%reference_fe(1)%p%get_number_vefs()
         obje_g = triangulation%elems(i)%vefs(iobje)
         !write(*,*) 'ielem',i
         !write(*,*) 'iobje',iobje
         !write(*,*) 'obje_g',obje_g
         !write(*,*) 'bc_cond_intro',boundary_conditions%code(:,obje_g)
-        do inode = 1, this%fe_array(i)%reference_fe%get_number_interior_nodes_vef(iobje)
-           jnode = this%fe_array(i)%reference_fe%get_interior_node_vef(inode,iobje)
+        do inode = 1, this%fe_array(i)%reference_fe(1)%p%get_number_interior_nodes_vef(iobje)
+           jnode = this%fe_array(i)%reference_fe(1)%p%get_interior_node_vef(inode,iobje)
            this%fe_array(i)%bc_code(jnode) = &
-                boundary_conditions%code(this%fe_array(i)%reference_fe%get_bc_component_node(jnode),obje_g)
+                boundary_conditions%code(this%fe_array(i)%reference_fe(1)%p%get_bc_component_node(jnode),obje_g)
            this%fe_array(i)%bc_value(jnode) = &
-                boundary_conditions%valu(this%fe_array(i)%reference_fe%get_bc_component_node(jnode),obje_g)
+                boundary_conditions%valu(this%fe_array(i)%reference_fe(1)%p%get_bc_component_node(jnode),obje_g)
         end do
         !write(*,*) 'bc_code_fe:',this%fe_array(i)%bc_code
      end do
@@ -97,6 +103,20 @@ subroutine serial_fe_space_free( this )
         call this%volume_integrator(i)%p%free()
      enddo
      deallocate(this%volume_integrator)
+  endif  
+		
+		if(allocated(this%quadrature)) then
+     do i = 1, size(this%quadrature, dim=1)
+        call this%quadrature(i)%p%free()
+     enddo
+     deallocate(this%quadrature)
+  endif
+		
+  if(allocated(this%fe_map)) then
+     do i = 1, size(this%fe_map, dim=1)
+        call this%fe_map(i)%p%free()
+     enddo
+     deallocate(this%fe_map)
   endif
 
   if(allocated(this%fe_array)) then
@@ -163,18 +183,47 @@ subroutine create_dof_info ( fe_space )
   call create_vef2dof( fe_space )
 end subroutine create_dof_info
 
-subroutine serial_fe_space_initialize_volume_integrator( this, max_order )
+subroutine initialize_quadrature( this, max_order )
   implicit none
   ! Parameters
-  class(SB_serial_fe_space_t), intent(inout) :: this  
+  class(SB_fe_space_t), intent(inout) :: this  
   integer(ip), optional, intent(in)  :: max_order
   integer(ip) :: i
 
+  write(*,*) 'this%reference_fe_geo_list',size(this%reference_fe_geo_list)
+  do i = 1, size(this%reference_fe_geo_list)
+     write(*,*) 'call create quadrature'
+     call this%reference_fe_geo_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
+  end do
+
+end subroutine initialize_quadrature
+
+subroutine serial_fe_space_initialize_volume_integrator( this )!, max_order )
+  implicit none
+  ! Parameters
+  class(SB_serial_fe_space_t), intent(inout) :: this  
+  !integer(ip), optional, intent(in)  :: max_order
+  integer(ip) :: i
+
   do i = 1, size(this%volume_integrator)
-     call this%volume_integrator(i)%p%set_integration( max_order )
+     call this%volume_integrator(i)%p%set_integration( )!max_order )
   end do
 
 end subroutine serial_fe_space_initialize_volume_integrator
+
+subroutine initialize_fe_map( this)!, max_order )
+  implicit none
+  ! Parameters
+  class(SB_fe_space_t), intent(inout) :: this  
+  !integer(ip), optional, intent(in)  :: max_order
+  integer(ip) :: i
+
+  do i = 1, size(this%fe_map)
+     call this%fe_map(i)%p%set( )!max_order )
+  end do
+
+end subroutine initialize_fe_map
+
 
 subroutine serial_fe_space_print ( this )
   implicit none
@@ -279,7 +328,7 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof )
         jelem = fe_space%triangulation%vefs(iobje)%elems_around(ielem)
         !write(*,*) 'jelem',jelem
         if ( jelem <= fe_space%triangulation%num_elems ) then ! Local elements
-           if ( fe_space%fe_array(jelem)%reference_fe%get_continuity() ) then
+           if ( fe_space%fe_array(jelem)%reference_fe(1)%p%get_continuity() ) then
               !mater = fe_space%fe_array(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
               mater = 1 ! For the moment SB.alert
               do obje_l = 1, fe_space%triangulation%elems(jelem)%num_vefs
@@ -298,7 +347,7 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof )
               !end if
            end if
         else ! Ghost elements
-           if ( fe_space%fe_array(jelem)%reference_fe%get_continuity() ) then
+           if ( fe_space%fe_array(jelem)%reference_fe(1)%p%get_continuity() ) then
               !mater = fe_space%fe_array(jelem)%continuity(g_var) ! SB.alert : continuity can be used as p 
               mater = 1
               do obje_l = 1, fe_space%triangulation%elems(jelem)%num_vefs
@@ -377,8 +426,8 @@ subroutine create_vef2dof ( fe_space )
                  end do
 
 
-                 do inode = 1, fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(obje_l)
-                    l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,obje_l)
+                 do inode = 1, fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(obje_l)
+                    l_node = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(inode,obje_l)
                     if ( fe_space%fe_array(jelem)%bc_code(l_node) == 0 ) then
                        fe_space%vef2dof%p(iobje+1) = fe_space%vef2dof%p(iobje+1) + 1
                     end	if
@@ -387,7 +436,7 @@ subroutine create_vef2dof ( fe_space )
 
                  !!if ( fe_space%fe_array(jelem)%bc_code(1,obje_l) == 0 ) then
                  !   fe_space%vef2dof%p(iobje+1) = fe_space%vef2dof%p(iobje+1) + &
-                 !        fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(obje_l)
+                 !        fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(obje_l)
                  !   !+ fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1) &
                  !   !     & - fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l)
                  !!end if
@@ -429,10 +478,10 @@ subroutine create_vef2dof ( fe_space )
                     if ( fe_space%triangulation%elems(jelem)%vefs(obje_l) == iobje ) exit
                  end do
                  !if ( fe_space%fe_array(jelem)%bc_code(1,obje_l) == 0 ) then
-                 do inode = 1, fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(obje_l)
+                 do inode = 1, fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(obje_l)
                     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l), &
                     !&     !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
-                    l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,obje_l)
+                    l_node = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(inode,obje_l)
                     if ( fe_space%fe_array(jelem)%bc_code(l_node) == 0 ) then
                        !fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
                        count = count + 1
@@ -464,10 +513,10 @@ subroutine put_new_vefs_dofs_in_vef_of_element ( trian, fe_space, jelem, &
   ! Local variables
   integer(ip) :: inode, l_node
 
-  do inode = 1,fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(obje_l)
+  do inode = 1,fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(obje_l)
      !fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l), &
      !         &     fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l+1)-1 
-     l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,obje_l)
+     l_node = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(inode,obje_l)
      !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
      if ( fe_space%fe_array(jelem)%bc_code(l_node) == 0 ) then
         count = count + 1
@@ -499,14 +548,14 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
   !prob_ext = fe_space%fe_array(elem_ext)%problem
   prob_ext = 1
   
-  nnode = fe_space%fe_array(elem_ext)%reference_fe%get_number_interior_nodes_vef(obje_ext)
+  nnode = fe_space%fe_array(elem_ext)%reference_fe(1)%p%get_number_interior_nodes_vef(obje_ext)
 
   !fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext+1) &
   !     &  -fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext) 
   !write(*,*) 'jelem',jelem
   !write(*,*) 'nnode',nnode
   if ( nnode > 0) then  
-     order = fe_space%fe_array(elem_ext)%reference_fe%get_order()
+     order = fe_space%fe_array(elem_ext)%reference_fe(1)%p%get_order()
      !write(*,*) 'order',order
      !if ( trian%vefs(iobje)%dimension == trian%num_dims .and. &
      !     & nnode ==  (order+1)**trian%num_dims ) then
@@ -516,20 +565,20 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
      !else
      !   assert ( 0 == 1) ! SB.alert : Other situations possible when dG_continuity, cdG, hp-adaptivity ?
      !end if
-     call fe_space%fe_array(jelem)%reference_fe%permute_nodes_per_vef( &
-          & fe_space%fe_array(elem_ext)%reference_fe,                  &
+     call fe_space%fe_array(jelem)%reference_fe(1)%p%permute_nodes_per_vef( &
+          & fe_space%fe_array(elem_ext)%reference_fe(1)%p,                  &
           & o2n,obje_ext,obje_l,                                                     &
           & trian%elems(elem_ext)%vefs,                                              &
           & trian%elems(jelem)%vefs,                                                 &
           & trian%vefs(iobje)%dimension,                                             &
           & order )
-     do inode = 1, fe_space%fe_array(elem_ext)%reference_fe%get_number_interior_nodes_vef(obje_ext)
+     do inode = 1, fe_space%fe_array(elem_ext)%reference_fe(1)%p%get_number_interior_nodes_vef(obje_ext)
         !nodes_per_vef%p%p(obje_ext+1) - &
         !            fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext)
-        inode_ext = fe_space%fe_array(elem_ext)%reference_fe%get_interior_node_vef(inode,obje_ext)
+        inode_ext = fe_space%fe_array(elem_ext)%reference_fe(1)%p%get_interior_node_vef(inode,obje_ext)
         !l_node = fe_space%fe_array(elem_ext)%nodes_per_vef%p%p(obje_ext) + inode - 1
         !inode_ext = fe_space%fe_array(elem_ext)%nodes_per_vef%p%l(l_node )
-        !inode_l = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(o2n(inode),obje_l)
+        !inode_l = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(o2n(inode),obje_l)
         
 
         ! PRUEBA SB.alert
@@ -537,7 +586,7 @@ subroutine put_existing_vefs_dofs_in_vef_of_element ( trian, fe_space, touch, ma
         ! vefs on corners and permutation not needed. The permutation must be modified for 
         ! vector-valued problems. Think about it!
 
-        inode_l = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,obje_l)
+        inode_l = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(inode,obje_l)
 
         !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l) + o2n(inode) - 1
         !inode_l = fe_space%fe_array(jelem)%nodes_per_vef%p%l(l_node)
@@ -704,14 +753,14 @@ subroutine count_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity (  trian, fe_space
                  m_mat = 1
                  if ( .not. dof_graph%symmetric_storage ) then
                     dof_graph%ia(l_dof+1) =  dof_graph%ia(l_dof+1) &
-                         + fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(jobje)
+                         + fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(jobje)
                     !                         & + fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje+1) &
                     !                         & - fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje)
                  else 
-                    do inode = 1, fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(jobje)
+                    do inode = 1, fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(jobje)
                        !fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje), &
                        !  & fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje+1)-1
-                       l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,jobje)
+                       l_node = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(inode,jobje)
                        !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
                        m_dof = fe_space%fe_array(jelem)%elem2dof(l_node)
                        if ( m_dof >= l_dof ) then
@@ -784,10 +833,10 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
                  l_mat = fe_space%vef2dof%l(idof,3)
                  m_mat = 1
                  if ( .not. dof_graph%symmetric_storage ) then
-                    do inode = 1, fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(jobje)
+                    do inode = 1, fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(jobje)
                        !fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje), &
                        ! & fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje+1)-1
-                       l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,jobje)
+                       l_node = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(inode,jobje)
                        !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
                        m_dof = fe_space%fe_array(jelem)%elem2dof(l_node)
                        ic = aux_ia(l_dof)
@@ -795,10 +844,10 @@ subroutine list_nnz_dofs_vefs_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, 
                        aux_ia(l_dof) = aux_ia(l_dof)+1
                     end do
                  else 
-                    do inode = 1, fe_space%fe_array(jelem)%reference_fe%get_number_interior_nodes_vef(jobje)
+                    do inode = 1, fe_space%fe_array(jelem)%reference_fe(1)%p%get_number_interior_nodes_vef(jobje)
                        !fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje), &
                        !  & fe_space%fe_array(jelem)%nodes_per_vef%p%p(jobje+1)-1
-                       l_node = fe_space%fe_array(jelem)%reference_fe%get_interior_node_vef(inode,jobje)
+                       l_node = fe_space%fe_array(jelem)%reference_fe(1)%p%get_interior_node_vef(inode,jobje)
                        !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%l(inode)
                        m_dof = fe_space%fe_array(jelem)%elem2dof(l_node)
                        if ( m_dof >= l_dof ) then

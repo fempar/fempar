@@ -6,7 +6,7 @@ subroutine composite_fe_get_number_nodes_field ( this, number_nodes, n )
   integer(ip) :: i
   
   do i = 1, n
-     number_nodes(i) = this%field_fe(i)%p%reference_fe%get_number_nodes()
+     number_nodes(i) = this%reference_fe(i)%p%get_number_nodes()
   end do
 end subroutine composite_fe_get_number_nodes_field
 
@@ -64,10 +64,28 @@ subroutine composite_fe_get_volume_integrator ( this, volume_integrator, n )
   type(SB_p_volume_integrator_t), intent(inout) :: volume_integrator(:)
   integer(ip) :: i
   
+  !volume_integrator => this%volume_integrator
   do i = 1, n
-     volume_integrator(i)%p => this%field_fe(i)%p%volume_integrator
+     volume_integrator(i)%p => this%volume_integrator(i)%p
   end do
 end subroutine composite_fe_get_volume_integrator
+
+
+subroutine composite_fe_get_quadrature ( this, quadrature )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in)  :: this
+  type(SB_quadrature_t), pointer, intent(inout) :: quadrature
+  quadrature => this%quadrature
+end subroutine composite_fe_get_quadrature
+
+
+subroutine composite_fe_get_fe_map ( this, fe_map )
+  implicit none
+  class(SB_composite_finite_element_t), target, intent(in)  :: this
+  type(fe_map_t), pointer, intent(inout) :: fe_map
+  fe_map => this%fe_map
+end subroutine composite_fe_get_fe_map
+
 
 !  procedure :: create => fe_create
 !  procedure :: free   => fe_free

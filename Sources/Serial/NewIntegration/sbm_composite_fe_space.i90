@@ -12,14 +12,16 @@ function composite_fe_space_get_fields_coupling( this )
   composite_fe_space_get_fields_coupling => this%fields_coupling
 end function composite_fe_space_get_fields_coupling
 
-subroutine composite_fe_space_create( this, fe_space_array, blocks, blocks_coupling )
+subroutine composite_fe_space_create( this, fe_space_array, blocks, blocks_coupling, topology, fe_type, number_dimensions )
   implicit none
-  class(SB_composite_fe_space_t), intent(inout) :: this
+  class(SB_composite_fe_space_t), target, intent(inout) :: this
+  character(*), intent(in) :: topology, fe_type
+  integer(ip), intent(in)  :: number_dimensions
   type(SB_serial_fe_space_t), target, intent(in) :: fe_space_array(:)
   integer(ip), optional, intent(in) :: blocks(:)
   logical, optional, intent(in) :: blocks_coupling(:,:)
-  integer(ip) :: i, j, number_nodes
-  
+  integer(ip) :: i, j, number_nodes, istat
+
   this%number_fe_spaces = size(fe_space_array)
   call memalloc( this%number_fe_spaces, this%field_blocks, __FILE__, __LINE__)
   call memalloc( this%number_fe_spaces, this%number_fe_spaces, this%fields_coupling, __FILE__, __LINE__)
@@ -41,15 +43,47 @@ subroutine composite_fe_space_create( this, fe_space_array, blocks, blocks_coupl
   end do
   this%triangulation => fe_space_array(1)%triangulation
 
+  ! Assuming only one reference FE for the moment  SB.alert
+  allocate( this%reference_fe_geo_list(1), stat=istat )
+  allocate( this%quadrature(1), stat=istat )
+  allocate( this%fe_map(1), stat=istat )
+  allocate( this%volume_integrator(this%number_fe_spaces), stat=istat )
+  allocate( this%reference_fe_phy_list(this%number_fe_spaces), stat=istat )
+
+  ! Order 1 for geometry SB.alert
+  this%reference_fe_geo_list(1)%p => &
+       start_reference_fe ( topology = topology, fe_type = fe_type, number_dimensions = number_dimensions, &
+       order =  1 , field_type = "vector", continuity = .true. )						
+  allocate( this%quadrature(1)%p )
+  allocate( this%fe_map(1)%p )
+
+  do i  = 1, this%number_fe_spaces
+     allocate( this%volume_integrator(i)%p )
+     call this%volume_integrator(i)%p%create( this%fe_space_array(i)%p%reference_fe_phy_list(1)%p, &
+          this%quadrature(1)%p )
+     !allocate( this%reference_fe(i)%p )
+     this%reference_fe_phy_list(i)%p => this%fe_space_array(i)%p%reference_fe_phy_list(1)%p
+  end do
+  call this%fe_map(1)%p%create( this%reference_fe_geo_list(1)%p, this%quadrature(1)%p )
+
   allocate(this%fe_array(this%triangulation%num_elems))
   do i = 1, this%triangulation%num_elems
      number_nodes = 0
      allocate( this%fe_array(i)%field_fe(this%number_fe_spaces) )
      do j = 1, this%number_fe_spaces
         this%fe_array(i)%field_fe(j)%p => fe_space_array(j)%fe_array(i)
-        number_nodes = number_nodes + fe_space_array(j)%fe_array(i)%reference_fe%get_number_nodes()
+        number_nodes = number_nodes + fe_space_array(j)%fe_array(i)%reference_fe(1)%p%get_number_nodes()
      end do
      this%fe_array(i)%number_nodes = number_nodes
+
+     this%fe_array(i)%geometry_reference_fe => this%reference_fe_geo_list(1)%p
+     this%fe_array(i)%quadrature => this%quadrature(1)%p
+     this%fe_array(i)%fe_map => this%fe_map(1)%p
+     
+     !do j  = 1, this%number_fe_spaces
+        this%fe_array(i)%volume_integrator => this%volume_integrator
+        this%fe_array(i)%reference_fe => this%reference_fe_phy_list
+     !end do
   end do
 end subroutine composite_fe_space_create
 
@@ -61,15 +95,35 @@ function composite_fe_space_get_fe( this, i )
   composite_fe_space_get_fe => this%fe_array(i)
 end function composite_fe_space_get_fe
 
-subroutine composite_fe_space_initialize_volume_integrator( this, max_order )
+!subroutine composite_fe_space_initialize_quadrature( this, max_order )
+!  implicit none
+!  class(SB_composite_fe_space_t), intent(inout) :: this 
+!  integer(ip), optional, intent(in)  :: max_order
+!  integer(ip) :: i
+!  do i = 1, size(this%quadrature)
+!     call this%quadrature(i)%p%set_quadrature( max_order )
+!  end do
+!end subroutine composite_fe_space_initialize_quadrature
+
+subroutine composite_fe_space_initialize_volume_integrator( this )!, max_order )
   implicit none
   class(SB_composite_fe_space_t), intent(inout) :: this
-  integer(ip), optional, intent(in) :: max_order
+  !integer(ip), optional, intent(in) :: max_order
   integer(ip) :: i
   do i = 1, this%number_fe_spaces
-     call this%fe_space_array(i)%p%initialize_volume_integrator( max_order )
+     call this%volume_integrator(i)%p%set_integration()!( max_order )
   end do
 end subroutine composite_fe_space_initialize_volume_integrator
+
+
+!subroutine composite_fe_space_initialize_fe_map( this )!, max_order )
+!  implicit none
+!  class(SB_composite_fe_space_t), intent(inout) :: this
+!  integer(ip) :: i
+!  do i = 1, size(this%fe_map)
+!     call this%fe_map(i)%p%set_fe_map( )!max_order )
+!  end do
+!end subroutine composite_fe_space_initialize_fe_map
 
 function composite_fe_space_get_max_number_nodes( this)
   implicit none

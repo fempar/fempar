@@ -2,7 +2,7 @@ function simple_fe_get_number_nodes ( this )
   implicit none
   class(SB_simple_finite_element_t), intent(in) :: this
   integer(ip)                 :: simple_fe_get_number_nodes
-  simple_fe_get_number_nodes = this%reference_fe%get_number_nodes()
+  simple_fe_get_number_nodes = this%reference_fe(1)%p%get_number_nodes()
 end function simple_fe_get_number_nodes
 
 subroutine simple_fe_get_number_nodes_field ( this, number_nodes, n )
@@ -10,7 +10,7 @@ subroutine simple_fe_get_number_nodes_field ( this, number_nodes, n )
   class(SB_simple_finite_element_t), intent(in) :: this
   integer(ip), intent(in)                :: n
   integer(ip), intent(inout)                :: number_nodes(:)
-  number_nodes(1) = this%reference_fe%get_number_nodes()
+  number_nodes(1) = this%reference_fe(1)%p%get_number_nodes()
 end subroutine simple_fe_get_number_nodes_field
 
 subroutine simple_fe_get_elem2dof ( this, elem2dof, n )
@@ -37,25 +37,45 @@ subroutine simple_fe_get_bc_value ( this, bc_value, n )
   bc_value(1)%a => this%bc_value
 end subroutine simple_fe_get_bc_value
 
-subroutine simple_fe_get_volume_integrator ( this, volume_integrator, n )
+function get_quadrature ( this )
   implicit none
-  class(SB_simple_finite_element_t), target, intent(in)  :: this
-  integer(ip), intent(in) :: n
-  type(SB_p_volume_integrator_t), intent(inout) :: volume_integrator(:)
-  volume_integrator(1)%p => this%volume_integrator
-end subroutine simple_fe_get_volume_integrator
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(SB_quadrature_t), pointer :: get_quadrature
+  get_quadrature => this%quadrature
+end function get_quadrature
 
-subroutine simple_fe_create( this, reference_fe_unk, reference_fe_geo, volume_integrator, cell)!, field_unknowns )
+function get_volume_integrator ( this )
+  implicit none
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(SB_p_volume_integrator_t), pointer :: get_volume_integrator(:)
+  get_volume_integrator => this%volume_integrator
+end function get_volume_integrator
+
+function get_fe_map ( this )
+  implicit none
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(fe_map_t), pointer :: get_fe_map
+  get_fe_map => this%fe_map
+end function get_fe_map
+
+subroutine simple_fe_create( this, reference_fe_unk, reference_fe_geo, volume_integrator, fe_map, quadrature, cell)!, field_unknowns )
   implicit none
   class(SB_simple_finite_element_t), intent(inout)  :: this
   class(reference_fe_t), target, intent(in) :: reference_fe_unk, reference_fe_geo
   type(SB_volume_integrator_t), target, intent(in) :: volume_integrator
+  type(fe_map_t), target, intent(in) :: fe_map
+  type(SB_quadrature_t), target, intent(in) :: quadrature
   type(elem_topology_t), target, intent(in) :: cell
   !integer(ip), intent(in) :: field_unknowns
 
-  this%reference_fe => reference_fe_unk
+  allocate(this%reference_fe(1))
+  allocate(this%volume_integrator(1))
+
+  this%reference_fe(1)%p => reference_fe_unk
   this%geometry_reference_fe => reference_fe_geo
-  this%volume_integrator => volume_integrator
+  this%quadrature => quadrature
+  this%volume_integrator(1)%p => volume_integrator
+  this%fe_map => fe_map
   this%cell => cell  
 
   call memalloc( reference_fe_unk%get_number_nodes(), this%elem2dof, __FILE__, __LINE__)
@@ -67,9 +87,11 @@ subroutine simple_fe_free( this)
   implicit none
   class(SB_simple_finite_element_t), intent(inout)  :: this
 
-  nullify(this%reference_fe)
+  nullify(this%reference_fe(1)%p)
   nullify(this%geometry_reference_fe)
-  nullify(this%volume_integrator)
+  nullify(this%quadrature)
+  nullify(this%volume_integrator(1)%p)
+  nullify(this%fe_map)
   nullify(this%cell)
 
   if(allocated(this%elem2dof)) call memfree(this%elem2dof, __FILE__, __LINE__)
@@ -83,7 +105,7 @@ subroutine simple_fe_print( this )
   class(SB_simple_finite_element_t), intent(in)  :: this
 
   write(*,*) '********************REFERENCE FE UNK********************'
-  call this%reference_fe%print()
+  call this%reference_fe(1)%p%print()
   write(*,*) '********************REFERENCE FE UNK********************'
   call this%geometry_reference_fe%print()
   write(*,*) '********************CELL********************'
@@ -101,7 +123,7 @@ function simple_fe_get_reference_fe ( this )
   implicit none
   class(SB_simple_finite_element_t), target, intent(in)  :: this
   class(reference_fe_t), pointer :: simple_fe_get_reference_fe
-  simple_fe_get_reference_fe => this%reference_fe
+  simple_fe_get_reference_fe => this%reference_fe(1)%p
 end function simple_fe_get_reference_fe
 
 ! function fe_get_volume_integrator ( this )

@@ -68,8 +68,14 @@ module SB_fe_space_names
   private   
   type(elem_topology_t), pointer :: cell 
   class(reference_fe_t), pointer :: geometry_reference_fe  
+  type(SB_quadrature_t), pointer :: quadrature
+  type(fe_map_t), pointer :: fe_map
+  type(SB_p_volume_integrator_t), pointer :: volume_integrator(:)
+  type(p_reference_fe_t), pointer :: reference_fe(:) 
 contains
-  procedure(fe_get_volume_integrator_interface), deferred :: get_volume_integrator
+  procedure :: get_volume_integrator
+  procedure :: get_quadrature	
+  procedure :: get_fe_map
 
   procedure(fe_get_elem2dof_interface), deferred :: get_elem2dof 
   procedure(fe_get_bc_code_interface), deferred :: get_bc_code 
@@ -134,13 +140,23 @@ end interface
 
 abstract interface
 
-  subroutine fe_get_volume_integrator_interface ( this, volume_integrator, n )
-    import :: SB_finite_element_t, ip, SB_p_volume_integrator_t
+  subroutine fe_get_quadrature_interface ( this, quadrature, n )
+    import :: SB_finite_element_t, ip, SB_quadrature_t
     implicit none
     class(SB_finite_element_t), target, intent(in)  :: this
     integer(ip), intent(in) :: n
-    type(SB_p_volume_integrator_t), intent(inout) :: volume_integrator(:)
-  end subroutine fe_get_volume_integrator_interface
+    type(SB_quadrature_t), pointer, intent(inout) :: quadrature
+  end subroutine fe_get_quadrature_interface
+end interface
+abstract interface
+
+  subroutine fe_get_fe_map_interface ( this, fe_map, n )
+    import :: SB_finite_element_t, ip, fe_map_t
+    implicit none
+    class(SB_finite_element_t), target, intent(in)  :: this
+    integer(ip), intent(in) :: n
+    type(fe_map_t), pointer, intent(inout) :: fe_map
+  end subroutine fe_get_fe_map_interface
 end interface
 
 type :: SB_p_finite_element_t
@@ -149,8 +165,6 @@ end type SB_p_finite_element_t
 
 type, extends(SB_finite_element_t) :: SB_simple_finite_element_t 
 private
-class(reference_fe_t), pointer :: reference_fe
-type(SB_volume_integrator_t), pointer :: volume_integrator
 integer(ip)     , allocatable   :: elem2dof(:)
 integer(ip), allocatable :: bc_code(:)
 real(rp), allocatable :: bc_value(:)
@@ -159,7 +173,6 @@ procedure :: create => simple_fe_create
 procedure :: free   => simple_fe_free
 procedure :: print  => simple_fe_print
 
-procedure :: get_volume_integrator => simple_fe_get_volume_integrator
 
 procedure :: get_elem2dof => simple_fe_get_elem2dof
 procedure :: get_bc_code => simple_fe_get_bc_code
@@ -181,14 +194,13 @@ public :: SB_finite_element_t, SB_simple_finite_element_t, SB_p_simple_finite_el
 
 type, extends(SB_finite_element_t) :: SB_composite_finite_element_t
    private
-   type(SB_p_simple_finite_element_t), allocatable :: field_fe(:) 
+   type(SB_p_simple_finite_element_t), allocatable :: field_fe(:)
    integer(ip) :: number_nodes
  contains
    !procedure :: create => composite_fe_create
    !procedure :: free   => composite_fe_free
    !procedure :: print  => composite_fe_print
 
-   procedure :: get_volume_integrator => composite_fe_get_volume_integrator
 
    procedure :: get_elem2dof => composite_fe_get_elem2dof
    procedure :: get_bc_code => composite_fe_get_bc_code
@@ -204,9 +216,16 @@ end type SB_composite_finite_element_t
 
 type, abstract :: SB_fe_space_t
    type(triangulation_t), pointer :: triangulation
+   type(p_reference_fe_t), allocatable :: reference_fe_geo_list(:)
+   type(SB_p_quadrature_t), allocatable :: quadrature(:)
+   type(p_fe_map_t), allocatable :: fe_map(:)
+   type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
+   type(p_reference_fe_t), allocatable :: reference_fe_phy_list(:)
 contains
 procedure (get_fe_interface), deferred :: get_fe
 procedure (initialize_volume_integrator_interface), deferred :: initialize_volume_integrator
+procedure :: initialize_quadrature
+procedure :: initialize_fe_map
 procedure (create_assembler_interface)        , deferred :: create_assembler
 procedure (symbolic_setup_assembler_interface), deferred :: symbolic_setup_assembler
 procedure (get_blocks_interface), deferred :: get_blocks
@@ -230,12 +249,11 @@ function get_blocks_interface( this )
 end function get_blocks_interface
 
 ! Computes the fe_mapping_t and updates the volume integrator
-subroutine initialize_volume_integrator_interface( this, max_order )
+subroutine initialize_volume_integrator_interface( this )
   import :: SB_fe_space_t, ip
   implicit none
   ! Parameters
   class(SB_fe_space_t), intent(inout) :: this  
-  integer(ip), optional, intent(in)  :: max_order
 end subroutine initialize_volume_integrator_interface
 
 ! Selects the dynamic type of class(matrix_array_assembler_t), and that of
@@ -278,11 +296,6 @@ private
 type(SB_simple_finite_element_t), allocatable :: fe_array(:)
 !type(vector_space_t)  :: fe_function_space
 
-type(p_reference_fe_t), allocatable :: reference_fe_phy_list(:)
-type(p_reference_fe_t), allocatable :: reference_fe_geo_list(:)
-
-! Integrator
-type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
 
 integer(ip) :: number_dofs     
 

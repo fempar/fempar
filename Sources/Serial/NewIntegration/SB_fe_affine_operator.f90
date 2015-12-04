@@ -426,14 +426,14 @@ subroutine fe_affine_operator_fill_values(this)
   integer(ip) :: ielem, iapprox, nnodes
   type(triangulation_t), pointer :: p_trian
   class(SB_finite_element_t), pointer :: fe
-  type(SB_p_volume_integrator_t), allocatable :: vol_int(:)
+  type(SB_p_volume_integrator_t), pointer :: vol_int(:)
   type(i1p_t), allocatable :: elem2dof(:), bc_code(:)
   type(r1p_t), allocatable :: bc_value(:)
   real(rp), allocatable :: elmat(:,:), elvec(:)
   integer(ip), allocatable :: number_nodes(:)
   integer(ip), pointer :: blocks(:)
   logical, pointer :: blocks_coupling(:,:)
-  
+
   integer(ip) :: i, number_blocks, number_fe_spaces
   integer(ip), save, target :: one_1d(1) = (/1/)
   logical, save, target :: true_2d(1,1) = reshape((/.true./),(/1,1/))
@@ -445,8 +445,8 @@ subroutine fe_affine_operator_fill_values(this)
 
   class(array_t), pointer :: array
   type(serial_scalar_array_t), pointer :: my_array
-  
-  
+
+
   integer(ip) :: j
   ! This is just to check ideas, but it is clear that the domain of integration
   ! should be somehow in the discrete_integration, as it is now... But in the 
@@ -465,15 +465,14 @@ subroutine fe_affine_operator_fill_values(this)
   number_blocks = 1
   number_fe_spaces = 1
   select type( f_space => this%fe_space )
-  class is( SB_serial_fe_space_t )
-  class is( SB_composite_fe_space_t )
+     class is( SB_serial_fe_space_t )
+     class is( SB_composite_fe_space_t )
      number_blocks = f_space%get_number_blocks()
      number_fe_spaces = f_space%get_number_fe_spaces()
-  class default
+     class default
      check(.false.)
   end select
 
-  allocate( vol_int(number_fe_spaces) )
   allocate( elem2dof(number_fe_spaces) )
   allocate( bc_code(number_fe_spaces) )
   allocate( bc_value(number_fe_spaces) )
@@ -483,34 +482,48 @@ subroutine fe_affine_operator_fill_values(this)
 
   select type( fe_space => this%fe_space )
      class is (SB_composite_fe_space_t)
-        blocks => fe_space%get_blocks()
-        blocks_coupling => fe_space%get_fields_coupling()
+     blocks => fe_space%get_blocks()
+     blocks_coupling => fe_space%get_fields_coupling()
      class is (SB_serial_fe_space_t)
-        blocks => one_1d
-        blocks_coupling => true_2d
+     blocks => one_1d
+     blocks_coupling => true_2d
      class default
-        check(0==1)
-     end select
-  
+     check(0==1)
+  end select
+
+  write(*,*) 'initialize quadrature'
+  call this%fe_space%initialize_quadrature()
+  fe => this%fe_space%get_fe(1)
+  quad => fe%get_quadrature()
+  call quad%print()
+
+  write(*,*) 'initialize volint'
   call this%fe_space%initialize_volume_integrator()
+
+  write(*,*) 'initialize femap'
+  call this%fe_space%initialize_fe_map()
+
   do iapprox = 1, size(this%approximations)
      do ielem = 1, this%triangulation%num_elems
-        
+
         elmat = 0.0_rp
         elvec = 0.0_rp
-        
+
         fe => this%fe_space%get_fe(ielem)
-        call fe%get_volume_integrator( vol_int, number_fe_spaces )
+        fe_map => fe%get_fe_map()
+        vol_int => fe%get_volume_integrator()
         do i = 1, number_fe_spaces
-           call vol_int(i)%p%update( this%triangulation%elems(ielem)%coordinates )
+           call fe_map%update()
+           call vol_int(i)%p%update( this%triangulation%elems(ielem)%coordinates, fe_map )
            !write(*,*) 'VOLUME INTEGRATOR',i
            !call vol_int(i)%p%print()
         end do
 
         fe => this%fe_space%get_fe(ielem)
 
-        
-        
+
+        fe_map => fe%get_fe_map()
+
         !write (*,*) 'XXXXXXXXX EL2DOF XXXXXXXXX'
         !write (*,*) fe%get_elem2dof()   
         !write(*,*) 'fe%get_bc_code()',fe%get_bc_code()
@@ -521,7 +534,7 @@ subroutine fe_affine_operator_fill_values(this)
 
         !write(*,*) 'elvec',elvec
         !check( 0 == 1)
-        
+
         call fe%get_number_nodes_field( number_nodes, number_fe_spaces )
         call fe%get_elem2dof( elem2dof,number_fe_spaces)
         call fe%get_bc_code( bc_code,number_fe_spaces)
@@ -536,47 +549,14 @@ subroutine fe_affine_operator_fill_values(this)
         write(*,*) 'blocks',blocks
         write(*,*) 'number_nodes',number_nodes
 
-        
-        quad => vol_int(1)%p%get_quadrature()
-        fe_map => vol_int(1)%p%get_fe_map()
+
+        quad => fe%get_quadrature()
         call this%approximations(iapprox)%p%integrate( vol_int, elmat, elvec, quad, fe_map, number_nodes )
-                
+
         call impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes, number_fe_spaces )
-        
+
         call this%assembler%assembly( elem2dof, elmat, elvec, number_fe_spaces, &
-                                    & blocks, number_nodes, blocks_coupling )
-
-        
-        ! write(*,*) 'elmat,elvec',elmat,elvec
-
-        ! do i = 1,number_nodes(1)
-        !    do j = 1, number_nodes(1)
-        !       write(*,*) '(i,j)',i,j
-        !       write(*,*) "mat 1 mat 2",elmat(i,j),elmat(i+number_nodes(1),j+number_nodes(1))
-        !    end do
-        ! end do
-
-!!$        matrix => this%get_matrix()
-!!$        select type ( matrix )
-!!$        class is ( serial_block_matrix_t)
-!!$           my_matrix => matrix%get_block(1,1)
-!!$           call my_matrix%print_matrix_market(6)
-!!$           
-!!$           my_matrix => matrix%get_block(2,2)
-!!$           call my_matrix%print_matrix_market(6)        
-!!$        end select
-!!$        
-!!$        array => this%get_array()
-!!$        select type ( array )
-!!$        class is ( serial_block_array_t)
-!!$           my_array => array%get_block(1)
-!!$           call my_array%print_matrix_market(6)
-!!$           
-!!$           my_array => array%get_block(2)
-!!$           call my_array%print_matrix_market(6)        
-!!$        end select
-        
-
+             & blocks, number_nodes, blocks_coupling )      
      end do
   end do
 

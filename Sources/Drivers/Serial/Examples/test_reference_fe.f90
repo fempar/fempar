@@ -393,7 +393,8 @@ program test_cdr
        order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
   call fe_space_array(2)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
        order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  call fe_space%create( fe_space_array, (/1,2/), reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+  call fe_space%create( fe_space_array, (/1,2/), reshape((/.true.,.false.,.false.,.true./),(/2,2/)), &
+       topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
 
   call fe_space%fill_dof_info()
 

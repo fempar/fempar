@@ -114,6 +114,9 @@ subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature,
        quadrature%number_integration_points, ntens, compute_hessian )
 
   nlocs = int(real(quadrature%number_integration_points)**(1.0_rp/real(this%number_dimensions)))
+
+  write(*,*) 'XXX', size(quadrature%coordinates,1), size(quadrature%coordinates,2)
+
   call fill_interpolation( interpolation, this%order, this%number_dimensions, &
        nlocs, ntens, quadrature%coordinates )
 
@@ -140,6 +143,8 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
 
   call quadrature%create( this%number_dimensions, ngaus )
   call fill_quadrature( quadrature )
+
+  write(*,*) 'XXX', size(quadrature%coordinates,1), size(quadrature%coordinates,2)
 
 end subroutine quad_lagrangian_reference_fe_create_quadrature
 
@@ -1326,10 +1331,12 @@ subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord
   implicit none 
   type(SB_interpolation_t), intent(inout) :: interpolation
   integer(ip), intent(in) :: order, ndime, nlocs, ntens
-  real(rp), target, intent(in) :: coord_ip(:,:)
+  real(rp), intent(in) :: coord_ip(:,:)
 
   logical :: khes
   real(rp)    :: coord(order+1),shpe1(order+1,nlocs),shpd1(order+1,nlocs),shph1(order+1,nlocs)
+
+  write(*,*) size(coord_ip,1), size(coord_ip,2)
 
   khes = .false.
   if ( allocated( interpolation%hessian ) ) then 
