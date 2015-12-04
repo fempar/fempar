@@ -180,7 +180,7 @@ contains
     end do
 
     ! Mother class function
-    call trian%JP_triangulation_t%to_dual()
+    call trian%serial_triangulation_t%JP_triangulation_t%to_dual()
 
     select type( vefs => trian%vefs)
     class is(par_vef_topology_t)

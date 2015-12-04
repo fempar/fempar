@@ -120,10 +120,10 @@ module JP_triangulation_names
   public :: JP_triangulation_t,  vef_topology_t
   
   ! TBP procedures (made public because JP_triangulation_t is abstract)
-  public :: JP_triangulation_create
-  public :: JP_triangulation_to_dual
-  public :: JP_triangulation_free
-  public :: JP_triangulation_print
+  !public :: JP_triangulation_create
+  !public :: JP_triangulation_to_dual
+  !public :: JP_triangulation_free
+  !public :: JP_triangulation_print
   public :: create_reference_elements
 
   ! Constants
