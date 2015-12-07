@@ -301,14 +301,14 @@ contains
        write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
        write (*,*) elmat
 
-       do inode = 1, number_nodes(1)
-          do jnode = 13,16! 1, number_nodes(1)
-             aux(inode)  = aux(inode) + elmat(inode,jnode)
-          end do
-       end do
+       !do inode = 1, number_nodes(1)
+       !   do jnode = 13,16! 1, number_nodes(1)
+       !      aux(inode)  = aux(inode) + elmat(inode,jnode)
+       !   end do
+       !end do
 
-       write (*,*) 'XXXXXXXXX CHECK 0 XXXXXXXXX'
-       write (*,*) aux
+       !write (*,*) 'XXXXXXXXX CHECK 0 XXXXXXXXX'
+       !write (*,*) aux
 
 
 
