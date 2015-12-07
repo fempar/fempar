@@ -216,7 +216,6 @@ contains
     type(i1p_t), pointer :: elem2dof(:)
     type(i1p_t), pointer :: bc_code(:)
     type(r1p_t), pointer :: bc_value(:)
-    real(rp), allocatable :: aux(:)
 
 
 
@@ -229,13 +228,8 @@ contains
     nnodes = fe%get_number_nodes()
     call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
     call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
-    call memalloc ( nnodes, aux, __FILE__, __LINE__ )
-    aux = 0
-
-
 
     allocate( number_nodes(number_fe_spaces) )
-
 
     call fe_space%initialize_integration()
 
@@ -243,8 +237,6 @@ contains
 
     !do iapprox = 1, size(this%approximations)
     do ielem = 1, fe_space%get_number_elements()
-
-       write(*,*) 'ielem',ielem
        elmat = 0.0_rp
        elvec = 0.0_rp
 
@@ -289,6 +281,8 @@ contains
              end do
           end do
        end do
+       !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
+       !write (*,*) elmat
 
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes, number_fe_spaces )
 
@@ -296,10 +290,8 @@ contains
             & blocks, number_nodes, blocks_coupling )   
        !end do
 
-       aux = 0
-
-       write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
-       write (*,*) elmat
+       !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
+       !write (*,*) elmat
 
        !do inode = 1, number_nodes(1)
        !   do jnode = 13,16! 1, number_nodes(1)
@@ -310,10 +302,8 @@ contains
        !write (*,*) 'XXXXXXXXX CHECK 0 XXXXXXXXX'
        !write (*,*) aux
 
-
-
-       write (*,*) 'XXXXXXXXX ELVEC XXXXXXXXX'
-       write (*,*) elvec
+       !write (*,*) 'XXXXXXXXX ELVEC XXXXXXXXX'
+       !write (*,*) elvec
 
     end do
 

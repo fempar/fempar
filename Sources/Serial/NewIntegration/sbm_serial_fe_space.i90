@@ -27,11 +27,14 @@ subroutine initialize_quadrature( this, max_order )
   integer(ip) :: i
 
   !write(*,*) 'this%reference_fe_geo_list',size(this%reference_fe_geo_list)
-  do i = 1, size(this%reference_fe_geo_list)
+  !do i = 1, size(this%reference_fe_geo_list)
      !write(*,*) 'call create quadrature'
-     call this%reference_fe_geo_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
+  !   call this%reference_fe_geo_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
+  !end do
+  do i = 1, size(this%reference_fe_phy_list)
+     !write(*,*) 'call create quadrature'
+     call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
   end do
-
 end subroutine initialize_quadrature
 
 subroutine initialize_fe_map( this)!, max_order )
@@ -108,14 +111,11 @@ subroutine create( this, triangulation, reference_fe_array, boundary_conditions,
      this%reference_fe_phy_list(i)%p => reference_fe_array(i)%p
      allocate( this%volume_integrator(i)%p )
      call this%volume_integrator(i)%p%create( this%reference_fe_phy_list(i)%p, &
-          this%quadrature(1)%p )
+                                              this%quadrature(1)%p )
   end do
-  call this%fe_map(1)%p%create( this%reference_fe_geo_list(1)%p, this%quadrature(1)%p )
+  call this%fe_map(1)%p%create( this%reference_fe_phy_list(1)%p, this%quadrature(1)%p )
 
   allocate(this%fe_array(this%triangulation%num_elems))
-
-
-
   do i = 1, this%triangulation%num_elems
      !write(*,*) '**************ielem*******************',i
      number_nodes = 0
