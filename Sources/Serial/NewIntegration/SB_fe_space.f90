@@ -123,6 +123,7 @@ module SB_fe_space_names
      procedure :: get_number_blocks
      procedure :: get_number_fe_spaces
      procedure :: create
+     procedure :: print
   end type SB_serial_fe_space_t
 
   public :: SB_serial_fe_space_t

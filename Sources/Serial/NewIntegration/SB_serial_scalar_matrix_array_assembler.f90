@@ -98,10 +98,13 @@ subroutine element_serial_scalar_matrix_assembly(   a, el2dof, elmat, nodes )
 
  !if( dof_descriptor%dof_coupl(g_var,k_var) == 1) then
  do inode = 1,nodes
+    !write (*,*) 'inode',inode
     idof = el2dof(inode)
+    !write (*,*) 'idof',idof
     if ( idof  > 0 ) then
        do jnode = 1,nodes
           jdof = el2dof(jnode)
+          !write (*,*) 'jdof',jdof
           if (  (.not. a%graph%symmetric_storage) .and. jdof > 0 ) then
              do k = a%graph%ia(idof),a%graph%ia(idof+1)-1
                 if ( a%graph%ja(k) == jdof ) exit
@@ -110,8 +113,10 @@ subroutine element_serial_scalar_matrix_assembly(   a, el2dof, elmat, nodes )
              a%a(k) = a%a(k) + elmat(inode,jnode)
           else if ( jdof >= idof ) then 
              do k = a%graph%ia(idof),a%graph%ia(idof+1)-1
+                !write(*,*) 'a%graph%ja(k)',a%graph%ja(k)
                 if ( a%graph%ja(k) == jdof ) exit
              end do
+             !write (*,*) 'k',k
              assert ( k < a%graph%ia(idof+1) )
              a%a(k) = a%a(k) + elmat(inode,jnode)
           end if
