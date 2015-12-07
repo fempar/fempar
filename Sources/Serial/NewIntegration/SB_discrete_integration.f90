@@ -260,9 +260,9 @@ contains
        bc_code =>  fe%get_bc_code()
        bc_value => fe%get_bc_value()
        call fe%get_number_nodes_field(number_nodes,number_fe_spaces)
-       write(*,*) 'elem2dof',elem2dof
-       write(*,*) 'bc_code',bc_code
-       write(*,*) 'bc_value',bc_value
+       !write(*,*) 'elem2dof',elem2dof
+       !write(*,*) 'bc_code',bc_code
+       !write(*,*) 'bc_value',bc_value
        !write(*,*) 'number_nodes',number_nodes
 
        quad => fe%get_quadrature()

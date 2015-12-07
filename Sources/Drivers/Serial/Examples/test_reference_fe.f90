@@ -424,7 +424,6 @@ program test_cdr
      !   call my_matrix%print_matrix_market(6)
      !end select
   else 
-
      ! Simple case
      reference_fe_array_one(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
           order = 3, field_type = "scalar", continuity = .true. )

@@ -1090,7 +1090,7 @@ subroutine list_nnz_dofs_vol_vs_dofs_vefs_vol_by_continuity ( trian, fe_space, d
            end do
         end if
      end do
-     if ( fe_space%fe_array(ielem)%reference_fe(var)%p%get_continuity() /= 0 ) then
+     if ( fe_space%fe_array(ielem)%reference_fe(var)%p%get_continuity()  ) then
         ! Interior - border (inside element)
         do jobje = 1, trian%elems(ielem)%num_vefs
            job_g = trian%elems(ielem)%vefs(jobje)
