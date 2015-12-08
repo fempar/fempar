@@ -5,9 +5,9 @@ subroutine update_integration( this, n )
   class(SB_finite_element_t), intent(inout) :: this 
   integer(ip), intent(in) :: n
   integer(ip) :: i
-  call this%fe_map%update()
+  call this%fe_map%update( this%cell%coordinates)
   do i = 1, n
-     call this%volume_integrator(i)%p%update( this%cell%coordinates, this%fe_map )
+     call this%volume_integrator(i)%p%update( this%fe_map )
   end do
 end subroutine update_integration
 

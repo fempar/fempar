@@ -94,11 +94,27 @@ end subroutine interpolation_free
 subroutine interpolation_print ( this )
   implicit none
   class(SB_interpolation_t), intent(in) :: this
+  integer(ip) :: i,j,k
   write(*,*) 'number_dimensions: ', this%number_dimensions
   write(*,*) 'number_shape_functions: ', this%number_shape_functions
   write(*,*) 'number_evaluation_points: ', this%number_evaluation_points
   write(*,*) 'number_entries_symmetric_tensor: ', this%number_entries_symmetric_tensor
-  write(*,*) 'shape_functions: ', this%shape_functions
+  write(*,*) '*************** SHAPE FUNCTIONS ******************'
+  do i = 1, size(this%shape_functions,1)
+     do j = 1, size(this%shape_functions,2)
+        write(*,*) 'shape function phi^',i,'(gp=',j,')= ',this%shape_functions(i,j)
+     end do
+  end do
+                                                                                                                      
+  write(*,*) '*************** SHAPE DERIVATIVES ******************'                      
+
+  do i = 1, size(this%shape_derivatives,1)                                                             
+     do j = 1, size(this%shape_derivatives,2)                                                         
+        do k = 1, size(this%shape_derivatives,3)                                                        
+           write(*,*) 'shape derivative D_',i,'phi^',j,'(gp=',k,')= ',this%shape_derivatives(i,j,k)
+        end do
+     end do
+  end do
   write(*,*) 'shape_derivatives: ', this%shape_derivatives
   if ( allocated( this%hessian ) ) then
      write(*,*) 'hessian: ', this%hessian

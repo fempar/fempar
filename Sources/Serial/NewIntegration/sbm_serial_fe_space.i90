@@ -113,7 +113,8 @@ subroutine create( this, triangulation, reference_fe_array, boundary_conditions,
      call this%volume_integrator(i)%p%create( this%reference_fe_phy_list(i)%p, &
                                               this%quadrature(1)%p )
   end do
-  call this%fe_map(1)%p%create( this%reference_fe_phy_list(1)%p, this%quadrature(1)%p )
+  call this%fe_map(1)%p%create( this%reference_fe_geo_list(1)%p, this%quadrature(1)%p )
+  !call this%fe_map(1)%p%create( this%reference_fe_phy_list(1)%p, this%quadrature(1)%p )
 
   allocate(this%fe_array(this%triangulation%num_elems))
   do i = 1, this%triangulation%num_elems
