@@ -234,7 +234,7 @@ program test_cdr
   use reference_fe_factory_names
   use SB_fe_space_names
   use SB_discrete_integration_names
-  !use poisson_discrete_integration_names
+  use poisson_discrete_integration_names
   use vector_laplacian_discrete_integration_names
   use SB_fe_affine_operator_names
   use SB_preconditioner_names
@@ -256,6 +256,7 @@ program test_cdr
   integer(ip)                           :: num_approximations
   class(matrix_t)             , pointer :: matrix
   type(serial_scalar_matrix_t), pointer :: my_matrix
+  type(serial_block_matrix_t), pointer :: my_block_matrix
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
@@ -296,18 +297,21 @@ program test_cdr
   class(reference_fe_t), pointer :: reference_fe
   type(SB_quadrature_t) :: quadrature
   type(SB_interpolation_t) :: interpolation
-  type(SB_simple_finite_element_t) :: finite_element
+  !type(SB_simple_finite_element_t) :: finite_element
   type(SB_volume_integrator_t) :: volume_integrator
-  type(SB_composite_fe_space_t) :: fe_space
-  !type(poisson_discrete_integration_t), target :: poisson_integration
-  type(vector_laplacian_discrete_integration_t), target :: vector_laplacian_integration
-  type(SB_p_discrete_integration_t) :: approximations(1) 
+  type(SB_serial_fe_space_t) :: fe_space
+  type(poisson_discrete_integration_t) :: poisson_integration
+  type(vector_laplacian_discrete_integration_t) :: vector_laplacian_integration
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
-  type(SB_serial_fe_space_t) :: fe_space_array(2)
-  type(SB_serial_fe_space_t) :: fe_space_serial
+  type(p_reference_fe_t) :: reference_fe_array_two(2)
+  type(p_reference_fe_t) :: reference_fe_array_one(1)
+  !type(SB_serial_fe_space_t) :: fe_space_array(2)
+  !type(SB_serial_fe_space_t) :: fe_space_serial
 
   type(face_quadrature_t) :: face_quadrature
   real(rp), allocatable :: shape_function(:), shape_gradient(:,:)
+
+  integer(ip) :: problem_id
 
   call meminit
 
@@ -333,6 +337,10 @@ program test_cdr
 
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
+
+
+  !f_cond%code = 0
+  !f_cond%valu = 0.0_rp
   !call triangulation_print(6,f_trian)
 
   !write (*,*) 'Boundary conditions ncode,ncond: ', f_cond%ncode,f_cond%ncond
@@ -387,33 +395,71 @@ program test_cdr
 
   ! UNIT TEST * integrator.f90 *
   !write(*,*) 'CALL FE SPACE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-  call fe_space_serial%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  call fe_space_array(1)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  call fe_space_array(2)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-       order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  call fe_space%create( fe_space_array, (/1,2/), reshape((/.true.,.false.,.false.,.true./),(/2,2/)), &
-       topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
+  !call fe_space_serial%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
+  !call fe_space_array(1)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
+  !call fe_space_array(2)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
 
-  call fe_space%fill_dof_info()
 
-  !call fe_space%fe_space_array(1)%p%print()
-  !call fe_space%fe_space_array(2)%p%print()
+  problem_id = 0
+  if ( problem_id == 1) then
+     ! Composite case
+     reference_fe_array_two(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+          order = 1, field_type = "scalar", continuity = .true. )
+     reference_fe_array_two(2)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+          order = 1, field_type = "vector", continuity = .true. )
+     call fe_space%create( triangulation = f_trian, reference_fe_array = reference_fe_array_two, &
+          boundary_conditions = f_cond, blocks = (/1,2/), &
+          blocks_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)), &
+          topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
+     call fe_space%fill_dof_info() 
+     call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, vector_laplacian_integration )
+     ! End composite case
+     !matrix => fe_affine_operator%get_matrix()
+     !select type ( matrix )
+     !   class is ( serial_block_matrix_t )
+     !   my_matrix => matrix%get_block(1,1)
+     !   call my_matrix%print_matrix_market(6)
+     !end select
+  else 
+     ! Simple case
+     reference_fe_array_one(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+          order = 3, field_type = "scalar", continuity = .true. )
+     call fe_space%create( triangulation = f_trian, reference_fe_array = reference_fe_array_one, &
+          boundary_conditions = f_cond, blocks = (/1/), &
+          blocks_coupling = reshape((/.true./),(/1,1/)), &
+          topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
+     call fe_space%fill_dof_info() 
+     ! WRITE FE SPACE
+     !call fe_space%print()
+     !check ( 0 == 1) 
+     call fe_affine_operator%create ( (/.true./), (/.true./), (/1/), f_trian, fe_space, poisson_integration )
+     ! End simple case
+     array => fe_affine_operator%get_array()
+     select type ( array )
+        class is ( serial_scalar_array_t )
+        call array%print_matrix_market(6)
+     end select
+     matrix => fe_affine_operator%get_matrix()
+     select type ( matrix )
+        class is ( serial_scalar_matrix_t )
+        call matrix%print_matrix_market(6)
+     end select
+  end if
 
-  !call fe_space%print()
 
-  !call my_problem%create( p_trian%f_trian%num_dims )
-  !call my_discrete%create( my_problem )
-  !call my_approximation%create(my_problem,my_discrete)
-  !approximations(1)%discrete_integration => my_approximation
 
-  !create approximation
-  approximations(1)%p => vector_laplacian_integration!poisson_integration  
-  call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, approximations )
-  write(*,*) 'CALL FE OPERATOR CREATE CALL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   call fe_affine_operator%numerical_setup()
-  write(*,*) 'CALL FE OPERATOR CREATED XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+
+
+  ! matrix => fe_affine_operator%get_matrix()
+  ! select type ( matrix )
+  !    class is ( serial_block_matrix_t )
+  !    my_matrix => matrix%get_block(1,1)
+  !    call my_matrix%print(6)
+  ! end select
 
 
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()

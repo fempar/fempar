@@ -329,6 +329,7 @@ contains
   procedure :: create => fe_map_create
   procedure :: set    => set_fe_map
   procedure :: update => fe_map_update
+  procedure :: print  => fe_map_print
 end type fe_map_t
 
 
