@@ -1,15 +1,14 @@
 
 !===================================================================================================
-subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, face_quadrature,            &
-     &                                                           local_quadrature)
+subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, local_quadrature, face_quadrature )
   implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(in)  :: this       
-  class(face_quadrature_t)             , intent(out) :: face_quadrature
-  class(SB_quadrature_t)               , intent(in)  :: local_quadrature
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this       
+  class(SB_quadrature_t)               , intent(in)    :: local_quadrature
+  class(face_quadrature_t)             , intent(inout) :: face_quadrature
   integer(ip) :: number_dimensions,number_integration_points_x_face, number_faces
   type(list_t) :: aux
 
-  number_integration_points_x_face = local_quadrature%number_integration_points
+  number_integration_points_x_face = local_quadrature%number_evaluation_points
 
   ! The amout of faces = amount of vefs of dimension num_dimensions-1
   number_dimensions = this%number_dimensions
@@ -31,7 +30,7 @@ subroutine fill_face_quadrature (face_quadrature,local_quadrature)
   real(rp)    :: fixed_value_x_face(face_quadrature%number_faces_x_element)
   integer(ip) :: iface,idime,one_of_two_faces,jdime, p_dime, inode
 
-  check (local_quadrature%number_integration_points == face_quadrature%number_integration_points_x_face)
+  check (local_quadrature%number_evaluation_points == face_quadrature%number_integration_points_x_face)
 
   ! Set the directions in which the coordinates move within each face
   iface = 1
@@ -52,7 +51,7 @@ subroutine fill_face_quadrature (face_quadrature,local_quadrature)
 
   ! Set the coordinates of the quadrature
   do iface = 1, face_quadrature%number_faces_x_element
-     do inode = 1, local_quadrature%number_integration_points
+     do inode = 1, local_quadrature%number_evaluation_points
         face_quadrature%coordinates(fixed_dimension_x_face(iface),inode,iface) =                    &
              &                      fixed_value_x_face(iface)
         face_quadrature%coordinates(ijk_face(:,iface),inode,iface) =                                &

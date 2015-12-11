@@ -294,7 +294,6 @@ program test_cdr
   character(len=:), allocatable :: group
 
   ! SB
-  class(reference_fe_t), pointer :: reference_fe
   type(SB_quadrature_t) :: quadrature
   type(SB_interpolation_t) :: interpolation
   !type(SB_simple_finite_element_t) :: finite_element
@@ -406,35 +405,48 @@ program test_cdr
   problem_id = 0
   if ( problem_id == 1) then
      ! Composite case
-     reference_fe_array_two(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-          order = 1, field_type = "scalar", continuity = .true. )
-     reference_fe_array_two(2)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-          order = 1, field_type = "vector", continuity = .true. )
-     call fe_space%create( triangulation = f_trian, reference_fe_array = reference_fe_array_two, &
-          boundary_conditions = f_cond, blocks = (/1,2/), &
-          blocks_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)), &
-          topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
+     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
+                                                     fe_type = "Lagrangian", &
+                                                     number_dimensions = 2, &
+                                                     order = 1, &
+                                                     field_type = "scalar", &
+                                                     continuity = .true. )
+     
+     reference_fe_array_two(2) = make_reference_fe ( topology = "quad", &
+                                                     fe_type = "Lagrangian", &
+                                                     number_dimensions = 2, &
+                                                     order = 1, & 
+                                                     field_type = "vector", &
+                                                     continuity = .true. )
+     
+     call fe_space%create( triangulation = f_trian, &
+                           boundary_conditions = f_cond, &
+                           reference_fe_phy = reference_fe_array_two, &
+                           reference_fe_geo_topology = "quad", &
+                           reference_fe_geo_type = "Lagrangian", &
+                           blocks = (/1,2/), &
+                           blocks_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+     
      call fe_space%fill_dof_info() 
+     
      call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, vector_laplacian_integration )
-     ! End composite case
-     !matrix => fe_affine_operator%get_matrix()
-     !select type ( matrix )
-     !   class is ( serial_block_matrix_t )
-     !   my_matrix => matrix%get_block(1,1)
-     !   call my_matrix%print_matrix_market(6)
-     !end select
   else 
      ! Simple case
-     reference_fe_array_one(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-          order = 3, field_type = "scalar", continuity = .true. )
-     call fe_space%create( triangulation = f_trian, reference_fe_array = reference_fe_array_one, &
-          boundary_conditions = f_cond, blocks = (/1/), &
-          blocks_coupling = reshape((/.true./),(/1,1/)), &
-          topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
+     reference_fe_array_one(1) =  make_reference_fe ( topology = "quad", &
+                                                      fe_type = "Lagrangian", &
+                                                      number_dimensions = 2, &
+                                                      order = 3, &
+                                                      field_type = "scalar", &
+                                                      continuity = .true. )
+     
+     call fe_space%create( triangulation = f_trian, &
+                           boundary_conditions = f_cond, &
+                           reference_fe_phy = reference_fe_array_one, &
+                           reference_fe_geo_topology = "quad", &
+                           reference_fe_geo_type = "Lagrangian" )
      call fe_space%fill_dof_info() 
-     ! WRITE FE SPACE
-     !call fe_space%print()
-     !check ( 0 == 1) 
+
+     
      call fe_affine_operator%create ( (/.true./), (/.true./), (/1/), f_trian, fe_space, poisson_integration )
      ! End simple case
      array => fe_affine_operator%get_array()
@@ -448,18 +460,8 @@ program test_cdr
         call matrix%print_matrix_market(6)
      end select
   end if
-
-
-
+  
   call fe_affine_operator%numerical_setup()
-
-
-  ! matrix => fe_affine_operator%get_matrix()
-  ! select type ( matrix )
-  !    class is ( serial_block_matrix_t )
-  !    my_matrix => matrix%get_block(1,1)
-  !    call my_matrix%print(6)
-  ! end select
 
 
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
@@ -473,8 +475,6 @@ program test_cdr
   call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   call linear_solver%solve(vector)
   call linear_solver%free() 
-
-
 
   ! ppars%type = pardiso_mkl_prec
   ! call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
@@ -508,8 +508,9 @@ program test_cdr
   !call volume_integrator%free()
   !call reference_fe%free()
   !call quadrature%free()
-
-  !call fe_space%free()
+  
+  call fe_affine_operator%free()
+  call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)

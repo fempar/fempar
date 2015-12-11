@@ -1,107 +1,42 @@
-function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  integer(ip), intent(in) :: node
-  integer(ip) :: quad_lagrangian_reference_fe_get_bc_component_node
-  quad_lagrangian_reference_fe_get_bc_component_node = this%node_component_array(node,2)
-end function quad_lagrangian_reference_fe_get_bc_component_node
-
-subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  type(SB_interpolation_t), intent(in) :: int 
-  integer(ip), intent(in)  :: node, gp
-  real(rp), intent(inout) :: shp(:,:)
-
-  !write(*,*) 'this%node_component_array',this%node_component_array
-  shp = 0
-  shp( this%node_component_array(node,2) , 1 ) = &
-       int%shape_functions( this%node_component_array(node,1), gp )
-
-end subroutine quad_lagrangian_reference_fe_get_value
-
-subroutine quad_lagrangian_reference_fe_get_gradient( this, shg, int, node, gp )
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  type(SB_interpolation_t), intent(in) :: int 
-  integer(ip), intent(in)  :: node, gp
-  real(rp), intent(inout) :: shg(:,:)
-
-  shg = 0
-  shg(:,this%node_component_array(node,2)) = &
-       int%shape_derivatives(:,this%node_component_array(node,1),gp)
-
-end subroutine quad_lagrangian_reference_fe_get_gradient
-
-
 subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, field_type, continuity )
   implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(out) :: this 
-  character(*), intent(in) :: field_type
-  integer(ip), intent(in)  :: number_dimensions, order
-  logical, optional, intent(in) :: continuity
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
+  integer(ip)                          , intent(in)    :: number_dimensions
+  integer(ip)                          , intent(in)    :: order
+  character(*)                         , intent(in)    :: field_type
+  logical                    , optional, intent(in)    :: continuity
 
+  call this%free()
   call this%set_common_data ( number_dimensions, order, field_type, continuity )
   call this%set_topology ( "tet" )
   call this%set_fe_type ( "Lagrangian" )
   call this%fill( )
-
 end subroutine quad_lagrangian_reference_fe_create
 
-subroutine quad_lagrangian_reference_fe_free ( this )
+subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
   implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
-
-  ! Common in reference_fe_t
-  if(allocated(this%topology))              deallocate(this%topology)
-  if(allocated(this%fe_type))               deallocate(this%fe_type)
-
-  if(allocated(this%interior_nodes_vef%p)) & 
-       call memfree(this%interior_nodes_vef%p,__FILE__,__LINE__)
-  if(allocated(this%interior_nodes_vef%l)) & 
-       call memfree(this%interior_nodes_vef%l,__FILE__,__LINE__)
-  this%interior_nodes_vef%n = 0
-
-  if(allocated(this%nodes_vef%p)) & 
-       call memfree(this%nodes_vef%p,__FILE__,__LINE__)
-  if(allocated(this%nodes_vef%l)) & 
-       call memfree(this%nodes_vef%l,__FILE__,__LINE__)
-  this%nodes_vef%n = 0
-
-  if(allocated(this%corners_vef%p)) & 
-       call memfree(this%corners_vef%p,__FILE__,__LINE__)
-  if(allocated(this%corners_vef%l)) & 
-       call memfree(this%corners_vef%l,__FILE__,__LINE__)
-  this%corners_vef%n = 0
-
-  if(allocated(this%vefs_vef%p)) & 
-       call memfree(this%vefs_vef%p,__FILE__,__LINE__)
-  if(allocated(this%vefs_vef%l)) & 
-       call memfree(this%vefs_vef%l,__FILE__,__LINE__)
-  this%vefs_vef%n = 0
-
-  call this%orientation%free()
-
-  this%number_dimensions  = 0
-  this%order       = 0
-  this%number_vefs        = 0
-  this%number_nodes       = 0
-  this%number_vefs_dimension  = 0
-  this%continuity         = .true.
-
-  ! quad_lagrangian_reference_fe_t variables
-  if(allocated(this%node_component_array)) & 
-       call memfree(this%node_component_array,__FILE__,__LINE__)
-  this%number_nodes_scalar = 0
-
-end subroutine quad_lagrangian_reference_fe_free
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
+  type(SB_quadrature_t)                , intent(inout) :: quadrature
+  integer(ip)                , optional, intent(in)    :: max_order
+  
+  integer(ip) :: ngaus, order
+  order = this%order
+  if ( present(max_order) ) then
+     order = max_order
+  else
+     order = this%order
+  end if
+  ngaus = (order + 1)**this%number_dimensions
+  call quadrature%create( this%number_dimensions, ngaus )
+  call fill_quadrature( quadrature )
+end subroutine quad_lagrangian_reference_fe_create_quadrature
 
 subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
   implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  class(SB_quadrature_t), intent(in) :: quadrature
-  type(SB_interpolation_t), intent(out) :: interpolation
-  logical, optional, intent(in) :: compute_hessian
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(SB_quadrature_t)               , intent(in)     :: quadrature
+  type(SB_interpolation_t)            , intent(inout) :: interpolation
+  logical,                    optional, intent(in)     :: compute_hessian
 
   integer(ip) :: nlocs, ntens, i
 
@@ -111,51 +46,73 @@ subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature,
   end do
 
   call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
-       quadrature%number_integration_points, ntens, compute_hessian )
+                             quadrature%number_evaluation_points, ntens, compute_hessian )
 
-  nlocs = int(real(quadrature%number_integration_points)**(1.0_rp/real(this%number_dimensions)))
-
-  write(*,*) 'XXX', size(quadrature%coordinates,1), size(quadrature%coordinates,2)
-
+  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real(this%number_dimensions)))
+  
   call fill_interpolation( interpolation, this%order, this%number_dimensions, &
-       nlocs, ntens, quadrature%coordinates )
-
+                           nlocs, ntens, quadrature%coordinates )
 end subroutine quad_lagrangian_reference_fe_create_interpolation
 
-subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
-  implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this        
-  integer(ip), optional, intent(in) :: max_order
-  class(SB_quadrature_t), intent(out) :: quadrature
-  integer(ip) :: ngaus, order
-  type(list_t) :: aux
+subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)  :: this 
+  type(SB_interpolation_t)             , intent(in)  :: int 
+  integer(ip)                          , intent(in)  :: node, gp
+  real(rp)                             , intent(out) :: shp(:,:)
+  shp = 0
+  shp(this%node_component_array(node,2),1) = &
+      int%shape_functions(this%node_component_array(node,1),gp)
+end subroutine quad_lagrangian_reference_fe_get_value
 
+subroutine quad_lagrangian_reference_fe_get_gradient( this, shg, int, node, gp )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)  :: this 
+  type(SB_interpolation_t)             , intent(in)  :: int 
+  integer(ip)                          , intent(in)  :: node, gp
+  real(rp)                             , intent(out) :: shg(:,:)
 
+  shg = 0
+  shg(:,this%node_component_array(node,2)) = &
+       int%shape_derivatives(:,this%node_component_array(node,1),gp)
+end subroutine quad_lagrangian_reference_fe_get_gradient
 
-  order = this%order
-  if ( present(max_order) ) then
-     order = max_order
+function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  integer(ip)                          , intent(in) :: node
+  integer(ip) :: quad_lagrangian_reference_fe_get_bc_component_node
+  quad_lagrangian_reference_fe_get_bc_component_node = this%node_component_array(node,2)
+end function quad_lagrangian_reference_fe_get_bc_component_node
+
+!=================================================================================================
+! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
+! and a delay 'r' wrt to a refence element sharing the same vef.
+subroutine  quad_lagrangian_reference_fe_permute_order_vef( this,o2n,p,o,r,nd )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  integer(ip), intent(in)    :: p,o,r,nd
+  integer(ip), intent(inout) :: o2n(:)
+
+  if     (nd == 0) then
+     o2n(1) = 1
+  elseif (nd == 1) then
+     call permute_or_1d(o2n(1:p+1),p,r)
+  elseif (nd == 2) then
+     call permute_or_2d(o2n(1:int((p+1)**2)),p,o,r)
   else
-     order = this%order
+     write(*,*) __FILE__,__LINE__,'WARNING! Permutations not given for nd>3'
   end if
-
-  ngaus = (order + 1)**this%number_dimensions
-
-  call quadrature%create( this%number_dimensions, ngaus )
-  call fill_quadrature( quadrature )
-
-  write(*,*) 'XXX', size(quadrature%coordinates,1), size(quadrature%coordinates,2)
-
-end subroutine quad_lagrangian_reference_fe_create_quadrature
+end subroutine quad_lagrangian_reference_fe_permute_order_vef
 
 subroutine quad_lagrangian_reference_fe_fill (this)
   implicit none
   ! Parameters
-  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
   integer(ip) :: c, i, j
 
   call quad_lagrangian_reference_fe_fill_scalar (this)
-  if ( this%field_components /= 1 ) then
+  if ( this%number_field_components /= 1 ) then
      call quad_lagrangian_reference_fe_fill_field_components( this )
   else
      this%number_nodes_scalar = this%number_nodes
@@ -164,43 +121,40 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
 
   c = 1
-  do i = 1, this%field_components
+  do i = 1, this%number_field_components
      do j = 1, this%number_nodes_scalar
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
         c = c+1
      end do
   end do
-
-  !write (*,*) 'this%field_components',this%field_components
-  !write (*,*) 'this%number_nodes_scalar',this%number_nodes_scalar
-  !write (*,*) 'this%node_component_array', this%node_component_array
-
 end subroutine quad_lagrangian_reference_fe_fill
+
+subroutine quad_lagrangian_reference_fe_free ( this )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
+
+  call reference_fe_free ( this )
+  
+  ! quad_lagrangian_reference_fe_t variables
+  if(allocated(this%node_component_array)) & 
+       call memfree(this%node_component_array,__FILE__,__LINE__)
+  this%number_nodes_scalar = 0
+end subroutine quad_lagrangian_reference_fe_free
 
 subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   implicit none
-  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
-
-  !this%number_nodes_1d = this%number_nodes
-
-  !this%number_nodes = this%number_nodes_1d * field_components
-
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
   call extend_list_components( this, this%nodes_vef)
-  !call print_list ( 6, this%nodes_vef)
-
   call extend_list_components( this, this%interior_nodes_vef)
-  !call print_list ( 6, this%interior_nodes_vef)
-
   this%number_nodes_scalar = this%number_nodes
-  this%number_nodes = this%number_nodes_scalar * this%field_components
-
+  this%number_nodes = this%number_nodes_scalar * this%number_field_components
 end subroutine quad_lagrangian_reference_fe_fill_field_components
 
-subroutine extend_list_components( this, list_1d)
+subroutine extend_list_components(this, list_1d)
   implicit none
   ! Parameters
-  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
   type(list_t), intent(inout) :: list_1d
   type(list_t) :: list
 
@@ -211,7 +165,7 @@ subroutine extend_list_components( this, list_1d)
 
   list%p(1) = 1
   do i = 2,this%number_vefs+2
-     list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%field_components
+     list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%number_field_components
   end do
 
   call memalloc( list%p(this%number_vefs+2)-1, list%l, __FILE__, __LINE__ )
@@ -220,7 +174,7 @@ subroutine extend_list_components( this, list_1d)
   aux_1 = this%number_nodes
   do i = 1,this%number_vefs+1
      c = list%p(i)
-     do k = 1,this%field_components
+     do k = 1,this%number_field_components
         aux_2 = aux_1*(k-1)
         do j = list_1d%p(i),list_1d%p(i+1)-1
            node_1d = list_1d%l(j)
@@ -242,7 +196,7 @@ end subroutine extend_list_components
 subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   implicit none
   ! Parameters
-  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
 
   ! Local variables
   integer(ip)               :: nd,p
@@ -656,29 +610,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   ! end do
 end subroutine quad_lagrangian_reference_fe_fill_scalar
 
-
-!=================================================================================================
-! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
-! and a delay 'r' wrt to a refence element sharing the same vef.
-subroutine  quad_lagrangian_reference_fe_permute_order_vef( this,o2n,p,o,r,nd )
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  integer(ip), intent(in)    :: p,o,r,nd
-  integer(ip), intent(inout) :: o2n(:)
-
-  if     (nd == 0) then
-     o2n(1) = 1
-  elseif (nd == 1) then
-     call permute_or_1d(o2n(1:p+1),p,r)
-  elseif (nd == 2) then
-     call permute_or_2d(o2n(1:int((p+1)**2)),p,o,r)
-  else
-     write(*,*) __FILE__,__LINE__,'WARNING! Permutations not given for nd>3'
-  end if
-end subroutine quad_lagrangian_reference_fe_permute_order_vef
-
-
-
 !=================================================================================================
 ! BNM(A,B)=A!/((A-B)!B!) computes the binomial coefficient of (A,B), A>B
 integer (ip) function bnm(a,b)
@@ -796,7 +727,6 @@ integer(ip) function fc(i)
   end do
 end function fc
 
-
 !-----------------------------------------------------------------------
 subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   !-----------------------------------------------------------------------
@@ -825,7 +755,7 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   integer(ip)              :: nlocs,igaus,ilocs,jlocs,klocs,ndime,ngaus
 
   ndime = quadrature%number_dimensions
-  ngaus = quadrature%number_integration_points
+  ngaus = quadrature%number_evaluation_points
 
   if(ndime==1) then
      nlocs=ngaus
@@ -1348,8 +1278,6 @@ subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord
   ! Compute the 1d shape function on the gauss points
   call shape1(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
 
-
-  !if (int%khes == 1) then
   if ( allocated( interpolation%hessian ) )  then 
      call shapen(interpolation%shape_functions,interpolation%shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes,interpolation%hessian)
   else
@@ -1551,33 +1479,6 @@ subroutine Q_ijkg(i,g,nd,p)
   end do
 end subroutine Q_ijkg
 
-!   ! ==================================================================================================
-!   subroutine interpolation_local_tp(clocs,int,nd,order,ngaus)
-!     implicit none
-!     ! Parameters
-!     type(interpolation_t), intent(inout) :: int
-!     integer(ip)        , intent(in)    :: nd, order, ngaus
-!     real(rp)           , intent(in)    :: clocs(ngaus)
-
-!     real(rp)    :: coord(order+1),shpe1(order+1,ngaus),shpd1(order+1,ngaus),shph1(order+1,ngaus)
-!     integer(ip) :: iloc,aux(ngaus)
-
-!     ! Set the coordenades of the nodal points
-!     call Q_coord_1d(coord,order+1)
-
-!     ! Compute the 1d shape function on the gauss points
-!     call shape1(clocs,order,ngaus,coord,shpe1,shpd1,shph1,int%khes)
-
-!     ! Compute the tensorial product
-!     if (int%khes == 1) then
-!        call shapen(int%shape,int%deriv,shpe1,shpd1,shph1,nd,order,ngaus,int%ntens,int%khes,int%hessi)
-!     else
-!        call shapen(int%shape,int%deriv,shpe1,shpd1,shph1,nd,order,ngaus,int%ntens,int%khes)
-!     end if
-!   end subroutine interpolation_local_tp
-
-! end subroutine fill_interpolation
-
 !=================================================================================================
 subroutine  permute_or_1d( o2n,p,r )
   implicit none
@@ -1626,12 +1527,3 @@ subroutine permute_or_2d( o2n,p,o,r )
      end do
   end do
 end subroutine permute_or_2d
-
-! subroutine set_integration_rule ( this , quadrature, interpolation )
-!  implicit none 
-!  class(quad_lagrangian_reference_fe_t), intent(in) :: this
-!  class(SB_quadrature_t), intent(in) :: quadrature
-!  class(SB_interpolation_t), intent(out) :: interpolation
-
-!  ! Here we should put all the things in interpolation.f90
-! end subroutine set_integration_rule

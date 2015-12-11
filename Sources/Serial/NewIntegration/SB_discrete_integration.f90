@@ -127,10 +127,10 @@ contains
 
     number_blocks = fe_space%get_number_blocks()
     number_fe_spaces = fe_space%get_number_fe_spaces()
-    blocks => fe_space%get_blocks()
-    blocks_coupling => fe_space%get_fields_coupling()
+    blocks => fe_space%get_field_blocks()
+    blocks_coupling => fe_space%get_field_coupling()
 
-    fe => fe_space%get_fe(1)
+    fe => fe_space%get_finite_element(1)
     nnodes = fe%get_number_nodes()
     call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
     call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
@@ -146,7 +146,7 @@ contains
        elmat = 0.0_rp
        elvec = 0.0_rp
 
-       fe => fe_space%get_fe(ielem)
+       fe => fe_space%get_finite_element(ielem)
        call fe%update_integration( number_fe_spaces )
        quad => fe%get_quadrature()
        fe_map => fe%get_fe_map()
@@ -168,7 +168,7 @@ contains
        !write(*,*) 'bc_value',bc_value
        !write(*,*) 'number_nodes',number_nodes
 
-       ngaus = quad%get_number_integration_points()
+       ngaus = quad%get_number_evaluation_points()
        !write(*,*) 'ngaus',ngaus
 
        shape_gradient_test_u => vol_int(1)%p%get_gradients()
@@ -306,10 +306,10 @@ contains
 
     number_blocks = fe_space%get_number_blocks()
     number_fe_spaces = fe_space%get_number_fe_spaces()
-    blocks => fe_space%get_blocks()
-    blocks_coupling => fe_space%get_fields_coupling()
+    blocks => fe_space%get_field_blocks()
+    blocks_coupling => fe_space%get_field_coupling()
 
-    fe => fe_space%get_fe(1)
+    fe => fe_space%get_finite_element(1)
     nnodes = fe%get_number_nodes()
     call memalloc ( nnodes, nnodes, elmat, __FILE__, __LINE__ )
     call memalloc ( nnodes, elvec, __FILE__, __LINE__ )
@@ -325,7 +325,7 @@ contains
        elmat = 0.0_rp
        elvec = 0.0_rp
 
-       fe => fe_space%get_fe(ielem)
+       fe => fe_space%get_finite_element(ielem)
        call fe%update_integration( number_fe_spaces )
        fe_map => fe%get_fe_map()
        vol_int => fe%get_volume_integrator()
@@ -341,7 +341,7 @@ contains
 
 
        !number_nodes = !ref_fe%get_number_nodes()
-       ngaus = quad%get_number_integration_points()
+       ngaus = quad%get_number_evaluation_points()
 
        shape_gradient_test_u => vol_int(1)%p%get_gradients()
        shape_gradient_trial_u => vol_int(1)%p%get_gradients()
