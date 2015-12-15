@@ -38,6 +38,7 @@ module SB_fe_space_names
   use SB_serial_scalar_matrix_array_assembler_names
   use SB_serial_block_matrix_array_assembler_names
   use types_names
+  use list_types_names
   use reference_fe_names
   use triangulation_names
   use reference_fe_factory_names

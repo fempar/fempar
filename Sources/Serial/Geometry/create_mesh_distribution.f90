@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module create_mesh_distribution_names
   use types_names
+  use list_types_names
   use memor_names
   use mesh_distribution_names
   use map_names
@@ -478,7 +479,7 @@ contains
        end if
     end do
     
-    call memalloc( lconn%n+1, lconn%p, __FILE__,__LINE__)
+    call lconn%create(lconn%n)
 
     lconn%p(1) = 1
     do i=1, lconn%n
@@ -489,7 +490,7 @@ contains
     call memfree( q      ,__FILE__,__LINE__)
     call memfree( emarked,__FILE__,__LINE__)
 
-    call memalloc( lconn%p(lconn%n+1)-1, lconn%l, __FILE__,__LINE__)
+    call lconn%allocate_list_from_pointer()
 
     current=1
     l=1

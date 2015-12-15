@@ -28,6 +28,7 @@
 module dof_distribution_names
   ! Serial modules
   use types_names
+  use list_types_names
   use memor_names
   use map_names
   use dof_import_names
@@ -78,8 +79,7 @@ contains
     
     call memfree ( dof_dist%lpadj, __FILE__,__LINE__  )  
     call memfree ( dof_dist%lobjs, __FILE__,__LINE__  )
-    call memfree ( dof_dist%int_objs%p, __FILE__, __LINE__ )
-    call memfree ( dof_dist%int_objs%l, __FILE__, __LINE__ )
+    call dof_dist%int_objs%free()
     call map_free ( dof_dist%omap )
     call dof_import_free ( dof_dist%dof_import )
 

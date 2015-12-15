@@ -28,6 +28,7 @@
 module serial_fe_space_names
   ! Modules
   use types_names
+  use list_types_names
   use memor_names
   use allocatable_array_names
   use triangulation_names

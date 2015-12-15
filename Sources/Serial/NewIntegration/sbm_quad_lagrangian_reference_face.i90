@@ -6,7 +6,6 @@ subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, local_qua
   type(SB_quadrature_t)                , intent(in)    :: local_quadrature
   type(face_quadrature_t)              , intent(inout) :: face_quadrature
   integer(ip) :: number_dimensions,number_integration_points_x_face, number_faces
-  type(list_t) :: aux
 
   number_integration_points_x_face = local_quadrature%number_evaluation_points
 
