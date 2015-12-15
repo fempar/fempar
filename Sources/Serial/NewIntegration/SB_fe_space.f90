@@ -66,27 +66,33 @@ module SB_fe_space_names
   !   in a VEF.
 
   type :: SB_finite_element_t
-     private   
-     type(elem_topology_t), pointer :: cell 
-     class(reference_fe_t), pointer :: geometry_reference_fe 
-     type(p_reference_fe_t), pointer :: reference_fe(:) 
-     type(SB_quadrature_t), pointer :: quadrature
-     type(fe_map_t), pointer :: fe_map
-     type(SB_p_volume_integrator_t), pointer :: volume_integrator(:)
-     integer(ip) :: number_nodes
-     type(i1p_t), pointer :: elem2dof(:)
-     type(i1p_t), pointer :: bc_code(:)
-     type(r1p_t), pointer :: bc_value(:)
+     private 
+     integer(ip)                                 :: number_nodes
+     
+     type(elem_topology_t)         , pointer     :: cell 
+     class(reference_fe_t)         , pointer     :: reference_fe_geo 
+     type(fe_map_t)                , pointer     :: fe_map
+     
+     type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:) 
+     type(SB_quadrature_t)         , pointer     :: quadrature
+     type(SB_p_volume_integrator_t), pointer     :: volume_integrator(:)
+     
+     type(i1p_t)                   , allocatable :: elem2dof(:)
+     type(i1p_t)                   , allocatable :: bc_code(:)
+     type(r1p_t)                   , allocatable :: bc_value(:)
    contains
-     procedure :: get_volume_integrator
-     procedure :: get_quadrature	
-     procedure :: get_fe_map
+     
+     ! procedure :: create Pending
      procedure :: update_integration
-
+     ! procedure :: free Pending
+     ! procedure :: print Pending
+     procedure :: get_number_nodes 
+     procedure :: get_fe_map
+     procedure :: get_quadrature	
+     procedure :: get_volume_integrator
      procedure :: get_elem2dof 
      procedure :: get_bc_code 
      procedure :: get_bc_value 
-     procedure :: get_number_nodes 
      procedure :: get_number_nodes_field 
   end type SB_finite_element_t
 
@@ -94,37 +100,42 @@ module SB_fe_space_names
 
   type :: SB_serial_fe_space_t
      private
-     type(triangulation_t), pointer :: triangulation
-     type(p_reference_fe_t), allocatable :: reference_fe_geo_list(:)
-     type(p_reference_fe_t), allocatable :: reference_fe_phy_list(:)
-     type(SB_p_quadrature_t), allocatable :: quadrature(:)
-     type(p_fe_map_t), allocatable :: fe_map(:)
+     integer(ip)                                 :: number_fe_spaces   
+     type(p_reference_fe_t)        , allocatable :: reference_fe_geo_list(:)
+     type(p_fe_map_t)              , allocatable :: fe_map(:)
+     type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)
+     type(SB_p_quadrature_t)       , allocatable :: quadrature(:)
      type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
-     type(SB_finite_element_t), allocatable :: fe_array(:)
-     integer(ip) :: number_fe_spaces   
-     integer(ip), allocatable :: field_blocks(:)
-     integer(ip) :: number_blocks
-     logical, allocatable :: fields_coupling(:,:)
-     integer(ip), allocatable :: number_dofs(:)
+     
+     type(triangulation_t)         , pointer     :: triangulation
+     type(SB_finite_element_t)     , allocatable :: fe_array(:)
+     
+     ! Data related to block structure of the FE system + size of each block
+     integer(ip)                                 :: number_blocks
+     integer(ip)                   , allocatable :: field_blocks(:)
+     logical                       , allocatable :: field_coupling(:,:)
+     integer(ip)                   , allocatable :: number_dofs(:)
+     
      ! Acceleration arrays
-     type(list_2d_t), allocatable       :: vef2dof(:)
+     type(list_2d_t)               , allocatable :: vef2dof(:)
    contains
-     procedure :: get_number_elements
-     procedure :: get_fe
-     procedure :: initialize_integration
-     procedure :: initialize_volume_integrator
-     procedure :: initialize_quadrature
-     procedure :: initialize_fe_map
-     procedure :: create_assembler
-     procedure :: symbolic_setup_assembler
-     procedure :: get_blocks
-     procedure :: get_max_number_nodes
-     procedure :: get_fields_coupling
-     procedure :: fill_dof_info
-     procedure :: get_number_blocks
-     procedure :: get_number_fe_spaces
-     procedure :: create
-     procedure :: print
+     procedure          :: create
+     procedure          :: fill_dof_info
+     procedure          :: free
+     procedure          :: print
+     procedure          :: initialize_integration
+     procedure, private :: initialize_volume_integrator
+     procedure, private :: initialize_quadrature
+     procedure, private :: initialize_fe_map
+     procedure          :: create_assembler
+     procedure          :: symbolic_setup_assembler
+     procedure          :: get_number_elements
+     procedure          :: get_number_fe_spaces
+     procedure          :: get_finite_element
+     procedure          :: get_number_blocks
+     procedure          :: get_field_blocks
+     procedure          :: get_field_coupling
+     procedure          :: get_max_number_nodes
   end type SB_serial_fe_space_t
 
   public :: SB_serial_fe_space_t

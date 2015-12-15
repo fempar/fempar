@@ -189,16 +189,11 @@ contains
     call memfree(reference_element%orientation,__FILE__,__LINE__)   
 
     !Deallocate arrays
-    call memfree(reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each vef
-    call memfree(reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each vef
-    call memfree(reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob_int%l for each vef
-    call memfree(reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of nodes of each vef when all interior
-    call memfree(reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each vef
-    call memfree(reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each vef
-    call memfree(reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each vef
-    call memfree(reference_element%obxob%l,__FILE__,__LINE__)   !Array of all vefs of each vef
-    call memfree(reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each vef
-    call memfree(reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each vef
+    call reference_element%ndxob%free()
+    call reference_element%ndxob_int%free()
+    call reference_element%ntxob%free()
+    call reference_element%obxob%free()
+    call reference_element%crxob%free()
   end subroutine reference_element_free
 
   !==================================================================================================
@@ -328,29 +323,13 @@ contains
     reference_element%nnode = nn
 
     ! Allocate arrays
-    call memalloc(no,        reference_element%orientation,__FILE__,__LINE__)   ! Array of orientation of each vef
-    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each vef
-    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)   !Array of interior nodes of each vef
-    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)   !Pointer to reference_element%ndxob%l for each vef
-    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)   !Array of interior nodes of each vef
-    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)   !Pointer to ntxob%l for each vef
-    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)   !Array of all nodes of each vef
-    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)   !Pointer to obxob%l for each vef
-    call memalloc(nt,  reference_element%obxob%l,__FILE__,__LINE__)   !Array of all vefs of each vef
-    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)   !Pointer to crxob%l for each vef
-    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)   !Array of corners for each vef
+    call memalloc(no,  reference_element%orientation,__FILE__,__LINE__)   ! Array of orientation of each vef
+    call reference_element%ndxob%create(n=no)
+    call reference_element%ndxob_int%create(n=no)
+    call reference_element%ntxob%create(n=no)
+    !call reference_element%obxob%create(n=no)
+    call reference_element%crxob%create(n=no)
     call memalloc(nd+2,no,idcro,__FILE__,__LINE__) !Array of dim and corners belonging to each vef
-
-    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each vef
-    reference_element%ndxob%l=0     !Array of interior nodes of each vef
-    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob_int%l for each vef
-    reference_element%ndxob_int%l=0     !Array of interior nodes of each vef when all nodes belong to volume
-    reference_element%ntxob%p=0   !Pointer to ntxob%l for each vef
-    reference_element%ntxob%l=0     !Array of all nodes of each vef
-    reference_element%obxob%p=0   !Pointer to ntxob%l for each vef
-    reference_element%obxob%l=0     !Array of all vefs of each vef
-    reference_element%crxob%p=0   !Pointer to crxob%l for each vef
-    reference_element%crxob%l=0     !Array of corners for each vef
 
     ! Create auxiliar matrix nodes with the coordinates of the corners
     nodes = 0
@@ -379,6 +358,11 @@ contains
 
     reference_element%ndxob_int%p = 1
     reference_element%ndxob_int%p(no+1) = nn+1
+    
+    call reference_element%ndxob%allocate_list_from_pointer()
+    call reference_element%ntxob%allocate_list_from_pointer()
+    call reference_element%crxob%allocate_list_from_pointer()
+    call reference_element%ndxob_int%allocate_list_from_pointer()
 
     ! Each vef of dimension k is defined by a set of k+1 corners (idcro stores this info)
     i = 1
@@ -959,31 +943,15 @@ contains
 
     ! Allocate arrays
     call memalloc(no,        reference_element%orientation,__FILE__,__LINE__)  ! Array of orientation of each vef
-    call memalloc(no+1,reference_element%ndxob%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each vef
-    call memalloc(nn,  reference_element%ndxob%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
-    call memalloc(no+1,reference_element%ndxob_int%p,__FILE__,__LINE__)  !Pointer to reference_element%ndxob%l for each vef
-    call memalloc(nn,  reference_element%ndxob_int%l,__FILE__,__LINE__)  !Array of interior nodes of each vef
-    call memalloc(no+1,reference_element%ntxob%p,__FILE__,__LINE__)  !Pointer to ntxob%l for each vef
-    call memalloc(nt,  reference_element%ntxob%l,__FILE__,__LINE__)  !Array of all nodes of each vef
-    call memalloc(no+1,reference_element%obxob%p,__FILE__,__LINE__)  !Pointer to obxob%l for each vef
-    call memalloc(nt2,  reference_element%obxob%l,__FILE__,__LINE__)  !Array of all vefs of each vef
-    call memalloc(no+1,reference_element%crxob%p,__FILE__,__LINE__)  !Pointer to crxob%l for each vef
-    call memalloc(nc,  reference_element%crxob%l,__FILE__,__LINE__)  !Array of corners for each vef
+    call reference_element%ndxob%create(n=no)
+    call reference_element%ndxob_int%create(n=no)
+    call reference_element%ntxob%create(n=no)
+    call reference_element%obxob%create(n=no)
+    call reference_element%crxob%create(n=no)
+    call reference_element%crxob%create(n=no)
     call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
     call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
     call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
-
-    reference_element%ndxob%p=0   !Pointer to reference_element%ndxob%l for each vef
-    reference_element%ndxob%l=0   !Array of interior nodes of each vef
-    reference_element%ndxob_int%p=0   !Pointer to reference_element%ndxob%l for each vef
-    reference_element%ndxob_int%l=0   !Array of interior nodes of each vef
-    reference_element%ntxob%p=0   !Pointer to ntxob%l for each vef
-    reference_element%obxob%l=0   !Array of all nodes of each vef
-    reference_element%obxob%p=0   !Pointer to obxob%l for each vef
-    reference_element%ntxob%l=0   !Array of all nodes of each vef
-    reference_element%crxob%p=0   !Pointer to crxob%l for each vef
-    reference_element%crxob%l=0   !Array of corners for each vef
-
 
     !Initialize pointers
     reference_element%ndxob%p(1) = 1
@@ -1009,6 +977,12 @@ contains
 
     reference_element%ndxob_int%p = 1
     reference_element%ndxob_int%p(no+1) = nn+1
+    
+    call reference_element%ndxob%allocate_list_from_pointer()
+    call reference_element%ntxob%allocate_list_from_pointer()
+    call reference_element%crxob%allocate_list_from_pointer()
+    call reference_element%obxob%allocate_list_from_pointer()
+    call reference_element%ndxob_int%allocate_list_from_pointer()
 
     ! Initialize auxiliar values
     k = 0

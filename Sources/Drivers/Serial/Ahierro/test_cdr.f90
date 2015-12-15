@@ -490,7 +490,7 @@ contains
     type(face_quadrature_t)       :: face_quadrature
 
     ! UNIT TEST * reference_fe.f90 *
-    reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
          order = 3, field_type = "vector", continuity = .true. )
     !call reference_fe%print()
 
@@ -499,7 +499,7 @@ contains
 
     call reference_fe%free()
 
-    reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
+    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
          order = 3, field_type = "vector", continuity = .true. )
 
     call reference_fe%create_face_quadrature(face_quadrature,quadrature)

@@ -82,7 +82,7 @@ contains
     implicit none
     class(allocatable_array_ip1_t), intent(inout) :: this
     this%nd1 = 0
-    call memfree(this%a,__FILE__,__LINE__)
+    if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip1_free
 
 # include "mem_body.i90"
@@ -134,7 +134,7 @@ contains
     class(allocatable_array_ip2_t), intent(inout) :: this
     this%nd1 = 0
     this%nd2 = 0
-    call memfree(this%a,__FILE__,__LINE__)
+    if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip2_free
 
 # include "mem_body.i90"
@@ -184,7 +184,7 @@ contains
     implicit none
     class(allocatable_array_rp1_t), intent(inout) :: this
     this%nd1 = 0
-    call memfree(this%a,__FILE__,__LINE__)
+    if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp1_free
 
 # include "mem_body.i90"
@@ -238,7 +238,7 @@ contains
     class(allocatable_array_rp2_t), intent(inout) :: this
     this%nd1 = 0
     this%nd2 = 0
-    call memfree(this%a,__FILE__,__LINE__)
+    if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp2_free
 
   function sum_allocatable_array_rp2_array_rp2(x,y) result(z)
@@ -308,7 +308,7 @@ contains
     this%nd1 = 0
     this%nd2 = 0
     this%nd2 = 0
-    call memfree(this%a,__FILE__,__LINE__)
+    if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp3_free
 
 # include "mem_body.i90"

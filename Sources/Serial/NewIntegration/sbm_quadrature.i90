@@ -1,11 +1,12 @@
-subroutine quadrature_create ( this, ndime, ngaus )
+subroutine quadrature_create ( this, number_dimensions, number_evaluation_points )
   implicit none       
-  integer(ip), intent(in) :: ndime, ngaus
-  class(SB_quadrature_t), intent(out) :: this
-  this%number_dimensions = ndime
-  this%number_integration_points = ngaus
-  call memalloc(ndime,ngaus,this%coordinates,__FILE__,__LINE__)
-  call memalloc(ngaus,this%weight,__FILE__,__LINE__)
+  class(SB_quadrature_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: number_dimensions, number_evaluation_points
+  call this%free()
+  this%number_dimensions = number_dimensions
+  this%number_evaluation_points = number_evaluation_points
+  call memalloc(number_dimensions,number_evaluation_points,this%coordinates,__FILE__,__LINE__)
+  call memalloc(number_evaluation_points,this%weight,__FILE__,__LINE__)
   this%coordinates=0.0_rp
   this%weight=0.0_rp
 end subroutine quadrature_create
@@ -14,10 +15,19 @@ subroutine quadrature_free ( this)
   implicit none       
   class(SB_quadrature_t), intent(inout) :: this
   this%number_dimensions = 0
-  this%number_integration_points = 0
+  this%number_evaluation_points = 0
   if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
   if(allocated(this%weight)) call memfree(this%weight,__FILE__,__LINE__)
 end subroutine quadrature_free
+
+subroutine quadrature_print ( this )
+  implicit none
+  class(SB_quadrature_t), intent(in) :: this
+  write(*,*) 'number_dimensions: ', this%number_dimensions
+  write(*,*) 'number_evaluation_points: ', this%number_evaluation_points
+  write(*,*) 'coordinates: ', this%coordinates
+  write(*,*) 'weight: ', this%weight
+end subroutine quadrature_print
 
 function quadrature_get_number_dimensions ( this )
   implicit none
@@ -26,29 +36,20 @@ function quadrature_get_number_dimensions ( this )
   quadrature_get_number_dimensions = this%number_dimensions
 end function quadrature_get_number_dimensions
 
-function quadrature_get_number_integration_points ( this )
+function quadrature_get_number_evaluation_points ( this )
   implicit none
   class(SB_quadrature_t), intent(in) :: this
-  integer(ip) :: quadrature_get_number_integration_points
-  quadrature_get_number_integration_points = this%number_integration_points
-end function quadrature_get_number_integration_points
+  integer(ip) :: quadrature_get_number_evaluation_points
+  quadrature_get_number_evaluation_points = this%number_evaluation_points
+end function quadrature_get_number_evaluation_points
 
 function quadrature_get_weight ( this, i )
   implicit none
-  class(SB_quadrature_t), target, intent(in) :: this
-  integer(ip) :: i
+  class(SB_quadrature_t), intent(in) :: this
+  integer(ip), intent(in) :: i
   real(rp) :: quadrature_get_weight
   quadrature_get_weight = this%weight(i)
 end function quadrature_get_weight
-
-subroutine quadrature_print ( this )
-  implicit none
-  class(SB_quadrature_t), target, intent(in) :: this
-  write(*,*) 'number_dimensions: ', this%number_dimensions
-  write(*,*) 'number_integration_points: ', this%number_integration_points
-  write(*,*) 'coordinates: ', this%coordinates
-  write(*,*) 'weight: ', this%weight
-end subroutine quadrature_print
 
 ! function quadrature_get_pointer_coordinates ( this )
 !   implicit none
