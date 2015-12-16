@@ -2,10 +2,7 @@ module base_sparse_matrix_names
 
 USE types_names
 USE memor_names
-USE matrix_names
 USE vector_names
-USE vector_space_names
-USE serial_scalar_array_names
 
 implicit none
 
@@ -24,18 +21,6 @@ private
     integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC   = 3  
     integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED       = 4 
     integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE          = 5
-
-    ! State diagram
-    ! ----------------------------------
-    ! Null         Build      csall
-    ! Build        Build      csput
-    ! Build        Assembled  cscnv
-    ! Assembled    Assembled  cscnv
-    ! Assembled    Update     reinit
-    ! Update       Update     csput
-    ! Update       Assembled  cscnv
-    ! *            unchanged  reall 
-    ! Assembled    Null       free
 
     !-----------------------------------------------------------------
     ! State transition diagram for type(base_sparse_matrix_t)
@@ -75,7 +60,7 @@ private
     integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_INDEFINITE            = 12 ! Both positive and negative eigenvalues
     integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_UNKNOWN               = 13 ! No info
     
-    type, abstract, extends(matrix_t):: base_sparse_matrix_t
+    type, abstract :: base_sparse_matrix_t
     private 
         integer(ip) :: num_rows                          !< Number of rows
         integer(ip) :: num_cols                          !< Number of colums
@@ -104,7 +89,6 @@ private
         procedure         :: append_entries_body      => base_sparse_matrix_append_entries_body
         procedure         :: append_values_body       => base_sparse_matrix_append_values_body
         procedure         :: is_valid_sign            => base_sparse_matrix_is_valid_sign
-        procedure         :: create_vector_spaces     => base_sparse_matrix_create_vector_spaces 
         procedure         :: apply_body               => base_sparse_matrix_apply_body
         procedure, public :: copy_to_fmt              => base_sparse_matrix_copy_to_fmt
         procedure, public :: copy_from_fmt            => base_sparse_matrix_copy_from_fmt
@@ -125,8 +109,6 @@ private
         procedure, public :: set_state_update         => base_sparse_matrix_set_state_update
         procedure, public :: get_state                => base_sparse_matrix_get_state
         procedure, public :: allocate_arrays          => base_sparse_matrix_allocate_arrays
-        procedure, public :: allocate                 => base_sparse_matrix_allocate        ! Empty procedure
-        procedure, public :: free_in_stages           => base_sparse_matrix_free_in_stages  ! Empty procedure
         procedure, public :: apply                    => base_sparse_matrix_apply
         procedure, public :: free                     => base_sparse_matrix_free
         generic,   public :: create                   => base_sparse_matrix_create_square, &
@@ -501,27 +483,6 @@ contains
     end function base_sparse_matrix_get_num_cols
 
 
-    subroutine base_sparse_matrix_create_vector_spaces(this)
-    !-----------------------------------------------------------------
-    !< Create vector spaces
-    !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(inout) :: this
-        type(serial_scalar_array_t)                :: range_vector
-        type(serial_scalar_array_t)                :: domain_vector
-        type(vector_space_t), pointer              :: range_vector_space
-        type(vector_space_t), pointer              :: domain_vector_space
-    !-----------------------------------------------------------------
-        call range_vector%create(this%num_rows)
-        call domain_vector%create(this%num_cols)
-        range_vector_space => this%get_range_vector_space()
-        call range_vector_space%create(range_vector)
-        domain_vector_space => this%get_domain_vector_space()
-        call domain_vector_space%create(domain_vector)
-        call range_vector%free()
-        call domain_vector%free()
-    end subroutine base_sparse_matrix_create_vector_spaces
-
-
     subroutine base_sparse_matrix_create_square(this,num_rows_and_cols,symmetric_storage,is_symmetric,sign, nz)
     !-----------------------------------------------------------------
     !< Set the properties and size of a square matrix
@@ -543,7 +504,6 @@ contains
         this%sign = sign    
         this%num_rows = num_rows_and_cols
         this%num_cols = num_rows_and_cols
-        call this%create_vector_spaces()
         if(present(nz)) then
             call this%allocate_arrays(nz)
         else
@@ -567,7 +527,6 @@ contains
         this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
         this%num_rows = num_rows
         this%num_cols = num_cols
-        call this%create_vector_spaces()
         if(present(nz)) then
             call this%allocate_arrays(nz)
         else
@@ -668,16 +627,6 @@ contains
     end subroutine base_sparse_matrix_allocate_arrays
 
 
-    subroutine base_sparse_matrix_allocate(this)
-    !-----------------------------------------------------------------
-    !< Empty Allocate procedure.
-    !< As it extends from matrix_t, it must be implemented
-    !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(inout) :: this
-    !-----------------------------------------------------------------
-    end subroutine base_sparse_matrix_allocate
-
-
     subroutine base_sparse_matrix_apply(op, x, y)
     !-----------------------------------------------------------------
     !< Matrix vector product
@@ -702,17 +651,6 @@ contains
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_apply_body
-
-
-    subroutine base_sparse_matrix_free_in_stages(this, action)
-    !-----------------------------------------------------------------
-    !< Empty free_in_stages procedure.
-    !< As it extends from matrix_t, it must be implemented
-    !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(inout) :: this
-        integer(ip),                 intent(in)    :: action
-    !-----------------------------------------------------------------
-    end subroutine base_sparse_matrix_free_in_stages
 
 
     subroutine base_sparse_matrix_copy_to_fmt(this, to)
@@ -757,7 +695,6 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-!        call this%free_vector_spaces()
         this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
         this%num_rows = 0
         this%num_cols = 0

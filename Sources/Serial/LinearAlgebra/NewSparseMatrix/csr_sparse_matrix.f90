@@ -400,8 +400,6 @@ contains
         class(vector_t),            intent(in)    :: x
         class(vector_t) ,           intent(inout) :: y 
     !-----------------------------------------------------------------
-        call op%abort_if_not_in_domain(x)
-        call op%abort_if_not_in_range(y)
         call x%GuardTemp()
         select type(x)
             class is (serial_scalar_array_t)

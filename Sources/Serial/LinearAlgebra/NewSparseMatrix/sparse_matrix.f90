@@ -3,6 +3,9 @@ module sparse_matrix_names
 USE types_names
 USE memor_names
 USE vector_names
+USE matrix_names
+USE vector_space_names
+USE serial_scalar_array_names
 USE base_sparse_matrix_names, only: base_sparse_matrix_t
 USE coo_sparse_matrix_names
 USE csr_sparse_matrix_names
@@ -19,7 +22,7 @@ private
     integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_INDEFINITE            = 2 ! Both positive and negative eigenvalues
     integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_UNKNOWN               = 3 ! No info
 
-    type :: sparse_matrix_t
+    type, extends(matrix_t) :: sparse_matrix_t
     private
         class(base_sparse_matrix_t), allocatable :: State
     contains
@@ -31,6 +34,7 @@ private
         procedure         ::                              sparse_matrix_convert_string
         procedure         ::                              sparse_matrix_convert_sparse_matrix_mold
         procedure         ::                              sparse_matrix_convert_base_sparse_matrix_mold
+        procedure         :: create_vector_spaces      => sparse_matrix_create_vector_spaces
         procedure, public :: get_nnz                   => sparse_matrix_get_nnz
         procedure, public :: get_sign                  => sparse_matrix_get_sign
         procedure, public :: get_num_rows              => sparse_matrix_get_num_rows
@@ -40,6 +44,8 @@ private
         procedure, public :: is_by_cols                => sparse_matrix_is_by_cols
         procedure, public :: is_symmetric              => sparse_matrix_is_symmetric
         procedure, public :: get_default_sparse_matrix => sparse_matrix_get_default_sparse_matrix
+        procedure, public :: allocate                  => sparse_matrix_allocate        ! Empty procedure
+        procedure, public :: free_in_stages            => sparse_matrix_free_in_stages  ! Empty procedure
         generic,   public :: create                    => sparse_matrix_create_square, &
                                                           sparse_matrix_create_rectangular
         generic,   public :: set_values                => sparse_matrix_append_entries, &
@@ -147,6 +153,37 @@ contains
     end function sparse_matrix_get_sign
 
 
+    subroutine sparse_matrix_allocate(this)
+    !-----------------------------------------------------------------
+    !< Empty Allocate procedure.
+    !< As it extends from matrix_t, it must be implemented
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+    end subroutine sparse_matrix_allocate
+
+
+    subroutine sparse_matrix_create_vector_spaces(this)
+    !-----------------------------------------------------------------
+    !< Create vector spaces
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),      intent(inout) :: this
+        type(serial_scalar_array_t)                :: range_vector
+        type(serial_scalar_array_t)                :: domain_vector
+        type(vector_space_t), pointer              :: range_vector_space
+        type(vector_space_t), pointer              :: domain_vector_space
+    !-----------------------------------------------------------------
+        call range_vector%create(this%get_num_rows())
+        call domain_vector%create(this%get_num_cols())
+        range_vector_space => this%get_range_vector_space()
+        call range_vector_space%create(range_vector)
+        domain_vector_space => this%get_domain_vector_space()
+        call domain_vector_space%create(domain_vector)
+        call range_vector%free()
+        call domain_vector%free()
+    end subroutine sparse_matrix_create_vector_spaces
+
+
     subroutine sparse_matrix_create_square(this, num_rows_and_cols, symmetric_storage, is_symmetric, sign)
     !-----------------------------------------------------------------
     !< Set the properties and size of a square matrix
@@ -159,6 +196,7 @@ contains
     !-----------------------------------------------------------------
         if(.not. allocated(this%State)) allocate(coo_sparse_matrix_t :: this%State)
         call this%State%create(num_rows_and_cols, symmetric_storage, is_symmetric, sign)
+        call this%create_vector_spaces()
     end subroutine sparse_matrix_create_square
   
 
@@ -172,6 +210,7 @@ contains
     !-----------------------------------------------------------------
         if(.not. allocated(this%State)) allocate(coo_sparse_matrix_t :: this%State)
         call this%State%create(num_rows, num_cols)
+        call this%create_vector_spaces()
     end subroutine sparse_matrix_create_rectangular
 
 
@@ -327,6 +366,8 @@ contains
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------
+        call op%abort_if_not_in_domain(x)
+        call op%abort_if_not_in_range(y)
         call op%State%apply(x,y)
     end subroutine sparse_matrix_apply
 
@@ -345,7 +386,20 @@ contains
             call this%State%free()
             deallocate(this%State)
         endif
+        call this%free_vector_spaces()
     end subroutine sparse_matrix_free
+
+
+    subroutine sparse_matrix_free_in_stages(this, action)
+    !-----------------------------------------------------------------
+    !< free_in_stages procedure.
+    !< As it extends from matrix_t, it must be implemented
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: action
+    !-----------------------------------------------------------------
+        call this%free()
+    end subroutine sparse_matrix_free_in_stages
 
 
     subroutine sparse_matrix_print(this,lunou, only_graph)
