@@ -70,14 +70,14 @@ subroutine serial_scalar_matrix_array_assembler_assembly( this, el2dof, elmat, e
 
  select type(matrix)
     class is(serial_scalar_matrix_t)
-    call element_serial_scalar_matrix_assembly( matrix,  el2dof(1)%l,  elmat, nodes(1) )
+    call element_serial_scalar_matrix_assembly( matrix,  el2dof(1)%p,  elmat, nodes(1) )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_scalar_array_t)
-    call element_serial_scalar_array_assembly( array,  el2dof(1)%l,  elvec, nodes(1) )
+    call element_serial_scalar_array_assembly( array,  el2dof(1)%p,  elvec, nodes(1) )
     class default
     check(.false.)
  end select

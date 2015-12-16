@@ -219,19 +219,6 @@ end function reference_fe_get_continuity
     reference_fe_get_number_vefs_dimension = this%number_vefs_dimension
   end function reference_fe_get_number_vefs_dimension
 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   function reference_fe_get_number_nodes_vef ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
