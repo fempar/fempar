@@ -15,10 +15,6 @@ private
 
     type, extends(base_sparse_matrix_t) :: csr_sparse_matrix_t
         integer(ip), private       :: nnz = 0                     !< Number of non zeros
-        logical,     private       :: symmetric_storage = .false. !< .True.   Implicitly assumes that G=(V,E) is such that 
-                                                                  !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
-                                                                  !<          Only edges (i,j) with j>=i are stored.
-                                                                  !< .False.  All (i,j) \belongs E are stored.  
         integer(ip), allocatable   :: irp(:)                      !< Row pointers
         integer(ip), allocatable   :: ja(:)                       !< Column indices        
         real(rp),    allocatable   :: val(:)                      !< Values
@@ -28,8 +24,6 @@ private
         procedure, public :: is_by_cols              => csr_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                 => csr_sparse_matrix_set_nnz
         procedure, public :: get_nnz                 => csr_sparse_matrix_get_nnz
-        procedure, public :: set_symmetric_storage   => csr_sparse_matrix_set_symmetric_storage
-        procedure, public :: get_symmetric_storage   => csr_sparse_matrix_get_symmetric_storage
         procedure, public :: copy_to_coo             => csr_sparse_matrix_copy_to_coo
         procedure, public :: copy_from_coo           => csr_sparse_matrix_copy_from_coo
         procedure, public :: move_to_coo             => csr_sparse_matrix_move_to_coo
@@ -66,28 +60,6 @@ contains
     !-----------------------------------------------------------------
         nnz = this%nnz
     end function csr_sparse_matrix_get_nnz
-
-
-    subroutine csr_sparse_matrix_set_symmetric_storage(this, symmetric_storage)
-    !-----------------------------------------------------------------
-    !< Set symmetry storage property of the matrix
-    !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(inout) :: this
-        logical,                    intent(in)    :: symmetric_storage
-    !-----------------------------------------------------------------
-        this%symmetric_storage = symmetric_storage
-    end subroutine csr_sparse_matrix_set_symmetric_storage
-
-
-    function csr_sparse_matrix_get_symmetric_storage(this) result(symmetric_storage)
-    !-----------------------------------------------------------------
-    !< Get symmetric storage property of the matrix
-    !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(in) :: this
-        logical                                :: symmetric_storage
-    !-----------------------------------------------------------------
-        symmetric_storage = this%symmetric_storage
-    end function csr_sparse_matrix_get_symmetric_storage
 
 
     function csr_sparse_matrix_is_by_rows(this) result(is_by_rows)

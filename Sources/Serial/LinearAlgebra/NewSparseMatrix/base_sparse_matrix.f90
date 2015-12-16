@@ -67,12 +67,14 @@ private
         integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
         integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX parameters)
         logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
+        logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
+                                                         !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
+                                                         !<          Only edges (i,j) with j>=i are stored.
+                                                         !< .False.  All (i,j) \belongs E are stored.  
     contains
     private
         procedure(base_sparse_matrix_is_by_rows),            public, deferred :: is_by_rows
         procedure(base_sparse_matrix_is_by_cols),            public, deferred :: is_by_cols
-        procedure(base_sparse_matrix_set_symmetric_storage), public, deferred :: set_symmetric_storage
-        procedure(base_sparse_matrix_get_symmetric_storage), public, deferred :: get_symmetric_storage
         procedure(base_sparse_matrix_copy_to_coo),           public, deferred :: copy_to_coo
         procedure(base_sparse_matrix_copy_from_coo),         public, deferred :: copy_from_coo
         procedure(base_sparse_matrix_move_to_coo),           public, deferred :: move_to_coo
@@ -99,6 +101,8 @@ private
         procedure, public :: set_num_cols             => base_sparse_matrix_set_num_cols
         procedure, public :: get_num_cols             => base_sparse_matrix_get_num_cols
         procedure, public :: set_symmetry             => base_sparse_matrix_set_symmetry
+        procedure, public :: set_symmetric_storage    => base_sparse_matrix_set_symmetric_storage
+        procedure, public :: get_symmetric_storage    => base_sparse_matrix_get_symmetric_storage
         procedure, public :: is_symmetric             => base_sparse_matrix_is_symmetric
         procedure, public :: set_state                => base_sparse_matrix_set_state
         procedure, public :: set_state_start          => base_sparse_matrix_set_state_start
@@ -131,10 +135,6 @@ private
     type, extends(base_sparse_matrix_t) :: coo_sparse_matrix_t
         integer(ip), private       :: sort_status = COO_SPARSE_MATRIX_SORTED_NONE ! Not sorted
         integer(ip), private       :: nnz = 0                     !< Number of non zeros
-        logical,     private       :: symmetric_storage = .false. !< .True.   Implicitly assumes that G=(V,E) is such that 
-                                                                  !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
-                                                                  !<          Only edges (i,j) with j>=i are stored.
-                                                                  !< .False.  All (i,j) \belongs E are stored.  
         integer(ip), allocatable   :: ia(:)                       !< Row indices
         integer(ip), allocatable   :: ja(:)                       !< Column indices        
         real(rp),    allocatable   :: val(:)                      !< Values
@@ -151,8 +151,6 @@ private
         procedure, public :: set_sort_status_by_rows => coo_sparse_matrix_set_sort_status_by_rows
         procedure, public :: set_sort_status_by_cols => coo_sparse_matrix_set_sort_status_by_cols
         procedure, public :: get_sort_status         => coo_sparse_matrix_get_sort_status
-        procedure, public :: set_symmetric_storage   => coo_sparse_matrix_set_symmetric_storage
-        procedure, public :: get_symmetric_storage   => coo_sparse_matrix_get_symmetric_storage
         procedure, public :: allocate_arrays         => coo_sparse_matrix_allocate_arrays
         procedure, public :: copy_to_coo             => coo_sparse_matrix_copy_to_coo
         procedure, public :: copy_from_coo           => coo_sparse_matrix_copy_from_coo
@@ -190,19 +188,6 @@ private
             integer(ip)                             :: nnz
         end function base_sparse_matrix_get_nnz
 
-        subroutine base_sparse_matrix_set_symmetric_storage(this, symmetric_storage)
-            import base_sparse_matrix_t
-            class(base_sparse_matrix_t), intent(inout) :: this
-            logical,                     intent(in)    :: symmetric_storage
-        end subroutine base_sparse_matrix_set_symmetric_storage
-
-
-        function base_sparse_matrix_get_symmetric_storage(this) result(symmetric_storage)
-            import base_sparse_matrix_t
-            class(base_sparse_matrix_t), intent(in) :: this
-            logical                                 :: symmetric_storage
-        end function base_sparse_matrix_get_symmetric_storage
-
         subroutine base_sparse_matrix_copy_to_coo(this, to)
             import base_sparse_matrix_t
             import coo_sparse_matrix_t
@@ -216,7 +201,6 @@ private
             class(base_sparse_matrix_t), intent(inout) :: this
             class(coo_sparse_matrix_t), intent(in)     :: from
         end subroutine base_sparse_matrix_copy_from_coo
-
 
         subroutine base_sparse_matrix_move_to_coo(this, to)
             import base_sparse_matrix_t
@@ -422,6 +406,28 @@ contains
     !-----------------------------------------------------------------
         is_symmetric = this%symmetric
     end function base_sparse_matrix_is_symmetric
+
+
+    subroutine base_sparse_matrix_set_symmetric_storage(this, symmetric_storage)
+    !-----------------------------------------------------------------
+    !< Set symmetric storage property of the matrix
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        logical,                     intent(in)    :: symmetric_storage
+    !-----------------------------------------------------------------
+        this%symmetric_storage = symmetric_storage
+    end subroutine base_sparse_matrix_set_symmetric_storage
+
+
+    function base_sparse_matrix_get_symmetric_storage(this) result(symmetric_storage)
+    !-----------------------------------------------------------------
+    !< Get symmetric storage property of the matrix
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: symmetric_storage
+    !-----------------------------------------------------------------
+        symmetric_storage = this%symmetric_storage
+    end function base_sparse_matrix_get_symmetric_storage
 
 
     function base_sparse_matrix_is_valid_sign(this, sign) result(is_valid_sign)
@@ -729,28 +735,6 @@ contains
     !-----------------------------------------------------------------
         nnz = this%nnz
     end function coo_sparse_matrix_get_nnz
-
-
-    subroutine coo_sparse_matrix_set_symmetric_storage(this, symmetric_storage)
-    !-----------------------------------------------------------------
-    !< Set symmetry storage property of the matrix
-    !-----------------------------------------------------------------
-        class(coo_sparse_matrix_t), intent(inout) :: this
-        logical,                    intent(in)    :: symmetric_storage
-    !-----------------------------------------------------------------
-        this%symmetric_storage = symmetric_storage
-    end subroutine coo_sparse_matrix_set_symmetric_storage
-
-
-    function coo_sparse_matrix_get_symmetric_storage(this) result(symmetric_storage)
-    !-----------------------------------------------------------------
-    !< Get symmetric storage property of the matrix
-    !-----------------------------------------------------------------
-        class(coo_sparse_matrix_t), intent(in) :: this
-        logical                                :: symmetric_storage
-    !-----------------------------------------------------------------
-        symmetric_storage = this%symmetric_storage
-    end function coo_sparse_matrix_get_symmetric_storage
 
 
     subroutine coo_sparse_matrix_set_sort_status_none(this)
