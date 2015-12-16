@@ -39,15 +39,26 @@ module SB_assembler_names
   end type
   
   abstract interface
-     subroutine assembly_interface( this, el2dof, elmat, elvec, number_fe_spaces, blocks, &
-                                    nodes, blocks_coupling )
+     subroutine assembly_interface( this, & 
+                                    number_fe_spaces, &
+                                    elem2dof, &
+                                    field_blocks, &
+                                    number_nodes, &
+                                    field_coupling, &
+                                    elmat, &
+                                    elvec )
        import :: SB_assembler_t, rp, ip, i1p_t
        implicit none
-       class(SB_assembler_t)       , intent(inout) :: this
-       real(rp), intent(in) :: elmat(:,:), elvec(:)
-       type(i1p_t), intent(in) :: el2dof(:)
-       integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
-       logical, intent(in) :: blocks_coupling(:,:)
+       class(SB_assembler_t) , intent(inout) :: this
+       integer(ip)           , intent(in)    :: number_fe_spaces
+       integer(ip)           , intent(in)    :: number_nodes(number_fe_spaces)
+       type(i1p_t)           , intent(in)    :: elem2dof(number_fe_spaces)
+       integer(ip)           , intent(in)    :: field_blocks(number_fe_spaces)
+       logical               , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+       ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)              , intent(in)    :: elmat(:,:) 
+       ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)              , intent(in)    :: elvec(:)   
      end subroutine assembly_interface
   end interface
 	 
