@@ -424,8 +424,8 @@ program test_cdr
                            reference_fe_phy = reference_fe_array_two, &
                            reference_fe_geo_topology = "quad", &
                            reference_fe_geo_type = "Lagrangian", &
-                           blocks = (/1,2/), &
-                           blocks_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+                           field_blocks = (/1,2/), &
+                           field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
      
      call fe_space%fill_dof_info() 
      

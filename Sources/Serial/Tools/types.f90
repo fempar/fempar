@@ -108,22 +108,22 @@ module types_names
 
 
   type i1p_t
-     integer(ip), pointer :: l(:) => NULL()
+     integer(ip), pointer :: p(:) => NULL()
   end type i1p_t
   type i2p_t
-     integer(ip), pointer :: l(:,:) => NULL()
+     integer(ip), pointer :: p(:,:) => NULL()
   end type i2p_t
   type i3p_t
-     integer(ip), pointer :: l(:,:,:) => NULL()
+     integer(ip), pointer :: p(:,:,:) => NULL()
   end type i3p_t
   type r1p_t
-     real(rp),    pointer :: a(:) => NULL()
+     real(rp),    pointer :: p(:) => NULL()
   end type r1p_t
   type r2p_t
-     real(rp),    pointer :: a(:,:) => NULL()
+     real(rp),    pointer :: p(:,:) => NULL()
   end type r2p_t
   type r3p_t
-     real(rp),    pointer :: a(:,:,:) => NULL()
+     real(rp),    pointer :: p(:,:,:) => NULL()
   end type r3p_t
 
   ! Frequently used mathematical constants:

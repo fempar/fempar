@@ -54,8 +54,8 @@ subroutine impose_strong_dirichlet_data ( this, elmat, elvec, code, value, nnode
  do ifes = 1, num_fe_spaces
     do i = 1, nnode(ifes)
        c = c + 1
-       if ( code(ifes)%l(i) /= 0 ) then
-          elvec = elvec - elmat(:,c)*value(ifes)%a(i)
+       if ( code(ifes)%p(i) /= 0 ) then
+          elvec = elvec - elmat(:,c)*value(ifes)%p(i)
        end if
     end do
  end do

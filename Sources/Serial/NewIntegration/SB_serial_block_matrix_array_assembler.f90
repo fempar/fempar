@@ -102,7 +102,7 @@ subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spa
   do ifem = 1, number_fe_spaces
      iblock = blocks(ifem)
      do inode = 1, nodes(ifem)
-        idof = el2dof(ifem)%l(inode)
+        idof = el2dof(ifem)%p(inode)
         c_i = c_i + 1
         if ( idof > 0 ) then
            c_j = 0
@@ -111,7 +111,7 @@ subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spa
               if ( blocks_coupling(iblock,jblock) ) then
                  mat => a%get_block(iblock,jblock)
                  do jnode = 1, nodes(jfem)
-                    jdof = el2dof(jfem)%l(jnode)
+                    jdof = el2dof(jfem)%p(jnode)
                     c_j = c_j + 1
                     !write(*,*) 'ifem,iblock,inode,idof',ifem,iblock,inode,idof
                     !write(*,*) 'jfem,jblock,jnode,jdof',jfem,jblock,jnode,jdof
@@ -154,7 +154,7 @@ subroutine element_serial_block_array_assembly( a, el2dof, elvec, number_fe_spac
   do ifem = 1, number_fe_spaces
      iblock = blocks(ifem)
      do inode = 1, nodes(ifem)
-        idof = el2dof(ifem)%l(inode) 
+        idof = el2dof(ifem)%p(inode) 
         c_i = c_i+1
         if ( idof  > 0 ) then
            a%blocks(iblock)%b(idof) =  a%blocks(iblock)%b(idof) + elvec(c_i)
