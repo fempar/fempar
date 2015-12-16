@@ -15,12 +15,13 @@ private
 !---------------------------------------------------------------------
 
     ! States
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_START           = 0 
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_CREATED         = 1 
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC  = 2 
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC   = 3  
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED       = 4 
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE          = 5
+    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_START              = 0
+    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
+    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
+    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
+    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
+    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
+    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
 
     !-----------------------------------------------------------------
     ! State transition diagram for type(base_sparse_matrix_t)
@@ -32,26 +33,41 @@ private
     ! Input State         | Action                | Output State 
     !-----------------------------------------------------------------
     ! Start               | Create                | Created
-    ! Start               | Free                  | Start
+    ! Start               | Free_clean            | Start ???
+    ! Start               | Free_symbolic         | Start ???
+    ! Start               | Free_numeric          | * Error ???
 
     ! Created             | Insert (2-values)     | Build_symbolic
     ! Created             | Insert (3-values)     | Build_numeric
-    ! Created             | Free                  | Start
+    ! Created             | Free_clean            | Start
+    ! Start               | Free_symbolic         | Created
+    ! Start               | Free_numeric          | Assembled_symbolic
 
-    ! Build_symbolic      | Free                  | Start
     ! Build_symbolic      | Insert (2-values)     | Build_symbolic
     ! Build_symbolic      | Insert (2-values)     | * Error
-    ! Build_symbolic      | convert               | Assembled
+    ! Build_symbolic      | convert               | Assembled_symbolic
+    ! Build_symbolic      | Free_clean            | Start
+    ! Build_symbolic      | Free_symbolic         | Created
+    ! Build_symbolic      | Free_numeric          | Created
 
-    ! Build_numeric       | Free                  | Start
     ! Build_numeric       | Insert (2-values)     | * Error
     ! Build_numeric       | Insert (3-values)     | Build_numeric
     ! Build_numeric       | convert               | Assembled
-
-    ! Assembled           | Free                  | Start
+    ! Build_numeric       | Free_clean            | Start
+    ! Build_numeric       | Free_symbolic         | Created
+    ! Build_numeric       | Free_numeric          | Created
+    !-----------------------------------------------------------------
+    ! Under development
+    !-----------------------------------------------------------------
+    ! Assembled           | Free_clean            | Start
+    ! Assembled           | Free_symbolic         | Created
+    ! Assembled           | Free_numeric          | Assembled_numeric
     ! Assembled           | Set                   | Update
 
-    ! Update              | Free                  | Start
+    ! Assembled_symbolic  | Free_clean            | Start
+    ! Assembled_symbolic  | Set                   | Update
+
+    ! Update              | Free_clean            | Start
 
   
     ! Matrix sign
@@ -65,7 +81,7 @@ private
         integer(ip) :: num_rows                          !< Number of rows
         integer(ip) :: num_cols                          !< Number of colums
         integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
-        integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX parameters)
+        integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
         logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
         logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
                                                          !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
@@ -73,54 +89,62 @@ private
                                                          !< .False.  All (i,j) \belongs E are stored.  
     contains
     private
-        procedure(base_sparse_matrix_is_by_rows),            public, deferred :: is_by_rows
-        procedure(base_sparse_matrix_is_by_cols),            public, deferred :: is_by_cols
-        procedure(base_sparse_matrix_copy_to_coo),           public, deferred :: copy_to_coo
-        procedure(base_sparse_matrix_copy_from_coo),         public, deferred :: copy_from_coo
-        procedure(base_sparse_matrix_move_to_coo),           public, deferred :: move_to_coo
-        procedure(base_sparse_matrix_move_from_coo),         public, deferred :: move_from_coo
-        procedure(base_sparse_matrix_move_to_fmt),           public, deferred :: move_to_fmt
-        procedure(base_sparse_matrix_move_from_fmt),         public, deferred :: move_from_fmt
-        procedure(base_sparse_matrix_free_arrays),           public, deferred :: free_arrays
-        procedure(base_sparse_matrix_get_nnz),               public, deferred :: get_nnz
-        procedure(base_sparse_matrix_print),                 public, deferred :: print
-        procedure         ::                             base_sparse_matrix_create_square
-        procedure         ::                             base_sparse_matrix_create_rectangular
-        procedure         ::                             base_sparse_matrix_append_entries
-        procedure         ::                             base_sparse_matrix_append_values
-        procedure         :: append_entries_body      => base_sparse_matrix_append_entries_body
-        procedure         :: append_values_body       => base_sparse_matrix_append_values_body
-        procedure         :: is_valid_sign            => base_sparse_matrix_is_valid_sign
-        procedure         :: apply_body               => base_sparse_matrix_apply_body
-        procedure, public :: copy_to_fmt              => base_sparse_matrix_copy_to_fmt
-        procedure, public :: copy_from_fmt            => base_sparse_matrix_copy_from_fmt
-        procedure, public :: set_sign                 => base_sparse_matrix_set_sign
-        procedure, public :: get_sign                 => base_sparse_matrix_get_sign
-        procedure, public :: set_num_rows             => base_sparse_matrix_set_num_rows
-        procedure, public :: get_num_rows             => base_sparse_matrix_get_num_rows
-        procedure, public :: set_num_cols             => base_sparse_matrix_set_num_cols
-        procedure, public :: get_num_cols             => base_sparse_matrix_get_num_cols
-        procedure, public :: set_symmetry             => base_sparse_matrix_set_symmetry
-        procedure, public :: set_symmetric_storage    => base_sparse_matrix_set_symmetric_storage
-        procedure, public :: get_symmetric_storage    => base_sparse_matrix_get_symmetric_storage
-        procedure, public :: is_symmetric             => base_sparse_matrix_is_symmetric
-        procedure, public :: set_state                => base_sparse_matrix_set_state
-        procedure, public :: set_state_start          => base_sparse_matrix_set_state_start
-        procedure, public :: set_state_created        => base_sparse_matrix_set_state_created
-        procedure, public :: set_state_build_symbolic => base_sparse_matrix_set_state_build_symbolic
-        procedure, public :: set_state_build_numeric  => base_sparse_matrix_set_state_build_numeric
-        procedure, public :: set_state_assembled      => base_sparse_matrix_set_state_assembled
-        procedure, public :: set_state_update         => base_sparse_matrix_set_state_update
-        procedure, public :: get_state                => base_sparse_matrix_get_state
-        procedure, public :: allocate_arrays          => base_sparse_matrix_allocate_arrays
-        procedure, public :: apply                    => base_sparse_matrix_apply
-        procedure, public :: free                     => base_sparse_matrix_free
-        generic,   public :: create                   => base_sparse_matrix_create_square, &
-                                                         base_sparse_matrix_create_rectangular
-        generic,   public :: set_values               => base_sparse_matrix_append_entries, &
-                                                         base_sparse_matrix_append_values
-        generic           :: append_body              => append_entries_body, &
-                                                         append_values_body
+        procedure(base_sparse_matrix_is_by_rows),    public, deferred :: is_by_rows
+        procedure(base_sparse_matrix_is_by_cols),    public, deferred :: is_by_cols
+        procedure(base_sparse_matrix_copy_to_coo),   public, deferred :: copy_to_coo
+        procedure(base_sparse_matrix_copy_from_coo), public, deferred :: copy_from_coo
+        procedure(base_sparse_matrix_move_to_coo),   public, deferred :: move_to_coo
+        procedure(base_sparse_matrix_move_from_coo), public, deferred :: move_from_coo
+        procedure(base_sparse_matrix_move_to_fmt),   public, deferred :: move_to_fmt
+        procedure(base_sparse_matrix_move_from_fmt), public, deferred :: move_from_fmt
+        procedure(base_sparse_matrix_allocate_val),  public, deferred :: allocate_val
+        procedure(base_sparse_matrix_free_coords),   public, deferred :: free_coords
+        procedure(base_sparse_matrix_free_val),      public, deferred :: free_val
+        procedure(base_sparse_matrix_get_nnz),       public, deferred :: get_nnz
+        procedure(base_sparse_matrix_print),         public, deferred :: print
+        procedure         ::                                 base_sparse_matrix_create_square
+        procedure         ::                                 base_sparse_matrix_create_rectangular
+        procedure         ::                                 base_sparse_matrix_append_entries
+        procedure         ::                                 base_sparse_matrix_append_values
+        procedure         :: append_entries_body          => base_sparse_matrix_append_entries_body
+        procedure         :: append_values_body           => base_sparse_matrix_append_values_body
+        procedure         :: is_valid_sign                => base_sparse_matrix_is_valid_sign
+        procedure         :: apply_body                   => base_sparse_matrix_apply_body
+        procedure, public :: is_symbolic                  => base_sparse_matrix_is_symbolic
+        procedure, public :: copy_to_fmt                  => base_sparse_matrix_copy_to_fmt
+        procedure, public :: copy_from_fmt                => base_sparse_matrix_copy_from_fmt
+        procedure, public :: set_sign                     => base_sparse_matrix_set_sign
+        procedure, public :: get_sign                     => base_sparse_matrix_get_sign
+        procedure, public :: set_num_rows                 => base_sparse_matrix_set_num_rows
+        procedure, public :: get_num_rows                 => base_sparse_matrix_get_num_rows
+        procedure, public :: set_num_cols                 => base_sparse_matrix_set_num_cols
+        procedure, public :: get_num_cols                 => base_sparse_matrix_get_num_cols
+        procedure, public :: set_symmetry                 => base_sparse_matrix_set_symmetry
+        procedure, public :: set_symmetric_storage        => base_sparse_matrix_set_symmetric_storage
+        procedure, public :: get_symmetric_storage        => base_sparse_matrix_get_symmetric_storage
+        procedure, public :: is_symmetric                 => base_sparse_matrix_is_symmetric
+        procedure, public :: set_state                    => base_sparse_matrix_set_state
+        procedure, public :: set_state_start              => base_sparse_matrix_set_state_start
+        procedure, public :: set_state_created            => base_sparse_matrix_set_state_created
+        procedure, public :: set_state_build_symbolic     => base_sparse_matrix_set_state_build_symbolic
+        procedure, public :: set_state_build_numeric      => base_sparse_matrix_set_state_build_numeric
+        procedure, public :: set_state_assembled          => base_sparse_matrix_set_state_assembled
+        procedure, public :: set_state_assembled_symbolic => base_sparse_matrix_set_state_assembled_symbolic
+        procedure, public :: set_state_update             => base_sparse_matrix_set_state_update
+        procedure, public :: get_state                    => base_sparse_matrix_get_state
+        procedure, public :: allocate_coords              => base_sparse_matrix_allocate_coords
+        procedure, public :: allocate_values              => base_sparse_matrix_allocate_values
+        procedure, public :: apply                        => base_sparse_matrix_apply
+        procedure, public :: free                         => base_sparse_matrix_free
+        procedure, public :: free_clean                   => base_sparse_matrix_free_clean
+        procedure, public :: free_symbolic                => base_sparse_matrix_free_symbolic
+        procedure, public :: free_numeric                 => base_sparse_matrix_free_numeric
+        generic,   public :: create                       => base_sparse_matrix_create_square, &
+                                                             base_sparse_matrix_create_rectangular
+        generic,   public :: set_values                   => base_sparse_matrix_append_entries, &
+                                                             base_sparse_matrix_append_values
+        generic           :: append_body                  => append_entries_body, &
+                                                             append_values_body
     end type
 
 
@@ -151,7 +175,8 @@ private
         procedure, public :: set_sort_status_by_rows => coo_sparse_matrix_set_sort_status_by_rows
         procedure, public :: set_sort_status_by_cols => coo_sparse_matrix_set_sort_status_by_cols
         procedure, public :: get_sort_status         => coo_sparse_matrix_get_sort_status
-        procedure, public :: allocate_arrays         => coo_sparse_matrix_allocate_arrays
+        procedure, public :: allocate_coords         => coo_sparse_matrix_allocate_coords
+        procedure, public :: allocate_val            => coo_sparse_matrix_allocate_val
         procedure, public :: copy_to_coo             => coo_sparse_matrix_copy_to_coo
         procedure, public :: copy_from_coo           => coo_sparse_matrix_copy_from_coo
         procedure, public :: copy_to_fmt             => coo_sparse_matrix_copy_to_fmt
@@ -160,7 +185,8 @@ private
         procedure, public :: move_from_coo           => coo_sparse_matrix_move_from_coo
         procedure, public :: move_to_fmt             => coo_sparse_matrix_move_to_fmt
         procedure, public :: move_from_fmt           => coo_sparse_matrix_move_from_fmt
-        procedure, public :: free_arrays             => coo_sparse_matrix_free_arrays
+        procedure, public :: free_coords             => coo_sparse_matrix_free_coords
+        procedure, public :: free_val                => coo_sparse_matrix_free_val
         procedure, public :: print                   => coo_sparse_matrix_print
     end type coo_sparse_matrix_t
 
@@ -228,10 +254,22 @@ private
             class(base_sparse_matrix_t), intent(inout) :: from
         end subroutine base_sparse_matrix_move_from_fmt
 
-        subroutine base_sparse_matrix_free_arrays(this)
+        subroutine base_sparse_matrix_allocate_val(this, nz)
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t),  intent(inout) :: this
+            integer(ip), optional,        intent(in)    :: nz
+        end subroutine base_sparse_matrix_allocate_val
+
+        subroutine base_sparse_matrix_free_coords(this)
             import base_sparse_matrix_t
             class(base_sparse_matrix_t),  intent(inout) :: this
-        end subroutine base_sparse_matrix_free_arrays
+        end subroutine base_sparse_matrix_free_coords
+
+        subroutine base_sparse_matrix_free_val(this)
+            import base_sparse_matrix_t
+            class(base_sparse_matrix_t),  intent(inout) :: this
+        end subroutine base_sparse_matrix_free_val
 
         subroutine base_sparse_matrix_print(this,lunou, only_graph)
             import base_sparse_matrix_t
@@ -297,7 +335,7 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_START)
+        check(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
         this%state = SPARSE_MATRIX_STATE_CREATED
     end subroutine base_sparse_matrix_set_state_created
 
@@ -328,15 +366,28 @@ contains
     end subroutine base_sparse_matrix_set_state_build_numeric
 
 
+    subroutine base_sparse_matrix_set_state_assembled_symbolic(this)
+    !-----------------------------------------------------------------
+    !< Set the matrix state to SPARSE_MATRIX_STATE_ASSEMBLED
+    !< The matrix can be in this state after SPARSE_MATRIX_STATE_UPDATE
+    !< or SPARSE_MATRIX_STATE_ASSEMBLED or SPARSE_MATRIX_STATE_BUILD_SYMBOLIC
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        check(this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+        this%state = SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC
+    end subroutine base_sparse_matrix_set_state_assembled_symbolic
+
+
     subroutine base_sparse_matrix_set_state_assembled(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_ASSEMBLED
     !< The matrix can be in this state after SPARSE_MATRIX_STATE_UPDATE
-    !< or SPARSE_MATRIX_STATE_BUILD_SYMBOLIC or SPARSE_MATRIX_STATE_BUILD_NUMERIC
+    !< or SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC or SPARSE_MATRIX_STATE_BUILD_NUMERIC
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        check(this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         this%state = SPARSE_MATRIX_STATE_ASSEMBLED
     end subroutine base_sparse_matrix_set_state_assembled
 
@@ -489,6 +540,17 @@ contains
     end function base_sparse_matrix_get_num_cols
 
 
+    function base_sparse_matrix_is_symbolic(this) result(symbolic)
+    !-----------------------------------------------------------------
+    !< Check if values are allocated/managed
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: symbolic
+    !-----------------------------------------------------------------
+        symbolic = (this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+    end function base_sparse_matrix_is_symbolic
+
+
     subroutine base_sparse_matrix_create_square(this,num_rows_and_cols,symmetric_storage,is_symmetric,sign, nz)
     !-----------------------------------------------------------------
     !< Set the properties and size of a square matrix
@@ -511,9 +573,9 @@ contains
         this%num_rows = num_rows_and_cols
         this%num_cols = num_rows_and_cols
         if(present(nz)) then
-            call this%allocate_arrays(nz)
+            call this%allocate_coords(nz)
         else
-            call this%allocate_arrays()
+            call this%allocate_coords()
         endif
     end subroutine base_sparse_matrix_create_square
 
@@ -534,9 +596,9 @@ contains
         this%num_rows = num_rows
         this%num_cols = num_cols
         if(present(nz)) then
-            call this%allocate_arrays(nz)
+            call this%allocate_coords(nz)
         else
-            call this%allocate_arrays()
+            call this%allocate_coords()
         endif
     end subroutine base_sparse_matrix_create_rectangular
 
@@ -621,17 +683,29 @@ contains
     end subroutine base_sparse_matrix_append_entries_body
 
 
-    subroutine base_sparse_matrix_allocate_arrays(this, nz)
+    subroutine base_sparse_matrix_allocate_coords(this, nz)
     !-----------------------------------------------------------------
-    !< Allocate arrays
+    !< Allocate coords
     !< Must be overloaded 
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine base_sparse_matrix_allocate_arrays
+    end subroutine base_sparse_matrix_allocate_coords
 
+
+    subroutine base_sparse_matrix_allocate_values(this, nz)
+    !-----------------------------------------------------------------
+    !< Allocate val
+    !< Must be overloaded 
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip), optional,       intent(in)    :: nz
+    !-----------------------------------------------------------------
+        call this%allocate_val(nz)
+        call this%set_state_assembled()
+    end subroutine base_sparse_matrix_allocate_values
 
     subroutine base_sparse_matrix_apply(op, x, y)
     !-----------------------------------------------------------------
@@ -701,14 +775,48 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
+        call this%free_clean()
+    end subroutine base_sparse_matrix_free
+
+
+    subroutine base_sparse_matrix_free_clean (this)
+    !-----------------------------------------------------------------
+    !< Clean the properties, size and arrays of a matrix
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
         this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
         this%num_rows = 0
         this%num_cols = 0
         this%symmetric = .false.
-        call this%set_symmetric_storage(.false.)
-        call this%free_arrays()
+        this%symmetric_storage = .false.
+        call this%free_coords()
+        call this%free_val()
         call this%set_state_start()
-    end subroutine base_sparse_matrix_free
+    end subroutine base_sparse_matrix_free_clean
+
+
+    subroutine base_sparse_matrix_free_symbolic (this)
+    !-----------------------------------------------------------------
+    !< Clean the coords and values of a matrix
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        call this%free_coords()
+        call this%free_val()
+        call this%set_state_created()
+    end subroutine base_sparse_matrix_free_symbolic
+
+
+    subroutine base_sparse_matrix_free_numeric (this)
+    !-----------------------------------------------------------------
+    !< Clean the values of a matrix
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        call this%free_val()
+        call this%set_state_assembled_symbolic()
+    end subroutine base_sparse_matrix_free_numeric
 
 
 !---------------------------------------------------------------------
@@ -800,7 +908,7 @@ contains
     end function coo_sparse_matrix_is_by_cols
 
 
-    subroutine coo_sparse_matrix_allocate_arrays(this, nz)
+    subroutine coo_sparse_matrix_allocate_coords(this, nz)
     !-----------------------------------------------------------------
     !< Allocate COO arrays
     !-----------------------------------------------------------------
@@ -810,13 +918,28 @@ contains
         if(present(nz)) then
             call memalloc(nz, this%ia,  __FILE__, __LINE__)
             call memalloc(nz, this%ja,  __FILE__, __LINE__)
-            call memalloc(nz, this%val, __FILE__, __LINE__)
         else
             call memalloc(max(7*this%num_rows, 7*this%num_cols, 1), this%ia,  __FILE__, __LINE__)
             call memalloc(max(7*this%num_rows, 7*this%num_cols, 1), this%ja,  __FILE__, __LINE__)
-            call memalloc(max(7*this%num_rows, 7*this%num_cols, 1), this%val, __FILE__, __LINE__)
         endif
-    end subroutine coo_sparse_matrix_allocate_arrays
+    end subroutine coo_sparse_matrix_allocate_coords
+
+
+    subroutine coo_sparse_matrix_allocate_val(this, nz)
+    !-----------------------------------------------------------------
+    !< Allocate COO arrays
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout)  :: this
+        integer(ip), optional,      intent(in)     :: nz
+    !-----------------------------------------------------------------
+        check(.not. allocated(this%val))
+        if(present(nz)) then
+            call memalloc(nz, this%val, __FILE__, __LINE__)
+        else
+            call memalloc(max(7*this%num_rows, 7*this%num_cols, 1), this%val,  __FILE__, __LINE__)
+        endif
+        this%val = 0.0_rp
+    end subroutine coo_sparse_matrix_allocate_val
 
 
     subroutine coo_sparse_matrix_append_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
@@ -847,10 +970,6 @@ contains
             call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
             call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
-        ! Not yet used positions initialized to 0
-        this%ia(nnz+1:) = 0
-        this%ja(nnz+1:) = 0
-        this%val(nnz+1:) = 0.0_rp
         ! Append the new entries and values
         do i=1, nz
             ir = ia(i); ic = ja(i)
@@ -895,9 +1014,6 @@ contains
             call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
             call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
-        ! Not yet used positions initialized to 0
-        this%ia(nnz+1:) = 0
-        this%ja(nnz+1:) = 0
         ! Append the new entries
         do i=1, nz
             ir = ia(i); ic = ja(i)
@@ -936,358 +1052,744 @@ contains
     !-----------------------------------------------------------------
         by_rows     = .true.
         sum_dupl    = .true.
-        sorted      = .true.
-        use_buffers = .true.
+
         if(present(by_cols)) by_rows = .not. by_cols
 
         if(present(sum_duplicates)) sum_dupl = sum_duplicates
-        if(sum_dupl) then
-            apply_duplicates => sum_value
+
+        if(this%is_symbolic()) then
+            call sort_and_compress_symbolic(this, .not. by_rows, sum_dupl)
         else
-            apply_duplicates => assign_value
+            call sort_and_compress_numeric(this, .not. by_rows, sum_dupl)
         endif
-
-        nnz = this%nnz
-
-        call memalloc(max(this%num_rows, this%num_cols, nnz) + 2, iaux, __FILE__, __LINE__)
-        allocate(ias(nnz),  &
-                 jas(nnz),  &
-                 vs(nnz),   &
-                 ix2(max(this%num_rows, this%num_cols, nnz) + 2), stat=info)
-
-        use_buffers = (info == 0)
-        iaux = 0
-
-        if(by_rows) then
-        ! By-rows sorting
-            if(use_buffers) then
-            ! If there is enough memory space
-                if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
-                    iaux(this%ia(1)) = iaux(this%ia(1))+1
-                    sorted = .true.
-                    do i = 2, nnz
-                        if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
-                            use_buffers = .false.
-                            exit
-                        endif
-                        iaux(this%ia(i)) = iaux(this%ia(i)) + 1
-                        sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
-                    enddo
-                else
-                    use_buffers = .false.
-                endif
-            endif
-
-            if(use_buffers) then
-            ! If there is enough memory space
-                if(sorted) then
-                ! If rows are already sorted
-                    k = 0
-                    i = 1
-                    do j = 1, this%num_rows
-                        nzl = iaux(j)
-                        imx = i + nzl - 1
-                        if(nzl > 0)  then
-                            ! Sort the colums of a particular row
-                            call mergesort(nzl,this%ja(i:imx),ix2, iret)
-                            if(iret == 0) call reorder(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
-                            k = k + 1
-                            this%ia(k)  = this%ia(i)
-                            this%ja(k)  = this%ja(i)
-                            this%val(k) = this%val(i)
-                            irw = this%ia(k)
-                            icl = this%ja(k)
-                            do 
-                                i=i+1
-                                if(i > imx) exit
-                                ! If symmetric_storage, only upper triangle is stored
-                                if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
-                                if(this%ia(i) == irw .and. this%ja(i) == icl) then
-                                    ! Duplicated values action: assign the last value
-                                    call apply_duplicates(input=this%val(i), output=this%val(k))
-                                else
-                                    k = k + 1
-                                    this%ia(k)  = this%ia(i)
-                                    this%ja(k)  = this%ja(i)
-                                    this%val(k) = this%val(i)
-                                    irw = this%ia(k)
-                                    icl = this%ja(k)
-                                endif
-                            enddo
-                        endif
-                    enddo
-                else
-                ! If rows are NOT sorted
-                    ip = iaux(1)
-                    iaux(1) = 0
-                    do i=2, this%num_rows
-                        is = iaux(i)
-                        iaux(i) = ip
-                        ip = ip + is
-                    enddo
-                    iaux(this%num_rows + 1) = ip
-
-                    do i=1, nnz
-                        irw = this%ia(i)
-                        ip = iaux(irw) + 1
-                        ias(ip) = this%ia(i)
-                        jas(ip) = this%ja(i)
-                        vs(ip)  = this%val(i)
-                        iaux(irw) = ip
-                    enddo
-
-                    k = 0
-                    i = 1
-                    do j=1, this%num_rows
-                        nzl = iaux(j) - i + 1
-                        imx = i + nzl - 1
-
-                        if(nzl > 0) then
-                            ! Sort the colums of a particular row
-                            call mergesort(nzl,jas(i:imx),ix2, iret)
-                            if(iret == 0) call reorder(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
-                            k = k + 1
-                            this%ia(k)  = ias(i)
-                            this%ja(k)  = jas(i)
-                            this%val(k) = vs(i)
-                            irw = this%ia(k)
-                            icl = this%ja(k)
-                            do 
-                                i=i+1
-                                if(i > imx) exit
-                                ! If symmetric_storage, only upper triangle is stored
-                                if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
-                                if(ias(i) == irw .and. jas(i) == icl) then
-                                    ! Duplicated values: assign the last value
-                                    call apply_duplicates(input=vs(i), output=this%val(k))
-                                else
-!                                    this%val(k) = vs(i)
-                                    k = k + 1
-                                    this%ia(k)  = ias(i)
-                                    this%ja(k)  = jas(i)
-                                    this%val(k) = vs(i)
-                                    irw = this%ia(k)
-                                    icl = this%ja(k)
-                                endif
-                            enddo
-                        endif
-                    enddo
-                endif
-                i = k
-            else
-            ! If there is'n enough memory space
-                ! Sort the rows
-                call mergesort(nnz,this%ia, iaux, iret)
-                if(iret == 0) call reorder(nnz, this%val, this%ia, this%ja, iaux)
-                i = 1
-                j = i
-                do while (i <= nnz)
-                    do while (this%ia(j) == this%ia(i))
-                        j = j + 1
-                        if(j > nnz) exit
-                    enddo
-                    nzl = j - i
-                    ! Sort the colums of a particular row
-                    call mergesort(nzl, this%ja(i:), iaux, iret)
-                    if(iret == 0) call reorder(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
-                    i = j
-                enddo
-
-                i = 1
-                j = 1
-                irw = this%ia(i)
-                icl = this%ja(i)
-
-                do 
-                    j = j + 1
-                    if(j > nnz) exit
-                    ! If symmetric_storage, only upper triangle is stored
-                    if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
-                    if(this%ia(j) == irw .and. this%ja(j) == icl) then
-                        ! Duplicated values: assign the last value
-                        call apply_duplicates(input=this%val(j), output=this%val(i))
-!                        this%val(i) = this%val(j)
-                    else
-                        i = i + 1
-                        this%ia(i)  = this%ia(j)
-                        this%ja(i)  = this%ja(j)
-                        this%val(i) = this%val(j)
-                        irw = this%ia(i)
-                        icl = this%ja(i)
-                    endif
-                enddo
-            endif
-            this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_ROWS
-        else
-        ! By-columns sorting
-            if(use_buffers) then
-            ! If there is enough memory space
-                if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
-                    iaux(this%ja(1)) = iaux(this%ja(1))+1
-                    sorted = .true.
-                    do i = 2, nnz
-                        if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
-                            use_buffers = .false.
-                            exit
-                        endif
-                        iaux(this%ja(i)) = iaux(this%ja(i)) + 1
-                        sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
-                    enddo
-                else
-                    use_buffers = .false.
-                endif
-            endif
-
-            if(use_buffers) then
-            ! If there is enough memory space
-                if(sorted) then
-                ! If columns are already sorted
-                    k = 0
-                    i = 1
-                    do j = 1, this%num_cols
-                        nzl = iaux(j)
-                        imx = i + nzl - 1
-                        if(nzl > 0)  then
-                            ! Sort the rows of a particular columns
-                            call mergesort(nzl,this%ia(i:imx),ix2, iret)
-                            if(iret == 0) call reorder(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
-                            k = k + 1
-                            this%ia(k)  = this%ia(i)
-                            this%ja(k)  = this%ja(i)
-                            this%val(k) = this%val(i)
-                            irw = this%ia(k)
-                            icl = this%ja(k)
-                            do 
-                                i=i+1
-                                if(i > imx) exit
-                                ! If symmetric_storage, only lower triangle is stored
-                                if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
-                                if(this%ia(i) == irw .and. this%ja(i) == icl) then
-                                    ! Duplicated values action: assign the last value or sum the values
-                                    call apply_duplicates(input=this%val(i), output=this%val(k))
-                                else
-                                    k = k + 1
-                                    this%ia(k)  = this%ia(i)
-                                    this%ja(k)  = this%ja(i)
-                                    this%val(k) = this%val(i)
-                                    irw = this%ia(k)
-                                    icl = this%ja(k)
-                                endif
-                            enddo
-                        endif
-                    enddo
-                else
-                ! If columns are NOT sorted
-                    ip = iaux(1)
-                    iaux(1) = 0
-                    do i=2, this%num_cols
-                        is = iaux(i)
-                        iaux(i) = ip
-                        ip = ip + is
-                    enddo
-                    iaux(this%num_cols + 1) = ip
-
-                    do i=1, nnz
-                        icl = this%ja(i)
-                        ip = iaux(icl) + 1
-                        ias(ip) = this%ia(i)
-                        jas(ip) = this%ja(i)
-                        vs(ip)  = this%val(i)
-                        iaux(icl) = ip
-                    enddo
-
-                    k = 0
-                    i = 1
-                    do j=1, this%num_cols
-                        nzl = iaux(j) - i + 1
-                        imx = i + nzl - 1
-
-                        if(nzl > 0) then
-                            ! Sort the rows of a particular column
-                            call mergesort(nzl,ias(i:imx),ix2, iret)
-                            if(iret == 0) call reorder(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
-                            k = k + 1
-                            this%ia(k)  = ias(i)
-                            this%ja(k)  = jas(i)
-                            this%val(k) = vs(i)
-                            irw = this%ia(k)
-                            icl = this%ja(k)
-                            do 
-                                i=i+1
-                                if(i > imx) exit
-                                ! If symmetric_storage, only lower triangle is stored 
-                                if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
-                                if(ias(i) == irw .and. jas(i) == icl) then
-                                    ! Duplicated values: assign the last value or sum the values
-                                    call apply_duplicates(input=vs(i), output=this%val(k))
-                                else
-                                    k = k + 1
-                                    this%ia(k)  = ias(i)
-                                    this%ja(k)  = jas(i)
-                                    this%val(k) = vs(i)
-                                    irw = this%ia(k)
-                                    icl = this%ja(k)
-                                endif
-                            enddo
-                        endif
-                    enddo
-                endif
-                i = k
-            else
-            ! If there is'n enough memory space
-                ! Sort the columns
-                call mergesort(nnz,this%ja, iaux, iret)
-                if(iret == 0) call reorder(nnz, this%val, this%ia, this%ja, iaux)
-                i = 1
-                j = i
-                do while (i <= nnz)
-                    do while (this%ja(j) == this%ja(i))
-                        j = j + 1
-                        if(j > nnz) exit
-                    enddo
-                    nzl = j - i
-                    ! Sort the rows of a particular column
-                    call mergesort(nzl, this%ia(i:), iaux, iret)
-                    if(iret == 0) call reorder(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
-                    i = j
-                enddo
-
-                i = 1
-                j = 1
-                irw = this%ia(i)
-                icl = this%ja(i)
-
-                do 
-                    j = j + 1
-                    if(j > nnz) exit
-                    ! If symmetric_storage, only lower triangle is stored
-                    if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
-                    if(this%ia(j) == irw .and. this%ja(j) == icl) then
-                        ! Duplicated values: assign the last value or sum the values
-                        call apply_duplicates(input=this%val(j), output=this%val(i))
-                    else
-                        i = i + 1
-                        this%ia(i)  = this%ia(j)
-                        this%ja(i)  = this%ja(j)
-                        this%val(i) = this%val(j)
-                        irw = this%ia(i)
-                        icl = this%ja(i)
-                    endif
-                enddo
-            endif
-            this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_COLS
-        endif
-
-        if(allocated(iaux)) call memfree(iaux, __FILE__, __LINE__)
-        if(allocated(ias)) then; deallocate(ias, stat=info); assert(info == 0); endif
-        if(allocated(jas)) then; deallocate(jas, stat=info); assert(info == 0); endif
-        if(allocated(vs))  then; deallocate(vs,  stat=info); assert(info == 0); endif
-        this%nnz = i
-        call memrealloc(nnz, this%ia,  __FILE__, __LINE__)
-        call memrealloc(nnz, this%ja,  __FILE__, __LINE__)
-        call memrealloc(nnz, this%val, __FILE__, __LINE__)
                     
     contains
+
+
+        subroutine sort_and_compress_symbolic(this, by_cols, sum_duplicates)
+        !-------------------------------------------------------------
+        !< Sort ia, ja and val by rows as default or by_cols if forced
+        !-------------------------------------------------------------
+            use types_names
+            class(coo_sparse_matrix_t), intent(inout)  :: this
+            logical,     optional,      intent(in)     :: by_cols
+            logical,     optional,      intent(in)     :: sum_duplicates
+            logical                                    :: sum_dupl
+            integer(ip), allocatable                   :: ias(:)
+            integer(ip), allocatable                   :: jas(:)
+            integer(ip), allocatable                   :: iaux(:)
+            integer(ip), allocatable                   :: ix2(:)
+            logical                                    :: by_rows 
+            logical                                    :: sorted
+            logical                                    :: use_buffers
+            integer(ip)                                :: i, j, k, nnz, nzl, imx, iret, ipaux, is, irw, icl
+            integer                                    :: info
+            procedure(duplicates_operation), pointer   :: apply_duplicates => null ()
+        !-------------------------------------------------------------
+            by_rows     = .true.
+            sum_dupl    = .true.
+            sorted      = .true.
+            use_buffers = .true.
+            if(present(by_cols)) by_rows = .not. by_cols
+
+            if(present(sum_duplicates)) sum_dupl = sum_duplicates
+            if(sum_dupl) then
+                apply_duplicates => sum_value
+            else
+                apply_duplicates => assign_value
+            endif
+
+            nnz = this%nnz
+
+            call memalloc(max(this%num_rows, this%num_cols, nnz) + 2, iaux, __FILE__, __LINE__)
+            allocate(ias(nnz),  &
+                     jas(nnz),  &
+                     ix2(max(this%num_rows, this%num_cols, nnz) + 2), stat=info)
+
+            use_buffers = (info == 0)
+            iaux = 0
+
+            if(by_rows) then
+            ! By-rows sorting
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
+                        iaux(this%ia(1)) = iaux(this%ia(1))+1
+                        sorted = .true.
+                        do i = 2, nnz
+                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
+                                use_buffers = .false.
+                                exit
+                            endif
+                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                        enddo
+                    else
+                        use_buffers = .false.
+                    endif
+                endif
+
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(sorted) then
+                    ! If rows are already sorted
+                        k = 0
+                        i = 1
+                        do j = 1, this%num_rows
+                            nzl = iaux(j)
+                            imx = i + nzl - 1
+                            if(nzl > 0)  then
+                                ! Sort the colums of a particular row
+                                call mergesort(nzl,this%ja(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_coords(nzl, this%ia(i:imx), this%ja(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = this%ia(i)
+                                this%ja(k)  = this%ja(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only upper triangle is stored
+                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
+                                    if(this%ia(i) == irw .and. this%ja(i) == icl) then
+                                        ! Duplicated values action: assign the last value
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = this%ia(i)
+                                        this%ja(k)  = this%ja(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    else
+                    ! If rows are NOT sorted
+                        ipaux = iaux(1)
+                        iaux(1) = 0
+                        do i=2, this%num_rows
+                            is = iaux(i)
+                            iaux(i) = ipaux
+                            ipaux = ipaux + is
+                        enddo
+                        iaux(this%num_rows + 1) = ipaux
+
+                        do i=1, nnz
+                            irw = this%ia(i)
+                            ipaux = iaux(irw) + 1
+                            ias(ipaux) = this%ia(i)
+                            jas(ipaux) = this%ja(i)
+                            iaux(irw) = ipaux
+                        enddo
+
+                        k = 0
+                        i = 1
+                        do j=1, this%num_rows
+                            nzl = iaux(j) - i + 1
+                            imx = i + nzl - 1
+
+                            if(nzl > 0) then
+                                ! Sort the colums of a particular row
+                                call mergesort(nzl,jas(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_coords(nzl, ias(i:imx), jas(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = ias(i)
+                                this%ja(k)  = jas(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only upper triangle is stored
+                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
+                                    if(ias(i) == irw .and. jas(i) == icl) then
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = ias(i)
+                                        this%ja(k)  = jas(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    endif
+                    i = k
+                else
+                ! If there is'n enough memory space
+                    ! Sort the rows
+                    call mergesort(nnz,this%ia, iaux, iret)
+                    if(iret == 0) call reorder_coords(nnz, this%ia, this%ja, iaux)
+                    i = 1
+                    j = i
+                    do while (i <= nnz)
+                        do while (this%ia(j) == this%ia(i))
+                            j = j + 1
+                            if(j > nnz) exit
+                        enddo
+                        nzl = j - i
+                        ! Sort the colums of a particular row
+                        call mergesort(nzl, this%ja(i:), iaux, iret)
+                        if(iret == 0) call reorder_coords(nzl, this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        i = j
+                    enddo
+
+                    i = 1
+                    j = 1
+                    irw = this%ia(i)
+                    icl = this%ja(i)
+
+                    do 
+                        j = j + 1
+                        if(j > nnz) exit
+                        ! If symmetric_storage, only upper triangle is stored
+                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
+                        if(this%ia(j) == irw .and. this%ja(j) == icl) then
+                            ! Duplicated values: assign the last value
+                        else
+                            i = i + 1
+                            this%ia(i)  = this%ia(j)
+                            this%ja(i)  = this%ja(j)
+                            irw = this%ia(i)
+                            icl = this%ja(i)
+                        endif
+                    enddo
+                endif
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_ROWS
+            else
+            ! By-columns sorting
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
+                        iaux(this%ja(1)) = iaux(this%ja(1))+1
+                        sorted = .true.
+                        do i = 2, nnz
+                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
+                                use_buffers = .false.
+                                exit
+                            endif
+                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                        enddo
+                    else
+                        use_buffers = .false.
+                    endif
+                endif
+
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(sorted) then
+                    ! If columns are already sorted
+                        k = 0
+                        i = 1
+                        do j = 1, this%num_cols
+                            nzl = iaux(j)
+                            imx = i + nzl - 1
+                            if(nzl > 0)  then
+                                ! Sort the rows of a particular columns
+                                call mergesort(nzl,this%ia(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_coords(nzl, this%ia(i:imx), this%ja(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = this%ia(i)
+                                this%ja(k)  = this%ja(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only lower triangle is stored
+                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
+                                    if(this%ia(i) == irw .and. this%ja(i) == icl) then
+                                        ! Duplicated values action: assign the last value or sum the values
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = this%ia(i)
+                                        this%ja(k)  = this%ja(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    else
+                    ! If columns are NOT sorted
+                        ipaux = iaux(1)
+                        iaux(1) = 0
+                        do i=2, this%num_cols
+                            is = iaux(i)
+                            iaux(i) = ipaux
+                            ipaux = ipaux + is
+                        enddo
+                        iaux(this%num_cols + 1) = ipaux
+
+                        do i=1, nnz
+                            icl = this%ja(i)
+                            ipaux = iaux(icl) + 1
+                            ias(ipaux) = this%ia(i)
+                            jas(ipaux) = this%ja(i)
+                            iaux(icl) = ipaux
+                        enddo
+
+                        k = 0
+                        i = 1
+                        do j=1, this%num_cols
+                            nzl = iaux(j) - i + 1
+                            imx = i + nzl - 1
+
+                            if(nzl > 0) then
+                                ! Sort the rows of a particular column
+                                call mergesort(nzl,ias(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_coords(nzl, ias(i:imx), jas(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = ias(i)
+                                this%ja(k)  = jas(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only lower triangle is stored 
+                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
+                                    if(ias(i) == irw .and. jas(i) == icl) then
+                                        ! Duplicated values: assign the last value or sum the values
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = ias(i)
+                                        this%ja(k)  = jas(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    endif
+                    i = k
+                else
+                ! If there is'n enough memory space
+                    ! Sort the columns
+                    call mergesort(nnz,this%ja, iaux, iret)
+                    if(iret == 0) call reorder_coords(nnz, this%ia, this%ja, iaux)
+                    i = 1
+                    j = i
+                    do while (i <= nnz)
+                        do while (this%ja(j) == this%ja(i))
+                            j = j + 1
+                            if(j > nnz) exit
+                        enddo
+                        nzl = j - i
+                        ! Sort the rows of a particular column
+                        call mergesort(nzl, this%ia(i:), iaux, iret)
+                        if(iret == 0) call reorder_coords(nzl, this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        i = j
+                    enddo
+
+                    i = 1
+                    j = 1
+                    irw = this%ia(i)
+                    icl = this%ja(i)
+
+                    do 
+                        j = j + 1
+                        if(j > nnz) exit
+                        ! If symmetric_storage, only lower triangle is stored
+                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
+                        if(this%ia(j) == irw .and. this%ja(j) == icl) then
+                            ! Duplicated values: assign the last value or sum the values
+                        else
+                            i = i + 1
+                            this%ia(i)  = this%ia(j)
+                            this%ja(i)  = this%ja(j)
+                            irw = this%ia(i)
+                            icl = this%ja(i)
+                        endif
+                    enddo
+                endif
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_COLS
+            endif
+
+            if(allocated(iaux)) call memfree(iaux, __FILE__, __LINE__)
+            if(allocated(ias)) then; deallocate(ias, stat=info); assert(info == 0); endif
+            if(allocated(jas)) then; deallocate(jas, stat=info); assert(info == 0); endif
+            this%nnz = i
+            call memrealloc(nnz, this%ia,  __FILE__, __LINE__)
+            call memrealloc(nnz, this%ja,  __FILE__, __LINE__)
+
+        end subroutine sort_and_compress_symbolic
+
+
+        subroutine sort_and_compress_numeric(this, by_cols, sum_duplicates)
+        !-------------------------------------------------------------
+        !< Sort ia, ja and val by rows as default or by_cols if forced
+        !-------------------------------------------------------------
+            use types_names
+            class(coo_sparse_matrix_t), intent(inout)  :: this
+            logical,     optional,      intent(in)     :: by_cols
+            logical,     optional,      intent(in)     :: sum_duplicates
+            logical                                    :: sum_dupl
+            integer(ip), allocatable                   :: ias(:)
+            integer(ip), allocatable                   :: jas(:)
+            real(rp),    allocatable                   :: vs(:)
+            integer(ip), allocatable                   :: iaux(:)
+            integer(ip), allocatable                   :: ix2(:)
+            logical                                    :: by_rows 
+            logical                                    :: sorted
+            logical                                    :: use_buffers
+            integer(ip)                                :: i, j, k, nnz, nzl, imx, iret, ipaux, is, irw, icl
+            integer                                    :: info
+            procedure(duplicates_operation), pointer   :: apply_duplicates => null ()
+        !-------------------------------------------------------------
+            by_rows     = .true.
+            sum_dupl    = .true.
+            sorted      = .true.
+            use_buffers = .true.
+            if(present(by_cols)) by_rows = .not. by_cols
+
+            if(present(sum_duplicates)) sum_dupl = sum_duplicates
+            if(sum_dupl) then
+                apply_duplicates => sum_value
+            else
+                apply_duplicates => assign_value
+            endif
+
+            nnz = this%nnz
+
+            call memalloc(max(this%num_rows, this%num_cols, nnz) + 2, iaux, __FILE__, __LINE__)
+            allocate(ias(nnz),  &
+                     jas(nnz),  &
+                     vs(nnz),   &
+                     ix2(max(this%num_rows, this%num_cols, nnz) + 2), stat=info)
+
+            use_buffers = (info == 0)
+            iaux = 0
+
+            if(by_rows) then
+            ! By-rows sorting
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
+                        iaux(this%ia(1)) = iaux(this%ia(1))+1
+                        sorted = .true.
+                        do i = 2, nnz
+                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
+                                use_buffers = .false.
+                                exit
+                            endif
+                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                        enddo
+                    else
+                        use_buffers = .false.
+                    endif
+                endif
+
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(sorted) then
+                    ! If rows are already sorted
+                        k = 0
+                        i = 1
+                        do j = 1, this%num_rows
+                            nzl = iaux(j)
+                            imx = i + nzl - 1
+                            if(nzl > 0)  then
+                                ! Sort the colums of a particular row
+                                call mergesort(nzl,this%ja(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = this%ia(i)
+                                this%ja(k)  = this%ja(i)
+                                this%val(k) = this%val(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only upper triangle is stored
+                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
+                                    if(this%ia(i) == irw .and. this%ja(i) == icl) then
+                                        ! Duplicated values action: assign the last value
+                                        call apply_duplicates(input=this%val(i), output=this%val(k))
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = this%ia(i)
+                                        this%ja(k)  = this%ja(i)
+                                        this%val(k) = this%val(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    else
+                    ! If rows are NOT sorted
+                        ipaux = iaux(1)
+                        iaux(1) = 0
+                        do i=2, this%num_rows
+                            is = iaux(i)
+                            iaux(i) = ipaux
+                            ipaux = ipaux + is
+                        enddo
+                        iaux(this%num_rows + 1) = ipaux
+
+                        do i=1, nnz
+                            irw = this%ia(i)
+                            ipaux = iaux(irw) + 1
+                            ias(ipaux) = this%ia(i)
+                            jas(ipaux) = this%ja(i)
+                            vs(ipaux)  = this%val(i)
+                            iaux(irw) = ipaux
+                        enddo
+
+                        k = 0
+                        i = 1
+                        do j=1, this%num_rows
+                            nzl = iaux(j) - i + 1
+                            imx = i + nzl - 1
+
+                            if(nzl > 0) then
+                                ! Sort the colums of a particular row
+                                call mergesort(nzl,jas(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = ias(i)
+                                this%ja(k)  = jas(i)
+                                this%val(k) = vs(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only upper triangle is stored
+                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
+                                    if(ias(i) == irw .and. jas(i) == icl) then
+                                        ! Duplicated values: assign the last value
+                                        call apply_duplicates(input=vs(i), output=this%val(k))
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = ias(i)
+                                        this%ja(k)  = jas(i)
+                                        this%val(k) = vs(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    endif
+                    i = k
+                else
+                ! If there is'n enough memory space
+                    ! Sort the rows
+                    call mergesort(nnz,this%ia, iaux, iret)
+                    if(iret == 0) call reorder_entries(nnz, this%val, this%ia, this%ja, iaux)
+                    i = 1
+                    j = i
+                    do while (i <= nnz)
+                        do while (this%ia(j) == this%ia(i))
+                            j = j + 1
+                            if(j > nnz) exit
+                        enddo
+                        nzl = j - i
+                        ! Sort the colums of a particular row
+                        call mergesort(nzl, this%ja(i:), iaux, iret)
+                        if(iret == 0) call reorder_entries(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        i = j
+                    enddo
+
+                    i = 1
+                    j = 1
+                    irw = this%ia(i)
+                    icl = this%ja(i)
+
+                    do 
+                        j = j + 1
+                        if(j > nnz) exit
+                        ! If symmetric_storage, only upper triangle is stored
+                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
+                        if(this%ia(j) == irw .and. this%ja(j) == icl) then
+                            ! Duplicated values: assign the last value
+                            call apply_duplicates(input=this%val(j), output=this%val(i))
+                        else
+                            i = i + 1
+                            this%ia(i)  = this%ia(j)
+                            this%ja(i)  = this%ja(j)
+                            irw = this%ia(i)
+                            icl = this%ja(i)
+                        endif
+                    enddo
+                endif
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_ROWS
+            else
+            ! By-columns sorting
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
+                        iaux(this%ja(1)) = iaux(this%ja(1))+1
+                        sorted = .true.
+                        do i = 2, nnz
+                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
+                                use_buffers = .false.
+                                exit
+                            endif
+                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                        enddo
+                    else
+                        use_buffers = .false.
+                    endif
+                endif
+
+                if(use_buffers) then
+                ! If there is enough memory space
+                    if(sorted) then
+                    ! If columns are already sorted
+                        k = 0
+                        i = 1
+                        do j = 1, this%num_cols
+                            nzl = iaux(j)
+                            imx = i + nzl - 1
+                            if(nzl > 0)  then
+                                ! Sort the rows of a particular columns
+                                call mergesort(nzl,this%ia(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = this%ia(i)
+                                this%ja(k)  = this%ja(i)
+                                this%val(k) = this%val(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only lower triangle is stored
+                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
+                                    if(this%ia(i) == irw .and. this%ja(i) == icl) then
+                                        ! Duplicated values action: assign the last value or sum the values
+                                        call apply_duplicates(input=this%val(i), output=this%val(k))
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = this%ia(i)
+                                        this%ja(k)  = this%ja(i)
+                                        this%val(k) = this%val(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    else
+                    ! If columns are NOT sorted
+                        ipaux = iaux(1)
+                        iaux(1) = 0
+                        do i=2, this%num_cols
+                            is = iaux(i)
+                            iaux(i) = ipaux
+                            ipaux = ipaux + is
+                        enddo
+                        iaux(this%num_cols + 1) = ipaux
+
+                        do i=1, nnz
+                            icl = this%ja(i)
+                            ipaux = iaux(icl) + 1
+                            ias(ipaux) = this%ia(i)
+                            jas(ipaux) = this%ja(i)
+                            vs(ipaux)  = this%val(i)
+                            iaux(icl) = ipaux
+                        enddo
+
+                        k = 0
+                        i = 1
+                        do j=1, this%num_cols
+                            nzl = iaux(j) - i + 1
+                            imx = i + nzl - 1
+
+                            if(nzl > 0) then
+                                ! Sort the rows of a particular column
+                                call mergesort(nzl,ias(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
+                                k = k + 1
+                                this%ia(k)  = ias(i)
+                                this%ja(k)  = jas(i)
+                                this%val(k) = vs(i)
+                                irw = this%ia(k)
+                                icl = this%ja(k)
+                                do 
+                                    i=i+1
+                                    if(i > imx) exit
+                                    ! If symmetric_storage, only lower triangle is stored 
+                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
+                                    if(ias(i) == irw .and. jas(i) == icl) then
+                                        ! Duplicated values: assign the last value or sum the values
+                                        call apply_duplicates(input=vs(i), output=this%val(k))
+                                    else
+                                        k = k + 1
+                                        this%ia(k)  = ias(i)
+                                        this%ja(k)  = jas(i)
+                                        this%val(k) = vs(i)
+                                        irw = this%ia(k)
+                                        icl = this%ja(k)
+                                    endif
+                                enddo
+                            endif
+                        enddo
+                    endif
+                    i = k
+                else
+                ! If there is'n enough memory space
+                    ! Sort the columns
+                    call mergesort(nnz,this%ja, iaux, iret)
+                    if(iret == 0) call reorder_entries(nnz, this%val, this%ia, this%ja, iaux)
+                    i = 1
+                    j = i
+                    do while (i <= nnz)
+                        do while (this%ja(j) == this%ja(i))
+                            j = j + 1
+                            if(j > nnz) exit
+                        enddo
+                        nzl = j - i
+                        ! Sort the rows of a particular column
+                        call mergesort(nzl, this%ia(i:), iaux, iret)
+                        if(iret == 0) call reorder_entries(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        i = j
+                    enddo
+
+                    i = 1
+                    j = 1
+                    irw = this%ia(i)
+                    icl = this%ja(i)
+
+                    do 
+                        j = j + 1
+                        if(j > nnz) exit
+                        ! If symmetric_storage, only lower triangle is stored
+                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
+                        if(this%ia(j) == irw .and. this%ja(j) == icl) then
+                            ! Duplicated values: assign the last value or sum the values
+                            call apply_duplicates(input=this%val(j), output=this%val(i))
+                        else
+                            i = i + 1
+                            this%ia(i)  = this%ia(j)
+                            this%ja(i)  = this%ja(j)
+                            this%val(i) = this%val(j)
+                            irw = this%ia(i)
+                            icl = this%ja(i)
+                        endif
+                    enddo
+                endif
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_COLS
+            endif
+
+            if(allocated(iaux)) call memfree(iaux, __FILE__, __LINE__)
+            if(allocated(ias)) then; deallocate(ias, stat=info); assert(info == 0); endif
+            if(allocated(jas)) then; deallocate(jas, stat=info); assert(info == 0); endif
+            if(allocated(vs))  then; deallocate(vs,  stat=info); assert(info == 0); endif
+            this%nnz = i
+            call memrealloc(nnz, this%ia,  __FILE__, __LINE__)
+            call memrealloc(nnz, this%ja,  __FILE__, __LINE__)
+            call memrealloc(nnz, this%val, __FILE__, __LINE__)
+
+        end subroutine sort_and_compress_numeric
 
         subroutine assign_value(input, output)
         !-------------------------------------------------------------
@@ -1428,7 +1930,7 @@ contains
         end subroutine mergesort
 
 
-        subroutine reorder(n,x,i1,i2,iaux)
+        subroutine reorder_entries(n,x,i1,i2,iaux)
         !-------------------------------------------------------------
         !  Reorder (an) input vector(s) based on a list sort output.
         !  Based on: D. E. Knuth: The Art of Computer Programming
@@ -1438,10 +1940,10 @@ contains
             use types_names
             integer(ip), intent(in) :: n
             integer(ip) :: iaux(0:*) 
-            real(rp)   :: x(*)
+            real(rp)    :: x(*)
             integer(ip) :: i1(*), i2(*)     
             integer(ip) :: lswap, lp, k, isw1, isw2
-            complex(rp)  :: swap
+            real(rp)    :: swap
         !-------------------------------------------------------------
             lp = iaux(0)
             k  = 1
@@ -1467,7 +1969,44 @@ contains
                 k  = k + 1
             enddo
             return
-        end subroutine reorder
+        end subroutine reorder_entries
+
+
+        subroutine reorder_coords(n,i1,i2,iaux)
+        !-------------------------------------------------------------
+        !  Reorder (an) input vector(s) based on a list sort output.
+        !  Based on: D. E. Knuth: The Art of Computer Programming
+        !            vol. 3: Sorting and Searching, Addison Wesley, 1973
+        !            ex. 5.2.12
+        !-------------------------------------------------------------
+            use types_names
+            integer(ip), intent(in) :: n
+            integer(ip) :: iaux(0:*) 
+            integer(ip) :: i1(*), i2(*)     
+            integer(ip) :: lswap, lp, k, isw1, isw2
+        !-------------------------------------------------------------
+            lp = iaux(0)
+            k  = 1
+            do 
+                if ((lp == 0).or.(k>n)) exit
+                do 
+                    if (lp >= k) exit
+                    lp = iaux(lp)
+                end do
+                isw1     = i1(lp)
+                i1(lp)   = i1(k)
+                i1(k)    = isw1
+                isw2     = i2(lp)
+                i2(lp)   = i2(k)
+                i2(k)    = isw2
+                lswap    = iaux(lp)
+                iaux(lp) = iaux(k)
+                iaux(k)  = lp
+                lp = lswap 
+                k  = k + 1
+            enddo
+            return
+        end subroutine reorder_coords
 
     end subroutine coo_sparse_matrix_sort_and_compress
 
@@ -1620,16 +2159,25 @@ contains
     end subroutine coo_sparse_matrix_move_from_fmt
 
 
-    subroutine coo_sparse_matrix_free_arrays(this)
+    subroutine coo_sparse_matrix_free_coords(this)
     !-----------------------------------------------------------------
-    !< Clean COO sparse matrix format derived type
+    !< Clean coords of COO sparse matrix format derived type
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(inout)  :: this
     !-----------------------------------------------------------------
         if(allocated(this%ia))  call memfree (this%ia, __FILE__, __LINE__)
         if(allocated(this%ja))  call memfree (this%ja, __FILE__, __LINE__)
-        if(allocated(this%val)) call memfree (this%val, __FILE__, __LINE__)
-    end subroutine coo_sparse_matrix_free_arrays
+    end subroutine coo_sparse_matrix_free_coords
+
+
+    subroutine coo_sparse_matrix_free_val(this)
+    !-----------------------------------------------------------------
+    !< Clean values of COO sparse matrix format derived type
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout)  :: this
+    !-----------------------------------------------------------------
+        if(allocated(this%val))  call memfree (this%val, __FILE__, __LINE__)
+    end subroutine coo_sparse_matrix_free_val
 
 
     subroutine coo_sparse_matrix_print(this,lunou, only_graph)

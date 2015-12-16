@@ -44,6 +44,7 @@ private
         procedure, public :: is_by_cols                => sparse_matrix_is_by_cols
         procedure, public :: is_symmetric              => sparse_matrix_is_symmetric
         procedure, public :: get_default_sparse_matrix => sparse_matrix_get_default_sparse_matrix
+        procedure, public :: allocate_values           => sparse_matrix_allocate_values
         procedure, public :: allocate                  => sparse_matrix_allocate        ! Empty procedure
         procedure, public :: free_in_stages            => sparse_matrix_free_in_stages  ! Empty procedure
         generic,   public :: create                    => sparse_matrix_create_square, &
@@ -163,6 +164,16 @@ contains
     end subroutine sparse_matrix_allocate
 
 
+    subroutine sparse_matrix_allocate_values(this)
+    !-----------------------------------------------------------------
+    !< Allocate matrix values only if is in a assembled symbolic stage
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        call this%State%allocate_values()
+    end subroutine sparse_matrix_allocate_values
+
+
     subroutine sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------
     !< Create vector spaces
@@ -184,7 +195,7 @@ contains
     end subroutine sparse_matrix_create_vector_spaces
 
 
-    subroutine sparse_matrix_create_square(this, num_rows_and_cols, symmetric_storage, is_symmetric, sign)
+    subroutine sparse_matrix_create_square(this, num_rows_and_cols, symmetric_storage, is_symmetric, sign, nz)
     !-----------------------------------------------------------------
     !< Set the properties and size of a square matrix
     !-----------------------------------------------------------------
@@ -193,23 +204,33 @@ contains
         logical,                intent(in)    :: symmetric_storage
         logical,                intent(in)    :: is_symmetric
         integer(ip),            intent(in)    :: sign
+        integer(ip), optional,  intent(in)    :: nz
     !-----------------------------------------------------------------
         if(.not. allocated(this%State)) allocate(coo_sparse_matrix_t :: this%State)
-        call this%State%create(num_rows_and_cols, symmetric_storage, is_symmetric, sign)
+        if(present(nz)) then
+            call this%State%create(num_rows_and_cols, symmetric_storage, is_symmetric, sign, nz)
+        else
+            call this%State%create(num_rows_and_cols, symmetric_storage, is_symmetric, sign)
+        endif
         call this%create_vector_spaces()
     end subroutine sparse_matrix_create_square
   
 
-    subroutine sparse_matrix_create_rectangular(this, num_rows, num_cols)
+    subroutine sparse_matrix_create_rectangular(this, num_rows, num_cols, nz)
     !-----------------------------------------------------------------
     !< Set the properties and size of a rectangular matrix
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(inout) :: this
         integer(ip),            intent(in)    :: num_rows
         integer(ip),            intent(in)    :: num_cols
+        integer(ip), optional,  intent(in)    :: nz
     !-----------------------------------------------------------------
         if(.not. allocated(this%State)) allocate(coo_sparse_matrix_t :: this%State)
-        call this%State%create(num_rows, num_cols)
+        if(present(nz)) then
+            call this%State%create(num_rows, num_cols, nz)
+        else
+            call this%State%create(num_rows, num_cols)
+        endif
         call this%create_vector_spaces()
     end subroutine sparse_matrix_create_rectangular
 
@@ -228,6 +249,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
+        call this%State%allocate_val(nz)
         call this%State%set_values(nz, ia, ja, val, imin, imax, jmin, jmax)
     end subroutine sparse_matrix_append_values
 
@@ -257,7 +279,11 @@ contains
         class(base_sparse_matrix_t), allocatable :: tmp
         integer                                  :: error
     !-----------------------------------------------------------------
-        call this%State%set_state_assembled()
+        if(this%State%is_symbolic()) then
+            call this%State%set_state_assembled_symbolic()
+        else
+            call this%State%set_state_assembled()
+        endif
         allocate(tmp, mold=this%get_default_sparse_matrix(), stat=error)
         check(error==0)
         call tmp%move_from_fmt(from=this%State)
@@ -277,7 +303,12 @@ contains
         class(base_sparse_matrix_t), allocatable :: tmp
         integer                                  :: error
     !-----------------------------------------------------------------
-        call this%State%set_state_assembled()
+        assert(allocated(this%State))
+        if(this%State%is_symbolic()) then
+            call this%State%set_state_assembled_symbolic()
+        else
+            call this%State%set_state_assembled()
+        endif
         error = 0
         select case (string)
             case ('CSR', 'csr')
@@ -304,7 +335,11 @@ contains
         class(base_sparse_matrix_t), allocatable :: tmp
         integer                                  :: error
     !-----------------------------------------------------------------
-        call this%State%set_state_assembled()
+        if(this%State%is_symbolic()) then
+            call this%State%set_state_assembled_symbolic()
+        else
+            call this%State%set_state_assembled()
+        endif
         allocate(tmp, mold=mold%State, stat=error)
         check(error==0)
         call tmp%move_from_fmt(from=this%State)
@@ -323,7 +358,11 @@ contains
         class(base_sparse_matrix_t), allocatable   :: tmp
         integer                                    :: error
     !-----------------------------------------------------------------
-        call this%State%set_state_assembled()
+        if(this%State%is_symbolic()) then
+            call this%State%set_state_assembled_symbolic()
+        else
+            call this%State%set_state_assembled()
+        endif
         allocate(tmp, mold=mold, stat=error)
         check(error==0)
         call tmp%move_from_fmt(from=this%State)
@@ -397,8 +436,36 @@ contains
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(inout) :: this
         integer(ip),            intent(in)    :: action
+        integer(ip) :: nnz
+        integer(ip) :: num_rows                        
+        integer(ip) :: num_cols
+        integer(ip) :: state
+        integer(ip) :: sign
+        logical     :: symmetric
+        logical     :: symmetric_storage
     !-----------------------------------------------------------------
-        call this%free()
+        assert(allocated(this%State))
+        if(action == 1) then
+            call this%State%free_numeric()
+        elseif(action == 2) then
+            nnz               = this%State%get_nnz()
+            num_rows          = this%State%get_num_rows()
+            num_cols          = this%State%get_num_cols()
+            sign              = this%State%get_sign()
+            symmetric         = this%State%is_symmetric()
+            symmetric_storage = this%State%get_symmetric_storage()
+            call this%State%free_clean()
+            deallocate(this%State)
+            call this%create(num_rows,num_cols,nnz)
+            call this%State%set_sign(sign)
+            call this%State%set_symmetry(symmetric)
+            call this%State%set_symmetric_storage(symmetric_storage)
+        elseif(action == 3) then
+            call this%State%free_clean()
+            deallocate(this%State)
+        else
+            call this%free()
+        endif
     end subroutine sparse_matrix_free_in_stages
 
 

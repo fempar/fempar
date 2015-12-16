@@ -30,7 +30,9 @@ private
         procedure, public :: move_from_coo           => csr_sparse_matrix_move_from_coo
         procedure, public :: move_to_fmt             => csr_sparse_matrix_move_to_fmt
         procedure, public :: move_from_fmt           => csr_sparse_matrix_move_from_fmt
-        procedure, public :: free_arrays             => csr_sparse_matrix_free_arrays
+        procedure, public :: allocate_val            => csr_sparse_matrix_allocate_val
+        procedure, public :: free_coords             => csr_sparse_matrix_free_coords
+        procedure, public :: free_val                => csr_sparse_matrix_free_val
         procedure, public :: apply_body              => csr_sparse_matrix_apply_body
         procedure, public :: print                   => csr_sparse_matrix_print
     end type csr_sparse_matrix_t
@@ -451,16 +453,42 @@ contains
     end subroutine csr_sparse_matrix_apply_body
 
 
-    subroutine csr_sparse_matrix_free_arrays(this)
+    subroutine csr_sparse_matrix_allocate_val(this, nz)
     !-----------------------------------------------------------------
-    !< Clean CSR sparse matrix format derived type
+    !< Allocate COO arrays
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout)  :: this
+        integer(ip), optional,      intent(in)     :: nz
+    !-----------------------------------------------------------------
+        check(.not. allocated(this%val))
+        if(present(nz)) then
+            call memalloc(nz, this%val, __FILE__, __LINE__)
+        else
+            call memalloc(max(7*this%get_num_rows(), 7*this%get_num_cols(), 1), this%val,  __FILE__, __LINE__)
+        endif
+        this%val = 0.0_rp
+    end subroutine csr_sparse_matrix_allocate_val
+
+
+    subroutine csr_sparse_matrix_free_coords(this)
+    !-----------------------------------------------------------------
+    !< Clean coords of CSR sparse matrix format derived type
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(inout)  :: this
     !-----------------------------------------------------------------
         if(allocated(this%irp)) call memfree (this%irp, __FILE__, __LINE__)
         if(allocated(this%ja))  call memfree (this%ja,  __FILE__, __LINE__)
+    end subroutine csr_sparse_matrix_free_coords
+
+
+    subroutine csr_sparse_matrix_free_val(this)
+    !-----------------------------------------------------------------
+    !< Free values of CSR sparse matrix format derived type
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout)  :: this
+    !-----------------------------------------------------------------
         if(allocated(this%val)) call memfree (this%val, __FILE__, __LINE__)
-    end subroutine csr_sparse_matrix_free_arrays
+    end subroutine csr_sparse_matrix_free_val
 
 
     subroutine csr_sparse_matrix_print(this,lunou, only_graph)
