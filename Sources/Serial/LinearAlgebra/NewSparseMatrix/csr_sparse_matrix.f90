@@ -109,13 +109,17 @@ contains
                            num_cols = this%get_num_cols() )
         endif
         call to%set_nnz(nnz)
+
         do i=1, this%get_num_rows()
             do j=this%irp(i),this%irp(i+1)-1
                 to%ia(j)  = i
                 to%ja(j)  = this%ja(j)
-                to%val(j) = this%val(j)
             end do
         end do
+        if(.not. this%is_symbolic()) then
+            call to%allocate_val(nnz)
+            to%val(1:nnz) = this%val(1:nnz)
+        endif
         call to%set_sort_status_by_rows()
         call to%set_state(this%get_state())
     end subroutine csr_sparse_matrix_copy_to_coo
@@ -149,17 +153,19 @@ contains
             call this%set_nnz(nnz)
             call move_alloc(tmp%ia,itmp)
             call move_alloc(tmp%ja,this%ja)
-            call move_alloc(tmp%val,this%val)
+            if(.not. tmp%is_symbolic()) call move_alloc(tmp%val,this%val)
             call tmp%free()
         else
             nnz = from%get_nnz()
             call this%set_nnz(nnz)
             call memalloc(nnz, itmp, __FILE__, __LINE__)
             call memalloc(nnz, this%ja, __FILE__, __LINE__)
-            call memalloc(nnz, this%val, __FILE__, __LINE__)
             itmp            = from%ia(1:nnz)
             this%ja(1:nnz)  = from%ja(1:nnz)
-            this%val(1:nnz) = from%val(1:nnz)
+            if(.not. from%is_symbolic()) then
+                call memalloc(nnz, this%val, __FILE__, __LINE__)
+                this%val(1:nnz) = from%val(1:nnz)
+            endif
         endif
         call memalloc(this%get_num_cols()+1, this%irp, __FILE__, __LINE__)
         if(nnz <= 0) then

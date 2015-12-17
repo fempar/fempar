@@ -100,6 +100,7 @@ private
         procedure(base_sparse_matrix_allocate_val),  public, deferred :: allocate_val
         procedure(base_sparse_matrix_free_coords),   public, deferred :: free_coords
         procedure(base_sparse_matrix_free_val),      public, deferred :: free_val
+        procedure(base_sparse_matrix_set_nnz),       public, deferred :: set_nnz
         procedure(base_sparse_matrix_get_nnz),       public, deferred :: get_nnz
         procedure(base_sparse_matrix_print),         public, deferred :: print
         procedure         ::                                 base_sparse_matrix_create_square
@@ -165,7 +166,7 @@ private
     contains
     private
         procedure         :: append_values_body      => coo_sparse_matrix_append_values_body
-        procedure         :: append_entries_body     => coo_sparse_matrix_append_entries_body
+        procedure         :: append_coords_body      => coo_sparse_matrix_append_coords_body
         procedure, public :: is_by_rows              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols              => coo_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                 => coo_sparse_matrix_set_nnz
@@ -206,6 +207,13 @@ private
             class(base_sparse_matrix_t), intent(in) :: this
             logical                                 :: by_cols
         end function base_sparse_matrix_is_by_cols
+
+        subroutine base_sparse_matrix_set_nnz(this, nnz)
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: nnz
+        end subroutine base_sparse_matrix_set_nnz
 
         function base_sparse_matrix_get_nnz(this) result(nnz)
             import base_sparse_matrix_t
@@ -786,6 +794,7 @@ contains
         this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
         this%num_rows = 0
         this%num_cols = 0
+        call this%set_nnz(nnz=0)
         this%symmetric = .false.
         this%symmetric_storage = .false.
         if(this%state > SPARSE_MATRIX_STATE_CREATED) call this%free_coords()
@@ -802,6 +811,7 @@ contains
     !-----------------------------------------------------------------
         if(this%state > SPARSE_MATRIX_STATE_CREATED) call this%free_coords()
         if(.not. this%is_symbolic()) call this%free_val()
+        call this%set_nnz(nnz=0)
         if(this%state /= SPARSE_MATRIX_STATE_START) call this%set_state_created()
     end subroutine base_sparse_matrix_free_symbolic
 
@@ -987,9 +997,9 @@ contains
     end subroutine coo_sparse_matrix_append_values_body
 
 
-    subroutine coo_sparse_matrix_append_entries_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_append_coords_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
-    !< Append new entries to the COO sparse matrix
+    !< Append new coords to the COO sparse matrix
     !< It allows duplicates entries
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(inout) :: this
@@ -1027,7 +1037,7 @@ contains
         enddo
         this%nnz = nnz
         this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
-    end subroutine coo_sparse_matrix_append_entries_body
+    end subroutine coo_sparse_matrix_append_coords_body
 
 
     subroutine coo_sparse_matrix_sort_and_compress(this, by_cols, sum_duplicates)
@@ -2039,7 +2049,10 @@ contains
         to%nnz = nnz
         to%ia(1:nnz)  = this%ia(1:nnz)
         to%ja(1:nnz)  = this%ja(1:nnz)
-        to%val(1:nnz) = this%val(1:nnz)
+        if(.not. this%is_symbolic()) then
+            call to%allocate_val(nnz)
+            to%val(1:nnz) = this%val(1:nnz)
+        endif
         to%state = this%state
     end subroutine coo_sparse_matrix_copy_to_coo
 
@@ -2067,7 +2080,10 @@ contains
         this%nnz = nnz
         this%ia(1:nnz)  = from%ia(1:nnz)
         this%ja(1:nnz)  = from%ja(1:nnz)
-        this%val(1:nnz) = from%val(1:nnz)
+        if(.not. from%is_symbolic()) then
+            call this%allocate_val(nnz)
+            this%val(1:nnz) = from%val(1:nnz)
+        endif
         this%state = from%state
     end subroutine coo_sparse_matrix_copy_from_coo
 
@@ -2113,7 +2129,7 @@ contains
         to%state = this%state
         call move_alloc(from=this%ia, to=to%ia)
         call move_alloc(from=this%ja, to=to%ja)
-        call move_alloc(from=this%val, to=to%val)
+        if(.not. this%is_symbolic()) call move_alloc(from=this%val, to=to%val)
         call this%free()
     end subroutine coo_sparse_matrix_move_to_coo
 
@@ -2137,7 +2153,7 @@ contains
         this%state = from%state
         call move_alloc(from=from%ia, to=this%ia)
         call move_alloc(from=from%ja, to=this%ja)
-        call move_alloc(from=from%val, to=this%val)
+        if(.not. from%is_symbolic()) call move_alloc(from=from%val, to=this%val)
         call from%free()
     end subroutine coo_sparse_matrix_move_from_coo
 

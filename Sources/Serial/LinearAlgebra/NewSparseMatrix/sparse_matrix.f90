@@ -462,6 +462,7 @@ contains
                 end select
             elseif(action == free_clean) then
                 call this%State%free_clean()
+                call this%free_vector_spaces()
                 deallocate(this%State)
                 if(allocated(default_sparse_matrix)) then
                     call default_sparse_matrix%free()
