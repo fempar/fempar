@@ -28,7 +28,7 @@ private
     contains
         procedure         ::                              sparse_matrix_create_square
         procedure         ::                              sparse_matrix_create_rectangular
-        procedure         ::                              sparse_matrix_append_entries
+        procedure         ::                              sparse_matrix_append_coords
         procedure         ::                              sparse_matrix_append_values
         procedure         ::                              sparse_matrix_convert
         procedure         ::                              sparse_matrix_convert_string
@@ -49,7 +49,7 @@ private
         procedure, public :: free_in_stages            => sparse_matrix_free_in_stages  ! Empty procedure
         generic,   public :: create                    => sparse_matrix_create_square, &
                                                           sparse_matrix_create_rectangular
-        generic,   public :: set_values                => sparse_matrix_append_entries, &
+        generic,   public :: insert                    => sparse_matrix_append_coords, &
                                                           sparse_matrix_append_values
         generic,   public :: convert                   => sparse_matrix_convert,                         &
                                                           sparse_matrix_convert_string,                  &
@@ -260,12 +260,11 @@ contains
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        call this%State%allocate_val(nz)
-        call this%State%set_values(nz, ia, ja, val, imin, imax, jmin, jmax)
+        call this%State%insert(nz, ia, ja, val, imin, imax, jmin, jmax)
     end subroutine sparse_matrix_append_values
 
 
-    subroutine sparse_matrix_append_entries(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine sparse_matrix_append_coords(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries to the sparse matrix
     !-----------------------------------------------------------------
@@ -279,8 +278,8 @@ contains
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        call this%State%set_values(nz, ia, ja, imin, imax, jmin, jmax)
-    end subroutine sparse_matrix_append_entries
+        call this%State%insert(nz, ia, ja, imin, imax, jmin, jmax)
+    end subroutine sparse_matrix_append_coords
 
 
     subroutine sparse_matrix_convert(this)

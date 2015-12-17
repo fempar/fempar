@@ -104,9 +104,9 @@ private
         procedure(base_sparse_matrix_print),         public, deferred :: print
         procedure         ::                                 base_sparse_matrix_create_square
         procedure         ::                                 base_sparse_matrix_create_rectangular
-        procedure         ::                                 base_sparse_matrix_append_entries
+        procedure         ::                                 base_sparse_matrix_append_coords
         procedure         ::                                 base_sparse_matrix_append_values
-        procedure         :: append_entries_body          => base_sparse_matrix_append_entries_body
+        procedure         :: append_coords_body           => base_sparse_matrix_append_coords_body
         procedure         :: append_values_body           => base_sparse_matrix_append_values_body
         procedure         :: is_valid_sign                => base_sparse_matrix_is_valid_sign
         procedure         :: apply_body                   => base_sparse_matrix_apply_body
@@ -141,9 +141,9 @@ private
         procedure, public :: free_numeric                 => base_sparse_matrix_free_numeric
         generic,   public :: create                       => base_sparse_matrix_create_square, &
                                                              base_sparse_matrix_create_rectangular
-        generic,   public :: set_values                   => base_sparse_matrix_append_entries, &
+        generic,   public :: insert                       => base_sparse_matrix_append_coords, &
                                                              base_sparse_matrix_append_values
-        generic           :: append_body                  => append_entries_body, &
+        generic           :: append_body                  => append_coords_body, &
                                                              append_values_body
     end type
 
@@ -621,7 +621,7 @@ contains
     end subroutine base_sparse_matrix_append_values
 
 
-    subroutine base_sparse_matrix_append_entries(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_append_coords(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries to the sparse matrix
     !< This is a common interface to control the state diagram
@@ -640,7 +640,7 @@ contains
         check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
         call this%append_body(nz, ia, ja, imin, imax, jmin, jmax)
         call this%set_state_build_symbolic()
-    end subroutine base_sparse_matrix_append_entries
+    end subroutine base_sparse_matrix_append_coords
 
 
     subroutine base_sparse_matrix_append_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
@@ -662,7 +662,7 @@ contains
     end subroutine base_sparse_matrix_append_values_body
 
 
-    subroutine base_sparse_matrix_append_entries_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_append_coords_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -677,7 +677,7 @@ contains
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine base_sparse_matrix_append_entries_body
+    end subroutine base_sparse_matrix_append_coords_body
 
 
     subroutine base_sparse_matrix_allocate_coords(this, nz)
@@ -960,10 +960,9 @@ contains
         integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
         if(nz == 0) return
-
         nnz = this%nnz
         newnnz = nnz + nz 
-
+        if(.not. allocated(this%val)) call this%allocate_val(size(this%ia))
         ! Realloc this%ia, this%ja, this%val to the right size if is needed
         if( size(this%ia) < newnnz) then
             newsize = max(newnnz, int(1.5*size(this%ia)))
@@ -1056,7 +1055,7 @@ contains
         if(this%nnz == 0) return
         
         by_rows     = .true.
-        sum_dupl    = .true.
+        sum_dupl    = .false.
 
         if(present(by_cols)) by_rows = .not. by_cols
 
