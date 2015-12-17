@@ -35,7 +35,8 @@ module SB_assembler_names
 
   type, abstract :: SB_assembler_t
     contains
-	  procedure (assembly_interface), deferred :: assembly
+	     procedure (assembly_interface)        , deferred :: assembly
+      procedure (compress_storage_interface), deferred :: compress_storage
   end type
   
   abstract interface
@@ -60,6 +61,15 @@ module SB_assembler_names
        ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
        real(rp)              , intent(in)    :: elvec(:)   
      end subroutine assembly_interface
+     
+     subroutine compress_storage_interface( this, & 
+                                            sparse_matrix_storage_format )
+       import :: SB_assembler_t
+       implicit none
+       class(SB_assembler_t) , intent(inout) :: this
+       character(*)          , intent(in)    :: sparse_matrix_storage_format
+     end subroutine compress_storage_interface
+     
   end interface
 	 
   ! Data types

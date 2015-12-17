@@ -111,12 +111,14 @@ module SB_fe_affine_operator_names
 
   type, extends(operator_t):: SB_fe_affine_operator_t
   private
-  integer(ip)                                  :: state  = start
-  type(triangulation_t), pointer :: triangulation
-  class(SB_serial_fe_space_t), pointer :: fe_space         => NULL() ! trial_fe_space
-  class(SB_serial_fe_space_t), pointer :: test_fe_space          => NULL() ! to be used in the future
-  class(SB_discrete_integration_t), pointer :: discrete_integration
-  class(SB_matrix_array_assembler_t), pointer     :: assembler => NULL()
+  integer(ip)                                     :: state  = start
+  character(:)                      , allocatable :: sparse_matrix_storage_format
+  type(triangulation_t)             , pointer     :: triangulation        => NULL()
+  class(SB_serial_fe_space_t)       , pointer     :: fe_space             => NULL() ! trial_fe_space
+  class(SB_serial_fe_space_t)       , pointer     :: test_fe_space        => NULL() ! To be used in the future
+  class(SB_discrete_integration_t)  , pointer     :: discrete_integration => NULL()
+  class(SB_matrix_array_assembler_t), pointer     :: assembler            => NULL()
+  
   ! New things by SB in the process of restructuring of the FE machinery
   ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
   !type(position_hash_table_t)          :: pos_elmatvec
@@ -154,30 +156,32 @@ public :: SB_fe_affine_operator_t
 
 contains
 subroutine fe_affine_operator_create (this, &
-    diagonal_blocks_symmetric_storage,&
-    diagonal_blocks_symmetric,&
-    diagonal_blocks_sign,&
-    triangulation,&
-    fe_space,&
-    discrete_integration )
+                                      sparse_matrix_storage_format, &
+                                      diagonal_blocks_symmetric_storage,&
+                                      diagonal_blocks_symmetric,&
+                                      diagonal_blocks_sign,&
+                                      triangulation,&
+                                      fe_space,&
+                                      discrete_integration )
  implicit none
- class(SB_fe_affine_operator_t)    , intent(out) :: this
- class(SB_serial_fe_space_t)              , target, intent(in) :: fe_space
- type(triangulation_t)             , target, intent(in) :: triangulation
- logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
- logical                                , intent(in)  :: diagonal_blocks_symmetric(:)
- integer(ip)                            , intent(in)  :: diagonal_blocks_sign(:)
- class(SB_discrete_integration_t), target    , intent(in)  :: discrete_integration
-
+ class(SB_fe_affine_operator_t)              , intent(out) :: this
+ character(*)                                , intent(in)  :: sparse_matrix_storage_format
+ logical                                     , intent(in)  :: diagonal_blocks_symmetric_storage(:)
+ logical                                     , intent(in)  :: diagonal_blocks_symmetric(:)
+ integer(ip)                                 , intent(in)  :: diagonal_blocks_sign(:)
+ type(triangulation_t)               , target, intent(in)  :: triangulation
+ class(SB_serial_fe_space_t)         , target, intent(in)  :: fe_space
+ class(SB_discrete_integration_t)    , target, intent(in)  :: discrete_integration
 
  assert(this%state == start)
 
- this%triangulation => triangulation
- this%fe_space               => fe_space
- this%discrete_integration => discrete_integration
- this%assembler => fe_space%create_assembler(diagonal_blocks_symmetric_storage, &
-                                             diagonal_blocks_symmetric, &
-                                             diagonal_blocks_sign)
+ this%sparse_matrix_storage_format = sparse_matrix_storage_format
+ this%triangulation                => triangulation
+ this%fe_space                     => fe_space
+ this%discrete_integration         => discrete_integration
+ this%assembler                    => fe_space%create_assembler(diagonal_blocks_symmetric_storage, &
+                                                                diagonal_blocks_symmetric, &
+                                                                diagonal_blocks_sign)
  call this%create_vector_spaces()
  this%state = created
 end subroutine fe_affine_operator_create
@@ -226,6 +230,7 @@ subroutine fe_affine_operator_numerical_setup (this)
     this%state = numerically_setup
     call this%assembler%allocate()
     call this%fe_affine_operator_fill_values()
+    call this%assembler%compress_storage(this%sparse_matrix_storage_format)
  end if
 
 end subroutine fe_affine_operator_numerical_setup
@@ -246,13 +251,14 @@ subroutine fe_affine_operator_free_clean(this)
  implicit none
  class(SB_fe_affine_operator_t), intent(inout) :: this
  integer(ip) :: istat
+ nullify(this%triangulation)
+ nullify(this%fe_space)
+ nullify(this%test_fe_space)
+ nullify(this%discrete_integration)
  call this%assembler%free_in_stages(free_clean)
- deallocate ( this%assembler, stat=istat )
+ deallocate(this%assembler, stat=istat )
  check(istat==0)
  nullify(this%assembler)
- nullify(this%fe_space)
- nullify(this%discrete_integration)
- check(istat==0)
  call this%free_vector_spaces()
 end subroutine fe_affine_operator_free_clean
 
@@ -419,11 +425,7 @@ end subroutine fe_affine_operator_setup
 subroutine fe_affine_operator_fill_values(this)
   implicit none
   class(SB_fe_affine_operator_t), intent(inout) :: this
-
-
-  call this%discrete_integration%integrate( this%fe_space, this%assembler)
-
-
+  call this%discrete_integration%integrate( this%fe_space, this%assembler )
 end subroutine fe_affine_operator_fill_values
 
 

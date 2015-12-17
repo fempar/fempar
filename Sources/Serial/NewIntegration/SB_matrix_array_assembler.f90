@@ -40,12 +40,13 @@ module SB_matrix_array_assembler_names
      class(matrix_t), pointer :: matrix
      class(array_t) , pointer :: array
    contains
-     procedure :: set_matrix     => matrix_array_assembler_set_matrix
-     procedure :: set_array      => matrix_array_assembler_set_array
-     procedure :: get_matrix     => matrix_array_assembler_get_matrix
-     procedure :: get_array      => matrix_array_assembler_get_array
-     procedure :: allocate       => matrix_array_assembler_allocate
-     procedure :: free_in_stages => matrix_array_assembler_free_in_stages
+     procedure :: set_matrix       => matrix_array_assembler_set_matrix
+     procedure :: set_array        => matrix_array_assembler_set_array
+     procedure :: allocate         => matrix_array_assembler_allocate
+     procedure :: compress_storage => matrix_array_assembler_compress_storage
+     procedure :: free_in_stages   => matrix_array_assembler_free_in_stages
+     procedure :: get_matrix       => matrix_array_assembler_get_matrix
+     procedure :: get_array        => matrix_array_assembler_get_array
   end type SB_matrix_array_assembler_t
 	 
   ! Data types
@@ -69,20 +70,6 @@ contains
     class(array_t), pointer, intent(in) :: array
     this%array => array
   end subroutine matrix_array_assembler_set_array
-
-  function matrix_array_assembler_get_matrix(this)
-    implicit none
-    class(SB_matrix_array_assembler_t), target, intent(in) :: this
-    class(matrix_t), pointer :: matrix_array_assembler_get_matrix
-    matrix_array_assembler_get_matrix => this%matrix 
-  end function matrix_array_assembler_get_matrix
-  
-  function matrix_array_assembler_get_array(this)
-    implicit none
-    class(SB_matrix_array_assembler_t), target, intent(in) :: this
-    class(array_t), pointer :: matrix_array_assembler_get_array
-    matrix_array_assembler_get_array => this%array 
-  end function matrix_array_assembler_get_array
   
   subroutine matrix_array_assembler_allocate(this)
     implicit none
@@ -90,6 +77,12 @@ contains
     call this%matrix%allocate()
     call this%array%allocate()  
   end subroutine matrix_array_assembler_allocate
+  
+  subroutine matrix_array_assembler_compress_storage(this,sparse_matrix_storage_format)
+    implicit none
+    class(SB_matrix_array_assembler_t), intent(inout) :: this
+    character(*)                      , intent(in)    :: sparse_matrix_storage_format
+  end subroutine matrix_array_assembler_compress_storage
   
   subroutine matrix_array_assembler_free_in_stages(this,action)
     implicit none
@@ -104,5 +97,19 @@ contains
        nullify(this%array)
     end if
   end subroutine matrix_array_assembler_free_in_stages
+  
+    function matrix_array_assembler_get_matrix(this)
+    implicit none
+    class(SB_matrix_array_assembler_t), target, intent(in) :: this
+    class(matrix_t), pointer :: matrix_array_assembler_get_matrix
+    matrix_array_assembler_get_matrix => this%matrix 
+  end function matrix_array_assembler_get_matrix
+  
+  function matrix_array_assembler_get_array(this)
+    implicit none
+    class(SB_matrix_array_assembler_t), target, intent(in) :: this
+    class(array_t), pointer :: matrix_array_assembler_get_array
+    matrix_array_assembler_get_array => this%array 
+  end function matrix_array_assembler_get_array
   
 end module SB_matrix_array_assembler_names
