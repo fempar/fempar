@@ -33,9 +33,9 @@ private
     ! Input State         | Action                | Output State 
     !-----------------------------------------------------------------
     ! Start               | Create                | Created
-    ! Start               | Free_clean            | Start ???
-    ! Start               | Free_symbolic         | Start ???
-    ! Start               | Free_numeric          | * Error ???
+    ! Start               | Free_clean            | Start
+    ! Start               | Free_symbolic         | Start
+    ! Start               | Free_numeric          | Start
 
     ! Created             | Insert (2-values)     | Build_symbolic
     ! Created             | Insert (3-values)     | Build_numeric
@@ -319,8 +319,7 @@ contains
     subroutine base_sparse_matrix_set_state_start(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_START
-    !< The matrix can be in this state in the initial stage
-    !< of after a free
+    !< This state can be reached after free() calls
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -331,11 +330,10 @@ contains
     subroutine base_sparse_matrix_set_state_created(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_CREATED
-    !< The matrix can jump to this state after SPARSE_MATRIX_STATE_START
+    !< The matrix can jump to this state after create() calls
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
         this%state = SPARSE_MATRIX_STATE_CREATED
     end subroutine base_sparse_matrix_set_state_created
 
@@ -343,12 +341,10 @@ contains
     subroutine base_sparse_matrix_set_state_build_symbolic(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_CREATED
-    !< The matrix can jump to this state after SPARSE_MATRIX_STATE_CREATE
-    !< or SPARSE_MATRIX_STATE_BUILD_SYMBOLIC
+    !< The matrix can jump to this state after insert(ia,ja) calls
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
         this%state = SPARSE_MATRIX_STATE_BUILD_SYMBOLIC
     end subroutine base_sparse_matrix_set_state_build_symbolic
 
@@ -356,12 +352,10 @@ contains
     subroutine base_sparse_matrix_set_state_build_numeric(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_CREATED
-    !< The matrix can jump to this state after SPARSE_MATRIX_STATE_CREATED
-    !< or SPARSE_MATRIX_STATE_BUILD_NUMERIC
+    !< The matrix can jump to this state after inser(ia,ja,val) calls
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC)
         this%state = SPARSE_MATRIX_STATE_BUILD_NUMERIC
     end subroutine base_sparse_matrix_set_state_build_numeric
 
@@ -369,12 +363,12 @@ contains
     subroutine base_sparse_matrix_set_state_assembled_symbolic(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_ASSEMBLED
-    !< The matrix can be in this state after SPARSE_MATRIX_STATE_UPDATE
-    !< or SPARSE_MATRIX_STATE_ASSEMBLED or SPARSE_MATRIX_STATE_BUILD_SYMBOLIC
+    !< The matrix can be in this state after convert() calls from a
+    !< SPARSE_MATRIX_STATE_BUILD_SYMBOLIC state or callfree_numeric()
+    !< from SPARSE_MATRIX_STATE_ASSEMBLED
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
         this%state = SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC
     end subroutine base_sparse_matrix_set_state_assembled_symbolic
 
@@ -382,24 +376,23 @@ contains
     subroutine base_sparse_matrix_set_state_assembled(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_ASSEMBLED
-    !< The matrix can be in this state after SPARSE_MATRIX_STATE_UPDATE
-    !< or SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC or SPARSE_MATRIX_STATE_BUILD_NUMERIC
+    !< The matrix can be in this state after convert() calls from a
+    !< SPARSE_MATRIX_STATE_BUILD_NUMERIC state or 
+    !< from SPARSE_MATRIX_STATE_UPDATE
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         this%state = SPARSE_MATRIX_STATE_ASSEMBLED
     end subroutine base_sparse_matrix_set_state_assembled
 
 
     subroutine base_sparse_matrix_set_state_update(this)
     !-----------------------------------------------------------------
-    !< Set the matrix state to SPARSE_MATRIX_STATE_ASSEMBLED
+    !< Set the matrix state to SPARSE_MATRIX_STATE_UPDATE
     !< The matrix can be in this state after SPARSE_MATRIX_STATE_ASSEMBLED
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         this%state = SPARSE_MATRIX_STATE_update
     end subroutine base_sparse_matrix_set_state_update
 
@@ -562,7 +555,7 @@ contains
         integer(ip),                 intent(in)    :: sign
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        call this%set_state_created()
+        check(this%state == SPARSE_MATRIX_STATE_START)
         assert(this%is_valid_sign(sign))
         if(symmetric_storage) then
             check(is_symmetric)
@@ -577,6 +570,7 @@ contains
         else
             call this%allocate_coords()
         endif
+        call this%set_state_created()
     end subroutine base_sparse_matrix_create_square
 
 
@@ -589,7 +583,7 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        call this%set_state_created()
+        check(this%state == SPARSE_MATRIX_STATE_START)
         call this%set_symmetric_storage(.false.)
         this%symmetric = .false.
         this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
@@ -600,6 +594,7 @@ contains
         else
             call this%allocate_coords()
         endif
+        call this%set_state_created()
     end subroutine base_sparse_matrix_create_rectangular
 
 
@@ -620,6 +615,7 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
+        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC)
         call this%append_body(nz, ia, ja, val, imin, imax, jmin, jmax)
         call this%set_state_build_numeric()
     end subroutine base_sparse_matrix_append_values
@@ -641,6 +637,7 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
+        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
         call this%append_body(nz, ia, ja, imin, imax, jmin, jmax)
         call this%set_state_build_symbolic()
     end subroutine base_sparse_matrix_append_entries
@@ -703,6 +700,7 @@ contains
         class(base_sparse_matrix_t), intent(inout) :: this
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
+        check(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
         call this%allocate_val(nz)
         call this%set_state_assembled()
     end subroutine base_sparse_matrix_allocate_values
@@ -790,8 +788,8 @@ contains
         this%num_cols = 0
         this%symmetric = .false.
         this%symmetric_storage = .false.
-        call this%free_coords()
-        call this%free_val()
+        if(this%state > SPARSE_MATRIX_STATE_CREATED) call this%free_coords()
+        if(.not. this%is_symbolic()) call this%free_val()
         call this%set_state_start()
     end subroutine base_sparse_matrix_free_clean
 
@@ -802,9 +800,9 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        call this%free_coords()
-        call this%free_val()
-        call this%set_state_created()
+        if(this%state > SPARSE_MATRIX_STATE_CREATED) call this%free_coords()
+        if(.not. this%is_symbolic()) call this%free_val()
+        if(this%state /= SPARSE_MATRIX_STATE_START) call this%set_state_created()
     end subroutine base_sparse_matrix_free_symbolic
 
 
@@ -814,8 +812,11 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        call this%free_val()
-        call this%set_state_assembled_symbolic()
+        if(this%state > SPARSE_MATRIX_STATE_CREATED) then
+            if(.not. this%is_symbolic()) call this%free_val()
+            if(this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) call this%set_state_build_symbolic()
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED) call this%set_state_assembled_symbolic()
+        endif
     end subroutine base_sparse_matrix_free_numeric
 
 
@@ -1050,6 +1051,10 @@ contains
         integer                                    :: info
         procedure(duplicates_operation), pointer   :: apply_duplicates => null ()
     !-----------------------------------------------------------------
+        check(this%state > SPARSE_MATRIX_STATE_CREATED)
+        
+        if(this%nnz == 0) return
+        
         by_rows     = .true.
         sum_dupl    = .true.
 
@@ -1059,10 +1064,11 @@ contains
 
         if(this%is_symbolic()) then
             call sort_and_compress_symbolic(this, .not. by_rows, sum_dupl)
+            call this%set_state_assembled_symbolic()
         else
             call sort_and_compress_numeric(this, .not. by_rows, sum_dupl)
+            call this%set_state_assembled()
         endif
-                    
     contains
 
 

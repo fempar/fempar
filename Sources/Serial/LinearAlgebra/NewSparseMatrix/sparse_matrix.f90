@@ -73,6 +73,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         logical                               :: is_symmetric
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         is_symmetric = this%State%is_symmetric()
     end function sparse_matrix_is_symmetric
 
@@ -84,6 +85,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         logical                               :: symmetric_storage
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         symmetric_storage = this%State%get_symmetric_storage()
     end function sparse_matrix_get_symmetric_storage
 
@@ -95,6 +97,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         logical                               :: is_by_rows
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         is_by_rows = this%State%is_by_rows()
     end function sparse_matrix_is_by_rows
 
@@ -106,6 +109,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         logical                               :: is_by_cols
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         is_by_cols = this%State%is_by_cols()
     end function sparse_matrix_is_by_cols
 
@@ -117,6 +121,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         integer(ip)                           :: num_rows
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         num_rows = this%State%get_num_rows()
     end function sparse_matrix_get_num_rows
 
@@ -128,6 +133,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         integer(ip)                           :: num_cols
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         num_cols = this%State%get_num_cols()
     end function sparse_matrix_get_num_cols
 
@@ -139,6 +145,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         integer(ip)                           :: nnz
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         nnz = this%State%get_nnz()
     end function sparse_matrix_get_nnz
 
@@ -150,6 +157,7 @@ contains
         class(sparse_matrix_t), intent(inout) :: this
         integer(ip)                           :: sign
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         sign = this%State%get_sign()
     end function sparse_matrix_get_sign
 
@@ -170,6 +178,7 @@ contains
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         call this%State%allocate_values()
     end subroutine sparse_matrix_allocate_values
 
@@ -184,6 +193,7 @@ contains
         type(vector_space_t), pointer              :: range_vector_space
         type(vector_space_t), pointer              :: domain_vector_space
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         call range_vector%create(this%get_num_rows())
         call domain_vector%create(this%get_num_cols())
         range_vector_space => this%get_range_vector_space()
@@ -249,6 +259,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         call this%State%allocate_val(nz)
         call this%State%set_values(nz, ia, ja, val, imin, imax, jmin, jmax)
     end subroutine sparse_matrix_append_values
@@ -267,6 +278,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         call this%State%set_values(nz, ia, ja, imin, imax, jmin, jmax)
     end subroutine sparse_matrix_append_entries
 
@@ -279,11 +291,7 @@ contains
         class(base_sparse_matrix_t), allocatable :: tmp
         integer                                  :: error
     !-----------------------------------------------------------------
-        if(this%State%is_symbolic()) then
-            call this%State%set_state_assembled_symbolic()
-        else
-            call this%State%set_state_assembled()
-        endif
+        assert(allocated(this%State))
         allocate(tmp, mold=this%get_default_sparse_matrix(), stat=error)
         check(error==0)
         call tmp%move_from_fmt(from=this%State)
@@ -304,11 +312,6 @@ contains
         integer                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        if(this%State%is_symbolic()) then
-            call this%State%set_state_assembled_symbolic()
-        else
-            call this%State%set_state_assembled()
-        endif
         error = 0
         select case (string)
             case ('CSR', 'csr')
@@ -321,7 +324,7 @@ contains
         check(error==0)
         call tmp%move_from_fmt(from=this%State)
         if(allocated(this%State)) deallocate(this%State)
-        call move_alloc(from=tmp, to=this%State)
+        call move_alloc(from=tmp, to=this%State)  
     end subroutine sparse_matrix_convert_string
 
 
@@ -335,11 +338,7 @@ contains
         class(base_sparse_matrix_t), allocatable :: tmp
         integer                                  :: error
     !-----------------------------------------------------------------
-        if(this%State%is_symbolic()) then
-            call this%State%set_state_assembled_symbolic()
-        else
-            call this%State%set_state_assembled()
-        endif
+        assert(allocated(this%State))
         allocate(tmp, mold=mold%State, stat=error)
         check(error==0)
         call tmp%move_from_fmt(from=this%State)
@@ -358,11 +357,7 @@ contains
         class(base_sparse_matrix_t), allocatable   :: tmp
         integer                                    :: error
     !-----------------------------------------------------------------
-        if(this%State%is_symbolic()) then
-            call this%State%set_state_assembled_symbolic()
-        else
-            call this%State%set_state_assembled()
-        endif
+        assert(allocated(this%State))
         allocate(tmp, mold=mold, stat=error)
         check(error==0)
         call tmp%move_from_fmt(from=this%State)
@@ -405,6 +400,7 @@ contains
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------
+        assert(allocated(op%State))
         call op%abort_if_not_in_domain(x)
         call op%abort_if_not_in_range(y)
         call op%State%apply(x,y)
@@ -444,27 +440,37 @@ contains
         logical     :: symmetric
         logical     :: symmetric_storage
     !-----------------------------------------------------------------
-        assert(allocated(this%State))
-        if(action == 1) then
-            call this%State%free_numeric()
-        elseif(action == 2) then
-            nnz               = this%State%get_nnz()
-            num_rows          = this%State%get_num_rows()
-            num_cols          = this%State%get_num_cols()
-            sign              = this%State%get_sign()
-            symmetric         = this%State%is_symmetric()
-            symmetric_storage = this%State%get_symmetric_storage()
-            call this%State%free_clean()
-            deallocate(this%State)
-            call this%create(num_rows,num_cols,nnz)
-            call this%State%set_sign(sign)
-            call this%State%set_symmetry(symmetric)
-            call this%State%set_symmetric_storage(symmetric_storage)
-        elseif(action == 3) then
-            call this%State%free_clean()
-            deallocate(this%State)
-        else
-            call this%free()
+        if(allocated(this%State)) then
+            if(action == free_numerical_setup) then
+                call this%State%free_numeric()
+            elseif(action == free_symbolic_setup) then
+                select type (matrix => this%State)
+                    class is (coo_sparse_matrix_t)
+                        call Matrix%free_symbolic()
+                    class DEFAULT
+                        nnz               = matrix%get_nnz()
+                        num_rows          = matrix%get_num_rows()
+                        num_cols          = matrix%get_num_cols()
+                        sign              = matrix%get_sign()
+                        symmetric         = matrix%is_symmetric()
+                        symmetric_storage = matrix%get_symmetric_storage()
+                        call matrix%free_clean()
+                        deallocate(this%State)
+                        call this%create(num_rows,num_cols,nnz)
+                        call this%State%set_sign(sign)
+                        call this%State%set_symmetry(symmetric)
+                        call this%State%set_symmetric_storage(symmetric_storage)
+                end select
+            elseif(action == free_clean) then
+                call this%State%free_clean()
+                deallocate(this%State)
+                if(allocated(default_sparse_matrix)) then
+                    call default_sparse_matrix%free()
+                    deallocate(default_sparse_matrix)
+                endif
+            else
+                call this%free()
+            endif
         endif
     end subroutine sparse_matrix_free_in_stages
 
@@ -477,6 +483,7 @@ contains
         integer(ip),             intent(in) :: lunou
         logical,     optional,   intent(in) :: only_graph
     !-----------------------------------------------------------------
+        assert(allocated(this%State))
         if(present(only_graph)) then
             call this%State%print(lunou, only_graph=only_graph)
         else
