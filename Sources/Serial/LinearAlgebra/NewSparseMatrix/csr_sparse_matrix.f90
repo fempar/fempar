@@ -32,6 +32,7 @@ private
         procedure, public :: move_from_fmt           => csr_sparse_matrix_move_from_fmt
         procedure, public :: allocate_val            => csr_sparse_matrix_allocate_val
         procedure, public :: update_values_body      => csr_sparse_matrix_update_values_body
+        procedure, public :: update_single_value_body=> csr_sparse_matrix_update_single_value_body
         procedure, public :: free_coords             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                => csr_sparse_matrix_free_val
         procedure, public :: apply_body              => csr_sparse_matrix_apply_body
@@ -539,6 +540,60 @@ contains
         end subroutine search_and_update
 
     end subroutine csr_sparse_matrix_update_values_body
+
+
+    subroutine csr_sparse_matrix_update_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        call search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
+    contains
+
+        subroutine search_and_update(this, ia, ja, val, imin, imax, jmin, jmax, sum_duplicates) 
+            class(csr_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                intent(in)    :: ia
+            integer(ip),                intent(in)    :: ja
+            real(rp),                   intent(in)    :: val
+            integer(ip),                intent(in)    :: imin
+            integer(ip),                intent(in)    :: imax
+            integer(ip),                intent(in)    :: jmin
+            integer(ip),                intent(in)    :: jmax
+            logical,        optional,   intent(in)    :: sum_duplicates
+            logical                                   :: sum_dupl
+            procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+            integer(ip)                               :: i,ipaux,i1,i2,nr,nc,nnz
+
+            sum_dupl    = .true.
+            if(present(sum_duplicates)) sum_dupl = sum_duplicates
+
+            if(sum_dupl) then
+                apply_duplicates => sum_value
+            else
+                apply_duplicates => assign_value
+            endif
+
+            nnz = this%nnz
+
+            if (ia > 0.and. ia <= this%get_num_rows()) then 
+                i1 = this%irp(ia)
+                i2 = this%irp(ia+1)
+                nc = i2-i1
+                ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+                if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
+            end if
+
+        end subroutine search_and_update
+
+    end subroutine csr_sparse_matrix_update_single_value_body
 
 
     subroutine csr_sparse_matrix_free_coords(this)
