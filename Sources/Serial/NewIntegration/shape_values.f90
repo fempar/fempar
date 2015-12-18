@@ -1,4 +1,4 @@
-module shape_values_names
+module field_names
   use types_names
   use memor_names
   implicit none
@@ -6,29 +6,29 @@ module shape_values_names
 
   private
 
-  integer(ip), parameter :: dim = 2 ! SB.alert : To be used by templatization mechanism
-
+  integer(ip), parameter :: dim = 3
+  
   type, abstract :: field_type_t
   end type field_type_t
 
   type, extends(field_type_t) :: scalar_field_t
      private
-     real(rp) :: value(1,1)
+     real(rp) :: value(1,1) = 0.0_rp
   end type scalar_field_t
   
   type, extends(field_type_t) :: vector_field_t
      private
-     real(rp) :: value(dim,1)
+     real(rp) :: value(dim,1) = 0.0_rp
   end type vector_field_t
   
   type, extends(field_type_t) :: tensor_field_t
      private
-     real(rp)  :: value(dim,dim)
+     real(rp)  :: value(dim,dim) = 0.0_rp
   end type tensor_field_t
 
   type, extends(field_type_t) :: symmetric_tensor_field_t
      private
-     real(rp)  :: value(dim,dim)
+     real(rp)  :: value(dim,dim) = 0.0_rp
   end type symmetric_tensor_field_t
 
   public :: field_type_t, scalar_field_t, vector_field_t, tensor_field_t, symmetric_tensor_field_t
@@ -150,4 +150,4 @@ contains
     end if
   end function gradient_field_type
   
-end module shape_values_names
+end module field_names

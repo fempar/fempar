@@ -178,9 +178,13 @@ subroutine volume_integrator_create( this, quadrature, reference_fe )
   ! Parameters
   class(SB_volume_integrator_t), intent(inout) :: this 
   type(SB_quadrature_t)        ,  intent(in)   :: quadrature
-  class(reference_fe_t)        ,  intent(in)   :: reference_fe  
+  class(reference_fe_t), target,  intent(in)   :: reference_fe  
 
   call this%free()
+  
+  this%number_evaluation_points = quadrature%get_number_evaluation_points()
+  this%number_shape_functions   = reference_fe%get_number_nodes()
+  this%reference_fe => reference_fe
   
   call reference_fe%create_interpolation( quadrature, this%interpolation )
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
@@ -222,6 +226,9 @@ subroutine volume_integrator_free( this )
   call this%shape_gradient_test%free()
   call this%shape_value_trial%free()
   call this%shape_gradient_trial%free()
+  nullify(this%reference_fe)
+  this%number_evaluation_points = 0
+  this%number_shape_functions = 0
 end subroutine volume_integrator_free
 !==================================================================================================
 

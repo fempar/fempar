@@ -1,6 +1,6 @@
 module reference_fe_names
   use allocatable_array_ip1_names
-  use shape_values_names
+  use field_names
   use types_names
   use list_types_names
   use memor_names
@@ -306,6 +306,9 @@ public :: fe_map_t, p_fe_map_t
 
 type SB_volume_integrator_t 
   private
+  integer(ip)                    :: number_shape_functions
+  integer(ip)                    :: number_evaluation_points
+  class(reference_fe_t), pointer :: reference_fe
   type(SB_interpolation_t)       :: interpolation           ! Unknown interpolation_t in the reference element domain
   type(SB_interpolation_t)       :: interpolation_o_map     ! Unknown interpolation_t in the physical element domain
   type(shape_values_t)           :: shape_value_test, shape_gradient_test

@@ -1,5 +1,5 @@
 module SB_discrete_integration_names
-  use shape_values_names
+  use field_names
   use reference_fe_names
   use types_names
   use SB_assembler_names
@@ -65,7 +65,7 @@ end subroutine impose_strong_dirichlet_data
 end module SB_discrete_integration_names
 
 module poisson_discrete_integration_names
-  use shape_values_names
+  use field_names
   use SB_assembler_names
   use SB_fe_space_names
   use SB_discrete_integration_names
@@ -244,7 +244,7 @@ end module poisson_discrete_integration_names
 
 
 module vector_laplacian_discrete_integration_names
-use shape_values_names
+use field_names
 use SB_assembler_names
 use SB_fe_space_names
 use SB_discrete_integration_names

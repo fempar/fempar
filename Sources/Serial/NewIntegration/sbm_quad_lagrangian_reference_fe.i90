@@ -73,8 +73,8 @@ subroutine quad_lagrangian_reference_fe_get_gradient( this, shg, int, node, gp )
   real(rp)                             , intent(out) :: shg(:,:)
 
   shg = 0
-  shg(:,this%node_component_array(node,2)) = &
-       int%shape_derivatives(:,this%node_component_array(node,1),gp)
+  shg(1:2,this%node_component_array(node,2)) = &
+       int%shape_derivatives(1:2,this%node_component_array(node,1),gp)
 end subroutine quad_lagrangian_reference_fe_get_gradient
 
 function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
