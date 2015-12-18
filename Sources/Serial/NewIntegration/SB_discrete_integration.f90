@@ -152,8 +152,8 @@ contains
        fe_map => fe%get_fe_map()
        vol_int => fe%get_volume_integrator()
 
-       call fe_map%print()
-       call quad%print()
+       !call fe_map%print()
+       !call quad%print()
        !call vol_int(1)%p%print()
        !check(0==1)
        !gcall vol_int%print()
@@ -196,8 +196,7 @@ contains
 
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes, number_fe_spaces )
 
-       call assembler%assembly( elem2dof, elmat, elvec, number_fe_spaces, &
-            & blocks, number_nodes, blocks_coupling )   
+       call assembler%assembly( number_fe_spaces, elem2dof, blocks, number_nodes, blocks_coupling, elmat, elvec )
        !end do
 
        !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
@@ -295,19 +294,18 @@ contains
     integer(ip) :: a, b
     integer(ip) :: i, number_blocks, number_fe_spaces
 
-    integer(ip), pointer :: blocks(:)
-    logical, pointer :: blocks_coupling(:,:)
+    integer(ip), pointer :: field_blocks(:)
+    logical, pointer :: field_coupling(:,:)
 
     integer(ip) :: ielem, iapprox, nnodes
     type(i1p_t), pointer :: elem2dof(:)
     type(i1p_t), pointer :: bc_code(:)
     type(r1p_t), pointer :: bc_value(:)
 
-
     number_blocks = fe_space%get_number_blocks()
     number_fe_spaces = fe_space%get_number_fe_spaces()
-    blocks => fe_space%get_field_blocks()
-    blocks_coupling => fe_space%get_field_coupling()
+    field_blocks => fe_space%get_field_blocks()
+    field_coupling => fe_space%get_field_coupling()
 
     fe => fe_space%get_finite_element(1)
     nnodes = fe%get_number_nodes()
@@ -316,10 +314,8 @@ contains
 
     allocate( number_nodes(number_fe_spaces) )
 
-
     call fe_space%initialize_integration()
 
-    !do iapprox = 1, size(this%approximations)
     do ielem = 1, fe_space%get_number_elements()
 
        elmat = 0.0_rp
@@ -336,20 +332,12 @@ contains
        call fe%get_number_nodes_field(number_nodes,number_fe_spaces)
        quad => fe%get_quadrature()
 
-       !quad => vol_int(1)%p%get_quadrature()
-       !fe_map => vol_int%get_fe_map()
-
-
-       !number_nodes = !ref_fe%get_number_nodes()
        ngaus = quad%get_number_evaluation_points()
 
        shape_gradient_test_u => vol_int(1)%p%get_gradients()
        shape_gradient_trial_u => vol_int(1)%p%get_gradients()
        shape_gradient_test_v => vol_int(2)%p%get_gradients()
        shape_gradient_trial_v => vol_int(2)%p%get_gradients()
-
-       !call shape_gradient_test_u%print()
-       !call shape_gradient_test_v%print()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -360,7 +348,6 @@ contains
                 ! elmat = elmat + grad_trial*grad_test
                 do a = 1,size(shape_gradient_test_u%get_value(inode,igaus),1)
                    do b= 1,size(shape_gradient_trial_u%get_value(inode,igaus),2)
-                      ! write(*,*) 'BLOCK 1',factor * grad_test(a,b) * grad_trial(a,b)
                       elmat(inode,jnode) = elmat(inode,jnode) &
                            + factor * grad_test(a,b) * grad_trial(a,b) 
                    end do
@@ -375,7 +362,6 @@ contains
                 ! elmat = elmat + grad_trial*grad_test
                 do a = 1,size(shape_gradient_test_v%get_value(inode,igaus),1)
                    do b= 1,size(shape_gradient_trial_v%get_value(inode,igaus),2)
-                      ! write(*,*) 'BLOCK 2',factor * grad_test(a,b) * grad_trial(a,b)
                       elmat(number_nodes(1)+inode,number_nodes(1)+jnode) = elmat(number_nodes(1)+inode,number_nodes(1)+jnode) &
                            + factor * grad_test(a,b) * grad_trial(a,b) 
                    end do
@@ -384,20 +370,10 @@ contains
           end do
        end do
 
-       write (*,*) 'elmat ', elmat
-
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes, number_fe_spaces )
 
-       call assembler%assembly( elem2dof, elmat, elvec, number_fe_spaces, &
-            & blocks, number_nodes, blocks_coupling )      
+       call assembler%assembly( number_fe_spaces, elem2dof, field_blocks, number_nodes, field_coupling, elmat, elvec )      
     end do
-    !end do
-    !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
-    !write (*,*) elmat
-
-
-    ! Apply boundary conditions
-    !call impose_strong_dirichlet_data(fe) 
 
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
