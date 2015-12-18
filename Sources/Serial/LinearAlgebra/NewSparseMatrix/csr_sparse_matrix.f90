@@ -363,6 +363,7 @@ contains
                 call this%set_symmetry(from%is_symmetric())
                 call this%set_symmetric_storage(from%get_symmetric_storage())
                 call this%set_sign(from%get_sign())
+                call this%set_nnz(from%get_nnz())
                 call this%set_state(from%get_state())
                 call move_alloc(from%irp, this%irp)
                 call move_alloc(from%ja,  this%ja)
@@ -503,49 +504,30 @@ contains
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
         integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
-        call search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
-    contains
+        if(nz==0) return
 
-        subroutine search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
-            class(csr_sparse_matrix_t), intent(inout) :: this
-            integer(ip),                intent(in)    :: nz
-            integer(ip),                intent(in)    :: ia(nz)
-            integer(ip),                intent(in)    :: ja(nz)
-            real(rp),                   intent(in)    :: val(nz)
-            integer(ip),                intent(in)    :: imin
-            integer(ip),                intent(in)    :: imax
-            integer(ip),                intent(in)    :: jmin
-            integer(ip),                intent(in)    :: jmax
-            procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
-            integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
 
-            if(nz==0) return
-
-            if(this%get_sum_duplicates()) then
-                apply_duplicates => sum_value
-            else
-                apply_duplicates => assign_value
-            endif
-
-            nnz = this%nnz
-
-            ilr = -1 
-            ilc = -1 
-            do i=1, nz
-                ir = ia(i)
-                ic = ja(i) 
-                if (ir > 0.and. ir <= this%get_num_rows()) then 
-                    i1 = this%irp(ir)
-                    i2 = this%irp(ir+1)
-                    nc = i2-i1
-                    ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
-                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                end if
-            end do
-
-        end subroutine search_and_update
-
+        ilr = -1 
+        ilc = -1 
+        do i=1, nz
+            ir = ia(i)
+            ic = ja(i) 
+            if (ir > 0.and. ir <= this%get_num_rows()) then 
+                i1 = this%irp(ir)
+                i2 = this%irp(ir+1)
+                nc = i2-i1
+                ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end if
+        end do
     end subroutine csr_sparse_matrix_update_values_body
 
 
@@ -561,40 +543,23 @@ contains
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
         integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
-        call search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
-    contains
 
-        subroutine search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
-            class(csr_sparse_matrix_t), intent(inout) :: this
-            integer(ip),                intent(in)    :: ia
-            integer(ip),                intent(in)    :: ja
-            real(rp),                   intent(in)    :: val
-            integer(ip),                intent(in)    :: imin
-            integer(ip),                intent(in)    :: imax
-            integer(ip),                intent(in)    :: jmin
-            integer(ip),                intent(in)    :: jmax
-            procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
-            integer(ip)                               :: i,ipaux,i1,i2,nr,nc,nnz
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
 
-            if(this%get_sum_duplicates()) then
-                apply_duplicates => sum_value
-            else
-                apply_duplicates => assign_value
-            endif
-
-            nnz = this%nnz
-
-            if (ia > 0.and. ia <= this%get_num_rows()) then 
-                i1 = this%irp(ia)
-                i2 = this%irp(ia+1)
-                nc = i2-i1
-                ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
-                if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-            end if
-
-        end subroutine search_and_update
-
+        if (ia > 0.and. ia <= this%get_num_rows()) then 
+            i1 = this%irp(ia)
+            i2 = this%irp(ia+1)
+            nc = i2-i1
+            ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+            if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
+        end if
     end subroutine csr_sparse_matrix_update_single_value_body
 
 

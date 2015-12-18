@@ -386,6 +386,7 @@ contains
         assert(allocated(this%State))
         allocate(tmp, mold=mold, stat=error)
         check(error==0)
+        call this%State%convert_body()
         call tmp%move_from_fmt(from=this%State)
         if(allocated(this%State)) deallocate(this%State)
         call move_alloc(from=tmp, to=this%State)

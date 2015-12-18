@@ -146,6 +146,7 @@ private
         procedure, public :: get_state                    => base_sparse_matrix_get_state
         procedure, public :: allocate_coords              => base_sparse_matrix_allocate_coords
         procedure, public :: allocate_values              => base_sparse_matrix_allocate_values
+        procedure, public :: convert_body                 => base_sparse_matrix_convert_body
         procedure, public :: apply                        => base_sparse_matrix_apply
         procedure, public :: print_matrix_market          => base_sparse_matrix_print_matrix_market
         procedure, public :: free                         => base_sparse_matrix_free
@@ -358,7 +359,7 @@ private
     end interface
 
 !---------------------------------------------------------------------
-!< COO SPARSE MATRIX INTERFACES
+!< AUX PROCEDURES INTERFACES
 !---------------------------------------------------------------------
 
     interface 
@@ -964,6 +965,22 @@ contains
     end subroutine base_sparse_matrix_copy_from_fmt
 
 
+    subroutine base_sparse_matrix_convert_body(this)
+    !-----------------------------------------------------------------
+    !< Convert procedure from the base_sparse_matrix point of view
+    !< State diagram management. Sort and compress?
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%is_symbolic()) then
+            call this%set_state_assembled_symbolic()
+        else
+            call this%set_state_assembled()
+        endif
+    end subroutine base_sparse_matrix_convert_body
+
+
     subroutine base_sparse_matrix_free (this)
     !-----------------------------------------------------------------
     !< Clean the properties and size of a rectangular matrix
@@ -986,8 +1003,8 @@ contains
         call this%set_nnz(nnz=0)
         this%symmetric = .false.
         this%symmetric_storage = .false.
-        if(this%state > SPARSE_MATRIX_STATE_CREATED) call this%free_coords()
-        if(.not. this%is_symbolic()) call this%free_val()
+        call this%free_coords()
+        call this%free_val()
         call this%set_state_start()
     end subroutine base_sparse_matrix_free_clean
 
@@ -998,8 +1015,8 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        if(this%state > SPARSE_MATRIX_STATE_CREATED) call this%free_coords()
-        if(.not. this%is_symbolic()) call this%free_val()
+        call this%free_coords()
+        call this%free_val()
         call this%set_nnz(nnz=0)
         if(this%state /= SPARSE_MATRIX_STATE_START) call this%set_state_created()
     end subroutine base_sparse_matrix_free_symbolic
@@ -1012,7 +1029,7 @@ contains
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
         if(this%state > SPARSE_MATRIX_STATE_CREATED) then
-            if(.not. this%is_symbolic()) call this%free_val()
+            call this%free_val()
             if(this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) call this%set_state_build_symbolic()
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) call this%set_state_assembled_symbolic()
         endif
@@ -1031,7 +1048,6 @@ contains
         assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         call this%print_matrix_market_body(lunou, ng, l2g)
     end subroutine base_sparse_matrix_print_matrix_market
-
 
 !---------------------------------------------------------------------
 !< COO SPARSE MATRIX PROCEDURES
@@ -1246,7 +1262,6 @@ contains
             nnz = nnz + 1
             this%ia(nnz) = ir
             this%ja(nnz) = ic
-            !write(*,*) 'Inserted:', ir, ic
         enddo
         this%nnz = nnz
         this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
@@ -1340,97 +1355,75 @@ contains
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
         integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
-        call search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
-    contains
+        if(nz==0) return
 
-        subroutine search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
-            class(coo_sparse_matrix_t), intent(inout) :: this
-            integer(ip),                intent(in)    :: nz
-            integer(ip),                intent(in)    :: ia(nz)
-            integer(ip),                intent(in)    :: ja(nz)
-            real(rp),                   intent(in)    :: val(nz)
-            integer(ip),                intent(in)    :: imin
-            integer(ip),                intent(in)    :: imax
-            integer(ip),                intent(in)    :: jmin
-            integer(ip),                intent(in)    :: jmax
-            procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
-            integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
 
-            if(nz==0) return
+        nnz = this%nnz
 
-            if(this%get_sum_duplicates()) then
-                apply_duplicates => sum_value
-            else
-                apply_duplicates => assign_value
-            endif
+        if(this%is_by_rows()) then
+            ilr = -1
 
-            nnz = this%nnz
+            do i=1, nz
+                ir = ia(i)
+                ic = ja(i) 
+                if ((ir > 0).and.(ir <= this%num_rows)) then 
+                    if (ir /= ilr) then 
+                        i1 = binary_search(ir,nnz,this%ia)
+                        i2 = i1
+                        do 
+                            if (i2+1 > nnz) exit
+                            if (this%ia(i2+1) /= this%ia(i2)) exit
+                            i2 = i2 + 1
+                        end do
+                        do 
+                            if (i1-1 < 1) exit
+                            if (this%ia(i1-1) /= this%ia(i1)) exit
+                            i1 = i1 - 1
+                        end do
+                        ilr = ir
+                    end if
+                    nc = i2-i1+1
+                    ipaux = binary_search(ic,nc,this%ja(i1:i2))
+                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+                end if
+            end do
+        elseif(this%is_by_rows()) then
+            !Not tested yet!
+            ilc = -1
 
-            if(this%is_by_rows()) then
-                ilr = -1
-
-                do i=1, nz
-                  ir = ia(i)
-                  ic = ja(i) 
-                  if ((ir > 0).and.(ir <= this%num_rows)) then 
-                      if (ir /= ilr) then 
-                          i1 = binary_search(ir,nnz,this%ia)
-                          i2 = i1
-                          do 
-                              if (i2+1 > nnz) exit
-                              if (this%ia(i2+1) /= this%ia(i2)) exit
-                              i2 = i2 + 1
-                          end do
-                          do 
-                              if (i1-1 < 1) exit
-                              if (this%ia(i1-1) /= this%ia(i1)) exit
-                              i1 = i1 - 1
-                          end do
-                          ilr = ir
-                      end if
-                      nc = i2-i1+1
-                      ipaux = sequential_search(ic,nc,this%ja(i1:i2))
-                      if (ipaux>0) then 
-                          call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                      endif
-                   end if
-                end do
-            elseif(this%is_by_rows()) then
-                ! Not tested yet!
-                ilc = -1
-
-                do i=1, nz
-                  ir = ia(i)
-                  ic = ja(i) 
-                  if ((ic > 0).and.(ic <= this%num_cols)) then 
-                      if (ic /= ilc) then 
-                          i1 = binary_search(ic,nnz,this%ja)
-                          i2 = i1
-                          do 
-                              if (i2+1 > nnz) exit
-                              if (this%ja(i2+1) /= this%ja(i2)) exit
-                              i2 = i2 + 1
-                          end do
-                          do 
-                              if (i1-1 < 1) exit
-                              if (this%ja(i1-1) /= this%ja(i1)) exit
-                              i1 = i1 - 1
-                          end do
-                          ilc = ic
-                      end if
-                      nr = i2-i1+1
-                      ipaux = sequential_search(ir,nc,this%ia(i1:i2))
-                      if (ipaux>0) then 
-                          call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                      endif
-                   end if
-                end do
-            endif
-
-        end subroutine search_and_update
-
-
+            do i=1, nz
+                ir = ia(i)
+                ic = ja(i) 
+                if ((ic > 0).and.(ic <= this%num_cols)) then 
+                    if (ic /= ilc) then 
+                        i1 = binary_search(ic,nnz,this%ja)
+                        i2 = i1
+                        do 
+                            if (i2+1 > nnz) exit
+                            if (this%ja(i2+1) /= this%ja(i2)) exit
+                            i2 = i2 + 1
+                        end do
+                        do 
+                            if (i1-1 < 1) exit
+                            if (this%ja(i1-1) /= this%ja(i1)) exit
+                            i1 = i1 - 1
+                        end do
+                        ilc = ic
+                    end if
+                    nr = i2-i1+1
+                    ipaux = binary_search(ir,nc,this%ia(i1:i2))
+                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+                end if
+            end do
+        endif
     end subroutine coo_sparse_matrix_update_values_body
 
 
@@ -1446,145 +1439,62 @@ contains
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
         integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
-        call search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
-    contains
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
 
-        subroutine search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
-            class(coo_sparse_matrix_t), intent(inout) :: this
-            integer(ip),                intent(in)    :: ia
-            integer(ip),                intent(in)    :: ja
-            real(rp),                   intent(in)    :: val
-            integer(ip),                intent(in)    :: imin
-            integer(ip),                intent(in)    :: imax
-            integer(ip),                intent(in)    :: jmin
-            integer(ip),                intent(in)    :: jmax
-            procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
-            integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
+        nnz = this%nnz
 
+        if(this%is_by_rows()) then
 
-            if(this%get_sum_duplicates()) then
-                apply_duplicates => sum_value
-            else
-                apply_duplicates => assign_value
+            if ((ia > 0).and.(ia <= this%num_rows)) then 
+                i1 = binary_search(ia,nnz,this%ia)
+                i2 = i1
+                do 
+                    if (i2+1 > nnz) exit
+                    if (this%ia(i2+1) /= this%ia(i2)) exit
+                    i2 = i2 + 1
+                end do
+                do 
+                    if (i1-1 < 1) exit
+                    if (this%ia(i1-1) /= this%ia(i1)) exit
+                    i1 = i1 - 1
+                end do
+                nc = i2-i1+1
+                ipaux = binary_search(ja,nc,this%ja(i1:i2))
+                if (ipaux>0) then 
+                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
+                endif
             endif
 
-            nnz = this%nnz
-
-            if(this%is_by_rows()) then
-
-                  if ((ia > 0).and.(ia <= this%num_rows)) then 
-                      i1 = binary_search(ia,nnz,this%ia)
-                      i2 = i1
-                      do 
-                          if (i2+1 > nnz) exit
-                          if (this%ia(i2+1) /= this%ia(i2)) exit
-                          i2 = i2 + 1
-                      end do
-                      do 
-                          if (i1-1 < 1) exit
-                          if (this%ia(i1-1) /= this%ia(i1)) exit
-                          i1 = i1 - 1
-                      end do
-                      nc = i2-i1+1
-                      ipaux = sequential_search(ja,nc,this%ja(i1:i2))
-                      if (ipaux>0) then 
-                          call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                      endif
-                 endif
-
-            elseif(this%is_by_rows()) then
-                ! Not tested yet! 
-                if ((ja > 0).and.(ja <= this%num_cols)) then 
-                      i1 = binary_search(ja,nnz,this%ja)
-                      i2 = i1
-                      do 
-                          if (i2+1 > nnz) exit
-                          if (this%ja(i2+1) /= this%ja(i2)) exit
-                          i2 = i2 + 1
-                      end do
-                      do 
-                          if (i1-1 < 1) exit
-                          if (this%ja(i1-1) /= this%ja(i1)) exit
-                          i1 = i1 - 1
-                      end do
-                      nr = i2-i1+1
-                      ipaux = sequential_search(ia,nc,this%ia(i1:i2))
-                      if (ipaux>0) then 
-                          call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                      endif
-                 endif
+        elseif(this%is_by_rows()) then
+            ! Not tested yet! 
+            if ((ja > 0).and.(ja <= this%num_cols)) then 
+                i1 = binary_search(ja,nnz,this%ja)
+                i2 = i1
+                do 
+                    if (i2+1 > nnz) exit
+                    if (this%ja(i2+1) /= this%ja(i2)) exit
+                    i2 = i2 + 1
+                end do
+                do 
+                    if (i1-1 < 1) exit
+                    if (this%ja(i1-1) /= this%ja(i1)) exit
+                    i1 = i1 - 1
+                end do
+                nr = i2-i1+1
+                ipaux = binary_search(ia,nc,this%ia(i1:i2))
+                if (ipaux>0) then 
+                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
+                endif
             endif
-
-        end subroutine search_and_update
-
-
+        endif
     end subroutine coo_sparse_matrix_update_single_value_body
-
-
-
-    subroutine assign_value(input, output)
-    !-----------------------------------------------------------------
-    ! Assign an input value to the autput
-    !-----------------------------------------------------------------
-        real(rp), intent(in)    :: input
-        real(rp), intent(inout) :: output
-    !-------------------------------------------------------------
-        output = input
-    end subroutine assign_value
-
-
-    subroutine sum_value(input, output)
-    !-----------------------------------------------------------------
-    ! Sum an input value to the autput
-    !-----------------------------------------------------------------
-        real(rp), intent(in)    :: input
-        real(rp), intent(inout) :: output
-    !-----------------------------------------------------------------
-        output = output + input
-    end subroutine sum_value
-
-
-        function  binary_search(key,n,v) result(ipos)
-            integer(ip), intent(in) :: key
-            integer(ip), intent(in) :: n
-            integer(ip), intent(in) :: v(n)
-            integer(ip)             :: ipos
-            integer(ip)             :: lb, ub, m
-
-            lb = 1 
-            ub = n
-            ipos = -1 
-
-            do while (lb.le.ub) 
-                m = (lb+ub)/2
-                if (key.eq.v(m))  then
-                    ipos = m 
-                    lb   = ub + 1
-                else if (key < v(m))  then
-                    ub = m-1
-                else 
-                    lb = m + 1
-                end if
-            enddo
-            return
-        end function binary_search
-
-        function sequential_search(key,n,v) result(ipos)
-            integer(ip), intent(in) :: key
-            integer(ip), intent(in) :: n
-            integer(ip), intent(in) :: v(n)
-            integer(ip)             :: ipos
-            integer(ip)             :: i
-            ipos = -1 
-            do i=1,n
-                if (key.eq.v(i))  then
-                    ipos = i
-                    return
-                end if
-            enddo     
-            return
-        end function sequential_search
 
 
     subroutine coo_sparse_matrix_sort_and_compress(this, by_cols)
@@ -2756,13 +2666,16 @@ contains
 
 
     subroutine coo_sparse_matrix_print_matrix_market_body (this, lunou, ng, l2g)
+    !-----------------------------------------------------------------
+    !< Print a COO matrix to matrix market format
+    !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(in) :: this
         integer(ip),                intent(in) :: lunou
         integer(ip), optional,      intent(in) :: ng
         integer(ip), optional,      intent(in) :: l2g (*)
         integer(ip) :: i, j
         integer(ip) :: nr, nc
-    
+    !-----------------------------------------------------------------
         if ( present(ng) ) then 
             nr = ng
             nc = ng
@@ -2801,5 +2714,60 @@ contains
         end if
     end subroutine coo_sparse_matrix_print_matrix_market_body
 
+!---------------------------------------------------------------------
+!< AUX PROCEDURES
+!---------------------------------------------------------------------
+
+    subroutine assign_value(input, output)
+    !-----------------------------------------------------------------
+    ! Assign an input value to the autput
+    !-----------------------------------------------------------------
+        real(rp), intent(in)    :: input
+        real(rp), intent(inout) :: output
+    !-------------------------------------------------------------
+        output = input
+    end subroutine assign_value
+
+
+    subroutine sum_value(input, output)
+    !-----------------------------------------------------------------
+    ! Sum an input value to the autput
+    !-----------------------------------------------------------------
+        real(rp), intent(in)    :: input
+        real(rp), intent(inout) :: output
+    !-----------------------------------------------------------------
+        output = output + input
+    end subroutine sum_value
+
+
+    function  binary_search(key,size,vector) result(ipos)
+    !-----------------------------------------------------------------
+    ! Perform binary search in a vector
+    !-----------------------------------------------------------------
+        integer(ip), intent(in) :: key
+        integer(ip), intent(in) :: size
+        integer(ip), intent(in) :: vector(size)
+        integer(ip)             :: ipos
+        integer(ip)             :: lowerbound
+        integer(ip)             :: upperbound
+        integer(ip)             :: midpoint
+    !-----------------------------------------------------------------
+        lowerbound = 1 
+        upperbound = size
+        ipos = -1 
+
+        do while (lowerbound.le.upperbound) 
+            midpoint = (lowerbound+upperbound)/2
+            if (key.eq.vector(midpoint))  then
+                ipos = midpoint
+                lowerbound  = upperbound + 1
+            else if (key < vector(midpoint))  then
+                upperbound = midpoint-1
+            else 
+                lowerbound = midpoint + 1
+            end if
+        enddo
+        return
+    end function binary_search
 
 end module base_sparse_matrix_names
