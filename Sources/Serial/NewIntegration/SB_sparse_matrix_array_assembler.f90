@@ -170,12 +170,11 @@ subroutine element_sparse_matrix_assembly( a, number_nodes, elem2dof, elmat )
        do jnode = 1,number_nodes
           jdof = elem2dof(jnode)
           if ( jdof > 0 ) then
-                call a%insert(idof,jdof,elmat(inode,jnode),1,a%get_num_rows(),1,a%get_num_cols())            
+                call a%insert(idof,jdof,elmat(inode,jnode),1,a%get_num_rows(),1,a%get_num_cols())
           end if
        end do
     end if
  end do
-
 end subroutine element_sparse_matrix_assembly
 
 subroutine element_serial_scalar_array_assembly( a, number_nodes, elem2dof, elvec )

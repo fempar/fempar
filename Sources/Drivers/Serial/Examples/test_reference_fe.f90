@@ -222,7 +222,7 @@ end module command_line_parameters_names
 !****************************************************************************************************
 !****************************************************************************************************
 
-program test_cdr
+program test_reference_fe
   use serial_names
   use prob_names
   use lib_vtk_io_interface_names
@@ -260,7 +260,6 @@ program test_cdr
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
-  type(SB_fe_affine_operator_t)            :: fe_affine_operator_error
   class(vector_t)         , allocatable, target   :: vector, initial_solution
 
   class(vector_t) , pointer :: x, y
@@ -429,8 +428,15 @@ program test_cdr
      
      call fe_space%fill_dof_info() 
      
-     call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, vector_laplacian_integration )
+     call fe_affine_operator%create ( 'CSR', &
+                                     (/.true.,.true./), &
+                                     (/.true.,.true./), &
+                                     (/positive_definite,positive_definite/), &
+                                     f_trian, &
+                                     fe_space, &
+                                     vector_laplacian_integration )
   else 
+       
      ! Simple case
      reference_fe_array_one(1) =  make_reference_fe ( topology = "quad", &
                                                       fe_type = "Lagrangian", &
@@ -446,24 +452,20 @@ program test_cdr
                            reference_fe_geo_type = "Lagrangian" )
      call fe_space%fill_dof_info() 
 
-     
-     call fe_affine_operator%create ( (/.true./), (/.true./), (/1/), f_trian, fe_space, poisson_integration )
-     ! End simple case
-     array => fe_affine_operator%get_array()
-     select type ( array )
-        class is ( serial_scalar_array_t )
-        call array%print_matrix_market(6)
-     end select
-     matrix => fe_affine_operator%get_matrix()
-     select type ( matrix )
-        class is ( serial_scalar_matrix_t )
-        call matrix%print_matrix_market(6)
-     end select
+     call fe_affine_operator%create (sparse_matrix_storage_format= 'CSR', &
+                                     diagonal_blocks_symmetric_storage=(/.true./), &
+                                     diagonal_blocks_symmetric=(/.true./), &
+                                     diagonal_blocks_sign=(/positive_definite/), &
+                                     triangulation=f_trian, &
+                                     fe_space=fe_space, &
+                                     discrete_integration=poisson_integration )
   end if
   
+  call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
-
-
+  call fe_affine_operator%free_in_stages(free_numerical_setup)
+  call fe_affine_operator%numerical_setup()
+  
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
   call fe_affine_operator_range_vector_space%create_vector(vector)
 
@@ -550,4 +552,4 @@ contains
   end subroutine read_flap_cli_test_cdr
   !==================================================================================================
 
-end program test_cdr
+end program test_reference_fe

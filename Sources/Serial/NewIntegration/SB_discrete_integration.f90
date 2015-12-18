@@ -152,8 +152,8 @@ contains
        fe_map => fe%get_fe_map()
        vol_int => fe%get_volume_integrator()
 
-       call fe_map%print()
-       call quad%print()
+       !call fe_map%print()
+       !call quad%print()
        !call vol_int(1)%p%print()
        !check(0==1)
        !gcall vol_int%print()

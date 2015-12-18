@@ -623,11 +623,7 @@ contains
         this%sign = sign    
         this%num_rows = num_rows_and_cols
         this%num_cols = num_rows_and_cols
-        if(present(nz)) then
-            call this%allocate_coords(nz)
-        else
-            call this%allocate_coords()
-        endif
+        call this%allocate_coords(nz)
         call this%set_state_created()
     end subroutine base_sparse_matrix_create_square
 
@@ -647,11 +643,7 @@ contains
         this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
         this%num_rows = num_rows
         this%num_cols = num_cols
-        if(present(nz)) then
-            call this%allocate_coords(nz)
-        else
-            call this%allocate_coords()
-        endif
+        call this%allocate_coords(nz)
         call this%set_state_created()
     end subroutine base_sparse_matrix_create_rectangular
 
@@ -673,7 +665,7 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
             call this%append_body(nz, ia, ja, val, imin, imax, jmin, jmax)
             call this%set_state_build_numeric()
@@ -725,7 +717,7 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
             call this%append_body(ia, ja, val, imin, imax, jmin, jmax)
             call this%set_state_build_numeric()
@@ -1214,6 +1206,7 @@ contains
         if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
                (this%symmetric_storage .and. ia>ja) ) return
         !If symmetric_storage is .true. only the upper triangle is stored
+        nnz = nnz+1
         this%ia(nnz) = ia
         this%ja(nnz) = ja
         this%val(nnz) = val

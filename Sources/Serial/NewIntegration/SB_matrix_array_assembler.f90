@@ -87,7 +87,7 @@ contains
   subroutine matrix_array_assembler_free_in_stages(this,action)
     implicit none
     class(SB_matrix_array_assembler_t), intent(inout) :: this
-    integer(ip)                    , intent(in)    :: action
+    integer(ip)                       , intent(in)    :: action
     call this%matrix%free_in_stages(action)
     call this%array%free_in_stages(action)
     if ( action == free_clean ) then

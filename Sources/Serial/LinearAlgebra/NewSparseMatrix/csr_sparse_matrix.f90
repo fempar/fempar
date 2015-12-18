@@ -453,7 +453,7 @@ contains
                 do iz = irp(ir)+1, irp(ir+1)-1
                     ic = ja(iz)
                     y(ir) = y(ir) + x(ic)*val(iz)
-                    y(ic) = y(ic) + x(ic)*val(iz)
+                    y(ic) = y(ic) + x(ir)*val(iz)
                 end do ! iz
             end do ! ir
         end subroutine matvec_symmetric_storage
