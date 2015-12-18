@@ -89,22 +89,23 @@ private
                                                          !< .False.  All (i,j) \belongs E are stored.  
     contains
     private
-        procedure(base_sparse_matrix_is_by_rows),         public, deferred :: is_by_rows
-        procedure(base_sparse_matrix_is_by_cols),         public, deferred :: is_by_cols
-        procedure(base_sparse_matrix_copy_to_coo),        public, deferred :: copy_to_coo
-        procedure(base_sparse_matrix_copy_from_coo),      public, deferred :: copy_from_coo
-        procedure(base_sparse_matrix_move_to_coo),        public, deferred :: move_to_coo
-        procedure(base_sparse_matrix_move_from_coo),      public, deferred :: move_from_coo
-        procedure(base_sparse_matrix_move_to_fmt),        public, deferred :: move_to_fmt
-        procedure(base_sparse_matrix_move_from_fmt),      public, deferred :: move_from_fmt
-        procedure(base_sparse_matrix_allocate_val),       public, deferred :: allocate_val
-        procedure(base_sparse_matrix_update_values_body), public, deferred :: update_values_body
+        procedure(base_sparse_matrix_is_by_rows),               public, deferred :: is_by_rows
+        procedure(base_sparse_matrix_is_by_cols),               public, deferred :: is_by_cols
+        procedure(base_sparse_matrix_copy_to_coo),              public, deferred :: copy_to_coo
+        procedure(base_sparse_matrix_copy_from_coo),            public, deferred :: copy_from_coo
+        procedure(base_sparse_matrix_move_to_coo),              public, deferred :: move_to_coo
+        procedure(base_sparse_matrix_move_from_coo),            public, deferred :: move_from_coo
+        procedure(base_sparse_matrix_move_to_fmt),              public, deferred :: move_to_fmt
+        procedure(base_sparse_matrix_move_from_fmt),            public, deferred :: move_from_fmt
+        procedure(base_sparse_matrix_allocate_val),             public, deferred :: allocate_val
+        procedure(base_sparse_matrix_update_values_body),       public, deferred :: update_values_body
         procedure(base_sparse_matrix_update_single_value_body), public, deferred :: update_single_value_body
-        procedure(base_sparse_matrix_free_coords),        public, deferred :: free_coords
-        procedure(base_sparse_matrix_free_val),           public, deferred :: free_val
-        procedure(base_sparse_matrix_set_nnz),            public, deferred :: set_nnz
-        procedure(base_sparse_matrix_get_nnz),            public, deferred :: get_nnz
-        procedure(base_sparse_matrix_print),              public, deferred :: print
+        procedure(base_sparse_matrix_print_matrix_market_body), public, deferred :: print_matrix_market_body
+        procedure(base_sparse_matrix_free_coords),              public, deferred :: free_coords
+        procedure(base_sparse_matrix_free_val),                 public, deferred :: free_val
+        procedure(base_sparse_matrix_set_nnz),                  public, deferred :: set_nnz
+        procedure(base_sparse_matrix_get_nnz),                  public, deferred :: get_nnz
+        procedure(base_sparse_matrix_print),                    public, deferred :: print
         procedure         ::                                 base_sparse_matrix_create_square
         procedure         ::                                 base_sparse_matrix_create_rectangular
         procedure         ::                                 base_sparse_matrix_insert_coords
@@ -142,6 +143,7 @@ private
         procedure, public :: allocate_coords              => base_sparse_matrix_allocate_coords
         procedure, public :: allocate_values              => base_sparse_matrix_allocate_values
         procedure, public :: apply                        => base_sparse_matrix_apply
+        procedure, public :: print_matrix_market          => base_sparse_matrix_print_matrix_market
         procedure, public :: free                         => base_sparse_matrix_free
         procedure, public :: free_clean                   => base_sparse_matrix_free_clean
         procedure, public :: free_symbolic                => base_sparse_matrix_free_symbolic
@@ -204,6 +206,7 @@ private
         procedure, public :: move_from_fmt            => coo_sparse_matrix_move_from_fmt
         procedure, public :: free_coords              => coo_sparse_matrix_free_coords
         procedure, public :: free_val                 => coo_sparse_matrix_free_val
+        procedure, public :: print_matrix_market_body => coo_sparse_matrix_print_matrix_market_body
         procedure, public :: print                    => coo_sparse_matrix_print
     end type coo_sparse_matrix_t
 
@@ -323,6 +326,15 @@ private
             import base_sparse_matrix_t
             class(base_sparse_matrix_t),  intent(inout) :: this
         end subroutine base_sparse_matrix_free_val
+
+        subroutine base_sparse_matrix_print_matrix_market_body (this, lunou, ng, l2g)
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t), intent(in) :: this
+            integer(ip),                 intent(in) :: lunou
+            integer(ip), optional,       intent(in) :: ng
+            integer(ip), optional,       intent(in) :: l2g (*)
+        end subroutine base_sparse_matrix_print_matrix_market_body
 
         subroutine base_sparse_matrix_print(this,lunou, only_graph)
             import base_sparse_matrix_t
@@ -965,6 +977,20 @@ contains
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) call this%set_state_assembled_symbolic()
         endif
     end subroutine base_sparse_matrix_free_numeric
+
+
+    subroutine base_sparse_matrix_print_matrix_market (this, lunou, ng, l2g)
+    !-----------------------------------------------------------------
+    !< Print the Sparse matrix in matrix market format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        integer(ip),                 intent(in) :: lunou
+        integer(ip), optional,       intent(in) :: ng
+        integer(ip), optional,       intent(in) :: l2g (*)
+    !-----------------------------------------------------------------
+        check(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        call this%print_matrix_market_body(lunou, ng, l2g)
+    end subroutine base_sparse_matrix_print_matrix_market
 
 
 !---------------------------------------------------------------------
@@ -2699,5 +2725,53 @@ contains
             endif
         endif
     end subroutine coo_sparse_matrix_print
+
+
+    subroutine coo_sparse_matrix_print_matrix_market_body (this, lunou, ng, l2g)
+        class(coo_sparse_matrix_t), intent(in) :: this
+        integer(ip),                intent(in) :: lunou
+        integer(ip), optional,      intent(in) :: ng
+        integer(ip), optional,      intent(in) :: l2g (*)
+        integer(ip) :: i, j
+        integer(ip) :: nr, nc
+    
+        if ( present(ng) ) then 
+            nr = ng
+            nc = ng
+        else
+            nr = this%num_rows
+            nc = this%num_cols
+        end if
+
+        write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
+        if (.not. this%get_symmetric_storage()) then
+            write (lunou,*) nr,nc,this%get_nnz()
+            do i=1,this%get_nnz()
+                if (present(l2g)) then
+                    write(lunou,'(i12, i12, e32.25)') l2g(this%ia(i)), l2g(this%ja(i)), this%val(i)
+                else
+                    write(lunou,'(i12, i12, e32.25)') this%ja(i), this%ja(i), this%val(i)
+                end if
+            end do
+        else 
+            write (lunou,*) nr,nc, 2*(this%nnz) - this%num_rows
+
+            do i=1,this%get_nnz()
+                if (present(l2g)) then
+                    write(lunou,'(i12, i12, e32.25)') l2g(this%ia(i)), l2g(this%ja(i)), this%val(i)
+                else
+                    write(lunou,'(i12, i12, e32.25)') this%ia(i), this%ja(i), this%val(i)
+                end if
+                if (this%ia(i) /= this%ja(i)) then
+                    if (present(l2g)) then
+                        write(lunou,'(i12, i12, e32.25)') l2g(this%ja(j)), l2g(this%ia(i)), this%val(i)
+                    else
+                        write(lunou,'(i12, i12, e32.25)') this%ja(i), this%ia(i), this%val(i)
+                    end if
+                end if
+            end do
+        end if
+    end subroutine coo_sparse_matrix_print_matrix_market_body
+
 
 end module base_sparse_matrix_names

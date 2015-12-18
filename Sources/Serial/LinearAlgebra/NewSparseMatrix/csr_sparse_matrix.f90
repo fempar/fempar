@@ -36,6 +36,7 @@ private
         procedure, public :: free_coords             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                => csr_sparse_matrix_free_val
         procedure, public :: apply_body              => csr_sparse_matrix_apply_body
+        procedure, public :: print_matrix_market_body=> csr_sparse_matrix_print_matrix_market_body
         procedure, public :: print                   => csr_sparse_matrix_print
     end type csr_sparse_matrix_t
 
@@ -658,6 +659,58 @@ contains
             endif
         endif
     end subroutine csr_sparse_matrix_print
+
+
+    subroutine csr_sparse_matrix_print_matrix_market_body (this, lunou, ng, l2g)
+        class(csr_sparse_matrix_t), intent(in) :: this
+        integer(ip),                intent(in) :: lunou
+        integer(ip), optional,      intent(in) :: ng
+        integer(ip), optional,      intent(in) :: l2g (*)
+        integer(ip) :: i, j
+        integer(ip) :: nr, nc
+    
+        if ( present(ng) ) then 
+            nr = ng
+            nc = ng
+        else
+            nr = this%get_num_rows()
+            nc = this%get_num_cols()
+        end if
+
+        write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
+        if (.not. this%get_symmetric_storage()) then
+            write (lunou,*) nr,nc,this%irp(this%get_num_rows()+1)-1
+            do i=1,this%get_num_rows()
+                do j=this%irp(i),this%irp(i+1)-1
+                    if (present(l2g)) then
+                        write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(this%ja(j)), this%val(j)
+                    else
+                        write(lunou,'(i12, i12, e32.25)') i, this%ja(j), this%val(j)
+                    end if
+                end do
+            end do
+        else 
+            write (lunou,*) nr,nc,2*(this%irp(this%get_num_rows()+1)-1) - this%get_num_rows()
+
+            do i=1,this%get_num_rows()
+                do j=this%irp(i),this%irp(i+1)-1
+                    if (present(l2g)) then
+                        write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(this%ja(j)), this%val(j)
+                    else
+                        write(lunou,'(i12, i12, e32.25)') i, this%ja(j), this%val(j)
+                    end if
+                    if (i /= this%ja(j)) then
+                        if (present(l2g)) then
+                            write(lunou,'(i12, i12, e32.25)') l2g(this%ja(j)), l2g(i), this%val(j)
+                        else
+                        write(lunou,'(i12, i12, e32.25)') this%ja(j), i, this%val(j)
+                        end if
+                    end if
+                end do
+            end do
+        end if
+
+    end subroutine csr_sparse_matrix_print_matrix_market_body
 
 
 end module csr_sparse_matrix_names

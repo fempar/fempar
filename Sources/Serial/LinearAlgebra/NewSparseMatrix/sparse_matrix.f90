@@ -60,6 +60,7 @@ private
         procedure, public :: free                      => sparse_matrix_free
         procedure, public :: apply                     => sparse_matrix_apply
         procedure, public :: print                     => sparse_matrix_print
+        procedure, public :: print_matrix_market       => sparse_matrix_print_matrix_market
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
@@ -516,5 +517,17 @@ contains
             call this%State%print(lunou)
         endif
     end subroutine sparse_matrix_print
+
+    subroutine sparse_matrix_print_matrix_market (this, lunou, ng, l2g)
+    !-----------------------------------------------------------------
+    !< Print a Sparse matrix in matrix market format
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in) :: this
+        integer(ip),            intent(in) :: lunou
+        integer(ip), optional,  intent(in) :: ng
+        integer(ip), optional,  intent(in) :: l2g (*)
+    !-----------------------------------------------------------------
+        call this%State%print_matrix_market(lunou, ng, l2g)
+    end subroutine sparse_matrix_print_matrix_market
 
 end module sparse_matrix_names
