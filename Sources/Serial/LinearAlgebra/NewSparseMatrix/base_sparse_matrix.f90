@@ -1503,17 +1503,7 @@ contains
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(inout)  :: this
         logical,     optional,      intent(in)     :: by_cols
-        integer(ip), allocatable                   :: ias(:)
-        integer(ip), allocatable                   :: jas(:)
-        real(rp),    allocatable                   :: vs(:)
-        integer(ip), allocatable                   :: iaux(:)
-        integer(ip), allocatable                   :: ix2(:)
         logical                                    :: by_rows 
-        logical                                    :: sorted
-        logical                                    :: use_buffers
-        integer(ip)                                :: i, j, k, nnz, nzl, imx, iret, ip, is, irw, icl
-        integer                                    :: info
-        procedure(duplicates_operation), pointer   :: apply_duplicates => null ()
     !-----------------------------------------------------------------
         assert(this%state > SPARSE_MATRIX_STATE_CREATED)
         
