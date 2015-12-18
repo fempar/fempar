@@ -82,6 +82,7 @@ private
         integer(ip) :: num_cols                          !< Number of colums
         integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
         integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
+        logical     :: sum_duplicates = .true.           !< If .false. overwrites duplicated values, else perform sum
         logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
         logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
                                                          !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
@@ -97,7 +98,8 @@ private
         procedure(base_sparse_matrix_move_from_coo),            public, deferred :: move_from_coo
         procedure(base_sparse_matrix_move_to_fmt),              public, deferred :: move_to_fmt
         procedure(base_sparse_matrix_move_from_fmt),            public, deferred :: move_from_fmt
-        procedure(base_sparse_matrix_allocate_val),             public, deferred :: allocate_val
+        procedure(base_sparse_matrix_initialize_values),        public, deferred :: initialize_values
+        procedure(base_sparse_matrix_allocate_values_body),     public, deferred :: allocate_values_body
         procedure(base_sparse_matrix_update_values_body),       public, deferred :: update_values_body
         procedure(base_sparse_matrix_update_single_value_body), public, deferred :: update_single_value_body
         procedure(base_sparse_matrix_print_matrix_market_body), public, deferred :: print_matrix_market_body
@@ -127,6 +129,8 @@ private
         procedure, public :: get_num_rows                 => base_sparse_matrix_get_num_rows
         procedure, public :: set_num_cols                 => base_sparse_matrix_set_num_cols
         procedure, public :: get_num_cols                 => base_sparse_matrix_get_num_cols
+        procedure, public :: set_sum_duplicates           => base_sparse_matrix_set_sum_duplicates
+        procedure, public :: get_sum_duplicates           => base_sparse_matrix_get_sum_duplicates
         procedure, public :: set_symmetry                 => base_sparse_matrix_set_symmetry
         procedure, public :: set_symmetric_storage        => base_sparse_matrix_set_symmetric_storage
         procedure, public :: get_symmetric_storage        => base_sparse_matrix_get_symmetric_storage
@@ -195,7 +199,8 @@ private
         procedure, public :: set_sort_status_by_cols  => coo_sparse_matrix_set_sort_status_by_cols
         procedure, public :: get_sort_status          => coo_sparse_matrix_get_sort_status
         procedure, public :: allocate_coords          => coo_sparse_matrix_allocate_coords
-        procedure, public :: allocate_val             => coo_sparse_matrix_allocate_val
+        procedure, public :: allocate_values_body     => coo_sparse_matrix_allocate_values_body
+        procedure, public :: initialize_values        => coo_sparse_matrix_initialize_values
         procedure, public :: copy_to_coo              => coo_sparse_matrix_copy_to_coo
         procedure, public :: copy_from_coo            => coo_sparse_matrix_copy_from_coo
         procedure, public :: copy_to_fmt              => coo_sparse_matrix_copy_to_fmt
@@ -281,12 +286,19 @@ private
             class(base_sparse_matrix_t), intent(inout) :: from
         end subroutine base_sparse_matrix_move_from_fmt
 
-        subroutine base_sparse_matrix_allocate_val(this, nz)
+        subroutine base_sparse_matrix_allocate_values_body(this, nz)
             import base_sparse_matrix_t
             import ip
             class(base_sparse_matrix_t),  intent(inout) :: this
             integer(ip), optional,        intent(in)    :: nz
-        end subroutine base_sparse_matrix_allocate_val
+        end subroutine base_sparse_matrix_allocate_values_body
+
+        subroutine base_sparse_matrix_initialize_values(this, val)
+            import base_sparse_matrix_t
+            import rp
+            class(base_sparse_matrix_t),  intent(inout) :: this
+            real(rp),                     intent(in)    :: val
+        end subroutine base_sparse_matrix_initialize_values
 
         subroutine base_sparse_matrix_update_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
@@ -500,6 +512,28 @@ contains
     end function base_sparse_matrix_get_sign
 
 
+    subroutine base_sparse_matrix_set_sum_duplicates(this, sum_duplicates)
+    !-----------------------------------------------------------------
+    !< Set sum_duplicates value (.true. => sum, .false. => overwrite)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        logical,                     intent(in)    :: sum_duplicates
+    !-----------------------------------------------------------------
+        this%sum_duplicates = sum_duplicates
+    end subroutine base_sparse_matrix_set_sum_duplicates
+
+
+    function base_sparse_matrix_get_sum_duplicates(this) result(sum_duplicates)
+    !-----------------------------------------------------------------
+    !< Get sum_duplicates value (.true. => sum, .false. => overwrite)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: sum_duplicates
+    !-----------------------------------------------------------------
+        sum_duplicates = this%sum_duplicates
+    end function base_sparse_matrix_get_sum_duplicates
+
+
     subroutine base_sparse_matrix_set_symmetry(this, symmetric)
     !-----------------------------------------------------------------
     !< Set symmetry of the matrix. .true. for a symmetric matrix
@@ -625,7 +659,7 @@ contains
         integer(ip),                 intent(in)    :: sign
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_START)
+        assert(this%state == SPARSE_MATRIX_STATE_START)
         assert(this%is_valid_sign(sign))
         if(symmetric_storage) then
             check(is_symmetric)
@@ -649,7 +683,7 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_START)
+        assert(this%state == SPARSE_MATRIX_STATE_START)
         call this%set_symmetric_storage(.false.)
         this%symmetric = .false.
         this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
@@ -677,12 +711,15 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
             call this%append_body(nz, ia, ja, val, imin, imax, jmin, jmax)
             call this%set_state_build_numeric()
         else
-            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) call this%allocate_values()
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
                 call this%update_body(nz, ia, ja, val, imin, imax, jmin, jmax)
                 call this%set_state_update()
@@ -707,7 +744,7 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
         call this%append_body(nz, ia, ja, imin, imax, jmin, jmax)
         call this%set_state_build_symbolic()
     end subroutine base_sparse_matrix_insert_coords
@@ -729,12 +766,15 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
             call this%append_body(ia, ja, val, imin, imax, jmin, jmax)
             call this%set_state_build_numeric()
         else
-            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) call this%allocate_values()
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
                 call this%update_body(ia, ja, val, imin, imax, jmin, jmax)
                 call this%set_state_update()
@@ -758,7 +798,7 @@ contains
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
         call this%append_body(ia, ja, imin, imax, jmin, jmax)
         call this%set_state_build_symbolic()
     end subroutine base_sparse_matrix_insert_single_coord
@@ -855,9 +895,9 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
         if ( this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC ) then
-          call this%allocate_val(this%get_nnz())
+          call this%allocate_values_body(this%get_nnz())
           call this%set_state_assembled()
         end if  
     end subroutine base_sparse_matrix_allocate_values
@@ -870,7 +910,7 @@ contains
         class(vector_t),             intent(in)    :: x
         class(vector_t),             intent(inout) :: y
     !-----------------------------------------------------------------
-        check(op%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. op%state == SPARSE_MATRIX_STATE_UPDATE)
+        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. op%state == SPARSE_MATRIX_STATE_UPDATE)
         call op%apply_body(x, y)
     end subroutine base_sparse_matrix_apply
 
@@ -988,7 +1028,7 @@ contains
         integer(ip), optional,       intent(in) :: ng
         integer(ip), optional,       intent(in) :: l2g (*)
     !-----------------------------------------------------------------
-        check(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         call this%print_matrix_market_body(lunou, ng, l2g)
     end subroutine base_sparse_matrix_print_matrix_market
 
@@ -1099,7 +1139,7 @@ contains
     end subroutine coo_sparse_matrix_allocate_coords
 
 
-    subroutine coo_sparse_matrix_allocate_val(this, nz)
+    subroutine coo_sparse_matrix_allocate_values_body(this, nz)
     !-----------------------------------------------------------------
     !< Allocate COO arrays
     !-----------------------------------------------------------------
@@ -1112,8 +1152,18 @@ contains
         else
             call memalloc(max(7*this%num_rows, 7*this%num_cols, 1), this%val,  __FILE__, __LINE__)
         endif
-        this%val = 0.0_rp
-    end subroutine coo_sparse_matrix_allocate_val
+    end subroutine coo_sparse_matrix_allocate_values_body
+
+
+    subroutine coo_sparse_matrix_initialize_values(this, val)
+    !-----------------------------------------------------------------
+    !< Initialize COO values
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout)  :: this
+        real(rp),                   intent(in)     :: val
+    !-----------------------------------------------------------------
+        if(allocated(this%val)) this%val(1:this%get_nnz()) = val
+    end subroutine coo_sparse_matrix_initialize_values
 
 
     subroutine coo_sparse_matrix_append_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
@@ -1135,7 +1185,7 @@ contains
         if(nz == 0) return
         nnz = this%nnz
         newnnz = nnz + nz 
-        if(.not. allocated(this%val)) call this%allocate_val(size(this%ia))
+        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
         ! Realloc this%ia, this%ja, this%val to the right size if is needed
         if( size(this%ia) < newnnz) then
             newsize = max(newnnz, int(1.5*size(this%ia)))
@@ -1220,7 +1270,7 @@ contains
     !-----------------------------------------------------------------
         nnz = this%nnz
         newnnz = nnz + 1
-        if(.not. allocated(this%val)) call this%allocate_val(size(this%ia))
+        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
         ! Realloc this%ia, this%ja, this%val to the right size if is needed
         if( size(this%ia) < newnnz) then
             newsize = max(newnnz, int(1.5*size(this%ia)))
@@ -1294,7 +1344,7 @@ contains
         call search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     contains
 
-        subroutine search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax, sum_duplicates) 
+        subroutine search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
             class(coo_sparse_matrix_t), intent(inout) :: this
             integer(ip),                intent(in)    :: nz
             integer(ip),                intent(in)    :: ia(nz)
@@ -1304,17 +1354,12 @@ contains
             integer(ip),                intent(in)    :: imax
             integer(ip),                intent(in)    :: jmin
             integer(ip),                intent(in)    :: jmax
-            logical,        optional,   intent(in)    :: sum_duplicates
-            logical                                   :: sum_dupl
             procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
             integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
 
             if(nz==0) return
 
-            sum_dupl    = .true.
-            if(present(sum_duplicates)) sum_dupl = sum_duplicates
-
-            if(sum_dupl) then
+            if(this%get_sum_duplicates()) then
                 apply_duplicates => sum_value
             else
                 apply_duplicates => assign_value
@@ -1405,7 +1450,7 @@ contains
         call search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
     contains
 
-        subroutine search_and_update(this, ia, ja, val, imin, imax, jmin, jmax, sum_duplicates) 
+        subroutine search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
             class(coo_sparse_matrix_t), intent(inout) :: this
             integer(ip),                intent(in)    :: ia
             integer(ip),                intent(in)    :: ja
@@ -1414,15 +1459,11 @@ contains
             integer(ip),                intent(in)    :: imax
             integer(ip),                intent(in)    :: jmin
             integer(ip),                intent(in)    :: jmax
-            logical,        optional,   intent(in)    :: sum_duplicates
-            logical                                   :: sum_dupl
             procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
             integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
 
-            sum_dupl    = .true.
-            if(present(sum_duplicates)) sum_dupl = sum_duplicates
 
-            if(sum_dupl) then
+            if(this%get_sum_duplicates()) then
                 apply_duplicates => sum_value
             else
                 apply_duplicates => assign_value
@@ -1546,14 +1587,12 @@ contains
         end function sequential_search
 
 
-    subroutine coo_sparse_matrix_sort_and_compress(this, by_cols, sum_duplicates)
+    subroutine coo_sparse_matrix_sort_and_compress(this, by_cols)
     !-----------------------------------------------------------------
     !< Sort ia, ja and val by rows as default or by_cols if forced
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(inout)  :: this
         logical,     optional,      intent(in)     :: by_cols
-        logical,     optional,      intent(in)     :: sum_duplicates
-        logical                                    :: sum_dupl
         integer(ip), allocatable                   :: ias(:)
         integer(ip), allocatable                   :: jas(:)
         real(rp),    allocatable                   :: vs(:)
@@ -1566,36 +1605,31 @@ contains
         integer                                    :: info
         procedure(duplicates_operation), pointer   :: apply_duplicates => null ()
     !-----------------------------------------------------------------
-        check(this%state > SPARSE_MATRIX_STATE_CREATED)
+        assert(this%state > SPARSE_MATRIX_STATE_CREATED)
         
         if(this%nnz == 0) return
         
         by_rows     = .true.
-        sum_dupl    = .true.
 
         if(present(by_cols)) by_rows = .not. by_cols
 
-        if(present(sum_duplicates)) sum_dupl = sum_duplicates
-
         if(this%is_symbolic()) then
-            call sort_and_compress_symbolic(this, .not. by_rows, sum_dupl)
+            call sort_and_compress_symbolic(this, .not. by_rows)
             call this%set_state_assembled_symbolic()
         else
-            call sort_and_compress_numeric(this, .not. by_rows, sum_dupl)
+            call sort_and_compress_numeric(this, .not. by_rows)
             call this%set_state_assembled()
         endif
     contains
 
 
-        subroutine sort_and_compress_symbolic(this, by_cols, sum_duplicates)
+        subroutine sort_and_compress_symbolic(this, by_cols)
         !-------------------------------------------------------------
         !< Sort ia, ja and val by rows as default or by_cols if forced
         !-------------------------------------------------------------
             use types_names
             class(coo_sparse_matrix_t), intent(inout)  :: this
             logical,     optional,      intent(in)     :: by_cols
-            logical,     optional,      intent(in)     :: sum_duplicates
-            logical                                    :: sum_dupl
             integer(ip), allocatable                   :: ias(:)
             integer(ip), allocatable                   :: jas(:)
             integer(ip), allocatable                   :: iaux(:)
@@ -1608,13 +1642,11 @@ contains
             procedure(duplicates_operation), pointer   :: apply_duplicates => null ()
         !-------------------------------------------------------------
             by_rows     = .true.
-            sum_dupl    = .true.
             sorted      = .true.
             use_buffers = .true.
             if(present(by_cols)) by_rows = .not. by_cols
 
-            if(present(sum_duplicates)) sum_dupl = sum_duplicates
-            if(sum_dupl) then
+            if(this%get_sum_duplicates()) then
                 apply_duplicates => sum_value
             else
                 apply_duplicates => assign_value
@@ -1939,15 +1971,13 @@ contains
         end subroutine sort_and_compress_symbolic
 
 
-        subroutine sort_and_compress_numeric(this, by_cols, sum_duplicates)
+        subroutine sort_and_compress_numeric(this, by_cols)
         !-------------------------------------------------------------
         !< Sort ia, ja and val by rows as default or by_cols if forced
         !-------------------------------------------------------------
             use types_names
             class(coo_sparse_matrix_t), intent(inout)  :: this
             logical,     optional,      intent(in)     :: by_cols
-            logical,     optional,      intent(in)     :: sum_duplicates
-            logical                                    :: sum_dupl
             integer(ip), allocatable                   :: ias(:)
             integer(ip), allocatable                   :: jas(:)
             real(rp),    allocatable                   :: vs(:)
@@ -1961,13 +1991,11 @@ contains
             procedure(duplicates_operation), pointer   :: apply_duplicates => null ()
         !-------------------------------------------------------------
             by_rows     = .true.
-            sum_dupl    = .true.
             sorted      = .true.
             use_buffers = .true.
             if(present(by_cols)) by_rows = .not. by_cols
 
-            if(present(sum_duplicates)) sum_dupl = sum_duplicates
-            if(sum_dupl) then
+            if(this%get_sum_duplicates()) then
                 apply_duplicates => sum_value
             else
                 apply_duplicates => assign_value
@@ -2533,7 +2561,7 @@ contains
         to%ia(1:nnz)  = this%ia(1:nnz)
         to%ja(1:nnz)  = this%ja(1:nnz)
         if(.not. this%is_symbolic()) then
-            call to%allocate_val(nnz)
+            call to%allocate_values_body(nnz)
             to%val(1:nnz) = this%val(1:nnz)
         endif
         to%state = this%state
@@ -2564,7 +2592,7 @@ contains
         this%ia(1:nnz)  = from%ia(1:nnz)
         this%ja(1:nnz)  = from%ja(1:nnz)
         if(.not. from%is_symbolic()) then
-            call this%allocate_val(nnz)
+            call this%allocate_values_body(nnz)
             this%val(1:nnz) = from%val(1:nnz)
         endif
         this%state = from%state

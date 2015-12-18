@@ -30,7 +30,8 @@ private
         procedure, public :: move_from_coo           => csr_sparse_matrix_move_from_coo
         procedure, public :: move_to_fmt             => csr_sparse_matrix_move_to_fmt
         procedure, public :: move_from_fmt           => csr_sparse_matrix_move_from_fmt
-        procedure, public :: allocate_val            => csr_sparse_matrix_allocate_val
+        procedure, public :: allocate_values_body    => csr_sparse_matrix_allocate_values_body
+        procedure, public :: initialize_values       => csr_sparse_matrix_initialize_values
         procedure, public :: update_values_body      => csr_sparse_matrix_update_values_body
         procedure, public :: update_single_value_body=> csr_sparse_matrix_update_single_value_body
         procedure, public :: free_coords             => csr_sparse_matrix_free_coords
@@ -120,7 +121,7 @@ contains
             end do
         end do
         if(.not. this%is_symbolic()) then
-            call to%allocate_val(nnz)
+            call to%allocate_values_body(nnz)
             to%val(1:nnz) = this%val(1:nnz)
         endif
         call to%set_sort_status_by_rows()
@@ -462,9 +463,9 @@ contains
     end subroutine csr_sparse_matrix_apply_body
 
 
-    subroutine csr_sparse_matrix_allocate_val(this, nz)
+    subroutine csr_sparse_matrix_allocate_values_body(this, nz)
     !-----------------------------------------------------------------
-    !< Allocate COO arrays
+    !< Allocate CSR values
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(inout)  :: this
         integer(ip), optional,      intent(in)     :: nz
@@ -475,8 +476,18 @@ contains
         else
             call memalloc(max(7*this%get_num_rows(), 7*this%get_num_cols(), 1), this%val,  __FILE__, __LINE__)
         endif
-        this%val = 0.0_rp
-    end subroutine csr_sparse_matrix_allocate_val
+    end subroutine csr_sparse_matrix_allocate_values_body
+
+
+    subroutine csr_sparse_matrix_initialize_values(this, val)
+    !-----------------------------------------------------------------
+    !< Initialize CSR values
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout)  :: this
+        real(rp),                   intent(in)     :: val
+    !-----------------------------------------------------------------
+        if(allocated(this%val)) this%val(1:this%get_nnz()) = val
+    end subroutine csr_sparse_matrix_initialize_values
 
 
     subroutine csr_sparse_matrix_update_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
@@ -496,7 +507,7 @@ contains
         call search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     contains
 
-        subroutine search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax, sum_duplicates) 
+        subroutine search_and_update(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
             class(csr_sparse_matrix_t), intent(inout) :: this
             integer(ip),                intent(in)    :: nz
             integer(ip),                intent(in)    :: ia(nz)
@@ -506,17 +517,12 @@ contains
             integer(ip),                intent(in)    :: imax
             integer(ip),                intent(in)    :: jmin
             integer(ip),                intent(in)    :: jmax
-            logical,        optional,   intent(in)    :: sum_duplicates
-            logical                                   :: sum_dupl
             procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
             integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
 
             if(nz==0) return
 
-            sum_dupl    = .true.
-            if(present(sum_duplicates)) sum_dupl = sum_duplicates
-
-            if(sum_dupl) then
+            if(this%get_sum_duplicates()) then
                 apply_duplicates => sum_value
             else
                 apply_duplicates => assign_value
@@ -559,7 +565,7 @@ contains
         call search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
     contains
 
-        subroutine search_and_update(this, ia, ja, val, imin, imax, jmin, jmax, sum_duplicates) 
+        subroutine search_and_update(this, ia, ja, val, imin, imax, jmin, jmax) 
             class(csr_sparse_matrix_t), intent(inout) :: this
             integer(ip),                intent(in)    :: ia
             integer(ip),                intent(in)    :: ja
@@ -568,15 +574,10 @@ contains
             integer(ip),                intent(in)    :: imax
             integer(ip),                intent(in)    :: jmin
             integer(ip),                intent(in)    :: jmax
-            logical,        optional,   intent(in)    :: sum_duplicates
-            logical                                   :: sum_dupl
             procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
             integer(ip)                               :: i,ipaux,i1,i2,nr,nc,nnz
 
-            sum_dupl    = .true.
-            if(present(sum_duplicates)) sum_dupl = sum_duplicates
-
-            if(sum_dupl) then
+            if(this%get_sum_duplicates()) then
                 apply_duplicates => sum_value
             else
                 apply_duplicates => assign_value
