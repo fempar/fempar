@@ -243,28 +243,31 @@ subroutine initialize_fe_map(this)
   end do
 end subroutine initialize_fe_map
 
-function create_assembler(this, diagonal_blocks_symmetric_storage,&
-     diagonal_blocks_symmetric, diagonal_blocks_sign)
+function create_assembler(this, &
+                          diagonal_blocks_symmetric_storage,&
+                          diagonal_blocks_symmetric, & 
+                          diagonal_blocks_sign)
   implicit none
-  class(SB_serial_fe_space_t)          , intent(in) :: this
-  class(SB_matrix_array_assembler_t), pointer :: create_assembler
-  logical                        , intent(in) :: diagonal_blocks_symmetric_storage(:)
-  logical                        , intent(in) :: diagonal_blocks_symmetric(:)
-  integer(ip)                    , intent(in) :: diagonal_blocks_sign(:)
+  class(SB_serial_fe_space_t)       , intent(in) :: this
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
+  class(SB_matrix_array_assembler_t), pointer    :: create_assembler
+
 
   class(matrix_t), pointer :: matrix
   class(array_t) , pointer :: array
 
   if (this%number_blocks == 1) then
-     allocate ( SB_serial_scalar_matrix_array_assembler_t :: create_assembler )
-     allocate ( serial_scalar_matrix_t :: matrix )
+     allocate ( SB_sparse_matrix_array_assembler_t :: create_assembler )
+     allocate ( sparse_matrix_t :: matrix )
      allocate ( serial_scalar_array_t  :: array )
      select type(matrix)
-        class is(serial_scalar_matrix_t)
+        class is(sparse_matrix_t)
         call matrix%create(this%number_dofs(1), &
-             diagonal_blocks_symmetric_storage(1),&
-             diagonal_blocks_symmetric(1),&
-             diagonal_blocks_sign(1))
+                           diagonal_blocks_symmetric_storage(1),&
+                           diagonal_blocks_symmetric(1),&
+                           diagonal_blocks_sign(1))
         class default
         check(.false.)
      end select
@@ -310,20 +313,7 @@ subroutine symbolic_setup_assembler(this,matrix_array_assembler)
 
   matrix => matrix_array_assembler%get_matrix()
   select type(matrix)
-     class is(serial_scalar_matrix_t)
-
-     !write(*,*) 'graph create'
-     !call print_list_2d( 6, this%vef2dof(1) ) 
-     call setup_dof_graph_from_block_row_col_identifiers( this, matrix, 1 )
-
-     !call matrix%print_matrix_market(6)
-     !call matrix%print(6)
-
-     ! symbolic_setup_assembler SHOWSTOPPER => IT REQUIRES A FULL GRAPH WITH ALL ENTRIES, HERE IS THE PROBLEM !!!
-     ! BUT IT CAN BE SOLVED WITH THE UNCOMPRESSED GRAPH
-
-     !call setup_dof_graph_from_block_row_col_identifiers ( this, matrix )
-
+     class is(sparse_matrix_t)
      class is(serial_block_matrix_t)
      do i = 1, this%number_blocks
         do j = 1, this%number_blocks

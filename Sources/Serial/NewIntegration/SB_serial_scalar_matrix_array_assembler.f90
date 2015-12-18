@@ -53,14 +53,25 @@ public :: SB_serial_scalar_matrix_array_assembler_t
 public :: element_serial_scalar_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
-subroutine serial_scalar_matrix_array_assembler_assembly( this, el2dof, elmat, elvec, &
-                                                          number_fe_spaces, blocks, nodes, blocks_coupling ) 
+subroutine serial_scalar_matrix_array_assembler_assembly( this, & 
+                                                          number_fe_spaces, &
+                                                          elem2dof, &
+                                                          field_blocks, &
+                                                          number_nodes, &
+                                                          field_coupling, &
+                                                          elmat, &
+                                                          elvec ) 
  implicit none
  class(SB_serial_scalar_matrix_array_assembler_t), intent(inout) :: this
- real(rp), intent(in) :: elmat(:,:), elvec(:) 
- type(i1p_t), intent(in) :: el2dof(:)
- integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
- logical, intent(in) :: blocks_coupling(:,:)
+ integer(ip)                                     , intent(in)    :: number_fe_spaces
+ integer(ip)                                     , intent(in)    :: number_nodes(number_fe_spaces)
+ type(i1p_t)                                     , intent(in)    :: elem2dof(number_fe_spaces)
+ integer(ip)                                     , intent(in)    :: field_blocks(number_fe_spaces)
+ logical                                         , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+ ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+ real(rp)                                        , intent(in)    :: elmat(:,:) 
+ ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+ real(rp)                                        , intent(in)    :: elvec(:)  
 
  class(matrix_t), pointer :: matrix
  class(array_t) , pointer :: array
@@ -70,14 +81,14 @@ subroutine serial_scalar_matrix_array_assembler_assembly( this, el2dof, elmat, e
 
  select type(matrix)
     class is(serial_scalar_matrix_t)
-    call element_serial_scalar_matrix_assembly( matrix,  el2dof(1)%p,  elmat, nodes(1) )
+    call element_serial_scalar_matrix_assembly( matrix,  elem2dof(1)%p,  elmat, number_nodes(1) )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_scalar_array_t)
-    call element_serial_scalar_array_assembly( array,  el2dof(1)%p,  elvec, nodes(1) )
+    call element_serial_scalar_array_assembly( array,  elem2dof(1)%p,  elvec, number_nodes(1) )
     class default
     check(.false.)
  end select
