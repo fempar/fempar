@@ -290,6 +290,7 @@ type fe_map_t
   type(SB_interpolation_t) :: interpolation_geometry    ! Geometry interpolation_t in the reference element domain
 contains
   procedure :: create           => fe_map_create
+  procedure :: create_from_face => fe_map_create_from_face
   procedure :: update           => fe_map_update
   procedure :: free             => fe_map_free
   procedure :: print            => fe_map_print
@@ -348,5 +349,7 @@ contains
 #include "sbm_quad_lagrangian_reference_face.i90"
 
 #include "sbm_volume_integrator.i90"
+
+#include "sbm_face_fe_map.i90"
 
 end module reference_fe_names
