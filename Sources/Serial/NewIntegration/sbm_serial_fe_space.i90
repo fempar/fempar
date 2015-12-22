@@ -66,6 +66,7 @@ subroutine create( this, &
      end do
      this%fe_array(i)%cell => triangulation%elems(i)
      this%fe_array(i)%number_nodes = number_nodes
+     this%fe_array(i)%number_fe_spaces = this%number_fe_spaces
 
      this%fe_array(i)%reference_fe_geo => this%reference_fe_geo_list(1)%p
      this%fe_array(i)%quadrature => this%quadrature(1)%p
@@ -147,6 +148,7 @@ subroutine free( this )
      
      nullify(this%fe_array(i)%cell)
      this%fe_array(i)%number_nodes = 0
+     this%fe_array(i)%number_fe_spaces = 0
 
      nullify(this%fe_array(i)%reference_fe_geo)
      nullify(this%fe_array(i)%quadrature)
@@ -206,7 +208,7 @@ subroutine initialize_integration( this, max_order )
   ! Parameters
   class(SB_serial_fe_space_t), intent(inout) :: this  
   integer(ip), optional, intent(in)  :: max_order
-  call this%initialize_quadrature()
+  call this%initialize_quadrature(max_order)
   call this%initialize_fe_map()
   call this%initialize_volume_integrator()
 end subroutine initialize_integration
@@ -218,7 +220,7 @@ subroutine initialize_quadrature( this, max_order )
   integer(ip), optional, intent(in)  :: max_order
   integer(ip) :: i
 
-  do i = 1, size(this%reference_fe_phy_list)
+  do i = 1, size(this%quadrature)
      call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
   end do
 end subroutine initialize_quadrature
@@ -228,7 +230,7 @@ subroutine initialize_volume_integrator( this )
   class(SB_serial_fe_space_t), intent(inout) :: this
   integer(ip) :: i
   do i = 1, this%number_fe_spaces
-     call this%volume_integrator(i)%p%create( this%quadrature(i)%p, & 
+     call this%volume_integrator(i)%p%create( this%quadrature(1)%p, & 
                                               this%reference_fe_phy_list(i)%p )
   end do
 end subroutine initialize_volume_integrator
@@ -249,9 +251,9 @@ function create_assembler(this, &
                           diagonal_blocks_sign)
   implicit none
   class(SB_serial_fe_space_t)       , intent(in) :: this
-  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
-  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
-  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(this%number_blocks)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(this%number_blocks)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(this%number_blocks)
   class(SB_matrix_array_assembler_t), pointer    :: create_assembler
 
 
@@ -344,9 +346,9 @@ end function get_number_elements
 
 function get_number_fe_spaces( this)
   implicit none
-  class(SB_serial_fe_space_t), intent(inout) :: this 
+  class(SB_serial_fe_space_t), intent(in) :: this 
   integer(ip) :: get_number_fe_spaces
-  get_number_fe_spaces = this%number_fe_spaces ! SB.alert 
+  get_number_fe_spaces = this%number_fe_spaces
 end function get_number_fe_spaces
 
 function get_finite_element( this, i )
@@ -396,10 +398,10 @@ end function get_max_number_nodes
 subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var ) 
   implicit none
   ! Parameters
-  class(SB_serial_fe_space_t)     , intent(inout) :: fe_space 
-  integer(ip), optional, intent(in) :: var
-  integer(ip), optional, intent(inout) :: init_dof
-
+  class(SB_serial_fe_space_t), intent(inout) :: fe_space 
+  integer(ip)                , intent(inout) :: init_dof
+  integer(ip)                , intent(in)    :: var
+  
   ! Local variables
   integer(ip) :: iprob, count, iobje, ielem, jelem, nvapb
   integer(ip) :: obje_l, inode, l_node, elem_ext, obje_ext, prob_ext, inode_ext, inode_l
@@ -408,7 +410,7 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var )
 
   integer(ip), allocatable :: o2n(:)
 
-  count = init_dof
+  count = 0
 
   mater = 1
 
@@ -693,14 +695,14 @@ if ( nnode > 0) then
       !inode_l = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(o2n(inode),obje_l)
 
 
-      inode_l = fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_interior_node_vef(o2n(inode),obje_l)
+      ! XXX inode_l = fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_interior_node_vef(o2n(inode),obje_l)
 
       ! PRUEBA SB.alert
       ! I am not using the o2n because I assume that I have a first order FE space, only
-      ! vefs on corners and permutation not needed. The permutation must be modified for 
+      ! DoFs on corners and permutation not needed. The permutation must be modified for 
       ! vector-valued problems. Think about it!
 
-      !inode_l = fe_space%fe_array(jelem)%reference_fe(var)%p%get_interior_node_vef(inode,obje_l)
+      inode_l = fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,obje_l)
 
       !l_node = fe_space%fe_array(jelem)%nodes_per_vef%p%p(obje_l) + o2n(inode) - 1
       !inode_l = fe_space%fe_array(jelem)%nodes_per_vef%p%l(l_node)

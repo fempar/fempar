@@ -89,7 +89,7 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
     ! E.g., in the case of a vector Laplacian problem we may have number_fe_spaces = 3 and field_coupling = [ true false false
     !                                                                                                        false true false
     !                                                                                                        false false true ]
-    ! Here we should therefore develop here a nested loop which would ressemble very much the one that we have in
+    ! Here we should therefore develop a nested loop which would ressemble very much the one that we have in
     ! discrete_integration%integrate(). An alternative would be that discrete_integration%integrate() calls directly the
     ! TBPs() which are called within element_sparse_matrix_assembly(), but this in turn has side-effects, as we would need
     ! to develop a more rich set of deferred TBPs in the interface of class(matrix_t). Besides, in such a case, the present
@@ -124,17 +124,6 @@ end subroutine sparse_matrix_array_assembler_allocate
   matrix=>this%get_matrix() 
    select type(matrix)
     class is(sparse_matrix_t)
-    ! AFM
-    ! In the case of finite elements resulting from composition of finite elements,
-    ! should the code of this section some-how take into account the structure of the FE? 
-    ! E.g., in the case of a vector Laplacian problem we may have number_fe_spaces = 3 and field_coupling = [ true false false
-    !                                                                                                        false true false
-    !                                                                                                        false false true ]
-    ! Here we should therefore develop here a nested loop which would ressemble very much the one that we have in
-    ! discrete_integration%integrate(). An alternative would be that discrete_integration%integrate() calls directly the
-    ! TBPs() which are called within element_sparse_matrix_assembly(), but this in turn has side-effects, as we would need
-    ! to develop a more rich set of deferred TBPs in the interface of class(matrix_t). Besides, in such a case, the present
-    ! subroutine would not make anymore sense, it would disappear. TO-THINK!!
     call matrix%convert(sparse_matrix_storage_format)
     class default
     check(.false.)
@@ -153,21 +142,19 @@ subroutine element_sparse_matrix_assembly( a, number_nodes, elem2dof, elmat )
  integer(ip) :: idof, jdof 
  integer(ip) :: inode, jnode
 
-
+ 
  ! We are going to use a single entry-wise insertion approach.
- ! In the future, we may consider an optimization that
+ ! In the future, we may consider an "optimization" that
  ! inserts all entries in one shot. This, however, may
  ! imply dynamic/memory allocation/deallocation to e.g. transform
  ! elmat into a 1D array. Note that, on the other
  ! hand, that type(sparse_matrix_t) already supports
- ! that some of entries in elem2dof might be zero, ignoring them (as the would
- ! be out of the (imin,imax,jmin,jmax)
-
- 
+ ! that some of entries in elem2dof might be zero, ignoring them (as they would
+ ! be out of the (imin,imax,jmin,jmax) 
  do inode = 1,number_nodes
     idof = elem2dof(inode)
     if ( idof  > 0 ) then
-       do jnode = 1,number_nodes
+      do jnode = 1,number_nodes
           jdof = elem2dof(jnode)
           if ( jdof > 0 ) then
                 call a%insert(idof,jdof,elmat(inode,jnode),1,a%get_num_rows(),1,a%get_num_cols())

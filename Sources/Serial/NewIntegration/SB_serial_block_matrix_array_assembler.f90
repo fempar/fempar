@@ -107,8 +107,8 @@ subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spa
 
   integer(ip) :: c_i, ifem, iblock, inode, idof
   integer(ip) :: c_j, jfem, jblock, jnode, jdof, k
-  type(serial_scalar_matrix_t), pointer :: mat
-
+  type(serial_scalar_matrix_t), pointer :: mat  
+  
   c_i = 0
   do ifem = 1, number_fe_spaces
      iblock = blocks(ifem)
@@ -117,7 +117,7 @@ subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spa
         c_i = c_i + 1
         if ( idof > 0 ) then
            c_j = 0
-           do jfem = 1,number_fe_spaces
+           do jfem = 1, number_fe_spaces
               jblock = blocks(jfem)
               if ( blocks_coupling(iblock,jblock) ) then
                  mat => a%get_block(iblock,jblock)

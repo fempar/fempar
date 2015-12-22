@@ -70,6 +70,7 @@ module SB_fe_space_names
   type :: SB_finite_element_t
      private 
      integer(ip)                                 :: number_nodes
+     integer(ip)                                 :: number_fe_spaces
      
      type(elem_topology_t)         , pointer     :: cell 
      class(reference_fe_t)         , pointer     :: reference_fe_geo 
@@ -85,17 +86,17 @@ module SB_fe_space_names
    contains
      
      ! procedure :: create Pending
-     procedure :: update_integration
+     procedure, non_overridable :: update_integration
      ! procedure :: free Pending
      ! procedure :: print Pending
-     procedure :: get_number_nodes 
-     procedure :: get_fe_map
-     procedure :: get_quadrature	
-     procedure :: get_volume_integrator
-     procedure :: get_elem2dof 
-     procedure :: get_bc_code 
-     procedure :: get_bc_value 
-     procedure :: get_number_nodes_field 
+     procedure, non_overridable :: get_number_nodes 
+     procedure, non_overridable :: get_fe_map
+     procedure, non_overridable :: get_quadrature	
+     procedure, non_overridable :: get_volume_integrator
+     procedure, non_overridable :: get_elem2dof 
+     procedure, non_overridable :: get_bc_code 
+     procedure, non_overridable :: get_bc_value 
+     procedure, non_overridable :: get_number_nodes_per_field 
   end type SB_finite_element_t
 
   public :: SB_finite_element_t
@@ -121,23 +122,23 @@ module SB_fe_space_names
      ! Acceleration arrays
      type(list_2d_t)               , allocatable :: vef2dof(:)
    contains
-     procedure          :: create
-     procedure          :: fill_dof_info
-     procedure          :: free
-     procedure          :: print
-     procedure          :: initialize_integration
-     procedure, private :: initialize_volume_integrator
-     procedure, private :: initialize_quadrature
-     procedure, private :: initialize_fe_map
-     procedure          :: create_assembler
-     procedure          :: symbolic_setup_assembler
-     procedure          :: get_number_elements
-     procedure          :: get_number_fe_spaces
-     procedure          :: get_finite_element
-     procedure          :: get_number_blocks
-     procedure          :: get_field_blocks
-     procedure          :: get_field_coupling
-     procedure          :: get_max_number_nodes
+     procedure, non_overridable :: create
+     procedure, non_overridable :: fill_dof_info
+     procedure, non_overridable :: free
+     procedure, non_overridable :: print
+     procedure, non_overridable :: initialize_integration
+     procedure, non_overridable, private :: initialize_volume_integrator
+     procedure, non_overridable, private :: initialize_quadrature
+     procedure, non_overridable, private :: initialize_fe_map
+     procedure, non_overridable :: create_assembler
+     procedure, non_overridable :: symbolic_setup_assembler
+     procedure, non_overridable :: get_number_elements
+     procedure, non_overridable :: get_number_fe_spaces
+     procedure, non_overridable :: get_finite_element
+     procedure, non_overridable :: get_number_blocks
+     procedure, non_overridable :: get_field_blocks
+     procedure, non_overridable :: get_field_coupling
+     procedure, non_overridable :: get_max_number_nodes
   end type SB_serial_fe_space_t
 
   public :: SB_serial_fe_space_t
