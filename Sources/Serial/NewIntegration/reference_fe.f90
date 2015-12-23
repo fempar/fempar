@@ -1,6 +1,6 @@
 module reference_fe_names
   use allocatable_array_ip1_names
-  use shape_values_names
+  use field_names
   use types_names
   use list_types_names
   use memor_names
@@ -40,12 +40,12 @@ module reference_fe_names
           coordinates(:,:),   &   
           weight(:)                         
    contains
-     procedure :: create => quadrature_create
-     procedure :: free   => quadrature_free
-     procedure :: print  => quadrature_print
-     procedure :: get_number_dimensions => quadrature_get_number_dimensions
-     procedure :: get_number_evaluation_points => quadrature_get_number_evaluation_points
-     procedure :: get_weight => quadrature_get_weight
+     procedure, non_overridable :: create => quadrature_create
+     procedure, non_overridable :: free   => quadrature_free
+     procedure, non_overridable :: print  => quadrature_print
+     procedure, non_overridable :: get_number_dimensions => quadrature_get_number_dimensions
+     procedure, non_overridable :: get_number_evaluation_points => quadrature_get_number_evaluation_points
+     procedure, non_overridable :: get_weight => quadrature_get_weight
   end type SB_quadrature_t
 
   type SB_p_quadrature_t
@@ -63,9 +63,9 @@ module reference_fe_names
      real(rp), allocatable :: coordinates(:,:,:)               ! coordinates of the integration points
    contains
      ! Check sbm_face_quadrature for the definition of the subroutines
-     procedure :: create => face_quadrature_create
-     procedure :: free   => face_quadrature_free
-     procedure :: print  => face_quadrature_print
+     procedure, non_overridable :: create => face_quadrature_create
+     procedure, non_overridable :: free   => face_quadrature_free
+     procedure, non_overridable :: print  => face_quadrature_print
   end type face_quadrature_t
 
   public :: face_quadrature_t
@@ -83,17 +83,17 @@ module reference_fe_names
           shape_derivatives(:,:,:), &   
           hessian(:,:,:)     
    contains
-     procedure :: create => interpolation_create
-     procedure :: free   => interpolation_free
-     procedure :: copy   => interpolation_copy
-     procedure :: print  => interpolation_print
-     !procedure :: get_number_dimensions => interpolation_get_number_dimensions
-     !procedure :: get_number_shape_functions => interpolation_get_number_shape_functions
-     !procedure :: get_number_evaluation_points => interpolation_get_number_evaluation_points
-     !procedure :: get_number_entries_symmetric_tensor => interpolation_get_number_entries_symmetric_tensor
-     !procedure :: get_shape_function => interpolation_get_shape_function
-     !procedure :: get_shape_derivative => interpolation_get_shape_derivative
-     !procedure :: get_hessian  => interpolation_get_hessian
+     procedure, non_overridable :: create => interpolation_create
+     procedure, non_overridable :: free   => interpolation_free
+     procedure, non_overridable :: copy   => interpolation_copy
+     procedure, non_overridable :: print  => interpolation_print
+     !procedure, non_overridable :: get_number_dimensions => interpolation_get_number_dimensions
+     !procedure, non_overridable :: get_number_shape_functions => interpolation_get_number_shape_functions
+     !procedure, non_overridable :: get_number_evaluation_points => interpolation_get_number_evaluation_points
+     !procedure, non_overridable :: get_number_entries_symmetric_tensor => interpolation_get_number_entries_symmetric_tensor
+     !procedure, non_overridable :: get_shape_function => interpolation_get_shape_function
+     !procedure, non_overridable :: get_shape_derivative => interpolation_get_shape_derivative
+     !procedure, non_overridable :: get_hessian  => interpolation_get_hessian
   end type SB_interpolation_t
 
   public :: SB_interpolation_t
@@ -101,6 +101,11 @@ module reference_fe_names
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+  character(*), parameter :: field_type_scalar           = 'scalar'
+  character(*), parameter :: field_type_vector           = 'vector'
+  character(*), parameter :: field_type_tensor           = 'tensor'
+  character(*), parameter :: field_type_symmetric_tensor = 'symmetric_tensor'
+  
   ! Abstract reference_fe
   type, abstract ::  reference_fe_t
      private
@@ -137,9 +142,35 @@ module reference_fe_names
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)  , deferred :: create_interpolation 
-     procedure(get_value_interface)             , deferred :: get_value
-     procedure(get_gradient_interface)          , deferred :: get_gradient
      procedure(get_bc_component_node_interface) , deferred :: get_bc_component_node
+     
+     procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
+     procedure(get_value_vector_interface)           , deferred :: get_value_vector
+     !procedure(get_value_tensor_interface)          , deferred :: get_value_tensor           ! Pending
+     !procedure(get_value_symmetric_tensor_interface), deferred :: get_value_symmetric_tensor ! Pending
+     generic                                                   :: get_value => get_value_scalar,&
+                                                                               get_value_vector !,&
+                                                                               !get_value_tensor,&
+                                                                               !get_value_symmetric_tensor
+    
+     procedure(get_gradient_scalar_interface)          , deferred :: get_gradient_scalar
+     procedure(get_gradient_vector_interface)          , deferred :: get_gradient_vector
+     !procedure(get_gradient_tensor_interface)          , deferred :: get_gradient_tensor ! Pending
+     generic                                                      :: get_gradient => get_gradient_scalar,&
+                                                                                     get_gradient_vector !,&
+                                                                                     !get_value_tensor ,&
+                                                                                     !get_value_symmetric_tensor
+                                                                                     
+     !procedure(get_symmetric_gradient_vector_interface), deferred :: get_symmetric_gradient_vector ! Pending
+     !generic                                                      :: get_symmetric_gradient => get_symmetric_gradient_scalar
+     
+     !procedure(get_divergence_vector_interface)          , deferred :: get_divergence_vector ! Pending
+     !procedure(get_divergence_tensor_interface)          , deferred :: get_divergence_tensor ! Pending
+     !generic                                                        :: get_divergence => get_divergence_vector,&
+     !                                                                                    get_divergence_tensor
+                                                                                     
+     !procedure(get_curl_vector_interface)          , deferred :: get_curl_vector ! Pending
+     !generic                                                  :: get_curl => get_curl_vector
 
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
@@ -218,25 +249,7 @@ module reference_fe_names
        type(SB_quadrature_t)  , intent(in)    :: local_quadrature
        type(face_quadrature_t), intent(inout) :: face_quadrature
      end subroutine create_face_quadrature_interface
-
-     subroutine get_value_interface( this, shp, int, node, gp )
-       import :: reference_fe_t, SB_interpolation_t, rp, ip
-       implicit none
-       class(reference_fe_t), intent(in) :: this 
-       type(SB_interpolation_t), intent(in) :: int 
-       integer(ip), intent(in)  :: node, gp
-       real(rp), intent(out) :: shp(:,:)
-     end subroutine get_value_interface
-
-     subroutine get_gradient_interface( this, shg, int, node, gp )
-       import :: reference_fe_t, SB_interpolation_t, rp, ip
-       implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       real(rp)             , intent(out)   :: shg(:,:)
-       type(SB_interpolation_t), intent(in) :: int 
-       integer(ip), intent(in)  :: node, gp
-     end subroutine get_gradient_interface
-
+     
      function get_bc_component_node_interface( this, node )
        import :: reference_fe_t, ip
        implicit none
@@ -244,6 +257,46 @@ module reference_fe_names
        integer(ip), intent(in) :: node
        integer(ip) :: get_bc_component_node_interface
      end function get_bc_component_node_interface
+
+     subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
+       import :: reference_fe_t, SB_interpolation_t, ip, rp
+       implicit none
+       class(reference_fe_t)   , intent(in)  :: this 
+       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       integer(ip)             , intent(in)  :: ishape
+       integer(ip)             , intent(in)  :: qpoint
+       real(rp)                , intent(out) :: scalar_field
+     end subroutine get_value_scalar_interface
+     
+     subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint, vector_field )
+       import :: reference_fe_t, SB_interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t)   , intent(in)  :: this 
+       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       integer(ip)             , intent(in)  :: ishape
+       integer(ip)             , intent(in)  :: qpoint
+       type(vector_field_t)    , intent(out) :: vector_field
+     end subroutine get_value_vector_interface
+     
+     subroutine get_gradient_scalar_interface( this, actual_cell_interpolation, ishape, qpoint, vector_field )
+       import :: reference_fe_t, SB_interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t)   , intent(in)  :: this 
+       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       integer(ip)             , intent(in)  :: ishape
+       integer(ip)             , intent(in)  :: qpoint
+       type(vector_field_t)    , intent(out) :: vector_field
+     end subroutine get_gradient_scalar_interface
+     
+     subroutine get_gradient_vector_interface( this, actual_cell_interpolation, ishape, qpoint, tensor_field )
+       import :: reference_fe_t, SB_interpolation_t, tensor_field_t, ip
+       implicit none
+       class(reference_fe_t)   , intent(in)  :: this 
+       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       integer(ip)             , intent(in)  :: ishape
+       integer(ip)             , intent(in)  :: qpoint
+       type(tensor_field_t)    , intent(out) :: tensor_field
+     end subroutine get_gradient_vector_interface
 
      subroutine permute_order_vef_interface( this, o2n,p,o,r,nd )
        import :: reference_fe_t, ip
@@ -255,6 +308,7 @@ module reference_fe_names
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
+  public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
@@ -267,10 +321,16 @@ contains
   procedure :: create_quadrature      => quad_lagrangian_reference_fe_create_quadrature
   procedure :: create_face_quadrature => quad_lagrangian_reference_fe_create_face_quadrature
   procedure :: create_interpolation   => quad_lagrangian_reference_fe_create_interpolation
-  procedure :: get_value              => quad_lagrangian_reference_fe_get_value
-  procedure :: get_gradient           => quad_lagrangian_reference_fe_get_gradient
+  
   procedure :: get_bc_component_node  => quad_lagrangian_reference_fe_get_bc_component_node
   procedure :: permute_order_vef      => quad_lagrangian_reference_fe_permute_order_vef
+  
+  procedure :: get_value_scalar       => quad_lagrangian_reference_fe_get_value_scalar
+  procedure :: get_value_vector       => quad_lagrangian_reference_fe_get_value_vector
+  procedure :: get_gradient_scalar    => quad_lagrangian_reference_fe_get_gradient_scalar
+  procedure :: get_gradient_vector    => quad_lagrangian_reference_fe_get_gradient_vector
+  
+  
 
   ! Concrete TBPs of this derived data type
   procedure :: fill                   => quad_lagrangian_reference_fe_fill
@@ -289,12 +349,11 @@ type fe_map_t
   real(rp), allocatable    :: coordinates_points(:,:)   ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)
   type(SB_interpolation_t) :: interpolation_geometry    ! Geometry interpolation_t in the reference element domain
 contains
-  procedure :: create           => fe_map_create
-  procedure :: create_from_face => fe_map_create_from_face
-  procedure :: update           => fe_map_update
-  procedure :: free             => fe_map_free
-  procedure :: print            => fe_map_print
-  procedure :: get_det_jacobian => fe_map_get_det_jacobian
+  procedure, non_overridable :: create           => fe_map_create
+  procedure, non_overridable :: update           => fe_map_update
+  procedure, non_overridable :: free             => fe_map_free
+  procedure, non_overridable :: print            => fe_map_print
+  procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
 end type fe_map_t
 
 type p_fe_map_t
@@ -307,20 +366,48 @@ public :: fe_map_t, p_fe_map_t
 
 type SB_volume_integrator_t 
   private
+  integer(ip)                    :: number_shape_functions
+  integer(ip)                    :: number_evaluation_points
+  class(reference_fe_t), pointer :: reference_fe
   type(SB_interpolation_t)       :: interpolation           ! Unknown interpolation_t in the reference element domain
   type(SB_interpolation_t)       :: interpolation_o_map     ! Unknown interpolation_t in the physical element domain
-  type(shape_values_t)           :: shape_value_test, shape_gradient_test
-  type(shape_values_t)           :: shape_value_trial, shape_gradient_trial
 contains
 
-  procedure          :: create                => volume_integrator_create
-  procedure          :: update                => volume_integrator_update
-  procedure          :: free                  => volume_integrator_free
-  procedure          :: print                 => volume_integrator_print
-  procedure          :: get_gradients         => volume_integrator_get_gradients
-  procedure          :: get_values            => volume_integrator_get_values
-  procedure, private :: fetch_gradient_test   => volume_integrator_fetch_gradient_test
-  procedure, private :: fetch_value_test      => volume_integrator_fetch_value_test	
+  procedure, non_overridable :: create => volume_integrator_create
+  procedure, non_overridable :: update => volume_integrator_update
+  procedure, non_overridable :: free   => volume_integrator_free
+  procedure, non_overridable :: print  => volume_integrator_print
+  
+  procedure, non_overridable, private :: get_value_scalar           => volume_integrator_get_value_scalar
+  procedure, non_overridable, private :: get_value_vector           => volume_integrator_get_value_vector
+  procedure, non_overridable, private :: get_value_tensor           => volume_integrator_get_value_tensor
+  procedure, non_overridable, private :: get_value_symmetric_tensor => volume_integrator_get_value_symmetric_tensor
+  generic            :: get_value => get_value_scalar, &
+                                     get_value_vector, &
+                                     get_value_tensor, &
+                                     get_value_symmetric_tensor
+    
+  procedure, non_overridable, private :: get_gradient_scalar => volume_integrator_get_gradient_scalar
+  procedure, non_overridable, private :: get_gradient_vector => volume_integrator_get_gradient_vector
+  generic                             :: get_gradient => get_gradient_scalar, &
+                                                         get_gradient_vector                                                       
+  
+  procedure, non_overridable, private :: get_symmetric_gradient_vector => volume_integrator_get_symmetric_gradient_vector
+  generic                             :: get_symmetric_gradient => get_symmetric_gradient_vector
+  
+  procedure, non_overridable, private :: get_divergence_vector => volume_integrator_get_divergence_vector
+  procedure, non_overridable, private :: get_divergence_tensor => volume_integrator_get_divergence_tensor
+  generic                             :: get_divergence => get_divergence_vector, &
+                                                           get_divergence_tensor                                                           
+  procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
+  generic                             :: get_curl => get_curl_vector
+  
+  ! We might want to have the following in the future:
+  !  (x) get_hessian (scalar,vector)
+  !  (x) get_third_derivative (scalar,vector)
+  ! But note that in such a case we would require higher-to-2 rank tensors
+  ! (i.e., type(tensor_field_t) is a rank-2 tensor)
+  
 end type SB_volume_integrator_t
 
 type SB_p_volume_integrator_t

@@ -249,7 +249,6 @@ contains
                 call this%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_clean)
                 deallocate (this%blocks(ib,jb)%serial_scalar_matrix, stat=istat)
                 check(istat==0)
-                call this%free_vector_spaces()
              else if ( action == free_symbolic_setup ) then 
                 call this%blocks(ib,jb)%serial_scalar_matrix%free_in_stages(free_symbolic_setup)
              else if ( action == free_numerical_setup ) then
@@ -260,8 +259,9 @@ contains
     end do
     if (action == free_clean) then
        this%nblocks = 0
-       deallocate ( this%blocks, stat=istat)
+       deallocate (this%blocks, stat=istat)
        check(istat==0)
+       call this%free_vector_spaces()
     end if
   end subroutine serial_block_matrix_free_in_stages
   
