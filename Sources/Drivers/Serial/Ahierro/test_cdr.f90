@@ -314,6 +314,8 @@ program test_cdr
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
+  call triangulation_construct_faces ( f_trian )
+
   ! Assign the DOFs
   vars_prob = 1
   !( dof_descriptor, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
@@ -451,7 +453,7 @@ program test_cdr
   istat = fevtk%write_PVD()
 
   ! To be erased
-  call test_reference_face_stuff()
+  !call test_reference_face_stuff(f_trian,f_cond,my_problem)
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( enable_face_integration, __FILE__, __LINE__)
@@ -474,40 +476,40 @@ program test_cdr
   call mesh_free (f_mesh)
   call memstatus
 contains
-  !==================================================================================================
-  subroutine  test_reference_face_stuff()
-    use reference_fe_names
-    use reference_fe_factory_names
-    use SB_fe_space_names
-    use SB_discrete_integration_names
-    use poisson_discrete_integration_names
-    use SB_fe_affine_operator_names
-    use SB_preconditioner_names
-    implicit none
-
-    class(reference_fe_t), pointer :: reference_fe
-    type(SB_quadrature_t)          :: quadrature
-    type(face_quadrature_t)       :: face_quadrature
-
-    ! UNIT TEST * reference_fe.f90 *
-    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-         order = 3, field_type = "vector", continuity = .true. )
-    !call reference_fe%print()
-
-    ! UNIT TEST * SB_quadrature.f90 *
-    call reference_fe%create_quadrature( quadrature )
-
-    call reference_fe%free()
-
-    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
-         order = 3, field_type = "vector", continuity = .true. )
-
-    call reference_fe%create_face_quadrature(face_quadrature,quadrature)
-    call face_quadrature%print(6)
-    call face_quadrature%free()
-    call quadrature%free()
-    call reference_fe%free()
-  end subroutine test_reference_face_stuff
+!!$  !==================================================================================================
+!!$  subroutine  test_reference_face_stuff()
+!!$    use reference_fe_names
+!!$    use reference_fe_factory_names
+!!$    use SB_fe_space_names
+!!$    use SB_discrete_integration_names
+!!$    use poisson_discrete_integration_names
+!!$    use SB_fe_affine_operator_names
+!!$    use SB_preconditioner_names
+!!$    implicit none
+!!$
+!!$    class(reference_fe_t), pointer :: reference_fe
+!!$    type(SB_quadrature_t)          :: quadrature
+!!$    type(face_quadrature_t)       :: face_quadrature
+!!$
+!!$    ! UNIT TEST * reference_fe.f90 *
+!!$    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
+!!$         order = 3, field_type = "vector", continuity = .true. )
+!!$    !call reference_fe%print()
+!!$
+!!$    ! UNIT TEST * SB_quadrature.f90 *
+!!$    call reference_fe%create_quadrature( quadrature )
+!!$
+!!$    call reference_fe%free()
+!!$
+!!$    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
+!!$         order = 3, field_type = "vector", continuity = .true. )
+!!$
+!!$    call reference_fe%create_face_quadrature(face_quadrature,quadrature)
+!!$    call face_quadrature%print(6)
+!!$    call face_quadrature%free()
+!!$    call quadrature%free()
+!!$    call reference_fe%free()
+!!$  end subroutine test_reference_face_stuff
 
   !==================================================================================================
   subroutine read_flap_cli_test_cdr(cli)
