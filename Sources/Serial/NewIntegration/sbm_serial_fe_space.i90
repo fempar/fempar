@@ -196,10 +196,18 @@ subroutine print ( this )
      write(*,*) '********* ELEMENT: ',i,'********'
      write(*,*) '********* ELEMENT 2 DOF********'
      do j = 1, this%number_fe_spaces
-     write(*,*) '********* FE COMPONENT: ',j,'********'
-     write(*,*) this%fe_array(i)%elem2dof(j)%p
-   end do
-end do
+        write(*,*) '********* FE COMPONENT: ',j,'********'
+        write(*,*) this%fe_array(i)%elem2dof(j)%p
+     end do
+  end do
+   
+  do i  = 1, this%triangulation%number_interior_faces
+     write(*,*) '--------------------- Face: ',i,'-------------------------'
+     write(*,*) '-- Elem 1 --'
+     write(*,*) this%face_array(i)%neighbour_fe(1)%p%elem2dof(1)%p
+     write(*,*) '-- Elem 2 --'
+     write(*,*) this%face_array(i)%neighbour_fe(2)%p%elem2dof(1)%p
+  end do
 
 end subroutine print
 

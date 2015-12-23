@@ -99,7 +99,20 @@ module SB_fe_space_names
      procedure, non_overridable :: get_number_nodes_per_field 
   end type SB_finite_element_t
 
-  public :: SB_finite_element_t
+  type :: p_SB_finite_element_t
+     type(SB_finite_element_t), pointer :: p
+  end type p_SB_finite_element_t
+
+  public :: SB_finite_element_t, p_SB_finite_element_t
+
+  type :: finite_face_t
+     private
+     type(face_topology_t)      , pointer :: face_topology
+     type(p_SB_finite_element_t)          :: neighbour_fe(2)
+     !type(face_integration_t)   , pointer :: face_integrator
+  end type finite_face_t
+
+  public :: finite_face_t
 
   type :: SB_serial_fe_space_t
      private
@@ -112,6 +125,7 @@ module SB_fe_space_names
      
      type(triangulation_t)         , pointer     :: triangulation
      type(SB_finite_element_t)     , allocatable :: fe_array(:)
+     type(finite_face_t)           , allocatable :: face_array(:)
      
      ! Data related to block structure of the FE system + size of each block
      integer(ip)                                 :: number_blocks
@@ -123,6 +137,7 @@ module SB_fe_space_names
      type(list_2d_t)               , allocatable :: vef2dof(:)
    contains
      procedure, non_overridable :: create
+     procedure, non_overridable :: create_face_array
      procedure, non_overridable :: fill_dof_info
      procedure, non_overridable :: free
      procedure, non_overridable :: print
@@ -151,5 +166,7 @@ contains
 #include "sbm_finite_element.i90"
 
 #include "sbm_serial_fe_space.i90"
+
+#include "sbm_serial_fe_space_faces.i90"
 
 end module SB_fe_space_names

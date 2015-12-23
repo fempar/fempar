@@ -1,0 +1,46 @@
+!====================================================================================================
+subroutine create_face_array (this) 
+  implicit none
+  class(SB_serial_fe_space_t), target, intent(inout) :: this
+
+  integer(ip)                    :: face_id
+  integer(ip)                    :: number_interior_faces, number_boundary_faces, number_total_faces
+  integer(ip)                    :: istat,  local_neigh_elem_id, neigh_elem_id
+  type(face_topology_t), pointer :: face_topology
+  type(finite_face_t)  , pointer :: face
+
+  ! Get the variables from the triangulation
+  ! AH: Once we have the iterator and more intrincated triangulations, this wil be not simply
+  ! taking the raw values but only the active faces or the ones we are interested in
+  number_interior_faces = this%triangulation%number_interior_faces
+  number_boundary_faces = this%triangulation%number_boundary_faces
+  number_total_faces    = number_interior_faces + number_boundary_faces
+
+  allocate (this%face_array(number_total_faces), stat = istat )
+  check (istat == 0)
+
+  ! Loop over the faces (this will be performed by an iterator at some point)
+  do face_id = 1,  number_interior_faces
+     face          => this%face_array(face_id)
+     face_topology => this%triangulation%faces(face_id)
+
+     face%face_topology => face_topology
+     do local_neigh_elem_id = 1, 2
+        neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
+        face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
+     end do
+  end do
+
+  do face_id = number_interior_faces + 1, number_interior_faces + number_boundary_faces
+     face          => this%face_array(face_id)
+     face_topology => this%triangulation%faces(face_id)
+
+     face%face_topology => face_topology
+     local_neigh_elem_id = 1
+     neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
+     face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
+     
+     local_neigh_elem_id = 2
+     face%neighbour_fe(local_neigh_elem_id)%p => NULL()
+  end do
+end subroutine create_face_array

@@ -315,145 +315,145 @@ program test_cdr
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
   call triangulation_construct_faces ( f_trian )
-
-  ! Assign the DOFs
-  vars_prob = 1
-  !( dof_descriptor, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
-  call dof_descriptor%create( 1, 1, 1 )
-
-  ! Create the physical problem
-  call physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
-
-  ! Create the discrete method associated the problem
-  call discrete_cdr_problem_create(my_discrete,cli)
-
-  ! Define the method to solve the proble
-  call approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli, f_trian,order,     &
-       &                                continuity,enable_face_integration,material,problem)
-
-  ! Create FE Space
-  call fe_space%create ( f_trian, dof_descriptor, problem, f_cond, continuity,                      &
-       &                 enable_face_integration, order, material, time_steps_to_store = 3,         &
-       &                 hierarchical_basis = .false., static_condensation = .false.,               &
-       &                 num_continuity = 1 )
-
-  ! Initialize VTK output
-  call fevtk%initialize(f_trian,fe_space,my_problem,senv,dir_path_out,prefix, linear_order=.false.)
-
-  ! Assign analytical solution
-  call fe_space%set_analytical_code(space_solution_flag,tempo_solution_flag)
-
-  !Initialize time parameters
-  call cdr_matvec%time_integ%initialize()
-
-  ! Initialize solution
-  if (theta_integ%dtinv .ne. 0.0_rp) then
-     call update_analytical_initial(vars_prob,theta_integ%itime,fe_space)
-     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
-     call theta_integ%update()
-     ! Store the solution in the previous time step
-     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
-          &                          my_discrete%get_prev_step(),theta_integ)
-  end if
-
-
-
-  ! Create vef2dof array
-  call create_dof_info( fe_space )
-
-  ! Create the operator
-  diagonal_blocks_symmetric_storage = (/(my_problem%kfl_conv == 0)/)
-  diagonal_blocks_symmetric         = (/(my_problem%kfl_conv == 0)/)
-  diagonal_blocks_sign              = (/positive_definite/) 
-  call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
-       diagonal_blocks_sign, fe_space, approximations)
-  call fe_affine_operator%symbolic_setup()
-
-
-  ! Create preconditioners
-  ppars%type = pardiso_mkl_prec
-  call preconditioner_create(fe_affine_operator,feprec,ppars)
-  call preconditioner_symbolic_setup(feprec)
-
-  ! Create the computation of the error
-  call compute_error%create(my_problem,my_discrete)
-
-  ! The get_matrix/vector allocates and computes the matrix
-  call fe_affine_operator%free_in_stages(free_numerical_setup)
-
-  do while (.not. theta_integ%finished) 
-
-     ! Print the time step
-     call theta_integ%print(6)
-     ! Update boundary conditions
-     call update_strong_dirichlet_bcond( fe_space, f_cond )
-     call update_analytical_bcond(vars_prob,theta_integ%ctime,fe_space)
-
-     ! Initialize the matrix and vector
-     !call my_matrix%init(0.0_rp)
-     !call my_array%init(0.0_rp)
-
-     ! Compute the matrix an vector of the problem
-     approximations(1)%discrete_integration => cdr_matvec
-     call fe_affine_operator%numerical_setup()
-
-     ! Create the matrix
-     matrix => fe_affine_operator%get_matrix()
-     select type(matrix)
-        class is(serial_scalar_matrix_t)
-        my_matrix => matrix
-        class default
-        check(.false.)
-     end select
-
-     ! Create array 
-     array => fe_affine_operator%get_array()
-     select type(array)
-        class is(serial_scalar_array_t)
-        my_array => array
-        class default
-        check(.false.)
-     end select
-
-     ! Create the vector
-     call feunk%clone(my_array) 
-
-     ! Update the preconditioner
-     call preconditioner_numerical_setup(feprec)
-     !call preconditioner_log_info(feprec)
-
-     ! Solve the matrix-vector problem
-     call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
-     call solver_control_free_conv_his(sctrl)
-
-     ! Store the solution in FE space
-     call update_solution(feunk, fe_space)
-
-     ! Store the solution in the previous time step
-     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
-          &                          my_discrete%get_prev_step(),theta_integ)
-
-     ! Compute Error Norm
-     approximations(1)%discrete_integration => compute_error
-     compute_error%ctime = theta_integ%real_time
-     call enorm%create()
-     call enorm%init(0.0_rp)
-     call fe_space%volume_integral(approximations,enorm)
-     call enorm%reduce()
-     write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value())
-     ! Print solution to VTK file
-     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
-     istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
-
-     call fe_affine_operator%free_in_stages(free_numerical_setup)
-     ! Update the time integration variables
-     call theta_integ%update()
-  end do
-
-  istat = fevtk%write_PVD()
+!!$
+!!$  ! Assign the DOFs
+!!$  vars_prob = 1
+!!$  !( dof_descriptor, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
+!!$  call dof_descriptor%create( 1, 1, 1 )
+!!$
+!!$  ! Create the physical problem
+!!$  call physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
+!!$
+!!$  ! Create the discrete method associated the problem
+!!$  call discrete_cdr_problem_create(my_discrete,cli)
+!!$
+!!$  ! Define the method to solve the proble
+!!$  call approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli, f_trian,order,     &
+!!$       &                                continuity,enable_face_integration,material,problem)
+!!$
+!!$  ! Create FE Space
+!!$  call fe_space%create ( f_trian, dof_descriptor, problem, f_cond, continuity,                      &
+!!$       &                 enable_face_integration, order, material, time_steps_to_store = 3,         &
+!!$       &                 hierarchical_basis = .false., static_condensation = .false.,               &
+!!$       &                 num_continuity = 1 )
+!!$
+!!$  ! Initialize VTK output
+!!$  call fevtk%initialize(f_trian,fe_space,my_problem,senv,dir_path_out,prefix, linear_order=.false.)
+!!$
+!!$  ! Assign analytical solution
+!!$  call fe_space%set_analytical_code(space_solution_flag,tempo_solution_flag)
+!!$
+!!$  !Initialize time parameters
+!!$  call cdr_matvec%time_integ%initialize()
+!!$
+!!$  ! Initialize solution
+!!$  if (theta_integ%dtinv .ne. 0.0_rp) then
+!!$     call update_analytical_initial(vars_prob,theta_integ%itime,fe_space)
+!!$     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
+!!$     call theta_integ%update()
+!!$     ! Store the solution in the previous time step
+!!$     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
+!!$          &                          my_discrete%get_prev_step(),theta_integ)
+!!$  end if
+!!$
+!!$
+!!$
+!!$  ! Create vef2dof array
+!!$  call create_dof_info( fe_space )
+!!$
+!!$  ! Create the operator
+!!$  diagonal_blocks_symmetric_storage = (/(my_problem%kfl_conv == 0)/)
+!!$  diagonal_blocks_symmetric         = (/(my_problem%kfl_conv == 0)/)
+!!$  diagonal_blocks_sign              = (/positive_definite/) 
+!!$  call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
+!!$       diagonal_blocks_sign, fe_space, approximations)
+!!$  call fe_affine_operator%symbolic_setup()
+!!$
+!!$
+!!$  ! Create preconditioners
+!!$  ppars%type = pardiso_mkl_prec
+!!$  call preconditioner_create(fe_affine_operator,feprec,ppars)
+!!$  call preconditioner_symbolic_setup(feprec)
+!!$
+!!$  ! Create the computation of the error
+!!$  call compute_error%create(my_problem,my_discrete)
+!!$
+!!$  ! The get_matrix/vector allocates and computes the matrix
+!!$  call fe_affine_operator%free_in_stages(free_numerical_setup)
+!!$
+!!$  do while (.not. theta_integ%finished) 
+!!$
+!!$     ! Print the time step
+!!$     call theta_integ%print(6)
+!!$     ! Update boundary conditions
+!!$     call update_strong_dirichlet_bcond( fe_space, f_cond )
+!!$     call update_analytical_bcond(vars_prob,theta_integ%ctime,fe_space)
+!!$
+!!$     ! Initialize the matrix and vector
+!!$     !call my_matrix%init(0.0_rp)
+!!$     !call my_array%init(0.0_rp)
+!!$
+!!$     ! Compute the matrix an vector of the problem
+!!$     approximations(1)%discrete_integration => cdr_matvec
+!!$     call fe_affine_operator%numerical_setup()
+!!$
+!!$     ! Create the matrix
+!!$     matrix => fe_affine_operator%get_matrix()
+!!$     select type(matrix)
+!!$        class is(serial_scalar_matrix_t)
+!!$        my_matrix => matrix
+!!$        class default
+!!$        check(.false.)
+!!$     end select
+!!$
+!!$     ! Create array 
+!!$     array => fe_affine_operator%get_array()
+!!$     select type(array)
+!!$        class is(serial_scalar_array_t)
+!!$        my_array => array
+!!$        class default
+!!$        check(.false.)
+!!$     end select
+!!$
+!!$     ! Create the vector
+!!$     call feunk%clone(my_array) 
+!!$
+!!$     ! Update the preconditioner
+!!$     call preconditioner_numerical_setup(feprec)
+!!$     !call preconditioner_log_info(feprec)
+!!$
+!!$     ! Solve the matrix-vector problem
+!!$     call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
+!!$     call solver_control_free_conv_his(sctrl)
+!!$
+!!$     ! Store the solution in FE space
+!!$     call update_solution(feunk, fe_space)
+!!$
+!!$     ! Store the solution in the previous time step
+!!$     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
+!!$          &                          my_discrete%get_prev_step(),theta_integ)
+!!$
+!!$     ! Compute Error Norm
+!!$     approximations(1)%discrete_integration => compute_error
+!!$     compute_error%ctime = theta_integ%real_time
+!!$     call enorm%create()
+!!$     call enorm%init(0.0_rp)
+!!$     call fe_space%volume_integral(approximations,enorm)
+!!$     call enorm%reduce()
+!!$     write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value())
+!!$     ! Print solution to VTK file
+!!$     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
+!!$     istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
+!!$
+!!$     call fe_affine_operator%free_in_stages(free_numerical_setup)
+!!$     ! Update the time integration variables
+!!$     call theta_integ%update()
+!!$  end do
+!!$
+!!$  istat = fevtk%write_PVD()
 
   ! To be erased
-  !call test_reference_face_stuff(f_trian,f_cond,my_problem)
+  call test_reference_face_stuff(f_trian,f_cond,my_problem)
 
   call memfree( continuity, __FILE__, __LINE__)
   call memfree( enable_face_integration, __FILE__, __LINE__)
@@ -476,40 +476,85 @@ program test_cdr
   call mesh_free (f_mesh)
   call memstatus
 contains
-!!$  !==================================================================================================
-!!$  subroutine  test_reference_face_stuff()
-!!$    use reference_fe_names
-!!$    use reference_fe_factory_names
-!!$    use SB_fe_space_names
-!!$    use SB_discrete_integration_names
-!!$    use poisson_discrete_integration_names
-!!$    use SB_fe_affine_operator_names
-!!$    use SB_preconditioner_names
-!!$    implicit none
-!!$
-!!$    class(reference_fe_t), pointer :: reference_fe
-!!$    type(SB_quadrature_t)          :: quadrature
-!!$    type(face_quadrature_t)       :: face_quadrature
-!!$
-!!$    ! UNIT TEST * reference_fe.f90 *
-!!$    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-!!$         order = 3, field_type = "vector", continuity = .true. )
-!!$    !call reference_fe%print()
-!!$
-!!$    ! UNIT TEST * SB_quadrature.f90 *
-!!$    call reference_fe%create_quadrature( quadrature )
-!!$
-!!$    call reference_fe%free()
-!!$
-!!$    reference_fe => make_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 3, &
-!!$         order = 3, field_type = "vector", continuity = .true. )
-!!$
-!!$    call reference_fe%create_face_quadrature(face_quadrature,quadrature)
-!!$    call face_quadrature%print(6)
-!!$    call face_quadrature%free()
-!!$    call quadrature%free()
-!!$    call reference_fe%free()
-!!$  end subroutine test_reference_face_stuff
+  !==================================================================================================
+  subroutine  test_reference_face_stuff(f_trian, f_cond,my_problem)
+    use reference_fe_names
+    use reference_fe_factory_names
+    use SB_fe_space_names
+    use SB_discrete_integration_names
+    use poisson_discrete_integration_names
+    use SB_fe_affine_operator_names
+    use SB_preconditioner_names
+    use vector_laplacian_discrete_integration_names
+
+    implicit none
+
+    type(triangulation_t), intent(inout) :: f_trian
+    type(conditions_t)   , intent(in)    :: f_cond
+    type(cdr_problem_t)  , intent(in)    :: my_problem
+
+    type(SB_serial_fe_space_t)                    :: fe_space
+    type(p_reference_fe_t)                        :: reference_fe_array_two(2)
+    type(p_reference_fe_t)                        :: reference_fe_array_one(1)
+    type(SB_fe_affine_operator_t)                 :: fe_affine_operator
+    type(vector_laplacian_discrete_integration_t) :: vector_laplacian_integration
+    type(poisson_discrete_integration_t)          :: poisson_integration
+    type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
+    class(vector_t)         , allocatable, target :: vector
+
+
+    logical                  :: diagonal_blocks_symmetric_storage(2)
+    logical                  :: diagonal_blocks_symmetric(2)
+    integer(ip)              :: diagonal_blocks_sign(2)
+    
+!!$    reference_fe_array_one(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
+!!$         &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
+!!$         &                      continuity = .true. )
+!!$    call fe_space%create( triangulation = f_trian, &
+!!$                           boundary_conditions = f_cond, &
+!!$                           reference_fe_phy = reference_fe_array_one, &
+!!$                           reference_fe_geo_topology = "quad", &
+!!$                           reference_fe_geo_type = "Lagrangian" )
+
+    ! Composite case
+    reference_fe_array_two(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
+         &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
+         &                      continuity = .true. )
+
+    reference_fe_array_two(2) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
+         &                      number_dimensions = 2, order = 1, field_type = "vector",            &
+         &                      continuity = .true. )
+
+    call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
+         &                reference_fe_phy = reference_fe_array_two,                                &
+         &                reference_fe_geo_topology = "quad", reference_fe_geo_type = "Lagrangian", &
+         &                field_blocks = (/1,2/),                                                   &
+         &                field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+
+    call fe_space%create_face_array()
+    call fe_space%fill_dof_info() 
+
+    ! Create the operator
+    diagonal_blocks_symmetric_storage = .true.
+    diagonal_blocks_symmetric         = .true.
+    diagonal_blocks_sign              = positive_definite
+!!$    call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
+!!$         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
+!!$         &                          fe_space, poisson_integration)
+    call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
+         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
+         &                          fe_space, vector_laplacian_integration)
+    call fe_affine_operator%symbolic_setup()
+    call fe_affine_operator%numerical_setup()
+
+    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+    call fe_affine_operator_range_vector_space%create_vector(vector)
+    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+
+    call fe_space%print()
+    call fe_affine_operator%free()
+    call fe_space%free()
+  end subroutine test_reference_face_stuff
 
   !==================================================================================================
   subroutine read_flap_cli_test_cdr(cli)
