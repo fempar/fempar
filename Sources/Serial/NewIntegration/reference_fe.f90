@@ -437,6 +437,4 @@ contains
 
 #include "sbm_volume_integrator.i90"
 
-#include "sbm_face_fe_map.i90"
-
 end module reference_fe_names
