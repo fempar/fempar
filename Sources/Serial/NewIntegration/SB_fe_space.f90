@@ -36,7 +36,6 @@ module SB_fe_space_names
   use serial_block_matrix_names
   use serial_block_array_names
   use SB_matrix_array_assembler_names
-  use SB_serial_scalar_matrix_array_assembler_names
   use SB_sparse_matrix_array_assembler_names
   use SB_serial_block_matrix_array_assembler_names
   use types_names

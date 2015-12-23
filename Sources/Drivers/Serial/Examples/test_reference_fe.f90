@@ -347,15 +347,15 @@ program test_reference_fe
                            reference_fe_phy = reference_fe_array_two, &
                            reference_fe_geo_topology = "quad", &
                            reference_fe_geo_type = "Lagrangian", &
-                           field_blocks = (/1,2/), &
+                           field_blocks = (/1,1/), &
                            field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
      
      call fe_space%fill_dof_info() 
      
      call fe_affine_operator%create ( 'CSR', &
-                                     (/.true.,.true./), &
-                                     (/.true.,.true./), &
-                                     (/positive_definite,positive_definite/), &
+                                     (/.true./), &
+                                     (/.true./), &
+                                     (/positive_definite/), &
                                      f_trian, &
                                      fe_space, &
                                      vector_laplacian_integration )
@@ -390,11 +390,8 @@ program test_reference_fe
   
   !matrix => fe_affine_operator%get_matrix()
   !select type(matrix)
-  !  class is (serial_block_matrix_t)
-  !    my_matrix => matrix%get_block(1,1)
-  !    call my_matrix%print_matrix_market(6)   
-  !    my_matrix => matrix%get_block(2,2)
-  !    call my_matrix%print_matrix_market(6)
+  !  class is (sparse_matrix_t)
+  !    call matrix%print_matrix_market(6)
   !end select
   
   !call fe_affine_operator%free_in_stages(free_numerical_setup)

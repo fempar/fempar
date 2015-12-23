@@ -403,14 +403,12 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var )
   integer(ip)                , intent(in)    :: var
   
   ! Local variables
-  integer(ip) :: iprob, count, iobje, ielem, jelem, nvapb
+  integer(ip) :: iprob, iobje, ielem, jelem, nvapb
   integer(ip) :: obje_l, inode, l_node, elem_ext, obje_ext, prob_ext, inode_ext, inode_l
   integer(ip) :: mater, order, nnode
   integer(ip) :: touch(1,2)
 
   integer(ip), allocatable :: o2n(:)
-
-  count = 0
 
   mater = 1
 
@@ -446,7 +444,7 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var )
                  touch(mater,1) = jelem
                  touch(mater,2) = obje_l
                  !write(*,*) 'obje_l new dofs',obje_l
-                 call put_new_vefs_dofs_in_vef_of_element ( fe_space%triangulation, fe_space, jelem, count, obje_l, var )
+                 call put_new_vefs_dofs_in_vef_of_element ( fe_space%triangulation, fe_space, jelem, init_dof, obje_l, var )
               else
                  !write(*,*) 'obje_l old dofs',obje_l
                  call put_existing_vefs_dofs_in_vef_of_element ( fe_space%triangulation, fe_space, touch, mater, iobje, jelem, o2n, obje_l, var )
@@ -483,18 +481,15 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var )
         !  &     fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje+1)-1
         l_node = fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,iobje)
         !l_node = fe_space%fe_array(ielem)%nodes_per_vef%p%l(inode)
-        count = count +1
-        fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = count
+        init_dof = init_dof +1
+        fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = init_dof
      end do
   end do
   !end if 
 
   ! Part 3: Assign total number of dofs created to fem space object
   !fe_space%number_dofs = count
-  init_dof = init_dof + count
-
   call memfree ( o2n, __FILE__, __LINE__ )
-
 end subroutine create_element_to_dof_and_ndofs
 
 

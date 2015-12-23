@@ -56,9 +56,9 @@ public :: SB_serial_block_matrix_array_assembler_t
 contains
 subroutine serial_block_matrix_array_assembler_assembly( this, & 
                                                          number_fe_spaces, &
+                                                         number_nodes, &
                                                          elem2dof, &
                                                          field_blocks, &
-                                                         number_nodes, &
                                                          field_coupling, &
                                                          elmat, &
                                                          elvec )
@@ -82,47 +82,54 @@ subroutine serial_block_matrix_array_assembler_assembly( this, &
 
  select type(matrix)
     class is(serial_block_matrix_t)
-    call element_serial_block_matrix_assembly( matrix,  elem2dof,  elmat, number_fe_spaces, field_blocks, number_nodes, field_coupling )
+    call element_serial_block_matrix_assembly( matrix, number_fe_spaces, number_nodes, elem2dof, field_blocks, field_coupling, elmat )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_block_array_t)
-    call element_serial_block_array_assembly( array,  elem2dof,  elvec, number_fe_spaces, field_blocks, number_nodes, field_coupling )
+    call element_serial_block_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )
     class default
     check(.false.)
  end select
 end subroutine serial_block_matrix_array_assembler_assembly
 
-subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spaces, &
-     blocks, nodes, blocks_coupling )
+subroutine element_serial_block_matrix_assembly( matrix, & 
+                                                 number_fe_spaces, &
+                                                 number_nodes, &
+                                                 elem2dof, &
+                                                 field_blocks, &
+                                                 field_coupling, &
+                                                 elmat )
   implicit none
   ! Parameters
-  type(serial_block_matrix_t), intent(inout) :: a
-  real(rp), intent(in) :: elmat(:,:) 
-  type(i1p_t), intent(in) :: el2dof(:)
-  integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
-  logical, intent(in) :: blocks_coupling(:,:)
-
+  type(serial_block_matrix_t), intent(inout) :: matrix
+  integer(ip)                , intent(in)    :: number_fe_spaces
+  integer(ip)                , intent(in)    :: number_nodes(number_fe_spaces)
+  type(i1p_t)                , intent(in)    :: elem2dof(number_fe_spaces)
+  integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces) 
+  logical                    , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+  real(rp)                   , intent(in)    :: elmat(:,:) 
+  
   integer(ip) :: c_i, ifem, iblock, inode, idof
   integer(ip) :: c_j, jfem, jblock, jnode, jdof, k
   type(serial_scalar_matrix_t), pointer :: mat  
   
   c_i = 0
   do ifem = 1, number_fe_spaces
-     iblock = blocks(ifem)
-     do inode = 1, nodes(ifem)
-        idof = el2dof(ifem)%p(inode)
+     iblock = field_blocks(ifem)
+     do inode = 1, number_nodes(ifem)
+        idof = elem2dof(ifem)%p(inode)
         c_i = c_i + 1
         if ( idof > 0 ) then
            c_j = 0
            do jfem = 1, number_fe_spaces
-              jblock = blocks(jfem)
-              if ( blocks_coupling(iblock,jblock) ) then
-                 mat => a%get_block(iblock,jblock)
-                 do jnode = 1, nodes(jfem)
-                    jdof = el2dof(jfem)%p(jnode)
+              jblock = field_blocks(jfem)
+              if ( field_coupling(ifem,jfem) ) then
+                 mat => matrix%get_block(iblock,jblock)
+                 do jnode = 1, number_nodes(jfem)
+                    jdof = elem2dof(jfem)%p(jnode)
                     c_j = c_j + 1
                     !write(*,*) 'ifem,iblock,inode,idof',ifem,iblock,inode,idof
                     !write(*,*) 'jfem,jblock,jnode,jdof',jfem,jblock,jnode,jdof
@@ -141,7 +148,7 @@ subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spa
                     end if
                  end do
               else
-                 c_j = c_j + nodes(jfem)
+                 c_j = c_j + number_nodes(jfem)
               end if
            end do
         end if
@@ -150,25 +157,31 @@ subroutine element_serial_block_matrix_assembly( a, el2dof, elmat, number_fe_spa
 
 end subroutine element_serial_block_matrix_assembly
 
-subroutine element_serial_block_array_assembly( a, el2dof, elvec, number_fe_spaces, blocks, nodes, blocks_coupling )
+subroutine element_serial_block_array_assembly( array, &
+                                                number_fe_spaces, &
+                                                number_nodes, &
+                                                elem2dof, &
+                                                field_blocks, &
+                                                elvec )
   implicit none
   ! Parameters
-  type(serial_block_array_t), intent(inout) :: a
-  real(rp), intent(in) :: elvec(:)
-  integer(ip), intent(in) :: blocks(:), number_fe_spaces, nodes(:)
-  type(i1p_t), intent(in) :: el2dof(:)
-  logical, intent(in) :: blocks_coupling(:,:)
-
+  type(serial_block_array_t), intent(inout) :: array
+  integer(ip)               , intent(in)    :: number_fe_spaces
+  integer(ip)               , intent(in)    :: number_nodes(number_fe_spaces)
+  type(i1p_t)               , intent(in)    :: elem2dof(number_fe_spaces)
+  integer(ip)               , intent(in)    :: field_blocks(number_fe_spaces)
+  real(rp)                  , intent(in)    :: elvec(:)
+  
   integer(ip) :: c_i, ifem, iblock, inode, idof
 
   c_i = 0
   do ifem = 1, number_fe_spaces
-     iblock = blocks(ifem)
-     do inode = 1, nodes(ifem)
-        idof = el2dof(ifem)%p(inode) 
+     iblock = field_blocks(ifem)
+     do inode = 1, number_nodes(ifem)
+        idof = elem2dof(ifem)%p(inode) 
         c_i = c_i+1
         if ( idof  > 0 ) then
-           a%blocks(iblock)%b(idof) =  a%blocks(iblock)%b(idof) + elvec(c_i)
+           array%blocks(iblock)%b(idof) =  array%blocks(iblock)%b(idof) + elvec(c_i)
         end if
      end do
   end do
