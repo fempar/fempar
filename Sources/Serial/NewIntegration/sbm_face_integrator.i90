@@ -1,0 +1,8 @@
+subroutine face_interpolation_create(this, face_quadrature, reference_fe)
+  implicit none
+  ! Parameters
+  class(face_interpolation_t), intent(inout) :: this
+  type(SB_quadrature_t)      ,  intent(in)   :: face_quadrature
+  class(reference_fe_t)      , intent(in)    :: reference_fe
+
+end subroutine face_interpolation_create

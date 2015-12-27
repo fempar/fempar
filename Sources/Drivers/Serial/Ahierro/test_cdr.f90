@@ -451,26 +451,25 @@ program test_cdr
 !!$  end do
 !!$
 !!$  istat = fevtk%write_PVD()
+!!$  call memfree( continuity, __FILE__, __LINE__)
+!!$  call memfree( enable_face_integration, __FILE__, __LINE__)
+!!$  call memfree( order, __FILE__, __LINE__)
+!!$  call memfree( material, __FILE__, __LINE__)
+!!$  call memfree( problem, __FILE__, __LINE__)
 
   ! To be erased
   call test_reference_face_stuff(f_trian,f_cond,my_problem)
 
-  call memfree( continuity, __FILE__, __LINE__)
-  call memfree( enable_face_integration, __FILE__, __LINE__)
-  call memfree( order, __FILE__, __LINE__)
-  call memfree( material, __FILE__, __LINE__)
-  call memfree( problem, __FILE__, __LINE__)
-
-  call feunk%free()
-  call fe_affine_operator%free()
-  call fe_space%free()
-  call my_problem%free
-  call my_discrete%free
-  call cdr_matvec%free
-  call compute_error%free
-  call compute_error%free
-  call dof_descriptor_free ( dof_descriptor )
-  call fevtk%free
+!!$  call feunk%free()
+!!$  call fe_affine_operator%free()
+!!$  call fe_space%free()
+!!$  call my_problem%free
+!!$  call my_discrete%free
+!!$  call cdr_matvec%free
+!!$  call compute_error%free
+!!$  call compute_error%free
+!!$  call dof_descriptor_free ( dof_descriptor )
+!!$  call fevtk%free
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
@@ -501,7 +500,7 @@ contains
     type(poisson_discrete_integration_t)          :: poisson_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
-
+    type(face_interpolation_t)                    :: face_interpolation
 
     logical                  :: diagonal_blocks_symmetric_storage(2)
     logical                  :: diagonal_blocks_symmetric(2)

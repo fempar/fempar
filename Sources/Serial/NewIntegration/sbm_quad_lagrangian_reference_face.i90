@@ -1,61 +1,61 @@
 
-!===================================================================================================
-subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, local_quadrature, face_quadrature )
-  implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(in)    :: this       
-  type(SB_quadrature_t)                , intent(in)    :: local_quadrature
-  type(face_quadrature_t)              , intent(inout) :: face_quadrature
-  integer(ip) :: number_dimensions,number_integration_points_x_face, number_faces
-
-  number_integration_points_x_face = local_quadrature%number_evaluation_points
-
-  ! The amout of faces = amount of vefs of dimension num_dimensions-1
-  number_dimensions = this%number_dimensions
-  number_faces = this%number_vefs_dimension(number_dimensions + 1) -                                &
-       &         this%number_vefs_dimension(number_dimensions )
-  call face_quadrature%create( number_dimensions, number_integration_points_x_face, number_faces )
-  call fill_face_quadrature( face_quadrature, local_quadrature )
-
-end subroutine quad_lagrangian_reference_fe_create_face_quadrature
-
-!====================================================================================================
-subroutine fill_face_quadrature (face_quadrature,local_quadrature)
-  implicit none 
-  class(face_quadrature_t), intent(inout) :: face_quadrature
-  class(SB_quadrature_t)  , intent(in)    :: local_quadrature
-  
-  integer(ip) :: ijk_face(face_quadrature%number_dimensions-1,face_quadrature%number_faces_x_element)
-  integer(ip) :: fixed_dimension_x_face(face_quadrature%number_faces_x_element)
-  real(rp)    :: fixed_value_x_face(face_quadrature%number_faces_x_element)
-  integer(ip) :: iface,idime,one_of_two_faces,jdime, p_dime, inode
-
-  check (local_quadrature%number_evaluation_points == face_quadrature%number_integration_points_x_face)
-
-  ! Set the directions in which the coordinates move within each face
-  iface = 1
-  do idime = face_quadrature%number_dimensions,  1, -1
-     do one_of_two_faces = 0, 1
-        fixed_dimension_x_face(iface) = idime
-        fixed_value_x_face(iface)     = 2.0_rp*real(one_of_two_faces) - 1.0_rp
-        p_dime = 1
-        do jdime = 1, face_quadrature%number_dimensions
-           if (jdime .ne. idime) then
-              ijk_face(p_dime,iface) = jdime
-              p_dime = p_dime + 1
-           end if
-        end do
-        iface = iface + 1
-     end do
-  end do
-
-  ! Set the coordinates of the quadrature
-  do iface = 1, face_quadrature%number_faces_x_element
-     do inode = 1, local_quadrature%number_evaluation_points
-        face_quadrature%coordinates(fixed_dimension_x_face(iface),inode,iface) =                    &
-             &                      fixed_value_x_face(iface)
-        face_quadrature%coordinates(ijk_face(:,iface),inode,iface) =                                &
-             &                      local_quadrature%coordinates(:,inode)
-     end do
-  end do
-
-end subroutine fill_face_quadrature
+!!$!===================================================================================================
+!!$subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, local_quadrature, face_quadrature )
+!!$  implicit none 
+!!$  class(quad_lagrangian_reference_fe_t), intent(in)    :: this       
+!!$  type(SB_quadrature_t)                , intent(in)    :: local_quadrature
+!!$  type(face_quadrature_t)              , intent(inout) :: face_quadrature
+!!$  integer(ip) :: number_dimensions,number_integration_points_x_face, number_faces
+!!$
+!!$  number_integration_points_x_face = local_quadrature%number_evaluation_points
+!!$
+!!$  ! The amout of faces = amount of vefs of dimension num_dimensions-1
+!!$  number_dimensions = this%number_dimensions
+!!$  number_faces = this%number_vefs_dimension(number_dimensions + 1) -                                &
+!!$       &         this%number_vefs_dimension(number_dimensions )
+!!$  call face_quadrature%create( number_dimensions, number_integration_points_x_face, number_faces )
+!!$  call fill_face_quadrature( face_quadrature, local_quadrature )
+!!$
+!!$end subroutine quad_lagrangian_reference_fe_create_face_quadrature
+!!$
+!!$!====================================================================================================
+!!$subroutine fill_face_quadrature (face_quadrature,local_quadrature)
+!!$  implicit none 
+!!$  class(face_quadrature_t), intent(inout) :: face_quadrature
+!!$  class(SB_quadrature_t)  , intent(in)    :: local_quadrature
+!!$  
+!!$  integer(ip) :: ijk_face(face_quadrature%number_dimensions-1,face_quadrature%number_faces_x_element)
+!!$  integer(ip) :: fixed_dimension_x_face(face_quadrature%number_faces_x_element)
+!!$  real(rp)    :: fixed_value_x_face(face_quadrature%number_faces_x_element)
+!!$  integer(ip) :: iface,idime,one_of_two_faces,jdime, p_dime, inode
+!!$
+!!$  check (local_quadrature%number_evaluation_points == face_quadrature%number_integration_points_x_face)
+!!$
+!!$  ! Set the directions in which the coordinates move within each face
+!!$  iface = 1
+!!$  do idime = face_quadrature%number_dimensions,  1, -1
+!!$     do one_of_two_faces = 0, 1
+!!$        fixed_dimension_x_face(iface) = idime
+!!$        fixed_value_x_face(iface)     = 2.0_rp*real(one_of_two_faces) - 1.0_rp
+!!$        p_dime = 1
+!!$        do jdime = 1, face_quadrature%number_dimensions
+!!$           if (jdime .ne. idime) then
+!!$              ijk_face(p_dime,iface) = jdime
+!!$              p_dime = p_dime + 1
+!!$           end if
+!!$        end do
+!!$        iface = iface + 1
+!!$     end do
+!!$  end do
+!!$
+!!$  ! Set the coordinates of the quadrature
+!!$  do iface = 1, face_quadrature%number_faces_x_element
+!!$     do inode = 1, local_quadrature%number_evaluation_points
+!!$        face_quadrature%coordinates(fixed_dimension_x_face(iface),inode,iface) =                    &
+!!$             &                      fixed_value_x_face(iface)
+!!$        face_quadrature%coordinates(ijk_face(:,iface),inode,iface) =                                &
+!!$             &                      local_quadrature%coordinates(:,inode)
+!!$     end do
+!!$  end do
+!!$
+!!$end subroutine fill_face_quadrature

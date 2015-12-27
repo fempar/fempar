@@ -145,6 +145,7 @@ module SB_fe_space_names
      procedure, non_overridable, private :: initialize_volume_integrator
      procedure, non_overridable, private :: initialize_quadrature
      procedure, non_overridable, private :: initialize_fe_map
+     procedure, non_overridable, private :: initialize_face_quadrature
      procedure, non_overridable :: create_assembler
      procedure, non_overridable :: symbolic_setup_assembler
      procedure, non_overridable :: get_number_elements

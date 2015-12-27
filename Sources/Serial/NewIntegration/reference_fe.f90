@@ -232,6 +232,14 @@ module reference_fe_names
        type(SB_quadrature_t), intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
+
+     subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
+       import :: reference_fe_t, SB_quadrature_t, ip
+       implicit none 
+       class(reference_fe_t)  , intent(in)    :: this        
+       type(SB_quadrature_t)  , intent(inout) :: quadrature
+       integer(ip)  , optional, intent(in)    :: max_order
+     end subroutine create_face_quadrature_interface
      
      subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
        import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t
@@ -241,14 +249,6 @@ module reference_fe_names
        type(SB_interpolation_t), intent(inout) :: interpolation
        logical       , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
-
-     subroutine create_face_quadrature_interface ( this, local_quadrature, face_quadrature )
-       import :: reference_fe_t, SB_quadrature_t, face_quadrature_t
-       implicit none 
-       class(reference_fe_t)  , intent(in)    :: this        
-       type(SB_quadrature_t)  , intent(in)    :: local_quadrature
-       type(face_quadrature_t), intent(inout) :: face_quadrature
-     end subroutine create_face_quadrature_interface
      
      function get_bc_component_node_interface( this, node )
        import :: reference_fe_t, ip
@@ -418,6 +418,34 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+type face_interpolation_t 
+  private
+  integer(ip)                           :: number_shape_functions
+  integer(ip)                           :: number_evaluation_points
+  integer(ip)                           :: number_faces
+  class(reference_fe_t)   , pointer     :: reference_fe
+  type(SB_interpolation_t), allocatable :: interpolation(:) 
+  type(SB_interpolation_t)              :: interpolation_o_map 
+contains
+
+end type Face_interpolation_t
+
+public :: face_interpolation_t
+
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+type face_integration_t
+   private
+   type(face_interpolation_t) :: interpolation(2)
+   type(fe_map_t)             :: face_map
+   type(SB_quadrature_t)      :: quadrature
+end type face_integration_t
+
+public :: face_integration_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.
@@ -436,5 +464,7 @@ contains
 #include "sbm_quad_lagrangian_reference_face.i90"
 
 #include "sbm_volume_integrator.i90"
+
+#include "sbm_face_integrator.i90"
 
 end module reference_fe_names

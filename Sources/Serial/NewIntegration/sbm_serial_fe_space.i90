@@ -36,9 +36,10 @@ subroutine create( this, &
   this%triangulation => triangulation
 
   ! Assuming only one geometrical reference FE for the moment  SB.alert
+  ! assuming we are going to use faces of 1 type
   allocate( this%reference_fe_geo_list(1), stat=istat )
-  allocate( this%quadrature(1), stat=istat )
-  allocate( this%fe_map(1), stat=istat )
+  allocate( this%quadrature(2), stat=istat )
+  allocate( this%fe_map(2), stat=istat )
   
   allocate( this%volume_integrator(this%number_fe_spaces), stat=istat )
   allocate( this%reference_fe_phy_list(this%number_fe_spaces), stat=istat )
@@ -228,7 +229,7 @@ subroutine initialize_quadrature( this, max_order )
   integer(ip), optional, intent(in)  :: max_order
   integer(ip) :: i
 
-  do i = 1, size(this%quadrature)
+  do i = 1, 1!size(this%quadrature)
      call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
   end do
 end subroutine initialize_quadrature
@@ -247,7 +248,7 @@ subroutine initialize_fe_map(this)
   implicit none
   class(SB_serial_fe_space_t), intent(inout) :: this  
   integer(ip) :: i
-  do i = 1, size(this%fe_map)
+  do i = 1, 1!size(this%fe_map)
      call this%fe_map(i)%p%create( this%quadrature(i)%p, &
                                   this%reference_fe_geo_list(i)%p )
   end do

@@ -19,6 +19,11 @@ subroutine create_face_array (this)
   allocate (this%face_array(number_total_faces), stat = istat )
   check (istat == 0)
 
+  ! Construct the quadrature
+  allocate( this%quadrature(2)%p, stat = istat)
+  check (istat == 0)
+  call this%initialize_face_quadrature()
+
   ! Loop over the faces (this will be performed by an iterator at some point)
   do face_id = 1,  number_interior_faces
      face          => this%face_array(face_id)
@@ -44,3 +49,16 @@ subroutine create_face_array (this)
      face%neighbour_fe(local_neigh_elem_id)%p => NULL()
   end do
 end subroutine create_face_array
+
+!===================================================================================================
+subroutine initialize_face_quadrature( this, max_order )
+  implicit none
+  ! Parameters
+  class(SB_serial_fe_space_t), intent(inout) :: this  
+  integer(ip)      , optional, intent(in)    :: max_order
+
+  ! Here we are taking 'reference_fe_phy_list(1)' and assuming there is one only kind of 
+  ! interpolation. This needs to be fixed!
+  call this%reference_fe_phy_list(1)%p%create_face_quadrature( this%quadrature(2)%p, max_order )
+ 
+end subroutine initialize_face_quadrature
