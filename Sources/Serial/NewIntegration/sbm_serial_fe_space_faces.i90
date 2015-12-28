@@ -3,7 +3,7 @@ subroutine create_face_array (this)
   implicit none
   class(SB_serial_fe_space_t), target, intent(inout) :: this
 
-  integer(ip)                    :: face_id
+  integer(ip)                    :: face_id, i
   integer(ip)                    :: number_interior_faces, number_boundary_faces, number_total_faces
   integer(ip)                    :: istat,  local_neigh_elem_id, neigh_elem_id
   type(face_topology_t), pointer :: face_topology
@@ -20,9 +20,14 @@ subroutine create_face_array (this)
   check (istat == 0)
 
   ! Construct the quadrature
-  allocate( this%quadrature(2)%p, stat = istat)
+  allocate( this%face_integrator(this%number_fe_spaces), stat=istat )
+  !allocate( this%quadrature(2)%p, stat = istat)
   check (istat == 0)
-  call this%initialize_face_quadrature()
+  do i  = 1, this%number_fe_spaces
+     allocate( this%face_integrator(i)%p )
+     call this%face_integrator(i)%p%initialize(this%reference_fe_phy_list(1)%p,                         &
+          &                                  this%reference_fe_phy_list(1)%p)
+  end do
 
   ! Loop over the faces (this will be performed by an iterator at some point)
   do face_id = 1,  number_interior_faces
@@ -49,16 +54,3 @@ subroutine create_face_array (this)
      face%neighbour_fe(local_neigh_elem_id)%p => NULL()
   end do
 end subroutine create_face_array
-
-!===================================================================================================
-subroutine initialize_face_quadrature( this, max_order )
-  implicit none
-  ! Parameters
-  class(SB_serial_fe_space_t), intent(inout) :: this  
-  integer(ip)      , optional, intent(in)    :: max_order
-
-  ! Here we are taking 'reference_fe_phy_list(1)' and assuming there is one only kind of 
-  ! interpolation. This needs to be fixed!
-  call this%reference_fe_phy_list(1)%p%create_face_quadrature( this%quadrature(2)%p, max_order )
- 
-end subroutine initialize_face_quadrature

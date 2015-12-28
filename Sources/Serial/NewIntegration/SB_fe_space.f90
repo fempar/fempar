@@ -109,7 +109,7 @@ module SB_fe_space_names
      private
      type(face_topology_t)      , pointer :: face_topology
      type(p_SB_finite_element_t)          :: neighbour_fe(2)
-     !type(face_integration_t)   , pointer :: face_integrator
+     type(p_face_integrator_t)  , pointer :: face_integrator
   end type finite_face_t
 
   public :: finite_face_t
@@ -122,6 +122,7 @@ module SB_fe_space_names
      type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)
      type(SB_p_quadrature_t)       , allocatable :: quadrature(:)
      type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
+     type(p_face_integrator_t)     , allocatable :: face_integrator(:)
      
      type(triangulation_t)         , pointer     :: triangulation
      type(SB_finite_element_t)     , allocatable :: fe_array(:)
@@ -145,7 +146,6 @@ module SB_fe_space_names
      procedure, non_overridable, private :: initialize_volume_integrator
      procedure, non_overridable, private :: initialize_quadrature
      procedure, non_overridable, private :: initialize_fe_map
-     procedure, non_overridable, private :: initialize_face_quadrature
      procedure, non_overridable :: create_assembler
      procedure, non_overridable :: symbolic_setup_assembler
      procedure, non_overridable :: get_number_elements

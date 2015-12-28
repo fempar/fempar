@@ -31,6 +31,25 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
   call fill_quadrature( quadrature )
 end subroutine quad_lagrangian_reference_fe_create_quadrature
 
+subroutine quad_lagrangian_reference_fe_create_face_integrator ( this, face_integ, max_order )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
+  class(face_integrator_t)             , intent(inout) :: face_integ
+  integer(ip)                , optional, intent(in)    :: max_order
+  
+  integer(ip) :: ngaus, order, face_dimensions
+
+  order = this%order
+  if ( present(max_order) ) then
+     order = max_order
+  else
+     order = this%order
+  end if
+
+  call this%create_face_quadrature(face_integ%quadrature, max_order)
+
+end subroutine quad_lagrangian_reference_fe_create_face_integrator
+
 
 subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
   implicit none 

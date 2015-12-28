@@ -38,7 +38,7 @@ subroutine create( this, &
   ! Assuming only one geometrical reference FE for the moment  SB.alert
   ! assuming we are going to use faces of 1 type
   allocate( this%reference_fe_geo_list(1), stat=istat )
-  allocate( this%quadrature(2), stat=istat )
+  allocate( this%quadrature(1), stat=istat )
   allocate( this%fe_map(2), stat=istat )
   
   allocate( this%volume_integrator(this%number_fe_spaces), stat=istat )

@@ -6,3 +6,19 @@ subroutine face_interpolation_create(this, face_quadrature, reference_fe)
   class(reference_fe_t)      , intent(in)    :: reference_fe
 
 end subroutine face_interpolation_create
+
+subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe, max_order )
+  implicit none
+  ! Parameters
+  class(face_integrator_t)     , intent(inout) :: this 
+  class(reference_fe_t), target, intent(in)    :: left_reference_fe, right_reference_fe
+  integer(ip)       , optional , intent(in)    :: max_order
+  
+  this%reference_fe(1)%p => left_reference_fe
+  this%reference_fe(2)%p => right_reference_fe
+
+  call left_reference_fe%create_face_quadrature(this%quadrature, max_order)
+  write(*,*) __FILE__,__LINE__, '-----------------------------------------------'
+  call this%quadrature%print()
+  
+end subroutine face_integrator_initialize

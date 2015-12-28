@@ -236,9 +236,9 @@ module reference_fe_names
      subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
        import :: reference_fe_t, SB_quadrature_t, ip
        implicit none 
-       class(reference_fe_t)  , intent(in)    :: this        
-       type(SB_quadrature_t)  , intent(inout) :: quadrature
-       integer(ip)  , optional, intent(in)    :: max_order
+       class(reference_fe_t), intent(in)    :: this 
+       type(SB_quadrature_t), intent(inout) :: quadrature   
+       integer(ip), optional, intent(in)    :: max_order
      end subroutine create_face_quadrature_interface
      
      subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
@@ -423,26 +423,32 @@ type face_interpolation_t
   integer(ip)                           :: number_shape_functions
   integer(ip)                           :: number_evaluation_points
   integer(ip)                           :: number_faces
-  class(reference_fe_t)   , pointer     :: reference_fe
   type(SB_interpolation_t), allocatable :: interpolation(:) 
   type(SB_interpolation_t)              :: interpolation_o_map 
-contains
 
-end type Face_interpolation_t
+end type face_interpolation_t
 
 public :: face_interpolation_t
 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-type face_integration_t
+type face_integrator_t
    private
    type(face_interpolation_t) :: interpolation(2)
    type(fe_map_t)             :: face_map
    type(SB_quadrature_t)      :: quadrature
-end type face_integration_t
+   type(p_reference_fe_t)     :: reference_fe(2)
+ contains
+  procedure, non_overridable :: initialize => face_integrator_initialize
 
-public :: face_integration_t
+end type face_integrator_t
+
+type p_face_integrator_t
+  type(face_integrator_t)          , pointer :: p => NULL() 
+end type p_face_integrator_t
+
+public :: face_integrator_t, p_face_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
