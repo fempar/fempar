@@ -48,8 +48,9 @@ contains
   
   subroutine list_create( this, n )
     implicit none
-    class(list_t), intent(out) :: this
-    integer(ip),   intent(in)  :: n
+    class(list_t), intent(inout) :: this
+    integer(ip)  ,   intent(in)  :: n
+				call this%free()
     this%n = n
     call memalloc(this%n+1, this%p, __FILE__, __LINE__)
     this%p = 0
@@ -97,9 +98,10 @@ contains
 
   subroutine list_2d_create( this, n1, n2 )
     implicit none
-    class(list_2d_t), intent(out) :: this
-    integer(ip),      intent(in)  :: n1
-    integer(ip),      intent(in)  :: n2
+    class(list_2d_t), intent(inout) :: this
+    integer(ip),      intent(in)    :: n1
+    integer(ip),      intent(in)    :: n2
+				call this%free()
     this%n1 = n1
     this%n2 = n2
     call memalloc(this%n1+1, this%p, __FILE__, __LINE__)

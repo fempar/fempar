@@ -50,12 +50,11 @@ subroutine create( this, &
                                                       order=1, &
                                                       field_type = "vector", &
                                                       continuity = .true. )						
-  allocate( this%quadrature(1)%p )
-  allocate( this%fe_map(1)%p )
-
+  call this%quadrature(1)%allocate()
+  call this%fe_map(1)%allocate()
   do i  = 1, this%number_fe_spaces
-     this%reference_fe_phy_list(i)%p => reference_fe_phy(i)%p
-     allocate( this%volume_integrator(i)%p )
+     this%reference_fe_phy_list(i) = reference_fe_phy(i)
+     call this%volume_integrator(i)%allocate()
   end do
 
   allocate(this%fe_array(this%triangulation%num_elems))
@@ -86,7 +85,7 @@ subroutine create( this, &
         allocate( this%fe_array(i)%bc_value(j)%p(number_nodes) )
         this%fe_array(i)%bc_code(j)%p = 0
         this%fe_array(i)%bc_value(j)%p = 0.0_rp
-        do iobje = 1,this%fe_array(i)%reference_fe_phy(j)%p%get_number_vefs()
+        do iobje = 1,triangulation%elems(i)%num_vefs
            obje_g = triangulation%elems(i)%vefs(iobje)
            do inode = 1, this%fe_array(i)%reference_fe_phy(j)%p%get_number_interior_nodes_vef(iobje)
               jnode = this%fe_array(i)%reference_fe_phy(j)%p%get_interior_node_vef(inode,iobje)
@@ -126,15 +125,12 @@ subroutine free( this )
 
   ! Order 1 for geometry SB.alert
   call this%reference_fe_geo_list(1)%free()
-  
-  call this%quadrature(1)%p%free()
-  deallocate( this%quadrature(1)%p )
-  
-  call this%fe_map(1)%p%free()
-  deallocate( this%fe_map(1)%p )
-
+  call this%quadrature(1)%free()
+  call this%fe_map(1)%free()
+		
   do i  = 1, this%number_fe_spaces
-     call this%reference_fe_phy_list(i)%free()
+					call this%volume_integrator(i)%free()
+					call this%reference_fe_phy_list(i)%free()
   end do
   
   ! Assuming only one reference FE for the moment  SB.alert

@@ -434,6 +434,8 @@ program test_reference_fe
      check(.false.) 
   end select
   
+		call vector%free()
+		deallocate(vector)
   call fe_affine_operator%free()
   call fe_space%free()
   call triangulation_free(f_trian)

@@ -25,15 +25,12 @@ subroutine interpolation_create( this, &
                 number_shape_functions, &
                 number_evaluation_points, &
                 this%shape_derivatives, __FILE__, __LINE__)
-  this%shape_functions = 0.0_rp
-  this%shape_derivatives = 0.0_rp
   if ( present(compute_hessian) ) then
      if ( compute_hessian ) then 
         call memalloc(number_entries_symmetric_tensor,&
                       number_shape_functions,&
                       number_evaluation_points, &
                       this%hessian,__FILE__,__LINE__) 
-        this%hessian = 0.0_rp
      end if
   end if
 end subroutine interpolation_create

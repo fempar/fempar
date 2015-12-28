@@ -49,7 +49,10 @@ module reference_fe_names
   end type SB_quadrature_t
 
   type SB_p_quadrature_t
-     type(SB_quadrature_t), pointer :: p => NULL()      
+     type(SB_quadrature_t), pointer :: p => NULL()
+		contains
+		   procedure :: allocate => p_quadrature_allocate
+		   procedure :: free     => p_quadrature_free
   end type SB_p_quadrature_t
 
   ! Types
@@ -357,7 +360,10 @@ contains
 end type fe_map_t
 
 type p_fe_map_t
-  class(fe_map_t), pointer :: p => NULL()      
+  class(fe_map_t), pointer :: p => NULL()   
+contains
+  procedure :: allocate => p_fe_map_allocate
+  procedure :: free     => p_fe_map_free
 end type p_fe_map_t
 
 public :: fe_map_t, p_fe_map_t
@@ -411,7 +417,10 @@ contains
 end type SB_volume_integrator_t
 
 type SB_p_volume_integrator_t
-  type(SB_volume_integrator_t)          , pointer :: p => NULL() 
+  type(SB_volume_integrator_t), pointer :: p => NULL() 
+contains
+  procedure :: allocate => p_volume_integrator_allocate 
+  procedure :: free     => p_volume_integrator_free
 end type SB_p_volume_integrator_t
 
 public :: SB_volume_integrator_t, SB_p_volume_integrator_t
