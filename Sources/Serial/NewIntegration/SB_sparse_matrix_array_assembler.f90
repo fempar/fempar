@@ -115,8 +115,8 @@ subroutine sparse_matrix_array_assembler_allocate( this )
  call array%allocate()
 end subroutine sparse_matrix_array_assembler_allocate
 
-  subroutine sparse_matrix_array_assembler_compress_storage( this, & 
-                                                             sparse_matrix_storage_format )
+subroutine sparse_matrix_array_assembler_compress_storage( this, & 
+                                                           sparse_matrix_storage_format )
   implicit none
   class(SB_sparse_matrix_array_assembler_t) , intent(inout) :: this
   character(*)                              , intent(in)    :: sparse_matrix_storage_format

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module SB_serial_block_matrix_array_assembler_names
+module SB_block_sparse_matrix_array_assembler_names
   use types_names
   use dof_descriptor_names
   use allocatable_array_names
@@ -36,25 +36,26 @@ module SB_serial_block_matrix_array_assembler_names
   use array_names
 
   ! Concrete implementations
-  use serial_scalar_matrix_array_assembler_names
-  use serial_scalar_matrix_names
-  use serial_block_matrix_names
+  use sparse_matrix_names
+  use block_sparse_matrix_names
   use serial_block_array_names
 
   implicit none
 # include "debug.i90"
   private
 
-  type, extends(SB_matrix_array_assembler_t) :: SB_serial_block_matrix_array_assembler_t
+  type, extends(SB_matrix_array_assembler_t) :: SB_block_sparse_matrix_array_assembler_t
 contains
-  procedure :: assembly => serial_block_matrix_array_assembler_assembly
+  procedure :: assembly         => block_sparse_matrix_array_assembler_assembly
+		procedure :: compress_storage => block_sparse_matrix_array_assembler_compress_storage
+		procedure :: allocate         => block_sparse_matrix_array_assembler_allocate
 end type
 
 ! Data types
-public :: SB_serial_block_matrix_array_assembler_t
+public :: SB_block_sparse_matrix_array_assembler_t
 
 contains
-subroutine serial_block_matrix_array_assembler_assembly( this, & 
+subroutine block_sparse_matrix_array_assembler_assembly( this, & 
                                                          number_fe_spaces, &
                                                          number_nodes, &
                                                          elem2dof, &
@@ -63,7 +64,7 @@ subroutine serial_block_matrix_array_assembler_assembly( this, &
                                                          elmat, &
                                                          elvec )
  implicit none
- class(SB_serial_block_matrix_array_assembler_t), intent(inout) :: this
+ class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
  integer(ip)                                    , intent(in)    :: number_fe_spaces
  integer(ip)                                    , intent(in)    :: number_nodes(number_fe_spaces)
  type(i1p_t)                                    , intent(in)    :: elem2dof(number_fe_spaces)
@@ -81,21 +82,55 @@ subroutine serial_block_matrix_array_assembler_assembly( this, &
  array  => this%get_array()
 
  select type(matrix)
-    class is(serial_block_matrix_t)
-    call element_serial_block_matrix_assembly( matrix, number_fe_spaces, number_nodes, elem2dof, field_blocks, field_coupling, elmat )
+    class is(block_sparse_matrix_t)
+    call element_block_sparse_matrix_assembly( matrix, & 
+																																														 number_fe_spaces, & 
+																																														 number_nodes, &
+																																														 elem2dof, &
+																																														 field_blocks, & 
+																																														 field_coupling, &
+																																														 elmat )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_block_array_t)
-    call element_serial_block_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )
+    call element_serial_block_array_assembly( array, & 
+																																													 number_fe_spaces, & 
+																																													 number_nodes, &
+																																														elem2dof, &
+																																														field_blocks, & 
+																																														elvec )
     class default
     check(.false.)
  end select
-end subroutine serial_block_matrix_array_assembler_assembly
+end subroutine block_sparse_matrix_array_assembler_assembly
 
-subroutine element_serial_block_matrix_assembly( matrix, & 
+
+subroutine block_sparse_matrix_array_assembler_compress_storage(this,sparse_matrix_storage_format)
+  implicit none
+  class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
+  character(*)                                   , intent(in)    :: sparse_matrix_storage_format
+		class(matrix_t), pointer :: matrix
+		matrix=>this%get_matrix() 
+   select type(matrix)
+    class is(block_sparse_matrix_t)
+    call matrix%compress_storage(sparse_matrix_storage_format)
+    class default
+    check(.false.)
+ end select
+end subroutine block_sparse_matrix_array_assembler_compress_storage
+
+subroutine block_sparse_matrix_array_assembler_allocate(this)
+  implicit none
+  class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
+		class(array_t), pointer :: array
+  array=>this%get_array()
+  call array%allocate()
+end subroutine block_sparse_matrix_array_assembler_allocate
+
+subroutine element_block_sparse_matrix_assembly( matrix, & 
                                                  number_fe_spaces, &
                                                  number_nodes, &
                                                  elem2dof, &
@@ -104,7 +139,7 @@ subroutine element_serial_block_matrix_assembly( matrix, &
                                                  elmat )
   implicit none
   ! Parameters
-  type(serial_block_matrix_t), intent(inout) :: matrix
+  type(block_sparse_matrix_t), intent(inout) :: matrix
   integer(ip)                , intent(in)    :: number_fe_spaces
   integer(ip)                , intent(in)    :: number_nodes(number_fe_spaces)
   type(i1p_t)                , intent(in)    :: elem2dof(number_fe_spaces)
@@ -112,50 +147,33 @@ subroutine element_serial_block_matrix_assembly( matrix, &
   logical                    , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
   real(rp)                   , intent(in)    :: elmat(:,:) 
   
-  integer(ip) :: c_i, ifem, iblock, inode, idof
-  integer(ip) :: c_j, jfem, jblock, jnode, jdof, k
-  type(serial_scalar_matrix_t), pointer :: mat  
+  integer(ip) :: ielmat, ife_space, iblock, inode, idof
+  integer(ip) :: jelmat, jfe_space, jblock, jnode, jdof
+  type(sparse_matrix_t), pointer :: mat  
   
-  c_i = 0
-  do ifem = 1, number_fe_spaces
-     iblock = field_blocks(ifem)
-     do inode = 1, number_nodes(ifem)
-        idof = elem2dof(ifem)%p(inode)
-        c_i = c_i + 1
-        if ( idof > 0 ) then
-           c_j = 0
-           do jfem = 1, number_fe_spaces
-              jblock = field_blocks(jfem)
-              if ( field_coupling(ifem,jfem) ) then
-                 mat => matrix%get_block(iblock,jblock)
-                 do jnode = 1, number_nodes(jfem)
-                    jdof = elem2dof(jfem)%p(jnode)
-                    c_j = c_j + 1
-                    !write(*,*) 'ifem,iblock,inode,idof',ifem,iblock,inode,idof
-                    !write(*,*) 'jfem,jblock,jnode,jdof',jfem,jblock,jnode,jdof
-                    if (  (.not.mat%graph%symmetric_storage) .and. jdof > 0 ) then
-                       do k = mat%graph%ia(idof),mat%graph%ia(idof+1)-1
-                          if ( mat%graph%ja(k) == jdof ) exit
-                       end do
-                       assert ( k < mat%graph%ia(idof+1) )
-                       mat%a(k) = mat%a(k) + elmat(c_i,c_j)
-                    else if ( jdof >= idof ) then 
-                       do k = mat%graph%ia(idof),mat%graph%ia(idof+1)-1
-                          if ( mat%graph%ja(k) == jdof ) exit
-                       end do
-                       assert ( k < mat%graph%ia(idof+1) )
-                       mat%a(k) = mat%a(k) + elmat(c_i,c_j)
-                    end if
-                 end do
-              else
-                 c_j = c_j + number_nodes(jfem)
-              end if
-           end do
-        end if
+  ielmat = 0
+  do ife_space = 1, number_fe_spaces
+     iblock = field_blocks(ife_space)
+     do inode = 1, number_nodes(ife_space)
+        idof = elem2dof(ife_space)%p(inode)
+        ielmat = ielmat + 1
+        jelmat = 0
+        do jfe_space = 1, number_fe_spaces
+           jblock = field_blocks(jfe_space)
+           if ( field_coupling(ife_space,jfe_space) ) then
+               mat => matrix%get_block(iblock,jblock)
+               do jnode = 1, number_nodes(jfe_space)
+                  jdof = elem2dof(jfe_space)%p(jnode)
+                  jelmat = jelmat + 1
+																		call mat%insert(idof,jdof,elmat(ielmat,jelmat),1,mat%get_num_rows(),1,mat%get_num_cols())
+               end do
+           else
+               jelmat = jelmat + number_nodes(jfe_space)
+           end if
+        end do
      end do
   end do
-
-end subroutine element_serial_block_matrix_assembly
+end subroutine element_block_sparse_matrix_assembly
 
 subroutine element_serial_block_array_assembly( array, &
                                                 number_fe_spaces, &
@@ -172,20 +190,20 @@ subroutine element_serial_block_array_assembly( array, &
   integer(ip)               , intent(in)    :: field_blocks(number_fe_spaces)
   real(rp)                  , intent(in)    :: elvec(:)
   
-  integer(ip) :: c_i, ifem, iblock, inode, idof
+  integer(ip) :: ielmat, ife_space, iblock, inode, idof
 
-  c_i = 0
-  do ifem = 1, number_fe_spaces
-     iblock = field_blocks(ifem)
-     do inode = 1, number_nodes(ifem)
-        idof = elem2dof(ifem)%p(inode) 
-        c_i = c_i+1
+  ielmat = 0
+  do ife_space = 1, number_fe_spaces
+     iblock = field_blocks(ife_space)
+     do inode = 1, number_nodes(ife_space)
+        idof = elem2dof(ife_space)%p(inode) 
+        ielmat = ielmat+1
         if ( idof  > 0 ) then
-           array%blocks(iblock)%b(idof) =  array%blocks(iblock)%b(idof) + elvec(c_i)
+           array%blocks(iblock)%b(idof) =  array%blocks(iblock)%b(idof) + elvec(ielmat)
         end if
      end do
   end do
 
 end subroutine element_serial_block_array_assembly
 
-end module SB_serial_block_matrix_array_assembler_names
+end module SB_block_sparse_matrix_array_assembler_names

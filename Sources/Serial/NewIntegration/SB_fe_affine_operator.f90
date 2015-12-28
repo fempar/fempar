@@ -44,10 +44,6 @@ module SB_fe_affine_operator_names
   use matrix_names
 
   use SB_discrete_integration_names
-  use serial_block_matrix_names
-  use serial_scalar_matrix_names
-  use serial_block_array_names
-  use serial_scalar_array_names
 
   implicit none
 # include "debug.i90"
