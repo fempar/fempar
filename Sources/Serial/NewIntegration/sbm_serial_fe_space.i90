@@ -169,13 +169,17 @@ subroutine free( this )
 
   ! Free memory related to face (assuming one only face_integrator
   if (allocated(this%face_integrator)) then
-     call this%face_integrator(1)%p%free
+     do j = 1, this%number_fe_spaces
+        call this%face_integrator(j)%p%free
+     end do
      deallocate( this%face_integrator )
   end if
 
-  do i = 1, this%triangulation%number_interior_faces + this%triangulation%number_boundary_faces
-     call this%face_array(i)%free()
-  end do
+  if (allocated(this%face_array)) then
+     do i = 1, this%triangulation%number_interior_faces + this%triangulation%number_boundary_faces
+        call this%face_array(i)%free()
+     end do
+  end if
   
   do iblock = 1, this%number_blocks
      do i = 1, this%number_fe_spaces

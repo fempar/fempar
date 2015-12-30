@@ -506,15 +506,6 @@ contains
     logical                  :: diagonal_blocks_symmetric(2)
     integer(ip)              :: diagonal_blocks_sign(2)
     
-!!$    reference_fe_array_one(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
-!!$         &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
-!!$         &                      continuity = .true. )
-!!$    call fe_space%create( triangulation = f_trian, &
-!!$                           boundary_conditions = f_cond, &
-!!$                           reference_fe_phy = reference_fe_array_one, &
-!!$                           reference_fe_geo_topology = "quad", &
-!!$                           reference_fe_geo_type = "Lagrangian" )
-
     ! Composite case
     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
          &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
@@ -533,25 +524,24 @@ contains
     call fe_space%create_face_array()
     call fe_space%fill_dof_info() 
 
-    ! Create the operator
-    diagonal_blocks_symmetric_storage = .true.
-    diagonal_blocks_symmetric         = .true.
-    diagonal_blocks_sign              = positive_definite
+!!$    ! Create the operator
+!!$    diagonal_blocks_symmetric_storage = .true.
+!!$    diagonal_blocks_symmetric         = .true.
+!!$    diagonal_blocks_sign              = positive_definite
 !!$    call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
 !!$         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
-!!$         &                          fe_space, poisson_integration)
-    call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
-         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
-         &                          fe_space, vector_laplacian_integration)
-    call fe_affine_operator%symbolic_setup()
-    call fe_affine_operator%numerical_setup()
-
-    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-    call fe_affine_operator_range_vector_space%create_vector(vector)
-    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+!!$         &                          fe_space, vector_laplacian_integration)
+!!$    call fe_affine_operator%symbolic_setup()
+!!$    call fe_affine_operator%numerical_setup()
+!!$
+!!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+!!$    call fe_affine_operator_range_vector_space%create_vector(vector)
+!!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
 
     !call fe_space%print()
-    call fe_affine_operator%free()
+    !call reference_fe_array_two(1)%free
+    !call reference_fe_array_two(2)%free
+    !call fe_affine_operator%free()
     call fe_space%free()
   end subroutine test_reference_face_stuff
 
