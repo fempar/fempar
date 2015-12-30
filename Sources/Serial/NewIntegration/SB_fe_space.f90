@@ -107,9 +107,11 @@ module SB_fe_space_names
 
   type :: finite_face_t
      private
-     type(face_topology_t)      , pointer :: face_topology
-     type(p_SB_finite_element_t)          :: neighbour_fe(2)
-     type(p_face_integrator_t)  , pointer :: face_integrator
+     type(face_topology_t)        , pointer :: face_topology
+     type(p_SB_finite_element_t)            :: neighbour_fe(2)
+     type(p_face_integrator_t), allocatable :: face_integrator(:)
+   contains
+     procedure :: free => finite_face_free
   end type finite_face_t
 
   public :: finite_face_t
@@ -165,6 +167,8 @@ contains
   ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
 #include "sbm_finite_element.i90"
+
+#include "sbm_finite_face.i90"
 
 #include "sbm_serial_fe_space.i90"
 

@@ -32,6 +32,42 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
                 this%coordinates_points,__FILE__,__LINE__)
 end subroutine fe_map_create
 
+!==============================================================================
+subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
+  implicit none
+  ! Parameters
+  class(fe_map_t)      , intent(inout) :: this
+  type(SB_quadrature_t), intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry  
+
+  integer(ip) :: number_dimensions, number_face_dimensions
+  integer(ip) :: number_evaluation_points
+  
+  call this%free()
+  number_dimensions        = reference_fe_geometry%number_dimensions
+  number_evaluation_points = quadrature%number_evaluation_points
+  number_face_dimensions   = reference_fe_geometry%number_dimensions - 1
+
+  call reference_fe_geometry%create_face_local_interpolation                                        &
+       &                     ( quadrature, this%interpolation_geometry )
+
+  call memalloc(number_face_dimensions, &
+                number_dimensions, &
+                number_evaluation_points, &
+                this%jacobian,__FILE__,__LINE__)
+    
+  call memalloc(number_evaluation_points, &
+                this%det_jacobian,__FILE__,__LINE__)   
+  
+  call memalloc(number_dimensions, &
+                number_evaluation_points, &
+                this%coordinates_points,__FILE__,__LINE__)
+
+  call memalloc(number_dimensions, &
+                number_evaluation_points, &
+                this%outside_normals,__FILE__,__LINE__)
+end subroutine fe_map_create_from_face
+
   !==============================================================================
   subroutine fe_map_update( this, quadrature, cell_coordinates )
     !-----------------------------------------------------------------------
@@ -147,6 +183,7 @@ end subroutine fe_map_create
     if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
     if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
     if(allocated(this%coordinates_points)) call memfree(this%coordinates_points,__FILE__,__LINE__)
+    if(allocated(this%outside_normals)) call memfree(this%outside_normals,__FILE__,__LINE__)
   end subroutine fe_map_free
   
  subroutine fe_map_print( this )

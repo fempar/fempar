@@ -24,7 +24,8 @@ subroutine create_face_array (this)
   !allocate( this%quadrature(2)%p, stat = istat)
   check (istat == 0)
   do i  = 1, this%number_fe_spaces
-     allocate( this%face_integrator(i)%p )
+     allocate( this%face_integrator(i)%p, stat = istat )
+     check(istat == 0)
      call this%face_integrator(i)%p%initialize(this%reference_fe_phy_list(1)%p,                         &
           &                                  this%reference_fe_phy_list(1)%p)
   end do
@@ -39,6 +40,13 @@ subroutine create_face_array (this)
         neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
         face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
      end do
+
+     allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
+     check(istat == 0)
+
+     do i = 1,  this%number_fe_spaces
+        face%face_integrator(i)%p => this%face_integrator(i)%p
+     end do
   end do
 
   do face_id = number_interior_faces + 1, number_interior_faces + number_boundary_faces
@@ -52,5 +60,12 @@ subroutine create_face_array (this)
      
      local_neigh_elem_id = 2
      face%neighbour_fe(local_neigh_elem_id)%p => NULL()
+
+     allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
+     check(istat == 0)
+
+     do i = 1,  this%number_fe_spaces
+        face%face_integrator(i)%p => this%face_integrator(i)%p
+     end do
   end do
 end subroutine create_face_array

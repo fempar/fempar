@@ -550,7 +550,7 @@ contains
     call fe_affine_operator_range_vector_space%create_vector(vector)
     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
 
-    call fe_space%print()
+    !call fe_space%print()
     call fe_affine_operator%free()
     call fe_space%free()
   end subroutine test_reference_face_stuff
