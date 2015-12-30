@@ -18,8 +18,8 @@ subroutine face_interpolation_create(this, local_quadrature, reference_fe)
   check(istat == 0)
 
   do local_face_id =1, this%number_faces
-     call reference_fe%create_face_interpolation(local_quadrature,this%interpolation(local_face_id),&
-          &                                      local_face_id)
+     call reference_fe%create_face_interpolation(local_face_id,local_quadrature,                  &
+          &                                      this%interpolation(local_face_id))
   end do
 
 end subroutine face_interpolation_create

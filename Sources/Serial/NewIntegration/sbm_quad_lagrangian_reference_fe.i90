@@ -1594,13 +1594,13 @@ end subroutine permute_or_2d
 !==================================================================================================
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
 ! integration points given by local_quadrature in the face 'local_face_id' of the element
-subroutine quad_lagrangian_reference_fe_create_face_interpolation( this, local_quadrature,        &
-     &                                                            face_interpolation,local_face_id)
+subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_face_id,            &
+     &                                                        local_quadrature,face_interpolation)
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  integer(ip)                          , intent(in)    :: local_face_id
   type(SB_quadrature_t)                , intent(in)    :: local_quadrature
   type(SB_interpolation_t)             , intent(inout) :: face_interpolation
-  integer(ip)                          , intent(in)    :: local_face_id
 
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes,                        &

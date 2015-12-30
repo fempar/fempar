@@ -264,13 +264,13 @@ module reference_fe_names
        type(SB_interpolation_t), intent(inout) :: interpolation
      end subroutine create_face_local_interpolation_interface
 
-     subroutine create_face_interpolation_interface ( this, local_quadrature, face_interpolation, local_face_id )
+     subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature, face_interpolation)
        import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t, ip
        implicit none 
        class(reference_fe_t)     , intent(in)    :: this
+       integer(ip)               , intent(in)    :: local_face_id
        type(SB_quadrature_t)     , intent(in)    :: local_quadrature
        type(SB_interpolation_t)  , intent(inout) :: face_interpolation
-       integer(ip)               , intent(in)    :: local_face_id
      end subroutine create_face_interpolation_interface
      
      function get_bc_component_node_interface( this, node )
