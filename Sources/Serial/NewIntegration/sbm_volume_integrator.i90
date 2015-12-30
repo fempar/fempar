@@ -57,7 +57,7 @@ subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
                 this%jacobian,__FILE__,__LINE__)
 
   call memalloc(number_evaluation_points, &
-                this%det_jacobian,__FILE__,__LINE__)
+       this%det_jacobian,__FILE__,__LINE__)
 
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
