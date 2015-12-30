@@ -36,6 +36,7 @@ subroutine create( this, &
   this%triangulation => triangulation
 
   ! Assuming only one geometrical reference FE for the moment  SB.alert
+  ! assuming we are going to use faces of 1 type
   allocate( this%reference_fe_geo_list(1), stat=istat )
   allocate( this%quadrature(1), stat=istat )
   allocate( this%fe_map(1), stat=istat )
@@ -165,6 +166,20 @@ subroutine free( this )
   end do
   
   deallocate(this%fe_array)
+
+  ! Free memory related to face (assuming one only face_integrator
+  if (allocated(this%face_integrator)) then
+     do j = 1, this%number_fe_spaces
+        call this%face_integrator(j)%p%free
+     end do
+     deallocate( this%face_integrator )
+  end if
+
+  if (allocated(this%face_array)) then
+     do i = 1, this%triangulation%number_interior_faces + this%triangulation%number_boundary_faces
+        call this%face_array(i)%free()
+     end do
+  end if
   
   do iblock = 1, this%number_blocks
      do i = 1, this%number_fe_spaces
@@ -192,10 +207,18 @@ subroutine print ( this )
      write(*,*) '********* ELEMENT: ',i,'********'
      write(*,*) '********* ELEMENT 2 DOF********'
      do j = 1, this%number_fe_spaces
-     write(*,*) '********* FE COMPONENT: ',j,'********'
-     write(*,*) this%fe_array(i)%elem2dof(j)%p
-   end do
-end do
+        write(*,*) '********* FE COMPONENT: ',j,'********'
+        write(*,*) this%fe_array(i)%elem2dof(j)%p
+     end do
+  end do
+
+  do i  = 1, this%triangulation%number_interior_faces
+     write(*,*) '--------------------- Face: ',i,'-------------------------'
+     write(*,*) '-- Elem 1 --'
+     write(*,*) this%face_array(i)%neighbour_fe(1)%p%elem2dof(1)%p
+     write(*,*) '-- Elem 2 --'
+     write(*,*) this%face_array(i)%neighbour_fe(2)%p%elem2dof(1)%p
+  end do
 
 end subroutine print
 

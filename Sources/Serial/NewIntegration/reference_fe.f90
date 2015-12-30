@@ -145,6 +145,8 @@ module reference_fe_names
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)  , deferred :: create_interpolation 
+     procedure(create_face_local_interpolation_interface), deferred :: create_face_local_interpolation
+     procedure(create_face_interpolation_interface), deferred :: create_face_interpolation
      procedure(get_bc_component_node_interface) , deferred :: get_bc_component_node
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
@@ -199,6 +201,7 @@ module reference_fe_names
      procedure :: get_number_vefs => reference_fe_get_number_vefs
      procedure :: get_number_nodes => reference_fe_get_number_nodes
      procedure :: get_number_vefs_dimension => reference_fe_get_number_vefs_dimension
+     procedure :: number_vefs_of_dimension  => reference_fe_number_vefs_of_dimension
      procedure :: get_orientation => reference_fe_get_orientation
      procedure :: get_interior_nodes_vef  => reference_fe_get_interior_nodes_vef
      procedure :: get_nodes_vef  =>     reference_fe_get_nodes_vef
@@ -235,6 +238,14 @@ module reference_fe_names
        type(SB_quadrature_t), intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
+
+     subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
+       import :: reference_fe_t, SB_quadrature_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       type(SB_quadrature_t), intent(inout) :: quadrature
+       integer(ip), optional, intent(in)    :: max_order
+     end subroutine create_face_quadrature_interface
      
      subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
        import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t
@@ -245,13 +256,22 @@ module reference_fe_names
        logical       , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
 
-     subroutine create_face_quadrature_interface ( this, local_quadrature, face_quadrature )
-       import :: reference_fe_t, SB_quadrature_t, face_quadrature_t
+     subroutine create_face_local_interpolation_interface ( this, quadrature, interpolation )
+       import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this
+       type(SB_quadrature_t)   , intent(in)    :: quadrature
+       type(SB_interpolation_t), intent(inout) :: interpolation
+     end subroutine create_face_local_interpolation_interface
+
+     subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature, face_interpolation)
+       import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t, ip
        implicit none 
-       class(reference_fe_t)  , intent(in)    :: this        
-       type(SB_quadrature_t)  , intent(in)    :: local_quadrature
-       type(face_quadrature_t), intent(inout) :: face_quadrature
-     end subroutine create_face_quadrature_interface
+       class(reference_fe_t)     , intent(in)    :: this
+       integer(ip)               , intent(in)    :: local_face_id
+       type(SB_quadrature_t)     , intent(in)    :: local_quadrature
+       type(SB_interpolation_t)  , intent(inout) :: face_interpolation
+     end subroutine create_face_interpolation_interface
      
      function get_bc_component_node_interface( this, node )
        import :: reference_fe_t, ip
@@ -320,10 +340,13 @@ module reference_fe_names
   integer(ip), allocatable :: node_component_array(:,:)
 contains 
   ! Deferred TBP implementors
-  procedure :: create                 => quad_lagrangian_reference_fe_create
-  procedure :: create_quadrature      => quad_lagrangian_reference_fe_create_quadrature
-  procedure :: create_face_quadrature => quad_lagrangian_reference_fe_create_face_quadrature
-  procedure :: create_interpolation   => quad_lagrangian_reference_fe_create_interpolation
+  procedure :: create                    => quad_lagrangian_reference_fe_create
+  procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
+  procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
+  procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
+  procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
+  procedure :: create_face_local_interpolation                                                      &
+       &                              => quad_lagrangian_reference_fe_create_face_local_interpolation
   
   procedure :: get_bc_component_node  => quad_lagrangian_reference_fe_get_bc_component_node
   procedure :: permute_order_vef      => quad_lagrangian_reference_fe_permute_order_vef
@@ -350,9 +373,11 @@ type fe_map_t
   real(rp), allocatable    :: det_jacobian(:)           ! Map's Jacobian det (number_evaluation_points)
   real(rp), allocatable    :: d2sdx(:,:,:,:)            ! Map's 2nd derivatives (number_dimensions,number_dimensions,number_dimensions,number_evaluation_points)
   real(rp), allocatable    :: coordinates_points(:,:)   ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)
+  real(rp), allocatable    :: outside_normals(:,:)      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces)
   type(SB_interpolation_t) :: interpolation_geometry    ! Geometry interpolation_t in the reference element domain
 contains
   procedure, non_overridable :: create           => fe_map_create
+  procedure, non_overridable :: create_from_face => fe_map_create_from_face
   procedure, non_overridable :: update           => fe_map_update
   procedure, non_overridable :: free             => fe_map_free
   procedure, non_overridable :: print            => fe_map_print
@@ -427,6 +452,43 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+type face_interpolation_t
+  private
+  integer(ip)                           :: number_shape_functions
+  integer(ip)                           :: number_evaluation_points
+  integer(ip)                           :: number_faces
+  type(SB_interpolation_t), allocatable :: interpolation(:)
+  type(SB_interpolation_t)              :: interpolation_o_map
+  class(reference_fe_t)       , pointer :: reference_fe
+contains
+  procedure :: create => face_interpolation_create
+  procedure :: free   => face_interpolation_free
+end type face_interpolation_t
+
+public :: face_interpolation_t
+
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+type face_integrator_t
+   private
+   type(face_interpolation_t) :: interpolation(2)
+   type(fe_map_t)             :: face_map
+   type(SB_quadrature_t)      :: quadrature
+   type(p_reference_fe_t)     :: reference_fe(2)
+ contains
+  procedure, non_overridable :: initialize => face_integrator_initialize
+  procedure                  :: free       => face_integrator_free
+end type face_integrator_t
+
+type p_face_integrator_t
+  type(face_integrator_t)          , pointer :: p => NULL()
+end type p_face_integrator_t
+
+public :: face_integrator_t, p_face_integrator_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.
@@ -442,8 +504,8 @@ contains
 
 #include "sbm_quad_lagrangian_reference_fe.i90"
 
-#include "sbm_quad_lagrangian_reference_face.i90"
-
 #include "sbm_volume_integrator.i90"
+
+#include "sbm_face_integrator.i90"
 
 end module reference_fe_names
