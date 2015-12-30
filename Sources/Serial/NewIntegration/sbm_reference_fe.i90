@@ -219,13 +219,15 @@ end function reference_fe_get_continuity
     reference_fe_get_number_vefs_dimension = this%number_vefs_dimension
   end function reference_fe_get_number_vefs_dimension
   
+  ! Given a dimension 'vef_dimension' this functions returns the amount of objects of that 
+  ! dimension the element contains.
   function reference_fe_number_vefs_of_dimension ( this, vef_dimensions )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip)          , intent(in) :: vef_dimensions
     integer(ip) :: reference_fe_number_vefs_of_dimension
-    reference_fe_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimensions+2) -         &
-         &                                   this%number_vefs_dimension(vef_dimensions+1)
+    reference_fe_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimensions+2) -          &
+         &                                  this%number_vefs_dimension(vef_dimensions+1)
   end function reference_fe_number_vefs_of_dimension
 
   function reference_fe_get_number_nodes_vef ( this, i )

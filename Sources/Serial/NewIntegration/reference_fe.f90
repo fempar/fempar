@@ -241,9 +241,9 @@ module reference_fe_names
 
      subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
        import :: reference_fe_t, SB_quadrature_t, ip
-       implicit none 
-       class(reference_fe_t), intent(in)    :: this 
-       type(SB_quadrature_t), intent(inout) :: quadrature   
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       type(SB_quadrature_t), intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_face_quadrature_interface
      
@@ -255,11 +255,11 @@ module reference_fe_names
        type(SB_interpolation_t), intent(inout) :: interpolation
        logical       , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
-     
+
      subroutine create_face_local_interpolation_interface ( this, quadrature, interpolation )
        import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t
-       implicit none 
-       class(reference_fe_t)   , intent(in)    :: this 
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this
        type(SB_quadrature_t)   , intent(in)    :: quadrature
        type(SB_interpolation_t), intent(inout) :: interpolation
      end subroutine create_face_local_interpolation_interface
@@ -267,7 +267,7 @@ module reference_fe_names
      subroutine create_face_interpolation_interface ( this, local_quadrature, face_interpolation, local_face_id )
        import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t, ip
        implicit none 
-       class(reference_fe_t)     , intent(in)    :: this 
+       class(reference_fe_t)     , intent(in)    :: this
        type(SB_quadrature_t)     , intent(in)    :: local_quadrature
        type(SB_interpolation_t)  , intent(inout) :: face_interpolation
        integer(ip)               , intent(in)    :: local_face_id
@@ -340,13 +340,13 @@ module reference_fe_names
   integer(ip), allocatable :: node_component_array(:,:)
 contains 
   ! Deferred TBP implementors
-  procedure :: create                 => quad_lagrangian_reference_fe_create
-  procedure :: create_quadrature      => quad_lagrangian_reference_fe_create_quadrature
-  procedure :: create_face_quadrature => quad_lagrangian_reference_fe_create_face_quadrature
-  procedure :: create_interpolation   => quad_lagrangian_reference_fe_create_interpolation
+  procedure :: create                    => quad_lagrangian_reference_fe_create
+  procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
+  procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
+  procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
   procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-  procedure :: create_face_local_interpolation => quad_lagrangian_reference_fe_create_face_local_interpolation
-  !procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
+  procedure :: create_face_local_interpolation                                                      &
+       &                              => quad_lagrangian_reference_fe_create_face_local_interpolation
   
   procedure :: get_bc_component_node  => quad_lagrangian_reference_fe_get_bc_component_node
   procedure :: permute_order_vef      => quad_lagrangian_reference_fe_permute_order_vef
@@ -452,13 +452,13 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-type face_interpolation_t 
+type face_interpolation_t
   private
   integer(ip)                           :: number_shape_functions
   integer(ip)                           :: number_evaluation_points
   integer(ip)                           :: number_faces
-  type(SB_interpolation_t), allocatable :: interpolation(:) 
-  type(SB_interpolation_t)              :: interpolation_o_map 
+  type(SB_interpolation_t), allocatable :: interpolation(:)
+  type(SB_interpolation_t)              :: interpolation_o_map
   class(reference_fe_t)       , pointer :: reference_fe
 contains
   procedure :: create => face_interpolation_create
@@ -482,7 +482,7 @@ type face_integrator_t
 end type face_integrator_t
 
 type p_face_integrator_t
-  type(face_integrator_t)          , pointer :: p => NULL() 
+  type(face_integrator_t)          , pointer :: p => NULL()
 end type p_face_integrator_t
 
 public :: face_integrator_t, p_face_integrator_t
@@ -503,8 +503,6 @@ contains
 #include "sbm_reference_fe.i90"
 
 #include "sbm_quad_lagrangian_reference_fe.i90"
-
-#include "sbm_quad_lagrangian_reference_face.i90"
 
 #include "sbm_volume_integrator.i90"
 

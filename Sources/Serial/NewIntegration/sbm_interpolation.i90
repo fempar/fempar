@@ -18,7 +18,6 @@ subroutine interpolation_create( this, &
   this%number_shape_functions = number_shape_functions
   this%number_evaluation_points = number_evaluation_points
   this%number_entries_symmetric_tensor = number_entries_symmetric_tensor
-
   call memalloc(number_shape_functions, &
                 number_evaluation_points, &
                 this%shape_functions,__FILE__,__LINE__)

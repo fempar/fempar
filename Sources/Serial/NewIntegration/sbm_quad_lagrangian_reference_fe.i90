@@ -31,32 +31,12 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
   call fill_quadrature( quadrature )
 end subroutine quad_lagrangian_reference_fe_create_quadrature
 
-subroutine quad_lagrangian_reference_fe_create_face_integrator ( this, face_integ, max_order )
-  implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
-  class(face_integrator_t)             , intent(inout) :: face_integ
-  integer(ip)                , optional, intent(in)    :: max_order
-  
-  integer(ip) :: ngaus, order, face_dimensions
-
-  order = this%order
-  if ( present(max_order) ) then
-     order = max_order
-  else
-     order = this%order
-  end if
-
-  call this%create_face_quadrature(face_integ%quadrature, max_order)
-
-end subroutine quad_lagrangian_reference_fe_create_face_integrator
-
-
 subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
-  implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
   type(SB_quadrature_t)                , intent(inout) :: quadrature
   integer(ip)                , optional, intent(in)    :: max_order
-  
+
   integer(ip) :: ngaus, order, face_dimensions
   order = this%order
   if ( present(max_order) ) then
@@ -69,27 +49,6 @@ subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, quadratur
   call quadrature%create( face_dimensions, ngaus )
   call fill_quadrature( quadrature )
 end subroutine quad_lagrangian_reference_fe_create_face_quadrature
-!!$
-!!$
-!!$subroutine quad_lagrangian_reference_fe_fill_face_quadrature ( this, face_quadrature, local_quadrature)
-!!$  implicit none 
-!!$  class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
-!!$  type(SB_quadrature_t)                , intent(inout) :: quadrature
-!!$  integer(ip)                , optional, intent(in)    :: max_order
-!!$  
-!!$  integer(ip) :: ngaus, order, face_dimensions
-!!$  order = this%order
-!!$  if ( present(max_order) ) then
-!!$     order = max_order
-!!$  else
-!!$     order = this%order
-!!$  end if
-!!$  face_dimensions = this%number_dimensions - 1
-!!$  ngaus = (order + 1)**(face_dimensions)
-!!$  call quadrature%create( face_dimensions, ngaus )
-!!$  call fill_quadrature( quadrature )
-!!$end subroutine quad_lagrangian_reference_fe_fill_face_quadrature
-
 
 subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
   implicit none 
@@ -1633,6 +1592,8 @@ subroutine permute_or_2d( o2n,p,o,r )
 end subroutine permute_or_2d
 
 !==================================================================================================
+! This routine creates the interpolation corresponding to the evaluation of the shape functions on
+! integration points given by local_quadrature in the face 'local_face_id' of the element
 subroutine quad_lagrangian_reference_fe_create_face_interpolation( this, local_quadrature,        &
      &                                                            face_interpolation,local_face_id)
   implicit none 
@@ -1641,16 +1602,50 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this, local_q
   type(SB_interpolation_t)             , intent(inout) :: face_interpolation
   integer(ip)                          , intent(in)    :: local_face_id
 
+  ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes,                        &
        &                    local_quadrature%number_evaluation_points, 0 )
 
+  ! Fill the values of the shape functions
   call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
+
 end subroutine quad_lagrangian_reference_fe_create_face_interpolation
 
 !==================================================================================================
+! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
+! This is used to construct the geometrical interpolation of the face
+subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, quadrature,       &
+     &                                                                    interpolation)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  type(SB_quadrature_t)               , intent(in)     :: quadrature
+  type(SB_interpolation_t)            , intent(inout) :: interpolation
+
+  integer(ip) :: nlocs
+  integer(ip) :: number_nodes_face_scalar, number_dimensions_face
+  integer(ip) :: face_order
+
+  ! I am assuming the geometric aproximation of the face can be linear
+  ! this might need to be modified in the future
+  number_dimensions_face   = this%number_dimensions - 1
+  number_nodes_face_scalar = 2**number_dimensions_face
+  face_order = 1
+
+  ! Allocate the arrays of the interpolation
+  call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
+                             quadrature%number_evaluation_points, 0)
+
+  ! Fill the values with the common routine for filling an interpolation
+  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real( number_dimensions_face)))
+  call fill_interpolation( interpolation, face_order, number_dimensions_face, &
+                           nlocs, 0, quadrature%coordinates )
+
+end subroutine quad_lagrangian_reference_fe_create_face_local_interpolation
+
+!==================================================================================================
 subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadrature, local_face_id)
-  class(quad_lagrangian_reference_fe_t), intent(in)    :: this    
-  class(SB_interpolation_t)            , intent(inout) :: face_interpolation  
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  class(SB_interpolation_t)            , intent(inout) :: face_interpolation
   class(SB_quadrature_t)               , intent(in)    :: local_quadrature
   integer(ip)                          , intent(in)    :: local_face_id
 
@@ -1687,33 +1682,6 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
 end subroutine face_interpolation_shape_fill
 
 !==================================================================================================
-subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, quadrature,       &
-     &                                                                    interpolation)
-  implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(SB_quadrature_t)               , intent(in)     :: quadrature
-  type(SB_interpolation_t)            , intent(inout) :: interpolation
-
-  integer(ip) :: nlocs
-  integer(ip) :: number_nodes_face_scalar, number_dimensions_face
-  integer(ip) :: face_order
-
-  ! I am assuming the geometric aproximation of the face can be linear
-  ! this might need to be modified in the future
-  number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = 2**number_dimensions_face
-  face_order = 1
-
-  call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
-                             quadrature%number_evaluation_points, 0)
-
-  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real( number_dimensions_face)))
-  
-  call fill_interpolation( interpolation, face_order, number_dimensions_face, &
-                           nlocs, 0, quadrature%coordinates )
-end subroutine quad_lagrangian_reference_fe_create_face_local_interpolation
-
-!==================================================================================================
 subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   implicit none
   ! Parameters
@@ -1732,7 +1700,7 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
 
   do inode = 1, (p+1)**nd ! node identifier
 
-     ! Set coordinates of node i 
+     ! Set coordinates of node i
      call Q_ijkg(ijk,inode,nd,p)
 
      ifc = 0
@@ -1752,7 +1720,7 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
            ifc = ifc + 1  ! face identifier
 
            if (ifc == local_face_id) then
-              do ig = 1, ng  ! Loop over face Gauss Points                
+              do ig = 1, ng  ! Loop over face Gauss Points    
                  shapf(inode,ig) = sh1(ijk(id)+1,j)*shp(jnode,ig)
 
                  d2 = 0

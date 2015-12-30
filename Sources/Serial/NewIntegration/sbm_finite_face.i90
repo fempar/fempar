@@ -1,15 +1,13 @@
+!==================================================================================================
 subroutine finite_face_free(this)
   implicit none
   class(finite_face_t), intent(inout) :: this
-  
+
   integer(ip) :: i
 
   this%face_topology => NULL()
-
   if (allocated(this%face_integrator)) deallocate (this%face_integrator)
-
   do i =1,2
      this%neighbour_fe(i)%p => NULL()
   end do
-  
 end subroutine finite_face_free

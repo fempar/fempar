@@ -1,5 +1,5 @@
 !====================================================================================================
-subroutine create_face_array (this) 
+subroutine create_face_array (this)
   implicit none
   class(SB_serial_fe_space_t), target, intent(inout) :: this
 
@@ -10,18 +10,14 @@ subroutine create_face_array (this)
   type(finite_face_t)  , pointer :: face
 
   ! Get the variables from the triangulation
-  ! AH: Once we have the iterator and more intrincated triangulations, this wil be not simply
+  ! AH: Once we have the iterator and more intrincated triangulations, this will be not simply
   ! taking the raw values but only the active faces or the ones we are interested in
   number_interior_faces = this%triangulation%number_interior_faces
   number_boundary_faces = this%triangulation%number_boundary_faces
   number_total_faces    = number_interior_faces + number_boundary_faces
 
-  allocate (this%face_array(number_total_faces), stat = istat )
-  check (istat == 0)
-
-  ! Construct the quadrature
+  ! Construct the face integrators
   allocate( this%face_integrator(this%number_fe_spaces), stat=istat )
-  !allocate( this%quadrature(2)%p, stat = istat)
   check (istat == 0)
   do i  = 1, this%number_fe_spaces
      allocate( this%face_integrator(i)%p, stat = istat )
@@ -30,40 +26,49 @@ subroutine create_face_array (this)
           &                                  this%reference_fe_phy_list(1)%p)
   end do
 
-  ! Loop over the faces (this will be performed by an iterator at some point)
+  ! Allocate the array of faces
+  allocate (this%face_array(number_total_faces), stat = istat )
+  check (istat == 0)
+
+  ! Loop over the interior faces (AH: this will be performed by an iterator at some point)
   do face_id = 1,  number_interior_faces
      face          => this%face_array(face_id)
      face_topology => this%triangulation%faces(face_id)
 
+     ! Assign pointers of the face
      face%face_topology => face_topology
      do local_neigh_elem_id = 1, 2
         neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
         face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
      end do
 
+     ! Assign the face integrator pointers
      allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
      check(istat == 0)
-
      do i = 1,  this%number_fe_spaces
         face%face_integrator(i)%p => this%face_integrator(i)%p
      end do
   end do
 
+  ! Loop over the boundary faces
   do face_id = number_interior_faces + 1, number_interior_faces + number_boundary_faces
      face          => this%face_array(face_id)
      face_topology => this%triangulation%faces(face_id)
 
+     ! Assign pointers of the face (Only for the left neighbour since it is on the boundary)
      face%face_topology => face_topology
      local_neigh_elem_id = 1
      neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
      face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
-     
+
      local_neigh_elem_id = 2
      face%neighbour_fe(local_neigh_elem_id)%p => NULL()
 
+     ! Assign the face integrator pointers 
+     ! AH: notice that now they are pointing to the integrator corresponding to an interior face. 
+     ! (This should be improved when we are able to construct the integrators on the fly)
      allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
      check(istat == 0)
-
      do i = 1,  this%number_fe_spaces
         face%face_integrator(i)%p => this%face_integrator(i)%p
      end do

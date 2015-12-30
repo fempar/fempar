@@ -3,11 +3,11 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   ! Parameters
   class(fe_map_t)      , intent(inout) :: this
   type(SB_quadrature_t), intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry  
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_dimensions
   integer(ip) :: number_evaluation_points
-  
+
   call this%free()
   number_dimensions        = reference_fe_geometry%number_dimensions
   number_evaluation_points = quadrature%number_evaluation_points
@@ -18,15 +18,15 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
                 number_dimensions, &
                 number_evaluation_points, &
                 this%jacobian,__FILE__,__LINE__)
-  
+
   call memalloc(number_dimensions, &
                 number_dimensions, &
                 number_evaluation_points, &
                 this%inv_jacobian,__FILE__,__LINE__)
-  
+
   call memalloc(number_evaluation_points, &
-                this%det_jacobian,__FILE__,__LINE__)   
-  
+                this%det_jacobian,__FILE__,__LINE__)
+
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
                 this%coordinates_points,__FILE__,__LINE__)
@@ -38,27 +38,27 @@ subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
   ! Parameters
   class(fe_map_t)      , intent(inout) :: this
   type(SB_quadrature_t), intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry  
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_dimensions, number_face_dimensions
   integer(ip) :: number_evaluation_points
-  
+
   call this%free()
   number_dimensions        = reference_fe_geometry%number_dimensions
   number_evaluation_points = quadrature%number_evaluation_points
   number_face_dimensions   = reference_fe_geometry%number_dimensions - 1
 
-  call reference_fe_geometry%create_face_local_interpolation                                        &
+  call reference_fe_geometry%create_face_local_interpolation                                      &
        &                     ( quadrature, this%interpolation_geometry )
 
   call memalloc(number_face_dimensions, &
                 number_dimensions, &
                 number_evaluation_points, &
                 this%jacobian,__FILE__,__LINE__)
-    
+
   call memalloc(number_evaluation_points, &
-                this%det_jacobian,__FILE__,__LINE__)   
-  
+                this%det_jacobian,__FILE__,__LINE__)
+
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
                 this%coordinates_points,__FILE__,__LINE__)

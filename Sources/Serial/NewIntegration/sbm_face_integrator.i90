@@ -10,27 +10,18 @@ subroutine face_interpolation_create(this, local_quadrature, reference_fe)
 
   this%number_shape_functions   = reference_fe%number_nodes
   this%number_evaluation_points = local_quadrature%number_evaluation_points
-  face_dimensions               = reference_fe%number_dimensions -1 
+  face_dimensions               = reference_fe%number_dimensions - 1
   this%number_faces             = reference_fe%number_vefs_of_dimension(face_dimensions)
   this%reference_fe             => reference_fe
-  
+
   allocate(this%interpolation(this%number_faces),stat = istat)
   check(istat == 0)
 
   do local_face_id =1, this%number_faces
-!!$     call this%interpolation(local_face_id)%create(reference_fe%number_dimensions,                  &
-!!$          &                                        this%number_shape_functions,                     &
-!!$          &                                        this%number_evaluation_points, 0 )
      call reference_fe%create_face_interpolation(local_quadrature,this%interpolation(local_face_id),&
           &                                      local_face_id)
-     write(*,*) __FILE__,__LINE__, '----------------------------------'
-     write(*,*) '------------- FACE', local_face_id, '------------------------'
-     call this%interpolation(local_face_id)%print()
   end do
-  ! call memalloc(number_of_faces,interpolation)
-  ! compute_quadrature of the face (look old code)
-  ! 
-  !call reference_fe%create_face_interpolation(this%interpolation(iface),face_quadrature)
+
 end subroutine face_interpolation_create
 
 !==================================================================================================
@@ -57,12 +48,12 @@ end subroutine face_interpolation_free
 subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe, max_order )
   implicit none
   ! Parameters
-  class(face_integrator_t)     , intent(inout) :: this 
+  class(face_integrator_t)     , intent(inout) :: this
   class(reference_fe_t), target, intent(in)    :: left_reference_fe, right_reference_fe
   integer(ip)       , optional , intent(in)    :: max_order
 
   integer(ip) :: i
-  
+
   this%reference_fe(1)%p => left_reference_fe
   this%reference_fe(2)%p => right_reference_fe
 
@@ -75,14 +66,14 @@ subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe
   do i = 1, 2
      call this%interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
   end do
-  
+
 end subroutine face_integrator_initialize
 
 !==================================================================================================
 subroutine face_integrator_free(this)
   implicit none
   ! Parameters
-  class(face_integrator_t)     , intent(inout) :: this 
+  class(face_integrator_t)     , intent(inout) :: this
 
   integer(ip) :: i
   call this%face_map%free()
