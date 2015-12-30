@@ -9,19 +9,35 @@ module field_names
   integer(ip), parameter :: dim = 3
   
   type :: scalar_field_t
+     private
      real(rp) :: value
+   contains
+     procedure, non_overridable :: init  => scalar_field_init
+     procedure, non_overridable :: set   => scalar_field_set
   end type scalar_field_t
   
   type :: vector_field_t
+     private
      real(rp) :: value(dim)
+   contains
+     procedure, non_overridable :: init  => vector_field_init
+     procedure, non_overridable :: set   => vector_field_set		
   end type vector_field_t
   
   type :: tensor_field_t
+     private
      real(rp)  :: value(dim,dim)
+   contains
+     procedure, non_overridable :: init  => tensor_field_init
+     procedure, non_overridable :: set   => tensor_field_set					
   end type tensor_field_t
 
   type :: symmetric_tensor_field_t
+     private
      real(rp)  :: value(dim,dim)
+   contains			
+     procedure, non_overridable :: init  => symmetric_tensor_field_init
+     procedure, non_overridable :: set   => symmetric_tensor_field_set					
   end type symmetric_tensor_field_t
   
   interface operator(*)
@@ -39,6 +55,68 @@ module field_names
   ! public :: scalar_field_t (not actually needed, used real(rp) instead)
 
 contains
+
+  subroutine scalar_field_init(this,value)
+    implicit none
+    class(scalar_field_t), intent(inout) :: this
+    real(rp)             , intent(in)    :: value
+    this%value = value
+  end subroutine scalar_field_init
+
+  subroutine scalar_field_set(this,value)
+    implicit none
+    class(scalar_field_t), intent(inout) :: this
+    real(rp)             , intent(in)    :: value
+    this%value = value
+  end subroutine scalar_field_set
+		
+  subroutine vector_field_init(this,value)
+    implicit none
+    class(vector_field_t), intent(inout) :: this
+    real(rp)             , intent(in)    :: value
+    this%value = value
+  end subroutine vector_field_init
+
+  subroutine vector_field_set(this,i,value)
+    implicit none
+    class(vector_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: i
+    real(rp)             , intent(in)    :: value
+    this%value(i) = value
+  end subroutine vector_field_set
+		
+  subroutine tensor_field_init(this,value)
+    implicit none
+    class(tensor_field_t), intent(inout) :: this
+    real(rp)             , intent(in)    :: value
+    this%value = value
+  end subroutine tensor_field_init
+
+  subroutine tensor_field_set(this,i,j,value)
+    implicit none
+    class(tensor_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: i
+    integer(ip)          , intent(in)    :: j
+    real(rp)             , intent(in)    :: value
+    this%value(i,j) = value
+  end subroutine tensor_field_set
+		
+  subroutine symmetric_tensor_field_init(this,value)
+    implicit none
+    class(symmetric_tensor_field_t), intent(inout) :: this
+    real(rp)                       , intent(in)    :: value
+    this%value = value
+  end subroutine symmetric_tensor_field_init
+
+  subroutine symmetric_tensor_field_set(this,i,j,value)
+    implicit none
+    class(symmetric_tensor_field_t), intent(inout) :: this
+    integer(ip)                    , intent(in)    :: i
+    integer(ip)                    , intent(in)    :: j
+    real(rp)                       , intent(in)    :: value
+    assert(j>=i)
+    this%value(i,j) = value
+  end subroutine symmetric_tensor_field_set
 
   function single_contract_vector_vector(v1,v2) result(res)
     implicit none

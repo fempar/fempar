@@ -184,7 +184,21 @@ end subroutine fe_map_create_from_face
     if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
     if(allocated(this%coordinates_points)) call memfree(this%coordinates_points,__FILE__,__LINE__)
     if(allocated(this%outside_normals)) call memfree(this%outside_normals,__FILE__,__LINE__)
+    call this%interpolation_geometry%free()
   end subroutine fe_map_free
+		
+  subroutine p_fe_map_allocate( this )
+    implicit none
+    class(p_fe_map_t), intent(inout) :: this
+    allocate(this%p)
+  end subroutine p_fe_map_allocate
+		
+  subroutine p_fe_map_free( this )
+    implicit none
+    class(p_fe_map_t), intent(inout) :: this
+    call this%p%free()
+    deallocate(this%p)
+  end subroutine p_fe_map_free
   
  subroutine fe_map_print( this )
   implicit none
@@ -245,6 +259,19 @@ subroutine volume_integrator_free( this )
   this%number_evaluation_points = 0
   this%number_shape_functions = 0
 end subroutine volume_integrator_free
+
+subroutine p_volume_integrator_allocate( this )
+  implicit none
+  class(SB_p_volume_integrator_t), intent(inout) :: this
+		allocate(this%p)
+end subroutine p_volume_integrator_allocate
+
+subroutine p_volume_integrator_free( this )
+  implicit none
+  class(SB_p_volume_integrator_t), intent(inout) :: this
+  call this%p%free()
+		deallocate(this%p)
+end subroutine p_volume_integrator_free
 !==================================================================================================
 
 subroutine volume_integrator_print( this )

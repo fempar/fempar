@@ -71,6 +71,7 @@ module serial_names
 
   ! Linear Algebra
   use linear_solver_names
+  use sparse_matrix_names
   use serial_scalar_matrix_names
   use serial_scalar_array_names
   use serial_block_matrix_names

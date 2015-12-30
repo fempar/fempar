@@ -663,7 +663,7 @@ contains
         assert(this%state == SPARSE_MATRIX_STATE_START)
         assert(this%is_valid_sign(sign))
         if(symmetric_storage) then
-            check(is_symmetric)
+            assert(is_symmetric)
         endif
         call this%set_symmetric_storage(symmetric_storage)
         this%symmetric = is_symmetric

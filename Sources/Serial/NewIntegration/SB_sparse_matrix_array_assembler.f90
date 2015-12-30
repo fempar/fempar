@@ -57,9 +57,9 @@ public :: element_sparse_matrix_assembly, element_serial_scalar_array_assembly
 contains
 subroutine sparse_matrix_array_assembler_assembly( this, & 
                                                    number_fe_spaces, &
+                                                   number_nodes, &
                                                    elem2dof, &
                                                    field_blocks, &
-                                                   number_nodes, &
                                                    field_coupling, &
                                                    elmat, &
                                                    elvec ) 
@@ -83,25 +83,25 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
 
  select type(matrix)
     class is(sparse_matrix_t)
-    ! AFM
-    ! In the case of finite elements resulting from composition of finite elements,
-    ! should the code of this section some-how take into account the structure of the FE? 
-    ! E.g., in the case of a vector Laplacian problem we may have number_fe_spaces = 3 and field_coupling = [ true false false
-    !                                                                                                        false true false
-    !                                                                                                        false false true ]
-    ! Here we should therefore develop a nested loop which would ressemble very much the one that we have in
-    ! discrete_integration%integrate(). An alternative would be that discrete_integration%integrate() calls directly the
-    ! TBPs() which are called within element_sparse_matrix_assembly(), but this in turn has side-effects, as we would need
-    ! to develop a more rich set of deferred TBPs in the interface of class(matrix_t). Besides, in such a case, the present
-    ! subroutine would not make anymore sense, it would disappear. TO-THINK!!
-    call element_sparse_matrix_assembly( matrix,  number_nodes(1), elem2dof(1)%p,  elmat )
+    call element_sparse_matrix_assembly( matrix, &
+                                         number_fe_spaces, &
+                                         number_nodes, &
+                                         elem2dof, &
+                                         field_blocks, &
+                                         field_coupling, &
+                                         elmat )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_scalar_array_t)
-    call element_serial_scalar_array_assembly( array, number_nodes(1), elem2dof(1)%p,  elvec )
+    call element_serial_scalar_array_assembly( array, &
+                                               number_fe_spaces, &
+                                               number_nodes, &
+                                               elem2dof, &
+                                               field_blocks, &
+                                               elvec )
     class default
     check(.false.)
  end select
@@ -115,8 +115,8 @@ subroutine sparse_matrix_array_assembler_allocate( this )
  call array%allocate()
 end subroutine sparse_matrix_array_assembler_allocate
 
-  subroutine sparse_matrix_array_assembler_compress_storage( this, & 
-                                                             sparse_matrix_storage_format )
+subroutine sparse_matrix_array_assembler_compress_storage( this, & 
+                                                           sparse_matrix_storage_format )
   implicit none
   class(SB_sparse_matrix_array_assembler_t) , intent(inout) :: this
   character(*)                              , intent(in)    :: sparse_matrix_storage_format
@@ -131,17 +131,21 @@ end subroutine sparse_matrix_array_assembler_allocate
 end subroutine sparse_matrix_array_assembler_compress_storage
 
 
-subroutine element_sparse_matrix_assembly( a, number_nodes, elem2dof, elmat )
+subroutine element_sparse_matrix_assembly( matrix, number_fe_spaces, number_nodes, elem2dof, field_blocks, field_coupling, elmat )
  implicit none
  ! Parameters
- type(sparse_matrix_t)   , intent(inout) :: a
- integer(ip)             , intent(in)    :: number_nodes
- integer(ip)             , intent(in)    :: elem2dof(number_nodes)
- real(rp)                , intent(in)    :: elmat(number_nodes,number_nodes)
+ type(sparse_matrix_t), intent(inout) :: matrix
+ integer(ip)          , intent(in)    :: number_fe_spaces
+ integer(ip)          , intent(in)    :: number_nodes(number_fe_spaces)
+ type(i1p_t)          , intent(in)    :: elem2dof(number_fe_spaces)
+ integer(ip)          , intent(in)    :: field_blocks(number_fe_spaces)
+ logical              , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+ real(rp)             , intent(in)    :: elmat(:,:) 
  
+ integer(ip) :: ife_space, jfe_space
  integer(ip) :: idof, jdof 
  integer(ip) :: inode, jnode
-
+ integer(ip) :: ielmat, jelmat
  
  ! We are going to use a single entry-wise insertion approach.
  ! In the future, we may consider an "optimization" that
@@ -151,34 +155,50 @@ subroutine element_sparse_matrix_assembly( a, number_nodes, elem2dof, elmat )
  ! hand, that type(sparse_matrix_t) already supports
  ! that some of entries in elem2dof might be zero, ignoring them (as they would
  ! be out of the (imin,imax,jmin,jmax) 
- do inode = 1,number_nodes
-    idof = elem2dof(inode)
-    if ( idof  > 0 ) then
-      do jnode = 1,number_nodes
-          jdof = elem2dof(jnode)
-          if ( jdof > 0 ) then
-                call a%insert(idof,jdof,elmat(inode,jnode),1,a%get_num_rows(),1,a%get_num_cols())
-          end if
-       end do
-    end if
+ ielmat=0
+ do ife_space=1, number_fe_spaces
+   assert(field_blocks(ife_space)==1)
+   do inode=1, number_nodes(ife_space)
+     idof = elem2dof(ife_space)%p(inode)
+     jelmat=0
+     ielmat=ielmat+1
+     do jfe_space=1, number_fe_spaces
+       if (field_coupling(ife_space,jfe_space)) then
+         do jnode=1, number_nodes(jfe_space)
+           jdof = elem2dof(jfe_space)%p(jnode)
+           jelmat=jelmat+1
+           call matrix%insert(idof,jdof,elmat(ielmat,jelmat),1,matrix%get_num_rows(),1,matrix%get_num_cols())
+         end do
+       else
+         jelmat=jelmat+number_nodes(jfe_space)
+       end if
+     end do
+   end do
  end do
 end subroutine element_sparse_matrix_assembly
 
-subroutine element_serial_scalar_array_assembly( a, number_nodes, elem2dof, elvec )
+subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )
  implicit none
  ! Parameters
- type(serial_scalar_array_t), intent(inout) :: a
- integer(ip)                , intent(in)    :: number_nodes
- integer(ip)                , intent(in)    :: elem2dof(number_nodes)
- real(rp)                   , intent(in)    :: elvec(number_nodes)
+ type(serial_scalar_array_t), intent(inout) :: array
+ integer(ip)                , intent(in)    :: number_fe_spaces
+ integer(ip)                , intent(in)    :: number_nodes(number_fe_spaces)
+ type(i1p_t)                , intent(in)    :: elem2dof(number_fe_spaces)
+ integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces)
+ real(rp)                   , intent(in)    :: elvec(:) 
  
- integer(ip) :: inode, idof
- do inode = 1,number_nodes
-    idof = elem2dof(inode)
-    if ( idof  > 0 ) then
-       a%b(idof) =  a%b(idof) + elvec(inode)
-    end if
- end do
+ integer(ip) :: inode, idof, ielvec, ife_space
+ 
+  ielvec = 0
+  do ife_space = 1, number_fe_spaces
+     do inode = 1, number_nodes(ife_space)
+        idof = elem2dof(ife_space)%p(inode) 
+        ielvec = ielvec+1
+        if ( idof  > 0 ) then
+           array%b(idof) =  array%b(idof) + elvec(ielvec)
+        end if
+     end do
+  end do
 end subroutine element_serial_scalar_array_assembly
 
 end module SB_sparse_matrix_array_assembler_names

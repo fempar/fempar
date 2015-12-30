@@ -42,9 +42,9 @@ module SB_assembler_names
   abstract interface
      subroutine assembly_interface( this, & 
                                     number_fe_spaces, &
+                                    number_nodes, &
                                     elem2dof, &
                                     field_blocks, &
-                                    number_nodes, &
                                     field_coupling, &
                                     elmat, &
                                     elvec )
