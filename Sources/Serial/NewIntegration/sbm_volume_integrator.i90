@@ -68,6 +68,18 @@ subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
                 this%outside_normals,__FILE__,__LINE__)
 end subroutine fe_map_create_from_face
 
+!==============================================================================
+subroutine fe_map_update_face( this, local_face_id, reference_fe, quadrature, cell_coordinates )
+  implicit none    
+  class(fe_map_t)      , intent(inout) :: this
+  integer(ip)          , intent(in)    :: local_face_id
+  class(reference_fe_t), intent(in)    :: reference_fe
+  type(SB_quadrature_t), intent(in)    :: quadrature
+  real(rp)             , intent(in)    :: cell_coordinates(:,:)
+  
+  
+end subroutine fe_map_update_face
+
   !==============================================================================
   subroutine fe_map_update( this, quadrature, cell_coordinates )
     !-----------------------------------------------------------------------

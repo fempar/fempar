@@ -22,8 +22,8 @@ subroutine create_face_array (this)
   do i  = 1, this%number_fe_spaces
      allocate( this%face_integrator(i)%p, stat = istat )
      check(istat == 0)
-     call this%face_integrator(i)%p%initialize(this%reference_fe_phy_list(1)%p,                         &
-          &                                  this%reference_fe_phy_list(1)%p)
+     call this%face_integrator(i)%p%initialize(this%reference_fe_phy_list(i)%p,                         &
+          &                                  this%reference_fe_phy_list(i)%p)
   end do
 
   ! Allocate the array of faces
@@ -42,12 +42,11 @@ subroutine create_face_array (this)
         face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
      end do
 
+     call face%create(this%number_fe_spaces)
      ! Assign the face integrator pointers
-     allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
-     check(istat == 0)
      do i = 1,  this%number_fe_spaces
-        face%face_integrator(i)%p => this%face_integrator(i)%p
-     end do
+     face%face_integrator(i)%p => this%face_integrator(i)%p
+  end do
   end do
 
   ! Loop over the boundary faces

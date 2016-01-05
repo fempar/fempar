@@ -1,64 +1,4 @@
-module SB_discrete_integration_names
-  use field_names
-  use reference_fe_names
-  use types_names
-  use SB_assembler_names
-  use SB_fe_space_names
-  use memor_names
-
-  implicit none
-# include "debug.i90"
-  private
-
-  type, abstract :: SB_discrete_integration_t
-   contains
-     procedure (integrate_interface), deferred :: integrate
-     procedure                                 :: impose_strong_dirichlet_data
-  end type SB_discrete_integration_t
-
-  type SB_p_discrete_integration_t
-     class(SB_discrete_integration_t), pointer :: p => NULL()  
-  end type SB_p_discrete_integration_t
-
-  public :: SB_discrete_integration_t, SB_p_discrete_integration_t
-
-  abstract interface
-     subroutine integrate_interface ( this, fe_space, assembler  )
-       import :: SB_discrete_integration_t, SB_serial_fe_space_t, SB_assembler_t
-       implicit none
-       class(SB_discrete_integration_t), intent(in)    :: this
-       class(SB_serial_fe_space_t)     , intent(inout) :: fe_space
-       class(SB_assembler_t)           , intent(inout) :: assembler
-     end subroutine integrate_interface
-  end interface
-
-contains
-
-subroutine impose_strong_dirichlet_data ( this, elmat, elvec, code, value, nnode, num_fe_spaces )
- implicit none
- class(SB_discrete_integration_t) :: this
- real(rp), intent(in) :: elmat(:,:)
- real(rp), intent(inout) :: elvec(:)  
- type(i1p_t), intent(in) :: code(:)
- type(r1p_t), intent(in) :: value(:)
- integer(ip), intent(in) :: nnode(:), num_fe_spaces
- integer(ip) :: i, c, ifes
-
- c = 0
- do ifes = 1, num_fe_spaces
-    do i = 1, nnode(ifes)
-       c = c + 1
-       if ( code(ifes)%p(i) /= 0 ) then
-          elvec = elvec - elmat(:,c)*value(ifes)%p(i)
-       end if
-    end do
- end do
-
-end subroutine impose_strong_dirichlet_data
-
-end module SB_discrete_integration_names
-
-module poisson_discrete_integration_names
+module CDR_discrete_integration_names
   use field_names
   use SB_assembler_names
   use SB_fe_space_names
@@ -70,19 +10,19 @@ module poisson_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
-  type, extends(SB_discrete_integration_t) :: poisson_discrete_integration_t
+  type, extends(SB_discrete_integration_t) :: CDR_discrete_integration_t
      integer(ip) :: viscosity 
    contains
      procedure :: integrate
-  end type poisson_discrete_integration_t
+  end type CDR_discrete_integration_t
   
-  public :: poisson_discrete_integration_t
+  public :: CDR_discrete_integration_t
   
 contains
   
   subroutine integrate ( this, fe_space, assembler )
     implicit none
-    class(poisson_discrete_integration_t), intent(in)    :: this
+    class(CDR_discrete_integration_t), intent(in)    :: this
     class(SB_serial_fe_space_t)          , intent(inout) :: fe_space
     class(SB_assembler_t)                , intent(inout) :: assembler
 
@@ -158,9 +98,10 @@ contains
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate
-end module poisson_discrete_integration_names
+end module CDR_discrete_integration_names
 
-module vector_laplacian_discrete_integration_names
+!==================================================================================================
+module vector_dG_CDR_discrete_integration_names
 use field_names
 use SB_assembler_names
 use SB_fe_space_names
@@ -172,22 +113,23 @@ use memor_names
 implicit none
 # include "debug.i90"
 private
-type, extends(SB_discrete_integration_t) :: vector_laplacian_discrete_integration_t
+type, extends(SB_discrete_integration_t) :: vector_dG_CDR_discrete_integration_t
 integer(ip) :: viscosity 
 contains
 procedure :: integrate
-end type vector_laplacian_discrete_integration_t
+end type vector_dG_CDR_discrete_integration_t
 
-public :: vector_laplacian_discrete_integration_t
+public :: vector_dG_CDR_discrete_integration_t
 
 contains
   subroutine integrate ( this, fe_space, assembler )
     implicit none
-    class(vector_laplacian_discrete_integration_t), intent(in)    :: this
-    class(SB_serial_fe_space_t)                   , intent(inout) :: fe_space
-    class(SB_assembler_t)                         , intent(inout) :: assembler
+    class(vector_dG_CDR_discrete_integration_t), intent(in)    :: this
+    class(SB_serial_fe_space_t)             , intent(inout) :: fe_space
+    class(SB_assembler_t)                   , intent(inout) :: assembler
 
     type(SB_finite_element_t), pointer :: fe
+    type(finite_face_t)      , pointer :: face
     type(SB_volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
     real(rp), allocatable :: elmat(:,:), elvec(:)
     type(fe_map_t), pointer :: fe_map
@@ -205,7 +147,7 @@ contains
     integer(ip), pointer :: field_blocks(:)
     logical, pointer :: field_coupling(:,:)
 
-    integer(ip) :: ielem, number_nodes
+    integer(ip) :: ielem, iface, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
     type(i1p_t), pointer :: bc_code(:)
     type(r1p_t), pointer :: bc_value(:)
@@ -216,10 +158,13 @@ contains
 
     fe => fe_space%get_finite_element(1)
     number_nodes = fe%get_number_nodes()
-    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
-    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+
     call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
     call fe%get_number_nodes_per_field( number_nodes_per_field )
+
+    ! --------------------------- LOOP OVER THE ELEMENTS -------------------------
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
     
     call fe_space%initialize_integration()
     
@@ -276,11 +221,28 @@ contains
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
-    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
+
+
+    ! --------------------------- LOOP OVER THE FACES -----------------------------
+    call memalloc ( 2*number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( 2*number_nodes, elvec, __FILE__, __LINE__ )
+
+    do iface = 1, fe_space%get_number_interior_faces()
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       face => fe_space%get_finite_face(iface)
+       write(*,*) __FILE__,__LINE__,iface
+       call face%update_face_integration()
+    end do
+
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+
+    ! ----------------------------------------------------------------------------
+    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
   end subroutine integrate
 
-end module vector_laplacian_discrete_integration_names
-
-#include "sbm_cdr_discrete_integration.i90"
+end module vector_dG_CDR_discrete_integration_names

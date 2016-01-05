@@ -476,8 +476,10 @@ type face_integrator_t
    type(fe_map_t)             :: face_map
    type(SB_quadrature_t)      :: quadrature
    type(p_reference_fe_t)     :: reference_fe(2)
+   real(rp)     , allocatable :: coordinates(:,:)
  contains
   procedure, non_overridable :: initialize => face_integrator_initialize
+  procedure                  :: update     => face_integrator_update
   procedure                  :: free       => face_integrator_free
 end type face_integrator_t
 

@@ -365,6 +365,13 @@ function get_number_elements ( this )
   get_number_elements = this%triangulation%num_elems
 end function get_number_elements
 
+function get_number_interior_faces ( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this
+  integer(ip)                 :: get_number_interior_faces
+  get_number_interior_faces = this%triangulation%number_interior_faces
+end function get_number_interior_faces
+
 function get_number_fe_spaces( this)
   implicit none
   class(SB_serial_fe_space_t), intent(in) :: this 
@@ -379,6 +386,15 @@ function get_finite_element( this, i )
   class(SB_finite_element_t), pointer :: get_finite_element
   get_finite_element => this%fe_array(i)
 end function get_finite_element
+
+
+function get_finite_face( this, i )
+  implicit none
+  class(SB_serial_fe_space_t), target, intent(in) :: this
+  integer(ip) :: i
+  class(finite_face_t), pointer :: get_finite_face
+  get_finite_face => this%face_array(i)
+end function get_finite_face
 
 function get_number_blocks( this)
   implicit none
