@@ -32,7 +32,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
                 this%coordinates_points,__FILE__,__LINE__)
 end subroutine fe_map_create
 
-!==============================================================================
+!==================================================================================================
 subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
@@ -51,8 +51,8 @@ subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
   call reference_fe_geometry%create_face_local_interpolation                                      &
        &                     ( quadrature, this%interpolation_geometry )
 
-  call memalloc(number_face_dimensions, &
-                number_dimensions, &
+  call memalloc(number_dimensions, &
+                number_face_dimensions, &
                 number_evaluation_points, &
                 this%jacobian,__FILE__,__LINE__)
 
@@ -68,19 +68,102 @@ subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
                 this%outside_normals,__FILE__,__LINE__)
 end subroutine fe_map_create_from_face
 
-!==============================================================================
-subroutine fe_map_update_face( this, local_face_id, reference_fe, quadrature, cell_coordinates )
+!==================================================================================================
+subroutine fe_map_update_from_face(this,local_face_id,reference_fe,quadrature,   &
+     &                             face_coordinates)
   implicit none    
   class(fe_map_t)      , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id
   class(reference_fe_t), intent(in)    :: reference_fe
   type(SB_quadrature_t), intent(in)    :: quadrature
-  real(rp)             , intent(in)    :: cell_coordinates(:,:)
+  real(rp)             , intent(in)    :: face_coordinates(:,:)
   
+  integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
+  integer(ip) :: number_face_dimensions, number_elem_dimensions, orientation_face
   
-end subroutine fe_map_update_face
+  number_face_dimensions = this%interpolation_geometry%number_dimensions
+  number_elem_dimensions = reference_fe%number_dimensions
+  local_vef_id = reference_fe%number_vefs_dimension(number_elem_dimensions) + local_face_id - 1
+  orientation_face  = reference_fe%orientation%a(local_vef_id)
+  reorientation_factor = (-1)**orientation_face
+  ! Initialize values
+  this%coordinates_points = 0.0_rp
+  this%jacobian           = 0.0_rp
+  do evaluation_point_id = 1, quadrature%number_evaluation_points
+     do node_id = 1, this%interpolation_geometry%number_shape_functions
+        ! Updating the coordinates
+        this%coordinates_points(:,evaluation_point_id) =                                          &
+             & this%coordinates_points(:,evaluation_point_id) + face_coordinates(:,node_id) *     &
+             & this%interpolation_geometry%shape_functions(node_id,evaluation_point_id)
 
-  !==============================================================================
+        ! Updating the Jacobian Matrix
+        do jdime=1, number_face_dimensions
+             do idime = 1, number_elem_dimensions
+                this%jacobian(idime,jdime,evaluation_point_id) =                                  &
+                     &  this%jacobian(idime,jdime,evaluation_point_id) +                          &
+                     &  face_coordinates(idime,node_id) *                                         &
+                     &  this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
+             end do
+          end do
+     end do
+     
+     ! Compute outside normals (using the jacobian Matrix)
+     if ( number_elem_dimensions == 1) then
+        this%outside_normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
+     elseif ( number_elem_dimensions == 2) then
+        this%outside_normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
+        this%outside_normals (2,evaluation_point_id) = - this%jacobian(1,1,evaluation_point_id)
+     elseif ( number_elem_dimensions == 3) then
+        call vecpro(this%jacobian(:,1,evaluation_point_id),this%jacobian(:,2,evaluation_point_id),&
+             &                    this%outside_normals(:,evaluation_point_id),3)
+     end if
+
+     ! Compute the measure of the face (= norm of the outside normal)
+     this%det_jacobian(evaluation_point_id) =                                                     &
+          &                         sqrt(dot_product(this%outside_normals(:,evaluation_point_id), &
+          &                                          this%outside_normals(:,evaluation_point_id)))
+
+     ! Normalize the normal vector and make it point in the correct direction
+     this%outside_normals (:,evaluation_point_id) = this%outside_normals (:,evaluation_point_id) *&
+          &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
+     
+  end do
+
+  
+end subroutine fe_map_update_from_face
+
+!==================================================================================================
+subroutine vecpro(v1,v2,v3,n)
+  !-----------------------------------------------------------------------
+  !
+  ! Two and three-dimensional vectorial product of two vectors  v3 = v1 x v2.
+  ! The same pointer as for v1 or v2 may be used for v3. If N = 2, it is
+  !  assumed that v1 = (0,0,v1_3) and v2 = (v2_1,v2_2,0).      
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: n
+  real(rp),    intent(in)  :: v2(n),v1(3)
+  real(rp),    intent(out) :: v3(n)
+  real(rp)                 :: c1,c2,c3
+
+  if(n==2) then
+     c1=-v1(3)*v2(2)
+     c2= v1(3)*v2(1)
+     v3(1)=c1
+     v3(2)=c2
+  else if(n==3) then
+     c1=v1(2)*v2(3)-v1(3)*v2(2)
+     c2=v1(3)*v2(1)-v1(1)*v2(3)
+     c3=v1(1)*v2(2)-v1(2)*v2(1)
+     v3(1)=c1
+     v3(2)=c2
+     v3(3)=c3
+  end if
+
+end subroutine vecpro
+
+  !==================================================================================================
   subroutine fe_map_update( this, quadrature, cell_coordinates )
     !-----------------------------------------------------------------------
     ! A map obtained from the (usually isoparametric) interpolation of the geometry

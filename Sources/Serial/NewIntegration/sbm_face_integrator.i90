@@ -143,5 +143,8 @@ subroutine face_integrator_update(this,local_face_id,left_reference_fe_geo,left_
      end select
   end do
 
+  ! Update the face
+  call this%face_map%update_from_face(local_face_id(1),left_reference_fe_geo,this%quadrature,          &
+       &                              this%coordinates)
 
 end subroutine face_integrator_update

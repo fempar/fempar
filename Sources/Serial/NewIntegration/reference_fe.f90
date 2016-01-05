@@ -379,6 +379,7 @@ contains
   procedure, non_overridable :: create           => fe_map_create
   procedure, non_overridable :: create_from_face => fe_map_create_from_face
   procedure, non_overridable :: update           => fe_map_update
+  procedure, non_overridable :: update_from_face => fe_map_update_from_face
   procedure, non_overridable :: free             => fe_map_free
   procedure, non_overridable :: print            => fe_map_print
   procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
