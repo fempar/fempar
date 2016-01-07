@@ -188,38 +188,29 @@ contains
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do inode = 1, number_nodes_per_field(1)
              call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
-             !call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_vector)
              do jnode = 1, number_nodes_per_field(1)
                 call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
-                !call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_vector)
-                elmat(inode,jnode) = elmat(inode,jnode) + factor * grad_test_scalar * grad_trial_scalar
-                !elmat(inode,jnode) = elmat(inode,jnode) + factor * (grad_test_vector .doublecontract. grad_trial_vector)
+                elmat(inode,jnode) = elmat(inode,jnode) + factor*grad_test_scalar*grad_trial_scalar
              end do
           end do
 
           do inode = 1, number_nodes_per_field(2)
              ioffset = number_nodes_per_field(1)+inode
-             !call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_scalar)
              call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_vector)
-             ! write(*,*) inode, grad_trial_vector%value
              do jnode = 1, number_nodes_per_field(2)
                 joffset = number_nodes_per_field(1)+jnode
                 call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
-                !call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_scalar)
-                elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * double_contract(grad_test_vector,grad_trial_vector)
-                !elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * grad_test_scalar * grad_trial_scalar
+                elmat(ioffset,joffset) = elmat(ioffset,joffset) +                                 &
+                     &                   factor*double_contract(grad_test_vector,grad_trial_vector)
              end do
           end do
        end do
        
-       !write (*,*) 'XXXXXXXXX ELMAT field 1 XXXXXXXXX'
-       !write (*,*) elmat(1:number_nodes_per_field(1),1:number_nodes_per_field(1))
        
-       !write (*,*) 'XXXXXXXXX ELMAT field 2 XXXXXXXXX'
-       !write (*,*) elmat(number_nodes_per_field(1)+1:,number_nodes_per_field(1)+1:)
-       
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
-       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
+       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value,                   &
+            &                                  number_nodes_per_field, number_fe_spaces )
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
+            &                   field_coupling, elmat, elvec )      
     end do
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )

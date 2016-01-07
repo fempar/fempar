@@ -61,7 +61,7 @@ subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe
   ! propose to define a reference element associated to face integration
   ! (in case we want to use diferente volume and face integration)
   call left_reference_fe%create_face_quadrature(this%quadrature, max_order)
-  call this%face_map%create_from_face(this%quadrature, this%reference_fe(1)%p)
+  call this%face_map%face_map_create(this%quadrature, this%reference_fe(1)%p)
 
   ! Allocate the coordinates assuming the geometry and the interpolation are the same order
   ! AH: This needs to be improved in the future and also the variable coordinates might need 
@@ -144,7 +144,7 @@ subroutine face_integrator_update(this,local_face_id,left_reference_fe_geo,left_
   end do
 
   ! Update the face
-  call this%face_map%update_from_face(local_face_id(1),left_reference_fe_geo,this%quadrature,          &
+  call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,this%quadrature,          &
        &                              this%coordinates)
 
 end subroutine face_integrator_update

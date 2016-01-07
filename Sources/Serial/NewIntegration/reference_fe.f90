@@ -377,9 +377,9 @@ type fe_map_t
   type(SB_interpolation_t) :: interpolation_geometry    ! Geometry interpolation_t in the reference element domain
 contains
   procedure, non_overridable :: create           => fe_map_create
-  procedure, non_overridable :: create_from_face => fe_map_create_from_face
+  procedure, non_overridable :: face_map_create  => fe_map_face_map_create
   procedure, non_overridable :: update           => fe_map_update
-  procedure, non_overridable :: update_from_face => fe_map_update_from_face
+  procedure, non_overridable :: face_map_update => fe_map_face_map_update
   procedure, non_overridable :: free             => fe_map_free
   procedure, non_overridable :: print            => fe_map_print
   procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
@@ -475,9 +475,11 @@ type face_integrator_t
    private
    type(face_interpolation_t) :: interpolation(2)
    type(fe_map_t)             :: face_map
+   type(fe_map_t)             :: fe_map(2)
    type(SB_quadrature_t)      :: quadrature
    type(p_reference_fe_t)     :: reference_fe(2)
    real(rp)     , allocatable :: coordinates(:,:)
+   type(list_t)               :: elem_to_face_enumeration(2)
  contains
   procedure, non_overridable :: initialize => face_integrator_initialize
   procedure                  :: update     => face_integrator_update

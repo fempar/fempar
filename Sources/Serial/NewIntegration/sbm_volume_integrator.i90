@@ -33,7 +33,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
 end subroutine fe_map_create
 
 !==================================================================================================
-subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
+subroutine fe_map_face_map_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
   class(fe_map_t)      , intent(inout) :: this
@@ -66,10 +66,10 @@ subroutine fe_map_create_from_face( this, quadrature, reference_fe_geometry )
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
                 this%outside_normals,__FILE__,__LINE__)
-end subroutine fe_map_create_from_face
+end subroutine fe_map_face_map_create
 
 !==================================================================================================
-subroutine fe_map_update_from_face(this,local_face_id,reference_fe,quadrature,   &
+subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature,   &
      &                             face_coordinates)
   implicit none    
   class(fe_map_t)      , intent(inout) :: this
@@ -130,7 +130,7 @@ subroutine fe_map_update_from_face(this,local_face_id,reference_fe,quadrature,  
   end do
 
   
-end subroutine fe_map_update_from_face
+end subroutine fe_map_face_map_update
 
 !==================================================================================================
 subroutine vecpro(v1,v2,v3,n)
