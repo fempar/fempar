@@ -37,6 +37,7 @@ subroutine finite_face_update_face_integration( this )
      call this%face_integrator(i)%p%update(this%face_topology%relative_face,                      &
           &                           this%neighbour_fe(1)%p%reference_fe_geo,                    &
           &                           this%neighbour_fe(1)%p%reference_fe_phy(i)%p,               &
+          &                           this%neighbour_fe(1)%p%cell%coordinates,                    &
           &                           this%neighbour_fe(1)%p%cell%coordinates)
   end do
      !call this%fe_map%update_face( this%quadrature, this%cell%coordinates, this% )

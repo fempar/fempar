@@ -140,8 +140,9 @@ module reference_fe_names
      ! Fill topology, fe_type, number_dimensions, order, continuity 
      procedure(create_interface)                , deferred :: create 
      ! TBP to create a quadrature for a reference_fe_t
-     procedure(create_quadrature_interface)     , deferred :: create_quadrature
-     procedure(create_face_quadrature_interface), deferred :: create_face_quadrature
+     procedure(create_quadrature_interface)         , deferred :: create_quadrature
+     procedure(create_quadrature_on_faces_interface), deferred :: create_quadrature_on_faces
+     procedure(create_face_quadrature_interface)    , deferred :: create_face_quadrature
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)  , deferred :: create_interpolation 
@@ -238,6 +239,16 @@ module reference_fe_names
        type(SB_quadrature_t), intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
+ 
+     subroutine create_quadrature_on_faces_interface ( this, face_quadrature, quadrature, elem_to_face_enumeration, max_order )
+       import :: reference_fe_t, SB_quadrature_t, list_t, ip
+       implicit none 
+       class(reference_fe_t), intent(in)    :: this
+       type(SB_quadrature_t), intent(in)    :: face_quadrature
+       type(SB_quadrature_t), intent(inout) :: quadrature
+       type(list_t)         , intent(inout) :: elem_to_face_enumeration
+       integer(ip), optional, intent(in)    :: max_order
+     end subroutine create_quadrature_on_faces_interface
 
      subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
        import :: reference_fe_t, SB_quadrature_t, ip
@@ -264,13 +275,15 @@ module reference_fe_names
        type(SB_interpolation_t), intent(inout) :: interpolation
      end subroutine create_face_local_interpolation_interface
 
-     subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature, face_interpolation)
-       import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t, ip
+     subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
+          &                                           face_interpolation,elem_to_face_enumeration)
+       import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t, ip, list_t
        implicit none 
        class(reference_fe_t)     , intent(in)    :: this
        integer(ip)               , intent(in)    :: local_face_id
        type(SB_quadrature_t)     , intent(in)    :: local_quadrature
        type(SB_interpolation_t)  , intent(inout) :: face_interpolation
+       type(list_t)    , optional, intent(in)    :: elem_to_face_enumeration
      end subroutine create_face_interpolation_interface
      
      function get_bc_component_node_interface( this, node )
@@ -342,6 +355,7 @@ contains
   ! Deferred TBP implementors
   procedure :: create                    => quad_lagrangian_reference_fe_create
   procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
+  procedure :: create_quadrature_on_faces=> quad_lagrangian_reference_fe_create_quadrature_on_faces
   procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
   procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
   procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
@@ -377,9 +391,11 @@ type fe_map_t
   type(SB_interpolation_t) :: interpolation_geometry    ! Geometry interpolation_t in the reference element domain
 contains
   procedure, non_overridable :: create           => fe_map_create
+  procedure, non_overridable :: create_on_faces  => fe_map_create_on_faces
   procedure, non_overridable :: face_map_create  => fe_map_face_map_create
   procedure, non_overridable :: update           => fe_map_update
-  procedure, non_overridable :: face_map_update => fe_map_face_map_update
+  procedure, non_overridable :: update_on_faces  => fe_map_update_on_faces
+  procedure, non_overridable :: face_map_update  => fe_map_face_map_update
   procedure, non_overridable :: free             => fe_map_free
   procedure, non_overridable :: print            => fe_map_print
   procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
@@ -463,6 +479,7 @@ type face_interpolation_t
   class(reference_fe_t)       , pointer :: reference_fe
 contains
   procedure :: create => face_interpolation_create
+  procedure :: update => face_interpolation_update
   procedure :: free   => face_interpolation_free
 end type face_interpolation_t
 
