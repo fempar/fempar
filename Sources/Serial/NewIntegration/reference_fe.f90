@@ -138,55 +138,49 @@ module reference_fe_names
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
-     procedure(create_interface)                , deferred :: create 
+     procedure(create_interface)                        , deferred :: create 
      ! TBP to create a quadrature for a reference_fe_t
-     procedure(create_quadrature_interface)         , deferred :: create_quadrature
-     procedure(create_quadrature_on_faces_interface), deferred :: create_quadrature_on_faces
-     procedure(create_face_quadrature_interface)    , deferred :: create_face_quadrature
+     procedure(create_quadrature_interface)             , deferred :: create_quadrature
+     !procedure(create_quadrature_on_faces_interface)    , deferred :: create_quadrature_on_faces
+     procedure(create_face_quadrature_interface)        , deferred :: create_face_quadrature
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
-     procedure(create_interpolation_interface)  , deferred :: create_interpolation 
-     procedure(create_face_local_interpolation_interface), deferred :: create_face_local_interpolation
-     procedure(create_face_interpolation_interface), deferred :: create_face_interpolation
+     procedure(create_interpolation_interface)          , deferred :: create_interpolation 
+     procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
+     procedure(create_face_local_interpolation_interface),deferred :: create_face_local_interpolation
      procedure(get_bc_component_node_interface) , deferred :: get_bc_component_node
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
      procedure(get_value_vector_interface)           , deferred :: get_value_vector
      !procedure(get_value_tensor_interface)          , deferred :: get_value_tensor           ! Pending
      !procedure(get_value_symmetric_tensor_interface), deferred :: get_value_symmetric_tensor ! Pending
-     generic                                                   :: get_value => get_value_scalar,&
-                                                                               get_value_vector !,&
-                                                                               !get_value_tensor,&
-                                                                               !get_value_symmetric_tensor
+     generic :: get_value => get_value_scalar,get_value_vector                                      &
+          &                !,get_value_tensor,get_value_symmetric_tensor
     
      procedure(get_gradient_scalar_interface)          , deferred :: get_gradient_scalar
      procedure(get_gradient_vector_interface)          , deferred :: get_gradient_vector
      !procedure(get_gradient_tensor_interface)          , deferred :: get_gradient_tensor ! Pending
-     generic                                                      :: get_gradient => get_gradient_scalar,&
-                                                                                     get_gradient_vector !,&
-                                                                                     !get_value_tensor ,&
-                                                                                     !get_value_symmetric_tensor
+     generic :: get_gradient => get_gradient_scalar,get_gradient_vector                             &
+          &                   !,get_value_tensor,get_value_symmetric_tensor
                                                                                      
      !procedure(get_symmetric_gradient_vector_interface), deferred :: get_symmetric_gradient_vector ! Pending
-     !generic                                                      :: get_symmetric_gradient => get_symmetric_gradient_scalar
-     
-     !procedure(get_divergence_vector_interface)          , deferred :: get_divergence_vector ! Pending
-     !procedure(get_divergence_tensor_interface)          , deferred :: get_divergence_tensor ! Pending
-     !generic                                                        :: get_divergence => get_divergence_vector,&
-     !                                                                                    get_divergence_tensor
+     !generic :: get_symmetric_gradient => get_symmetric_gradient_scalar
+
+     !procedure(get_divergence_vector_interface)        , deferred :: get_divergence_vector ! Pending
+     !procedure(get_divergence_tensor_interface)        , deferred :: get_divergence_tensor ! Pending
+     !generic :: get_divergence => get_divergence_vector, get_divergence_tensor
                                                                                      
-     !procedure(get_curl_vector_interface)          , deferred :: get_curl_vector ! Pending
-     !generic                                                  :: get_curl => get_curl_vector
+     !procedure(get_curl_vector_interface)              , deferred :: get_curl_vector ! Pending
+     !generic :: get_curl => get_curl_vector
 
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
      ! generic part of the subroutine above
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
-     
-     ! SB.alert : To be done
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
+     procedure :: number_vefs_of_dimension  => reference_fe_number_vefs_of_dimension
 
      ! Set number_dimensions, order, continuity, field_type, number_field_components
      procedure :: set_common_data => reference_fe_set_common_data
@@ -198,21 +192,18 @@ module reference_fe_names
      procedure :: get_order => reference_fe_get_order
      procedure :: get_continuity => reference_fe_get_continuity
      procedure :: get_number_field_components => reference_fe_get_number_field_components
-
      procedure :: get_number_vefs => reference_fe_get_number_vefs
      procedure :: get_number_nodes => reference_fe_get_number_nodes
      procedure :: get_number_vefs_dimension => reference_fe_get_number_vefs_dimension
-     procedure :: number_vefs_of_dimension  => reference_fe_number_vefs_of_dimension
-     procedure :: get_orientation => reference_fe_get_orientation
      procedure :: get_interior_nodes_vef  => reference_fe_get_interior_nodes_vef
      procedure :: get_nodes_vef  =>     reference_fe_get_nodes_vef
      procedure :: get_corners_vef  =>   reference_fe_get_corners_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
-
      procedure :: get_node_vef => reference_fe_get_node_vef
      procedure :: get_interior_node_vef => reference_fe_get_interior_node_vef
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
+     procedure :: get_orientation => reference_fe_get_orientation
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -240,15 +231,16 @@ module reference_fe_names
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
  
-     subroutine create_quadrature_on_faces_interface ( this, face_quadrature, quadrature, elem_to_face_enumeration, max_order )
-       import :: reference_fe_t, SB_quadrature_t, list_t, ip
-       implicit none 
-       class(reference_fe_t), intent(in)    :: this
-       type(SB_quadrature_t), intent(in)    :: face_quadrature
-       type(SB_quadrature_t), intent(inout) :: quadrature
-       type(list_t)         , intent(inout) :: elem_to_face_enumeration
-       integer(ip), optional, intent(in)    :: max_order
-     end subroutine create_quadrature_on_faces_interface
+     ! subroutine create_quadrature_on_faces_interface ( this, face_quadrature, quadrature,           &
+     !      elem_to_face_enumeration, max_order )
+     !   import :: reference_fe_t, SB_quadrature_t, list_t, ip
+     !   implicit none 
+     !   class(reference_fe_t), intent(in)    :: this
+     !   type(SB_quadrature_t), intent(in)    :: face_quadrature
+     !   type(SB_quadrature_t), intent(inout) :: quadrature
+     !   type(list_t)         , intent(inout) :: elem_to_face_enumeration
+     !   integer(ip), optional, intent(in)    :: max_order
+     ! end subroutine create_quadrature_on_faces_interface
 
      subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
        import :: reference_fe_t, SB_quadrature_t, ip
@@ -277,7 +269,7 @@ module reference_fe_names
 
      subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
           &                                           face_interpolation,elem_to_face_enumeration)
-       import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t, ip, list_t
+       import :: reference_fe_t, ip, SB_quadrature_t, SB_interpolation_t, list_t
        implicit none 
        class(reference_fe_t)     , intent(in)    :: this
        integer(ip)               , intent(in)    :: local_face_id
@@ -294,7 +286,8 @@ module reference_fe_names
        integer(ip) :: get_bc_component_node_interface
      end function get_bc_component_node_interface
 
-     subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
+     subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
+          &                                 scalar_field )
        import :: reference_fe_t, SB_interpolation_t, ip, rp
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
@@ -304,7 +297,8 @@ module reference_fe_names
        real(rp)                , intent(out) :: scalar_field
      end subroutine get_value_scalar_interface
      
-     subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint, vector_field )
+     subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
+          &                                 vector_field )
        import :: reference_fe_t, SB_interpolation_t, vector_field_t, ip
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
@@ -314,7 +308,8 @@ module reference_fe_names
        type(vector_field_t)    , intent(out) :: vector_field
      end subroutine get_value_vector_interface
      
-     subroutine get_gradient_scalar_interface( this, actual_cell_interpolation, ishape, qpoint, vector_field )
+     subroutine get_gradient_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,     &
+          &                                    vector_field )
        import :: reference_fe_t, SB_interpolation_t, vector_field_t, ip
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
@@ -324,7 +319,8 @@ module reference_fe_names
        type(vector_field_t)    , intent(out) :: vector_field
      end subroutine get_gradient_scalar_interface
      
-     subroutine get_gradient_vector_interface( this, actual_cell_interpolation, ishape, qpoint, tensor_field )
+     subroutine get_gradient_vector_interface( this, actual_cell_interpolation, ishape, qpoint,     &
+          &                                    tensor_field )
        import :: reference_fe_t, SB_interpolation_t, tensor_field_t, ip
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
@@ -348,47 +344,54 @@ module reference_fe_names
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
-  private
-  integer(ip)              :: number_nodes_scalar
-  integer(ip), allocatable :: node_component_array(:,:)
-contains 
-  ! Deferred TBP implementors
-  procedure :: create                    => quad_lagrangian_reference_fe_create
-  procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
-  procedure :: create_quadrature_on_faces=> quad_lagrangian_reference_fe_create_quadrature_on_faces
-  procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
-  procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
-  procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-  procedure :: create_face_local_interpolation                                                      &
-       &                              => quad_lagrangian_reference_fe_create_face_local_interpolation
-  
-  procedure :: get_bc_component_node  => quad_lagrangian_reference_fe_get_bc_component_node
-  procedure :: permute_order_vef      => quad_lagrangian_reference_fe_permute_order_vef
-  
-  procedure :: get_value_scalar       => quad_lagrangian_reference_fe_get_value_scalar
-  procedure :: get_value_vector       => quad_lagrangian_reference_fe_get_value_vector
-  procedure :: get_gradient_scalar    => quad_lagrangian_reference_fe_get_gradient_scalar
-  procedure :: get_gradient_vector    => quad_lagrangian_reference_fe_get_gradient_vector
-  
-  
+     private
+     integer(ip)              :: number_nodes_scalar
+     integer(ip), allocatable :: node_component_array(:,:)
+   contains 
+     ! Deferred TBP implementors
+     procedure :: create                    => quad_lagrangian_reference_fe_create
+     procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
+     !procedure :: create_quadrature_on_faces                                                           &
+     !     &                           => quad_lagrangian_reference_fe_create_quadrature_on_faces
+     procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
+     procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
+     procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
+     procedure :: create_face_local_interpolation                                                      &
+          &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
 
-  ! Concrete TBPs of this derived data type
-  procedure :: fill                   => quad_lagrangian_reference_fe_fill
-  procedure :: free                   => quad_lagrangian_reference_fe_free
-end type quad_lagrangian_reference_fe_t
+     procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
+     procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
 
-public :: quad_lagrangian_reference_fe_t
+     procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
+     procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector
+     procedure :: get_gradient_scalar       => quad_lagrangian_reference_fe_get_gradient_scalar
+     procedure :: get_gradient_vector       => quad_lagrangian_reference_fe_get_gradient_vector
+
+
+     ! Concrete TBPs of this derived data type
+     procedure :: fill                      => quad_lagrangian_reference_fe_fill
+     procedure :: free                      => quad_lagrangian_reference_fe_free
+  end type quad_lagrangian_reference_fe_t
+  
+  public :: quad_lagrangian_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type fe_map_t
   private
-  real(rp), allocatable    :: jacobian(:,:,:)           ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
-  real(rp), allocatable    :: inv_jacobian(:,:,:)       ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_evaluation_points)
-  real(rp), allocatable    :: det_jacobian(:)           ! Map's Jacobian det (number_evaluation_points)
-  real(rp), allocatable    :: d2sdx(:,:,:,:)            ! Map's 2nd derivatives (number_dimensions,number_dimensions,number_dimensions,number_evaluation_points)
-  real(rp), allocatable    :: coordinates_points(:,:)   ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)
-  real(rp), allocatable    :: outside_normals(:,:)      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces)
-  type(SB_interpolation_t) :: interpolation_geometry    ! Geometry interpolation_t in the reference element domain
+  ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
+  real(rp), allocatable    :: jacobian(:,:,:)    
+  ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_evaluation_points)       
+  real(rp), allocatable    :: inv_jacobian(:,:,:)     
+  ! Map's Jacobian det (number_evaluation_points)  
+  real(rp), allocatable    :: det_jacobian(:)  
+  ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
+  real(rp), allocatable    :: d2sdx(:,:,:,:)     
+  ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
+  real(rp), allocatable    :: coordinates_points(:,:)  
+  ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
+  real(rp), allocatable    :: outside_normals(:,:)  
+  ! Geometry interpolation_t in the reference element domain    
+  type(SB_interpolation_t) :: interpolation_geometry    
 contains
   procedure, non_overridable :: create           => fe_map_create
   procedure, non_overridable :: create_on_faces  => fe_map_create_on_faces
