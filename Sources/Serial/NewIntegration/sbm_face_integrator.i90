@@ -1,28 +1,46 @@
-subroutine face_interpolation_create(this, local_quadrature, reference_fe)
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!face_interpolation_t type procedures
+subroutine face_interpolation_create(this, local_quadrature, reference_fe_phy)
   implicit none
   ! Parameters
   class(face_interpolation_t)  , intent(inout) :: this
   type(SB_quadrature_t)        ,  intent(in)   :: local_quadrature
-  class(reference_fe_t), target, intent(in)    :: reference_fe
+  class(reference_fe_t), target, intent(in)    :: reference_fe_phy
 
   integer(ip)           :: face_dimensions,local_face_id, istat
   type(SB_quadrature_t) :: face_quadrature
 
-  this%number_shape_functions   = reference_fe%number_nodes
+  call this%free()
+
+  this%number_shape_functions   = reference_fe_phy%number_nodes
   this%number_evaluation_points = local_quadrature%number_evaluation_points
-  face_dimensions               = reference_fe%number_dimensions - 1
-  this%number_faces             = reference_fe%number_vefs_of_dimension(face_dimensions)
-  this%reference_fe             => reference_fe
+  face_dimensions               = reference_fe_phy%number_dimensions - 1
+  this%number_faces             = reference_fe_phy%number_vefs_of_dimension(face_dimensions)
+  this%reference_fe             => reference_fe_phy
 
   allocate(this%interpolation(this%number_faces),stat = istat)
   check(istat == 0)
 
   do local_face_id =1, this%number_faces
-     call reference_fe%create_face_interpolation(local_face_id,local_quadrature,                  &
+     call reference_fe_phy%create_face_interpolation(local_face_id,local_quadrature,                  &
           &                                      this%interpolation(local_face_id))
   end do
 
+  call this%interpolation_o_map%copy(source_interpolation = this%interpolation(1))
+
 end subroutine face_interpolation_create
+
+!==================================================================================================
+subroutine face_interpolation_update(this, local_face_id, fe_map)
+  implicit none
+  ! Parameters
+  class(face_interpolation_t)  , intent(inout) :: this
+  integer(ip)                  , intent(in)    :: local_face_id
+  type(fe_map_t)               , intent(in)    :: fe_map
+
+  call femap_apply_to_interp(fe_map, this%interpolation(local_face_id),                  &
+       &                     this%interpolation_o_map)
+end subroutine face_interpolation_update
 
 !==================================================================================================
 subroutine face_interpolation_free(this)
@@ -30,13 +48,16 @@ subroutine face_interpolation_free(this)
   ! Parameters
   class(face_interpolation_t)  , intent(inout) :: this
 
-  integer(ip) :: i
+  integer(ip) :: i, istat
 
   do i = 1, this%number_faces
      call this%interpolation(i)%free()
   end do
   call this%interpolation_o_map%free
-
+  if (allocated(this%interpolation)) then
+     deallocate(this%interpolation, stat = istat)
+     check (istat == 0)
+  end if
   this%number_shape_functions   = 0
   this%number_evaluation_points = 0
   this%number_faces             = 0
@@ -44,7 +65,8 @@ subroutine face_interpolation_free(this)
   this%reference_fe => NULL()
 end subroutine face_interpolation_free
 
-!==================================================================================================
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!face_integrator_t type procedures
 subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe, max_order )
   implicit none
   ! Parameters
@@ -52,7 +74,10 @@ subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe
   class(reference_fe_t), target, intent(in)    :: left_reference_fe, right_reference_fe
   integer(ip)       , optional , intent(in)    :: max_order
 
-  integer(ip) :: i
+  integer(ip)           :: i, number_nodes_face, number_nodes_face_scalar, aux_vef_dimension(5)
+  type(SB_quadrature_t) :: quadrature_on_faces
+
+  call this%free()
 
   this%reference_fe(1)%p => left_reference_fe
   this%reference_fe(2)%p => right_reference_fe
@@ -61,13 +86,70 @@ subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe
   ! propose to define a reference element associated to face integration
   ! (in case we want to use diferente volume and face integration)
   call left_reference_fe%create_face_quadrature(this%quadrature, max_order)
-  call this%face_map%create_from_face(this%quadrature, this%reference_fe(1)%p)
+  call this%face_map%face_map_create(this%quadrature, this%reference_fe(1)%p)
 
+  ! Allocate the coordinates assuming the geometry and the interpolation are the same order
+  ! AH: This needs to be improved in the future and also the variable coordinates might need 
+  ! to be discussed at some point
+  ! If we agree in using such a structure, clearly this code should be encapsulated somehow
+  ! in reference_fe (the use of number_vef_dimension should not be explicited)
+  aux_vef_dimension = left_reference_fe%get_number_vefs_dimension()
+  number_nodes_face = left_reference_fe%get_number_nodes_vef(aux_vef_dimension(left_reference_fe%number_dimensions))
+  number_nodes_face_scalar = int(real(number_nodes_face)/real(left_reference_fe%number_field_components))
+  call memalloc(left_reference_fe%number_dimensions, number_nodes_face_scalar, this%coordinates,           &
+       &        __FILE__,__LINE__)
+    
   do i = 1, 2
      call this%interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
+     call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
+          &                               this%elem_to_face_enumeration(i))
+     call this%fe_map(i)%create_on_faces(this%quadrature,this%reference_fe(i)%p,                  &
+          &                              this%elem_to_face_enumeration(i))
   end do
 
 end subroutine face_integrator_initialize
+
+!==================================================================================================
+!face_integrator_t type procedures
+subroutine face_integrator_initialize_boundary(this,left_reference_fe, max_order )
+  implicit none
+  ! Parameters
+  class(face_integrator_t)     , intent(inout) :: this
+  class(reference_fe_t), target, intent(in)    :: left_reference_fe
+  integer(ip)       , optional , intent(in)    :: max_order
+
+  integer(ip)           :: i, number_nodes_face, number_nodes_face_scalar, aux_vef_dimension(5)
+  type(SB_quadrature_t) :: quadrature_on_faces
+
+  call this%free()
+
+  this%reference_fe(1)%p => left_reference_fe
+  this%reference_fe(2)%p => NULL()
+
+  ! AH: This quadrature is created using the left reference element but in a future I would
+  ! propose to define a reference element associated to face integration
+  ! (in case we want to use diferente volume and face integration)
+  call left_reference_fe%create_face_quadrature(this%quadrature, max_order)
+  call this%face_map%face_map_create(this%quadrature, this%reference_fe(1)%p)
+
+  ! Allocate the coordinates assuming the geometry and the interpolation are the same order
+  ! AH: This needs to be improved in the future and also the variable coordinates might need 
+  ! to be discussed at some point
+  ! If we agree in using such a structure, clearly this code should be encapsulated somehow
+  ! in reference_fe (the use of number_vef_dimension should not be explicited)
+  aux_vef_dimension = left_reference_fe%get_number_vefs_dimension()
+  number_nodes_face = left_reference_fe%get_number_nodes_vef(aux_vef_dimension(left_reference_fe%number_dimensions))
+  number_nodes_face_scalar = int(real(number_nodes_face)/real(left_reference_fe%number_field_components))
+  call memalloc(left_reference_fe%number_dimensions, number_nodes_face_scalar, this%coordinates,           &
+       &        __FILE__,__LINE__)
+  i = 1
+  call this%interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
+  call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
+       &                               this%elem_to_face_enumeration(i))
+  call this%fe_map(i)%create_on_faces(this%quadrature,this%reference_fe(i)%p,                  &
+       &                              this%elem_to_face_enumeration(i))
+  
+end subroutine face_integrator_initialize_boundary
 
 !==================================================================================================
 subroutine face_integrator_free(this)
@@ -82,5 +164,99 @@ subroutine face_integrator_free(this)
   do i=1,2
      this%reference_fe(i)%p => NULL()
      call this%interpolation(i)%free()
+     call this%elem_to_face_enumeration(i)%free()
+     call this%fe_map(i)%free()
   end do
+
+  if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
 end subroutine face_integrator_free
+
+!==================================================================================================
+subroutine face_integrator_update(this,local_face_id,left_reference_fe_geo,left_reference_fe_phy, &
+     &                            left_neighbour_coordinates,right_neighbour_coordinates)
+  implicit none
+  ! Parameters
+  class(face_integrator_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: local_face_id(2)
+  class(reference_fe_t)   , intent(in)    :: left_reference_fe_geo
+  class(reference_fe_t)   , intent(in)    :: left_reference_fe_phy
+  real(rp)                , intent(in)    :: left_neighbour_coordinates(:,:)
+  real(rp)                , intent(in)    :: right_neighbour_coordinates(:,:)
+  !class(elem_topology_t)  , intent(in)    :: left_neighbour_topology
+
+  integer(ip) :: i, number_nodes_face_geo, aux_vef_dimension(5), local_vef_id, local_element_node
+  integer(ip) :: idime, coord_element_node, number_nodes_face_scalar,face_node_scalar
+  type(list_t), pointer :: nodes_vef
+
+  ! Update the coordinates
+  aux_vef_dimension = left_reference_fe_geo%get_number_vefs_dimension()
+  number_nodes_face_geo = left_reference_fe_geo%get_number_nodes_vef                              &
+       &                  (aux_vef_dimension(left_reference_fe_geo%number_dimensions))
+  local_vef_id      = aux_vef_dimension(left_reference_fe_geo%number_dimensions)+local_face_id(1) - 1
+  number_nodes_face_scalar = int(real(number_nodes_face_geo)/real(left_reference_fe_geo%number_field_components))
+  nodes_vef => left_reference_fe_geo%get_nodes_vef()
+  do i = 1, number_nodes_face_geo
+     ! For the moment reference_fe_geo is of an abstract class, maybe we should consider to
+     ! implement it as assuming that is always quad_lagrangian
+     select type(left_reference_fe_geo)
+        class is(quad_lagrangian_reference_fe_t)
+        if (left_reference_fe_geo%number_field_components == left_reference_fe_geo%number_dimensions) then
+           ! This is clearly not a good code. It should be discussed which is the best way to go through this.
+           local_element_node = nodes_vef%l(nodes_vef%p(local_vef_id) + i-1)
+           idime = left_reference_fe_geo%node_component_array(local_element_node,2)
+           coord_element_node = left_reference_fe_geo%node_component_array(local_element_node,1)
+           face_node_scalar = i - (idime-1)*number_nodes_face_scalar
+           this%coordinates(idime,face_node_scalar) = left_neighbour_coordinates(idime,coord_element_node)
+        elseif (left_reference_fe_geo%number_field_components == left_reference_fe_geo%number_dimensions) then
+           local_element_node = nodes_vef%l(nodes_vef%p(local_vef_id) + i-1)
+           this%coordinates(:,i) = left_neighbour_coordinates(:,local_element_node)
+        else
+           assert(.false.)
+        end if
+
+     end select
+  end do
+
+  ! Update the face_map
+  call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,this%quadrature,      &
+       &                              this%coordinates)
+
+
+  call this%fe_map(1)%update_on_faces(local_face_id(1),this%quadrature,left_neighbour_coordinates,&
+       &                              this%elem_to_face_enumeration(1))
+  call this%fe_map(2)%update_on_faces(local_face_id(2),this%quadrature,right_neighbour_coordinates,&
+       &                              this%elem_to_face_enumeration(2))
+
+  do i = 1, 2 
+     call this%interpolation(i)%update(local_face_id(i),this%fe_map(i))
+  end do
+end subroutine face_integrator_update
+
+!==================================================================================================
+subroutine create_elem_to_face_enumeration (reference_fe,face_quadrature,elem_to_face_enumeration)
+  implicit none 
+  class(reference_fe_t), intent(in)    :: reference_fe 
+  type(SB_quadrature_t), intent(in)    :: face_quadrature
+  type(list_t)         , intent(inout) :: elem_to_face_enumeration
+  
+  integer(ip) :: igaus,i
+  integer(ip) :: iface,face_dimensions, number_faces
+
+  face_dimensions = reference_fe%number_dimensions - 1
+  number_faces = reference_fe%number_vefs_of_dimension(face_dimensions)
+
+  ! Create the elem_to_face_enumeration array
+  call elem_to_face_enumeration%create(number_faces)
+  do iface = 1, number_faces+1
+     elem_to_face_enumeration%p(iface) = face_quadrature%number_evaluation_points *    &
+          &                                      (iface-1) + 1
+  end do
+  call elem_to_face_enumeration%allocate_list_from_pointer()
+  i = 1
+  do iface = 1, number_faces
+     do igaus = 1, face_quadrature% number_evaluation_points
+        elem_to_face_enumeration%l(elem_to_face_enumeration%p(iface) + igaus - 1) = i
+        i = i + 1
+     end do
+  end do  
+end subroutine create_elem_to_face_enumeration

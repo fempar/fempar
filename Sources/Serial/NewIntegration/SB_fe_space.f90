@@ -105,11 +105,14 @@ module SB_fe_space_names
 
   type :: finite_face_t
      private
+     integer(ip)                            :: number_fe_spaces
      type(face_topology_t)        , pointer :: face_topology
      type(p_SB_finite_element_t)            :: neighbour_fe(2)
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
-     procedure :: free => finite_face_free
+     procedure, non_overridable :: create                  => finite_face_create
+     procedure, non_overridable :: update_face_integration => finite_face_update_face_integration
+     procedure                  :: free                    => finite_face_free
   end type finite_face_t
 
   public :: finite_face_t
@@ -138,23 +141,25 @@ module SB_fe_space_names
      type(list_2d_t)               , allocatable :: vef2dof(:)
    contains
      procedure, non_overridable :: create
-     procedure, non_overridable :: create_face_array
      procedure, non_overridable :: fill_dof_info
      procedure, non_overridable :: free
      procedure, non_overridable :: print
      procedure, non_overridable :: initialize_integration
-     procedure, non_overridable, private :: initialize_volume_integrator
      procedure, non_overridable, private :: initialize_quadrature
+     procedure, non_overridable, private :: initialize_volume_integrator
      procedure, non_overridable, private :: initialize_fe_map
      procedure, non_overridable :: create_assembler
      procedure, non_overridable :: symbolic_setup_assembler
      procedure, non_overridable :: get_number_elements
+     procedure, non_overridable :: get_number_interior_faces
      procedure, non_overridable :: get_number_fe_spaces
      procedure, non_overridable :: get_finite_element
+     procedure, non_overridable :: get_finite_face
      procedure, non_overridable :: get_number_blocks
      procedure, non_overridable :: get_field_blocks
      procedure, non_overridable :: get_field_coupling
      procedure, non_overridable :: get_max_number_nodes
+     procedure, non_overridable :: create_face_array
   end type SB_serial_fe_space_t
 
   public :: SB_serial_fe_space_t

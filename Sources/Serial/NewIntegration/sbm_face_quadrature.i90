@@ -1,4 +1,3 @@
-
 !====================================================================================================
 ! Allocate and initialize the values of the face quadrature
 subroutine face_quadrature_create ( this, number_dimensions, number_integration_points_x_face, &

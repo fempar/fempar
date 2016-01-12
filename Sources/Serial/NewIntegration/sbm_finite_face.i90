@@ -1,4 +1,35 @@
 !==================================================================================================
+subroutine finite_face_create(this,number_fe_spaces)
+  implicit none
+  class(finite_face_t), intent(inout) :: this
+  integer(ip)         , intent(in)    :: number_fe_spaces
+
+  integer(ip) :: istat
+  this%number_fe_spaces = number_fe_spaces
+
+  allocate(this%face_integrator(this%number_fe_spaces),stat = istat)
+  check(istat == 0)
+  
+end subroutine finite_face_create
+
+!==================================================================================================
+subroutine finite_face_update_face_integration( this )
+  implicit none
+  class(finite_face_t), intent(inout) :: this 
+  integer(ip) :: i
+  
+  ! Here we should pass the %cell%geo_reference_element instead of %reference_fe_geo BUT it is still
+  ! not pointing to a reference_FE_t type of data.
+  do i = 1, this%number_fe_spaces
+     call this%face_integrator(i)%p%update(this%face_topology%relative_face,                      &
+          &                           this%neighbour_fe(1)%p%reference_fe_geo,                    &
+          &                           this%neighbour_fe(1)%p%reference_fe_phy(i)%p,               &
+          &                           this%neighbour_fe(1)%p%cell%coordinates,                    &
+          &                           this%neighbour_fe(2)%p%cell%coordinates)
+  end do
+end subroutine finite_face_update_face_integration
+
+!==================================================================================================
 subroutine finite_face_free(this)
   implicit none
   class(finite_face_t), intent(inout) :: this

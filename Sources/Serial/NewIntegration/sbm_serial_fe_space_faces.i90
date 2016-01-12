@@ -3,7 +3,7 @@ subroutine create_face_array (this)
   implicit none
   class(SB_serial_fe_space_t), target, intent(inout) :: this
 
-  integer(ip)                    :: face_id, i
+  integer(ip)                    :: face_id, i, j
   integer(ip)                    :: number_interior_faces, number_boundary_faces, number_total_faces
   integer(ip)                    :: istat,  local_neigh_elem_id, neigh_elem_id
   type(face_topology_t), pointer :: face_topology
@@ -17,15 +17,20 @@ subroutine create_face_array (this)
   number_total_faces    = number_interior_faces + number_boundary_faces
 
   ! Construct the face integrators
-  allocate( this%face_integrator(this%number_fe_spaces), stat=istat )
+  allocate( this%face_integrator(2*this%number_fe_spaces), stat=istat )
   check (istat == 0)
   do i  = 1, this%number_fe_spaces
      allocate( this%face_integrator(i)%p, stat = istat )
      check(istat == 0)
-     call this%face_integrator(i)%p%initialize(this%reference_fe_phy_list(1)%p,                         &
-          &                                  this%reference_fe_phy_list(1)%p)
+     call this%face_integrator(i)%p%initialize(this%reference_fe_phy_list(i)%p,                   &
+          &                                  this%reference_fe_phy_list(i)%p)
   end do
-
+  do i  = this%number_fe_spaces+1, 2*this%number_fe_spaces
+     j = i - this%number_fe_spaces
+     allocate( this%face_integrator(i)%p, stat = istat )
+     check(istat == 0)
+     call this%face_integrator(i)%p%initialize_boundary(this%reference_fe_phy_list(j)%p)
+  end do
   ! Allocate the array of faces
   allocate (this%face_array(number_total_faces), stat = istat )
   check (istat == 0)
@@ -42,9 +47,8 @@ subroutine create_face_array (this)
         face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
      end do
 
+     call face%create(this%number_fe_spaces)
      ! Assign the face integrator pointers
-     allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
-     check(istat == 0)
      do i = 1,  this%number_fe_spaces
         face%face_integrator(i)%p => this%face_integrator(i)%p
      end do
@@ -70,7 +74,7 @@ subroutine create_face_array (this)
      allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
      check(istat == 0)
      do i = 1,  this%number_fe_spaces
-        face%face_integrator(i)%p => this%face_integrator(i)%p
+        face%face_integrator(i)%p => this%face_integrator(this%number_fe_spaces+i)%p
      end do
   end do
 end subroutine create_face_array

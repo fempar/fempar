@@ -85,7 +85,7 @@ subroutine interpolation_print ( this )
         write(*,*) 'shape function phi^',i,'(gp=',j,')= ',this%shape_functions(i,j)
      end do
   end do
-                                                                                                                      
+
   write(*,*) '*************** SHAPE DERIVATIVES ******************'                      
 
   do i = 1, size(this%shape_derivatives,1)                                                             

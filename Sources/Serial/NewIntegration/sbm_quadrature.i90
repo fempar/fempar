@@ -20,19 +20,6 @@ subroutine quadrature_free ( this)
   if(allocated(this%weight)) call memfree(this%weight,__FILE__,__LINE__)
 end subroutine quadrature_free
 
-subroutine p_quadrature_allocate ( this)
-  implicit none       
-  class(SB_p_quadrature_t), intent(inout) :: this
-		allocate(this%p)
-end subroutine p_quadrature_allocate
-
-subroutine p_quadrature_free ( this)
-  implicit none       
-  class(SB_p_quadrature_t), intent(inout) :: this
-  call this%p%free()
-		deallocate(this%p)
-end subroutine p_quadrature_free
-
 subroutine quadrature_print ( this )
   implicit none
   class(SB_quadrature_t), intent(in) :: this
@@ -77,3 +64,16 @@ end function quadrature_get_weight
 !   real(rp), pointer :: quadrature_get_pointer_weight(:)
 !   quadrature_get_pointer_weight => this%weight
 ! end function quadrature_get_pointer_weight
+
+subroutine p_quadrature_allocate ( this)
+  implicit none       
+  class(SB_p_quadrature_t), intent(inout) :: this
+		allocate(this%p)
+end subroutine p_quadrature_allocate
+
+subroutine p_quadrature_free ( this)
+  implicit none       
+  class(SB_p_quadrature_t), intent(inout) :: this
+  call this%p%free()
+		deallocate(this%p)
+end subroutine p_quadrature_free

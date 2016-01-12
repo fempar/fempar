@@ -77,13 +77,6 @@
     this%continuity = .true.
   end subroutine reference_fe_free
   
-  subroutine p_reference_fe_free( this )
-    implicit none
-    class(p_reference_fe_t), intent(inout) :: this
-    call this%p%free()
-    deallocate ( this%p )
-  end subroutine p_reference_fe_free
-  
   subroutine reference_fe_print ( reference_fe )
   implicit none
   !     Parameters
@@ -125,6 +118,17 @@
   end do
 
 end subroutine reference_fe_print
+
+! Given a dimension 'vef_dimension' this functions returns the amount of objects of that 
+! dimension the element contains.
+function reference_fe_number_vefs_of_dimension ( this, vef_dimensions )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip)          , intent(in) :: vef_dimensions
+  integer(ip) :: reference_fe_number_vefs_of_dimension
+  reference_fe_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimensions+2) -          &
+       &                                  this%number_vefs_dimension(vef_dimensions+1)
+end function reference_fe_number_vefs_of_dimension
 
 subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, continuity )
   implicit none 
@@ -219,56 +223,6 @@ end function reference_fe_get_continuity
     reference_fe_get_number_vefs_dimension = this%number_vefs_dimension
   end function reference_fe_get_number_vefs_dimension
   
-  ! Given a dimension 'vef_dimension' this functions returns the amount of objects of that 
-  ! dimension the element contains.
-  function reference_fe_number_vefs_of_dimension ( this, vef_dimensions )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip)          , intent(in) :: vef_dimensions
-    integer(ip) :: reference_fe_number_vefs_of_dimension
-    reference_fe_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimensions+2) -          &
-         &                                  this%number_vefs_dimension(vef_dimensions+1)
-  end function reference_fe_number_vefs_of_dimension
-
-  function reference_fe_get_number_nodes_vef ( this, i )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip), intent(in) :: i
-    integer(ip) :: reference_fe_get_number_nodes_vef
-    reference_fe_get_number_nodes_vef = this%nodes_vef%p(i+1)-this%nodes_vef%p(i)
-  end function reference_fe_get_number_nodes_vef
-
-  function reference_fe_get_number_interior_nodes_vef ( this, i )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip), intent(in) :: i
-    integer(ip) :: reference_fe_get_number_interior_nodes_vef
-    reference_fe_get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
-  end function reference_fe_get_number_interior_nodes_vef
-  
-  function reference_fe_get_node_vef ( this, i, j )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip), intent(in) :: i, j
-    integer(ip) :: reference_fe_get_node_vef
-    reference_fe_get_node_vef = this%nodes_vef%l(this%nodes_vef%p(j) + i -1)
-  end function reference_fe_get_node_vef
-
-  function reference_fe_get_interior_node_vef ( this, i, j )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip), intent(in) :: i, j
-    integer(ip) :: reference_fe_get_interior_node_vef
-    reference_fe_get_interior_node_vef = this%interior_nodes_vef%l(this%interior_nodes_vef%p(j) + i -1)
-  end function reference_fe_get_interior_node_vef
-
-  function reference_fe_get_orientation ( this )
-    implicit none
-    class(reference_fe_t), target, intent(in) :: this
-    type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
-    reference_fe_get_orientation => this%orientation
-  end function reference_fe_get_orientation
-
   function reference_fe_get_interior_nodes_vef ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
@@ -296,3 +250,51 @@ end function reference_fe_get_continuity
     type(list_t), pointer :: reference_fe_get_vefs_vef
     reference_fe_get_vefs_vef => this%vefs_vef
   end function reference_fe_get_vefs_vef
+
+  function reference_fe_get_node_vef ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i, j
+    integer(ip) :: reference_fe_get_node_vef
+    reference_fe_get_node_vef = this%nodes_vef%l(this%nodes_vef%p(j) + i -1)
+  end function reference_fe_get_node_vef
+
+  function reference_fe_get_interior_node_vef ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i, j
+    integer(ip) :: reference_fe_get_interior_node_vef
+    reference_fe_get_interior_node_vef = this%interior_nodes_vef%l(this%interior_nodes_vef%p(j) + i -1)
+  end function reference_fe_get_interior_node_vef
+
+  function reference_fe_get_number_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_nodes_vef
+    reference_fe_get_number_nodes_vef = this%nodes_vef%p(i+1)-this%nodes_vef%p(i)
+  end function reference_fe_get_number_nodes_vef
+
+  function reference_fe_get_number_interior_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_interior_nodes_vef
+    reference_fe_get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
+  end function reference_fe_get_number_interior_nodes_vef
+  
+  function reference_fe_get_orientation ( this )
+    implicit none
+    class(reference_fe_t), target, intent(in) :: this
+    type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
+    reference_fe_get_orientation => this%orientation
+  end function reference_fe_get_orientation
+
+  !==================================================================================================
+  subroutine p_reference_fe_free( this )
+    implicit none
+    class(p_reference_fe_t), intent(inout) :: this
+    call this%p%free()
+    deallocate ( this%p )
+  end subroutine p_reference_fe_free
+  

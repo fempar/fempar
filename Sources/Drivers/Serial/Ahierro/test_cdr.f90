@@ -481,10 +481,10 @@ contains
     use reference_fe_factory_names
     use SB_fe_space_names
     use SB_discrete_integration_names
-    use poisson_discrete_integration_names
+    use CDR_discrete_integration_names
     use SB_fe_affine_operator_names
     use SB_preconditioner_names
-    use vector_laplacian_discrete_integration_names
+    use vector_dG_CDR_discrete_integration_names
 
     implicit none
 
@@ -496,8 +496,8 @@ contains
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
     type(SB_fe_affine_operator_t)                 :: fe_affine_operator
-    type(vector_laplacian_discrete_integration_t) :: vector_laplacian_integration
-    type(poisson_discrete_integration_t)          :: poisson_integration
+    type(vector_dG_CDR_discrete_integration_t)       :: vector_dG_CDR_integration
+    type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
     type(face_interpolation_t)                    :: face_interpolation
@@ -524,15 +524,15 @@ contains
     call fe_space%create_face_array()
     call fe_space%fill_dof_info() 
 
-!!$    ! Create the operator
-!!$    diagonal_blocks_symmetric_storage = .true.
-!!$    diagonal_blocks_symmetric         = .true.
-!!$    diagonal_blocks_sign              = positive_definite
-!!$    call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
-!!$         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
-!!$         &                          fe_space, vector_laplacian_integration)
-!!$    call fe_affine_operator%symbolic_setup()
-!!$    call fe_affine_operator%numerical_setup()
+    ! Create the operator
+    diagonal_blocks_symmetric_storage = .true.
+    diagonal_blocks_symmetric         = .true.
+    diagonal_blocks_sign              = positive_definite
+    call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
+         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
+         &                          fe_space, vector_dG_CDR_integration)
+    call fe_affine_operator%symbolic_setup()
+    call fe_affine_operator%numerical_setup()
 !!$
 !!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
 !!$    call fe_affine_operator_range_vector_space%create_vector(vector)
@@ -541,7 +541,7 @@ contains
     !call fe_space%print()
     !call reference_fe_array_two(1)%free
     !call reference_fe_array_two(2)%free
-    !call fe_affine_operator%free()
+    call fe_affine_operator%free()
     call fe_space%free()
   end subroutine test_reference_face_stuff
 
