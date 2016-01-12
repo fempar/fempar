@@ -101,20 +101,55 @@ subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe
     
   do i = 1, 2
      call this%interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
-     ! This quadrature_on_faces can be removed. We need a function to compute ele_to_face_enum
-     call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,               &
+     call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
           &                               this%elem_to_face_enumeration(i))
-     !call this%reference_fe(i)%p%create_quadrature_on_faces(this%quadrature,quadrature_on_faces,  &
-     !     &                              this%elem_to_face_enumeration(i), max_order)
-     write(*,*) __FILE__,__LINE__,'---------------------------------------'
-     write(*,*)  this%elem_to_face_enumeration(i)%p 
-     write(*,*)  this%elem_to_face_enumeration(i)%l
      call this%fe_map(i)%create_on_faces(this%quadrature,this%reference_fe(i)%p,                  &
           &                              this%elem_to_face_enumeration(i))
-     !call quadrature_on_faces%free()
   end do
 
 end subroutine face_integrator_initialize
+
+!==================================================================================================
+!face_integrator_t type procedures
+subroutine face_integrator_initialize_boundary(this,left_reference_fe, max_order )
+  implicit none
+  ! Parameters
+  class(face_integrator_t)     , intent(inout) :: this
+  class(reference_fe_t), target, intent(in)    :: left_reference_fe
+  integer(ip)       , optional , intent(in)    :: max_order
+
+  integer(ip)           :: i, number_nodes_face, number_nodes_face_scalar, aux_vef_dimension(5)
+  type(SB_quadrature_t) :: quadrature_on_faces
+
+  call this%free()
+
+  this%reference_fe(1)%p => left_reference_fe
+  this%reference_fe(2)%p => NULL()
+
+  ! AH: This quadrature is created using the left reference element but in a future I would
+  ! propose to define a reference element associated to face integration
+  ! (in case we want to use diferente volume and face integration)
+  call left_reference_fe%create_face_quadrature(this%quadrature, max_order)
+  call this%face_map%face_map_create(this%quadrature, this%reference_fe(1)%p)
+
+  ! Allocate the coordinates assuming the geometry and the interpolation are the same order
+  ! AH: This needs to be improved in the future and also the variable coordinates might need 
+  ! to be discussed at some point
+  ! If we agree in using such a structure, clearly this code should be encapsulated somehow
+  ! in reference_fe (the use of number_vef_dimension should not be explicited)
+  aux_vef_dimension = left_reference_fe%get_number_vefs_dimension()
+  number_nodes_face = left_reference_fe%get_number_nodes_vef(aux_vef_dimension(left_reference_fe%number_dimensions))
+  number_nodes_face_scalar = int(real(number_nodes_face)/real(left_reference_fe%number_field_components))
+  call memalloc(left_reference_fe%number_dimensions, number_nodes_face_scalar, this%coordinates,           &
+       &        __FILE__,__LINE__)
+  i = 1
+  call this%interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
+  call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
+       &                               this%elem_to_face_enumeration(i))
+  call this%fe_map(i)%create_on_faces(this%quadrature,this%reference_fe(i)%p,                  &
+       &                              this%elem_to_face_enumeration(i))
+  
+end subroutine face_integrator_initialize_boundary
 
 !==================================================================================================
 subroutine face_integrator_free(this)

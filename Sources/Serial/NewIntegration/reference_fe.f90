@@ -501,9 +501,10 @@ type face_integrator_t
    real(rp)     , allocatable :: coordinates(:,:)
    type(list_t)               :: elem_to_face_enumeration(2)
  contains
-  procedure, non_overridable :: initialize => face_integrator_initialize
-  procedure                  :: update     => face_integrator_update
-  procedure                  :: free       => face_integrator_free
+  procedure, non_overridable :: initialize          => face_integrator_initialize
+  procedure, non_overridable :: initialize_boundary => face_integrator_initialize_boundary
+  procedure                  :: update              => face_integrator_update
+  procedure                  :: free                => face_integrator_free
 end type face_integrator_t
 
 type p_face_integrator_t

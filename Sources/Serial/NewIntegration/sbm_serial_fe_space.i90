@@ -130,8 +130,8 @@ subroutine free( this )
   call this%fe_map(1)%free()
 		
   do i  = 1, this%number_fe_spaces
-					call this%volume_integrator(i)%free()
-					call this%reference_fe_phy_list(i)%free()
+     call this%volume_integrator(i)%free()
+     call this%reference_fe_phy_list(i)%free()
   end do
   
   ! Assuming only one reference FE for the moment  SB.alert
@@ -169,7 +169,7 @@ subroutine free( this )
 
   ! Free memory related to face (assuming one only face_integrator
   if (allocated(this%face_integrator)) then
-     do j = 1, this%number_fe_spaces
+     do j = 1, 2 * this%number_fe_spaces
         call this%face_integrator(j)%p%free
      end do
      deallocate( this%face_integrator )
