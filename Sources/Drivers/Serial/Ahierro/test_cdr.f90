@@ -496,7 +496,7 @@ contains
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
     type(SB_fe_affine_operator_t)                 :: fe_affine_operator
-    type(vector_dG_CDR_discrete_integration_t)       :: vector_dG_CDR_integration
+    type(vector_dG_CDR_discrete_integration_t)    :: vector_dG_CDR_integration
     type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
@@ -524,6 +524,7 @@ contains
     call fe_space%create_face_array()
     call fe_space%fill_dof_info() 
 
+    call vector_dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 0.0_Rp)
     ! Create the operator
     diagonal_blocks_symmetric_storage = .true.
     diagonal_blocks_symmetric         = .true.

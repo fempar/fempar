@@ -42,3 +42,30 @@ subroutine finite_face_free(this)
      this%neighbour_fe(i)%p => NULL()
   end do
 end subroutine finite_face_free
+
+!==================================================================================================
+function finite_face_get_face_map(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(fe_map_t)      , pointer            :: finite_face_get_face_map
+  finite_face_get_face_map => this%face_integrator(i)%p%get_face_map()
+end function finite_face_get_face_map
+
+!==================================================================================================
+function finite_face_get_face_quadrature(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(SB_quadrature_t)       , pointer    :: finite_face_get_face_quadrature
+  finite_face_get_face_quadrature => this%face_integrator(i)%p%get_face_quadrature()
+end function finite_face_get_face_quadrature
+
+!==================================================================================================
+function finite_face_get_face_integrator(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(face_integrator_t)     , pointer    :: finite_face_get_face_integrator
+  finite_face_get_face_integrator => this%face_integrator(i)%p
+end function finite_face_get_face_integrator

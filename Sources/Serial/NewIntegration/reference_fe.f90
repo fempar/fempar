@@ -288,13 +288,14 @@ module reference_fe_names
 
      subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
-       import :: reference_fe_t, SB_interpolation_t, ip, rp
+       import :: reference_fe_t, SB_interpolation_t, ip, scalar_field_t
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
        type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
-       real(rp)                , intent(out) :: scalar_field
+       !real(rp)                , intent(out) :: scalar_field
+       type(scalar_field_t)    , intent(out) :: scalar_field
      end subroutine get_value_scalar_interface
      
      subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
@@ -501,10 +502,17 @@ type face_integrator_t
    real(rp)     , allocatable :: coordinates(:,:)
    type(list_t)               :: elem_to_face_enumeration(2)
  contains
-  procedure, non_overridable :: initialize          => face_integrator_initialize
-  procedure, non_overridable :: initialize_boundary => face_integrator_initialize_boundary
-  procedure                  :: update              => face_integrator_update
-  procedure                  :: free                => face_integrator_free
+   procedure, non_overridable :: initialize          => face_integrator_initialize
+   procedure, non_overridable :: initialize_boundary => face_integrator_initialize_boundary
+   procedure, non_overridable :: update              => face_integrator_update
+   procedure, non_overridable :: free                => face_integrator_free
+   procedure, non_overridable :: get_face_map        => face_integrator_get_face_map
+   procedure, non_overridable :: get_face_quadrature => face_integrator_get_face_quadrature
+   procedure, non_overridable :: get_value_scalar    => face_integrator_get_value_scalar
+   generic :: get_value => get_value_scalar
+   procedure, non_overridable :: get_gradient_scalar => face_integrator_get_gradient_scalar
+   generic :: get_gradient => get_gradient_scalar
+   procedure, non_overridable :: get_outside_normals => face_integrator_get_outside_normals
 end type face_integrator_t
 
 type p_face_integrator_t

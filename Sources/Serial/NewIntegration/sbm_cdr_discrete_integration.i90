@@ -23,8 +23,8 @@ contains
   subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(CDR_discrete_integration_t), intent(in)    :: this
-    class(SB_serial_fe_space_t)          , intent(inout) :: fe_space
-    class(SB_assembler_t)                , intent(inout) :: assembler
+    class(SB_serial_fe_space_t)      , intent(inout) :: fe_space
+    class(SB_assembler_t)            , intent(inout) :: assembler
 
     type(SB_finite_element_t), pointer :: fe
     type(SB_volume_integrator_t), pointer :: vol_int
@@ -114,40 +114,58 @@ implicit none
 # include "debug.i90"
 private
 type, extends(SB_discrete_integration_t) :: vector_dG_CDR_discrete_integration_t
-integer(ip) :: viscosity 
+real(rp) :: viscosity 
+real(rp) :: C_IP ! Interior Penalty constant
+real(rp) :: xi   ! DG symmetric parameter: (0-Symmetric, 1/2-Incomplete, 1-Antisymmetric)
 contains
+procedure :: set_problem
 procedure :: integrate
 end type vector_dG_CDR_discrete_integration_t
 
 public :: vector_dG_CDR_discrete_integration_t
 
 contains
+  subroutine set_problem(this, viscosity, C_IP, xi)
+    implicit none
+    class(vector_dG_CDR_discrete_integration_t), intent(inout) :: this
+    real(rp)                                   , intent(in)    :: viscosity 
+    real(rp)                                   , intent(in)    :: C_IP 
+    real(rp)                                   , intent(in)    :: xi
+    
+    this%viscosity = viscosity
+    this%C_IP      = C_IP
+    this%xi        = xi
+  end subroutine set_problem
   subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(vector_dG_CDR_discrete_integration_t), intent(in)    :: this
-    class(SB_serial_fe_space_t)             , intent(inout) :: fe_space
-    class(SB_assembler_t)                   , intent(inout) :: assembler
+    class(SB_serial_fe_space_t)                , intent(inout) :: fe_space
+    class(SB_assembler_t)                      , intent(inout) :: assembler
 
-    type(SB_finite_element_t), pointer :: fe
-    type(finite_face_t)      , pointer :: face
+    type(SB_finite_element_t)   , pointer :: fe
+    type(p_SB_finite_element_t)           :: fe_face(2)
+    type(finite_face_t)         , pointer :: face
     type(SB_volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
-    real(rp), allocatable :: elmat(:,:), elvec(:)
-    type(fe_map_t), pointer :: fe_map
-    type(SB_quadrature_t), pointer :: quad
-    integer(ip), allocatable :: number_nodes_per_field(:)
+    type(face_integrator_t)     , pointer :: face_int
+    real(rp)                , allocatable :: elmat(:,:), elvec(:)
+    type(fe_map_t)              , pointer :: fe_map
+    type(SB_quadrature_t)       , pointer :: quad
+    integer(ip)             , allocatable :: number_nodes_per_field(:)
 
     integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus
-    real(rp) :: factor
+    real(rp)     :: factor
 
+    type(scalar_field_t) :: shape_test_scalar, shape_trial_scalar
     type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
     type(tensor_field_t) :: grad_test_vector, grad_trial_vector
+    type(vector_field_t) :: outside_normal(2)
     
-    integer(ip) :: i, number_fe_spaces
+    integer(ip)          :: i, j, number_fe_spaces
 
     integer(ip), pointer :: field_blocks(:)
-    logical, pointer :: field_coupling(:,:)
+    logical    , pointer :: field_coupling(:,:)
 
-    integer(ip) :: ielem, iface, number_nodes
+    integer(ip)          :: ielem, iface, number_nodes, ineigh, jneigh
     type(i1p_t), pointer :: elem2dof(:)
     type(i1p_t), pointer :: bc_code(:)
     type(r1p_t), pointer :: bc_value(:)
@@ -190,7 +208,8 @@ contains
              call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
              do jnode = 1, number_nodes_per_field(1)
                 call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
-                elmat(inode,jnode) = elmat(inode,jnode) + factor*grad_test_scalar*grad_trial_scalar
+                elmat(inode,jnode) = elmat(inode,jnode) + factor *                                  &
+                     &               this%viscosity * grad_test_scalar*grad_trial_scalar
              end do
           end do
 
@@ -200,8 +219,8 @@ contains
              do jnode = 1, number_nodes_per_field(2)
                 joffset = number_nodes_per_field(1)+jnode
                 call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
-                elmat(ioffset,joffset) = elmat(ioffset,joffset) +                                 &
-                     &                   factor*double_contract(grad_test_vector,grad_trial_vector)
+                elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor *                        &
+                     &          this%viscosity*double_contract(grad_test_vector,grad_trial_vector)
              end do
           end do
        end do
@@ -217,17 +236,56 @@ contains
 
 
     ! --------------------------- LOOP OVER THE FACES -----------------------------
-    call memalloc ( 2*number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( 2*number_nodes, 2*number_nodes, elmat, __FILE__, __LINE__ )
     call memalloc ( 2*number_nodes, elvec, __FILE__, __LINE__ )
 
+    write(*,*) __FILE__,__LINE__,2*number_nodes
     do iface = 1, fe_space%get_number_interior_faces()
+
+       write(*,*) __FILE__,__LINE__,iface,'------------------'
        elmat = 0.0_rp
        elvec = 0.0_rp
 
        face => fe_space%get_finite_face(iface)
-       write(*,*) __FILE__,__LINE__,iface
        call face%update_face_integration()
+       ngaus = quad%get_number_evaluation_points()
+       do i =1,2
+          fe_face(i)%p => fe_space%get_finite_element_from_face(iface,i)
+       end do
+       j =1
+       face_int => face%get_face_integrator(j)
+       fe_map => face%get_face_map(j)
+       quad   => face%get_face_quadrature(j)
+       ngaus = quad%get_number_evaluation_points()
+       do igaus = 1, ngaus
+          call face_int%get_outside_normals(igaus,outside_normal)
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do ineigh = 1, 2
+             do inode = 1, number_nodes_per_field(j)
+                ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
+                call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
+                call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
+                do jneigh = 1, 2
+                   do jnode = 1, number_nodes_per_field(j)
+                      joffset = number_nodes_per_field(j)*(jneigh-1) + jnode
+                      call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
+                      call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
+                      !- mu * ({{grad u}}[[v]] + (1-xi) * [[u]]{{grad v}} ) + C p^2/h * [[u]] [[v]]
+                      elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * this%viscosity *   &
+                           &  (-0.5_rp*grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar)
+                      write(*,*) ioffset,joffset, elmat(ioffset,joffset)
+                   end do
+                end do
+             end do
+          end do
+       end do
+!!$       elem2dof              => face%get_face2dof()
+!!$       
     end do
+!!$    do inode = 1, 2*number_nodes_per_field(j)
+!!$       write(*,*) inode, '-------'
+!!$       write(*,*) elmat(1:8,inode)
+!!$    end do
 
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )

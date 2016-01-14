@@ -42,7 +42,7 @@ module SB_fe_space_names
   use reference_fe_names
   use triangulation_names
   use reference_fe_factory_names
-  use integration_tools_names
+  !use integration_tools_names
   use migratory_element_names
   use conditions_names
   use hash_table_names
@@ -113,6 +113,9 @@ module SB_fe_space_names
      procedure, non_overridable :: create                  => finite_face_create
      procedure, non_overridable :: update_face_integration => finite_face_update_face_integration
      procedure                  :: free                    => finite_face_free
+     procedure, non_overridable :: get_face_map            => finite_face_get_face_map
+     procedure, non_overridable :: get_face_quadrature     => finite_face_get_face_quadrature
+     procedure, non_overridable :: get_face_integrator     => finite_face_get_face_integrator
   end type finite_face_t
 
   public :: finite_face_t
@@ -154,6 +157,7 @@ module SB_fe_space_names
      procedure, non_overridable :: get_number_interior_faces
      procedure, non_overridable :: get_number_fe_spaces
      procedure, non_overridable :: get_finite_element
+     procedure, non_overridable :: get_finite_element_from_face
      procedure, non_overridable :: get_finite_face
      procedure, non_overridable :: get_number_blocks
      procedure, non_overridable :: get_field_blocks
