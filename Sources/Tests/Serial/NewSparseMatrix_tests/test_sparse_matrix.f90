@@ -28,9 +28,8 @@ implicit none
     call sparse_matrix%insert(nz=10,                                 &
                               ia=(/1,2,3,4,5,1,2,3,4,5/),            &
                               ja=(/1,2,3,4,5,5,4,3,2,1/),            &
-                              val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./), &
-                              imin=1, imax=5, jmin=1, jmax=5 )
-    call sparse_matrix%insert(ia=1, ja=1, val=1., imin=1, imax=5, jmin=1, jmax=5 )
+                              val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./))
+    call sparse_matrix%insert(ia=1, ja=1, val=1.)
     call sparse_matrix%print( 6)
     ! Convert: BUILD_NUMERIC=>ASSEMBLED
     call sparse_matrix%convert('CSR')
@@ -80,9 +79,8 @@ implicit none
     call sparse_matrix%insert(ia=1, ja=1, imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%insert(nz=10,                                 &
                               ia=(/1,2,3,4,5,1,2,3,4,5/),            &
-                              ja=(/1,2,3,4,5,5,4,3,2,1/),            &
-                              imin=1, imax=5, jmin=1, jmax=5 )
-    call sparse_matrix%insert(ia=1, ja=1, imin=1, imax=5, jmin=1, jmax=5 )
+                              ja=(/1,2,3,4,5,5,4,3,2,1/))
+    call sparse_matrix%insert(ia=1, ja=1)
     call sparse_matrix%print( 6)
     ! Convert: BUILD_SYMBOLIC=>ASSEMBLED_SYMBOLIC
     call sparse_matrix%convert(mold=csr_matrix)
@@ -104,6 +102,9 @@ implicit none
     call sparse_matrix%free_in_stages(free_symbolic_setup)
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
+
+    call x%free()
+    call y%free()
 
     call memstatus()
 

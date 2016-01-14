@@ -27,6 +27,10 @@ private
     contains
         procedure         ::                              sparse_matrix_create_square
         procedure         ::                              sparse_matrix_create_rectangular
+        procedure         ::                              sparse_matrix_insert_bounded_coords
+        procedure         ::                              sparse_matrix_insert_bounded_values
+        procedure         ::                              sparse_matrix_insert_bounded_single_coord
+        procedure         ::                              sparse_matrix_insert_bounded_single_value
         procedure         ::                              sparse_matrix_insert_coords
         procedure         ::                              sparse_matrix_insert_values
         procedure         ::                              sparse_matrix_insert_single_coord
@@ -49,9 +53,13 @@ private
         procedure, public :: free_in_stages            => sparse_matrix_free_in_stages  
         generic,   public :: create                    => sparse_matrix_create_square, &
                                                           sparse_matrix_create_rectangular
-        generic,   public :: insert                    => sparse_matrix_insert_coords, &
-                                                          sparse_matrix_insert_values, &
-                                                          sparse_matrix_insert_single_coord, &
+        generic,   public :: insert                    => sparse_matrix_insert_bounded_coords,       &
+                                                          sparse_matrix_insert_bounded_values,       &
+                                                          sparse_matrix_insert_bounded_single_coord, &
+                                                          sparse_matrix_insert_bounded_single_value, &
+                                                          sparse_matrix_insert_coords,               &
+                                                          sparse_matrix_insert_values,               &
+                                                          sparse_matrix_insert_single_coord,         &
                                                           sparse_matrix_insert_single_value
         generic,   public :: convert                   => sparse_matrix_convert,                         &
                                                           sparse_matrix_convert_string,                  &
@@ -238,7 +246,7 @@ contains
     end subroutine sparse_matrix_create_rectangular
 
 
-    subroutine sparse_matrix_insert_values(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine sparse_matrix_insert_bounded_values(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !-----------------------------------------------------------------
@@ -254,10 +262,10 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%State%insert(nz, ia, ja, val, imin, imax, jmin, jmax)
-    end subroutine sparse_matrix_insert_values
+    end subroutine sparse_matrix_insert_bounded_values
 
 
-    subroutine sparse_matrix_insert_coords(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine sparse_matrix_insert_bounded_coords(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries to the sparse matrix
     !-----------------------------------------------------------------
@@ -272,9 +280,9 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%State%insert(nz, ia, ja, imin, imax, jmin, jmax)
-    end subroutine sparse_matrix_insert_coords
+    end subroutine sparse_matrix_insert_bounded_coords
 
-    subroutine sparse_matrix_insert_single_value(this, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine sparse_matrix_insert_bounded_single_value(this, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entry and value to the sparse matrix
     !-----------------------------------------------------------------
@@ -289,10 +297,10 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%State%insert(ia, ja, val, imin, imax, jmin, jmax)
-    end subroutine sparse_matrix_insert_single_value
+    end subroutine sparse_matrix_insert_bounded_single_value
 
 
-    subroutine sparse_matrix_insert_single_coord(this, ia, ja, imin, imax, jmin, jmax) 
+    subroutine sparse_matrix_insert_bounded_single_coord(this, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entry to the sparse matrix
     !-----------------------------------------------------------------
@@ -306,7 +314,85 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%State%insert(ia, ja, imin, imax, jmin, jmax)
+    end subroutine sparse_matrix_insert_bounded_single_coord
+
+
+
+
+
+
+
+
+
+
+
+
+
+    subroutine sparse_matrix_insert_values(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: nz
+        integer(ip),            intent(in)    :: ia(nz)
+        integer(ip),            intent(in)    :: ja(nz)
+        real(rp),               intent(in)    :: val(nz)
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(nz, ia, ja, val)
+    end subroutine sparse_matrix_insert_values
+
+
+    subroutine sparse_matrix_insert_coords(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: nz
+        integer(ip),            intent(in)    :: ia(nz)
+        integer(ip),            intent(in)    :: ja(nz)
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(nz, ia, ja)
+    end subroutine sparse_matrix_insert_coords
+
+
+    subroutine sparse_matrix_insert_single_value(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entry and value to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: ia
+        integer(ip),            intent(in)    :: ja
+        real(rp),               intent(in)    :: val
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(ia, ja, val)
+    end subroutine sparse_matrix_insert_single_value
+
+
+    subroutine sparse_matrix_insert_single_coord(this, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entry to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: ia
+        integer(ip),            intent(in)    :: ja
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(ia, ja)
     end subroutine sparse_matrix_insert_single_coord
+
+
+
+
+
+
+
+
+
+
+
     
 
     subroutine sparse_matrix_convert(this)
