@@ -1605,6 +1605,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only upper triangle is stored
                                     if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                     else
@@ -1656,6 +1658,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only upper triangle is stored
                                     if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols)  cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                     else
                                         k = k + 1
@@ -1698,6 +1702,8 @@ contains
                         if(j > nnz) exit
                         ! If symmetric_storage, only upper triangle is stored
                         if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
+                        ! If row/column index out of range ignore it
+                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows.or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                         else
@@ -1753,6 +1759,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only lower triangle is stored
                                     if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                     else
@@ -1804,6 +1812,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only lower triangle is stored 
                                     if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                     else
@@ -1847,6 +1857,8 @@ contains
                         if(j > nnz) exit
                         ! If symmetric_storage, only lower triangle is stored
                         if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
+                        ! If row/column index out of range ignore it
+                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols)  cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                         else
@@ -1956,6 +1968,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only upper triangle is stored
                                     if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -2011,6 +2025,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only upper triangle is stored
                                     if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -2056,6 +2072,8 @@ contains
                         if(j > nnz) exit
                         ! If symmetric_storage, only upper triangle is stored
                         if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
+                        ! If row/column index out of range ignore it
+                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                             call apply_duplicates(input=this%val(j), output=this%val(i))
@@ -2113,6 +2131,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only lower triangle is stored
                                     if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -2168,6 +2188,8 @@ contains
                                     if(i > imx) exit
                                     ! If symmetric_storage, only lower triangle is stored 
                                     if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
+                                    ! If row/column index out of range ignore it
+                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -2213,6 +2235,8 @@ contains
                         if(j > nnz) exit
                         ! If symmetric_storage, only lower triangle is stored
                         if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
+                        ! If row/column index out of range ignore it
+                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                             call apply_duplicates(input=this%val(j), output=this%val(i))
