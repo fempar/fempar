@@ -15,6 +15,7 @@ implicit none
     type(csr_sparse_matrix_t)   :: csr_matrix
     type(serial_scalar_array_t) :: x
     type(serial_scalar_array_t) :: y
+    real                        :: val(4,4) = 9
 
     call meminit()
 
@@ -24,6 +25,16 @@ implicit none
     ! Create: START=>CREATE
     call sparse_matrix%create(num_rows=5,num_cols=5)
     ! Append: CREATE=>BUILD_NUMERIC
+
+    call sparse_matrix%insert(num_rows=4,     &
+                              num_cols=4,     &
+                              ia=(/1,2,3,4/), &
+                              ja=(/1,2,3,4/), &
+                              LDA=4,          &
+                              val=val,        &
+                              imin=1, imax=5, jmin=1, jmax=5 )
+    call sparse_matrix%print( 6)
+
     call sparse_matrix%insert(ia=1, ja=1, val=1., imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%insert(nz=10,                                 &
                               ia=(/1,2,3,4,5,1,2,3,4,5/),            &

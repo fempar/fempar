@@ -20,31 +20,35 @@ private
         real(rp),    allocatable   :: val(:)                      !< Values
     contains
     private
-        procedure, public :: is_by_rows                        => csr_sparse_matrix_is_by_rows
-        procedure, public :: is_by_cols                        => csr_sparse_matrix_is_by_cols
-        procedure, public :: set_nnz                           => csr_sparse_matrix_set_nnz
-        procedure, public :: get_nnz                           => csr_sparse_matrix_get_nnz
-        procedure, public :: copy_to_coo                       => csr_sparse_matrix_copy_to_coo
-        procedure, public :: copy_from_coo                     => csr_sparse_matrix_copy_from_coo
-        procedure, public :: move_to_coo                       => csr_sparse_matrix_move_to_coo
-        procedure, public :: move_from_coo                     => csr_sparse_matrix_move_from_coo
-        procedure, public :: move_to_fmt                       => csr_sparse_matrix_move_to_fmt
-        procedure, public :: move_from_fmt                     => csr_sparse_matrix_move_from_fmt
-        procedure, public :: allocate_values_body              => csr_sparse_matrix_allocate_values_body
-        procedure, public :: initialize_values                 => csr_sparse_matrix_initialize_values
-        procedure, public :: update_bounded_values_body        => csr_sparse_matrix_update_bounded_values_body
-        procedure, public :: update_bounded_value_body         => csr_sparse_matrix_update_bounded_value_body
-        procedure, public :: update_bounded_values_by_row_body => csr_sparse_matrix_update_bounded_values_by_row_body
-        procedure, public :: update_bounded_values_by_col_body => csr_sparse_matrix_update_bounded_values_by_col_body
-        procedure, public :: update_values_body                => csr_sparse_matrix_update_values_body
-        procedure, public :: update_value_body                 => csr_sparse_matrix_update_value_body
-        procedure, public :: update_values_by_row_body         => csr_sparse_matrix_update_values_by_row_body
-        procedure, public :: update_values_by_col_body         => csr_sparse_matrix_update_values_by_col_body
-        procedure, public :: free_coords                       => csr_sparse_matrix_free_coords
-        procedure, public :: free_val                          => csr_sparse_matrix_free_val
-        procedure, public :: apply_body                        => csr_sparse_matrix_apply_body
-        procedure, public :: print_matrix_market_body          => csr_sparse_matrix_print_matrix_market_body
-        procedure, public :: print                             => csr_sparse_matrix_print
+        procedure, public :: is_by_rows                              => csr_sparse_matrix_is_by_rows
+        procedure, public :: is_by_cols                              => csr_sparse_matrix_is_by_cols
+        procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
+        procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
+        procedure, public :: copy_to_coo                             => csr_sparse_matrix_copy_to_coo
+        procedure, public :: copy_from_coo                           => csr_sparse_matrix_copy_from_coo
+        procedure, public :: move_to_coo                             => csr_sparse_matrix_move_to_coo
+        procedure, public :: move_from_coo                           => csr_sparse_matrix_move_from_coo
+        procedure, public :: move_to_fmt                             => csr_sparse_matrix_move_to_fmt
+        procedure, public :: move_from_fmt                           => csr_sparse_matrix_move_from_fmt
+        procedure, public :: allocate_values_body                    => csr_sparse_matrix_allocate_values_body
+        procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
+        procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
+        procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
+        procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
+        procedure, public :: update_bounded_values_by_col_body       => csr_sparse_matrix_update_bounded_values_by_col_body
+        procedure, public :: update_bounded_dense_values_body        => csr_sparse_matrix_update_bounded_dense_values_body
+        procedure, public :: update_bounded_square_dense_values_body => csr_sparse_matrix_update_bounded_square_dense_values_body
+        procedure, public :: update_values_body                      => csr_sparse_matrix_update_values_body
+        procedure, public :: update_dense_values_body                => csr_sparse_matrix_update_dense_values_body
+        procedure, public :: update_square_dense_values_body         => csr_sparse_matrix_update_square_dense_values_body
+        procedure, public :: update_value_body                       => csr_sparse_matrix_update_value_body
+        procedure, public :: update_values_by_row_body               => csr_sparse_matrix_update_values_by_row_body
+        procedure, public :: update_values_by_col_body               => csr_sparse_matrix_update_values_by_col_body
+        procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
+        procedure, public :: free_val                                => csr_sparse_matrix_free_val
+        procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
+        procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
+        procedure, public :: print                                   => csr_sparse_matrix_print
     end type csr_sparse_matrix_t
 
 public :: csr_sparse_matrix_t
@@ -684,6 +688,112 @@ contains
             end if
         end do
     end subroutine csr_sparse_matrix_update_values_body
+
+
+    subroutine csr_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_bounded_dense_values_body
+
+
+    subroutine csr_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_bounded_square_dense_values_body
+
+
+    subroutine csr_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%insert(ia(i), ja(j), val(i,j))
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_dense_values_body
+
+
+    subroutine csr_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%insert(ia(i), ja(j), val(i,j))
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_square_dense_values_body
 
 
     subroutine csr_sparse_matrix_update_value_body(this, ia, ja, val) 

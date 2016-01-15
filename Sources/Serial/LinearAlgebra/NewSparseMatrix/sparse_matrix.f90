@@ -35,6 +35,10 @@ private
         procedure, non_overridable ::                                      sparse_matrix_insert_bounded_values_by_col
         procedure, non_overridable ::                                      sparse_matrix_insert_bounded_single_coord
         procedure, non_overridable ::                                      sparse_matrix_insert_bounded_single_value
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_dense_values
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_square_dense_values
+        procedure, non_overridable ::                                      sparse_matrix_insert_dense_values
+        procedure, non_overridable ::                                      sparse_matrix_insert_square_dense_values
         procedure, non_overridable ::                                      sparse_matrix_insert_coords
         procedure, non_overridable ::                                      sparse_matrix_insert_values
         procedure, non_overridable ::                                      sparse_matrix_insert_coords_by_row
@@ -61,21 +65,25 @@ private
         procedure, non_overridable, public :: free_in_stages            => sparse_matrix_free_in_stages  
         generic,                    public :: create                    => sparse_matrix_create_square, &
                                                                            sparse_matrix_create_rectangular
-        generic,                    public :: insert                    => sparse_matrix_insert_bounded_coords,       &
-                                                                           sparse_matrix_insert_bounded_values,       &
-                                                                           sparse_matrix_insert_bounded_coords_by_row,&
-                                                                           sparse_matrix_insert_bounded_coords_by_col,&
-                                                                           sparse_matrix_insert_bounded_values_by_row,&
-                                                                           sparse_matrix_insert_bounded_values_by_col,&
-                                                                           sparse_matrix_insert_bounded_single_coord, &
-                                                                           sparse_matrix_insert_bounded_single_value, &
-                                                                           sparse_matrix_insert_coords,               &
-                                                                           sparse_matrix_insert_values,               &
-                                                                           sparse_matrix_insert_coords_by_row,        &
-                                                                           sparse_matrix_insert_coords_by_col,        &
-                                                                           sparse_matrix_insert_values_by_row,        &
-                                                                           sparse_matrix_insert_values_by_col,        &
-                                                                           sparse_matrix_insert_single_coord,         &
+        generic,                    public :: insert                    => sparse_matrix_insert_bounded_coords,              &
+                                                                           sparse_matrix_insert_bounded_values,              &
+                                                                           sparse_matrix_insert_bounded_coords_by_row,       &
+                                                                           sparse_matrix_insert_bounded_coords_by_col,       &
+                                                                           sparse_matrix_insert_bounded_values_by_row,       &
+                                                                           sparse_matrix_insert_bounded_values_by_col,       &
+                                                                           sparse_matrix_insert_bounded_single_coord,        &
+                                                                           sparse_matrix_insert_bounded_single_value,        &
+                                                                           sparse_matrix_insert_bounded_dense_values,        &
+                                                                           sparse_matrix_insert_bounded_square_dense_values, &
+                                                                           sparse_matrix_insert_coords,                      &
+                                                                           sparse_matrix_insert_values,                      &
+                                                                           sparse_matrix_insert_dense_values,                &
+                                                                           sparse_matrix_insert_square_dense_values,         &
+                                                                           sparse_matrix_insert_coords_by_row,               & 
+                                                                           sparse_matrix_insert_coords_by_col,               &
+                                                                           sparse_matrix_insert_values_by_row,               &
+                                                                           sparse_matrix_insert_values_by_col,               &
+                                                                           sparse_matrix_insert_single_coord,                &
                                                                            sparse_matrix_insert_single_value
         generic,                     public :: convert                  => sparse_matrix_convert,                         &
                                                                            sparse_matrix_convert_string,                  &
@@ -406,6 +414,80 @@ contains
         assert(allocated(this%State))
         call this%State%insert(ia, ja, imin, imax, jmin, jmax)
     end subroutine sparse_matrix_insert_bounded_single_coord
+
+
+    subroutine sparse_matrix_insert_bounded_dense_values(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: num_rows
+        integer(ip),            intent(in)    :: num_cols
+        integer(ip),            intent(in)    :: ia(num_rows)
+        integer(ip),            intent(in)    :: ja(num_cols)
+        integer(ip),            intent(in)    :: LDA
+        real(rp),               intent(in)    :: val(LDA,num_cols)
+        integer(ip),            intent(in)    :: imin
+        integer(ip),            intent(in)    :: imax
+        integer(ip),            intent(in)    :: jmin
+        integer(ip),            intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax)
+    end subroutine sparse_matrix_insert_bounded_dense_values
+
+
+    subroutine sparse_matrix_insert_bounded_square_dense_values(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: num_rows
+        integer(ip),            intent(in)    :: ia(num_rows)
+        integer(ip),            intent(in)    :: ja(num_rows)
+        integer(ip),            intent(in)    :: LDA
+        real(rp),               intent(in)    :: val(LDA,num_rows)
+        integer(ip),            intent(in)    :: imin
+        integer(ip),            intent(in)    :: imax
+        integer(ip),            intent(in)    :: jmin
+        integer(ip),            intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax)
+    end subroutine sparse_matrix_insert_bounded_square_dense_values
+
+
+    subroutine sparse_matrix_insert_dense_values(this, num_rows, num_cols, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: num_rows
+        integer(ip),            intent(in)    :: num_cols
+        integer(ip),            intent(in)    :: ia(num_rows)
+        integer(ip),            intent(in)    :: ja(num_cols)
+        integer(ip),            intent(in)    :: LDA
+        real(rp),               intent(in)    :: val(LDA,num_cols)
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(num_rows, num_cols, ia, ja, LDA, val)
+    end subroutine sparse_matrix_insert_dense_values
+
+
+    subroutine sparse_matrix_insert_square_dense_values(this, num_rows, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        integer(ip),            intent(in)    :: num_rows
+        integer(ip),            intent(in)    :: ia(num_rows)
+        integer(ip),            intent(in)    :: ja(num_rows)
+        integer(ip),            intent(in)    :: LDA
+        real(rp),               intent(in)    :: val(LDA,num_rows)
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%insert(num_rows, ia, ja, LDA, val)
+    end subroutine sparse_matrix_insert_square_dense_values
 
 
     subroutine sparse_matrix_insert_values(this, nz, ia, ja, val) 

@@ -100,10 +100,22 @@ private
         procedure(base_sparse_matrix_move_from_fmt),             public, deferred :: move_from_fmt
         procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
         procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
-        procedure(base_sparse_matrix_update_bounded_values_body),public, deferred :: update_bounded_values_body
-        procedure(base_sparse_matrix_update_bounded_value_body), public, deferred :: update_bounded_value_body
-        procedure(base_sparse_matrix_update_bounded_values_by_row_body),public, deferred :: update_bounded_values_by_row_body
-        procedure(base_sparse_matrix_update_bounded_values_by_col_body),public, deferred :: update_bounded_values_by_col_body
+        procedure(base_sparse_matrix_update_bounded_values_body),              &
+                                                                 public, deferred :: update_bounded_values_body
+        procedure(base_sparse_matrix_update_bounded_value_body),               &
+                                                                 public, deferred :: update_bounded_value_body
+        procedure(base_sparse_matrix_update_bounded_values_by_row_body),       &
+                                                                 public, deferred :: update_bounded_values_by_row_body
+        procedure(base_sparse_matrix_update_bounded_values_by_col_body),       &
+                                                                 public, deferred :: update_bounded_values_by_col_body
+        procedure(base_sparse_matrix_update_bounded_dense_values_body),        &
+                                                                 public, deferred :: update_bounded_dense_values_body
+        procedure(base_sparse_matrix_update_bounded_square_dense_values_body), &
+                                                                 public, deferred :: update_bounded_square_dense_values_body
+        procedure(base_sparse_matrix_update_dense_values_body),                &
+                                                                 public, deferred :: update_dense_values_body
+        procedure(base_sparse_matrix_update_square_dense_values_body),         &
+                                                                public, deferred :: update_square_dense_values_body
         procedure(base_sparse_matrix_update_values_body),        public, deferred :: update_values_body
         procedure(base_sparse_matrix_update_values_by_row_body), public, deferred :: update_values_by_row_body
         procedure(base_sparse_matrix_update_values_by_col_body), public, deferred :: update_values_by_col_body
@@ -124,8 +136,12 @@ private
         procedure         :: insert_bounded_values_by_col     => base_sparse_matrix_insert_bounded_values_by_col
         procedure         :: insert_bounded_single_coord      => base_sparse_matrix_insert_bounded_single_coord
         procedure         :: insert_bounded_single_value      => base_sparse_matrix_insert_bounded_single_value
+        procedure         :: insert_bounded_dense_values      => base_sparse_matrix_insert_bounded_dense_values
+        procedure         :: insert_bounded_square_dense_values=> base_sparse_matrix_insert_bounded_square_dense_values
         procedure         :: insert_coords                    => base_sparse_matrix_insert_coords
         procedure         :: insert_values                    => base_sparse_matrix_insert_values
+        procedure         :: insert_dense_values              => base_sparse_matrix_insert_dense_values
+        procedure         :: insert_square_dense_values       => base_sparse_matrix_insert_square_dense_values
         procedure         :: insert_coords_by_row             => base_sparse_matrix_insert_coords_by_row
         procedure         :: insert_coords_by_col             => base_sparse_matrix_insert_coords_by_col
         procedure         :: insert_values_by_row             => base_sparse_matrix_insert_values_by_row
@@ -140,8 +156,12 @@ private
         procedure         :: append_bounded_values_by_col_body=> base_sparse_matrix_append_bounded_values_by_col_body
         procedure         :: append_bounded_single_coord_body => base_sparse_matrix_append_bounded_single_coord_body
         procedure         :: append_bounded_single_value_body => base_sparse_matrix_append_bounded_single_value_body
+        procedure         :: append_bounded_dense_values_body => base_sparse_matrix_append_bounded_dense_values_body
+        procedure         :: append_bounded_square_dense_values_body => base_sparse_matrix_append_bounded_square_dense_values_body
         procedure         :: append_coords_body               => base_sparse_matrix_append_coords_body
         procedure         :: append_values_body               => base_sparse_matrix_append_values_body
+        procedure         :: append_dense_values_body         => base_sparse_matrix_append_dense_values_body
+        procedure         :: append_square_dense_values_body  => base_sparse_matrix_append_square_dense_values_body
         procedure         :: append_coords_by_row_body        => base_sparse_matrix_append_coords_by_row_body
         procedure         :: append_coords_by_col_body        => base_sparse_matrix_append_coords_by_col_body
         procedure         :: append_values_by_row_body        => base_sparse_matrix_append_values_by_row_body
@@ -185,45 +205,57 @@ private
         procedure, public :: free_numeric                     => base_sparse_matrix_free_numeric
         generic,   public :: create                           => base_sparse_matrix_create_square, &
                                                                  base_sparse_matrix_create_rectangular
-        generic,   public :: insert                           => insert_bounded_coords,       &
-                                                                 insert_bounded_values,       &
-                                                                 insert_bounded_coords_by_row,&
-                                                                 insert_bounded_coords_by_col,&
-                                                                 insert_bounded_values_by_row,&
-                                                                 insert_bounded_values_by_col,&
-                                                                 insert_bounded_single_value, &
-                                                                 insert_bounded_single_coord, &
-                                                                 insert_coords,               &
-                                                                 insert_values,               &
-                                                                 insert_coords_by_row,        &
-                                                                 insert_coords_by_col,        &
-                                                                 insert_values_by_row,        &
-                                                                 insert_values_by_col,        &
-                                                                 insert_single_value,         &
+        generic,   public :: insert                           => insert_bounded_coords,              &
+                                                                 insert_bounded_values,              &
+                                                                 insert_bounded_coords_by_row,       &
+                                                                 insert_bounded_coords_by_col,       &
+                                                                 insert_bounded_values_by_row,       &
+                                                                 insert_bounded_values_by_col,       &
+                                                                 insert_bounded_single_value,        &
+                                                                 insert_bounded_single_coord,        &
+                                                                 insert_bounded_dense_values,        &
+                                                                 insert_bounded_square_dense_values, &
+                                                                 insert_coords,                      &
+                                                                 insert_values,                      &
+                                                                 insert_dense_values,                &
+                                                                 insert_square_dense_values,         &
+                                                                 insert_coords_by_row,               &
+                                                                 insert_coords_by_col,               &
+                                                                 insert_values_by_row,               &
+                                                                 insert_values_by_col,               &
+                                                                 insert_single_value,                &
                                                                  insert_single_coord
-        generic           :: append_body                      => append_bounded_coords_body,       &
-                                                                 append_bounded_values_body,       &
-                                                                 append_bounded_coords_by_row_body,&
-                                                                 append_bounded_coords_by_col_body,&
-                                                                 append_bounded_values_by_row_body,&
-                                                                 append_bounded_values_by_col_body,&
-                                                                 append_bounded_single_value_body, &
-                                                                 append_bounded_single_coord_body, &
-                                                                 append_coords_body,               &
-                                                                 append_values_body,               &
-                                                                 append_coords_by_row_body,        &
-                                                                 append_coords_by_col_body,        &
-                                                                 append_values_by_row_body,        &
-                                                                 append_values_by_col_body,        &
-                                                                 append_single_value_body,         &
+        generic           :: append_body                      => append_bounded_coords_body,             &  
+                                                                 append_bounded_values_body,             &
+                                                                 append_bounded_coords_by_row_body,      &
+                                                                 append_bounded_coords_by_col_body,      &
+                                                                 append_bounded_values_by_row_body,      &
+                                                                 append_bounded_values_by_col_body,      &
+                                                                 append_bounded_single_value_body,       &
+                                                                 append_bounded_single_coord_body,       &
+                                                                 append_bounded_dense_values_body,         &
+                                                                 append_bounded_square_dense_values_body,  &
+                                                                 append_coords_body,                     &
+                                                                 append_values_body,                     &
+                                                                 append_dense_values_body,               &
+                                                                 append_square_dense_values_body,        &
+                                                                 append_coords_by_row_body,              &
+                                                                 append_coords_by_col_body,              &
+                                                                 append_values_by_row_body,              &
+                                                                 append_values_by_col_body,              &
+                                                                 append_single_value_body,               &
                                                                  append_single_coord_body
-        generic           :: update_body                      => update_bounded_values_body ,        &
-                                                                 update_bounded_values_by_row_body,  &
-                                                                 update_bounded_values_by_col_body,  &
-                                                                 update_bounded_value_body,          &
-                                                                 update_values_body ,                &
-                                                                 update_values_by_row_body ,         &
-                                                                 update_values_by_col_body ,         &
+        generic           :: update_body                      => update_bounded_values_body ,              &
+                                                                 update_bounded_values_by_row_body,        &
+                                                                 update_bounded_values_by_col_body,        &
+                                                                 update_bounded_value_body,                &
+                                                                 update_bounded_dense_values_body ,        &
+                                                                 update_bounded_square_dense_values_body , &
+                                                                 update_dense_values_body ,                &
+                                                                 update_square_dense_values_body ,         &
+                                                                 update_values_body ,                      &
+                                                                 update_values_by_row_body ,               &
+                                                                 update_values_by_col_body ,               &
                                                                  update_value_body
     end type
 
@@ -244,54 +276,62 @@ private
         real(rp),    allocatable   :: val(:)                      !< Values
     contains
     private
-        procedure         :: append_bounded_values_body        => coo_sparse_matrix_append_bounded_values_body
-        procedure         :: append_bounded_coords_body        => coo_sparse_matrix_append_bounded_coords_body
-        procedure         :: append_bounded_values_by_row_body => coo_sparse_matrix_append_bounded_values_by_row_body
-        procedure         :: append_bounded_values_by_col_body => coo_sparse_matrix_append_bounded_values_by_col_body
-        procedure         :: append_bounded_coords_by_row_body => coo_sparse_matrix_append_bounded_coords_by_row_body
-        procedure         :: append_bounded_coords_by_col_body => coo_sparse_matrix_append_bounded_coords_by_col_body
-        procedure         :: append_bounded_single_value_body  => coo_sparse_matrix_append_bounded_single_value_body
-        procedure         :: append_bounded_single_coord_body  => coo_sparse_matrix_append_bounded_single_coord_body
-        procedure         :: append_values_body                => coo_sparse_matrix_append_values_body
-        procedure         :: append_coords_body                => coo_sparse_matrix_append_coords_body
-        procedure         :: append_values_by_row_body         => coo_sparse_matrix_append_values_by_row_body
-        procedure         :: append_values_by_col_body         => coo_sparse_matrix_append_values_by_col_body
-        procedure         :: append_coords_by_row_body         => coo_sparse_matrix_append_coords_by_row_body
-        procedure         :: append_coords_by_col_body         => coo_sparse_matrix_append_coords_by_col_body
-        procedure         :: append_single_value_body          => coo_sparse_matrix_append_single_value_body
-        procedure         :: append_single_coord_body          => coo_sparse_matrix_append_single_coord_body
-        procedure, public :: update_bounded_values_body        => coo_sparse_matrix_update_bounded_values_body
-        procedure, public :: update_bounded_values_by_row_body => coo_sparse_matrix_update_bounded_values_by_row_body
-        procedure, public :: update_bounded_values_by_col_body => coo_sparse_matrix_update_bounded_values_by_col_body
-        procedure, public :: update_bounded_value_body         => coo_sparse_matrix_update_bounded_value_body
-        procedure, public :: update_values_body                => coo_sparse_matrix_update_values_body
-        procedure, public :: update_values_by_row_body         => coo_sparse_matrix_update_values_by_row_body
-        procedure, public :: update_values_by_col_body         => coo_sparse_matrix_update_values_by_col_body
-        procedure, public :: update_value_body                 => coo_sparse_matrix_update_value_body
-        procedure, public :: is_by_rows                        => coo_sparse_matrix_is_by_rows
-        procedure, public :: is_by_cols                        => coo_sparse_matrix_is_by_cols
-        procedure, public :: set_nnz                           => coo_sparse_matrix_set_nnz
-        procedure, public :: get_nnz                           => coo_sparse_matrix_get_nnz
-        procedure, public :: sort_and_compress                 => coo_sparse_matrix_sort_and_compress
-        procedure, public :: set_sort_status_none              => coo_sparse_matrix_set_sort_status_none
-        procedure, public :: set_sort_status_by_rows           => coo_sparse_matrix_set_sort_status_by_rows
-        procedure, public :: set_sort_status_by_cols           => coo_sparse_matrix_set_sort_status_by_cols
-        procedure, public :: get_sort_status                   => coo_sparse_matrix_get_sort_status
-        procedure, public :: allocate_coords                   => coo_sparse_matrix_allocate_coords
-        procedure, public :: allocate_values_body              => coo_sparse_matrix_allocate_values_body
-        procedure, public :: initialize_values                 => coo_sparse_matrix_initialize_values
-        procedure, public :: copy_to_coo                       => coo_sparse_matrix_copy_to_coo
-        procedure, public :: copy_from_coo                     => coo_sparse_matrix_copy_from_coo
-        procedure, public :: copy_to_fmt                       => coo_sparse_matrix_copy_to_fmt
-        procedure, public :: copy_from_fmt                     => coo_sparse_matrix_copy_from_fmt
-        procedure, public :: move_to_coo                       => coo_sparse_matrix_move_to_coo
-        procedure, public :: move_from_coo                     => coo_sparse_matrix_move_from_coo
-        procedure, public :: move_to_fmt                       => coo_sparse_matrix_move_to_fmt
-        procedure, public :: move_from_fmt                     => coo_sparse_matrix_move_from_fmt
-        procedure, public :: free_coords                       => coo_sparse_matrix_free_coords
-        procedure, public :: free_val                          => coo_sparse_matrix_free_val
-        procedure, public :: print_matrix_market_body          => coo_sparse_matrix_print_matrix_market_body
-        procedure, public :: print                             => coo_sparse_matrix_print
+        procedure         :: append_bounded_values_body              => coo_sparse_matrix_append_bounded_values_body
+        procedure         :: append_bounded_coords_body              => coo_sparse_matrix_append_bounded_coords_body
+        procedure         :: append_bounded_values_by_row_body       => coo_sparse_matrix_append_bounded_values_by_row_body
+        procedure         :: append_bounded_values_by_col_body       => coo_sparse_matrix_append_bounded_values_by_col_body
+        procedure         :: append_bounded_coords_by_row_body       => coo_sparse_matrix_append_bounded_coords_by_row_body
+        procedure         :: append_bounded_coords_by_col_body       => coo_sparse_matrix_append_bounded_coords_by_col_body
+        procedure         :: append_bounded_single_value_body        => coo_sparse_matrix_append_bounded_single_value_body
+        procedure         :: append_bounded_single_coord_body        => coo_sparse_matrix_append_bounded_single_coord_body
+        procedure         :: append_bounded_dense_values_body        => coo_sparse_matrix_append_bounded_dense_values_body
+        procedure         :: append_bounded_square_dense_values_body => coo_sparse_matrix_append_bounded_square_dense_values_body
+        procedure         :: append_values_body                      => coo_sparse_matrix_append_values_body
+        procedure         :: append_coords_body                      => coo_sparse_matrix_append_coords_body
+        procedure         :: append_dense_values_body                => coo_sparse_matrix_append_dense_values_body
+        procedure         :: append_square_dense_values_body         => coo_sparse_matrix_append_square_dense_values_body
+        procedure         :: append_values_by_row_body               => coo_sparse_matrix_append_values_by_row_body
+        procedure         :: append_values_by_col_body               => coo_sparse_matrix_append_values_by_col_body
+        procedure         :: append_coords_by_row_body               => coo_sparse_matrix_append_coords_by_row_body
+        procedure         :: append_coords_by_col_body               => coo_sparse_matrix_append_coords_by_col_body
+        procedure         :: append_single_value_body                => coo_sparse_matrix_append_single_value_body
+        procedure         :: append_single_coord_body                => coo_sparse_matrix_append_single_coord_body
+        procedure, public :: update_bounded_values_body              => coo_sparse_matrix_update_bounded_values_body
+        procedure, public :: update_bounded_values_by_row_body       => coo_sparse_matrix_update_bounded_values_by_row_body
+        procedure, public :: update_bounded_values_by_col_body       => coo_sparse_matrix_update_bounded_values_by_col_body
+        procedure, public :: update_bounded_value_body               => coo_sparse_matrix_update_bounded_value_body
+        procedure, public :: update_bounded_dense_values_body        => coo_sparse_matrix_update_bounded_dense_values_body
+        procedure, public :: update_bounded_square_dense_values_body => coo_sparse_matrix_update_bounded_square_dense_values_body
+        procedure, public :: update_dense_values_body                => coo_sparse_matrix_update_dense_values_body
+        procedure, public :: update_square_dense_values_body         => coo_sparse_matrix_update_square_dense_values_body
+        procedure, public :: update_values_body                      => coo_sparse_matrix_update_values_body
+        procedure, public :: update_values_by_row_body               => coo_sparse_matrix_update_values_by_row_body
+        procedure, public :: update_values_by_col_body               => coo_sparse_matrix_update_values_by_col_body
+        procedure, public :: update_value_body                       => coo_sparse_matrix_update_value_body
+        procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
+        procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
+        procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
+        procedure, public :: get_nnz                                 => coo_sparse_matrix_get_nnz
+        procedure, public :: sort_and_compress                       => coo_sparse_matrix_sort_and_compress
+        procedure, public :: set_sort_status_none                    => coo_sparse_matrix_set_sort_status_none
+        procedure, public :: set_sort_status_by_rows                 => coo_sparse_matrix_set_sort_status_by_rows
+        procedure, public :: set_sort_status_by_cols                 => coo_sparse_matrix_set_sort_status_by_cols
+        procedure, public :: get_sort_status                         => coo_sparse_matrix_get_sort_status
+        procedure, public :: allocate_coords                         => coo_sparse_matrix_allocate_coords
+        procedure, public :: allocate_values_body                    => coo_sparse_matrix_allocate_values_body
+        procedure, public :: initialize_values                       => coo_sparse_matrix_initialize_values
+        procedure, public :: copy_to_coo                             => coo_sparse_matrix_copy_to_coo
+        procedure, public :: copy_from_coo                           => coo_sparse_matrix_copy_from_coo
+        procedure, public :: copy_to_fmt                             => coo_sparse_matrix_copy_to_fmt
+        procedure, public :: copy_from_fmt                           => coo_sparse_matrix_copy_from_fmt
+        procedure, public :: move_to_coo                             => coo_sparse_matrix_move_to_coo
+        procedure, public :: move_from_coo                           => coo_sparse_matrix_move_from_coo
+        procedure, public :: move_to_fmt                             => coo_sparse_matrix_move_to_fmt
+        procedure, public :: move_from_fmt                           => coo_sparse_matrix_move_from_fmt
+        procedure, public :: free_coords                             => coo_sparse_matrix_free_coords
+        procedure, public :: free_val                                => coo_sparse_matrix_free_val
+        procedure, public :: print_matrix_market_body                => coo_sparse_matrix_print_matrix_market_body
+        procedure, public :: print                                   => coo_sparse_matrix_print
     end type coo_sparse_matrix_t
 
 !---------------------------------------------------------------------
@@ -438,6 +478,65 @@ private
             integer(ip),                 intent(in)    :: jmax
         end subroutine base_sparse_matrix_update_bounded_values_by_col_body
 
+        subroutine base_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: num_cols
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_cols)
+            integer(ip),                 intent(in)    :: LDA
+            real(rp),                    intent(in)    :: val(LDA, num_cols)
+            integer(ip),                 intent(in)    :: imin
+            integer(ip),                 intent(in)    :: imax
+            integer(ip),                 intent(in)    :: jmin
+            integer(ip),                 intent(in)    :: jmax
+        end subroutine base_sparse_matrix_update_bounded_dense_values_body
+
+        subroutine base_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_rows)
+            integer(ip),                 intent(in)    :: LDA
+            real(rp),                    intent(in)    :: val(LDA, num_rows)
+            integer(ip),                 intent(in)    :: imin
+            integer(ip),                 intent(in)    :: imax
+            integer(ip),                 intent(in)    :: jmin
+            integer(ip),                 intent(in)    :: jmax
+        end subroutine base_sparse_matrix_update_bounded_square_dense_values_body
+
+        subroutine base_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: num_cols
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_cols)
+            integer(ip),                 intent(in)    :: LDA
+            real(rp),                    intent(in)    :: val(LDA, num_cols)
+        end subroutine base_sparse_matrix_update_dense_values_body
+
+        subroutine base_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_rows)
+            integer(ip),                 intent(in)    :: LDA
+            real(rp),                    intent(in)    :: val(LDA, num_rows)
+        end subroutine base_sparse_matrix_update_square_dense_values_body
+
+
         subroutine base_sparse_matrix_update_values_body(this, nz, ia, ja, val) 
             import base_sparse_matrix_t
             import ip
@@ -448,6 +547,7 @@ private
             integer(ip),                 intent(in)    :: ja(nz)
             real(rp),                    intent(in)    :: val(nz)
         end subroutine base_sparse_matrix_update_values_body
+
 
         subroutine base_sparse_matrix_update_value_body(this, ia, ja, val) 
             import base_sparse_matrix_t
@@ -1116,6 +1216,140 @@ contains
     end subroutine base_sparse_matrix_insert_coords
 
 
+    subroutine base_sparse_matrix_insert_bounded_dense_values(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_cols)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_bounded_dense_values
+
+
+    subroutine base_sparse_matrix_insert_bounded_square_dense_values(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_rows)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_bounded_square_dense_values
+
+
+    subroutine base_sparse_matrix_insert_dense_values(this, num_rows, num_cols, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_cols)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, num_cols, ia, ja, LDA, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, num_cols, ia, ja, LDA, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_dense_values
+
+
+    subroutine base_sparse_matrix_insert_square_dense_values(this, num_rows, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_rows)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, ia, ja, LDA, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, ia, ja, LDA, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_square_dense_values
+
+
     subroutine base_sparse_matrix_insert_values_by_row(this, nz, ia, ja, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
@@ -1489,6 +1723,80 @@ contains
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_append_coords_by_col_body
+
+
+    subroutine base_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_cols)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_dense_values_body
+
+
+    subroutine base_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin ,jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_rows)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_square_dense_values_body
+
+
+    subroutine base_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_cols)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_dense_values_body
+
+
+    subroutine base_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: LDA
+        real(rp),                    intent(in)    :: val(LDA, num_rows)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_square_dense_values_body
     
     
     subroutine base_sparse_matrix_append_single_value_body(this, ia, ja, val) 
@@ -2212,6 +2520,116 @@ contains
     end subroutine coo_sparse_matrix_append_coords_body
 
 
+    subroutine coo_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%append_body(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_append_bounded_dense_values_body
+
+
+    subroutine coo_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%append_body(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_append_bounded_square_dense_values_body
+
+
+    subroutine coo_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%append_body(ia(i), ja(j), val(i,j))
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_append_dense_values_body
+
+
+    subroutine coo_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%append_body(ia(i), ja(j), val(i,j))
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_append_square_dense_values_body
+
+
     subroutine coo_sparse_matrix_append_values_by_row_body(this, nz, ia, ja, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the COO sparse matrix
@@ -2810,6 +3228,112 @@ contains
             end do
         endif
     end subroutine coo_sparse_matrix_update_values_body
+
+
+    subroutine coo_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_update_bounded_dense_values_body
+
+
+    subroutine coo_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_update_bounded_square_dense_values_body
+
+
+    subroutine coo_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%insert(ia(i), ja(j), val(i,j))
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_update_dense_values_body
+
+
+    subroutine coo_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: LDA
+        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        assert(LDA>=num_rows)    
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%insert(ia(i), ja(j), val(i,j))
+            enddo
+        enddo
+
+    end subroutine coo_sparse_matrix_update_square_dense_values_body
 
 
     subroutine coo_sparse_matrix_update_values_by_row_body(this, nz, ia, ja, val) 
