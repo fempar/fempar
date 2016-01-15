@@ -690,7 +690,7 @@ contains
     end subroutine csr_sparse_matrix_update_values_body
 
 
-    subroutine csr_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine csr_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -699,8 +699,9 @@ contains
         integer(ip),                intent(in)    :: num_cols
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_cols)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip),                intent(in)    :: imin
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
@@ -708,18 +709,17 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_cols
-                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
 
     end subroutine csr_sparse_matrix_update_bounded_dense_values_body
 
 
-    subroutine csr_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine csr_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -727,8 +727,9 @@ contains
         integer(ip),                intent(in)    :: num_rows
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_rows)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip),                intent(in)    :: imin
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
@@ -736,18 +737,17 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_rows
-                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
 
     end subroutine csr_sparse_matrix_update_bounded_square_dense_values_body
 
 
-    subroutine csr_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    subroutine csr_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -756,23 +756,23 @@ contains
         integer(ip),                intent(in)    :: num_cols
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_cols)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_cols
-                call this%insert(ia(i), ja(j), val(i,j))
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
 
     end subroutine csr_sparse_matrix_update_dense_values_body
 
 
-    subroutine csr_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    subroutine csr_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -780,16 +780,16 @@ contains
         integer(ip),                intent(in)    :: num_rows
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_rows)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_rows
-                call this%insert(ia(i), ja(j), val(i,j))
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
 

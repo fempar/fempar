@@ -154,8 +154,8 @@ module reference_fe_names
      procedure(get_value_vector_interface)           , deferred :: get_value_vector
      !procedure(get_value_tensor_interface)          , deferred :: get_value_tensor           ! Pending
      !procedure(get_value_symmetric_tensor_interface), deferred :: get_value_symmetric_tensor ! Pending
-     generic :: get_value => get_value_scalar,get_value_vector                                      &
-          &                !,get_value_tensor,get_value_symmetric_tensor
+     generic :: get_value => get_value_scalar,get_value_vector!                                      &
+!          &                !,get_value_tensor,get_value_symmetric_tensor
     
      procedure(get_gradient_scalar_interface)          , deferred :: get_gradient_scalar
      procedure(get_gradient_vector_interface)          , deferred :: get_gradient_vector

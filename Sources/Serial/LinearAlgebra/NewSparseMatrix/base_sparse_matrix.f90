@@ -478,7 +478,7 @@ private
             integer(ip),                 intent(in)    :: jmax
         end subroutine base_sparse_matrix_update_bounded_values_by_col_body
 
-        subroutine base_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+        subroutine base_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
             import ip
             import rp
@@ -487,15 +487,16 @@ private
             integer(ip),                 intent(in)    :: num_cols
             integer(ip),                 intent(in)    :: ia(num_rows)
             integer(ip),                 intent(in)    :: ja(num_cols)
-            integer(ip),                 intent(in)    :: LDA
-            real(rp),                    intent(in)    :: val(LDA, num_cols)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
             integer(ip),                 intent(in)    :: imin
             integer(ip),                 intent(in)    :: imax
             integer(ip),                 intent(in)    :: jmin
             integer(ip),                 intent(in)    :: jmax
         end subroutine base_sparse_matrix_update_bounded_dense_values_body
 
-        subroutine base_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+        subroutine base_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
             import ip
             import rp
@@ -503,15 +504,16 @@ private
             integer(ip),                 intent(in)    :: num_rows
             integer(ip),                 intent(in)    :: ia(num_rows)
             integer(ip),                 intent(in)    :: ja(num_rows)
-            integer(ip),                 intent(in)    :: LDA
-            real(rp),                    intent(in)    :: val(LDA, num_rows)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
             integer(ip),                 intent(in)    :: imin
             integer(ip),                 intent(in)    :: imax
             integer(ip),                 intent(in)    :: jmin
             integer(ip),                 intent(in)    :: jmax
         end subroutine base_sparse_matrix_update_bounded_square_dense_values_body
 
-        subroutine base_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+        subroutine base_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
             import base_sparse_matrix_t
             import ip
             import rp
@@ -520,11 +522,12 @@ private
             integer(ip),                 intent(in)    :: num_cols
             integer(ip),                 intent(in)    :: ia(num_rows)
             integer(ip),                 intent(in)    :: ja(num_cols)
-            integer(ip),                 intent(in)    :: LDA
-            real(rp),                    intent(in)    :: val(LDA, num_cols)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
         end subroutine base_sparse_matrix_update_dense_values_body
 
-        subroutine base_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+        subroutine base_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
             import base_sparse_matrix_t
             import ip
             import rp
@@ -532,8 +535,9 @@ private
             integer(ip),                 intent(in)    :: num_rows
             integer(ip),                 intent(in)    :: ia(num_rows)
             integer(ip),                 intent(in)    :: ja(num_rows)
-            integer(ip),                 intent(in)    :: LDA
-            real(rp),                    intent(in)    :: val(LDA, num_rows)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
         end subroutine base_sparse_matrix_update_square_dense_values_body
 
 
@@ -1216,7 +1220,7 @@ contains
     end subroutine base_sparse_matrix_insert_coords
 
 
-    subroutine base_sparse_matrix_insert_bounded_dense_values(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_insert_bounded_dense_values(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< This is a common interface to control the state diagram
@@ -1228,8 +1232,9 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_cols)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
         integer(ip),                 intent(in)    :: imin
         integer(ip),                 intent(in)    :: imax
         integer(ip),                 intent(in)    :: jmin
@@ -1237,7 +1242,7 @@ contains
     !-----------------------------------------------------------------
         assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
-            call this%append_body(num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax)
+            call this%append_body(num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
             call this%set_state_build_numeric()
         else
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
@@ -1245,14 +1250,14 @@ contains
                 call this%initialize_values(val=0.0_rp)
             endif
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
-                call this%update_body(num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax)
+                call this%update_body(num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
                 call this%set_state_update()
             endif
         endif
     end subroutine base_sparse_matrix_insert_bounded_dense_values
 
 
-    subroutine base_sparse_matrix_insert_bounded_square_dense_values(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_insert_bounded_square_dense_values(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< This is a common interface to control the state diagram
@@ -1263,8 +1268,9 @@ contains
         integer(ip),                 intent(in)    :: num_rows
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_rows)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
         integer(ip),                 intent(in)    :: imin
         integer(ip),                 intent(in)    :: imax
         integer(ip),                 intent(in)    :: jmin
@@ -1272,7 +1278,7 @@ contains
     !-----------------------------------------------------------------
         assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
-            call this%append_body(num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax)
+            call this%append_body(num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
             call this%set_state_build_numeric()
         else
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
@@ -1280,14 +1286,14 @@ contains
                 call this%initialize_values(val=0.0_rp)
             endif
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
-                call this%update_body(num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax)
+                call this%update_body(num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
                 call this%set_state_update()
             endif
         endif
     end subroutine base_sparse_matrix_insert_bounded_square_dense_values
 
 
-    subroutine base_sparse_matrix_insert_dense_values(this, num_rows, num_cols, ia, ja, LDA, val) 
+    subroutine base_sparse_matrix_insert_dense_values(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< This is a common interface to control the state diagram
@@ -1299,12 +1305,13 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_cols)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
     !-----------------------------------------------------------------
         assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
-            call this%append_body(num_rows, num_cols, ia, ja, LDA, val)
+            call this%append_body(num_rows, num_cols, ia, ja, ioffset, joffset, val)
             call this%set_state_build_numeric()
         else
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
@@ -1312,14 +1319,14 @@ contains
                 call this%initialize_values(val=0.0_rp)
             endif
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
-                call this%update_body(num_rows, num_cols, ia, ja, LDA, val)
+                call this%update_body(num_rows, num_cols, ia, ja, ioffset, joffset, val)
                 call this%set_state_update()
             endif
         endif
     end subroutine base_sparse_matrix_insert_dense_values
 
 
-    subroutine base_sparse_matrix_insert_square_dense_values(this, num_rows, ia, ja, LDA, val) 
+    subroutine base_sparse_matrix_insert_square_dense_values(this, num_rows, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< This is a common interface to control the state diagram
@@ -1330,12 +1337,13 @@ contains
         integer(ip),                 intent(in)    :: num_rows
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_rows)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
     !-----------------------------------------------------------------
         assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
         if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
-            call this%append_body(num_rows, ia, ja, LDA, val)
+            call this%append_body(num_rows, ia, ja, ioffset, joffset, val)
             call this%set_state_build_numeric()
         else
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
@@ -1343,7 +1351,7 @@ contains
                 call this%initialize_values(val=0.0_rp)
             endif
             if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
-                call this%update_body(num_rows, ia, ja, LDA, val)
+                call this%update_body(num_rows, ia, ja, ioffset, joffset, val)
                 call this%set_state_update()
             endif
         endif
@@ -1725,7 +1733,7 @@ contains
     end subroutine base_sparse_matrix_append_coords_by_col_body
 
 
-    subroutine base_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -1735,8 +1743,9 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_cols)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
         integer(ip),                 intent(in)    :: imin
         integer(ip),                 intent(in)    :: imax
         integer(ip),                 intent(in)    :: jmin
@@ -1746,7 +1755,7 @@ contains
     end subroutine base_sparse_matrix_append_bounded_dense_values_body
 
 
-    subroutine base_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin ,jmax) 
+    subroutine base_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin ,jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -1755,8 +1764,9 @@ contains
         integer(ip),                 intent(in)    :: num_rows
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_rows)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
         integer(ip),                 intent(in)    :: imin
         integer(ip),                 intent(in)    :: imax
         integer(ip),                 intent(in)    :: jmin
@@ -1766,7 +1776,7 @@ contains
     end subroutine base_sparse_matrix_append_bounded_square_dense_values_body
 
 
-    subroutine base_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    subroutine base_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -1776,14 +1786,15 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_cols)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_append_dense_values_body
 
 
-    subroutine base_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    subroutine base_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -1792,8 +1803,9 @@ contains
         integer(ip),                 intent(in)    :: num_rows
         integer(ip),                 intent(in)    :: ia(num_rows)
         integer(ip),                 intent(in)    :: ja(num_rows)
-        integer(ip),                 intent(in)    :: LDA
-        real(rp),                    intent(in)    :: val(LDA, num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_append_square_dense_values_body
@@ -2520,7 +2532,7 @@ contains
     end subroutine coo_sparse_matrix_append_coords_body
 
 
-    subroutine coo_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the COO sparse matrix
     !< It allows duplicated entries
@@ -2530,8 +2542,9 @@ contains
         integer(ip),                intent(in)    :: num_cols
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_cols)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip),                intent(in)    :: imin
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
@@ -2539,18 +2552,17 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_cols
-                call this%append_body(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
 
     end subroutine coo_sparse_matrix_append_bounded_dense_values_body
 
 
-    subroutine coo_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the COO sparse matrix
     !< It allows duplicated entries
@@ -2559,8 +2571,9 @@ contains
         integer(ip),                intent(in)    :: num_rows
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_rows)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip),                intent(in)    :: imin
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
@@ -2568,18 +2581,17 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_rows
-                call this%append_body(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
 
     end subroutine coo_sparse_matrix_append_bounded_square_dense_values_body
 
 
-    subroutine coo_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    subroutine coo_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the COO sparse matrix
     !< It allows duplicated entries
@@ -2589,23 +2601,23 @@ contains
         integer(ip),                intent(in)    :: num_cols
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_cols)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_cols
-                call this%append_body(ia(i), ja(j), val(i,j))
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
 
     end subroutine coo_sparse_matrix_append_dense_values_body
 
 
-    subroutine coo_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    subroutine coo_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the COO sparse matrix
     !< It allows duplicated entries
@@ -2614,16 +2626,16 @@ contains
         integer(ip),                intent(in)    :: num_rows
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_rows)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_rows
-                call this%append_body(ia(i), ja(j), val(i,j))
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
 
@@ -3230,7 +3242,7 @@ contains
     end subroutine coo_sparse_matrix_update_values_body
 
 
-    subroutine coo_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -3239,8 +3251,9 @@ contains
         integer(ip),                intent(in)    :: num_cols
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_cols)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip),                intent(in)    :: imin
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
@@ -3248,18 +3261,17 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_cols
-                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
 
     end subroutine coo_sparse_matrix_update_bounded_dense_values_body
 
 
-    subroutine coo_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -3267,8 +3279,9 @@ contains
         integer(ip),                intent(in)    :: num_rows
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_rows)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip),                intent(in)    :: imin
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
@@ -3276,18 +3289,17 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_rows
-                call this%insert(ia(i), ja(j), val(i,j), imin, imax, jmin, jmax)
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
 
     end subroutine coo_sparse_matrix_update_bounded_square_dense_values_body
 
 
-    subroutine coo_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, LDA, val) 
+    subroutine coo_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -3296,23 +3308,23 @@ contains
         integer(ip),                intent(in)    :: num_cols
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_cols)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_cols
-                call this%insert(ia(i), ja(j), val(i,j))
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
 
     end subroutine coo_sparse_matrix_update_dense_values_body
 
 
-    subroutine coo_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, LDA, val) 
+    subroutine coo_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -3320,16 +3332,16 @@ contains
         integer(ip),                intent(in)    :: num_rows
         integer(ip),                intent(in)    :: ia(num_rows)
         integer(ip),                intent(in)    :: ja(num_rows)
-        integer(ip),                intent(in)    :: LDA
-        real(rp),                   intent(in)    :: val(LDA, num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-        assert(LDA>=num_rows)    
 
         do i=1, num_rows
             do j=1, num_rows
-                call this%insert(ia(i), ja(j), val(i,j))
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
 

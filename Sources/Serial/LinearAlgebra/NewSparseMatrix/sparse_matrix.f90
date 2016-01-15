@@ -416,7 +416,7 @@ contains
     end subroutine sparse_matrix_insert_bounded_single_coord
 
 
-    subroutine sparse_matrix_insert_bounded_dense_values(this, num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine sparse_matrix_insert_bounded_dense_values(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !-----------------------------------------------------------------
@@ -425,19 +425,20 @@ contains
         integer(ip),            intent(in)    :: num_cols
         integer(ip),            intent(in)    :: ia(num_rows)
         integer(ip),            intent(in)    :: ja(num_cols)
-        integer(ip),            intent(in)    :: LDA
-        real(rp),               intent(in)    :: val(LDA,num_cols)
+        integer(ip),            intent(in)    :: ioffset
+        integer(ip),            intent(in)    :: joffset
+        real(rp),               intent(in)    :: val(:,:)
         integer(ip),            intent(in)    :: imin
         integer(ip),            intent(in)    :: imax
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        call this%State%insert(num_rows, num_cols, ia, ja, LDA, val, imin, imax, jmin, jmax)
+        call this%State%insert(num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
     end subroutine sparse_matrix_insert_bounded_dense_values
 
 
-    subroutine sparse_matrix_insert_bounded_square_dense_values(this, num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax) 
+    subroutine sparse_matrix_insert_bounded_square_dense_values(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !-----------------------------------------------------------------
@@ -445,19 +446,20 @@ contains
         integer(ip),            intent(in)    :: num_rows
         integer(ip),            intent(in)    :: ia(num_rows)
         integer(ip),            intent(in)    :: ja(num_rows)
-        integer(ip),            intent(in)    :: LDA
-        real(rp),               intent(in)    :: val(LDA,num_rows)
+        integer(ip),            intent(in)    :: ioffset
+        integer(ip),            intent(in)    :: joffset
+        real(rp),               intent(in)    :: val(:,:)
         integer(ip),            intent(in)    :: imin
         integer(ip),            intent(in)    :: imax
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        call this%State%insert(num_rows, ia, ja, LDA, val, imin, imax, jmin, jmax)
+        call this%State%insert(num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
     end subroutine sparse_matrix_insert_bounded_square_dense_values
 
 
-    subroutine sparse_matrix_insert_dense_values(this, num_rows, num_cols, ia, ja, LDA, val) 
+    subroutine sparse_matrix_insert_dense_values(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !-----------------------------------------------------------------
@@ -466,15 +468,16 @@ contains
         integer(ip),            intent(in)    :: num_cols
         integer(ip),            intent(in)    :: ia(num_rows)
         integer(ip),            intent(in)    :: ja(num_cols)
-        integer(ip),            intent(in)    :: LDA
-        real(rp),               intent(in)    :: val(LDA,num_cols)
+        integer(ip),            intent(in)    :: ioffset
+        integer(ip),            intent(in)    :: joffset
+        real(rp),               intent(in)    :: val(:,:)
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        call this%State%insert(num_rows, num_cols, ia, ja, LDA, val)
+        call this%State%insert(num_rows, num_cols, ia, ja, ioffset, joffset, val)
     end subroutine sparse_matrix_insert_dense_values
 
 
-    subroutine sparse_matrix_insert_square_dense_values(this, num_rows, ia, ja, LDA, val) 
+    subroutine sparse_matrix_insert_square_dense_values(this, num_rows, ia, ja, ioffset, joffset, val) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !-----------------------------------------------------------------
@@ -482,11 +485,12 @@ contains
         integer(ip),            intent(in)    :: num_rows
         integer(ip),            intent(in)    :: ia(num_rows)
         integer(ip),            intent(in)    :: ja(num_rows)
-        integer(ip),            intent(in)    :: LDA
-        real(rp),               intent(in)    :: val(LDA,num_rows)
+        integer(ip),            intent(in)    :: ioffset
+        integer(ip),            intent(in)    :: joffset
+        real(rp),               intent(in)    :: val(:,:)
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        call this%State%insert(num_rows, ia, ja, LDA, val)
+        call this%State%insert(num_rows, ia, ja, ioffset, joffset, val)
     end subroutine sparse_matrix_insert_square_dense_values
 
 

@@ -30,7 +30,8 @@ implicit none
                               num_cols=4,     &
                               ia=(/1,2,3,4/), &
                               ja=(/1,2,3,4/), &
-                              LDA=4,          &
+                              ioffset=0,      &
+                              joffset=0,      &
                               val=val,        &
                               imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%print( 6)
