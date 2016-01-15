@@ -25,66 +25,66 @@ private
     private
         class(base_sparse_matrix_t), allocatable :: State
     contains
-        procedure         ::                              sparse_matrix_create_square
-        procedure         ::                              sparse_matrix_create_rectangular
-        procedure         ::                              sparse_matrix_insert_bounded_coords
-        procedure         ::                              sparse_matrix_insert_bounded_values
-        procedure         ::                              sparse_matrix_insert_bounded_coords_by_row
-        procedure         ::                              sparse_matrix_insert_bounded_coords_by_col
-        procedure         ::                              sparse_matrix_insert_bounded_values_by_row
-        procedure         ::                              sparse_matrix_insert_bounded_values_by_col
-        procedure         ::                              sparse_matrix_insert_bounded_single_coord
-        procedure         ::                              sparse_matrix_insert_bounded_single_value
-        procedure         ::                              sparse_matrix_insert_coords
-        procedure         ::                              sparse_matrix_insert_values
-        procedure         ::                              sparse_matrix_insert_coords_by_row
-        procedure         ::                              sparse_matrix_insert_coords_by_col
-        procedure         ::                              sparse_matrix_insert_values_by_row
-        procedure         ::                              sparse_matrix_insert_values_by_col
-        procedure         ::                              sparse_matrix_insert_single_coord
-        procedure         ::                              sparse_matrix_insert_single_value
-        procedure         ::                              sparse_matrix_convert
-        procedure         ::                              sparse_matrix_convert_string
-        procedure         ::                              sparse_matrix_convert_sparse_matrix_mold
-        procedure         ::                              sparse_matrix_convert_base_sparse_matrix_mold
-        procedure         :: create_vector_spaces      => sparse_matrix_create_vector_spaces
-        procedure, public :: get_nnz                   => sparse_matrix_get_nnz
-        procedure, public :: get_sign                  => sparse_matrix_get_sign
-        procedure, public :: get_num_rows              => sparse_matrix_get_num_rows
-        procedure, public :: get_num_cols              => sparse_matrix_get_num_cols
-        procedure, public :: get_symmetric_storage     => sparse_matrix_get_symmetric_storage 
-        procedure, public :: is_by_rows                => sparse_matrix_is_by_rows
-        procedure, public :: is_by_cols                => sparse_matrix_is_by_cols
-        procedure, public :: is_symmetric              => sparse_matrix_is_symmetric
-        procedure, public :: get_default_sparse_matrix => sparse_matrix_get_default_sparse_matrix
-        procedure, public :: allocate                  => sparse_matrix_allocate
-        procedure, public :: free_in_stages            => sparse_matrix_free_in_stages  
-        generic,   public :: create                    => sparse_matrix_create_square, &
-                                                          sparse_matrix_create_rectangular
-        generic,   public :: insert                    => sparse_matrix_insert_bounded_coords,       &
-                                                          sparse_matrix_insert_bounded_values,       &
-                                                          sparse_matrix_insert_bounded_coords_by_row,&
-                                                          sparse_matrix_insert_bounded_coords_by_col,&
-                                                          sparse_matrix_insert_bounded_values_by_row,&
-                                                          sparse_matrix_insert_bounded_values_by_col,&
-                                                          sparse_matrix_insert_bounded_single_coord, &
-                                                          sparse_matrix_insert_bounded_single_value, &
-                                                          sparse_matrix_insert_coords,               &
-                                                          sparse_matrix_insert_values,               &
-                                                          sparse_matrix_insert_coords_by_row,        &
-                                                          sparse_matrix_insert_coords_by_col,        &
-                                                          sparse_matrix_insert_values_by_row,        &
-                                                          sparse_matrix_insert_values_by_col,        &
-                                                          sparse_matrix_insert_single_coord,         &
-                                                          sparse_matrix_insert_single_value
-        generic,   public :: convert                   => sparse_matrix_convert,                         &
-                                                          sparse_matrix_convert_string,                  &
-                                                          sparse_matrix_convert_sparse_matrix_mold,      &
-                                                          sparse_matrix_convert_base_sparse_matrix_mold
-        procedure, public :: free                      => sparse_matrix_free
-        procedure, public :: apply                     => sparse_matrix_apply
-        procedure, public :: print                     => sparse_matrix_print
-        procedure, public :: print_matrix_market       => sparse_matrix_print_matrix_market
+        procedure, non_overridable ::                                      sparse_matrix_create_square
+        procedure, non_overridable ::                                      sparse_matrix_create_rectangular
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_coords
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_values
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_coords_by_row
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_coords_by_col
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_values_by_row
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_values_by_col
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_single_coord
+        procedure, non_overridable ::                                      sparse_matrix_insert_bounded_single_value
+        procedure, non_overridable ::                                      sparse_matrix_insert_coords
+        procedure, non_overridable ::                                      sparse_matrix_insert_values
+        procedure, non_overridable ::                                      sparse_matrix_insert_coords_by_row
+        procedure, non_overridable ::                                      sparse_matrix_insert_coords_by_col
+        procedure, non_overridable ::                                      sparse_matrix_insert_values_by_row
+        procedure, non_overridable ::                                      sparse_matrix_insert_values_by_col
+        procedure, non_overridable ::                                      sparse_matrix_insert_single_coord
+        procedure, non_overridable ::                                      sparse_matrix_insert_single_value
+        procedure, non_overridable ::                                      sparse_matrix_convert
+        procedure, non_overridable ::                                      sparse_matrix_convert_string
+        procedure, non_overridable ::                                      sparse_matrix_convert_sparse_matrix_mold
+        procedure, non_overridable ::                                      sparse_matrix_convert_base_sparse_matrix_mold
+        procedure, non_overridable ::         create_vector_spaces      => sparse_matrix_create_vector_spaces
+        procedure, non_overridable, public :: get_nnz                   => sparse_matrix_get_nnz
+        procedure, non_overridable, public :: get_sign                  => sparse_matrix_get_sign
+        procedure, non_overridable, public :: get_num_rows              => sparse_matrix_get_num_rows
+        procedure, non_overridable, public :: get_num_cols              => sparse_matrix_get_num_cols
+        procedure, non_overridable, public :: get_symmetric_storage     => sparse_matrix_get_symmetric_storage 
+        procedure, non_overridable, public :: is_by_rows                => sparse_matrix_is_by_rows
+        procedure, non_overridable, public :: is_by_cols                => sparse_matrix_is_by_cols
+        procedure, non_overridable, public :: is_symmetric              => sparse_matrix_is_symmetric
+        procedure, non_overridable, public :: get_default_sparse_matrix => sparse_matrix_get_default_sparse_matrix
+        procedure, non_overridable, public :: allocate                  => sparse_matrix_allocate
+        procedure, non_overridable, public :: free_in_stages            => sparse_matrix_free_in_stages  
+        generic,                    public :: create                    => sparse_matrix_create_square, &
+                                                                           sparse_matrix_create_rectangular
+        generic,                    public :: insert                    => sparse_matrix_insert_bounded_coords,       &
+                                                                           sparse_matrix_insert_bounded_values,       &
+                                                                           sparse_matrix_insert_bounded_coords_by_row,&
+                                                                           sparse_matrix_insert_bounded_coords_by_col,&
+                                                                           sparse_matrix_insert_bounded_values_by_row,&
+                                                                           sparse_matrix_insert_bounded_values_by_col,&
+                                                                           sparse_matrix_insert_bounded_single_coord, &
+                                                                           sparse_matrix_insert_bounded_single_value, &
+                                                                           sparse_matrix_insert_coords,               &
+                                                                           sparse_matrix_insert_values,               &
+                                                                           sparse_matrix_insert_coords_by_row,        &
+                                                                           sparse_matrix_insert_coords_by_col,        &
+                                                                           sparse_matrix_insert_values_by_row,        &
+                                                                           sparse_matrix_insert_values_by_col,        &
+                                                                           sparse_matrix_insert_single_coord,         &
+                                                                           sparse_matrix_insert_single_value
+        generic,                     public :: convert                  => sparse_matrix_convert,                         &
+                                                                           sparse_matrix_convert_string,                  &
+                                                                           sparse_matrix_convert_sparse_matrix_mold,      &
+                                                                           sparse_matrix_convert_base_sparse_matrix_mold
+        procedure, non_overridable, public :: free                      => sparse_matrix_free
+        procedure, non_overridable, public :: apply                     => sparse_matrix_apply
+        procedure, non_overridable, public :: print                     => sparse_matrix_print
+        procedure, non_overridable, public :: print_matrix_market       => sparse_matrix_print_matrix_market
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
