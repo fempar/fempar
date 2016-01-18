@@ -3247,20 +3247,12 @@ contains
             ! By-rows sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
-                        iaux(this%ia(1)) = iaux(this%ia(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
-                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ia(1)) = iaux(this%ia(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                        sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -3284,10 +3276,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                     else
@@ -3337,10 +3325,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols)  cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                     else
                                         k = k + 1
@@ -3381,10 +3365,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only upper triangle is stored
-                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows.or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                         else
@@ -3401,20 +3381,12 @@ contains
             ! By-columns sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
-                        iaux(this%ja(1)) = iaux(this%ja(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
-                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ja(1)) = iaux(this%ja(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                        sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -3438,10 +3410,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored
-                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                     else
@@ -3491,10 +3459,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored 
-                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                     else
@@ -3536,10 +3500,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only lower triangle is stored
-                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols)  cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                         else
@@ -3609,20 +3569,12 @@ contains
             ! By-rows sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
-                        iaux(this%ia(1)) = iaux(this%ia(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
-                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ia(1)) = iaux(this%ia(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                        sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                    enddo
                 endif
                 
                 if(use_buffers) then
@@ -3639,9 +3591,6 @@ contains
                                 call mergesort(nzl,this%ja(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
                                 ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
@@ -3652,10 +3601,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -3700,10 +3645,6 @@ contains
                                 ! Sort the colums of a particular row
                                 call mergesort(nzl,jas(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
-                                ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
@@ -3714,10 +3655,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -3760,10 +3697,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only upper triangle is stored
-                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                             call apply_duplicates(input=this%val(j), output=this%val(i))
@@ -3782,20 +3715,12 @@ contains
             ! By-columns sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
-                        iaux(this%ja(1)) = iaux(this%ja(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
-                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ja(1)) = iaux(this%ja(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                        sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -3812,9 +3737,6 @@ contains
                                 call mergesort(nzl,this%ia(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
                                 ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
@@ -3825,10 +3747,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored
-                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -3873,10 +3791,6 @@ contains
                                 ! Sort the rows of a particular column
                                 call mergesort(nzl,ias(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
-                                ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
@@ -3887,10 +3801,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored 
-                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -3934,10 +3844,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only lower triangle is stored
-                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                             call apply_duplicates(input=this%val(j), output=this%val(i))
