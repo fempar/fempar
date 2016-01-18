@@ -160,8 +160,8 @@ module reference_fe_names
      procedure(get_gradient_scalar_interface)          , deferred :: get_gradient_scalar
      procedure(get_gradient_vector_interface)          , deferred :: get_gradient_vector
      !procedure(get_gradient_tensor_interface)          , deferred :: get_gradient_tensor ! Pending
-     generic :: get_gradient => get_gradient_scalar,get_gradient_vector                             &
-          &                   !,get_value_tensor,get_value_symmetric_tensor
+     generic :: get_gradient => get_gradient_scalar,get_gradient_vector!                             &
+!          &                   !,get_value_tensor,get_value_symmetric_tensor
                                                                                      
      !procedure(get_symmetric_gradient_vector_interface), deferred :: get_symmetric_gradient_vector ! Pending
      !generic :: get_symmetric_gradient => get_symmetric_gradient_scalar
