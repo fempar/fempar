@@ -518,6 +518,7 @@ contains
         integer(ip),                intent(in)    :: jmax
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc
+        logical                                   :: symmetric_storage
     !-----------------------------------------------------------------
         if(nz==0) return
 
@@ -529,12 +530,14 @@ contains
 
         ilr = -1 
         ilc = -1 
+        symmetric_storage = this%get_symmetric_storage()
         do i=1, nz
             ir = ia(i)
             ic = ja(i) 
             ! Ignore out of bounds entries
             if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-                ir<1 .or. ir>this%get_num_rows() .or. ic<1 .or. ic>this%get_num_cols()) cycle
+                ir<1 .or. ir>this%get_num_rows() .or. ic<1 .or. ic>this%get_num_cols() .or. &
+                (symmetric_storage .and. ic>ir)) cycle
             i1 = this%irp(ir)
             i2 = this%irp(ir+1)
             nc = i2-i1
@@ -560,7 +563,9 @@ contains
         integer(ip)                               :: i,ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
         ! Ignore out of bounds entries
-        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or. ja>this%get_num_cols()) return
+        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
+            ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or. ja>this%get_num_cols() .or. &
+            (this%get_symmetric_storage() .and. ja>ia)) return
 
         if(this%get_sum_duplicates()) then
             apply_duplicates => sum_value
@@ -591,6 +596,7 @@ contains
         integer(ip),                intent(in)    :: jmax
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i, ic, ipaux,i1,i2,nc
+        logical                                   :: symmetric_storage
     !-----------------------------------------------------------------
         if(nz==0 .or. ia<imin .or. ia<1 .or. ia>imax .or. ia>this%get_num_rows()) return
 
@@ -602,11 +608,13 @@ contains
 
         i1 = this%irp(ia)
         i2 = this%irp(ia+1)
+        symmetric_storage = this%get_symmetric_storage()
 
         do i=1, nz
             ic = ja(i) 
             ! Ignore out of bounds entries
-            if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%get_num_cols()) cycle
+            if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%get_num_cols() .or. &
+                (symmetric_storage .and. ic>ia)) cycle
             nc = i2-i1
             ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
             if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -630,6 +638,7 @@ contains
         integer(ip),                intent(in)    :: jmax
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ir,ipaux,i1,i2,nc
+        logical                                   :: symmetric_storage
     !-----------------------------------------------------------------
         if(nz==0 .or. ja<jmin .or. ja<1 .or. ja>jmax .or. ja>this%get_num_cols()) return
 
@@ -639,10 +648,13 @@ contains
             apply_duplicates => assign_value
         endif
 
+        symmetric_storage = this%get_symmetric_storage()
+
         do i=1, nz
             ir = ia(i)
             ! Ignore out of bounds entries
-            if (ir<imin .or. ir<1 .or. ir>imax .or. ir>this%get_num_rows()) cycle
+            if (ir<imin .or. ir<1 .or. ir>imax .or. ir>this%get_num_rows() .or. &
+                (symmetric_storage .and. ja>ir)) cycle
             i1 = this%irp(ir)
             i2 = this%irp(ir+1)
             nc = i2-i1

@@ -2733,7 +2733,8 @@ contains
                 ic = ja(i) 
                 ! Ignore out of bounds entries
                 if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols) cycle
+                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ir)) cycle
                 if (ir /= ilr) then 
                     i1 = binary_search(ir,nnz,this%ia)
                     i2 = i1
@@ -2762,7 +2763,8 @@ contains
                 ic = ja(i) 
                 ! Ignore out of bounds entries
                 if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols) cycle
+                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ir)) cycle
                 if (ic /= ilc) then 
                     i1 = binary_search(ic,nnz,this%ja)
                     i2 = i1
@@ -2802,7 +2804,9 @@ contains
         integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
         ! Ignore out of bounds entriy
-        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols) return
+        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
+            ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
+            (this%symmetric_storage .and. ja>ia)) return
 
         if(this%get_sum_duplicates()) then
             apply_duplicates => sum_value
@@ -2898,7 +2902,8 @@ contains
             do i=1, nz
                 ic = ja(i) 
                 ! Ignore out of bounds entries
-                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols) cycle
+                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ia)) cycle
                 nc = i2-i1+1
                 ipaux = binary_search(ic,nc,this%ja(i1:i2))
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -2910,7 +2915,8 @@ contains
             do i=1, nz
                 ic = ja(i) 
                 ! Ignore out of bounds entries
-                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols) cycle
+                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ia)) cycle
                 if (ic /= ilc) then 
                     i1 = binary_search(ic,nnz,this%ja)
                     i2 = i1
@@ -2966,7 +2972,8 @@ contains
             do i=1, nz
                 ir = ia(i) 
                 ! Ignore out of bounds entries
-                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows) cycle
+                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
+                    (this%symmetric_storage .and. ja>ir)) cycle
                 if (ir /= ilr) then 
                     i1 = binary_search(ir,nnz,this%ia)
                     i2 = i1
@@ -3007,7 +3014,8 @@ contains
             do i=1, nz
                 ir = ia(i) 
                 ! Ignore out of bounds entries
-                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows) cycle
+                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
+                    (this%symmetric_storage .and. ja>ir)) cycle
                 nr = i2-i1+1
                 ipaux = binary_search(ir,nc,this%ia(i1:i2))
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
