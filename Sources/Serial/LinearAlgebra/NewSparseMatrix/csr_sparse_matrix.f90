@@ -533,14 +533,13 @@ contains
             ir = ia(i)
             ic = ja(i) 
             ! Ignore out of bounds entries
-            if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax) cycle
-            if (ir > 0.and. ir <= this%get_num_rows()) then 
-                i1 = this%irp(ir)
-                i2 = this%irp(ir+1)
-                nc = i2-i1
-                ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
-                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-            end if
+            if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
+                ir<1 .or. ir>this%get_num_rows() .or. ic<1 .or. ic>this%get_num_cols()) cycle
+            i1 = this%irp(ir)
+            i2 = this%irp(ir+1)
+            nc = i2-i1
+            ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
+            if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
         end do
     end subroutine csr_sparse_matrix_update_bounded_values_body
 
@@ -561,7 +560,7 @@ contains
         integer(ip)                               :: i,ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
         ! Ignore out of bounds entries
-        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax) return
+        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or. ja>this%get_num_cols()) return
 
         if(this%get_sum_duplicates()) then
             apply_duplicates => sum_value
@@ -569,13 +568,11 @@ contains
             apply_duplicates => assign_value
         endif
 
-        if (ia > 0.and. ia <= this%get_num_rows()) then 
-            i1 = this%irp(ia)
-            i2 = this%irp(ia+1)
-            nc = i2-i1
-            ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
-            if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-        end if
+        i1 = this%irp(ia)
+        i2 = this%irp(ia+1)
+        nc = i2-i1
+        ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+        if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
     end subroutine csr_sparse_matrix_update_bounded_value_body
 
 
@@ -609,7 +606,7 @@ contains
         do i=1, nz
             ic = ja(i) 
             ! Ignore out of bounds entries
-            if (ic<jmin .or. ic>jmax) cycle
+            if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%get_num_cols()) cycle
             nc = i2-i1
             ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
             if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -645,13 +642,12 @@ contains
         do i=1, nz
             ir = ia(i)
             ! Ignore out of bounds entries
-            if (ir > 0.and. ir <= this%get_num_rows()) then 
-                i1 = this%irp(ir)
-                i2 = this%irp(ir+1)
-                nc = i2-i1
-                ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
-                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-            end if
+            if (ir<imin .or. ir<1 .or. ir>imax .or. ir>this%get_num_rows()) cycle
+            i1 = this%irp(ir)
+            i2 = this%irp(ir+1)
+            nc = i2-i1
+            ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+            if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
         end do
     end subroutine csr_sparse_matrix_update_bounded_values_by_col_body
 
@@ -668,27 +664,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
-        if(nz==0) return
-
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        ilr = -1 
-        ilc = -1 
-        do i=1, nz
-            ir = ia(i)
-            ic = ja(i) 
-            if (ir > 0.and. ir <= this%get_num_rows()) then 
-                i1 = this%irp(ir)
-                i2 = this%irp(ir+1)
-                nc = i2-i1
-                ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
-                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-            end if
-        end do
+        call this%update_body(nz, ia, ja , val, 1, this%get_num_rows(), 1, this%get_num_cols())
     end subroutine csr_sparse_matrix_update_values_body
 
 
@@ -763,7 +739,7 @@ contains
         if(num_rows<1 .or. num_cols<1) return
         do j=1, num_cols  
            do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%get_num_rows(), 1, this%get_num_cols())
             enddo
         enddo
     end subroutine csr_sparse_matrix_update_dense_values_body
@@ -785,7 +761,7 @@ contains
         if(num_rows<1) return
         do j=1, num_rows
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%get_num_rows(), 1, this%get_num_cols())
             enddo
         enddo
     end subroutine csr_sparse_matrix_update_square_dense_values_body
@@ -802,20 +778,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
-
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        if (ia > 0.and. ia <= this%get_num_rows()) then 
-            i1 = this%irp(ia)
-            i2 = this%irp(ia+1)
-            nc = i2-i1
-            ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
-            if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-        end if
+        call this%update_body(ia, ja , val, 1, this%get_num_rows(), 1, this%get_num_cols())
     end subroutine csr_sparse_matrix_update_value_body
 
 
@@ -831,23 +794,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ic, ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
-        if(nz==0 .or. ia<1 .or. ia>this%get_num_rows()) return
-
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        i1 = this%irp(ia)
-        i2 = this%irp(ia+1)
-
-        do i=1, nz
-            ic = ja(i) 
-            nc = i2-i1
-            ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
-            if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-        end do
+        call this%update_body(nz, ia, ja , val, 1, this%get_num_rows(), 1, this%get_num_cols())
     end subroutine csr_sparse_matrix_update_values_by_row_body
 
 
@@ -863,24 +810,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
-        if(nz==0 .or. ja<1 .or. ja>this%get_num_cols()) return
-
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        do i=1, nz
-            ir = ia(i)
-            if (ir > 0.and. ir <= this%get_num_rows()) then 
-                i1 = this%irp(ir)
-                i2 = this%irp(ir+1)
-                nc = i2-i1
-                ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
-                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-            end if
-        end do
+        call this%update_body(nz, ia, ja , val, 1, this%get_num_rows(), 1, this%get_num_cols())
     end subroutine csr_sparse_matrix_update_values_by_col_body
 
 
@@ -965,7 +895,6 @@ contains
         end if
 
         write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
-        if (.not. this%get_symmetric_storage()) then
             write (lunou,*) nr,nc,this%irp(this%get_num_rows()+1)-1
             do i=1,this%get_num_rows()
                 do j=this%irp(i),this%irp(i+1)-1
@@ -976,26 +905,7 @@ contains
                     end if
                 end do
             end do
-        else 
-            write (lunou,*) nr,nc,2*(this%irp(this%get_num_rows()+1)-1) - this%get_num_rows()
 
-            do i=1,this%get_num_rows()
-                do j=this%irp(i),this%irp(i+1)-1
-                    if (present(l2g)) then
-                        write(lunou,'(i12, i12, e32.25)') l2g(i), l2g(this%ja(j)), this%val(j)
-                    else
-                        write(lunou,'(i12, i12, e32.25)') i, this%ja(j), this%val(j)
-                    end if
-                    if (i /= this%ja(j)) then
-                        if (present(l2g)) then
-                            write(lunou,'(i12, i12, e32.25)') l2g(this%ja(j)), l2g(i), this%val(j)
-                        else
-                        write(lunou,'(i12, i12, e32.25)') this%ja(j), i, this%val(j)
-                        end if
-                    end if
-                end do
-            end do
-        end if
 
     end subroutine csr_sparse_matrix_print_matrix_market_body
 
