@@ -325,7 +325,7 @@ program test_reference_fe
   ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-  problem_id = 0 
+  problem_id = 1
   if ( problem_id == 1) then
      ! Composite case
      reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
@@ -347,15 +347,20 @@ program test_reference_fe
                            reference_fe_phy = reference_fe_array_two, &
                            reference_fe_geo_topology = "quad", &
                            reference_fe_geo_type = "Lagrangian", &
+                           !field_blocks = (/1,1/), &
+                           !field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
                            field_blocks = (/1,2/), &
                            field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
      
      call fe_space%fill_dof_info() 
      
      call fe_affine_operator%create ( 'CSR', &
-                                     (/.true.,.true./), &
-                                     (/.true.,.true./), &
-                                     (/positive_definite,positive_definite/), &
+                                      (/.true.,.true./), &
+                                      (/.true.,.true./), &
+                                      (/positive_definite,positive_definite/),&
+                                     !(/.true./), &
+                                     !(/.true./), &
+                                     !(/positive_definite/), &
                                      f_trian, &
                                      fe_space, &
                                      vector_laplacian_integration )
@@ -387,8 +392,8 @@ program test_reference_fe
   
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
-		!call fe_affine_operator%free_in_stages(free_numerical_setup)
-  !call fe_affine_operator%numerical_setup()
+		call fe_affine_operator%free_in_stages(free_numerical_setup)
+  call fe_affine_operator%numerical_setup()
   
   matrix => fe_affine_operator%get_matrix()
   select type(matrix)

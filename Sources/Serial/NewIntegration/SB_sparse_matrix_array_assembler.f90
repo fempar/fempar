@@ -194,8 +194,6 @@ subroutine element_sparse_matrix_assembly( matrix, number_fe_spaces, number_node
    ielmat=ielmat+number_nodes(ife_space)
  end do
  
- 
- 
 end subroutine element_sparse_matrix_assembly
 
 subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )

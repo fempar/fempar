@@ -151,28 +151,49 @@ subroutine element_block_sparse_matrix_assembly( matrix, &
   integer(ip) :: jelmat, jfe_space, jblock, jnode, jdof
   type(sparse_matrix_t), pointer :: mat  
   
-  ielmat = 0
-  do ife_space = 1, number_fe_spaces
-     iblock = field_blocks(ife_space)
-     do inode = 1, number_nodes(ife_space)
-        idof = elem2dof(ife_space)%p(inode)
-        ielmat = ielmat + 1
-        jelmat = 0
-        do jfe_space = 1, number_fe_spaces
-           jblock = field_blocks(jfe_space)
-           if ( field_coupling(ife_space,jfe_space) ) then
-               mat => matrix%get_block(iblock,jblock)
-               do jnode = 1, number_nodes(jfe_space)
-                  jdof = elem2dof(jfe_space)%p(jnode)
-                  jelmat = jelmat + 1
-																		call mat%insert(idof,jdof,elmat(ielmat,jelmat),1,mat%get_num_rows(),1,mat%get_num_cols())
-               end do
-           else
-               jelmat = jelmat + number_nodes(jfe_space)
-           end if
-        end do
-     end do
-  end do
+  !ielmat = 0
+  !do ife_space = 1, number_fe_spaces
+  !   iblock = field_blocks(ife_space)
+  !   do inode = 1, number_nodes(ife_space)
+  !      idof = elem2dof(ife_space)%p(inode)
+  !      ielmat = ielmat + 1
+  !      jelmat = 0
+  !      do jfe_space = 1, number_fe_spaces
+  !         jblock = field_blocks(jfe_space)
+  !         if ( field_coupling(ife_space,jfe_space) ) then
+  !             mat => matrix%get_block(iblock,jblock)
+  !             do jnode = 1, number_nodes(jfe_space)
+  !                jdof = elem2dof(jfe_space)%p(jnode)
+  !                jelmat = jelmat + 1
+  !                call mat%insert(idof,jdof,elmat(ielmat,jelmat),1,mat%get_num_rows(),1,mat%get_num_cols())
+  !             end do
+  !         else
+  !             jelmat = jelmat + number_nodes(jfe_space)
+  !         end if
+  !      end do
+  !   end do
+  !end do
+  
+ ielmat=0
+ do ife_space=1, number_fe_spaces
+   iblock = field_blocks(ife_space)
+   jelmat=0
+   do jfe_space=1, number_fe_spaces
+     jblock = field_blocks(jfe_space)
+     if ((field_coupling(ife_space,jfe_space))) then
+         mat => matrix%get_block(iblock,jblock)
+         call mat%insert(number_nodes(ife_space), &
+                         number_nodes(jfe_space), &
+                         elem2dof(ife_space)%p, &
+                         elem2dof(jfe_space)%p, &
+                         ielmat, &
+                         jelmat, &
+                         elmat)
+     end if
+     jelmat=jelmat+number_nodes(jfe_space)
+   end do
+   ielmat=ielmat+number_nodes(ife_space)
+ end do
 end subroutine element_block_sparse_matrix_assembly
 
 subroutine element_serial_block_array_assembly( array, &

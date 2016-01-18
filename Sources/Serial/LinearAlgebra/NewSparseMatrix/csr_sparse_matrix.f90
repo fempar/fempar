@@ -276,9 +276,7 @@ contains
         call this%set_symmetry(from%is_symmetric())
         call this%set_symmetric_storage(from%get_symmetric_storage())
         call this%set_sign(from%get_sign())
-        call from%print(6)
         if (.not. from%is_by_rows()) call from%sort_and_compress()
-        call from%print(6)
         nnz = from%get_nnz()
         call this%set_nnz(nnz)
         call move_alloc(from%ia,itmp)
@@ -537,7 +535,7 @@ contains
             ! Ignore out of bounds entries
             if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
                 ir<1 .or. ir>this%get_num_rows() .or. ic<1 .or. ic>this%get_num_cols() .or. &
-                (symmetric_storage .and. ic>ir)) cycle
+                (symmetric_storage .and. ir>ic)) cycle
             i1 = this%irp(ir)
             i2 = this%irp(ir+1)
             nc = i2-i1
@@ -565,7 +563,7 @@ contains
         ! Ignore out of bounds entries
         if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
             ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or. ja>this%get_num_cols() .or. &
-            (this%get_symmetric_storage() .and. ja>ia)) return
+            (this%get_symmetric_storage() .and. ia>ja)) return
 
         if(this%get_sum_duplicates()) then
             apply_duplicates => sum_value
@@ -614,7 +612,7 @@ contains
             ic = ja(i) 
             ! Ignore out of bounds entries
             if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%get_num_cols() .or. &
-                (symmetric_storage .and. ic>ia)) cycle
+                (symmetric_storage .and. ia>ic)) cycle
             nc = i2-i1
             ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
             if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -654,7 +652,7 @@ contains
             ir = ia(i)
             ! Ignore out of bounds entries
             if (ir<imin .or. ir<1 .or. ir>imax .or. ir>this%get_num_rows() .or. &
-                (symmetric_storage .and. ja>ir)) cycle
+                (symmetric_storage .and. ir>ja)) cycle
             i1 = this%irp(ir)
             i2 = this%irp(ir+1)
             nc = i2-i1
