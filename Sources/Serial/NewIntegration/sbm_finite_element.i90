@@ -67,3 +67,10 @@ subroutine get_number_nodes_per_field ( this, number_nodes )
      number_nodes(i) = this%reference_fe_phy(i)%p%get_number_nodes()
   end do
 end subroutine get_number_nodes_per_field
+
+function get_subset_id ( this )
+  implicit none
+  class(SB_finite_element_t), intent(in) :: this
+  integer(ip)                            :: get_subset_id
+  get_subset_id = this%cell%subset_id
+end function get_subset_id

@@ -33,6 +33,7 @@ module mesh_to_triangulation_names
   use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
+		use subsets_names
 
   implicit none
 # include "debug.i90"
@@ -52,25 +53,27 @@ contains
   ! number of elements in triangulation does not include ghost elements, only
   ! local elements
   !*********************************************************************************
-  subroutine mesh_to_triangulation (gmesh,trian,gcond)
+  subroutine mesh_to_triangulation (gmesh,trian,gcond,gsubsets)
     implicit none
     ! Parameters
     type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
     type(triangulation_t), intent(inout)           :: trian 
     type(conditions_t), optional, intent(inout)    :: gcond
+				type(subsets_t)   , optional, intent(inout)    :: gsubsets
 
-    call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond )
+    call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond, gsubsets = gsubsets)
     call triangulation_to_dual ( trian )
 
   end subroutine mesh_to_triangulation
 
-subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond)
+subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond, gsubsets)
     implicit none
     ! Parameters
     type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
     type(triangulation_t), intent(inout)           :: trian 
     integer(ip), optional, intent(in)                :: length_trian
     type(conditions_t), optional, intent(inout)    :: gcond
+				type(subsets_t)   , optional, intent(inout)    :: gsubsets
 
     ! Locals
     type(mesh_t)            :: tmesh ! Topological mesh
@@ -144,6 +147,11 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        trian%elems(ielem)%order = get_order( trian%elems(ielem)%geo_reference_element%ftype, count, trian%num_dims )
     end do
 
+				if (present(gsubsets)) then
+							do ielem = 1, trian%num_elems
+							   trian%elems(ielem)%subset_id = gsubsets%list(ielem)
+							end do
+				end if
 
   end subroutine mesh_to_triangulation_fill_elements
 
