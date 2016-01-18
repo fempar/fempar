@@ -325,7 +325,7 @@ program test_reference_fe
   ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-  problem_id = 1
+  problem_id = 0 
   if ( problem_id == 1) then
      ! Composite case
      reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
@@ -387,14 +387,14 @@ program test_reference_fe
   
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
-		call fe_affine_operator%free_in_stages(free_numerical_setup)
-  call fe_affine_operator%numerical_setup()
+		!call fe_affine_operator%free_in_stages(free_numerical_setup)
+  !call fe_affine_operator%numerical_setup()
   
-  !matrix => fe_affine_operator%get_matrix()
-  !select type(matrix)
-  !  class is (sparse_matrix_t)
-  !    call matrix%print_matrix_market(6)
-  !end select
+  matrix => fe_affine_operator%get_matrix()
+  select type(matrix)
+    class is (sparse_matrix_t)
+      call matrix%print_matrix_market(6)
+  end select
   
 
   
