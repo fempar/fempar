@@ -20,25 +20,35 @@ private
         real(rp),    allocatable   :: val(:)                      !< Values
     contains
     private
-        procedure, public :: is_by_rows              => csr_sparse_matrix_is_by_rows
-        procedure, public :: is_by_cols              => csr_sparse_matrix_is_by_cols
-        procedure, public :: set_nnz                 => csr_sparse_matrix_set_nnz
-        procedure, public :: get_nnz                 => csr_sparse_matrix_get_nnz
-        procedure, public :: copy_to_coo             => csr_sparse_matrix_copy_to_coo
-        procedure, public :: copy_from_coo           => csr_sparse_matrix_copy_from_coo
-        procedure, public :: move_to_coo             => csr_sparse_matrix_move_to_coo
-        procedure, public :: move_from_coo           => csr_sparse_matrix_move_from_coo
-        procedure, public :: move_to_fmt             => csr_sparse_matrix_move_to_fmt
-        procedure, public :: move_from_fmt           => csr_sparse_matrix_move_from_fmt
-        procedure, public :: allocate_values_body    => csr_sparse_matrix_allocate_values_body
-        procedure, public :: initialize_values       => csr_sparse_matrix_initialize_values
-        procedure, public :: update_values_body      => csr_sparse_matrix_update_values_body
-        procedure, public :: update_single_value_body=> csr_sparse_matrix_update_single_value_body
-        procedure, public :: free_coords             => csr_sparse_matrix_free_coords
-        procedure, public :: free_val                => csr_sparse_matrix_free_val
-        procedure, public :: apply_body              => csr_sparse_matrix_apply_body
-        procedure, public :: print_matrix_market_body=> csr_sparse_matrix_print_matrix_market_body
-        procedure, public :: print                   => csr_sparse_matrix_print
+        procedure, public :: is_by_rows                              => csr_sparse_matrix_is_by_rows
+        procedure, public :: is_by_cols                              => csr_sparse_matrix_is_by_cols
+        procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
+        procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
+        procedure, public :: copy_to_coo                             => csr_sparse_matrix_copy_to_coo
+        procedure, public :: copy_from_coo                           => csr_sparse_matrix_copy_from_coo
+        procedure, public :: move_to_coo                             => csr_sparse_matrix_move_to_coo
+        procedure, public :: move_from_coo                           => csr_sparse_matrix_move_from_coo
+        procedure, public :: move_to_fmt                             => csr_sparse_matrix_move_to_fmt
+        procedure, public :: move_from_fmt                           => csr_sparse_matrix_move_from_fmt
+        procedure, public :: allocate_values_body                    => csr_sparse_matrix_allocate_values_body
+        procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
+        procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
+        procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
+        procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
+        procedure, public :: update_bounded_values_by_col_body       => csr_sparse_matrix_update_bounded_values_by_col_body
+        procedure, public :: update_bounded_dense_values_body        => csr_sparse_matrix_update_bounded_dense_values_body
+        procedure, public :: update_bounded_square_dense_values_body => csr_sparse_matrix_update_bounded_square_dense_values_body
+        procedure, public :: update_values_body                      => csr_sparse_matrix_update_values_body
+        procedure, public :: update_dense_values_body                => csr_sparse_matrix_update_dense_values_body
+        procedure, public :: update_square_dense_values_body         => csr_sparse_matrix_update_square_dense_values_body
+        procedure, public :: update_value_body                       => csr_sparse_matrix_update_value_body
+        procedure, public :: update_values_by_row_body               => csr_sparse_matrix_update_values_by_row_body
+        procedure, public :: update_values_by_col_body               => csr_sparse_matrix_update_values_by_col_body
+        procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
+        procedure, public :: free_val                                => csr_sparse_matrix_free_val
+        procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
+        procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
+        procedure, public :: print                                   => csr_sparse_matrix_print
     end type csr_sparse_matrix_t
 
 public :: csr_sparse_matrix_t
@@ -491,7 +501,7 @@ contains
     end subroutine csr_sparse_matrix_initialize_values
 
 
-    subroutine csr_sparse_matrix_update_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine csr_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -520,6 +530,8 @@ contains
         do i=1, nz
             ir = ia(i)
             ic = ja(i) 
+            ! Ignore out of bounds entries
+            if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax) cycle
             if (ir > 0.and. ir <= this%get_num_rows()) then 
                 i1 = this%irp(ir)
                 i2 = this%irp(ir+1)
@@ -528,10 +540,10 @@ contains
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end if
         end do
-    end subroutine csr_sparse_matrix_update_values_body
+    end subroutine csr_sparse_matrix_update_bounded_values_body
 
 
-    subroutine csr_sparse_matrix_update_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine csr_sparse_matrix_update_bounded_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -543,6 +555,255 @@ contains
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
         integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ipaux,i1,i2,nr,nc
+    !-----------------------------------------------------------------
+        ! Ignore out of bounds entries
+        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        if (ia > 0.and. ia <= this%get_num_rows()) then 
+            i1 = this%irp(ia)
+            i2 = this%irp(ia+1)
+            nc = i2-i1
+            ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+            if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
+        end if
+    end subroutine csr_sparse_matrix_update_bounded_value_body
+
+
+    subroutine csr_sparse_matrix_update_bounded_values_by_row_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i, ic, ipaux,i1,i2,nc
+    !-----------------------------------------------------------------
+        if(nz==0 .or. ia<imin .or. ia<1 .or. ia>imax .or. ia>this%get_num_rows()) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        i1 = this%irp(ia)
+        i2 = this%irp(ia+1)
+
+        do i=1, nz
+            ic = ja(i) 
+            ! Ignore out of bounds entries
+            if (ic<jmin .or. ic>jmax) cycle
+            nc = i2-i1
+            ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
+            if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+        end do
+    end subroutine csr_sparse_matrix_update_bounded_values_by_row_body
+
+
+
+    subroutine csr_sparse_matrix_update_bounded_values_by_col_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir,ipaux,i1,i2,nc
+    !-----------------------------------------------------------------
+        if(nz==0 .or. ja<jmin .or. ja<1 .or. ja>jmax .or. ja>this%get_num_cols()) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        do i=1, nz
+            ir = ia(i)
+            ! Ignore out of bounds entries
+            if (ir > 0.and. ir <= this%get_num_rows()) then 
+                i1 = this%irp(ir)
+                i2 = this%irp(ir+1)
+                nc = i2-i1
+                ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end if
+        end do
+    end subroutine csr_sparse_matrix_update_bounded_values_by_col_body
+
+
+    subroutine csr_sparse_matrix_update_values_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc
+    !-----------------------------------------------------------------
+        if(nz==0) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        ilr = -1 
+        ilc = -1 
+        do i=1, nz
+            ir = ia(i)
+            ic = ja(i) 
+            if (ir > 0.and. ir <= this%get_num_rows()) then 
+                i1 = this%irp(ir)
+                i2 = this%irp(ir+1)
+                nc = i2-i1
+                ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end if
+        end do
+    end subroutine csr_sparse_matrix_update_values_body
+
+
+    subroutine csr_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_bounded_dense_values_body
+
+
+    subroutine csr_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_bounded_square_dense_values_body
+
+
+    subroutine csr_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+
+        do i=1, num_rows
+            do j=1, num_cols
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_dense_values_body
+
+
+    subroutine csr_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+
+        do i=1, num_rows
+            do j=1, num_rows
+                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
+            enddo
+        enddo
+
+    end subroutine csr_sparse_matrix_update_square_dense_values_body
+
+
+    subroutine csr_sparse_matrix_update_value_body(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
@@ -560,7 +821,72 @@ contains
             ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
             if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
         end if
-    end subroutine csr_sparse_matrix_update_single_value_body
+    end subroutine csr_sparse_matrix_update_value_body
+
+
+    subroutine csr_sparse_matrix_update_values_by_row_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ic, ipaux,i1,i2,nr,nc
+    !-----------------------------------------------------------------
+        if(nz==0 .or. ia<1 .or. ia>this%get_num_rows()) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        i1 = this%irp(ia)
+        i2 = this%irp(ia+1)
+
+        do i=1, nz
+            ic = ja(i) 
+            nc = i2-i1
+            ipaux = binary_search(ic,nc,this%ja(i1:i2-1))
+            if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+        end do
+    end subroutine csr_sparse_matrix_update_values_by_row_body
+
+
+    subroutine csr_sparse_matrix_update_values_by_col_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val(nz)
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc
+    !-----------------------------------------------------------------
+        if(nz==0 .or. ja<1 .or. ja>this%get_num_cols()) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        do i=1, nz
+            ir = ia(i)
+            if (ir > 0.and. ir <= this%get_num_rows()) then 
+                i1 = this%irp(ir)
+                i2 = this%irp(ir+1)
+                nc = i2-i1
+                ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end if
+        end do
+    end subroutine csr_sparse_matrix_update_values_by_col_body
 
 
     subroutine csr_sparse_matrix_free_coords(this)
