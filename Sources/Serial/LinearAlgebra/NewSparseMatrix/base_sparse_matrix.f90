@@ -1,95 +1,95 @@
 module base_sparse_matrix_names
 
-USE types_names
-USE memor_names
-USE vector_names
+  USE types_names
+  USE memor_names
+  USE vector_names
 
-implicit none
+  implicit none
 
 # include "debug.i90"
 
-private
+  private
 
-!---------------------------------------------------------------------
-!< BASE SPARSE MATRIX DERIVED  TYPE
-!---------------------------------------------------------------------
+  !---------------------------------------------------------------------
+  !< BASE SPARSE MATRIX DERIVED  TYPE
+  !---------------------------------------------------------------------
 
-    ! States
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_START              = 0
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
+  ! States
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_START              = 0
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
 
-    !-----------------------------------------------------------------
-    ! State transition diagram for type(base_sparse_matrix_t)
-    !-----------------------------------------------------------------
-    ! Note: it is desireable that the state management occurs only
-    !       inside this class to get a cleaner implementation
-    !       of the son classes
-    !-----------------------------------------------------------------
-    ! Input State         | Action                | Output State 
-    !-----------------------------------------------------------------
-    ! Start               | Create                | Created
-    ! Start               | Free_clean            | Start
-    ! Start               | Free_symbolic         | Start
-    ! Start               | Free_numeric          | Start
-
-    ! Created             | Insert (2-values)     | Build_symbolic
-    ! Created             | Insert (3-values)     | Build_numeric
-    ! Created             | Free_clean            | Start
-    ! Created             | Free_symbolic         | Created
-    ! Created             | Free_numeric          | Assembled_symbolic
-
-    ! Build_symbolic      | Insert (2-values)     | Build_symbolic
-    ! Build_symbolic      | Insert (2-values)     | * Error
-    ! Build_symbolic      | convert               | Assembled_symbolic
-    ! Build_symbolic      | Free_clean            | Start
-    ! Build_symbolic      | Free_symbolic         | Created
-    ! Build_symbolic      | Free_numeric          | Created
-
-    ! Build_numeric       | Insert (2-values)     | * Error
-    ! Build_numeric       | Insert (3-values)     | Build_numeric
-    ! Build_numeric       | convert               | Assembled
-    ! Build_numeric       | Free_clean            | Start
-    ! Build_numeric       | Free_symbolic         | Created
-    ! Build_numeric       | Free_numeric          | Created
-    !-----------------------------------------------------------------
-    ! Under development
-    !-----------------------------------------------------------------
-    ! Assembled           | Free_clean            | Start
-    ! Assembled           | Free_symbolic         | Created
-    ! Assembled           | Free_numeric          | Assembled_numeric
-    ! Assembled           | Set                   | Update
-
-    ! Assembled_symbolic  | Free_clean            | Start
-    ! Assembled_symbolic  | Set                   | Update
-
-    ! Update              | Free_clean            | Start
-
+  !-----------------------------------------------------------------
+  ! State transition diagram for type(base_sparse_matrix_t)
+  !-----------------------------------------------------------------
+  ! Note: it is desireable that the state management occurs only
+  !       inside this class to get a cleaner implementation
+  !       of the son classes
+  !-----------------------------------------------------------------
+  ! Input State         | Action                | Output State 
+  !-----------------------------------------------------------------
+  ! Start               | Create                | Created
+  ! Start               | Free_clean            | Start
+  ! Start               | Free_symbolic         | Start
+  ! Start               | Free_numeric          | Start
   
-    ! Matrix sign
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE     = 0
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_SEMIDEFINITE = 1
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_INDEFINITE            = 2 ! Both positive and negative eigenvalues
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_UNKNOWN               = 3 ! No info
-    
-    type, abstract :: base_sparse_matrix_t
-    private 
-        integer(ip) :: num_rows                          !< Number of rows
-        integer(ip) :: num_cols                          !< Number of colums
-        integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
-        integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
-        logical     :: sum_duplicates = .true.           !< If .false. overwrites duplicated values, else perform sum
-        logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
-        logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
-                                                         !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
-                                                         !<          Only edges (i,j) with j>=i are stored.
-                                                         !< .False.  All (i,j) \belongs E are stored.  
-    contains
-    private
+  ! Created             | Insert (2-values)     | Build_symbolic
+  ! Created             | Insert (3-values)     | Build_numeric
+  ! Created             | Free_clean            | Start
+  ! Created             | Free_symbolic         | Created
+  ! Created             | Free_numeric          | Assembled_symbolic
+  
+  ! Build_symbolic      | Insert (2-values)     | Build_symbolic
+  ! Build_symbolic      | Insert (2-values)     | * Error
+  ! Build_symbolic      | convert               | Assembled_symbolic
+  ! Build_symbolic      | Free_clean            | Start
+  ! Build_symbolic      | Free_symbolic         | Created
+  ! Build_symbolic      | Free_numeric          | Created
+  
+  ! Build_numeric       | Insert (2-values)     | * Error
+  ! Build_numeric       | Insert (3-values)     | Build_numeric
+  ! Build_numeric       | convert               | Assembled
+  ! Build_numeric       | Free_clean            | Start
+  ! Build_numeric       | Free_symbolic         | Created
+  ! Build_numeric       | Free_numeric          | Created
+  !-----------------------------------------------------------------
+  ! Under development
+  !-----------------------------------------------------------------
+  ! Assembled           | Free_clean            | Start
+  ! Assembled           | Free_symbolic         | Created
+  ! Assembled           | Free_numeric          | Assembled_numeric
+  ! Assembled           | Set                   | Update
+  
+  ! Assembled_symbolic  | Free_clean            | Start
+  ! Assembled_symbolic  | Set                   | Update
+  
+  ! Update              | Free_clean            | Start
+  
+  
+  ! Matrix sign
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE     = 0
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_SEMIDEFINITE = 1
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_INDEFINITE            = 2 ! Both positive and negative eigenvalues
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_UNKNOWN               = 3 ! No info
+  
+  type, abstract :: base_sparse_matrix_t
+     private 
+     integer(ip) :: num_rows                          !< Number of rows
+     integer(ip) :: num_cols                          !< Number of colums
+     integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
+     integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
+     logical     :: sum_duplicates = .true.           !< If .false. overwrites duplicated values, else perform sum
+     logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
+     logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
+     !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
+     !<          Only edges (i,j) with j>=i are stored.
+     !< .False.  All (i,j) \belongs E are stored.  
+   contains
+     private
         procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
         procedure(base_sparse_matrix_is_by_cols),                public, deferred :: is_by_cols
         procedure(base_sparse_matrix_copy_to_coo),               public, deferred :: copy_to_coo
@@ -260,9 +260,9 @@ private
     end type
 
 
-!---------------------------------------------------------------------
-!< COO SPARSE MATRIX DERIVED TYPE
-!---------------------------------------------------------------------
+    !---------------------------------------------------------------------
+    !< COO SPARSE MATRIX DERIVED TYPE
+    !---------------------------------------------------------------------
 
     integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_NONE    = 20
     integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_BY_ROWS = 21
@@ -2443,7 +2443,7 @@ contains
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
         integer(ip),                intent(in)    :: jmax
-        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+        integer(ip)                               :: nnz, newnnz, newsize
     !-----------------------------------------------------------------
         nnz = this%nnz
         newnnz = nnz+1
@@ -2456,8 +2456,8 @@ contains
             call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries
-        if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ir>ic) ) return
+        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
+               (this%symmetric_storage .and. ia>ja) ) return
         !If symmetric_storage is .true. only the upper triangle is stored
         nnz = nnz + 1
         this%ia(nnz) = ia
@@ -2477,7 +2477,7 @@ contains
         integer(ip),                intent(in)    :: ia(nz)
         integer(ip),                intent(in)    :: ja(nz)
         real(rp),                   intent(in)    :: val(nz)
-        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+        integer(ip)                               :: nnz, newnnz, newsize
     !-----------------------------------------------------------------
         if(nz == 0) return
         nnz = this%nnz
@@ -2510,7 +2510,7 @@ contains
         integer(ip),                intent(in)    :: nz
         integer(ip),                intent(in)    :: ia(nz)
         integer(ip),                intent(in)    :: ja(nz)
-        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+        integer(ip)                               :: nnz, newnnz, newsize
     !-----------------------------------------------------------------
         if(nz == 0) return
         nnz = this%nnz
@@ -2552,13 +2552,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-
-        do i=1, num_rows
-            do j=1, num_cols
+        do j=1, num_cols
+            do i=1, num_rows
                 call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
-
     end subroutine coo_sparse_matrix_append_bounded_dense_values_body
 
 
@@ -2581,13 +2579,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-
-        do i=1, num_rows
-            do j=1, num_rows
-                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
-            enddo
+        do j=1, num_rows
+          do i=1, num_rows
+            call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+          enddo
         enddo
-
     end subroutine coo_sparse_matrix_append_bounded_square_dense_values_body
 
 
@@ -2607,13 +2603,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-
-        do i=1, num_rows
-            do j=1, num_cols
+        do j=1, num_cols
+            do i=1, num_rows
                 call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
-
     end subroutine coo_sparse_matrix_append_dense_values_body
 
 
@@ -2632,13 +2626,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-
-        do i=1, num_rows
-            do j=1, num_rows
+        do j=1, num_rows
+            do i=1, num_rows
                 call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
-
     end subroutine coo_sparse_matrix_append_square_dense_values_body
 
 
@@ -3261,13 +3253,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-
-        do i=1, num_rows
-            do j=1, num_cols
+        do j=1, num_cols
+            do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
-
     end subroutine coo_sparse_matrix_update_bounded_dense_values_body
 
 
@@ -3289,13 +3279,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-
-        do i=1, num_rows
-            do j=1, num_rows
+        do j=1, num_rows
+            do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
-
     end subroutine coo_sparse_matrix_update_bounded_square_dense_values_body
 
 
@@ -3314,13 +3302,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-
-        do i=1, num_rows
-            do j=1, num_cols
+        do j=1, num_cols
+            do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
-
     end subroutine coo_sparse_matrix_update_dense_values_body
 
 
@@ -3338,13 +3324,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-
-        do i=1, num_rows
-            do j=1, num_rows
+        do j=1, num_rows
+            do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
-
     end subroutine coo_sparse_matrix_update_square_dense_values_body
 
 
@@ -4013,7 +3997,7 @@ contains
                         use_buffers = .false.
                     endif
                 endif
-
+                
                 if(use_buffers) then
                 ! If there is enough memory space
                     if(sorted) then
@@ -4090,7 +4074,7 @@ contains
                                 call mergesort(nzl,jas(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
                                 ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .and. jas(i)>this%num_cols) )
+                                do while(i<=imx .and. (ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) )
                                     i=i+1
                                 enddo
                                 if(i > imx) exit

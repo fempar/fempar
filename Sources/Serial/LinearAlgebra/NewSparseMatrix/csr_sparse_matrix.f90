@@ -276,7 +276,9 @@ contains
         call this%set_symmetry(from%is_symmetric())
         call this%set_symmetric_storage(from%get_symmetric_storage())
         call this%set_sign(from%get_sign())
+        call from%print(6)
         if (.not. from%is_by_rows()) call from%sort_and_compress()
+        call from%print(6)
         nnz = from%get_nnz()
         call this%set_nnz(nnz)
         call move_alloc(from%ia,itmp)
@@ -709,9 +711,8 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-
-        do i=1, num_rows
-            do j=1, num_cols
+        do j=1, num_cols
+            do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
@@ -737,13 +738,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-
-        do i=1, num_rows
-            do j=1, num_rows
+        do j=1, num_rows
+            do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
-
     end subroutine csr_sparse_matrix_update_bounded_square_dense_values_body
 
 
@@ -762,13 +761,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
-
-        do i=1, num_rows
-            do j=1, num_cols
+        do j=1, num_cols  
+           do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
-
     end subroutine csr_sparse_matrix_update_dense_values_body
 
 
@@ -786,13 +783,11 @@ contains
         integer(ip)                               :: i, j
     !-----------------------------------------------------------------
         if(num_rows<1) return
-
-        do i=1, num_rows
-            do j=1, num_rows
+        do j=1, num_rows
+            do i=1, num_rows
                 call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
             enddo
         enddo
-
     end subroutine csr_sparse_matrix_update_square_dense_values_body
 
 
