@@ -153,9 +153,9 @@ contains
     integer(ip)             , allocatable :: number_nodes_per_field(:)
 
     integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus
-    real(rp)     :: factor
+    real(rp)     :: factor, h_length
 
-    type(scalar_field_t) :: shape_test_scalar, shape_trial_scalar
+    real(rp)             :: shape_test_scalar, shape_trial_scalar
     type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
     type(tensor_field_t) :: grad_test_vector, grad_trial_vector
     type(vector_field_t) :: outside_normal(2)
@@ -251,6 +251,7 @@ contains
        ngaus = quad%get_number_evaluation_points()
        do i =1,2
           fe_face(i)%p => fe_space%get_finite_element_from_face(iface,i)
+          !length(i) = fe_face(i)%p%compute_characteristic_length()
        end do
        j =1
        face_int => face%get_face_integrator(j)
@@ -259,6 +260,7 @@ contains
        ngaus = quad%get_number_evaluation_points()
        do igaus = 1, ngaus
           call face_int%get_outside_normals(igaus,outside_normal)
+          h_length = face_int%compute_characteristic_length(igaus)
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do ineigh = 1, 2
              do inode = 1, number_nodes_per_field(j)
@@ -270,15 +272,19 @@ contains
                       joffset = number_nodes_per_field(j)*(jneigh-1) + jnode
                       call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
                       call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
-                      !- mu * ({{grad u}}[[v]] + (1-xi) * [[u]]{{grad v}} ) + C p^2/h * [[u]] [[v]]
+                      !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
                       elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * this%viscosity *   &
-                           &  (-0.5_rp*grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar)
-                      write(*,*) ioffset,joffset, elmat(ioffset,joffset)
+                           &  (-0.5_rp*grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar - &
+                           &   0.5_rp*grad_trial_scalar*outside_normal(jneigh)*shape_test_scalar  + &
+                           &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar *        &
+                           &   outside_normal(ineigh)*outside_normal(jneigh))
                    end do
                 end do
              end do
           end do
        end do
+!!$       call assembler%assembly( number_fe_spaces,2*number_nodes_per_field, elem2dof, field_blocks,  &
+!!$            &                   field_coupling, elmat, elvec )      
 !!$       elem2dof              => face%get_face2dof()
 !!$       
     end do

@@ -485,6 +485,7 @@ contains
     use SB_fe_affine_operator_names
     use SB_preconditioner_names
     use vector_dG_CDR_discrete_integration_names
+    use block_sparse_matrix_names
 
     implicit none
 
@@ -502,6 +503,8 @@ contains
     class(vector_t)         , allocatable, target :: vector
     type(face_interpolation_t)                    :: face_interpolation
 
+    class(matrix_t), pointer :: matrix
+    type(sparse_matrix_t), pointer :: my_matrix
     logical                  :: diagonal_blocks_symmetric_storage(2)
     logical                  :: diagonal_blocks_symmetric(2)
     integer(ip)              :: diagonal_blocks_sign(2)
@@ -534,6 +537,18 @@ contains
          &                          fe_space, vector_dG_CDR_integration)
     call fe_affine_operator%symbolic_setup()
     call fe_affine_operator%numerical_setup()
+    matrix => fe_affine_operator%get_matrix()
+     select type(matrix)
+     class is(block_sparse_matrix_t)
+        !my_matrix => matrix
+        do i = 1, matrix%nblocks
+           write(*,*) i,'+++++++++++++++++++++++++++++++'
+           my_matrix => matrix%blocks(i,i)%sparse_matrix
+           call my_matrix%print_matrix_market(6)
+        end do
+     class default
+        check(.false.)
+     end select
 !!$
 !!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
 !!$    call fe_affine_operator_range_vector_space%create_vector(vector)

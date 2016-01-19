@@ -83,25 +83,25 @@ subroutine block_sparse_matrix_array_assembler_assembly( this, &
 
  select type(matrix)
     class is(block_sparse_matrix_t)
-    call element_block_sparse_matrix_assembly( matrix, & 
-																																														 number_fe_spaces, & 
-																																														 number_nodes, &
-																																														 elem2dof, &
-																																														 field_blocks, & 
-																																														 field_coupling, &
-																																														 elmat )
+       call element_block_sparse_matrix_assembly( matrix, &
+            &                                     number_fe_spaces, & 
+            &                                     number_nodes, &
+            &                                     elem2dof, &
+            &                                     field_blocks, &
+            &                                     field_coupling, &
+            &                                     elmat )
     class default
     check(.false.)
  end select
 
  select type(array)
     class is(serial_block_array_t)
-    call element_serial_block_array_assembly( array, & 
-																																													 number_fe_spaces, & 
-																																													 number_nodes, &
-																																														elem2dof, &
-																																														field_blocks, & 
-																																														elvec )
+    call element_serial_block_array_assembly( array, &
+         &                                    number_fe_spaces, & 
+         &                                    number_nodes, &
+         &                                    elem2dof, &
+         &                                    field_blocks, & 
+         &                                    elvec )
     class default
     check(.false.)
  end select

@@ -376,6 +376,25 @@ function fe_map_get_det_jacobian ( this, i )
   fe_map_get_det_jacobian = this%det_jacobian(i)
 end function fe_map_get_det_jacobian
 
+function fe_map_compute_h ( this, igaus, number_dimensions )
+  implicit none
+  class(fe_map_t), intent(in) :: this
+  integer(ip)    , intent(in) :: igaus
+  integer(ip)    , intent(in) :: number_dimensions
+  real(rp) :: fe_map_compute_h(number_dimensions)
+
+  integer(ip) :: idime, jdime
+
+  do idime = 1, number_dimensions
+     do jdime = 1, number_dimensions
+        fe_map_compute_h(idime) = fe_map_compute_h(idime) + this%inv_jacobian(idime,jdime,igaus)**2.0_rp
+     end do
+     fe_map_compute_h(idime) = sqrt(fe_map_compute_h(idime))
+  end do
+  
+
+end function fe_map_compute_h
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures
 subroutine p_fe_map_allocate( this )
