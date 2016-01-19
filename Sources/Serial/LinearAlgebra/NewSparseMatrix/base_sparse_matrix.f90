@@ -1,176 +1,268 @@
 module base_sparse_matrix_names
 
-USE types_names
-USE memor_names
-USE vector_names
+  USE types_names
+  USE memor_names
+  USE vector_names
 
-implicit none
+  implicit none
 
 # include "debug.i90"
 
-private
+  private
 
-!---------------------------------------------------------------------
-!< BASE SPARSE MATRIX DERIVED  TYPE
-!---------------------------------------------------------------------
+  !---------------------------------------------------------------------
+  !< BASE SPARSE MATRIX DERIVED  TYPE
+  !---------------------------------------------------------------------
 
-    ! States
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_START              = 0
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
-    integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
+  ! States
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_START              = 0
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
+  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
 
-    !-----------------------------------------------------------------
-    ! State transition diagram for type(base_sparse_matrix_t)
-    !-----------------------------------------------------------------
-    ! Note: it is desireable that the state management occurs only
-    !       inside this class to get a cleaner implementation
-    !       of the son classes
-    !-----------------------------------------------------------------
-    ! Input State         | Action                | Output State 
-    !-----------------------------------------------------------------
-    ! Start               | Create                | Created
-    ! Start               | Free_clean            | Start
-    ! Start               | Free_symbolic         | Start
-    ! Start               | Free_numeric          | Start
-
-    ! Created             | Insert (2-values)     | Build_symbolic
-    ! Created             | Insert (3-values)     | Build_numeric
-    ! Created             | Free_clean            | Start
-    ! Created             | Free_symbolic         | Created
-    ! Created             | Free_numeric          | Assembled_symbolic
-
-    ! Build_symbolic      | Insert (2-values)     | Build_symbolic
-    ! Build_symbolic      | Insert (2-values)     | * Error
-    ! Build_symbolic      | convert               | Assembled_symbolic
-    ! Build_symbolic      | Free_clean            | Start
-    ! Build_symbolic      | Free_symbolic         | Created
-    ! Build_symbolic      | Free_numeric          | Created
-
-    ! Build_numeric       | Insert (2-values)     | * Error
-    ! Build_numeric       | Insert (3-values)     | Build_numeric
-    ! Build_numeric       | convert               | Assembled
-    ! Build_numeric       | Free_clean            | Start
-    ! Build_numeric       | Free_symbolic         | Created
-    ! Build_numeric       | Free_numeric          | Created
-    !-----------------------------------------------------------------
-    ! Under development
-    !-----------------------------------------------------------------
-    ! Assembled           | Free_clean            | Start
-    ! Assembled           | Free_symbolic         | Created
-    ! Assembled           | Free_numeric          | Assembled_numeric
-    ! Assembled           | Set                   | Update
-
-    ! Assembled_symbolic  | Free_clean            | Start
-    ! Assembled_symbolic  | Set                   | Update
-
-    ! Update              | Free_clean            | Start
-
+  !-----------------------------------------------------------------
+  ! State transition diagram for type(base_sparse_matrix_t)
+  !-----------------------------------------------------------------
+  ! Note: it is desireable that the state management occurs only
+  !       inside this class to get a cleaner implementation
+  !       of the son classes
+  !-----------------------------------------------------------------
+  ! Input State         | Action                | Output State 
+  !-----------------------------------------------------------------
+  ! Start               | Create                | Created
+  ! Start               | Free_clean            | Start
+  ! Start               | Free_symbolic         | Start
+  ! Start               | Free_numeric          | Start
   
-    ! Matrix sign
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE     = 0
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_SEMIDEFINITE = 1
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_INDEFINITE            = 2 ! Both positive and negative eigenvalues
-    integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_UNKNOWN               = 3 ! No info
-    
-    type, abstract :: base_sparse_matrix_t
-    private 
-        integer(ip) :: num_rows                          !< Number of rows
-        integer(ip) :: num_cols                          !< Number of colums
-        integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
-        integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
-        logical     :: sum_duplicates = .true.           !< If .false. overwrites duplicated values, else perform sum
-        logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
-        logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
-                                                         !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
-                                                         !<          Only edges (i,j) with j>=i are stored.
-                                                         !< .False.  All (i,j) \belongs E are stored.  
-    contains
-    private
-        procedure(base_sparse_matrix_is_by_rows),               public, deferred :: is_by_rows
-        procedure(base_sparse_matrix_is_by_cols),               public, deferred :: is_by_cols
-        procedure(base_sparse_matrix_copy_to_coo),              public, deferred :: copy_to_coo
-        procedure(base_sparse_matrix_copy_from_coo),            public, deferred :: copy_from_coo
-        procedure(base_sparse_matrix_move_to_coo),              public, deferred :: move_to_coo
-        procedure(base_sparse_matrix_move_from_coo),            public, deferred :: move_from_coo
-        procedure(base_sparse_matrix_move_to_fmt),              public, deferred :: move_to_fmt
-        procedure(base_sparse_matrix_move_from_fmt),            public, deferred :: move_from_fmt
-        procedure(base_sparse_matrix_initialize_values),        public, deferred :: initialize_values
-        procedure(base_sparse_matrix_allocate_values_body),     public, deferred :: allocate_values_body
-        procedure(base_sparse_matrix_update_values_body),       public, deferred :: update_values_body
-        procedure(base_sparse_matrix_update_single_value_body), public, deferred :: update_single_value_body
-        procedure(base_sparse_matrix_print_matrix_market_body), public, deferred :: print_matrix_market_body
-        procedure(base_sparse_matrix_free_coords),              public, deferred :: free_coords
-        procedure(base_sparse_matrix_free_val),                 public, deferred :: free_val
-        procedure(base_sparse_matrix_set_nnz),                  public, deferred :: set_nnz
-        procedure(base_sparse_matrix_get_nnz),                  public, deferred :: get_nnz
-        procedure(base_sparse_matrix_print),                    public, deferred :: print
-        procedure         ::                                 base_sparse_matrix_create_square
-        procedure         ::                                 base_sparse_matrix_create_rectangular
-        procedure         ::                                 base_sparse_matrix_insert_coords
-        procedure         ::                                 base_sparse_matrix_insert_values
-        procedure         ::                                 base_sparse_matrix_insert_single_coord
-        procedure         ::                                 base_sparse_matrix_insert_single_value
-        procedure         :: append_coords_body           => base_sparse_matrix_append_coords_body
-        procedure         :: append_values_body           => base_sparse_matrix_append_values_body
-        procedure         :: append_single_coord_body     => base_sparse_matrix_append_single_coord_body
-        procedure         :: append_single_value_body     => base_sparse_matrix_append_single_value_body
-        procedure         :: is_valid_sign                => base_sparse_matrix_is_valid_sign
-        procedure         :: apply_body                   => base_sparse_matrix_apply_body
-        procedure, public :: is_symbolic                  => base_sparse_matrix_is_symbolic
-        procedure, public :: copy_to_fmt                  => base_sparse_matrix_copy_to_fmt
-        procedure, public :: copy_from_fmt                => base_sparse_matrix_copy_from_fmt
-        procedure, public :: set_sign                     => base_sparse_matrix_set_sign
-        procedure, public :: get_sign                     => base_sparse_matrix_get_sign
-        procedure, public :: set_num_rows                 => base_sparse_matrix_set_num_rows
-        procedure, public :: get_num_rows                 => base_sparse_matrix_get_num_rows
-        procedure, public :: set_num_cols                 => base_sparse_matrix_set_num_cols
-        procedure, public :: get_num_cols                 => base_sparse_matrix_get_num_cols
-        procedure, public :: set_sum_duplicates           => base_sparse_matrix_set_sum_duplicates
-        procedure, public :: get_sum_duplicates           => base_sparse_matrix_get_sum_duplicates
-        procedure, public :: set_symmetry                 => base_sparse_matrix_set_symmetry
-        procedure, public :: set_symmetric_storage        => base_sparse_matrix_set_symmetric_storage
-        procedure, public :: get_symmetric_storage        => base_sparse_matrix_get_symmetric_storage
-        procedure, public :: is_symmetric                 => base_sparse_matrix_is_symmetric
-        procedure, public :: set_state                    => base_sparse_matrix_set_state
-        procedure, public :: set_state_start              => base_sparse_matrix_set_state_start
-        procedure, public :: set_state_created            => base_sparse_matrix_set_state_created
-        procedure, public :: set_state_build_symbolic     => base_sparse_matrix_set_state_build_symbolic
-        procedure, public :: set_state_build_numeric      => base_sparse_matrix_set_state_build_numeric
-        procedure, public :: set_state_assembled          => base_sparse_matrix_set_state_assembled
-        procedure, public :: set_state_assembled_symbolic => base_sparse_matrix_set_state_assembled_symbolic
-        procedure, public :: set_state_update             => base_sparse_matrix_set_state_update
-        procedure, public :: get_state                    => base_sparse_matrix_get_state
-        procedure, public :: allocate_coords              => base_sparse_matrix_allocate_coords
-        procedure, public :: allocate_values              => base_sparse_matrix_allocate_values
-        procedure, public :: convert_body                 => base_sparse_matrix_convert_body
-        procedure, public :: apply                        => base_sparse_matrix_apply
-        procedure, public :: print_matrix_market          => base_sparse_matrix_print_matrix_market
-        procedure, public :: free                         => base_sparse_matrix_free
-        procedure, public :: free_clean                   => base_sparse_matrix_free_clean
-        procedure, public :: free_symbolic                => base_sparse_matrix_free_symbolic
-        procedure, public :: free_numeric                 => base_sparse_matrix_free_numeric
-        generic,   public :: create                       => base_sparse_matrix_create_square, &
-                                                             base_sparse_matrix_create_rectangular
-        generic,   public :: insert                       => base_sparse_matrix_insert_coords,        &
-                                                             base_sparse_matrix_insert_values,        &
-                                                             base_sparse_matrix_insert_single_value, &
-                                                             base_sparse_matrix_insert_single_coord
-        generic           :: append_body                  => append_coords_body,       &
-                                                             append_values_body,       &
-                                                             append_single_value_body, &
-                                                             append_single_coord_body
-        generic           :: update_body                  => update_values_body ,&
-                                                             update_single_value_body
+  ! Created             | Insert (2-values)     | Build_symbolic
+  ! Created             | Insert (3-values)     | Build_numeric
+  ! Created             | Free_clean            | Start
+  ! Created             | Free_symbolic         | Created
+  ! Created             | Free_numeric          | Assembled_symbolic
+  
+  ! Build_symbolic      | Insert (2-values)     | Build_symbolic
+  ! Build_symbolic      | Insert (2-values)     | * Error
+  ! Build_symbolic      | convert               | Assembled_symbolic
+  ! Build_symbolic      | Free_clean            | Start
+  ! Build_symbolic      | Free_symbolic         | Created
+  ! Build_symbolic      | Free_numeric          | Created
+  
+  ! Build_numeric       | Insert (2-values)     | * Error
+  ! Build_numeric       | Insert (3-values)     | Build_numeric
+  ! Build_numeric       | convert               | Assembled
+  ! Build_numeric       | Free_clean            | Start
+  ! Build_numeric       | Free_symbolic         | Created
+  ! Build_numeric       | Free_numeric          | Created
+  !-----------------------------------------------------------------
+  ! Under development
+  !-----------------------------------------------------------------
+  ! Assembled           | Free_clean            | Start
+  ! Assembled           | Free_symbolic         | Created
+  ! Assembled           | Free_numeric          | Assembled_numeric
+  ! Assembled           | Set                   | Update
+  
+  ! Assembled_symbolic  | Free_clean            | Start
+  ! Assembled_symbolic  | Set                   | Update
+  
+  ! Update              | Free_clean            | Start
+  
+  
+  ! Matrix sign
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE     = 0
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_SEMIDEFINITE = 1
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_INDEFINITE            = 2 ! Both positive and negative eigenvalues
+  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_UNKNOWN               = 3 ! No info
+  
+  type, abstract :: base_sparse_matrix_t
+     private 
+     integer(ip) :: num_rows                          !< Number of rows
+     integer(ip) :: num_cols                          !< Number of colums
+     integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
+     integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
+     logical     :: sum_duplicates = .true.           !< If .false. overwrites duplicated values, else perform sum
+     logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
+     logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
+     !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
+     !<          Only edges (i,j) with j>=i are stored.
+     !< .False.  All (i,j) \belongs E are stored.  
+   contains
+     private
+        procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
+        procedure(base_sparse_matrix_is_by_cols),                public, deferred :: is_by_cols
+        procedure(base_sparse_matrix_copy_to_coo),               public, deferred :: copy_to_coo
+        procedure(base_sparse_matrix_copy_from_coo),             public, deferred :: copy_from_coo
+        procedure(base_sparse_matrix_move_to_coo),               public, deferred :: move_to_coo
+        procedure(base_sparse_matrix_move_from_coo),             public, deferred :: move_from_coo
+        procedure(base_sparse_matrix_move_to_fmt),               public, deferred :: move_to_fmt
+        procedure(base_sparse_matrix_move_from_fmt),             public, deferred :: move_from_fmt
+        procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
+        procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
+        procedure(base_sparse_matrix_update_bounded_values_body),              &
+                                                                 public, deferred :: update_bounded_values_body
+        procedure(base_sparse_matrix_update_bounded_value_body),               &
+                                                                 public, deferred :: update_bounded_value_body
+        procedure(base_sparse_matrix_update_bounded_values_by_row_body),       &
+                                                                 public, deferred :: update_bounded_values_by_row_body
+        procedure(base_sparse_matrix_update_bounded_values_by_col_body),       &
+                                                                 public, deferred :: update_bounded_values_by_col_body
+        procedure(base_sparse_matrix_update_bounded_dense_values_body),        &
+                                                                 public, deferred :: update_bounded_dense_values_body
+        procedure(base_sparse_matrix_update_bounded_square_dense_values_body), &
+                                                                 public, deferred :: update_bounded_square_dense_values_body
+        procedure(base_sparse_matrix_update_dense_values_body),                &
+                                                                 public, deferred :: update_dense_values_body
+        procedure(base_sparse_matrix_update_square_dense_values_body),         &
+                                                                 public, deferred :: update_square_dense_values_body
+        procedure(base_sparse_matrix_update_values_body),        public, deferred :: update_values_body
+        procedure(base_sparse_matrix_update_values_by_row_body), public, deferred :: update_values_by_row_body
+        procedure(base_sparse_matrix_update_values_by_col_body), public, deferred :: update_values_by_col_body
+        procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
+        procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
+        procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
+        procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
+        procedure(base_sparse_matrix_set_nnz),                   public, deferred :: set_nnz
+        procedure(base_sparse_matrix_get_nnz),                   public, deferred :: get_nnz
+        procedure(base_sparse_matrix_print),                     public, deferred :: print
+        procedure         ::                                     base_sparse_matrix_create_square
+        procedure         ::                                     base_sparse_matrix_create_rectangular
+        procedure         :: insert_bounded_coords            => base_sparse_matrix_insert_bounded_coords
+        procedure         :: insert_bounded_values            => base_sparse_matrix_insert_bounded_values
+        procedure         :: insert_bounded_coords_by_row     => base_sparse_matrix_insert_bounded_coords_by_row
+        procedure         :: insert_bounded_coords_by_col     => base_sparse_matrix_insert_bounded_coords_by_col
+        procedure         :: insert_bounded_values_by_row     => base_sparse_matrix_insert_bounded_values_by_row
+        procedure         :: insert_bounded_values_by_col     => base_sparse_matrix_insert_bounded_values_by_col
+        procedure         :: insert_bounded_single_coord      => base_sparse_matrix_insert_bounded_single_coord
+        procedure         :: insert_bounded_single_value      => base_sparse_matrix_insert_bounded_single_value
+        procedure         :: insert_bounded_dense_values      => base_sparse_matrix_insert_bounded_dense_values
+        procedure         :: insert_bounded_square_dense_values=> base_sparse_matrix_insert_bounded_square_dense_values
+        procedure         :: insert_coords                    => base_sparse_matrix_insert_coords
+        procedure         :: insert_values                    => base_sparse_matrix_insert_values
+        procedure         :: insert_dense_values              => base_sparse_matrix_insert_dense_values
+        procedure         :: insert_square_dense_values       => base_sparse_matrix_insert_square_dense_values
+        procedure         :: insert_coords_by_row             => base_sparse_matrix_insert_coords_by_row
+        procedure         :: insert_coords_by_col             => base_sparse_matrix_insert_coords_by_col
+        procedure         :: insert_values_by_row             => base_sparse_matrix_insert_values_by_row
+        procedure         :: insert_values_by_col             => base_sparse_matrix_insert_values_by_col
+        procedure         :: insert_single_coord              => base_sparse_matrix_insert_single_coord
+        procedure         :: insert_single_value              => base_sparse_matrix_insert_single_value
+        procedure         :: append_bounded_coords_body       => base_sparse_matrix_append_bounded_coords_body
+        procedure         :: append_bounded_values_body       => base_sparse_matrix_append_bounded_values_body
+        procedure         :: append_bounded_coords_by_row_body=> base_sparse_matrix_append_bounded_coords_by_row_body
+        procedure         :: append_bounded_coords_by_col_body=> base_sparse_matrix_append_bounded_coords_by_col_body
+        procedure         :: append_bounded_values_by_row_body=> base_sparse_matrix_append_bounded_values_by_row_body
+        procedure         :: append_bounded_values_by_col_body=> base_sparse_matrix_append_bounded_values_by_col_body
+        procedure         :: append_bounded_single_coord_body => base_sparse_matrix_append_bounded_single_coord_body
+        procedure         :: append_bounded_single_value_body => base_sparse_matrix_append_bounded_single_value_body
+        procedure         :: append_bounded_dense_values_body => base_sparse_matrix_append_bounded_dense_values_body
+        procedure         :: append_bounded_square_dense_values_body => base_sparse_matrix_append_bounded_square_dense_values_body
+        procedure         :: append_coords_body               => base_sparse_matrix_append_coords_body
+        procedure         :: append_values_body               => base_sparse_matrix_append_values_body
+        procedure         :: append_dense_values_body         => base_sparse_matrix_append_dense_values_body
+        procedure         :: append_square_dense_values_body  => base_sparse_matrix_append_square_dense_values_body
+        procedure         :: append_coords_by_row_body        => base_sparse_matrix_append_coords_by_row_body
+        procedure         :: append_coords_by_col_body        => base_sparse_matrix_append_coords_by_col_body
+        procedure         :: append_values_by_row_body        => base_sparse_matrix_append_values_by_row_body
+        procedure         :: append_values_by_col_body        => base_sparse_matrix_append_values_by_col_body
+        procedure         :: append_single_coord_body         => base_sparse_matrix_append_single_coord_body
+        procedure         :: append_single_value_body         => base_sparse_matrix_append_single_value_body
+        procedure         :: is_valid_sign                    => base_sparse_matrix_is_valid_sign
+        procedure         :: apply_body                       => base_sparse_matrix_apply_body
+        procedure, public :: is_symbolic                      => base_sparse_matrix_is_symbolic
+        procedure, public :: copy_to_fmt                      => base_sparse_matrix_copy_to_fmt
+        procedure, public :: copy_from_fmt                    => base_sparse_matrix_copy_from_fmt
+        procedure, public :: set_sign                         => base_sparse_matrix_set_sign
+        procedure, public :: get_sign                         => base_sparse_matrix_get_sign
+        procedure, public :: set_num_rows                     => base_sparse_matrix_set_num_rows
+        procedure, public :: get_num_rows                     => base_sparse_matrix_get_num_rows
+        procedure, public :: set_num_cols                     => base_sparse_matrix_set_num_cols
+        procedure, public :: get_num_cols                     => base_sparse_matrix_get_num_cols
+        procedure, public :: set_sum_duplicates               => base_sparse_matrix_set_sum_duplicates
+        procedure, public :: get_sum_duplicates               => base_sparse_matrix_get_sum_duplicates
+        procedure, public :: set_symmetry                     => base_sparse_matrix_set_symmetry
+        procedure, public :: set_symmetric_storage            => base_sparse_matrix_set_symmetric_storage
+        procedure, public :: get_symmetric_storage            => base_sparse_matrix_get_symmetric_storage
+        procedure, public :: is_symmetric                     => base_sparse_matrix_is_symmetric
+        procedure, public :: set_state                        => base_sparse_matrix_set_state
+        procedure, public :: set_state_start                  => base_sparse_matrix_set_state_start
+        procedure, public :: set_state_created                => base_sparse_matrix_set_state_created
+        procedure, public :: set_state_build_symbolic         => base_sparse_matrix_set_state_build_symbolic
+        procedure, public :: set_state_build_numeric          => base_sparse_matrix_set_state_build_numeric
+        procedure, public :: set_state_assembled              => base_sparse_matrix_set_state_assembled
+        procedure, public :: set_state_assembled_symbolic     => base_sparse_matrix_set_state_assembled_symbolic
+        procedure, public :: set_state_update                 => base_sparse_matrix_set_state_update
+        procedure, public :: get_state                        => base_sparse_matrix_get_state
+        procedure, public :: allocate_coords                  => base_sparse_matrix_allocate_coords
+        procedure, public :: allocate_values                  => base_sparse_matrix_allocate_values
+        procedure, public :: convert_body                     => base_sparse_matrix_convert_body
+        procedure, public :: apply                            => base_sparse_matrix_apply
+        procedure, public :: print_matrix_market              => base_sparse_matrix_print_matrix_market
+        procedure, public :: free                             => base_sparse_matrix_free
+        procedure, public :: free_clean                       => base_sparse_matrix_free_clean
+        procedure, public :: free_symbolic                    => base_sparse_matrix_free_symbolic
+        procedure, public :: free_numeric                     => base_sparse_matrix_free_numeric
+        generic,   public :: create                           => base_sparse_matrix_create_square, &
+                                                                 base_sparse_matrix_create_rectangular
+        generic,   public :: insert                           => insert_bounded_coords,              &
+                                                                 insert_bounded_values,              &
+                                                                 insert_bounded_coords_by_row,       &
+                                                                 insert_bounded_coords_by_col,       &
+                                                                 insert_bounded_values_by_row,       &
+                                                                 insert_bounded_values_by_col,       &
+                                                                 insert_bounded_single_value,        &
+                                                                 insert_bounded_single_coord,        &
+                                                                 insert_bounded_dense_values,        &
+                                                                 insert_bounded_square_dense_values, &
+                                                                 insert_coords,                      &
+                                                                 insert_values,                      &
+                                                                 insert_dense_values,                &
+                                                                 insert_square_dense_values,         &
+                                                                 insert_coords_by_row,               &
+                                                                 insert_coords_by_col,               &
+                                                                 insert_values_by_row,               &
+                                                                 insert_values_by_col,               &
+                                                                 insert_single_value,                &
+                                                                 insert_single_coord
+        generic           :: append_body                      => append_bounded_coords_body,             &  
+                                                                 append_bounded_values_body,             &
+                                                                 append_bounded_coords_by_row_body,      &
+                                                                 append_bounded_coords_by_col_body,      &
+                                                                 append_bounded_values_by_row_body,      &
+                                                                 append_bounded_values_by_col_body,      &
+                                                                 append_bounded_single_value_body,       &
+                                                                 append_bounded_single_coord_body,       &
+                                                                 append_bounded_dense_values_body,         &
+                                                                 append_bounded_square_dense_values_body,  &
+                                                                 append_coords_body,                     &
+                                                                 append_values_body,                     &
+                                                                 append_dense_values_body,               &
+                                                                 append_square_dense_values_body,        &
+                                                                 append_coords_by_row_body,              &
+                                                                 append_coords_by_col_body,              &
+                                                                 append_values_by_row_body,              &
+                                                                 append_values_by_col_body,              &
+                                                                 append_single_value_body,               &
+                                                                 append_single_coord_body
+        generic,   public :: update_body                      => update_bounded_values_body ,              &
+                                                                 update_bounded_values_by_row_body,        &
+                                                                 update_bounded_values_by_col_body,        &
+                                                                 update_bounded_value_body,                &
+                                                                 update_bounded_dense_values_body ,        &
+                                                                 update_bounded_square_dense_values_body , &
+                                                                 update_dense_values_body ,                &
+                                                                 update_square_dense_values_body ,         &
+                                                                 update_values_body ,                      &
+                                                                 update_values_by_row_body ,               &
+                                                                 update_values_by_col_body ,               &
+                                                                 update_value_body
     end type
 
 
-!---------------------------------------------------------------------
-!< COO SPARSE MATRIX DERIVED TYPE
-!---------------------------------------------------------------------
+    !---------------------------------------------------------------------
+    !< COO SPARSE MATRIX DERIVED TYPE
+    !---------------------------------------------------------------------
 
     integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_NONE    = 20
     integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_BY_ROWS = 21
@@ -184,36 +276,62 @@ private
         real(rp),    allocatable   :: val(:)                      !< Values
     contains
     private
-        procedure         :: append_values_body       => coo_sparse_matrix_append_values_body
-        procedure         :: append_coords_body       => coo_sparse_matrix_append_coords_body
-        procedure         :: append_single_value_body => coo_sparse_matrix_append_single_value_body
-        procedure         :: append_single_coord_body => coo_sparse_matrix_append_single_coord_body
-        procedure, public :: update_values_body       => coo_sparse_matrix_update_values_body
-        procedure, public :: update_single_value_body => coo_sparse_matrix_update_single_value_body
-        procedure, public :: is_by_rows               => coo_sparse_matrix_is_by_rows
-        procedure, public :: is_by_cols               => coo_sparse_matrix_is_by_cols
-        procedure, public :: set_nnz                  => coo_sparse_matrix_set_nnz
-        procedure, public :: get_nnz                  => coo_sparse_matrix_get_nnz
-        procedure, public :: sort_and_compress        => coo_sparse_matrix_sort_and_compress
-        procedure, public :: set_sort_status_none     => coo_sparse_matrix_set_sort_status_none
-        procedure, public :: set_sort_status_by_rows  => coo_sparse_matrix_set_sort_status_by_rows
-        procedure, public :: set_sort_status_by_cols  => coo_sparse_matrix_set_sort_status_by_cols
-        procedure, public :: get_sort_status          => coo_sparse_matrix_get_sort_status
-        procedure, public :: allocate_coords          => coo_sparse_matrix_allocate_coords
-        procedure, public :: allocate_values_body     => coo_sparse_matrix_allocate_values_body
-        procedure, public :: initialize_values        => coo_sparse_matrix_initialize_values
-        procedure, public :: copy_to_coo              => coo_sparse_matrix_copy_to_coo
-        procedure, public :: copy_from_coo            => coo_sparse_matrix_copy_from_coo
-        procedure, public :: copy_to_fmt              => coo_sparse_matrix_copy_to_fmt
-        procedure, public :: copy_from_fmt            => coo_sparse_matrix_copy_from_fmt
-        procedure, public :: move_to_coo              => coo_sparse_matrix_move_to_coo
-        procedure, public :: move_from_coo            => coo_sparse_matrix_move_from_coo
-        procedure, public :: move_to_fmt              => coo_sparse_matrix_move_to_fmt
-        procedure, public :: move_from_fmt            => coo_sparse_matrix_move_from_fmt
-        procedure, public :: free_coords              => coo_sparse_matrix_free_coords
-        procedure, public :: free_val                 => coo_sparse_matrix_free_val
-        procedure, public :: print_matrix_market_body => coo_sparse_matrix_print_matrix_market_body
-        procedure, public :: print                    => coo_sparse_matrix_print
+        procedure         :: append_bounded_values_body              => coo_sparse_matrix_append_bounded_values_body
+        procedure         :: append_bounded_coords_body              => coo_sparse_matrix_append_bounded_coords_body
+        procedure         :: append_bounded_values_by_row_body       => coo_sparse_matrix_append_bounded_values_by_row_body
+        procedure         :: append_bounded_values_by_col_body       => coo_sparse_matrix_append_bounded_values_by_col_body
+        procedure         :: append_bounded_coords_by_row_body       => coo_sparse_matrix_append_bounded_coords_by_row_body
+        procedure         :: append_bounded_coords_by_col_body       => coo_sparse_matrix_append_bounded_coords_by_col_body
+        procedure         :: append_bounded_single_value_body        => coo_sparse_matrix_append_bounded_single_value_body
+        procedure         :: append_bounded_single_coord_body        => coo_sparse_matrix_append_bounded_single_coord_body
+        procedure         :: append_bounded_dense_values_body        => coo_sparse_matrix_append_bounded_dense_values_body
+        procedure         :: append_bounded_square_dense_values_body => coo_sparse_matrix_append_bounded_square_dense_values_body
+        procedure         :: append_values_body                      => coo_sparse_matrix_append_values_body
+        procedure         :: append_coords_body                      => coo_sparse_matrix_append_coords_body
+        procedure         :: append_dense_values_body                => coo_sparse_matrix_append_dense_values_body
+        procedure         :: append_square_dense_values_body         => coo_sparse_matrix_append_square_dense_values_body
+        procedure         :: append_values_by_row_body               => coo_sparse_matrix_append_values_by_row_body
+        procedure         :: append_values_by_col_body               => coo_sparse_matrix_append_values_by_col_body
+        procedure         :: append_coords_by_row_body               => coo_sparse_matrix_append_coords_by_row_body
+        procedure         :: append_coords_by_col_body               => coo_sparse_matrix_append_coords_by_col_body
+        procedure         :: append_single_value_body                => coo_sparse_matrix_append_single_value_body
+        procedure         :: append_single_coord_body                => coo_sparse_matrix_append_single_coord_body
+        procedure, public :: update_bounded_values_body              => coo_sparse_matrix_update_bounded_values_body
+        procedure, public :: update_bounded_values_by_row_body       => coo_sparse_matrix_update_bounded_values_by_row_body
+        procedure, public :: update_bounded_values_by_col_body       => coo_sparse_matrix_update_bounded_values_by_col_body
+        procedure, public :: update_bounded_value_body               => coo_sparse_matrix_update_bounded_value_body
+        procedure, public :: update_bounded_dense_values_body        => coo_sparse_matrix_update_bounded_dense_values_body
+        procedure, public :: update_bounded_square_dense_values_body => coo_sparse_matrix_update_bounded_square_dense_values_body
+        procedure, public :: update_dense_values_body                => coo_sparse_matrix_update_dense_values_body
+        procedure, public :: update_square_dense_values_body         => coo_sparse_matrix_update_square_dense_values_body
+        procedure, public :: update_values_body                      => coo_sparse_matrix_update_values_body
+        procedure, public :: update_values_by_row_body               => coo_sparse_matrix_update_values_by_row_body
+        procedure, public :: update_values_by_col_body               => coo_sparse_matrix_update_values_by_col_body
+        procedure, public :: update_value_body                       => coo_sparse_matrix_update_value_body
+        procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
+        procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
+        procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
+        procedure, public :: get_nnz                                 => coo_sparse_matrix_get_nnz
+        procedure, public :: sort_and_compress                       => coo_sparse_matrix_sort_and_compress
+        procedure, public :: set_sort_status_none                    => coo_sparse_matrix_set_sort_status_none
+        procedure, public :: set_sort_status_by_rows                 => coo_sparse_matrix_set_sort_status_by_rows
+        procedure, public :: set_sort_status_by_cols                 => coo_sparse_matrix_set_sort_status_by_cols
+        procedure, public :: get_sort_status                         => coo_sparse_matrix_get_sort_status
+        procedure, public :: allocate_coords                         => coo_sparse_matrix_allocate_coords
+        procedure, public :: allocate_values_body                    => coo_sparse_matrix_allocate_values_body
+        procedure, public :: initialize_values                       => coo_sparse_matrix_initialize_values
+        procedure, public :: copy_to_coo                             => coo_sparse_matrix_copy_to_coo
+        procedure, public :: copy_from_coo                           => coo_sparse_matrix_copy_from_coo
+        procedure, public :: copy_to_fmt                             => coo_sparse_matrix_copy_to_fmt
+        procedure, public :: copy_from_fmt                           => coo_sparse_matrix_copy_from_fmt
+        procedure, public :: move_to_coo                             => coo_sparse_matrix_move_to_coo
+        procedure, public :: move_from_coo                           => coo_sparse_matrix_move_from_coo
+        procedure, public :: move_to_fmt                             => coo_sparse_matrix_move_to_fmt
+        procedure, public :: move_from_fmt                           => coo_sparse_matrix_move_from_fmt
+        procedure, public :: free_coords                             => coo_sparse_matrix_free_coords
+        procedure, public :: free_val                                => coo_sparse_matrix_free_val
+        procedure, public :: print_matrix_market_body                => coo_sparse_matrix_print_matrix_market_body
+        procedure, public :: print                                   => coo_sparse_matrix_print
     end type coo_sparse_matrix_t
 
 !---------------------------------------------------------------------
@@ -301,7 +419,7 @@ private
             real(rp),                     intent(in)    :: val
         end subroutine base_sparse_matrix_initialize_values
 
-        subroutine base_sparse_matrix_update_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+        subroutine base_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
             import ip
             import rp
@@ -314,9 +432,9 @@ private
             integer(ip),                 intent(in)    :: imax
             integer(ip),                 intent(in)    :: jmin
             integer(ip),                 intent(in)    :: jmax
-        end subroutine base_sparse_matrix_update_values_body
+        end subroutine base_sparse_matrix_update_bounded_values_body
 
-        subroutine base_sparse_matrix_update_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
+        subroutine base_sparse_matrix_update_bounded_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
             import ip
             import rp
@@ -328,7 +446,144 @@ private
             integer(ip),                 intent(in)    :: imax
             integer(ip),                 intent(in)    :: jmin
             integer(ip),                 intent(in)    :: jmax
-        end subroutine base_sparse_matrix_update_single_value_body
+        end subroutine base_sparse_matrix_update_bounded_value_body
+
+        subroutine base_sparse_matrix_update_bounded_values_by_row_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: nz
+            integer(ip),                 intent(in)    :: ia
+            integer(ip),                 intent(in)    :: ja(nz)
+            real(rp),                    intent(in)    :: val(nz)
+            integer(ip),                 intent(in)    :: imin
+            integer(ip),                 intent(in)    :: imax
+            integer(ip),                 intent(in)    :: jmin
+            integer(ip),                 intent(in)    :: jmax
+        end subroutine base_sparse_matrix_update_bounded_values_by_row_body
+
+        subroutine base_sparse_matrix_update_bounded_values_by_col_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: nz
+            integer(ip),                 intent(in)    :: ia(nz)
+            integer(ip),                 intent(in)    :: ja
+            real(rp),                    intent(in)    :: val(nz)
+            integer(ip),                 intent(in)    :: imin
+            integer(ip),                 intent(in)    :: imax
+            integer(ip),                 intent(in)    :: jmin
+            integer(ip),                 intent(in)    :: jmax
+        end subroutine base_sparse_matrix_update_bounded_values_by_col_body
+
+        subroutine base_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: num_cols
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_cols)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
+            integer(ip),                 intent(in)    :: imin
+            integer(ip),                 intent(in)    :: imax
+            integer(ip),                 intent(in)    :: jmin
+            integer(ip),                 intent(in)    :: jmax
+        end subroutine base_sparse_matrix_update_bounded_dense_values_body
+
+        subroutine base_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_rows)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
+            integer(ip),                 intent(in)    :: imin
+            integer(ip),                 intent(in)    :: imax
+            integer(ip),                 intent(in)    :: jmin
+            integer(ip),                 intent(in)    :: jmax
+        end subroutine base_sparse_matrix_update_bounded_square_dense_values_body
+
+        subroutine base_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: num_cols
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_cols)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
+        end subroutine base_sparse_matrix_update_dense_values_body
+
+        subroutine base_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: num_rows
+            integer(ip),                 intent(in)    :: ia(num_rows)
+            integer(ip),                 intent(in)    :: ja(num_rows)
+            integer(ip),                 intent(in)    :: ioffset
+            integer(ip),                 intent(in)    :: joffset
+            real(rp),                    intent(in)    :: val(:, :)
+        end subroutine base_sparse_matrix_update_square_dense_values_body
+
+
+        subroutine base_sparse_matrix_update_values_body(this, nz, ia, ja, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: nz
+            integer(ip),                 intent(in)    :: ia(nz)
+            integer(ip),                 intent(in)    :: ja(nz)
+            real(rp),                    intent(in)    :: val(nz)
+        end subroutine base_sparse_matrix_update_values_body
+
+
+        subroutine base_sparse_matrix_update_value_body(this, ia, ja, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: ia
+            integer(ip),                 intent(in)    :: ja
+            real(rp),                    intent(in)    :: val
+        end subroutine base_sparse_matrix_update_value_body
+
+        subroutine base_sparse_matrix_update_values_by_row_body(this, nz, ia, ja, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: nz
+            integer(ip),                 intent(in)    :: ia
+            integer(ip),                 intent(in)    :: ja(nz)
+            real(rp),                    intent(in)    :: val(nz)
+        end subroutine base_sparse_matrix_update_values_by_row_body
+
+        subroutine base_sparse_matrix_update_values_by_col_body(this, nz, ia, ja, val) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t), intent(inout) :: this
+            integer(ip),                 intent(in)    :: nz
+            integer(ip),                 intent(in)    :: ia(nz)
+            integer(ip),                 intent(in)    :: ja
+            real(rp),                    intent(in)    :: val(nz)
+        end subroutine base_sparse_matrix_update_values_by_col_body
 
         subroutine base_sparse_matrix_free_coords(this)
             import base_sparse_matrix_t
@@ -695,12 +950,12 @@ contains
     end subroutine base_sparse_matrix_create_rectangular
 
 
-    subroutine base_sparse_matrix_insert_values(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_insert_bounded_values(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< This is a common interface to control the state diagram
     !< It delegates the insert of new entries on the append procedures
-    !< That must be overloaded on the COO format
+    !< Append procedures must be only overloaded on the COO format
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
         integer(ip),                 intent(in)    :: nz
@@ -726,15 +981,15 @@ contains
                 call this%set_state_update()
             endif
         endif
-    end subroutine base_sparse_matrix_insert_values
+    end subroutine base_sparse_matrix_insert_bounded_values
 
 
-    subroutine base_sparse_matrix_insert_coords(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_insert_bounded_coords(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries to the sparse matrix
     !< This is a common interface to control the state diagram
     !< It delegates the insert of new entries on the append procedures
-    !< That must be overloaded on the COO format
+    !< Append procedures must be only overloaded on the COO format
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
         integer(ip),                 intent(in)    :: nz
@@ -748,15 +1003,127 @@ contains
         assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
         call this%append_body(nz, ia, ja, imin, imax, jmin, jmax)
         call this%set_state_build_symbolic()
-    end subroutine base_sparse_matrix_insert_coords
-    
-    
-    subroutine base_sparse_matrix_insert_single_value(this, ia, ja, val, imin, imax, jmin, jmax) 
+    end subroutine base_sparse_matrix_insert_bounded_coords
+
+
+    subroutine base_sparse_matrix_insert_bounded_values_by_row(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< This is a common interface to control the state diagram
     !< It delegates the insert of new entries on the append procedures
-    !< That must be overloaded on the COO format
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+        real(rp),                    intent(in)    :: val(nz)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(nz, ia, ja, val, imin, imax, jmin, jmax)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(nz, ia, ja, val, imin, imax, jmin, jmax)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_bounded_values_by_row
+
+
+    subroutine base_sparse_matrix_insert_bounded_values_by_col(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+        real(rp),                    intent(in)    :: val(nz)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(nz, ia, ja, val, imin, imax, jmin, jmax)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(nz, ia, ja, val, imin, imax, jmin, jmax)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_bounded_values_by_col
+
+
+    subroutine base_sparse_matrix_insert_bounded_coords_by_row(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        call this%append_body(nz, ia, ja, imin, imax, jmin, jmax)
+        call this%set_state_build_symbolic()
+    end subroutine base_sparse_matrix_insert_bounded_coords_by_row
+
+
+    subroutine base_sparse_matrix_insert_bounded_coords_by_col(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        call this%append_body(nz, ia, ja, imin, imax, jmin, jmax)
+        call this%set_state_build_symbolic()
+    end subroutine base_sparse_matrix_insert_bounded_coords_by_col
+
+    
+    subroutine base_sparse_matrix_insert_bounded_single_value(this, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
         integer(ip),                 intent(in)    :: ia
@@ -781,15 +1148,15 @@ contains
                 call this%set_state_update()
             endif
         endif
-    end subroutine base_sparse_matrix_insert_single_value
+    end subroutine base_sparse_matrix_insert_bounded_single_value
 
 
-    subroutine base_sparse_matrix_insert_single_coord(this, ia, ja, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_insert_bounded_single_coord(this, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries to the sparse matrix
     !< This is a common interface to control the state diagram
     !< It delegates the insert of new entries on the append procedures
-    !< That must be overloaded on the COO format
+    !< Append procedures must be only overloaded on the COO format
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
         integer(ip),                 intent(in)    :: ia
@@ -802,10 +1169,338 @@ contains
         assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
         call this%append_body(ia, ja, imin, imax, jmin, jmax)
         call this%set_state_build_symbolic()
+    end subroutine base_sparse_matrix_insert_bounded_single_coord
+
+
+    subroutine base_sparse_matrix_insert_values(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja(nz)
+        real(rp),                    intent(in)    :: val(nz)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(nz, ia, ja, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(nz, ia, ja, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_values
+
+
+    subroutine base_sparse_matrix_insert_coords(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja(nz)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        call this%append_body(nz, ia, ja)
+        call this%set_state_build_symbolic()
+    end subroutine base_sparse_matrix_insert_coords
+
+
+    subroutine base_sparse_matrix_insert_bounded_dense_values(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_bounded_dense_values
+
+
+    subroutine base_sparse_matrix_insert_bounded_square_dense_values(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_bounded_square_dense_values
+
+
+    subroutine base_sparse_matrix_insert_dense_values(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, num_cols, ia, ja, ioffset, joffset, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, num_cols, ia, ja, ioffset, joffset, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_dense_values
+
+
+    subroutine base_sparse_matrix_insert_square_dense_values(this, num_rows, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(num_rows, ia, ja, ioffset, joffset, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(num_rows, ia, ja, ioffset, joffset, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_square_dense_values
+
+
+    subroutine base_sparse_matrix_insert_values_by_row(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+        real(rp),                    intent(in)    :: val(nz)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(nz, ia, ja, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(nz, ia, ja, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_values_by_row
+
+
+    subroutine base_sparse_matrix_insert_values_by_col(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+        real(rp),                    intent(in)    :: val(nz)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(nz, ia, ja, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(nz, ia, ja, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_values_by_col
+
+
+    subroutine base_sparse_matrix_insert_coords_by_row(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        call this%append_body(nz, ia, ja)
+        call this%set_state_build_symbolic()
+    end subroutine base_sparse_matrix_insert_coords_by_row
+
+
+    subroutine base_sparse_matrix_insert_coords_by_col(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        call this%append_body(nz, ia, ja)
+        call this%set_state_build_symbolic()
+    end subroutine base_sparse_matrix_insert_coords_by_col
+    
+    
+    subroutine base_sparse_matrix_insert_single_value(this, ia, ja, val)
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja
+        real(rp),                    intent(in)    :: val
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_UPDATE)
+        if(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC) then
+            call this%append_body(ia, ja, val)
+            call this%set_state_build_numeric()
+        else
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC) then
+                call this%allocate_values()
+                call this%initialize_values(val=0.0_rp)
+            endif
+            if(this%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. this%state == SPARSE_MATRIX_STATE_UPDATE) then
+                call this%update_body(ia, ja, val)
+                call this%set_state_update()
+            endif
+        endif
+    end subroutine base_sparse_matrix_insert_single_value
+
+
+    subroutine base_sparse_matrix_insert_single_coord(this, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the sparse matrix
+    !< This is a common interface to control the state diagram
+    !< It delegates the insert of new entries on the append procedures
+    !< Append procedures must be only overloaded on the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_CREATED .or. this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+        call this%append_body(ia, ja)
+        call this%set_state_build_symbolic()
     end subroutine base_sparse_matrix_insert_single_coord
 
     
-    subroutine base_sparse_matrix_append_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_append_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -821,10 +1516,10 @@ contains
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine base_sparse_matrix_append_values_body
+    end subroutine base_sparse_matrix_append_bounded_values_body
 
 
-    subroutine base_sparse_matrix_append_coords_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_append_bounded_coords_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -839,10 +1534,84 @@ contains
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine base_sparse_matrix_append_coords_body
+    end subroutine base_sparse_matrix_append_bounded_coords_body
+
+
+    subroutine base_sparse_matrix_append_bounded_values_by_row_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+        real(rp),                    intent(in)    :: val(nz)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_values_by_row_body
+
+
+    subroutine base_sparse_matrix_append_bounded_values_by_col_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+        real(rp),                    intent(in)    :: val(nz)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_values_by_col_body
+
+
+    subroutine base_sparse_matrix_append_bounded_coords_by_row_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_coords_by_row_body
+
+
+    subroutine base_sparse_matrix_append_bounded_coords_by_col_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_coords_by_col_body
     
     
-    subroutine base_sparse_matrix_append_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_append_bounded_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append a new entry and value to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -857,10 +1626,10 @@ contains
         integer(ip),                 intent(in)    :: jmax
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine base_sparse_matrix_append_single_value_body
+    end subroutine base_sparse_matrix_append_bounded_single_value_body
 
 
-    subroutine base_sparse_matrix_append_single_coord_body(this, ia, ja, imin, imax, jmin, jmax) 
+    subroutine base_sparse_matrix_append_bounded_single_coord_body(this, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append a new entrie to the sparse matrix
     !< Must be overloaded only in the COO format
@@ -872,6 +1641,198 @@ contains
         integer(ip),                 intent(in)    :: imax
         integer(ip),                 intent(in)    :: jmin
         integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_single_coord_body
+
+
+    subroutine base_sparse_matrix_append_values_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja(nz)
+        real(rp),                    intent(in)    :: val(nz)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_values_body
+
+
+   subroutine base_sparse_matrix_append_coords_body(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja(nz)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_coords_body
+
+
+    subroutine base_sparse_matrix_append_values_by_row_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+        real(rp),                    intent(in)    :: val(nz)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_values_by_row_body
+
+
+    subroutine base_sparse_matrix_append_values_by_col_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+        real(rp),                    intent(in)    :: val(nz)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_values_by_col_body
+
+
+   subroutine base_sparse_matrix_append_coords_by_row_body(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja(nz)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_coords_by_row_body
+
+
+   subroutine base_sparse_matrix_append_coords_by_col_body(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: nz
+        integer(ip),                 intent(in)    :: ia(nz)
+        integer(ip),                 intent(in)    :: ja
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_coords_by_col_body
+
+
+    subroutine base_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_dense_values_body
+
+
+    subroutine base_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin ,jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+        integer(ip),                 intent(in)    :: imin
+        integer(ip),                 intent(in)    :: imax
+        integer(ip),                 intent(in)    :: jmin
+        integer(ip),                 intent(in)    :: jmax
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_bounded_square_dense_values_body
+
+
+    subroutine base_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: num_cols
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_cols)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_dense_values_body
+
+
+    subroutine base_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: num_rows
+        integer(ip),                 intent(in)    :: ia(num_rows)
+        integer(ip),                 intent(in)    :: ja(num_rows)
+        integer(ip),                 intent(in)    :: ioffset
+        integer(ip),                 intent(in)    :: joffset
+        real(rp),                    intent(in)    :: val(:, :)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_square_dense_values_body
+    
+    
+    subroutine base_sparse_matrix_append_single_value_body(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append a new entry and value to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja
+        real(rp),                    intent(in)    :: val
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_append_single_value_body
+
+
+    subroutine base_sparse_matrix_append_single_coord_body(this, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append a new entrie to the sparse matrix
+    !< Must be overloaded only in the COO format
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: ia
+        integer(ip),                 intent(in)    :: ja
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_append_single_coord_body
@@ -1182,7 +2143,7 @@ contains
     end subroutine coo_sparse_matrix_initialize_values
 
 
-    subroutine coo_sparse_matrix_append_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_append_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the COO sparse matrix
     !< It allows duplicated entries
@@ -1212,8 +2173,9 @@ contains
         ! Append the new entries and values
         do i=1, nz
             ir = ia(i); ic = ja(i)
-            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ir>ic) ) cycle
+            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or.             & ! Check imposed bounds
+               ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ir>ic) ) cycle                      ! Check if has symmetric_storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ir
@@ -1223,10 +2185,10 @@ contains
         enddo
         this%nnz = nnz
         this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
-    end subroutine coo_sparse_matrix_append_values_body
+    end subroutine coo_sparse_matrix_append_bounded_values_body
 
 
-    subroutine coo_sparse_matrix_append_coords_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_append_bounded_coords_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new coords to the COO sparse matrix
     !< It allows duplicates entries
@@ -1256,8 +2218,9 @@ contains
         ! Append the new entries
         do i=1, nz
             ir = ia(i); ic = ja(i)
-            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ir>ic) ) cycle
+            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or.             & ! Check imposed bounds
+               ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ir>ic) ) cycle                      ! Check if has symmetric_storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ir
@@ -1265,10 +2228,178 @@ contains
         enddo
         this%nnz = nnz
         this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
-    end subroutine coo_sparse_matrix_append_coords_body
+    end subroutine coo_sparse_matrix_append_bounded_coords_body
+
+
+    subroutine coo_sparse_matrix_append_bounded_values_by_row_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, ic, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        if(nz == 0 .or. ia<imin .or. ia>imax .or. ia<1 .or. ia>this%num_rows) return
+        nnz = this%nnz
+        newnnz = nnz + nz 
+        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
+        ! Realloc this%ia, this%ja, this%val to the right size if is needed
+        if( size(this%ia) < newnnz) then
+            newsize = max(newnnz, int(1.5*size(this%ia)))
+            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%val, __FILE__, __LINE__)
+        endif
+        ! Append the new entries and values
+        do i=1, nz
+            ic = ja(i)
+            if(ic<jmin .or. ic>jmax .or.             &      ! Check imposed column bounds
+               ic<1 .or. ic>this%num_cols .or.       &      ! Check matrix column bounds
+               (this%symmetric_storage .and. ia>ic) ) cycle ! Check if has symmetric_storage
+                !If symmetric_storage is .true. only the upper triangle is stored
+            nnz = nnz + 1
+            this%ia(nnz) = ia
+            this%ja(nnz) = ic
+            this%val(nnz) = val(i)
+        enddo
+        this%nnz = nnz
+        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+    end subroutine coo_sparse_matrix_append_bounded_values_by_row_body
+
+
+    subroutine coo_sparse_matrix_append_bounded_values_by_col_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, ir, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        if(nz == 0 .or. ja<jmin .or. ja>jmax .or. ja<1 .or. ja>this%num_cols) return
+        nnz = this%nnz
+        newnnz = nnz + nz 
+        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
+        ! Realloc this%ia, this%ja, this%val to the right size if is needed
+        if( size(this%ia) < newnnz) then
+            newsize = max(newnnz, int(1.5*size(this%ia)))
+            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%val, __FILE__, __LINE__)
+        endif
+        ! Append the new entries and values
+        do i=1, nz
+            ir = ia(i)
+            if(ir<imin .or. ir>imax .or.             &      ! Check imposed row bounds
+               ir<1 .or. ir>this%num_rows .or.       &      ! Check matrix row bounds
+               (this%symmetric_storage .and. ir>ja) ) cycle ! Check if has symmetric storage
+                !If symmetric_storage is .true. only the upper triangle is stored
+            nnz = nnz + 1
+            this%ia(nnz) = ir
+            this%ja(nnz) = ja
+            this%val(nnz) = val(i)
+        enddo
+        this%nnz = nnz
+        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+    end subroutine coo_sparse_matrix_append_bounded_values_by_col_body
+
+
+    subroutine coo_sparse_matrix_append_bounded_coords_by_row_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, ic, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        if(nz == 0 .or. ia<imin .or. ia>imax .or. ia<1 .or. ia>this%num_rows) return
+        nnz = this%nnz
+        newnnz = nnz + nz 
+        ! Realloc this%ia, this%ja to the right size if is needed
+        if( size(this%ia) < newnnz) then
+            newsize = max(newnnz, int(1.5*size(this%ia)))
+            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
+        endif
+        ! Append the new entries
+        do i=1, nz
+            ic = ja(i)
+            if(ic<jmin .or. ic>jmax .or.            &       ! Check imposed column bounds
+               ic<1 .or. ic>this%num_cols .or.      &       ! Check matrix column bounds
+               (this%symmetric_storage .and. ia>ic) ) cycle ! Check if has symmetric storage
+                !If symmetric_storage is .true. only the upper triangle is stored
+            nnz = nnz + 1
+            this%ia(nnz) = ia
+            this%ja(nnz) = ic
+        enddo
+        this%nnz = nnz
+        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+    end subroutine coo_sparse_matrix_append_bounded_coords_by_row_body
+
+
+    subroutine coo_sparse_matrix_append_bounded_coords_by_col_body(this, nz, ia, ja, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, ir, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        if(nz == 0 .or. ja<jmin .or. ja>jmax .or. ja<1 .or. ja>this%num_cols) return
+        nnz = this%nnz
+        newnnz = nnz + nz 
+        ! Realloc this%ia, this%ja to the right size if is needed
+        if( size(this%ia) < newnnz) then
+            newsize = max(newnnz, int(1.5*size(this%ia)))
+            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
+        endif
+        ! Append the new entries
+        do i=1, nz
+            ir = ia(i)
+            if(ir<imin .or. ir>imax .or.            &       ! Check imposed row bounds
+               ir<1 .or. ir>this%num_rows .or.      &       ! Check matrix row bounds
+               (this%symmetric_storage .and. ir>ja) ) cycle ! Check if has symmetric storage
+                !If symmetric_storage is .true. only the upper triangle is stored
+            nnz = nnz + 1
+            this%ia(nnz) = ir
+            this%ja(nnz) = ja
+        enddo
+        this%nnz = nnz
+        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+    end subroutine coo_sparse_matrix_append_bounded_coords_by_col_body
 
     
-    subroutine coo_sparse_matrix_append_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_append_bounded_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entrie and value to the COO sparse matrix
     !< It allows duplicated entries
@@ -1294,8 +2425,9 @@ contains
             call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries and values
-        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
-               (this%symmetric_storage .and. ia>ja) ) return
+        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or.             & ! Check imposed bounds
+           ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ia>ja) ) return                 ! Check if has symmetric storage
         !If symmetric_storage is .true. only the upper triangle is stored
         nnz = nnz+1
         this%ia(nnz) = ia
@@ -1303,10 +2435,10 @@ contains
         this%val(nnz) = val
         this%nnz = nnz
         this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
-    end subroutine coo_sparse_matrix_append_single_value_body
+    end subroutine coo_sparse_matrix_append_bounded_single_value_body
 
 
-    subroutine coo_sparse_matrix_append_single_coord_body(this, ia, ja, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_append_bounded_single_coord_body(this, ia, ja, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new coord to the COO sparse matrix
     !< It allows duplicates entries
@@ -1318,7 +2450,7 @@ contains
         integer(ip),                intent(in)    :: imax
         integer(ip),                intent(in)    :: jmin
         integer(ip),                intent(in)    :: jmax
-        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+        integer(ip)                               :: nnz, newnnz, newsize
     !-----------------------------------------------------------------
         nnz = this%nnz
         newnnz = nnz+1
@@ -1331,18 +2463,243 @@ contains
             call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries
-        if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ir>ic) ) return
+        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or.             & ! Check imposed bounds
+           ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ia>ja) ) return                 ! Check if has symmetric storage
         !If symmetric_storage is .true. only the upper triangle is stored
         nnz = nnz + 1
         this%ia(nnz) = ia
         this%ja(nnz) = ja
         this%nnz = nnz
         this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+    end subroutine coo_sparse_matrix_append_bounded_single_coord_body    
+
+
+    subroutine coo_sparse_matrix_append_values_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip)                               :: nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_append_values_body
+
+
+    subroutine coo_sparse_matrix_append_coords_body(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new coords to the COO sparse matrix
+    !< It allows duplicates entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja(nz)
+        integer(ip)                               :: nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(nz, ia, ja, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_append_coords_body
+
+
+    subroutine coo_sparse_matrix_append_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        do j=1, num_cols
+            do i=1, num_rows
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+            enddo
+        enddo
+    end subroutine coo_sparse_matrix_append_bounded_dense_values_body
+
+
+    subroutine coo_sparse_matrix_append_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        do j=1, num_rows
+          do i=1, num_rows
+            call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+          enddo
+        enddo
+    end subroutine coo_sparse_matrix_append_bounded_square_dense_values_body
+
+
+    subroutine coo_sparse_matrix_append_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        do j=1, num_cols
+            do i=1, num_rows
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset),1 , this%num_rows, 1, this%num_cols)
+            enddo
+        enddo
+    end subroutine coo_sparse_matrix_append_dense_values_body
+
+
+    subroutine coo_sparse_matrix_append_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        do j=1, num_rows
+            do i=1, num_rows
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset),1 , this%num_rows, 1, this%num_cols)
+            enddo
+        enddo
+    end subroutine coo_sparse_matrix_append_square_dense_values_body
+
+
+    subroutine coo_sparse_matrix_append_values_by_row_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_append_values_by_row_body
+
+
+    subroutine coo_sparse_matrix_append_values_by_col_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_append_values_by_col_body
+
+
+    subroutine coo_sparse_matrix_append_coords_by_row_body(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(nz, ia, ja, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_append_coords_by_row_body
+
+
+    subroutine coo_sparse_matrix_append_coords_by_col_body(this, nz, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new entries and values to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(nz, ia, ja, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_append_coords_by_col_body
+
+    
+    subroutine coo_sparse_matrix_append_single_value_body(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Append new entrie and value to the COO sparse matrix
+    !< It allows duplicated entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val
+        integer(ip)                               :: nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_append_single_value_body
+
+
+    subroutine coo_sparse_matrix_append_single_coord_body(this, ia, ja) 
+    !-----------------------------------------------------------------
+    !< Append new coord to the COO sparse matrix
+    !< It allows duplicates entries
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja
+        integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
+    !-----------------------------------------------------------------
+        call this%append_body(ia, ja, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_single_coord_body    
 
 
-    subroutine coo_sparse_matrix_update_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax)
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -1374,60 +2731,64 @@ contains
             do i=1, nz
                 ir = ia(i)
                 ic = ja(i) 
-                if ((ir > 0).and.(ir <= this%num_rows)) then 
-                    if (ir /= ilr) then 
-                        i1 = binary_search(ir,nnz,this%ia)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ia(i2+1) /= this%ia(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ia(i1-1) /= this%ia(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilr = ir
-                    end if
+                ! Ignore out of bounds entries
+                if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
+                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ir)) cycle
+                if (ir /= ilr) then 
+                    i1 = binary_search(ir,nnz,this%ia)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ia(i2+1) /= this%ia(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ia(i1-1) /= this%ia(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilr = ir
                     nc = i2-i1+1
                     ipaux = binary_search(ic,nc,this%ja(i1:i2))
                     if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
                 end if
             end do
-        elseif(this%is_by_rows()) then
+        elseif(this%is_by_cols()) then
             !Not tested yet!
             ilc = -1
 
             do i=1, nz
                 ir = ia(i)
                 ic = ja(i) 
-                if ((ic > 0).and.(ic <= this%num_cols)) then 
-                    if (ic /= ilc) then 
-                        i1 = binary_search(ic,nnz,this%ja)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ja(i2+1) /= this%ja(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ja(i1-1) /= this%ja(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilc = ic
-                    end if
+                ! Ignore out of bounds entries
+                if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
+                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ir)) cycle
+                if (ic /= ilc) then 
+                    i1 = binary_search(ic,nnz,this%ja)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ja(i2+1) /= this%ja(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ja(i1-1) /= this%ja(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilc = ic
                     nr = i2-i1+1
                     ipaux = binary_search(ir,nc,this%ia(i1:i2))
                     if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
                 end if
             end do
         endif
-    end subroutine coo_sparse_matrix_update_values_body
+    end subroutine coo_sparse_matrix_update_bounded_values_body
 
 
-    subroutine coo_sparse_matrix_update_single_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
+    subroutine coo_sparse_matrix_update_bounded_value_body(this, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
     !-----------------------------------------------------------------
@@ -1442,6 +2803,78 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
+        ! Ignore out of bounds entriy
+        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
+            ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
+            (this%symmetric_storage .and. ja>ia)) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        nnz = this%nnz
+        if(this%is_by_rows()) then
+            i1 = binary_search(ia,nnz,this%ia)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ia(i2+1) /= this%ia(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ia(i1-1) /= this%ia(i1)) exit
+                i1 = i1 - 1
+            end do
+            nc = i2-i1+1
+            ipaux = binary_search(ja,nc,this%ja(i1:i2))
+            if (ipaux>0) then 
+                call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
+            endif
+
+        elseif(this%is_by_rows()) then
+            ! Not tested yet! 
+            i1 = binary_search(ja,nnz,this%ja)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ja(i2+1) /= this%ja(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ja(i1-1) /= this%ja(i1)) exit
+                i1 = i1 - 1
+            end do
+            nr = i2-i1+1
+            ipaux = binary_search(ia,nc,this%ia(i1:i2))
+            if (ipaux>0) then 
+                call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
+            endif
+        endif
+    end subroutine coo_sparse_matrix_update_bounded_value_body
+
+
+    subroutine coo_sparse_matrix_update_bounded_values_by_row_body(this, nz, ia, ja, val, imin, imax, jmin, jmax)
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i, ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        if(nz==0 .or. ia<imin .or. ia<1 .or. ia>imax .or. ia>this%num_rows ) return
+
         if(this%get_sum_duplicates()) then
             apply_duplicates => sum_value
         else
@@ -1451,50 +2884,306 @@ contains
         nnz = this%nnz
 
         if(this%is_by_rows()) then
-
-            if ((ia > 0).and.(ia <= this%num_rows)) then 
-                i1 = binary_search(ia,nnz,this%ia)
-                i2 = i1
-                do 
-                    if (i2+1 > nnz) exit
-                    if (this%ia(i2+1) /= this%ia(i2)) exit
-                    i2 = i2 + 1
-                end do
-                do 
-                    if (i1-1 < 1) exit
-                    if (this%ia(i1-1) /= this%ia(i1)) exit
-                    i1 = i1 - 1
-                end do
+            ! Search the range for this row number
+            i1 = binary_search(ia,nnz,this%ia)
+            if(i1<1) return ! Row not found
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ia(i2+1) /= this%ia(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ia(i1-1) /= this%ia(i1)) exit
+                i1 = i1 - 1
+            end do
+            ! Search each column
+            do i=1, nz
+                ic = ja(i) 
+                ! Ignore out of bounds entries
+                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ia)) cycle
                 nc = i2-i1+1
-                ipaux = binary_search(ja,nc,this%ja(i1:i2))
-                if (ipaux>0) then 
-                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                endif
-            endif
+                ipaux = binary_search(ic,nc,this%ja(i1:i2))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end do
+        elseif(this%is_by_cols()) then
+            !Not tested yet!
+            ilc = -1
 
-        elseif(this%is_by_rows()) then
-            ! Not tested yet! 
-            if ((ja > 0).and.(ja <= this%num_cols)) then 
-                i1 = binary_search(ja,nnz,this%ja)
-                i2 = i1
-                do 
-                    if (i2+1 > nnz) exit
-                    if (this%ja(i2+1) /= this%ja(i2)) exit
-                    i2 = i2 + 1
-                end do
-                do 
-                    if (i1-1 < 1) exit
-                    if (this%ja(i1-1) /= this%ja(i1)) exit
-                    i1 = i1 - 1
-                end do
+            do i=1, nz
+                ic = ja(i) 
+                ! Ignore out of bounds entries
+                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ia)) cycle
+                if (ic /= ilc) then 
+                    i1 = binary_search(ic,nnz,this%ja)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ja(i2+1) /= this%ja(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ja(i1-1) /= this%ja(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilc = ic
+                end if
                 nr = i2-i1+1
                 ipaux = binary_search(ia,nc,this%ia(i1:i2))
-                if (ipaux>0) then 
-                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                endif
-            endif
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end do
         endif
-    end subroutine coo_sparse_matrix_update_single_value_body
+    end subroutine coo_sparse_matrix_update_bounded_values_by_row_body
+
+
+    subroutine coo_sparse_matrix_update_bounded_values_by_col_body(this, nz, ia, ja, val, imin, imax, jmin, jmax)
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val(nz)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        if(nz==0 .or. ja<jmin .or. ja<1 .or. ja>jmax .or. ja>this%num_cols ) return
+
+        if(this%get_sum_duplicates()) then
+            apply_duplicates => sum_value
+        else
+            apply_duplicates => assign_value
+        endif
+
+        nnz = this%nnz
+
+        if(this%is_by_rows()) then
+            ilr = -1
+
+            do i=1, nz
+                ir = ia(i) 
+                ! Ignore out of bounds entries
+                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
+                    (this%symmetric_storage .and. ja>ir)) cycle
+                if (ir /= ilr) then 
+                    i1 = binary_search(ir,nnz,this%ia)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ia(i2+1) /= this%ia(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ia(i1-1) /= this%ia(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilr = ir
+                end if
+                nc = i2-i1+1
+                ipaux = binary_search(ja,nc,this%ja(i1:i2))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end do
+        elseif(this%is_by_cols()) then
+            ! Not tested yet!
+
+            ! Search the range for this column number
+            i1 = binary_search(ja,nnz,this%ja)
+            if(i1<1) return ! Column not found
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ja(i2+1) /= this%ja(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ja(i1-1) /= this%ja(i1)) exit
+                i1 = i1 - 1
+            end do
+            ! Search each row
+            do i=1, nz
+                ir = ia(i) 
+                ! Ignore out of bounds entries
+                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
+                    (this%symmetric_storage .and. ja>ir)) cycle
+                nr = i2-i1+1
+                ipaux = binary_search(ir,nc,this%ia(i1:i2))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+            end do
+        endif
+    end subroutine coo_sparse_matrix_update_bounded_values_by_col_body
+
+
+
+    subroutine coo_sparse_matrix_update_values_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        call this%update_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_update_values_body
+
+
+    subroutine coo_sparse_matrix_update_bounded_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        do j=1, num_cols
+            do i=1, num_rows
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+            enddo
+        enddo
+    end subroutine coo_sparse_matrix_update_bounded_dense_values_body
+
+
+    subroutine coo_sparse_matrix_update_bounded_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip),                intent(in)    :: imin
+        integer(ip),                intent(in)    :: imax
+        integer(ip),                intent(in)    :: jmin
+        integer(ip),                intent(in)    :: jmax
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        do j=1, num_rows
+            do i=1, num_rows
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+            enddo
+        enddo
+    end subroutine coo_sparse_matrix_update_bounded_square_dense_values_body
+
+
+    subroutine coo_sparse_matrix_update_dense_values_body(this, num_rows, num_cols, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: num_cols
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_cols)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1 .or. num_cols<1) return
+        do j=1, num_cols
+            do i=1, num_rows
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%num_rows, 1, this%num_cols)
+            enddo
+        enddo
+    end subroutine coo_sparse_matrix_update_dense_values_body
+
+
+    subroutine coo_sparse_matrix_update_square_dense_values_body(this, num_rows, ia, ja, ioffset, joffset, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: num_rows
+        integer(ip),                intent(in)    :: ia(num_rows)
+        integer(ip),                intent(in)    :: ja(num_rows)
+        integer(ip),                intent(in)    :: ioffset
+        integer(ip),                intent(in)    :: joffset
+        real(rp),                   intent(in)    :: val(:, :)
+        integer(ip)                               :: i, j
+    !-----------------------------------------------------------------
+        if(num_rows<1) return
+        do j=1, num_rows
+            do i=1, num_rows
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%num_rows, 1, this%num_cols)
+            enddo
+        enddo
+    end subroutine coo_sparse_matrix_update_square_dense_values_body
+
+
+    subroutine coo_sparse_matrix_update_values_by_row_body(this, nz, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja(nz)
+        real(rp),                   intent(in)    :: val(nz)
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i, ic, ilc, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        call this%update_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_update_values_by_row_body
+
+
+    subroutine coo_sparse_matrix_update_values_by_col_body(this, nz, ia, ja, val)
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: nz
+        integer(ip),                intent(in)    :: ia(nz)
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val(nz)
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i,ir, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        call this%update_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_update_values_by_col_body
+
+
+    subroutine coo_sparse_matrix_update_value_body(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Update the values and entries in the sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val
+        procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
+        integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        call this%update_body(ia, ja, val, 1, this%num_rows, 1, this%num_cols)
+    end subroutine coo_sparse_matrix_update_value_body
 
 
     subroutine coo_sparse_matrix_sort_and_compress(this, by_cols)
@@ -1566,20 +3255,12 @@ contains
             ! By-rows sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
-                        iaux(this%ia(1)) = iaux(this%ia(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
-                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ia(1)) = iaux(this%ia(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                        sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -1603,8 +3284,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                     else
@@ -1654,8 +3333,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                     else
                                         k = k + 1
@@ -1696,8 +3373,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only upper triangle is stored
-                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                         else
@@ -1714,20 +3389,12 @@ contains
             ! By-columns sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
-                        iaux(this%ja(1)) = iaux(this%ja(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
-                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ja(1)) = iaux(this%ja(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                        sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -1751,8 +3418,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored
-                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                     else
@@ -1802,8 +3467,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored 
-                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                     else
@@ -1845,8 +3508,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only lower triangle is stored
-                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                         else
@@ -1916,22 +3577,14 @@ contains
             ! By-rows sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
-                        iaux(this%ia(1)) = iaux(this%ia(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
-                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ia(1)) = iaux(this%ia(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                        sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                    enddo
                 endif
-
+                
                 if(use_buffers) then
                 ! If there is enough memory space
                     if(sorted) then
@@ -1945,6 +3598,8 @@ contains
                                 ! Sort the colums of a particular row
                                 call mergesort(nzl,this%ja(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
+                                ! If row/column index out of range ignore it
+                                if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
                                 this%ja(k)  = this%ja(i)
@@ -1954,8 +3609,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -2000,6 +3653,7 @@ contains
                                 ! Sort the colums of a particular row
                                 call mergesort(nzl,jas(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
+                                if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
                                 this%ja(k)  = jas(i)
@@ -2009,8 +3663,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -2050,12 +3702,9 @@ contains
                     j = 1
                     irw = this%ia(i)
                     icl = this%ja(i)
-
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only upper triangle is stored
-                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                             call apply_duplicates(input=this%val(j), output=this%val(i))
@@ -2063,6 +3712,7 @@ contains
                             i = i + 1
                             this%ia(i)  = this%ia(j)
                             this%ja(i)  = this%ja(j)
+                            this%val(i)  = this%val(j)
                             irw = this%ia(i)
                             icl = this%ja(i)
                         endif
@@ -2073,20 +3723,12 @@ contains
             ! By-columns sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
-                        iaux(this%ja(1)) = iaux(this%ja(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
-                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ja(1)) = iaux(this%ja(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                        sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -2102,6 +3744,8 @@ contains
                                 ! Sort the rows of a particular columns
                                 call mergesort(nzl,this%ia(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
+                                ! If row/column index out of range ignore it
+                                if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
                                 this%ja(k)  = this%ja(i)
@@ -2111,8 +3755,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored
-                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -2157,6 +3799,7 @@ contains
                                 ! Sort the rows of a particular column
                                 call mergesort(nzl,ias(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
+                                if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
                                 this%ja(k)  = jas(i)
@@ -2166,8 +3809,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored 
-                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -2211,8 +3852,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only lower triangle is stored
-                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                             call apply_duplicates(input=this%val(j), output=this%val(i))

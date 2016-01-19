@@ -15,6 +15,7 @@ implicit none
     type(csr_sparse_matrix_t)   :: csr_matrix
     type(serial_scalar_array_t) :: x
     type(serial_scalar_array_t) :: y
+    real                        :: val(4,4) = 9
 
     call meminit()
 
@@ -24,13 +25,23 @@ implicit none
     ! Create: START=>CREATE
     call sparse_matrix%create(num_rows=5,num_cols=5)
     ! Append: CREATE=>BUILD_NUMERIC
+
+    call sparse_matrix%insert(num_rows=4,     &
+                              num_cols=4,     &
+                              ia=(/1,2,3,4/), &
+                              ja=(/1,2,3,4/), &
+                              ioffset=0,      &
+                              joffset=0,      &
+                              val=val,        &
+                              imin=1, imax=5, jmin=1, jmax=5 )
+    call sparse_matrix%print( 6)
+
     call sparse_matrix%insert(ia=1, ja=1, val=1., imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%insert(nz=10,                                 &
                               ia=(/1,2,3,4,5,1,2,3,4,5/),            &
                               ja=(/1,2,3,4,5,5,4,3,2,1/),            &
-                              val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./), &
-                              imin=1, imax=5, jmin=1, jmax=5 )
-    call sparse_matrix%insert(ia=1, ja=1, val=1., imin=1, imax=5, jmin=1, jmax=5 )
+                              val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./))
+    call sparse_matrix%insert(nz=4, ia=1, ja=(/1,3,5,7/), val=(/1.,1.,1.,1./))
     call sparse_matrix%print( 6)
     ! Convert: BUILD_NUMERIC=>ASSEMBLED
     call sparse_matrix%convert('CSR')
@@ -42,7 +53,7 @@ implicit none
                               ja=(/1,2,3,4,5,5,4,3,2,1/),            &
                               val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./), &
                               imin=1, imax=5, jmin=1, jmax=5 )
-    call sparse_matrix%insert(ia=1, ja=1, val=1., imin=1, imax=5, jmin=1, jmax=5 )
+    call sparse_matrix%insert(nz=4, ia=(/7,5,3,1/), ja=1, val=(/1.,1.,1.,1./), imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%print( 6)
     ! Update: UPDATE=>ASSEMBLED
     call sparse_matrix%convert(mold=csr_matrix)
@@ -56,13 +67,13 @@ implicit none
     ! Free: ASSEMBLED=>ASSEMBLED_SYMBOLIC
     call sparse_matrix%free_in_stages(free_numerical_setup)
     ! Update: ASSEMBLED_SYMBOLIC=>UPDATE
-    call sparse_matrix%insert(ia=1, ja=1, val=1., imin=1, imax=5, jmin=1, jmax=5 )
+    call sparse_matrix%insert(nz=4, ia=1, ja=(/1,3,5,7/), val=(/1.,1.,1.,1./), imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%insert(nz=10,                                 &
                               ia=(/1,2,3,4,5,1,2,3,4,5/),            &
                               ja=(/1,2,3,4,5,5,4,3,2,1/),            &
                               val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./), &
                               imin=1, imax=5, jmin=1, jmax=5 )
-    call sparse_matrix%insert(ia=1, ja=1, val=1., imin=1, imax=5, jmin=1, jmax=5 )
+    call sparse_matrix%insert(nz=4, ia=(/7,5,3,1/), ja=1, val=(/1.,1.,1.,1./), imin=1, imax=5, jmin=1, jmax=5 )
     ! Free: UPDATE=>ASSEMBLED_SYMBOLIC
     call sparse_matrix%free_in_stages(free_numerical_setup)
     ! Free: ASSEMBLED_SYMBOLIC=>CREATED
@@ -80,9 +91,8 @@ implicit none
     call sparse_matrix%insert(ia=1, ja=1, imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%insert(nz=10,                                 &
                               ia=(/1,2,3,4,5,1,2,3,4,5/),            &
-                              ja=(/1,2,3,4,5,5,4,3,2,1/),            &
-                              imin=1, imax=5, jmin=1, jmax=5 )
-    call sparse_matrix%insert(ia=1, ja=1, imin=1, imax=5, jmin=1, jmax=5 )
+                              ja=(/1,2,3,4,5,5,4,3,2,1/))
+    call sparse_matrix%insert(ia=1, ja=1)
     call sparse_matrix%print( 6)
     ! Convert: BUILD_SYMBOLIC=>ASSEMBLED_SYMBOLIC
     call sparse_matrix%convert(mold=csr_matrix)
@@ -104,6 +114,9 @@ implicit none
     call sparse_matrix%free_in_stages(free_symbolic_setup)
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
+
+    call x%free()
+    call y%free()
 
     call memstatus()
 

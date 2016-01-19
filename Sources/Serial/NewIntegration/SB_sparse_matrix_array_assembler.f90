@@ -155,26 +155,45 @@ subroutine element_sparse_matrix_assembly( matrix, number_fe_spaces, number_node
  ! hand, that type(sparse_matrix_t) already supports
  ! that some of entries in elem2dof might be zero, ignoring them (as they would
  ! be out of the (imin,imax,jmin,jmax) 
+ !ielmat=0
+ !do ife_space=1, number_fe_spaces
+ !  assert(field_blocks(ife_space)==1)
+ !  do inode=1, number_nodes(ife_space)
+ !    idof = elem2dof(ife_space)%p(inode)
+ !    jelmat=0
+ !    ielmat=ielmat+1
+ !    do jfe_space=1, number_fe_spaces
+ !      if (field_coupling(ife_space,jfe_space)) then
+ !        do jnode=1, number_nodes(jfe_space)
+ !          jdof = elem2dof(jfe_space)%p(jnode)
+ !          jelmat=jelmat+1
+ !          call matrix%insert(idof,jdof,elmat(ielmat,jelmat),1,matrix%get_num_rows(),1,matrix%get_num_cols())
+ !        end do
+ !      else
+ !        jelmat=jelmat+number_nodes(jfe_space)
+ !      end if
+ !    end do
+ !  end do
+ !end do
+ 
  ielmat=0
  do ife_space=1, number_fe_spaces
-   assert(field_blocks(ife_space)==1)
-   do inode=1, number_nodes(ife_space)
-     idof = elem2dof(ife_space)%p(inode)
-     jelmat=0
-     ielmat=ielmat+1
-     do jfe_space=1, number_fe_spaces
-       if (field_coupling(ife_space,jfe_space)) then
-         do jnode=1, number_nodes(jfe_space)
-           jdof = elem2dof(jfe_space)%p(jnode)
-           jelmat=jelmat+1
-           call matrix%insert(idof,jdof,elmat(ielmat,jelmat),1,matrix%get_num_rows(),1,matrix%get_num_cols())
-         end do
-       else
-         jelmat=jelmat+number_nodes(jfe_space)
-       end if
-     end do
+   jelmat=0
+   do jfe_space=1, number_fe_spaces
+     if ((field_coupling(ife_space,jfe_space))) then
+         call matrix%insert(number_nodes(ife_space), &
+                            number_nodes(jfe_space), &
+                            elem2dof(ife_space)%p, &
+                            elem2dof(jfe_space)%p, &
+                            ielmat, &
+                            jelmat, &
+                            elmat)
+     end if
+     jelmat=jelmat+number_nodes(jfe_space)
    end do
+   ielmat=ielmat+number_nodes(ife_space)
  end do
+ 
 end subroutine element_sparse_matrix_assembly
 
 subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )
