@@ -147,7 +147,7 @@ contains
     type(finite_face_t)         , pointer :: face
     type(SB_volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
     type(face_integrator_t)     , pointer :: face_int
-    real(rp)                , allocatable :: elmat(:,:), elvec(:)
+    real(rp)                , allocatable :: elmat(:,:), elvec(:), facemat(:,:,:,:), facevec(:,:)
     type(fe_map_t)              , pointer :: fe_map
     type(SB_quadrature_t)       , pointer :: quad
     integer(ip)             , allocatable :: number_nodes_per_field(:)
@@ -166,7 +166,7 @@ contains
     logical    , pointer :: field_coupling(:,:)
 
     integer(ip)          :: ielem, iface, number_nodes, ineigh, jneigh
-    type(i1p_t), pointer :: elem2dof(:)
+    type(i1p_t), pointer :: elem2dof(:),test_elem2dof(:),trial_elem2dof(:)
     type(i1p_t), pointer :: bc_code(:)
     type(r1p_t), pointer :: bc_value(:)
 
@@ -236,15 +236,15 @@ contains
 
 
     ! --------------------------- LOOP OVER THE FACES -----------------------------
-    call memalloc ( 2*number_nodes, 2*number_nodes, elmat, __FILE__, __LINE__ )
-    call memalloc ( 2*number_nodes, elvec, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, number_nodes,2,2,facemat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
 
     write(*,*) __FILE__,__LINE__,2*number_nodes
     do iface = 1, fe_space%get_number_interior_faces()
 
        write(*,*) __FILE__,__LINE__,iface,'------------------'
-       elmat = 0.0_rp
-       elvec = 0.0_rp
+       facemat = 0.0_rp
+       facevec = 0.0_rp
 
        face => fe_space%get_finite_face(iface)
        call face%update_face_integration()
@@ -264,16 +264,18 @@ contains
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do ineigh = 1, 2
              do inode = 1, number_nodes_per_field(j)
-                ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
+                !ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
                 call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
                 call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
                 do jneigh = 1, 2
                    do jnode = 1, number_nodes_per_field(j)
-                      joffset = number_nodes_per_field(j)*(jneigh-1) + jnode
+                      !joffset = number_nodes_per_field(j)*(jneigh-1) + jnode
                       call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
                       call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
                       !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
-                      elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * this%viscosity *   &
+                      !elmat(ioffset,joffset,ineigh,jneigh) = elmat(ioffset,joffset) + factor * this%viscosity *   &
+                      facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
+                           &  factor * this%viscosity *   &
                            &  (-0.5_rp*grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar - &
                            &   0.5_rp*grad_trial_scalar*outside_normal(jneigh)*shape_test_scalar  + &
                            &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar *        &
@@ -283,18 +285,24 @@ contains
              end do
           end do
        end do
-!!$       call assembler%assembly( number_fe_spaces,2*number_nodes_per_field, elem2dof, field_blocks,  &
-!!$            &                   field_coupling, elmat, elvec )      
-!!$       elem2dof              => face%get_face2dof()
-!!$       
+       do ineigh = 1, 2
+          test_elem2dof => fe_face(ineigh)%p%get_elem2dof()
+          do jneigh = 1, 2
+             trial_elem2dof => fe_face(jneigh)%p%get_elem2dof()
+             call assembler%face_assembly(number_fe_spaces,number_nodes_per_field, number_nodes_per_field,&
+                  &                  test_elem2dof,trial_elem2dof,field_blocks,field_coupling,       &
+                  &                  facemat(:,:,ineigh,jneigh), facevec(:,ineigh) )   
+          end do
+       end do
     end do
+   
 !!$    do inode = 1, 2*number_nodes_per_field(j)
 !!$       write(*,*) inode, '-------'
 !!$       write(*,*) elmat(1:8,inode)
 !!$    end do
 
-    call memfree ( elmat, __FILE__, __LINE__ )
-    call memfree ( elvec, __FILE__, __LINE__ )
+    call memfree ( facemat, __FILE__, __LINE__ )
+    call memfree ( facevec, __FILE__, __LINE__ )
 
     ! ----------------------------------------------------------------------------
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )

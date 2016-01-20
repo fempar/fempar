@@ -47,8 +47,9 @@ module SB_block_sparse_matrix_array_assembler_names
   type, extends(SB_matrix_array_assembler_t) :: SB_block_sparse_matrix_array_assembler_t
 contains
   procedure :: assembly         => block_sparse_matrix_array_assembler_assembly
-		procedure :: compress_storage => block_sparse_matrix_array_assembler_compress_storage
-		procedure :: allocate         => block_sparse_matrix_array_assembler_allocate
+  procedure :: face_assembly    => block_sparse_matrix_array_assembler_face_assembly
+  procedure :: compress_storage => block_sparse_matrix_array_assembler_compress_storage
+  procedure :: allocate         => block_sparse_matrix_array_assembler_allocate
 end type
 
 ! Data types
@@ -227,4 +228,89 @@ subroutine element_serial_block_array_assembly( array, &
 
 end subroutine element_serial_block_array_assembly
 
+
+!====================================================================================================
+subroutine block_sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,                 &
+     &                                                 test_number_nodes,                           &
+     &                                                 trial_number_nodes,test_elem2dof,            &
+     &                                                 trial_elem2dof,field_blocks,field_coupling,  &
+     &                                                 facemat,elvec ) 
+  implicit none
+  class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
+  integer(ip)                    , intent(in)    :: number_fe_spaces
+  integer(ip)                    , intent(in)    :: test_number_nodes(number_fe_spaces)
+  integer(ip)                    , intent(in)    :: trial_number_nodes(number_fe_spaces)
+  type(i1p_t)                    , intent(in)    :: test_elem2dof(number_fe_spaces)
+  type(i1p_t)                    , intent(in)    :: trial_elem2dof(number_fe_spaces)
+  integer(ip)                    , intent(in)    :: field_blocks(number_fe_spaces)
+  logical                        , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+  real(rp)                       , intent(in)    :: facemat(:,:) 
+  real(rp)                       , intent(in)    :: elvec(:)  
+
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+
+  matrix => this%get_matrix()
+  array  => this%get_array()
+
+  select type(matrix)
+     class is(block_sparse_matrix_t)
+     call element_block_sparse_matrix_face_assembly(matrix,number_fe_spaces,test_number_nodes,      &
+          &                              trial_number_nodes,test_elem2dof,trial_elem2dof,           &
+          &                              field_blocks,field_coupling,facemat )
+     class default
+     check(.false.)
+  end select
+
+  select type(array)
+     class is(serial_block_array_t)
+     call element_serial_block_array_assembly( array,number_fe_spaces,test_number_nodes,            &
+          &                                     test_elem2dof,field_blocks,elvec )
+     class default
+     check(.false.)
+  end select
+end subroutine block_sparse_matrix_array_assembler_face_assembly
+
+!====================================================================================================
+subroutine element_block_sparse_matrix_face_assembly(matrix, number_fe_spaces, test_number_nodes,   &
+     &                                          trial_number_nodes, test_elem2dof, trial_elem2dof,  &
+     &                                          field_blocks, field_coupling, facemat )
+  implicit none
+  ! Parameters
+  type(block_sparse_matrix_t), intent(inout) :: matrix
+  integer(ip)                , intent(in)    :: number_fe_spaces
+  integer(ip)                , intent(in)    :: test_number_nodes(number_fe_spaces)
+  integer(ip)                , intent(in)    :: trial_number_nodes(number_fe_spaces)
+  type(i1p_t)                , intent(in)    :: test_elem2dof(number_fe_spaces)
+  type(i1p_t)                , intent(in)    :: trial_elem2dof(number_fe_spaces)
+
+  integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces)
+  logical                    , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+  real(rp)                   , intent(in)    :: facemat(:,:) 
+
+  integer(ip) :: ife_space, jfe_space
+  integer(ip) :: idof, jdof 
+  integer(ip) :: inode, jnode
+  integer(ip) :: ielmat, jelmat
+  integer(ip) :: iblock, jblock
+  type(sparse_matrix_t), pointer :: mat  
+  ielmat=0
+  do ife_space=1, number_fe_spaces
+     iblock = field_blocks(ife_space)
+     jelmat=0
+     do jfe_space=1, number_fe_spaces
+        jblock = field_blocks(jfe_space)
+        if ((field_coupling(ife_space,jfe_space))) then
+           mat => matrix%get_block(iblock,jblock)
+           call mat%insert(test_number_nodes(ife_space),trial_number_nodes(jfe_space),                &
+                &             test_elem2dof(ife_space)%p,trial_elem2dof(jfe_space)%p,ielmat,jelmat,   &
+                &             facemat)
+        end if
+        jelmat=jelmat+trial_number_nodes(jfe_space)
+     end do
+     ielmat=ielmat+test_number_nodes(ife_space)
+  end do
+
+end subroutine element_block_sparse_matrix_face_assembly
+   
 end module SB_block_sparse_matrix_array_assembler_names

@@ -529,8 +529,8 @@ contains
 
     call vector_dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 0.0_Rp)
     ! Create the operator
-    diagonal_blocks_symmetric_storage = .true.
-    diagonal_blocks_symmetric         = .true.
+    diagonal_blocks_symmetric_storage = .false.
+    diagonal_blocks_symmetric         = .false.
     diagonal_blocks_sign              = positive_definite
     call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
          &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
