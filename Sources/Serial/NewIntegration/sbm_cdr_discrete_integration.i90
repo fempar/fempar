@@ -295,7 +295,6 @@ contains
           end do
        end do
     end do
-   
 !!$    do inode = 1, 2*number_nodes_per_field(j)
 !!$       write(*,*) inode, '-------'
 !!$       write(*,*) elmat(1:8,inode)
@@ -303,7 +302,6 @@ contains
 
     call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
-
     ! ----------------------------------------------------------------------------
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
   end subroutine integrate

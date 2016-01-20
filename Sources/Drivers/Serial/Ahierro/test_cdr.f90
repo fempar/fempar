@@ -512,11 +512,11 @@ contains
     ! Composite case
     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
          &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
-         &                      continuity = .true. )
+         &                      continuity = .false. )
 
     reference_fe_array_two(2) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
          &                      number_dimensions = 2, order = 1, field_type = "vector",            &
-         &                      continuity = .true. )
+         &                      continuity = .false. )
 
     call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
          &                reference_fe_phy = reference_fe_array_two,                                &
@@ -541,10 +541,13 @@ contains
      select type(matrix)
      class is(block_sparse_matrix_t)
         !my_matrix => matrix
-        do i = 1, matrix%nblocks
-           write(*,*) i,'+++++++++++++++++++++++++++++++'
+        do i = 1,1! matrix%nblocks
+           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
+           write(*,*) __FILE__,__LINE__
            my_matrix => matrix%blocks(i,i)%sparse_matrix
+           write(*,*) __FILE__,__LINE__
            call my_matrix%print_matrix_market(6)
+           write(*,*) __FILE__,__LINE__
         end do
      class default
         check(.false.)

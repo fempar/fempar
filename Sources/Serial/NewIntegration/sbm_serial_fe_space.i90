@@ -519,15 +519,28 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var )
   ! never appear in interior nodes in cG.
   !if ( ( .not. fe_space%static_condensation )  ) then
   do ielem = 1, fe_space%triangulation%num_elems
-     iobje = fe_space%triangulation%elems(ielem)%num_vefs+1
-     do inode = 1, fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_number_interior_nodes_vef(iobje)
-        !fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje), &
-        !  &     fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje+1)-1
-        l_node = fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,iobje)
-        !l_node = fe_space%fe_array(ielem)%nodes_per_vef%p%l(inode)
-        init_dof = init_dof +1
-        fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = init_dof
-     end do
+     write(*,*) __FILE__,__LINE__,jelem,  .not. fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_continuity()
+     if ( .not. fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_continuity() ) then
+        do iobje = 1, fe_space%triangulation%elems(ielem)%num_vefs+1
+           do inode = 1, fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_number_interior_nodes_vef(iobje)
+              l_node = fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,iobje)
+              init_dof = init_dof + 1
+              fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = init_dof
+           end do
+        end do
+        write(*,*) 'IELEM ------------------', ielem
+        write(*,*) fe_space%fe_array(ielem)%elem2dof(var)%p
+     else
+        iobje = fe_space%triangulation%elems(ielem)%num_vefs+1
+        do inode = 1, fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_number_interior_nodes_vef(iobje)
+           !fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje), &
+           !  &     fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje+1)-1
+           l_node = fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,iobje)
+           !l_node = fe_space%fe_array(ielem)%nodes_per_vef%p%l(inode)
+           init_dof = init_dof +1
+           fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = init_dof
+        end do
+     end if
   end do
   !end if 
 
