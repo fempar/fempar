@@ -61,8 +61,8 @@ private
         procedure, non_overridable, public :: is_by_cols                => sparse_matrix_is_by_cols
         procedure, non_overridable, public :: is_symmetric              => sparse_matrix_is_symmetric
         procedure, non_overridable, public :: get_default_sparse_matrix => sparse_matrix_get_default_sparse_matrix
-        procedure, non_overridable, public :: allocate                  => sparse_matrix_allocate
-        procedure, non_overridable, public :: free_in_stages            => sparse_matrix_free_in_stages  
+        procedure,                  public :: allocate                  => sparse_matrix_allocate
+        procedure,                  public :: free_in_stages            => sparse_matrix_free_in_stages  
         generic,                    public :: create                    => sparse_matrix_create_square, &
                                                                            sparse_matrix_create_rectangular
         generic,                    public :: insert                    => sparse_matrix_insert_bounded_coords,              &
@@ -89,8 +89,8 @@ private
                                                                            sparse_matrix_convert_string,                  &
                                                                            sparse_matrix_convert_sparse_matrix_mold,      &
                                                                            sparse_matrix_convert_base_sparse_matrix_mold
-        procedure, non_overridable, public :: free                      => sparse_matrix_free
-        procedure, non_overridable, public :: apply                     => sparse_matrix_apply
+        procedure,                  public :: free                      => sparse_matrix_free
+        procedure,                  public :: apply                     => sparse_matrix_apply
         procedure, non_overridable, public :: print                     => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market       => sparse_matrix_print_matrix_market
     end type sparse_matrix_t

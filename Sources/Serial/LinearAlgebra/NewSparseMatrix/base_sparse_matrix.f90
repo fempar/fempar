@@ -115,7 +115,7 @@ module base_sparse_matrix_names
         procedure(base_sparse_matrix_update_dense_values_body),                &
                                                                  public, deferred :: update_dense_values_body
         procedure(base_sparse_matrix_update_square_dense_values_body),         &
-                                                                public, deferred :: update_square_dense_values_body
+                                                                 public, deferred :: update_square_dense_values_body
         procedure(base_sparse_matrix_update_values_body),        public, deferred :: update_values_body
         procedure(base_sparse_matrix_update_values_by_row_body), public, deferred :: update_values_by_row_body
         procedure(base_sparse_matrix_update_values_by_col_body), public, deferred :: update_values_by_col_body
@@ -245,7 +245,7 @@ module base_sparse_matrix_names
                                                                  append_values_by_col_body,              &
                                                                  append_single_value_body,               &
                                                                  append_single_coord_body
-        generic           :: update_body                      => update_bounded_values_body ,              &
+        generic,   public :: update_body                      => update_bounded_values_body ,              &
                                                                  update_bounded_values_by_row_body,        &
                                                                  update_bounded_values_by_col_body,        &
                                                                  update_bounded_value_body,                &
@@ -2173,8 +2173,9 @@ contains
         ! Append the new entries and values
         do i=1, nz
             ir = ia(i); ic = ja(i)
-            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ir>ic) ) cycle
+            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or.             & ! Check imposed bounds
+               ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ir>ic) ) cycle                      ! Check if has symmetric_storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ir
@@ -2217,8 +2218,9 @@ contains
         ! Append the new entries
         do i=1, nz
             ir = ia(i); ic = ja(i)
-            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ir>ic) ) cycle
+            if(ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or.             & ! Check imposed bounds
+               ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ir>ic) ) cycle                      ! Check if has symmetric_storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ir
@@ -2245,7 +2247,7 @@ contains
         integer(ip),                intent(in)    :: jmax
         integer(ip)                               :: i, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0 .or. ia<imin .or. ia>imax) return
+        if(nz == 0 .or. ia<imin .or. ia>imax .or. ia<1 .or. ia>this%num_rows) return
         nnz = this%nnz
         newnnz = nnz + nz 
         if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
@@ -2259,8 +2261,9 @@ contains
         ! Append the new entries and values
         do i=1, nz
             ic = ja(i)
-            if(ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ia>ic) ) cycle
+            if(ic<jmin .or. ic>jmax .or.             &      ! Check imposed column bounds
+               ic<1 .or. ic>this%num_cols .or.       &      ! Check matrix column bounds
+               (this%symmetric_storage .and. ia>ic) ) cycle ! Check if has symmetric_storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ia
@@ -2288,7 +2291,7 @@ contains
         integer(ip),                intent(in)    :: jmax
         integer(ip)                               :: i, ir, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0 .or. ja<jmin .or. ja>jmax) return
+        if(nz == 0 .or. ja<jmin .or. ja>jmax .or. ja<1 .or. ja>this%num_cols) return
         nnz = this%nnz
         newnnz = nnz + nz 
         if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
@@ -2302,8 +2305,9 @@ contains
         ! Append the new entries and values
         do i=1, nz
             ir = ia(i)
-            if(ir<imin .or. ir>imax .or. &
-               (this%symmetric_storage .and. ir>ja) ) cycle
+            if(ir<imin .or. ir>imax .or.             &      ! Check imposed row bounds
+               ir<1 .or. ir>this%num_rows .or.       &      ! Check matrix row bounds
+               (this%symmetric_storage .and. ir>ja) ) cycle ! Check if has symmetric storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ir
@@ -2330,7 +2334,7 @@ contains
         integer(ip),                intent(in)    :: jmax
         integer(ip)                               :: i, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0 .or. ia<imin .or. ia>imax) return
+        if(nz == 0 .or. ia<imin .or. ia>imax .or. ia<1 .or. ia>this%num_rows) return
         nnz = this%nnz
         newnnz = nnz + nz 
         ! Realloc this%ia, this%ja to the right size if is needed
@@ -2342,8 +2346,9 @@ contains
         ! Append the new entries
         do i=1, nz
             ic = ja(i)
-            if(ic<jmin .or. ic>jmax .or. &
-               (this%symmetric_storage .and. ia>ic) ) cycle
+            if(ic<jmin .or. ic>jmax .or.            &       ! Check imposed column bounds
+               ic<1 .or. ic>this%num_cols .or.      &       ! Check matrix column bounds
+               (this%symmetric_storage .and. ia>ic) ) cycle ! Check if has symmetric storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ia
@@ -2369,7 +2374,7 @@ contains
         integer(ip),                intent(in)    :: jmax
         integer(ip)                               :: i, ir, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0 .or. ja<jmin .or. ja>jmax) return
+        if(nz == 0 .or. ja<jmin .or. ja>jmax .or. ja<1 .or. ja>this%num_cols) return
         nnz = this%nnz
         newnnz = nnz + nz 
         ! Realloc this%ia, this%ja to the right size if is needed
@@ -2381,8 +2386,9 @@ contains
         ! Append the new entries
         do i=1, nz
             ir = ia(i)
-            if(ir<imin .or. ir>imax .or. &
-               (this%symmetric_storage .and. ir>ja) ) cycle
+            if(ir<imin .or. ir>imax .or.            &       ! Check imposed row bounds
+               ir<1 .or. ir>this%num_rows .or.      &       ! Check matrix row bounds
+               (this%symmetric_storage .and. ir>ja) ) cycle ! Check if has symmetric storage
                 !If symmetric_storage is .true. only the upper triangle is stored
             nnz = nnz + 1
             this%ia(nnz) = ir
@@ -2419,8 +2425,9 @@ contains
             call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries and values
-        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
-               (this%symmetric_storage .and. ia>ja) ) return
+        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or.             & ! Check imposed bounds
+           ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ia>ja) ) return                 ! Check if has symmetric storage
         !If symmetric_storage is .true. only the upper triangle is stored
         nnz = nnz+1
         this%ia(nnz) = ia
@@ -2456,8 +2463,9 @@ contains
             call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries
-        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
-               (this%symmetric_storage .and. ia>ja) ) return
+        if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or.             & ! Check imposed bounds
+           ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. & ! Check matrix bounds
+               (this%symmetric_storage .and. ia>ja) ) return                 ! Check if has symmetric storage
         !If symmetric_storage is .true. only the upper triangle is stored
         nnz = nnz + 1
         this%ia(nnz) = ia
@@ -2479,25 +2487,7 @@ contains
         real(rp),                   intent(in)    :: val(nz)
         integer(ip)                               :: nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0) return
-        nnz = this%nnz
-        newnnz = nnz + nz 
-
-        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
-        endif
-        ! Append the new entries and values
-        this%ia(nnz+1:newnnz)  = ia(1:nz)
-        this%ja(nnz+1:newnnz)  = ja(1:nz)
-        this%val(nnz+1:newnnz) = val(1:nz)
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_values_body
 
 
@@ -2512,23 +2502,7 @@ contains
         integer(ip),                intent(in)    :: ja(nz)
         integer(ip)                               :: nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0) return
-        nnz = this%nnz
-        newnnz = nnz+nz
-
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
-        endif
-        ! Append the new entries
-        this%ia(nnz+1:newnnz) = ia(1:nz)
-        this%ja(nnz+1:newnnz) = ja(1:nz)
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(nz, ia, ja, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_coords_body
 
 
@@ -2605,7 +2579,7 @@ contains
         if(num_rows<1 .or. num_cols<1) return
         do j=1, num_cols
             do i=1, num_rows
-                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset))
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset),1 , this%num_rows, 1, this%num_cols)
             enddo
         enddo
     end subroutine coo_sparse_matrix_append_dense_values_body
@@ -2628,7 +2602,7 @@ contains
         if(num_rows<1) return
         do j=1, num_rows
             do i=1, num_rows
-                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset))
+                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset),1 , this%num_rows, 1, this%num_cols)
             enddo
         enddo
     end subroutine coo_sparse_matrix_append_square_dense_values_body
@@ -2646,25 +2620,7 @@ contains
         real(rp),                   intent(in)    :: val(nz)
         integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0) return
-        nnz = this%nnz
-        newnnz = nnz + nz 
-
-        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
-        endif
-        ! Append the new entries and values
-        this%ia(nnz+1:newnnz)  = ia
-        this%ja(nnz+1:newnnz)  = ja(1:nz)
-        this%val(nnz+1:newnnz) = val(1:nz)
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_values_by_row_body
 
 
@@ -2680,25 +2636,7 @@ contains
         real(rp),                   intent(in)    :: val(nz)
         integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0) return
-        nnz = this%nnz
-        newnnz = nnz + nz 
-
-        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
-        endif
-        ! Append the new entries and values
-        this%ia(nnz+1:newnnz)  = ia(1:nz)
-        this%ja(nnz+1:newnnz)  = ja
-        this%val(nnz+1:newnnz) = val(1:nz)
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_values_by_col_body
 
 
@@ -2713,23 +2651,7 @@ contains
         integer(ip),                intent(in)    :: ja(nz)
         integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0) return
-        nnz = this%nnz
-        newnnz = nnz + nz 
-
-        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-        endif
-        ! Append the new entries and values
-        this%ia(nnz+1:newnnz)  = ia
-        this%ja(nnz+1:newnnz)  = ja(1:nz)
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(nz, ia, ja, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_coords_by_row_body
 
 
@@ -2744,23 +2666,7 @@ contains
         integer(ip),                intent(in)    :: ja
         integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        if(nz == 0) return
-        nnz = this%nnz
-        newnnz = nnz + nz 
-
-        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-        endif
-        ! Append the new entries and values
-        this%ia(nnz+1:newnnz)  = ia(1:nz)
-        this%ja(nnz+1:newnnz)  = ja
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(nz, ia, ja, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_coords_by_col_body
 
     
@@ -2775,24 +2681,7 @@ contains
         real(rp),                   intent(in)    :: val
         integer(ip)                               :: nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        nnz = this%nnz
-        newnnz = nnz + 1
-
-        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
-        endif
-        ! Append the new entries and values
-        this%ia(newnnz) = ia
-        this%ja(newnnz) = ja
-        this%val(newnnz) = val
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_single_value_body
 
 
@@ -2806,22 +2695,7 @@ contains
         integer(ip),                intent(in)    :: ja
         integer(ip)                               :: i, ir, ic, nnz, newnnz, newsize
     !-----------------------------------------------------------------
-        nnz = this%nnz
-        newnnz = nnz+1
-
-        ! Realloc this%ia, this%ja, this%val to the right size if is needed
-        if( size(this%ia) < newnnz) then
-            newsize = max(newnnz, int(1.5*size(this%ia)))
-            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
-        endif
-        ! Append the new entries
-        this%ia(newnnz) = ia
-        this%ja(newnnz) = ja
-
-        this%nnz = newnnz
-        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
+        call this%append_body(ia, ja, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_append_single_coord_body    
 
 
@@ -2858,23 +2732,23 @@ contains
                 ir = ia(i)
                 ic = ja(i) 
                 ! Ignore out of bounds entries
-                if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax) cycle
-                if ((ir > 0).and.(ir <= this%num_rows)) then 
-                    if (ir /= ilr) then 
-                        i1 = binary_search(ir,nnz,this%ia)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ia(i2+1) /= this%ia(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ia(i1-1) /= this%ia(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilr = ir
-                    end if
+                if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
+                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ir)) cycle
+                if (ir /= ilr) then 
+                    i1 = binary_search(ir,nnz,this%ia)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ia(i2+1) /= this%ia(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ia(i1-1) /= this%ia(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilr = ir
                     nc = i2-i1+1
                     ipaux = binary_search(ic,nc,this%ja(i1:i2))
                     if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -2888,23 +2762,23 @@ contains
                 ir = ia(i)
                 ic = ja(i) 
                 ! Ignore out of bounds entries
-                if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax) cycle
-                if ((ic > 0).and.(ic <= this%num_cols)) then 
-                    if (ic /= ilc) then 
-                        i1 = binary_search(ic,nnz,this%ja)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ja(i2+1) /= this%ja(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ja(i1-1) /= this%ja(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilc = ic
-                    end if
+                if (ir<imin .or. ir>imax .or. ic<jmin .or. ic>jmax .or. &
+                    ir<1 .or. ir>this%num_rows .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ir)) cycle
+                if (ic /= ilc) then 
+                    i1 = binary_search(ic,nnz,this%ja)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ja(i2+1) /= this%ja(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ja(i1-1) /= this%ja(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilc = ic
                     nr = i2-i1+1
                     ipaux = binary_search(ir,nc,this%ia(i1:i2))
                     if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -2930,7 +2804,9 @@ contains
         integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
         ! Ignore out of bounds entriy
-        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax) return
+        if (ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or. &
+            ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
+            (this%symmetric_storage .and. ja>ia)) return
 
         if(this%get_sum_duplicates()) then
             apply_duplicates => sum_value
@@ -2940,46 +2816,42 @@ contains
 
         nnz = this%nnz
         if(this%is_by_rows()) then
-            if ((ia > 0).and.(ia <= this%num_rows)) then 
-                i1 = binary_search(ia,nnz,this%ia)
-                i2 = i1
-                do 
-                    if (i2+1 > nnz) exit
-                    if (this%ia(i2+1) /= this%ia(i2)) exit
-                    i2 = i2 + 1
-                end do
-                do 
-                    if (i1-1 < 1) exit
-                    if (this%ia(i1-1) /= this%ia(i1)) exit
-                    i1 = i1 - 1
-                end do
-                nc = i2-i1+1
-                ipaux = binary_search(ja,nc,this%ja(i1:i2))
-                if (ipaux>0) then 
-                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                endif
+            i1 = binary_search(ia,nnz,this%ia)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ia(i2+1) /= this%ia(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ia(i1-1) /= this%ia(i1)) exit
+                i1 = i1 - 1
+            end do
+            nc = i2-i1+1
+            ipaux = binary_search(ja,nc,this%ja(i1:i2))
+            if (ipaux>0) then 
+                call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
             endif
 
         elseif(this%is_by_rows()) then
             ! Not tested yet! 
-            if ((ja > 0).and.(ja <= this%num_cols)) then 
-                i1 = binary_search(ja,nnz,this%ja)
-                i2 = i1
-                do 
-                    if (i2+1 > nnz) exit
-                    if (this%ja(i2+1) /= this%ja(i2)) exit
-                    i2 = i2 + 1
-                end do
-                do 
-                    if (i1-1 < 1) exit
-                    if (this%ja(i1-1) /= this%ja(i1)) exit
-                    i1 = i1 - 1
-                end do
-                nr = i2-i1+1
-                ipaux = binary_search(ia,nc,this%ia(i1:i2))
-                if (ipaux>0) then 
-                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                endif
+            i1 = binary_search(ja,nnz,this%ja)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ja(i2+1) /= this%ja(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ja(i1-1) /= this%ja(i1)) exit
+                i1 = i1 - 1
+            end do
+            nr = i2-i1+1
+            ipaux = binary_search(ia,nc,this%ia(i1:i2))
+            if (ipaux>0) then 
+                call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
             endif
         endif
     end subroutine coo_sparse_matrix_update_bounded_value_body
@@ -3030,7 +2902,8 @@ contains
             do i=1, nz
                 ic = ja(i) 
                 ! Ignore out of bounds entries
-                if (ic<jmin .or. ic>jmax) cycle
+                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ia)) cycle
                 nc = i2-i1+1
                 ipaux = binary_search(ic,nc,this%ja(i1:i2))
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -3042,27 +2915,26 @@ contains
             do i=1, nz
                 ic = ja(i) 
                 ! Ignore out of bounds entries
-                if (ic<jmin .or. ic>jmax) cycle
-                if ((ic > 0).and.(ic <= this%num_cols)) then 
-                    if (ic /= ilc) then 
-                        i1 = binary_search(ic,nnz,this%ja)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ja(i2+1) /= this%ja(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ja(i1-1) /= this%ja(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilc = ic
-                    end if
-                    nr = i2-i1+1
-                    ipaux = binary_search(ia,nc,this%ia(i1:i2))
-                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
+                if (ic<jmin .or. ic>jmax .or. ic<1 .or. ic>this%num_cols .or. &
+                    (this%symmetric_storage .and. ic>ia)) cycle
+                if (ic /= ilc) then 
+                    i1 = binary_search(ic,nnz,this%ja)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ja(i2+1) /= this%ja(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ja(i1-1) /= this%ja(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilc = ic
                 end if
+                nr = i2-i1+1
+                ipaux = binary_search(ia,nc,this%ia(i1:i2))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end do
         endif
     end subroutine coo_sparse_matrix_update_bounded_values_by_row_body
@@ -3100,27 +2972,26 @@ contains
             do i=1, nz
                 ir = ia(i) 
                 ! Ignore out of bounds entries
-                if (ir<imin .or. ir>imax) cycle
-                if ((ir > 0).and.(ir <= this%num_rows)) then 
-                    if (ir /= ilr) then 
-                        i1 = binary_search(ir,nnz,this%ia)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ia(i2+1) /= this%ia(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ia(i1-1) /= this%ia(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilr = ir
-                    end if
-                    nc = i2-i1+1
-                    ipaux = binary_search(ja,nc,this%ja(i1:i2))
-                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                endif
+                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
+                    (this%symmetric_storage .and. ja>ir)) cycle
+                if (ir /= ilr) then 
+                    i1 = binary_search(ir,nnz,this%ia)
+                    i2 = i1
+                    do 
+                        if (i2+1 > nnz) exit
+                        if (this%ia(i2+1) /= this%ia(i2)) exit
+                        i2 = i2 + 1
+                    end do
+                    do 
+                        if (i1-1 < 1) exit
+                        if (this%ia(i1-1) /= this%ia(i1)) exit
+                        i1 = i1 - 1
+                    end do
+                    ilr = ir
+                end if
+                nc = i2-i1+1
+                ipaux = binary_search(ja,nc,this%ja(i1:i2))
+                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end do
         elseif(this%is_by_cols()) then
             ! Not tested yet!
@@ -3143,7 +3014,8 @@ contains
             do i=1, nz
                 ir = ia(i) 
                 ! Ignore out of bounds entries
-                if (ir<imin .or. ir>imax) cycle
+                if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
+                    (this%symmetric_storage .and. ja>ir)) cycle
                 nr = i2-i1+1
                 ipaux = binary_search(ir,nc,this%ia(i1:i2))
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
@@ -3165,72 +3037,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ir,ic, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
-        if(nz==0) return
-
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        nnz = this%nnz
-
-        if(this%is_by_rows()) then
-            ilr = -1
-
-            do i=1, nz
-                ir = ia(i)
-                ic = ja(i) 
-                if ((ir > 0).and.(ir <= this%num_rows)) then 
-                    if (ir /= ilr) then 
-                        i1 = binary_search(ir,nnz,this%ia)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ia(i2+1) /= this%ia(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ia(i1-1) /= this%ia(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilr = ir
-                    end if
-                    nc = i2-i1+1
-                    ipaux = binary_search(ic,nc,this%ja(i1:i2))
-                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                end if
-            end do
-        elseif(this%is_by_rows()) then
-            !Not tested yet!
-            ilc = -1
-
-            do i=1, nz
-                ir = ia(i)
-                ic = ja(i) 
-                if ((ic > 0).and.(ic <= this%num_cols)) then 
-                    if (ic /= ilc) then 
-                        i1 = binary_search(ic,nnz,this%ja)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ja(i2+1) /= this%ja(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ja(i1-1) /= this%ja(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilc = ic
-                    end if
-                    nr = i2-i1+1
-                    ipaux = binary_search(ir,nc,this%ia(i1:i2))
-                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                end if
-            end do
-        endif
+        call this%update_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_update_values_body
 
 
@@ -3255,7 +3062,7 @@ contains
         if(num_rows<1 .or. num_cols<1) return
         do j=1, num_cols
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
     end subroutine coo_sparse_matrix_update_bounded_dense_values_body
@@ -3281,7 +3088,7 @@ contains
         if(num_rows<1) return
         do j=1, num_rows
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
     end subroutine coo_sparse_matrix_update_bounded_square_dense_values_body
@@ -3304,7 +3111,7 @@ contains
         if(num_rows<1 .or. num_cols<1) return
         do j=1, num_cols
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%num_rows, 1, this%num_cols)
             enddo
         enddo
     end subroutine coo_sparse_matrix_update_dense_values_body
@@ -3326,7 +3133,7 @@ contains
         if(num_rows<1) return
         do j=1, num_rows
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset))
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%num_rows, 1, this%num_cols)
             enddo
         enddo
     end subroutine coo_sparse_matrix_update_square_dense_values_body
@@ -3344,67 +3151,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i, ic, ilc, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
-        if(nz==0 .or. ia<=0 .or. ia>this%num_rows) return
-
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        nnz = this%nnz
-
-        if(this%is_by_rows()) then
-            ! Search the range for this row number
-            i1 = binary_search(ia,nnz,this%ia)
-            if(i1<1) return ! Row not found
-            i2 = i1
-            do 
-                if (i2+1 > nnz) exit
-                if (this%ia(i2+1) /= this%ia(i2)) exit
-                i2 = i2 + 1
-            end do
-            do 
-                if (i1-1 < 1) exit
-                if (this%ia(i1-1) /= this%ia(i1)) exit
-                i1 = i1 - 1
-            end do
-            ! Search each column
-            do i=1, nz
-                ic = ja(i) 
-                nc = i2-i1+1
-                ipaux = binary_search(ic,nc,this%ja(i1:i2))
-                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-            end do
-
-        elseif(this%is_by_rows()) then
-            !Not tested yet!
-            ilc = -1
-
-            do i=1, nz
-                ic = ja(i) 
-                if ((ic > 0).and.(ic <= this%num_cols)) then 
-                    if (ic /= ilc) then 
-                        i1 = binary_search(ic,nnz,this%ja)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ja(i2+1) /= this%ja(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ja(i1-1) /= this%ja(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilc = ic
-                    end if
-                    nr = i2-i1+1
-                    ipaux = binary_search(ia,nc,this%ia(i1:i2))
-                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                end if
-            end do
-        endif
+        call this%update_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_update_values_by_row_body
 
 
@@ -3420,68 +3167,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i,ir, ilr, ilc, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
-        if(nz==0 .or. ja<1 .or. ja>this%num_cols ) return
-
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        nnz = this%nnz
-
-        if(this%is_by_rows()) then
-            ilr = -1
-
-            do i=1, nz
-                ir = ia(i) 
-                if ((ir > 0).and.(ir <= this%num_rows)) then 
-                    if (ir /= ilr) then 
-                        i1 = binary_search(ir,nnz,this%ia)
-                        i2 = i1
-                        do 
-                            if (i2+1 > nnz) exit
-                            if (this%ia(i2+1) /= this%ia(i2)) exit
-                            i2 = i2 + 1
-                        end do
-                        do 
-                            if (i1-1 < 1) exit
-                            if (this%ia(i1-1) /= this%ia(i1)) exit
-                            i1 = i1 - 1
-                        end do
-                        ilr = ir
-                    end if
-                    nc = i2-i1+1
-                    ipaux = binary_search(ja,nc,this%ja(i1:i2))
-                    if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-                endif
-            end do
-        elseif(this%is_by_cols()) then
-            ! Not tested yet!
-
-            ! Search the range for this column number
-            i1 = binary_search(ja,nnz,this%ja)
-            if(i1<1) return ! Column not found
-            i2 = i1
-            do 
-                if (i2+1 > nnz) exit
-                if (this%ja(i2+1) /= this%ja(i2)) exit
-                i2 = i2 + 1
-            end do
-            do 
-                if (i1-1 < 1) exit
-                if (this%ja(i1-1) /= this%ja(i1)) exit
-                i1 = i1 - 1
-            end do
-            ! Search each row
-            do i=1, nz
-                ir = ia(i) 
-                ! Ignore out of bounds entries
-                nr = i2-i1+1
-                ipaux = binary_search(ir,nc,this%ia(i1:i2))
-                if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
-            end do
-        endif
+        call this%update_body(nz, ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_update_values_by_col_body
 
 
@@ -3496,58 +3182,7 @@ contains
         procedure(duplicates_operation), pointer  :: apply_duplicates => null ()
         integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
-        if(this%get_sum_duplicates()) then
-            apply_duplicates => sum_value
-        else
-            apply_duplicates => assign_value
-        endif
-
-        nnz = this%nnz
-
-        if(this%is_by_rows()) then
-
-            if ((ia > 0).and.(ia <= this%num_rows)) then 
-                i1 = binary_search(ia,nnz,this%ia)
-                i2 = i1
-                do 
-                    if (i2+1 > nnz) exit
-                    if (this%ia(i2+1) /= this%ia(i2)) exit
-                    i2 = i2 + 1
-                end do
-                do 
-                    if (i1-1 < 1) exit
-                    if (this%ia(i1-1) /= this%ia(i1)) exit
-                    i1 = i1 - 1
-                end do
-                nc = i2-i1+1
-                ipaux = binary_search(ja,nc,this%ja(i1:i2))
-                if (ipaux>0) then 
-                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                endif
-            endif
-
-        elseif(this%is_by_rows()) then
-            ! Not tested yet! 
-            if ((ja > 0).and.(ja <= this%num_cols)) then 
-                i1 = binary_search(ja,nnz,this%ja)
-                i2 = i1
-                do 
-                    if (i2+1 > nnz) exit
-                    if (this%ja(i2+1) /= this%ja(i2)) exit
-                    i2 = i2 + 1
-                end do
-                do 
-                    if (i1-1 < 1) exit
-                    if (this%ja(i1-1) /= this%ja(i1)) exit
-                    i1 = i1 - 1
-                end do
-                nr = i2-i1+1
-                ipaux = binary_search(ia,nc,this%ia(i1:i2))
-                if (ipaux>0) then 
-                    call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-                endif
-            endif
-        endif
+        call this%update_body(ia, ja, val, 1, this%num_rows, 1, this%num_cols)
     end subroutine coo_sparse_matrix_update_value_body
 
 
@@ -3620,20 +3255,12 @@ contains
             ! By-rows sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
-                        iaux(this%ia(1)) = iaux(this%ia(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
-                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ia(1)) = iaux(this%ia(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                        sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -3657,10 +3284,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                     else
@@ -3710,10 +3333,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols)  cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                     else
                                         k = k + 1
@@ -3754,10 +3373,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only upper triangle is stored
-                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows.or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                         else
@@ -3774,20 +3389,12 @@ contains
             ! By-columns sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
-                        iaux(this%ja(1)) = iaux(this%ja(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
-                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ja(1)) = iaux(this%ja(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                        sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -3811,10 +3418,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored
-                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                     else
@@ -3864,10 +3467,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored 
-                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                     else
@@ -3909,10 +3508,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only lower triangle is stored
-                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols)  cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                         else
@@ -3982,20 +3577,12 @@ contains
             ! By-rows sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ia(1) >= 1 .and. this%ia(1) <= this%num_rows) then
-                        iaux(this%ia(1)) = iaux(this%ia(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ia(i) < 1 .or. this%ia(i) > this%num_rows) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ia(i)) = iaux(this%ia(i)) + 1
-                            sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ia(1)) = iaux(this%ia(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ia(i)) = iaux(this%ia(i)) + 1
+                        sorted = sorted .and. (this%ia(i-1) <= this%ia(i))
+                    enddo
                 endif
                 
                 if(use_buffers) then
@@ -4012,9 +3599,6 @@ contains
                                 call mergesort(nzl,this%ja(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
                                 ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
@@ -4025,10 +3609,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. this%ia(i)>this%ja(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -4073,10 +3653,6 @@ contains
                                 ! Sort the colums of a particular row
                                 call mergesort(nzl,jas(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
-                                ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
@@ -4087,10 +3663,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only upper triangle is stored
-                                    if(this%symmetric_storage .and. ias(i)>jas(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -4133,10 +3705,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only upper triangle is stored
-                        if(this%symmetric_storage .and. this%ia(j)>this%ja(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value
                             call apply_duplicates(input=this%val(j), output=this%val(i))
@@ -4155,20 +3723,12 @@ contains
             ! By-columns sorting
                 if(use_buffers) then
                 ! If there is enough memory space
-                    if(this%ja(1) >= 1 .and. this%ja(1) <= this%num_cols) then
-                        iaux(this%ja(1)) = iaux(this%ja(1))+1
-                        sorted = .true.
-                        do i = 2, nnz
-                            if(this%ja(i) < 1 .or. this%ja(i) > this%num_cols) then
-                                use_buffers = .false.
-                                exit
-                            endif
-                            iaux(this%ja(i)) = iaux(this%ja(i)) + 1
-                            sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
-                        enddo
-                    else
-                        use_buffers = .false.
-                    endif
+                    iaux(this%ja(1)) = iaux(this%ja(1))+1
+                    sorted = .true.
+                    do i = 2, nnz
+                        iaux(this%ja(i)) = iaux(this%ja(i)) + 1
+                        sorted = sorted .and. (this%ja(i-1) <= this%ja(i))
+                    enddo
                 endif
 
                 if(use_buffers) then
@@ -4185,9 +3745,6 @@ contains
                                 call mergesort(nzl,this%ia(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
                                 ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
@@ -4198,10 +3755,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored
-                                    if(this%symmetric_storage .and. this%ja(i)>this%ia(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(this%ia(i)<1 .or. this%ia(i)>this%num_rows .or. this%ja(i)<1 .or. this%ja(i)>this%num_cols) cycle
                                     if(this%ia(i) == irw .and. this%ja(i) == icl) then
                                         ! Duplicated values action: assign the last value or sum the values
                                         call apply_duplicates(input=this%val(i), output=this%val(k))
@@ -4246,10 +3799,6 @@ contains
                                 ! Sort the rows of a particular column
                                 call mergesort(nzl,ias(i:imx),ix2, iret)
                                 if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
-                                ! If row/column index out of range ignore it
-                                do while(i<=imx .and. (ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) )
-                                    i=i+1
-                                enddo
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
@@ -4260,10 +3809,6 @@ contains
                                 do 
                                     i=i+1
                                     if(i > imx) exit
-                                    ! If symmetric_storage, only lower triangle is stored 
-                                    if(this%symmetric_storage .and. jas(i)>ias(i)) cycle
-                                    ! If row/column index out of range ignore it
-                                    if(ias(i)<1 .or. ias(i)>this%num_rows .or. jas(i)<1 .or. jas(i)>this%num_cols) cycle
                                     if(ias(i) == irw .and. jas(i) == icl) then
                                         ! Duplicated values: assign the last value or sum the values
                                         call apply_duplicates(input=vs(i), output=this%val(k))
@@ -4307,10 +3852,6 @@ contains
                     do 
                         j = j + 1
                         if(j > nnz) exit
-                        ! If symmetric_storage, only lower triangle is stored
-                        if(this%symmetric_storage .and. this%ja(j)>this%ia(j)) cycle
-                        ! If row/column index out of range ignore it
-                        if(this%ia(j)<1 .or. this%ia(j)>this%num_rows .or. this%ja(j)<1 .or. this%ja(j)>this%num_cols) cycle
                         if(this%ia(j) == irw .and. this%ja(j) == icl) then
                             ! Duplicated values: assign the last value or sum the values
                             call apply_duplicates(input=this%val(j), output=this%val(i))
