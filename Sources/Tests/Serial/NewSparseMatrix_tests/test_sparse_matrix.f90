@@ -16,6 +16,7 @@ implicit none
     type(serial_scalar_array_t) :: x
     type(serial_scalar_array_t) :: y
     real                        :: val(4,4) = 9
+    type(sparse_matrix_t)       :: A_II, A_IG, A_GI, A_GG
 
     call meminit()
 
@@ -24,6 +25,7 @@ implicit none
 !------------------------------------------------------------------
     ! Create: START=>CREATE
     call sparse_matrix%create(num_rows=5,num_cols=5)
+!    call sparse_matrix%create(5, .true., .true., SPARSE_MATRIX_SIGN_UNKNOWN )
     ! Append: CREATE=>BUILD_NUMERIC
 
     call sparse_matrix%insert(num_rows=4,     &
@@ -74,12 +76,21 @@ implicit none
                               val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./), &
                               imin=1, imax=5, jmin=1, jmax=5 )
     call sparse_matrix%insert(nz=4, ia=(/7,5,3,1/), ja=1, val=(/1.,1.,1.,1./), imin=1, imax=5, jmin=1, jmax=5 )
+!    call sparse_matrix%split_2x2(num_row=3, num_col=3, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
+    call sparse_matrix%split_2x2(num_row=3, num_col=3, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG)
+    call sparse_matrix%print_matrix_market(6)
+    call A_II%print_matrix_market(6)
+    call A_IG%print_matrix_market(6)
+    call A_GI%print_matrix_market(6)
+    call A_GG%print_matrix_market(6)
     ! Free: UPDATE=>ASSEMBLED_SYMBOLIC
     call sparse_matrix%free_in_stages(free_numerical_setup)
     ! Free: ASSEMBLED_SYMBOLIC=>CREATED
     call sparse_matrix%free_in_stages(free_symbolic_setup)
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
+
+stop
 
 !------------------------------------------------------------------
 ! SYMBOLIC

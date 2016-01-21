@@ -44,6 +44,7 @@ private
         procedure, public :: update_value_body                       => csr_sparse_matrix_update_value_body
         procedure, public :: update_values_by_row_body               => csr_sparse_matrix_update_values_by_row_body
         procedure, public :: update_values_by_col_body               => csr_sparse_matrix_update_values_by_col_body
+        procedure, public :: split_2x2                               => csr_sparse_matrix_split_2x2
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
@@ -282,7 +283,7 @@ contains
         call move_alloc(from%ia,itmp)
         call move_alloc(from%ja,this%ja)
         call move_alloc(from%val,this%val)
-        call memalloc(this%get_num_cols()+1, this%irp, __FILE__, __LINE__)
+        call memalloc(this%get_num_rows()+1, this%irp, __FILE__, __LINE__)
         if(nnz <= 0) then
             this%irp(:) = 1
             return      
@@ -822,6 +823,100 @@ contains
     !-----------------------------------------------------------------
         call this%update_body(nz, ia, ja , val, 1, this%get_num_rows(), 1, this%get_num_cols())
     end subroutine csr_sparse_matrix_update_values_by_col_body
+
+
+    subroutine csr_sparse_matrix_split_2x2(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2
+    !< A = [A_II A_IG]
+    !<     [A_GI A_GG]
+    !<
+    !< this routine computes A_II, A_IG, A_GI and A_GG given the global 
+    !< matrix A. Note that A_II, A_IG, A_GI and A_GG are all optional.
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),                         intent(in)    :: this
+        integer(ip),                                        intent(in)    :: num_row
+        integer(ip),                                        intent(in)    :: num_col
+        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_II
+        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_IG
+        class(base_sparse_matrix_t), allocatable, optional, intent(inout) :: A_GI
+        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_GG
+        integer(ip)                                                       :: i, j
+        integer(ip)                                                       :: nz
+        integer(ip)                                                       :: total_cols
+        integer(ip)                                                       :: total_rows
+    !-----------------------------------------------------------------
+        assert(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) 
+        assert(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage())
+        total_rows = this%get_num_rows()
+        total_cols = this%get_num_cols()
+        assert((A_II%get_num_rows()==num_row) .and. (A_II%get_num_cols()==num_col))
+        assert((A_IG%get_num_rows()==num_row) .and. (A_IG%get_num_cols()==total_cols-num_col))
+        assert((A_GG%get_num_rows()==total_rows-num_row) .and. (A_GG%get_num_cols()==total_cols-num_col))
+        if(present(A_GI)) then
+            assert((A_GI%get_num_rows()==this%get_num_rows()-num_row) .and. (A_GI%get_num_cols()==num_col))
+        endif
+
+        if(this%is_symbolic()) then
+            do i=1, num_row
+                do j=this%irp(i), this%irp(i+1)-1
+                    if(this%ja(j)<=num_col) then
+                        call A_II%insert(ia  = i,            &
+                                         ja  = this%ja(j),   &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    else
+                        call A_IG%insert(ia  = i,                  &
+                                         ja  = this%ja(j)-num_col, &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    endif
+                enddo
+            enddo
+            do i=num_row+1, total_rows
+                do j=this%irp(i), this%irp(i+1)-1
+                    if(this%ja(j)<=num_col) then
+                        if(present(A_GI)) call A_GI%insert(ia  = i-num_row,    &
+                                                           ja  = this%ja(j),   &
+                                                           imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    else
+                        call A_GG%insert(ia  = i-num_row,          &
+                                         ja  = this%ja(j)-num_col, &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    endif
+                enddo
+            enddo
+        else
+            do i=1, num_row
+                do j=this%irp(i), this%irp(i+1)-1
+                    if(this%ja(j)<=num_col) then
+                        call A_II%insert(ia  = i,            &
+                                         ja  = this%ja(j),   &
+                                         val = this%val(j),  &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    else
+                        call A_IG%insert(ia  = i,                  &
+                                         ja  = this%ja(j)-num_col, &
+                                         val = this%val(j),        &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    endif
+                enddo
+            enddo
+            do i=num_row+1, total_rows
+                do j=this%irp(i), this%irp(i+1)-1
+                    if(this%ja(j)<=num_col) then
+                        if(present(A_GI)) call A_GI%insert(ia  = i-num_row,    &
+                                                           ja  = this%ja(j),   &
+                                                           val = this%val(j),  &
+                                                           imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    else
+                        call A_GG%insert(ia  = i-num_row,          &
+                                         ja  = this%ja(j)-num_col, &
+                                         val = this%val(j),        &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    endif
+                enddo
+            enddo
+        endif
+    end subroutine csr_sparse_matrix_split_2x2
 
 
     subroutine csr_sparse_matrix_free_coords(this)

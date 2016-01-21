@@ -120,6 +120,7 @@ module base_sparse_matrix_names
         procedure(base_sparse_matrix_update_values_by_row_body), public, deferred :: update_values_by_row_body
         procedure(base_sparse_matrix_update_values_by_col_body), public, deferred :: update_values_by_col_body
         procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
+        procedure(base_sparse_matrix_split_2x2),                 public, deferred :: split_2x2
         procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
         procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
         procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
@@ -308,6 +309,7 @@ module base_sparse_matrix_names
         procedure, public :: update_values_by_row_body               => coo_sparse_matrix_update_values_by_row_body
         procedure, public :: update_values_by_col_body               => coo_sparse_matrix_update_values_by_col_body
         procedure, public :: update_value_body                       => coo_sparse_matrix_update_value_body
+        procedure, public :: split_2x2                               => coo_sparse_matrix_split_2x2
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
@@ -584,6 +586,18 @@ module base_sparse_matrix_names
             integer(ip),                 intent(in)    :: ja
             real(rp),                    intent(in)    :: val(nz)
         end subroutine base_sparse_matrix_update_values_by_col_body
+
+        subroutine base_sparse_matrix_split_2x2(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t),                        intent(in)  :: this
+            integer(ip),                                        intent(in)  :: num_row
+            integer(ip),                                        intent(in)  :: num_col
+            class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_II
+            class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_IG
+            class(base_sparse_matrix_t), allocatable, optional, intent(inout) :: A_GI
+            class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_GG
+        end subroutine base_sparse_matrix_split_2x2
 
         subroutine base_sparse_matrix_free_coords(this)
             import base_sparse_matrix_t
@@ -3194,13 +3208,21 @@ contains
         logical,     optional,      intent(in)     :: by_cols
         logical                                    :: by_rows 
     !-----------------------------------------------------------------
-        assert(this%state > SPARSE_MATRIX_STATE_CREATED)
-        
-        if(this%nnz == 0) return
-        
+        assert(this%state >= SPARSE_MATRIX_STATE_CREATED)
+               
         by_rows     = .true.
 
         if(present(by_cols)) by_rows = .not. by_cols
+
+        if(this%nnz == 0) then
+            if(by_rows) then
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_ROWS
+            else
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_COLS
+            endif
+            call this%set_state_assembled()
+            return
+        endif
 
         if(this%is_symbolic()) then
             call sort_and_compress_symbolic(this, .not. by_rows)
@@ -4074,6 +4096,23 @@ contains
         end subroutine reorder_coords
 
     end subroutine coo_sparse_matrix_sort_and_compress
+
+
+    subroutine coo_sparse_matrix_split_2x2(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    !-----------------------------------------------------------------
+    !< Split matrix in a 2x2 submatrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),                         intent(in)    :: this
+        integer(ip),                                        intent(in)    :: num_row
+        integer(ip),                                        intent(in)    :: num_col
+        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_II
+        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_IG
+        class(base_sparse_matrix_t), allocatable, optional, intent(inout) :: A_GI
+        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_GG
+    !-----------------------------------------------------------------
+        ! Not implemented yet
+        check(.false.)
+    end subroutine coo_sparse_matrix_split_2x2
 
 
     subroutine coo_sparse_matrix_copy_to_coo(this, to)

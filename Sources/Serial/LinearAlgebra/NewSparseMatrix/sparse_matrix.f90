@@ -89,6 +89,7 @@ private
                                                                            sparse_matrix_convert_string,                  &
                                                                            sparse_matrix_convert_sparse_matrix_mold,      &
                                                                            sparse_matrix_convert_base_sparse_matrix_mold
+        procedure,                  public :: split_2x2                 => sparse_matrix_split_2x2
         procedure,                  public :: free                      => sparse_matrix_free
         procedure,                  public :: apply                     => sparse_matrix_apply
         procedure, non_overridable, public :: print                     => sparse_matrix_print
@@ -105,8 +106,8 @@ contains
     !-----------------------------------------------------------------
     !< Get the symmetry property of the matrix
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        logical                               :: is_symmetric
+        class(sparse_matrix_t), intent(in) :: this
+        logical                            :: is_symmetric
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         is_symmetric = this%State%is_symmetric()
@@ -117,8 +118,8 @@ contains
     !-----------------------------------------------------------------
     !< Get the symmetry storage property of the concrete matrix
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        logical                               :: symmetric_storage
+        class(sparse_matrix_t), intent(in) :: this
+        logical                            :: symmetric_storage
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         symmetric_storage = this%State%get_symmetric_storage()
@@ -129,8 +130,8 @@ contains
     !-----------------------------------------------------------------
     !< Check if the matrix is sorted by rows
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        logical                               :: is_by_rows
+        class(sparse_matrix_t), intent(in) :: this
+        logical                            :: is_by_rows
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         is_by_rows = this%State%is_by_rows()
@@ -141,8 +142,8 @@ contains
     !-----------------------------------------------------------------
     !< Check if the matrix is sorted by cols
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        logical                               :: is_by_cols
+        class(sparse_matrix_t), intent(in) :: this
+        logical                            :: is_by_cols
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         is_by_cols = this%State%is_by_cols()
@@ -153,8 +154,8 @@ contains
     !-----------------------------------------------------------------
     !< Get the number of rows
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        integer(ip)                           :: num_rows
+        class(sparse_matrix_t), intent(in) :: this
+        integer(ip)                        :: num_rows
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         num_rows = this%State%get_num_rows()
@@ -165,8 +166,8 @@ contains
     !-----------------------------------------------------------------
     !< Get the number of columns
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        integer(ip)                           :: num_cols
+        class(sparse_matrix_t), intent(in) :: this
+        integer(ip)                        :: num_cols
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         num_cols = this%State%get_num_cols()
@@ -177,8 +178,8 @@ contains
     !-----------------------------------------------------------------
     !< Get the number of non zeros of the matrix
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        integer(ip)                           :: nnz
+        class(sparse_matrix_t), intent(in) :: this
+        integer(ip)                        :: nnz
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         nnz = this%State%get_nnz()
@@ -189,8 +190,8 @@ contains
     !-----------------------------------------------------------------
     !< Get the sign of the sparse matrix
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        integer(ip)                           :: sign
+        class(sparse_matrix_t), intent(in) :: this
+        integer(ip)                        :: sign
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         sign = this%State%get_sign()
@@ -242,11 +243,7 @@ contains
         integer(ip), optional,  intent(in)    :: nz
     !-----------------------------------------------------------------
         if(.not. allocated(this%State)) allocate(coo_sparse_matrix_t :: this%State)
-        if(present(nz)) then
-            call this%State%create(num_rows_and_cols, symmetric_storage, is_symmetric, sign, nz)
-        else
-            call this%State%create(num_rows_and_cols, symmetric_storage, is_symmetric, sign)
-        endif
+        call this%State%create(num_rows_and_cols, symmetric_storage, is_symmetric, sign, nz)
         call this%create_vector_spaces()
     end subroutine sparse_matrix_create_square
   
@@ -261,11 +258,7 @@ contains
         integer(ip), optional,  intent(in)    :: nz
     !-----------------------------------------------------------------
         if(.not. allocated(this%State)) allocate(coo_sparse_matrix_t :: this%State)
-        if(present(nz)) then
-            call this%State%create(num_rows, num_cols, nz)
-        else
-            call this%State%create(num_rows, num_cols)
-        endif
+        call this%State%create(num_rows, num_cols, nz)
         call this%create_vector_spaces()
     end subroutine sparse_matrix_create_rectangular
 
@@ -608,17 +601,6 @@ contains
     end subroutine sparse_matrix_insert_single_coord
 
 
-
-
-
-
-
-
-
-
-
-    
-
     subroutine sparse_matrix_convert(this)
     !-----------------------------------------------------------------
     !< Change the state of the matrix to the default concrete implementation
@@ -727,6 +709,51 @@ contains
         end if
         default_sparse_matrix_pointer => default_sparse_matrix
     end function sparse_matrix_get_default_sparse_matrix
+
+
+    subroutine sparse_matrix_split_2x2(this, num_row, num_col, A_II, A_IG, A_GI, A_GG)
+    !-----------------------------------------------------------------
+    !< Split matrix in a 2x2 submatrix
+    !< A = [A_II A_IG]
+    !<     [A_GI A_GG]
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),           intent(in)    :: this
+        integer,                          intent(in)    :: num_row
+        integer,                          intent(in)    :: num_col
+        class(sparse_matrix_t),           intent(inout) :: A_II
+        class(sparse_matrix_t),           intent(inout) :: A_IG
+        class(sparse_matrix_t), optional, intent(inout) :: A_GI
+        class(sparse_matrix_t),           intent(inout) :: A_GG
+        logical                                         :: symmetric
+        integer(ip)                                     :: sign
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        assert (.not. present(A_GI) .or. (.not. this%get_symmetric_storage()) )
+
+        if(num_row == num_col .and. this%is_symmetric()) then
+            sign = this%get_sign()
+            symmetric = this%is_symmetric()
+            call A_II%create(num_row, .true., symmetric, sign)                       ! Symmetric
+            call A_IG%create(num_row,this%get_num_cols()-num_col)                    ! Non symmetric
+            if(present(A_GI)) call A_GI%create(this%get_num_rows()-num_row, num_col) ! Non symmetric
+            call A_GG%create(this%get_num_rows()-num_row, .true., symmetric, sign)   ! Symmetric
+        else
+            call A_II%create(num_row, num_col)
+            call A_IG%create(num_row,this%get_num_cols()-num_col)
+            call A_GI%create(this%get_num_rows()-num_row, num_col)
+            call A_GG%create(this%get_num_rows()-num_row, this%get_num_cols()-num_col)
+        endif
+        if(present(A_GI)) then
+            call this%State%split_2x2(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
+        else
+            call this%State%split_2x2(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
+        endif
+        call A_II%convert(this)
+        call A_II%convert(this)
+        call A_IG%convert(this)
+        if(present(A_GI)) call A_GI%convert(this)
+        call A_GG%convert(this)
+    end subroutine sparse_matrix_split_2x2
 
 
     subroutine sparse_matrix_apply(op,x,y) 
