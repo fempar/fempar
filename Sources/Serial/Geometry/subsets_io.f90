@@ -29,7 +29,7 @@ module subsets_io_names
   use types_names
   use stdio_names
   use memor_names
-  use subsets_names
+  use elem_to_subset_id_names
   implicit none
   private
 
@@ -55,7 +55,7 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)    , intent(in)            :: lunio 
-    type(subsets_t), intent(out)           :: subset
+    type(elem_to_subset_id_t), intent(out)           :: subset
     integer(ip)                            :: i,nelem,ielem
     character(1024)                        :: tel
 
@@ -73,7 +73,7 @@ contains
     end do
     nelem = nelem - 1
 
-    call subsets_create(nelem,subset)
+    call elem_to_subset_id_create(nelem,subset)
 
     ! Look for starting nodes subsets
   !  read(lunio,'(a)') tel
@@ -84,7 +84,7 @@ contains
     read(lunio,'(a)') tel         ! Read "elements"
     read(lunio,'(a)') tel         ! Read 1st element listes
     do while(tel(1:9).ne.'end eleme')
-       read(tel,*) ielem,subset%list(ielem)
+       read(tel,*) ielem,subset%subset_ids(ielem)
        read(lunio,'(a)') tel
     end do
 
@@ -101,14 +101,14 @@ contains
     implicit none
     ! Parameters
     integer(ip)    , intent(in) :: lunio
-    type(subsets_t), intent(in) :: subset
+    type(elem_to_subset_id_t), intent(in) :: subset
     
     ! Locals
     integer(ip)                 :: ielem
     
     write(lunio,1) 'elements'
     do ielem=1,subset%nelem
-       write(lunio,2) ielem,subset%list(ielem)
+       write(lunio,2) ielem,subset%subset_ids(ielem)
     end do
     write(lunio,1) 'end elements'
     
@@ -123,7 +123,7 @@ contains
     ! Parameters
     character (*)  , intent(in)    :: dir_path
     character (*)  , intent(in)    :: prefix
-    type(subsets_t), intent(inout) :: f_subset
+    type(elem_to_subset_id_t), intent(inout) :: f_subset
     
     ! Locals
     character(len=:), allocatable  :: name
@@ -152,7 +152,7 @@ contains
     character(*)    , intent(in)    :: dir_path 
     character(*)    , intent(in)    :: prefix
     integer(ip)     , intent(in)    :: nparts
-    type(subsets_t) , intent(in)    :: lsubset (nparts)
+    type(elem_to_subset_id_t) , intent(in)    :: lsubset (nparts)
     character(len=:), allocatable   :: name, rename ! Deferred-length allocatable character arrays
 
     ! Locals 
@@ -176,7 +176,7 @@ contains
     ! Parameters
     character (*)    , intent(in)  :: dir_path
     character (*)    , intent(in)  :: prefix
-    type(subsets_t)  , intent(out) :: f_subset
+    type(elem_to_subset_id_t)  , intent(out) :: f_subset
     
     ! Locals
     character(len=:), allocatable  :: name

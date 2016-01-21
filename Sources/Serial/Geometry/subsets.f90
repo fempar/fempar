@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module subsets_names
+module elem_to_subset_id_names
   use types_names
   use memor_names
   use stdio_names
@@ -34,47 +34,48 @@ module subsets_names
   
   private
 
-  type subsets_t
+  type elem_to_subset_id_t
+     private
      integer(ip)                :: &
-          nelem=0                          ! Number of elements
+          nelem=0                          
      integer(ip), allocatable   :: &
-          list(:)                          ! Subset id for every element
-  end type subsets_t
+          elem_to_subset_id(:)
+   contains
+     procedure, non_overridable :: create        => elem_to_subset_id_create
+     procedure, non_overridable :: free          => elem_to_subset_id_free
+     procedure, non_overridable :: get_subset_id => elem_to_subset_id_get_subset_id 
+  end type elem_to_subset_id_t
 
   ! Types
-  public :: subsets_t
-
-  ! Methods
-  public :: subsets_create, subsets_free
+  public :: elem_to_subset_id_t
 
 contains
 
   !===============================================================================================
-  subroutine subsets_create(nelem,subset)
+  subroutine elem_to_subset_id_create(this,nelem)
     implicit none
-    integer(ip)        , intent(in)  :: nelem
-    type(subsets_t), intent(out) :: subset
-
-    subset%nelem=nelem
-
-    call memalloc (subset%nelem,subset%list, __FILE__,__LINE__)
-    subset%list=0 
-
-    return
-
-  end subroutine subsets_create
+    class(elem_to_subset_id_t) , intent(inout) :: this
+    integer(ip)      , intent(in)    :: nelem
+    call this%free()
+    this%nelem=nelem
+    call memalloc (this%nelem,this%elem_to_subset_id, __FILE__,__LINE__)
+    this%elem_to_subset_id=0 
+  end subroutine elem_to_subset_id_create
 
   !===============================================================================================
-  subroutine subsets_free(subset)
+  subroutine elem_to_subset_id_free(this)
     implicit none
-    type(subsets_t), intent(inout) :: subset
+    class(elem_to_subset_id_t), intent(inout) :: this
+    this%nelem= 0
+    if (allocated(this%elem_to_subset_id)) call memfree (this%elem_to_subset_id,__FILE__,__LINE__)
+  end subroutine elem_to_subset_id_free
+  
+  !===============================================================================================
+  function elem_to_subset_id_get_subset_id ( this, ielem ) result ( elem_to_subset_id )
+     class(elem_to_subset_id_t), intent(in) :: this
+     integer(ip)               , intent(in) :: ielem  
+     integer(ip)                            :: elem_to_subset_id
+     elem_to_subset_id = this%elem_to_subset_id(ielem)
+  end function elem_to_subset_id_get_subset_id
 
-    subset%nelem= 0
-
-    call memfree (subset%list,__FILE__,__LINE__)
-
-    return
-
-  end subroutine subsets_free
-
-end module subsets_names
+end module elem_to_subset_id_names

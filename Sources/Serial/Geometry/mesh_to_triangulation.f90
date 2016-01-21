@@ -33,7 +33,7 @@ module mesh_to_triangulation_names
   use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
-		use subsets_names
+  use elem_to_subset_id_names
 
   implicit none
 # include "debug.i90"
@@ -59,7 +59,7 @@ contains
     type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
     type(triangulation_t), intent(inout)           :: trian 
     type(conditions_t), optional, intent(inout)    :: gcond
-				type(subsets_t)   , optional, intent(inout)    :: gsubsets
+    type(elem_to_subset_id_t)   , optional, intent(inout)    :: gsubsets
 
     call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond, gsubsets = gsubsets)
     call triangulation_to_dual ( trian )
@@ -71,9 +71,9 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     ! Parameters
     type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
     type(triangulation_t), intent(inout)           :: trian 
-    integer(ip), optional, intent(in)                :: length_trian
+    integer(ip), optional, intent(in)              :: length_trian
     type(conditions_t), optional, intent(inout)    :: gcond
-				type(subsets_t)   , optional, intent(inout)    :: gsubsets
+    type(elem_to_subset_id_t)   , optional, intent(inout)    :: gsubsets
 
     ! Locals
     type(mesh_t)            :: tmesh ! Topological mesh
@@ -147,11 +147,11 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        trian%elems(ielem)%order = get_order( trian%elems(ielem)%geo_reference_element%ftype, count, trian%num_dims )
     end do
 
-				if (present(gsubsets)) then
-							do ielem = 1, trian%num_elems
-							   trian%elems(ielem)%subset_id = gsubsets%list(ielem)
-							end do
-				end if
+    if (present(gsubsets)) then
+       do ielem = 1, trian%num_elems
+          trian%elems(ielem)%subset_id = gsubsets%get_subset_id(ielem)
+       end do
+    end if
 
   end subroutine mesh_to_triangulation_fill_elements
 
