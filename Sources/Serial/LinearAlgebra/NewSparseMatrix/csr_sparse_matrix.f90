@@ -30,6 +30,7 @@ private
         procedure, public :: move_from_coo                           => csr_sparse_matrix_move_from_coo
         procedure, public :: move_to_fmt                             => csr_sparse_matrix_move_to_fmt
         procedure, public :: move_from_fmt                           => csr_sparse_matrix_move_from_fmt
+        procedure, public :: allocate_coords                         => csr_sparse_matrix_allocate_coords
         procedure, public :: allocate_values_body                    => csr_sparse_matrix_allocate_values_body
         procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
         procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
@@ -44,7 +45,10 @@ private
         procedure, public :: update_value_body                       => csr_sparse_matrix_update_value_body
         procedure, public :: update_values_by_row_body               => csr_sparse_matrix_update_values_by_row_body
         procedure, public :: update_values_by_col_body               => csr_sparse_matrix_update_values_by_col_body
-        procedure, public :: split_2x2                               => csr_sparse_matrix_split_2x2
+        procedure, public :: split_2x2_symbolic                      => csr_sparse_matrix_split_2x2_symbolic
+        procedure, public :: split_2x2_numeric                       => csr_sparse_matrix_split_2x2_numeric
+        procedure         :: split_2x2_symbolic_body                 => csr_sparse_matrix_split_2x2_symbolic_body
+        procedure         :: split_2x2_numeric_body                  => csr_sparse_matrix_split_2x2_numeric_body
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
@@ -475,6 +479,24 @@ contains
     end subroutine csr_sparse_matrix_apply_body
 
 
+    subroutine csr_sparse_matrix_allocate_coords(this, nz)
+    !-----------------------------------------------------------------
+    !< Allocate coords
+    !< Must be overloaded 
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip), optional,       intent(in)   :: nz
+    !-----------------------------------------------------------------
+        if(present(nz)) then
+            call memalloc(nz, this%ja,  __FILE__, __LINE__)
+        else
+            call memalloc(max(7*this%get_num_rows(), 7*this%get_num_cols(), 1), this%ja,  __FILE__, __LINE__)
+        endif
+        call memalloc(this%get_num_rows()+1, this%irp,  __FILE__, __LINE__)
+        this%irp = 1
+    end subroutine csr_sparse_matrix_allocate_coords
+
+
     subroutine csr_sparse_matrix_allocate_values_body(this, nz)
     !-----------------------------------------------------------------
     !< Allocate CSR values
@@ -825,7 +847,7 @@ contains
     end subroutine csr_sparse_matrix_update_values_by_col_body
 
 
-    subroutine csr_sparse_matrix_split_2x2(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    subroutine csr_sparse_matrix_split_2x2_numeric(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
     !-----------------------------------------------------------------
     !< Split matrix in 2x2
     !< A = [A_II A_IG]
@@ -834,17 +856,18 @@ contains
     !< this routine computes A_II, A_IG, A_GI and A_GG given the global 
     !< matrix A. Note that A_II, A_IG, A_GI and A_GG are all optional.
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),                         intent(in)    :: this
-        integer(ip),                                        intent(in)    :: num_row
-        integer(ip),                                        intent(in)    :: num_col
-        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_II
-        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_IG
-        class(base_sparse_matrix_t), allocatable, optional, intent(inout) :: A_GI
-        class(base_sparse_matrix_t), allocatable,           intent(inout) :: A_GG
-        integer(ip)                                                       :: i, j
-        integer(ip)                                                       :: nz
-        integer(ip)                                                       :: total_cols
-        integer(ip)                                                       :: total_rows
+        class(csr_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        class(base_sparse_matrix_t),           intent(inout) :: A_II
+        class(base_sparse_matrix_t),           intent(inout) :: A_IG
+        class(base_sparse_matrix_t), optional, intent(inout) :: A_GI
+        class(base_sparse_matrix_t),           intent(inout) :: A_GG
+        integer(ip)                                          :: i, j
+        integer(ip)                                          :: row_index
+        integer(ip)                                          :: nz
+        integer(ip)                                          :: total_cols
+        integer(ip)                                          :: total_rows
     !-----------------------------------------------------------------
         assert(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) 
         assert(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage())
@@ -857,66 +880,301 @@ contains
             assert((A_GI%get_num_rows()==this%get_num_rows()-num_row) .and. (A_GI%get_num_cols()==num_col))
         endif
 
-        if(this%is_symbolic()) then
-            do i=1, num_row
-                do j=this%irp(i), this%irp(i+1)-1
-                    if(this%ja(j)<=num_col) then
-                        call A_II%insert(ia  = i,            &
-                                         ja  = this%ja(j),   &
-                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    else
-                        call A_IG%insert(ia  = i,                  &
-                                         ja  = this%ja(j)-num_col, &
-                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    endif
-                enddo
+
+        select type (A_II)
+            type is (csr_sparse_matrix_t)
+                select type(A_IG)
+                    type is (csr_sparse_matrix_t)
+                        select type(A_GG)
+                            type is (csr_sparse_matrix_t)
+                                if(present(A_GI)) then
+                                    select type (A_GI)
+                                        type is (csr_sparse_matrix_t)
+                                            if(this%is_symbolic()) then
+                                                call this%split_2x2_symbolic_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG)
+                                            else
+                                                call this%split_2x2_numeric_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG)
+                                            endif
+                                        class DEFAULT
+                                            check(.false.)
+                                    end select
+                                else
+                                    if(this%is_symbolic()) then
+                                        call this%split_2x2_symbolic_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
+                                    else
+                                        call this%split_2x2_numeric_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
+                                    endif
+                                endif
+                            class DEFAULT
+                                check(.false.)
+                        end select
+                    class DEFAULT
+                        check(.false.)
+                end select
+            class DEFAULT
+                check(.false.)
+        end select
+
+    end subroutine csr_sparse_matrix_split_2x2_numeric
+
+
+    subroutine csr_sparse_matrix_split_2x2_numeric_body(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 numeric implementation
+    !< it must be called from split_2x2_symbolic where
+    !< all preconditions are checked
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        type(csr_sparse_matrix_t),           intent(inout) :: A_II
+        type(csr_sparse_matrix_t),           intent(inout) :: A_IG
+        type(csr_sparse_matrix_t), optional, intent(inout) :: A_GI
+        type(csr_sparse_matrix_t),           intent(inout) :: A_GG
+        integer(ip)                                          :: i, j
+        integer(ip)                                          :: nz
+        integer(ip)                                          :: row_index
+        integer(ip)                                          :: nz_offset
+        integer(ip)                                          :: A_XX_lbound
+        integer(ip)                                          :: A_XX_ubound
+        integer(ip)                                          :: this_lbound
+        integer(ip)                                          :: this_ubound
+        integer(ip)                                          :: total_cols
+        integer(ip)                                          :: total_rows
+    !-----------------------------------------------------------------
+        call A_II%allocate_values_body(this%nnz)
+        call A_IG%allocate_values_body(this%nnz)
+        if(present(A_GI)) call A_GI%allocate_values_body(this%nnz)
+        call A_GG%allocate_values_body(this%nnz)
+
+        ! Loop (1:num_row) to get A_II and A_IG 
+        do i=1, num_row
+            nz_offset = 0
+            ! Count the number of columns less than or equal to num_row
+            do j=this%irp(i), this%irp(i+1)-1
+                if(this%ja(j)> num_col) exit
+                nz_offset = nz_offset + 1
             enddo
-            do i=num_row+1, total_rows
-                do j=this%irp(i), this%irp(i+1)-1
-                    if(this%ja(j)<=num_col) then
-                        if(present(A_GI)) call A_GI%insert(ia  = i-num_row,    &
-                                                           ja  = this%ja(j),   &
-                                                           imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    else
-                        call A_GG%insert(ia  = i-num_row,          &
-                                         ja  = this%ja(j)-num_col, &
-                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    endif
-                enddo
+            ! Number of nnz of A_II in row i
+            nz = nz_offset 
+            if(nz>0) then
+                ! Calculate bounds
+                A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
+                this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                ! Assign columns
+                A_II%irp(i+1)                     = A_XX_ubound+1
+                A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
+                A_II%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                A_II%nnz = A_II%nnz + nz
+            endif
+            ! Number of nnz of A_IG in row i
+            nz = this%irp(i+1)-this%irp(i)-nz_offset 
+            if(nz>0) then
+                ! Calculate bounds
+                A_XX_lbound = A_IG%irp(i);           A_XX_ubound = A_IG%irp(i)+nz-1
+                this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                ! Assign columns
+                A_IG%irp(i+1)                     = A_XX_ubound+1
+                A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
+                A_IG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                A_IG%nnz = A_IG%nnz + nz
+            endif
+        enddo
+        ! Loop (num_row:this%num_rows) to get A_GI and A_GG
+        do i=num_row+1, this%get_num_rows()
+            nz_offset = 0
+            ! Count the number of columns less than or equal to num_row
+            do j=this%irp(i), this%irp(i+1)-1
+                if(this%ja(j)> num_col) exit
+                nz_offset = nz_offset + 1
             enddo
-        else
-            do i=1, num_row
-                do j=this%irp(i), this%irp(i+1)-1
-                    if(this%ja(j)<=num_col) then
-                        call A_II%insert(ia  = i,            &
-                                         ja  = this%ja(j),   &
-                                         val = this%val(j),  &
-                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    else
-                        call A_IG%insert(ia  = i,                  &
-                                         ja  = this%ja(j)-num_col, &
-                                         val = this%val(j),        &
-                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    endif
-                enddo
-            enddo
-            do i=num_row+1, total_rows
-                do j=this%irp(i), this%irp(i+1)-1
-                    if(this%ja(j)<=num_col) then
-                        if(present(A_GI)) call A_GI%insert(ia  = i-num_row,    &
-                                                           ja  = this%ja(j),   &
-                                                           val = this%val(j),  &
-                                                           imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    else
-                        call A_GG%insert(ia  = i-num_row,          &
-                                         ja  = this%ja(j)-num_col, &
-                                         val = this%val(j),        &
-                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
-                    endif
-                enddo
-            enddo
+            ! Number of nnz of A_GI in row i-num_row
+            nz = nz_offset 
+            if(nz>0 .and. present(A_GI)) then
+                ! Calculate bounds
+                A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
+                this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
+                ! Assign columns
+                A_GI%irp(i-num_row+1)             = A_XX_ubound+1
+                A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
+                A_GI%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                A_GI%nnz = A_GI%nnz + nz
+            endif
+            ! Number of nnz of A_GG in row i-num_row
+            nz = this%irp(i+1)-this%irp(i)-nz_offset 
+            if(nz>0) then
+                ! Calculate bounds
+                A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                ! Assign columns
+                A_GG%irp(i-num_row+1)             = A_XX_ubound+1
+                A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
+                A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                A_GG%nnz = A_GG%nnz + nz
+            endif
+        enddo
+
+        call A_II%set_state_assembled()
+        call A_IG%set_state_assembled()
+        if(present(A_GI)) call A_GI%set_state_assembled()
+        call A_GG%set_state_assembled()
+    end subroutine csr_sparse_matrix_split_2x2_numeric_body
+
+
+    subroutine csr_sparse_matrix_split_2x2_symbolic(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2
+    !< A = [A_II A_IG]
+    !<     [A_GI A_GG]
+    !<
+    !< this routine computes A_II, A_IG, A_GI and A_GG given the global 
+    !< matrix A. Note that A_II, A_IG, A_GI and A_GG are all optional.
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        class(base_sparse_matrix_t),           intent(inout) :: A_II
+        class(base_sparse_matrix_t),           intent(inout) :: A_IG
+        class(base_sparse_matrix_t), optional, intent(inout) :: A_GI
+        class(base_sparse_matrix_t),           intent(inout) :: A_GG
+        integer(ip)                                          :: i, j
+        integer(ip)                                          :: row_index
+        integer(ip)                                          :: nz
+        integer(ip)                                          :: total_cols
+        integer(ip)                                          :: total_rows
+    !-----------------------------------------------------------------
+        assert(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) 
+        assert(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage())
+        total_rows = this%get_num_rows()
+        total_cols = this%get_num_cols()
+        assert((A_II%get_num_rows()==num_row) .and. (A_II%get_num_cols()==num_col))
+        assert((A_IG%get_num_rows()==num_row) .and. (A_IG%get_num_cols()==total_cols-num_col))
+        assert((A_GG%get_num_rows()==total_rows-num_row) .and. (A_GG%get_num_cols()==total_cols-num_col))
+        if(present(A_GI)) then
+            assert((A_GI%get_num_rows()==this%get_num_rows()-num_row) .and. (A_GI%get_num_cols()==num_col))
         endif
-    end subroutine csr_sparse_matrix_split_2x2
+
+        select type (A_II)
+            type is (csr_sparse_matrix_t)
+                select type(A_IG)
+                    type is (csr_sparse_matrix_t)
+                        select type(A_GG)
+                            type is (csr_sparse_matrix_t)
+                                if(present(A_GI)) then
+                                    select type (A_GI)
+                                        type is (csr_sparse_matrix_t)
+                                            call this%split_2x2_symbolic_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG)
+                                        class DEFAULT
+                                            check(.false.)
+                                    end select
+                                else
+                                    call this%split_2x2_symbolic_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
+                                endif
+                            class DEFAULT
+                                check(.false.)
+                        end select
+                    class DEFAULT
+                        check(.false.)
+                end select
+            class DEFAULT
+                check(.false.)
+        end select
+
+    end subroutine csr_sparse_matrix_split_2x2_symbolic
+
+
+    subroutine csr_sparse_matrix_split_2x2_symbolic_body(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 symbolic implementation
+    !< it must be called from split_2x2_symbolic where
+    !< all preconditions are checked
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),          intent(in)    :: this
+        integer(ip),                         intent(in)    :: num_row
+        integer(ip),                         intent(in)    :: num_col
+        type(csr_sparse_matrix_t),           intent(inout) :: A_II
+        type(csr_sparse_matrix_t),           intent(inout) :: A_IG
+        type(csr_sparse_matrix_t), optional, intent(inout) :: A_GI
+        type(csr_sparse_matrix_t),           intent(inout) :: A_GG
+        integer(ip)                                        :: i, j
+        integer(ip)                                        :: nz
+        integer(ip)                                        :: row_index
+        integer(ip)                                        :: nz_offset
+        integer(ip)                                        :: A_XX_lbound
+        integer(ip)                                        :: A_XX_ubound
+        integer(ip)                                        :: this_lbound
+        integer(ip)                                        :: this_ubound
+        integer(ip)                                        :: total_cols
+        integer(ip)                                        :: total_rows
+    !-----------------------------------------------------------------
+        ! Loop (1:num_row) to get A_II and A_IG 
+        do i=1, num_row
+            nz_offset = 0
+            ! Count the number of columns less than or equal to num_row
+            do j=this%irp(i), this%irp(i+1)-1
+                if(this%ja(j)> num_col) exit
+                nz_offset = nz_offset + 1
+            enddo
+            ! Number of nnz of A_II in row i
+            nz = nz_offset 
+            if(nz>0) then
+                ! Calculate bounds
+                A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
+                this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                ! Assign columns
+                A_II%irp(i+1)                     = A_XX_ubound+1
+                A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
+                A_II%nnz = A_II%nnz + nz
+            endif
+            ! Number of nnz of A_IG in row i
+            nz = this%irp(i+1)-this%irp(i)-nz_offset 
+            if(nz>0) then
+                ! Calculate bounds
+                A_XX_lbound = A_IG%irp(i);           A_XX_ubound = A_IG%irp(i)+nz-1
+                this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                ! Assign columns
+                A_IG%irp(i+1)                     = A_XX_ubound+1
+                A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
+                A_IG%nnz = A_IG%nnz + nz
+            endif
+        enddo
+        ! Loop (num_row:this%num_rows) to get A_GI and A_GG
+        do i=num_row+1, this%get_num_rows()
+            nz_offset = 0
+            ! Count the number of columns less than or equal to num_row
+            do j=this%irp(i), this%irp(i+1)-1
+                if(this%ja(j)> num_col) exit
+                nz_offset = nz_offset + 1
+            enddo
+            ! Number of nnz of A_GI in row i-num_row
+            nz = nz_offset 
+            if(nz>0 .and. present(A_GI)) then
+                ! Calculate bounds
+                A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
+                this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
+                ! Assign columns
+                A_GI%irp(i-num_row+1)             = A_XX_ubound+1
+                A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
+                A_GI%nnz = A_GI%nnz + nz
+            endif
+            ! Number of nnz of A_GG in row i-num_row
+            nz = this%irp(i+1)-this%irp(i)-nz_offset 
+            if(nz>0) then
+                ! Calculate bounds
+                A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                ! Assign columns
+                A_GG%irp(i-num_row+1)             = A_XX_ubound+1
+                A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
+                A_GG%nnz = A_GG%nnz + nz
+            endif
+        enddo
+
+        call A_II%set_state_assembled_symbolic()
+        call A_IG%set_state_assembled_symbolic()
+        if(present(A_GI)) call A_GI%set_state_assembled_symbolic()
+        call A_GG%set_state_assembled_symbolic()
+    end subroutine csr_sparse_matrix_split_2x2_symbolic_body
 
 
     subroutine csr_sparse_matrix_free_coords(this)

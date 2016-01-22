@@ -89,7 +89,8 @@ private
                                                                            sparse_matrix_convert_string,                  &
                                                                            sparse_matrix_convert_sparse_matrix_mold,      &
                                                                            sparse_matrix_convert_base_sparse_matrix_mold
-        procedure,                  public :: split_2x2                 => sparse_matrix_split_2x2
+        procedure,                  public :: split_2x2_numeric         => sparse_matrix_split_2x2_numeric
+        procedure,                  public :: split_2x2_symbolic        => sparse_matrix_split_2x2_symbolic
         procedure,                  public :: free                      => sparse_matrix_free
         procedure,                  public :: apply                     => sparse_matrix_apply
         procedure, non_overridable, public :: print                     => sparse_matrix_print
@@ -711,49 +712,120 @@ contains
     end function sparse_matrix_get_default_sparse_matrix
 
 
-    subroutine sparse_matrix_split_2x2(this, num_row, num_col, A_II, A_IG, A_GI, A_GG)
+    subroutine sparse_matrix_split_2x2_numeric(this, num_row, num_col, A_II, A_IG, A_GI, A_GG)
     !-----------------------------------------------------------------
     !< Split matrix in a 2x2 submatrix
     !< A = [A_II A_IG]
     !<     [A_GI A_GG]
     !-----------------------------------------------------------------
-        class(sparse_matrix_t),           intent(in)    :: this
-        integer,                          intent(in)    :: num_row
-        integer,                          intent(in)    :: num_col
-        class(sparse_matrix_t),           intent(inout) :: A_II
-        class(sparse_matrix_t),           intent(inout) :: A_IG
-        class(sparse_matrix_t), optional, intent(inout) :: A_GI
-        class(sparse_matrix_t),           intent(inout) :: A_GG
+        class(sparse_matrix_t),          intent(in)    :: this
+        integer,                         intent(in)    :: num_row
+        integer,                         intent(in)    :: num_col
+        type(sparse_matrix_t),           intent(inout) :: A_II
+        type(sparse_matrix_t),           intent(inout) :: A_IG
+        type(sparse_matrix_t), optional, intent(inout) :: A_GI
+        type(sparse_matrix_t),           intent(inout) :: A_GG
         logical                                         :: symmetric
         integer(ip)                                     :: sign
+        integer(ip)                                     :: nz
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         assert (.not. present(A_GI) .or. (.not. this%get_symmetric_storage()) )
+        assert(.not. allocated(A_II%State))
+        assert(.not. allocated(A_IG%State))
+        assert(.not. allocated(A_GG%State))
 
+        if(present(A_GI)) then
+            assert(.not. allocated(A_GI%State))
+            allocate(A_GI%State, mold=this%State)
+        endif
+
+        allocate(A_II%State, mold=this%State)
+        allocate(A_IG%State, mold=this%State)
+        allocate(A_GG%State, mold=this%State)
+
+        nz = this%get_nnz()
         if(num_row == num_col .and. this%is_symmetric()) then
             sign = this%get_sign()
             symmetric = this%is_symmetric()
-            call A_II%create(num_row, .true., symmetric, sign)                       ! Symmetric
-            call A_IG%create(num_row,this%get_num_cols()-num_col)                    ! Non symmetric
-            if(present(A_GI)) call A_GI%create(this%get_num_rows()-num_row, num_col) ! Non symmetric
-            call A_GG%create(this%get_num_rows()-num_row, .true., symmetric, sign)   ! Symmetric
+            call A_II%State%create(num_row, .true., symmetric, sign, nz)                       ! Symmetric
+            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)                    ! Non symmetric
+            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz) ! Non symmetric
+            call A_GG%State%create(this%get_num_rows()-num_row, .true., symmetric, sign, nz)   ! Symmetric
         else
-            call A_II%create(num_row, num_col)
-            call A_IG%create(num_row,this%get_num_cols()-num_col)
-            call A_GI%create(this%get_num_rows()-num_row, num_col)
-            call A_GG%create(this%get_num_rows()-num_row, this%get_num_cols()-num_col)
+            call A_II%State%create(num_row, num_col, nz)
+            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)
+            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz)
+            call A_GG%State%create(this%get_num_rows()-num_row, this%get_num_cols()-num_col, nz)
         endif
+        call A_II%create_vector_spaces()
+        call A_IG%create_vector_spaces()
+        call A_GG%create_vector_spaces()
         if(present(A_GI)) then
-            call this%State%split_2x2(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
+            call A_GI%create_vector_spaces()
+            call this%State%split_2x2_numeric(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
         else
-            call this%State%split_2x2(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
+            call this%State%split_2x2_numeric(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
         endif
-        call A_II%convert(this)
-        call A_II%convert(this)
-        call A_IG%convert(this)
-        if(present(A_GI)) call A_GI%convert(this)
-        call A_GG%convert(this)
-    end subroutine sparse_matrix_split_2x2
+    end subroutine sparse_matrix_split_2x2_numeric
+
+
+    subroutine sparse_matrix_split_2x2_symbolic(this, num_row, num_col, A_II, A_IG, A_GI, A_GG)
+    !-----------------------------------------------------------------
+    !< Split matrix in a 2x2 submatrix
+    !< A = [A_II A_IG]
+    !<     [A_GI A_GG]
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),          intent(in)    :: this
+        integer,                         intent(in)    :: num_row
+        integer,                         intent(in)    :: num_col
+        type(sparse_matrix_t),           intent(inout) :: A_II
+        type(sparse_matrix_t),           intent(inout) :: A_IG
+        type(sparse_matrix_t), optional, intent(inout) :: A_GI
+        type(sparse_matrix_t),           intent(inout) :: A_GG
+        logical                                         :: symmetric
+        integer(ip)                                     :: sign
+        integer(ip)                                     :: nz
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        assert (.not. present(A_GI) .or. (.not. this%get_symmetric_storage()) )
+        assert(.not. allocated(A_II%State))
+        assert(.not. allocated(A_IG%State))
+        assert(.not. allocated(A_GG%State))
+
+        if(present(A_GI)) then
+            assert(.not. allocated(A_GI%State))
+            allocate(A_GI%State, mold=this%State)
+        endif
+
+        allocate(A_II%State, mold=this%State)
+        allocate(A_IG%State, mold=this%State)
+        allocate(A_GG%State, mold=this%State)
+
+        nz = this%get_nnz()
+        if(num_row == num_col .and. this%is_symmetric()) then
+            sign = this%get_sign()
+            symmetric = this%is_symmetric()
+            call A_II%State%create(num_row, .true., symmetric, sign, nz)                       ! Symmetric
+            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)                    ! Non symmetric
+            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz) ! Non symmetric
+            call A_GG%State%create(this%get_num_rows()-num_row, .true., symmetric, sign, nz)   ! Symmetric
+        else
+            call A_II%State%create(num_row, num_col, nz)
+            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)
+            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz)
+            call A_GG%State%create(this%get_num_rows()-num_row, this%get_num_cols()-num_col, nz)
+        endif
+        call A_II%create_vector_spaces()
+        call A_IG%create_vector_spaces()
+        call A_GG%create_vector_spaces()
+        if(present(A_GI)) then
+            call A_GI%create_vector_spaces()
+            call this%State%split_2x2_symbolic(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
+        else
+            call this%State%split_2x2_symbolic(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
+        endif
+    end subroutine sparse_matrix_split_2x2_symbolic
 
 
     subroutine sparse_matrix_apply(op,x,y) 
