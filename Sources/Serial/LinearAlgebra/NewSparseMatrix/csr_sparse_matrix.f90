@@ -869,6 +869,7 @@ contains
         integer(ip)                                          :: total_cols
         integer(ip)                                          :: total_rows
     !-----------------------------------------------------------------
+        assert(.not. this%is_symbolic()) 
         assert(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) 
         assert(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage())
         total_rows = this%get_num_rows()
@@ -880,7 +881,6 @@ contains
             assert((A_GI%get_num_rows()==this%get_num_rows()-num_row) .and. (A_GI%get_num_cols()==num_col))
         endif
 
-
         select type (A_II)
             type is (csr_sparse_matrix_t)
                 select type(A_IG)
@@ -890,20 +890,12 @@ contains
                                 if(present(A_GI)) then
                                     select type (A_GI)
                                         type is (csr_sparse_matrix_t)
-                                            if(this%is_symbolic()) then
-                                                call this%split_2x2_symbolic_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG)
-                                            else
-                                                call this%split_2x2_numeric_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG)
-                                            endif
+                                            call this%split_2x2_numeric_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GI=A_GI, A_GG=A_GG)
                                         class DEFAULT
                                             check(.false.)
                                     end select
                                 else
-                                    if(this%is_symbolic()) then
-                                        call this%split_2x2_symbolic_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
-                                    else
-                                        call this%split_2x2_numeric_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
-                                    endif
+                                    call this%split_2x2_numeric_body(num_row, num_col, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
                                 endif
                             class DEFAULT
                                 check(.false.)
@@ -980,6 +972,10 @@ contains
                 A_IG%nnz = A_IG%nnz + nz
             endif
         enddo
+        call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
+        call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
+        call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
+        call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
         do i=num_row+1, this%get_num_rows()
             nz_offset = 0
@@ -1013,6 +1009,12 @@ contains
                 A_GG%nnz = A_GG%nnz + nz
             endif
         enddo
+        if(present(A_GI)) then
+            call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
+            call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
+        endif
+        call memrealloc(A_GG%nnz, A_GG%ja,   __FILE__, __LINE__)
+        call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
 
         call A_II%set_state_assembled()
         call A_IG%set_state_assembled()
@@ -1138,6 +1140,8 @@ contains
                 A_IG%nnz = A_IG%nnz + nz
             endif
         enddo
+        call memrealloc(A_II%nnz, A_II%ja, __FILE__, __LINE__)
+        call memrealloc(A_IG%nnz, A_IG%ja, __FILE__, __LINE__)
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
         do i=num_row+1, this%get_num_rows()
             nz_offset = 0
@@ -1169,6 +1173,8 @@ contains
                 A_GG%nnz = A_GG%nnz + nz
             endif
         enddo
+        if(present(A_GI)) call memrealloc(A_GI%nnz, A_GI%ja, __FILE__, __LINE__)
+        call memrealloc(A_GG%nnz, A_GG%ja, __FILE__, __LINE__)
 
         call A_II%set_state_assembled_symbolic()
         call A_IG%set_state_assembled_symbolic()
